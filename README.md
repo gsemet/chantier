@@ -63,7 +63,7 @@ Forge: GitHub (`gh`).
 
 The only thing to install is [`uv`](https://docs.astral.sh/uv/).
 The CLI is plain Python scripts with PEP 723 inline metadata: there is no package to install,
-and uv fetches any dependency when the CLI runs
+and uv fetches any dependency from pypi.org when the CLI runs
 (for example [copilot-session-usage](https://github.com/gsemet/copilot-session-usage),
 used by `chantier cost` on Copilot).
 Working on a repository also needs `git` and an authenticated `gh`, which you already have there.

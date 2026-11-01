@@ -25,7 +25,8 @@ that session and its subagents:
 - **Copilot:** the billed per-call records of
   [copilot-session-usage](https://github.com/gsemet/copilot-session-usage) >= 1
   (`--agent cli calls`); chantier does no pricing of its own. Nothing to install: uv fetches it
-  from the inline metadata of `scripts/cli/session_usage.py` (`CHANTIER_SESSION_USAGE` swaps in
+  from the inline metadata of `scripts/cli/session_usage.py`, always from pypi.org (run with
+  `--no-config`, so the user's uv indexes are ignored; `CHANTIER_SESSION_USAGE` swaps in
   another command, for tests).
   A call the tool could only estimate is counted and flagged in the first line.
 

@@ -211,9 +211,12 @@ def test_session_usage_runs_through_uv_with_inline_metadata(monkeypatch):
                             _call(None, 1.0)) + "\n", "stderr": ""})())
     monkeypatch.setattr(costs, "_copilot_agents", lambda session: {})
     costs.copilot_session_costs("uuid-c")
-    assert seen["argv"][:3] == ["uv", "run", "--script"]
-    assert seen["argv"][3].endswith("scripts/cli/session_usage.py")
-    assert "# dependencies = [\"copilot-session-usage>=1\"]" in Path(seen["argv"][3]).read_text()
+    assert seen["argv"][:4] == ["uv", "run", "--no-config", "--script"]
+    script = Path(seen["argv"][4])
+    assert script.name == "session_usage.py"
+    text = script.read_text()
+    assert '# dependencies = ["copilot-session-usage>=1"]' in text
+    assert '# url = "https://pypi.org/simple"' in text and "# default = true" in text
 
 
 @pytest.mark.parametrize("setup, message", [
