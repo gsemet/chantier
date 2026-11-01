@@ -61,10 +61,12 @@ Forge: GitHub (`gh`).
 
 ## Install
 
-Requirements: [`uv`](https://docs.astral.sh/uv/), `git` and an authenticated `gh`.
-For cost on Copilot, also install
-[copilot-session-usage](https://github.com/gsemet/copilot-session-usage):
-`uv tool install 'copilot-session-usage>=1'`.
+The only thing to install is [`uv`](https://docs.astral.sh/uv/).
+The CLI is plain Python scripts with PEP 723 inline metadata: there is no package to install,
+and uv fetches any dependency when the CLI runs
+(for example [copilot-session-usage](https://github.com/gsemet/copilot-session-usage),
+used by `chantier cost` on Copilot).
+Working on a repository also needs `git` and an authenticated `gh`, which you already have there.
 
 1. Make [`skills/chantier/`](skills/chantier/) available to your host as a skill, for example
    by linking it into the project's or your user's skills folder.

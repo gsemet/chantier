@@ -119,7 +119,7 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--update", action="store_true", help="store the total as spent_usd")
     s.add_argument("--transcript", help="session uuid (default: the recorded one)")
     s.add_argument("--host", choices=["claude", "copilot"],
-                   help="default: detected; Copilot needs copilot-session-usage >= 1.0")
+                   help="default: detected; Copilot prices through copilot-session-usage (run by uv)")
     return p
 
 
