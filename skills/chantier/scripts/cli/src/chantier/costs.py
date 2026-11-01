@@ -118,11 +118,12 @@ def copilot_session_costs(session: str) -> list[dict]:
     """One row per agent of a Copilot session, from `copilot-session-usage calls`.
 
     uv resolves copilot-session-usage from the inline metadata of `session_usage.py`; nothing to
-    install. Fails, never falls back: a failed run (uv offline, package unavailable) or a session
+    install. `--no-config` ignores the user's uv indexes, so the script's own index (pypi.org) is
+    the only one. Fails, never falls back: a failed run (uv offline, package unavailable) or a session
     without a priced call is an error.
     """
     cmd = shlex.split(os.environ.get("CHANTIER_SESSION_USAGE") or "") or [
-        "uv", "run", "--script", str(SESSION_USAGE_SCRIPT)]
+        "uv", "run", "--no-config", "--script", str(SESSION_USAGE_SCRIPT)]
     if not shutil.which(cmd[0]):
         raise ChantierError(f"`{cmd[0]}` not found: chantier needs uv to run "
                             "copilot-session-usage on Copilot", EXIT_PRECONDITION)
