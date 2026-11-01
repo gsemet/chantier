@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "claudeVersion": "2.1.308",
+  "startedAt": "2026-10-31T16:48:47.192Z",
+  "durationSeconds": 12,
+  "costUsd": 0.0790136,
+  "partial": false,
+  "suite": {
+    "root": "/Users/az02065/Projects/DevTools/agentic-planning-surface/.claude/skills/cos",
+    "ablation": "none",
+    "caseFilter": "no-fire-unrelated",
+    "threshold": 1,
+    "concurrency": 1,
+    "plugins": [
+      {
+        "name": "cos",
+        "path": "/Users/az02065/Projects/DevTools/agentic-planning-surface/.claude/skills/cos"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "no-fire-unrelated",
+      "dir": "evals/no-fire-unrelated",
+      "source": "case_yaml",
+      "promptMarkdown": "En trois phrases : quelle différence entre git merge et git rebase ?",
+      "runsPerCase": 3,
+      "timeoutSeconds": 120,
+      "maxTurns": 4,
+      "graders": [
+        {
+          "name": "skill-not-fired",
+          "type": "tool_used",
+          "weight": 1,
+          "config": {
+            "tool": "Skill",
+            "input_match": "cos",
+            "min": 0,
+            "max": 0
+          }
+        },
+        {
+          "name": "answers-the-question",
+          "type": "llm",
+          "weight": 1,
+          "graderMarkdown": "In about three sentences of French, the answer explains that merge joins histories with a merge commit and keeps them as they were, while rebase replays commits onto a new base and rewrites them, and mentions a consequence (linear history, or not rebasing shared commits). It mentions no batch, CR or cos.",
+          "config": {
+            "criteria": "In about three sentences of French, the answer explains that merge joins histories with a merge commit and keeps them as they were, while rebase replays commits onto a new base and rewrites them, and mentions a consequence (linear history, or not rebasing shared commits). It mentions no batch, CR or cos.",
+            "focus": "last_message"
+          }
+        }
+      ],
+      "arms": {
+        "with": [
+          {
+            "score": 1,
+            "passed": true,
+            "turns": 1,
+            "costUsd": 0.0790136,
+            "judgeCostUsd": 0.0006014,
+            "durationSeconds": 12,
+            "startedAt": "2026-10-31T16:48:47.228Z",
+            "error": null,
+            "tracePath": "/private/tmp/e-K3QGhl/out/trace.jsonl",
+            "skippedPaidGraders": false,
+            "graders": [
+              {
+                "name": "skill-not-fired",
+                "passed": true,
+                "weight": 1,
+                "explanation": "Skill called 0x (expected 0..0)",
+                "withOnly": false,
+                "scored": true
+              },
+              {
+                "name": "answers-the-question",
+                "passed": true,
+                "weight": 1,
+                "explanation": "judge votes: PASS PASS PASS",
+                "withOnly": false,
+                "scored": true,
+                "judgeVotes": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence": "`git merge` intègre une branche dans une autre en créant un commit de fusion qui relie les deux historiques, et garde intacts tous les commits d'origine. `git rebase` rejoue tes commits un par un par-dessus la pointe de la branche cible, ce qui donne un historique linéaire mais réécrit ces commits (nouveaux hashes). Règle pratique : utilise rebase pour nettoyer ta branche locale avant de l'intégrer, et merge pour les branches partagées, car rebaser des commits déjà poussés oblige les autres à resynchroniser leur historique."
+              }
+            ]
+          }
+        ]
+      },
+      "aggregates": {
+        "score": 1,
+        "passRate": 1
+      }
+    }
+  ],
+  "aggregates": {
+    "casesTotal": 1,
+    "casesPassed": 1,
+    "overallScore": 1,
+    "overallPassRate": 1
+  }
+}

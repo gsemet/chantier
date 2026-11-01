@@ -1,0 +1,93 @@
+# chantier base model list for GitHub Copilot (VS Code, Copilot CLI, Copilot App).
+#
+# Read by the chantier CLI only (`$CHANTIER models`); an agent never interprets this file.
+# Ids are matched exactly: case-sensitive, no normalization, no "closest" model.
+# Override any part in ~/.config/chantier/models.yml or <repo>/.agents/chantier.models.yml under `copilot:`.
+host: copilot
+
+# The Foreman's heartbeat interval (`<n>s` or `<n>m`, 60 s to 60 min), kept just under the
+# prompt-cache TTL of the Foreman's model so a wake never re-reads its context cold.
+# Copilot reports the TTL in `session.usage_checkpoint` (`cacheTtlSeconds`): 300 s for Claude
+# models, 1800 s for GPT models (measured on Copilot CLI 1.0.105). Override it with the model.
+heartbeat: 4m
+
+# Reference list of Copilot models:
+# See https://github.com/github/docs/blob/main/data/tables/copilot/models-and-pricing.yml
+
+# Exact model id: display name. Agent files get `model: [<display name>, <id>]`:
+# VS Code matches the display name, the Copilot CLI matches the id.
+catalog:
+  claude-fable-5: Claude Fable 5
+  claude-fable-5.1: Claude Fable 5.1
+  claude-haiku-4.5: Claude Haiku 4.5
+  claude-haiku-5.5: Claude Haiku 5.5
+  claude-opus-4.8: Claude Opus 4.8
+  claude-opus-4.8-fast: Claude Opus 4.8 (fast mode) (Preview)
+  claude-opus-5: Claude Opus 5
+  claude-opus-5.5: Claude Opus 5.5
+  claude-sonnet-4: Claude Sonnet 4
+  claude-sonnet-4.6: Claude Sonnet 4.6
+  claude-sonnet-5: Claude Sonnet 5
+  claude-sonnet-5.5: Claude Sonnet 5.5
+  gemini-3.8-flash: Gemini 3.8 Flash
+  gemini-4-argon: Gemini 4 Argon
+  gpt-5.3-codex: GPT-5.3-Codex
+  gpt-5.4-nano: GPT-5.4 nano
+  gpt-5.6-luna: GPT-5.6 Luna
+  gpt-5.6-sol: GPT-5.6 Sol
+  gpt-5.6-terra: GPT-5.6 Terra
+  gpt-6-astra: GPT-6 Astra
+  gpt-6-luna: GPT-6 Luna
+  gpt-6-sol: GPT-6 Sol
+  gpt-6.1-sol: GPT-6.1 Sol
+  gpt-6.1-terra: GPT-6.1 Terra
+  grok-4.5: Grok 4.5
+  grok-4.6: Grok 4.6
+  grok-4.7: Grok 4.7
+  kimi-k3: Kimi K3
+  mai-code-1.1-flash: MAI-Code-1.1-Flash
+
+# Role: exact id from the catalog, a declared alias, or `inherit` (the parent's model).
+roles:
+  foreman: claude-opus-5.5
+  cr-driver: claude-sonnet-5.5
+  stack-driver: claude-sonnet-5.5
+  qa-driver: claude-sonnet-5.5
+  investigator: gpt-5.6-luna
+  coder: gpt-5.6-luna
+  inspector: gpt-6.1-sol
+  debugger: gpt-5.6-luna
+  verifier: gpt-6.1-sol
+  conflict-resolver: gpt-5.6-luna
+
+# Short name: exact id. Only the names listed here are accepted besides exact ids.
+aliases: {}
+
+# Reasoning effort per role: low, medium, high, xhigh, max, or `inherit`. A role left out (or
+# `inherit`) gets no `reasoning-effort:` line, so the user's own Copilot setting applies.
+# Agent files pin the model with `model-policy: required`: Copilot refuses the dispatch instead
+# of silently running another model, or an effort level the model cannot honor.
+# Example, in ~/.config/chantier/models.yml or <repo>/.agents/chantier.models.yml:
+#   copilot:
+#     effort:
+#       coder: low
+#       inspector: high
+# The Foreman's level lives in its agent file too, but `create_session` cannot select an agent
+# nor set an effort: a Foreman started that way runs at the session's effort, and
+# `chantier models audit` reports it as a note (accepted exception).
+effort:
+  foreman: low
+
+# Copilot tool aliases per role, rendered as `tools: [...]` with `strict-tools-list: true`.
+# Skill-only: overrides cannot change a role's tools. Unknown names are ignored by Copilot.
+tools:
+  foreman: agent, execute, read, search, read_agent, write_agent, list_agents, skill, send_message
+  cr-driver: agent, execute, read, search, read_agent, write_agent, list_agents
+  stack-driver: agent, execute, read, search, read_agent, write_agent, list_agents
+  qa-driver: execute, read, search, read_agent, write_agent, list_agents
+  investigator: execute, read, edit, search
+  coder: execute, read, edit, search
+  inspector: execute, read, search
+  debugger: execute, read, edit, search
+  verifier: execute, read, edit, search
+  conflict-resolver: execute, read, edit, search

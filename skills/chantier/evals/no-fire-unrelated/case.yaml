@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: no-fire-unrelated
+description: A general git question does not load chantier or touch any batch.
+tags: [trigger]
+execution:
+  prompt: "En trois phrases : quelle différence entre git merge et git rebase ?"
+  max_turns: 4
+  timeout_seconds: 120
+  allowed_tools: [Skill, Read, Glob, Grep]
+runs: 3
+expected_outcome: A short, correct French answer; the chantier skill is not loaded.
+graders:
+  - type: tool_used
+    name: skill-not-fired
+    tool: Skill
+    input_match: chantier
+    min: 0
+    max: 0
+  - type: llm
+    name: answers-the-question
+    focus: last_message
+    criteria: >-
+      In about three sentences of French, the answer explains that merge joins histories with a
+      merge commit and keeps them as they were, while rebase replays commits onto a new base and
+      rewrites them, and mentions a consequence (linear history, or not rebasing shared commits).
+      It mentions no batch, CR or chantier.

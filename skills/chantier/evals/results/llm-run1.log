@@ -1,0 +1,3 @@
+Note: --scaffold runs each case's scaffold_script as you. Only use it on case files you (or your org) authored.
+Wrote evals/results/llm-run1.json
+Report: /Users/az02065/Projects/DevTools/agentic-planning-surface/.claude/skills/cos/evals/results/2026-10-31T16-43-31-256Z/report.html

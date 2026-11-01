@@ -1,0 +1,33 @@
+schema_version: "1.1"
+name: reports-cost
+description: Cost questions are answered from `chantier cost`, with the right total and split.
+tags: [cost]
+context:
+  scaffold_script: place-files.sh
+execution:
+  prompt: "Combien m'a coûté le batch de nuit jusqu'ici, et qui a coûté le plus ?"
+  max_turns: 10
+  timeout_seconds: 240
+  allowed_tools: [Skill, Bash, Read, Glob, Grep]
+runs: 3
+expected_outcome: >-
+  From `chantier cost`: $1.60 in total; the Foreman $1.00 is the largest, then CR-101 $0.30, CR-102
+  $0.20 and a Coder $0.10.
+graders:
+  - type: regex
+    name: total
+    pattern: "1[.,]60?\\s*\\$|\\$\\s*1[.,]60?"
+  - type: llm
+    name: split-right
+    focus: last_message
+    criteria: >-
+      The answer gives a total of $1.60 (1,60 $ is fine) and says the Foreman cost the most
+      ($1.00). Every dollar amount it gives matches one of these (percentages and call
+      counts are fine). Per CR: CR-101 $0.30, CR-102 $0.20,
+      $0.10 not tied to a CR (the Coder). Per role: foreman $1.00, cr-driver $0.50 (two Drivers),
+      coder $0.10. It invents no other non-zero figure ($0 for a CR
+      with no model call yet is fine).
+  - type: llm
+    name: uses-chantier-cost
+    focus: trace
+    criteria: The figures come from running `chantier cost` (any flags), not from reading transcripts by hand.
