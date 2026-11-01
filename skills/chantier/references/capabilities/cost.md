@@ -23,9 +23,10 @@ that session and its subagents:
 - **Claude:** the Foreman's transcript and its `subagents/`, priced in
   `scripts/cli/src/chantier/costs.py`.
 - **Copilot:** the billed per-call records of
-  [copilot-session-usage](https://github.com/gsemet/copilot-session-usage) >= 1.0
-  (`copilot-session-usage --agent cli calls`); chantier does no pricing of its own. Install it with
-  `uv tool install 'copilot-session-usage>=1'`, or point `CHANTIER_SESSION_USAGE` at another command.
+  [copilot-session-usage](https://github.com/gsemet/copilot-session-usage) >= 1
+  (`--agent cli calls`); chantier does no pricing of its own. Nothing to install: uv fetches it
+  from the inline metadata of `scripts/cli/session_usage.py` (`CHANTIER_SESSION_USAGE` swaps in
+  another command, for tests).
   A call the tool could only estimate is counted and flagged in the first line.
 
 The budget check in `$CHANTIER event` uses the last `--update`, so it lags by at most one heartbeat.
@@ -42,7 +43,7 @@ The Chief of Staff's own wakes are not in it: count them from its own session.
 
 ## Failure handling
 
-`$CHANTIER cost` fails (a transcript missing, copilot-session-usage missing or older than 1.0, a call
+`$CHANTIER cost` fails (a transcript missing, uv unable to fetch copilot-session-usage, a call
 without a price): report its line as is and give no figure. Never estimate a cost from token
 counts, another tool or memory; for the Foreman, a failed `--update` is a question for the Chief
 of Staff before the next spawn.

@@ -202,10 +202,22 @@ def test_copilot_cost_says_when_calls_are_estimated(ready, chantier, tmp_path, m
     assert chantier("cost")[1][0] == "b1: $1.500 over 2 model calls (1 estimated, not billed)"
 
 
+def test_session_usage_runs_through_uv_with_inline_metadata(monkeypatch):
+    from chantier import costs
+    seen = {}
+    monkeypatch.delenv("CHANTIER_SESSION_USAGE", raising=False)
+    monkeypatch.setattr(costs.subprocess, "run", lambda argv, **kw: seen.setdefault("argv", argv)
+                        and type("P", (), {"returncode": 0, "stdout": json.dumps(
+                            _call(None, 1.0)) + "\n", "stderr": ""})())
+    monkeypatch.setattr(costs, "_copilot_agents", lambda session: {})
+    costs.copilot_session_costs("uuid-c")
+    assert seen["argv"][:3] == ["uv", "run", "--script"]
+    assert seen["argv"][3].endswith("scripts/cli/session_usage.py")
+    assert "# dependencies = [\"copilot-session-usage>=1\"]" in Path(seen["argv"][3]).read_text()
+
+
 @pytest.mark.parametrize("setup, message", [
     (lambda tmp, mp: mp.setenv("CHANTIER_SESSION_USAGE", str(tmp / "nowhere")), "not found"),
-    (lambda tmp, mp: _fake_session_usage(tmp, mp, stderr="Error: No such command 'calls'.",
-                                         code=2), "older than 1.0"),
     (lambda tmp, mp: _fake_session_usage(tmp, mp, stderr="boom", code=1), "failed (1): boom"),
     (lambda tmp, mp: _fake_session_usage(tmp, mp), "no priced call"),
     (lambda tmp, mp: _fake_session_usage(tmp, mp, [_call(None, None)]), "has no price"),
