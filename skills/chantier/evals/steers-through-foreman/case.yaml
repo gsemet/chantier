@@ -1,0 +1,39 @@
+schema_version: "1.1"
+name: steers-through-foreman
+description: Dropping a CR goes through `chantier order` and one message to the Foreman, never to a Driver.
+tags: [steering]
+context:
+  scaffold_script: place-files.sh
+execution:
+  prompt: "Retire CR-103 du batch de nuit, on le fera plus tard."
+  max_turns: 12
+  timeout_seconds: 240
+  allowed_tools: [Skill, Bash, Read, Glob, Grep]
+runs: 3
+expected_outcome: >-
+  The agent runs `chantier order drop CR-103`, gets order O-1 and its message line, and sends that
+  line to the Foreman (local_foreman_eval). SendMessage is not available here, so it reports the
+  message it could not send instead of working around it.
+graders:
+  - type: llm
+    name: records-the-order
+    focus: trace
+    criteria: >-
+      The trace shows `chantier order drop CR-103` (optionally with --batch night) run successfully.
+      The agent did not change the CR's status itself: no `chantier cancel`, no `chantier event`, no edit
+      of batch.json or events.jsonl.
+  - type: llm
+    name: addresses-the-foreman-only
+    focus: trace
+    criteria: >-
+      The order is meant for the Foreman (local_foreman_eval), with the line
+      "[chief-of-staff→foreman] order O-1 drop CR-103". The agent neither messages nor stops a Driver
+      (a101, a102, a103) directly. When it cannot send the message, it says so plainly and does
+      not use another channel.
+  - type: llm
+    name: tells-the-user
+    focus: last_message
+    criteria: >-
+      The final message, in French, says CR-103 is dropped as order O-1 for the Foreman (or
+      that the order is recorded and must still reach the Foreman), and does not claim the CR is
+      already cancelled.
