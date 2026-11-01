@@ -1,0 +1,53 @@
+# chantier base model list for Claude Code (Claude Desktop, Claude Code for VS Code, terminal).
+#
+# Read by the chantier CLI only (`$CHANTIER models`); an agent never interprets this file.
+# Ids are matched exactly: case-sensitive, no normalization, no "closest" model.
+# Override any part in ~/.config/chantier/models.yml or <repo>/.agents/chantier.models.yml under `claude:`.
+host: claude
+
+# The Foreman's heartbeat interval (`<n>s` or `<n>m`, 60 s to 60 min), kept just under the
+# prompt-cache TTL of its Drivers: 1 hour on Claude Code. A wake fires late by the length of
+# the Foreman's turn, so 55 min leaves 5 min of margin before the cache expires at 60 min.
+heartbeat: 55m
+
+# Exact model id: description. Agent files get `model: <id>`. Add full model ids
+# (for example a dated Sonnet id) in an override's `catalog` to pin a precise version.
+catalog:
+  sonnet: Claude Code alias for the current Sonnet
+  opus: Claude Code alias for the current Opus
+  haiku: Claude Code alias for the current Haiku
+
+# Role: exact id from the catalog, a declared alias, or `inherit` (the parent's model).
+roles:
+  foreman: opus
+  cr-driver: inherit
+  stack-driver: inherit
+  qa-driver: inherit
+  investigator: inherit
+  coder: inherit
+  inspector: inherit
+  debugger: inherit
+  verifier: inherit
+  conflict-resolver: inherit
+
+# Short name: exact id. Only the names listed here are accepted besides exact ids.
+aliases: {}
+
+# Reasoning effort per role: low, medium, high, xhigh, max, or `inherit`. A role left out (or
+# `inherit`) gets no `effort:` line, so the user's own Claude Code setting applies.
+# The foreman's level is also passed to `start_session` (it is the session, not a subagent).
+effort:
+  foreman: low
+
+# Claude Code tool names per role, rendered as `tools:`. Skill-only: overrides cannot change them.
+tools:
+  foreman: Agent, Bash, Read, Grep, Glob, SendMessage, TaskStop, Skill, ScheduleWakeup
+  cr-driver: Agent, Bash, Read, Grep, Glob, SendMessage, Monitor
+  stack-driver: Agent, Bash, Read, Grep, Glob, SendMessage, Monitor
+  qa-driver: Bash, Read, Grep, Glob, SendMessage, Monitor
+  investigator: Bash, Read, Grep, Glob, Write
+  coder: Bash, Read, Edit, Write, Grep, Glob
+  inspector: Bash, Read, Grep, Glob
+  debugger: Bash, Read, Grep, Glob, Write
+  verifier: Bash, Read, Grep, Glob, Write
+  conflict-resolver: Bash, Read, Edit, Write, Grep, Glob

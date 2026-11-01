@@ -1,0 +1,35 @@
+schema_version: "1.1"
+name: reports-batch-status
+description: The Chief of Staff answers a status question from `chantier status`, without editing state.
+tags: [status]
+context:
+  scaffold_script: place-files.sh
+execution:
+  prompt: "chantier : où en est le batch de nuit ?"
+  max_turns: 10
+  timeout_seconds: 240
+  allowed_tools: [Skill, Bash, Read, Glob, Grep]
+runs: 3
+expected_outcome: >-
+  A short French report from `chantier status`: CR-101 ready with PR 40 and green CI, CR-102 working
+  in round 2, CR-103 blocked because the user must choose a dark palette, which is a question
+  for the user.
+graders:
+  - type: llm
+    name: every-cr-right
+    focus: last_message
+    criteria: >-
+      The answer states all three: CR-101 is ready with https://github.com/acme/demo/pull/40 and
+      green CI; CR-102 is still being worked on (round 2); CR-103 is blocked because the design
+      system has no dark tokens and the user must choose a palette. It asks or points out that
+      CR-103 needs the user's decision. No other CR is invented.
+  - type: llm
+    name: reads-state-through-chantier
+    focus: trace
+    criteria: >-
+      The state was read with `chantier status` (any flags). The agent did not edit, write or delete
+      batch.json, events.jsonl or any file under .agents/changes/batches.
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    min: 1
