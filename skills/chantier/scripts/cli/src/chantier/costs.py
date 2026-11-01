@@ -1,7 +1,8 @@
 """Price the Foreman's session and its subagents.
 
 Claude: the transcripts, priced here (design 5's claude_usage.py). Copilot: the per-call billed
-records of the `copilot-session-usage` tool (>= 1.0, its `calls` command); no pricing here.
+records of `copilot-session-usage` >= 1 (its `calls` command), which uv fetches from the inline
+metadata of `scripts/cli/session_usage.py`; no pricing here.
 """
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from .state import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
-SESSION_USAGE_INSTALL = "uv tool install 'copilot-session-usage>=1'"
+SESSION_USAGE_SCRIPT = Path(__file__).resolve().parents[2] / "session_usage.py"
 
 # $/MTok: input, 5-min write, 1-h write, cache read, output (design 2, prices-corrected.md).
 PRICE = {
@@ -116,21 +117,19 @@ def _copilot_agents(session: str) -> dict[str, dict]:
 def copilot_session_costs(session: str) -> list[dict]:
     """One row per agent of a Copilot session, from `copilot-session-usage calls`.
 
-    Fails, never falls back: a missing or too old tool, a failed run or a session without a
-    priced call is an error.
+    uv resolves copilot-session-usage from the inline metadata of `session_usage.py`; nothing to
+    install. Fails, never falls back: a failed run (uv offline, package unavailable) or a session
+    without a priced call is an error.
     """
-    cmd = shlex.split(os.environ.get("CHANTIER_SESSION_USAGE") or "copilot-session-usage")
-    if not cmd or not shutil.which(cmd[0]):
-        raise ChantierError(f"`{cmd[0] if cmd else ''}` not found: chantier cost on Copilot needs "
-                       f"copilot-session-usage >= 1.0 ({SESSION_USAGE_INSTALL}, or set "
-                       "CHANTIER_SESSION_USAGE)", EXIT_PRECONDITION)
+    cmd = shlex.split(os.environ.get("CHANTIER_SESSION_USAGE") or "") or [
+        "uv", "run", "--script", str(SESSION_USAGE_SCRIPT)]
+    if not shutil.which(cmd[0]):
+        raise ChantierError(f"`{cmd[0]}` not found: chantier needs uv to run "
+                            "copilot-session-usage on Copilot", EXIT_PRECONDITION)
     argv = [*cmd, "--agent", "cli", "--session-root", str(copilot_home() / "session-state"),
             "calls", "--name", f"^{re.escape(session)}$"]
     p = subprocess.run(argv, capture_output=True, text=True)
     if p.returncode != 0:
-        if "No such command 'calls'" in p.stderr:
-            raise ChantierError(f"copilot-session-usage is older than 1.0 (no `calls` command): "
-                           f"{SESSION_USAGE_INSTALL}", EXIT_PRECONDITION)
         last = (p.stderr.strip().splitlines() or ["no output"])[-1]
         raise ChantierError(f"copilot-session-usage failed ({p.returncode}): {last}", EXIT_EXTERNAL)
     agents = _copilot_agents(session)
