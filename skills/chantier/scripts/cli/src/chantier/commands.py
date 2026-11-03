@@ -440,17 +440,21 @@ def heartbeat(args) -> tuple[list[str], int]:
                      f"{age_minutes(pending[0]['sent']):.0f} min")
     if ages:
         lines.append(f"oldest silent Driver {max(ages):.0f} min")
-    if not data.get("foreman_transcript"):
-        return lines + ["spend not updated: no Foreman transcript recorded"], EXIT_PRECONDITION
     try:
-        total = sum(r["usd"] for r in _cost_rows(repo, data, data["host"],
-                                                 data["foreman_transcript"]))
+        total = _batch_spend(repo, data)
     except ChantierError as e:
         return lines + [f"spend not updated: {e}"], e.code
     with Batch(repo, batch, actor="foreman") as b:
         b.data["spent_usd"] = round(total, 4)
         b.log("cost", None, usd=total)
     return lines + [f"spent ${total:.2f}"], 0
+
+
+def _batch_spend(repo: Repo, d: dict) -> float:
+    """What the batch has cost so far, measured from the Foreman's transcript and its agents."""
+    if not d.get("foreman_transcript"):
+        raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
+    return sum(r["usd"] for r in _cost_rows(repo, d, d["host"], d["foreman_transcript"]))
 
 
 # ---- state for every role ---------------------------------------------------------------------
@@ -528,6 +532,8 @@ def spawn(args) -> list[str]:
         prompt += [f"Worktree: {c['worktree'] or '- (no worktree: work in the project)'}",
                    f"Change Specification: {_specification(repo, c).as_posix()}",
                    f"Work folder: {work.as_posix()} (your notes and outputs)"]
+        if args.role == "cr-driver":
+            prompt.append(f"Rounds done: {c['round']} of {d['settings']['max_rounds']}")
     if task:
         prompt.append(f"Your review: {task}")
     reviews = d["settings"].get("reviews", {})
@@ -555,14 +561,16 @@ def report(args) -> list[str]:
             b.touch(c, pr=note.split()[0] if note else c.get("pr"))
         elif args.kind.startswith("ci-"):
             b.touch(c, ci=args.kind.removeprefix("ci-"))
-        elif args.kind == "round-done":
+        elif args.kind == "round-done":  # the CLI numbers rounds: a new Driver goes on counting
             b.touch(c, round=c.get("round", 0) + 1)
+            note = f"r{c['round']} {note}".rstrip()
         else:
             b.touch(c)
         if note and args.kind != "pr-opened":
             c.setdefault("notes", []).append(f"{args.kind}: {note}")
         b.log("report", args.cr, report=args.kind, note=note)
-    return ["ok"]
+    return [f"round {c['round']} of {b.data['settings']['max_rounds']} done"
+            if args.kind == "round-done" else "ok"]
 
 
 # ---- work in the CR worktree ------------------------------------------------------------------
@@ -815,11 +823,18 @@ def land(args) -> list[str]:
                                         errors="replace")
                 if result.returncode:
                     retained.append(f"{c['id']} branch ({result.stderr.strip()})")
+        try:
+            total = _batch_spend(repo, b.data)
+            b.data["spent_usd"] = round(total, 4)
+            b.log("cost", None, usd=total)
+            spent = f"${total:.2f}"
+        except ChantierError as e:  # never a false $0.00
+            spent = f"unknown ({e})"
         rows = "".join(f"| {c['id']} | {c['title']} | {c['status']} | {c.get('pr') or '-'} | "
                        f"{c['round']} |\n" for c in sorted(b.data["crs"], key=lambda c: c["order"]))
         report_path = b.dir / "report.md"
         report_path.write_text(
-            f"# Batch {batch}: report\n\n- Landed: {now()}\n- Spent: ${b.data.get('spent_usd', 0):.2f}"
+            f"# Batch {batch}: report\n\n- Landed: {now()}\n- Spent: {spent}"
             f"\n- Retained: {', '.join(retained) or 'none'}"
             f"\n\n| CR | Title | Status | PR | Rounds |\n| --- | --- | --- | --- | ---: |\n{rows}",
             encoding="utf-8")

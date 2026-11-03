@@ -69,12 +69,12 @@ def running(claude_projects_dir=None):
     chantier("agents", "set", "CR-102", "a102", "--epoch", 1)
     chantier("report", "CR-101", "pr-opened", "https://github.com/acme/demo/pull/40")
     chantier("report", "CR-101", "ci-green")
-    chantier("report", "CR-101", "round-done", "r1 APPROVE")
+    chantier("report", "CR-101", "round-done", "APPROVE")
     chantier("event", "hand-back-ready", "CR-101", "https://github.com/acme/demo/pull/40",
         "--epoch", 1)
     chantier("agents", "set", "CR-103", "a103", "--epoch", 1)
-    chantier("report", "CR-102", "round-done", "r1 FIX-REQUIRED missing header")
-    chantier("report", "CR-102", "round-done", "r2 in progress")
+    chantier("report", "CR-102", "round-done", "FIX-REQUIRED missing header")
+    chantier("report", "CR-102", "round-done", "in progress")
     chantier("event", "hand-back-blocked", "CR-103",
         "the design system has no dark tokens; the user must choose a palette", "--epoch", 1)
 

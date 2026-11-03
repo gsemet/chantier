@@ -10,16 +10,19 @@ do them. An action line is a verb and its arguments:
     message <cr> <text>             message the CR's Driver
     ask-chief-of-staff <kind> <text>   one message to the Chief of Staff
     land                            `chantier land`
-    ok <what>                       confirm an order to the Chief of Staff
+    ok <what>                       confirm an order to the Chief of Staff (after a merge, it names
+                                    the ready CRs sent back to rebase)
     none                            nothing to do
 """
 from __future__ import annotations
 
-from .lifecycle import archive_cr, return_cr
-from .state import LIVE, Batch, ChantierError, EXIT_USAGE, now
+import subprocess
 
-DRIVER_EVENTS = {"hand-back-ready", "hand-back-blocked", "question", "anomaly", "qa-done",
-                 "driver-lost", "driver-done"}
+from .lifecycle import archive_cr, return_cr
+from .state import LIVE, Batch, ChantierError, EXIT_EXTERNAL, EXIT_USAGE, git, now
+
+DRIVER_EVENTS = {"hand-back-ready", "hand-back-blocked", "anomaly", "qa-done", "driver-lost",
+                 "driver-done"}
 MAX_RESUMES = 2
 ORDER_EVENTS = {"order-add", "order-drop", "order-first", "order-change", "order-merged",
                 "order-pause", "order-resume"}
@@ -153,11 +156,6 @@ def _on_hand_back_blocked(b: Batch, cr_id: str, note: str) -> list[str]:
     return out
 
 
-def _on_question(b: Batch, cr_id: str, note: str) -> list[str]:
-    b.touch(b.cr(cr_id))
-    return [f"ask-chief-of-staff question {cr_id} {note}".rstrip()]
-
-
 def _on_anomaly(b: Batch, cr_id: str, note: str) -> list[str]:
     c = b.cr(cr_id)
     limit = b.repo.config.get("max_rounds", 3)
@@ -268,12 +266,34 @@ def _on_order_merged(b: Batch, cr_id: str, note: str) -> list[str]:
         raise ChantierError(f"cannot mark cancelled {cr_id} merged")
     archive_cr(b, c)
     b.touch(c, status="merged")
-    out = [f"ok merged {cr_id}"]
     if _all_merged(b):
-        return out + ["land"]
+        return [f"ok merged {cr_id}", "land"]
     if b.data["mode"] == "stack":
-        out.append(_restack(b))
-    return out + fill_slots(b)
+        return [f"ok merged {cr_id}", _restack(b)] + fill_slots(b)
+    rebase = _rebase_ready(b)
+    return [f"ok merged {cr_id}" + (f"; rebase {' '.join(rebase)}" if rebase else "")] \
+        + fill_slots(b)
+
+
+def _rebase_ready(b: Batch) -> list[str]:
+    """A ready CR whose PR no longer merges cleanly into the moved default branch goes back to a
+    Driver, which ships it again."""
+    remote, branch = b.repo.config["remote"], b.repo.config["default_branch"]
+    git("fetch", "--quiet", remote, branch, cwd=b.repo.root)
+    out = []
+    for c in b.data["crs"]:
+        if c["status"] != "ready" or not c.get("branch"):
+            continue
+        p = subprocess.run(["git", "merge-tree", "--write-tree", "--quiet", f"{remote}/{branch}",
+                            c["branch"]], cwd=b.repo.root, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        if p.returncode > 1:
+            raise ChantierError(f"git merge-tree {c['branch']}: {p.stderr.strip()}", EXIT_EXTERNAL)
+        if p.returncode == 1:
+            c.setdefault("notes", []).append(f"rebase: {branch} moved; the PR no longer merges")
+            b.touch(c, status="queued")
+            out.append(c["id"])
+    return out
 
 
 def _on_order_pause(b: Batch, _cr: str, _note: str) -> list[str]:

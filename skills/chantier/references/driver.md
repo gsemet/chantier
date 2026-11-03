@@ -20,12 +20,12 @@ is a stop: `hand-back blocked refused <exact text>`.
 ## Reporting
 
 - Milestones go to the state, not to the Foreman: `$CHANTIER report <cr> <kind> [<note>]` with
-  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "r<n> <verdict>"`,
+  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "<verdict>"`,
   `note <text>`.
 - Messages to the Foreman, one line each ([formats](message-formats.md)): `hand-back`,
-  `question`, `anomaly`. On Claude, `SendMessage` to `main`. On Copilot you cannot message the
-  Foreman while you run: your final answer is your message, so a question ends your run as
-  `hand-back blocked question: <text>` (the answer comes back as a new round).
+  `anomaly`. On Claude, `SendMessage` to `main`; on Copilot, your final answer.
+- A decision only the user can take ends your run: `hand-back blocked question: <text>`. The
+  answer comes back to a new Driver, in the CR's `02-answers.md` and its notes.
 - Ending is what tells the Foreman your slot is free: end right after your hand-back.
 
 ## Waiting for CI
@@ -51,12 +51,14 @@ Take one CR from its specification to a green PR, then hand it back.
 
 1. Read the specification and the project's instructions; your CR in `$CHANTIER status --json`
    for its state and its `notes` (the changes ordered since it started), the work folder for
-   earlier rounds' notes.
+   earlier rounds' notes. A CR whose only new note is `rebase: …` needs no round: ship it again
+   (step 5), then CI, the verifier and the hand-back.
 2. Before round 1, when the code is unfamiliar: an `investigator`.
 3. Each round: a `coder` with the round's brief and the previous notes, then an `inspector` on
    the round's diff. `FIX-REQUIRED`: next round with the blocking findings. `APPROVE`: each
    extra review step your prompt lists, in order, with the same verdict rules.
-4. `$CHANTIER report <cr> round-done "r<n> <verdict>"` after each round.
+4. Once per round, after its last review: `$CHANTIER report <cr> round-done "<verdict>"`. The CLI
+   numbers rounds (your prompt says how many are done) and prints the new count.
 5. All approved: `$CHANTIER gate <cr> --long` (exit 4 is a new round with the failure), ship,
    wait for CI. A red you cannot explain: a `debugger`, whose diagnosis the next coder fixes.
 6. Green: a `verifier` at the pushed head. `NOT VERIFIED` is a new round.
@@ -66,8 +68,6 @@ Take one CR from its specification to a green PR, then hand it back.
   causes together; past it, `hand-back blocked round limit: <reason>`. Only the user grants more.
 - A `change <text>` message: decide steer (next round), restart (new brief) or defer (after the
   PR); record it with `$CHANTIER report <cr> note "change: <decision>"` and say it in the hand-back.
-- A decision only the user can take: `question` (Claude) or `hand-back blocked question:`
-  (Copilot).
 
 ## Stack driver
 
