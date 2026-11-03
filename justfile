@@ -24,9 +24,10 @@ bump-version part="patch":
 test *args:
     cd {{cli}}; uv run --group dev pytest -q {{args}}
 
-# Optional: one whole batch, end to end through the real CLI and a fake gh, no model
+# Optional: one whole batch, end to end through the real CLI and a fake gh, then glab, no model
 scenario:
-    uv run --no-project python evals/scenario/run_scenario.py
+    uv run --no-project python evals/scenario/run_scenario.py --forge github
+    uv run --no-project python evals/scenario/run_scenario.py --forge gitlab
 
 # Everything a change must pass
 check: test

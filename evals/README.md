@@ -5,11 +5,11 @@ Two layers.
 ## 1. Global scenario (deterministic, free)
 
 ```bash
-uv run --no-project python evals/scenario/run_scenario.py [--verbose] [--keep]
+uv run --no-project python evals/scenario/run_scenario.py [--forge github|gitlab] [--verbose] [--keep]
 ```
 
 One whole batch through the real CLI, in a temporary git repository with a bare origin and a
-fake `gh`. Nothing calls a model: a scripted Foreman feeds every event to `chantier event` and carries
+fake `gh` or `glab` (`just scenario` runs both). Nothing calls a model: a scripted Foreman feeds every event to `chantier event` and carries
 out the actions it prints, scripted Drivers commit, gate, ship and wait on CI, and the Chief of
 Staff steers with `chantier order`. It covers:
 

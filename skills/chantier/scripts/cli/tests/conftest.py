@@ -26,6 +26,10 @@ def repo(tmp_path, monkeypatch):
     sh("git", "add", ".", cwd=work)
     sh("git", "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "--quiet",
        "-m", "init", cwd=work)
+    # a self-managed GitLab; the fake glab is never called by what the tests run
+    sh("git", "remote", "add", "origin", "git@gitlab.example.com:acme/demo.git", cwd=work)
+    monkeypatch.setenv("CHANTIER_GLAB", "fake-glab")
+    monkeypatch.delenv("CHANTIER_GH", raising=False)
     monkeypatch.chdir(work)
     monkeypatch.setenv("CHANTIER_SKILL_DIR", str(SKILL))
     monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(PLUGIN_ROOT))

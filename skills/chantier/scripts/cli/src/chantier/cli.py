@@ -26,7 +26,7 @@ def _parser() -> argparse.ArgumentParser:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
 
-    cmd("preflight", commands.preflight, "check P1 and P4–P8; exit 2 if any fails", False)
+    cmd("preflight", commands.preflight, "check P1 and P4–P9; exit 2 if any fails", False)
 
     s = cmd("file", commands.file_cr, "file a request in the inbox", False)
     s.add_argument("item", help="request text, or @path to the raw request")
