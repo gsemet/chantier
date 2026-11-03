@@ -4,52 +4,54 @@ You talk with the user, keep the backlog, ask the questions a CR needs, and on t
 start one Foreman per batch; then you steer it and report. You own no background agent and never
 message a Driver: every order goes through the Foreman.
 
-## 1. Learn the project (once, then when it changes)
+## 1. Read the project
 
-Read the project's instructions (`AGENTS.md`, else `CLAUDE.md` or
-`.github/copilot-instructions.md`) and the guidance they link. Then run `$CHANTIER project` and
-record what differs:
+At the start of each session, read the project's `AGENTS.md` (else `CLAUDE.md` or
+`.github/copilot-instructions.md`) and the guidance it links. Nothing is configured anywhere
+else: that file says how the project builds and tests, and which agents run which roles. You
+pass what it says to `$CHANTIER open` for each batch:
 
-```bash
-$CHANTIER project set --fast-gate "<quick check>" --long-gate "<full suite>" \
-  [--default-branch <branch>] [--remote <remote>] [--changes-dir <dir>] \
-  [--inbox <dir>] [--backlog <dir>] [--requests <dir>] [--archives <dir>] [--trash <dir>] \
-  [--worktrees-dir <dir>] [--first-cr-number <n>] [--max-rounds <n>] [--stale-minutes <n>]
-```
+- **Gates:** a fast gate (a quick check, run after each round) and a long gate (the full suite,
+  run before the PR), as shell commands run in a CR's worktree in the project's own environment
+  (`uv run`, `npm run`, `just`). One command may serve as both.
+- **Default branch**, if Git does not know the remote's HEAD.
+- **The team** (section 2).
 
-- Gates are shell commands run in a CR's worktree, in the project's own environment (`uv run`,
-  `npm run`, `just`). Repeat a flag for several commands; one command may serve as both gates.
-- A value the instructions do not settle is a question for the user, with your recommended
-  answer. An absent gate never means success; never invent one.
-- The profile lives in `.git/chantier/`: nothing is written in the project's tree. Re-read the
-  instructions at the start of each session and update the profile if they changed.
+A value the file does not settle is a question for the user, with your recommended answer. An
+absent gate never means success; never invent one. Offer to write the answer in `AGENTS.md` so
+the next session knows it.
 
 ## 2. The team, and the user's own agents
 
-`$CHANTIER roles` shows the team on this host: each role, the agent it runs and that agent's
-model. The user changes it by saying so; you turn their words into one command:
+Every role runs the plugin's agent unless `AGENTS.md` says otherwise, in a `chantier` section:
 
-| The user says… | You run |
+```markdown
+## chantier
+
+- coder: `rust-coder`
+- security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
+```
+
+| The user says… | You do |
 | --- | --- |
-| "use my agent `rust-coder` as the coder" | `$CHANTIER roles set coder rust-coder` |
-| "add a security review with `sec-reviewer`" | `$CHANTIER roles set security-review sec-reviewer --task "<what it checks, in one sentence>"` |
-| "back to the default debugger" | `$CHANTIER roles reset debugger` |
-| "which models?" | `$CHANTIER roles` |
+| "use my agent `rust-coder` as the coder" | add `- coder: \`rust-coder\`` to that section |
+| "add a security review with `sec-reviewer`" | add `- security-review: \`sec-reviewer\`, after the Inspector: <what it checks>` (ask what it checks if they did not say) |
+| "back to the default debugger" | remove the debugger line |
+| "which agents and models?" | read the section; the plugin's agents run Sonnet 5.5 on Claude, the Foreman Opus 5.5 |
+
+Edit `AGENTS.md` only on the user's word, and show them the lines. At `open`, each line becomes
+`--agent <role>=<agent>` (a built-in role) or `--review <name>=<agent>:<what it checks>` (any
+other name):
 
 - A built-in role (`cr-driver`, `stack-driver`, `qa-driver`, `investigator`, `coder`, `inspector`,
   `debugger`, `verifier`, `conflict-resolver`) keeps its contract: the spawn prompt carries it,
   so any agent can fill the role.
 - Any other name is an **extra review step**: the CR Driver runs it after the Inspector approves,
-  and it answers with the Inspector's verdict. Ask what it checks if the user did not say.
+  and it answers with the Inspector's verdict.
 - The agent id is what the host knows: on Claude the `name:` of an agent in `.claude/agents/` or
-  `~/.claude/agents/` (or `plugin:name`); on Copilot the file name of an agent in
-  `.github/agents/` or `~/.copilot/agents/`. When `roles set` cannot find the file, tell the user
-  and check the id with them before any batch.
-- If the project's instructions name agents for chantier roles, propose the same commands and run
-  them on the user's yes. The user's choice is recorded for this machine; to share it with the
-  team, offer to write one sentence in the project's `AGENTS.md`.
+  `~/.claude/agents/` (or `plugin:name`; `open` refuses a name it cannot find); on Copilot the
+  file name of an agent in `.github/agents/` or `~/.copilot/agents/`.
 - A batch keeps the team it was opened with.
-- The Foreman is not an agent: it is a session on a fixed model (`$CHANTIER roles` shows it).
 
 ## 3. Backlog and grill
 
@@ -79,7 +81,7 @@ Only in the turn where the user gave the go, in this order:
    | P1 | Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`) or a Copilot agent session (`COPILOT_AGENT_SESSION_ID` set) | `$CHANTIER preflight` |
    | P2 | Session tools load: Claude `mcp__ccd_session__start_session` and `mcp__ccd_session_mgmt__detach_session`; Copilot `create_session` and `send_message` | you, with the tool search |
    | P3 | The go is in the user's own message of this turn | you |
-   | P4 | The plugin's agents are installed, at this version; on Claude, every own agent named in the profile exists | `$CHANTIER preflight` |
+   | P4 | The plugin's agents are installed, at this version | `$CHANTIER preflight` |
    | P5 | `uv` found, CLI and SKILL.md at the same version | `$CHANTIER preflight` |
    | P6 | The session runs at the repository's root | `$CHANTIER preflight` |
    | P7 | Not a linked worktree | `$CHANTIER preflight` |
@@ -96,25 +98,40 @@ Only in the turn where the user gave the go, in this order:
 
    In Claude Code for VS Code or the terminal, P1 and P2 fail: session tools come from the
    Desktop app. In the Copilot CLI, P2 fails: only an SDK host gives `create_session`.
-2. **Show the plan** before the go: the CRs, mode, slots, budget, QA, and the lines of
-   `$CHANTIER project` and `$CHANTIER roles` that matter (gates, branch, own agents).
-3. **Open:** `$CHANTIER open <batch> @<prepared-folder>… [--slots N] [--budget USD] [--stack]
-   [--qa all|1,3] [--no-worktrees] --chief-of-staff <your session id>`. It moves each folder to
-   requests, creates branches and worktrees and writes `brief.md`. Complete the brief from the
+2. **Show the plan** before the go: the CRs, mode, slots, budget, QA, the gates and the team.
+3. **Open:**
+
+   ```bash
+   $CHANTIER open <batch> @<prepared-folder>… --fast-gate "<cmd>" --long-gate "<cmd>" \
+     [--default-branch <branch>] [--agent <role>=<agent>]… [--review <name>=<agent>:<task>]… \
+     [--slots N] [--budget USD] [--stack] [--qa all|1,3] --chief-of-staff <your session id>
+   ```
+
+   It moves each folder to requests, creates branches and worktrees, records the batch in
+   `.agents/changes/batches/<batch>/` and writes its `brief.md`. Complete the brief from the
    grill: autonomous decisions allowed, questions to bring back, QA notes.
-4. **Start the Foreman:** `$CHANTIER foreman prompt --batch <batch>` prints the model, effort,
-   heartbeat and the prompt. Pass them exactly.
+4. **Start the Foreman** with this prompt, `<n>` being the epoch (`1` for a new batch, else the
+   one `$CHANTIER foreman get` prints plus one):
+
+   ```text
+   chantier Foreman of batch <batch>, epoch <n>, for the Chief of Staff <your session id>.
+   Read <skill>/references/foreman.md and <skill>/references/concepts.md now and follow them;
+   read nothing else from the skill.
+   CLI: uv run --script "<skill>/scripts/cli/chantier.py" <command> --batch <batch>
+   ```
+
+   `<skill>` is the absolute path of this skill's folder.
    - **Claude Desktop:** `start_session` with `initiation: "user_asked"`,
-     `title: "Foreman <batch>"`, `context: "fresh"`, `use_worktree: false`, the printed `model`,
-     `effort` and `prompt`, and the user's current permission mode. Then, in the same turn,
-     `$CHANTIER foreman set <returned id>` (it prints the epoch the prompt named) and
-     `detach_session(<id>)`; check it says `detached`. A linked Foreman would wake you after
+     `title: "Foreman <batch>"`, `context: "fresh"`, `use_worktree: false`,
+     `model: "claude-opus-5-5"`, `effort: "low"`, the prompt, and the user's current permission
+     mode. Then, in the same turn, `$CHANTIER foreman set <returned id>` (it prints epoch `<n>`)
+     and `detach_session(<id>)`; check it says `detached`: a linked Foreman would wake you after
      every turn. Find your own session id with `get_session("self")`.
-   - **Copilot SDK host:** `create_session` with the printed `model`, `workspace` = this
-     repository, `worktree: false`, `title: Foreman <batch>` and the printed prompt (it takes no
-     effort and no agent). Then `$CHANTIER foreman set <chat id>`. On
+   - **Copilot SDK host:** `create_session` with `model: "claude-opus-5.5"`, `workspace` = this
+     repository, `worktree: false`, `title: Foreman <batch>` and the prompt (it takes no effort
+     and no agent). Then `$CHANTIER foreman set <chat id>`. On
      `[foreman→chief-of-staff] ready <batch>`, send the Foreman chat
-     `/every <heartbeat> chantier heartbeat <batch> epoch <n>` (a host command: no model turn).
+     `/every 4m chantier heartbeat <batch> epoch <n>` (a host command: no model turn).
 
 ## 5. While it runs
 
@@ -135,9 +152,8 @@ Only in the turn where the user gave the go, in this order:
   Record every answer to a CR's question in its `02-answers.md`. A `question` from a working CR
   needs no order: send `[chief-of-staff→foreman] answer <cr> <text>`. A CR blocked on a question
   (always the case on Copilot) gets `$CHANTIER order change <cr> --note "answer: <text>"`: it
-  runs again with the answer. An order sent while the Foreman is busy
-  arrives when its turn ends: do not resend. No confirmation within about two minutes: ping once,
-  then recover (below).
+  runs again with the answer. An order sent while the Foreman is busy arrives when its turn
+  ends: do not resend. No confirmation within about two minutes: ping once, then recover (below).
 - **Cost:** `$CHANTIER cost [--by cr]` gives measured figures; report its lines as they are, and
   give no figure when it fails. Your own session is not in it.
 - **When the batch lands** (`[foreman→chief-of-staff] final <report>`): summarize the report. On
@@ -154,14 +170,14 @@ heartbeat in `$CHANTIER status`:
    minutes.
 2. Changed files and running processes do not prove an agent is alive.
 3. An app restart stops every session. Tell the user what you found and ask. On "resume": run
-   preflight again, then start a new Foreman as in step 4 (`foreman prompt` gives the next
-   epoch), adding to its prompt: "Resume: the app restarted and your Drivers stopped. Relaunch
-   the Driver of each CR still marked working from its recorded state; stop orphan processes
-   with `$CHANTIER cancel`. Then continue."
+   preflight again, then start a new Foreman as in step 4 with the next epoch, adding to its
+   prompt: "Resume: the app restarted and your Drivers stopped. Relaunch the Driver of each CR
+   still marked working from its recorded state; stop orphan processes with `$CHANTIER cancel`.
+   Then continue."
 
 ## Never
 
 - Start a session in a turn the user did not start, or when preflight fails.
 - Merge, or start a backlog item the user did not choose.
 - Message a Driver, or do the Foreman's or a Driver's work.
-- Edit `batch.json`, `events.jsonl` or `project.json` by hand.
+- Edit `batch.json` or `events.jsonl` by hand.

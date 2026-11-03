@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" width="1100" height="720" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
   <title>How chantier works</title>
-  <desc>You talk to one Chief of Staff, which learns the project from its AGENTS.md and records it in .git/chantier. On your go it starts one Foreman session per batch. The Foreman starts Drivers in the background; each Driver runs short foreground workers. Every spawn goes through `chantier spawn`, which gives the agent and the whole prompt with the role's contract, so any role can run your own agent and a new role becomes an extra review step. The chantier CLI owns every state change; CR folders live in the repository, everything else in .git/chantier.</desc>
+  <desc>You talk to one Chief of Staff, which reads the project's AGENTS.md: gates, branch and team. On your go it starts one Foreman session per batch, which starts Drivers; each Driver runs short workers, any of which can be your own agent. Everything chantier writes goes to .agents/changes, as JSON and Markdown.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -30,7 +30,7 @@
   <!-- AGENTS.md -->
   <rect x="30" y="112" width="150" height="56" rx="8" fill="#ffffff" stroke="#94a3b8"/>
   <text x="105" y="135" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">AGENTS.md</text>
-  <text x="105" y="153" font-size="10.5" fill="#475569" text-anchor="middle">gates, branch, conventions</text>
+  <text x="105" y="153" font-size="10.5" fill="#475569" text-anchor="middle">gates, branch, your team</text>
   <path d="M180,160 C230,186 280,186 326,170" stroke="#94a3b8" stroke-width="1.4" fill="none" stroke-dasharray="3 3" marker-end="url(#arrow)"/>
   <text x="238" y="197" font-size="10" fill="#64748b" text-anchor="middle">read each session</text>
 
@@ -62,11 +62,9 @@
   <!-- Spawn note -->
   <rect x="646" y="226" width="148" height="88" rx="8" fill="#fff7ed" stroke="#fdba74"/>
   <text x="656" y="244" font-size="10.5" font-weight="700" fill="#9a3412" font-family="ui-monospace, Menlo, monospace">chantier spawn</text>
-  <g font-size="10.5" fill="#7c2d12">
-    <text x="656" y="261">gives every spawn its</text>
-    <text x="656" y="275">agent and its whole prompt:</text>
-    <text x="656" y="289">the role's contract travels</text>
-    <text x="656" y="303">with it, to any agent.</text>
+  <g font-size="11" fill="#7c2d12">
+    <text x="656" y="268">gives each role's</text>
+    <text x="656" y="284">contract to any agent</text>
   </g>
 
   <!-- Drivers -->
@@ -120,65 +118,36 @@
     <line x1="742" y1="454" x2="742" y2="462"/>
   </g>
   <g font-size="11" fill="#475569">
-    <text x="30" y="524">A round: Coder → Inspector → your review steps. Then long gate → ship → CI → Verifier → hand-back.</text>
-    <text x="30" y="540">Investigator before round 1 · Debugger on a red nobody explains · Conflict resolver when a rebase fails.</text>
-    <text x="30" y="556"><tspan fill="#a16207" font-weight="600">Any role can run your own agent</tspan>: "use my rust-coder as the coder", "add a security review with sec-reviewer".</text>
+    <text x="30" y="530"><tspan fill="#a16207" font-weight="600">Any role can run your own agent</tspan>, named in AGENTS.md; a new name adds a review step.</text>
   </g>
 
   <!-- Storage -->
-  <rect x="30" y="574" width="380" height="122" rx="10" fill="#ffffff" stroke="#94a3b8"/>
-  <text x="46" y="597" font-size="12.5" font-weight="700" fill="#0f172a">In your repository: the Change Requests</text>
-  <g font-size="10.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">
-    <text x="46" y="618">.agents/changes/backlog/</text>
-    <text x="46" y="634">1-inbox → 2-backlog/P1…P4 → 3-requests → 4-archives</text>
-    <text x="46" y="650">(dropped: back where it was; 5-trash on your word)</text>
-    <text x="46" y="666">intake/ 01-intent 02-answers 03-change-spec evidence/</text>
+  <rect x="30" y="574" width="764" height="122" rx="10" fill="#ffffff" stroke="#94a3b8"/>
+  <text x="46" y="599" font-size="12.5" font-weight="700" fill="#0f172a">Everything chantier writes: .agents/changes/, as JSON and Markdown</text>
+  <g font-size="11" fill="#334155" font-family="ui-monospace, Menlo, monospace">
+    <text x="46" y="628">backlog/   1-inbox → 2-backlog/P1…P4 → 3-requests → 4-archives</text>
+    <text x="46" y="652">batches/   batch.json · events.jsonl · brief.md · report.md</text>
   </g>
-  <text x="46" y="686" font-size="10.5" fill="#475569">+ a branch chantier/&lt;batch&gt;/… and a worktree next to the repository</text>
-
-  <rect x="424" y="574" width="370" height="122" rx="10" fill="#ffffff" stroke="#94a3b8"/>
-  <text x="440" y="597" font-size="12.5" font-weight="700" fill="#0f172a">In .git/chantier: everything else</text>
-  <g font-size="10.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">
-    <text x="440" y="620">project.json</text>
-    <text x="440" y="645">batches/&lt;batch&gt;/</text>
-    <text x="440" y="670">batches/&lt;batch&gt;/work/&lt;CR&gt;/</text>
-  </g>
-  <g font-size="10.5" fill="#475569">
-    <text x="440" y="633">gates, branch, folders, your team</text>
-    <text x="440" y="658">batch.json, events.jsonl, brief.md</text>
-    <text x="440" y="683">the team's notes, gate logs, PR body</text>
-  </g>
+  <text x="46" y="678" font-size="11" fill="#475569">Each CR: its request, your answers, its specification, and a branch and worktree next to the repository.</text>
 
   <!-- chantier CLI -->
-  <rect x="830" y="96" width="240" height="460" rx="12" fill="#0f172a"/>
+  <rect x="830" y="96" width="240" height="400" rx="12" fill="#0f172a"/>
   <text x="950" y="124" font-size="15" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
   <text x="950" y="142" font-size="11" fill="#cbd5e1" text-anchor="middle">Python CLI, no dependency (uv run)</text>
-  <g font-size="10.5" font-weight="700" fill="#93c5fd" letter-spacing="0.5">
-    <text x="848" y="170">CHIEF OF STAFF</text>
-    <text x="848" y="276">FOREMAN</text>
-    <text x="848" y="358">DRIVERS AND WORKERS</text>
+  <g font-size="11.5" fill="#e2e8f0">
+    <text x="848" y="190">Every mechanical step:</text>
+    <text x="848" y="210">open, spawn, gates, ship,</text>
+    <text x="848" y="230">wait for CI, cost.</text>
   </g>
-  <g font-size="11.5" fill="#e2e8f0" font-family="ui-monospace, Menlo, monospace">
-    <text x="848" y="190">preflight · project · roles</text>
-    <text x="848" y="208">file · triage · open</text>
-    <text x="848" y="226">foreman prompt · order</text>
-    <text x="848" y="244">status · cost</text>
-    <text x="848" y="296">event → actions</text>
-    <text x="848" y="314">spawn · heartbeat</text>
-    <text x="848" y="332">cancel · land</text>
-    <text x="848" y="378">spawn · report · path</text>
-    <text x="848" y="396">gate · ship · wait ci</text>
-    <text x="848" y="414">stack · qa</text>
+  <line x1="848" y1="254" x2="1052" y2="254" stroke="#334155"/>
+  <g font-size="11.5" fill="#cbd5e1">
+    <text x="848" y="280">Owns every state change:</text>
+    <text x="848" y="300">locked, atomic, logged.</text>
   </g>
-  <line x1="848" y1="434" x2="1052" y2="434" stroke="#334155"/>
-  <g font-size="11" fill="#cbd5e1">
-    <text x="848" y="456">Owns every state change:</text>
-    <text x="848" y="473">locked, atomic, logged.</text>
-  </g>
-  <g font-size="11" fill="#fdba74">
-    <text x="848" y="500">Fails fast: no look-alike model,</text>
-    <text x="848" y="517">no fallback tool or agent,</text>
-    <text x="848" y="534">no estimated cost.</text>
+  <g font-size="11.5" fill="#fdba74">
+    <text x="848" y="334">Fails fast: no look-alike model,</text>
+    <text x="848" y="354">no fallback tool or agent,</text>
+    <text x="848" y="374">no estimated cost.</text>
   </g>
   <g stroke="#64748b" stroke-width="1.4" stroke-dasharray="5 4">
     <line x1="634" y1="132" x2="826" y2="132"/>

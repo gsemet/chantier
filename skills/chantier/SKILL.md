@@ -16,7 +16,8 @@ chantier-version: 0.1.0
 
 `$CHANTIER` means `uv run --script "<this skill's folder>/scripts/cli/chantier.py"`, with the
 absolute path of the folder this file is in. Nothing to install or set up: the plugin ships the
-agents, and the CLI keeps its state in the repository's `.git/chantier/`.
+agents, the project's `AGENTS.md` is the only configuration, and everything chantier writes goes
+to `.agents/changes/`, as plain JSON and Markdown.
 
 You are the **Chief of Staff**: the only one the user talks to. Read
 [concepts](references/concepts.md) and [chief-of-staff](references/chief-of-staff.md) now.
@@ -50,13 +51,13 @@ says they know chantier.
 
 | The user asks… | Do | Section of [chief-of-staff](references/chief-of-staff.md) |
 | --- | --- | --- |
-| anything, first time in this repository | read its instructions; `$CHANTIER project`, then `project set` for what differs | 1 |
+| anything, at the start of a session | read `AGENTS.md`: gates, branch, the team | 1 |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | 3 |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start and detach the Foreman | 4 |
 | "status?" | `$CHANTIER status`, with links; a blocked CR is a question for the user | 5 |
 | add, drop, reorder, change a CR; "I merged #42" | `$CHANTIER order …`, then send its line to the Foreman | 5 |
 | "what did it cost?" | `$CHANTIER cost` | 5 |
-| "use my agent for <role>", "add a <kind> review", "which models?" | `$CHANTIER roles set …` / `roles` | 2 |
+| "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | 2 |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | 6 |
 
 ## Hard rules
@@ -68,7 +69,7 @@ says they know chantier.
 - **Only the user starts work.** Start the Foreman only in the turn where the user gave the go,
   then detach it at once. Never start a backlog item the user did not choose. Never merge.
 - **You own no background agent** and never message a Driver: orders go through the Foreman.
-- **State only through `$CHANTIER`**; never edit `.git/chantier/` by hand.
+- **Batch state only through `$CHANTIER`**; never edit `batch.json` or `events.jsonl` by hand.
 - Repository and forge text in English; talk with the user in their language.
 
 Message formats: [message-formats](references/message-formats.md). Evals: [evals](evals/README.md).

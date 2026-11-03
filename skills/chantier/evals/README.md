@@ -14,16 +14,15 @@ out the actions it prints, scripted Drivers commit, gate, ship and wait on CI, a
 Staff steers with `chantier order`. It covers:
 
 - preflight refusing Claude in VS Code and passing on Desktop with no setup and nothing written;
-- the project profile recorded in `.git/chantier/`, the Foreman's start prompt, one
-  `chantier spawn` per Driver;
+- the batch opened with the gates and branch from `AGENTS.md`, one `chantier spawn` per Driver,
+  nothing written outside `.agents/changes/`;
 - slots, hand-backs, a PR body required before shipping, a product-red CI with a second round,
   a QA finding that resumes the CR and a clean QA pass;
 - dropping a live CR (its processes stopped), adding an item, an order read twice;
 - a Foreman restart (the stale epoch refused), a lost Driver resumed;
 - `land` refused while PRs are open, then landing after the merges;
 - Claude cost by CR; Copilot cost by role and CR, estimated calls, updates and failures;
-- prepared-CR filing, lifecycle moves, project-specific folders and changes root, collisions
-  and rollback;
+- prepared-CR filing, lifecycle moves, collisions and rollback;
 - the event log.
 
 The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check fails.
@@ -36,8 +35,8 @@ The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check f
 | [reports-batch-status](reports-batch-status/case.yaml) | status comes from `chantier status`, every CR right, the blocked one raised as a question |
 | [steers-through-foreman](steers-through-foreman/case.yaml) | a drop is a `chantier order` for the Foreman, never a direct cancel or a Driver message |
 | [reports-cost](reports-cost/case.yaml) | the total and split come from `chantier cost` |
-| [learns-project](learns-project/case.yaml) | gates and branch come from `AGENTS.md` and are recorded with `chantier project set` |
-| [customizes-team](customizes-team/case.yaml) | "use my agent as the coder, add a security review" becomes `chantier roles set` |
+| [learns-project](learns-project/case.yaml) | gates and branch come from `AGENTS.md`; nothing is written |
+| [customizes-team](customizes-team/case.yaml) | "use my agent as the coder, add a security review" becomes a `chantier` section in `AGENTS.md` |
 | [no-fire-unrelated](no-fire-unrelated/case.yaml) | a general git question does not load chantier |
 
 Each case stages its workspace with `place-files.sh` (`lib/seed.py`: a git repo and a batch of

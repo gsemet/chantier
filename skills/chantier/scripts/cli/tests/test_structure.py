@@ -10,7 +10,7 @@ import pytest
 
 from chantier import __version__
 from chantier.commands import CARDS
-from chantier.roles import DRIVERS, ROLES, agent_model, plugin_agent_file
+from chantier.roles import DRIVERS, ROLES, plugin_agent_file
 from conftest import PLUGIN_ROOT, SKILL, sh
 
 CLAUDE_MODELS = {"claude-sonnet-5-5"}
@@ -80,7 +80,7 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
     assert claude_body == copilot_body and f"`chantier {role}`" in claude_body
     assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
     assert claude["description"] == copilot["description"]
-    assert agent_model(plugin_agent_file(PLUGIN_ROOT, role, "claude")) in CLAUDE_MODELS
+    assert claude["model"] in CLAUDE_MODELS
     assert copilot["model-policy"] == "required" and copilot["user-invocable"] == "false"
     assert copilot["strict-tools-list"] == "true"
     assert ("Agent" in claude["tools"]) == ('"agent"' in copilot["tools"]) \
@@ -101,42 +101,44 @@ def test_every_card_section_a_spawn_names_exists():
         assert f"\n## {section}\n" in text, (card, section)
 
 
+GATES = ("--fast-gate", "just check", "--long-gate", "just check", "--default-branch", "main")
+
+
 @pytest.mark.parametrize("host,coder", [("claude", "chantier:coder"), ("copilot", "chantier-coder")])
-def test_the_plugin_runs_with_no_setup_and_writes_only_the_cr_folder(
+def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
         repo, chantier, monkeypatch, host, coder):
     monkeypatch.setenv("CHANTIER_HOST", host)
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
     monkeypatch.setenv("COPILOT_AGENT_SESSION_ID", "s-1")
     code, out, _ = chantier("preflight")
     assert code == 0, out
-    assert chantier("project", "set", "--fast-gate", "just check", "--long-gate", "just check",
-                    "--default-branch", "main")[0] == 0
     assert sh("git", "status", "--porcelain", cwd=repo) == ""
     folder = _prepared(repo, chantier)
-    code, _, err = chantier("open", "b1", f"@{folder}", "--no-worktrees")
+    code, _, err = chantier("open", "b1", f"@{folder}", "--no-worktrees", *GATES)
     assert code == 0, err
     assert chantier("status")[1][-1].startswith("CR-101 queued")
     _, out, _ = chantier("spawn", "coder", "CR-101", "--note", "round 1")
     assert out[:2] == [f"agent: {coder}", "mode: foreground"]
     assert any('references/worker.md (section "Coder")' in line for line in out)
-    assert sh("git", "status", "--porcelain", cwd=repo) == "?? .agents/"
+    assert sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines() and all(
+        line.startswith("?? .agents/changes/")
+        for line in sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines())
 
 
-def test_a_role_runs_the_users_agent_and_a_new_role_is_a_review_step(repo, chantier, monkeypatch):
+def test_a_role_runs_the_users_agent_and_a_review_step_runs_after_the_inspector(
+        repo, chantier, monkeypatch):
     monkeypatch.setenv("CHANTIER_HOST", "claude")
     (repo / ".claude" / "agents").mkdir(parents=True)
-    (repo / ".claude" / "agents" / "my-debugger.md").write_text(
-        "---\nname: my-debugger\nmodel: claude-opus-5-5\n---\nDebug.\n")
-    assert chantier("roles", "set", "debugger", "my-debugger")[0] == 0
-    assert chantier("roles", "set", "security-review", "sec", "--task", "OWASP top 10")[0] == 0
-    assert chantier("roles", "set", "new-role", "x")[0] == 1  # a new role says what it checks
-    assert chantier("roles", "set", "coder", "x", "--task", "y")[0] == 1  # a built-in contract
-    _, out, _ = chantier("roles")
-    assert "debugger: my-debugger (.claude/agents/my-debugger.md; model claude-opus-5-5)" in out
-    assert any(line.startswith("security-review: sec (extra review step: OWASP") for line in out)
-    chantier("project", "set", "--fast-gate", "just check", "--long-gate", "just check",
-             "--default-branch", "main")
-    assert chantier("open", "b1", f"@{_prepared(repo, chantier)}", "--no-worktrees")[0] == 0
+    (repo / ".claude" / "agents" / "my-debugger.md").write_text("---\nname: my-debugger\n---\nDebug.\n")
+    (repo / ".claude" / "agents" / "sec.md").write_text("---\nname: sec\n---\nReview.\n")
+    folder = _prepared(repo, chantier)
+    for bad in (("--agent", "nobody=x"), ("--review", "coder=sec:y"), ("--review", "sec-review=sec"),
+                ("--agent", "debugger=missing")):
+        assert chantier("open", "bad", f"@{folder}", "--no-worktrees", *GATES, *bad)[0] == 1, bad
+    code, _, err = chantier("open", "b1", f"@{folder}", "--no-worktrees", *GATES,
+                            "--agent", "debugger=my-debugger",
+                            "--review", "security-review=sec:OWASP top 10")
+    assert code == 0, err
     _, out, _ = chantier("spawn", "debugger", "CR-101")
     assert out[0] == "agent: my-debugger" and any('(section "Debugger")' in ln for ln in out)
     _, out, _ = chantier("spawn", "security-review", "CR-101")
@@ -144,5 +146,3 @@ def test_a_role_runs_the_users_agent_and_a_new_role_is_a_review_step(repo, chant
     _, out, _ = chantier("spawn", "cr-driver", "CR-101")
     assert out[1] == "mode: background"
     assert any(ln.startswith("Extra review steps") and "security-review" in ln for ln in out)
-    assert chantier("roles", "reset", "debugger")[0] == 0
-    assert chantier("spawn", "debugger", "CR-101")[1][0] == "agent: my-debugger"  # batch keeps it

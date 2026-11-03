@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: learns-project
-description: The Chief of Staff learns the gates and branch from AGENTS.md and records them with `chantier project set`.
+description: The Chief of Staff learns the gates and branch from AGENTS.md, with nothing to configure.
 tags: [project, discovery]
 context:
   scaffold_script: place-files.sh
@@ -12,24 +12,23 @@ execution:
   allowed_tools: [Skill, Bash, Read, Glob, Grep]
 runs: 3
 expected_outcome: >-
-  The agent reads AGENTS.md, then runs `chantier project set` with
-  `--fast-gate "uv run --no-project python -m compileall -q ."`, the same command as
-  `--long-gate`, and `--default-branch main`, and reports in French what it recorded. It opens no
-  batch and starts no session.
+  The agent reads AGENTS.md and reports in French the gate it will use for both fast and long
+  gates (`uv run --no-project python -m compileall -q .`) and the default branch `main`. It writes
+  no configuration file, opens no batch and starts no session.
 graders:
   - type: llm
-    name: records-the-profile-from-agents-md
+    name: reads-agents-md-and-writes-nothing
     focus: trace
     criteria: >-
-      The trace shows AGENTS.md was read and `chantier project set` was run successfully with a
-      fast gate and a long gate equal to `uv run --no-project python -m compileall -q .` and the
-      default branch `main`. No `chantier open`, `chantier foreman` or session start was
-      attempted, and no configuration file was written by hand.
+      The trace shows AGENTS.md was read. No `chantier open`, `chantier foreman` or session start
+      was attempted, and no file was created or edited (no configuration file, no change to
+      AGENTS.md).
   - type: llm
     name: reports-what-it-learned
     focus: last_message
     criteria: >-
-      The final message, in French, names the gate command and the default branch it recorded.
+      The final message, in French, names the gate command and the default branch it will pass
+      to the next batch.
   - type: tool_used
     name: skill-fired
     tool: Skill

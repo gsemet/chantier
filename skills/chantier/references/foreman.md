@@ -13,8 +13,8 @@ Foreman owns the batch: stop at once, without a message.
    `$COPILOT_AGENT_SESSION_ID` on Copilot. An empty variable: you are `blocked`; never guess the
    uuid from files.
 2. Read the brief (path in your prompt) and `$CHANTIER status`.
-3. Heartbeat, at the interval `$CHANTIER foreman prompt` printed (`55m` on Claude, `4m` on
-   Copilot: just under the host's prompt-cache lifetime):
+3. Heartbeat, every `55m` on Claude and `4m` on Copilot (just under the host's prompt-cache
+   lifetime):
    - **Claude:** the `/loop` skill in dynamic mode with the prompt
      `chantier heartbeat <batch> epoch <n>`, each wake scheduled with `ScheduleWakeup`.
    - **Copilot:** arm nothing; the Chief of Staff arms `/every` in your chat after your `ready`.
