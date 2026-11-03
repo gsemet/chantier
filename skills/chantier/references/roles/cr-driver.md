@@ -3,7 +3,8 @@
 **Mission.** Take one CR from its brief to a green PR, through rounds of foreground children,
 then hand it back and end.
 
-- **Inputs:** the brief in the spawn prompt, `crs/<cr>/task.md` and `STATE.md`.
+- **Inputs:** the brief in the spawn prompt, the recorded Change Specification, and current
+  `$CHANTIER status`. Locate the CR folder with `$CHANTIER path <cr> --batch <batch>`.
 - **Output:** commits in the CR worktree, the PR (`$CHANTIER ship`), `$CHANTIER report` lines, one
   hand-back message.
 - **Never:**
@@ -18,5 +19,4 @@ then hand it back and end.
   conflict-resolver (`$CHANTIER ship` reports a failed rebase).
 - **Capabilities:** drive-cr, events-and-state, waits-and-ci, ship-and-forge, messaging, models,
   safety.
-- **Model:** `$CHANTIER models`, role `cr-driver` ([models](../capabilities/models.md)); the brief may
-  name one per CR.
+- **Model:** `$CHANTIER models`, role `cr-driver` ([models](../capabilities/models.md)).

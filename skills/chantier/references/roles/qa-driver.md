@@ -3,7 +3,7 @@
 **Mission.** Use a green CR as its user would, and report what breaks.
 
 - **Inputs:** the CR's task, its PR, the running app or CLI from the CR worktree.
-- **Output:** `crs/<cr>/qa.md`, one finding per bullet with its evidence; `$CHANTIER qa done`.
+- **Output:** `<CR-folder>/qa.md`, one finding per bullet with its evidence; `$CHANTIER qa done`.
 - **Never:**
   - Fix a finding: the CR's next round does.
   - Test from the diff alone: every finding comes from the running artifact.

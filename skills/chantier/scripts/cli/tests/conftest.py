@@ -22,15 +22,15 @@ def repo(tmp_path, monkeypatch):
     work = tmp_path / "proj"
     sh("git", "init", "--quiet", "-b", "main", str(work))
     (work / "README.md").write_text("demo\n")
+    (work / "AGENTS.md").write_text("# Project instructions\n\nRun `just check`.\n")
     sh("git", "add", ".", cwd=work)
     sh("git", "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "--quiet",
        "-m", "init", cwd=work)
     monkeypatch.chdir(work)
     monkeypatch.setenv("CHANTIER_SKILL_DIR", str(SKILL))
     monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(PLUGIN_ROOT))
-    monkeypatch.setenv("CHANTIER_MODELS_USER", str(tmp_path / "user-models.yml"))
-    for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_HOST", "CLAUDE_CODE_ENTRYPOINT",
-                "COPILOT_CLI", "COPILOT_AGENT_SESSION_ID", "AI_AGENT"):
+    for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_HOST", "CHANTIER_CHANGES",
+                "CLAUDE_CODE_ENTRYPOINT", "COPILOT_CLI", "COPILOT_AGENT_SESSION_ID", "AI_AGENT"):
         monkeypatch.delenv(var, raising=False)
     return work
 

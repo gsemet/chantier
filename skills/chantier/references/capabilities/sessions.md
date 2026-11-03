@@ -16,9 +16,13 @@ Start, in the turn where the user asked, after preflight and `$CHANTIER open`:
 {"initiation": "user_asked", "title": "Foreman <batch> (<project>)", "name": "foreman-<batch>",
  "context": "fresh", "use_worktree": false, "model": "<the id `$CHANTIER models get foreman` prints, or omit>",
  "effort": "<the level `$CHANTIER models get foreman` prints, or omit>", "permission_mode": "<the user's current mode, stated>",
- "prompt": "/chantier foreman <batch> --chief-of-staff <your session id> --epoch <n>",
+ "prompt": "/chantier foreman <batch> --chief-of-staff <your session id> --epoch <n>\nskill: <absolute skill folder>\nchanges: <absolute changes root>",
  "background": "<content of the batch brief>"}
 ```
+
+The Foreman passes `--changes-dir "<changes>"` before every CLI subcommand and copies both paths
+into every worker spawn. Do not rely on an export surviving separate shell calls. Use the actual
+changes root, including the default `<project-root>/.agents/changes`, not a relative path.
 
 The epoch is the current one plus one (`$CHANTIER foreman get`; `1` for a new batch). Then, in the
 same turn: `$CHANTIER foreman set <returned id>` (it must print that epoch) and
@@ -35,7 +39,8 @@ or `detach_session`.
 
 1. `create_session` with `model` = the id `$CHANTIER models get foreman` prints, `workspace` = this
    repository, `worktree: false`, `title: Foreman <batch>`, and
-   `prompt: /chantier foreman <batch> --chief-of-staff <your session link> --epoch <n>`. Pass nothing else:
+   `prompt: /chantier foreman <batch> --chief-of-staff <your session link> --epoch <n>`,
+   followed by the same `skill:` and `changes:` lines. Pass nothing else:
    `create_session` takes no agent and no effort, so the Foreman runs at the session's effort
    (the accepted exception `$CHANTIER models audit` reports as a NOTE).
 2. `$CHANTIER foreman set <returned chat id>`. The Foreman records its own runtime uuid

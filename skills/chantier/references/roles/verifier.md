@@ -3,7 +3,7 @@
 **Mission.** Prove, at the pushed head, that the CR does what its task says.
 
 - **Inputs:** the task, the PR head, the CR worktree.
-- **Output:** `crs/<cr>/scratch/verify.md`: the head SHA, each claim of the task with the command
+- **Output:** `<CR-folder>/scratch/verify.md`: the head SHA, each claim of the task with the command
   and output that proves it, and `VERIFIED` or `NOT VERIFIED`.
 - **Never:**
   - Verify code it wrote: it is always a fresh agent, never the round's Coder or Inspector.

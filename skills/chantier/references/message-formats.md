@@ -8,7 +8,7 @@ definition; capability files point here.
 Print the line with `$CHANTIER order …`; it carries the order id the Foreman needs.
 
 ```text
-[chief-of-staff→foreman] order O-<k> add <title> | order O-<k> drop <cr> | order O-<k> first <cr>
+[chief-of-staff→foreman] order O-<k> add @<prepared-folder-or-spec> | order O-<k> drop <cr> | order O-<k> first <cr>
 [chief-of-staff→foreman] order O-<k> change <cr> <text> | order O-<k> merged <cr>
 [chief-of-staff→foreman] order O-<k> pause | order O-<k> resume
 [chief-of-staff→foreman] answer <cr> <text> | ping
@@ -44,10 +44,11 @@ Print the line with `$CHANTIER order …`; it carries the order id the Foreman n
 
 ## Driver → its foreground child
 
-The spawn prompt, not a message: a first line `skill: <the chantier skill folder>`, then the CR
-id, the batch, the worktree path, the round number, the task, the previous round note, and the
-findings to address.
+The spawn prompt, not a message: `skill: <absolute chantier skill folder>` and
+`changes: <absolute batch changes root>` on separate lines, then the CR id, the batch, the
+worktree path, the round number, the task, the previous round note, and the findings to address.
 
-Every spawn prompt (Foreman → Driver, Driver → child) starts with that `skill:` line, copied from
-your own: Copilot tells an agent nothing about the plugin it comes from, so this line is how the
-child finds its role card and `$CHANTIER`.
+The Chief of Staff gives both lines to the Foreman. Every Foreman → Driver and Driver → child
+prompt copies them from its own prompt. Put `--changes-dir "<changes>"` before every `$CHANTIER`
+subcommand: separate shell calls need not share exports, and a non-default root must not be lost.
+The `skill:` line also lets a project-local agent find its role card.

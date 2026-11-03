@@ -20,7 +20,8 @@ Everyone.
 - **Git:** stage explicit paths only; the only rewrite is a rebase pushed with
   `--force-with-lease`; never touch the user's uncommitted changes; never merge.
 - **No `sleep`:** waits go through `$CHANTIER wait` in the background.
-- **Scratch files:** under your own folder in the CR (`crs/<cr>/scratch/<role>/`).
+- **Scratch files:** under your own folder in the CR (`<CR-folder>/scratch/<role>/`); resolve the
+  folder with `$CHANTIER path <cr> --batch <batch>`.
 - **Shell:** commands never wait for input (`GH_PAGER=cat GH_PROMPT_DISABLED=1`,
   `GIT_EDITOR=true`, `\rm`, `\cp`, `\mv`).
 - Repository and forge text in English.

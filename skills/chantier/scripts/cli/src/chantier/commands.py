@@ -1,7 +1,6 @@
 """The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code."""
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -15,17 +14,17 @@ from pathlib import Path
 
 from . import __version__, costs, forge, procs
 from .decide import decide, fill_slots
-from .models import (CR_IN_NAME, INHERIT, ROLES, Models, brief_overrides, copilot_events,
-                     copilot_session, copilot_spawns, detect_host, expected)
+from .lifecycle import (PRIORITIES, STAGES, changes_lock, cr_directory, ensure_unclaimed,
+                        move_backlog_item, prepared_cr, return_cr, stage_layout, stored_layout)
+from .models import (CR_IN_NAME, INHERIT, ROLES, Models, copilot_events, copilot_session,
+                     copilot_spawns, detect_host)
 from .state import (DONE, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError,
-                    Repo, age_minutes, check_epoch, find_cr_batch, git, next_cr_number, now,
-                    read_batch, resolve_batch)
+                    Repo, age_minutes, check_epoch, default_branch, find_cr_batch, git,
+                    move_directory, next_cr_number, now, project_path, read_batch, resolve_batch)
 
-DRIVER_TEMPLATES = ("cr-driver", "stack-driver", "qa-driver")
-TEMPLATES = ("foreman",) + DRIVER_TEMPLATES + ("investigator", "coder", "inspector", "debugger",
-                                               "verifier", "conflict-resolver")
-TEMPLATE_VERSION = re.compile(r"^# chantier-template: (\S+)$", re.M)
+DRIVER_AGENTS = ("cr-driver", "stack-driver", "qa-driver")
+AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
 
 
 def skill_dir() -> Path:
@@ -39,14 +38,6 @@ def skill_dir() -> Path:
     raise ChantierError("cannot find the chantier skill folder; set CHANTIER_SKILL_DIR", EXIT_PRECONDITION)
 
 
-def chantier_prefix() -> str:
-    return f"uv run --script {skill_dir() / 'scripts' / 'cli' / 'chantier.py'}"
-
-
-# How the agents shipped in the Claude Code plugin name the skill: Claude Code substitutes the
-# plugin's install folder in agent bodies.
-PLUGIN_SKILL = "${CLAUDE_PLUGIN_ROOT}/skills/chantier"
-PLUGIN_CHANTIER = f"uv run --script {PLUGIN_SKILL}/scripts/cli/chantier.py"
 PLUGIN_NAME = "chantier"
 
 
@@ -63,13 +54,7 @@ def plugin_root() -> Path | None:
     return root if (root / ".claude-plugin" / "plugin.json").exists() else None
 
 
-# Copilot substitutes nothing in an agent body: its plugin agents name the skill `<skill>`, and
-# every spawn prompt gives that folder on a `skill:` line.
 COPILOT_PLUGIN_AGENTS = "com.github.copilot/agents"
-COPILOT_SKILL = "<skill>"
-COPILOT_CHANTIER = f"uv run --script {COPILOT_SKILL}/scripts/cli/chantier.py"
-COPILOT_NOTE = ("`<skill>` below is the chantier skill folder: the `skill:` line of your spawn "
-                "prompt (the Foreman: the folder of the skill it runs).\n\n")
 
 
 def plugin_agent(name: str, host: str = "claude") -> Path | None:
@@ -82,19 +67,21 @@ def plugin_agent(name: str, host: str = "claude") -> Path | None:
     return path if path.exists() else None
 
 
-# `- chantier <role> agent: <path>` in the repository's AGENTS.md: that role runs the
-# repository's own agent instead of the plugin's.
-CUSTOM_AGENT = re.compile(r"^[ \t]*(?:[-*][ \t]+)?chantier[ \t]+(?P<role>[A-Za-z-]+)[ \t]+agent:"
+# `- chantier [<host>] <role> agent: <path>` selects the repository's own agent.
+CUSTOM_AGENT = re.compile(r"^[ \t]*(?:[-*][ \t]+)?chantier[ \t]+"
+                          r"(?:(?P<host>claude|copilot)[ \t]+)?(?P<role>[A-Za-z-]+)[ \t]+agent:"
                           r"[ \t]*(?P<path>.*?)[ \t]*$", re.M | re.I)
 
 
-def custom_agents(repo: Repo) -> dict[str, Path]:
-    """Roles the repository runs with its own agent file, from its AGENTS.md."""
+def custom_agents(repo: Repo, host: str) -> dict[str, Path]:
+    """Roles this host runs with the repository's own agent files, from AGENTS.md."""
     f = repo.root / "AGENTS.md"
     if not f.exists():
         return {}
     out: dict[str, Path] = {}
     for m in CUSTOM_AGENT.finditer(f.read_text(encoding="utf-8")):
+        if m["host"] and m["host"].lower() != host:
+            continue
         role, raw = m["role"].lower(), m["path"].strip("`")
         if role not in ROLES or role == "foreman":
             raise ChantierError(f"AGENTS.md: `chantier {role} agent:` is not a role a Driver "
@@ -103,14 +90,20 @@ def custom_agents(repo: Repo) -> dict[str, Path]:
             raise ChantierError(f"AGENTS.md: `chantier {role} agent:` takes one agent file, "
                                 f"got `{raw}`")
         if role in out:
-            raise ChantierError(f"AGENTS.md: two agents for chantier {role}")
-        out[role] = repo.root / raw
+            raise ChantierError(f"AGENTS.md: two {host} agents for chantier {role}")
+        path = project_path(repo.root, raw, f"chantier {host} {role} agent")
+        directory = repo.root / (".claude/agents" if host == "claude" else ".github/agents")
+        if path.parent != directory or not path.name.endswith(
+                ".md" if host == "claude" else ".agent.md"):
+            raise ChantierError(f"AGENTS.md: a {host} agent must be a file in "
+                                f"{directory.relative_to(repo.root)}")
+        out[role] = path
     return out
 
 
 @dataclass
 class AgentRef:
-    """The agent a role runs: `custom` (AGENTS.md), `local` (installed by setup), `plugin`."""
+    """The agent a role runs: `custom` (AGENTS.md), `local`, or `plugin`."""
 
     kind: str
     name: str
@@ -122,18 +115,18 @@ def _agent_id(path: Path, host: str) -> str:
     if host == "copilot":
         return path.name.removesuffix(".md").removesuffix(".agent")
     m = re.search(r"^name:[ \t]*(\S+)[ \t]*$", path.read_text(encoding="utf-8"), re.M)
-    return m[1] if m else path.stem
+    return m[1].strip("\"'") if m else path.stem
 
 
 def resolve_agent(repo: Repo, host: str, role: str) -> AgentRef:
-    """The repository's own agent (AGENTS.md), else a file `setup` installed, else the plugin's."""
-    custom = custom_agents(repo).get(role)
+    """The repository's own agent, else a local copy, else the plugin's agent."""
+    custom = custom_agents(repo, host).get(role)
     if custom:
         return AgentRef("custom", _agent_id(custom, host) if custom.exists() else custom.stem,
                         custom)
     local = agent_path(repo, host, role)
     if local.exists():
-        return AgentRef("local", role, local)
+        return AgentRef("local", _agent_id(local, host), local)
     shipped = plugin_agent(role, host)
     if shipped:
         return AgentRef("plugin", f"{PLUGIN_NAME}:{role}" if host == "claude" else role, shipped)
@@ -144,11 +137,13 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40] or "cr"
 
 
-# ---- setup and preflight ----------------------------------------------------------------------
+# ---- agents and preflight ---------------------------------------------------------------------
 
-def load_models(repo: Repo | None, host: str) -> Models:
-    legacy = (repo.config.get("models") or None) if repo else None
-    return Models(host, skill_dir(), repo.root if repo else None, legacy)
+def load_models(repo: Repo, host: str) -> Models:
+    refs = {role: resolve_agent(repo, host, role) for role in ROLES}
+    paths = {role: ref.path for role, ref in refs.items()}
+    custom = {role for role, ref in refs.items() if ref.kind in ("custom", "local")}
+    return Models(host, paths, custom)
 
 
 def agent_path(repo: Repo, host: str, name: str) -> Path:
@@ -157,163 +152,8 @@ def agent_path(repo: Repo, host: str, name: str) -> Path:
     return repo.root / ".claude" / "agents" / f"{name}.md"
 
 
-def base_models(host: str) -> Models:
-    """The skill's base list alone: what the plugin's agents pin."""
-    models = Models(host, skill_dir(), None, base_only=True)
-    if models.errors:
-        raise ChantierError("models: " + "; ".join(models.errors))
-    return models
-
-
-def render_plugin_agents(host: str = "claude") -> dict[str, str]:
-    """The agent files the plugin ships for a host: the skill's base list, no override."""
-    models = base_models(host)
-    if host == "claude":
-        return {n: _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER) for n in TEMPLATES}
-    return {n: re.sub(r"^(# chantier-template: \S+\n\n)", lambda m: m[1] + COPILOT_NOTE,
-                      _render_template(n, models, COPILOT_SKILL, COPILOT_CHANTIER),
-                      count=1, flags=re.M)
-            for n in TEMPLATES}
-
-
-def _render_local(name: str, models: Models) -> str:
-    return _render_template(name, models, str(skill_dir()), chantier_prefix())
-
-
-def _file_models(ref: AgentRef, models: Models) -> Models | None:
-    """The configuration an agent file was rendered from: the base list for the plugin's."""
-    return {"plugin": base_models(models.host), "local": models}.get(ref.kind)
-
-
-def _override_errors(repo: Repo, models: Models, overrides: dict) -> list[str]:
-    return [msg for _role, msg in _role_override_errors(repo, models, overrides)]
-
-
-def _role_override_errors(repo: Repo, models: Models,
-                          overrides: dict) -> list[tuple[str, str]]:
-    """(role, why) for each override no spawn can honor with the agent the role runs."""
-    host, errors = models.host, []
-    for role in ROLES:
-        if role == "foreman":
-            continue
-        ref = resolve_agent(repo, host, role)
-        fm = _file_models(ref, models)
-        own = f"point chantier {role} to your own agent in AGENTS.md"
-        if ref.kind == "custom":
-            if any(r == role for r, _c in overrides):
-                errors.append((role, f"brief sets a model for {role}, which runs the "
-                                     f"repository's own agent {ref.name}: change that agent"))
-            continue
-        if fm is None or fm is models:
-            continue
-        if models.effort_of(role) != fm.effort_of(role):
-            errors.append((role, f"effort {role}={models.effort_of(role) or INHERIT} differs "
-                                 f"from the plugin's agent ({fm.effort_of(role) or INHERIT}): "
-                                 f"{own}"))
-        if host == "copilot" and models.role(role) != fm.role(role) and fm.role(role) != INHERIT:
-            errors.append((role, f"model {role}={models.role(role)} differs from the plugin's "
-                                 f"agent ({fm.role(role)}, model-policy: required): {own}"))
-    for (role, _cr), want in overrides.items():
-        ref = resolve_agent(repo, host, role)
-        fm = _file_models(ref, models)
-        if fm and _locked(host, role, want, fm.role(role)):
-            errors.append((role, _locked(host, role, want, fm.role(role))))
-    return errors
-
-
-def _render_template(name: str, models: Models, skill: str, chantier: str) -> str:
-    text = (skill_dir() / "assets" / "agents" / f"{name}.md").read_text(encoding="utf-8")
-    text = text.replace("{{CHANTIER}}", chantier).replace("{{SKILL}}", skill)
-    model = models.frontmatter_model(name)
-    effort = models.effort_of(name)
-    tools = models.tool_list(name)
-    if models.host == "claude":
-        text = text.replace("{{MODEL}}", model).replace("{{TOOLS}}", ", ".join(tools))
-        if effort:
-            text = re.sub(r"^(model: .*)$", rf"\1\neffort: {effort}", text, count=1, flags=re.M)
-        return text
-    # Copilot: name and description from the template, then Copilot's own keys.
-    _, front, body = text.split("---\n", 2)
-    keep = [ln for ln in front.splitlines() if ln.startswith(("name:", "description:"))]
-    if model:
-        keep += [f"model: {model}", "model-policy: required"]
-    if effort:
-        keep.append(f"reasoning-effort: {effort}")
-    keep += ["tools: [" + ", ".join(f'"{t}"' for t in tools) + "]",
-             "strict-tools-list: true",
-             # The Foreman is the only agent a session is started as; the rest are subagents.
-             f"user-invocable: {'true' if name == 'foreman' else 'false'}"]
-    return "---\n" + "\n".join(keep) + "\n---\n" + body
-
-
-# Frontmatter keys that come from the model config: a change in any of them is drift.
-PINNED_KEYS = ("model", "model-policy", "effort", "reasoning-effort", "tools", "strict-tools-list")
-
-
-def _pinned(text: str) -> dict[str, str]:
-    front = text.split("---\n", 2)[1] if text.startswith("---\n") else ""
-    return {m[1]: m[2].strip() for m in re.finditer(r"^([a-z-]+): (.+)$", front, re.M)
-            if m[1] in PINNED_KEYS}
-
-
-def setup(args) -> list[str]:
-    repo = Repo.find()
-    host, _ = detect_host(getattr(args, "host", None))
-    models = load_models(repo, host)
-    if models.errors:
-        raise ChantierError("models: " + "; ".join(models.errors) + " (nothing installed)")
-    out = []
-    installed_path = repo.root / ".agents" / "chantier-installed.json"
-    installed = (json.loads(installed_path.read_text(encoding="utf-8"))
-                 if installed_path.exists() else {})
-    for name in TEMPLATES:
-        target = agent_path(repo, host, name)
-        rel = target.relative_to(repo.root).as_posix()
-        key = name if host == "claude" else f"{host}/{name}"
-        if plugin_agent(name, host):
-            # the plugin's agent is the one to run: a copy here would only shadow it
-            if (target.exists()
-                    and installed.get(key) == _digest(target.read_text(encoding="utf-8"))):
-                target.unlink()
-                installed.pop(key)
-                out.append(f"removed {rel} (the plugin ships this agent)")
-            continue
-        text = _render_local(name, models)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if target.exists() and target.read_text(encoding="utf-8") == text:
-            installed[key] = _digest(text)
-            continue
-        edited = (target.exists()
-                  and _digest(target.read_text(encoding="utf-8")) != installed.get(key))
-        if edited and not args.force:
-            drift = _pinned(target.read_text(encoding="utf-8")) != _pinned(text)
-            out.append(f"kept {rel} (edited locally; --force to replace)"
-                       + (" but its model, effort or tools differ from the config"
-                          if drift else ""))
-            continue
-        target.write_text(text, encoding="utf-8")
-        installed[key] = _digest(text)
-        out.append(f"installed {rel}")
-    if installed:
-        installed_path.parent.mkdir(parents=True, exist_ok=True)
-        installed_path.write_text(json.dumps(installed, indent=2) + "\n", encoding="utf-8")
-    elif installed_path.exists():
-        installed_path.unlink()
-    if not out and plugin_root():
-        return [f"setup: nothing to install ({host}): the plugin ships every agent; "
-                "to run your own agent for a role, add `- chantier <role> agent: <file>` "
-                "to AGENTS.md"]
-    out.append(f"setup done ({host})" if out else f"setup: nothing to change ({host})")
-    out.append("restart the session if agent files changed: agents load at start")
-    return out
-
-
-def _digest(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()[:16]
-
-
 def _version_of(path: Path) -> str | None:
-    m = TEMPLATE_VERSION.search(path.read_text(encoding="utf-8"))
+    m = AGENT_VERSION.search(path.read_text(encoding="utf-8"))
     return m.group(1) if m else None
 
 
@@ -356,36 +196,31 @@ def preflight(args) -> tuple[list[str], int]:
             model_errors = models.errors
         except ChantierError as e:
             models, model_errors = None, [str(e)]
-        # Each role runs one agent: the repository's own (AGENTS.md), one `setup` installed, or
-        # the plugin's. Only chantier's own files carry its template version and cache.
         try:
-            refs = {n: resolve_agent(repo, host, n) for n in TEMPLATES}
+            refs = {n: resolve_agent(repo, host, n) for n in ROLES}
         except ChantierError as e:
             refs, model_errors = {}, [*model_errors, str(e)]
+        try:
+            _batch_context(repo, None)
+        except ChantierError as e:
+            model_errors = [*model_errors, str(e)]
         missing = [n for n, r in refs.items() if r.kind == "missing"]
         no_custom = [f"{n} ({r.path})" for n, r in refs.items()
                      if r.kind == "custom" and not r.path.exists()]
-        ours = {n: r for n, r in refs.items() if r.kind in ("local", "plugin")}
+        ours = {n: r for n, r in refs.items() if r.kind == "plugin"}
         stale = [n for n, r in ours.items() if _version_of(r.path) != __version__]
-        no_ttl = [n for n, r in ours.items() if host == "claude" and n in DRIVER_TEMPLATES
+        no_ttl = [n for n, r in ours.items() if host == "claude" and n in DRIVER_AGENTS
                   and "cacheTtl: 1h" not in r.path.read_text(encoding="utf-8")]
-        drift = [n for n, r in ours.items() if models and not model_errors and r.kind == "local"
-                 and _pinned(r.path.read_text(encoding="utf-8"))
-                 != _pinned(_render_local(n, models))]
-        problems = ([f"missing {', '.join(missing)} (install the chantier plugin, or run "
-                     "`chantier setup`)"]
+        problems = ([f"missing {', '.join(missing)} (install the chantier plugin or copy "
+                     "its static agent files into the repository)"]
                     if missing else []) + \
                    ([f"AGENTS.md names a missing agent: {', '.join(no_custom)}"]
                     if no_custom else []) + \
-                   ([f"old template {', '.join(stale)}"] if stale else []) + \
-                   ([f"no 1h cache in {', '.join(no_ttl)}"] if no_ttl else []) + \
-                   ([f"model, effort or tools differ from the config in {', '.join(drift)} "
-                     "(run `chantier setup`)"] if drift else [])
+                   ([f"old plugin agent {', '.join(stale)}"] if stale else []) + \
+                   ([f"no 1h cache in {', '.join(no_ttl)}"] if no_ttl else [])
         check("P4", not problems, "every role has a current agent",
               "; ".join(problems) + "; then restart the session")
-        if models and not model_errors:
-            model_errors = _override_errors(repo, models, {})
-        check("P8", not model_errors, f"models valid for {host}", "; ".join(model_errors))
+        check("P8", not model_errors, f"agent models readable for {host}", "; ".join(model_errors))
     has_uv = shutil.which("uv") is not None
     sv = _skill_version()
     check("P5", has_uv and sv == __version__, f"chantier {__version__}, uv found",
@@ -399,6 +234,9 @@ def preflight(args) -> tuple[list[str], int]:
         common = (repo.root / ".git").resolve()
         check("P7", gitdir == common, "not a linked worktree",
               "this session runs in a linked worktree: the Foreman must start in the main checkout")
+        instructions = repo.root / "AGENTS.md"
+        check("P9", instructions.is_file(), "project AGENTS.md is available",
+              "AGENTS.md is missing: ask the user for project instructions before starting")
     lines.append("P2, P3 and 'not unattended' are the Chief of Staff's own checks")
     lines.append("preflight passed" if ok else "preflight FAILED: start nothing")
     return lines, 0 if ok else EXIT_PRECONDITION
@@ -406,50 +244,148 @@ def preflight(args) -> tuple[list[str], int]:
 
 # ---- batches and CRs --------------------------------------------------------------------------
 
+def _layout_args(repo: Repo, args) -> dict[str, Path]:
+    overrides = {stage: getattr(args, stage) for stage in STAGES
+                 if getattr(args, stage, None) is not None}
+    return stage_layout(repo, overrides)
+
+
+def file_cr(args) -> list[str]:
+    repo = Repo.find()
+    paths = _layout_args(repo, args)
+    if args.item.startswith("@"):
+        source = Path(args.item[1:]).expanduser()
+        if not source.is_absolute():
+            source = repo.root / source
+        try:
+            raw = source.read_bytes()
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeError) as e:
+            raise ChantierError(f"cannot read the request {source}: {e}", EXIT_USAGE) from e
+    else:
+        text = args.item
+        raw = text.encode("utf-8")
+    if not text.strip():
+        raise ChantierError("the request is empty", EXIT_USAGE)
+    title = next(line.lstrip("# ").strip() for line in text.splitlines() if line.strip())
+    slug = args.slug or _slug(title)
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", slug):
+        raise ChantierError("CR slug: lowercase letters, digits and hyphens", EXIT_USAGE)
+    folder = paths["inbox"] / slug
+    with changes_lock(repo):
+        paths["inbox"].mkdir(parents=True, exist_ok=True)
+        try:
+            folder.mkdir()
+        except FileExistsError as e:
+            raise ChantierError(f"CR folder already exists: {folder}; choose another slug",
+                                EXIT_CONFLICT) from e
+        try:
+            (folder / "intake").mkdir()
+            (folder / "intake" / "request.md").write_bytes(raw)
+        except OSError as e:
+            raise ChantierError(f"could not finish filing {folder}; preserve it for recovery: {e}",
+                                EXIT_EXTERNAL) from e
+    return [f"filed {folder.relative_to(repo.root)}; write the intent and grill the CR here"]
+
+
+def triage(args) -> list[str]:
+    repo = Repo.find()
+    paths = _layout_args(repo, args)
+    with changes_lock(repo):
+        target = move_backlog_item(repo, args.item, args.priority, paths)
+    return [f"triaged {target.relative_to(repo.root)} ({args.priority})"]
+
+
+def abandon(args) -> list[str]:
+    repo = Repo.find()
+    paths = _layout_args(repo, args)
+    source = project_path(repo.root, args.item, "CR folder")
+    in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
+    if source.parent not in (paths["inbox"], paths["requests"]) and not in_backlog:
+        raise ChantierError("only an inbox, backlog, or unclaimed active CR can be abandoned",
+                            EXIT_USAGE)
+    with changes_lock(repo):
+        ensure_unclaimed(repo, source)
+        target = paths["trash"] / source.name
+        move_directory(source, target)
+    return [f"abandoned {target.relative_to(repo.root)}"]
+
+
+def cr_path(args) -> list[str]:
+    repo = Repo.find()
+    batch = find_cr_batch(repo, args.cr, args.batch)
+    data = read_batch(repo, batch)
+    cr = next((c for c in data["crs"] if c["id"] == args.cr), None)
+    if cr is None:
+        raise ChantierError(f"unknown CR {args.cr} in batch {batch}", EXIT_USAGE)
+    path = cr_directory(repo, batch, cr)
+    if not path.is_dir():
+        raise ChantierError(f"{args.cr}: recorded CR folder is missing: {path}")
+    if args.spec:
+        specification = cr.get("specification")
+        if not specification or Path(specification).name != specification:
+            raise ChantierError(f"{args.cr}: no valid Change Specification was recorded; "
+                                "inspect the legacy CR folder")
+        path = path / specification
+        if not path.is_file():
+            raise ChantierError(f"{args.cr}: recorded Change Specification is missing: {path}")
+    return [path.relative_to(repo.root).as_posix() if args.relative else str(path)]
+
+
 def _base_ref(repo: Repo) -> str:
     remote, branch = repo.config["remote"], repo.config["default_branch"]
-    if git("remote", cwd=repo.root, check=False).split().count(remote):
-        git("fetch", "--quiet", remote, branch, cwd=repo.root, check=False)
-        if git("rev-parse", "--verify", "--quiet", f"{remote}/{branch}", cwd=repo.root,
-               check=False):
-            return f"{remote}/{branch}"
-    return branch
+    if not branch:
+        raise ChantierError("the batch has no default branch; consult AGENTS.md and migrate or "
+                            "reopen the batch")
+    if remote not in git("remote", cwd=repo.root).split():
+        raise ChantierError(f"no remote {remote!r}; check AGENTS.md or ask the user", EXIT_EXTERNAL)
+    git("fetch", "--quiet", remote, branch, cwd=repo.root)
+    ref = f"{remote}/{branch}"
+    git("rev-parse", "--verify", ref, cwd=repo.root)
+    return ref
 
 
 def add_cr(b: Batch, item: str, qa: bool = False) -> dict:
-    """Create one CR: its folder, task, STATE.md, branch and worktree; queued."""
+    """Move a prepared CR into requests, then create its branch and worktree."""
     repo = b.repo
-    text, title = item, item
-    path = Path(item[1:]) if item.startswith("@") else None
-    if path is not None:
-        if not path.is_absolute():
-            path = repo.root / path
-        if not path.exists():
-            raise ChantierError(f"backlog item not found: {path}", EXIT_USAGE)
-        text = path.read_text(encoding="utf-8")
-        title = next((ln.lstrip("# ").strip() for ln in text.splitlines() if ln.strip()),
-                     path.stem)
-    cr_id = f"CR-{next_cr_number(repo)}"
-    cdir = b.dir / "crs" / cr_id
+    paths = stage_layout(repo)
+    prepared = prepared_cr(repo, item, paths)
+    ensure_unclaimed(repo, prepared.directory)
+    number = next_cr_number(repo, (paths["requests"], paths["archives"]))
+    cr_id = f"CR-{number}"
+    slug = re.sub(r"^(?:CR-)?\d+-", "", prepared.directory.name, flags=re.I)
+    cdir = paths["requests"] / f"{number:03d}-{_slug(slug)}"
+    origin = prepared.directory.relative_to(repo.root).as_posix()
+    b.move(prepared.directory, cdir)
+    specification = cdir / prepared.specification.name
+    text, title = specification.read_text(encoding="utf-8"), prepared.title
     (cdir / "scratch").mkdir(parents=True, exist_ok=True)
-    (cdir / "task.md").write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
+    task = cdir / "task.md"
+    if not task.exists():
+        task.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
     branch = f"chantier/{b.id}/{cr_id.lower()}-{_slug(title)}"
     worktree = None
     if not b.data.get("no_worktrees"):
         worktree = repo.worktrees / f"{b.id}-{cr_id}"
         worktree.parent.mkdir(parents=True, exist_ok=True)
-        git("worktree", "add", "--quiet", "-b", branch, str(worktree), _base_ref(repo),
-            cwd=repo.root)
+        base = _base_ref(repo)
+        head = git("rev-parse", base, cwd=repo.root)
+        git("worktree", "add", "--quiet", "-b", branch, str(worktree), base, cwd=repo.root)
+        b.created_worktree(worktree, branch, head)
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
     c = {"id": cr_id, "title": title, "item": item, "status": "queued", "order": order,
+         "path": cdir.relative_to(repo.root).as_posix(), "origin": origin,
+         "specification": specification.name, "priority": prepared.priority,
          "round": 0, "qa": qa, "qa_done": False, "agent": None, "pr": None, "ci": None,
          "branch": branch, "worktree": str(worktree) if worktree else None, "pgids": [], "pids": [],
          "notes": [], "resumes": 0, "updated": now()}
-    (cdir / "STATE.md").write_text(
-        f"# {cr_id}: {title}\n\n- batch: {b.id}\n- branch: `{branch}`\n"
-        f"- worktree: `{c['worktree']}`\n- status: queued\n", encoding="utf-8")
+    state = cdir / "STATE.md"
+    if not state.exists():
+        state.write_text(f"# {cr_id}: {title}\n\nInitial record; use `chantier status` for "
+                         f"current state.\n\n- batch: {b.id}\n- branch: `{branch}`\n"
+                         f"- worktree: `{c['worktree']}`\n- status: queued\n", encoding="utf-8")
     b.data["crs"].append(c)
-    b.log("add", cr_id, title=title)
+    b.log("add", cr_id, title=title, path=c["path"], origin=origin)
     return c
 
 
@@ -457,27 +393,61 @@ def open_batch(args) -> list[str]:
     repo = Repo.find()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,40}", args.batch):
         raise ChantierError("batch id: lowercase letters, digits and hyphens", EXIT_USAGE)
+    if not (repo.root / "AGENTS.md").is_file():
+        raise ChantierError("AGENTS.md is missing: ask the user for the project instructions")
+    if args.slots < 1 or (args.budget is not None and args.budget <= 0):
+        raise ChantierError("slots and budget must be positive", EXIT_USAGE)
+    if args.max_rounds < 1 or args.stale_minutes < 1 or args.first_cr_number < 1:
+        raise ChantierError("round limit, stale interval and first CR number must be positive",
+                            EXIT_USAGE)
+    for kind, gates in (("fast", args.fast_gate), ("long", args.long_gate)):
+        if not gates or any(not gate.strip() for gate in gates):
+            raise ChantierError(f"no {kind} gate supplied: read AGENTS.md and ask the user "
+                                f"if it is unclear; pass --{kind}-gate")
+    paths = _layout_args(repo, args)
     qa_all = args.qa == "all"
-    qa_idx = set() if qa_all or not args.qa else {int(i) for i in args.qa.split(",")}
+    try:
+        qa_idx = set() if qa_all or not args.qa else {int(i) for i in args.qa.split(",")}
+    except ValueError as e:
+        raise ChantierError("QA must be 'all' or comma-separated item numbers", EXIT_USAGE) from e
+    if any(i < 1 or i > len(args.items) for i in qa_idx):
+        raise ChantierError("QA item numbers must refer to the selected CRs", EXIT_USAGE)
+    branch = args.default_branch or default_branch(repo.root, args.remote)
+    if not branch:
+        raise ChantierError(f"Git does not know the default branch of {args.remote!r}: "
+                            "read AGENTS.md or ask the user, then pass --default-branch")
+    selected = [prepared_cr(repo, item, paths).directory for item in args.items]
+    if len(set(selected)) != len(selected):
+        raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
+    settings = {"remote": args.remote, "default_branch": branch, "first_cr_number": args.first_cr_number,
+                "worktrees_dir": args.worktrees_dir or "",
+                "forge": "github", "max_rounds": args.max_rounds, "stale_minutes": args.stale_minutes,
+                "gates": {"fast": args.fast_gate, "long": args.long_gate},
+                "layout": stored_layout(repo, paths), "claude_projects_dir": args.claude_projects_dir}
     data = {"id": args.batch, "version": __version__, "created": now(), "status": "open",
             "mode": "stack" if args.stack else "parallel", "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0, "paused": False,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None, "chief_of_staff": args.chief_of_staff,
             "no_worktrees": args.no_worktrees, "stack_live": False, "heartbeat": None,
-            "orders": [], "crs": []}
-    with Batch(repo, args.batch, actor="chief-of-staff", create=data) as b:
-        for i, item in enumerate(args.items, 1):
-            add_cr(b, item, qa=qa_all or i in qa_idx)
-        brief = b.dir / "brief.md"
-        brief.write_text(f"# Batch {args.batch}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
-                         f"Budget: {args.budget or 'none'}.\n- CRs, in order:\n" +
-                         "".join(f"  - {c['id']}: {c['title']}{' (QA)' if c['qa'] else ''}\n"
-                                 for c in b.data["crs"]) +
-                         "- Models (optional; `role=id` or `role@CR-n=id`, exact ids from "
-                         "`chantier models`; empty = agent file default):\n"
-                         "- Night policy card: one extra round per CR; a red PR goes to the top.\n"
-                         "- Autonomous decisions:\n- Questions to bring back:\n", encoding="utf-8")
-        b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
+            "settings": settings, "orders": [], "crs": []}
+    with changes_lock(repo):
+        with Batch(repo, args.batch, actor="chief-of-staff", create=data) as b:
+            brief = b.dir / "brief.md"
+            if brief.exists() or brief.is_symlink():
+                raise ChantierError(f"refusing to overwrite an existing batch brief: {brief}",
+                                    EXIT_CONFLICT)
+            for i, item in enumerate(args.items, 1):
+                add_cr(b, item, qa=qa_all or i in qa_idx)
+            brief.write_text(f"# Batch {args.batch}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
+                             f"Budget: {args.budget or 'none'}.\n- CRs, in order:\n" +
+                             "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
+                                     f"{' (QA)' if c['qa'] else ''}\n" for c in b.data["crs"]) +
+                             "- Project instructions: AGENTS.md and its referenced guidelines.\n"
+                             f"- Fast gates: {', '.join(args.fast_gate)}\n"
+                             f"- Long gates: {', '.join(args.long_gate)}\n"
+                             "- Night policy card: one extra round per CR; a red PR goes to the top.\n"
+                             "- Autonomous decisions:\n- Questions to bring back:\n", encoding="utf-8")
+            b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {args.batch}: {len(args.items)} CRs, {args.slots} slots, {data['mode']}"]
     lines += [f"{c['id']} {c['title'][:60]}" for c in b.data["crs"]]
     lines.append(f"brief: {brief.relative_to(repo.root)}")
@@ -486,8 +456,9 @@ def open_batch(args) -> list[str]:
 
 def add(args) -> list[str]:
     repo = Repo.find()
-    with Batch(repo, resolve_batch(repo, args.batch), actor="chief-of-staff") as b:
-        c = add_cr(b, args.item, qa=args.qa)
+    with changes_lock(repo):
+        with Batch(repo, resolve_batch(repo, args.batch), actor="chief-of-staff") as b:
+            c = add_cr(b, args.item, qa=args.qa)
     return [f"added {c['id']} {c['title'][:60]} (queued)"]
 
 
@@ -525,6 +496,9 @@ ORDER_KINDS = {"add", "drop", "first", "change", "merged", "pause", "resume"}
 def order(args) -> list[str]:
     if args.kind not in ORDER_KINDS:
         raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
+    if args.kind == "add" and not (args.note or "").startswith("@"):
+        raise ChantierError("order add needs --note @<prepared-CR-folder-or-specification>",
+                            EXIT_USAGE)
     repo = Repo.find()
     with Batch(repo, resolve_batch(repo, args.batch), actor="chief-of-staff") as b:
         oid = f"O-{len(b.data['orders']) + 1}"
@@ -539,18 +513,19 @@ def order(args) -> list[str]:
 def event(args) -> list[str]:
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
-    with Batch(repo, batch, actor="foreman") as b:
-        check_epoch(b, args.epoch)
-        kind, cr, note = args.kind, args.cr, args.note or ""
-        if args.order:
-            o = next((x for x in b.data["orders"] if x["id"] == args.order), None)
-            if o is None:
-                raise ChantierError(f"unknown order {args.order}", EXIT_USAGE)
-            kind, cr, note = f"order-{o['kind']}", o["cr"], note or o["note"]
-        if cr not in ("-", "stack") and not cr.startswith("qa:"):
-            b.cr(cr)
-        b.data["heartbeat"] = now()
-        return decide(b, cr, kind, note, order=args.order)
+    with changes_lock(repo):
+        with Batch(repo, batch, actor="foreman") as b:
+            check_epoch(b, args.epoch)
+            kind, cr, note = args.kind, args.cr, args.note or ""
+            if args.order:
+                o = next((x for x in b.data["orders"] if x["id"] == args.order), None)
+                if o is None:
+                    raise ChantierError(f"unknown order {args.order}", EXIT_USAGE)
+                kind, cr, note = f"order-{o['kind']}", o["cr"], note or o["note"]
+            if cr not in ("-", "stack") and not cr.startswith("qa:"):
+                b.cr(cr)
+            b.data["heartbeat"] = now()
+            return decide(b, cr, kind, note, order=args.order)
 
 
 def heartbeat(args) -> list[str]:
@@ -663,12 +638,17 @@ def _track_pgid(repo: Repo, batch: str, cr: str, pgid: int, add: bool, key: str 
 def gate(args) -> tuple[list[str], int]:
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch)
-    c = next(x for x in read_batch(repo, batch)["crs"] if x["id"] == args.cr)
+    data = read_batch(repo, batch)
+    c = next(x for x in data["crs"] if x["id"] == args.cr)
     wt = _worktree(c)
-    cmds = repo.config["gates"]["long" if args.long else "fast"]
-    if not cmds:
-        return [f"no {'long' if args.long else 'fast'} gates configured in .agents/chantier.json"], 0
-    logdir = repo.batch_dir(batch) / "crs" / args.cr / "scratch" / "gates"
+    kind = "long" if args.long else "fast"
+    gates = data.get("settings", {}).get("gates", {})
+    cmds = gates.get(kind) if isinstance(gates, dict) else None
+    if not isinstance(cmds, list) or not cmds or any(not isinstance(cmd, str) or not cmd.strip()
+                                                   for cmd in cmds):
+        raise ChantierError(f"{batch}: no {kind} gate was recorded from AGENTS.md; "
+                            "ask the Chief of Staff to resolve it")
+    logdir = cr_directory(repo, batch, c) / "scratch" / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
     log = logdir / f"{time.strftime('%Y%m%d-%H%M%S')}-{'long' if args.long else 'fast'}.log"
     with open(log, "w", encoding="utf-8") as f:
@@ -734,6 +714,9 @@ def ci_classify(args) -> list[str]:
     c = next(x for x in read_batch(repo, batch)["crs"] if x["id"] == args.cr)
     if not c.get("pr"):
         raise ChantierError(f"{args.cr} has no PR yet", EXIT_PRECONDITION)
+    if not repo.config.get("default_branch"):
+        raise ChantierError("the batch has no default branch; consult AGENTS.md and migrate or "
+                            "reopen the batch")
     cwd = c.get("worktree") or repo.root
     checks = forge.pr_checks(cwd, repo.config, c["pr"])
     red = forge.main_failures(cwd, repo.config, repo.config["default_branch"])
@@ -749,6 +732,9 @@ def ci_classify(args) -> list[str]:
 def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
     """In stack mode, a CR sits on the previous live CR of the stack; else on the default."""
     default = repo.config["default_branch"]
+    if not default:
+        raise ChantierError("the batch has no default branch; consult AGENTS.md and migrate or "
+                            "reopen the batch")
     if b_data["mode"] != "stack":
         return default
     order = [x for x in sorted(b_data["crs"], key=lambda x: x["order"])
@@ -771,6 +757,9 @@ def ship(args) -> list[str]:
         raise ChantierError(f"{args.cr}: {what} in the worktree; commit them (or add them to "
                        f".gitignore) first: "
                        f"{' '.join(ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()[:5])}")
+    body = cr_directory(repo, batch, c) / "pr-body.md"
+    if not body.is_file():
+        raise ChantierError(f"write {body.relative_to(repo.root)} before `chantier ship`")
     remote = repo.config["remote"]
     if remote not in git("remote", cwd=wt).split():
         raise ChantierError(f"no remote {remote!r}", EXIT_EXTERNAL)
@@ -785,9 +774,6 @@ def ship(args) -> list[str]:
         raise ChantierError(f"{args.cr}: rebase on {onto} failed; aborted: "
                        f"{rb.stdout.strip()[-200:]}", EXIT_EXTERNAL)
     git("push", "--quiet", "--force-with-lease", "-u", remote, c["branch"], cwd=wt)
-    body = repo.batch_dir(batch) / "crs" / args.cr / "pr-body.md"
-    if not body.exists():
-        raise ChantierError(f"write {body.relative_to(repo.root)} before `chantier ship`")
     if c.get("pr"):
         forge.pr_edit(wt, repo.config, c["pr"], body_file=str(body), base=base)
         link, verb = c["pr"], "updated"
@@ -846,19 +832,21 @@ def qa(args) -> list[str]:
 
 def cancel(args) -> list[str]:
     repo = Repo.find()
-    with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="foreman") as b:
-        check_epoch(b, args.epoch)
-        c = b.cr(args.cr)
-        killed = []
-        for pg in c.get("pgids", []):
-            if procs.stop_group(pg):
-                killed.append(f"pg{pg}")
-        killed += [str(p) for p in procs.stop(c.get("pids", []))]
-        if c.get("worktree") and Path(c["worktree"]).exists():
-            killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
-        b.touch(c, status="cancelled", agent=None, pgids=[], pids=[])
-        b.log("cancel", args.cr, killed=killed)
-        actions = fill_slots(b)
+    with changes_lock(repo):
+        with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="foreman") as b:
+            check_epoch(b, args.epoch)
+            c = b.cr(args.cr)
+            killed = []
+            for pg in c.get("pgids", []):
+                if procs.stop_group(pg):
+                    killed.append(f"pg{pg}")
+            killed += [str(p) for p in procs.stop(c.get("pids", []))]
+            if c.get("worktree") and Path(c["worktree"]).exists():
+                killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
+            return_cr(b, c)
+            b.touch(c, status="cancelled", agent=None, pgids=[], pids=[])
+            b.log("cancel", args.cr, killed=killed, path=c.get("path"))
+            actions = fill_slots(b)
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + actions
 
 
@@ -875,23 +863,38 @@ def land(args) -> list[str]:
             raise ChantierError(f"cannot land {batch}: live {live or '-'}, queued {queued or '-'}, "
                            f"not merged {open_ or '-'}, orders pending {pending or '-'}, "
                            f"stack driver {'live' if b.data.get('stack_live') else 'done'}")
-        cleaned = []
+        cleaned, retained = [], []
         for c in b.data["crs"]:
-            if c["status"] in {"merged", "cancelled"} and c.get("worktree"):
-                git("worktree", "remove", "--force", c["worktree"], cwd=repo.root, check=False)
-                git("branch", "-D", c["branch"], cwd=repo.root, check=False)
+            if c["status"] == "cancelled":
+                if c.get("worktree") and Path(c["worktree"]).exists():
+                    retained.append(f"{c['id']} worktree and branch (cancelled)")
+                continue
+            if c["status"] != "merged" or not c.get("worktree"):
+                continue
+            if Path(c["worktree"]).exists():
+                git("worktree", "remove", c["worktree"], cwd=repo.root)
                 cleaned.append(c["id"])
+            if git("rev-parse", "--verify", "--quiet", c["branch"], cwd=repo.root, check=False):
+                result = subprocess.run(["git", "branch", "-d", c["branch"]], cwd=repo.root,
+                                        capture_output=True, text=True, encoding="utf-8",
+                                        errors="replace")
+                if result.returncode:
+                    retained.append(f"{c['id']} branch ({result.stderr.strip()})")
         rows = "".join(f"| {c['id']} | {c['title']} | {c['status']} | {c.get('pr') or '-'} | "
                        f"{c['round']} |\n" for c in sorted(b.data["crs"], key=lambda c: c["order"]))
         report_path = b.dir / "report.md"
         report_path.write_text(
             f"# Batch {batch}: report\n\n- Landed: {now()}\n- Spent: ${b.data.get('spent_usd', 0):.2f}"
+            f"\n- Retained: {', '.join(retained) or 'none'}"
             f"\n\n| CR | Title | Status | PR | Rounds |\n| --- | --- | --- | --- | ---: |\n{rows}",
             encoding="utf-8")
         b.data["status"] = "landed"
-        b.log("land", None, cleaned=cleaned)
-    return [f"landed {batch}: cleaned {len(cleaned)} worktrees",
-            f"report: {report_path.relative_to(repo.root)}"]
+        b.log("land", None, cleaned=cleaned, retained=retained)
+    lines = [f"landed {batch}: cleaned {len(cleaned)} worktrees",
+             f"report: {report_path.relative_to(repo.root)}"]
+    if retained:
+        lines.append(f"retained for manual review: {'; '.join(retained)}")
+    return lines
 
 
 def cost(args) -> list[str]:
@@ -942,30 +945,29 @@ def cost(args) -> list[str]:
 
 # ---- models -----------------------------------------------------------------------------------
 
-def _batch_context(repo: Repo, batch: str | None, models: Models) -> tuple[dict, dict]:
-    """The brief's model overrides and the agent id → CR map, or empty ones without a batch."""
+def _batch_context(repo: Repo, batch: str | None) -> tuple[dict, dict]:
+    """The batch and its agent id → CR map, or empty ones without a batch."""
     try:
         batch_id = resolve_batch(repo, batch)
     except ChantierError:
         if batch:
             raise
         return {}, {}
-    overrides = brief_overrides(repo.batch_dir(batch_id) / "brief.md", models)
+    brief = repo.batch_dir(batch_id) / "brief.md"
+    if brief.exists():
+        for line in brief.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("- Models"):
+                value = line.split("):", 1)[1] if "):" in line else line.split(":", 1)[-1]
+                if value.strip():
+                    raise ChantierError("brief model overrides are no longer supported: "
+                                        "use a repository agent instead", EXIT_PRECONDITION)
     d = read_batch(repo, batch_id)
     agent_cr = {}
     for c in d.get("crs", []):
         for key in ("agent", "qa_agent"):
             if c.get(key):
                 agent_cr[c[key]] = c["id"]
-    return overrides, agent_cr
-
-
-def _locked(host: str, role: str, want: str, pinned: str) -> str | None:
-    """Why a spawn cannot run `want` on Copilot, where agent files pin with model-policy."""
-    if host != "copilot" or role == "foreman" or pinned == INHERIT or want == pinned:
-        return None
-    return (f"{role}={want} but its agent file requires {pinned} (model-policy: required, "
-            f"Copilot refuses the spawn): point chantier {role} to your own agent in AGENTS.md")
+    return d, agent_cr
 
 
 def models_cmd(args) -> tuple[list[str], int]:
@@ -976,128 +978,107 @@ def models_cmd(args) -> tuple[list[str], int]:
         errors = list(models.errors)
         if not errors:
             try:
-                overrides, _ = _batch_context(repo, args.batch, models)
-                errors += _override_errors(repo, models, overrides)
+                _batch_context(repo, args.batch)
+                for role in ROLES:
+                    ref = resolve_agent(repo, host, role)
+                    if ref.kind == "custom" and not ref.path.exists():
+                        errors.append(f"AGENTS.md names a missing agent: {ref.path}")
             except ChantierError as e:
                 errors.append(str(e))
         if errors:
             return [f"models FAILED ({host}): start nothing"] + errors, EXIT_PRECONDITION
-        return [f"models ok ({host}): {len(ROLES)} roles, {len(models.catalog)} ids in catalog"], 0
+        return [f"models ok ({host}): {len(ROLES)} static or repository agents"], 0
     if models.errors:
         return [f"models FAILED ({host}): run `chantier models check`"] + models.errors, \
             EXIT_PRECONDITION
-    overrides, agent_cr = _batch_context(repo, args.batch, models)
+    data, agent_cr = _batch_context(repo, args.batch)
     if args.action == "show":
         groups: dict[str, list[str]] = defaultdict(list)
         for role in ROLES:
             src = models.source[role]
             effort = models.effort_of(role)
             label = role + (f" [{effort}]" if effort else "")
-            groups[models.role(role)].append(label if src == "skill" else f"{label} ({src})")
+            groups["custom agent decides" if src == "custom agent" else models.role(role)].append(label)
         lines = [f"{host} models (host from {why}); exact ids only; [effort] when set"]
         lines += [f"{mid}: {', '.join(roles)}" for mid, roles in groups.items()]
-        lines.append(f"heartbeat: {models.heartbeat}" + (
-            "" if models.heartbeat_source == "skill" else f" ({models.heartbeat_source})"))
-        if overrides:
-            lines.append("brief: " + ", ".join(f"{r}{'@' + c if c else ''}={m}"
-                                                for (r, c), m in overrides.items()))
+        lines.append(f"heartbeat: {models.heartbeat}")
         return lines, 0
     if args.action == "get":
         if not args.role:
             raise ChantierError("models get <role> [--cr CR-n]", EXIT_USAGE)
-        want, src = expected(models, overrides, args.role, args.cr)
-        level = models.effort_of(args.role)
         pinned = models.role(args.role)
+        level = models.effort_of(args.role)
         if args.role != "foreman":
             ref = resolve_agent(repo, host, args.role)
-            agent = f"agent: {ref.name} (spawn this agent exactly)"
-            if ref.kind == "custom":
+            if ref.kind in ("custom", "local"):
+                if not ref.path.exists():
+                    raise ChantierError(f"agent for {args.role} not found: {ref.path}",
+                                        EXIT_PRECONDITION)
                 rel = ref.path.relative_to(repo.root).as_posix()
+                origin = "from AGENTS.md" if ref.kind == "custom" else "repository copy"
                 return ["model: omit (the repository's own agent decides)",
                         "effort: omit (the repository's own agent decides)",
-                        f"agent: {ref.name} (from AGENTS.md: {rel}; spawn this agent exactly)"], 0
+                        f"agent: {ref.name} ({origin}: {rel}; spawn this agent exactly)"], 0
             if ref.kind == "missing":
-                raise ChantierError(f"no agent for {args.role}: install the chantier plugin, "
-                                    "or run `chantier setup`", EXIT_PRECONDITION)
-            # configuration errors here; the brief's entry for this spawn is checked below
-            mine = [msg for role, msg in _role_override_errors(repo, models, {})
-                    if role == args.role]
-            if mine:
-                raise ChantierError(mine[0], EXIT_PRECONDITION)
-            fm = _file_models(ref, models)
-            pinned = fm.role(args.role)
-        if args.role == "foreman" and host == "copilot":
-            # create_session takes no effort and cannot select the foreman agent file.
+                raise ChantierError(f"no agent for {args.role}: install the chantier plugin",
+                                    EXIT_PRECONDITION)
+            effort = (f"effort: omit (the agent file sets {level})" if level
+                      else "effort: omit (the user's setting)")
+            return [f"model: omit (the agent file sets {pinned})", effort,
+                    f"agent: {ref.name} (spawn this agent exactly)"], 0
+        if host == "copilot":
             effort = (f"effort: omit ({level} is in the agent file; create_session cannot set "
                       "it, so the session's effort applies: accepted exception)" if level
                       else "effort: omit (the user's setting)")
-        elif args.role == "foreman":
+        else:
             effort = (f"effort: {level} (copy this level exactly)" if level
                       else "effort: omit (the user's setting)")
-        else:
-            effort = ("effort: omit (the agent file sets " + level + ")" if level
-                      else "effort: omit (the user's setting)")
-        tail = [effort]
-        if args.role == "foreman":
-            tail.append(f"heartbeat: {models.heartbeat} ({models.heartbeat_seconds()} s)")
-        else:
-            tail.append(agent)
-        if args.role != "foreman" and want == pinned:
-            return [f"model: omit (the agent file pins {pinned})", *tail], 0
-        if want == INHERIT:
-            if args.role == "foreman":
-                return ["model: omit (inherit)", *tail], 0
-            raise ChantierError(f"{src} asks `inherit` but the {args.role} agent file pins {pinned}: "
-                           "a spawn cannot unpin it; ask the user", EXIT_PRECONDITION)
-        if _locked(host, args.role, want, pinned):
-            raise ChantierError(_locked(host, args.role, want, pinned), EXIT_PRECONDITION)
-        return [f"model: {want} ({src}; copy this id exactly)", *tail], 0
+        model = ("model: omit (inherit)" if pinned == INHERIT
+                 else f"model: {pinned} (agent file; copy this id exactly)")
+        return [model, effort, f"heartbeat: {models.heartbeat} ({models.heartbeat_seconds()} s)"], 0
     # audit
     if host != "copilot":
         raise ChantierError("models audit reads Copilot event logs only", EXIT_USAGE)
-    try:
-        batch = resolve_batch(repo, args.batch)
-        data = read_batch(repo, batch)
-    except ChantierError:
-        batch, data = None, {}
+    batch = data.get("id")
     foreman_uuid = data.get("foreman_transcript")
     session = (args.session or foreman_uuid or os.environ.get("COPILOT_AGENT_SESSION_ID"))
     if not session:
         raise ChantierError("models audit --session <copilot session id>", EXIT_USAGE)
-    spawns = copilot_spawns(copilot_events(session))
+    refs = {role: resolve_agent(repo, host, role) for role in ROLES}
+    agent_roles = {ref.name: role for role, ref in refs.items()}
+    spawns = copilot_spawns(copilot_events(session), agent_roles)
     bad, unchecked = [], 0
     notes = []
     if batch and session == foreman_uuid:
-        notes, bad = _audit_foreman(models, overrides, batch, data, copilot_events(session))
+        notes, bad = _audit_foreman(models, batch, data, copilot_events(session))
     for s in spawns:
         cr = agent_cr.get(s["agent"]) or s["cr"]
-        want, src = expected(models, overrides, s["role"], cr)
+        want = models.role(s["role"])
         if want == INHERIT:
             unchecked += 1
         elif s["model"] != want:
             bad.append(f"MISMATCH {s['role']} {cr or '-'} ran {s['model']}, expected {want} "
-                       f"({src}; selection {s['selection']})")
+                       f"(agent file; selection {s['selection']})")
         level = models.effort_of(s["role"])
         if level and s["effort"] != level:
             bad.append(f"MISMATCH {s['role']} {cr or '-'} ran effort {s['effort']}, "
                        f"expected {level}")
     lines = [f"audit {session}: {len(spawns)} chantier spawns, {len(bad)} mismatched"
-             + (f", {unchecked} inherit (not checked)" if unchecked else "")]
+             + (f", {unchecked} custom or inherit (not checked)" if unchecked else "")]
     return lines + notes + bad, EXIT_PRECONDITION if bad else 0
 
 
-def _audit_foreman(models: Models, overrides: dict, batch: str, data: dict,
-                   events: Path) -> tuple[list[str], list[str]]:
+def _audit_foreman(models: Models, batch: str, data: dict, events: Path) -> tuple[list[str], list[str]]:
     """The Foreman's own calls and heartbeat. A Foreman started with `create_session` runs at
     the session's effort (the tool takes no effort): reported as a note, not a mismatch."""
     facts = copilot_session(events)
     notes, bad = [], []
-    want, src = expected(models, overrides, "foreman", None)
+    want = models.role("foreman")
     level = models.effort_of("foreman")
     for (model, effort), n in sorted(facts["calls"].items(), key=lambda kv: -kv[1]):
         notes.append(f"foreman ran {model} effort {effort} ({n} calls)")
         if want != INHERIT and model != want:
-            bad.append(f"MISMATCH foreman ran {model}, expected {want} ({src})")
+            bad.append(f"MISMATCH foreman ran {model}, expected {want} (agent file)")
         if level and effort != level:
             notes.append(f"NOTE foreman effort {effort}, configured {level}: create_session "
                          "cannot set it (accepted exception)")

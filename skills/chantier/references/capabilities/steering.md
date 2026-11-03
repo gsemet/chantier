@@ -11,7 +11,7 @@ Chief of Staff.
 ## Commands
 
 ```bash
-$CHANTIER order add --note "<title>"          # a new item; the Foreman creates the CR
+$CHANTIER order add --note "@<prepared-folder-or-spec>" # a selected, grilled CR
 $CHANTIER order drop CR-104
 $CHANTIER order first CR-103
 $CHANTIER order change CR-102 --note "<one-line change>"
@@ -32,6 +32,8 @@ Read progress with `$CHANTIER status`, never by reading the Foreman's transcript
 - In the Foreman's own session the user may type only "stop" or "pause"; anything else is
   redirected to you.
 - Never retry an action the Foreman reports as refused; tell the user.
+- Prepare and grill a CR before an `add` order. Dropping it returns the folder to its original
+  inbox or priority backlog; the branch and worktree are preserved for the user to inspect.
 
 ## Failure handling
 

@@ -27,8 +27,9 @@ Chief of Staff (liveness, resume); Foreman (find orphaned CRs).
   condition passes, start a Foreman with the resume brief below.
 
 ```text
-Resume <batch>. The app restarted and your Drivers stopped. Relaunch in the background the Driver
-of each CR still marked working, from its STATE.md and worktree, keeping uncommitted work; stop
+Resume <batch>. The app restarted and your Drivers stopped. Use the same `skill:` and `changes:`
+lines as the original spawn. Relaunch in the background the Driver of each CR still marked
+working, from its recorded state, specification and worktree, keeping uncommitted work; stop
 orphan processes with $CHANTIER cancel. Then continue the batch.
 ```
 

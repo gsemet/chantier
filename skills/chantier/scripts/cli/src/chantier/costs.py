@@ -18,6 +18,8 @@ from pathlib import Path
 from .state import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
 SESSION_USAGE_SCRIPT = Path(__file__).resolve().parents[2] / "session_usage.py"
+UV_INDEX_VARIABLES = ("UV_INDEX", "UV_DEFAULT_INDEX", "UV_INDEX_URL", "UV_EXTRA_INDEX_URL",
+                      "UV_FIND_LINKS")
 
 # $/MTok: input, 5-min write, 1-h write, cache read, output (design 2, prices-corrected.md).
 PRICE = {
@@ -28,14 +30,14 @@ PRICE = {
 }
 
 
-def projects_dir(config: dict | None = None) -> Path:
-    """`CHANTIER_CLAUDE_PROJECTS`, else `claude_projects_dir` of chantier.json, else ~/.claude/projects."""
-    env = os.environ.get("CHANTIER_CLAUDE_PROJECTS") or (config or {}).get("claude_projects_dir")
+def projects_dir(settings: dict | None = None) -> Path:
+    """Environment, an explicit batch setting, or the host's default ~/.claude/projects."""
+    env = os.environ.get("CHANTIER_CLAUDE_PROJECTS") or (settings or {}).get("claude_projects_dir")
     return Path(env).expanduser() if env else Path.home() / ".claude" / "projects"
 
 
-def transcript_path(repo_root: Path, session_uuid: str, config: dict | None = None) -> Path:
-    base = projects_dir(config)
+def transcript_path(repo_root: Path, session_uuid: str, settings: dict | None = None) -> Path:
+    base = projects_dir(settings)
     if not base.is_absolute():
         base = repo_root / base
     slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo_root))
@@ -49,26 +51,55 @@ def _family(model: str, prompt: int) -> str:
     for f in ("opus", "sonnet", "haiku"):
         if f in model:
             return "haiku>100k" if f == "haiku" and prompt > 100_000 else f
-    return "opus"
+    raise ChantierError(f"no Claude price for model {model!r}", EXIT_EXTERNAL)
+
+
+def _transcript_lines(path: Path):
+    try:
+        with path.open(encoding="utf-8") as transcript:
+            yield from transcript
+    except (OSError, UnicodeError) as e:
+        raise ChantierError(f"cannot read Claude transcript {path}: {e}", EXIT_EXTERNAL) from e
 
 
 def usage(path: Path) -> dict:
     row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0}
     seen = set()
-    for line in path.open(encoding="utf-8"):
+    for number, line in enumerate(_transcript_lines(path), 1):
+        if not line.strip():
+            continue
         try:
             d = json.loads(line)
-        except ValueError:
+        except ValueError as e:
+            raise ChantierError(f"unreadable Claude transcript record {path}:{number}",
+                                EXIT_EXTERNAL) from e
+        if not isinstance(d, dict):
+            raise ChantierError(f"invalid Claude transcript record {path}:{number}",
+                                EXIT_EXTERNAL)
+        if d.get("type") != "assistant":
             continue
-        m = d.get("message") or {}
-        if d.get("type") != "assistant" or not m.get("usage") or m.get("id") in seen:
+        m = d.get("message")
+        if not isinstance(m, dict):
+            raise ChantierError(f"invalid Claude assistant record {path}:{number}", EXIT_EXTERNAL)
+        if not m.get("usage"):
             continue
-        seen.add(m.get("id"))
-        u, cc = m["usage"], m["usage"].get("cache_creation") or {}
+        message_id, model, u = m.get("id"), m.get("model"), m["usage"]
+        if not isinstance(message_id, str) or not message_id:
+            raise ChantierError(f"Claude usage has no message id at {path}:{number}", EXIT_EXTERNAL)
+        if message_id in seen:
+            continue
+        if not isinstance(model, str) or not model or not isinstance(u, dict):
+            raise ChantierError(f"invalid Claude usage at {path}:{number}", EXIT_EXTERNAL)
+        cc = u.get("cache_creation") or {}
+        if not isinstance(cc, dict):
+            raise ChantierError(f"invalid Claude cache usage at {path}:{number}", EXIT_EXTERNAL)
+        seen.add(message_id)
         t = (u.get("input_tokens", 0), cc.get("ephemeral_5m_input_tokens", 0),
              cc.get("ephemeral_1h_input_tokens", 0), u.get("cache_read_input_tokens", 0),
              u.get("output_tokens", 0))
-        row["model"] = m.get("model", "?")
+        if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in t):
+            raise ChantierError(f"invalid Claude token counts at {path}:{number}", EXIT_EXTERNAL)
+        row["model"] = model
         row["calls"] += 1
         for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
             row[k] += v
@@ -78,9 +109,12 @@ def usage(path: Path) -> dict:
 
 def session_costs(main: Path) -> list[dict]:
     """One row for the main transcript (the Foreman) and one per subagent."""
-    rows = []
-    if main.exists():
-        rows.append({"agent": "main", "type": "foreman", "description": "", **usage(main)})
+    if not main.is_file():
+        raise ChantierError(f"Foreman transcript not found: {main}", EXIT_EXTERNAL)
+    foreman = usage(main)
+    if not foreman["calls"]:
+        raise ChantierError(f"no priced calls in Foreman transcript: {main}", EXIT_EXTERNAL)
+    rows = [{"agent": "main", "type": "foreman", "description": "", **foreman}]
     sub = main.with_suffix("") / "subagents"
     if sub.exists():
         for f in sorted(sub.glob("agent-*.jsonl")):
@@ -127,18 +161,24 @@ def copilot_session_costs(session: str) -> list[dict]:
     """One row per agent of a Copilot session, from `copilot-session-usage calls`.
 
     uv resolves copilot-session-usage from the inline metadata of `session_usage.py`; nothing to
-    install. `--no-config` ignores the user's uv indexes, so the script's own index (pypi.org) is
-    the only one. Fails, never falls back: a failed run (uv offline, package unavailable) or a session
-    without a priced call is an error.
+    install. `--no-config` and the filtered index environment leave the script's own index
+    (pypi.org) as the only one. Fails, never falls back: a failed run (uv offline, package
+    unavailable) or a session without a priced call is an error.
     """
-    cmd = _split(os.environ.get("CHANTIER_SESSION_USAGE") or "") or [
-        "uv", "run", "--no-config", "--script", str(SESSION_USAGE_SCRIPT)]
+    cmd = _split(os.environ.get("CHANTIER_SESSION_USAGE") or "")
+    env = None
+    if not cmd:
+        cmd = ["uv", "run", "--no-config", "--script", str(SESSION_USAGE_SCRIPT)]
+        env = os.environ.copy()
+        for variable in UV_INDEX_VARIABLES:
+            env.pop(variable, None)
     if not shutil.which(cmd[0]):
         raise ChantierError(f"`{cmd[0]}` not found: chantier needs uv to run "
                             "copilot-session-usage on Copilot", EXIT_PRECONDITION)
     argv = [*cmd, "--agent", "cli", "--session-root", str(copilot_home() / "session-state"),
             "calls", "--name", f"^{re.escape(session)}$"]
-    p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       env=env)
     if p.returncode != 0:
         last = (p.stderr.strip().splitlines() or ["no output"])[-1]
         raise ChantierError(f"copilot-session-usage failed ({p.returncode}): {last}", EXIT_EXTERNAL)

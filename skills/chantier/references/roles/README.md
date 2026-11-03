@@ -20,15 +20,11 @@ engineering practice is left to the model.
 
 ## Model and effort
 
-No role has a fixed model in its card. `$CHANTIER models` resolves each role to one exact model id of
-the host: the skill's base list (`../models/claude.yml`, `../models/copilot.yml`), then the
-user's `~/.config/chantier/models.yml`, then the project's `.agents/chantier.models.yml`. `$CHANTIER setup`
-pins that id in each agent file. The Chief of Staff may set a model per role or per CR at the
-grill, in the brief's **Models** line; the Foreman or Driver passes what `$CHANTIER models get`
-prints for that spawn. Nothing escalates on its own. The reasoning effort works the same way,
-from the `effort` section of those files: unset means the user's own setting. A role's tools
-are fixed by the skill per host (`tools` section), never by an override. See
-[../capabilities/models.md](../capabilities/models.md).
+The static Claude and Copilot agent files declare their own model, effort and tools. A project
+can copy and edit an agent for its host, optionally selecting a differently named copy in
+`AGENTS.md`. The Foreman or Driver follows `$CHANTIER models get` for each spawn; nothing
+escalates on its own. Foreman nested-session tools are supplied by the host rather than the
+worker-agent file. See [../capabilities/models.md](../capabilities/models.md).
 
 ## Every card has
 

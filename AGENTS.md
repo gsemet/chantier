@@ -1,8 +1,8 @@
 # AGENTS.md
 
 - Run `just check` before you hand back; it must pass on Linux, macOS and Windows.
-- `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are generated: edit
-  `skills/chantier/assets/agents/` or `skills/chantier/references/models/`, then `just agents`.
+- `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) contain the static agent
+  files. Edit each host's file directly; the tool lists belong in those files.
 - The plugin must work with no setup and write nothing in a user's repository by default.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI has no dependencies and must stay portable (POSIX and Windows, UTF-8 everywhere).

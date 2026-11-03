@@ -5,7 +5,7 @@ A scripted Foreman feeds events to `chantier event` and carries out the actions 
 Drivers commit in their CR worktree, run the gates, ship to a bare origin, wait on a fake `gh`
 and hand back. The Chief of Staff steers with `chantier order`. Nothing calls a model.
 
-    python3 evals/scenario/run_scenario.py [--keep] [--verbose]
+    uv run --no-project python evals/scenario/run_scenario.py [--keep] [--verbose]
 
 Exit 0 when every check passes; the transcript is written to evals/results/scenario-<time>.md.
 """
@@ -14,17 +14,22 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest import mock
 
 SKILL = Path(__file__).resolve().parents[2]
 FAKE_GH = Path(__file__).with_name("fake_gh.py")
+FAKE_USAGE = Path(__file__).with_name("fake_session_usage.py")
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
+GATE = "uv run --no-project python -m compileall -q ."
+TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 
 
 def note(line: str) -> None:
@@ -52,8 +57,9 @@ class World:
                     "FAKE_GH_STATE": str(self.gh_state), "CHANTIER_WAIT_INTERVAL": "0.05",
                     "CHANTIER_CLAUDE_PROJECTS": str(root / "claude-projects"),
                     "CLAUDE_CODE_ENTRYPOINT": "claude-desktop"}
-        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH"):
+        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_CHANGES"):
             self.env.pop(var, None)
+        self.last_stderr = ""
 
     def sh(self, *args, cwd=None):
         return subprocess.run(args, cwd=cwd or self.work, check=True, capture_output=True,
@@ -66,9 +72,12 @@ class World:
         self.sh("git", "config", "user.name", "scenario")
         self.sh("git", "config", "user.email", "scenario@example.com")
         (self.work / "app.py").write_text("def login():\n    return True\n")
+        (self.work / "AGENTS.md").write_text(
+            f"# Project instructions\n\nDefault branch: `main`. Remote: `origin`.\n"
+            f"Run `{GATE}` for both fast and long gates.\n")
         (self.work / ".gitignore").write_text("__pycache__/\n")
         self.sh("git", "add", ".")
-        self.sh("git", "commit", "--quiet", "-m", "init")
+        self.sh("git", "commit", "--quiet", "-m", "init", "-m", TRAILER)
         self.sh("git", "remote", "add", "origin", str(origin))
         self.sh("git", "push", "--quiet", "-u", "origin", "main")
         gh = Path(self.env["CHANTIER_GH"])
@@ -90,12 +99,13 @@ class World:
                            env={**self.env, **(env or {})}, capture_output=True, text=True,
                            encoding="utf-8")
         out = p.stdout.strip().splitlines()
+        self.last_stderr = p.stderr.strip()
         note(f"    $ chantier {' '.join(map(str, args))}  → exit {p.returncode}")
-        for ln in out + ([f"stderr: {p.stderr.strip()}"] if p.stderr.strip() else []):
+        for ln in out + ([f"stderr: {self.last_stderr}"] if self.last_stderr else []):
             note(f"      {ln}")
         if expect is not None and p.returncode != expect:
             check(f"chantier {' '.join(map(str, args))} exits {expect}", False,
-                  f"exit {p.returncode}: {p.stderr.strip()[:200]}")
+                  f"exit {p.returncode}: {self.last_stderr[:200]}")
         return p.returncode, out
 
     def batch(self, name="night"):
@@ -144,25 +154,29 @@ def driver_round(w: World, cr_id: str, filename: str, content: str) -> None:
     (wt / filename).write_text(content)
     w.sh("git", "add", ".", cwd=wt)
     w.sh("git", "-c", "user.name=coder", "-c", "user.email=coder@example.com", "commit",
-         "--quiet", "-m", f"{cr_id}: {filename}", cwd=wt)
+         "--quiet", "-m", f"{cr_id}: {filename}", "-m", TRAILER, cwd=wt)
     w.chantier("gate", cr_id)
     w.chantier("report", cr_id, "round-done")
-    body = w.work / ".agents/changes/batches/night/crs" / cr_id / "pr-body.md"
+    body = w.work / c["path"] / "pr-body.md"
     body.write_text(f"## {c['title']}\n\nCloses the backlog item.\n")
     w.chantier("ship", cr_id)
 
 
+def prepare_cr(w: World, title: str, priority: str = "P1") -> tuple[Path, Path]:
+    _, out = w.chantier("file", title)
+    inbox = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
+    (inbox / "01-intent.md").write_text(f"# {title}\n\nThe original request is in intake.\n")
+    (inbox / "02-answers.md").write_text("# Decisions\n\nNo open questions.\n")
+    (inbox / "03-change-spec.md").write_text(f"# {title}\n\nImplement {title}.\n")
+    _, out = w.chantier("triage", inbox, "--priority", priority)
+    backlog = w.work / out[0].removeprefix("triaged ").rsplit(" (", 1)[0]
+    return inbox, backlog
+
+
 def scenario(w: World) -> None:
     note("## 1. Setup and preflight")
-    w.chantier("setup")
-    check("setup writes no config file for the defaults",
+    check("the plugin needs no project configuration file",
           not (w.work / ".agents/chantier.json").exists())
-    (w.work / ".agents").mkdir(exist_ok=True)
-    (w.work / ".agents/chantier.json").write_text(json.dumps(
-        {"gates": {"fast": [f'"{sys.executable}" -m compileall -q .'], "long": []}}, indent=2))
-    w.sh("git", "add", ".")
-    w.sh("git", "commit", "--quiet", "-m", "chantier setup")
-    w.sh("git", "push", "--quiet")
     code, out = w.chantier("preflight", env={"CLAUDE_CODE_ENTRYPOINT": "claude-vscode"}, expect=2)
     check("preflight refuses Claude in VS Code (P1) and says to start nothing",
           code == 2 and out[0].startswith("P1 FAIL") and out[-1].endswith("start nothing"))
@@ -172,14 +186,39 @@ def scenario(w: World) -> None:
     check("preflight passes on Claude Desktop", code == 0 and out[-1] == "preflight passed")
 
     note("\n## 2. The Chief of Staff opens the batch and starts the Foreman")
-    w.chantier("open", "night", "Fix login timeout", "Add CSV export", "Dark mode", "Audit log",
-          "--slots", 2, "--qa", "2", "--budget", 50, "--chief-of-staff", "local_chantier")
+    items = [prepare_cr(w, title) for title in
+             ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
+    check("filed requests start in the default inbox and move intact into the priority backlog",
+          all(not inbox.exists() and backlog.is_dir()
+              and (backlog / "intake/request.md").is_file()
+              and (backlog / "02-answers.md").is_file() for inbox, backlog in items)
+          and all("/backlog/1-inbox/" in inbox.as_posix()
+                  and "/backlog/2-backlog/P1/" in backlog.as_posix()
+                  for inbox, backlog in items))
+    code, _ = w.chantier("open", "missing-gates", f"@{items[0][1]}", "--no-worktrees", expect=2)
+    check("missing gates block the batch without moving the prepared CR",
+          code == 2 and "no fast gate supplied" in w.last_stderr and items[0][1].is_dir())
+    code, _ = w.chantier("open", "raw-title", "Fix login", "--no-worktrees",
+                         "--fast-gate", GATE, "--long-gate", GATE,
+                         "--default-branch", "main", expect=1)
+    check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
+    w.chantier("open", "night", *(f"@{backlog}" for _, backlog in items),
+               "--slots", 2, "--qa", "2", "--budget", 50, "--chief-of-staff", "local_chantier",
+               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
     w.chantier("foreman", "set", "local_foreman1")
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
     d = w.batch()
     check("four CRs, each with a branch and a worktree",
           len(d["crs"]) == 4 and all(Path(c["worktree"]).is_dir() for c in d["crs"]))
+    check("opening moves the entire prepared folders into requests",
+          all(not backlog.exists() for _, backlog in items)
+          and all("/backlog/3-requests/" in c["path"]
+                  and (w.work / c["path"] / "intake/request.md").is_file()
+                  and (w.work / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
+    check("inferred gates are retained in batch state, not project configuration",
+          d["settings"]["gates"] == {"fast": [GATE], "long": [GATE]}
+          and not (w.work / ".agents/chantier.json").exists())
     fm.event("start")
     check("the Foreman spawns two Drivers (two slots)", fm.spawned == ["CR-101", "CR-102"])
 
@@ -244,10 +283,14 @@ def scenario(w: World) -> None:
     check("dropping a live CR cancels it and stops its processes",
           fm.cancelled == ["CR-103"] and sleeper.poll() is not None
           and w.cr("CR-103")["status"] == "cancelled")
+    check("a dropped CR returns intact to its original backlog folder",
+          w.cr("CR-103")["path"] == w.cr("CR-103")["origin"]
+          and (w.work / w.cr("CR-103")["path"] / "02-answers.md").is_file())
     check("the freed slot goes to CR-104", "CR-104" in fm.spawned)
     out = fm.event("--order", "O-1")
     check("an order read twice is done once", out == ["ok O-1 already done"])
-    _, out = w.chantier("order", "add", "--note", "Rate limit the login endpoint")
+    _, added = prepare_cr(w, "Rate limit the login endpoint")
+    _, out = w.chantier("order", "add", "--note", f"@{added}")
     fm.event("--order", "O-2")
     check("an added item becomes CR-105 with a worktree and takes the second free slot",
           fm.spawned[-1] == "CR-105" and w.cr("CR-105")["status"] == "working"
@@ -275,13 +318,32 @@ def scenario(w: World) -> None:
     note("\n## 8. The user merges; the Foreman lands the batch")
     code, _ = w.chantier("land", "--epoch", 2, expect=2)
     check("land is refused while PRs are not merged", code == 2 and w.batch()["status"] == "open")
-    for i, cr_id in enumerate(("CR-101", "CR-102", "CR-104", "CR-105"), 3):
+    first = w.cr("CR-101")
+    collision = w.work / ".agents/changes/backlog/4-archives" / Path(first["path"]).name
+    collision.mkdir(parents=True)
+    (collision / "sentinel.txt").write_text("do not overwrite")
+    w.chantier("order", "merged", "CR-101")
+    code, _ = w.chantier("event", "--order", "O-3", "--epoch", 2, expect=3)
+    check("archive collisions are refused without losing either CR folder",
+          code == 3 and (collision / "sentinel.txt").read_text() == "do not overwrite"
+          and (w.work / first["path"] / "03-change-spec.md").is_file()
+          and w.cr("CR-101")["status"] == "ready")
+    (collision / "sentinel.txt").unlink()
+    collision.rmdir()
+    fm.event("--order", "O-3")
+    for i, cr_id in enumerate(("CR-102", "CR-104", "CR-105"), 4):
         w.chantier("order", "merged", cr_id)
         fm.event("--order", f"O-{i}")
     check("the last merge makes the Foreman land the batch", fm.landed)
     d = w.batch()
-    check("the batch is landed and its worktrees removed",
-          d["status"] == "landed" and not any(Path(c["worktree"]).exists() for c in d["crs"]))
+    check("merged worktrees are removed, while the cancelled worktree is preserved",
+          d["status"] == "landed" and all(
+              Path(c["worktree"]).exists() == (c["status"] == "cancelled") for c in d["crs"]))
+    check("merged CR folders move intact to archives only after confirmation",
+          all("/backlog/4-archives/" in c["path"]
+              and (w.work / c["path"] / "03-change-spec.md").is_file()
+              and (w.work / c["path"] / "report.md").is_file()
+              for c in d["crs"] if c["status"] == "merged"))
     check("the batch report lists every CR",
           all(c["id"] in (w.work / ".agents/changes/batches/night/report.md").read_text()
               for c in d["crs"]))
@@ -290,13 +352,183 @@ def scenario(w: World) -> None:
 
     note("\n## 9. Cost")
     fake_transcripts(w, d)
-    _, out = w.chantier("cost", "--by", "cr", "--batch", "night")
-    check("cost prices the Foreman and each Driver",
-          out[0].startswith("night: $") and any(ln.startswith("CR-101: $") for ln in out))
+    code, out = w.chantier("cost", "--by", "cr", "--batch", "night")
+    check("Claude cost prices the Foreman and each Driver",
+          code == 0 and out[:2] == ["night: $1.304 over 78 model calls",
+                                    "foreman: $0.391 (30 calls)"]
+          and set(out[2:]) == {f"CR-10{i}: $0.228 (12 calls)" for i in (1, 2, 4, 5)}, str(out))
+
+    note("\n## 10. Copilot cost")
+    copilot_cost(w, d)
+    copilot_uv(w)
+
+    note("\n## 11. Event log")
     events = (w.work / ".agents/changes/batches/night/events.jsonl").read_text().splitlines()
     kinds = {json.loads(e)["kind"] for e in events}
     check("events.jsonl holds the whole story",
           {"open", "spawn", "ship", "wait", "qa-done", "order", "cancel", "land"} <= kinds)
+    lifecycle_regressions(w)
+
+
+def lifecycle_regressions(w: World) -> None:
+    note("\n## 12. Lifecycle recovery and project-specific paths")
+    _, original = prepare_cr(w, "Preserve failed opening")
+    code, _ = w.chantier("open", "rollback", f"@{original}", "--remote", "missing",
+                         "--fast-gate", GATE, "--long-gate", GATE,
+                         "--default-branch", "main", expect=4)
+    check("a failed worktree creation restores the prepared folder",
+          code == 4 and (original / "03-change-spec.md").is_file()
+          and not (w.work / ".agents/changes/batches/rollback/batch.json").exists())
+
+    layout = {"inbox": ".agents/changes/01-inbox", "backlog": ".agents/changes/02-backlog",
+              "requests": ".agents/changes/03-requests", "archives": ".agents/changes/04-archives",
+              "trash": ".agents/changes/05-trash"}
+    flags = [value for stage, path in layout.items() for value in (f"--{stage}", path)]
+    _, out = w.chantier("file", "Custom lifecycle", "--inbox", layout["inbox"])
+    inbox = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
+    (inbox / "03-change-spec.md").write_text("# Custom lifecycle\n\nKeep project paths.\n")
+    (inbox / "evidence.txt").write_text("preserved")
+    _, out = w.chantier("triage", inbox, "--priority", "P2",
+                        "--inbox", layout["inbox"], "--backlog", layout["backlog"])
+    backlog = w.work / out[0].removeprefix("triaged ").rsplit(" (", 1)[0]
+    w.chantier("open", "custom", f"@{backlog}", "--no-worktrees",
+               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main", *flags)
+    custom = w.batch("custom")
+    cr = custom["crs"][0]
+    active = w.work / cr["path"]
+    check("AGENTS-inferred project paths replace all default lifecycle folders",
+          active.parent == w.work / layout["requests"]
+          and (active / "evidence.txt").read_text() == "preserved"
+          and custom["settings"]["layout"] == layout)
+    w.chantier("foreman", "set", "custom-foreman", "--batch", "custom")
+    w.chantier("event", "start", "--batch", "custom", "--epoch", 1)
+    w.chantier("event", "hand-back-ready", cr["id"], "https://github.com/acme/demo/pull/90",
+               "--batch", "custom", "--epoch", 1)
+    w.chantier("order", "merged", cr["id"], "--batch", "custom")
+    w.chantier("event", "--order", "O-1", "--batch", "custom", "--epoch", 1)
+    archived = w.work / w.cr(cr["id"], "custom")["path"]
+    check("the inferred archive path is used after merge",
+          archived.parent == w.work / layout["archives"]
+          and (archived / "evidence.txt").read_text() == "preserved" and not active.exists())
+
+    alt = ".agents/custom-changes"
+    _, out = w.chantier("--changes-dir", alt, "file", "Separate changes root")
+    folder = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
+    (folder / "03-change-spec.md").write_text("# Separate changes root\n\nKeep the root.\n")
+    w.chantier("--changes-dir", alt, "open", "alt", f"@{folder}", "--no-worktrees",
+               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
+    code, out = w.chantier("--changes-dir", alt, "path", "CR-101", "--batch", "alt")
+    check("a non-default changes root remains addressable in later commands",
+          code == 0 and Path(out[0]).is_dir()
+          and Path(out[0]).parent == (w.work / alt / "backlog/3-requests").resolve())
+
+
+def copilot_cost(w: World, d: dict) -> None:
+    assigned = next((c for c in d["crs"] if c.get("agent")), None)
+    if not assigned:
+        check("Copilot cost has a Driver to attribute", False)
+        return
+    named = next(c for c in d["crs"] if c["id"] != assigned["id"])
+    home = w.root / "copilot-home"
+    events = home / "session-state" / "uuid-foreman" / "events.jsonl"
+    events.parent.mkdir(parents=True)
+    agents = [(assigned["agent"], "cr-driver", "driver"),
+              ("cost-coder", "coder", f"{named['id']} coder")]
+    events.write_text("".join(json.dumps(
+        {"type": "subagent.started", "agentId": agent,
+         "data": {"agentType": role, "agentDisplayName": name}}) + "\n"
+        for agent, role, name in agents), encoding="utf-8")
+
+    def call(agent, usd, source="billed", role=None):
+        return {"agent_id": agent, "agent": role, "model": "gpt-5.6-luna", "llm_calls": 1,
+                "estimated_usd": usd, "cost_source": source}
+
+    records = w.root / "copilot-usage.jsonl"
+    calls = [call(None, 1.0), call(assigned["agent"], 0.5),
+             call("cost-coder", 0.25, "estimated"), call("unmapped", 0.125, role="coder")]
+    records.write_text("".join(json.dumps(c) + "\n" for c in calls), encoding="utf-8")
+    fake_args = [sys.executable, str(FAKE_USAGE)]
+    fake_command = subprocess.list2cmdline(fake_args) if sys.platform == "win32" \
+        else shlex.join(fake_args)
+    env = {"COPILOT_HOME": str(home), "CHANTIER_SESSION_USAGE": fake_command,
+           "FAKE_USAGE_RECORDS": str(records), "FAKE_USAGE_SESSION": "uuid-foreman",
+           "FAKE_USAGE_EXIT": "0", "FAKE_USAGE_ERROR": "",
+           "UV_INDEX": "https://example.invalid/simple",
+           "FAKE_EXPECT_UV_INDEX": "https://example.invalid/simple"}
+    code, out = w.chantier("cost", "--batch", "night", "--host", "copilot", "--update", env=env)
+    check("Copilot cost groups billed and estimated calls by role",
+          code == 0 and out == [
+              "night: $1.875 over 4 model calls (1 estimated, not billed)",
+              "foreman: $1.000 (1 calls)", "cr-driver: $0.500 (1 calls)",
+              "coder: $0.375 (2 calls)"], str(out))
+    check("Copilot cost updates the batch's recorded spend", w.batch()["spent_usd"] == 1.875)
+    code, out = w.chantier("cost", "--batch", "night", "--host", "copilot", "--by", "cr",
+                           env=env)
+    check("Copilot cost attributes calls by agent, name and other",
+          code == 0 and out[1:] == [
+              "foreman: $1.000 (1 calls)", f"{assigned['id']}: $0.500 (1 calls)",
+              f"{named['id']}: $0.250 (1 calls)", "other: $0.125 (1 calls)"], str(out))
+
+    def fails(label, expected, message, overrides=None):
+        code, out = w.chantier("cost", "--batch", "night", "--host", "copilot", "--update",
+                               env={**env, **(overrides or {})}, expect=expected)
+        check(label, code == expected and not out and message in w.last_stderr
+              and w.batch()["spent_usd"] == 1.875,
+              f"exit {code}, stdout {out}, stderr {w.last_stderr}")
+
+    records.write_text("", encoding="utf-8")
+    fails("Copilot cost refuses empty usage", 4, "no priced call")
+    fails("Copilot cost reports a failed usage command", 4, "failed (1): boom",
+          {"FAKE_USAGE_EXIT": "1", "FAKE_USAGE_ERROR": "boom"})
+    records.write_text(json.dumps(call(None, None)) + "\n", encoding="utf-8")
+    fails("Copilot cost refuses a call without a price", 4, "has no price")
+    records.write_text("not JSON\n", encoding="utf-8")
+    fails("Copilot cost refuses unreadable records", 4, "unreadable record")
+    missing = [str(w.root / "missing-session-usage")]
+    missing_command = subprocess.list2cmdline(missing) if sys.platform == "win32" \
+        else shlex.join(missing)
+    fails("Copilot cost reports a missing command", 2, "not found",
+          {"CHANTIER_SESSION_USAGE": missing_command})
+    _, missing = prepare_cr(w, "Missing transcript")
+    w.chantier("open", "cost-missing", f"@{missing}", "--no-worktrees",
+               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
+    code, out = w.chantier("cost", "--batch", "cost-missing", "--host", "copilot",
+                           env=env, expect=2)
+    check("a missing Copilot transcript names the session variable",
+          code == 2 and not out and "$COPILOT_AGENT_SESSION_ID" in w.last_stderr,
+          f"exit {code}, stdout {out}, stderr {w.last_stderr}")
+
+
+def copilot_uv(w: World) -> None:
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    try:
+        from chantier import costs
+    finally:
+        sys.path.pop(0)
+    index_variables = ("UV_INDEX", "UV_DEFAULT_INDEX", "UV_INDEX_URL", "UV_EXTRA_INDEX_URL",
+                       "UV_FIND_LINKS")
+    env = {name: "https://example.invalid/simple" for name in index_variables}
+    env.update({"CHANTIER_SESSION_USAGE": "", "COPILOT_HOME": str(w.root / "empty-copilot"),
+                "UV_OFFLINE": "1", "HTTPS_PROXY": "http://127.0.0.1:9",
+                "SSL_CERT_FILE": str(w.root / "cert.pem")})
+    result = subprocess.CompletedProcess([], 0, stdout=json.dumps(
+        {"estimated_usd": 1.0, "llm_calls": 1, "cost_source": "billed"}) + "\n", stderr="")
+    with mock.patch.dict(os.environ, env), mock.patch.object(costs.shutil, "which", return_value="uv"), \
+            mock.patch.object(costs.subprocess, "run", return_value=result) as run:
+        costs.copilot_session_costs("uuid-foreman")
+        argv = run.call_args.args[0]
+        child_env = run.call_args.kwargs["env"]
+        check("Copilot cost invokes uv with the inline script and exact session",
+              argv == ["uv", "run", "--no-config", "--script", str(costs.SESSION_USAGE_SCRIPT),
+                       "--agent", "cli", "--session-root",
+                       str(Path(env["COPILOT_HOME"]) / "session-state"),
+                       "calls", "--name", r"^uuid\-foreman$"], str(argv))
+        check("uv ignores inherited index sources but retains offline and proxy settings",
+              child_env is not None and all(name not in child_env for name in index_variables)
+              and child_env.get("UV_OFFLINE") == "1"
+              and child_env.get("HTTPS_PROXY") == "http://127.0.0.1:9"
+              and child_env.get("SSL_CERT_FILE") == env["SSL_CERT_FILE"]
+              and all(os.environ.get(name) == env[name] for name in index_variables))
 
 
 def fake_transcripts(w: World, d: dict) -> None:
