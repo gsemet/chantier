@@ -62,7 +62,10 @@ just scenario       # one whole batch, end to end, through the real CLI and a fa
 - Write code and docs in the style of the surrounding files: short sentences, exact terms.
 - Tests check the structure (versions, manifests, agents, references, and a smoke run in a fresh
   repository) in a few seconds. They do not evaluate the batch workflow: run `just scenario`
-  when you change it.
+  ([scenario/](scenario/README.md)) when you change it.
+- With real agents, the [eval campaigns](evals/README.md): `claude-smoke` after a change to a
+  role or the flow, `claude-full` before a release, `copilot` for a change to Copilot's
+  mechanics. Each run commits its report.
 - `main` is protected: every change goes through a pull request, merged by rebase once CI
   (`just check` on Linux, macOS and Windows) is green.
 
