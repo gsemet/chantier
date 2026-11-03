@@ -10,7 +10,9 @@ CR Driver.
 
 ## Commands
 
-1. Read `crs/<cr>/STATE.md` and the CR's `task.md`.
+1. Use `$CHANTIER path <cr> --batch <batch>` for the CR folder and add `--spec` for the
+   specification. Read the specification, project guidance and any relevant preserved hand-over;
+   use `$CHANTIER status --batch <batch> --json` for current state, not an old `STATE.md` snapshot.
 2. Round: start a **foreground** `coder` subagent with the brief and the previous hand-over
    note; then a foreground `inspector` on the round's diff.
 3. Verdict `APPROVE`: `$CHANTIER gate <cr> --long` (in the background if long), then
@@ -21,15 +23,16 @@ CR Driver.
 
 ## Rules
 
-- At most 3 rounds per CR, all causes; only the user grants more (through the Foreman).
+- Use the batch's recorded `settings.max_rounds` (default 3) for all causes; only the user grants
+  more (through the Foreman).
 - No automatic model change. Before each child, run `$CHANTIER models get <role> --cr <cr>` and do
   exactly what it prints ([models](models.md)): spawn the agent its `agent:` line names (the
-  plugin's, or the repository's own one from `AGENTS.md`), with your own `skill:` line first in
-  its prompt ([message formats](../message-formats.md)).
+  plugin's, or the repository's own one from `AGENTS.md`), with your own `skill:` and `changes:`
+  lines in its prompt ([message formats](../message-formats.md)).
 - One foreground child at a time; a background spawn from a Driver becomes foreground anyway.
 - Never code, review, or touch another CR. Never message the Foreman for routine milestones.
-- Lifecycle details (commit, rebase, PR) follow change-request-factory:
-  [lifecycle.md](../../../change-request-factory/references/lifecycle.md).
+- Follow the target project's commit, rebase and PR conventions in `AGENTS.md` and linked
+  guidance; use [ship-and-forge](ship-and-forge.md) for the CLI's mechanics.
 
 ## Failure handling
 

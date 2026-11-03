@@ -1,4 +1,4 @@
-"""Repository paths, configuration and the locked batch state.
+"""Repository paths, runtime settings and the locked batch state.
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
 `msvcrt` on Windows), by atomic rename, and every change appends one event.
@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -68,6 +69,7 @@ DEFAULT_CONFIG = {
     "changes_dir": ".agents/changes",
     "default_branch": "main",
     "remote": "origin",
+    "first_cr_number": 101,
     "worktrees_dir": "",
     "forge": "github",
     "max_rounds": 3,
@@ -109,12 +111,46 @@ def git(*args: str, cwd: Path | str | None = None, check: bool = True) -> str:
     return p.stdout.strip()
 
 
-def default_branch(root: Path, remote: str = "origin") -> str:
-    """The remote's HEAD branch, else the current branch, else `main`."""
+def default_branch(root: Path, remote: str = "origin") -> str | None:
+    """The remote's recorded HEAD branch, if Git knows it."""
     head = git("symbolic-ref", "--short", f"refs/remotes/{remote}/HEAD", cwd=root, check=False)
-    if head:
-        return head.split("/", 1)[-1]
-    return git("branch", "--show-current", cwd=root, check=False) or "main"
+    return head.removeprefix(f"{remote}/") if head else None
+
+
+def project_path(root: Path, value: str | Path, label: str = "path") -> Path:
+    path = Path(value).expanduser()
+    path = (path if path.is_absolute() else root / path).resolve()
+    root = root.resolve()
+    if path == root or not path.is_relative_to(root):
+        raise ChantierError(f"{label} must be inside the repository: {value}", EXIT_USAGE)
+    return path
+
+
+def move_directory(source: Path, destination: Path) -> None:
+    if not source.is_dir():
+        raise ChantierError(f"CR folder not found: {source}", EXIT_USAGE)
+    if destination.exists() or destination.is_symlink():
+        raise ChantierError(f"refusing to overwrite CR folder: {destination}", EXIT_CONFLICT)
+    if source == destination or source in destination.parents:
+        raise ChantierError(f"invalid CR move: {source} to {destination}", EXIT_USAGE)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _retry(source.rename, destination)
+    except OSError as e:
+        raise ChantierError(f"cannot move CR folder {source} to {destination}: {e}",
+                            EXIT_EXTERNAL) from e
+
+
+def apply_batch_settings(repo: "Repo", data: dict) -> None:
+    settings = data.get("settings")
+    if settings is None:
+        return
+    if not isinstance(settings, dict):
+        raise ChantierError("invalid batch settings; refusing to run")
+    for key in ("remote", "default_branch", "first_cr_number", "worktrees_dir", "forge", "max_rounds",
+                "stale_minutes", "gates", "layout", "claude_projects_dir"):
+        if key in settings:
+            repo.config[key] = settings[key]
 
 
 @dataclass
@@ -133,21 +169,14 @@ class Repo:
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
         root = Path(common).resolve().parent
-        path = root / ".agents" / "chantier.json"
-        # optional: it holds only what differs from the defaults
-        own = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-        cfg = {**DEFAULT_CONFIG, **own}
-        if "default_branch" not in own:
-            cfg["default_branch"] = default_branch(root, cfg["remote"])
+        cfg = {**DEFAULT_CONFIG, "gates": {"fast": [], "long": []}}
+        cfg["changes_dir"] = os.environ.get("CHANTIER_CHANGES") or cfg["changes_dir"]
+        cfg["default_branch"] = default_branch(root, cfg["remote"])
         return cls(root, cfg)
 
     @property
-    def config_path(self) -> Path:
-        return self.root / ".agents" / "chantier.json"
-
-    @property
     def changes(self) -> Path:
-        return self.root / self.config["changes_dir"]
+        return project_path(self.root, self.config["changes_dir"], "changes directory")
 
     @property
     def batches(self) -> Path:
@@ -156,7 +185,10 @@ class Repo:
     @property
     def worktrees(self) -> Path:
         w = self.config.get("worktrees_dir")
-        return Path(w).expanduser() if w else self.root.parent / f"{self.root.name}.worktrees"
+        if not w:
+            return self.root.parent / f"{self.root.name}.worktrees"
+        path = Path(w).expanduser()
+        return path if path.is_absolute() else self.root / path
 
     def batch_dir(self, batch: str) -> Path:
         return self.batches / batch
@@ -187,39 +219,60 @@ class Batch:
         self._lock = None
         self.data: dict = {}
         self._events: list[dict] = []
+        self._moves: list[tuple[Path, Path]] = []
+        self._new_worktrees: list[tuple[Path, str, str]] = []
 
     def __enter__(self) -> "Batch":
         if self._create is None and not (self.dir / "batch.json").exists():
             raise ChantierError(f"unknown batch {self.id}")
         self.dir.mkdir(parents=True, exist_ok=True)
         self._lock = open(self.dir / ".lock", "a+")
-        deadline = time.monotonic() + LOCK_TIMEOUT_S
-        while not _try_lock(self._lock):
-            if time.monotonic() > deadline:
-                raise ChantierError(f"batch {self.id} is locked for over {LOCK_TIMEOUT_S} s")
-            time.sleep(0.05)
-        path = self.dir / "batch.json"
-        if path.exists():
-            if self._create is not None:
-                raise ChantierError(f"batch {self.id} already exists")
-            self.data = _read_json(path)
-        else:
-            self.data = self._create
-        return self
+        acquired, entered = False, False
+        try:
+            deadline = time.monotonic() + LOCK_TIMEOUT_S
+            while not _try_lock(self._lock):
+                if time.monotonic() > deadline:
+                    raise ChantierError(f"batch {self.id} is locked for over {LOCK_TIMEOUT_S} s")
+                time.sleep(0.05)
+            acquired = True
+            path = self.dir / "batch.json"
+            if path.exists():
+                if self._create is not None:
+                    raise ChantierError(f"batch {self.id} already exists")
+                self.data = _read_json(path)
+            else:
+                self.data = self._create
+            apply_batch_settings(self.repo, self.data)
+            entered = True
+            return self
+        finally:
+            if not entered:
+                if acquired:
+                    _unlock(self._lock)
+                self._lock.close()
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        state_written = False
         try:
             if exc_type is None and self._events:
                 tmp = self.dir / "batch.json.tmp"
                 tmp.write_text(json.dumps(self.data, indent=2) + "\n", encoding="utf-8")
                 _retry(os.replace, tmp, self.dir / "batch.json")
+                state_written = True
                 with open(self.dir / "events.jsonl", "a", encoding="utf-8") as f:
                     for e in self._events:
                         f.write(json.dumps(e) + "\n")
         finally:
-            with contextlib.suppress(Exception):
-                _unlock(self._lock)
-            self._lock.close()
+            try:
+                if not state_written:
+                    try:
+                        self._rollback_moves()
+                    finally:
+                        self._rollback_worktrees()
+            finally:
+                with contextlib.suppress(Exception):
+                    _unlock(self._lock)
+                self._lock.close()
 
     def log(self, kind: str, cr: str | None = None, **fields) -> None:
         self._events.append({"t": now(), "actor": self.actor, "kind": kind, "cr": cr, **fields})
@@ -233,6 +286,40 @@ class Batch:
     def touch(self, c: dict, **fields) -> None:
         c.update(fields)
         c["updated"] = now()
+
+    def move(self, source: Path, destination: Path) -> None:
+        move_directory(source, destination)
+        self._moves.append((source, destination))
+
+    def created_worktree(self, path: Path, branch: str, initial_head: str) -> None:
+        self._new_worktrees.append((path, branch, initial_head))
+
+    def _rollback_moves(self) -> None:
+        for source, destination in reversed(self._moves):
+            if not destination.exists() or source.exists():
+                raise ChantierError(f"cannot roll back CR move {destination} to {source}; "
+                                    "preserve both paths and resolve manually")
+            source.parent.mkdir(parents=True, exist_ok=True)
+            _retry(destination.rename, source)
+        self._moves.clear()
+
+    def _rollback_worktrees(self) -> None:
+        for path, branch, initial_head in reversed(self._new_worktrees):
+            if path.exists():
+                dirty = git("status", "--porcelain", cwd=path, check=False)
+                head = git("rev-parse", "HEAD", cwd=path, check=False)
+                if dirty or head != initial_head:
+                    raise ChantierError(f"worktree {path} changed while opening the batch; "
+                                        "it was preserved and needs manual recovery")
+                git("worktree", "remove", str(path), cwd=self.repo.root)
+            current = git("rev-parse", "--verify", "--quiet", branch, cwd=self.repo.root,
+                          check=False)
+            if current == initial_head:
+                git("branch", "-d", branch, cwd=self.repo.root)
+            elif current:
+                raise ChantierError(f"branch {branch} changed while opening the batch; "
+                                    "it was preserved and needs manual recovery")
+        self._new_worktrees.clear()
 
 
 def resolve_batch(repo: Repo, batch: str | None) -> str:
@@ -254,7 +341,9 @@ def read_batch(repo: Repo, batch_id: str) -> dict:
     path = repo.batch_dir(batch_id) / "batch.json"
     if not path.exists():
         raise ChantierError(f"unknown batch {batch_id}")
-    return _read_json(path)
+    data = _read_json(path)
+    apply_batch_settings(repo, data)
+    return data
 
 
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
@@ -271,16 +360,28 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
     raise ChantierError(f"no open batch holds {cr_id}", EXIT_USAGE)
 
 
-def next_cr_number(repo: Repo) -> int:
-    """CR numbers are unique in the repository; the counter is locked like a batch."""
-    repo.changes.mkdir(parents=True, exist_ok=True)
+def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
+    """Choose a number under the lifecycle lock, without reserving it on a failed move."""
+    previous = repo.config["first_cr_number"] - 1
     counter = repo.changes / ".chantier-counter"
-    with open(repo.changes / ".chantier-counter.lock", "a+") as lock:
-        while not _try_lock(lock):
-            time.sleep(0.05)
+    if counter.exists():
         try:
-            n = int(counter.read_text(encoding="utf-8")) + 1 if counter.exists() else 101
-            counter.write_text(str(n), encoding="utf-8")
-        finally:
-            _unlock(lock)
-    return n
+            previous = max(previous, int(counter.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as e:
+            raise ChantierError(f"invalid legacy CR counter {counter}: {e}") from e
+    for root in roots:
+        if root.is_dir():
+            for child in root.iterdir():
+                if child.is_dir():
+                    match = re.match(r"^(?:CR-)?(\d+)(?:-|$)", child.name, re.I)
+                    if match:
+                        previous = max(previous, int(match.group(1)))
+    if repo.batches.exists():
+        for batch in repo.batches.iterdir():
+            state = batch / "batch.json"
+            if state.is_file():
+                for cr in _read_json(state).get("crs", []):
+                    match = re.fullmatch(r"CR-(\d+)", cr.get("id", ""))
+                    if match:
+                        previous = max(previous, int(match.group(1)))
+    return previous + 1

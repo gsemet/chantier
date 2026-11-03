@@ -10,7 +10,7 @@ description: >-
   each running Investigators, Coders, Inspectors, Debuggers, Verifiers and Conflict resolvers.
   Mechanical steps run in the `chantier` Python CLI (uv run). Use when the user asks to run CRs or a
   batch, "run the P1s", build a PR stack, steer a running batch (add, drop, reorder a CR), check
-  its status or cost, resume after a restart, or set up chantier in a project. Refuses to start
+  its status or cost, resume after a restart, or customize a project agent. Refuses to start
   anything outside Claude Desktop or a Copilot SDK host (create_session, send_message).
 ---
 
@@ -18,16 +18,20 @@ description: >-
 
 chantier-version: 0.1.0
 
-`$CHANTIER` means `uv run --script <this skill's folder>/scripts/cli/chantier.py`, with the absolute path
-of the folder this file is in (no virtual environment, no build, no network). The plugin's agents
-(`chantier:<role>`) and agent files installed by `$CHANTIER setup` carry the path already.
+`$CHANTIER` means `uv run --script <this skill's folder>/scripts/cli/chantier.py`, with the
+absolute path of the folder this file is in (no virtual environment or build).
 
-**Nothing to set up.** Installed as the plugin (Claude Code or Copilot), chantier works in any
-repository at once: no configuration file (defaults apply; `.agents/chantier.json` holds only what
-differs, such as gates) and no agent file (the plugin ships one per role and host). A repository
-customizes a role by naming its own agent in its `AGENTS.md`
-(`- chantier <role> agent: <file>`, see [models](references/capabilities/models.md)).
-`$CHANTIER setup` is only for a skill installed without the plugin.
+**No project configuration.** Read the target repository's `AGENTS.md` and the guidance it links
+before filing or starting work. Infer its CR lifecycle, Git conventions and fast and long gates;
+pass non-default values to the CLI. Ask the user when a required convention or gate is unclear:
+an absent gate never means success. The plugin ships static, host-specific agents with explicit
+tools. Users customize a role by editing a project-local copy, not by generating agents or
+configuring model YAML files ([models](references/capabilities/models.md)).
+
+Pass `--changes-dir <absolute-path>` before the subcommand in every CLI invocation; do not rely
+on an export surviving separate shell calls. Every Foreman and worker spawn must carry that same
+absolute path on a `changes:` line, alongside `skill:`. Operational decisions are recorded per
+batch; legacy `.agents/chantier.json` and model YAML files are ignored.
 Design and build spec: `projects/aps/changes/1-inbox/workflow-optimization/design-5-nested-session/`
 in the agentic-planning-surface repository.
 
@@ -82,15 +86,15 @@ another tool, a look-alike model, a workaround or an estimate.
 
 | The user asks… | Do | Read |
 | --- | --- | --- |
-| "set up chantier" | with the plugin: nothing to do, say so; without it: `$CHANTIER setup`, then ask the user to restart the session | [preflight](references/capabilities/preflight.md), [batch-brief](references/capabilities/batch-brief.md) |
+| "set up chantier" | install the plugin if needed; read the project's `AGENTS.md`; there is no project configuration or agent generation | [preflight](references/capabilities/preflight.md), [batch-brief](references/capabilities/batch-brief.md) |
 | to file or triage an item | backlog | [backlog-and-grill](references/capabilities/backlog-and-grill.md) |
 | a batch, "run the P1s", a stack | preflight → grill → `$CHANTIER open` → start and detach the Foreman | [preflight](references/capabilities/preflight.md), [batch-brief](references/capabilities/batch-brief.md), [sessions](references/capabilities/sessions.md) |
 | "status?" | `$CHANTIER status`, with links; a blocked CR is a question for the user | [events-and-state](references/capabilities/events-and-state.md) |
 | add, drop, reorder, change a CR; "I merged #42" | `$CHANTIER order …`, then send its line to the Foreman | [steering](references/capabilities/steering.md) |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | [recovery](references/capabilities/recovery.md) |
 | "what did it cost?" | `$CHANTIER cost` | [cost](references/capabilities/cost.md) |
-| "which models?", change a model | `$CHANTIER models`; to change one, the user edits `.agents/chantier.models.yml`, then `$CHANTIER models check` (it says when the role needs its own agent) | [models](references/capabilities/models.md) |
-| "use my agent for <role>", customize a role | add `- chantier <role> agent: <file>` to the repository's `AGENTS.md` (write the agent file too if asked), `$CHANTIER models get <role>` to check it, then ask for a restart of the session | [models](references/capabilities/models.md) |
+| "which models?", change a model | `$CHANTIER models`; the user edits the appropriate copied agent's frontmatter to change it | [models](references/capabilities/models.md) |
+| "use my agent for <role>", customize a role | copy the host's static agent into the project; edit its model or tools as requested; if renamed, add `- chantier <host> <role> agent: <file>` to `AGENTS.md`; check `$CHANTIER models get <role>` and restart | [models](references/capabilities/models.md) |
 
 ## 3. Hard rules
 
@@ -123,19 +127,14 @@ another tool, a look-alike model, a workaround or an estimate.
 | Verifier | `verifier`, foreground of a Driver | [card](references/roles/verifier.md) | gates, evidence, safety |
 | Conflict resolver | `conflict-resolver`, foreground of a Driver or the stack driver | [card](references/roles/conflict-resolver.md) | ship-and-forge, gates, safety |
 
-**Models come from the configuration, never from a guess.** `$CHANTIER models` resolves each role
-to one exact id for the host: the base lists [models/claude.yml](references/models/claude.yml)
-and [models/copilot.yml](references/models/copilot.yml), then `~/.config/chantier/models.yml`, then
-`.agents/chantier.models.yml`, then the brief's **Models** line. Each of chantier's agent files
-pins the id, with the role's reasoning effort when one is set (unset: the user's setting) and the
-host's own tool names; a repository's own agent (from its `AGENTS.md`) decides for itself. Every
-spawn uses the agent and passes what `$CHANTIER models get` prints. Nothing escalates on its own.
+**Models and tools come from the agent files, never from a guess.** `$CHANTIER models` reads the
+shipped static agent for each host; a repository's own copy decides its own model, effort and
+tools. Every spawn uses the agent and passes what `$CHANTIER models get` prints. Nothing escalates
+on its own.
 See [models](references/capabilities/models.md) and [roles/README](references/roles/README.md).
 
 **Playbooks:** [playbooks/](references/playbooks/) is empty on purpose; a playbook is added only when it
 encodes what the model would not do on its own.
 
 Capability files: [references/capabilities/](references/capabilities/). Message formats:
-[references/message-formats.md](references/message-formats.md). Agent templates:
-[assets/agents/](assets/agents/), rendered into the plugin's agents for each host (`just agents`)
-and by `$CHANTIER setup`. Evals: [evals/](evals/README.md).
+[references/message-formats.md](references/message-formats.md). Evals: [evals/](evals/README.md).

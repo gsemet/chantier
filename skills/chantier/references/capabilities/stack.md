@@ -15,7 +15,7 @@ $CHANTIER stack order <cr>...     # set the stack order
 $CHANTIER stack restack           # rebase every PR above a merged or changed one
 ```
 
-Stack rules and heavy CI on top: [stacked-prs.md](../../../change-request-factory/references/stacked-prs.md).
+Follow the target project's stack conventions in `AGENTS.md` and linked guidance.
 
 ## Rules
 

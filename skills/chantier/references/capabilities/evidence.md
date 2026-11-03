@@ -10,5 +10,7 @@ QA driver; Coder when the brief asks for screenshots.
 
 ## Rules
 
-Change-request-factory's evidence rules apply unchanged: [evidence.md](../../../change-request-factory/references/evidence.md).
-Proof files go under `crs/<cr>/evidence/`.
+Follow the target project's evidence rules in `AGENTS.md` and linked guidance. Reproduce the
+behavior and record the commands, results and relevant screenshots without claiming unrun checks.
+Proof files go under `<CR-folder>/evidence/`; locate the folder with
+`$CHANTIER path <cr> --batch <batch>`.

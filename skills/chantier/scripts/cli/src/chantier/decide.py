@@ -15,6 +15,7 @@ do them. An action line is a verb and its arguments:
 """
 from __future__ import annotations
 
+from .lifecycle import archive_cr, return_cr
 from .state import LIVE, Batch, ChantierError, EXIT_USAGE, now
 
 DRIVER_EVENTS = {"hand-back-ready", "hand-back-blocked", "question", "anomaly", "qa-done",
@@ -220,8 +221,7 @@ def _on_driver_done(b: Batch, cr_id: str, note: str) -> list[str]:
 
 def _on_order_add(b: Batch, _cr: str, note: str) -> list[str]:
     from .commands import add_cr  # avoid an import cycle
-    title = note or "untitled"
-    c = add_cr(b, title)
+    c = add_cr(b, note)
     return [f"ok add {c['id']}"] + fill_slots(b)
 
 
@@ -229,6 +229,9 @@ def _on_order_drop(b: Batch, cr_id: str, _note: str) -> list[str]:
     c = b.cr(cr_id)
     if c["status"] in LIVE:
         return [f"cancel {cr_id}", f"ok drop {cr_id}"]
+    if c["status"] in {"merged", "landed"}:
+        raise ChantierError(f"cannot drop {cr_id}: it is already {c['status']}")
+    return_cr(b, c)
     b.touch(c, status="cancelled")
     return [f"ok drop {cr_id}"] + fill_slots(b)
 
@@ -257,6 +260,11 @@ def _on_order_change(b: Batch, cr_id: str, note: str) -> list[str]:
 
 def _on_order_merged(b: Batch, cr_id: str, note: str) -> list[str]:
     c = b.cr(cr_id)
+    if c["status"] in {"merged", "landed"}:
+        return [f"ok merged {cr_id} already merged"]
+    if c["status"] == "cancelled":
+        raise ChantierError(f"cannot mark cancelled {cr_id} merged")
+    archive_cr(b, c)
     b.touch(c, status="merged")
     out = [f"ok merged {cr_id}"]
     if _all_merged(b):

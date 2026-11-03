@@ -12,7 +12,8 @@ Coder.
 
 1. `cd` into the CR worktree; read `AGENTS.md`, the brief and the hand-over note.
 2. Implement; run `$CHANTIER gate <cr>` (fast gates only).
-3. Write `crs/<cr>/scratch/coder/r<n>.md`: what changed, gates run with results, open points,
+3. Use `$CHANTIER path <cr> --batch <batch>` and write `<CR-folder>/scratch/coder/r<n>.md`:
+   what changed, gates run with results, open points,
    and a hand-over note for the next round.
 4. Reply in at most 10 lines.
 

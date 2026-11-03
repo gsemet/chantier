@@ -18,15 +18,10 @@ chantier is three things in one repository:
    [`.claude-plugin/`](.claude-plugin/) (Claude Code manifest and marketplace) and
    [`.github/plugin/`](.github/plugin/) (GitHub Copilot marketplace) ship the skill and one agent
    per role and host: [`agents/`](agents/) for Claude Code,
-   [`com.github.copilot/agents/`](com.github.copilot/agents/) for Copilot. They differ (tools,
-   model fields), and Copilot agents name the skill `<skill>`: Copilot tells an agent nothing
-   about its plugin, so every spawn prompt carries a `skill:` line. The plugin needs no setup; a
-   repository customizes a role with `- chantier <role> agent: <file>` in its `AGENTS.md`.
-
-The agents in `agents/` and `com.github.copilot/agents/` are **generated**: edit the templates in
-[`skills/chantier/assets/agents/`](skills/chantier/assets/agents/) or the base model lists in
-[`skills/chantier/references/models/`](skills/chantier/references/models/), then run
-`just agents`. CI fails if they are out of date.
+   [`com.github.copilot/agents/`](com.github.copilot/agents/) for Copilot. Their host-specific
+   model and tool fields are edited directly; there are no templates or generation step. Every
+   spawn carries `skill:` and `changes:` lines, so plugin and project-local copies can find the
+   skill and the same batch state. A repository can select its own agent in `AGENTS.md`.
 
 The design rule that shapes everything: **fail, never improvise.** When a tool, a host feature or
 a configured model is not exactly available, chantier stops and says so; it never picks a
@@ -51,15 +46,14 @@ claude plugin install chantier@chantier
 
 ```bash
 just                # list the recipes
-just check          # agents up to date and structure tests: run before any PR
+just check          # static-agent and structure tests: run before any PR
 just test -k agents # structure tests, with pytest arguments
-just agents         # regenerate the plugin's agents after editing a template or a base model list
 just scenario       # optional: one whole batch, end to end, through the real CLI and a fake gh
 ```
 
 - Repository text is in English.
 - Write code and docs in the style of the surrounding files: short sentences, exact terms.
-- Tests check the structure only (versions, manifests, generated agents, model lists, roles,
+- Tests check the structure (versions, manifests, static agents, roles,
   links, and a smoke run in a fresh repository), in a few seconds. They do not evaluate the
   batch workflow: run `just scenario` when you change it.
 - CI runs `just check` on Linux, macOS and Windows for every pull request.
@@ -67,8 +61,7 @@ just scenario       # optional: one whole batch, end to end, through the real CL
 ## Versions
 
 One version, `MAJOR.MINOR.PATCH`, is carried by the CLI, `pyproject.toml`, `uv.lock`,
-`SKILL.md`, the plugin manifests and marketplaces, the agent templates and the generated agents. Never edit it by
-hand:
+`SKILL.md`, the plugin manifests and marketplaces, and the static agents. Never edit it by hand:
 
 ```bash
 just version-show
@@ -102,5 +95,4 @@ run when the skill and the CLI disagree, so every file must move together.
    ```
 
 Users get the new version by updating the plugin from its marketplace, then restarting their
-session. Only a skill installed without the plugin needs `chantier setup` again: preflight reports
-its agent files as an old template until then.
+session. Project-local agent copies remain the user's responsibility.

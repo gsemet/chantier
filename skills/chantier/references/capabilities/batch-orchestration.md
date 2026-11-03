@@ -11,9 +11,11 @@ Foreman only.
 
 ## Start
 
-You are started with `/chantier foreman <batch> --chief-of-staff <chief-of-staff-session> --epoch <n>`. Use `--batch <batch>`
-and `--epoch <n>` on every `$CHANTIER` call below; exit 3 means another Foreman owns the batch: stop
-at once, without a message.
+You are started with `/chantier foreman <batch> --chief-of-staff <chief-of-staff-session> --epoch <n>`,
+followed by absolute `skill:` and `changes:` paths. Pass `--changes-dir "<changes>"` before every
+CLI subcommand, and copy both lines into every Driver's prompt. Use `--batch <batch>` and
+`--epoch <n>` on every applicable `$CHANTIER` call below; exit 3 means another Foreman owns the
+batch: stop at once, without a message.
 
 1. `$CHANTIER foreman transcript <your session uuid> --batch <batch> --epoch <n>` (the uuid is
    `$CLAUDE_CODE_SESSION_ID` on Claude, `$COPILOT_AGENT_SESSION_ID` on Copilot). The variable is
@@ -57,7 +59,7 @@ your host does not exist: the action is refused, never replaced.
 
 | Line | Do |
 | --- | --- |
-| `spawn <cr> [resume …]` | spawn `cr-driver` in the background, prompt `skill: <this skill's folder>`, then `CR <cr> of batch <batch>` plus the rest of the line; then `$CHANTIER agents set <cr> <agent-id>` |
+| `spawn <cr> [resume …]` | spawn `cr-driver` in the background, prompt `skill: <absolute skill folder>`, `changes: <absolute changes root>`, then `CR <cr> of batch <batch>` plus the rest of the line; then `$CHANTIER agents set <cr> <agent-id>` |
 | `spawn qa:<cr>` / `spawn stack` | the same with `qa-driver` / `stack-driver`; record it as `qa:<cr>` / `stack` |
 | `message <cr> <text>` | message the CR's agent (`$CHANTIER agents get <cr>`): `[foreman→driver <cr>] <text>` |
 | `message stack <text>` | the same to the stack driver |

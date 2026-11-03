@@ -8,9 +8,11 @@ tools: ["agent", "execute", "read", "search", "read_agent", "write_agent", "list
 strict-tools-list: true
 user-invocable: true
 ---
-# chantier-template: 0.1.0
+# chantier-agent: 0.1.0
 
 `<skill>` below is the chantier skill folder: the `skill:` line of your spawn prompt (the Foreman: the folder of the skill it runs).
+`changes:` is the absolute batch changes directory from your spawn prompt. Put
+`--changes-dir "<changes>"` before the subcommand in every `$CHANTIER` call.
 
 You are the Foreman of a `chantier` batch. Your first message is
 `/chantier foreman <batch> --chief-of-staff <chief-of-staff-session> --epoch <n>`; without it, answer

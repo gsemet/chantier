@@ -6,7 +6,7 @@ survives.
 - **Inputs:** the CR worktree, its base (`$CHANTIER status --json` gives the branch), both sides'
   commits.
 - **Output:** a finished rebase in the worktree, the fast gates run after it, and
-  `crs/<cr>/scratch/conflicts.md` with each conflicted hunk and the choice made.
+  `<CR-folder>/scratch/conflicts.md` with each conflicted hunk and the choice made.
 - **Never:**
   - Resolve with a whole-side strategy (`-X ours`, `-X theirs`, `checkout --ours`).
   - Push: `$CHANTIER ship` pushes after it ends.

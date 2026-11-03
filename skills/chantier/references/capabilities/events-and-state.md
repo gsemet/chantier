@@ -22,11 +22,14 @@ $CHANTIER event --order O-<k>                     # Foreman: carry out an order
 $CHANTIER order <kind> [<cr>] [--note T]          # Chief of Staff: add drop first change merged pause resume
 $CHANTIER agents set|get <cr> [<agent-id>]        # Foreman: CR (or stack, qa:<cr>) → agent id
 $CHANTIER heartbeat                               # Foreman: live CRs, pending orders, oldest silence
-$CHANTIER add <title | @file> [--qa]              # a queued CR (the Foreman's order-add does it)
+$CHANTIER add @<prepared-folder-or-spec> [--qa]   # a queued CR (the Foreman's order-add does it)
+$CHANTIER path <cr> [--spec]                     # current folder, or recorded specification
 ```
 
-State lives in `<changes folder>/batches/<batch>/`: `batch.json`, `events.jsonl`, `brief.md`,
-`crs/<cr>/{task.md,STATE.md,pr-body.md,scratch/}`. CR numbers are unique in the repository.
+Batch state lives in `<changes>/batches/<batch>/`: `batch.json`, `events.jsonl` and `brief.md`.
+The CR's `task.md`, `STATE.md`, `pr-body.md` and `scratch/` live in its separate moving folder.
+Resolve it with `path`; use `status` for current state. CR numbers are unique within a changes
+root, including its recorded batches and configured request and archive folders.
 
 Exit codes: 0 ok, 1 usage, 2 precondition (the message says which), 3 stale Foreman epoch,
 4 external tool (git, gh, a gate), 5 budget.

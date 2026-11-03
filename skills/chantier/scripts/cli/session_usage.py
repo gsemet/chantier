@@ -8,9 +8,10 @@
 # url = "https://pypi.org/simple"
 # default = true
 # ///
-"""`copilot-session-usage` resolved by uv at run time, always from pypi.org (whatever the user's uv index): `uv run --script session_usage.py …`.
+"""`copilot-session-usage` is resolved by uv from this script's inline metadata.
 
-`chantier cost` runs this on Copilot only; the rest of the CLI has no dependency.
+`chantier cost` runs this on Copilot with uv configuration files and index variables ignored;
+the rest of the CLI has no dependency.
 """
 from copilot_session_usage.cli import cli
 

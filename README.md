@@ -13,40 +13,36 @@ while one "Foreman" coordinates the work underneath.
 You only ever talk to the **Chief of Staff**, in your own session.
 It keeps the backlog, asks you the questions a change needs, and starts work only on your go.
 
-1. **You file work.** Each item becomes a **Change Request**: a local folder that keeps the raw
-   request (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`)
-   and the self-contained **Change Specification** (`03-change-spec.md`).
+1. **You file work.** Each item becomes a **Change Request**: a local folder in the project's
+   inbox that keeps the raw request (`intake/`), its analysis (`01-intent.md`), every answer you
+   give (`02-answers.md`) and the self-contained **Change Specification** (`03-change-spec.md`).
 2. **You start a batch** ("run the P1s", "build a PR stack").
-   The Chief of Staff runs a preflight, then starts one **Foreman** in a nested session
-   and detaches it.
+   The Chief of Staff reads the project's `AGENTS.md` and linked guidance, prepares and grills the
+   selected CRs, then runs a preflight and starts one **Foreman** in a nested session.
 3. **The Foreman runs the batch.** It owns one background **Driver** per CR slot,
    plus a stack driver and a QA driver when needed, and keeps itself warm with a heartbeat.
 4. **Each Driver runs short foreground workers** in the CR's own git worktree:
    Investigator, Coder, Inspector, Debugger, Verifier and Conflict resolver.
    It ships a PR and waits for CI.
 5. **The Foreman reports back** with `ready`, `ask` and `final` messages.
-   You steer through the Chief of Staff (add, drop, reorder a CR; "I merged #42"),
-   and it forwards one `order` line to the Foreman.
+   You steer through the Chief of Staff (add, drop, reorder a CR; "I merged #42").
+   It forwards one `order` line to the Foreman. Confirmed merges move CRs to the archive.
 
 Agents never decide mechanics on their own.
 Every mechanical step goes through the `chantier` Python CLI (`uv run`),
-which owns the batch state: slots, rounds, budget, events, gates, waits, ship, cost
-and the exact model of every role.
+which owns the batch state: slots, rounds, budget, events, gates, waits, ship and cost.
 
 ## Design choices
 
 - **Fail, never improvise.** If a tool, a host feature or a configured model is not available
   exactly as written, chantier stops and reports it.
   It never picks a look-alike model, another tool or a workaround.
-- **Exact models, configurable without editing the skill.**
-  Base lists per host live in
-  [`references/models/`](skills/chantier/references/models/) (`claude.yml`, `copilot.yml`).
-  You override them in `~/.config/chantier/models.yml`, then `.agents/chantier.models.yml`,
-  then the batch brief.
-  Each role can also set its reasoning effort; unset, your own setting applies.
+- **Static agents per host.** The shipped Claude Code and Copilot agents explicitly declare their
+  model, effort and tools. To change one, copy the host's agent to your project and edit your copy;
+  no agent generation or model preference files are involved.
 - **Cheap by construction.** Short-lived workers, one model per role, a heartbeat tuned to each
   host's prompt-cache lifetime, and a budget stop.
-  `chantier cost` reports measured spend by role and by CR.
+  `chantier cost` reports spend by role and by CR, flagging estimated Copilot calls.
 
 ## Supported hosts
 
@@ -76,38 +72,37 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
-On GitHub Copilot, add the marketplace in [`.github/plugin/`](.github/plugin/marketplace.json)
-(`gsemet/chantier`) and install the `chantier` plugin.
+On GitHub Copilot:
 
-Then restart the session. That is all: in any repository, ask the Chief of Staff for a batch.
-There is no setup. Nothing is written in the repository until you start one: no configuration
-file (defaults apply) and no agent file (the plugin ships them).
-
-`.agents/chantier.json` is optional and holds only what differs from the defaults, for example
-the project's gates:
-
-```json
-{"gates": {"fast": ["uv run pytest -q"], "long": []}}
+```bash
+copilot plugin marketplace add https://github.com/gsemet/chantier.git
+copilot plugin install chantier@chantier
 ```
 
-To run your own agent for a role, name it in your repository's `AGENTS.md` (or ask the Chief of
-Staff to do it), one line per role, then restart the session:
+Then restart the session. There is no project configuration file and no agent generation.
+The Chief of Staff reads `AGENTS.md` and any linked project guidance to infer the lifecycle paths,
+Git conventions and fast and long gates. If a necessary gate or default branch is unclear, it asks
+you instead of assuming success. It records the decisions for each batch in `batch.json`.
+Old `.agents/chantier.json` and model YAML files are ignored, not migrated or deleted.
+
+To customize a role, copy the appropriate shipped agent into `.claude/agents/` or
+`.github/agents/` and edit its model, effort or tool list. A copy with the role's original
+filename takes precedence automatically. For a differently named agent, name it in the project's
+`AGENTS.md` and restart the session:
 
 ```markdown
-- chantier debugger agent: .github/agents/my-debugger.agent.md
-- chantier coder agent: .claude/agents/rust-coder.md
+- chantier copilot coder agent: .github/agents/my-coder.agent.md
+- chantier claude coder agent: .claude/agents/rust-coder.md
 ```
 
-That agent decides its own model, effort and tools. A model change in
-`~/.config/chantier/models.yml` or `.agents/chantier.models.yml` is passed at each spawn on
-Claude Code; where the host cannot honor it (any model change on Copilot, any effort change),
-`chantier models check` says to name your own agent instead.
+Each copy keeps its host's frontmatter and decides its own model, effort and tools.
+Copilot's `create_session` cannot select a Foreman agent file or set its effort: the Chief of
+Staff supplies its model and prompt, and the session's effort and tools apply.
 
 Besides the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/).
-The CLI is plain Python scripts with PEP 723 inline metadata: there is no package to install,
-and uv fetches any dependency from pypi.org when the CLI runs
-(for example [copilot-session-usage](https://github.com/gsemet/copilot-session-usage),
-used by `chantier cost` on Copilot).
+The CLI is plain Python scripts with PEP 723 inline metadata: there is no package to install.
+For costs on Copilot, uv fetches
+[copilot-session-usage](https://github.com/gsemet/copilot-session-usage) from PyPI when needed.
 Working on a repository also needs `git` and an authenticated `gh`, which you already have there.
 
 On Windows, the CLI runs natively (no WSL). Gates run in `cmd.exe`, so write them for it.
@@ -120,12 +115,57 @@ Talk to the Chief of Staff in plain language:
 
 | You say | What happens |
 | --- | --- |
-| "file this issue" | the item is added to the backlog and triaged |
+| "file this idea" | a CR folder is created in the inbox; it can be grilled at any stage |
+| "make it a P2" | `triage` moves it into the prioritized backlog |
 | "run the P1s", "build a stack of these" | preflight, questions, then a Foreman starts the batch |
 | "status?" | `chantier status`, with PR links; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an `order` for the Foreman, never a direct action on a Driver |
 | "what did it cost?" | `chantier cost`, by role and by CR |
 | "which models?" | `chantier models`: the resolved id of every role and where it comes from |
+
+### Change Request lifecycle
+
+Unless the project guidance specifies another layout, each CR moves through:
+
+```text
+.agents/changes/
+├── backlog/
+│   ├── 1-inbox/<slug>/
+│   ├── 2-backlog/P1…P4/<slug>/
+│   ├── 3-requests/<number>-<slug>/
+│   ├── 4-archives/<number>-<slug>/
+│   └── 5-trash/<slug>/
+└── batches/<batch>/             # runtime state and batch brief
+```
+
+The inbox holds ideas; the backlog holds what you have prioritized into P1 to P4. The Chief of
+Staff can grill a CR at any stage to sharpen its specification.
+
+`file` creates an inbox folder; `triage` moves it to the priority you choose. Opening or adding to a batch
+requires an existing prepared folder, or an explicitly named specification within it; the whole
+folder moves to requests. A dropped CR returns to its original inbox or priority folder. Only an
+explicitly abandoned, unclaimed CR goes to trash. A confirmed merge moves the folder to archives.
+Existing files are preserved, and collisions are errors rather than overwrites.
+
+The Chief of Staff passes project-specific stage paths and gates as CLI options, and propagates
+the changes root to the Foreman and workers. They put `--changes-dir <absolute-path>` before the
+subcommand in every invocation, so separate shell calls cannot lose it. `chantier path <cr>
+--batch <batch>` returns the folder's current absolute path; `--spec` returns the recorded
+specification, even when its filename differs.
+
+## Costs and budgets
+
+Ask the Chief of Staff what a batch cost. `chantier cost` reports the total and can group it
+by role or by CR. It covers the Foreman's session and its subagents, not the Chief of Staff's
+own session.
+
+On Claude, chantier prices the transcripts using its built-in rates. On Copilot, it reads
+per-call costs from `copilot-session-usage`; calls estimated rather than billed are flagged in
+the total. If the transcript, the dependency or a call price is unavailable, the command fails
+instead of inventing a cost.
+
+The Foreman updates the recorded spend at each heartbeat. Once that amount reaches the batch
+budget, it stops spawning new work; the budget check can therefore lag by one heartbeat.
 
 ## Repository layout
 
@@ -133,15 +173,14 @@ Talk to the Chief of Staff in plain language:
 plugin.json               ← Agent Plugins manifest (the skill under `extensions`)
 .claude-plugin/           ← Claude Code plugin manifest and marketplace
 .github/plugin/           ← GitHub Copilot marketplace
-agents/                   ← the Claude Code agents, generated from the templates (`just agents`)
-com.github.copilot/agents/ ← the GitHub Copilot agents, generated the same way
+agents/                   ← static Claude Code agents
+com.github.copilot/agents/ ← static GitHub Copilot agents
 skills/chantier/
 ├── SKILL.md              ← entry point and routing
-├── references/           ← definitions, role cards, capabilities, models, message formats
-├── assets/agents/        ← agent templates
+├── references/           ← definitions, role cards, capabilities, message formats
 ├── scripts/cli/          ← the `chantier` CLI and its tests
 └── evals/                ← deterministic scenario and model behavior cases
-scripts/                  ← version and agent generation, run by `just`
+scripts/                  ← version and release tooling, run by `just`
 docs/                     ← diagrams
 ```
 
@@ -151,9 +190,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how the project is built and how a re
 Recipes need [`just`](https://just.systems/) and `uv`:
 
 ```bash
-just check                  # agents up to date and structure tests (a few seconds)
+just check                  # static-agent and structure tests (a few seconds)
 just scenario               # optional: one whole batch, end to end, no model
-just agents                 # regenerate agents/ after editing a template or the base models
 just version 1.2.3          # set the version in every file that carries it
 just bump-version           # patch; or `just bump-version minor`, `just bump-version major`
 ```

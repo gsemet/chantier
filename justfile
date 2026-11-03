@@ -20,15 +20,7 @@ version new_version:
 bump-version part="patch":
     uv run --script scripts/version.py bump {{part}}
 
-# Regenerate the plugin's agent files from the skill's templates
-agents:
-    uv run --script scripts/plugin_agents.py
-
-# Fail if the plugin's agent files are out of date
-check-agents:
-    uv run --script scripts/plugin_agents.py --check
-
-# Structure tests: versions, manifests, agents, model lists, roles, links, a smoke run
+# Structure tests: versions, manifests, static agents, roles, links, a smoke run
 test *args:
     cd {{cli}}; uv run --group dev pytest -q {{args}}
 
@@ -37,7 +29,7 @@ scenario:
     uv run --no-project python skills/chantier/evals/scenario/run_scenario.py
 
 # Everything a change must pass
-check: check-agents test
+check: test
 
 # Prepare a release on a clean main: bump, check, commit and tag (pushes nothing)
 release part="patch": (bump-version part) check

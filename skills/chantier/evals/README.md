@@ -18,7 +18,9 @@ Staff steers with `chantier order`. It covers:
 - dropping a live CR (its processes stopped), adding an item, an order read twice;
 - a Foreman restart (the stale epoch refused), a lost Driver resumed;
 - `land` refused while PRs are open, then landing after the merges;
-- cost by CR, and the event log.
+- Claude cost by CR; Copilot cost by role and CR, estimated calls, updates and failures;
+- prepared-CR filing, lifecycle moves, custom project layouts, collisions and rollback;
+- the event log.
 
 The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check fails.
 
@@ -32,8 +34,8 @@ The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check f
 | [reports-cost](reports-cost/case.yaml) | the total and split come from `chantier cost` |
 | [no-fire-unrelated](no-fire-unrelated/case.yaml) | a general git question does not load chantier |
 
-Each case stages its workspace with `place-files.sh` (`lib/seed.py`: a git repo, `chantier setup`, a
-batch reached through `chantier` commands only). Run from the skill folder:
+Each case stages its workspace with `place-files.sh` (`lib/seed.py`: a git repo and a batch of
+prepared CRs reached through `chantier` commands only). Run from the skill folder:
 
 ```bash
 claude plugin eval . --scaffold --allow-tools Bash --judge-model sonnet --runs 3
@@ -41,5 +43,5 @@ claude plugin eval . --scaffold --allow-tools Bash --judge-model sonnet --runs 3
 
 `--scaffold` runs the cases' own scripts and `--allow-tools Bash` lets the agent run `chantier`. The
 default Haiku judge misread the cost case; use Sonnet. Last result (2026-10-31, one run each,
-Opus 5.5 agent): 5 of 5 cases pass, about $1.8 for all the runs that got there. The
+Opus 5.5 agent): 5 of 5 cases pass, about $1.8 for all the runs that got there.
 The structure tests are separate: `just test` at the repository root.

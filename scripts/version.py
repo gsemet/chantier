@@ -36,10 +36,8 @@ TARGETS: list[tuple[Path, str, int]] = [
     (ROOT / ".claude-plugin" / "marketplace.json", rf'^      "version": "{V}"$', 1),
     (ROOT / ".github" / "plugin" / "marketplace.json", rf'^ +"version": "{V}",?$', 2),
 ]
-TARGETS += [(p, rf"^# chantier-template: {V}$", 1)
-            for p in sorted((SKILL / "assets" / "agents").glob("*.md"))]
-TARGETS += [(p, rf"^# chantier-template: {V}$", 1) for p in sorted((ROOT / "agents").glob("*.md"))]
-TARGETS += [(p, rf"^# chantier-template: {V}$", 1)
+TARGETS += [(p, rf"^# chantier-agent: {V}$", 1) for p in sorted((ROOT / "agents").glob("*.md"))]
+TARGETS += [(p, rf"^# chantier-agent: {V}$", 1)
             for p in sorted((ROOT / "com.github.copilot" / "agents").glob("*.agent.md"))]
 
 

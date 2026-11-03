@@ -15,9 +15,10 @@ $CHANTIER ship <cr>        # rebase on the fresh default branch (in a stack: on 
                       # with lease, open or update the PR; a conflict aborts the rebase, exit 4
 ```
 
-Write the PR body to `crs/<cr>/pr-body.md` first. Templates and forge commands:
-[pr-body.md](../../../change-request-factory/references/pr-body.md), [commits.md](../../../change-request-factory/references/commits.md),
-[forge-github.md](../../../change-request-factory/references/forge-github.md), [forge-gitlab.md](../../../change-request-factory/references/forge-gitlab.md).
+Use `$CHANTIER path <cr> --batch <batch>` and write the PR body to
+`<CR-folder>/pr-body.md` first. Follow the project's commit and PR templates in `AGENTS.md` and
+its linked guidance. The CLI currently ships through GitHub (`gh`); do not substitute another
+forge when it is unsupported.
 
 ## Rules
 

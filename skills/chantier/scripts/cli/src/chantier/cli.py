@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from . import __version__, commands
@@ -13,6 +14,7 @@ MAX_LINES = 10
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chantier", description="Chief of Staff CLI (design 5).")
     p.add_argument("--version", action="version", version=f"chantier {__version__}")
+    p.add_argument("--changes-dir", help="project's changes directory (default: .agents/changes)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def cmd(name, fn, help_, batch=True, epoch=False):
@@ -24,11 +26,11 @@ def _parser() -> argparse.ArgumentParser:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
 
-    s = cmd("setup", commands.setup,
-            "install the agent files the plugin does not ship as configured", False)
-    s.add_argument("--force", action="store_true", help="replace locally edited agent files")
-    s.add_argument("--host", choices=["claude", "copilot"], help="default: detected")
-    cmd("preflight", commands.preflight, "check P1 and P4–P8; exit 2 if any fails", False)
+    def layout_options(parser, stages):
+        for stage in stages:
+            parser.add_argument(f"--{stage}", help=f"project's {stage} directory from AGENTS.md")
+
+    cmd("preflight", commands.preflight, "check P1 and P4–P9; exit 2 if any fails", False)
 
     s = cmd("models", commands.models_cmd, "show, check, get or audit the models of each role")
     s.add_argument("action", nargs="?", default="show", choices=["show", "check", "get", "audit"])
@@ -37,18 +39,48 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--host", choices=["claude", "copilot"], help="default: detected")
     s.add_argument("--session", help="for audit: the Copilot session id (default: this one)")
 
-    s = cmd("open", commands.open_batch, "open a batch: CRs, branches, worktrees, brief", False)
+    s = cmd("file", commands.file_cr, "file a request in the inbox", False)
+    s.add_argument("item", help="request text, or @path to the raw request")
+    s.add_argument("--slug", help="folder name when the inferred slug is already used")
+    layout_options(s, ("inbox",))
+
+    s = cmd("triage", commands.triage, "move an inbox CR to the priority backlog", False)
+    s.add_argument("item", help="path to the inbox CR folder")
+    s.add_argument("--priority", required=True, choices=["P1", "P2", "P3", "P4"])
+    layout_options(s, ("inbox", "backlog"))
+
+    s = cmd("abandon", commands.abandon, "move an explicitly abandoned CR to trash", False)
+    s.add_argument("item", help="path to the unclaimed CR folder")
+    layout_options(s, ("inbox", "backlog", "requests", "archives", "trash"))
+
+    s = cmd("path", commands.cr_path, "find the current folder of a batch CR")
+    s.add_argument("cr")
+    s.add_argument("--spec", action="store_true", help="print its recorded Change Specification")
+    s.add_argument("--relative", action="store_true", help="print a project-relative path")
+
+    s = cmd("open", commands.open_batch, "open a batch of prepared CR folders", False)
     s.add_argument("batch")
-    s.add_argument("items", nargs="+", help="a title, or @path to a backlog item")
+    s.add_argument("items", nargs="+", help="@path to a prepared CR folder or specification")
     s.add_argument("--slots", type=int, default=2)
     s.add_argument("--budget", type=float, help="USD; the Foreman stops spawning past it")
     s.add_argument("--stack", action="store_true", help="stacked PRs")
     s.add_argument("--qa", help="'all' or 1-based item numbers, e.g. 1,3")
     s.add_argument("--no-worktrees", action="store_true")
     s.add_argument("--chief-of-staff", help="the Chief of Staff's session id")
+    s.add_argument("--fast-gate", action="append", help="fast gate inferred from AGENTS.md; repeatable")
+    s.add_argument("--long-gate", action="append", help="long gate inferred from AGENTS.md; repeatable")
+    s.add_argument("--remote", default="origin", help="Git remote (default: origin)")
+    s.add_argument("--default-branch", help="default branch (default: the Git remote's HEAD)")
+    s.add_argument("--first-cr-number", type=int, default=101,
+                   help="first CR number when none exist (default: 101)")
+    s.add_argument("--worktrees-dir", help="worktrees directory from AGENTS.md")
+    s.add_argument("--claude-projects-dir", help="override the host's Claude transcript directory")
+    s.add_argument("--max-rounds", type=int, default=3)
+    s.add_argument("--stale-minutes", type=int, default=90)
+    layout_options(s, ("inbox", "backlog", "requests", "archives", "trash"))
 
     s = cmd("add", commands.add, "add a queued CR to a batch (the Foreman's order-add)")
-    s.add_argument("item")
+    s.add_argument("item", help="@path to a prepared CR folder or specification")
     s.add_argument("--qa", action="store_true")
 
     s = cmd("order", commands.order, "record an order for the Foreman; prints the message")
@@ -138,11 +170,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "agents" and args.action == "set" and not args.agent:
         print("error: agents set <cr> <agent-id>", file=sys.stderr)
         return EXIT_USAGE
+    old_changes = os.environ.get("CHANTIER_CHANGES")
     try:
-        result = args.fn(args)
-    except ChantierError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return e.code
+        if args.changes_dir is not None:
+            os.environ["CHANTIER_CHANGES"] = args.changes_dir
+        try:
+            result = args.fn(args)
+        except ChantierError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return e.code
+    finally:
+        if args.changes_dir is not None:
+            if old_changes is None:
+                os.environ.pop("CHANTIER_CHANGES", None)
+            else:
+                os.environ["CHANTIER_CHANGES"] = old_changes
     lines, code = result if isinstance(result, tuple) else (result, 0)
     if not getattr(args, "json", False) and len(lines) > MAX_LINES:
         lines = lines[:MAX_LINES - 1] + [f"… {len(lines) - MAX_LINES + 1} more lines"]
