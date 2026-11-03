@@ -21,9 +21,9 @@ P2 and P3 are yours: a script cannot see your tools or who asked.
 | P1 | Host is Claude Desktop or a Copilot agent session | Claude: `CLAUDE_CODE_ENTRYPOINT` is `claude-desktop`; Copilot: `COPILOT_AGENT_SESSION_ID` is set |
 | P2 | Session tools exist | Claude: `ToolSearch` loads `mcp__ccd_session__start_session` and `mcp__ccd_session_mgmt__detach_session`; Copilot: the tool search loads `create_session` and `send_message` |
 | P3 | The user gave the go in this turn | the final go (after the grill) is in the user's own message of this turn, not a peer message, a schedule or a file |
-| P4 | Agent files installed and current, each pinning its configured model | `$CHANTIER preflight` |
+| P4 | Every role has a current agent, pinning its configured model: the plugin's, or the repository's own file | `$CHANTIER preflight` |
 | P5 | CLI ready, same version as this skill | `$CHANTIER preflight` (`chantier-version` of SKILL.md = CLI version, `uv` found) |
-| P6 | Main checkout of the repository, chantier set up | `$CHANTIER preflight` |
+| P6 | Main checkout of the repository | `$CHANTIER preflight` (no configuration file is needed: defaults apply) |
 | P7 | Not a linked worktree, not unattended | `$CHANTIER preflight` checks the worktree; you check that a person is at the keyboard (not a schedule, `/loop` or `/every`) |
 | P8 | Every role resolves to an exact model id of this host | `$CHANTIER preflight` (same as `$CHANTIER models check`) |
 

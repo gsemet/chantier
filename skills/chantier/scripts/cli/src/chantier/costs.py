@@ -12,6 +12,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .state import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
@@ -114,6 +115,14 @@ def _copilot_agents(session: str) -> dict[str, dict]:
     return agents
 
 
+def _split(command: str) -> list[str]:
+    """A command line into argv; on Windows, backslashes are path separators, not escapes."""
+    if sys.platform != "win32":
+        return shlex.split(command)
+    return [a[1:-1] if len(a) > 1 and a[0] == a[-1] == '"' else a
+            for a in shlex.split(command, posix=False)]
+
+
 def copilot_session_costs(session: str) -> list[dict]:
     """One row per agent of a Copilot session, from `copilot-session-usage calls`.
 
@@ -122,7 +131,7 @@ def copilot_session_costs(session: str) -> list[dict]:
     the only one. Fails, never falls back: a failed run (uv offline, package unavailable) or a session
     without a priced call is an error.
     """
-    cmd = shlex.split(os.environ.get("CHANTIER_SESSION_USAGE") or "") or [
+    cmd = _split(os.environ.get("CHANTIER_SESSION_USAGE") or "") or [
         "uv", "run", "--no-config", "--script", str(SESSION_USAGE_SCRIPT)]
     if not shutil.which(cmd[0]):
         raise ChantierError(f"`{cmd[0]}` not found: chantier needs uv to run "

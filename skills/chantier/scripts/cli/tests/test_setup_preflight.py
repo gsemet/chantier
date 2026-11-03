@@ -1,15 +1,17 @@
 import json
+import subprocess
+import sys
 
 import pytest
 
-from conftest import SKILL, sh
+from chantier.commands import TEMPLATES, render_plugin_agents
+from conftest import PLUGIN_ROOT, SKILL, sh
 
 
 def test_setup_installs_agents_with_absolute_chantier(repo, chantier):
     code, out, _ = chantier("setup")
     assert code == 0
-    cfg = json.loads((repo / ".agents" / "chantier.json").read_text())
-    assert cfg["default_branch"] == "main"
+    assert not (repo / ".agents" / "chantier.json").exists()  # defaults need no file
     for name in ("cr-driver", "stack-driver", "qa-driver", "investigator", "coder", "inspector",
                  "debugger", "verifier", "conflict-resolver"):
         text = (repo / ".claude" / "agents" / f"{name}.md").read_text()
@@ -103,3 +105,64 @@ def test_setup_writes_the_configured_model(repo, chantier):
     chantier("setup")
     assert "model: opus" in (repo / ".claude/agents/verifier.md").read_text()
     assert "model: inherit" in (repo / ".claude/agents/coder.md").read_text()
+
+
+# ---- the Claude Code plugin -----------------------------------------------------------------
+
+@pytest.fixture
+def plugin(monkeypatch):
+    """The skill runs from the Claude Code plugin, which ships the agents in `agents/`."""
+    monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(PLUGIN_ROOT))
+    return PLUGIN_ROOT
+
+
+def test_plugin_agents_are_up_to_date():
+    for name, text in render_plugin_agents().items():
+        shipped = PLUGIN_ROOT / "agents" / f"{name}.md"
+        assert shipped.read_text(encoding="utf-8") == text, f"run `just agents` ({name})"
+        assert "${CLAUDE_PLUGIN_ROOT}/skills/chantier/references/roles/" in text
+
+
+def test_plugin_needs_no_file_in_the_repository(repo, chantier, plugin, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    code, out, _ = chantier("preflight")
+    assert code == 0, out
+    assert any(ln.startswith("P4 ok") for ln in out)
+    assert chantier("setup")[1][0] == "setup: nothing to change (claude)"
+    assert sh("git", "status", "--porcelain", cwd=repo) == ""
+    assert chantier("models", "get", "coder")[1][-1] == "agent: chantier:coder (spawn this agent exactly)"
+    code, _, err = chantier("open", "b1", "Fix login", "--slots", 1)
+    assert code == 0, err
+
+
+def test_plugin_override_installs_only_that_role(repo, chantier, plugin, monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    (repo / ".agents").mkdir()
+    (repo / ".agents" / "chantier.models.yml").write_text("claude:\n  roles:\n    verifier: opus\n")
+    code, out, _ = chantier("preflight")
+    assert code == 2 and any(ln.startswith("P4 FAIL") and "verifier" in ln for ln in out)
+    chantier("setup")
+    agents = repo / ".claude" / "agents"
+    assert sorted(p.name for p in agents.iterdir()) == ["verifier.md"]
+    assert "model: opus" in (agents / "verifier.md").read_text()
+    assert chantier("preflight")[0] == 0
+    assert chantier("models", "get", "verifier")[1][-1] == "agent: verifier (spawn this agent exactly)"
+    assert chantier("models", "get", "coder")[1][-1] == "agent: chantier:coder (spawn this agent exactly)"
+    (repo / ".agents" / "chantier.models.yml").unlink()
+    out = chantier("setup")[1]
+    assert out[0] == "removed .claude/agents/verifier.md (the plugin's agent fits the configuration)"
+    assert not (agents / "verifier.md").exists()
+    assert not (repo / ".agents" / "chantier-installed.json").exists()
+
+
+def test_plugin_manifests_agree():
+    agent_plugin = json.loads((PLUGIN_ROOT / "plugin.json").read_text())
+    claude = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text())
+    market = json.loads((PLUGIN_ROOT / ".claude-plugin" / "marketplace.json").read_text())
+    ext = agent_plugin["extensions"]["com.github.awesome-copilot"]
+    assert ext["agents"] == [f"./agents/{n}.md" for n in TEMPLATES]
+    assert all((PLUGIN_ROOT / p).exists() for p in ext["agents"] + ext["skills"])
+    version = subprocess.run([sys.executable, str(PLUGIN_ROOT / "scripts" / "version.py"), "show"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+    assert agent_plugin["version"] == claude["version"] == market["plugins"][0]["version"] == version
+    assert agent_plugin["name"] == claude["name"] == market["plugins"][0]["name"] == "chantier"

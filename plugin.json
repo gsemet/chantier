@@ -1,0 +1,38 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "chantier",
+  "description": "The construction site for your Software Factory: a Chief of Staff you talk to, a Foreman that runs batches of change requests, and short-lived workers that ship one pull request per change.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Gaetan Semet"
+  },
+  "repository": "https://github.com/gsemet/chantier",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "orchestration",
+    "change-request",
+    "pull-request",
+    "worktree",
+    "software-factory"
+  ],
+  "extensions": {
+    "com.github.awesome-copilot": {
+      "agents": [
+        "./agents/foreman.md",
+        "./agents/cr-driver.md",
+        "./agents/stack-driver.md",
+        "./agents/qa-driver.md",
+        "./agents/investigator.md",
+        "./agents/coder.md",
+        "./agents/inspector.md",
+        "./agents/debugger.md",
+        "./agents/verifier.md",
+        "./agents/conflict-resolver.md"
+      ],
+      "skills": [
+        "./skills/chantier/"
+      ]
+    }
+  }
+}

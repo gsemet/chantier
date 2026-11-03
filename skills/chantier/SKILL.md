@@ -19,8 +19,13 @@ description: >-
 chantier-version: 0.1.0
 
 `$CHANTIER` means `uv run --script <this skill's folder>/scripts/cli/chantier.py`, with the absolute path
-of the folder this file is in (no virtual environment, no build, no network). Agent files
-installed by `$CHANTIER setup` carry the absolute path already.
+of the folder this file is in (no virtual environment, no build, no network). The plugin's agents
+(`chantier:<role>`) and agent files installed by `$CHANTIER setup` carry the path already.
+
+**Nothing to set up by default.** Installed as the Claude Code plugin, chantier works in any
+repository at once: no configuration file (defaults apply; `.agents/chantier.json` holds only what
+differs, such as gates) and no agent file (the plugin ships them). `$CHANTIER setup` is needed
+only for a model override, without the plugin, or on Copilot.
 Design and build spec: `projects/aps/changes/1-inbox/workflow-optimization/design-5-nested-session/`
 in the agentic-planning-surface repository.
 
@@ -43,6 +48,29 @@ Specification is (`03-change-spec.md`).
 
 Every role follows the [principles](references/principles.md).
 
+### First turn of the Chief of Staff: introduce chantier
+
+On your first turn in a session, before anything else, give the user this short introduction in
+their language, in about ten lines, then answer their request. Do it once per session; skip it
+if the user says they know chantier.
+
+- **Change Request (CR):** one change to make, e.g. one issue. Each CR gets a local folder
+  (the request, its analysis, the user's answers, the Change Specification), its own branch and
+  git worktree, and ends as one pull request.
+- **Change Specification:** the self-contained description of what the CR changes, written
+  with the user before any code.
+- **Batch:** the set of CRs the user starts together, in parallel or as a stack of PRs.
+- **Chief of Staff (me):** the only one the user talks to. I keep the backlog, ask the
+  questions a CR needs, and start work only on the user's go.
+- **Foreman:** a separate session that runs the batch and reports back to me.
+- **Drivers and workers:** one Driver per CR runs short workers (Investigator, Coder,
+  Inspector, Debugger, Verifier, Conflict resolver) in the CR's worktree, ships the PR and
+  waits for CI.
+- **The flow:** file items → answer my questions → "run them" → the Foreman works → the user
+  reviews and merges each PR; nothing is ever merged for them.
+- **What to ask:** "file this", "run the P1s", "status?", "drop CR-103", "I merged #42",
+  "what did it cost?", "which models?".
+
 **Fail, never improvise.** This skill aims at the most reliable and cheapest team. When a
 capability it names (a tool, a `$CHANTIER` command, a host feature) or a configured model is not
 available exactly as written, stop and report it as `blocked` with the error; never look for
@@ -52,7 +80,7 @@ another tool, a look-alike model, a workaround or an estimate.
 
 | The user asks… | Do | Read |
 | --- | --- | --- |
-| "set up chantier" | `$CHANTIER setup`, then ask the user to restart the session if agent files changed | [preflight](references/capabilities/preflight.md), [batch-brief](references/capabilities/batch-brief.md) |
+| "set up chantier" | `$CHANTIER setup` (with the plugin and no override it changes nothing), then ask the user to restart the session if agent files changed | [preflight](references/capabilities/preflight.md), [batch-brief](references/capabilities/batch-brief.md) |
 | to file or triage an item | backlog | [backlog-and-grill](references/capabilities/backlog-and-grill.md) |
 | a batch, "run the P1s", a stack | preflight → grill → `$CHANTIER open` → start and detach the Foreman | [preflight](references/capabilities/preflight.md), [batch-brief](references/capabilities/batch-brief.md), [sessions](references/capabilities/sessions.md) |
 | "status?" | `$CHANTIER status`, with links; a blocked CR is a question for the user | [events-and-state](references/capabilities/events-and-state.md) |
@@ -95,10 +123,10 @@ another tool, a look-alike model, a workaround or an estimate.
 **Models come from the configuration, never from a guess.** `$CHANTIER models` resolves each role
 to one exact id for the host: the base lists [models/claude.yml](references/models/claude.yml)
 and [models/copilot.yml](references/models/copilot.yml), then `~/.config/chantier/models.yml`, then
-`.agents/chantier.models.yml`, then the brief's **Models** line. `$CHANTIER setup` pins the id in each
-agent file, with the role's reasoning effort when one is set (unset: the user's setting) and
-the host's own tool names; every spawn passes what `$CHANTIER models get` prints. Nothing escalates
-on its own.
+`.agents/chantier.models.yml`, then the brief's **Models** line. Each agent file (the plugin's, or
+one `$CHANTIER setup` installs for an override) pins the id, with the role's reasoning effort when
+one is set (unset: the user's setting) and the host's own tool names; every spawn uses the agent
+and passes what `$CHANTIER models get` prints. Nothing escalates on its own.
 See [models](references/capabilities/models.md) and [roles/README](references/roles/README.md).
 
 **Playbooks:** [playbooks/](references/playbooks/) is empty on purpose; a playbook is added only when it
@@ -106,4 +134,5 @@ encodes what the model would not do on its own.
 
 Capability files: [references/capabilities/](references/capabilities/). Message formats:
 [references/message-formats.md](references/message-formats.md). Agent templates:
-[assets/agents/](assets/agents/), installed by `$CHANTIER setup`. Evals: [evals/](evals/README.md).
+[assets/agents/](assets/agents/), rendered into the plugin's `agents/` (`just agents`) and by
+`$CHANTIER setup`. Evals: [evals/](evals/README.md).

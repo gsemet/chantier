@@ -61,19 +61,45 @@ Forge: GitHub (`gh`).
 
 ## Install
 
-The only thing to install is [`uv`](https://docs.astral.sh/uv/).
+chantier is a [Claude Code plugin](https://code.claude.com/docs/en/plugins) and an
+[Agent Plugin](https://agent-plugins.org/): the skill plus one agent per role
+(`chantier:foreman`, `chantier:cr-driver`, `chantier:coder`, …), each pinned to its model, effort
+and tools.
+
+```bash
+claude plugin marketplace add gsemet/chantier
+```
+
+```bash
+claude plugin install chantier@chantier
+```
+
+Then restart the session. That is all: in any repository, ask the Chief of Staff for a batch.
+Nothing is written in the repository until you start one: no configuration file (defaults
+apply) and no agent file (the plugin ships them).
+
+`.agents/chantier.json` is optional and holds only what differs from the defaults, for example
+the project's gates:
+
+```json
+{"gates": {"fast": ["uv run pytest -q"], "long": []}}
+```
+
+A model override (`~/.config/chantier/models.yml` or `.agents/chantier.models.yml`) needs that
+role's own agent file: ask **"set up chantier"** (it runs `chantier setup`, which writes only the
+overridden roles), then restart the session. On Copilot, `chantier setup` writes every role's agent
+in `.github/agents/`.
+
+Besides the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/).
 The CLI is plain Python scripts with PEP 723 inline metadata: there is no package to install,
 and uv fetches any dependency from pypi.org when the CLI runs
 (for example [copilot-session-usage](https://github.com/gsemet/copilot-session-usage),
 used by `chantier cost` on Copilot).
 Working on a repository also needs `git` and an authenticated `gh`, which you already have there.
 
-1. Make [`skills/chantier/`](skills/chantier/) available to your host as a skill, for example
-   by linking it into the project's or your user's skills folder.
-2. In the main checkout of your repository, ask: **"set up chantier"**.
-   This runs `chantier setup`, which installs one agent file per role,
-   each pinned to its exact model, effort and host tool names.
-3. Restart the session so the host loads the new agent files.
+On Windows, the CLI runs natively (no WSL). Gates run in `cmd.exe`, so write them for it.
+`chantier cancel` ends a CR's processes at once, with no grace period, and finds stray ones by
+their command line only, since Windows does not expose another process's current directory.
 
 ## Use
 
@@ -91,22 +117,28 @@ Talk to the Chief of Staff in plain language:
 ## Repository layout
 
 ```text
+plugin.json               ← Agent Plugins manifest (agents and skills under `extensions`)
+.claude-plugin/           ← Claude Code plugin manifest and marketplace
+agents/                   ← the plugin's agents, generated from the templates (`just agents`)
 skills/chantier/
 ├── SKILL.md              ← entry point and routing
 ├── references/           ← definitions, role cards, capabilities, models, message formats
-├── assets/agents/        ← agent templates, installed by `chantier setup`
+├── assets/agents/        ← agent templates
 ├── scripts/cli/          ← the `chantier` CLI and its tests
 └── evals/                ← deterministic scenario and model behavior cases
+scripts/                  ← version and agent generation, run by `just`
 docs/                     ← diagrams
 ```
 
 ## Develop
 
+Recipes need [`just`](https://just.systems/) and `uv`:
+
 ```bash
-cd skills/chantier/scripts/cli
-uv run --group dev pytest -q                     # CLI unit tests
-cd ../..
-uv run --no-project python evals/scenario/run_scenario.py   # whole batch, no model
+just check                  # agents up to date, CLI unit tests, whole batch scenario
+just agents                 # regenerate agents/ after editing a template or the base models
+just version 1.2.3          # set the version in every file that carries it
+just bump-version           # patch; or `just bump-version minor`, `just bump-version major`
 ```
 
 See [`evals/README.md`](skills/chantier/evals/README.md) for the model behavior cases.

@@ -2,10 +2,11 @@
 import json
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 
-from conftest import sh
+from conftest import edit_config, sh, sleeper
 
 
 def cr(repo, cr_id, name="b1"):
@@ -14,10 +15,7 @@ def cr(repo, cr_id, name="b1"):
 
 
 def set_gates(repo, fast=(), long=()):
-    p = repo / ".agents/chantier.json"
-    cfg = json.loads(p.read_text())
-    cfg["gates"] = {"fast": list(fast), "long": list(long)}
-    p.write_text(json.dumps(cfg))
+    edit_config(repo, gates={"fast": list(fast), "long": list(long)})
 
 
 def commit_in(wt: Path, name="feature.txt"):
@@ -32,12 +30,16 @@ def body(repo, cr_id, name="b1"):
 
 
 def test_gate_pass_and_fail(ready, chantier):
-    set_gates(ready, fast=["test -f README.md"])
+    # gates run in the platform shell: cmd.exe on Windows, sh elsewhere
+    win = sys.platform == "win32"
+    set_gates(ready, fast=["if exist README.md (exit 0) else (exit 1)" if win
+                           else "test -f README.md"])
     code, out, _ = chantier("gate", "CR-101")
     assert code == 0 and out[0].startswith("pass 1 fast gates")
-    set_gates(ready, fast=["echo boom; exit 3"])
+    boom = "echo boom& exit 3" if win else "echo boom; exit 3"
+    set_gates(ready, fast=[boom])
     code, out, _ = chantier("gate", "CR-101")
-    assert code == 4 and out[0].startswith("FAIL echo boom; exit 3 (exit 3)")
+    assert code == 4 and out[0].startswith(f"FAIL {boom} (exit 3)")
     assert "boom" in out
     assert cr(ready, "CR-101")["pgids"] == []
 
@@ -131,10 +133,7 @@ def test_ci_classify(ready, chantier, gh_state):
 
 
 def test_gitlab_is_refused(ready, chantier):
-    p = ready / ".agents/chantier.json"
-    cfg = json.loads(p.read_text())
-    cfg["forge"] = "gitlab"
-    p.write_text(json.dumps(cfg))
+    edit_config(ready, forge="gitlab")
     chantier("report", "CR-101", "pr-opened", "https://gitlab.example.com/x/-/merge_requests/1")
     code, _, err = chantier("ci", "classify", "CR-101")
     assert code == 4 and "only github" in err
@@ -143,8 +142,10 @@ def test_gitlab_is_refused(ready, chantier):
 def test_cancel_stops_processes_in_the_worktree(ready, chantier):
     chantier("event", "start")
     wt = Path(cr(ready, "CR-101")["worktree"])
-    stray = subprocess.Popen(["sleep", "300"], cwd=wt)
-    group = subprocess.Popen(["sleep", "301"], start_new_session=True)
+    # Windows finds a process by its command line only, so the stray names its worktree
+    stray = sleeper(str(wt), cwd=wt)
+    group = sleeper(**({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+                       if sys.platform == "win32" else {"start_new_session": True}))
     p = ready / ".agents/changes/batches/b1/batch.json"
     d = json.loads(p.read_text())
     d["crs"][0]["pgids"] = [group.pid]

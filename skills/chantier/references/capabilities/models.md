@@ -43,6 +43,13 @@ the prompt-cache TTL of the host's Claude models (base list: `55m` Claude Code, 
 `tools` is a base-list section only: a role's tools are part of its contract, so an override
 that sets `tools` fails `$CHANTIER models check`.
 
+On Claude Code the plugin ships one agent per role (`chantier:<role>`, in the plugin's
+`agents/`), built from the base list: with no override, nothing is installed in the repository.
+A role whose model, effort or tools differ from the base list needs its own file:
+`$CHANTIER setup` writes only those roles, and removes a file it wrote once the plugin's agent
+fits again. Without the plugin (a skill installed on its own) and on Copilot, `$CHANTIER setup`
+writes every role.
+
 `$CHANTIER setup` writes each host's own frontmatter:
 
 | | Claude Code (`.claude/agents/`) | Copilot (`.github/agents/`) |
@@ -66,8 +73,10 @@ for roles left on `inherit`).
 - **A model name is an opaque id.** Write it, pass it and compare it character for character.
   Never shorten, re-case, re-space or "correct" it; never map a name to the one that looks
   closest (`gpt-5.6-luna` is not `gpt-6-luna`).
-- **Spawn with what `$CHANTIER models get` prints.** `model: omit (…)`: pass no `model`; the agent
-  file pins it. `model: <id> (…)`: pass `<id>` exactly. Nothing else picks a model.
+- **Spawn with what `$CHANTIER models get` prints.** `agent: <agent>`: the agent to spawn, exactly
+  (`chantier:<role>` from the plugin, `<role>` from the repository's own file). `model: omit (…)`:
+  pass no `model`; the agent file pins it. `model: <id> (…)`: pass `<id>` exactly. Nothing else
+  picks a model.
 - **Never pass an effort to a role's spawn.** A per-spawn `effort` / `reasoning_effort` would
   override the agent file. `effort: <level>` is printed only for the Foreman on Claude, whose session `start_session` starts
   with that level; `effort: omit (…)` means pass none. On Copilot the Foreman's agent file holds
@@ -77,7 +86,8 @@ for roles left on `inherit`).
 - **A refused model is a stop.** If the host refuses or replaces the model, the spawn is
   `blocked` with the host's exact text; never retry on another model.
 - After a config change: `$CHANTIER setup`, then restart the session (agent files pin the model, the
-  effort and the tools; `$CHANTIER preflight` P4 fails while they differ from the config).
+  effort and the tools; `$CHANTIER preflight` P4 fails while they differ from the config). With
+  the plugin and no override, there is nothing to set up.
 
 ## Failure handling
 

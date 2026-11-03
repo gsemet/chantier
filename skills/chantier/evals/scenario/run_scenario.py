@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[2]
-FAKE_GH = SKILL / "evals" / "lib" / "fake_gh.py"
+FAKE_GH = SKILL / "scripts" / "cli" / "tests" / "fake_gh.py"
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
 
@@ -46,7 +46,9 @@ class World:
         self.work = root / "proj"
         self.gh_state = root / "gh-state.json"
         self.env = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
-                    "CHANTIER_SKILL_DIR": str(SKILL), "CHANTIER_GH": str(root / "bin" / "gh"),
+                    "CHANTIER_SKILL_DIR": str(SKILL),
+                    "CHANTIER_GH": str(root / "bin" / ("gh.cmd" if sys.platform == "win32"
+                                                       else "gh")),
                     "FAKE_GH_STATE": str(self.gh_state), "CHANTIER_WAIT_INTERVAL": "0.05",
                     "CHANTIER_CLAUDE_PROJECTS": str(root / "claude-projects"),
                     "CLAUDE_CODE_ENTRYPOINT": "claude-desktop"}
@@ -69,10 +71,13 @@ class World:
         self.sh("git", "commit", "--quiet", "-m", "init")
         self.sh("git", "remote", "add", "origin", str(origin))
         self.sh("git", "push", "--quiet", "-u", "origin", "main")
-        gh = self.root / "bin" / "gh"
+        gh = Path(self.env["CHANTIER_GH"])
         gh.parent.mkdir()
-        gh.write_text(f"#!/bin/sh\nexec {sys.executable} {FAKE_GH} \"$@\"\n")
-        gh.chmod(0o755)
+        if sys.platform == "win32":
+            gh.write_text(f'@"{sys.executable}" "{FAKE_GH}" %*\r\n')
+        else:
+            gh.write_text(f"#!/bin/sh\nexec {sys.executable} {FAKE_GH} \"$@\"\n")
+            gh.chmod(0o755)
         self.gh(checks=[], runs=[], next_pr=40)
 
     def gh(self, **kw) -> None:
@@ -149,9 +154,11 @@ def driver_round(w: World, cr_id: str, filename: str, content: str) -> None:
 def scenario(w: World) -> None:
     note("## 1. Setup and preflight")
     w.chantier("setup")
-    cfg = json.loads((w.work / ".agents/chantier.json").read_text())
-    cfg["gates"]["fast"] = ["python3 -m py_compile *.py"]
-    (w.work / ".agents/chantier.json").write_text(json.dumps(cfg, indent=2))
+    check("setup writes no config file for the defaults",
+          not (w.work / ".agents/chantier.json").exists())
+    (w.work / ".agents").mkdir(exist_ok=True)
+    (w.work / ".agents/chantier.json").write_text(json.dumps(
+        {"gates": {"fast": [f'"{sys.executable}" -m compileall -q .'], "long": []}}, indent=2))
     w.sh("git", "add", ".")
     w.sh("git", "commit", "--quiet", "-m", "chantier setup")
     w.sh("git", "push", "--quiet")
@@ -225,7 +232,10 @@ def scenario(w: World) -> None:
     _, out = w.chantier("order", "drop", "CR-103")
     check("`chantier order` prints the message with an order id", out == [
         "[chief-of-staff→foreman] order O-1 drop CR-103"])
-    sleeper = subprocess.Popen(["sleep", "300"], cwd=w.cr("CR-103")["worktree"])
+    # Windows finds a process by its command line only, so the sleeper names its worktree
+    wt103 = w.cr("CR-103")["worktree"]
+    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)", wt103],
+                               cwd=wt103)
     fm.event("--order", "O-1")
     deadline = time.monotonic() + 5
     while sleeper.poll() is None and time.monotonic() < deadline:

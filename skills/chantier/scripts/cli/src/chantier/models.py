@@ -147,7 +147,8 @@ def project_path(root: Path) -> Path:
 class Models:
     """The merged model configuration of one host, with the source of every role."""
 
-    def __init__(self, host: str, skill: Path, root: Path | None, legacy: dict | None = None):
+    def __init__(self, host: str, skill: Path, root: Path | None, legacy: dict | None = None,
+                 base_only: bool = False):
         self.host = host
         self.catalog: dict[str, str] = {}
         self.aliases: dict[str, str] = {}
@@ -166,8 +167,8 @@ class Models:
         if not base.exists():
             raise ChantierError(f"missing base model list {base}", EXIT_PRECONDITION)
         self._merge(self._base(base), "skill", str(base))
-        layers = [(user_path(), "user")]
-        if root:
+        layers = [] if base_only else [(user_path(), "user")]
+        if root and not base_only:
             layers.append((project_path(root), "project"))
         for path, label in layers:
             if path.exists():
