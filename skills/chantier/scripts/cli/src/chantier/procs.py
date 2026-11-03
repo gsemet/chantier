@@ -31,7 +31,8 @@ def _cwds() -> dict[int, str]:
         return out
     try:
         res = subprocess.run(["lsof", "-a", "-d", "cwd", "-Fpn", "-u", str(os.getuid())],
-                             capture_output=True, text=True, timeout=30)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace",
+                             timeout=30)
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return out
     pid = None
@@ -47,12 +48,14 @@ def _cmdlines() -> dict[int, str]:
     if WINDOWS:
         res = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
              "Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine"
              " | ConvertTo-Json -Compress"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         rows = json.loads(res.stdout or "[]")
         return {r["ProcessId"]: r["CommandLine"] for r in rows if r.get("CommandLine")}
-    res = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True)
+    res = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True,
+                         encoding="utf-8", errors="replace")
     out = {}
     for line in res.stdout.splitlines():
         parts = line.strip().split(None, 1)
@@ -78,7 +81,7 @@ def find(worktree: Path) -> list[int]:
 def _taskkill(pid: int, tree: bool) -> bool:
     """Windows has no SIGTERM for console programs: end the process (and its tree) at once."""
     res = subprocess.run(["taskkill", "/F", *(["/T"] if tree else []), "/PID", str(pid)],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, encoding="utf-8", errors="replace")
     return res.returncode == 0
 
 

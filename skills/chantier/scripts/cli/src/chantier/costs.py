@@ -55,7 +55,7 @@ def _family(model: str, prompt: int) -> str:
 def usage(path: Path) -> dict:
     row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0}
     seen = set()
-    for line in path.open():
+    for line in path.open(encoding="utf-8"):
         try:
             d = json.loads(line)
         except ValueError:
@@ -85,7 +85,7 @@ def session_costs(main: Path) -> list[dict]:
     if sub.exists():
         for f in sorted(sub.glob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
-            meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
             rows.append({"agent": f.stem.removeprefix("agent-"),
                          "type": meta.get("agentType", "?"),
                          "description": meta.get("description", ""), **usage(f)})
@@ -102,7 +102,7 @@ def _copilot_agents(session: str) -> dict[str, dict]:
     agents: dict[str, dict] = {}
     if not path.exists():
         return agents
-    for line in path.open():
+    for line in path.open(encoding="utf-8"):
         try:
             e = json.loads(line)
         except ValueError:
@@ -138,7 +138,7 @@ def copilot_session_costs(session: str) -> list[dict]:
                             "copilot-session-usage on Copilot", EXIT_PRECONDITION)
     argv = [*cmd, "--agent", "cli", "--session-root", str(copilot_home() / "session-state"),
             "calls", "--name", f"^{re.escape(session)}$"]
-    p = subprocess.run(argv, capture_output=True, text=True)
+    p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if p.returncode != 0:
         last = (p.stderr.strip().splitlines() or ["no output"])[-1]
         raise ChantierError(f"copilot-session-usage failed ({p.returncode}): {last}", EXIT_EXTERNAL)

@@ -125,6 +125,10 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Output holds `→` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     args = _parser().parse_args(argv)
     if isinstance(getattr(args, "note", None), list):
         args.note = " ".join(args.note) or getattr(args, "note_opt", None)

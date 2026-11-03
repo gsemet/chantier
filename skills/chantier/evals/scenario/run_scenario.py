@@ -87,7 +87,8 @@ class World:
 
     def chantier(self, *args, env=None, expect=0, cwd=None):
         p = subprocess.run([sys.executable, "-m", "chantier", *map(str, args)], cwd=cwd or self.work,
-                           env={**self.env, **(env or {})}, capture_output=True, text=True)
+                           env={**self.env, **(env or {})}, capture_output=True, text=True,
+                           encoding="utf-8")
         out = p.stdout.strip().splitlines()
         note(f"    $ chantier {' '.join(map(str, args))}  → exit {p.returncode}")
         for ln in out + ([f"stderr: {p.stderr.strip()}"] if p.stderr.strip() else []):
@@ -340,7 +341,7 @@ def main() -> int:
     results = SKILL / "evals" / "results"
     results.mkdir(exist_ok=True)
     out = results / f"scenario-{time.strftime('%Y%m%d-%H%M%S')}.md"
-    out.write_text("\n".join(head + LOG) + "\n")
+    out.write_text("\n".join(head + LOG) + "\n", encoding="utf-8")
     print(f"{CHECKS['pass']}/{total} checks passed in {elapsed:.1f} s; transcript {out}")
     return 0 if CHECKS["fail"] == 0 else 1
 

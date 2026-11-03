@@ -25,8 +25,8 @@ def gh(*args: str, cwd=None, config: dict | None = None) -> str:
     exe = os.environ.get("CHANTIER_GH") or (config or {}).get("gh") or "gh"
     env = {**os.environ, "GH_PAGER": "cat", "GH_PROMPT_DISABLED": "1", "NO_COLOR": "1"}
     try:
-        p = subprocess.run([exe, *args], cwd=cwd, capture_output=True, text=True, env=env,
-                           timeout=120)
+        p = subprocess.run([exe, *args], cwd=cwd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", env=env, timeout=120)
     except FileNotFoundError as e:
         raise ChantierError(f"{exe} not found", EXIT_EXTERNAL) from e
     except subprocess.TimeoutExpired as e:
