@@ -1,17 +1,17 @@
-"""The Foreman's decision table: one event in, the actions to take out (design 5, lever L3).
+"""The Foreman's decision table: one event in, the actions to take out.
 
 Every function mutates the locked batch and returns action lines, in the order the Foreman must
 do them. An action line is a verb and its arguments:
 
-    spawn <cr> [resume]     start the CR's Driver in the background (or a stack/QA driver)
-    cancel <cr>             TaskStop the CR's Driver, then `chantier cancel <cr>`
-    message <cr> <text>     SendMessage to the CR's Driver
-    spawn stack             start the stack driver; `message stack restack` when it is live
-    spawn qa:<cr>           start the CR's QA driver
+    spawn cr-driver <cr> [<note>]   start the CR's Driver in the background (`chantier spawn`)
+    spawn qa-driver <cr>            start the CR's QA driver
+    spawn stack-driver stack        start the stack driver; `message stack restack` when it is live
+    cancel <cr>                     stop the CR's Driver, then `chantier cancel <cr>`
+    message <cr> <text>             message the CR's Driver
     ask-chief-of-staff <kind> <text>   one message to the Chief of Staff
-    land                    `chantier land <batch>`
-    ok <what>               confirm an order to the Chief of Staff
-    none                    nothing to do
+    land                            `chantier land`
+    ok <what>                       confirm an order to the Chief of Staff
+    none                            nothing to do
 """
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def fill_slots(b: Batch) -> list[str]:
             break
         b.touch(c, status="working")
         b.log("spawn", c["id"])
-        out.append(f"spawn {c['id']}")
+        out.append(f"spawn cr-driver {c['id']}")
     return out
 
 
@@ -73,7 +73,7 @@ def _restack(b: Batch) -> str:
     if b.data.get("stack_live"):
         return "message stack restack"
     b.data["stack_live"] = True
-    return "spawn stack"
+    return "spawn stack-driver stack"
 
 
 def _links(b: Batch, crs: list[dict]) -> str:
@@ -129,7 +129,7 @@ def _on_hand_back_ready(b: Batch, cr_id: str, note: str) -> list[str]:
     out: list[str] = []
     if c.get("qa") and not c.get("qa_done"):
         b.touch(c, status="qa")
-        out.append(f"spawn qa:{cr_id}")
+        out.append(f"spawn qa-driver {cr_id}")
         return out + fill_slots(b)
     b.touch(c, status="ready")
     out += fill_slots(b)
@@ -169,16 +169,18 @@ def _on_anomaly(b: Batch, cr_id: str, note: str) -> list[str]:
     if previous == "working":
         return [f"message {cr_id} round {note}"]
     # The Driver ended with its hand-back: a new one resumes the CR with the finding.
-    return [f"spawn {cr_id} resume round: {note}"]
+    return [f"spawn cr-driver {cr_id} resume round: {note}"]
 
 
 def _on_qa_done(b: Batch, cr_id: str, note: str) -> list[str]:
+    """No finding: the CR is ready. Findings: a new round on them, then QA again."""
     c = b.cr(cr_id)
-    findings = int(note.split()[0]) if note.split() and note.split()[0].isdigit() else 0
+    words = note.split()
+    if not words or not words[0].isdigit():
+        raise ChantierError("qa-done needs the number of findings", EXIT_USAGE)
     c["qa_done"] = True
-    if findings:
-        b.touch(c)
-        return ["none"]
+    if int(words[0]):
+        return _on_anomaly(b, cr_id, f"QA found {words[0]} findings: {c.get('qa_findings') or '-'}")
     return _on_hand_back_ready(b, cr_id, c.get("pr") or "")
 
 
@@ -192,7 +194,7 @@ def _on_driver_lost(b: Batch, cr_id: str, _note: str) -> list[str]:
         return [f"ask-chief-of-staff blocked {cr_id} its Driver ended {c['resumes']} times without a "
                 "hand-back"] + fill_slots(b)
     b.touch(c, agent=None)
-    return [f"spawn {cr_id} resume"]
+    return [f"spawn cr-driver {cr_id} resume"]
 
 
 def _on_driver_done(b: Batch, cr_id: str, note: str) -> list[str]:
@@ -209,7 +211,7 @@ def _on_driver_done(b: Batch, cr_id: str, note: str) -> list[str]:
             if c["resumes"] > MAX_RESUMES:
                 b.touch(c, status="blocked", blocked_reason="QA driver lost repeatedly")
                 return [f"ask-chief-of-staff blocked {c['id']} its QA driver ended without a result"]
-            return [f"spawn {cr_id} resume"]
+            return [f"spawn qa-driver {c['id']} resume"]
         return []
     c = b.cr(cr_id)
     if c["status"] == "working":

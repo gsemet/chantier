@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: learns-project
+description: The Chief of Staff learns the gates and branch from AGENTS.md and records them with `chantier project set`.
+tags: [project, discovery]
+context:
+  scaffold_script: place-files.sh
+execution:
+  prompt: |
+    chantier : prépare-toi à travailler sur ce projet. Je lancerai des batchs plus tard.
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Skill, Bash, Read, Glob, Grep]
+runs: 3
+expected_outcome: >-
+  The agent reads AGENTS.md, then runs `chantier project set` with
+  `--fast-gate "uv run --no-project python -m compileall -q ."`, the same command as
+  `--long-gate`, and `--default-branch main`, and reports in French what it recorded. It opens no
+  batch and starts no session.
+graders:
+  - type: llm
+    name: records-the-profile-from-agents-md
+    focus: trace
+    criteria: >-
+      The trace shows AGENTS.md was read and `chantier project set` was run successfully with a
+      fast gate and a long gate equal to `uv run --no-project python -m compileall -q .` and the
+      default branch `main`. No `chantier open`, `chantier foreman` or session start was
+      attempted, and no configuration file was written by hand.
+  - type: llm
+    name: reports-what-it-learned
+    focus: last_message
+    criteria: >-
+      The final message, in French, names the gate command and the default branch it recorded.
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    min: 1

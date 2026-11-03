@@ -20,7 +20,7 @@ version new_version:
 bump-version part="patch":
     uv run --script scripts/version.py bump {{part}}
 
-# Structure tests: versions, manifests, static agents, roles, links, a smoke run
+# Structure tests: versions, manifests, agents, references, a smoke run
 test *args:
     cd {{cli}}; uv run --group dev pytest -q {{args}}
 
@@ -31,7 +31,12 @@ scenario:
 # Everything a change must pass
 check: test
 
-# Prepare a release on a clean main: bump, check, commit and tag (pushes nothing)
+# Prepare a release on a new branch: bump, check and commit (pushes nothing)
 release part="patch": (bump-version part) check
     git commit -am "release: v$(uv run --script scripts/version.py show)"
-    git tag "v$(uv run --script scripts/version.py show)"
+
+# After the release PR is merged: tag the version on origin/main and push the tag
+tag:
+    git fetch origin main
+    git tag "v$(uv run --script scripts/version.py show)" origin/main
+    git push origin "v$(uv run --script scripts/version.py show)"

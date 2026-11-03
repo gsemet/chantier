@@ -49,6 +49,7 @@ class World:
     def __init__(self, root: Path):
         self.root = root
         self.work = root / "proj"
+        self.state = self.work / ".git" / "chantier"
         self.gh_state = root / "gh-state.json"
         self.env = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
                     "CHANTIER_SKILL_DIR": str(SKILL),
@@ -56,8 +57,8 @@ class World:
                                                        else "gh")),
                     "FAKE_GH_STATE": str(self.gh_state), "CHANTIER_WAIT_INTERVAL": "0.05",
                     "CHANTIER_CLAUDE_PROJECTS": str(root / "claude-projects"),
-                    "CLAUDE_CODE_ENTRYPOINT": "claude-desktop"}
-        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_CHANGES"):
+                    "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CHANTIER_HOST": "claude"}
+        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT"):
             self.env.pop(var, None)
         self.last_stderr = ""
 
@@ -109,7 +110,7 @@ class World:
         return p.returncode, out
 
     def batch(self, name="night"):
-        return json.loads((self.work / ".agents/changes/batches" / name / "batch.json").read_text())
+        return json.loads((self.state / "batches" / name / "batch.json").read_text())
 
     def cr(self, cr_id, name="night"):
         return next(c for c in self.batch(name)["crs"] if c["id"] == cr_id)
@@ -131,9 +132,15 @@ class Foreman:
         for action in out:
             verb, _, rest = action.partition(" ")
             if verb == "spawn":
-                self.spawned.append(rest)
-                self.w.chantier("agents", "set", rest.split()[0], f"agent-{len(self.spawned)}",
-                           "--epoch", self.epoch)
+                role, target, *note = rest.split(" ", 2)
+                _, prompt = self.w.chantier("spawn", role, target,
+                                            *(["--note", note[0]] if note else []))
+                check(f"`chantier spawn {role} {target}` names the plugin's agent",
+                      prompt[:2] == [f"agent: chantier:{role}", "mode: background"], str(prompt))
+                key = {"cr-driver": target, "qa-driver": f"qa:{target}"}.get(role, "stack")
+                self.spawned.append(" ".join([key, *note]))
+                self.w.chantier("agents", "set", key, f"agent-{len(self.spawned)}",
+                                "--epoch", self.epoch)
             elif verb == "ask-chief-of-staff":
                 self.asked.append(rest)
             elif verb == "message":
@@ -157,7 +164,11 @@ def driver_round(w: World, cr_id: str, filename: str, content: str) -> None:
          "--quiet", "-m", f"{cr_id}: {filename}", "-m", TRAILER, cwd=wt)
     w.chantier("gate", cr_id)
     w.chantier("report", cr_id, "round-done")
-    body = w.work / c["path"] / "pr-body.md"
+    _, out = w.chantier("path", cr_id, "--work")
+    body = Path(out[0]) / "pr-body.md"
+    if not body.exists():
+        code, _ = w.chantier("ship", cr_id, expect=2)
+        check(f"{cr_id} cannot ship before its PR body is written", code == 2)
     body.write_text(f"## {c['title']}\n\nCloses the backlog item.\n")
     w.chantier("ship", cr_id)
 
@@ -175,19 +186,27 @@ def prepare_cr(w: World, title: str, priority: str = "P1") -> tuple[Path, Path]:
 
 def scenario(w: World) -> None:
     note("## 1. Setup and preflight")
-    check("the plugin needs no project configuration file",
-          not (w.work / ".agents/chantier.json").exists())
-    code, out = w.chantier("preflight", env={"CLAUDE_CODE_ENTRYPOINT": "claude-vscode"}, expect=2)
+    code, out = w.chantier("preflight", env={"CLAUDE_CODE_ENTRYPOINT": "claude-vscode",
+                                             "CHANTIER_HOST": ""}, expect=2)
     check("preflight refuses Claude in VS Code (P1) and says to start nothing",
           code == 2 and out[0].startswith("P1 FAIL") and out[-1].endswith("start nothing"))
-    check("a refused preflight creates no batch", not (w.work / ".agents/changes/batches").exists()
-          or not any((w.work / ".agents/changes/batches").iterdir()))
     code, out = w.chantier("preflight")
-    check("preflight passes on Claude Desktop", code == 0 and out[-1] == "preflight passed")
+    check("preflight passes on Claude Desktop with no setup", code == 0
+          and out[-1] == "preflight passed")
+    check("nothing was written in the working tree", w.sh("git", "status", "--porcelain") == "")
 
-    note("\n## 2. The Chief of Staff opens the batch and starts the Foreman")
+    note("\n## 2. The Chief of Staff learns the project, opens the batch, starts the Foreman")
     items = [prepare_cr(w, title) for title in
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
+    code, _ = w.chantier("open", "missing-gates", f"@{items[0][1]}", "--no-worktrees", expect=2)
+    check("an unknown gate blocks the batch without moving the prepared CR",
+          code == 2 and "no fast gate recorded" in w.last_stderr and items[0][1].is_dir())
+    w.chantier("project", "set", "--fast-gate", GATE, "--long-gate", GATE,
+               "--default-branch", "main")
+    check("what the project's instructions say is kept in .git/chantier, not in the tree",
+          (w.state / "project.json").is_file()
+          and not any(ln.endswith(("project.json", ".lock"))
+                      for ln in w.sh("git", "status", "--porcelain").splitlines()))
     check("filed requests start in the default inbox and move intact into the priority backlog",
           all(not inbox.exists() and backlog.is_dir()
               and (backlog / "intake/request.md").is_file()
@@ -195,16 +214,14 @@ def scenario(w: World) -> None:
           and all("/backlog/1-inbox/" in inbox.as_posix()
                   and "/backlog/2-backlog/P1/" in backlog.as_posix()
                   for inbox, backlog in items))
-    code, _ = w.chantier("open", "missing-gates", f"@{items[0][1]}", "--no-worktrees", expect=2)
-    check("missing gates block the batch without moving the prepared CR",
-          code == 2 and "no fast gate supplied" in w.last_stderr and items[0][1].is_dir())
-    code, _ = w.chantier("open", "raw-title", "Fix login", "--no-worktrees",
-                         "--fast-gate", GATE, "--long-gate", GATE,
-                         "--default-branch", "main", expect=1)
+    code, _ = w.chantier("open", "raw-title", "Fix login", "--no-worktrees", expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
     w.chantier("open", "night", *(f"@{backlog}" for _, backlog in items),
-               "--slots", 2, "--qa", "2", "--budget", 50, "--chief-of-staff", "local_chantier",
-               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
+               "--slots", 2, "--qa", "2", "--budget", 50, "--chief-of-staff", "local_chantier")
+    _, out = w.chantier("foreman", "prompt")
+    check("the Foreman's start prompt names its model, heartbeat, epoch and instructions",
+          out[:3] == ["model: claude-opus-5-5", "effort: low", "heartbeat: 55m"]
+          and out[3].startswith("epoch: 1") and any("references/foreman.md" in ln for ln in out))
     w.chantier("foreman", "set", "local_foreman1")
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
@@ -216,9 +233,8 @@ def scenario(w: World) -> None:
           and all("/backlog/3-requests/" in c["path"]
                   and (w.work / c["path"] / "intake/request.md").is_file()
                   and (w.work / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
-    check("inferred gates are retained in batch state, not project configuration",
-          d["settings"]["gates"] == {"fast": [GATE], "long": [GATE]}
-          and not (w.work / ".agents/chantier.json").exists())
+    check("the batch keeps a copy of the project's gates",
+          d["settings"]["gates"] == {"fast": [GATE], "long": [GATE]})
     fm.event("start")
     check("the Foreman spawns two Drivers (two slots)", fm.spawned == ["CR-101", "CR-102"])
 
@@ -256,9 +272,9 @@ def scenario(w: World) -> None:
     findings.write_text("# QA\n\n- The export button is hidden on mobile\n")
     _, out = w.chantier("qa", "done", "CR-102", "--findings", findings)
     fm.event("qa-done", "CR-102", "1 findings")
-    fm.event("anomaly", "CR-102", "fix the QA finding")
-    check("a QA finding resumes CR-102 with a new Driver",
-          fm.spawned[-1] == "CR-102 resume round: fix the QA finding")
+    check("a QA finding resumes CR-102 with a new Driver and the findings file",
+          fm.spawned[-1].startswith("CR-102 resume round: QA found 1 findings: ")
+          and fm.spawned[-1].endswith("qa-findings.md"), fm.spawned[-1])
     driver_round(w, "CR-102", "export_ui.py", "VISIBLE_ON_MOBILE = True\n")
     fm.event("hand-back-ready", "CR-102", w.cr("CR-102")["pr"])
     w.chantier("qa", "start", "CR-102")
@@ -345,7 +361,7 @@ def scenario(w: World) -> None:
               and (w.work / c["path"] / "report.md").is_file()
               for c in d["crs"] if c["status"] == "merged"))
     check("the batch report lists every CR",
-          all(c["id"] in (w.work / ".agents/changes/batches/night/report.md").read_text()
+          all(c["id"] in (w.state / "batches/night/report.md").read_text()
               for c in d["crs"]))
     prs = {c["id"]: c["pr"] for c in d["crs"] if c["pr"]}
     check("four PRs were opened on the fake forge", len(set(prs.values())) == 4)
@@ -363,7 +379,7 @@ def scenario(w: World) -> None:
     copilot_uv(w)
 
     note("\n## 11. Event log")
-    events = (w.work / ".agents/changes/batches/night/events.jsonl").read_text().splitlines()
+    events = (w.state / "batches/night/events.jsonl").read_text().splitlines()
     kinds = {json.loads(e)["kind"] for e in events}
     check("events.jsonl holds the whole story",
           {"open", "spawn", "ship", "wait", "qa-done", "order", "cancel", "land"} <= kinds)
@@ -373,26 +389,25 @@ def scenario(w: World) -> None:
 def lifecycle_regressions(w: World) -> None:
     note("\n## 12. Lifecycle recovery and project-specific paths")
     _, original = prepare_cr(w, "Preserve failed opening")
-    code, _ = w.chantier("open", "rollback", f"@{original}", "--remote", "missing",
-                         "--fast-gate", GATE, "--long-gate", GATE,
-                         "--default-branch", "main", expect=4)
+    w.chantier("project", "set", "--default-branch", "missing")
+    code, _ = w.chantier("open", "rollback", f"@{original}", expect=4)
     check("a failed worktree creation restores the prepared folder",
           code == 4 and (original / "03-change-spec.md").is_file()
-          and not (w.work / ".agents/changes/batches/rollback/batch.json").exists())
+          and not (w.state / "batches/rollback/batch.json").exists())
+    w.chantier("project", "set", "--default-branch", "main")
 
     layout = {"inbox": ".agents/changes/01-inbox", "backlog": ".agents/changes/02-backlog",
               "requests": ".agents/changes/03-requests", "archives": ".agents/changes/04-archives",
               "trash": ".agents/changes/05-trash"}
-    flags = [value for stage, path in layout.items() for value in (f"--{stage}", path)]
-    _, out = w.chantier("file", "Custom lifecycle", "--inbox", layout["inbox"])
+    w.chantier("project", "set", *(v for stage, path in layout.items()
+                                   for v in (f"--{stage}", path)))
+    _, out = w.chantier("file", "Custom lifecycle")
     inbox = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
     (inbox / "03-change-spec.md").write_text("# Custom lifecycle\n\nKeep project paths.\n")
     (inbox / "evidence.txt").write_text("preserved")
-    _, out = w.chantier("triage", inbox, "--priority", "P2",
-                        "--inbox", layout["inbox"], "--backlog", layout["backlog"])
+    _, out = w.chantier("triage", inbox, "--priority", "P2")
     backlog = w.work / out[0].removeprefix("triaged ").rsplit(" (", 1)[0]
-    w.chantier("open", "custom", f"@{backlog}", "--no-worktrees",
-               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main", *flags)
+    w.chantier("open", "custom", f"@{backlog}", "--no-worktrees")
     custom = w.batch("custom")
     cr = custom["crs"][0]
     active = w.work / cr["path"]
@@ -412,13 +427,15 @@ def lifecycle_regressions(w: World) -> None:
           and (archived / "evidence.txt").read_text() == "preserved" and not active.exists())
 
     alt = ".agents/custom-changes"
-    _, out = w.chantier("--changes-dir", alt, "file", "Separate changes root")
+    w.chantier("project", "set", "--changes-dir", alt,
+               *(v for stage in layout for v in (f"--{stage}", "")))
+    _, out = w.chantier("file", "Separate changes root")
     folder = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
     (folder / "03-change-spec.md").write_text("# Separate changes root\n\nKeep the root.\n")
-    w.chantier("--changes-dir", alt, "open", "alt", f"@{folder}", "--no-worktrees",
-               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
-    code, out = w.chantier("--changes-dir", alt, "path", "CR-101", "--batch", "alt")
-    check("a non-default changes root remains addressable in later commands",
+    w.chantier("open", "alt", f"@{folder}", "--no-worktrees")
+    wt = w.cr("CR-103")["worktree"]  # cancelled: its worktree is kept
+    code, out = w.chantier("path", w.batch("alt")["crs"][0]["id"], "--batch", "alt", cwd=wt)
+    check("a recorded changes root stays addressable from a CR worktree",
           code == 0 and Path(out[0]).is_dir()
           and Path(out[0]).parent == (w.work / alt / "backlog/3-requests").resolve())
 
@@ -490,8 +507,7 @@ def copilot_cost(w: World, d: dict) -> None:
     fails("Copilot cost reports a missing command", 2, "not found",
           {"CHANTIER_SESSION_USAGE": missing_command})
     _, missing = prepare_cr(w, "Missing transcript")
-    w.chantier("open", "cost-missing", f"@{missing}", "--no-worktrees",
-               "--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
+    w.chantier("open", "cost-missing", f"@{missing}", "--no-worktrees")
     code, out = w.chantier("cost", "--batch", "cost-missing", "--host", "copilot",
                            env=env, expect=2)
     check("a missing Copilot transcript names the session variable",

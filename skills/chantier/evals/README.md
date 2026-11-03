@@ -13,13 +13,17 @@ fake `gh`. Nothing calls a model: a scripted Foreman feeds every event to `chant
 out the actions it prints, scripted Drivers commit, gate, ship and wait on CI, and the Chief of
 Staff steers with `chantier order`. It covers:
 
-- preflight refusing Claude in VS Code and passing on Desktop;
-- slots, hand-backs, a product-red CI with a second round, a QA finding and a clean QA pass;
+- preflight refusing Claude in VS Code and passing on Desktop with no setup and nothing written;
+- the project profile recorded in `.git/chantier/`, the Foreman's start prompt, one
+  `chantier spawn` per Driver;
+- slots, hand-backs, a PR body required before shipping, a product-red CI with a second round,
+  a QA finding that resumes the CR and a clean QA pass;
 - dropping a live CR (its processes stopped), adding an item, an order read twice;
 - a Foreman restart (the stale epoch refused), a lost Driver resumed;
 - `land` refused while PRs are open, then landing after the merges;
 - Claude cost by CR; Copilot cost by role and CR, estimated calls, updates and failures;
-- prepared-CR filing, lifecycle moves, custom project layouts, collisions and rollback;
+- prepared-CR filing, lifecycle moves, project-specific folders and changes root, collisions
+  and rollback;
 - the event log.
 
 The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check fails.
@@ -32,6 +36,8 @@ The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check f
 | [reports-batch-status](reports-batch-status/case.yaml) | status comes from `chantier status`, every CR right, the blocked one raised as a question |
 | [steers-through-foreman](steers-through-foreman/case.yaml) | a drop is a `chantier order` for the Foreman, never a direct cancel or a Driver message |
 | [reports-cost](reports-cost/case.yaml) | the total and split come from `chantier cost` |
+| [learns-project](learns-project/case.yaml) | gates and branch come from `AGENTS.md` and are recorded with `chantier project set` |
+| [customizes-team](customizes-team/case.yaml) | "use my agent as the coder, add a security review" becomes `chantier roles set` |
 | [no-fire-unrelated](no-fire-unrelated/case.yaml) | a general git question does not load chantier |
 
 Each case stages its workspace with `place-files.sh` (`lib/seed.py`: a git repo and a batch of
@@ -42,6 +48,12 @@ claude plugin eval . --scaffold --allow-tools Bash --judge-model sonnet --runs 3
 ```
 
 `--scaffold` runs the cases' own scripts and `--allow-tools Bash` lets the agent run `chantier`. The
-default Haiku judge misread the cost case; use Sonnet. Last result (2026-10-31, one run each,
-Opus 5.5 agent): 5 of 5 cases pass, about $1.8 for all the runs that got there.
-The structure tests are separate: `just test` at the repository root.
+default Haiku judge misread the cost case; use Sonnet. Run it on Linux or macOS: on Windows,
+`claude plugin eval` refuses to grant Bash without a sandbox backend, and the scaffold scripts
+need `bash` on the PATH.
+
+Last result (2026-11-03, Windows, so run by hand: one Opus 5.5 agent per case, playing the
+Chief of Staff from `SKILL.md` in a workspace staged by `lib/seed.py`, graded against each case's
+criteria): learns-project, customizes-team, reports-batch-status and steers-through-foreman pass.
+The structure tests are separate: `just test` at the repository root. They also cover a role
+run by the user's own agent and an extra review step.

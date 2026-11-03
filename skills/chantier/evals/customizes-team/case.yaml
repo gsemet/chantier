@@ -1,0 +1,38 @@
+schema_version: "1.1"
+name: customizes-team
+description: The user changes the team in plain words; the Chief of Staff records it with `chantier roles`.
+tags: [roles, agents]
+context:
+  scaffold_script: place-files.sh
+execution:
+  prompt: |
+    chantier : pour ce projet, utilise mon agent rust-coder comme coder, et ajoute une revue de
+    sécurité faite par mon agent sec-reviewer. Ensuite montre-moi l'équipe.
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Skill, Bash, Read, Glob, Grep]
+runs: 3
+expected_outcome: >-
+  The agent runs `chantier roles set coder rust-coder` and `chantier roles set <a review role
+  name> sec-reviewer --task "<what it checks>"`, then `chantier roles`, and tells the user in French
+  that the coder is rust-coder and that a security review step by sec-reviewer runs after the
+  Inspector. It edits no agent file and writes no configuration file by hand.
+graders:
+  - type: llm
+    name: records-both-choices-with-the-cli
+    focus: trace
+    criteria: >-
+      The trace shows `chantier roles set coder rust-coder` and a `chantier roles set <name>
+      sec-reviewer --task …` for a new review role (any name other than a built-in role such as
+      inspector or verifier), both exiting 0, then `chantier roles`. No agent file, AGENTS.md or
+      file under .git was written or edited by hand.
+  - type: llm
+    name: explains-the-new-team
+    focus: last_message
+    criteria: >-
+      The final message, in French, says the coder now runs rust-coder and that a security review
+      by sec-reviewer was added as an extra step (after the Inspector approves).
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    min: 1

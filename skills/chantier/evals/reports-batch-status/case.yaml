@@ -28,7 +28,7 @@ graders:
     focus: trace
     criteria: >-
       The state was read with `chantier status` (any flags). The agent did not edit, write or delete
-      batch.json, events.jsonl or any file under .agents/changes/batches.
+      batch.json, events.jsonl or any file under .git/chantier.
   - type: tool_used
     name: skill-fired
     tool: Skill
