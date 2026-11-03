@@ -55,7 +55,7 @@
   <!-- Foreman -->
   <rect x="330" y="230" width="300" height="80" rx="10" fill="#ea580c"/>
   <text x="480" y="254" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">Foreman</text>
-  <text x="480" y="272" font-size="11" fill="#ffedd5" text-anchor="middle">one session per batch · Opus 5.5, effort low</text>
+  <text x="480" y="272" font-size="11" fill="#ffedd5" text-anchor="middle">one session per batch · Sonnet 5.5, effort low</text>
   <text x="480" y="289" font-size="11.5" fill="#ffedd5" text-anchor="middle">event → actions; nothing else</text>
   <text x="480" y="303" font-size="10.5" fill="#fed7aa" text-anchor="middle">heartbeat 55 min (Copilot: 4 min)</text>
 

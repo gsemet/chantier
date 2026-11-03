@@ -544,8 +544,9 @@ def spawn(args) -> list[str]:
         prompt.append(f"Your review: {task}")
     reviews = d["settings"].get("reviews", {})
     if args.role == "cr-driver" and reviews:
-        prompt.append("Extra review steps, after the Inspector approves: "
-                      + "; ".join(f"{n} ({s['task']})" for n, s in reviews.items()))
+        prompt.append("Extra review steps, after the Inspector approves, in order: "
+                      + "; ".join(f"`$CHANTIER spawn {n} {c['id']}` ({s['task']})"
+                                  for n, s in reviews.items()))
     if args.note:
         prompt.append(f"Note: {args.note}")
     mode = "background" if args.role in DRIVERS else "foreground"
@@ -770,6 +771,10 @@ def qa(args) -> list[str]:
         if not args.findings:
             raise ChantierError("qa done <cr> --findings <file> (one finding per bullet)",
                                 EXIT_USAGE)
+        evidence = repo.root / c["path"] / "evidence"
+        if not evidence.is_dir() or not any(p.is_file() for p in evidence.rglob("*")):
+            raise ChantierError(f"no proof in {_shown(repo, evidence)}: keep what you ran and saw "
+                                "there (commands and their output), findings or not")
         text = Path(args.findings).read_text(encoding="utf-8")
         n = sum(1 for ln in text.splitlines() if ln.lstrip().startswith(("- ", "* ")))
         c["qa_findings"] = str(Path(args.findings).resolve())
@@ -869,11 +874,20 @@ def cost(args) -> list[str]:
         raise ChantierError(f"no Foreman transcript recorded: the Foreman runs "
                             f"`chantier foreman transcript {var}`")
     rows = _cost_rows(repo, d, host, uuid)
-    agent_cr = {}
-    for c in d["crs"]:
-        for key in ("agent", "qa_agent"):
-            if c.get(key):
-                agent_cr[c[key]] = c["id"]
+    agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
+    events = repo.batches / batch / "events.jsonl"
+    for line in events.read_text(encoding="utf-8").splitlines() if events.exists() else []:
+        e = json.loads(line)
+        if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":
+            agent_cr[e["agent"]] = e["cr"].removeprefix("qa:")
+    parents = {r["agent"]: r.get("parent") for r in rows}
+
+    def cr_of(agent: str | None, hops: int = 0) -> str | None:
+        """A worker counts for the CR of the Driver that started it."""
+        if agent is None or hops > 5:
+            return None
+        return agent_cr.get(agent) or cr_of(parents.get(agent), hops + 1)
+
     total = sum(r["usd"] for r in rows)
     if args.update:
         with Batch(repo, batch, actor="foreman") as b:
@@ -884,7 +898,7 @@ def cost(args) -> list[str]:
         if args.by == "cr":
             named = CR_IN_NAME.search(r.get("description") or "")
             key = ("foreman" if r["agent"] == "main"
-                   else agent_cr.get(r["agent"]) or (named.group(0) if named else "other"))
+                   else cr_of(r["agent"]) or (named.group(0) if named else "other"))
         else:
             key = r["type"]
         groups[key][0] += r["calls"]

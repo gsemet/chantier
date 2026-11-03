@@ -261,6 +261,12 @@ def scenario(w: World) -> None:
     w.chantier("qa", "start", "CR-102")
     findings = w.root / "qa-findings.md"
     findings.write_text("# QA\n\n- The export button is hidden on mobile\n")
+    code, _ = w.chantier("qa", "done", "CR-102", "--findings", findings, expect=2)
+    check("QA without proof in evidence/ is refused", code == 2 and "no proof" in w.last_stderr,
+          w.last_stderr)
+    evidence = w.work / w.cr("CR-102")["path"] / "evidence"
+    evidence.mkdir()
+    (evidence / "mobile.txt").write_text("$ open /export at 375px: no export button\n")
     _, out = w.chantier("qa", "done", "CR-102", "--findings", findings)
     fm.event("qa-done", "CR-102", "1 findings")
     check("a QA finding resumes CR-102 with a new Driver and the findings file",

@@ -158,8 +158,8 @@ A built-in role keeps its contract (the spawn prompt carries it), so your agent 
 model, tools and know-how. A new role runs after the Inspector approves each round and answers with
 the same verdict. The next batch uses the new team; a running batch keeps its own.
 
-By default the Foreman runs on Opus 5.5 and every other agent on Sonnet 5.5; run your own session
-(the Chief of Staff) on Opus 5.5.
+By default the Foreman and every other agent run on Sonnet 5.5 (the Foreman only carries out what
+the CLI decides); run your own session (the Chief of Staff) on Opus 5.5.
 
 ## If something goes wrong
 

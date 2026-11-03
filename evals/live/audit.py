@@ -119,7 +119,7 @@ def main() -> int:
             check(parent_ok, f"{a.id[:10]} ({a.role}) was started by "
                              f"{'the Foreman' if a.role in DRIVERS else 'a Driver'}")
         if a.role in WORKERS | set(reviews):
-            commits = [c for c in a.bash() if re.search(r"git\s+(commit|push|merge)", c)]
+            commits = [c for c in a.bash() if re.search(r"git\s+(commit|push|merge)\b(?!-)", c)]
             check(not commits or a.role == "conflict-resolver",
                   f"{a.id[:10]} ({a.role}) never commits, pushes or merges")
         if a.role in READ_ONLY | set(reviews):

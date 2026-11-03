@@ -37,7 +37,7 @@ Every role runs the plugin's agent unless `AGENTS.md` says otherwise, in a `chan
 | "use my agent `rust-coder` as the coder" | add `- coder: \`rust-coder\`` to that section |
 | "add a security review with `sec-reviewer`" | add `- security-review: \`sec-reviewer\`, after the Inspector: <what it checks>` (ask what it checks if they did not say) |
 | "back to the default debugger" | remove the debugger line |
-| "which agents and models?" | read the section; the plugin's agents run Sonnet 5.5 on Claude, the Foreman Opus 5.5 |
+| "which agents and models?" | read the section; the plugin's agents and the Foreman run Sonnet 5.5 on Claude |
 
 Edit `AGENTS.md` only on the user's word, and show them the lines. At `open`, each line becomes
 `--agent <role>=<agent>` (a built-in role) or `--review <name>=<agent>:<what it checks>` (any
@@ -124,11 +124,11 @@ Only in the turn where the user gave the go, in this order:
    `<skill>` is the absolute path of this skill's folder.
    - **Claude Desktop:** `start_session` with `initiation: "user_asked"`,
      `title: "Foreman <batch>"`, `context: "fresh"`, `use_worktree: false`,
-     `model: "claude-opus-5-5"`, `effort: "low"`, the prompt, and the user's current permission
+     `model: "claude-sonnet-5-5"`, `effort: "low"`, the prompt, and the user's current permission
      mode. Then, in the same turn, `$CHANTIER foreman set <returned id>` (it prints epoch `<n>`)
      and `detach_session(<id>)`; check it says `detached`: a linked Foreman would wake you after
      every turn. Find your own session id with `get_session("self")`.
-   - **Copilot SDK host:** `create_session` with `model: "claude-opus-5.5"`, `workspace` = this
+   - **Copilot SDK host:** `create_session` with `model: "claude-sonnet-5.5"`, `workspace` = this
      repository, `worktree: false`, `title: Foreman <batch>` and the prompt (it takes no effort
      and no agent). Then `$CHANTIER foreman set <chat id>`. On
      `[foreman→chief-of-staff] ready <batch>`, send the Foreman chat
