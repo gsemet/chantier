@@ -172,7 +172,7 @@ class Models:
             layers.append((project_path(root), "project"))
         for path, label in layers:
             if path.exists():
-                data = parse_yaml(path.read_text(), str(path))
+                data = parse_yaml(path.read_text(encoding="utf-8"), str(path))
                 unknown = set(data) - set(HOSTS)
                 if unknown:
                     self.errors.append(f"{path}: unknown host key(s) {', '.join(sorted(unknown))}"
@@ -181,7 +181,7 @@ class Models:
         self._validate()
 
     def _base(self, path: Path) -> dict:
-        data = parse_yaml(path.read_text(), str(path))
+        data = parse_yaml(path.read_text(encoding="utf-8"), str(path))
         if data.get("host") != self.host:
             self.errors.append(f"{path}: `host` must be `{self.host}`")
         return {k: v for k, v in data.items() if k != "host"}
@@ -304,7 +304,7 @@ def brief_overrides(brief: Path, models: Models) -> dict[tuple[str, str | None],
     """`role=id` or `role@CR-n=id`, comma or space separated, after the `- Models` label."""
     if not brief.exists():
         return {}
-    line = next((ln for ln in brief.read_text().splitlines()
+    line = next((ln for ln in brief.read_text(encoding="utf-8").splitlines()
                  if ln.lstrip().startswith("- Models")), None)
     if line is None:
         return {}
@@ -346,7 +346,7 @@ def copilot_spawns(path: Path) -> list[dict]:
         raise ChantierError(f"no Copilot event log at {path}", EXIT_PRECONDITION)
     spawns = []
     efforts: dict[str, str | None] = {}
-    for line in path.open():
+    for line in path.open(encoding="utf-8"):
         try:
             e = json.loads(line)
         except ValueError:
@@ -377,7 +377,7 @@ def copilot_session(path: Path) -> dict:
         raise ChantierError(f"no Copilot event log at {path}", EXIT_PRECONDITION)
     calls: dict[tuple[str | None, str | None], int] = {}
     schedules: list[dict] = []
-    for line in path.open():
+    for line in path.open(encoding="utf-8"):
         try:
             e = json.loads(line)
         except ValueError:

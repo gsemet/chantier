@@ -102,7 +102,7 @@ def age_minutes(ts: str | None) -> float | None:
 def git(*args: str, cwd: Path | str | None = None, check: bool = True) -> str:
     env = {**os.environ, "GIT_EDITOR": "true", "GIT_PAGER": "cat", "GIT_TERMINAL_PROMPT": "0"}
     p = subprocess.run(["git", "--no-pager", *args], cwd=cwd, capture_output=True, text=True,
-                       env=env)
+                       encoding="utf-8", errors="replace", env=env)
     if check and p.returncode != 0:
         raise ChantierError(f"git {' '.join(args)}: {p.stderr.strip() or p.stdout.strip()}",
                        EXIT_EXTERNAL)
@@ -135,7 +135,7 @@ class Repo:
         root = Path(common).resolve().parent
         path = root / ".agents" / "chantier.json"
         # optional: it holds only what differs from the defaults
-        own = json.loads(path.read_text()) if path.exists() else {}
+        own = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
         cfg = {**DEFAULT_CONFIG, **own}
         if "default_branch" not in own:
             cfg["default_branch"] = default_branch(root, cfg["remote"])
@@ -211,9 +211,9 @@ class Batch:
         try:
             if exc_type is None and self._events:
                 tmp = self.dir / "batch.json.tmp"
-                tmp.write_text(json.dumps(self.data, indent=2) + "\n")
+                tmp.write_text(json.dumps(self.data, indent=2) + "\n", encoding="utf-8")
                 _retry(os.replace, tmp, self.dir / "batch.json")
-                with open(self.dir / "events.jsonl", "a") as f:
+                with open(self.dir / "events.jsonl", "a", encoding="utf-8") as f:
                     for e in self._events:
                         f.write(json.dumps(e) + "\n")
         finally:
@@ -279,8 +279,8 @@ def next_cr_number(repo: Repo) -> int:
         while not _try_lock(lock):
             time.sleep(0.05)
         try:
-            n = int(counter.read_text()) + 1 if counter.exists() else 101
-            counter.write_text(str(n))
+            n = int(counter.read_text(encoding="utf-8")) + 1 if counter.exists() else 101
+            counter.write_text(str(n), encoding="utf-8")
         finally:
             _unlock(lock)
     return n

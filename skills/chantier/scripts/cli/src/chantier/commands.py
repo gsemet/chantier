@@ -108,12 +108,12 @@ def _render_local(name: str, models: Models) -> str:
 def _plugin_fits(name: str, models: Models) -> bool:
     """The plugin ships this role's agent with the model, effort and tools configured here."""
     shipped = plugin_agent(name) if models.host == "claude" else None
-    return bool(shipped) and _pinned(shipped.read_text()) == _pinned(
+    return bool(shipped) and _pinned(shipped.read_text(encoding="utf-8")) == _pinned(
         _render_template(name, models, PLUGIN_SKILL, PLUGIN_CHANTIER))
 
 
 def _render_template(name: str, models: Models, skill: str, chantier: str) -> str:
-    text = (skill_dir() / "assets" / "agents" / f"{name}.md").read_text()
+    text = (skill_dir() / "assets" / "agents" / f"{name}.md").read_text(encoding="utf-8")
     text = text.replace("{{CHANTIER}}", chantier).replace("{{SKILL}}", skill)
     model = models.frontmatter_model(name)
     effort = models.effort_of(name)
@@ -155,36 +155,39 @@ def setup(args) -> list[str]:
         raise ChantierError("models: " + "; ".join(models.errors) + " (nothing installed)")
     out = []
     installed_path = repo.root / ".agents" / "chantier-installed.json"
-    installed = json.loads(installed_path.read_text()) if installed_path.exists() else {}
+    installed = (json.loads(installed_path.read_text(encoding="utf-8"))
+                 if installed_path.exists() else {})
     for name in TEMPLATES:
         target = agent_path(repo, host, name)
         rel = target.relative_to(repo.root).as_posix()
         key = name if host == "claude" else f"{host}/{name}"
         if _plugin_fits(name, models):
             # the plugin's agent is the one to run: a copy here would only shadow it
-            if target.exists() and installed.get(key) == _digest(target.read_text()):
+            if (target.exists()
+                    and installed.get(key) == _digest(target.read_text(encoding="utf-8"))):
                 target.unlink()
                 installed.pop(key)
                 out.append(f"removed {rel} (the plugin's agent fits the configuration)")
             continue
         text = _render_local(name, models)
         target.parent.mkdir(parents=True, exist_ok=True)
-        if target.exists() and target.read_text() == text:
+        if target.exists() and target.read_text(encoding="utf-8") == text:
             installed[key] = _digest(text)
             continue
-        edited = target.exists() and _digest(target.read_text()) != installed.get(key)
+        edited = (target.exists()
+                  and _digest(target.read_text(encoding="utf-8")) != installed.get(key))
         if edited and not args.force:
-            drift = _pinned(target.read_text()) != _pinned(text)
+            drift = _pinned(target.read_text(encoding="utf-8")) != _pinned(text)
             out.append(f"kept {rel} (edited locally; --force to replace)"
                        + (" but its model, effort or tools differ from the config"
                           if drift else ""))
             continue
-        target.write_text(text)
+        target.write_text(text, encoding="utf-8")
         installed[key] = _digest(text)
         out.append(f"installed {rel}")
     if installed:
         installed_path.parent.mkdir(parents=True, exist_ok=True)
-        installed_path.write_text(json.dumps(installed, indent=2) + "\n")
+        installed_path.write_text(json.dumps(installed, indent=2) + "\n", encoding="utf-8")
     elif installed_path.exists():
         installed_path.unlink()
     out.append(f"setup done ({host})" if out else f"setup: nothing to change ({host})")
@@ -197,12 +200,13 @@ def _digest(text: str) -> str:
 
 
 def _version_of(path: Path) -> str | None:
-    m = TEMPLATE_VERSION.search(path.read_text())
+    m = TEMPLATE_VERSION.search(path.read_text(encoding="utf-8"))
     return m.group(1) if m else None
 
 
 def _skill_version() -> str | None:
-    m = re.search(r"^chantier-version: (\S+)$", (skill_dir() / "SKILL.md").read_text(), re.M)
+    m = re.search(r"^chantier-version: (\S+)$",
+                  (skill_dir() / "SKILL.md").read_text(encoding="utf-8"), re.M)
     return m.group(1) if m else None
 
 
@@ -247,14 +251,14 @@ def preflight(args) -> tuple[list[str], int]:
         stale = [n for n in TEMPLATES if n not in missing
                  and _version_of(paths[n]) != __version__]
         no_ttl = [n for n in DRIVER_TEMPLATES if host == "claude" and n not in missing
-                  and "cacheTtl: 1h" not in paths[n].read_text()]
+                  and "cacheTtl: 1h" not in paths[n].read_text(encoding="utf-8")]
 
         def wanted(n: str) -> str:
             return (_render_local(n, models) if paths[n] == local[n]
                     else _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER))
 
         drift = [n for n in TEMPLATES if models and not model_errors and n not in missing
-                 and _pinned(paths[n].read_text()) != _pinned(wanted(n))]
+                 and _pinned(paths[n].read_text(encoding="utf-8")) != _pinned(wanted(n))]
         problems = ([f"missing {', '.join(missing)}"] if missing else []) + \
                    ([f"old template {', '.join(stale)}"] if stale else []) + \
                    ([f"no 1h cache in {', '.join(no_ttl)}"] if no_ttl else []) + \
@@ -304,13 +308,13 @@ def add_cr(b: Batch, item: str, qa: bool = False) -> dict:
             path = repo.root / path
         if not path.exists():
             raise ChantierError(f"backlog item not found: {path}", EXIT_USAGE)
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         title = next((ln.lstrip("# ").strip() for ln in text.splitlines() if ln.strip()),
                      path.stem)
     cr_id = f"CR-{next_cr_number(repo)}"
     cdir = b.dir / "crs" / cr_id
     (cdir / "scratch").mkdir(parents=True, exist_ok=True)
-    (cdir / "task.md").write_text(text if text.endswith("\n") else text + "\n")
+    (cdir / "task.md").write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
     branch = f"chantier/{b.id}/{cr_id.lower()}-{_slug(title)}"
     worktree = None
     if not b.data.get("no_worktrees"):
@@ -325,7 +329,7 @@ def add_cr(b: Batch, item: str, qa: bool = False) -> dict:
          "notes": [], "resumes": 0, "updated": now()}
     (cdir / "STATE.md").write_text(
         f"# {cr_id}: {title}\n\n- batch: {b.id}\n- branch: `{branch}`\n"
-        f"- worktree: `{c['worktree']}`\n- status: queued\n")
+        f"- worktree: `{c['worktree']}`\n- status: queued\n", encoding="utf-8")
     b.data["crs"].append(c)
     b.log("add", cr_id, title=title)
     return c
@@ -354,7 +358,7 @@ def open_batch(args) -> list[str]:
                          "- Models (optional; `role=id` or `role@CR-n=id`, exact ids from "
                          "`chantier models`; empty = agent file default):\n"
                          "- Night policy card: one extra round per CR; a red PR goes to the top.\n"
-                         "- Autonomous decisions:\n- Questions to bring back:\n")
+                         "- Autonomous decisions:\n- Questions to bring back:\n", encoding="utf-8")
         b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {args.batch}: {len(args.items)} CRs, {args.slots} slots, {data['mode']}"]
     lines += [f"{c['id']} {c['title'][:60]}" for c in b.data["crs"]]
@@ -549,7 +553,7 @@ def gate(args) -> tuple[list[str], int]:
     logdir = repo.batch_dir(batch) / "crs" / args.cr / "scratch" / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
     log = logdir / f"{time.strftime('%Y%m%d-%H%M%S')}-{'long' if args.long else 'fast'}.log"
-    with open(log, "w") as f:
+    with open(log, "w", encoding="utf-8") as f:
         for cmd in cmds:
             f.write(f"$ {cmd}\n")
             f.flush()
@@ -564,7 +568,8 @@ def gate(args) -> tuple[list[str], int]:
                 _track_pgid(repo, batch, args.cr, p.pid, False)
             if rc != 0:
                 f.flush()
-                tail = log.read_text().splitlines()[-8:]
+                # gates write in the console's code page: never fail on their bytes
+                tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
                 return ([f"FAIL {cmd} (exit {rc}); log {log.relative_to(repo.root)}"] + tail,
                         EXIT_EXTERNAL)
     return [f"pass {len(cmds)} {'long' if args.long else 'fast'} gates; "
@@ -655,6 +660,7 @@ def ship(args) -> list[str]:
     git("fetch", "--quiet", remote, cwd=wt)
     onto = f"{remote}/{base}" if base == repo.config["default_branch"] else base
     rb = subprocess.run(["git", "rebase", onto], cwd=wt, capture_output=True, text=True,
+                        encoding="utf-8", errors="replace",
                         env={**os.environ, "GIT_EDITOR": "true"})
     if rb.returncode != 0:
         subprocess.run(["git", "rebase", "--abort"], cwd=wt, capture_output=True)
@@ -711,7 +717,7 @@ def qa(args) -> list[str]:
             return ["ok"]
         n = 0
         if args.findings:
-            text = Path(args.findings).read_text()
+            text = Path(args.findings).read_text(encoding="utf-8")
             n = sum(1 for ln in text.splitlines() if ln.lstrip().startswith(("- ", "* ")))
             c["qa_findings"] = str(Path(args.findings).resolve())
         b.touch(c)
@@ -762,7 +768,8 @@ def land(args) -> list[str]:
         report_path = b.dir / "report.md"
         report_path.write_text(
             f"# Batch {batch}: report\n\n- Landed: {now()}\n- Spent: ${b.data.get('spent_usd', 0):.2f}"
-            f"\n\n| CR | Title | Status | PR | Rounds |\n| --- | --- | --- | --- | ---: |\n{rows}")
+            f"\n\n| CR | Title | Status | PR | Rounds |\n| --- | --- | --- | --- | ---: |\n{rows}",
+            encoding="utf-8")
         b.data["status"] = "landed"
         b.log("land", None, cleaned=cleaned)
     return [f"landed {batch}: cleaned {len(cleaned)} worktrees",
