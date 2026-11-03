@@ -23,7 +23,7 @@ from pathlib import Path
 
 PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|the stack)\b")
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
-DRIVERS = {"cr-driver", "stack-driver", "qa-driver"}
+DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
 EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(event|heartbeat|cancel|land)\b|agents set")
 WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts

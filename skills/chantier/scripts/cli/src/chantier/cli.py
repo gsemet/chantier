@@ -46,6 +46,12 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--budget", type=float, help="USD; the Foreman stops spawning past it")
     s.add_argument("--stack", action="store_true", help="stacked PRs")
     s.add_argument("--qa", help="'all' or 1-based item numbers, e.g. 1,3")
+    s.add_argument("--release", type=int, metavar="N",
+                   help="the item number of the release CR; it starts once the others are merged")
+    s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",
+                   help="releases the user allows without asking (needs --budget)")
+    s.add_argument("--auto-merge-fixes", choices=["rebase", "squash", "merge"],
+                   help="the CLI merges the release's ready fixes, by this method (needs --budget)")
     s.add_argument("--no-worktrees", action="store_true")
     s.add_argument("--chief-of-staff", help="the Chief of Staff's session id")
     s.add_argument("--fast-gate", action="append", help="from AGENTS.md; repeat for several")
@@ -59,7 +65,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--claude-projects-dir", help="Claude transcripts (default: ~/.claude/projects)")
 
     s = cmd("order", commands.order, "record an order for the Foreman; prints the message")
-    s.add_argument("kind", help="add, drop, first, change, merged, pause, resume")
+    s.add_argument("kind", help="add, drop, first, change, merged, pause, resume; for the release "
+                   "CR: fix, approve, grant")
     s.add_argument("cr", nargs="?", default="-")
     s.add_argument("--note")
 
@@ -122,6 +129,17 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("action", choices=["start", "done"])
     s.add_argument("cr")
     s.add_argument("--findings", help="markdown file, one finding per bullet")
+
+    s = cmd("release", commands.release,
+            "release driver: start an attempt, go for an irreversible action, published")
+    s.add_argument("action", choices=["start", "go", "published"])
+    s.add_argument("cr")
+    s.add_argument("--note", help="go: the irreversible action; published: version and link")
+
+    s = cmd("merge", commands.merge, "merge a release's fix (grant) or the release PR (after go)",
+            epoch=True)
+    s.add_argument("cr")
+    s.add_argument("--method", choices=["rebase", "squash", "merge"], help="the release PR's")
 
     s = cmd("cancel", commands.cancel, "stop a CR's processes and mark it cancelled", epoch=True)
     s.add_argument("cr")

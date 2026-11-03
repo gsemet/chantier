@@ -13,10 +13,10 @@ from pathlib import Path
 from .state import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 
 HOSTS = ("claude", "copilot")
-DRIVERS = ("cr-driver", "stack-driver", "qa-driver")
+DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
 WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver")
 ROLES = DRIVERS + WORKERS
-RESERVED = {"foreman", "chief-of-staff", "driver", "worker", "stack", "qa"}
+RESERVED = {"foreman", "chief-of-staff", "driver", "worker", "stack", "qa", "release"}
 ROLE_NAME = re.compile(r"[a-z][a-z0-9-]{1,40}")
 PLUGIN_NAME = "chantier"
 CR_IN_NAME = re.compile(r"\bCR-\d+\b")

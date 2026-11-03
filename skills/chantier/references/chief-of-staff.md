@@ -43,7 +43,7 @@ Edit `AGENTS.md` only on the user's word, and show them the lines. At `open`, ea
 `--agent <role>=<agent>` (a built-in role) or `--review <name>=<agent>:<what it checks>` (any
 other name):
 
-- A built-in role (`cr-driver`, `stack-driver`, `qa-driver`, `investigator`, `coder`, `inspector`,
+- A built-in role (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`, `investigator`, `coder`, `inspector`,
   `debugger`, `verifier`, `conflict-resolver`) keeps its contract: the spawn prompt carries it,
   so any agent can fill the role.
 - Any other name is an **extra review step**: the CR Driver runs it after the Inspector approves,
@@ -105,7 +105,7 @@ Only in the turn where the user gave the go, in this order:
    ```bash
    $CHANTIER open <batch> @<prepared-folder>… --fast-gate "<cmd>" --long-gate "<cmd>" \
      [--default-branch <branch>] [--agent <role>=<agent>]… [--review <name>=<agent>:<task>]… \
-     [--slots N] [--budget USD] [--stack] [--qa all|1,3] --chief-of-staff <your session id>
+     [--slots N] [--budget USD] [--stack] [--qa all|1,3] [--release N] --chief-of-staff <your session id>
    ```
 
    It moves each folder to requests, creates branches and worktrees, records the batch in
@@ -176,9 +176,46 @@ heartbeat in `$CHANTIER status`:
    still marked working from its recorded state; stop orphan processes with `$CHANTIER cancel`.
    Then continue."
 
+## 7. Releases
+
+A release is a CR that a Release driver runs by the project's own procedure. chantier holds no
+procedure: the project describes it, and you make sure the driver gets it. You stay the only one
+who talks with the user.
+
+- **Learn it.** Find in `AGENTS.md`, and what it links, how the project releases: the steps, the
+  heavy checks, who edits the notes, which actions are irreversible. Point to it in the `chantier`
+  section (`- release: CONTRIBUTING.md#release`). Nothing written, or a gap: ask the user and
+  offer to write the answer in the project. Never write a procedure from habit.
+- **Prepare it.** `$CHANTIER file "Release v1.4.0"`, grilled like any CR. Its specification names
+  the version, the scope, where the procedure is (file and section) and what the user wants to
+  review. A release that needs no commit is still a CR.
+- **The grant is the user's.** By default each irreversible action waits for their approval. Ask
+  whether they allow more, with your recommendation, and pass only what they said:
+  `--autonomous-releases <n>` (releases without asking, for instance fix releases after a failed
+  one) and `--auto-merge-fixes <method>` (the project's merge method; the rights are the forge's).
+  Both need `--budget`. Later, on their word: `$CHANTIER order grant <cr> --note "releases=<n>
+  auto-merge=<method|off> budget=<usd>"`, any of the three.
+- **Open it** preferably alone, once everything is merged and validated: add `--release 1` to
+  `open`. It may be the last CR of a stack (`--release <n>`): it starts once the others are merged
+  or cancelled.
+- **Drafts:** `$CHANTIER status` shows a `draft <path>` on the release's line. Give the user that
+  path as a link as soon as it appears: they review and edit the file in place while the release
+  runs.
+
+| The Foreman sends | You do |
+| --- | --- |
+| `ask blocked <cr> approval: <action>` | show the action and the drafts; on the user's yes, record it in `02-answers.md`, then `$CHANTIER order approve <cr> --note "<action>"` |
+| `ask blocked <cr> fix: <text>; <path>` | file and write a CR from it. Show it to the user and add it on their go, at once under an auto-merge grant: `$CHANTIER order fix <cr> --note "@<prepared-folder>"`. The release starts again from its first step once the fix merges |
+| `ask blocked <cr> question: <text>` | as for any CR; a grant the driver asks for is an `order grant` on the user's word |
+| `ask blocked <cr> infra: <text>` or `budget: <action>` | tell the user; on their word, `order change` (or `order grant` with a new budget) |
+| `ask merged <cr> <link>` | tell the user: a fix was merged under the grant |
+| `ask refused <cr> <text>` after a merge | the forge said no: the user merges it, then `order merged <cr>` |
+| `ask released <cr> <link>` | report the release; read `work/retro.md` in the CR's folder (now in `4-archives/`) and offer to file each proposal as a CR |
+
 ## Never
 
 - Start a session in a turn the user did not start, or when preflight fails.
 - Merge, or start a backlog item the user did not choose.
+- Approve an irreversible action or widen a release's grant without the user's own word.
 - Message a Driver, or do the Foreman's or a Driver's work.
 - Edit `batch.json` or `events.jsonl` by hand.

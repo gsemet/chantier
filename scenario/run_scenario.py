@@ -67,6 +67,7 @@ class World:
                     *(v for v, _, _ in FAKE.values() if v != FAKE[ARGS.forge][0])):
             self.env.pop(var, None)
         self.last_stderr = ""
+        self.name = "night"
 
     def sh(self, *args, cwd=None):
         return subprocess.run(args, cwd=cwd or self.work, check=True, capture_output=True,
@@ -116,11 +117,11 @@ class World:
                   f"exit {p.returncode}: {self.last_stderr[:200]}")
         return p.returncode, out
 
-    def batch(self, name="night"):
-        return json.loads((self.state / "batches" / name / "batch.json").read_text())
+    def batch(self):
+        return json.loads((self.state / "batches" / self.name / "batch.json").read_text())
 
-    def cr(self, cr_id, name="night"):
-        return next(c for c in self.batch(name)["crs"] if c["id"] == cr_id)
+    def cr(self, cr_id):
+        return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
 
 
 class Foreman:
@@ -136,7 +137,11 @@ class Foreman:
 
     def event(self, *args) -> list[str]:
         _, out = self.w.chantier("event", *args, "--epoch", self.epoch)
-        for action in out:
+        self.carry_out(out)
+        return out
+
+    def carry_out(self, actions: list[str]) -> None:
+        for action in actions:
             verb, _, rest = action.partition(" ")
             if verb == "spawn":
                 role, target, *note = rest.split(" ", 2)
@@ -144,7 +149,9 @@ class Foreman:
                                             *(["--note", note[0]] if note else []))
                 check(f"`chantier spawn {role} {target}` names the plugin's agent",
                       prompt[:2] == [f"agent: chantier:{role}", "mode: background"], str(prompt))
-                key = {"cr-driver": target, "qa-driver": f"qa:{target}"}.get(role, "stack")
+                self.prompt = prompt
+                key = {"cr-driver": target, "release-driver": target,
+                       "qa-driver": f"qa:{target}"}.get(role, "stack")
                 self.spawned.append(" ".join([key, *note]))
                 self.w.chantier("agents", "set", key, f"agent-{len(self.spawned)}",
                                 "--epoch", self.epoch)
@@ -155,10 +162,15 @@ class Foreman:
             elif verb == "cancel":
                 self.cancelled.append(rest)
                 self.w.chantier("cancel", rest, "--epoch", self.epoch)
+            elif verb == "merge":
+                code, lines = self.w.chantier("merge", rest, "--epoch", self.epoch, expect=None)
+                if code:
+                    self.asked.append(f"refused {rest} {self.w.last_stderr}")
+                else:
+                    self.carry_out(lines[1:])
             elif verb == "land":
                 self.w.chantier("land", "--epoch", self.epoch)
                 self.landed = True
-        return out
 
 
 def driver_round(w: World, cr_id: str, filename: str, content: str) -> None:
@@ -381,6 +393,121 @@ def scenario(w: World) -> None:
     check("events.jsonl holds the whole story",
           {"open", "spawn", "ship", "wait", "qa-done", "order", "cancel", "land"} <= kinds)
     lifecycle_regressions(w)
+    release(w)
+
+
+def release(w: World) -> None:
+    note("\n## 13. A release: the project's procedure, approvals, a fix, a grant")
+    _, change = prepare_cr(w, "Last change")
+    _, version = prepare_cr(w, "Release v1.1.0")
+    bad = (("--release", 3), ("--release", 2, "--qa", "2"), ("--release", 2, "--auto-merge-fixes",
+                                                             "rebase"),
+           ("--autonomous-releases", 1, "--budget", 5))
+    for args in bad:
+        code, _ = w.chantier("open", "ship", f"@{change}", f"@{version}", *FROM_AGENTS_MD, *args,
+                             expect=1)
+        check(f"open refuses {args}", code == 1 and change.is_dir())
+    w.chantier("open", "ship", f"@{change}", f"@{version}", "--release", 2, "--slots", 2,
+               "--chief-of-staff", "local_chantier", *FROM_AGENTS_MD)
+    w.name, w.env["CHANTIER_BATCH"] = "ship", "ship"
+    w.chantier("foreman", "set", "local_foreman3")
+    fm = Foreman(w, epoch=1)
+    work, rel = (c["id"] for c in w.batch()["crs"])
+    fm.event("start")
+    check("the release waits for the batch's other CRs", fm.spawned == [work])
+    driver_round(w, work, "last.py", "LAST = True\n")
+    fm.event("hand-back-ready", work, w.cr(work)["pr"])
+    code, _ = w.chantier("merge", work, expect=1)
+    check("chantier refuses to merge an ordinary CR", code == 1 and "the user merges" in w.last_stderr)
+    _, out = w.chantier("order", "merged", work)
+    fm.event("--order", out[0].split()[2])
+    check("once it is merged, the Release driver starts", fm.spawned[-1] == rel
+          and fm.prompt[0] == "agent: chantier:release-driver"
+          and any('(section "Release driver")' in ln for ln in fm.prompt)
+          and any("every irreversible action waits" in ln for ln in fm.prompt), str(fm.spawned))
+
+    tag = "push tag v1.1.0"
+    w.chantier("release", "start", rel)
+    notes = w.work / w.cr(rel)["path"] / "work" / "notes-v1.1.0.md"
+    notes.write_text("# v1.1.0\n")
+    w.chantier("report", rel, "draft", notes)
+    _, out = w.chantier("status")
+    check("status shows the draft on the release's line",
+          any(ln.startswith(rel) and notes.as_posix() in ln for ln in out), str(out))
+    code, out = w.chantier("release", "go", rel, "--note", tag, expect=2)
+    check("an irreversible action without approval is refused, with the line to send",
+          code == 2 and f"hand-back blocked approval: {tag}" in out[0], str(out))
+    fm.event("hand-back-blocked", rel, f"approval: {tag}")
+    check("the Chief of Staff gets the approval to ask", fm.asked[-1].startswith(f"blocked {rel} approval:"))
+    code, _ = w.chantier("order", "approve", work, "--note", tag, expect=1)
+    check("only the release CR takes an approval", code == 1)
+    _, out = w.chantier("order", "approve", rel, "--note", tag)
+    fm.event("--order", out[0].split()[2])
+    check("the approval goes to a new Release driver", fm.spawned[-1] == rel
+          and any(ln.startswith("Approved by the user") for ln in fm.prompt), str(fm.prompt))
+    code, out = w.chantier("release", "go", rel, "--note", tag)
+    check("the approval opens that action", code == 0 and out[0].startswith(f"go: {tag}"))
+    code, _ = w.chantier("release", "go", rel, "--note", "publish v1.1.0", expect=2)
+    check("an approval is spent once", code == 2)
+
+    fm.event("hand-back-blocked", rel, "fix: the heavy suite fails; work/fix-1.md")
+    _, fix = prepare_cr(w, "Fix the heavy suite")
+    code, _ = w.chantier("order", "grant", rel, "--note", "releases=1 auto-merge=rebase", expect=1)
+    check("a grant without a budget is refused", code == 1 and "budget" in w.last_stderr)
+    _, out = w.chantier("order", "grant", rel, "--note",
+                        "releases=1 auto-merge=rebase budget=5")
+    spawned = len(fm.spawned)
+    fm.event("--order", out[0].split()[2])
+    check("a grant leaves a release that waits for its fix alone",
+          len(fm.spawned) == spawned and w.cr(rel)["status"] == "blocked")
+    _, out = w.chantier("order", "fix", rel, "--note", f"@{fix}")
+    fm.event("--order", out[0].split()[2])
+    fix_id = w.batch()["crs"][-1]["id"]
+    check("a fix becomes a CR of the batch; the release waits for it",
+          fm.spawned[-1] == fix_id and w.cr(rel)["status"] == "queued"
+          and w.cr(fix_id)["fix_for"] == rel, str(fm.spawned))
+    driver_round(w, fix_id, "heavy.py", "FIXED = True\n")
+    w.gh(merge_refused=True)
+    fm.event("hand-back-ready", fix_id, w.cr(fix_id)["pr"])
+    check("a merge the forge refuses goes to the Chief of Staff, the fix stays ready",
+          fm.asked[-1].startswith(f"refused {fix_id}") and w.cr(fix_id)["status"] == "ready",
+          fm.asked[-1])
+    w.gh(merge_refused=False)
+    fm.carry_out([f"merge {fix_id}"])
+    check("under the grant the CLI merges the fix, and the release starts again",
+          w.cr(fix_id)["status"] == "merged" and fm.spawned[-1] == rel
+          and fm.asked[-1].startswith(f"merged {fix_id} "), str(fm.asked))
+
+    _, out = w.chantier("release", "start", rel)
+    check("each new attempt is counted", out[0].startswith("attempt 2:"), str(out))
+    w.chantier("report", rel, "note", "release commit")
+    wt = Path(w.cr(rel)["worktree"])
+    (wt / "VERSION").write_text("1.1.0\n")
+    w.sh("git", "add", ".", cwd=wt)
+    w.sh("git", "-c", "user.name=release", "-c", "user.email=release@example.com", "commit",
+         "--quiet", "-m", "release: v1.1.0", "-m", TRAILER, cwd=wt)
+    (w.work / w.cr(rel)["path"] / "work" / "pr-body.md").write_text("Release v1.1.0\n")
+    w.chantier("ship", rel)
+    code, _ = w.chantier("merge", rel, "--method", "rebase", expect=2)
+    check("the release PR does not merge without a go", code == 2)
+    state = w.state / "batches" / "ship" / "batch.json"
+    data = w.batch()
+    state.write_text(json.dumps({**data, "spent_usd": 6}))
+    code, out = w.chantier("release", "go", rel, "--note", "merge the release PR", expect=5)
+    check("past the budget, a grant opens nothing", code == 5 and "budget" in out[0], str(out))
+    state.write_text(json.dumps(data))
+    code, out = w.chantier("release", "go", rel, "--note", "merge the release PR")
+    check("the grant opens the action without asking", code == 0 and "without asking" in out[0])
+    w.chantier("merge", rel, "--method", "rebase")
+    w.chantier("release", "published", rel, "--note", "v1.1.0 https://forge.example/v1.1.0")
+    code, _ = w.chantier("release", "go", rel, "--note", "publish v1.1.1", expect=2)
+    check("the grant ends with its number of releases", code == 2)
+    fm.event("hand-back-ready", rel, "https://forge.example/v1.1.0")
+    check("the release done, the Chief of Staff hears it and the batch lands",
+          fm.asked[-1] == f"released {rel} https://forge.example/v1.1.0" and fm.landed
+          and "/4-archives/" in w.cr(rel)["path"], str(fm.asked))
+    calls = (w.root / "gh-state.json.calls").read_text()
+    check("the forge saw the merges", calls.count("merge") >= 2)
 
 
 def lifecycle_regressions(w: World) -> None:

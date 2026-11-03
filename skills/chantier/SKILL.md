@@ -59,6 +59,7 @@ says they know chantier.
 | "what did it cost?" | `$CHANTIER cost` | 5 |
 | "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | 2 |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | 6 |
+| "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | 7 |
 
 ## Hard rules
 

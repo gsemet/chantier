@@ -28,6 +28,12 @@ would not follow on its own here, each with its reason.
   `5-trash/` only on the user's explicit word.
 - **Batch:** the CRs the user starts together, in parallel or as a stack of PRs. Each CR gets a
   branch `chantier/<batch>/<cr>-<slug>` and a worktree next to the repository.
+- **Release CR:** a CR that releases what is merged, by the project's own procedure, with or
+  without a commit. A Release driver runs it, once every other CR of the batch is merged or
+  cancelled. A **fix CR** is a CR the release found it needs; the release starts again after it.
+- **Grant:** what the user allowed a release to do without asking: a number of releases, the
+  merge of its fixes, always within a budget. Without one, each irreversible action waits for
+  the user.
 - **Work folder:** the CR's `work/`; your spawn prompt gives its path.
 - **`.agents/changes/`:** the one folder chantier writes in, as plain JSON and Markdown:
   `backlog/` (the CR folders) and `batches/<batch>/` (`batch.json`, `events.jsonl`, `brief.md`,
@@ -59,6 +65,8 @@ would not follow on its own here, each with its reason.
 9. **A check red on the default branch is not the CR's.** Fixing it inside the CR hides the fix
    in the wrong PR; report it.
 10. **Never merge.** The user merges; a batch lands only when every CR is merged or cancelled.
+    The only exception is `$CHANTIER merge`, which refuses all but what the user allowed: a
+    release's fix under the grant, the release's own PR after `release go`.
 11. **Refusals are reported, never worked around.** A denied permission, a classifier or app
     refusal goes to your parent with its exact text; never retried in another form or handed to
     another agent.
