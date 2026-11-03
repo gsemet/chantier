@@ -43,14 +43,34 @@ the prompt-cache TTL of the host's Claude models (base list: `55m` Claude Code, 
 `tools` is a base-list section only: a role's tools are part of its contract, so an override
 that sets `tools` fails `$CHANTIER models check`.
 
-On Claude Code the plugin ships one agent per role (`chantier:<role>`, in the plugin's
-`agents/`), built from the base list: with no override, nothing is installed in the repository.
-A role whose model, effort or tools differ from the base list needs its own file:
-`$CHANTIER setup` writes only those roles, and removes a file it wrote once the plugin's agent
-fits again. Without the plugin (a skill installed on its own) and on Copilot, `$CHANTIER setup`
-writes every role.
+### Which agent a role runs
 
-`$CHANTIER setup` writes each host's own frontmatter:
+The plugin ships one agent per role and host, built from the base list: `chantier:<role>` on
+Claude Code (`agents/`), `<role>` on Copilot (`com.github.copilot/agents/`). Nothing is
+installed in the repository. Each role runs, in this order:
+
+1. **The repository's own agent**, named in its `AGENTS.md`, one line per role:
+
+   ```markdown
+   - chantier debugger agent: .github/agents/my-debugger.agent.md
+   - chantier coder agent: .claude/agents/rust-coder.md
+   ```
+
+   The file must be where the host loads agents from (`.claude/agents/`, `.github/agents/`), and
+   it decides its own model, effort and tools. When the user asks to customize a role, the Chief
+   of Staff adds that line (and, if asked, writes the agent file); then a restart of the session.
+2. **A file `$CHANTIER setup` installed** (`.claude/agents/<role>.md`, `.github/agents/<role>.agent.md`):
+   only without the plugin, a skill installed on its own.
+3. **The plugin's agent.**
+
+`$CHANTIER models get <role>` prints the agent in its `agent:` line.
+
+A model in `models.yml` or the brief that differs from the plugin's agent is passed at the spawn
+on Claude Code (aliases). Copilot refuses it (`model-policy: required`), and an effort cannot be
+passed at a spawn on either host: for those, `$CHANTIER models check` fails and says to point the
+role to the repository's own agent in `AGENTS.md`.
+
+`$CHANTIER setup` (without the plugin) writes each host's own frontmatter:
 
 | | Claude Code (`.claude/agents/`) | Copilot (`.github/agents/`) |
 |---|---|---|
@@ -61,8 +81,8 @@ writes every role.
 With `model-policy: required`, Copilot refuses a spawn whose model (or effort) it cannot honor
 instead of falling back to the session's model, and refuses a per-spawn model override. So on
 Copilot the brief's **Models** line may change only roles left on `inherit` and the Foreman;
-`$CHANTIER models check` fails on any other entry. Change the role in `.agents/chantier.models.yml`
-instead, then `$CHANTIER setup` and a restart.
+`$CHANTIER models check` fails on any other entry. Point the role to the repository's own agent
+in `AGENTS.md` instead, then restart the session.
 
 The brief's **Models** line holds `role=id` or `role@CR-n=id` entries, for example
 `- Models: coder@CR-102=gpt-6.1-sol, inspector=kimi-k3` (valid on Claude Code, or on Copilot
@@ -73,10 +93,9 @@ for roles left on `inherit`).
 - **A model name is an opaque id.** Write it, pass it and compare it character for character.
   Never shorten, re-case, re-space or "correct" it; never map a name to the one that looks
   closest (`gpt-5.6-luna` is not `gpt-6-luna`).
-- **Spawn with what `$CHANTIER models get` prints.** `agent: <agent>`: the agent to spawn, exactly
-  (`chantier:<role>` from the plugin, `<role>` from the repository's own file). `model: omit (…)`:
-  pass no `model`; the agent file pins it. `model: <id> (…)`: pass `<id>` exactly. Nothing else
-  picks a model.
+- **Spawn with what `$CHANTIER models get` prints.** `agent: <agent>`: the agent to spawn,
+  exactly. `model: omit (…)`: pass no `model`; the agent file pins it. `model: <id> (…)`: pass
+  `<id>` exactly. Nothing else picks a model.
 - **Never pass an effort to a role's spawn.** A per-spawn `effort` / `reasoning_effort` would
   override the agent file. `effort: <level>` is printed only for the Foreman on Claude, whose session `start_session` starts
   with that level; `effort: omit (…)` means pass none. On Copilot the Foreman's agent file holds
@@ -85,9 +104,9 @@ for roles left on `inherit`).
   model that `$CHANTIER models` does not list exactly, ask which id they mean; do not guess.
 - **A refused model is a stop.** If the host refuses or replaces the model, the spawn is
   `blocked` with the host's exact text; never retry on another model.
-- After a config change: `$CHANTIER setup`, then restart the session (agent files pin the model, the
-  effort and the tools; `$CHANTIER preflight` P4 fails while they differ from the config). With
-  the plugin and no override, there is nothing to set up.
+- With the plugin, there is nothing to set up. Without it, after a config change: `$CHANTIER
+  setup`, then restart the session (`$CHANTIER preflight` P4 fails while agent files differ from
+  the config).
 
 ## Failure handling
 

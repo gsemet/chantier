@@ -44,5 +44,10 @@ Print the line with `$CHANTIER order …`; it carries the order id the Foreman n
 
 ## Driver → its foreground child
 
-The spawn prompt, not a message: the CR id, the batch, the worktree path, the round number, the
-task, the previous round note, and the findings to address.
+The spawn prompt, not a message: a first line `skill: <the chantier skill folder>`, then the CR
+id, the batch, the worktree path, the round number, the task, the previous round note, and the
+findings to address.
+
+Every spawn prompt (Foreman → Driver, Driver → child) starts with that `skill:` line, copied from
+your own: Copilot tells an agent nothing about the plugin it comes from, so this line is how the
+child finds its role card and `$CHANTIER`.

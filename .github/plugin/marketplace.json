@@ -1,0 +1,24 @@
+{
+  "name": "chantier",
+  "metadata": {
+    "description": "chantier for GitHub Copilot: a Chief of Staff, a Foreman and short-lived workers that ship one pull request per change request.",
+    "version": "0.1.0"
+  },
+  "owner": {
+    "name": "Gaetan SEMET",
+    "email": "gaetan@xeberon.net"
+  },
+  "plugins": [
+    {
+      "name": "chantier",
+      "source": "./",
+      "description": "The construction site for your Software Factory: a Chief of Staff, a Foreman and short-lived workers that ship one pull request per change request.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Gaetan SEMET"
+      },
+      "repository": "https://github.com/gsemet/chantier",
+      "license": "MIT"
+    }
+  ]
+}

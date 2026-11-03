@@ -57,7 +57,7 @@ your host does not exist: the action is refused, never replaced.
 
 | Line | Do |
 | --- | --- |
-| `spawn <cr> [resume …]` | spawn `cr-driver` in the background, prompt `CR <cr> of batch <batch>` plus the rest of the line; then `$CHANTIER agents set <cr> <agent-id>` |
+| `spawn <cr> [resume …]` | spawn `cr-driver` in the background, prompt `skill: <this skill's folder>`, then `CR <cr> of batch <batch>` plus the rest of the line; then `$CHANTIER agents set <cr> <agent-id>` |
 | `spawn qa:<cr>` / `spawn stack` | the same with `qa-driver` / `stack-driver`; record it as `qa:<cr>` / `stack` |
 | `message <cr> <text>` | message the CR's agent (`$CHANTIER agents get <cr>`): `[foreman→driver <cr>] <text>` |
 | `message stack <text>` | the same to the stack driver |
@@ -68,9 +68,9 @@ your host does not exist: the action is refused, never replaced.
 | `none`, `none landed` | nothing |
 
 Before each spawn, run `$CHANTIER models get <role> --cr <cr>` and do exactly what it prints:
-`agent: <agent>` is the agent to spawn (`chantier:cr-driver` from the plugin, or `cr-driver` when
-the repository has its own file); `model: omit` passes no `model`; `model: <id>` passes that id,
-character for character ([models](models.md)).
+`agent: <agent>` is the agent to spawn (the plugin's, or the repository's own one named in its
+`AGENTS.md`); `model: omit` passes no `model`; `model: <id>` passes that id, character for
+character ([models](models.md)).
 
 ## Rules
 

@@ -3,7 +3,7 @@
   "description": "The construction site for your Software Factory: a Chief of Staff you talk to, a Foreman that runs batches of change requests, and short-lived workers that ship one pull request per change.",
   "version": "0.1.0",
   "author": {
-    "name": "Gaetan Semet"
+    "name": "Gaetan SEMET"
   },
   "repository": "https://github.com/gsemet/chantier",
   "license": "MIT",

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from . import __version__, costs, forge, procs
@@ -62,11 +63,81 @@ def plugin_root() -> Path | None:
     return root if (root / ".claude-plugin" / "plugin.json").exists() else None
 
 
-def plugin_agent(name: str) -> Path | None:
-    """The plugin's own agent file for a role, if this skill ships in the plugin."""
+# Copilot substitutes nothing in an agent body: its plugin agents name the skill `<skill>`, and
+# every spawn prompt gives that folder on a `skill:` line.
+COPILOT_PLUGIN_AGENTS = "com.github.copilot/agents"
+COPILOT_SKILL = "<skill>"
+COPILOT_CHANTIER = f"uv run --script {COPILOT_SKILL}/scripts/cli/chantier.py"
+COPILOT_NOTE = ("`<skill>` below is the chantier skill folder: the `skill:` line of your spawn "
+                "prompt (the Foreman: the folder of the skill it runs).\n\n")
+
+
+def plugin_agent(name: str, host: str = "claude") -> Path | None:
+    """The plugin's own agent file for a role on this host, if this skill ships in the plugin."""
     root = plugin_root()
-    path = root / "agents" / f"{name}.md" if root else None
-    return path if path and path.exists() else None
+    if not root:
+        return None
+    path = (root / "agents" / f"{name}.md" if host == "claude"
+            else root / COPILOT_PLUGIN_AGENTS / f"{name}.agent.md")
+    return path if path.exists() else None
+
+
+# `- chantier <role> agent: <path>` in the repository's AGENTS.md: that role runs the
+# repository's own agent instead of the plugin's.
+CUSTOM_AGENT = re.compile(r"^[ \t]*(?:[-*][ \t]+)?chantier[ \t]+(?P<role>[A-Za-z-]+)[ \t]+agent:"
+                          r"[ \t]*(?P<path>.*?)[ \t]*$", re.M | re.I)
+
+
+def custom_agents(repo: Repo) -> dict[str, Path]:
+    """Roles the repository runs with its own agent file, from its AGENTS.md."""
+    f = repo.root / "AGENTS.md"
+    if not f.exists():
+        return {}
+    out: dict[str, Path] = {}
+    for m in CUSTOM_AGENT.finditer(f.read_text(encoding="utf-8")):
+        role, raw = m["role"].lower(), m["path"].strip("`")
+        if role not in ROLES or role == "foreman":
+            raise ChantierError(f"AGENTS.md: `chantier {role} agent:` is not a role a Driver "
+                                f"spawns (roles: {', '.join(r for r in ROLES if r != 'foreman')})")
+        if not raw or re.search(r"[,\s]", raw):
+            raise ChantierError(f"AGENTS.md: `chantier {role} agent:` takes one agent file, "
+                                f"got `{raw}`")
+        if role in out:
+            raise ChantierError(f"AGENTS.md: two agents for chantier {role}")
+        out[role] = repo.root / raw
+    return out
+
+
+@dataclass
+class AgentRef:
+    """The agent a role runs: `custom` (AGENTS.md), `local` (installed by setup), `plugin`."""
+
+    kind: str
+    name: str
+    path: Path | None
+
+
+def _agent_id(path: Path, host: str) -> str:
+    """How the host names an agent file: Copilot by its file name, Claude by its `name:`."""
+    if host == "copilot":
+        return path.name.removesuffix(".md").removesuffix(".agent")
+    m = re.search(r"^name:[ \t]*(\S+)[ \t]*$", path.read_text(encoding="utf-8"), re.M)
+    return m[1] if m else path.stem
+
+
+def resolve_agent(repo: Repo, host: str, role: str) -> AgentRef:
+    """The repository's own agent (AGENTS.md), else a file `setup` installed, else the plugin's."""
+    custom = custom_agents(repo).get(role)
+    if custom:
+        return AgentRef("custom", _agent_id(custom, host) if custom.exists() else custom.stem,
+                        custom)
+    local = agent_path(repo, host, role)
+    if local.exists():
+        return AgentRef("local", role, local)
+    shipped = plugin_agent(role, host)
+    if shipped:
+        return AgentRef("plugin", f"{PLUGIN_NAME}:{role}" if host == "claude" else role, shipped)
+    return AgentRef("missing", role, None)
 
 
 def _slug(text: str) -> str:
@@ -86,30 +157,68 @@ def agent_path(repo: Repo, host: str, name: str) -> Path:
     return repo.root / ".claude" / "agents" / f"{name}.md"
 
 
-def agent_name(repo: Repo, host: str, name: str) -> str:
-    """The agent to spawn for a role: the repository's own file wins, else the plugin's."""
-    if host == "claude" and not agent_path(repo, host, name).exists() and plugin_agent(name):
-        return f"{PLUGIN_NAME}:{name}"
-    return name
-
-
-def render_plugin_agents() -> dict[str, str]:
-    """The agent files the Claude Code plugin ships: the skill's base list, no override."""
-    models = Models("claude", skill_dir(), None, base_only=True)
+def base_models(host: str) -> Models:
+    """The skill's base list alone: what the plugin's agents pin."""
+    models = Models(host, skill_dir(), None, base_only=True)
     if models.errors:
         raise ChantierError("models: " + "; ".join(models.errors))
-    return {n: _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER) for n in TEMPLATES}
+    return models
+
+
+def render_plugin_agents(host: str = "claude") -> dict[str, str]:
+    """The agent files the plugin ships for a host: the skill's base list, no override."""
+    models = base_models(host)
+    if host == "claude":
+        return {n: _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER) for n in TEMPLATES}
+    return {n: re.sub(r"^(# chantier-template: \S+\n\n)", lambda m: m[1] + COPILOT_NOTE,
+                      _render_template(n, models, COPILOT_SKILL, COPILOT_CHANTIER),
+                      count=1, flags=re.M)
+            for n in TEMPLATES}
 
 
 def _render_local(name: str, models: Models) -> str:
     return _render_template(name, models, str(skill_dir()), chantier_prefix())
 
 
-def _plugin_fits(name: str, models: Models) -> bool:
-    """The plugin ships this role's agent with the model, effort and tools configured here."""
-    shipped = plugin_agent(name) if models.host == "claude" else None
-    return bool(shipped) and _pinned(shipped.read_text(encoding="utf-8")) == _pinned(
-        _render_template(name, models, PLUGIN_SKILL, PLUGIN_CHANTIER))
+def _file_models(ref: AgentRef, models: Models) -> Models | None:
+    """The configuration an agent file was rendered from: the base list for the plugin's."""
+    return {"plugin": base_models(models.host), "local": models}.get(ref.kind)
+
+
+def _override_errors(repo: Repo, models: Models, overrides: dict) -> list[str]:
+    return [msg for _role, msg in _role_override_errors(repo, models, overrides)]
+
+
+def _role_override_errors(repo: Repo, models: Models,
+                          overrides: dict) -> list[tuple[str, str]]:
+    """(role, why) for each override no spawn can honor with the agent the role runs."""
+    host, errors = models.host, []
+    for role in ROLES:
+        if role == "foreman":
+            continue
+        ref = resolve_agent(repo, host, role)
+        fm = _file_models(ref, models)
+        own = f"point chantier {role} to your own agent in AGENTS.md"
+        if ref.kind == "custom":
+            if any(r == role for r, _c in overrides):
+                errors.append((role, f"brief sets a model for {role}, which runs the "
+                                     f"repository's own agent {ref.name}: change that agent"))
+            continue
+        if fm is None or fm is models:
+            continue
+        if models.effort_of(role) != fm.effort_of(role):
+            errors.append((role, f"effort {role}={models.effort_of(role) or INHERIT} differs "
+                                 f"from the plugin's agent ({fm.effort_of(role) or INHERIT}): "
+                                 f"{own}"))
+        if host == "copilot" and models.role(role) != fm.role(role) and fm.role(role) != INHERIT:
+            errors.append((role, f"model {role}={models.role(role)} differs from the plugin's "
+                                 f"agent ({fm.role(role)}, model-policy: required): {own}"))
+    for (role, _cr), want in overrides.items():
+        ref = resolve_agent(repo, host, role)
+        fm = _file_models(ref, models)
+        if fm and _locked(host, role, want, fm.role(role)):
+            errors.append((role, _locked(host, role, want, fm.role(role))))
+    return errors
 
 
 def _render_template(name: str, models: Models, skill: str, chantier: str) -> str:
@@ -161,13 +270,13 @@ def setup(args) -> list[str]:
         target = agent_path(repo, host, name)
         rel = target.relative_to(repo.root).as_posix()
         key = name if host == "claude" else f"{host}/{name}"
-        if _plugin_fits(name, models):
+        if plugin_agent(name, host):
             # the plugin's agent is the one to run: a copy here would only shadow it
             if (target.exists()
                     and installed.get(key) == _digest(target.read_text(encoding="utf-8"))):
                 target.unlink()
                 installed.pop(key)
-                out.append(f"removed {rel} (the plugin's agent fits the configuration)")
+                out.append(f"removed {rel} (the plugin ships this agent)")
             continue
         text = _render_local(name, models)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -190,6 +299,10 @@ def setup(args) -> list[str]:
         installed_path.write_text(json.dumps(installed, indent=2) + "\n", encoding="utf-8")
     elif installed_path.exists():
         installed_path.unlink()
+    if not out and plugin_root():
+        return [f"setup: nothing to install ({host}): the plugin ships every agent; "
+                "to run your own agent for a role, add `- chantier <role> agent: <file>` "
+                "to AGENTS.md"]
     out.append(f"setup done ({host})" if out else f"setup: nothing to change ({host})")
     out.append("restart the session if agent files changed: agents load at start")
     return out
@@ -243,31 +356,36 @@ def preflight(args) -> tuple[list[str], int]:
             model_errors = models.errors
         except ChantierError as e:
             models, model_errors = None, [str(e)]
-        # The repository's own agent file wins; else the plugin's, if it ships one.
-        local = {n: agent_path(repo, host, n) for n in TEMPLATES}
-        paths = {n: local[n] if local[n].exists()
-                 else (plugin_agent(n) if host == "claude" else None) for n in TEMPLATES}
-        missing = [n for n in TEMPLATES if paths[n] is None]
-        stale = [n for n in TEMPLATES if n not in missing
-                 and _version_of(paths[n]) != __version__]
-        no_ttl = [n for n in DRIVER_TEMPLATES if host == "claude" and n not in missing
-                  and "cacheTtl: 1h" not in paths[n].read_text(encoding="utf-8")]
-
-        def wanted(n: str) -> str:
-            return (_render_local(n, models) if paths[n] == local[n]
-                    else _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER))
-
-        drift = [n for n in TEMPLATES if models and not model_errors and n not in missing
-                 and _pinned(paths[n].read_text(encoding="utf-8")) != _pinned(wanted(n))]
-        problems = ([f"missing {', '.join(missing)}"] if missing else []) + \
+        # Each role runs one agent: the repository's own (AGENTS.md), one `setup` installed, or
+        # the plugin's. Only chantier's own files carry its template version and cache.
+        try:
+            refs = {n: resolve_agent(repo, host, n) for n in TEMPLATES}
+        except ChantierError as e:
+            refs, model_errors = {}, [*model_errors, str(e)]
+        missing = [n for n, r in refs.items() if r.kind == "missing"]
+        no_custom = [f"{n} ({r.path})" for n, r in refs.items()
+                     if r.kind == "custom" and not r.path.exists()]
+        ours = {n: r for n, r in refs.items() if r.kind in ("local", "plugin")}
+        stale = [n for n, r in ours.items() if _version_of(r.path) != __version__]
+        no_ttl = [n for n, r in ours.items() if host == "claude" and n in DRIVER_TEMPLATES
+                  and "cacheTtl: 1h" not in r.path.read_text(encoding="utf-8")]
+        drift = [n for n, r in ours.items() if models and not model_errors and r.kind == "local"
+                 and _pinned(r.path.read_text(encoding="utf-8"))
+                 != _pinned(_render_local(n, models))]
+        problems = ([f"missing {', '.join(missing)} (install the chantier plugin, or run "
+                     "`chantier setup`)"]
+                    if missing else []) + \
+                   ([f"AGENTS.md names a missing agent: {', '.join(no_custom)}"]
+                    if no_custom else []) + \
                    ([f"old template {', '.join(stale)}"] if stale else []) + \
                    ([f"no 1h cache in {', '.join(no_ttl)}"] if no_ttl else []) + \
-                   ([f"model, effort or tools differ from the config in {', '.join(drift)}"]
-                    if drift else [])
-        check("P4", not problems, "agent files installed and current",
-              "; ".join(problems) + " (run `chantier setup`, then restart the session)")
-        check("P8", not model_errors, f"models valid for {host}",
-              "; ".join(model_errors) + " (fix the model files, then `chantier setup`)")
+                   ([f"model, effort or tools differ from the config in {', '.join(drift)} "
+                     "(run `chantier setup`)"] if drift else [])
+        check("P4", not problems, "every role has a current agent",
+              "; ".join(problems) + "; then restart the session")
+        if models and not model_errors:
+            model_errors = _override_errors(repo, models, {})
+        check("P8", not model_errors, f"models valid for {host}", "; ".join(model_errors))
     has_uv = shutil.which("uv") is not None
     sv = _skill_version()
     check("P5", has_uv and sv == __version__, f"chantier {__version__}, uv found",
@@ -842,14 +960,12 @@ def _batch_context(repo: Repo, batch: str | None, models: Models) -> tuple[dict,
     return overrides, agent_cr
 
 
-def _locked(models: Models, role: str, want: str) -> str | None:
+def _locked(host: str, role: str, want: str, pinned: str) -> str | None:
     """Why a spawn cannot run `want` on Copilot, where agent files pin with model-policy."""
-    pinned = models.role(role)
-    if models.host != "copilot" or role == "foreman" or pinned == INHERIT or want == pinned:
+    if host != "copilot" or role == "foreman" or pinned == INHERIT or want == pinned:
         return None
-    return (f"brief asks {role}={want} but the {role} agent file requires {pinned} "
-            "(model-policy: required, Copilot refuses the spawn): set it under `roles` in "
-            ".agents/chantier.models.yml, run `chantier setup`, restart the session")
+    return (f"{role}={want} but its agent file requires {pinned} (model-policy: required, "
+            f"Copilot refuses the spawn): point chantier {role} to your own agent in AGENTS.md")
 
 
 def models_cmd(args) -> tuple[list[str], int]:
@@ -861,8 +977,7 @@ def models_cmd(args) -> tuple[list[str], int]:
         if not errors:
             try:
                 overrides, _ = _batch_context(repo, args.batch, models)
-                errors += [_locked(models, r, m) for (r, _c), m in overrides.items()
-                           if _locked(models, r, m)]
+                errors += _override_errors(repo, models, overrides)
             except ChantierError as e:
                 errors.append(str(e))
         if errors:
@@ -891,8 +1006,26 @@ def models_cmd(args) -> tuple[list[str], int]:
         if not args.role:
             raise ChantierError("models get <role> [--cr CR-n]", EXIT_USAGE)
         want, src = expected(models, overrides, args.role, args.cr)
-        pinned = models.role(args.role)
         level = models.effort_of(args.role)
+        pinned = models.role(args.role)
+        if args.role != "foreman":
+            ref = resolve_agent(repo, host, args.role)
+            agent = f"agent: {ref.name} (spawn this agent exactly)"
+            if ref.kind == "custom":
+                rel = ref.path.relative_to(repo.root).as_posix()
+                return ["model: omit (the repository's own agent decides)",
+                        "effort: omit (the repository's own agent decides)",
+                        f"agent: {ref.name} (from AGENTS.md: {rel}; spawn this agent exactly)"], 0
+            if ref.kind == "missing":
+                raise ChantierError(f"no agent for {args.role}: install the chantier plugin, "
+                                    "or run `chantier setup`", EXIT_PRECONDITION)
+            # configuration errors here; the brief's entry for this spawn is checked below
+            mine = [msg for role, msg in _role_override_errors(repo, models, {})
+                    if role == args.role]
+            if mine:
+                raise ChantierError(mine[0], EXIT_PRECONDITION)
+            fm = _file_models(ref, models)
+            pinned = fm.role(args.role)
         if args.role == "foreman" and host == "copilot":
             # create_session takes no effort and cannot select the foreman agent file.
             effort = (f"effort: omit ({level} is in the agent file; create_session cannot set "
@@ -908,7 +1041,7 @@ def models_cmd(args) -> tuple[list[str], int]:
         if args.role == "foreman":
             tail.append(f"heartbeat: {models.heartbeat} ({models.heartbeat_seconds()} s)")
         else:
-            tail.append(f"agent: {agent_name(repo, host, args.role)} (spawn this agent exactly)")
+            tail.append(agent)
         if args.role != "foreman" and want == pinned:
             return [f"model: omit (the agent file pins {pinned})", *tail], 0
         if want == INHERIT:
@@ -916,8 +1049,8 @@ def models_cmd(args) -> tuple[list[str], int]:
                 return ["model: omit (inherit)", *tail], 0
             raise ChantierError(f"{src} asks `inherit` but the {args.role} agent file pins {pinned}: "
                            "a spawn cannot unpin it; ask the user", EXIT_PRECONDITION)
-        if _locked(models, args.role, want):
-            raise ChantierError(_locked(models, args.role, want), EXIT_PRECONDITION)
+        if _locked(host, args.role, want, pinned):
+            raise ChantierError(_locked(host, args.role, want, pinned), EXIT_PRECONDITION)
         return [f"model: {want} ({src}; copy this id exactly)", *tail], 0
     # audit
     if host != "copilot":

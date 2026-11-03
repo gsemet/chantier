@@ -34,10 +34,13 @@ TARGETS: list[tuple[Path, str, int]] = [
     (ROOT / "plugin.json", rf'^  "version": "{V}",$', 1),
     (ROOT / ".claude-plugin" / "plugin.json", rf'^  "version": "{V}",$', 1),
     (ROOT / ".claude-plugin" / "marketplace.json", rf'^      "version": "{V}"$', 1),
+    (ROOT / ".github" / "plugin" / "marketplace.json", rf'^ +"version": "{V}",?$', 2),
 ]
 TARGETS += [(p, rf"^# chantier-template: {V}$", 1)
             for p in sorted((SKILL / "assets" / "agents").glob("*.md"))]
 TARGETS += [(p, rf"^# chantier-template: {V}$", 1) for p in sorted((ROOT / "agents").glob("*.md"))]
+TARGETS += [(p, rf"^# chantier-template: {V}$", 1)
+            for p in sorted((ROOT / "com.github.copilot" / "agents").glob("*.agent.md"))]
 
 
 def current() -> str:
