@@ -8,12 +8,10 @@ chantier? Start with the [tutorial](tutorial-claude-code.md).
 > "chantier, prepare yourself to work on this project."
 
 The Chief of Staff reads `AGENTS.md` (or `CLAUDE.md`, or `.github/copilot-instructions.md`) and
-records the gates, the default branch and the CR folders in `.git/chantier/project.json`. It asks
-about what the instructions leave open, with a recommended answer. Nothing is written in your
-tree. When your instructions change, it notices at the next session and updates the profile.
-
-**Your project keeps CRs elsewhere?** Say so ("our change requests live in `docs/changes/`"), or
-write it in `AGENTS.md`: the Chief of Staff records the folders, and every later command uses them.
+tells you the gates and the default branch it will use. It asks about what the instructions leave
+open, with a recommended answer, and offers to write that answer in `AGENTS.md`. There is no other
+configuration: it reads `AGENTS.md` again at every session, and chantier writes only in
+`.agents/changes/`.
 
 ## Turn ideas into ready work
 
@@ -81,9 +79,8 @@ another round.
 
 > "Which agents and models?" · "Back to the default coder."
 
-The team is recorded for your machine. To share it, ask the Chief of Staff to add a sentence to
-`AGENTS.md`: on the next session, it proposes the same team to your colleagues. A running batch
-keeps the team it started with.
+The Chief of Staff writes the team in a `chantier` section of `AGENTS.md`, so your colleagues get
+the same one. The next batch uses it; a running batch keeps the team it started with.
 
 ## Recover after a restart
 

@@ -13,10 +13,11 @@ chantier is three things in one repository:
    and `message-formats.md`. They are written for agents: short, exact, one meaning per word.
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): plain Python with
    no dependency, run by `uv run --script`, on Linux, macOS and Windows. It owns every mechanical
-   step and all the state, in the target repository's `.git/chantier/`:
-   - `project.json`, the project profile: gates, branch, folders and the agents chosen for roles
-     (`chantier project`, `chantier roles`);
-   - `batches/<batch>/`: `batch.json`, `events.jsonl`, the brief and each CR's work folder.
+   step and writes only in the target repository's `.agents/changes/`, as plain JSON and
+   Markdown: `backlog/` (the CR folders, each with a `work/` folder while it runs) and
+   `batches/<batch>/` (`batch.json`, `events.jsonl`, the brief and the report). There is no
+   configuration file: the Chief of Staff reads the project's `AGENTS.md` and passes the gates,
+   the branch and the team to `chantier open`, which records them in `batch.json`.
    The CLI is also where a role meets its agent: `chantier spawn <role> <cr>` prints the agent to
    start and the whole prompt, so the role's contract travels with every spawn and a user's own
    agent gets the same one as ours.

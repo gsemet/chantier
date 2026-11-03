@@ -60,10 +60,9 @@ def running(claude_projects_dir=None):
     items = [prepared(title) for title in ("Fix login timeout", "Add CSV export", "Dark mode")]
     gate = "uv run --no-project python -m compileall -q ."
     extra = ["--claude-projects-dir", claude_projects_dir] if claude_projects_dir else []
-    chantier("project", "set", "--fast-gate", gate, "--long-gate", gate,
-             "--default-branch", "main", *extra)
     chantier("open", "night", *items, "--slots", 2, "--no-worktrees",
-             "--chief-of-staff", "local_chantier_eval")
+             "--chief-of-staff", "local_chantier_eval", "--fast-gate", gate, "--long-gate", gate,
+             "--default-branch", "main", *extra)
     chantier("foreman", "set", "local_foreman_eval")
     chantier("event", "start", "--epoch", 1)
     chantier("agents", "set", "CR-101", "a101", "--epoch", 1)

@@ -1,8 +1,8 @@
-"""The host, the team's roles, the agent each role runs and the prompt each spawn carries.
+"""The host, the team's roles, and the agent each role runs in a batch.
 
-A role runs the plugin's agent unless the project profile names another one
-(`chantier roles set`). A role that is not built in is an extra review step: the CR Driver runs
-it after the Inspector approves, with the task recorded for it.
+A role runs the plugin's agent unless the batch was opened with `--agent <role>=<agent>`, which
+the Chief of Staff reads from the project's AGENTS.md. A review step (`--review
+<name>=<agent>:<task>`) is an extra role: the CR Driver runs it after the Inspector approves.
 """
 from __future__ import annotations
 
@@ -18,9 +18,6 @@ WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "confli
 ROLES = DRIVERS + WORKERS
 RESERVED = {"foreman", "chief-of-staff", "driver", "worker", "stack", "qa"}
 ROLE_NAME = re.compile(r"[a-z][a-z0-9-]{1,40}")
-HEARTBEATS = {"claude": ("55m", 3300), "copilot": ("4m", 240)}
-# The Foreman is a session, not an agent: its model is chosen here, per host.
-FOREMAN = {"claude": ("claude-opus-5-5", "low"), "copilot": ("claude-opus-5.5", None)}
 PLUGIN_NAME = "chantier"
 CR_IN_NAME = re.compile(r"\bCR-\d+\b")
 
@@ -44,13 +41,6 @@ def check_host(host: str) -> str:
     if host not in HOSTS:
         raise ChantierError(f"unknown host `{host}`: one of {', '.join(HOSTS)}", EXIT_USAGE)
     return host
-
-
-def check_role_name(role: str) -> str:
-    if role in RESERVED or not ROLE_NAME.fullmatch(role):
-        raise ChantierError(f"`{role}` cannot be a role: lowercase letters, digits and hyphens, "
-                            f"not one of {', '.join(sorted(RESERVED))}", EXIT_USAGE)
-    return role
 
 
 def plugin_agent_id(role: str, host: str) -> str:
@@ -78,54 +68,38 @@ def local_agent_file(repo_root: Path, agent: str, host: str) -> Path | None:
     return next((p / name for p in places if (p / name).is_file()), None)
 
 
-def agent_model(path: Path | None) -> str | None:
-    """The model an agent file pins, as written (`[name, id]` lists give the id)."""
-    if not path or not path.is_file():
-        return None
-    parts = path.read_text(encoding="utf-8").replace("\r\n", "\n").split("---\n", 2)
-    if len(parts) != 3 or parts[0].strip():
-        return None
-    m = re.search(r"^model:[ \t]*(.+?)[ \t]*$", parts[1], re.M)
-    if not m:
-        return None
-    model = m[1]
-    if model.startswith("[") and model.endswith("]"):
-        model = model[1:-1].split(",")[-1]
-    return model.strip().strip("\"'") or None
+def parse_team(agents: list[str], reviews: list[str]) -> tuple[dict, dict]:
+    """`--agent role=agent` and `--review name=agent:task` into the batch's settings."""
+    chosen, steps = {}, {}
+    for value in agents:
+        role, _, agent = value.partition("=")
+        if role not in ROLES or not agent.strip():
+            raise ChantierError(f"--agent {value}: <role>=<agent>, role one of {', '.join(ROLES)}",
+                                EXIT_USAGE)
+        chosen[role] = agent.strip()
+    for value in reviews:
+        name, _, rest = value.partition("=")
+        agent, _, task = rest.partition(":")
+        if (name in ROLES or name in RESERVED or not ROLE_NAME.fullmatch(name)
+                or not agent.strip() or not task.strip()):
+            raise ChantierError(f"--review {value}: <name>=<agent>:<what it checks>, the name in "
+                                "lowercase letters, digits and hyphens, not a built-in role",
+                                EXIT_USAGE)
+        steps[name] = {"agent": agent.strip(), "task": task.strip()}
+    return chosen, steps
 
 
-def team(settings_agents: dict, host: str, plugin: Path | None, repo_root: Path) -> dict[str, dict]:
-    """Every role of this host: its agent id, where it comes from, its model, and its task."""
-    out: dict[str, dict] = {}
-    chosen = settings_agents.get(host, {}) if isinstance(settings_agents, dict) else {}
-    for role in ROLES:
-        if role in chosen:
-            agent = chosen[role]["agent"]
-            path = local_agent_file(repo_root, agent, host)
-            out[role] = {"agent": agent, "source": "project", "file": path,
-                         "model": agent_model(path), "task": None}
-        else:
-            path = plugin_agent_file(plugin, role, host) if plugin else None
-            out[role] = {"agent": plugin_agent_id(role, host), "source": "plugin",
-                         "file": path if path and path.is_file() else None,
-                         "model": agent_model(path), "task": None}
-    for role, entry in sorted(chosen.items()):
-        if role not in ROLES:
-            path = local_agent_file(repo_root, entry["agent"], host)
-            out[role] = {"agent": entry["agent"], "source": "extra", "file": path,
-                         "model": agent_model(path), "task": entry.get("task")}
-    return out
-
-
-def extra_roles(roles: dict[str, dict]) -> list[str]:
-    return [r for r, e in roles.items() if e["source"] == "extra"]
-
-
-def role_entry(roles: dict[str, dict], role: str) -> dict:
-    if role not in roles:
-        raise ChantierError(f"unknown role `{role}` (roles: {', '.join(roles)})", EXIT_USAGE)
-    entry = roles[role]
-    if entry["source"] == "plugin" and not entry["file"]:
+def agent_for(settings: dict, role: str, host: str, plugin: Path | None) -> tuple[str, str | None]:
+    """The agent a role runs in this batch, and the task of a review step."""
+    if role in settings.get("reviews", {}):
+        step = settings["reviews"][role]
+        return step["agent"], step["task"]
+    if role not in ROLES:
+        names = [*ROLES, *settings.get("reviews", {})]
+        raise ChantierError(f"unknown role `{role}` (roles: {', '.join(names)})", EXIT_USAGE)
+    if role in settings.get("agents", {}):
+        return settings["agents"][role], None
+    if not plugin or not plugin_agent_file(plugin, role, host).is_file():
         raise ChantierError(f"the plugin's agent for {role} is missing: install the chantier "
                             "plugin and restart the session", EXIT_PRECONDITION)
-    return entry
+    return plugin_agent_id(role, host), None

@@ -13,28 +13,17 @@ STAGES = ("inbox", "backlog", "requests", "archives", "trash")
 
 
 def stage_layout(repo: Repo) -> dict[str, Path]:
-    """The five stage folders: the profile's, else `<changes>/backlog/1-inbox` and so on."""
-    base = repo.changes / "backlog"
-    defaults = {"inbox": base / "1-inbox", "backlog": base / "2-backlog",
-                "requests": base / "3-requests", "archives": base / "4-archives",
-                "trash": base / "5-trash"}
-    values = repo.config.get("layout") or {}
-    if not isinstance(values, dict) or set(values) - set(STAGES):
-        raise ChantierError("invalid CR lifecycle paths in the project profile", EXIT_PRECONDITION)
-    paths = {stage: project_path(repo.root, values.get(stage) or default, f"{stage} directory")
-             for stage, default in defaults.items()}
-    for stage, path in paths.items():
-        for other, other_path in paths.items():
-            if stage != other and (path == other_path or path in other_path.parents):
-                raise ChantierError(f"CR lifecycle directories overlap: {stage} and {other}",
-                                    EXIT_USAGE)
-    return paths
+    """The five stage folders, always the same: `.agents/changes/backlog/1-inbox` and so on."""
+    base = repo.changes.resolve() / "backlog"
+    return {"inbox": base / "1-inbox", "backlog": base / "2-backlog",
+            "requests": base / "3-requests", "archives": base / "4-archives",
+            "trash": base / "5-trash"}
 
 
 @contextlib.contextmanager
 def changes_lock(repo: Repo):
-    repo.state.mkdir(parents=True, exist_ok=True)
-    with open(repo.state / "lifecycle.lock", "a+") as lock:
+    repo.changes.mkdir(parents=True, exist_ok=True)
+    with open(repo.changes / ".lifecycle.lock", "a+") as lock:
         deadline = time.monotonic() + 30
         while not _try_lock(lock):
             if time.monotonic() > deadline:

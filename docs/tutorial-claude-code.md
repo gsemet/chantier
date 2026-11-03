@@ -55,10 +55,11 @@ type:
 /chantier:chantier prepare yourself to work on this project
 ```
 
-The Chief of Staff introduces chantier in a few lines, reads your `AGENTS.md`, and records what
-it learned: the gates, the default branch, where CR folders go. It shows you the result and asks
-about anything your instructions do not settle. All of this lives in `.git/chantier/`: your
-working tree is untouched.
+The Chief of Staff introduces chantier in a few lines, reads your `AGENTS.md`, and tells you
+what it learned: the gates and the default branch. It asks about anything your instructions do
+not settle, and offers to write the answer in `AGENTS.md`. It records nothing anywhere else: it
+reads `AGENTS.md` again at every session, and everything chantier writes later goes to
+`.agents/changes/`.
 
 You can check at any time:
 
@@ -140,6 +141,15 @@ can add review steps:
 use my rust-coder agent as the coder
 add a security review with my sec-reviewer agent: OWASP top 10 on the diff
 which agents and models?
+```
+
+The Chief of Staff writes them in a `chantier` section of your `AGENTS.md`:
+
+```markdown
+## chantier
+
+- coder: `rust-coder`
+- security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
 ```
 
 A built-in role keeps its contract (the spawn prompt carries it), so your agent only brings its

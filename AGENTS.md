@@ -2,8 +2,8 @@
 
 - Run `just check` before you hand back; it must pass on Linux, macOS and Windows.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
-- The plugin must work with no setup and write nothing in a user's repository but CR folders:
-  runtime state goes to `.git/chantier/`.
+- The plugin must work with no setup: the user's `AGENTS.md` is the only configuration, and
+  chantier writes only in `.agents/changes/`, as plain JSON and Markdown.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
   per role and host: change a role on both hosts together; their bodies must stay identical.
 - A role's contract lives in `skills/chantier/references/` and travels in the prompt

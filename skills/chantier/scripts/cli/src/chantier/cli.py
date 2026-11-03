@@ -5,12 +5,11 @@ import argparse
 import sys
 
 from . import __version__, commands
-from .lifecycle import STAGES
 from .state import EXIT_USAGE, ChantierError
 
 MAX_LINES = 10
-# A prompt or a team is useless cut short: these print every line.
-FULL_OUTPUT = {"spawn", "roles", "project", "foreman"}
+# A prompt is useless cut short: it prints every line.
+FULL_OUTPUT = {"spawn"}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -29,30 +28,6 @@ def _parser() -> argparse.ArgumentParser:
 
     cmd("preflight", commands.preflight, "check P1 and P4–P8; exit 2 if any fails", False)
 
-    s = cmd("project", commands.project,
-            "show or record what the project's instructions say (kept in .git/chantier)", False)
-    s.add_argument("action", nargs="?", default="show", choices=["show", "set"])
-    s.add_argument("--changes-dir", help="root of the CR folders (default: .agents/changes)")
-    for stage in STAGES:
-        s.add_argument(f"--{stage}", help=f"the {stage} folder, if the project names one "
-                       "(empty: the default)")
-    s.add_argument("--remote", help="git remote (default: origin)")
-    s.add_argument("--default-branch", help="default: the remote's HEAD")
-    s.add_argument("--fast-gate", action="append", help="fast gate command; repeat for several")
-    s.add_argument("--long-gate", action="append", help="long gate command; repeat for several")
-    s.add_argument("--worktrees-dir", help="default: <repo>.worktrees next to the repository")
-    s.add_argument("--first-cr-number", type=int, help="default: 101")
-    s.add_argument("--max-rounds", type=int, help="rounds per CR (default: 3)")
-    s.add_argument("--stale-minutes", type=int, help="ping a silent Driver after (default: 90)")
-    s.add_argument("--claude-projects-dir", help="Claude transcripts (default: ~/.claude/projects)")
-
-    s = cmd("roles", commands.roles, "show the team, or give a role another agent", False)
-    s.add_argument("action", nargs="?", default="show", choices=["show", "set", "reset"])
-    s.add_argument("role", nargs="?")
-    s.add_argument("agent", nargs="?", help="for set: the agent id the host knows")
-    s.add_argument("--task", help="for a new role: what this review step checks")
-    s.add_argument("--host", choices=["claude", "copilot"], help="default: detected")
-
     s = cmd("file", commands.file_cr, "file a request in the inbox", False)
     s.add_argument("item", help="request text, or @path to the raw request")
     s.add_argument("--slug", help="folder name when the inferred slug is already used")
@@ -64,12 +39,6 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("abandon", commands.abandon, "move an explicitly abandoned CR to trash", False)
     s.add_argument("item", help="path to the unclaimed CR folder")
 
-    s = cmd("path", commands.cr_path, "a batch CR's folder, specification or work folder")
-    s.add_argument("cr")
-    s.add_argument("--spec", action="store_true", help="its Change Specification")
-    s.add_argument("--work", action="store_true", help="its work folder (notes, logs, PR body)")
-    s.add_argument("--relative", action="store_true", help="print a project-relative path")
-
     s = cmd("open", commands.open_batch, "open a batch of prepared CR folders", False)
     s.add_argument("batch")
     s.add_argument("items", nargs="+", help="@path to a prepared CR folder or specification")
@@ -79,6 +48,15 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--qa", help="'all' or 1-based item numbers, e.g. 1,3")
     s.add_argument("--no-worktrees", action="store_true")
     s.add_argument("--chief-of-staff", help="the Chief of Staff's session id")
+    s.add_argument("--fast-gate", action="append", help="from AGENTS.md; repeat for several")
+    s.add_argument("--long-gate", action="append", help="from AGENTS.md; repeat for several")
+    s.add_argument("--default-branch", help="default: the remote's HEAD")
+    s.add_argument("--remote", default="origin")
+    s.add_argument("--agent", action="append", metavar="ROLE=AGENT",
+                   help="a role runs this agent (from AGENTS.md); repeatable")
+    s.add_argument("--review", action="append", metavar="NAME=AGENT:TASK",
+                   help="an extra review step after the Inspector; repeatable")
+    s.add_argument("--claude-projects-dir", help="Claude transcripts (default: ~/.claude/projects)")
 
     s = cmd("order", commands.order, "record an order for the Foreman; prints the message")
     s.add_argument("kind", help="add, drop, first, change, merged, pause, resume")
@@ -86,8 +64,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--note")
 
     s = cmd("foreman", commands.foreman,
-            "the Foreman's start prompt, its session, or its transcript", epoch=True)
-    s.add_argument("action", choices=["prompt", "set", "get", "transcript"])
+            "the Foreman's session, or its transcript", epoch=True)
+    s.add_argument("action", choices=["set", "get", "transcript"])
     s.add_argument("value", nargs="?")
 
     s = cmd("status", commands.status, "one line per CR")

@@ -6,7 +6,7 @@ would not follow on its own here, each with its reason.
 ## Words
 
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
-  a folder in the project, by default under `.agents/changes/backlog/`:
+  a folder under `.agents/changes/backlog/`:
 
   ```text
   <slug>/
@@ -15,6 +15,7 @@ would not follow on its own here, each with its reason.
   ├── 02-answers.md        ← every answer the user gave about the CR, whoever asked
   ├── 03-change-spec.md    ← the Change Specification
   ├── evidence/            ← proof a QA driver or Verifier keeps with the CR
+  ├── work/                ← written while it runs: notes, gate logs, the PR body
   └── research/…           ← anything else useful
   ```
 
@@ -23,16 +24,16 @@ would not follow on its own here, each with its reason.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed, unprioritized) →
   `2-backlog/P1…P4/` (the user prioritized it) → `3-requests/` (in a batch, renamed
   `<number>-<slug>`) → `4-archives/` (merged) or back where it came from (dropped);
-  `5-trash/` only on the user's explicit word. A project may name other folders.
+  `5-trash/` only on the user's explicit word.
 - **Batch:** the CRs the user starts together, in parallel or as a stack of PRs. Each CR gets a
   branch `chantier/<batch>/<cr>-<slug>` and a worktree next to the repository.
-- **Work folder:** where the team writes about a running CR (notes, gate logs, the PR body):
-  `$CHANTIER path <cr> --work`. It lives in `.git/chantier/`, never in the project's tree.
-- **Project profile:** what the Chief of Staff learned from the project's instructions (gates,
-  default branch, folders, the agents chosen for roles), recorded with `$CHANTIER project set`
-  and `$CHANTIER roles set` in `.git/chantier/project.json`. A batch keeps a copy of it.
+- **Work folder:** the CR's `work/`; your spawn prompt gives its path.
+- **`.agents/changes/`:** the one folder chantier writes in, as plain JSON and Markdown:
+  `backlog/` (the CR folders) and `batches/<batch>/` (`batch.json`, `events.jsonl`, `brief.md`,
+  `report.md`). The project's `AGENTS.md` is the only configuration: the Chief of Staff reads it
+  and passes the gates, the branch and the team to `$CHANTIER open`.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`).
-  It owns the batch state: `batch.json` and `events.jsonl` in `.git/chantier/batches/<batch>/`.
+  It alone writes `batch.json` and `events.jsonl`.
 
 ## Rules
 

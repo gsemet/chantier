@@ -29,6 +29,7 @@ FAKE_USAGE = Path(__file__).with_name("fake_session_usage.py")
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
 GATE = "uv run --no-project python -m compileall -q ."
+FROM_AGENTS_MD = ("--fast-gate", GATE, "--long-gate", GATE, "--default-branch", "main")
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 
 
@@ -49,7 +50,7 @@ class World:
     def __init__(self, root: Path):
         self.root = root
         self.work = root / "proj"
-        self.state = self.work / ".git" / "chantier"
+        self.state = self.work / ".agents" / "changes"
         self.gh_state = root / "gh-state.json"
         self.env = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
                     "CHANTIER_SKILL_DIR": str(SKILL),
@@ -164,8 +165,7 @@ def driver_round(w: World, cr_id: str, filename: str, content: str) -> None:
          "--quiet", "-m", f"{cr_id}: {filename}", "-m", TRAILER, cwd=wt)
     w.chantier("gate", cr_id)
     w.chantier("report", cr_id, "round-done")
-    _, out = w.chantier("path", cr_id, "--work")
-    body = Path(out[0]) / "pr-body.md"
+    body = w.work / c["path"] / "work" / "pr-body.md"
     if not body.exists():
         code, _ = w.chantier("ship", cr_id, expect=2)
         check(f"{cr_id} cannot ship before its PR body is written", code == 2)
@@ -195,33 +195,18 @@ def scenario(w: World) -> None:
           and out[-1] == "preflight passed")
     check("nothing was written in the working tree", w.sh("git", "status", "--porcelain") == "")
 
-    note("\n## 2. The Chief of Staff learns the project, opens the batch, starts the Foreman")
+    note("\n## 2. The Chief of Staff opens the batch from AGENTS.md and starts the Foreman")
     items = [prepare_cr(w, title) for title in
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
     code, _ = w.chantier("open", "missing-gates", f"@{items[0][1]}", "--no-worktrees", expect=2)
-    check("an unknown gate blocks the batch without moving the prepared CR",
-          code == 2 and "no fast gate recorded" in w.last_stderr and items[0][1].is_dir())
-    w.chantier("project", "set", "--fast-gate", GATE, "--long-gate", GATE,
-               "--default-branch", "main")
-    check("what the project's instructions say is kept in .git/chantier, not in the tree",
-          (w.state / "project.json").is_file()
-          and not any(ln.endswith(("project.json", ".lock"))
-                      for ln in w.sh("git", "status", "--porcelain").splitlines()))
-    check("filed requests start in the default inbox and move intact into the priority backlog",
-          all(not inbox.exists() and backlog.is_dir()
-              and (backlog / "intake/request.md").is_file()
-              and (backlog / "02-answers.md").is_file() for inbox, backlog in items)
-          and all("/backlog/1-inbox/" in inbox.as_posix()
-                  and "/backlog/2-backlog/P1/" in backlog.as_posix()
-                  for inbox, backlog in items))
-    code, _ = w.chantier("open", "raw-title", "Fix login", "--no-worktrees", expect=1)
+    check("a missing gate blocks the batch without moving the prepared CR",
+          code == 2 and "no fast gate" in w.last_stderr and items[0][1].is_dir())
+    code, _ = w.chantier("open", "raw-title", "Fix login", "--no-worktrees", *FROM_AGENTS_MD,
+                         expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
     w.chantier("open", "night", *(f"@{backlog}" for _, backlog in items),
-               "--slots", 2, "--qa", "2", "--budget", 50, "--chief-of-staff", "local_chantier")
-    _, out = w.chantier("foreman", "prompt")
-    check("the Foreman's start prompt names its model, heartbeat, epoch and instructions",
-          out[:3] == ["model: claude-opus-5-5", "effort: low", "heartbeat: 55m"]
-          and out[3].startswith("epoch: 1") and any("references/foreman.md" in ln for ln in out))
+               "--slots", 2, "--qa", "2", "--budget", 50, "--chief-of-staff", "local_chantier",
+               *FROM_AGENTS_MD)
     w.chantier("foreman", "set", "local_foreman1")
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
@@ -233,7 +218,7 @@ def scenario(w: World) -> None:
           and all("/backlog/3-requests/" in c["path"]
                   and (w.work / c["path"] / "intake/request.md").is_file()
                   and (w.work / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
-    check("the batch keeps a copy of the project's gates",
+    check("the batch keeps the gates the Chief of Staff read in AGENTS.md",
           d["settings"]["gates"] == {"fast": [GATE], "long": [GATE]})
     fm.event("start")
     check("the Foreman spawns two Drivers (two slots)", fm.spawned == ["CR-101", "CR-102"])
@@ -387,57 +372,16 @@ def scenario(w: World) -> None:
 
 
 def lifecycle_regressions(w: World) -> None:
-    note("\n## 12. Lifecycle recovery and project-specific paths")
+    note("\n## 12. Lifecycle recovery")
     _, original = prepare_cr(w, "Preserve failed opening")
-    w.chantier("project", "set", "--default-branch", "missing")
-    code, _ = w.chantier("open", "rollback", f"@{original}", expect=4)
+    code, _ = w.chantier("open", "rollback", f"@{original}", "--fast-gate", GATE,
+                         "--long-gate", GATE, "--default-branch", "missing", expect=4)
     check("a failed worktree creation restores the prepared folder",
           code == 4 and (original / "03-change-spec.md").is_file()
           and not (w.state / "batches/rollback/batch.json").exists())
-    w.chantier("project", "set", "--default-branch", "main")
-
-    layout = {"inbox": ".agents/changes/01-inbox", "backlog": ".agents/changes/02-backlog",
-              "requests": ".agents/changes/03-requests", "archives": ".agents/changes/04-archives",
-              "trash": ".agents/changes/05-trash"}
-    w.chantier("project", "set", *(v for stage, path in layout.items()
-                                   for v in (f"--{stage}", path)))
-    _, out = w.chantier("file", "Custom lifecycle")
-    inbox = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
-    (inbox / "03-change-spec.md").write_text("# Custom lifecycle\n\nKeep project paths.\n")
-    (inbox / "evidence.txt").write_text("preserved")
-    _, out = w.chantier("triage", inbox, "--priority", "P2")
-    backlog = w.work / out[0].removeprefix("triaged ").rsplit(" (", 1)[0]
-    w.chantier("open", "custom", f"@{backlog}", "--no-worktrees")
-    custom = w.batch("custom")
-    cr = custom["crs"][0]
-    active = w.work / cr["path"]
-    check("AGENTS-inferred project paths replace all default lifecycle folders",
-          active.parent == w.work / layout["requests"]
-          and (active / "evidence.txt").read_text() == "preserved"
-          and custom["settings"]["layout"] == layout)
-    w.chantier("foreman", "set", "custom-foreman", "--batch", "custom")
-    w.chantier("event", "start", "--batch", "custom", "--epoch", 1)
-    w.chantier("event", "hand-back-ready", cr["id"], "https://github.com/acme/demo/pull/90",
-               "--batch", "custom", "--epoch", 1)
-    w.chantier("order", "merged", cr["id"], "--batch", "custom")
-    w.chantier("event", "--order", "O-1", "--batch", "custom", "--epoch", 1)
-    archived = w.work / w.cr(cr["id"], "custom")["path"]
-    check("the inferred archive path is used after merge",
-          archived.parent == w.work / layout["archives"]
-          and (archived / "evidence.txt").read_text() == "preserved" and not active.exists())
-
-    alt = ".agents/custom-changes"
-    w.chantier("project", "set", "--changes-dir", alt,
-               *(v for stage in layout for v in (f"--{stage}", "")))
-    _, out = w.chantier("file", "Separate changes root")
-    folder = w.work / out[0].removeprefix("filed ").split(";", 1)[0]
-    (folder / "03-change-spec.md").write_text("# Separate changes root\n\nKeep the root.\n")
-    w.chantier("open", "alt", f"@{folder}", "--no-worktrees")
-    wt = w.cr("CR-103")["worktree"]  # cancelled: its worktree is kept
-    code, out = w.chantier("path", w.batch("alt")["crs"][0]["id"], "--batch", "alt", cwd=wt)
-    check("a recorded changes root stays addressable from a CR worktree",
-          code == 0 and Path(out[0]).is_dir()
-          and Path(out[0]).parent == (w.work / alt / "backlog/3-requests").resolve())
+    check("chantier wrote nothing outside .agents/changes",
+          all(line[3:].startswith(".agents/changes/")
+              for line in w.sh("git", "status", "--porcelain", "-uall").splitlines()))
 
 
 def copilot_cost(w: World, d: dict) -> None:
@@ -507,7 +451,7 @@ def copilot_cost(w: World, d: dict) -> None:
     fails("Copilot cost reports a missing command", 2, "not found",
           {"CHANTIER_SESSION_USAGE": missing_command})
     _, missing = prepare_cr(w, "Missing transcript")
-    w.chantier("open", "cost-missing", f"@{missing}", "--no-worktrees")
+    w.chantier("open", "cost-missing", f"@{missing}", "--no-worktrees", *FROM_AGENTS_MD)
     code, out = w.chantier("cost", "--batch", "cost-missing", "--host", "copilot",
                            env=env, expect=2)
     check("a missing Copilot transcript names the session variable",

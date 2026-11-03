@@ -1,8 +1,8 @@
-"""Repository paths, the project profile and the locked batch state.
+"""Repository paths and the locked batch state.
 
-Runtime state lives in `<git-common-dir>/chantier/`: never in the working tree, shared by every
-worktree. `project.json` there is the profile the Chief of Staff records from the project's
-instructions; each batch keeps a copy of it in `batch.json`.
+Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
+Markdown: `backlog/` (the CR folders) and `batches/<batch>/` (`batch.json` holds what the Chief of
+Staff passed to `open` from the project's AGENTS.md).
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
 `msvcrt` on Windows), by atomic rename, and every change appends one event.
@@ -78,22 +78,22 @@ def write_json(path: Path, data) -> None:
     _retry(os.replace, tmp, path)
 
 
-# What the profile may hold, with the value used when it does not say.
+CHANGES = Path(".agents") / "changes"
+# What `chantier open` records in batch.json from the project's AGENTS.md (SETTINGS), and the
+# fixed rules every batch runs on.
 DEFAULT_CONFIG = {
-    "changes_dir": ".agents/changes",
-    "layout": {},
     "default_branch": None,
     "remote": "origin",
+    "gates": {"fast": [], "long": []},
+    "agents": {},
+    "reviews": {},
+    "claude_projects_dir": None,
     "first_cr_number": 101,
-    "worktrees_dir": "",
     "forge": "github",
     "max_rounds": 3,
     "stale_minutes": 90,
-    "gates": {"fast": [], "long": []},
-    "agents": {},
-    "claude_projects_dir": None,
 }
-SETTINGS = tuple(DEFAULT_CONFIG)
+SETTINGS = ("default_branch", "remote", "gates", "agents", "reviews", "claude_projects_dir")
 
 # Statuses a CR can hold. `working` means a live Driver owns it.
 LIVE = {"working", "qa"}
@@ -160,7 +160,7 @@ def move_directory(source: Path, destination: Path) -> None:
 
 
 def apply_batch_settings(repo: "Repo", data: dict) -> None:
-    """A batch runs on the profile it was opened with, whatever changed since."""
+    """A batch runs on the settings it was opened with, whatever changed since."""
     settings = data.get("settings")
     if settings is None:
         return
@@ -176,7 +176,7 @@ class Repo:
     """The main repository, even when called from a CR worktree."""
 
     root: Path
-    state: Path
+    git_dir: Path
     config: dict
 
     @classmethod
@@ -187,52 +187,24 @@ class Repo:
             common = git("rev-parse", "--path-format=absolute", "--git-common-dir", cwd=cwd)
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
-        state = Path(common).resolve() / "chantier"
-        repo = cls(state.parent.parent, state, json.loads(json.dumps(DEFAULT_CONFIG)))
-        repo.config.update(repo.profile())
-        if not repo.config.get("default_branch"):
-            repo.config["default_branch"] = default_branch(repo.root, repo.config["remote"])
-        return repo
-
-    @property
-    def profile_path(self) -> Path:
-        return self.state / "project.json"
-
-    def profile(self) -> dict:
-        """What the Chief of Staff recorded for this project; empty until it records something."""
-        if not self.profile_path.exists():
-            return {}
-        data = _read_json(self.profile_path)
-        if not isinstance(data, dict) or set(data) - set(SETTINGS):
-            raise ChantierError(f"invalid project profile {self.profile_path}; fix it with "
-                                "`chantier project set` or delete it")
-        return data
-
-    def save_profile(self, data: dict) -> None:
-        write_json(self.profile_path, data)
+        git_dir = Path(common).resolve()
+        return cls(git_dir.parent, git_dir, json.loads(json.dumps(DEFAULT_CONFIG)))
 
     @property
     def changes(self) -> Path:
-        return project_path(self.root, self.config["changes_dir"], "changes directory")
+        """`.agents/changes/`: the one folder chantier writes in."""
+        return self.root / CHANGES
 
     @property
     def batches(self) -> Path:
-        return self.state / "batches"
+        return self.changes / "batches"
 
     @property
     def worktrees(self) -> Path:
-        w = self.config.get("worktrees_dir")
-        if not w:
-            return self.root.parent / f"{self.root.name}.worktrees"
-        path = Path(w).expanduser()
-        return path if path.is_absolute() else self.root / path
+        return self.root.parent / f"{self.root.name}.worktrees"
 
     def batch_dir(self, batch: str) -> Path:
         return self.batches / batch
-
-    def work_dir(self, batch: str, cr: str) -> Path:
-        """Where the team writes about a CR while it runs: notes, gate logs, the PR body."""
-        return self.batch_dir(batch) / "work" / cr
 
     def open_batches(self) -> list[str]:
         if not self.batches.exists():

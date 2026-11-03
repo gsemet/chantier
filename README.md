@@ -14,8 +14,8 @@ You only ever talk to the **Chief of Staff**, in your own session.
 It keeps the backlog, asks you the questions a change needs, and starts work only on your go.
 
 1. **It learns your project.** It reads your `AGENTS.md` (or `CLAUDE.md`) for the gates, the
-   default branch and your conventions, asks you what they do not say, and records the answers
-   in `.git/chantier/`: nothing to configure, nothing written in your tree.
+   default branch, your conventions and your team, and asks you what it does not say. There is
+   nothing else to configure.
 2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
    (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
    self-contained **Change Specification** (`03-change-spec.md`).
@@ -31,7 +31,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
 
 Agents never decide mechanics on their own. Every mechanical step goes through the `chantier`
 Python CLI (`uv run`), which owns the batch state: slots, rounds, budget, events, gates, waits,
-ship and cost.
+ship and cost. Everything it writes goes to `.agents/changes/`, as plain JSON and Markdown.
 
 ## Install
 
@@ -78,18 +78,26 @@ Talk to the Chief of Staff in plain language:
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the Foreman, never a direct action on a Driver |
 | "what did it cost?" | measured cost, by role or by CR |
-| "use my `rust-coder` agent as the coder" | that role runs your agent from now on |
+| "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
 | "which agents and models?" | the team: each role, its agent, its model |
 
 ### Your own agents
 
-Any role can run one of your agents: tell the Chief of Staff, or name them in your
-`AGENTS.md` and it will propose the change. The role's contract travels in the spawn prompt, so
-your agent only needs the tools the role uses. A name that is not a built-in role becomes an
-extra review step: it runs after the Inspector approves and answers with the same verdict.
-Your choices are recorded for this machine in `.git/chantier/project.json`; a running batch
-keeps the team it started with.
+Any role can run one of your agents. Tell the Chief of Staff, and it writes it in a `chantier`
+section of your `AGENTS.md`, shared with your team:
+
+```markdown
+## chantier
+
+- coder: `rust-coder`
+- security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
+```
+
+The role's contract travels in the spawn prompt, so your agent only needs the tools the role
+uses. A name that is not a built-in role becomes an extra review step: it runs after the
+Inspector approves and answers with the same verdict. A running batch keeps the team it started
+with.
 
 ### Models
 
@@ -106,20 +114,22 @@ says so; it never picks a look-alike or a workaround.
 
 ### Change Request lifecycle
 
-Unless your project names other folders, each CR moves through:
+Everything lives in `.agents/changes/`:
 
 ```text
-.agents/changes/backlog/
-├── 1-inbox/<slug>/             filed, not prioritized
-├── 2-backlog/P1…P4/<slug>/     prioritized by you
-├── 3-requests/<number>-<slug>/ in a batch: branch chantier/<batch>/…, worktree next to the repo
-├── 4-archives/<number>-<slug>/ merged
-└── 5-trash/<slug>/             abandoned on your word
+.agents/changes/
+├── backlog/
+│   ├── 1-inbox/<slug>/             filed, not prioritized
+│   ├── 2-backlog/P1…P4/<slug>/     prioritized by you
+│   ├── 3-requests/<number>-<slug>/ in a batch: branch chantier/<batch>/…, worktree next to the repo
+│   ├── 4-archives/<number>-<slug>/ merged
+│   └── 5-trash/<slug>/             abandoned on your word
+└── batches/<batch>/                batch.json, events.jsonl, brief.md, report.md
 ```
 
 The folder moves, it is never copied; a dropped CR returns where it came from, and collisions
-are errors rather than overwrites. Everything else (batch state, the team's notes, gate logs,
-PR bodies) lives in `.git/chantier/`.
+are errors rather than overwrites. While a CR runs, the team writes its notes, gate logs and PR
+body in the CR's own `work/` folder.
 
 ## Supported hosts
 
