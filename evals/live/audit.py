@@ -20,7 +20,7 @@ WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "confli
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
 EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(event|heartbeat|cancel|land)\b|agents set")
-WINDOW = 300_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
+WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
 
 
 def records(path: Path):
