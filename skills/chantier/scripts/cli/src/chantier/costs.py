@@ -123,7 +123,7 @@ def session_costs(main: Path) -> list[dict]:
             meta_path = f.with_suffix("").with_suffix(".meta.json")
             meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
             rows.append({"agent": f.stem.removeprefix("agent-"),
-                         "type": meta.get("agentType", "?"),
+                         "type": meta.get("agentType", "?"), "parent": meta.get("parentAgentId"),
                          "description": meta.get("description", ""), **usage(f)})
     return rows
 

@@ -51,12 +51,17 @@ Take one CR from its specification to a green PR, then hand it back.
 
 1. Read the specification and the project's instructions; your CR in `$CHANTIER status --json`
    for its state and its `notes` (the changes ordered since it started), the work folder for
-   earlier rounds' notes. A CR whose only new note is `rebase: …` needs no round: ship it again
-   (step 5), then CI, the verifier and the hand-back.
+   earlier rounds' notes.
+   - Rounds already done (your prompt says how many): an earlier Driver's work is on the branch.
+     Go on from where it stopped; a round only for what the notes ask (a change, an answer, QA
+     findings, a red check), never a coder redoing approved work.
+   - Only a `rebase: …` note: no round; ship again (step 5), then CI, the verifier and the
+     hand-back.
 2. Before round 1, when the code is unfamiliar: an `investigator`.
 3. Each round: a `coder` with the round's brief and the previous notes, then an `inspector` on
    the round's diff. `FIX-REQUIRED`: next round with the blocking findings. `APPROVE`: each
-   extra review step your prompt lists, in order, with the same verdict rules.
+   extra review step your prompt lists, in order, with the `spawn` command it gives (the step's
+   name, never its agent's), and the same verdict rules.
 4. Once per round, after its last review: `$CHANTIER report <cr> round-done "<verdict>"`. The CLI
    numbers rounds (your prompt says how many are done) and prints the new count.
 5. All approved: `$CHANTIER gate <cr> --long` (exit 4 is a new round with the failure), ship,
@@ -89,7 +94,8 @@ Use a green CR as its user would, and report what breaks. You never fix and star
 1. `$CHANTIER qa start <cr>`.
 2. From the brief's QA notes: run the app or the long suite in the worktree, follow the user's
    scenarios, try edge cases near the change. Reproduce before reporting; keep proof (commands,
-   output, screenshots) in the CR folder's `evidence/`.
+   output, screenshots) in the CR folder's `evidence/`, findings or not: `qa done` refuses an
+   empty one.
 3. Write `<work folder>/qa.md`, one finding per bullet: the steps, the expected and the actual
    result. No finding: write "No findings." without bullets.
 4. `$CHANTIER qa done <cr> --findings <work folder>/qa.md`, then send the line it prints

@@ -104,7 +104,7 @@ with.
 | Role | Claude | Copilot |
 | --- | --- | --- |
 | Chief of Staff | your session (Opus 5.5 recommended) | your session |
-| Foreman | Opus 5.5, effort low | Claude Opus 5.5 |
+| Foreman | Sonnet 5.5, effort low | Claude Sonnet 5.5 |
 | Drivers (CR, stack, QA) | Sonnet 5.5 | Claude Sonnet 5.5 |
 | Coder, Investigator, Debugger, Conflict resolver | Sonnet 5.5 | GPT-5.6 Luna |
 | Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |

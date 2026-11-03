@@ -145,4 +145,6 @@ def test_a_role_runs_the_users_agent_and_a_review_step_runs_after_the_inspector(
     assert out[0] == "agent: sec" and "Your review: OWASP top 10" in out
     _, out, _ = chantier("spawn", "cr-driver", "CR-101")
     assert out[1] == "mode: background"
-    assert any(ln.startswith("Extra review steps") and "security-review" in ln for ln in out)
+    assert any(ln.startswith("Extra review steps") and "spawn security-review CR-101" in ln
+               for ln in out)
+    assert chantier("spawn", "sec", "CR-101")[0] == 1  # the step's agent: spawn the step

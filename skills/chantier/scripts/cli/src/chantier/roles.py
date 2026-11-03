@@ -95,6 +95,10 @@ def agent_for(settings: dict, role: str, host: str, plugin: Path | None) -> tupl
         step = settings["reviews"][role]
         return step["agent"], step["task"]
     if role not in ROLES:
+        step = next((n for n, s in settings.get("reviews", {}).items() if s["agent"] == role), None)
+        if step:
+            raise ChantierError(f"`{role}` is the agent of the review step `{step}`: spawn the step, "
+                                f"`chantier spawn {step} <cr>`", EXIT_USAGE)
         names = [*ROLES, *settings.get("reviews", {})]
         raise ChantierError(f"unknown role `{role}` (roles: {', '.join(names)})", EXIT_USAGE)
     if role in settings.get("agents", {}):
