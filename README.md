@@ -61,10 +61,12 @@ Forge: GitHub (`gh`).
 
 ## Install
 
-chantier is a [Claude Code plugin](https://code.claude.com/docs/en/plugins) and an
-[Agent Plugin](https://agent-plugins.org/): the skill plus one agent per role
-(`chantier:foreman`, `chantier:cr-driver`, `chantier:coder`, …), each pinned to its model, effort
-and tools.
+chantier is a [Claude Code plugin](https://code.claude.com/docs/en/plugins), a GitHub Copilot
+plugin and an [Agent Plugin](https://agent-plugins.org/): the skill plus one agent per role and
+host, each pinned to its model, effort and tools. Claude Code and Copilot get different agents:
+their tools and model fields differ.
+
+On Claude Code:
 
 ```bash
 claude plugin marketplace add gsemet/chantier
@@ -74,9 +76,12 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
+On GitHub Copilot, add the marketplace in [`.github/plugin/`](.github/plugin/marketplace.json)
+(`gsemet/chantier`) and install the `chantier` plugin.
+
 Then restart the session. That is all: in any repository, ask the Chief of Staff for a batch.
-Nothing is written in the repository until you start one: no configuration file (defaults
-apply) and no agent file (the plugin ships them).
+There is no setup. Nothing is written in the repository until you start one: no configuration
+file (defaults apply) and no agent file (the plugin ships them).
 
 `.agents/chantier.json` is optional and holds only what differs from the defaults, for example
 the project's gates:
@@ -85,10 +90,18 @@ the project's gates:
 {"gates": {"fast": ["uv run pytest -q"], "long": []}}
 ```
 
-A model override (`~/.config/chantier/models.yml` or `.agents/chantier.models.yml`) needs that
-role's own agent file: ask **"set up chantier"** (it runs `chantier setup`, which writes only the
-overridden roles), then restart the session. On Copilot, `chantier setup` writes every role's agent
-in `.github/agents/`.
+To run your own agent for a role, name it in your repository's `AGENTS.md` (or ask the Chief of
+Staff to do it), one line per role, then restart the session:
+
+```markdown
+- chantier debugger agent: .github/agents/my-debugger.agent.md
+- chantier coder agent: .claude/agents/rust-coder.md
+```
+
+That agent decides its own model, effort and tools. A model change in
+`~/.config/chantier/models.yml` or `.agents/chantier.models.yml` is passed at each spawn on
+Claude Code; where the host cannot honor it (any model change on Copilot, any effort change),
+`chantier models check` says to name your own agent instead.
 
 Besides the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/).
 The CLI is plain Python scripts with PEP 723 inline metadata: there is no package to install,
@@ -117,9 +130,11 @@ Talk to the Chief of Staff in plain language:
 ## Repository layout
 
 ```text
-plugin.json               ← Agent Plugins manifest (agents and skills under `extensions`)
+plugin.json               ← Agent Plugins manifest (the skill under `extensions`)
 .claude-plugin/           ← Claude Code plugin manifest and marketplace
-agents/                   ← the plugin's agents, generated from the templates (`just agents`)
+.github/plugin/           ← GitHub Copilot marketplace
+agents/                   ← the Claude Code agents, generated from the templates (`just agents`)
+com.github.copilot/agents/ ← the GitHub Copilot agents, generated the same way
 skills/chantier/
 ├── SKILL.md              ← entry point and routing
 ├── references/           ← definitions, role cards, capabilities, models, message formats
@@ -136,7 +151,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how the project is built and how a re
 Recipes need [`just`](https://just.systems/) and `uv`:
 
 ```bash
-just check                  # agents up to date, CLI unit tests, whole batch scenario
+just check                  # agents up to date and structure tests (a few seconds)
+just scenario               # optional: one whole batch, end to end, no model
 just agents                 # regenerate agents/ after editing a template or the base models
 just version 1.2.3          # set the version in every file that carries it
 just bump-version           # patch; or `just bump-version minor`, `just bump-version major`

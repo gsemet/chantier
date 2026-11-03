@@ -3,13 +3,13 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Write the agent files the Claude Code plugin ships (`agents/`), from the skill's templates.
+"""Write the agent files the plugin ships, from the skill's templates and base model lists.
 
-    uv run --script scripts/plugin_agents.py           # write agents/*.md
-    uv run --script scripts/plugin_agents.py --check   # exit 1 if agents/ is out of date
+    uv run --script scripts/plugin_agents.py           # write them
+    uv run --script scripts/plugin_agents.py --check   # exit 1 if one is out of date
 
-They carry the skill's base model list only: a user or project override makes `chantier setup`
-install that role's agent in the project instead.
+Claude Code reads `agents/<role>.md`; GitHub Copilot reads
+`com.github.copilot/agents/<role>.agent.md`. Each host gets its own tools and model fields.
 """
 from __future__ import annotations
 
@@ -23,35 +23,39 @@ SKILL = ROOT / "skills" / "chantier"
 sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
 os.environ["CHANTIER_SKILL_DIR"] = str(SKILL)
 
-from chantier.commands import render_plugin_agents  # noqa: E402
+from chantier.commands import COPILOT_PLUGIN_AGENTS, render_plugin_agents  # noqa: E402
 
-AGENTS = ROOT / "agents"
+# host: (folder, file suffix)
+HOSTS = {"claude": ("agents", ".md"), "copilot": (COPILOT_PLUGIN_AGENTS, ".agent.md")}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--check", action="store_true", help="only report files out of date")
     args = parser.parse_args()
-    wanted = render_plugin_agents()
-    stale = [name for name, text in wanted.items()
-             if not (AGENTS / f"{name}.md").exists()
-             or (AGENTS / f"{name}.md").read_text(encoding="utf-8") != text]
-    extra = sorted(p.name for p in AGENTS.glob("*.md") if p.stem not in wanted) \
-        if AGENTS.exists() else []
-    if args.check:
-        for name in stale:
-            print(f"out of date: agents/{name}.md")
-        for name in extra:
-            print(f"not a chantier role: agents/{name}")
-        return 1 if stale or extra else 0
-    AGENTS.mkdir(exist_ok=True)
-    for name in stale:
-        (AGENTS / f"{name}.md").write_text(wanted[name], encoding="utf-8", newline="\n")
-        print(f"wrote agents/{name}.md")
-    for name in extra:
-        (AGENTS / name).unlink()
-        print(f"removed agents/{name}")
-    return 0
+    bad = 0
+    for host, (folder, suffix) in HOSTS.items():
+        wanted = {f"{name}{suffix}": text for name, text in render_plugin_agents(host).items()}
+        out = ROOT / folder
+        stale = [f for f, text in wanted.items()
+                 if not (out / f).exists() or (out / f).read_text(encoding="utf-8") != text]
+        extra = sorted(p.name for p in out.glob("*.md") if p.name not in wanted) \
+            if out.exists() else []
+        if args.check:
+            for f in stale:
+                print(f"out of date: {folder}/{f}")
+            for f in extra:
+                print(f"not a chantier role: {folder}/{f}")
+            bad += len(stale) + len(extra)
+            continue
+        out.mkdir(parents=True, exist_ok=True)
+        for f in stale:
+            (out / f).write_text(wanted[f], encoding="utf-8", newline="\n")
+            print(f"wrote {folder}/{f}")
+        for f in extra:
+            (out / f).unlink()
+            print(f"removed {folder}/{f}")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
