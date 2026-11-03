@@ -20,7 +20,7 @@ is a stop: `hand-back blocked refused <exact text>`.
 ## Reporting
 
 - Milestones go to the state, not to the Foreman: `$CHANTIER report <cr> <kind> [<note>]` with
-  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "<verdict>"`,
+  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "<verdict>"`, `draft <path>`,
   `note <text>`.
 - Messages to the Foreman, one line each ([formats](message-formats.md)): `hand-back`,
   `anomaly`. On Claude, `SendMessage` to `main`; on Copilot, your final answer.
@@ -103,3 +103,55 @@ Use a green CR as its user would, and report what breaks. You never fix and star
 
 The app cannot start (screen locked, missing device): `[qa <cr>→foreman] qa done <cr> 1 findings`
 with that one finding in `qa.md`.
+
+## Release driver
+
+Run one release CR by the project's own procedure. Every project releases differently: a tag, a
+release commit, heavy checks, notes edited by hand. The procedure is the project's, so follow
+what it says and add nothing from habit. You never fix code and start no children: a defect
+becomes a fix CR that a CR Driver codes. A release can break production, so take the initiative
+inside the procedure and the grant, and ask for anything beyond them.
+
+**Irreversible action:** anything that cannot be taken back, or that others see or receive. For
+example a pushed tag, a release commit on the default branch, a merged release PR, a published
+package, a sent announcement. If you hesitate, it is one.
+
+1. Read the specification: the version, the scope, where the procedure is, what the user reviews.
+   Your prompt gives the release grant. Read the procedure. Missing, or a step you cannot follow
+   as written: `hand-back blocked question: <what is missing>`.
+2. Your notes in the work folder and the CR's `notes` say where you are:
+   - No attempt yet, or a `fix:` note newer than your last attempt: a new attempt.
+     `$CHANTIER release start <cr>` moves the branch to the fresh default branch; follow the
+     procedure from its first step, whatever had passed before.
+   - `approved:`, `grant:` or an answer: go on from the step your notes name.
+3. Early, write whatever the procedure has a person review or edit (release notes, an
+   announcement) in the work folder, then `$CHANTIER report <cr> draft <path>`: the user gets the
+   link and can edit the file for as long as the release runs. Read it again each time you use
+   it, and never rewrite it once reported: a change you want is a question.
+4. Run each step in the worktree. After each, note it in `<work folder>/release.md`, and keep the
+   commands and their output in the CR folder's `evidence/`. A step that takes long runs in a
+   background shell: end your turn and let its result wake you. If the procedure goes through a
+   PR, ship and wait as under [Shipping](#shipping) and [Waiting for CI](#waiting-for-ci).
+5. Before each irreversible action: `$CHANTIER release go <cr> --note "<the action>"`.
+   - `go`: do that action and nothing more. A release PR merges with `$CHANTIER merge <cr>
+     --method <the procedure's>`; anything else with the procedure's own command.
+   - Exit 2: send the line it prints, adding the drafts' paths, and end. A new Driver goes on
+     after the user's approval. Exit 5: the budget is spent; the same.
+6. A release is out: `$CHANTIER release published <cr> --note "<version> <link>"`, then the
+   procedure's checks that it works.
+7. A step fails:
+   - The product (a test, a build, a broken release): write the steps, the expected and the
+     actual result in `<work folder>/fix-<n>.md`, then `hand-back blocked fix: <one line>; <path>`.
+     A new attempt follows once the fix is merged. A release already out is fixed by another
+     release, with its own version and its own approval or grant.
+   - The infrastructure (a runner, the network): run it again once, then
+     `hand-back blocked infra: <text>`.
+   - Half-done irreversible work (a tag pushed, the publish failed): stop, and say exactly what
+     is out in `hand-back blocked question: <text>`. Never undo it on your own.
+8. Out and checked: write `<work folder>/retro.md`, what went wrong or slowly and, for each, the
+   long-term fix you propose as a CR, in one line. Then
+   `[driver <cr>→foreman] hand-back ready <release link or tag>`, and end.
+
+Propose when it helps, never assume: when a failed release will take several attempts, ask for a
+grant (`hand-back blocked question: allow up to 3 fix releases and the automatic merge of their
+fixes, within $20?`). Only the user widens the grant.

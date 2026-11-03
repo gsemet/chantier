@@ -27,6 +27,9 @@ wait on CI, and the Chief of Staff steers with `chantier order`. It covers:
 - `land` refused while PRs are open, then landing after the merges;
 - Claude cost by CR; Copilot cost by role and CR, estimated calls, updates and failures;
 - prepared-CR filing, lifecycle moves, collisions and rollback;
+- a release: it waits for the batch's other CRs, an irreversible action refused then approved, a
+  fix CR and a new attempt, a grant (fixes merged by the CLI, a merge the forge refuses, the
+  budget, the number of releases);
 - the event log.
 
 The transcript goes to `scenario/results/<forge>-<time>.md` (not committed); exit 1 if any check

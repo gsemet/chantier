@@ -4,18 +4,24 @@ Every function mutates the locked batch and returns action lines, in the order t
 do them. An action line is a verb and its arguments:
 
     spawn cr-driver <cr> [<note>]   start the CR's Driver in the background (`chantier spawn`)
+    spawn release-driver <cr> [<note>]   the same for the release CR
     spawn qa-driver <cr>            start the CR's QA driver
     spawn stack-driver stack        start the stack driver; `message stack restack` when it is live
     cancel <cr>                     stop the CR's Driver, then `chantier cancel <cr>`
+    merge <cr>                      `chantier merge <cr>`: a fix the user allowed the CLI to merge
     message <cr> <text>             message the CR's Driver
     ask-chief-of-staff <kind> <text>   one message to the Chief of Staff
     land                            `chantier land`
     ok <what>                       confirm an order to the Chief of Staff (after a merge, it names
                                     the ready CRs sent back to rebase)
     none                            nothing to do
+
+A release CR waits until every other CR of its batch is merged or cancelled: it releases what is
+merged. A fix CR (`order fix`) is one the release found; the release starts again once it merges.
 """
 from __future__ import annotations
 
+import re
 import subprocess
 
 from .lifecycle import archive_cr, return_cr
@@ -25,7 +31,8 @@ DRIVER_EVENTS = {"hand-back-ready", "hand-back-blocked", "anomaly", "qa-done", "
                  "driver-done"}
 MAX_RESUMES = 2
 ORDER_EVENTS = {"order-add", "order-drop", "order-first", "order-change", "order-merged",
-                "order-pause", "order-resume"}
+                "order-pause", "order-resume", "order-fix", "order-approve", "order-grant"}
+MERGE_METHODS = ("rebase", "squash", "merge")
 BATCH_EVENTS = {"start", "tick"}
 EVENTS = DRIVER_EVENTS | ORDER_EVENTS | BATCH_EVENTS
 
@@ -43,12 +50,22 @@ def _over_budget(b: Batch) -> bool:
     return bool(budget) and b.data.get("spent_usd", 0) >= budget
 
 
+def driver_role(c: dict) -> str:
+    return "release-driver" if c.get("kind") == "release" else "cr-driver"
+
+
+def _others_merged(b: Batch, c: dict) -> bool:
+    return all(x["status"] in {"merged", "cancelled", "landed"} for x in b.data["crs"] if x is not c)
+
+
 def fill_slots(b: Batch) -> list[str]:
     """Spawn queued CRs while slots are free, the batch is not paused and budget remains."""
     out: list[str] = []
     if b.data.get("paused"):
         return out
     for c in _queued(b):
+        if c.get("kind") == "release" and not _others_merged(b, c):
+            continue
         if len(_live(b)) >= b.data["slots"]:
             break
         if _over_budget(b):
@@ -58,12 +75,13 @@ def fill_slots(b: Batch) -> list[str]:
             break
         b.touch(c, status="working")
         b.log("spawn", c["id"])
-        out.append(f"spawn cr-driver {c['id']}")
+        out.append(f"spawn {driver_role(c)} {c['id']}")
     return out
 
 
 def _stack_ready(b: Batch) -> bool:
-    active = [c for c in b.data["crs"] if c["status"] not in {"cancelled", "merged", "landed"}]
+    active = [c for c in b.data["crs"] if c["status"] not in {"cancelled", "merged", "landed"}
+              and c.get("kind") != "release"]
     return bool(active) and all(c["status"] in {"ready", "blocked"} for c in active)
 
 
@@ -127,8 +145,18 @@ def _on_tick(b: Batch, _cr: str, _note: str) -> list[str]:
 
 def _on_hand_back_ready(b: Batch, cr_id: str, note: str) -> list[str]:
     c = b.cr(cr_id)
+    if c.get("kind") == "release":  # released: nothing is left to merge
+        c["released"] = note.split()[0] if note else None
+        archive_cr(b, c)
+        b.touch(c, status="merged")
+        return [f"ask-chief-of-staff released {cr_id} {c['released'] or '-'}"] \
+            + (["land"] if _all_merged(b) else fill_slots(b))
     if note.startswith("http"):
         c["pr"] = note.split()[0]
+    if c.get("kind") == "fix" and (b.data.get("release") or {}).get("auto_merge") \
+            and not (c.get("qa") and not c.get("qa_done")):
+        b.touch(c, status="ready")
+        return [f"merge {cr_id}"] + fill_slots(b)
     out: list[str] = []
     if c.get("qa") and not c.get("qa_done"):
         b.touch(c, status="qa")
@@ -167,7 +195,7 @@ def _on_anomaly(b: Batch, cr_id: str, note: str) -> list[str]:
     if previous == "working":
         return [f"message {cr_id} round {note}"]
     # The Driver ended with its hand-back: a new one resumes the CR with the finding.
-    return [f"spawn cr-driver {cr_id} resume round: {note}"]
+    return [f"spawn {driver_role(c)} {cr_id} resume round: {note}"]
 
 
 def _on_qa_done(b: Batch, cr_id: str, note: str) -> list[str]:
@@ -192,7 +220,7 @@ def _on_driver_lost(b: Batch, cr_id: str, _note: str) -> list[str]:
         return [f"ask-chief-of-staff blocked {cr_id} its Driver ended {c['resumes']} times without a "
                 "hand-back"] + fill_slots(b)
     b.touch(c, agent=None)
-    return [f"spawn cr-driver {cr_id} resume"]
+    return [f"spawn {driver_role(c)} {cr_id} resume"]
 
 
 def _on_driver_done(b: Batch, cr_id: str, note: str) -> list[str]:
@@ -264,15 +292,21 @@ def _on_order_merged(b: Batch, cr_id: str, note: str) -> list[str]:
         return [f"ok merged {cr_id} already merged"]
     if c["status"] == "cancelled":
         raise ChantierError(f"cannot mark cancelled {cr_id} merged")
+    extra, actions = merged(b, c)
+    return [f"ok merged {cr_id}{extra}"] + actions
+
+
+def merged(b: Batch, c: dict) -> tuple[str, list[str]]:
+    """Archive a merged CR. Returns what to add to the news (the ready CRs sent back to rebase)
+    and the actions that follow."""
     archive_cr(b, c)
     b.touch(c, status="merged")
     if _all_merged(b):
-        return [f"ok merged {cr_id}", "land"]
+        return "", ["land"]
     if b.data["mode"] == "stack":
-        return [f"ok merged {cr_id}", _restack(b)] + fill_slots(b)
+        return "", [_restack(b)] + fill_slots(b)
     rebase = _rebase_ready(b)
-    return [f"ok merged {cr_id}" + (f"; rebase {' '.join(rebase)}" if rebase else "")] \
-        + fill_slots(b)
+    return (f"; rebase {' '.join(rebase)}" if rebase else ""), fill_slots(b)
 
 
 def _rebase_ready(b: Batch) -> list[str]:
@@ -305,3 +339,87 @@ def _on_order_resume(b: Batch, _cr: str, _note: str) -> list[str]:
     b.data["paused"] = False
     b.data["budget_asked"] = False
     return ["ok resume"] + fill_slots(b)
+
+
+# ---- the release ------------------------------------------------------------------------------
+
+def _release(b: Batch, cr_id: str) -> dict:
+    c = b.cr(cr_id)
+    if c.get("kind") != "release":
+        raise ChantierError(f"{cr_id} is not the batch's release CR", EXIT_USAGE)
+    return c
+
+
+def _back_to_release(b: Batch, c: dict, note: str, verb: str) -> list[str]:
+    """Record a note for the release's Driver: a live one is told, an ended one is queued."""
+    c.setdefault("notes", []).append(note)
+    b.touch(c)
+    if c["status"] in LIVE:
+        return [f"message {c['id']} {note}", f"ok {verb} {c['id']}"]
+    if c["status"] in {"ready", "blocked"}:
+        b.touch(c, status="queued")
+    return [f"ok {verb} {c['id']}"] + fill_slots(b)
+
+
+def _on_order_fix(b: Batch, cr_id: str, note: str) -> list[str]:
+    """A fix the release needs: a CR of the batch; the release starts again once it merges."""
+    from .commands import add_cr  # avoid an import cycle
+    release = _release(b, cr_id)
+    fix = add_cr(b, note)
+    fix.update(kind="fix", fix_for=cr_id)
+    out = _back_to_release(b, release, f"fix: {fix['id']} must merge first; then start the "
+                           "procedure again from its first step", "fix")
+    return [a.replace(f"ok fix {cr_id}", f"ok fix {fix['id']} for {cr_id}") for a in out]
+
+
+def _on_order_approve(b: Batch, cr_id: str, note: str) -> list[str]:
+    """The user approved one irreversible action; `chantier release go` spends it."""
+    c = _release(b, cr_id)
+    if not note.strip():
+        raise ChantierError("order approve needs the action the user approved", EXIT_USAGE)
+    c.setdefault("approvals", []).append(note.strip())
+    return _back_to_release(b, c, f"approved: {note.strip()}", "approve")
+
+
+GRANT = f"releases=<n> auto-merge=<{'|'.join(MERGE_METHODS)}|off> budget=<usd>"
+
+
+def parse_grant(text: str) -> dict:
+    """What the user allows without asking: a number of releases, the merge of fixes, and the
+    budget they run within. Any of the three."""
+    grant = {}
+    for word in text.split():
+        key, _, value = word.partition("=")
+        if key == "releases" and value.isdigit():
+            grant["autonomous"] = int(value)
+        elif key == "auto-merge" and value in (*MERGE_METHODS, "off"):
+            grant["auto_merge"] = None if value == "off" else value
+        elif key == "budget" and re.fullmatch(r"\d+(\.\d+)?", value) and float(value) > 0:
+            grant["budget_usd"] = float(value)
+        else:
+            raise ChantierError(f"grant: `{GRANT}`, any of them; not {word!r}", EXIT_USAGE)
+    if not grant:
+        raise ChantierError(f"grant: `{GRANT}`, any of them", EXIT_USAGE)
+    return grant
+
+
+def check_grant(release: dict, budget: float | None) -> None:
+    """Autonomy is always bounded by a budget."""
+    if (release.get("autonomous") or release.get("auto_merge")) and not budget:
+        raise ChantierError("a release grant needs a batch budget: `budget=<usd>` (or `open "
+                            "--budget`)", EXIT_USAGE)
+
+
+def _on_order_grant(b: Batch, cr_id: str, note: str) -> list[str]:
+    c = _release(b, cr_id)
+    grant = parse_grant(note)
+    if "budget_usd" in grant:
+        b.data["budget_usd"] = grant.pop("budget_usd")
+        b.data["budget_asked"] = False
+    b.data["release"].update(grant)
+    check_grant(b.data["release"], b.data.get("budget_usd"))
+    if c["status"] == "blocked" and (c.get("blocked_reason") or "").startswith("fix:"):
+        c.setdefault("notes", []).append(f"grant: {note.strip()}")  # it waits for its fix
+        b.touch(c)
+        return [f"ok grant {cr_id}"]
+    return _back_to_release(b, c, f"grant: {note.strip()}", "grant")

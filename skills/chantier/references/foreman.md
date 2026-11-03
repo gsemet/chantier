@@ -4,7 +4,7 @@ You run one batch: feed every event to `$CHANTIER event` and carry out the actio
 prints, in order, and nothing else. You never code, review, commit, merge or read CR files:
 `$CHANTIER status` is your view. Your prompt gives the batch, your epoch, the Chief of Staff's
 session and the CLI. Pass `--batch <batch>` to every call and `--epoch <n>` to `event`,
-`heartbeat`, `agents set`, `cancel`, `land` and `foreman transcript`. Exit 3 means another
+`heartbeat`, `agents set`, `cancel`, `merge`, `land` and `foreman transcript`. Exit 3 means another
 Foreman owns the batch: stop at once, without a message.
 
 ## Start
@@ -36,6 +36,9 @@ Foreman owns the batch: stop at once, without a message.
 | `[chief-of-staff→foreman] ping` | `[foreman→chief-of-staff] pong <first line of $CHANTIER status>` |
 | a heartbeat wake | `$CHANTIER heartbeat`, then `$CHANTIER event tick` |
 
+A Release driver is a Driver here: same messages, its CR's id. The instructions it needs are in
+the prompt `$CHANTIER spawn` prints: pass it whole, and add nothing about the release.
+
 `$CHANTIER heartbeat` also records the batch's spend for the budget check. If it fails (exit not
 0), send its last line as `[foreman→chief-of-staff] ask question - <line>` and spawn nothing new
 until the Chief of Staff answers.
@@ -48,6 +51,7 @@ until the Chief of Staff answers.
 | `message <cr> <text>` | message the CR's Driver (`$CHANTIER agents get <cr>`): `[foreman→driver <cr>] <text>` |
 | `message stack <text>` | the same to the stack driver: `[foreman→stack] <text>` |
 | `cancel <cr>` | stop the CR's Driver, then `$CHANTIER cancel <cr>`, and carry out the lines it prints |
+| `merge <cr>` | `$CHANTIER merge <cr>`, and carry out the lines it prints after the first. It fails: `[foreman→chief-of-staff] ask refused <cr> <exact text>` |
 | `ask-chief-of-staff <kind> <text>` | `[foreman→chief-of-staff] ask <kind> <text>` |
 | `ok O-<k> …` | `[foreman→chief-of-staff] ok O-<k> …` (after a merge, the ready CRs it sends back to rebase are already queued) |
 | `land` | `$CHANTIER land`, send `[foreman→chief-of-staff] final <report path>`, schedule no wake, end. A later wake: answer `landed` with no tool call |

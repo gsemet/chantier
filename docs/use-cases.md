@@ -64,6 +64,29 @@ A QA driver uses the change as a user would, from the running app or CLI in the 
 and keeps its proof in the CR's `evidence/`. Each finding becomes a new round for the CR; it comes
 back to you only when QA finds nothing.
 
+## Make a release
+
+Say "release v1.4.0" once the work is merged and validated. Your project describes how it
+releases, in `AGENTS.md` or a document it links: a tag, a release commit, heavy checks, notes
+edited by hand. chantier adds no procedure of its own; if yours is missing or unclear, the Chief
+of Staff asks you and offers to write the answer in the project.
+
+A Release driver follows that procedure and stops before each irreversible action, such as a
+pushed tag or a published package, until you approve it. Release notes wait in the CR's folder
+from the start: you get a link and can edit them while the release runs.
+
+When a step finds a defect, the driver does not fix it: a fix CR goes to a CR Driver and, once it
+is merged, the procedure starts again from its first step. For a release that may take several
+attempts, you can allow more up front, always within a budget:
+
+| You say | What it allows |
+| --- | --- |
+| "up to 3 releases without asking, budget $20" | irreversible actions go ahead, up to that number of releases |
+| "merge the fixes yourself, by rebase" | the CLI merges a release's ready fixes, if the forge gives it the rights |
+
+Once the release is out, the driver writes a retrospective and proposes long-term fixes; each
+becomes a CR only on your word.
+
 ## Use your own agents
 
 > "Use my `rust-coder` agent as the coder."

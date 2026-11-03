@@ -27,7 +27,10 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review step you added. It
    ships a PR and waits for CI.
 6. **The Foreman reports back.** You steer through the Chief of Staff (add, drop, reorder a CR;
-   "I merged #42"); it forwards one `order` line to the Foreman. You merge; chantier never does.
+   "I merged #42"); it forwards one `order` line to the Foreman. You merge; chantier does not,
+   unless you allow it for a release's fixes.
+7. **A Release driver releases, when you ask.** It follows your project's own procedure, and
+   stops for your approval before each irreversible action.
 
 Agents never decide mechanics on their own. Every mechanical step goes through the `chantier`
 Python CLI (`uv run`), which owns the batch state: slots, rounds, budget, events, gates, waits,
@@ -77,6 +80,7 @@ Talk to the Chief of Staff in plain language:
 | "run the P1s", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the Foreman, never a direct action on a Driver |
+| "release v1.4.0" | a release CR, run by your project's procedure; you approve each irreversible action |
 | "what did it cost?" | measured cost, by role or by CR |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
@@ -105,7 +109,7 @@ with.
 | --- | --- | --- |
 | Chief of Staff | your session (Opus 5.5 recommended) | your session |
 | Foreman | Sonnet 5.5, effort low | Claude Sonnet 5.5 |
-| Drivers (CR, stack, QA) | Sonnet 5.5 | Claude Sonnet 5.5 |
+| Drivers (CR, stack, QA, release) | Sonnet 5.5 | Claude Sonnet 5.5 |
 | Coder, Investigator, Debugger, Conflict resolver | Sonnet 5.5 | GPT-5.6 Luna |
 | Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
 

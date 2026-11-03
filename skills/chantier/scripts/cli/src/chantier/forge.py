@@ -190,6 +190,18 @@ def pr_edit(cwd, config: dict, pr: str, body_file: str | None = None, base: str 
     _gh(f, *args, cwd=cwd)
 
 
+def pr_merge(cwd, config: dict, pr: str, method: str) -> None:
+    """Merge a PR now, by `rebase`, `squash` or `merge`; the forge's own rules (branch protection,
+    rights, required checks) decide, and a refusal is an error. On GitLab the merge method is the
+    project's setting: `squash` asks for a squash, the others take the project's method."""
+    f = _forge(cwd, config)
+    if f.kind == "gitlab":
+        fields = {"squash": "true"} if method == "squash" else {}
+        _api(f, cwd, f"merge_requests/{_mr(pr)}/merge", "PUT", **fields)
+        return
+    _gh(f, "pr", "merge", pr, f"--{method}", cwd=cwd)
+
+
 def pr_checks(cwd, config: dict, pr: str) -> list[dict]:
     """Checks of a PR: name, bucket (pass, fail, pending, skipping, cancel) and link. On GitLab,
     the jobs of the merge request's pipeline for its current head."""

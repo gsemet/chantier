@@ -32,6 +32,11 @@ if path == "merge_requests" and method == "POST":
     state["next_pr"] = n + 1
     json.dump(state, open(state_path, "w"))
     print(json.dumps({"iid": n, "web_url": f"{URL}/-/merge_requests/{n}"}))
+elif re.fullmatch(r"merge_requests/\d+/merge", path) and method == "PUT":
+    if state.get("merge_refused"):
+        print("fake glab: not allowed to merge", file=sys.stderr)
+        sys.exit(1)
+    print("{}")
 elif re.fullmatch(r"merge_requests/\d+", path) and method == "PUT":
     print("{}")
 elif re.fullmatch(r"merge_requests/\d+", path):
