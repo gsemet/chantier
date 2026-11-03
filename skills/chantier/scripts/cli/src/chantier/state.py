@@ -1,22 +1,68 @@
 """Repository paths, configuration and the locked batch state.
 
-Only this module writes `batch.json` and `events.jsonl`: under an exclusive `fcntl` lock, by
-atomic rename, and every change appends one event.
+Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
+`msvcrt` on Windows), by atomic rename, and every change appends one event.
 """
 from __future__ import annotations
 
 import contextlib
-import fcntl
 import json
 import os
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
 EXIT_OK, EXIT_USAGE, EXIT_PRECONDITION, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_BUDGET = 0, 1, 2, 3, 4, 5
 LOCK_TIMEOUT_S = 30
+
+
+def _try_lock(f) -> bool:
+    """Take the exclusive lock on an open lock file without waiting; False if another holds it."""
+    if sys.platform == "win32":
+        f.seek(0)
+        try:
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError:
+            return False
+        return True
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    return True
+
+
+def _unlock(f) -> None:
+    if sys.platform == "win32":
+        f.seek(0)
+        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(f, fcntl.LOCK_UN)
+
+
+def _retry(op, *args):
+    """Windows refuses to open a file while another process renames over it, and to rename over
+    one another process has open: both are brief, so try again for up to a second."""
+    for _ in range(100):
+        try:
+            return op(*args)
+        except PermissionError:
+            if sys.platform != "win32":
+                raise
+            time.sleep(0.01)
+    return op(*args)
+
+
+def _read_json(path: Path):
+    return json.loads(_retry(path.read_text))
 
 DEFAULT_CONFIG = {
     "changes_dir": ".agents/changes",
@@ -63,6 +109,14 @@ def git(*args: str, cwd: Path | str | None = None, check: bool = True) -> str:
     return p.stdout.strip()
 
 
+def default_branch(root: Path, remote: str = "origin") -> str:
+    """The remote's HEAD branch, else the current branch, else `main`."""
+    head = git("symbolic-ref", "--short", f"refs/remotes/{remote}/HEAD", cwd=root, check=False)
+    if head:
+        return head.split("/", 1)[-1]
+    return git("branch", "--show-current", cwd=root, check=False) or "main"
+
+
 @dataclass
 class Repo:
     """The main repository, even when called from a CR worktree."""
@@ -79,10 +133,12 @@ class Repo:
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
         root = Path(common).resolve().parent
-        cfg = dict(DEFAULT_CONFIG)
         path = root / ".agents" / "chantier.json"
-        if path.exists():
-            cfg.update(json.loads(path.read_text()))
+        # optional: it holds only what differs from the defaults
+        own = json.loads(path.read_text()) if path.exists() else {}
+        cfg = {**DEFAULT_CONFIG, **own}
+        if "default_branch" not in own:
+            cfg["default_branch"] = default_branch(root, cfg["remote"])
         return cls(root, cfg)
 
     @property
@@ -113,7 +169,7 @@ class Repo:
         for d in self.batches.iterdir():
             f = d / "batch.json"
             if f.exists():
-                b = json.loads(f.read_text())
+                b = _read_json(f)
                 if b.get("status") != "landed":
                     open_batches.append((b.get("created", ""), d.name))
         if not open_batches:
@@ -138,19 +194,15 @@ class Batch:
         self.dir.mkdir(parents=True, exist_ok=True)
         self._lock = open(self.dir / ".lock", "a+")
         deadline = time.monotonic() + LOCK_TIMEOUT_S
-        while True:
-            try:
-                fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.monotonic() > deadline:
-                    raise ChantierError(f"batch {self.id} is locked for over {LOCK_TIMEOUT_S} s")
-                time.sleep(0.05)
+        while not _try_lock(self._lock):
+            if time.monotonic() > deadline:
+                raise ChantierError(f"batch {self.id} is locked for over {LOCK_TIMEOUT_S} s")
+            time.sleep(0.05)
         path = self.dir / "batch.json"
         if path.exists():
             if self._create is not None:
                 raise ChantierError(f"batch {self.id} already exists")
-            self.data = json.loads(path.read_text())
+            self.data = _read_json(path)
         else:
             self.data = self._create
         return self
@@ -160,14 +212,14 @@ class Batch:
             if exc_type is None and self._events:
                 tmp = self.dir / "batch.json.tmp"
                 tmp.write_text(json.dumps(self.data, indent=2) + "\n")
-                os.replace(tmp, self.dir / "batch.json")
+                _retry(os.replace, tmp, self.dir / "batch.json")
                 with open(self.dir / "events.jsonl", "a") as f:
                     for e in self._events:
                         f.write(json.dumps(e) + "\n")
         finally:
             with contextlib.suppress(Exception):
-                fcntl.flock(self._lock, fcntl.LOCK_UN)
-                self._lock.close()
+                _unlock(self._lock)
+            self._lock.close()
 
     def log(self, kind: str, cr: str | None = None, **fields) -> None:
         self._events.append({"t": now(), "actor": self.actor, "kind": kind, "cr": cr, **fields})
@@ -202,7 +254,7 @@ def read_batch(repo: Repo, batch_id: str) -> dict:
     path = repo.batch_dir(batch_id) / "batch.json"
     if not path.exists():
         raise ChantierError(f"unknown batch {batch_id}")
-    return json.loads(path.read_text())
+    return _read_json(path)
 
 
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
@@ -213,7 +265,7 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
         for d in sorted(repo.batches.iterdir(), reverse=True):
             f = d / "batch.json"
             if f.exists():
-                b = json.loads(f.read_text())
+                b = _read_json(f)
                 if b.get("status") != "landed" and any(c["id"] == cr_id for c in b["crs"]):
                     return d.name
     raise ChantierError(f"no open batch holds {cr_id}", EXIT_USAGE)
@@ -224,7 +276,11 @@ def next_cr_number(repo: Repo) -> int:
     repo.changes.mkdir(parents=True, exist_ok=True)
     counter = repo.changes / ".chantier-counter"
     with open(repo.changes / ".chantier-counter.lock", "a+") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        n = int(counter.read_text()) + 1 if counter.exists() else 101
-        counter.write_text(str(n))
+        while not _try_lock(lock):
+            time.sleep(0.05)
+        try:
+            n = int(counter.read_text()) + 1 if counter.exists() else 101
+            counter.write_text(str(n))
+        finally:
+            _unlock(lock)
     return n

@@ -50,7 +50,7 @@ your host does not exist: the action is refused, never replaced.
 
 | Generic | Claude Code | Copilot |
 | --- | --- | --- |
-| Spawn a Driver | `Agent`, `run_in_background: true` | `task`, `mode: background`, `agent_type: <role>` |
+| Spawn a Driver | `Agent`, `run_in_background: true`, `subagent_type: <agent>` | `task`, `mode: background`, `agent_type: <agent>` |
 | Message a Driver | `SendMessage` to the agent id | `write_agent` to the agent id |
 | Message the Chief of Staff | `SendMessage` to its session id | `send_message` to its session link |
 | Stop a Driver | `TaskStop` | none: `write_agent` `[foreman→driver <cr>] stop`, it ends at its next turn |
@@ -68,8 +68,9 @@ your host does not exist: the action is refused, never replaced.
 | `none`, `none landed` | nothing |
 
 Before each spawn, run `$CHANTIER models get <role> --cr <cr>` and do exactly what it prints:
-`model: omit` passes no `model`; `model: <id>` passes that id, character for character
-([models](models.md)).
+`agent: <agent>` is the agent to spawn (`chantier:cr-driver` from the plugin, or `cr-driver` when
+the repository has its own file); `model: omit` passes no `model`; `model: <id>` passes that id,
+character for character ([models](models.md)).
 
 ## Rules
 

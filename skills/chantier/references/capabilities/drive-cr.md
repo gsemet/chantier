@@ -23,7 +23,8 @@ CR Driver.
 
 - At most 3 rounds per CR, all causes; only the user grants more (through the Foreman).
 - No automatic model change. Before each child, run `$CHANTIER models get <role> --cr <cr>` and do
-  exactly what it prints ([models](models.md)).
+  exactly what it prints ([models](models.md)): spawn the agent its `agent:` line names
+  (`chantier:coder` from the plugin, or `coder` when the repository has its own file).
 - One foreground child at a time; a background spawn from a Driver becomes foreground anyway.
 - Never code, review, or touch another CR. Never message the Foreman for routine milestones.
 - Lifecycle details (commit, rebase, PR) follow change-request-factory:

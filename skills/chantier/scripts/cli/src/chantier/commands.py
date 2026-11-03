@@ -6,8 +6,8 @@ import json
 import os
 import re
 import shutil
-import signal
 import subprocess
+import sys
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -42,18 +42,38 @@ def chantier_prefix() -> str:
     return f"uv run --script {skill_dir() / 'scripts' / 'cli' / 'chantier.py'}"
 
 
+# How the agents shipped in the Claude Code plugin name the skill: Claude Code substitutes the
+# plugin's install folder in agent bodies.
+PLUGIN_SKILL = "${CLAUDE_PLUGIN_ROOT}/skills/chantier"
+PLUGIN_CHANTIER = f"uv run --script {PLUGIN_SKILL}/scripts/cli/chantier.py"
+PLUGIN_NAME = "chantier"
+
+
+def plugin_root() -> Path | None:
+    """The Claude Code plugin this skill ships in, or None for a skill installed on its own.
+
+    `CHANTIER_PLUGIN_ROOT` wins (empty: no plugin); else the folder two levels above the skill,
+    when it holds `.claude-plugin/plugin.json`.
+    """
+    env = os.environ.get("CHANTIER_PLUGIN_ROOT")
+    if env is not None:
+        return Path(env).resolve() if env else None
+    root = skill_dir().parents[1]
+    return root if (root / ".claude-plugin" / "plugin.json").exists() else None
+
+
+def plugin_agent(name: str) -> Path | None:
+    """The plugin's own agent file for a role, if this skill ships in the plugin."""
+    root = plugin_root()
+    path = root / "agents" / f"{name}.md" if root else None
+    return path if path and path.exists() else None
+
+
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40] or "cr"
 
 
 # ---- setup and preflight ----------------------------------------------------------------------
-
-def _default_branch(root: Path) -> str:
-    head = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD", cwd=root, check=False)
-    if head:
-        return head.split("/", 1)[-1]
-    return git("branch", "--show-current", cwd=root, check=False) or "main"
-
 
 def load_models(repo: Repo | None, host: str) -> Models:
     legacy = (repo.config.get("models") or None) if repo else None
@@ -66,11 +86,35 @@ def agent_path(repo: Repo, host: str, name: str) -> Path:
     return repo.root / ".claude" / "agents" / f"{name}.md"
 
 
-def _render_template(name: str, repo: Repo, models: Models) -> str:
+def agent_name(repo: Repo, host: str, name: str) -> str:
+    """The agent to spawn for a role: the repository's own file wins, else the plugin's."""
+    if host == "claude" and not agent_path(repo, host, name).exists() and plugin_agent(name):
+        return f"{PLUGIN_NAME}:{name}"
+    return name
+
+
+def render_plugin_agents() -> dict[str, str]:
+    """The agent files the Claude Code plugin ships: the skill's base list, no override."""
+    models = Models("claude", skill_dir(), None, base_only=True)
+    if models.errors:
+        raise ChantierError("models: " + "; ".join(models.errors))
+    return {n: _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER) for n in TEMPLATES}
+
+
+def _render_local(name: str, models: Models) -> str:
+    return _render_template(name, models, str(skill_dir()), chantier_prefix())
+
+
+def _plugin_fits(name: str, models: Models) -> bool:
+    """The plugin ships this role's agent with the model, effort and tools configured here."""
+    shipped = plugin_agent(name) if models.host == "claude" else None
+    return bool(shipped) and _pinned(shipped.read_text()) == _pinned(
+        _render_template(name, models, PLUGIN_SKILL, PLUGIN_CHANTIER))
+
+
+def _render_template(name: str, models: Models, skill: str, chantier: str) -> str:
     text = (skill_dir() / "assets" / "agents" / f"{name}.md").read_text()
-    text = (text.replace("{{CHANTIER}}", chantier_prefix())
-                .replace("{{SKILL}}", str(skill_dir()))
-                .replace("{{ROOT}}", str(repo.root)))
+    text = text.replace("{{CHANTIER}}", chantier).replace("{{SKILL}}", skill)
     model = models.frontmatter_model(name)
     effort = models.effort_of(name)
     tools = models.tool_list(name)
@@ -110,22 +154,21 @@ def setup(args) -> list[str]:
     if models.errors:
         raise ChantierError("models: " + "; ".join(models.errors) + " (nothing installed)")
     out = []
-    if not repo.config_path.exists():
-        cfg = {**repo.config, "default_branch": _default_branch(repo.root)}
-        repo.config_path.parent.mkdir(parents=True, exist_ok=True)
-        repo.config_path.write_text(json.dumps(cfg, indent=2) + "\n")
-        out.append(f"wrote {repo.config_path.relative_to(repo.root)} "
-                   f"(default branch {cfg['default_branch']})")
-        repo = Repo.find()
-    (repo.batches).mkdir(parents=True, exist_ok=True)
     installed_path = repo.root / ".agents" / "chantier-installed.json"
     installed = json.loads(installed_path.read_text()) if installed_path.exists() else {}
     for name in TEMPLATES:
         target = agent_path(repo, host, name)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        rel = target.relative_to(repo.root)
+        rel = target.relative_to(repo.root).as_posix()
         key = name if host == "claude" else f"{host}/{name}"
-        text = _render_template(name, repo, models)
+        if _plugin_fits(name, models):
+            # the plugin's agent is the one to run: a copy here would only shadow it
+            if target.exists() and installed.get(key) == _digest(target.read_text()):
+                target.unlink()
+                installed.pop(key)
+                out.append(f"removed {rel} (the plugin's agent fits the configuration)")
+            continue
+        text = _render_local(name, models)
+        target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists() and target.read_text() == text:
             installed[key] = _digest(text)
             continue
@@ -139,7 +182,11 @@ def setup(args) -> list[str]:
         target.write_text(text)
         installed[key] = _digest(text)
         out.append(f"installed {rel}")
-    installed_path.write_text(json.dumps(installed, indent=2) + "\n")
+    if installed:
+        installed_path.parent.mkdir(parents=True, exist_ok=True)
+        installed_path.write_text(json.dumps(installed, indent=2) + "\n")
+    elif installed_path.exists():
+        installed_path.unlink()
     out.append(f"setup done ({host})" if out else f"setup: nothing to change ({host})")
     out.append("restart the session if agent files changed: agents load at start")
     return out
@@ -192,14 +239,22 @@ def preflight(args) -> tuple[list[str], int]:
             model_errors = models.errors
         except ChantierError as e:
             models, model_errors = None, [str(e)]
-        paths = {n: agent_path(repo, host, n) for n in TEMPLATES}
-        missing = [n for n in TEMPLATES if not paths[n].exists()]
+        # The repository's own agent file wins; else the plugin's, if it ships one.
+        local = {n: agent_path(repo, host, n) for n in TEMPLATES}
+        paths = {n: local[n] if local[n].exists()
+                 else (plugin_agent(n) if host == "claude" else None) for n in TEMPLATES}
+        missing = [n for n in TEMPLATES if paths[n] is None]
         stale = [n for n in TEMPLATES if n not in missing
                  and _version_of(paths[n]) != __version__]
         no_ttl = [n for n in DRIVER_TEMPLATES if host == "claude" and n not in missing
                   and "cacheTtl: 1h" not in paths[n].read_text()]
+
+        def wanted(n: str) -> str:
+            return (_render_local(n, models) if paths[n] == local[n]
+                    else _render_template(n, models, PLUGIN_SKILL, PLUGIN_CHANTIER))
+
         drift = [n for n in TEMPLATES if models and not model_errors and n not in missing
-                 and _pinned(paths[n].read_text()) != _pinned(_render_template(n, repo, models))]
+                 and _pinned(paths[n].read_text()) != _pinned(wanted(n))]
         problems = ([f"missing {', '.join(missing)}"] if missing else []) + \
                    ([f"old template {', '.join(stale)}"] if stale else []) + \
                    ([f"no 1h cache in {', '.join(no_ttl)}"] if no_ttl else []) + \
@@ -215,11 +270,8 @@ def preflight(args) -> tuple[list[str], int]:
           f"uv {'found' if has_uv else 'missing'}; CLI {__version__}, SKILL.md {sv}")
     if repo:
         top = Path(git("rev-parse", "--show-toplevel", check=False) or ".").resolve()
-        configured = repo.config_path.exists() and repo.changes.exists()
-        check("P6", top == repo.root.resolve() and configured,
-              f"in the main checkout of {repo.root.name}, chantier configured",
-              ("not configured: run `chantier setup`" if not configured
-               else f"session folder {top} is not the repository root {repo.root}"))
+        check("P6", top == repo.root.resolve(), f"in the main checkout of {repo.root.name}",
+              f"session folder {top} is not the repository root {repo.root}")
         gitdir = Path(git("rev-parse", "--path-format=absolute", "--git-dir", check=False)
                       or ".").resolve()
         common = (repo.root / ".git").resolve()
@@ -281,8 +333,6 @@ def add_cr(b: Batch, item: str, qa: bool = False) -> dict:
 
 def open_batch(args) -> list[str]:
     repo = Repo.find()
-    if not repo.config_path.exists():
-        raise ChantierError("chantier is not set up here: run `chantier setup`")
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,40}", args.batch):
         raise ChantierError("batch id: lowercase letters, digits and hyphens", EXIT_USAGE)
     qa_all = args.qa == "all"
@@ -503,8 +553,10 @@ def gate(args) -> tuple[list[str], int]:
         for cmd in cmds:
             f.write(f"$ {cmd}\n")
             f.flush()
+            group = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+                     if sys.platform == "win32" else {"start_new_session": True})
             p = subprocess.Popen(cmd, shell=True, cwd=wt, stdout=f, stderr=subprocess.STDOUT,
-                                 start_new_session=True)
+                                 **group)
             _track_pgid(repo, batch, args.cr, p.pid, True)
             try:
                 rc = p.wait()
@@ -675,11 +727,8 @@ def cancel(args) -> list[str]:
         c = b.cr(args.cr)
         killed = []
         for pg in c.get("pgids", []):
-            try:
-                os.killpg(pg, signal.SIGTERM)
+            if procs.stop_group(pg):
                 killed.append(f"pg{pg}")
-            except (ProcessLookupError, PermissionError):
-                pass
         killed += [str(p) for p in procs.stop(c.get("pids", []))]
         if c.get("worktree") and Path(c["worktree"]).exists():
             killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
@@ -851,6 +900,8 @@ def models_cmd(args) -> tuple[list[str], int]:
         tail = [effort]
         if args.role == "foreman":
             tail.append(f"heartbeat: {models.heartbeat} ({models.heartbeat_seconds()} s)")
+        else:
+            tail.append(f"agent: {agent_name(repo, host, args.role)} (spawn this agent exactly)")
         if args.role != "foreman" and want == pinned:
             return [f"model: omit (the agent file pins {pinned})", *tail], 0
         if want == INHERIT:

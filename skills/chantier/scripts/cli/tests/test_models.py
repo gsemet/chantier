@@ -96,9 +96,8 @@ def test_config_mistakes_are_errors(repo, text, needle):
 def test_legacy_models_in_chantier_json_is_an_error(repo, chantier):
     chantier("setup")
     cfg_path = repo / ".agents" / "chantier.json"
-    cfg = json.loads(cfg_path.read_text())
-    cfg["models"] = {"coder": "opus"}
-    cfg_path.write_text(json.dumps(cfg))
+    cfg_path.parent.mkdir(exist_ok=True)
+    cfg_path.write_text(json.dumps({"models": {"coder": "opus"}}))
     code, out, _ = chantier("models", "check")
     assert code == 2 and any("no longer read" in ln for ln in out)
 
@@ -197,7 +196,8 @@ def copilot_ready(ready, chantier, monkeypatch):
 
 def test_get_omits_a_pinned_model_and_the_effort(copilot_ready, chantier):
     assert chantier("models", "get", "coder")[1] == ["model: omit (the agent file pins gpt-5.6-luna)",
-                                                "effort: omit (the user's setting)"]
+                                                "effort: omit (the user's setting)",
+                                                "agent: coder (spawn this agent exactly)"]
     assert chantier("models", "get", "foreman")[1][0].startswith("model: claude-opus-5.5")
 
 
@@ -288,7 +288,7 @@ def test_heartbeat_follows_the_host_cache_ttl(repo, host, beat, seconds):
 
 def test_get_tells_the_foreman_its_heartbeat(copilot_ready, chantier):
     assert chantier("models", "get", "foreman")[1][2] == "heartbeat: 4m (240 s)"
-    assert len(chantier("models", "get", "coder")[1]) == 2
+    assert not any(ln.startswith("heartbeat") for ln in chantier("models", "get", "coder")[1])
     project_models(copilot_ready, "copilot:\n  heartbeat: 25m\n")
     assert chantier("models", "get", "foreman")[1][2] == "heartbeat: 25m (1500 s)"
     assert "heartbeat: 25m (project)" in chantier("models")[1]

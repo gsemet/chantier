@@ -24,7 +24,8 @@ def _parser() -> argparse.ArgumentParser:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
 
-    s = cmd("setup", commands.setup, "write .agents/chantier.json and install the agent files", False)
+    s = cmd("setup", commands.setup,
+            "install the agent files the plugin does not ship as configured", False)
     s.add_argument("--force", action="store_true", help="replace locally edited agent files")
     s.add_argument("--host", choices=["claude", "copilot"], help="default: detected")
     cmd("preflight", commands.preflight, "check P1 and P4–P8; exit 2 if any fails", False)

@@ -63,10 +63,10 @@ def test_open_from_a_backlog_file(repo, chantier):
     assert d["crs"][0]["title"] == "Fix the flaky upload"
 
 
-def test_open_requires_setup_and_a_valid_id(repo, chantier):
-    assert chantier("open", "x", "A")[0] == 2
-    chantier("setup")
+def test_open_needs_no_setup_but_a_valid_id(repo, chantier):
     assert chantier("open", "Bad Id", "A")[0] == 1
+    assert chantier("open", "x", "A")[0] == 0
+    assert not (repo / ".agents" / "chantier.json").exists()
 
 
 def test_reports_update_the_cr(ready, chantier):
