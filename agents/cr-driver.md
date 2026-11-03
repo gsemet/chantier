@@ -2,6 +2,7 @@
 name: cr-driver
 description: Drives one chantier change request through rounds, ship, CI and hand-back. Started by the Foreman.
 model: claude-sonnet-5-5
+autoCompactWindow: 300000
 tools: Agent, Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor
 background: true
 ---

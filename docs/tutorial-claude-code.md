@@ -161,6 +161,15 @@ the same verdict. The next batch uses the new team; a running batch keeps its ow
 By default the Foreman and every other agent run on Sonnet 5.5 (the Foreman only carries out what
 the CLI decides); run your own session (the Chief of Staff) on Opus 5.5.
 
+None of them needs a 1M-token context. The plugin's agents compact at 300,000 tokens
+(`autoCompactWindow` in their files). The Foreman is a session of its own, which chantier cannot
+configure: to keep it lean too, set the window in your user settings, `~/.claude/settings.json`.
+It applies to every session you run, yours included.
+
+```json
+{ "autoCompactWindow": 300000 }
+```
+
 ## If something goes wrong
 
 - **"chantier cannot run here: nothing was started."** The preflight names the failed condition

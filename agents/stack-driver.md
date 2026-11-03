@@ -2,6 +2,7 @@
 name: stack-driver
 description: Orders, restacks and ships a chantier stack of pull requests. Started by the Foreman.
 model: claude-sonnet-5-5
+autoCompactWindow: 300000
 tools: Agent, Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor
 background: true
 ---
