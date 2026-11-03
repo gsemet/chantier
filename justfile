@@ -38,3 +38,8 @@ scenario:
 
 # Everything a change must pass
 check: check-agents test scenario
+
+# Prepare a release on a clean main: bump, check, commit and tag (pushes nothing)
+release part="patch": (bump-version part) check
+    git commit -am "release: v$(uv run --script scripts/version.py show)"
+    git tag "v$(uv run --script scripts/version.py show)"

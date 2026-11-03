@@ -132,6 +132,7 @@ docs/                     ← diagrams
 
 ## Develop
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how the project is built and how a release is made.
 Recipes need [`just`](https://just.systems/) and `uv`:
 
 ```bash
