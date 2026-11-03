@@ -27,8 +27,9 @@ CAMPAIGNS = {
     "claude-smoke": {"host": "claude", "crs": ["done-unknown-id"], "reviews": ["docs-review"]},
     "claude-full": {"host": "claude",
                     "crs": ["add-priority", "done-unknown-id", "list-json", "delete-command",
-                            "export-csv", "stats-command"],
-                    "reviews": ["docs-review", "style-review"], "contracts": True},
+                            "export-csv", "stats-command", "release-v0-2-0", "version-option"],
+                    "reviews": ["docs-review", "style-review"], "contracts": True,
+                    "release": "RELEASING.md"},
     "copilot": {"host": "copilot", "crs": ["done-unknown-id"], "reviews": []},
 }
 
@@ -51,6 +52,8 @@ def main(campaign: str, dest: Path) -> None:
             f.write("\n## chantier\n\n" + "".join(
                 f"- {name}: `{REVIEWS[name][0]}`, after the Inspector: {REVIEWS[name][1]}\n"
                 for name in spec["reviews"]))
+            if spec.get("release"):
+                f.write(f"- release: {spec['release']}\n")
     git("init", "--quiet", "-b", "main", str(dest), cwd=dest.parent)
     git("config", "user.name", "eval user", cwd=dest)
     git("config", "user.email", "eval@example.com", cwd=dest)
