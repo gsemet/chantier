@@ -2,6 +2,7 @@
 name: qa-driver
 description: Uses a green chantier CR as its user would and reports findings to the Foreman. Started by the Foreman.
 model: claude-sonnet-5-5
+autoCompactWindow: 300000
 tools: Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor
 background: true
 ---

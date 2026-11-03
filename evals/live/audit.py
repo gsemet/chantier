@@ -20,6 +20,7 @@ WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "confli
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
 EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(event|heartbeat|cancel|land)\b|agents set")
+WINDOW = 300_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
 
 
 def records(path: Path):
@@ -43,11 +44,16 @@ class Agent:
         self.id = path.stem.removeprefix("agent-")
         self.type = meta.get("agentType", "?")
         self.prompt, self.tools, self.spawned = "", [], {}
+        self.peak = 0  # the largest context one call sent, in tokens
         for r in records(path):
             m = r.get("message") or {}
             if r.get("type") == "user" and not self.prompt:
                 self.prompt = text_of(m.get("content")).strip()
             if r.get("type") == "assistant":
+                u = m.get("usage") or {}
+                self.peak = max(self.peak, u.get("input_tokens", 0)
+                                + u.get("cache_creation_input_tokens", 0)
+                                + u.get("cache_read_input_tokens", 0))
                 for b in m.get("content") or []:
                     if isinstance(b, dict) and b.get("type") == "tool_use":
                         self.tools.append((b.get("name"), b.get("input") or {}))
@@ -95,14 +101,14 @@ def main() -> int:
         a.parent = by_tool.get(a.meta.get("toolUseId"))
 
     print(f"# Batch {batch}: {len(agents)} subagents under the Foreman\n")
-    print("| agent | type | role in prompt | for | parent | depth |")
-    print("| --- | --- | --- | --- | --- | --- |")
+    print("| agent | type | role in prompt | for | parent | depth | peak context |")
+    print("| --- | --- | --- | --- | --- | --- | ---: |")
     for a in agents:
         parent = "foreman" if a.parent is foreman else (a.parent.role or a.parent.type) \
             if a.parent else "?"
         print(f"| {a.id[:10]} | {a.type} | {a.role or '-'} | {a.what or '-'} | {parent} | "
-              f"{a.meta.get('spawnDepth', '?')} |")
-    print()
+              f"{a.meta.get('spawnDepth', '?')} | {a.peak:,} |")
+    print(f"\nThe Foreman's peak context: {foreman.peak:,} tokens (your own settings set its window).\n")
 
     reviews = data["settings"].get("reviews", {})
     custom = data["settings"].get("agents", {})
@@ -126,6 +132,9 @@ def main() -> int:
             outside = [w for w in a.writes() if "/work/" not in w.replace("\\", "/")]
             check(not outside, f"{a.id[:10]} ({a.role}) edits nothing but its notes"
                                + (f": {outside[:2]}" if outside else ""))
+        if a.type.startswith("chantier:"):
+            check(a.peak <= WINDOW, f"{a.id[:10]} ({a.type}) stays within its {WINDOW:,}-token "
+                                    f"window (peak {a.peak:,})")
         if a.role in DRIVERS:
             code = [w for w in a.writes() if "/work/" not in w.replace("\\", "/")]
             check(not code, f"{a.id[:10]} ({a.role}) writes no code itself"
