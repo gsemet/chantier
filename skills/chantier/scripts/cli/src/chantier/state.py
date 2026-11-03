@@ -93,7 +93,8 @@ DEFAULT_CONFIG = {
     "max_rounds": 3,
     "stale_minutes": 90,
 }
-SETTINGS = ("default_branch", "remote", "gates", "agents", "reviews", "claude_projects_dir")
+SETTINGS = ("default_branch", "remote", "gates", "agents", "reviews", "claude_projects_dir",
+            "max_rounds")
 
 # Statuses a CR can hold. `working` means a live Driver owns it.
 LIVE = {"working", "qa"}

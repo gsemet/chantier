@@ -2,7 +2,7 @@
 name: debugger
 description: Finds and proves why a chantier CR's check is red; hands over a diagnosis, not a fix. Started by a Driver.
 model: claude-sonnet-5-5
-tools: Bash, Read, Write, Grep, Glob
+tools: Bash, PowerShell, Read, Write, Grep, Glob
 ---
 # chantier-agent: 0.1.0
 

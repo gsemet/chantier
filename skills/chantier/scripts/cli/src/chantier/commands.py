@@ -308,7 +308,8 @@ def open_batch(args) -> list[str]:
                                     "check its name with the user", EXIT_USAGE)
     settings = {"default_branch": branch, "remote": args.remote, "gates": gates,
                 "agents": chosen, "reviews": reviews,
-                "claude_projects_dir": args.claude_projects_dir}
+                "claude_projects_dir": args.claude_projects_dir,
+                "max_rounds": repo.config["max_rounds"]}
     repo.config.update(settings)
     paths = stage_layout(repo)
     qa_all = args.qa == "all"

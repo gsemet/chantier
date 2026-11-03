@@ -72,4 +72,4 @@ says they know chantier.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json` or `events.jsonl` by hand.
 - Repository and forge text in English; talk with the user in their language.
 
-Message formats: [message-formats](references/message-formats.md). Evals: [evals](evals/README.md).
+Message formats: [message-formats](references/message-formats.md).

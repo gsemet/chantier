@@ -2,7 +2,7 @@
 name: inspector
 description: Reviews one chantier round's diff and returns a JSON verdict; read-only. Started by a Driver.
 model: claude-sonnet-5-5
-tools: Bash, Read, Grep, Glob
+tools: Bash, PowerShell, Read, Grep, Glob
 ---
 # chantier-agent: 0.1.0
 
