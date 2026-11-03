@@ -164,11 +164,11 @@ the CLI decides); run your own session (the Chief of Staff) on Opus 5.5.
 None of them needs a 1M-token context. The plugin's agents compact at 200,000 tokens
 (`autoCompactWindow` in their files). The Foreman is a session of its own, which chantier cannot
 configure: to keep it lean too, set the window in your user settings, `~/.claude/settings.json`
-(300,000 leaves the Foreman room for a long batch). It applies to every session you run, yours
+(400,000 leaves the Foreman room for a long batch). It applies to every session you run, yours
 included.
 
 ```json
-{ "autoCompactWindow": 300000 }
+{ "autoCompactWindow": 400000 }
 ```
 
 ## If something goes wrong
