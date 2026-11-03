@@ -1,14 +1,14 @@
 # Message formats
 
 One line each, prefixed by `[sender→receiver]`. Links are full URLs. This file is the only
-definition; capability files point here.
+definition.
 
 ## Chief of Staff → Foreman
 
-Print the line with `$CHANTIER order …`; it carries the order id the Foreman needs.
+Print an order with `$CHANTIER order …`: the line carries the order id the Foreman needs.
 
 ```text
-[chief-of-staff→foreman] order O-<k> add @<prepared-folder-or-spec> | order O-<k> drop <cr> | order O-<k> first <cr>
+[chief-of-staff→foreman] order O-<k> add @<prepared-folder> | order O-<k> drop <cr> | order O-<k> first <cr>
 [chief-of-staff→foreman] order O-<k> change <cr> <text> | order O-<k> merged <cr>
 [chief-of-staff→foreman] order O-<k> pause | order O-<k> resume
 [chief-of-staff→foreman] answer <cr> <text> | ping
@@ -29,7 +29,7 @@ Print the line with `$CHANTIER order …`; it carries the order id the Foreman n
 
 ```text
 [foreman→driver <cr>] round <note> | change <text> | first: you are top priority | answer <text>
-[foreman→driver <cr>] ping: reply with your state
+[foreman→driver <cr>] ping: reply with your state | stop
 [foreman→stack] restack
 ```
 
@@ -38,17 +38,11 @@ Print the line with `$CHANTIER order …`; it carries the order id the Foreman n
 ```text
 [driver <cr>→foreman] hand-back ready <pr-link> | hand-back blocked <reason>
 [driver <cr>→foreman] question <text> | anomaly <text>
-[qa <cr>→foreman] anomaly <cr> <finding> | qa done <cr> <n> findings
-[stack→foreman] hand-back ready <links> | anomaly <cr> <text>
+[qa <cr>→foreman] qa done <cr> <n> findings
+[stack→foreman] hand-back ready <cr>=<link>… | anomaly <cr> <text>
 ```
 
-## Driver → its foreground child
+## Spawns
 
-The spawn prompt, not a message: `skill: <absolute chantier skill folder>` and
-`changes: <absolute batch changes root>` on separate lines, then the CR id, the batch, the
-worktree path, the round number, the task, the previous round note, and the findings to address.
-
-The Chief of Staff gives both lines to the Foreman. Every Foreman → Driver and Driver → child
-prompt copies them from its own prompt. Put `--changes-dir "<changes>"` before every `$CHANTIER`
-subcommand: separate shell calls need not share exports, and a non-default root must not be lost.
-The `skill:` line also lets a project-local agent find its role card.
+A spawn's prompt is not a message: `$CHANTIER spawn <role> <cr> --note "<…>"` prints it whole,
+and the parent passes it unchanged.

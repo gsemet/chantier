@@ -29,8 +29,11 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.chdir(work)
     monkeypatch.setenv("CHANTIER_SKILL_DIR", str(SKILL))
     monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(PLUGIN_ROOT))
-    for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_HOST", "CHANTIER_CHANGES",
-                "CLAUDE_CODE_ENTRYPOINT", "COPILOT_CLI", "COPILOT_AGENT_SESSION_ID", "AI_AGENT"):
+    # the user's own agents live in the home folder: keep the real one out of the tests
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_HOST", "CLAUDE_CODE_ENTRYPOINT",
+                "COPILOT_CLI", "COPILOT_AGENT_SESSION_ID", "AI_AGENT"):
         monkeypatch.delenv(var, raising=False)
     return work
 

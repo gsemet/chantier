@@ -8,19 +8,19 @@ from pathlib import Path
 
 from .state import (EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, Batch, ChantierError, Repo,
                     _read_json, _try_lock, _unlock, move_directory, now, project_path)
-
 PRIORITIES = ("P1", "P2", "P3", "P4")
 STAGES = ("inbox", "backlog", "requests", "archives", "trash")
 
 
-def stage_layout(repo: Repo, overrides: dict | None = None) -> dict[str, Path]:
+def stage_layout(repo: Repo) -> dict[str, Path]:
+    """The five stage folders: the profile's, else `<changes>/backlog/1-inbox` and so on."""
     base = repo.changes / "backlog"
     defaults = {"inbox": base / "1-inbox", "backlog": base / "2-backlog",
                 "requests": base / "3-requests", "archives": base / "4-archives",
                 "trash": base / "5-trash"}
-    values = repo.config.get("layout", {}) if overrides is None else overrides
+    values = repo.config.get("layout") or {}
     if not isinstance(values, dict) or set(values) - set(STAGES):
-        raise ChantierError("invalid CR lifecycle paths in batch settings", EXIT_PRECONDITION)
+        raise ChantierError("invalid CR lifecycle paths in the project profile", EXIT_PRECONDITION)
     paths = {stage: project_path(repo.root, values.get(stage) or default, f"{stage} directory")
              for stage, default in defaults.items()}
     for stage, path in paths.items():
@@ -31,14 +31,10 @@ def stage_layout(repo: Repo, overrides: dict | None = None) -> dict[str, Path]:
     return paths
 
 
-def stored_layout(repo: Repo, paths: dict[str, Path]) -> dict[str, str]:
-    return {stage: path.relative_to(repo.root).as_posix() for stage, path in paths.items()}
-
-
 @contextlib.contextmanager
 def changes_lock(repo: Repo):
-    repo.changes.mkdir(parents=True, exist_ok=True)
-    with open(repo.changes / ".chantier-lifecycle.lock", "a+") as lock:
+    repo.state.mkdir(parents=True, exist_ok=True)
+    with open(repo.state / "lifecycle.lock", "a+") as lock:
         deadline = time.monotonic() + 30
         while not _try_lock(lock):
             if time.monotonic() > deadline:
@@ -110,16 +106,16 @@ def ensure_unclaimed(repo: Repo, directory: Path) -> None:
                                     EXIT_CONFLICT)
 
 
-def cr_directory(repo: Repo, batch_id: str, cr: dict) -> Path:
-    if cr.get("path"):
-        return project_path(repo.root, cr["path"], "recorded CR path")
-    return repo.batch_dir(batch_id) / "crs" / cr["id"]
+def cr_directory(repo: Repo, cr: dict) -> Path:
+    if not cr.get("path"):
+        raise ChantierError(f"{cr['id']} has no recorded CR folder", EXIT_PRECONDITION)
+    return project_path(repo.root, cr["path"], "recorded CR path")
 
 
 def archive_cr(batch: Batch, cr: dict) -> None:
     if not cr.get("path"):
         return
-    source = cr_directory(batch.repo, batch.id, cr)
+    source = cr_directory(batch.repo, cr)
     target = stage_layout(batch.repo)["archives"] / source.name
     batch.move(source, target)
     cr["path"] = target.relative_to(batch.repo.root).as_posix()
@@ -133,7 +129,7 @@ def archive_cr(batch: Batch, cr: dict) -> None:
 def return_cr(batch: Batch, cr: dict) -> None:
     if not cr.get("path") or not cr.get("origin"):
         return
-    source = cr_directory(batch.repo, batch.id, cr)
+    source = cr_directory(batch.repo, cr)
     target = project_path(batch.repo.root, cr["origin"], "original CR path")
     if source != target:
         batch.move(source, target)

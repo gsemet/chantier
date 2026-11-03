@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stage the current directory for one eval case: a git repo and a batch in a state.
 
-    uv run --no-project python evals/lib/seed.py <bare|running|cost>
+    uv run --no-project python evals/lib/seed.py <bare|agents|running|cost>
 
 Runs the real CLI (no model); the batch state is reached through `chantier` commands only.
 """
@@ -15,7 +15,8 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[2]
 WORK = Path.cwd()
-ENV = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"), "CHANTIER_SKILL_DIR": str(SKILL)}
+ENV = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
+       "CHANTIER_SKILL_DIR": str(SKILL), "CHANTIER_HOST": "claude"}
 
 
 def sh(*args):
@@ -59,9 +60,10 @@ def running(claude_projects_dir=None):
     items = [prepared(title) for title in ("Fix login timeout", "Add CSV export", "Dark mode")]
     gate = "uv run --no-project python -m compileall -q ."
     extra = ["--claude-projects-dir", claude_projects_dir] if claude_projects_dir else []
-    chantier("open", "night", *items, "--slots", 2, "--no-worktrees",
-             "--chief-of-staff", "local_chantier_eval", "--fast-gate", gate, "--long-gate", gate,
+    chantier("project", "set", "--fast-gate", gate, "--long-gate", gate,
              "--default-branch", "main", *extra)
+    chantier("open", "night", *items, "--slots", 2, "--no-worktrees",
+             "--chief-of-staff", "local_chantier_eval")
     chantier("foreman", "set", "local_foreman_eval")
     chantier("event", "start", "--epoch", 1)
     chantier("agents", "set", "CR-101", "a101", "--epoch", 1)
@@ -76,6 +78,16 @@ def running(claude_projects_dir=None):
     chantier("report", "CR-102", "round-done", "r2 in progress")
     chantier("event", "hand-back-blocked", "CR-103",
         "the design system has no dark tokens; the user must choose a palette", "--epoch", 1)
+
+
+def agents():
+    """The user's own agents, in the project, for the Chief of Staff to put on the team."""
+    folder = WORK / ".claude" / "agents"
+    folder.mkdir(parents=True, exist_ok=True)
+    for name, what in (("rust-coder", "Writes idiomatic Rust."),
+                       ("sec-reviewer", "Reviews a diff for security flaws.")):
+        (folder / f"{name}.md").write_text(f"---\nname: {name}\ndescription: {what}\n"
+                                           f"model: claude-sonnet-5-5\n---\n{what}\n")
 
 
 def cost():
@@ -103,5 +115,5 @@ def cost():
 if __name__ == "__main__":
     kind = sys.argv[1] if len(sys.argv) > 1 else "bare"
     repo()
-    {"bare": lambda: None, "running": running, "cost": cost}[kind]()
+    {"bare": lambda: None, "agents": agents, "running": running, "cost": cost}[kind]()
     print(f"seeded {kind} in {WORK}")

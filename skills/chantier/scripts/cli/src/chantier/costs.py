@@ -1,6 +1,6 @@
 """Price the Foreman's session and its subagents.
 
-Claude: the transcripts, priced here (design 5's claude_usage.py). Copilot: the per-call billed
+Claude: the transcripts, priced here. Copilot: the per-call billed
 records of `copilot-session-usage` >= 1 (its `calls` command), which uv fetches from the inline
 metadata of `scripts/cli/session_usage.py`; no pricing here.
 """
@@ -21,12 +21,13 @@ SESSION_USAGE_SCRIPT = Path(__file__).resolve().parents[2] / "session_usage.py"
 UV_INDEX_VARIABLES = ("UV_INDEX", "UV_DEFAULT_INDEX", "UV_INDEX_URL", "UV_EXTRA_INDEX_URL",
                       "UV_FIND_LINKS")
 
-# $/MTok: input, 5-min write, 1-h write, cache read, output (design 2, prices-corrected.md).
+# $/MTok: input, 5-min write, 1-h write, cache read, output, per exact model (a dated id of the
+# same model, `claude-sonnet-5-5-20261001`, has the same price). Any other model is refused.
 PRICE = {
-    "opus": (4, 5, 8, 0.20, 20),
-    "sonnet": (2, 2.5, 4, 0.10, 10),
-    "haiku": (0.10, 0.125, 0.20, 0.01, 0.50),
-    "haiku>100k": (0.50, 0.625, 1, 0.05, 2.50),
+    "claude-opus-5-5": (4, 5, 8, 0.20, 20),
+    "claude-sonnet-5-5": (2, 2.5, 4, 0.10, 10),
+    "claude-haiku-5-5": (0.10, 0.125, 0.20, 0.01, 0.50),
+    "claude-haiku-5-5>100k": (0.50, 0.625, 1, 0.05, 2.50),
 }
 
 
@@ -48,10 +49,11 @@ def transcript_path(repo_root: Path, session_uuid: str, settings: dict | None = 
 
 
 def _family(model: str, prompt: int) -> str:
-    for f in ("opus", "sonnet", "haiku"):
-        if f in model:
-            return "haiku>100k" if f == "haiku" and prompt > 100_000 else f
-    raise ChantierError(f"no Claude price for model {model!r}", EXIT_EXTERNAL)
+    for f in ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"):
+        if re.fullmatch(rf"{f}(-\d{{8}})?", model):
+            return f"{f}>100k" if f"{f}>100k" in PRICE and prompt > 100_000 else f
+    raise ChantierError(f"no Claude price for model {model!r}: add it to chantier's price table",
+                        EXIT_EXTERNAL)
 
 
 def _transcript_lines(path: Path):

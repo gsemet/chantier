@@ -1,4 +1,8 @@
-"""Repository paths, runtime settings and the locked batch state.
+"""Repository paths, the project profile and the locked batch state.
+
+Runtime state lives in `<git-common-dir>/chantier/`: never in the working tree, shared by every
+worktree. `project.json` there is the profile the Chief of Staff records from the project's
+instructions; each batch keeps a copy of it in `batch.json`.
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
 `msvcrt` on Windows), by atomic rename, and every change appends one event.
@@ -63,11 +67,22 @@ def _retry(op, *args):
 
 
 def _read_json(path: Path):
-    return json.loads(_retry(path.read_text))
+    return json.loads(_retry(path.read_text, "utf-8"))
 
+
+def write_json(path: Path, data) -> None:
+    """Write by atomic rename, so a reader never sees half a file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    _retry(os.replace, tmp, path)
+
+
+# What the profile may hold, with the value used when it does not say.
 DEFAULT_CONFIG = {
     "changes_dir": ".agents/changes",
-    "default_branch": "main",
+    "layout": {},
+    "default_branch": None,
     "remote": "origin",
     "first_cr_number": 101,
     "worktrees_dir": "",
@@ -75,7 +90,10 @@ DEFAULT_CONFIG = {
     "max_rounds": 3,
     "stale_minutes": 90,
     "gates": {"fast": [], "long": []},
+    "agents": {},
+    "claude_projects_dir": None,
 }
+SETTINGS = tuple(DEFAULT_CONFIG)
 
 # Statuses a CR can hold. `working` means a live Driver owns it.
 LIVE = {"working", "qa"}
@@ -142,13 +160,13 @@ def move_directory(source: Path, destination: Path) -> None:
 
 
 def apply_batch_settings(repo: "Repo", data: dict) -> None:
+    """A batch runs on the profile it was opened with, whatever changed since."""
     settings = data.get("settings")
     if settings is None:
         return
     if not isinstance(settings, dict):
         raise ChantierError("invalid batch settings; refusing to run")
-    for key in ("remote", "default_branch", "first_cr_number", "worktrees_dir", "forge", "max_rounds",
-                "stale_minutes", "gates", "layout", "claude_projects_dir"):
+    for key in SETTINGS:
         if key in settings:
             repo.config[key] = settings[key]
 
@@ -158,6 +176,7 @@ class Repo:
     """The main repository, even when called from a CR worktree."""
 
     root: Path
+    state: Path
     config: dict
 
     @classmethod
@@ -168,11 +187,29 @@ class Repo:
             common = git("rev-parse", "--path-format=absolute", "--git-common-dir", cwd=cwd)
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
-        root = Path(common).resolve().parent
-        cfg = {**DEFAULT_CONFIG, "gates": {"fast": [], "long": []}}
-        cfg["changes_dir"] = os.environ.get("CHANTIER_CHANGES") or cfg["changes_dir"]
-        cfg["default_branch"] = default_branch(root, cfg["remote"])
-        return cls(root, cfg)
+        state = Path(common).resolve() / "chantier"
+        repo = cls(state.parent.parent, state, json.loads(json.dumps(DEFAULT_CONFIG)))
+        repo.config.update(repo.profile())
+        if not repo.config.get("default_branch"):
+            repo.config["default_branch"] = default_branch(repo.root, repo.config["remote"])
+        return repo
+
+    @property
+    def profile_path(self) -> Path:
+        return self.state / "project.json"
+
+    def profile(self) -> dict:
+        """What the Chief of Staff recorded for this project; empty until it records something."""
+        if not self.profile_path.exists():
+            return {}
+        data = _read_json(self.profile_path)
+        if not isinstance(data, dict) or set(data) - set(SETTINGS):
+            raise ChantierError(f"invalid project profile {self.profile_path}; fix it with "
+                                "`chantier project set` or delete it")
+        return data
+
+    def save_profile(self, data: dict) -> None:
+        write_json(self.profile_path, data)
 
     @property
     def changes(self) -> Path:
@@ -180,7 +217,7 @@ class Repo:
 
     @property
     def batches(self) -> Path:
-        return self.changes / "batches"
+        return self.state / "batches"
 
     @property
     def worktrees(self) -> Path:
@@ -193,20 +230,15 @@ class Repo:
     def batch_dir(self, batch: str) -> Path:
         return self.batches / batch
 
-    def latest_batch(self) -> str:
-        """The most recently created batch that is not landed."""
+    def work_dir(self, batch: str, cr: str) -> Path:
+        """Where the team writes about a CR while it runs: notes, gate logs, the PR body."""
+        return self.batch_dir(batch) / "work" / cr
+
+    def open_batches(self) -> list[str]:
         if not self.batches.exists():
-            raise ChantierError("no batch yet: run `chantier open` first")
-        open_batches = []
-        for d in self.batches.iterdir():
-            f = d / "batch.json"
-            if f.exists():
-                b = _read_json(f)
-                if b.get("status") != "landed":
-                    open_batches.append((b.get("created", ""), d.name))
-        if not open_batches:
-            raise ChantierError("no open batch")
-        return max(open_batches)[1]
+            return []
+        return sorted(d.name for d in self.batches.iterdir() if (d / "batch.json").exists()
+                      and _read_json(d / "batch.json").get("status") != "landed")
 
 
 class Batch:
@@ -255,9 +287,7 @@ class Batch:
         state_written = False
         try:
             if exc_type is None and self._events:
-                tmp = self.dir / "batch.json.tmp"
-                tmp.write_text(json.dumps(self.data, indent=2) + "\n", encoding="utf-8")
-                _retry(os.replace, tmp, self.dir / "batch.json")
+                write_json(self.dir / "batch.json", self.data)
                 state_written = True
                 with open(self.dir / "events.jsonl", "a", encoding="utf-8") as f:
                     for e in self._events:
@@ -323,8 +353,15 @@ class Batch:
 
 
 def resolve_batch(repo: Repo, batch: str | None) -> str:
-    """`--batch`, else `CHANTIER_BATCH` (set in every agent's brief), else the latest open batch."""
-    return batch or os.environ.get("CHANTIER_BATCH") or repo.latest_batch()
+    """`--batch`, else `CHANTIER_BATCH`, else the only open batch; never a guess among several."""
+    if batch or os.environ.get("CHANTIER_BATCH"):
+        return batch or os.environ["CHANTIER_BATCH"]
+    names = repo.open_batches()
+    if len(names) == 1:
+        return names[0]
+    if not names:
+        raise ChantierError("no open batch: run `chantier open` first")
+    raise ChantierError(f"several open batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
 
 
 def check_epoch(b: "Batch", epoch: int | None) -> None:
@@ -363,12 +400,6 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
 def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
     """Choose a number under the lifecycle lock, without reserving it on a failed move."""
     previous = repo.config["first_cr_number"] - 1
-    counter = repo.changes / ".chantier-counter"
-    if counter.exists():
-        try:
-            previous = max(previous, int(counter.read_text(encoding="utf-8")))
-        except (OSError, ValueError) as e:
-            raise ChantierError(f"invalid legacy CR counter {counter}: {e}") from e
     for root in roots:
         if root.is_dir():
             for child in root.iterdir():
