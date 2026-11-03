@@ -318,7 +318,8 @@ def _rebase_ready(b: Batch) -> list[str]:
     for c in b.data["crs"]:
         if c["status"] != "ready" or not c.get("branch"):
             continue
-        p = subprocess.run(["git", "merge-tree", "--write-tree", "--quiet", f"{remote}/{branch}",
+        # never `--quiet`: with it, git exits 0 on a conflict
+        p = subprocess.run(["git", "merge-tree", "--write-tree", f"{remote}/{branch}",
                             c["branch"]], cwd=b.repo.root, capture_output=True, text=True,
                            encoding="utf-8", errors="replace")
         if p.returncode > 1:

@@ -393,11 +393,33 @@ def scenario(w: World) -> None:
     check("events.jsonl holds the whole story",
           {"open", "spawn", "ship", "wait", "qa-done", "order", "cancel", "land"} <= kinds)
     lifecycle_regressions(w)
+    rebase_after_merge(w)
     release(w)
 
 
+def rebase_after_merge(w: World) -> None:
+    note("\n## 13. A merge that leaves a ready PR in conflict")
+    _, one = prepare_cr(w, "Clash one")
+    _, two = prepare_cr(w, "Clash two")
+    w.chantier("open", "clash", f"@{one}", f"@{two}", "--slots", 2, *FROM_AGENTS_MD)
+    w.name, w.env["CHANTIER_BATCH"] = "clash", "clash"
+    w.chantier("foreman", "set", "local_foreman-clash")
+    fm = Foreman(w, epoch=1)
+    fm.event("start")
+    first, second = (c["id"] for c in w.batch()["crs"])
+    for cr_id in (first, second):
+        driver_round(w, cr_id, "clash.py", f"WHO = '{cr_id}'\n")
+        fm.event("hand-back-ready", cr_id, w.cr(cr_id)["pr"])
+    w.sh("git", "push", "--quiet", "origin", f"{w.cr(first)['branch']}:main")  # the user merges
+    _, out = w.chantier("order", "merged", first)
+    lines = fm.event("--order", out[0].split()[2])
+    check("the ready CR that no longer merges goes back to a Driver",
+          f"rebase {second}" in lines[0] and fm.spawned[-1] == second, str(lines))
+    w.sh("git", "fetch", "--quiet", "origin")
+
+
 def release(w: World) -> None:
-    note("\n## 13. A release: the project's procedure, approvals, a fix, a grant")
+    note("\n## 14. A release: the project's procedure, approvals, a fix, a grant")
     _, change = prepare_cr(w, "Last change")
     _, version = prepare_cr(w, "Release v1.1.0")
     bad = (("--release", 3), ("--release", 2, "--qa", "2"), ("--release", 2, "--auto-merge-fixes",
