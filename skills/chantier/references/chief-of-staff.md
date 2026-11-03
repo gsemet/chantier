@@ -149,10 +149,10 @@ Only in the turn where the user gave the go, in this order:
   $CHANTIER order pause | resume
   ```
 
-  Record every answer to a CR's question in its `02-answers.md`. A `question` from a working CR
-  needs no order: send `[chief-of-staff→foreman] answer <cr> <text>`. A CR blocked on a question
-  (always the case on Copilot) gets `$CHANTIER order change <cr> --note "answer: <text>"`: it
-  runs again with the answer. An order sent while the Foreman is busy arrives when its turn
+  A Driver's question comes as `ask blocked <cr> question: <text>`. Record the user's answer in
+  the CR's `02-answers.md`, then `$CHANTIER order change <cr> --note "answer: <text>"`: a new
+  Driver runs it with the answer. After `merged`, ready CRs that no longer merge cleanly go back
+  to a Driver on their own (`ok` names them). An order sent while the Foreman is busy arrives when its turn
   ends: do not resend. No confirmation within about two minutes: ping once, then recover (below).
 - **Cost:** `$CHANTIER cost [--by cr]` gives measured figures; report its lines as they are, and
   give no figure when it fails. Your own session is not in it.

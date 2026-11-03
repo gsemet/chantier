@@ -101,11 +101,10 @@ model is an error, never an estimate. Your own session is not included.
 
 ## On GitHub Copilot
 
-Everything above works in a Copilot SDK host (the Copilot app) the same way, with three
+Everything above works in a Copilot SDK host (the Copilot app) the same way, with two
 differences: the Foreman's heartbeat runs every four minutes through `/every` (the Chief of Staff
-arms it, and asks you to delete it when the batch lands); a Driver's question ends its run and
-comes back as a blocked CR; and your own agents are named by their file in `.github/agents/` or
-`~/.copilot/agents/`.
+arms it, and asks you to delete it when the batch lands); and your own agents are named by their
+file in `.github/agents/` or `~/.copilot/agents/`.
 
 ## When chantier says no
 

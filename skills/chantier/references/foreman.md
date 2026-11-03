@@ -28,13 +28,11 @@ Foreman owns the batch: stop at once, without a message.
 | --- | --- |
 | `[driver <cr>→foreman] hand-back ready <link>` | `$CHANTIER event hand-back-ready <cr> <link>` |
 | `[driver <cr>→foreman] hand-back blocked <reason>` | `$CHANTIER event hand-back-blocked <cr> <reason>` |
-| `[driver <cr>→foreman] question <text>` | `$CHANTIER event question <cr> <text>` |
 | `[driver <cr>→foreman] anomaly <text>`, `[stack→foreman] anomaly <cr> <text>` | `$CHANTIER event anomaly <cr> <text>` |
 | `[qa <cr>→foreman] qa done <cr> <n> findings` | `$CHANTIER event qa-done <cr> <n>` |
 | `[stack→foreman] hand-back ready <links>` | `$CHANTIER event driver-done stack` |
 | a task notification: a Driver ended | `$CHANTIER event driver-done <cr>` (`qa:<cr>` for a QA driver, `stack` for the stack driver) |
 | `[chief-of-staff→foreman] order O-<k> …` | `$CHANTIER event --order O-<k>` |
-| `[chief-of-staff→foreman] answer <cr> <text>` | message the CR's Driver `[foreman→driver <cr>] answer <text>`; no event |
 | `[chief-of-staff→foreman] ping` | `[foreman→chief-of-staff] pong <first line of $CHANTIER status>` |
 | a heartbeat wake | `$CHANTIER heartbeat`, then `$CHANTIER event tick` |
 
@@ -51,7 +49,7 @@ until the Chief of Staff answers.
 | `message stack <text>` | the same to the stack driver: `[foreman→stack] <text>` |
 | `cancel <cr>` | stop the CR's Driver, then `$CHANTIER cancel <cr>`, and carry out the lines it prints |
 | `ask-chief-of-staff <kind> <text>` | `[foreman→chief-of-staff] ask <kind> <text>` |
-| `ok O-<k> …` | `[foreman→chief-of-staff] ok O-<k> …` |
+| `ok O-<k> …` | `[foreman→chief-of-staff] ok O-<k> …` (after a merge, the ready CRs it sends back to rebase are already queued) |
 | `land` | `$CHANTIER land`, send `[foreman→chief-of-staff] final <report path>`, schedule no wake, end. A later wake: answer `landed` with no tool call |
 | `none`, `none landed` | nothing |
 

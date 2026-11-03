@@ -59,8 +59,8 @@ CLI's state machine with scripted agents; this eval checks the *agents*.
 - Drivers: commit, `chantier gate --long`, `chantier ship`, `chantier wait ci` in the background,
   `report` milestones, one hand-back, then end.
 - QA driver for C: `qa.md` and `qa done`; no fix of its own.
-- E: the Driver asks (Claude: `question`), the Foreman relays, the Chief of Staff asks the user,
-  records the answer in E's `02-answers.md`, and the answer reaches the Driver.
+- E: the Driver hands back `blocked question:`, the Foreman relays, the Chief of Staff asks the
+  user, records the answer in E's `02-answers.md`, and a new Driver works with the answer.
 - The change order on B reaches B's Driver and becomes a round.
 - Nobody merges; every PR is opened against `main` with a body; the batch lands with a report.
 - Nothing written in the main checkout outside `.agents/changes/`.
