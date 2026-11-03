@@ -12,7 +12,7 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
 | [claude-smoke](claude-smoke/RUNBOOK.md) | One CR end to end on Claude: every role, the project's own review step, simulated CI | ~$1, 15 min | not run yet |
-| [claude-full](claude-full/RUNBOOK.md) | Six CRs on Claude: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit | ~$12, 2 h 30 | 2026-11-03, earlier version (five CRs, no failure path): passed with findings, $8.51, [report](results/claude-full-2026-11-03.md) |
+| [claude-full](claude-full/RUNBOOK.md) | Six CRs on Claude: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-03, earlier version (five CRs, no failure path): passed with findings, $8.51, [report](results/claude-full-2026-11-03.md) |
 | [copilot](copilot/RUNBOOK.md) | One CR on Copilot: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
 
 ## Run a campaign

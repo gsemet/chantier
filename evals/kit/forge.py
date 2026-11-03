@@ -4,8 +4,9 @@ Pull requests live in $FAKE_GH_STATE; branches in the bare repository $LIVE_ORIG
 are real: the long gate runs on the PR's head in a fresh clone, once per commit. With
 $LIVE_CI_CONTRACTS (a folder holding `contracts.json`, `{"<word>": "<test file>"}`), a branch
 whose name contains a word also gets that test file in its clone's `tests/`: a contract only CI
-checks. Every call is logged in `<state>.calls`; anything an agent must never do here (merge,
-close) is refused, and the log keeps it for the audit.
+checks. Every call is logged in `<state>.calls`. `pr merge --rebase` merges a PR whose head is
+green, for `chantier merge`; the audit checks that only what the user allowed was merged. Anything
+else an agent must never do here (close, say) is refused, and the log keeps it for the audit.
 """
 from __future__ import annotations
 
@@ -90,6 +91,25 @@ def run_ci(state: dict, sha: str, branch: str) -> dict:
     return state["ci"][sha]
 
 
+def merge(state: dict, n: str, method: str) -> str | None:
+    """Rebase a green PR on its base, in a fresh clone; what stops it, or None."""
+    pr = state["prs"][n]
+    sha = head_sha(pr["head"])
+    if method != "--rebase" or pr["state"] != "open" or state["ci"].get(sha, {}).get("bucket") != "pass":
+        return f"PR {n} ({pr['state']}, {method}): only an open, green PR merges, by rebase"
+    git = ["git", "-c", "user.name=forge", "-c", "user.email=forge@example.com"]
+    with tempfile.TemporaryDirectory(prefix="forge-merge-") as tmp:
+        subprocess.run(["git", "clone", "--quiet", ORIGIN, tmp], check=True)
+        for step in (["checkout", "--quiet", pr["head"]], ["rebase", f"origin/{pr['base']}"],
+                     ["checkout", "--quiet", pr["base"]], ["merge", "--ff-only", pr["head"]],
+                     ["push", "--quiet", "origin", pr["base"]]):
+            p = subprocess.run(git + step, cwd=tmp, capture_output=True, text=True)
+            if p.returncode:
+                return f"PR {n}: git {step[0]} failed: {(p.stderr + p.stdout)[-300:]}"
+    pr["state"] = "merged"
+    return None
+
+
 def main(args: list[str]) -> int:
     with open(STATE.with_suffix(".calls"), "a", encoding="utf-8") as log:
         log.write(json.dumps({"t": time.strftime("%H:%M:%S"), "cwd": os.getcwd(),
@@ -124,6 +144,13 @@ def main(args: list[str]) -> int:
             save(state)
             print(json.dumps([{"name": "pytest", "bucket": ci["bucket"],
                                "link": f"{URL}/actions/runs/{ci['run']}/job/1"}]))
+        elif args[:2] == ["pr", "merge"]:
+            problem = merge(state, pr_number(args[2]), args[3] if len(args) > 3 else "")
+            if problem:
+                print(f"fake forge: {problem}", file=sys.stderr)
+                return 1
+            save(state)
+            print(f"merged {args[2]}")
         elif args[:2] == ["pr", "view"]:
             n = pr_number(args[2])
             pr = state["prs"][n]

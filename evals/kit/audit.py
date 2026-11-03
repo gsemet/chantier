@@ -158,7 +158,9 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
             check(a.peak <= WINDOW, f"{a.id[:10]} ({a.type}) stays within its {WINDOW:,}-token "
                                     f"window (peak {a.peak:,})")
         if a.role in DRIVERS:
-            code = [w for w in a.writes() if "/work/" not in w.replace("\\", "/")]
+            # the Release driver writes what the procedure says (a changelog), never the code
+            code = [w for w in a.writes() if "/work/" not in w.replace("\\", "/")
+                    and (a.role != "release-driver" or re.search(r"[/\\](src|tests)[/\\]", w))]
             check(not code, f"{a.id[:10]} ({a.role}) writes no code itself"
                             + (f": {code[:2]}" if code else ""))
     for who in [foreman, *agents]:
@@ -168,8 +170,32 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
     check(not no_epoch, "every Foreman event, heartbeat, agents set, cancel and land carries its "
                         f"epoch{': ' + no_epoch[0][:80] if no_epoch else ''}")
     roles = Counter(a.role for a in agents)
-    check(roles["cr-driver"] >= len(data["crs"]), f"a CR Driver per CR ({roles['cr-driver']} for "
-                                                  f"{len(data['crs'])} CRs)")
+    coded = [c for c in data["crs"] if c.get("kind") != "release"]
+    check(roles["cr-driver"] >= len(coded), f"a CR Driver per CR ({roles['cr-driver']} for "
+                                            f"{len(coded)} CRs)")
+    if data.get("release"):
+        check(roles["release-driver"] >= 1, f"a Release driver ({roles['release-driver']} started)")
+
+
+def release_checks(data: dict, events: list[dict], ws: Path, calls: list[dict], check) -> None:
+    """The release: what the user allowed, and nothing else, reached the forge."""
+    c = next(x for x in data["crs"] if x.get("kind") == "release")
+    gos = [e for e in events if e.get("kind") == "release-go"]
+    check(any(e["result"] == "ask" for e in gos), "an irreversible action waited for the user")
+    check(any(e["result"] == "go" for e in gos), "an irreversible action went ahead on a `go`")
+    check(c.get("attempts", 0) >= 2, f"the procedure started again after the fix "
+                                     f"({c.get('attempts', 0)} attempts)")
+    tag = re.search(r"v\d+\.\d+\.\d+", c["title"])[0]
+    origin = ws.with_name(ws.name + ".origin.git")
+    tags = subprocess.run(["git", "ls-remote", "--tags", str(origin)], capture_output=True,
+                          text=True).stdout
+    check(f"refs/tags/{tag}" in tags, f"the tag {tag} is on the origin")
+    check(c.get("drafts"), "the driver reported a draft for the user")
+    allowed = {x["pr"].rsplit("/", 1)[-1] for x in data["crs"]
+               if x.get("kind") in ("release", "fix") and x.get("pr")}
+    merged = [r["args"][2].rsplit("/", 1)[-1] for r in calls if r["args"][:2] == ["pr", "merge"]]
+    check(merged and set(merged) <= allowed, f"chantier merged only the release and its fixes "
+                                             f"(PRs {merged}, allowed {sorted(allowed)})")
 
 
 def main() -> int:
@@ -199,11 +225,14 @@ def main() -> int:
     check(data.get("status") == "landed", f"the batch landed (status {data.get('status')})")
     for c in data["crs"]:
         check(c["status"] in {"merged", "cancelled"}, f"{c['id']} ended {c['status']}")
-    calls = ws.with_name(ws.name + ".forge") / "state.calls"
-    refused = [r["args"] for r in records(calls) if r["args"][:2] not in FORGE_ALLOWED] \
-        if calls.exists() else []
+    path = ws.with_name(ws.name + ".forge") / "state.calls"
+    calls = list(records(path)) if path.exists() else []
+    allowed = FORGE_ALLOWED + ((["pr", "merge"],) if data.get("release") else ())
+    refused = [r["args"] for r in calls if r["args"][:2] not in allowed]
     check(not refused, "no agent tried to merge or close on the forge"
                        + (f": {refused[:2]}" if refused else ""))
+    if data.get("release"):
+        release_checks(data, events, ws, calls, check)
     dirty = subprocess.run(["git", "status", "--porcelain", "-uall"], cwd=ws, capture_output=True,
                            text=True).stdout.splitlines()
     check(all(line[3:].startswith(".agents/changes/") for line in dirty),

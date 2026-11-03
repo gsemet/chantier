@@ -1,8 +1,8 @@
 # Campaign claude-full
 
 Six CRs with real agents on Claude, in parallel and added on the way, with the user's questions
-and orders in the middle, and two failure paths. The check before a release. About $12 and
-2 h 30.
+and orders in the middle, two failure paths, then a release with its own fix. The check before a
+release of chantier. About $15 and 3 h.
 
 **What it proves**, on top of [claude-smoke](../claude-smoke/RUNBOOK.md):
 
@@ -18,7 +18,11 @@ and orders in the middle, and two failure paths. The check before a release. Abo
   fixes it in a new round, with a Debugger when it cannot explain it;
 - **the round limit**: the project's own style reviewer demands what the specification forbids
   (French output for `stats`); the CR stops at the limit, or its Driver asks the user, and the
-  user drops it.
+  user drops it;
+- **a release**: it waits for every other CR, then a Release driver follows the project's
+  `RELEASING.md`. The heavy check fails (`tasks --version` does not exist), so a fix CR goes to a
+  CR Driver, the user allows the CLI to merge it, and the procedure starts again. The user edits
+  the notes while it runs, and approves the merge of the release PR and the tag, one by one.
 
 Follow the common steps in [the evals README](../README.md#run-a-campaign), with:
 
@@ -26,12 +30,12 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | --- | --- |
 | Setup | `uv run --no-project python evals/kit/setup.py claude-full <workspace>` |
 | Batch | `full` |
-| CRs | A `add-priority`, B `done-unknown-id`, C `list-json` (QA), D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit) |
-| Open | `$CHANTIER open full @<A> @<B> @<C> --slots 3 --qa 3 --budget 25 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main --review "docs-review=chantier-eval-docs-reviewer:every new or changed CLI command or option is documented in README.md, with an example" --review "style-review=chantier-eval-strict-reviewer:the house style of the command line"`, each `@<X>` its folder in `.agents/changes/backlog/2-backlog/P1/` |
+| CRs | A `add-priority`, B `done-unknown-id`, C `list-json` (QA), D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
+| Open | `$CHANTIER open full @<A> @<B> @<C> @<R> --release 4 --slots 3 --qa 3 --budget 25 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main --review "docs-review=chantier-eval-docs-reviewer:every new or changed CLI command or option is documented in README.md, with an example" --review "style-review=chantier-eval-strict-reviewer:the house style of the command line"`, each `@<X>` its folder in `.agents/changes/backlog/2-backlog/P1/` |
 
 ## The user's turns
 
-1. Give the go for A, B and C once the plan is shown.
+1. Give the go for A, B, C and R once the plan is shown.
 2. While they run: "status?".
 3. After the first hand-back: add D (`$CHANTIER order add --note "@<D>"`), then a bit later E,
    then F.
@@ -44,14 +48,25 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
    drop it, `$CHANTIER order drop CR-<F>`.
 7. Each `ask ready`: merge the PR alone (`evals/kit/merge.py <workspace> <n>`; a conflict
    merges nothing, never chain the next command), then `order merged` and send its line.
-8. Wait for `final <report>`, then "what did it cost?".
+8. R's first attempt, `ask blocked CR-<R> fix: …`: answer "yes, fix it, and merge the fix
+   yourself by rebase". `$CHANTIER order grant CR-<R> --note "auto-merge=rebase"`, send its line,
+   then `$CHANTIER order fix CR-<R> --note "@<V>"`, send its line.
+9. A `draft` on R's line in `$CHANTIER status`: add the line "Thanks to everyone who tested the
+   beta." at the end of that file. It must reach `CHANGELOG.md`.
+10. Each `ask blocked CR-<R> approval: <action>`: approve it, `$CHANTIER order approve CR-<R> --note
+    "<action>"`, and send its line. Expect two: the merge of the release PR, then the tag.
+11. Wait for `final <report>`, read R's `work/retro.md`, then "what did it cost?".
 
 ## Expected
 
-- A, B, C, D and E end `merged`; F ends `cancelled`.
+- A, B, C, D, E, V and R end `merged`; F ends `cancelled`.
+- R: no Release driver before every other CR is merged or cancelled; two attempts at least; the
+  tag `v0.2.0` on the origin; the user's line in `CHANGELOG.md`; no irreversible action without a
+  `go`; a `retro.md`.
+- V: merged by the CLI, under the grant, with no `order merged`.
 - D: at least one CI run red, classified `product`, then green after a new round. If D's CI is
   green on the first run, the coder already met the contract: say so in the report, it is not a
   failure of chantier.
 - F: blocked by the round limit or by a question; no Driver goes past the limit.
 - E: one blocked hand-back with a question, then a new Driver with the answer.
-- The audit passes every check; the cost is under $20.
+- The audit passes every check; the cost is under $25.
