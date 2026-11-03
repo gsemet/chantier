@@ -89,7 +89,6 @@ DEFAULT_CONFIG = {
     "reviews": {},
     "claude_projects_dir": None,
     "first_cr_number": 101,
-    "forge": "github",
     "max_rounds": 3,
     "stale_minutes": 90,
 }

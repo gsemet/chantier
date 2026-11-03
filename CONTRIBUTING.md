@@ -55,7 +55,7 @@ claude plugin install chantier@chantier
 just                # list the recipes
 just check          # structure tests: run before any PR
 just test -k roles  # structure tests, with pytest arguments
-just scenario       # one whole batch, end to end, through the real CLI and a fake gh
+just scenario       # one whole batch, end to end, through the real CLI and a fake gh, then glab
 ```
 
 - Repository text is in English.

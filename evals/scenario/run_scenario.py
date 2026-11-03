@@ -3,9 +3,9 @@
 
 A scripted Foreman feeds events to `chantier event` and carries out the actions it prints; scripted
 Drivers commit in their CR worktree, run the gates, ship to a bare origin, wait on a fake `gh`
-and hand back. The Chief of Staff steers with `chantier order`. Nothing calls a model.
+(or `glab`) and hand back. The Chief of Staff steers with `chantier order`. Nothing calls a model.
 
-    uv run --no-project python evals/scenario/run_scenario.py [--keep] [--verbose]
+    uv run --no-project python evals/scenario/run_scenario.py [--forge gitlab] [--keep] [--verbose]
 
 Exit 0 when every check passes; the transcript is written to evals/results/scenario-<time>.md.
 """
@@ -25,7 +25,10 @@ from unittest import mock
 
 EVALS = Path(__file__).resolve().parents[1]
 SKILL = EVALS.parent / "skills" / "chantier"
-FAKE_GH = Path(__file__).with_name("fake_gh.py")
+FAKE = {"github": ("CHANTIER_GH", "gh", Path(__file__).with_name("fake_gh.py")),
+        "gitlab": ("CHANTIER_GLAB", "glab", Path(__file__).with_name("fake_glab.py"))}
+PR_LINK = {"github": "https://github.com/acme/demo/pull/",
+           "gitlab": "https://gitlab.example.com/acme/demo/-/merge_requests/"}
 FAKE_USAGE = Path(__file__).with_name("fake_session_usage.py")
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
@@ -53,14 +56,15 @@ class World:
         self.work = root / "proj"
         self.state = self.work / ".agents" / "changes"
         self.gh_state = root / "gh-state.json"
+        var, exe, _ = FAKE[ARGS.forge]
         self.env = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
                     "CHANTIER_SKILL_DIR": str(SKILL),
-                    "CHANTIER_GH": str(root / "bin" / ("gh.cmd" if sys.platform == "win32"
-                                                       else "gh")),
+                    var: str(root / "bin" / (f"{exe}.cmd" if sys.platform == "win32" else exe)),
                     "FAKE_GH_STATE": str(self.gh_state), "CHANTIER_WAIT_INTERVAL": "0.05",
                     "CHANTIER_CLAUDE_PROJECTS": str(root / "claude-projects"),
                     "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CHANTIER_HOST": "claude"}
-        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT"):
+        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT",
+                    *(v for v, _, _ in FAKE.values() if v != FAKE[ARGS.forge][0])):
             self.env.pop(var, None)
         self.last_stderr = ""
 
@@ -83,12 +87,13 @@ class World:
         self.sh("git", "commit", "--quiet", "-m", "init", "-m", TRAILER)
         self.sh("git", "remote", "add", "origin", str(origin))
         self.sh("git", "push", "--quiet", "-u", "origin", "main")
-        gh = Path(self.env["CHANTIER_GH"])
+        var, _, script = FAKE[ARGS.forge]
+        gh = Path(self.env[var])
         gh.parent.mkdir()
         if sys.platform == "win32":
-            gh.write_text(f'@"{sys.executable}" "{FAKE_GH}" %*\r\n')
+            gh.write_text(f'@"{sys.executable}" "{script}" %*\r\n')
         else:
-            gh.write_text(f"#!/bin/sh\nexec {sys.executable} {FAKE_GH} \"$@\"\n")
+            gh.write_text(f"#!/bin/sh\nexec {sys.executable} {script} \"$@\"\n")
             gh.chmod(0o755)
         self.gh(checks=[], runs=[], next_pr=40)
 
@@ -268,7 +273,7 @@ def scenario(w: World) -> None:
     w.chantier("qa", "done", "CR-102", "--findings", findings)
     fm.event("qa-done", "CR-102", "0")
     check("a clean QA pass hands CR-102 to the Chief of Staff",
-          fm.asked[-1].startswith("ready CR-102 https://github.com/acme/demo/pull/"))
+          fm.asked[-1].startswith(f"ready CR-102 {PR_LINK[ARGS.forge]}"))
 
     note("\n## 5. Steering: the user drops CR-103 and adds a new item")
     _, out = w.chantier("order", "drop", "CR-103")
@@ -528,19 +533,21 @@ def main() -> int:
             shutil.rmtree(tmp, ignore_errors=True)
     elapsed = time.monotonic() - started
     total = CHECKS["pass"] + CHECKS["fail"]
-    head = [f"# chantier global scenario: {CHECKS['pass']}/{total} checks passed",
+    head = [f"# chantier global scenario on {ARGS.forge}: {CHECKS['pass']}/{total} checks passed",
             "", f"- Run: {time.strftime('%Y-%m-%d %H:%M:%S')}, {elapsed:.1f} s",
             f"- Workspace: `{tmp}`{' (kept)' if ARGS.keep else ' (removed)'}", ""]
     results = EVALS / "results"
     results.mkdir(exist_ok=True)
-    out = results / f"scenario-{time.strftime('%Y%m%d-%H%M%S')}.md"
+    out = results / f"scenario-{ARGS.forge}-{time.strftime('%Y%m%d-%H%M%S')}.md"
     out.write_text("\n".join(head + LOG) + "\n", encoding="utf-8")
-    print(f"{CHECKS['pass']}/{total} checks passed in {elapsed:.1f} s; transcript {out}")
+    print(f"{ARGS.forge}: {CHECKS['pass']}/{total} checks passed in {elapsed:.1f} s; transcript {out}")
     return 0 if CHECKS["fail"] == 0 else 1
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--forge", choices=sorted(FAKE), default="github",
+                        help="the fake forge CLI the Drivers ship to")
     parser.add_argument("--keep", action="store_true", help="keep the temporary workspace")
     parser.add_argument("--verbose", action="store_true", help="print the transcript live")
     ARGS = parser.parse_args()

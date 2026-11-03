@@ -8,9 +8,11 @@ You need:
 - the **Claude Desktop app**, with its Code tab. chantier starts the Foreman as a nested session,
   which only the Desktop app can do: Claude Code in a terminal or in VS Code refuses to start a
   batch, on purpose;
-- [`uv`](https://docs.astral.sh/uv/), `git`, and the [GitHub CLI](https://cli.github.com/) `gh`,
-  logged in (`gh auth status`);
-- a GitHub repository you can push to, cloned on your machine.
+- [`uv`](https://docs.astral.sh/uv/), `git`, and your forge's CLI logged in to its host: the
+  [GitHub CLI](https://cli.github.com/) `gh` (`gh auth status`) or the
+  [GitLab CLI](https://gitlab.com/gitlab-org/cli) `glab` (`glab auth status`), self-hosted
+  servers included;
+- a GitHub or GitLab repository you can push to, cloned on your machine.
 
 ## 1. Install the plugin
 

@@ -64,7 +64,7 @@ then browse the [use cases](docs/use-cases.md).
 
 Then restart the session and type `/chantier` (on Claude Code, `/chantier:chantier`). Besides
 the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); working on a
-repository also needs `git` and an authenticated `gh`.
+repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab.
 
 ## Use
 
@@ -139,7 +139,15 @@ body in the CR's own `work/` folder.
 | Copilot SDK host | `create_session` + `send_message` | 4 minutes (`/every`) |
 
 Preflight refuses everything else (a VS Code tab, the terminal, an unattended run, a linked
-worktree) and offers no fallback. Forge: GitHub (`gh`).
+worktree) and offers no fallback.
+
+| Forge | CLI | Where |
+| --- | --- | --- |
+| GitHub | `gh` | github.com, or GitHub Enterprise when `gh` is logged in to its host |
+| GitLab | `glab` | gitlab.com, or a self-managed server when `glab` is logged in to its host |
+
+The forge and the project come from the batch's git remote (`origin`, or `--remote`); the login
+is the CLI's own (`glab auth login --hostname <host>`). Nothing is configured in chantier.
 
 On Windows, the CLI runs natively (no WSL). Gates run in `cmd.exe`, so write them for it.
 `chantier cancel` ends a CR's processes at once, with no grace period, and finds stray ones by

@@ -73,7 +73,7 @@ $CHANTIER abandon <unclaimed-folder>                  # only on the user's expli
 
 Only in the turn where the user gave the go, in this order:
 
-1. **Preflight**, all or nothing: `$CHANTIER preflight` checks P1 and P4–P8; you check P2, P3
+1. **Preflight**, all or nothing: `$CHANTIER preflight` checks P1 and P4–P9; you check P2, P3
    and that a person is at the keyboard (not a schedule, `/loop` or `/every`).
 
    | # | Condition | Check |
@@ -86,6 +86,7 @@ Only in the turn where the user gave the go, in this order:
    | P6 | The session runs at the repository's root | `$CHANTIER preflight` |
    | P7 | Not a linked worktree | `$CHANTIER preflight` |
    | P8 | The project has instructions | `$CHANTIER preflight` |
+   | P9 | The remote is on GitHub or GitLab, and `gh` or `glab` is logged in to its host | `$CHANTIER preflight` |
 
    On a failure, start nothing, offer no other way (no VS Code tab, no workflow, no subagent
    doing the work), print this block and end the turn:

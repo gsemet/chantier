@@ -147,6 +147,10 @@ def preflight(args) -> tuple[list[str], int]:
         found = project_instructions(repo)
         check("P8", found is not None, f"project instructions: {found.name if found else ''}",
               f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
+        try:
+            check("P9", True, f"forge {forge.check(repo.root, repo.config['remote'])}", "")
+        except ChantierError as e:
+            check("P9", False, "", f"{e} (another remote: `chantier open --remote <name>`)")
     lines.append("P2, P3 and 'not unattended' are the Chief of Staff's own checks")
     lines.append("preflight passed" if ok else "preflight FAILED: start nothing")
     return lines, 0 if ok else EXIT_PRECONDITION
@@ -306,6 +310,7 @@ def open_batch(args) -> list[str]:
             if ":" not in agent and not local_agent_file(repo.root, agent, host):
                 raise ChantierError(f"no agent `{agent}` in .claude/agents or ~/.claude/agents: "
                                     "check its name with the user", EXIT_USAGE)
+    where = forge.check(repo.root, args.remote)
     settings = {"default_branch": branch, "remote": args.remote, "gates": gates,
                 "agents": chosen, "reviews": reviews,
                 "claude_projects_dir": args.claude_projects_dir,
@@ -337,7 +342,8 @@ def open_batch(args) -> list[str]:
             custom += [f"{n}={s['agent']} ({s['task']})" for n, s in reviews.items()]
             brief.write_text(
                 f"# Batch {args.batch}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
-                f"Budget: {args.budget or 'none'}. Host: {host}.\n- CRs, in order:\n" +
+                f"Budget: {args.budget or 'none'}. Host: {host}. Forge: {where}.\n"
+                "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
                         f"{' (QA)' if c['qa'] else ''}\n" for c in b.data["crs"]) +
                 f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}.\n"
@@ -348,7 +354,7 @@ def open_batch(args) -> list[str]:
                 "- Autonomous decisions:\n- Questions to bring back:\n", encoding="utf-8")
             b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {args.batch} on {host}: {len(args.items)} CRs, {args.slots} slots, "
-             f"{data['mode']}"]
+             f"{data['mode']}, forge {where}"]
     lines += [f"{c['id']} {c['title'][:60]}" for c in b.data["crs"]]
     lines.append(f"brief: {brief}")
     return lines

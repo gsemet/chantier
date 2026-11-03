@@ -5,6 +5,7 @@ would not follow on its own here, each with its reason.
 
 ## Words
 
+- **Pull request (PR):** a merge request on GitLab; the CLI talks to either forge.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
   a folder under `.agents/changes/backlog/`:
 
@@ -74,5 +75,5 @@ would not follow on its own here, each with its reason.
   no `sleep`, no polling loop: waits go through `$CHANTIER wait` in the background.
 - **Output:** a `$CHANTIER` command prints at most ten lines (`--json` gives everything). Exit
   codes: 0 ok, 1 usage, 2 precondition (the message says which), 3 stale Foreman epoch,
-  4 external tool (git, gh, a gate), 5 budget. Exit 2 on a lock held over 30 s: retry once,
+  4 external tool (git, gh or glab, a gate), 5 budget. Exit 2 on a lock held over 30 s: retry once,
   then report it.
