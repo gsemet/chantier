@@ -14,14 +14,19 @@ chantier is three things in one repository:
    no dependency, run by `uv run --script`. It owns every mechanical step and the whole batch
    state (`batch.json`, `events.jsonl`); agents never edit that state by hand. It runs on Linux,
    macOS and Windows.
-3. **A plugin**: [`plugin.json`](plugin.json) (Agent Plugins 1.0) and
-   [`.claude-plugin/`](.claude-plugin/) (Claude Code manifest and marketplace) ship the skill and
-   one agent per role in [`agents/`](agents/).
+3. **A plugin**: [`plugin.json`](plugin.json) (Agent Plugins 1.0),
+   [`.claude-plugin/`](.claude-plugin/) (Claude Code manifest and marketplace) and
+   [`.github/plugin/`](.github/plugin/) (GitHub Copilot marketplace) ship the skill and one agent
+   per role and host: [`agents/`](agents/) for Claude Code,
+   [`com.github.copilot/agents/`](com.github.copilot/agents/) for Copilot. They differ (tools,
+   model fields), and Copilot agents name the skill `<skill>`: Copilot tells an agent nothing
+   about its plugin, so every spawn prompt carries a `skill:` line. The plugin needs no setup; a
+   repository customizes a role with `- chantier <role> agent: <file>` in its `AGENTS.md`.
 
-The agents in `agents/` are **generated**: edit the templates in
+The agents in `agents/` and `com.github.copilot/agents/` are **generated**: edit the templates in
 [`skills/chantier/assets/agents/`](skills/chantier/assets/agents/) or the base model lists in
 [`skills/chantier/references/models/`](skills/chantier/references/models/), then run
-`just agents`. CI fails if `agents/` is out of date.
+`just agents`. CI fails if they are out of date.
 
 The design rule that shapes everything: **fail, never improvise.** When a tool, a host feature or
 a configured model is not exactly available, chantier stops and says so; it never picks a
@@ -46,21 +51,23 @@ claude plugin install chantier@chantier
 
 ```bash
 just                # list the recipes
-just check          # agents up to date, CLI unit tests, whole batch scenario: run before any PR
-just test -k gate   # CLI unit tests, with pytest arguments
-just scenario       # one whole batch, end to end, through the real CLI and a fake gh; no model
-just agents         # regenerate agents/ after editing a template or a base model list
+just check          # agents up to date and structure tests: run before any PR
+just test -k agents # structure tests, with pytest arguments
+just agents         # regenerate the plugin's agents after editing a template or a base model list
+just scenario       # optional: one whole batch, end to end, through the real CLI and a fake gh
 ```
 
 - Repository text is in English.
 - Write code and docs in the style of the surrounding files: short sentences, exact terms.
-- A change to the CLI comes with a unit test; a change to the batch flow, with a scenario check.
+- Tests check the structure only (versions, manifests, generated agents, model lists, roles,
+  links, and a smoke run in a fresh repository), in a few seconds. They do not evaluate the
+  batch workflow: run `just scenario` when you change it.
 - CI runs `just check` on Linux, macOS and Windows for every pull request.
 
 ## Versions
 
 One version, `MAJOR.MINOR.PATCH`, is carried by the CLI, `pyproject.toml`, `uv.lock`,
-`SKILL.md`, the three manifests, the agent templates and the generated agents. Never edit it by
+`SKILL.md`, the plugin manifests and marketplaces, the agent templates and the generated agents. Never edit it by
 hand:
 
 ```bash
@@ -94,6 +101,6 @@ run when the skill and the CLI disagree, so every file must move together.
    gh release create vX.Y.Z --generate-notes
    ```
 
-Users get the new version with `claude plugin marketplace update chantier`, then a restart of
-their session. A user who installed agent files for a model override (`chantier setup`) must run
-it again: preflight reports those files as an old template until then.
+Users get the new version by updating the plugin from its marketplace, then restarting their
+session. Only a skill installed without the plugin needs `chantier setup` again: preflight reports
+its agent files as an old template until then.

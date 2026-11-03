@@ -42,4 +42,4 @@ claude plugin eval . --scaffold --allow-tools Bash --judge-model sonnet --runs 3
 `--scaffold` runs the cases' own scripts and `--allow-tools Bash` lets the agent run `chantier`. The
 default Haiku judge misread the cost case; use Sonnet. Last result (2026-10-31, one run each,
 Opus 5.5 agent): 5 of 5 cases pass, about $1.8 for all the runs that got there. The
-CLI's unit tests are separate: `uv run --project scripts/cli pytest`.
+The structure tests are separate: `just test` at the repository root.

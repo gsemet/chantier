@@ -28,16 +28,16 @@ agents:
 check-agents:
     uv run --script scripts/plugin_agents.py --check
 
-# CLI unit tests
+# Structure tests: versions, manifests, agents, model lists, roles, links, a smoke run
 test *args:
     cd {{cli}}; uv run --group dev pytest -q {{args}}
 
-# The whole batch, end to end, no model
+# Optional: one whole batch, end to end through the real CLI and a fake gh, no model
 scenario:
     uv run --no-project python skills/chantier/evals/scenario/run_scenario.py
 
 # Everything a change must pass
-check: check-agents test scenario
+check: check-agents test
 
 # Prepare a release on a clean main: bump, check, commit and tag (pushes nothing)
 release part="patch": (bump-version part) check

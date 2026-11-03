@@ -22,7 +22,7 @@ import time
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[2]
-FAKE_GH = SKILL / "scripts" / "cli" / "tests" / "fake_gh.py"
+FAKE_GH = Path(__file__).with_name("fake_gh.py")
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
 
