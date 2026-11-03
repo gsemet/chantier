@@ -96,7 +96,7 @@ def custom_agents(repo: Repo, host: str) -> dict[str, Path]:
         if path.parent != directory or not path.name.endswith(
                 ".md" if host == "claude" else ".agent.md"):
             raise ChantierError(f"AGENTS.md: a {host} agent must be a file in "
-                                f"{directory.relative_to(repo.root)}")
+                                f"{directory.relative_to(repo.root).as_posix()}")
         out[role] = path
     return out
 
