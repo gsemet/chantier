@@ -2,7 +2,7 @@
 name: stack-driver
 description: Orders, restacks and ships a chantier stack of pull requests. Started by the Foreman.
 model: claude-sonnet-5-5
-tools: Agent, Bash, Read, Write, Grep, Glob, SendMessage, Monitor
+tools: Agent, Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor
 background: true
 ---
 # chantier-agent: 0.1.0

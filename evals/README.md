@@ -40,7 +40,8 @@ The transcript goes to `evals/results/scenario-<time>.md`; exit 1 if any check f
 | [no-fire-unrelated](no-fire-unrelated/case.yaml) | a general git question does not load chantier |
 
 Each case stages its workspace with `place-files.sh` (`lib/seed.py`: a git repo and a batch of
-prepared CRs reached through `chantier` commands only). Run from the skill folder:
+prepared CRs reached through `chantier` commands only). Run from the repository root (the
+plugin's root, whose `evals/` holds the cases):
 
 ```bash
 claude plugin eval . --scaffold --allow-tools Bash --judge-model sonnet --runs 3

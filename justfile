@@ -26,7 +26,7 @@ test *args:
 
 # Optional: one whole batch, end to end through the real CLI and a fake gh, no model
 scenario:
-    uv run --no-project python skills/chantier/evals/scenario/run_scenario.py
+    uv run --no-project python evals/scenario/run_scenario.py
 
 # Everything a change must pass
 check: test

@@ -23,7 +23,8 @@ import time
 from pathlib import Path
 from unittest import mock
 
-SKILL = Path(__file__).resolve().parents[2]
+EVALS = Path(__file__).resolve().parents[1]
+SKILL = EVALS.parent / "skills" / "chantier"
 FAKE_GH = Path(__file__).with_name("fake_gh.py")
 FAKE_USAGE = Path(__file__).with_name("fake_session_usage.py")
 LOG: list[str] = []
@@ -530,7 +531,7 @@ def main() -> int:
     head = [f"# chantier global scenario: {CHECKS['pass']}/{total} checks passed",
             "", f"- Run: {time.strftime('%Y-%m-%d %H:%M:%S')}, {elapsed:.1f} s",
             f"- Workspace: `{tmp}`{' (kept)' if ARGS.keep else ' (removed)'}", ""]
-    results = SKILL / "evals" / "results"
+    results = EVALS / "results"
     results.mkdir(exist_ok=True)
     out = results / f"scenario-{time.strftime('%Y%m%d-%H%M%S')}.md"
     out.write_text("\n".join(head + LOG) + "\n", encoding="utf-8")

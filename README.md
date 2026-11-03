@@ -167,8 +167,8 @@ skills/chantier/
 ├── SKILL.md                ← the Chief of Staff's entry point
 ├── references/             ← one file per running context: concepts, chief-of-staff,
 │                             foreman, driver, worker, message formats
-├── scripts/cli/            ← the `chantier` CLI and its tests
-└── evals/                  ← deterministic scenario and model behavior cases
+└── scripts/cli/            ← the `chantier` CLI and its tests
+evals/                      ← deterministic scenario and model behavior cases
 scripts/                    ← version tooling, run by `just`
 docs/                       ← diagrams
 ```
@@ -182,4 +182,4 @@ just check                  # structure tests (a few seconds)
 just scenario               # one whole batch, end to end, no model
 ```
 
-See [`evals/README.md`](skills/chantier/evals/README.md) for the model behavior cases.
+See [`evals/README.md`](evals/README.md) for the model behavior cases.

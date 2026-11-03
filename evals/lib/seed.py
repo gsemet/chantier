@@ -13,7 +13,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parents[2]
+SKILL = Path(__file__).resolve().parents[2] / "skills" / "chantier"
 WORK = Path.cwd()
 ENV = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
        "CHANTIER_SKILL_DIR": str(SKILL), "CHANTIER_HOST": "claude"}

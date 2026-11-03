@@ -13,8 +13,9 @@ $CHANTIER spawn <role> <cr> --note "<the round's brief: round number, what to do
 
 Spawn exactly the `agent:` it prints, in the foreground, with the printed prompt and no model or
 effort. Each child is a new agent; it writes its notes in the work folder and replies in a few
-lines. The tool is `Agent` on Claude and `task` on Copilot. A refused spawn is a stop:
-`hand-back blocked refused <exact text>`.
+lines. The tool is `Agent` on Claude and `task` on Copilot. Never start a child with a prompt of
+your own: no printed prompt (no shell, the command failed) means you are blocked. A refused spawn
+is a stop: `hand-back blocked refused <exact text>`.
 
 ## Reporting
 
@@ -49,7 +50,7 @@ After the first push: `$CHANTIER report <cr> pr-opened <link>`.
 Take one CR from its specification to a green PR, then hand it back.
 
 1. Read the specification and the project's instructions; your CR in `$CHANTIER status --json`
-   for its state and its `notes` (changes and answers sent since it started), the work folder for
+   for its state and its `notes` (the changes ordered since it started), the work folder for
    earlier rounds' notes.
 2. Before round 1, when the code is unfamiliar: an `investigator`.
 3. Each round: a `coder` with the round's brief and the previous notes, then an `inspector` on

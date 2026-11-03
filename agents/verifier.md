@@ -2,7 +2,7 @@
 name: verifier
 description: Proves at the pushed head that a chantier CR does what its specification says. Started by a Driver.
 model: claude-sonnet-5-5
-tools: Bash, Read, Write, Grep, Glob
+tools: Bash, PowerShell, Read, Write, Grep, Glob
 ---
 # chantier-agent: 0.1.0
 
