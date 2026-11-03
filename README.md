@@ -176,7 +176,8 @@ skills/chantier/
 ├── references/             ← one file per running context: concepts, chief-of-staff,
 │                             foreman, driver, worker, message formats
 └── scripts/cli/            ← the `chantier` CLI and its tests
-evals/                      ← deterministic scenario and model behavior cases
+scenario/                   ← one whole batch, scripted, no model
+evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
 docs/                       ← diagrams
 ```
@@ -190,4 +191,5 @@ just check                  # structure tests (a few seconds)
 just scenario               # one whole batch, end to end, no model
 ```
 
-See [`evals/README.md`](evals/README.md) for the model behavior cases.
+See [`evals/README.md`](evals/README.md) for the eval campaigns with real agents (claude-smoke,
+claude-full, copilot), how to run one, and their last results.
