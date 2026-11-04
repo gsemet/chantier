@@ -11,7 +11,7 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
-| [claude-smoke](claude-smoke/RUNBOOK.md) | One CR end to end on Claude: every role, the project's own review step, simulated CI | ~$1, 15 min | not run yet |
+| [claude-smoke](claude-smoke/RUNBOOK.md) | One CR end to end on Claude: every role, the project's own review step, simulated CI | ~$1, 15 min | 2026-11-04: passed with findings, $1.34, [report](results/claude-smoke-2026-11-04.md) |
 | [claude-full](claude-full/RUNBOOK.md) | Six CRs on Claude: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04: passed with findings, $8.86, [report](results/claude-full-2026-11-04.md) |
 | [copilot](copilot/RUNBOOK.md) | One CR on Copilot: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
 
@@ -48,7 +48,9 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
    and start the batch as `chief-of-staff.md` says (preflight, plan, go), with the `open`
    command of the runbook. The Foreman's session starts with the workspace as its folder. On
    Claude, an eval does not detach the Foreman: skip `detach_session`, so the operator hears
-   of each of its turns.
+   of each of its turns. Past 10 messages the host refuses the Foreman's own: follow these notes
+   and `status`. The operator's shell lacks the workspace's `.claude/settings.local.json`: set
+   its `env` before running `$CHANTIER`.
 3. **Be the user**: play the runbook's turns, in order, and nothing else. Merge with
    `evals/kit/merge.py <workspace> <pr>` alone, never chained: a conflict merges nothing, and
    the CR goes back to its Driver on its own.
