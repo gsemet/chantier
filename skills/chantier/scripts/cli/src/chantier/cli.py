@@ -52,7 +52,6 @@ def _parser() -> argparse.ArgumentParser:
                    help="releases the user allows without asking (needs --budget)")
     s.add_argument("--auto-merge-fixes", choices=["rebase", "squash", "merge"],
                    help="the CLI merges the release's ready fixes, by this method (needs --budget)")
-    s.add_argument("--no-worktrees", action="store_true")
     s.add_argument("--chief-of-staff", help="the Chief of Staff's session id")
     s.add_argument("--fast-gate", action="append", help="from AGENTS.md; repeat for several")
     s.add_argument("--long-gate", action="append", help="from AGENTS.md; repeat for several")
