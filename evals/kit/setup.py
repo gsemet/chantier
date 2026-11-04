@@ -4,7 +4,7 @@
 
 Creates `<workspace>` (a git repository on `main`, pushed to `<workspace>.origin.git`) and the
 forge state next to it in `<workspace>.forge/`. The campaign sets which prepared CRs go to
-`.agents/changes/backlog/2-backlog/P1/`, which review steps the project's `AGENTS.md` declares,
+`.agents/changes/2-backlog/P1/`, which review steps the project's `AGENTS.md` declares,
 and which CI contracts the forge adds. On Claude, `.claude/settings.local.json` makes every
 session in the workspace (the Foreman, its Drivers and workers) call the local forge as `gh`.
 """
@@ -82,7 +82,7 @@ def main(campaign: str, dest: Path) -> None:
         settings = dest / ".claude" / "settings.local.json"
         settings.write_text(json.dumps({"env": env}, indent=2) + "\n")
 
-    backlog = dest / ".agents" / "changes" / "backlog" / "2-backlog" / "P1"
+    backlog = dest / ".agents" / "changes" / "2-backlog" / "P1"
     for slug in spec["crs"]:
         shutil.copytree(HERE / "crs" / slug, backlog / slug)
     subprocess.run(["uv", "sync", "--quiet"], cwd=dest, check=True)

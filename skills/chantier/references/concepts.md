@@ -7,7 +7,7 @@ would not follow on its own here, each with its reason.
 
 - **Pull request (PR):** a merge request on GitLab; the CLI talks to either forge.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
-  a folder under `.agents/changes/backlog/`:
+  a folder in a stage of `.agents/changes/`:
 
   ```text
   <slug>/
@@ -15,6 +15,7 @@ would not follow on its own here, each with its reason.
   ├── 01-intent.md         ← the request, summarised and analysed; names its intake files
   ├── 02-answers.md        ← every answer the user gave about the CR, whoever asked
   ├── 03-change-spec.md    ← the Change Specification
+  ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
   ├── evidence/            ← proof a QA driver or Verifier keeps with the CR
   ├── work/                ← written while it runs: notes, gate logs, the PR body
   └── research/…           ← anything else useful
@@ -23,11 +24,18 @@ would not follow on its own here, each with its reason.
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed, unprioritized) →
-  `2-backlog/P1…P4/` (the user prioritized it) → `3-requests/` (in a batch, renamed
-  `<number>-<slug>`) → `4-archives/` (merged) or back where it came from (dropped);
-  `5-trash/` only on the user's explicit word.
-- **Batch:** the CRs the user starts together, in parallel or as a stack of PRs. Each CR gets a
-  branch `chantier/<batch>/<cr>-<slug>` and a worktree next to the repository.
+  `2-backlog/P1…P4/` (the user prioritized it) → `3-requests/03-<batch>/<number>-<slug>/` (in a
+  batch, renamed) → `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged: it archives alone, at
+  once, in a stack too) or `5-trash/<YYMMDD-HHMM>-<number>-<slug>/` (dropped, with its work; it no
+  longer returns to the backlog, and the user can ask the Chief of Staff to put it back).
+  `abandon` also sends to `5-trash/`, only on the user's explicit word.
+- **Batch:** the CRs the user starts together, in parallel or as a stack of PRs. Its folder is
+  `3-requests/<n>-<name>/` (a global counter); `--batch` takes the name without the number. Each
+  CR gets a branch `chantier/<batch>/<cr>-<slug>` and a worktree next to the repository.
+- **STATUS:** `STATUS.md` and `STATUS.json` (same content, the JSON for dashboards) in
+  `3-requests/` (open batches and the backlog), in each batch and in each CR, linked both ways.
+  The CLI rewrites them at each state change, never with a forge call. A status cell reads
+  `🔴 blocked CI 1/3`. A batch landed has its `STATUS.md` as the exit report.
 - **Release CR:** a CR that releases what is merged, by the project's own procedure, with or
   without a commit. A Release driver runs it, once every other CR of the batch is merged or
   cancelled. A **fix CR** is a CR the release found it needs; the release starts again after it.
@@ -36,11 +44,11 @@ would not follow on its own here, each with its reason.
   the user.
 - **Work folder:** the CR's `work/`; your spawn prompt gives its path.
 - **`.agents/changes/`:** the one folder chantier writes in, as plain JSON and Markdown:
-  `backlog/` (the CR folders) and `batches/<batch>/` (`batch.json`, `events.jsonl`, `brief.md`,
-  `report.md`). The project's `AGENTS.md` is the only configuration: the Chief of Staff reads it
+  the stages `1-inbox/` to `5-trash/`, and in a batch folder `batch.json`, `events.jsonl`,
+  `brief.md`, `STATUS.md`, `STATUS.json` and the CR folders. The project's `AGENTS.md` is the only configuration: the Chief of Staff reads it
   and passes the gates, the branch and the team to `$CHANTIER open`.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`).
-  It alone writes `batch.json` and `events.jsonl`.
+  It alone writes `batch.json`, `events.jsonl` and the `STATUS` files.
 
 ## Rules
 

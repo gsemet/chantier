@@ -131,8 +131,8 @@
   <rect x="30" y="574" width="764" height="122" rx="10" fill="#ffffff" stroke="#94a3b8"/>
   <text x="46" y="599" font-size="12.5" font-weight="700" fill="#0f172a">Everything chantier writes: .agents/changes/, as JSON and Markdown</text>
   <g font-size="11" fill="#334155" font-family="ui-monospace, Menlo, monospace">
-    <text x="46" y="628">backlog/   1-inbox → 2-backlog/P1…P4 → 3-requests → 4-archives</text>
-    <text x="46" y="652">batches/   batch.json · events.jsonl · brief.md · report.md</text>
+    <text x="46" y="628">1-inbox → 2-backlog/P1…P4 → 3-requests → 4-archives · 5-trash</text>
+    <text x="46" y="652">3-requests/NN-batch/  batch.json · events.jsonl · brief.md · STATUS.md</text>
   </g>
   <text x="46" y="678" font-size="11" fill="#475569">Each CR: its request, your answers, its specification, and a branch and worktree next to the repository.</text>
 

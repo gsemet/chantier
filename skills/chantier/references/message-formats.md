@@ -24,7 +24,7 @@ Print an order with `$CHANTIER order …`: the line carries the order id the For
 [foreman→chief-of-staff] ask ready <cr> <pr-link> | ask stack-ready <cr>=<link>… | ask budget <spent>/<budget>
 [foreman→chief-of-staff] ask merged <cr> <pr-link> | ask released <cr> <release link or tag>
 [foreman→chief-of-staff] pong <status line>
-[foreman→chief-of-staff] final <report path>
+[foreman→chief-of-staff] final <batch STATUS.md path>
 ```
 
 Every `ask` also stays in the state until `$CHANTIER asks` reads it: the line may never arrive.

@@ -109,7 +109,7 @@ Only in the turn where the user gave the go, in this order:
    ```
 
    It moves each folder to requests, creates branches and worktrees, records the batch in
-   `.agents/changes/batches/<batch>/` and writes its `brief.md`. Complete the brief from the
+   `.agents/changes/3-requests/<n>-<batch>/` and writes its `brief.md`. Complete the brief from the
    grill: autonomous decisions allowed, questions to bring back, QA notes.
 4. **Start the Foreman** with this prompt, `<n>` being the epoch (`1` for a new batch, else the
    one `$CHANTIER foreman get` prints plus one):
@@ -137,13 +137,15 @@ Only in the turn where the user gave the go, in this order:
 ## 5. While it runs
 
 - **Status:** `$CHANTIER status [--notes]`, with PR links. A blocked CR is a question for the
-  user. Never read the Foreman's transcript or files for progress.
+  user. Never read the Foreman's transcript or files for progress. To answer or show more, point
+  the user to `.agents/changes/3-requests/STATUS.md` (open batches and the backlog; each batch
+  and CR links its own `STATUS.md`).
 - **Steering:** each order is one `$CHANTIER order` that prints one line; send exactly that line
   to the Foreman (`SendMessage` / `send_message`). The Foreman sends no confirmation: `status` shows the orders still pending.
 
   ```bash
   $CHANTIER order add --note "@<prepared-folder>"     # a filed, grilled CR
-  $CHANTIER order drop CR-104                          # its folder returns to the backlog
+  $CHANTIER order drop CR-104                          # its folder goes to 5-trash/ with its work
   $CHANTIER order first CR-103
   $CHANTIER order change CR-102 --note "<one-line change>"
   $CHANTIER order merged CR-101                        # the user merged its PR
@@ -171,10 +173,24 @@ Only in the turn where the user gave the go, in this order:
 - **Cost, unasked:** each time you tell the user a CR is ready or merged, add its line of
   `$CHANTIER cost --by cr`. Report the lines as they are, give no figure when it fails, and offer
   the detail (`--by role`, `--by cr`). Your own session is not in it.
-- **When the batch lands** (`[foreman→chief-of-staff] final <report>`): summarize the report and
-  show its Cost section as it is (`$CHANTIER cost --summary` gives it again). On
-  Copilot, tell the user to delete the heartbeat: "Open the Foreman chat, type `/every`, delete
-  `chantier heartbeat <batch> epoch <n>`." No tool can.
+- **When the batch lands** (`[foreman→chief-of-staff] final <STATUS.md path>`): that file is the
+  exit report. Close the batch:
+  1. `$CHANTIER close --batch <batch>` without `--yes` prints what it would delete and touches
+     nothing. Check the cleanup: only the dropped CRs' worktrees and branches, and the batch
+     folder, which must hold no CR folder (else it refuses).
+  2. Show the user the bilan and the Cost section of the `STATUS.md` as they are, and what
+     `close` would delete. Once closed, the batch total is gone; only the CR archives keep their
+     costs.
+  3. Ask the user. Only on their yes, `$CHANTIER close --batch <batch> --yes`. Without a yes the
+     folder stays; ask again at the next turn.
+
+  On Copilot, tell the user to delete the heartbeat: "Open the Foreman chat, type `/every`,
+  delete `chantier heartbeat <batch> epoch <n>`." No tool can.
+- **Putting back:** on the user's word, a CR in `5-trash/` returns to `1-inbox/` by moving its
+  folder, without the date prefix; `$CHANTIER triage` then follows the user's priority.
+- **An old layout:** a command that fails with the "layout of chantier before 0.4" error has
+  changed nothing. After any open batch has finished with the old version, move the folders as
+  the error says, yourself, then run the command again. No migration command exists.
 
 ## 6. Recovery
 
@@ -228,7 +244,7 @@ who talks with the user.
 | `ask blocked <cr> infra: <text>` or `budget: <action>` | tell the user; on their word, `order change` (or `order grant` with a new budget) |
 | `ask merged <cr> <link>` | tell the user: a fix (under the grant) or the release PR (on their approval) was merged |
 | `ask refused <cr> <text>` after a merge | a permission or classifier refusal, with the user's word for this merge in this session (the grant or the approval): `$CHANTIER merge <cr> --escalated`, once, then `$CHANTIER order merged <cr>` and send its line. No such word, refused again, or the forge said no: show the user the exact text; they merge it, then `order merged <cr>` |
-| `ask released <cr> <link>` | report the release; read `work/retro.md` in the CR's folder (now in `4-archives/`) and offer to file each proposal as a CR |
+| `ask released <cr> <link>` | report the release; read `work/retro.md` in the CR's folder (now in `4-archives/`, dated) and offer to file each proposal as a CR |
 
 ## Never
 
@@ -237,4 +253,5 @@ who talks with the user.
   choose.
 - Approve an irreversible action or widen a release's grant without the user's own word.
 - Message a Driver, or do the Foreman's or a Driver's work.
-- Edit `batch.json` or `events.jsonl` by hand.
+- Edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
+- Run `close --yes` without the user's yes in this turn.

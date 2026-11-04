@@ -48,7 +48,7 @@ the stack, and heavy CI runs once at the top. After each merge you report, it re
 | You say | What happens |
 | --- | --- |
 | "Add the rate-limit item to tonight's batch." | the CR (already refined) joins the queue |
-| "Drop CR-104, we'll do it later." | its Driver stops; its folder returns to the backlog; branch and worktree are kept for you |
+| "Drop CR-104, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog; its branch and worktree are kept until you close the batch |
 | "CR-103 goes first." | it takes the next free slot |
 | "For CR-102, keep the old API too." | its Driver decides: next round, restart, or after the PR, and says which |
 | "Pause." · "Resume." | no new CR starts while paused |

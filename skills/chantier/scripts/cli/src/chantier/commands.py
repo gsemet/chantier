@@ -15,13 +15,14 @@ from . import __version__, costs, forge, procs
 from .decide import (check_grant, decide, driver_role, fill_slots, merged, parse_grant,
                      record_asks, release_go, release_merged)
 from .lifecycle import (PRIORITIES, changes_lock, cr_directory, ensure_unclaimed,
-                        move_backlog_item, prepared_cr, return_cr, stage_layout)
+                        move_backlog_item, prepared_cr, stage_layout, trash_cr)
 from .roles import (CR_IN_NAME, DRIVERS, ROLES, agent_for, detect_host, local_agent_file,
                     parse_team, plugin_agent_file)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, age_minutes, check_epoch, default_branch,
-                    find_cr_batch, git, move_directory, next_cr_number, now, project_path,
-                    read_batch, resolve_batch)
+                    _read_json, find_cr_batch, git, move_directory, next_cr_number, now,
+                    project_path, read_batch, resolve_batch, stamp)
+from .status import write_dashboard
 
 AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
 INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md")
@@ -195,6 +196,7 @@ def file_cr(args) -> list[str]:
         except OSError as e:
             raise ChantierError(f"could not finish filing {folder}; preserve it for recovery: {e}",
                                 EXIT_EXTERNAL) from e
+        write_dashboard(repo, paths)
     return [f"filed {_shown(repo, folder)}; write the intent and grill the CR here"]
 
 
@@ -202,6 +204,7 @@ def triage(args) -> list[str]:
     repo = Repo.find()
     with changes_lock(repo):
         target = move_backlog_item(repo, args.item, args.priority, stage_layout(repo))
+        write_dashboard(repo, stage_layout(repo))
     return [f"triaged {_shown(repo, target)} ({args.priority})"]
 
 
@@ -210,13 +213,15 @@ def abandon(args) -> list[str]:
     paths = stage_layout(repo)
     source = project_path(repo.root, args.item, "CR folder")
     in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
-    if source.parent not in (paths["inbox"], paths["requests"]) and not in_backlog:
+    in_requests = source.parent.parent == paths["requests"]
+    if source.parent != paths["inbox"] and not in_requests and not in_backlog:
         raise ChantierError("only an inbox, backlog, or unclaimed active CR can be abandoned",
                             EXIT_USAGE)
     with changes_lock(repo):
         ensure_unclaimed(repo, source)
-        target = paths["trash"] / source.name
+        target = paths["trash"] / f"{stamp()}-{source.name}"
         move_directory(source, target)
+        write_dashboard(repo, paths)
     return [f"abandoned {_shown(repo, target)}"]
 
 
@@ -272,10 +277,10 @@ def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
     paths = stage_layout(repo)
     prepared = prepared_cr(repo, item, paths)
     ensure_unclaimed(repo, prepared.directory)
-    number = next_cr_number(repo, (paths["requests"], paths["archives"]))
+    number = next_cr_number(repo, (paths["archives"], paths["trash"], b.dir, *repo.batch_folders()))
     cr_id = f"CR-{number}"
     slug = re.sub(r"^(?:CR-)?\d+-", "", prepared.directory.name, flags=re.I)
-    cdir = paths["requests"] / f"{number:03d}-{_slug(slug)}"
+    cdir = b.dir / f"{number:03d}-{_slug(slug)}"
     origin = prepared.directory.relative_to(repo.root).as_posix()
     b.move(prepared.directory, cdir)
     title = prepared.title
@@ -290,7 +295,7 @@ def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
         b.created_worktree(worktree, branch, head)
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
     c = {"id": cr_id, "title": title, "item": item, "kind": kind, "status": "queued", "order": order,
-         "path": cdir.relative_to(repo.root).as_posix(), "origin": origin,
+         "path": cdir.relative_to(repo.root).as_posix(),
          "specification": prepared.specification.name, "priority": prepared.priority,
          "round": 0, "qa": qa, "qa_done": False, "agent": None, "pr": None, "ci": None,
          "branch": branch, "worktree": str(worktree) if worktree else None, "pgids": [], "pids": [],
@@ -502,18 +507,24 @@ def heartbeat(args) -> tuple[list[str], int]:
     if ages:
         lines.append(f"oldest silent Driver {max(ages):.0f} min")
     try:
-        total = _batch_spend(repo, data)
+        rows = _cost_rows(repo, data, data["host"], _foreman_uuid(data))
     except ChantierError as e:
         return lines + [f"spend not updated: {e}"], e.code
     with Batch(repo, batch, actor="foreman") as b:
-        b.data["spent_usd"] = round(total, 4)
-        b.log("cost", None, usd=total)
+        total = _record_costs(repo, b, rows)
     return lines + [f"spent ${total:.2f}"], 0
 
 
-def _batch_spend(repo: Repo, d: dict) -> float:
-    """What the batch has cost so far, measured from the Foreman's transcript and its agents."""
-    return sum(r["usd"] for r in _cost_rows(repo, d, d["host"], _foreman_uuid(d)))
+def _record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
+    """The spend the budget check reads, and each CR's share, shown in its STATUS.md."""
+    total = sum(r["usd"] for r in rows)
+    b.data["spent_usd"] = round(total, 4)
+    by_cr = _cost_groups(repo, b.id, rows, "cr")
+    for c in b.data["crs"]:
+        if c["id"] in by_cr:
+            c["cost_usd"] = round(by_cr[c["id"]][1], 4)
+    b.log("cost", None, usd=total)
+    return total
 
 
 # ---- state for every role ---------------------------------------------------------------------
@@ -642,7 +653,8 @@ def spawn(args) -> list[str]:
             "pass no model and no effort: the agent file sets them", "prompt:"] + prompt
 
 
-REPORT_KINDS = {"pr-opened", "ci-green", "ci-red", "ci-red-known", "round-done", "note", "draft"}
+REPORT_KINDS = {"pr-opened", "ci-green", "ci-red", "ci-red-known", "round-done", "note", "draft",
+                "investigated", "verified"}
 
 
 def report(args) -> list[str]:
@@ -721,10 +733,17 @@ def gate(args) -> tuple[list[str], int]:
                 _track_pgid(repo, batch, args.cr, p.pid, False)
             if rc != 0:
                 f.flush()
+                _log_gate(repo, batch, args.cr, kind, "fail", wt)
                 # gates write in the console's code page: never fail on their bytes
                 tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
                 return [f"FAIL {cmd} (exit {rc}); log {log}"] + tail, EXIT_EXTERNAL
+    _log_gate(repo, batch, args.cr, kind, "pass", wt)
     return [f"pass {len(cmds)} {kind} gates; log {log}"], 0
+
+
+def _log_gate(repo: Repo, batch: str, cr: str, kind: str, result: str, wt: Path) -> None:
+    with Batch(repo, batch, actor="driver") as b:
+        b.log("gate", cr, gate=kind, result=result, head=git("rev-parse", "--short", "HEAD", cwd=wt))
 
 
 def wait(args) -> tuple[list[str], int]:
@@ -980,7 +999,7 @@ def cancel(args) -> list[str]:
             killed += [str(p) for p in procs.stop(c.get("pids", []))]
             if c.get("worktree") and Path(c["worktree"]).exists():
                 killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
-            return_cr(b, c)
+            trash_cr(b, c)
             b.touch(c, status="cancelled", agent=None, pgids=[], pids=[])
             b.log("cancel", args.cr, killed=killed, path=c.get("path"))
             actions = fill_slots(b)
@@ -1021,36 +1040,58 @@ def land(args) -> list[str]:
                                         errors="replace")
                 if result.returncode:
                     retained.append(f"{c['id']} branch ({result.stderr.strip()})")
-        by_cr: dict[str, list] = {}
-        summary: list[str] = []
         try:
             rows = _cost_rows(repo, b.data, b.data["host"], _foreman_uuid(b.data))
-            total = sum(r["usd"] for r in rows)
-            b.data["spent_usd"] = round(total, 4)
-            b.log("cost", None, usd=total)
-            spent = f"${total:.2f}"
-            by_cr = _cost_groups(repo, batch, rows, "cr")
-            summary = _cost_summary(b.data, rows, by_cr)
+            _record_costs(repo, b, rows)
+            summary = _cost_summary(b.data, rows, _cost_groups(repo, batch, rows, "cr"))
         except ChantierError as e:  # never a false $0.00
-            spent = f"unknown ({e})"
-        usd = {cr: f"${v[1]:.2f}" for cr, v in by_cr.items()}
-        table = "".join(f"| {c['id']} | {c['title']} | {c['status']} | {c.get('pr') or '-'} | "
-                        f"{c['round']} | {usd.get(c['id'], '-')} |\n"
-                        for c in sorted(b.data["crs"], key=lambda c: c["order"]))
-        cost_section = "\n## Cost\n\n" + "".join(f"- {ln}\n" for ln in summary) if summary else ""
-        report_path = b.dir / "report.md"
-        report_path.write_text(
-            f"# Batch {batch}: report\n\n- Landed: {now()}\n- Spent: {spent}"
-            f"\n- Retained: {', '.join(retained) or 'none'}"
-            f"\n\n| CR | Title | Status | PR | Rounds | Cost |\n"
-            f"| --- | --- | --- | --- | ---: | ---: |\n{table}{cost_section}",
-            encoding="utf-8")
-        b.data["status"] = "landed"
+            summary = [f"Spent: unknown ({e})"]
+        b.data.update(status="landed", landed=now(), retained=retained, summary=summary)
         b.log("land", None, cleaned=cleaned, retained=retained)
-    lines = [f"landed {batch}: cleaned {len(cleaned)} worktrees", f"report: {report_path}"]
+    lines = [f"landed {batch}: cleaned {len(cleaned)} worktrees", f"report: {b.dir / 'STATUS.md'}"]
     if retained:
-        lines.append(f"retained for manual review: {'; '.join(retained)}")
+        lines.append(f"left for `chantier close`: {'; '.join(retained)}")
     return lines
+
+
+def _landed_batch(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
+    landed = [d for d in repo.batch_folders()
+              if _read_json(d / "batch.json").get("status") == "landed"]
+    named = [d for d in landed if not batch or _read_json(d / "batch.json")["id"] == batch]
+    if len(named) != 1:
+        raise ChantierError(f"close names one landed batch; landed: "
+                            f"{', '.join(d.name for d in landed) or 'none'}", EXIT_USAGE)
+    d = _read_json(named[0] / "batch.json")
+    return d["id"], named[0], d
+
+
+def close(args) -> tuple[list[str], int]:
+    """The batch's folder goes, and what a dropped CR left: the Chief of Staff shows this to the
+    user first, and passes `--yes` on their word. Without it, nothing is touched."""
+    repo = Repo.find()
+    with changes_lock(repo):
+        batch, folder, d = _landed_batch(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
+        left = [p.name for p in folder.iterdir() if p.is_dir()]
+        if left:
+            raise ChantierError(f"{folder.name} still holds {', '.join(left)}: nothing was deleted")
+        dropped = [c for c in d["crs"] if c["status"] == "cancelled"]
+        trees = [c["worktree"] for c in dropped if c.get("worktree")
+                 and Path(c["worktree"]).exists()]
+        branches = [c["branch"] for c in dropped if c.get("branch") and git(
+            "rev-parse", "--verify", "--quiet", c["branch"], cwd=repo.root, check=False)]
+        plan = [f"folder {_shown(repo, folder)}", *(f"worktree {t}" for t in trees),
+                *(f"branch {n}" for n in branches)]
+        if not args.yes:
+            return [f"close {batch} would delete:", *plan, "kept by hand: "
+                    f"{'; '.join(d.get('retained', [])) or 'nothing'}",
+                    "ask the user, then `chantier close --yes`"], 0
+        for tree in trees:
+            git("worktree", "remove", "--force", tree, cwd=repo.root)
+        for name in branches:
+            git("branch", "-D", name, cwd=repo.root)
+        shutil.rmtree(folder)
+        write_dashboard(repo, stage_layout(repo))
+    return [f"closed {batch}: deleted {len(plan)} items"], 0
 
 
 def _cost_rows(repo: Repo, d: dict, host: str, uuid: str) -> list[dict]:
@@ -1068,7 +1109,7 @@ def _foreman_uuid(d: dict) -> str:
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
     """Calls and dollars, by role or by CR."""
     agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
-    events = repo.batches / batch / "events.jsonl"
+    events = repo.batch_dir(batch) / "events.jsonl"
     for line in events.read_text(encoding="utf-8").splitlines() if events.exists() else []:
         e = json.loads(line)
         if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":

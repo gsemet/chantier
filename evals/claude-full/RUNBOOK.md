@@ -31,7 +31,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | Setup | `uv run --no-project python evals/kit/setup.py claude-full <workspace>` |
 | Batch | `full` |
 | CRs | A `add-priority`, B `done-unknown-id`, C `list-json` (QA), D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
-| Open | `$CHANTIER open full @<A> @<B> @<C> @<R> --release 4 --slots 3 --qa 3 --budget 25 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main --review "docs-review=chantier-eval-docs-reviewer:every new or changed CLI command or option is documented in README.md, with an example" --review "style-review=chantier-eval-strict-reviewer:the house style of the command line"`, each `@<X>` its folder in `.agents/changes/backlog/2-backlog/P1/` |
+| Open | `$CHANTIER open full @<A> @<B> @<C> @<R> --release 4 --slots 3 --qa 3 --budget 25 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main --review "docs-review=chantier-eval-docs-reviewer:every new or changed CLI command or option is documented in README.md, with an example" --review "style-review=chantier-eval-strict-reviewer:the house style of the command line"`, each `@<X>` its folder in `.agents/changes/2-backlog/P1/` |
 
 ## The user's turns
 
@@ -55,11 +55,11 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
    beta." at the end of that file. It must reach `CHANGELOG.md`.
 10. Each `ask blocked CR-<R> approval: <action>`: approve it, `$CHANTIER order approve CR-<R> --note
     "<action>"`, and send its line. Expect two: the merge of the release PR, then the tag.
-11. Wait for `final <report>`, read R's `work/retro.md`, then "what did it cost?".
+11. Wait for `final <report>`, read R's `work/retro.md` (in its `4-archives/` folder), then "what did it cost?". Run the audit, then `$CHANTIER close --yes`.
 
 ## Expected
 
-- A, B, C, D, E, V and R end `merged`; F ends `cancelled`.
+- A, B, C, D, E, V and R end `merged`; F ends `cancelled`, in `5-trash/`; the others are in `4-archives/`.
 - R: no Release driver before every other CR is merged or cancelled; two attempts at least; the
   tag `v0.2.0` on the origin; the user's line in `CHANGELOG.md`; no irreversible action without a
   `go`; a `retro.md`.
@@ -69,4 +69,4 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
   failure of chantier.
 - F: blocked by the round limit or by a question; no Driver goes past the limit.
 - E: one blocked hand-back with a question, then a new Driver with the answer.
-- The audit passes every check; the cost is under $25.
+- The audit passes every check, run before `$CHANTIER close --yes` (it needs the batch folder); the cost is under $25.

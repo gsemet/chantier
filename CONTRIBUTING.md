@@ -14,8 +14,9 @@ chantier is three things in one repository:
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): plain Python with
    no dependency, run by `uv run --script`, on Linux, macOS and Windows. It owns every mechanical
    step and writes only in the target repository's `.agents/changes/`, as plain JSON and
-   Markdown: `backlog/` (the CR folders, each with a `work/` folder while it runs) and
-   `batches/<batch>/` (`batch.json`, `events.jsonl`, the brief and the report). There is no
+   Markdown: the CR folders in `1-inbox/`, `2-backlog/`, `3-requests/`, `4-archives/` and
+   `5-trash/` (each with a `work/` folder while it runs), and the batch folders
+   `3-requests/<NN>-<batch>/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no
    configuration file: the Chief of Staff reads the project's `AGENTS.md` and passes the gates,
    the branch and the team to `chantier open`, which records them in `batch.json`.
    The CLI is also where a role meets its agent: `chantier spawn <role> <cr>` prints the agent to

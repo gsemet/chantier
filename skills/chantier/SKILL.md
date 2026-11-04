@@ -54,7 +54,8 @@ says they know chantier.
 | anything, at the start of a session | read `AGENTS.md`: gates, branch, the team | 1 |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | 3 |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman | 4 |
-| "status?" | `$CHANTIER status`, with links; a blocked CR is a question for the user | 5 |
+| "status?" | `$CHANTIER status`, with links, and `.agents/changes/3-requests/STATUS.md`; a blocked CR is a question for the user | 5 |
+| the batch landed ("close it", the `final` message) | `$CHANTIER close`, show the bilan and cost, ask; `close --yes` only on the user's yes | 5 |
 | add, drop, reorder, change a CR; "I merged #42" | `$CHANTIER order …`, then send its line to the Foreman | 5 |
 | "what did it cost?" | `$CHANTIER cost` | 5 |
 | "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | 2 |
@@ -71,7 +72,7 @@ says they know chantier.
   Never start a backlog item the user did not choose. Never merge, but
   for a refused Foreman's merge (section 7 of chief-of-staff).
 - **You own no background agent** and never message a Driver: orders go through the Foreman.
-- **Batch state only through `$CHANTIER`**; never edit `batch.json` or `events.jsonl` by hand.
+- **Batch state only through `$CHANTIER`**; never edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - Repository and forge text in English; talk with the user in their language.
 
 Message formats: [message-formats](references/message-formats.md).

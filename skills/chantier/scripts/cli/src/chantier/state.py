@@ -1,8 +1,8 @@
 """Repository paths and the locked batch state.
 
 Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
-Markdown: `backlog/` (the CR folders) and `batches/<batch>/` (`batch.json` holds what the Chief of
-Staff passed to `open` from the project's AGENTS.md).
+Markdown: the stage folders, and in `3-requests/` one folder per batch, `03-<name>/`, with its CRs
+(`batch.json` holds what the Chief of Staff passed to `open` from the project's AGENTS.md).
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
 `msvcrt` on Windows), by atomic rename, and every change appends one event.
@@ -13,6 +13,7 @@ import contextlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -70,15 +71,24 @@ def _read_json(path: Path):
     return json.loads(_retry(path.read_text, "utf-8"))
 
 
-def write_json(path: Path, data) -> None:
+def write_file(path: Path, text: str) -> None:
     """Write by atomic rename, so a reader never sees half a file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_text(text, encoding="utf-8")
     _retry(os.replace, tmp, path)
 
 
+def write_json(path: Path, data) -> None:
+    write_file(path, json.dumps(data, indent=2) + "\n")
+
+
 CHANGES = Path(".agents") / "changes"
+OLD_LAYOUT = ("this project's {changes} uses the layout of chantier before 0.4; nothing was done. "
+              "Finish any open batch with that version first. Then move, by hand: `backlog/1-inbox` "
+              "to `1-inbox`, `backlog/2-backlog` to `2-backlog`, `backlog/4-archives` to `4-archives`, "
+              "`backlog/5-trash` to `5-trash`, each directly under {changes}, and delete `backlog/` "
+              "and `batches/`. Archives and trash are now named `<YYMMDD-HHMM>-<folder>`, by date.")
 # What `chantier open` records in batch.json from the project's AGENTS.md (SETTINGS), and the
 # fixed rules every batch runs on.
 DEFAULT_CONFIG = {
@@ -110,6 +120,11 @@ class ChantierError(Exception):
 
 def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def stamp() -> str:
+    """The date in an archive's name: its order is the date's."""
+    return datetime.now(timezone.utc).strftime("%y%m%d-%H%M")
 
 
 def age_minutes(ts: str | None) -> float | None:
@@ -188,6 +203,9 @@ class Repo:
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
         git_dir = Path(common).resolve()
+        changes = git_dir.parent / CHANGES
+        if (changes / "backlog").is_dir() or (changes / "batches").is_dir():
+            raise ChantierError(OLD_LAYOUT.format(changes=CHANGES.as_posix()))
         return cls(git_dir.parent, git_dir, json.loads(json.dumps(DEFAULT_CONFIG)))
 
     @property
@@ -197,20 +215,32 @@ class Repo:
 
     @property
     def batches(self) -> Path:
-        return self.changes / "batches"
+        """`3-requests/`: one folder per batch, which holds its CRs."""
+        return self.changes / "3-requests"
 
     @property
     def worktrees(self) -> Path:
         return self.root.parent / f"{self.root.name}.worktrees"
 
+    def batch_folders(self) -> list[Path]:
+        if not self.batches.is_dir():
+            return []
+        return sorted(d for d in self.batches.iterdir() if (d / "batch.json").is_file())
+
     def batch_dir(self, batch: str) -> Path:
-        return self.batches / batch
+        """`--batch` is the name given to `open`; the folder adds its number."""
+        return next((d for d in self.batch_folders()
+                     if re.fullmatch(rf"\d+-{re.escape(batch)}", d.name)), self.batches / batch)
+
+    def next_batch_number(self) -> int:
+        """Numbers keep rising after a batch's folder is deleted: the last one is on file."""
+        last = self.changes / ".batch-number"
+        kept = int(last.read_text(encoding="utf-8")) if last.is_file() else 0
+        return max([kept, *(int(d.name.split("-")[0]) for d in self.batch_folders())]) + 1
 
     def open_batches(self) -> list[str]:
-        if not self.batches.exists():
-            return []
-        return sorted(d.name for d in self.batches.iterdir() if (d / "batch.json").exists()
-                      and _read_json(d / "batch.json").get("status") != "landed")
+        states = [_read_json(d / "batch.json") for d in self.batch_folders()]
+        return sorted(s["id"] for s in states if s.get("status") != "landed")
 
 
 class Batch:
@@ -220,6 +250,10 @@ class Batch:
         self.repo, self.id, self.actor = repo, batch_id, actor
         self.dir = repo.batch_dir(batch_id)
         self._create = create
+        self._number = None
+        if create is not None and not (self.dir / "batch.json").exists():
+            self._number = repo.next_batch_number()
+            self.dir = repo.batches / f"{self._number:02d}-{batch_id}"
         self._lock = None
         self.data: dict = {}
         self._events: list[dict] = []
@@ -264,6 +298,12 @@ class Batch:
                 with open(self.dir / "events.jsonl", "a", encoding="utf-8") as f:
                     for e in self._events:
                         f.write(json.dumps(e) + "\n")
+                if self._number:
+                    write_file(self.repo.changes / ".batch-number", f"{self._number}\n")
+                from .lifecycle import stage_layout  # avoid an import cycle
+                from .status import write_batch, write_dashboard
+                write_batch(self.repo, self.data, self.dir)
+                write_dashboard(self.repo, stage_layout(self.repo))
         finally:
             try:
                 if not state_written:
@@ -275,6 +315,8 @@ class Batch:
                 with contextlib.suppress(Exception):
                     _unlock(self._lock)
                 self._lock.close()
+                if self._number and not state_written:  # a failed `open` leaves no empty folder
+                    shutil.rmtree(self.dir, ignore_errors=True)
 
     def log(self, kind: str, cr: str | None = None, **fields) -> None:
         self._events.append({"t": now(), "actor": self.actor, "kind": kind, "cr": cr, **fields})
@@ -359,13 +401,10 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
     """The batch holding a CR: the one given, else the open batch that has it."""
     if batch:
         return batch
-    if repo.batches.exists():
-        for d in sorted(repo.batches.iterdir(), reverse=True):
-            f = d / "batch.json"
-            if f.exists():
-                b = _read_json(f)
-                if b.get("status") != "landed" and any(c["id"] == cr_id for c in b["crs"]):
-                    return d.name
+    for d in reversed(repo.batch_folders()):
+        b = _read_json(d / "batch.json")
+        if b.get("status") != "landed" and any(c["id"] == cr_id for c in b["crs"]):
+            return b["id"]
     raise ChantierError(f"no open batch holds {cr_id}", EXIT_USAGE)
 
 
@@ -376,15 +415,12 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
         if root.is_dir():
             for child in root.iterdir():
                 if child.is_dir():
-                    match = re.match(r"^(?:CR-)?(\d+)(?:-|$)", child.name, re.I)
+                    match = re.match(r"^(?:\d{6}-\d{4}-)?(?:CR-)?(\d+)(?:-|$)", child.name, re.I)
                     if match:
                         previous = max(previous, int(match.group(1)))
-    if repo.batches.exists():
-        for batch in repo.batches.iterdir():
-            state = batch / "batch.json"
-            if state.is_file():
-                for cr in _read_json(state).get("crs", []):
-                    match = re.fullmatch(r"CR-(\d+)", cr.get("id", ""))
-                    if match:
-                        previous = max(previous, int(match.group(1)))
+    for batch in repo.batch_folders():
+        for cr in _read_json(batch / "batch.json").get("crs", []):
+            match = re.fullmatch(r"CR-(\d+)", cr.get("id", ""))
+            if match:
+                previous = max(previous, int(match.group(1)))
     return previous + 1
