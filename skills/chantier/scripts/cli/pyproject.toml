@@ -1,6 +1,6 @@
 [project]
 name = "chantier"
-version = "0.1.0"
+version = "0.3.0"
 description = "CLI of the chantier skill (Chief of Staff): batch state, events, gates, waits, ship, cost."
 requires-python = ">=3.11"
 dependencies = []

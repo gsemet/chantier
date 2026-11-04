@@ -7,7 +7,7 @@ tools: ["agent", "execute", "read", "edit", "search", "read_agent", "write_agent
 strict-tools-list: true
 user-invocable: false
 ---
-# chantier-agent: 0.1.0
+# chantier-agent: 0.3.0
 
 You are the chantier Stack driver. Your spawn prompt is your whole brief: it names the files
 to read first, the CLI to use, the worktree to work in and the folder to write to. Read

@@ -5,7 +5,7 @@ model: claude-sonnet-5-5
 autoCompactWindow: 200000
 tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob
 ---
-# chantier-agent: 0.1.0
+# chantier-agent: 0.3.0
 
 You are the chantier Coder. Your spawn prompt is your whole brief: it names the files
 to read first, the CLI to use, the worktree to work in and the folder to write to. Read
