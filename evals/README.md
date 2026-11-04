@@ -38,6 +38,25 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
 - On Claude Desktop, the go must be typed in the desktop app: under Remote Control, starting
   the Foreman's session is refused.
 
+### The host's limits
+
+Claude Desktop sets these and no setting changes them: a campaign is written to live with them.
+
+- **10 messages per session.** A session can send 10 messages to other Desktop sessions since
+  someone last typed in it; the next ones are refused, and refused sends count. Each session has
+  its own count, attached or detached. Messages from other sessions do not reset it, and a line
+  typed during a turn counts only once that turn ends.
+- **Every campaign stays under it**, for the Foreman and for the operator: at most 10 messages
+  from the Foreman in the whole run, nobody types in its session, and at most 10 orders from the
+  operator between two lines the user types. Only a campaign made to test long exchanges goes
+  past it, and its report says so. `claude-full` still goes past it, through the Foreman's `ok`
+  lines (see [its report](results/claude-full-2026-11-04.md)).
+- **Past the limit,** the Foreman's messages are lost, but the host still tells the operator of
+  each of its turns: follow these notes and `status`, and merge from there. Never send through
+  another tool: the limit is the host's, and a refusal is reported.
+- **Starting the Foreman** needs a line typed in the desktop app (see above): an eval cannot start
+  from a phone.
+
 ### The steps
 
 1. **Stage** the workspace next to this checkout, for example
@@ -48,9 +67,8 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
    and start the batch as `chief-of-staff.md` says (preflight, plan, go), with the `open`
    command of the runbook. The Foreman's session starts with the workspace as its folder. On
    Claude, an eval does not detach the Foreman: skip `detach_session`, so the operator hears
-   of each of its turns. Past 10 messages the host refuses the Foreman's own: follow these notes
-   and `status`. The operator's shell lacks the workspace's `.claude/settings.local.json`: set
-   its `env` before running `$CHANTIER`.
+   of each of its turns. The operator's shell lacks the workspace's `.claude/settings.local.json`:
+   set its `env` before running `$CHANTIER`.
 3. **Be the user**: play the runbook's turns, in order, and nothing else. Merge with
    `evals/kit/merge.py <workspace> <pr>` alone, never chained: a conflict merges nothing, and
    the CR goes back to its Driver on its own.
