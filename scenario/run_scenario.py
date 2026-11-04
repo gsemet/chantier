@@ -343,8 +343,9 @@ def scenario(w: World) -> None:
     note("\n## 8. The user merges; the Foreman lands the batch")
     code, _ = w.chantier("land", "--epoch", 2, expect=2)
     check("land is refused while PRs are not merged", code == 2 and w.batch()["status"] == "open")
+    fake_transcripts(w, w.batch())
     first = w.cr("CR-101")
-    collision = w.work / ".agents/changes/backlog/4-archives" / Path(first["path"]).name
+    collision =w.work / ".agents/changes/backlog/4-archives" / Path(first["path"]).name
     collision.mkdir(parents=True)
     (collision / "sentinel.txt").write_text("do not overwrite")
     w.chantier("order", "merged", "CR-101")
@@ -376,12 +377,19 @@ def scenario(w: World) -> None:
     check("four PRs were opened on the fake forge", len(set(prs.values())) == 4)
 
     note("\n## 9. Cost")
-    fake_transcripts(w, d)
     code, out = w.chantier("cost", "--by", "cr", "--batch", "night")
     check("Claude cost prices the Foreman and each Driver",
           code == 0 and out[:2] == ["night: $1.304 over 78 model calls",
                                     "foreman: $0.391 (30 calls)"]
           and set(out[2:]) == {f"CR-10{i}: $0.228 (12 calls)" for i in (1, 2, 4, 5)}, str(out))
+    code, out = w.chantier("cost", "--summary", "--batch", "night")
+    check("the summary gives the total, the budget and orchestration against work",
+          code == 0 and out[0] == "Total: $1.30 of a $50 budget"
+          and out[1] == "Orchestration $1.30 (100%), work $0.00 (0%)"
+          and out[2].startswith("Most: CR-10") and "Chief of Staff" in out[3], str(out))
+    report = (w.state / "batches/night/report.md").read_text(encoding="utf-8")
+    check("the batch report gives each CR's cost and the summary",
+          "| $0.23 |" in report and "## Cost" in report and "Total: $1.30" in report, report)
 
     note("\n## 10. Copilot cost")
     copilot_cost(w, d)
@@ -395,6 +403,8 @@ def scenario(w: World) -> None:
     lifecycle_regressions(w)
     rebase_after_merge(w)
     release(w)
+    release_merge_on_approval(w)
+    lost_messages(w)
 
 
 def rebase_after_merge(w: World) -> None:
@@ -515,10 +525,10 @@ def release(w: World) -> None:
     state = w.state / "batches" / "ship" / "batch.json"
     data = w.batch()
     state.write_text(json.dumps({**data, "spent_usd": 6}))
-    code, out = w.chantier("release", "go", rel, "--note", "merge the release PR", expect=5)
+    code, out = w.chantier("release", "go", rel, "--note", "publish v1.1.0", expect=5)
     check("past the budget, a grant opens nothing", code == 5 and "budget" in out[0], str(out))
     state.write_text(json.dumps(data))
-    code, out = w.chantier("release", "go", rel, "--note", "merge the release PR")
+    code, out = w.chantier("release", "go", rel, "--note", "publish v1.1.0")
     check("the grant opens the action without asking", code == 0 and "without asking" in out[0])
     w.gh(merge_refused=True)
     fm.event("hand-back-blocked", rel, "merge: rebase")
@@ -544,6 +554,100 @@ def release(w: World) -> None:
           and "/4-archives/" in w.cr(rel)["path"], str(fm.asked))
     calls = (w.root / "gh-state.json.calls").read_text()
     check("the forge saw the merges", calls.count("merge") >= 2)
+
+
+def release_merge_on_approval(w: World) -> None:
+    note("\n## 15. A release PR merges on the user's approval, with no new Driver")
+    _, version = prepare_cr(w, "Release v1.2.0")
+    w.chantier("open", "approve", f"@{version}", "--release", 1, "--chief-of-staff",
+               "local_chantier", *FROM_AGENTS_MD)
+    w.name, w.env["CHANTIER_BATCH"] = "approve", "approve"
+    w.chantier("foreman", "set", "local_foreman4")
+    fm = Foreman(w, epoch=1)
+    fm.event("start")
+    rel = w.batch()["crs"][0]["id"]
+    w.chantier("release", "start", rel)
+    wt = Path(w.cr(rel)["worktree"])
+    (wt / "VERSION").write_text("1.2.0\n")
+    w.sh("git", "add", ".", cwd=wt)
+    w.sh("git", "-c", "user.name=release", "-c", "user.email=release@example.com", "commit",
+         "--quiet", "-m", "release: v1.2.0", "-m", TRAILER, cwd=wt)
+    (w.work / w.cr(rel)["path"] / "work" / "pr-body.md").write_text("Release v1.2.0\n")
+    w.chantier("ship", rel)
+    fm.event("hand-back-blocked", rel, "merge: rebase")
+    check("without a grant, the merge is an approval to ask",
+          fm.asked[-1].startswith(f"blocked {rel} approval: merge the release PR"), str(fm.asked))
+    drivers = len(fm.spawned)
+    _, out = w.chantier("order", "approve", rel, "--note", "merge the release PR")
+    fm.event("--order", out[0].split()[2])
+    check("the approval merges it at once: the only Driver is the one that goes on after",
+          fm.asked[-1].startswith(f"merged {rel} ") and len(fm.spawned) == drivers + 1
+          and w.cr(rel)["status"] == "working", str(fm.asked))
+    fm.event("hand-back-ready", rel, "v1.2.0")
+    check("the batch lands", fm.landed)
+
+
+def lost_messages(w: World) -> None:
+    note("\n## 16. Lost messages: the wake catches up, and nothing is left unsaid")
+    titles = ("Lost one", "Lost two", "Lost three")
+    prepared = [prepare_cr(w, title)[1] for title in titles]
+    w.chantier("open", "lost", *(f"@{p}" for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
+    w.name, w.env["CHANTIER_BATCH"] = "lost", "lost"
+    w.chantier("foreman", "set", "local_foreman5")
+    fm = Foreman(w, epoch=1)
+    fm.event("start")
+    one, two, three = (c["id"] for c in w.batch()["crs"])
+
+    _, out = w.chantier("order", "first", three)  # its line never reaches the Foreman
+    order = out[0].split()[2]
+    fm.event("tick")
+    check("a wake runs an order whose line never came",
+          all(o["done"] for o in w.batch()["orders"])
+          and any(m.startswith(f"{three} first") for m in fm.messages), str(fm.messages))
+    check("the line that arrives late changes nothing",
+          fm.event("--order", order) == [f"ok {order} already done"])
+
+    driver_round(w, one, "lost.py", f"WHO = '{one}'\n")
+    fm.event("hand-back-ready", one, w.cr(one)["pr"])
+    check("a ready CR is told", fm.asked[-1].startswith(f"ready {one} "))
+    driver_round(w, two, "lost.py", f"WHO = '{two}'\n")
+    w.sh("git", "push", "--quiet", "origin", f"{w.cr(one)['branch']}:main")  # the user merges
+    asked = len(fm.asked)
+    spawned = len(fm.spawned)
+    fm.event("hand-back-ready", two, w.cr(two)["pr"])
+    check("a hand-back in conflict tells the Chief of Staff nothing, and waits for its Driver's end",
+          len(fm.asked) == asked and len(fm.spawned) == spawned
+          and w.cr(two)["status"] == "ready", str(fm.asked))
+    fm.event("driver-done", two)
+    check("the Driver's end sends it back to a new one",
+          fm.spawned[-1] == two and w.cr(two)["status"] == "working", str(fm.spawned))
+
+    driver_round(w, three, "other.py", "OTHER = True\n")
+    fm.event("hand-back-ready", three, w.cr(three)["pr"])
+    wt = Path(w.cr(three)["worktree"])
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
+    w.sh("git", "checkout", "--quiet", "--detach", "origin/main", cwd=wt)
+    (wt / "other.py").write_text("OTHER = False\n")
+    w.sh("git", "add", ".", cwd=wt)
+    w.sh("git", "-c", "user.name=user", "-c", "user.email=user@example.com", "commit", "--quiet",
+         "-m", "the user moves main", "-m", TRAILER, cwd=wt)
+    w.sh("git", "push", "--quiet", "origin", "HEAD:main", cwd=wt)
+    w.sh("git", "checkout", "--quiet", w.cr(three)["branch"], cwd=wt)
+    out = fm.event("tick")
+    check("a wake sends back a ready PR that stopped merging, with no merge to trigger it",
+          f"ok rebase {three}" in out and fm.spawned[-1] == three, str(out))
+
+    _, out = w.chantier("status")
+    check("status counts the asks unread", any("asks unread" in ln for ln in out), str(out))
+    _, out = w.chantier("asks", "refused", one, "the", "host", "said", "no")
+    check("the Foreman's own ask is recorded and printed",
+          out == [f"[foreman→chief-of-staff] ask refused {one} the host said no"], str(out))
+    _, out = w.chantier("asks")
+    check("`asks` gives every ask still unread, sent or not",
+          out[0].startswith(f"ask ready {one} ")
+          and out[-1] == f"ask refused {one} the host said no", str(out))
+    _, out = w.chantier("asks")
+    check("an ask is read once", out == ["no unread ask"], str(out))
 
 
 def lifecycle_regressions(w: World) -> None:

@@ -12,8 +12,8 @@ from collections import defaultdict
 from pathlib import Path
 
 from . import __version__, costs, forge, procs
-from .decide import (_over_budget, check_grant, decide, driver_role, fill_slots, merged,
-                     parse_grant, release_merged)
+from .decide import (check_grant, decide, driver_role, fill_slots, merged, parse_grant,
+                     record_asks, release_go, release_merged)
 from .lifecycle import (PRIORITIES, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, return_cr, stage_layout)
 from .roles import (CR_IN_NAME, DRIVERS, ROLES, agent_for, detect_host, local_agent_file,
@@ -468,7 +468,9 @@ def event(args) -> list[str]:
             if cr not in ("-", "stack") and not cr.startswith("qa:"):
                 b.cr(cr)
             b.data["heartbeat"] = now()
-            return decide(b, cr, kind, note, order=args.order)
+            actions = decide(b, cr, kind, note, order=args.order)
+            record_asks(b, actions)
+            return actions
 
 
 def heartbeat(args) -> tuple[list[str], int]:
@@ -501,9 +503,7 @@ def heartbeat(args) -> tuple[list[str], int]:
 
 def _batch_spend(repo: Repo, d: dict) -> float:
     """What the batch has cost so far, measured from the Foreman's transcript and its agents."""
-    if not d.get("foreman_transcript"):
-        raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
-    return sum(r["usd"] for r in _cost_rows(repo, d, d["host"], d["foreman_transcript"]))
+    return sum(r["usd"] for r in _cost_rows(repo, d, d["host"], _foreman_uuid(d)))
 
 
 # ---- state for every role ---------------------------------------------------------------------
@@ -533,7 +533,29 @@ def status(args) -> list[str]:
     pending = sum(1 for o in d.get("orders", []) if not o["done"])
     if pending:
         lines.append(f"{pending} orders pending")
+    unread = sum(1 for a in d.get("asks", []) if not a["read"])
+    if unread:
+        lines.append(f"{unread} asks unread: `chantier asks`")
     return lines
+
+
+def asks(args) -> list[str]:
+    """The Chief of Staff reads what the Foreman had to tell it, sent or not. With `text`, the
+    Foreman records an ask of its own and gets the line to send."""
+    repo = Repo.find()
+    with Batch(repo, resolve_batch(repo, args.batch),
+               actor="foreman" if args.text else "chief-of-staff") as b:
+        if args.text:
+            text = " ".join(args.text)
+            record_asks(b, [f"ask-chief-of-staff {text}"])
+            b.log("ask", None, text=text)
+            return [f"[foreman→chief-of-staff] ask {text}"]
+        unread = [a for a in b.data.get("asks", []) if not a["read"]]
+        for a in unread:
+            a["read"] = now()
+        if unread:
+            b.log("asks-read", None, count=len(unread))
+    return [f"ask {a['text']}" for a in unread] or ["no unread ask"]
 
 
 def agents(args) -> list[str]:
@@ -877,22 +899,14 @@ def release(args) -> tuple[list[str], int]:
             b.touch(c, go=None)
             b.log("release-published", args.cr, note=args.note)
             return [f"release {grant['published']} published: {args.note}"], 0
-        if _over_budget(b):
-            b.log("release-go", args.cr, action=args.note, result="budget")
+        result, why = release_go(b, c, args.note)
+        if result == "budget":
             return [f"no: the budget is spent (${b.data.get('spent_usd', 0):.2f} of "
                     f"${b.data['budget_usd']}); send `[driver {args.cr}→foreman] hand-back blocked "
                     f"budget: {args.note}` and end"], EXIT_BUDGET
-        if c.get("approvals"):
-            why = f"the user approved: {c['approvals'].pop(0)}"
-        elif grant.get("autonomous", 0) > grant.get("published", 0):
-            why = (f"the user allowed {grant['autonomous']} releases without asking; "
-                   f"{grant.get('published', 0)} published")
-        else:
-            b.log("release-go", args.cr, action=args.note, result="ask")
+        if result == "ask":
             return [f"no approval: send `[driver {args.cr}→foreman] hand-back blocked approval: "
                     f"{args.note}` and end"], EXIT_PRECONDITION
-        b.touch(c, go=args.note)
-        b.log("release-go", args.cr, action=args.note, result="go", why=why)
         return [f"go: {args.note} ({why})"], 0
 
 
@@ -934,12 +948,13 @@ def merge(args) -> list[str]:
             if args.escalated:
                 return [f"merged {args.cr} {c['pr']} ({method}): now `order merged {args.cr}`"]
             if c["kind"] == "release":
-                return [f"merged {args.cr} {c['pr']} ({method})",
-                        f"ask-chief-of-staff merged {args.cr} {c['pr']}"] \
+                actions = [f"ask-chief-of-staff merged {args.cr} {c['pr']}"] \
                     + release_merged(b, c, method)
-            extra, actions = merged(b, c)
-    return [f"merged {args.cr} {c['pr']} ({method})",
-            f"ask-chief-of-staff merged {args.cr} {c['pr']}{extra}"] + actions
+            else:
+                extra, follow = merged(b, c)
+                actions = [f"ask-chief-of-staff merged {args.cr} {c['pr']}{extra}"] + follow
+            record_asks(b, actions)
+    return [f"merged {args.cr} {c['pr']} ({method})"] + actions
 
 
 def cancel(args) -> list[str]:
@@ -959,6 +974,7 @@ def cancel(args) -> list[str]:
             b.touch(c, status="cancelled", agent=None, pgids=[], pids=[])
             b.log("cancel", args.cr, killed=killed, path=c.get("path"))
             actions = fill_slots(b)
+            record_asks(b, actions)
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + actions
 
 
@@ -995,20 +1011,29 @@ def land(args) -> list[str]:
                                         errors="replace")
                 if result.returncode:
                     retained.append(f"{c['id']} branch ({result.stderr.strip()})")
+        by_cr: dict[str, list] = {}
+        summary: list[str] = []
         try:
-            total = _batch_spend(repo, b.data)
+            rows = _cost_rows(repo, b.data, b.data["host"], _foreman_uuid(b.data))
+            total = sum(r["usd"] for r in rows)
             b.data["spent_usd"] = round(total, 4)
             b.log("cost", None, usd=total)
             spent = f"${total:.2f}"
+            by_cr = _cost_groups(repo, batch, rows, "cr")
+            summary = _cost_summary(b.data, rows, by_cr)
         except ChantierError as e:  # never a false $0.00
             spent = f"unknown ({e})"
-        rows = "".join(f"| {c['id']} | {c['title']} | {c['status']} | {c.get('pr') or '-'} | "
-                       f"{c['round']} |\n" for c in sorted(b.data["crs"], key=lambda c: c["order"]))
+        usd = {cr: f"${v[1]:.2f}" for cr, v in by_cr.items()}
+        table = "".join(f"| {c['id']} | {c['title']} | {c['status']} | {c.get('pr') or '-'} | "
+                        f"{c['round']} | {usd.get(c['id'], '-')} |\n"
+                        for c in sorted(b.data["crs"], key=lambda c: c["order"]))
+        cost_section = "\n## Cost\n\n" + "".join(f"- {ln}\n" for ln in summary) if summary else ""
         report_path = b.dir / "report.md"
         report_path.write_text(
             f"# Batch {batch}: report\n\n- Landed: {now()}\n- Spent: {spent}"
             f"\n- Retained: {', '.join(retained) or 'none'}"
-            f"\n\n| CR | Title | Status | PR | Rounds |\n| --- | --- | --- | --- | ---: |\n{rows}",
+            f"\n\n| CR | Title | Status | PR | Rounds | Cost |\n"
+            f"| --- | --- | --- | --- | ---: | ---: |\n{table}{cost_section}",
             encoding="utf-8")
         b.data["status"] = "landed"
         b.log("land", None, cleaned=cleaned, retained=retained)
@@ -1024,17 +1049,14 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuid: str) -> list[dict]:
     return costs.session_costs(costs.transcript_path(repo.root, uuid, d["settings"]))
 
 
-def cost(args) -> list[str]:
-    repo = Repo.find()
-    batch = resolve_batch(repo, args.batch)
-    d = read_batch(repo, batch)
-    host = detect_host(args.host)[0] if args.host else d["host"]
-    uuid = args.transcript or d.get("foreman_transcript")
-    if not uuid:
-        var = "$COPILOT_AGENT_SESSION_ID" if host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
-        raise ChantierError(f"no Foreman transcript recorded: the Foreman runs "
-                            f"`chantier foreman transcript {var}`")
-    rows = _cost_rows(repo, d, host, uuid)
+def _foreman_uuid(d: dict) -> str:
+    if not d.get("foreman_transcript"):
+        raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
+    return d["foreman_transcript"]
+
+
+def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
+    """Calls and dollars, by role or by CR."""
     agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
     events = repo.batches / batch / "events.jsonl"
     for line in events.read_text(encoding="utf-8").splitlines() if events.exists() else []:
@@ -1049,14 +1071,9 @@ def cost(args) -> list[str]:
             return None
         return agent_cr.get(agent) or cr_of(parents.get(agent), hops + 1)
 
-    total = sum(r["usd"] for r in rows)
-    if args.update:
-        with Batch(repo, batch, actor="foreman") as b:
-            b.data["spent_usd"] = round(total, 4)
-            b.log("cost", None, usd=total)
     groups: dict[str, list] = defaultdict(lambda: [0, 0.0])
     for r in rows:
-        if args.by == "cr":
+        if by == "cr":
             named = CR_IN_NAME.search(r.get("description") or "")
             key = ("foreman" if r["agent"] == "main"
                    else cr_of(r["agent"]) or (named.group(0) if named else "other"))
@@ -1064,6 +1081,48 @@ def cost(args) -> list[str]:
             key = r["type"]
         groups[key][0] += r["calls"]
         groups[key][1] += r["usd"]
+    return groups
+
+
+def _orchestrates(role: str) -> bool:
+    """The Foreman and the Drivers that only run others; a QA driver does the work itself."""
+    name = role.rsplit(":", 1)[-1]
+    return name == "foreman" or (name in DRIVERS and name != "qa-driver")
+
+
+def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str]:
+    """What the user reads at the end of a batch; the detail is in `cost --by`."""
+    total = sum(r["usd"] for r in rows)
+    budget = d.get("budget_usd")
+    run = sum(r["usd"] for r in rows if _orchestrates(r["type"]))
+    share = round(100 * run / total) if total else 0
+    top =sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
+    return [f"Total: ${total:.2f}" + (f" of a ${budget:g} budget" if budget else ", no budget"),
+            f"Orchestration ${run:.2f} ({share}%), work ${max(total - run, 0):.2f} "
+            f"({100 - share}%)",
+            "Most: " + (", ".join(f"{k} ${usd:.2f}" for k, usd in top[:3]) or "-"),
+            "Not counted: the Chief of Staff's own session"]
+
+
+def cost(args) -> list[str]:
+    repo = Repo.find()
+    batch = resolve_batch(repo, args.batch)
+    d = read_batch(repo, batch)
+    host = detect_host(args.host)[0] if args.host else d["host"]
+    uuid = args.transcript or d.get("foreman_transcript")
+    if not uuid:
+        var = "$COPILOT_AGENT_SESSION_ID" if host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
+        raise ChantierError(f"no Foreman transcript recorded: the Foreman runs "
+                            f"`chantier foreman transcript {var}`")
+    rows = _cost_rows(repo, d, host, uuid)
+    total = sum(r["usd"] for r in rows)
+    if args.update:
+        with Batch(repo, batch, actor="foreman") as b:
+            b.data["spent_usd"] = round(total, 4)
+            b.log("cost", None, usd=total)
+    if args.summary:
+        return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"))
+    groups = _cost_groups(repo, batch, rows, args.by)
     estimated = sum(r.get("estimated", 0) for r in rows)
     lines = [f"{batch}: ${total:.3f} over {sum(r['calls'] for r in rows)} model calls"
              + (f" ({estimated} estimated, not billed)" if estimated else "")]

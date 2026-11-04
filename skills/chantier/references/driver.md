@@ -133,11 +133,12 @@ package, a sent announcement. If you hesitate, it is one.
    background shell: end your turn and let its result wake you. If the procedure goes through a
    PR, ship and wait as under [Shipping](#shipping) and [Waiting for CI](#waiting-for-ci).
 5. Before each irreversible action: `$CHANTIER release go <cr> --note "<the action>"`.
-   - `go`: do that action and nothing more, with the procedure's own command. A release PR is
-     the Foreman's to merge: `hand-back blocked merge: <the procedure's method>` (`rebase`,
-     `squash` or `merge`), and end. A new Driver goes on once it is merged.
+   - `go`: do that action and nothing more, with the procedure's own command.
    - Exit 2: send the line it prints, adding the drafts' paths, and end. A new Driver goes on
      after the user's approval. Exit 5: the budget is spent; the same.
+   - A release PR is the exception: the Foreman merges it, and asks the user if it has to. Green,
+     run no `release go`: `hand-back blocked merge: <the procedure's method>` (`rebase`, `squash`
+     or `merge`), and end. A new Driver goes on once it is merged.
 6. A release is out: `$CHANTIER release published <cr> --note "<version> <link>"`, then the
    procedure's checks that it works.
 7. A step fails:

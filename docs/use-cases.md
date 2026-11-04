@@ -122,6 +122,9 @@ is kept.
 the transcripts (Claude) or the billed records (Copilot). A missing transcript or an unknown
 model is an error, never an estimate. Your own session is not included.
 
+You also get it unasked: one line per CR when it is ready or merged, and a summary when the batch
+lands (total, budget, orchestration against work, the costliest CRs).
+
 ## On GitHub Copilot
 
 Everything above works in a Copilot SDK host (the Copilot app) the same way, with two
