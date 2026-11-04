@@ -123,7 +123,7 @@ package, a sent announcement. If you hesitate, it is one.
    - No attempt yet, or a `fix:` note newer than your last attempt: a new attempt.
      `$CHANTIER release start <cr>` moves the branch to the fresh default branch; follow the
      procedure from its first step, whatever had passed before.
-   - `approved:`, `grant:` or an answer: go on from the step your notes name.
+   - `approved:`, `merged:`, `grant:` or an answer: go on from the step your notes name.
 3. Early, write whatever the procedure has a person review or edit (release notes, an
    announcement) in the work folder, then `$CHANTIER report <cr> draft <path>`: the user gets the
    link and can edit the file for as long as the release runs. Read it again each time you use
@@ -133,8 +133,9 @@ package, a sent announcement. If you hesitate, it is one.
    background shell: end your turn and let its result wake you. If the procedure goes through a
    PR, ship and wait as under [Shipping](#shipping) and [Waiting for CI](#waiting-for-ci).
 5. Before each irreversible action: `$CHANTIER release go <cr> --note "<the action>"`.
-   - `go`: do that action and nothing more. A release PR merges with `$CHANTIER merge <cr>
-     --method <the procedure's>`; anything else with the procedure's own command.
+   - `go`: do that action and nothing more, with the procedure's own command. A release PR is
+     the Foreman's to merge: `hand-back blocked merge: <the procedure's method>` (`rebase`,
+     `squash` or `merge`), and end. A new Driver goes on once it is merged.
    - Exit 2: send the line it prints, adding the drafts' paths, and end. A new Driver goes on
      after the user's approval. Exit 5: the budget is spent; the same.
 6. A release is out: `$CHANTIER release published <cr> --note "<version> <link>"`, then the

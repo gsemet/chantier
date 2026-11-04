@@ -510,7 +510,7 @@ def release(w: World) -> None:
          "--quiet", "-m", "release: v1.1.0", "-m", TRAILER, cwd=wt)
     (w.work / w.cr(rel)["path"] / "work" / "pr-body.md").write_text("Release v1.1.0\n")
     w.chantier("ship", rel)
-    code, _ = w.chantier("merge", rel, "--method", "rebase", expect=2)
+    code, _ = w.chantier("merge", rel, expect=2)
     check("the release PR does not merge without a go", code == 2)
     state = w.state / "batches" / "ship" / "batch.json"
     data = w.batch()
@@ -520,7 +520,21 @@ def release(w: World) -> None:
     state.write_text(json.dumps(data))
     code, out = w.chantier("release", "go", rel, "--note", "merge the release PR")
     check("the grant opens the action without asking", code == 0 and "without asking" in out[0])
-    w.chantier("merge", rel, "--method", "rebase")
+    w.gh(merge_refused=True)
+    fm.event("hand-back-blocked", rel, "merge: rebase")
+    check("the Foreman merges the release PR; refused, it goes to the Chief of Staff",
+          fm.asked[-1].startswith(f"refused {rel}") and w.cr(rel)["status"] == "blocked",
+          fm.asked[-1])
+    w.gh(merge_refused=False)
+    drivers = len(fm.spawned)
+    code, out = w.chantier("merge", rel, "--escalated")
+    check("the Chief of Staff merges it once, and only the forge moves",
+          code == 0 and "order merged" in out[0] and w.cr(rel)["status"] == "blocked", str(out))
+    _, out = w.chantier("order", "merged", rel)
+    fm.event("--order", out[0].split()[2])
+    check("`order merged` sends the release on with a new Driver, not to the archives",
+          len(fm.spawned) == drivers + 1 and fm.spawned[-1] == rel
+          and "/4-archives/" not in w.cr(rel)["path"], str(fm.spawned))
     w.chantier("release", "published", rel, "--note", "v1.1.0 https://forge.example/v1.1.0")
     code, _ = w.chantier("release", "go", rel, "--note", "publish v1.1.1", expect=2)
     check("the grant ends with its number of releases", code == 2)

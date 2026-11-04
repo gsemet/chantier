@@ -68,7 +68,8 @@ says they know chantier.
   tool, a look-alike model, a workaround or an estimate.
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
 - **Only the user starts work.** Start the Foreman only in the turn where the user gave the go,
-  then detach it at once. Never start a backlog item the user did not choose. Never merge.
+  then detach it at once. Never start a backlog item the user did not choose. Never merge, but
+  for a refused Foreman's merge (section 7 of chief-of-staff).
 - **You own no background agent** and never message a Driver: orders go through the Foreman.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json` or `events.jsonl` by hand.
 - Repository and forge text in English; talk with the user in their language.

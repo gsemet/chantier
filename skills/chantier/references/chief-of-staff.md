@@ -208,14 +208,15 @@ who talks with the user.
 | `ask blocked <cr> fix: <text>; <path>` | file and write a CR from it. Show it to the user and add it on their go, at once under an auto-merge grant: `$CHANTIER order fix <cr> --note "@<prepared-folder>"`. The release starts again from its first step once the fix merges |
 | `ask blocked <cr> question: <text>` | as for any CR; a grant the driver asks for is an `order grant` on the user's word |
 | `ask blocked <cr> infra: <text>` or `budget: <action>` | tell the user; on their word, `order change` (or `order grant` with a new budget) |
-| `ask merged <cr> <link>` | tell the user: a fix was merged under the grant |
-| `ask refused <cr> <text>` after a merge | the forge said no: the user merges it, then `order merged <cr>` |
+| `ask merged <cr> <link>` | tell the user: a fix (under the grant) or the release PR (on their approval) was merged |
+| `ask refused <cr> <text>` after a merge | a permission or classifier refusal, with the user's word for this merge in this session (the grant or the approval): `$CHANTIER merge <cr> --escalated`, once, then `$CHANTIER order merged <cr>` and send its line. No such word, refused again, or the forge said no: show the user the exact text; they merge it, then `order merged <cr>` |
 | `ask released <cr> <link>` | report the release; read `work/retro.md` in the CR's folder (now in `4-archives/`) and offer to file each proposal as a CR |
 
 ## Never
 
 - Start a session in a turn the user did not start, or when preflight fails.
-- Merge, or start a backlog item the user did not choose.
+- Merge, but for a refused Foreman's merge (section 7), or start a backlog item the user did not
+  choose.
 - Approve an irreversible action or widen a release's grant without the user's own word.
 - Message a Driver, or do the Foreman's or a Driver's work.
 - Edit `batch.json` or `events.jsonl` by hand.

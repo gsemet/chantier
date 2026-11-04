@@ -139,7 +139,8 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("merge", commands.merge, "merge a release's fix (grant) or the release PR (after go)",
             epoch=True)
     s.add_argument("cr")
-    s.add_argument("--method", choices=["rebase", "squash", "merge"], help="the release PR's")
+    s.add_argument("--escalated", action="store_true",
+                   help="the Chief of Staff, after the Foreman was refused; then `order merged`")
 
     s = cmd("cancel", commands.cancel, "stop a CR's processes and mark it cancelled", epoch=True)
     s.add_argument("cr")

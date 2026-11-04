@@ -40,7 +40,7 @@ Print an order with `$CHANTIER order …`: the line carries the order id the For
 
 ```text
 [driver <cr>→foreman] hand-back ready <pr-link> | hand-back blocked <reason>
-[driver <cr>→foreman] hand-back blocked question: <text> | approval: <action> | fix: <text>; <path> | infra: <text> | budget: <action>
+[driver <cr>→foreman] hand-back blocked question: <text> | approval: <action> | merge: <method> | fix: <text>; <path> | infra: <text> | budget: <action>
 [driver <cr>→foreman] anomaly <text>
 [qa <cr>→foreman] qa done <cr> <n> findings
 [stack→foreman] hand-back ready <cr>=<link>… | anomaly <cr> <text>

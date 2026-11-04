@@ -8,7 +8,8 @@ do them. An action line is a verb and its arguments:
     spawn qa-driver <cr>            start the CR's QA driver
     spawn stack-driver stack        start the stack driver; `message stack restack` when it is live
     cancel <cr>                     stop the CR's Driver, then `chantier cancel <cr>`
-    merge <cr>                      `chantier merge <cr>`: a fix the user allowed the CLI to merge
+    merge <cr>                      `chantier merge <cr>`: what the user allowed: a fix under the
+                                    grant, the release PR after a `go`
     message <cr> <text>             message the CR's Driver
     ask-chief-of-staff <kind> <text>   one message to the Chief of Staff
     land                            `chantier land`
@@ -175,6 +176,12 @@ def _on_hand_back_ready(b: Batch, cr_id: str, note: str) -> list[str]:
 
 def _on_hand_back_blocked(b: Batch, cr_id: str, note: str) -> list[str]:
     c = b.cr(cr_id)
+    if c.get("kind") == "release" and note.startswith("merge:"):  # the Foreman merges, on its `go`
+        method = note.removeprefix("merge:").strip()
+        if method not in MERGE_METHODS:
+            raise ChantierError(f"hand-back blocked merge: <{'|'.join(MERGE_METHODS)}>", EXIT_USAGE)
+        b.touch(c, status="blocked", blocked_reason=note, merge_method=method)
+        return [f"merge {cr_id}"] + fill_slots(b)
     b.touch(c, status="blocked", blocked_reason=note)
     out = [f"ask-chief-of-staff blocked {cr_id} {note}".rstrip()] + fill_slots(b)
     if b.data["mode"] == "stack" and _stack_ready(b):
@@ -292,6 +299,8 @@ def _on_order_merged(b: Batch, cr_id: str, note: str) -> list[str]:
         return [f"ok merged {cr_id} already merged"]
     if c["status"] == "cancelled":
         raise ChantierError(f"cannot mark cancelled {cr_id} merged")
+    if c.get("kind") == "release":
+        return [f"ok merged {cr_id}"] + release_merged(b, c, c.get("merge_method") or "by the user")
     extra, actions = merged(b, c)
     return [f"ok merged {cr_id}{extra}"] + actions
 
@@ -349,6 +358,13 @@ def _release(b: Batch, cr_id: str) -> dict:
     if c.get("kind") != "release":
         raise ChantierError(f"{cr_id} is not the batch's release CR", EXIT_USAGE)
     return c
+
+
+def release_merged(b: Batch, c: dict, method: str) -> list[str]:
+    """The release PR is merged: the procedure goes on with a new Driver."""
+    c.setdefault("notes", []).append(f"merged: {c.get('pr')} ({method})")
+    b.touch(c, status="queued", go=None, merge_method=None)
+    return fill_slots(b)
 
 
 def _back_to_release(b: Batch, c: dict, note: str, verb: str) -> list[str]:
