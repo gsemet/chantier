@@ -20,7 +20,7 @@ from .roles import (CR_IN_NAME, DRIVERS, ROLES, agent_for, detect_host, local_ag
                     parse_team, plugin_agent_file)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, age_minutes, check_epoch, default_branch,
-                    _read_json, find_cr_batch, git, move_directory, next_cr_number, now,
+                    _read_json, _retry, find_cr_batch, git, move_directory, next_cr_number, now,
                     project_path, read_batch, resolve_batch, stamp)
 from .status import write_dashboard
 
@@ -718,25 +718,26 @@ def gate(args) -> tuple[list[str], int]:
     logdir = _work(repo, c) / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
     log = logdir / f"{time.strftime('%Y%m%d-%H%M%S')}-{kind}.log"
-    with open(log, "w", encoding="utf-8") as f:
-        for cmd in cmds:
+    for cmd in cmds:
+        # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
+        with open(log, "a", encoding="utf-8") as f:
             f.write(f"$ {cmd}\n")
             f.flush()
             group = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
                      if sys.platform == "win32" else {"start_new_session": True})
             p = subprocess.Popen(cmd, shell=True, cwd=wt, stdout=f, stderr=subprocess.STDOUT,
                                  **group)
-            _track_pgid(repo, batch, args.cr, p.pid, True)
-            try:
-                rc = p.wait()
-            finally:
-                _track_pgid(repo, batch, args.cr, p.pid, False)
-            if rc != 0:
-                f.flush()
-                _log_gate(repo, batch, args.cr, kind, "fail", wt)
-                # gates write in the console's code page: never fail on their bytes
-                tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
-                return [f"FAIL {cmd} (exit {rc}); log {log}"] + tail, EXIT_EXTERNAL
+        _track_pgid(repo, batch, args.cr, p.pid, True)
+        try:
+            rc = p.wait()
+        finally:
+            _track_pgid(repo, batch, args.cr, p.pid, False)
+        if rc != 0:
+            _log_gate(repo, batch, args.cr, kind, "fail", wt)
+            # gates write in the console's code page: never fail on their bytes
+            tail = (log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
+                    if log.exists() else [])
+            return [f"FAIL {cmd} (exit {rc}); log {log}"] + tail, EXIT_EXTERNAL
     _log_gate(repo, batch, args.cr, kind, "pass", wt)
     return [f"pass {len(cmds)} {kind} gates; log {log}"], 0
 
@@ -992,6 +993,8 @@ def cancel(args) -> list[str]:
         with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="foreman") as b:
             check_epoch(b, args.epoch)
             c = b.cr(args.cr)
+            if c["status"] == "merged":
+                raise ChantierError(f"{args.cr} is merged: nothing to cancel")
             killed = []
             for pg in c.get("pgids", []):
                 if procs.stop_group(pg):
@@ -1022,10 +1025,6 @@ def land(args) -> list[str]:
                                 f"stack driver {'live' if b.data.get('stack_live') else 'done'}")
         cleaned, retained = [], []
         for c in b.data["crs"]:
-            if c["status"] == "cancelled":
-                if c.get("worktree") and Path(c["worktree"]).exists():
-                    retained.append(f"{c['id']} worktree and branch (cancelled)")
-                continue
             if c["status"] != "merged" or not c.get("worktree"):
                 continue
             if Path(c["worktree"]).exists():
@@ -1050,7 +1049,7 @@ def land(args) -> list[str]:
         b.log("land", None, cleaned=cleaned, retained=retained)
     lines = [f"landed {batch}: cleaned {len(cleaned)} worktrees", f"report: {b.dir / 'STATUS.md'}"]
     if retained:
-        lines.append(f"left for `chantier close`: {'; '.join(retained)}")
+        lines.append(f"left for the user: {'; '.join(retained)}")
     return lines
 
 
@@ -1082,14 +1081,20 @@ def close(args) -> tuple[list[str], int]:
         plan = [f"folder {_shown(repo, folder)}", *(f"worktree {t}" for t in trees),
                 *(f"branch {n}" for n in branches)]
         if not args.yes:
-            return [f"close {batch} would delete:", *plan, "kept by hand: "
+            return [f"close {batch} would delete:", *plan, "left for the user: "
                     f"{'; '.join(d.get('retained', [])) or 'nothing'}",
                     "ask the user, then `chantier close --yes`"], 0
         for tree in trees:
             git("worktree", "remove", "--force", tree, cwd=repo.root)
         for name in branches:
             git("branch", "-D", name, cwd=repo.root)
-        shutil.rmtree(folder)
+        going = folder.with_name(f".closing-{folder.name}")
+        try:  # a rename fails whole on a file in use; a delete would stop halfway
+            _retry(os.replace, folder, going)
+        except OSError as e:
+            raise ChantierError(f"{folder.name} is in use, close what holds it and run this again: "
+                                f"{e}", EXIT_EXTERNAL) from e
+        shutil.rmtree(going)
         write_dashboard(repo, stage_layout(repo))
     return [f"closed {batch}: deleted {len(plan)} items"], 0
 

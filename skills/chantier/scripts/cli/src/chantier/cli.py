@@ -8,8 +8,8 @@ from . import __version__, commands
 from .state import EXIT_USAGE, ChantierError
 
 MAX_LINES = 10
-# A prompt is useless cut short: it prints every line.
-FULL_OUTPUT = {"spawn", "asks"}
+# A prompt, or what the user approves, is useless cut short: these print every line.
+FULL_OUTPUT = {"spawn", "asks", "close"}
 
 
 def _parser() -> argparse.ArgumentParser:

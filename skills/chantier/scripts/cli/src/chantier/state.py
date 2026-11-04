@@ -1,7 +1,7 @@
 """Repository paths and the locked batch state.
 
 Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
-Markdown: the stage folders, and in `3-requests/` one folder per batch, `03-<name>/`, with its CRs
+Markdown: the stage folders, and in `3-requests/` one folder per batch, `<NN>-<name>/`, with its CRs
 (`batch.json` holds what the Chief of Staff passed to `open` from the project's AGENTS.md).
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
@@ -302,8 +302,11 @@ class Batch:
                     write_file(self.repo.changes / ".batch-number", f"{self._number}\n")
                 from .lifecycle import stage_layout  # avoid an import cycle
                 from .status import write_batch, write_dashboard
-                write_batch(self.repo, self.data, self.dir)
-                write_dashboard(self.repo, stage_layout(self.repo))
+                try:
+                    write_batch(self.repo, self.data, self.dir)
+                    write_dashboard(self.repo, stage_layout(self.repo))
+                except Exception as e:  # the state is saved: only a view is stale, until next change
+                    print(f"warning: STATUS not rewritten: {e}", file=sys.stderr)
         finally:
             try:
                 if not state_written:
@@ -315,7 +318,9 @@ class Batch:
                 with contextlib.suppress(Exception):
                     _unlock(self._lock)
                 self._lock.close()
-                if self._number and not state_written:  # a failed `open` leaves no empty folder
+                # a failed `open` leaves no empty folder, and never deletes a CR it could not restore
+                if (self._number and not state_written and self.dir.is_dir()
+                        and not any(p.is_dir() for p in self.dir.iterdir())):
                     shutil.rmtree(self.dir, ignore_errors=True)
 
     def log(self, kind: str, cr: str | None = None, **fields) -> None:
@@ -415,7 +420,8 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
         if root.is_dir():
             for child in root.iterdir():
                 if child.is_dir():
-                    match = re.match(r"^(?:\d{6}-\d{4}-)?(?:CR-)?(\d+)(?:-|$)", child.name, re.I)
+                    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", child.name)  # the date is no number
+                    match = re.match(r"^(?:CR-)?(\d+)(?:-|$)", name, re.I)
                     if match:
                         previous = max(previous, int(match.group(1)))
     for batch in repo.batch_folders():

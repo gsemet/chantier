@@ -101,6 +101,8 @@ def _retire(batch: Batch, cr: dict, stage: str) -> None:
     if not cr.get("path"):
         return
     source = cr_directory(batch.repo, cr)
+    if source.resolve().parent != batch.dir.resolve():  # it has already left
+        return
     target = stage_layout(batch.repo)[stage] / f"{stamp()}-{source.name}"
     batch.move(source, target)
     cr["path"] = target.relative_to(batch.repo.root).as_posix()
