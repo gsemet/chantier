@@ -20,7 +20,6 @@ Print an order with `$CHANTIER order …`: the line carries the order id the For
 
 ```text
 [foreman→chief-of-staff] ready <batch>
-[foreman→chief-of-staff] ok O-<k> <what>
 [foreman→chief-of-staff] ask question - <text> | ask blocked <cr> <reason> | ask refused <cr> <exact text>
 [foreman→chief-of-staff] ask ready <cr> <pr-link> | ask stack-ready <cr>=<link>… | ask budget <spent>/<budget>
 [foreman→chief-of-staff] ask merged <cr> <pr-link> | ask released <cr> <release link or tag>

@@ -139,7 +139,7 @@ body in the CR's own `work/` folder.
 
 | Host | Nested session | Foreman heartbeat |
 | --- | --- | --- |
-| Claude Desktop | `start_session` + `detach_session` | 55 minutes |
+| Claude Desktop | `start_session`, left linked | 55 minutes |
 | Copilot SDK host | `create_session` + `send_message` | 4 minutes (`/every`) |
 
 Preflight refuses everything else (a VS Code tab, the terminal, an unattended run, a linked

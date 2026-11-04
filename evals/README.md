@@ -49,8 +49,8 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
 - **Every campaign stays under it**, for the Foreman and for the operator: at most 10 messages
   from the Foreman in the whole run, nobody types in its session, and at most 10 orders from the
   operator between two lines the user types. Only a campaign made to test long exchanges goes
-  past it, and its report says so. `claude-full` still goes past it, through the Foreman's `ok`
-  lines (see [its report](results/claude-full-2026-11-04.md)).
+  past it, and its report says so. `claude-full` can still reach it: a long batch has many
+  `ask` lines.
 - **Past the limit,** the Foreman's messages are lost, but the host still tells the operator of
   each of its turns: follow these notes and `status`, and merge from there. Never send through
   another tool: the limit is the host's, and a refusal is reported.
@@ -65,10 +65,9 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
 2. **Be the Chief of Staff** in that workspace: load the chantier skill, run its CLI from the
    workspace (`$CHANTIER` is `uv run --script "<this checkout>/skills/chantier/scripts/cli/chantier.py"`),
    and start the batch as `chief-of-staff.md` says (preflight, plan, go), with the `open`
-   command of the runbook. The Foreman's session starts with the workspace as its folder. On
-   Claude, an eval does not detach the Foreman: skip `detach_session`, so the operator hears
-   of each of its turns. The operator's shell lacks the workspace's `.claude/settings.local.json`:
-   set its `env` before running `$CHANTIER`.
+   command of the runbook. The Foreman's session starts with the workspace as its folder. The
+   operator's shell lacks the workspace's `.claude/settings.local.json`: set its `env` before
+   running `$CHANTIER`.
 3. **Be the user**: play the runbook's turns, in order, and nothing else. Merge with
    `evals/kit/merge.py <workspace> <pr>` alone, never chained: a conflict merges nothing, and
    the CR goes back to its Driver on its own.

@@ -53,7 +53,7 @@ says they know chantier.
 | --- | --- | --- |
 | anything, at the start of a session | read `AGENTS.md`: gates, branch, the team | 1 |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | 3 |
-| a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start and detach the Foreman | 4 |
+| a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman | 4 |
 | "status?" | `$CHANTIER status`, with links; a blocked CR is a question for the user | 5 |
 | add, drop, reorder, change a CR; "I merged #42" | `$CHANTIER order …`, then send its line to the Foreman | 5 |
 | "what did it cost?" | `$CHANTIER cost` | 5 |
@@ -67,8 +67,8 @@ says they know chantier.
   not available exactly as written, stop and report it with the error; never look for another
   tool, a look-alike model, a workaround or an estimate.
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
-- **Only the user starts work.** Start the Foreman only in the turn where the user gave the go,
-  then detach it at once. Never start a backlog item the user did not choose. Never merge, but
+- **Only the user starts work.** Start the Foreman only in the turn where the user gave the go.
+  Never start a backlog item the user did not choose. Never merge, but
   for a refused Foreman's merge (section 7 of chief-of-staff).
 - **You own no background agent** and never message a Driver: orders go through the Foreman.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json` or `events.jsonl` by hand.

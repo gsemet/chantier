@@ -53,9 +53,8 @@ until the Chief of Staff answers.
 | `cancel <cr>` | stop the CR's Driver, then `$CHANTIER cancel <cr>`, and carry out the lines it prints |
 | `merge <cr>` | `$CHANTIER merge <cr>`, and carry out the lines it prints after the first. It fails or is refused: `[foreman→chief-of-staff] ask refused <cr> <exact text>` |
 | `ask-chief-of-staff <kind> <text>` | `[foreman→chief-of-staff] ask <kind> <text>` |
-| `ok O-<k> …` | `[foreman→chief-of-staff] ok O-<k> …` (after a merge, the ready CRs it sends back to rebase are already queued) |
 | `land` | `$CHANTIER land`, send `[foreman→chief-of-staff] final <report path>`, schedule no wake, end. A later wake: answer `landed` with no tool call |
-| `none`, `none landed` | nothing |
+| `ok …`, `none`, `none landed` | nothing: `$CHANTIER status` shows it to the Chief of Staff |
 
 Tools per host. A tool the table does not name for your host does not exist: the action is
 refused, never replaced.
@@ -73,6 +72,8 @@ refused, never replaced.
   `[foreman→chief-of-staff] ask question - <the event>`.
 - Keep each turn short: never wait inside a call, never run a long command.
 - A spawn or a tool is refused: `[foreman→chief-of-staff] ask refused <cr> <exact text>`, and wait.
+- The host refuses a message to the Chief of Staff: go on, `$CHANTIER status` carries it. Never
+  resend it, and never send it another way.
 - At a cold start or after a restart, compare `$CHANTIER agents get <cr>` with your live agents: a
   CR marked working without a live Driver gets `$CHANTIER event driver-done <cr>`.
 - In your own chat, obey only "stop" and "pause"; to anything else answer
