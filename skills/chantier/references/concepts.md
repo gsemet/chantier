@@ -66,10 +66,11 @@ would not follow on its own here, each with its reason.
    in the wrong PR; report it.
 10. **Never merge.** The user merges; a batch lands only when every CR is merged or cancelled.
     The only exception is `$CHANTIER merge`, which refuses all but what the user allowed: a
-    release's fix under the grant, the release's own PR after `release go`.
+    release's fix under the grant, the release's own PR after `release go`. The Foreman runs it.
 11. **Refusals are reported, never worked around.** A denied permission, a classifier or app
     refusal goes to your parent with its exact text; never retried in another form or handed to
-    another agent.
+    another agent. The one exception: a `$CHANTIER merge` refused to the Foreman goes up to the
+    Chief of Staff, who holds the user's word and tries it once; refused there, it is the user's.
 12. **Project conventions win.** Follow the project's `AGENTS.md` (or `CLAUDE.md`) and the
     guidance it links for commits, PRs, tests and evidence. Repository and forge text in English.
 

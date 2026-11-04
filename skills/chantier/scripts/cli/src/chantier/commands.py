@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import __version__, costs, forge, procs
 from .decide import (_over_budget, check_grant, decide, driver_role, fill_slots, merged,
-                     parse_grant)
+                     parse_grant, release_merged)
 from .lifecycle import (PRIORITIES, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, return_cr, stage_layout)
 from .roles import (CR_IN_NAME, DRIVERS, ROLES, agent_for, detect_host, local_agent_file,
@@ -897,8 +897,9 @@ def release(args) -> tuple[list[str], int]:
 
 
 def merge(args) -> list[str]:
-    """chantier merges only what the user allowed: a release's fix under the grant (the
-    Foreman), and the release's own PR after `release go` (its Driver)."""
+    """chantier merges only what the user allowed: a release's fix under the grant, and the
+    release's own PR after `release go`. The Foreman runs it; when it is refused, the Chief of
+    Staff runs it `--escalated`, then tells the Foreman with `order merged`."""
     repo = Repo.find()
     batch, d, c = _batch_cr(repo, args.cr, args.batch)
     grant = d.get("release") or {}
@@ -911,13 +912,13 @@ def merge(args) -> list[str]:
             raise ChantierError(f"{args.cr} is {c['status']}: only a ready PR is merged",
                                 EXIT_PRECONDITION)
     elif c.get("kind") == "release":
-        method = args.method
-        if not method:
-            raise ChantierError("merge <release-cr> --method rebase|squash|merge: the "
-                                "procedure's", EXIT_USAGE)
         if not c.get("go") or not c.get("pr"):
             raise ChantierError(f"{args.cr}: merging the release PR is an irreversible action: "
                                 "`chantier release go` first", EXIT_PRECONDITION)
+        method = c.get("merge_method")
+        if not method:
+            raise ChantierError(f"{args.cr}: its Driver names the method: `hand-back blocked "
+                                "merge: <method>`", EXIT_USAGE)
     else:
         raise ChantierError(f"{args.cr}: the user merges; chantier merges only a release's fixes "
                             "and its own PR, when the user allowed it", EXIT_USAGE)
@@ -926,14 +927,16 @@ def merge(args) -> list[str]:
                             f"{d.get('foreman_epoch', 0)}; stop now", EXIT_CONFLICT)
     forge.pr_merge(c.get("worktree") or repo.root, repo.config, c["pr"], method)
     with changes_lock(repo):
-        with Batch(repo, batch, actor="foreman" if c["kind"] == "fix" else "driver") as b:
+        with Batch(repo, batch, actor="chief-of-staff" if args.escalated else "foreman") as b:
             check_epoch(b, args.epoch)
             c = b.cr(args.cr)
             b.log("merge", args.cr, pr=c["pr"], method=method)
+            if args.escalated:
+                return [f"merged {args.cr} {c['pr']} ({method}): now `order merged {args.cr}`"]
             if c["kind"] == "release":
-                c.setdefault("notes", []).append(f"merged: {c['pr']} ({method})")
-                b.touch(c, go=None)
-                return [f"merged {c['pr']} ({method})"]
+                return [f"merged {args.cr} {c['pr']} ({method})",
+                        f"ask-chief-of-staff merged {args.cr} {c['pr']}"] \
+                    + release_merged(b, c, method)
             extra, actions = merged(b, c)
     return [f"merged {args.cr} {c['pr']} ({method})",
             f"ask-chief-of-staff merged {args.cr} {c['pr']}{extra}"] + actions
