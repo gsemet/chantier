@@ -202,6 +202,14 @@ def pr_merge(cwd, config: dict, pr: str, method: str) -> None:
     _gh(f, "pr", "merge", pr, f"--{method}", cwd=cwd)
 
 
+def pr_merged(cwd, config: dict, pr: str) -> bool:
+    """Whether the forge says the PR is merged."""
+    f = _forge(cwd, config)
+    if f.kind == "gitlab":
+        return json.loads(_api(f, cwd, f"merge_requests/{_mr(pr)}")).get("state") == "merged"
+    return json.loads(_gh(f, "pr", "view", pr, "--json", "state", cwd=cwd)).get("state") == "MERGED"
+
+
 def pr_checks(cwd, config: dict, pr: str) -> list[dict]:
     """Checks of a PR: name, bucket (pass, fail, pending, skipping, cancel) and link. On GitLab,
     the jobs of the merge request's pipeline for its current head."""

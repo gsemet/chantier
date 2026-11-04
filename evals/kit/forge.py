@@ -154,7 +154,7 @@ def main(args: list[str]) -> int:
         elif args[:2] == ["pr", "view"]:
             n = pr_number(args[2])
             pr = state["prs"][n]
-            print(json.dumps({"number": int(n), "url": f"{URL}/pull/{n}", "state": pr["state"],
+            print(json.dumps({"number": int(n), "url": f"{URL}/pull/{n}", "state": pr["state"].upper(),
                               "headRefName": pr["head"], "baseRefName": pr["base"],
                               "title": pr["title"]}))
         elif args[:2] == ["run", "list"]:

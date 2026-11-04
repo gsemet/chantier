@@ -424,6 +424,14 @@ ORDER_KINDS = {"add", "drop", "first", "change", "merged", "pause", "resume", "f
                "grant"}
 
 
+def _check_merged(repo: Repo, args) -> None:
+    _, _, c = _batch_cr(repo, args.cr, args.batch)
+    if not c.get("pr"):
+        raise ChantierError(f"{args.cr} has no PR: nothing to mark merged", EXIT_PRECONDITION)
+    if not forge.pr_merged(repo.root, repo.config, c["pr"]):
+        raise ChantierError(f"{args.cr}: the forge says {c['pr']} is not merged", EXIT_PRECONDITION)
+
+
 def order(args) -> list[str]:
     if args.kind not in ORDER_KINDS:
         raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
@@ -434,6 +442,8 @@ def order(args) -> list[str]:
         raise ChantierError("order approve <release-cr> --note \"<the action the user approved>\"",
                             EXIT_USAGE)
     repo = Repo.find()
+    if args.kind == "merged":  # refused here: nothing is archived on a word the forge denies
+        _check_merged(repo, args)
     with Batch(repo, resolve_batch(repo, args.batch), actor="chief-of-staff") as b:
         if args.kind in ("fix", "approve", "grant") and \
                 (b.data.get("release") or {}).get("cr") != args.cr:
@@ -1097,10 +1107,15 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str
     run = sum(r["usd"] for r in rows if _orchestrates(r["type"]))
     share = round(100 * run / total) if total else 0
     top =sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
+    foreman = next((r for r in rows if r["agent"] == "main" and r.get("wakes")), None)
+    wakes = [f"Foreman: {foreman['wakes']} wakes, context "
+             f"{foreman['wake_context'] // foreman['wakes']:,} tokens on average, "
+             f"{foreman['peak_context']:,} at its peak"] if foreman else []
     return [f"Total: ${total:.2f}" + (f" of a ${budget:g} budget" if budget else ", no budget"),
             f"Orchestration ${run:.2f} ({share}%), work ${max(total - run, 0):.2f} "
             f"({100 - share}%)",
             "Most: " + (", ".join(f"{k} ${usd:.2f}" for k, usd in top[:3]) or "-"),
+            *wakes,
             "Not counted: the Chief of Staff's own session"]
 
 

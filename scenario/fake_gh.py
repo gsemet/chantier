@@ -22,6 +22,8 @@ elif args[:2] == ["pr", "merge"]:
         print("fake gh: not allowed to merge", file=sys.stderr)
         sys.exit(1)
     print(f"merged {args[2]}")
+elif args[:2] == ["pr", "view"]:
+    print(json.dumps({"state": "OPEN" if state.get("pr_open") else "MERGED"}))
 elif args[:2] == ["pr", "checks"]:
     seq = state.get("checks_seq")
     if seq:  # successive answers, the last one repeats

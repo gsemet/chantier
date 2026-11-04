@@ -152,7 +152,8 @@ Only in the turn where the user gave the go, in this order:
 
   A Driver's question comes as `ask blocked <cr> question: <text>`. Record the user's answer in
   the CR's `02-answers.md`, then `$CHANTIER order change <cr> --note "answer: <text>"`: a new
-  Driver runs it with the answer. Ready CRs that no longer merge cleanly go back to a Driver on
+  Driver runs it with the answer. `order merged` asks the forge first: when it says the PR is not
+  merged, the order is refused and nothing moves; tell the user. Ready CRs that no longer merge cleanly go back to a Driver on
   their own (`status` shows them). An order sent while the Foreman is busy arrives when its turn
   ends: do not resend. One that never arrives runs at the Foreman's next wake. Still pending
   after that wake: ping once, then recover (below).
@@ -200,6 +201,9 @@ who talks with the user.
   heavy checks, who edits the notes, which actions are irreversible. Point to it in the `chantier`
   section (`- release: CONTRIBUTING.md#release`). Nothing written, or a gap: ask the user and
   offer to write the answer in the project. Never write a procedure from habit.
+- **A long check.** chantier imposes no gate, but a procedure with no long check on the exact head
+  of the default branch before its version commit misses what per-CR gates miss: interactions
+  between CRs, any check skipped on a PR. Ask the project to plan one; it decides.
 - **Prepare it.** `$CHANTIER file "Release v1.4.0"`, grilled like any CR. Its specification names
   the version, the scope, where the procedure is (file and section) and what the user wants to
   review. A release that needs no commit is still a CR.
