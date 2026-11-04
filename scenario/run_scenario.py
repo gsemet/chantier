@@ -344,6 +344,13 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("land", "--epoch", 2, expect=2)
     check("land is refused while PRs are not merged", code == 2 and w.batch()["status"] == "open")
     fake_transcripts(w, w.batch())
+    w.gh(pr_open=True)
+    orders = len(w.batch()["orders"])
+    code, _ = w.chantier("order", "merged", "CR-101", expect=2)
+    check("`order merged` on a PR the forge says is open is refused, and nothing moves",
+          code == 2 and "not merged" in w.last_stderr and len(w.batch()["orders"]) == orders
+          and w.cr("CR-101")["status"] == "ready", w.last_stderr)
+    w.gh(pr_open=False)
     first = w.cr("CR-101")
     collision =w.work / ".agents/changes/backlog/4-archives" / Path(first["path"]).name
     collision.mkdir(parents=True)
@@ -386,7 +393,10 @@ def scenario(w: World) -> None:
     check("the summary gives the total, the budget and orchestration against work",
           code == 0 and out[0] == "Total: $1.30 of a $50 budget"
           and out[1] == "Orchestration $1.30 (100%), work $0.00 (0%)"
-          and out[2].startswith("Most: CR-10") and "Chief of Staff" in out[3], str(out))
+          and out[2].startswith("Most: CR-10") and "Chief of Staff" in out[-1], str(out))
+    check("the summary gives the Foreman's wakes and its context, average and peak",
+          out[3] == "Foreman: 10 wakes, context 22,010 tokens on average, 22,010 at its peak",
+          str(out))
     report = (w.state / "batches/night/report.md").read_text(encoding="utf-8")
     check("the batch report gives each CR's cost and the summary",
           "| $0.23 |" in report and "## Cost" in report and "Total: $1.30" in report, report)
@@ -782,7 +792,12 @@ def fake_transcripts(w: World, d: dict) -> None:
             "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
             "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
 
-    main.write_text("".join(msg(f"f{i}", "claude-sonnet-5-5", 300) for i in range(30)))
+    def user(content):
+        return json.dumps({"type": "user", "message": {"content": content}}) + "\n"
+
+    result = [{"type": "tool_result", "content": "ok"}]  # the same turn goes on: not a wake
+    main.write_text("".join((user("a wake") if i % 3 == 0 else user(result))
+                            + msg(f"f{i}", "claude-sonnet-5-5", 300) for i in range(30)))
     for c in d["crs"]:
         if c.get("agent"):
             f = sub / f"agent-{c['agent']}.jsonl"

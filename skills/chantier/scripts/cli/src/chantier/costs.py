@@ -64,9 +64,18 @@ def _transcript_lines(path: Path):
         raise ChantierError(f"cannot read Claude transcript {path}: {e}", EXIT_EXTERNAL) from e
 
 
+def _wakes(record: dict) -> bool:
+    """Whether a user record starts a turn, rather than carrying a tool's result."""
+    content = (record.get("message") or {}).get("content")
+    return not (isinstance(content, list) and content
+                and all(isinstance(p, dict) and p.get("type") == "tool_result" for p in content))
+
+
 def usage(path: Path) -> dict:
-    row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0}
+    row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0,
+           "wakes": 0, "wake_context": 0, "peak_context": 0}
     seen = set()
+    woken = False  # a prompt, a message or a notification came in; a tool result is the same turn
     for number, line in enumerate(_transcript_lines(path), 1):
         if not line.strip():
             continue
@@ -78,6 +87,8 @@ def usage(path: Path) -> dict:
         if not isinstance(d, dict):
             raise ChantierError(f"invalid Claude transcript record {path}:{number}",
                                 EXIT_EXTERNAL)
+        if d.get("type") == "user":
+            woken = woken or _wakes(d)
         if d.get("type") != "assistant":
             continue
         m = d.get("message")
@@ -106,6 +117,11 @@ def usage(path: Path) -> dict:
         for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
             row[k] += v
         row["usd"] += sum(a * b for a, b in zip(t, PRICE[_family(row["model"], sum(t[:4]))])) / 1e6
+        row["peak_context"] = max(row["peak_context"], sum(t[:4]))
+        if woken:
+            row["wakes"] += 1
+            row["wake_context"] += sum(t[:4])
+            woken = False
     return row
 
 

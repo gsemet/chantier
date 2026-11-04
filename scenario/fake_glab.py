@@ -47,7 +47,8 @@ elif re.fullmatch(r"merge_requests/\d+", path):
         state["current"] = state["checks"]
     json.dump(state, open(state_path, "w"))
     pipeline = {"id": 1, "sha": "head"} if state["current"] else None
-    print(json.dumps({"sha": "head", "head_pipeline": pipeline}))
+    print(json.dumps({"sha": "head", "head_pipeline": pipeline,
+                      "state": "opened" if state.get("pr_open") else "merged"}))
 elif path == "pipelines/1/jobs":
     print(json.dumps(jobs(state["current"])))
 elif path == "pipelines":

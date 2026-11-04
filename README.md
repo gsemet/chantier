@@ -174,8 +174,8 @@ heartbeat; past the batch budget it spawns nothing new.
 
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
 ready or merged, and the batch's `report.md` ends with the total, the budget, orchestration
-against work and the costliest CRs (`chantier cost --summary`). The Chief of Staff's own session
-is not counted.
+against work, the costliest CRs and the Foreman's wakes and context (`chantier cost --summary`).
+The Chief of Staff's own session is not counted.
 
 ## Repository layout
 
