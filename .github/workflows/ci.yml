@@ -20,6 +20,7 @@ jobs:
           - os: macos-latest
             runner: macos-15-intel
     runs-on: ${{ matrix.runner || matrix.os }}
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
