@@ -351,6 +351,9 @@ def scenario(w: World) -> None:
     check("status fits in ten lines and shows every CR",
           len(out) <= 10 and all(f"CR-10{i}" in "\n".join(out) for i in range(1, 6)))
     status_files(w)
+    trashed = w.cr("CR-103")["path"]
+    w.chantier("cancel", "CR-103", "--epoch", 2)
+    check("a second cancel leaves the trashed CR where it is", w.cr("CR-103")["path"] == trashed)
 
     note("\n## 8. The user merges; the Foreman lands the batch")
     code, _ = w.chantier("land", "--epoch", 2, expect=2)
@@ -419,7 +422,8 @@ def scenario(w: World) -> None:
           "| $0.23 |" in report and "## Cost" in report and "Total: $1.30" in report, report)
     archived = (w.work / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
     check("an archived CR keeps its final cost and no link into the batch",
-          "$0.23." in archived and "../STATUS.md" not in archived, archived)
+          "$0.23." in archived and "../STATUS.md" not in archived
+          and "- [x] Merged" in archived, archived)
 
     note("\n## 10. Copilot cost")
     copilot_cost(w, d)
@@ -494,6 +498,8 @@ def rebase_after_merge(w: World) -> None:
     _, two = prepare_cr(w, "Clash two")
     w.chantier("open", "clash", f"@{one}", f"@{two}", "--slots", 2, *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "clash", "clash"
+    _, given_up = w.chantier("file", "Given up")
+    w.chantier("abandon", w.work / given_up[0].removeprefix("filed ").split(";", 1)[0])
     code, _ = w.chantier("close", "--yes", expect=None)
     check("`close` refuses a batch that has not landed", code != 0 and w.folder().is_dir())
     w.chantier("foreman", "set", "local_foreman-clash")
@@ -686,6 +692,7 @@ def lost_messages(w: World) -> None:
     fm = Foreman(w, epoch=1)
     fm.event("start")
     one, two, three = (c["id"] for c in w.batch()["crs"])
+    check("a date in the trash is not a CR number", len(one) == len("CR-101"), one)
 
     _, out = w.chantier("order", "first", three)  # its line never reaches the Foreman
     order = out[0].split()[2]

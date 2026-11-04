@@ -24,7 +24,7 @@ would not follow on its own here, each with its reason.
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed, unprioritized) →
-  `2-backlog/P1…P4/` (the user prioritized it) → `3-requests/03-<batch>/<number>-<slug>/` (in a
+  `2-backlog/P1…P4/` (the user prioritized it) → `3-requests/<NN>-<batch>/<number>-<slug>/` (in a
   batch, renamed) → `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged: it archives alone, at
   once, in a stack too) or `5-trash/<YYMMDD-HHMM>-<number>-<slug>/` (dropped, with its work; it no
   longer returns to the backlog, and the user can ask the Chief of Staff to put it back).

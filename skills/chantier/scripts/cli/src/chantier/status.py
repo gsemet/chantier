@@ -68,6 +68,9 @@ def label(c: dict, max_rounds: int) -> str:
 
 def _now_next(c: dict) -> tuple[str, str]:
     pr = c.get("pr") or "its PR"
+    if c["status"] == "blocked":
+        return (c.get("blocked_reason") or "Blocked.",
+                "The user's answer, through the Chief of Staff.")
     return {
         "Queued": ("Waiting for a free slot.", "A Driver starts it."),
         "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
@@ -78,8 +81,7 @@ def _now_next(c: dict) -> tuple[str, str]:
         "Notify": (f"Ready: {pr} waits for the user's merge.", "The merge, then the archive."),
         "Merged": (f"Merged: {pr}.", "Nothing."),
         "Dropped": ("Dropped on the user's word.", "Nothing."),
-    }.get(step(c), (c.get("blocked_reason") or "Blocked.", "The user's answer, through the "
-                    "Chief of Staff."))
+    }[step(c)]
 
 
 def _steps(c: dict, events: list[dict]) -> list[dict]:
@@ -117,8 +119,9 @@ def _steps(c: dict, events: list[dict]) -> list[dict]:
             add("Handed back", at)
         elif kind == "event" and e.get("event") == "hand-back-blocked":
             add("Blocked", at, note=note)
-        elif kind == "merge":
-            add("Merged", at, note=e.get("pr", ""))
+        elif kind == "merge" or (kind == "event" and e.get("event") == "order-merged"):
+            if not any(s["name"] == "Merged" for s in out):
+                add("Merged", at, note=c.get("pr") or "")
     if c["status"] not in ENDED and c.get("kind") != "release":
         seen = {s["name"] for s in out}
         out += [{"name": name, "done": False, "verdict": "", "note": "", "at": ""}
@@ -149,7 +152,8 @@ def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
         text = spec.read_text(encoding="utf-8", errors="replace")
         for name in sorted(set(SPEC_LINK.findall(text))):
             target = repo.root / name
-            if target.is_file():
+            # a URL's tail reads as a network path on Windows: this must never leave the disk
+            if not name.startswith("/") and ".." not in name and target.is_file():
                 docs.append({"kind": "project", "path": _link(target, folder), "name": name})
     return docs
 
@@ -171,7 +175,7 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
             "branch": c.get("branch"), "worktree": c.get("worktree"), "agent": c.get("agent"),
             "notes": [n for n in c.get("notes", []) if not n.startswith(IN_PROGRESS)],
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
-            "cost_usd": c.get("cost_usd"), "final_cost": bool(d.get("landed")),
+            "cost_usd": c.get("cost_usd"), "final_cost": bool(d.get("landed")) and _priced(d),
             "silent_minutes": round(silent) if silent is not None else None}
 
 
@@ -198,6 +202,10 @@ def cr_markdown(v: dict) -> str:
     lines.append("No figure yet." if usd is None else
                  f"${usd:.2f}{'' if v['final_cost'] else ' so far (at the last heartbeat)'}.")
     return "\n".join(lines) + "\n"
+
+
+def _priced(d: dict) -> bool:
+    return not any(line.startswith("Spent: unknown") for line in d.get("summary", []))
 
 
 def _max_rounds(d: dict) -> int:
@@ -230,7 +238,7 @@ def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
     return {"schema": SCHEMA, "updated": now(), "batch": d["id"], "folder": folder.name,
             "state": d["status"], "mode": d.get("mode"), "paused": bool(d.get("paused")),
             "spent_usd": d.get("spent_usd", 0), "budget_usd": d.get("budget_usd"),
-            "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
+            "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
             "heartbeat": d.get("heartbeat"), "landed": d.get("landed"),
             "retained": d.get("retained", []), "summary": d.get("summary", []),
@@ -245,12 +253,13 @@ def _budget(v: dict) -> str:
 
 def batch_markdown(v: dict) -> str:
     lines = [f"# Batch {v['folder']}: {v['state']}", "",
-             f"Updated {v['updated']} · spent {_budget(v)} · {v['asks_unread']} asks unread · "
+             f"Updated {v['updated']} · spent {_budget(v) if v['priced'] else 'unknown'} · "
+             f"{v['asks_unread']} asks unread · "
              f"{v['orders_pending']} orders pending{' · PAUSED' if v['paused'] else ''}", "",
              "[All change requests](../STATUS.md)", "", *_rows_markdown(v["crs"])]
     if v["landed"]:
         lines += ["", "## Landed", "", f"- Landed: {v['landed']}",
-                  f"- Left for `chantier close`: {', '.join(v['retained']) or 'nothing'}"]
+                  f"- Left for the user: {', '.join(v['retained']) or 'nothing'}"]
     if v["summary"]:
         lines += ["", "## Cost", "", *(f"- {ln}" for ln in v["summary"])]
     return "\n".join(lines) + "\n"
@@ -322,7 +331,10 @@ def _events(folder: Path) -> dict[str, list[dict]]:
     by_cr: dict[str, list[dict]] = {}
     path = folder / "events.jsonl"
     for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
-        e = json.loads(line)
+        try:
+            e = json.loads(line)
+        except ValueError:  # the last line of a process killed while appending
+            continue
         if e.get("cr"):
             by_cr.setdefault(e["cr"], []).append(e)
     return by_cr
