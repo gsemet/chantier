@@ -114,7 +114,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert code == 0, out
     assert sh("git", "status", "--porcelain", cwd=repo) == ""
     folder = _prepared(repo, chantier)
-    code, _, err = chantier("open", "b1", f"@{folder}", "--no-worktrees", *GATES)
+    code, _, err = chantier("open", "b1", f"@{folder}", *GATES)
     assert code == 0, err
     assert chantier("status")[1][-1].startswith("CR-101 queued")
     _, out, _ = chantier("spawn", "coder", "CR-101", "--note", "round 1")
@@ -134,8 +134,8 @@ def test_a_role_runs_the_users_agent_and_a_review_step_runs_after_the_inspector(
     folder = _prepared(repo, chantier)
     for bad in (("--agent", "nobody=x"), ("--review", "coder=sec:y"), ("--review", "sec-review=sec"),
                 ("--agent", "debugger=missing")):
-        assert chantier("open", "bad", f"@{folder}", "--no-worktrees", *GATES, *bad)[0] == 1, bad
-    code, _, err = chantier("open", "b1", f"@{folder}", "--no-worktrees", *GATES,
+        assert chantier("open", "bad", f"@{folder}", *GATES, *bad)[0] == 1, bad
+    code, _, err = chantier("open", "b1", f"@{folder}", *GATES,
                             "--agent", "debugger=my-debugger",
                             "--review", "security-review=sec:OWASP top 10")
     assert code == 0, err

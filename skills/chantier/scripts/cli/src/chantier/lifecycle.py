@@ -68,7 +68,11 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
     if not specification.is_file():
         raise ChantierError(f"missing Change Specification: {specification}; grill the CR first",
                             EXIT_PRECONDITION)
-    text = specification.read_text(encoding="utf-8")
+    try:
+        text = specification.read_text(encoding="utf-8")
+    except UnicodeDecodeError as e:
+        raise ChantierError(f"{specification} is not UTF-8: save it as UTF-8 ({e})",
+                            EXIT_PRECONDITION) from e
     if not text.strip():
         raise ChantierError(f"empty Change Specification: {specification}", EXIT_PRECONDITION)
     title = next((line.lstrip("# ").strip() for line in text.splitlines() if line.strip()),

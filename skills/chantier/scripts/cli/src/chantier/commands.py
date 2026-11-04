@@ -285,20 +285,18 @@ def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
     b.move(prepared.directory, cdir)
     title = prepared.title
     branch = f"chantier/{b.id}/{cr_id.lower()}-{_slug(title)}"
-    worktree = None
-    if not b.data.get("no_worktrees"):
-        worktree = repo.worktrees / f"{b.id}-{cr_id}"
-        worktree.parent.mkdir(parents=True, exist_ok=True)
-        base = _base_ref(repo)
-        head = git("rev-parse", base, cwd=repo.root)
-        git("worktree", "add", "--quiet", "-b", branch, str(worktree), base, cwd=repo.root)
-        b.created_worktree(worktree, branch, head)
+    worktree = repo.worktrees / f"{b.id}-{cr_id}"
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    base = _base_ref(repo)
+    head = git("rev-parse", base, cwd=repo.root)
+    git("worktree", "add", "--quiet", "-b", branch, str(worktree), base, cwd=repo.root)
+    b.created_worktree(worktree, branch, head)
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
     c = {"id": cr_id, "title": title, "item": item, "kind": kind, "status": "queued", "order": order,
          "path": cdir.relative_to(repo.root).as_posix(),
          "specification": prepared.specification.name, "priority": prepared.priority,
          "round": 0, "qa": qa, "qa_done": False, "agent": None, "pr": None, "ci": None,
-         "branch": branch, "worktree": str(worktree) if worktree else None, "pgids": [], "pids": [],
+         "branch": branch, "worktree": str(worktree), "pgids": [], "pids": [],
          "notes": [], "resumes": 0, "updated": now()}
     b.data["crs"].append(c)
     b.log("add", cr_id, title=title, path=c["path"], origin=origin)
@@ -359,7 +357,7 @@ def open_batch(args) -> list[str]:
             "host": host, "mode": "stack" if args.stack else "parallel", "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0, "paused": False,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
-            "chief_of_staff": args.chief_of_staff, "no_worktrees": args.no_worktrees,
+            "chief_of_staff": args.chief_of_staff,
             "stack_live": False, "heartbeat": None, "settings": settings, "orders": [], "crs": [],
             "release": release}
     with changes_lock(repo):
@@ -628,7 +626,7 @@ def spawn(args) -> list[str]:
     if c:
         work = _work(repo, c)
         work.mkdir(parents=True, exist_ok=True)
-        prompt += [f"Worktree: {c['worktree'] or '- (no worktree: work in the project)'}",
+        prompt += [f"Worktree: {c['worktree']}",
                    f"Change Specification: {_specification(repo, c).as_posix()}",
                    f"Work folder: {work.as_posix()} (your notes and outputs)"]
         if args.role == "cr-driver":

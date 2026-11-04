@@ -221,10 +221,10 @@ def scenario(w: World) -> None:
     note("\n## 2. The Chief of Staff opens the batch from AGENTS.md and starts the Foreman")
     items = [prepare_cr(w, title) for title in
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
-    code, _ = w.chantier("open", "missing-gates", f"@{items[0][1]}", "--no-worktrees", expect=2)
+    code, _ = w.chantier("open", "missing-gates", f"@{items[0][1]}", expect=2)
     check("a missing gate blocks the batch without moving the prepared CR",
           code == 2 and "no fast gate" in w.last_stderr and items[0][1].is_dir())
-    code, _ = w.chantier("open", "raw-title", "Fix login", "--no-worktrees", *FROM_AGENTS_MD,
+    code, _ = w.chantier("open", "raw-title", "Fix login", *FROM_AGENTS_MD,
                          expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
     w.chantier("open", "night", *(f"@{backlog}" for _, backlog in items),
@@ -440,6 +440,8 @@ def scenario(w: World) -> None:
     release(w)
     release_merge_on_approval(w)
     lost_messages(w)
+    failed_opening(w)
+    cancel_during_gate(w)
     old_layout(w)
 
 
@@ -481,8 +483,59 @@ def close_batch(w: World) -> None:
           "01-night" not in board and (w.work / dropped["path"] / "STATUS.md").is_file(), board)
 
 
+def failed_opening(w: World) -> None:
+    note("\n## 17. Openings that fail")
+    _, item = prepare_cr(w, "Latin one specification")
+    spec = item / "03-change-spec.md"
+    good = spec.read_bytes()
+    spec.write_bytes("# Spécification\n".encode("latin-1"))
+    code, _ = w.chantier("open", "latin", f"@{item}", *FROM_AGENTS_MD, expect=None)
+    check("a specification that is not UTF-8 is named, not a traceback",
+          code == 2 and "not UTF-8" in w.last_stderr and "Traceback" not in w.last_stderr,
+          w.last_stderr)
+    spec.write_bytes(good)
+    # the worktree fires this hook and fails: its old path is taken when the rollback comes
+    hook = Path(w.sh("git", "rev-parse", "--git-path", "hooks")) / "post-checkout"
+    hook = hook if hook.is_absolute() else w.work / hook
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(f'#!/bin/sh\nmkdir -p "{item.as_posix()}"\nexit 1\n', newline="\n")
+    hook.chmod(0o755)
+    code, _ = w.chantier("open", "stuck", f"@{item}", *FROM_AGENTS_MD, expect=None)
+    hook.unlink()
+    folders = list((w.state / "3-requests").glob("*-stuck"))
+    check("a rollback that cannot restore a CR keeps it in the batch's folder",
+          code != 0 and len(folders) == 1
+          and any((p / "03-change-spec.md").is_file() for p in folders[0].iterdir()),
+          w.last_stderr)
+
+
+def cancel_during_gate(w: World) -> None:
+    note("\n## 18. A cancel during a gate")
+    _, item = prepare_cr(w, "Stopped mid gate")
+    slow = w.root / "slow_gate.py"
+    slow.write_text("import time\ntime.sleep(60)\n")
+    gate = f"uv run --no-project python {slow.as_posix()}"
+    w.chantier("open", "halt", f"@{item}", "--fast-gate", gate, "--long-gate", gate,
+               "--default-branch", "main")
+    w.name, w.env["CHANTIER_BATCH"] = "halt", "halt"
+    w.chantier("foreman", "set", "local_foreman6")
+    Foreman(w, epoch=1).event("start")
+    cr = w.batch()["crs"][0]["id"]
+    running = subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr], cwd=w.work,
+                               env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, encoding="utf-8")
+    deadline = time.monotonic() + 20
+    while not w.cr(cr)["pgids"] and time.monotonic() < deadline:
+        time.sleep(0.1)
+    w.chantier("cancel", cr, "--epoch", 1)
+    out, err = running.communicate(timeout=30)
+    check("a cancel moves the CR while its gate runs, and the gate ends cleanly",
+          "/5-trash/" in w.cr(cr)["path"] and out.startswith("FAIL") and "Traceback" not in err,
+          f"{out} {err}")
+
+
 def old_layout(w: World) -> None:
-    note("\n## 17. A project on the old layout")
+    note("\n## 19. A project on the old layout")
     old = w.state / "batches"
     old.mkdir()
     code, _ = w.chantier("status", expect=None)
@@ -676,6 +729,12 @@ def release_merge_on_approval(w: World) -> None:
     fm.event("hand-back-ready", rel, "v1.2.0")
     check("the batch lands", fm.landed)
     last = w.folder()
+    if sys.platform == "win32":  # elsewhere a file in use does not stop a rename
+        with open(last / "STATUS.md", encoding="utf-8"):
+            code, _ = w.chantier("close", "--batch", "approve", "--yes", expect=None)
+        check("`close` on a folder in use deletes nothing and can run again",
+              code != 0 and "in use" in w.last_stderr and (last / "batch.json").is_file(),
+              w.last_stderr)
     w.chantier("close", "--batch", "approve", "--yes")
     w.number_after = int(last.name.split("-")[0]) + 1
 
@@ -826,7 +885,7 @@ def copilot_cost(w: World, d: dict) -> None:
     fails("Copilot cost reports a missing command", 2, "not found",
           {"CHANTIER_SESSION_USAGE": missing_command})
     _, missing = prepare_cr(w, "Missing transcript")
-    w.chantier("open", "cost-missing", f"@{missing}", "--no-worktrees", *FROM_AGENTS_MD)
+    w.chantier("open", "cost-missing", f"@{missing}", *FROM_AGENTS_MD)
     code, out = w.chantier("cost", "--batch", "cost-missing", "--host", "copilot",
                            env=env, expect=2)
     check("a missing Copilot transcript names the session variable",
