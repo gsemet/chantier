@@ -14,12 +14,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
@@ -118,7 +120,10 @@ class World:
         return p.returncode, out
 
     def batch(self):
-        return json.loads((self.state / "batches" / self.name / "batch.json").read_text())
+        return json.loads((self.folder() / "batch.json").read_text())
+
+    def folder(self, name=None):
+        return next((self.state / "3-requests").glob(f"*-{name or self.name}"))
 
     def cr(self, cr_id):
         return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
@@ -233,13 +238,18 @@ def scenario(w: World) -> None:
           len(d["crs"]) == 4 and all(Path(c["worktree"]).is_dir() for c in d["crs"]))
     check("opening moves the entire prepared folders into requests",
           all(not backlog.exists() for _, backlog in items)
-          and all("/backlog/3-requests/" in c["path"]
+          and all("/3-requests/01-night/" in c["path"]
                   and (w.work / c["path"] / "intake/request.md").is_file()
                   and (w.work / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
     check("the batch keeps the gates the Chief of Staff read in AGENTS.md",
           d["settings"]["gates"] == {"fast": [GATE], "long": [GATE]})
     fm.event("start")
     check("the Foreman spawns two Drivers (two slots)", fm.spawned == ["CR-101", "CR-102"])
+    _, added = prepare_cr(w, "Waits in the backlog", "P3")
+    board = (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8")
+    check("the board shows the open batch and what `triage` just moved",
+          "[Batch 01-night](01-night/STATUS.md)" in board and "Fix login timeout" in board
+          and "| P3 |" in board and "Waits in the backlog" in board, board)
 
     note("\n## 3. CR-101: one round, green CI, hand-back")
     driver_round(w, "CR-101", "login.py", "TIMEOUT_S = 30\n")
@@ -308,9 +318,10 @@ def scenario(w: World) -> None:
     check("dropping a live CR cancels it and stops its processes",
           fm.cancelled == ["CR-103"] and sleeper.poll() is not None
           and w.cr("CR-103")["status"] == "cancelled")
-    check("a dropped CR returns intact to its original backlog folder",
-          w.cr("CR-103")["path"] == w.cr("CR-103")["origin"]
-          and (w.work / w.cr("CR-103")["path"] / "02-answers.md").is_file())
+    check("a dropped CR goes to the trash with its work, under the date",
+          re.search(r"/5-trash/\d{6}-\d{4}-103-", w.cr("CR-103")["path"])
+          and (w.work / w.cr("CR-103")["path"] / "02-answers.md").is_file()
+          and "⚪ dropped" in (w.work / w.cr("CR-103")["path"] / "STATUS.md").read_text("utf-8"))
     check("the freed slot goes to CR-104", "CR-104" in fm.spawned)
     out = fm.event("--order", "O-1")
     check("an order read twice is done once", out == ["ok O-1 already done"])
@@ -339,6 +350,7 @@ def scenario(w: World) -> None:
     _, out = w.chantier("status")
     check("status fits in ten lines and shows every CR",
           len(out) <= 10 and all(f"CR-10{i}" in "\n".join(out) for i in range(1, 6)))
+    status_files(w)
 
     note("\n## 8. The user merges; the Foreman lands the batch")
     code, _ = w.chantier("land", "--epoch", 2, expect=2)
@@ -352,17 +364,21 @@ def scenario(w: World) -> None:
           and w.cr("CR-101")["status"] == "ready", w.last_stderr)
     w.gh(pr_open=False)
     first = w.cr("CR-101")
-    collision =w.work / ".agents/changes/backlog/4-archives" / Path(first["path"]).name
-    collision.mkdir(parents=True)
-    (collision / "sentinel.txt").write_text("do not overwrite")
+    collisions = [w.state / "4-archives" / f"{stamp}-{Path(first['path']).name}" for stamp in
+                  ((datetime.now(timezone.utc) + timedelta(minutes=m)).strftime("%y%m%d-%H%M")
+                   for m in (0, 1))]
+    for collision in collisions:
+        collision.mkdir(parents=True)
+        (collision / "sentinel.txt").write_text("do not overwrite")
     w.chantier("order", "merged", "CR-101")
     code, _ = w.chantier("event", "--order", "O-3", "--epoch", 2, expect=3)
     check("archive collisions are refused without losing either CR folder",
-          code == 3 and (collision / "sentinel.txt").read_text() == "do not overwrite"
+          code == 3 and all((c / "sentinel.txt").read_text() == "do not overwrite"
+                            for c in collisions)
           and (w.work / first["path"] / "03-change-spec.md").is_file()
           and w.cr("CR-101")["status"] == "ready")
-    (collision / "sentinel.txt").unlink()
-    collision.rmdir()
+    for collision in collisions:
+        shutil.rmtree(collision)
     fm.event("--order", "O-3")
     for i, cr_id in enumerate(("CR-102", "CR-104", "CR-105"), 4):
         w.chantier("order", "merged", cr_id)
@@ -373,13 +389,14 @@ def scenario(w: World) -> None:
           d["status"] == "landed" and all(
               Path(c["worktree"]).exists() == (c["status"] == "cancelled") for c in d["crs"]))
     check("merged CR folders move intact to archives only after confirmation",
-          all("/backlog/4-archives/" in c["path"]
+          all(re.search(r"/4-archives/\d{6}-\d{4}-\d{3}-", c["path"])
               and (w.work / c["path"] / "03-change-spec.md").is_file()
-              and (w.work / c["path"] / "report.md").is_file()
+              and (w.work / c["path"] / "STATUS.md").is_file()
+              and (w.work / c["path"] / "STATUS.json").is_file()
               for c in d["crs"] if c["status"] == "merged"))
-    check("the batch report lists every CR",
-          all(c["id"] in (w.state / "batches/night/report.md").read_text()
-              for c in d["crs"]))
+    report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    check("the batch's STATUS.md, once landed, lists every CR",
+          "landed" in report and all(c["id"].removeprefix("CR-") in report for c in d["crs"]))
     prs = {c["id"]: c["pr"] for c in d["crs"] if c["pr"]}
     check("four PRs were opened on the fake forge", len(set(prs.values())) == 4)
 
@@ -397,24 +414,78 @@ def scenario(w: World) -> None:
     check("the summary gives the Foreman's wakes and its context, average and peak",
           out[3] == "Foreman: 10 wakes, context 22,010 tokens on average, 22,010 at its peak",
           str(out))
-    report = (w.state / "batches/night/report.md").read_text(encoding="utf-8")
-    check("the batch report gives each CR's cost and the summary",
+    report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    check("the batch's STATUS.md gives each CR's cost and the summary",
           "| $0.23 |" in report and "## Cost" in report and "Total: $1.30" in report, report)
+    archived = (w.work / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
+    check("an archived CR keeps its final cost and no link into the batch",
+          "$0.23." in archived and "../STATUS.md" not in archived, archived)
 
     note("\n## 10. Copilot cost")
     copilot_cost(w, d)
     copilot_uv(w)
 
     note("\n## 11. Event log")
-    events = (w.state / "batches/night/events.jsonl").read_text().splitlines()
+    events = (w.folder() / "events.jsonl").read_text().splitlines()
     kinds = {json.loads(e)["kind"] for e in events}
     check("events.jsonl holds the whole story",
           {"open", "spawn", "ship", "wait", "qa-done", "order", "cancel", "land"} <= kinds)
+    close_batch(w)
     lifecycle_regressions(w)
     rebase_after_merge(w)
     release(w)
     release_merge_on_approval(w)
     lost_messages(w)
+    old_layout(w)
+
+
+def status_files(w: World) -> None:
+    c = w.cr("CR-104")
+    folder = w.work / c["path"]
+    text = (folder / "STATUS.md").read_text(encoding="utf-8")
+    check("a CR's STATUS.md says where it stands and links back to its batch",
+          all(part in text for part in ("**Now:**", "**Next:**", "## Progress", "- [x] Shipped",
+                                        "## Documents", "[specification](03-change-spec.md)",
+                                        "## Where", "[Batch 01-night](../STATUS.md)")), text)
+    view = json.loads((folder / "STATUS.json").read_text(encoding="utf-8"))
+    check("its STATUS.json says the same, with more",
+          view["cr"] == "CR-104" and view["state"] == "ready" and view["step"] == "Notify"
+          and view["pr"]["url"] == c["pr"] and view["steps"], str(view))
+    board = (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8")
+    batch = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    check("the status cell gives the pastille, the state, the step and the round",
+          "🟢 ready Notify 1/3" in board and "🟢 ready Notify 1/3" in batch, board)
+    links = [(w.state / "3-requests", ln) for ln in re.findall(r"\]\(([^)h][^)]*)\)", board)]
+    links += [(w.folder(), ln) for ln in re.findall(r"\]\(([^)h][^)]*)\)", batch)]
+    check("every link of the board and the batch resolves",
+          links and all((start / ln).exists() for start, ln in links), str(links))
+
+
+def close_batch(w: World) -> None:
+    note("\n## 11b. Closing the batch, on the user's word")
+    folder, dropped = w.folder("night"), w.cr("CR-103")
+    code, out = w.chantier("close", "--batch", "night")
+    check("`close` alone says what would go, and touches nothing",
+          code == 0 and folder.is_dir() and Path(dropped["worktree"]).is_dir()
+          and any(folder.name in ln for ln in out) and "--yes" in out[-1], str(out))
+    w.chantier("close", "--batch", "night", "--yes")
+    check("`close --yes` deletes the batch, and the dropped CR's worktree and branch",
+          not folder.exists() and not Path(dropped["worktree"]).exists()
+          and not w.sh("git", "branch", "--list", dropped["branch"]))
+    board = (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8")
+    check("the archives and the trash stay, and the board forgets the batch",
+          "01-night" not in board and (w.work / dropped["path"] / "STATUS.md").is_file(), board)
+
+
+def old_layout(w: World) -> None:
+    note("\n## 17. A project on the old layout")
+    old = w.state / "batches"
+    old.mkdir()
+    code, _ = w.chantier("status", expect=None)
+    check("the old layout is refused, and the error says what to move",
+          code != 0 and "backlog/1-inbox" in w.last_stderr and "before 0.4" in w.last_stderr,
+          w.last_stderr)
+    old.rmdir()
 
 
 def rebase_after_merge(w: World) -> None:
@@ -423,6 +494,8 @@ def rebase_after_merge(w: World) -> None:
     _, two = prepare_cr(w, "Clash two")
     w.chantier("open", "clash", f"@{one}", f"@{two}", "--slots", 2, *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "clash", "clash"
+    code, _ = w.chantier("close", "--yes", expect=None)
+    check("`close` refuses a batch that has not landed", code != 0 and w.folder().is_dir())
     w.chantier("foreman", "set", "local_foreman-clash")
     fm = Foreman(w, epoch=1)
     fm.event("start")
@@ -532,7 +605,7 @@ def release(w: World) -> None:
     w.chantier("ship", rel)
     code, _ = w.chantier("merge", rel, expect=2)
     check("the release PR does not merge without a go", code == 2)
-    state = w.state / "batches" / "ship" / "batch.json"
+    state = w.folder() / "batch.json"
     data = w.batch()
     state.write_text(json.dumps({**data, "spent_usd": 6}))
     code, out = w.chantier("release", "go", rel, "--note", "publish v1.1.0", expect=5)
@@ -545,6 +618,7 @@ def release(w: World) -> None:
     check("the Foreman merges the release PR; refused, it goes to the Chief of Staff",
           fm.asked[-1].startswith(f"refused {rel}") and w.cr(rel)["status"] == "blocked",
           fm.asked[-1])
+    check("a blocked CR shows red", "🔴 blocked" in (w.folder() / "STATUS.md").read_text("utf-8"))
     w.gh(merge_refused=False)
     drivers = len(fm.spawned)
     code, out = w.chantier("merge", rel, "--escalated")
@@ -595,6 +669,9 @@ def release_merge_on_approval(w: World) -> None:
           and w.cr(rel)["status"] == "working", str(fm.asked))
     fm.event("hand-back-ready", rel, "v1.2.0")
     check("the batch lands", fm.landed)
+    last = w.folder()
+    w.chantier("close", "--batch", "approve", "--yes")
+    w.number_after = int(last.name.split("-")[0]) + 1
 
 
 def lost_messages(w: World) -> None:
@@ -603,6 +680,8 @@ def lost_messages(w: World) -> None:
     prepared = [prepare_cr(w, title)[1] for title in titles]
     w.chantier("open", "lost", *(f"@{p}" for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "lost", "lost"
+    check("batch numbers go on rising after the last batch's folder is deleted",
+          w.folder().name == f"{w.number_after:02d}-lost", w.folder().name)
     w.chantier("foreman", "set", "local_foreman5")
     fm = Foreman(w, epoch=1)
     fm.event("start")
@@ -667,7 +746,7 @@ def lifecycle_regressions(w: World) -> None:
                          "--long-gate", GATE, "--default-branch", "missing", expect=4)
     check("a failed worktree creation restores the prepared folder",
           code == 4 and (original / "03-change-spec.md").is_file()
-          and not (w.state / "batches/rollback/batch.json").exists())
+          and not list((w.state / "3-requests").glob("*-rollback")))
     check("chantier wrote nothing outside .agents/changes",
           all(line[3:].startswith(".agents/changes/")
               for line in w.sh("git", "status", "--porcelain", "-uall").splitlines()))

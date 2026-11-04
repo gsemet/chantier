@@ -148,7 +148,10 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("cancel", commands.cancel, "stop a CR's processes and mark it cancelled", epoch=True)
     s.add_argument("cr")
 
-    cmd("land", commands.land, "close the batch: refused while anything is live", epoch=True)
+    cmd("land", commands.land, "finish the batch: refused while anything is live", epoch=True)
+
+    s = cmd("close", commands.close, "what deleting a landed batch would remove; --yes deletes it")
+    s.add_argument("--yes", action="store_true", help="on the user's word")
 
     s = cmd("cost", commands.cost, "price the Foreman's transcript and its subagents")
     s.add_argument("--by", choices=["role", "cr"], default="role")

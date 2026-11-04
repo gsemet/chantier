@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .state import (EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, Batch, ChantierError, Repo,
-                    _read_json, _try_lock, _unlock, move_directory, now, project_path)
+                    _read_json, _try_lock, _unlock, move_directory, project_path, stamp)
 PRIORITIES = ("P1", "P2", "P3", "P4")
 STAGES = ("inbox", "backlog", "requests", "archives", "trash")
 
 
 def stage_layout(repo: Repo) -> dict[str, Path]:
-    """The five stage folders, always the same: `.agents/changes/backlog/1-inbox` and so on."""
-    base = repo.changes.resolve() / "backlog"
+    """The five stage folders, always the same: `.agents/changes/1-inbox` and so on."""
+    base = repo.changes.resolve()
     return {"inbox": base / "1-inbox", "backlog": base / "2-backlog",
             "requests": base / "3-requests", "archives": base / "4-archives",
             "trash": base / "5-trash"}
@@ -57,7 +57,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
     priority = None
     if directory.parent == paths["inbox"]:
         pass
-    elif directory.parent == paths["requests"]:
+    elif paths["requests"] in directory.parents:
         raise ChantierError(f"{directory} is already active; resume its existing batch instead",
                             EXIT_PRECONDITION)
     elif directory.parent.parent == paths["backlog"] and directory.parent.name in PRIORITIES:
@@ -77,13 +77,8 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
 
 
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
-    if not repo.batches.exists():
-        return
-    for batch_dir in repo.batches.iterdir():
-        state = batch_dir / "batch.json"
-        if not state.is_file():
-            continue
-        batch = _read_json(state)
+    for batch_dir in repo.batch_folders():
+        batch = _read_json(batch_dir / "batch.json")
         if batch.get("status") == "landed":
             continue
         for cr in batch.get("crs", []):
@@ -101,28 +96,22 @@ def cr_directory(repo: Repo, cr: dict) -> Path:
     return project_path(repo.root, cr["path"], "recorded CR path")
 
 
-def archive_cr(batch: Batch, cr: dict) -> None:
+def _retire(batch: Batch, cr: dict, stage: str) -> None:
+    """A CR leaves its batch for good: the folder's name starts with the date, its order."""
     if not cr.get("path"):
         return
     source = cr_directory(batch.repo, cr)
-    target = stage_layout(batch.repo)["archives"] / source.name
+    target = stage_layout(batch.repo)[stage] / f"{stamp()}-{source.name}"
     batch.move(source, target)
     cr["path"] = target.relative_to(batch.repo.root).as_posix()
-    report = target / "report.md"
-    if not report.exists():
-        with report.open("x", encoding="utf-8") as f:
-            f.write(f"# {cr['id']}: {cr['title']}\n\n- Merged: {now()}\n"
-                    f"- PR: {cr.get('pr') or 'not recorded'}\n- Rounds: {cr.get('round', 0)}\n")
 
 
-def return_cr(batch: Batch, cr: dict) -> None:
-    if not cr.get("path") or not cr.get("origin"):
-        return
-    source = cr_directory(batch.repo, cr)
-    target = project_path(batch.repo.root, cr["origin"], "original CR path")
-    if source != target:
-        batch.move(source, target)
-        cr["path"] = target.relative_to(batch.repo.root).as_posix()
+def archive_cr(batch: Batch, cr: dict) -> None:
+    _retire(batch, cr, "archives")
+
+
+def trash_cr(batch: Batch, cr: dict) -> None:
+    _retire(batch, cr, "trash")
 
 
 def move_backlog_item(repo: Repo, item: str, priority: str, paths: dict[str, Path]) -> Path:

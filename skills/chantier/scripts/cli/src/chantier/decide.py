@@ -25,7 +25,7 @@ from __future__ import annotations
 import re
 import subprocess
 
-from .lifecycle import archive_cr, return_cr
+from .lifecycle import archive_cr, trash_cr
 from .state import LIVE, Batch, ChantierError, EXIT_EXTERNAL, EXIT_USAGE, git, now
 
 DRIVER_EVENTS = {"hand-back-ready", "hand-back-blocked", "anomaly", "qa-done", "driver-lost",
@@ -275,7 +275,7 @@ def _on_order_drop(b: Batch, cr_id: str, _note: str) -> list[str]:
         return [f"cancel {cr_id}", f"ok drop {cr_id}"]
     if c["status"] in {"merged", "landed"}:
         raise ChantierError(f"cannot drop {cr_id}: it is already {c['status']}")
-    return_cr(b, c)
+    trash_cr(b, c)
     b.touch(c, status="cancelled")
     return [f"ok drop {cr_id}"] + fill_slots(b)
 

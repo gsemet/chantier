@@ -205,10 +205,17 @@ def main() -> int:
     ap.add_argument("--projects", type=Path, default=Path.home() / ".claude" / "projects")
     args = ap.parse_args()
     ws = args.workspace.resolve()
-    batches = ws / ".agents" / "changes" / "batches"
-    batch = args.batch or sorted(p.name for p in batches.iterdir())[-1]
-    data = json.loads((batches / batch / "batch.json").read_text(encoding="utf-8"))
-    events = list(records(batches / batch / "events.jsonl"))
+    changes = ws / ".agents" / "changes"
+    # a batch folder is `3-requests/<NN>-<name>/` and holds a batch.json; run before `close --yes`
+    found = sorted(p.parent for p in (changes / "3-requests").glob("*/batch.json"))
+    if args.batch:
+        found = [p for p in found if re.fullmatch(rf"\d+-{re.escape(args.batch)}", p.name)]
+    if not found:
+        raise SystemExit("no batch folder in 3-requests/: run the audit before `chantier close --yes`")
+    folder = found[-1]
+    batch = folder.name.split("-", 1)[1]
+    data = json.loads((folder / "batch.json").read_text(encoding="utf-8"))
+    events = list(records(folder / "events.jsonl"))
     results: list[tuple[bool, str]] = []
 
     def check(ok: bool, label: str):
@@ -225,6 +232,14 @@ def main() -> int:
     check(data.get("status") == "landed", f"the batch landed (status {data.get('status')})")
     for c in data["crs"]:
         check(c["status"] in {"merged", "cancelled"}, f"{c['id']} ended {c['status']}")
+        num = re.sub(r"\D", "", c["id"])
+        if c["status"] == "merged":  # alone in 4-archives, named <YYMMDD-HHMM>-<NNN>-<slug>
+            check(any(changes.glob(f"4-archives/??????-????-{num}-*")),
+                  f"{c['id']} is in 4-archives as <YYMMDD-HHMM>-{num}-<slug>")
+        elif c["status"] == "cancelled":  # dropped: in 5-trash, never back in the backlog
+            check(any(changes.glob(f"5-trash/??????-????-{num}-*")),
+                  f"{c['id']} is in 5-trash as <YYMMDD-HHMM>-{num}-<slug>")
+    check((folder / "STATUS.md").is_file(), "the batch's STATUS.md (the exit report) is there")
     path = ws.with_name(ws.name + ".forge") / "state.calls"
     calls = list(records(path)) if path.exists() else []
     allowed = FORGE_ALLOWED + ((["pr", "merge"],) if data.get("release") else ())

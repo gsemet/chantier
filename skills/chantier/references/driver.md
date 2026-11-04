@@ -20,8 +20,10 @@ is a stop: `hand-back blocked refused <exact text>`.
 ## Reporting
 
 - Milestones go to the state, not to the Foreman: `$CHANTIER report <cr> <kind> [<note>]` with
-  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "<verdict>"`, `draft <path>`,
-  `note <text>`.
+  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "<verdict> <sentence>"`,
+  `investigated <sentence>`, `verified <sentence>`, `draft <path>`, `note <text>`. The CLI keeps
+  each note as `r<N> <verdict> <sentence>`, and the sentences appear in the CR's `STATUS.md`
+  Progress: write each as one short sentence on what was done or found.
 - Messages to the Foreman, one line each ([formats](message-formats.md)): `hand-back`,
   `anomaly`. On Claude, `SendMessage` to `main`; on Copilot, your final answer.
 - A decision only the user can take ends your run: `hand-back blocked question: <text>`. The
@@ -57,16 +59,19 @@ Take one CR from its specification to a green PR, then hand it back.
      findings, a red check), never a coder redoing approved work.
    - Only a `rebase: …` note: no round; ship again (step 5), then CI, the verifier and the
      hand-back.
-2. Before round 1, when the code is unfamiliar: an `investigator`.
+2. Before round 1, when the code is unfamiliar: an `investigator`, then
+   `$CHANTIER report <cr> investigated "<short sentence>"`.
 3. Each round: a `coder` with the round's brief and the previous notes, then an `inspector` on
    the round's diff. `FIX-REQUIRED`: next round with the blocking findings. `APPROVE`: each
    extra review step your prompt lists, in order, with the `spawn` command it gives (the step's
    name, never its agent's), and the same verdict rules.
-4. Once per round, after its last review: `$CHANTIER report <cr> round-done "<verdict>"`. The CLI
+4. Once per round, after its last review: `$CHANTIER report <cr> round-done "<verdict> <short
+   sentence>"`, e.g. `"APPROVE retry loop now bounded"`. The CLI
    numbers rounds (your prompt says how many are done) and prints the new count.
 5. All approved: `$CHANTIER gate <cr> --long` (exit 4 is a new round with the failure), ship,
    wait for CI. A red you cannot explain: a `debugger`, whose diagnosis the next coder fixes.
-6. Green: a `verifier` at the pushed head. `NOT VERIFIED` is a new round.
+6. Green: a `verifier` at the pushed head, then
+   `$CHANTIER report <cr> verified "<short sentence>"`. `NOT VERIFIED` is a new round.
 7. `[driver <cr>→foreman] hand-back ready <pr-link>`, and end.
 
 - The round limit is the batch's (`settings.max_rounds` in `$CHANTIER status --json`), for all

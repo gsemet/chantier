@@ -122,18 +122,36 @@ Everything lives in `.agents/changes/`:
 
 ```text
 .agents/changes/
-├── backlog/
-│   ├── 1-inbox/<slug>/             filed, not prioritized
-│   ├── 2-backlog/P1…P4/<slug>/     prioritized by you
-│   ├── 3-requests/<number>-<slug>/ in a batch: branch chantier/<batch>/…, worktree next to the repo
-│   ├── 4-archives/<number>-<slug>/ merged
-│   └── 5-trash/<slug>/             abandoned on your word
-└── batches/<batch>/                batch.json, events.jsonl, brief.md, report.md
+├── 1-inbox/<slug>/                        filed, not prioritized
+├── 2-backlog/P1…P4/<slug>/                prioritized by you
+├── 3-requests/
+│   ├── STATUS.md, STATUS.json             open batches, backlog table
+│   └── <NN>-<batch>/                      one batch; NN counts all batches
+│       ├── batch.json, events.jsonl, brief.md, .lock
+│       ├── STATUS.md, STATUS.json         the batch; at `landed`, its exit report
+│       └── <number>-<slug>/               a CR in the batch: branch chantier/<batch>/…,
+│                                          worktree next to the repo, STATUS.md, STATUS.json
+├── 4-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged (time of the merge, UTC)
+└── 5-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
 ```
 
-The folder moves, it is never copied; a dropped CR returns where it came from, and collisions
-are errors rather than overwrites. While a CR runs, the team writes its notes, gate logs and PR
-body in the CR's own `work/` folder.
+The folder moves, it is never copied; collisions are errors rather than overwrites. A CR moves
+to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR goes to
+`5-trash/` and does not return to the backlog. `--batch` takes the bare batch name, without
+`NN-`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
+`work/` folder.
+
+`STATUS.md` and `STATUS.json` exist at three levels (`3-requests/`, the batch, the CR), each
+linking to the others. The CLI rewrites them at every state change, with no call to the forge;
+a status cell reads like `🔴 blocked CI 1/3`.
+
+When the batch has landed, the Chief of Staff shows what `chantier close` would delete (the
+batch folder, the dropped CRs' worktrees and branches) and the cost. On your yes,
+`chantier close --yes` does it; without a yes, the folder stays. Run it last: the batch folder
+holds the exit report and the event log.
+
+The old layout (`backlog/`, `batches/`) is refused with an error listing the moves; there is no
+migration command.
 
 ## Supported hosts
 
@@ -173,7 +191,7 @@ model or an unpriced call is an error, never a guess. The Foreman records the sp
 heartbeat; past the batch budget it spawns nothing new.
 
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
-ready or merged, and the batch's `report.md` ends with the total, the budget, orchestration
+ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget, orchestration
 against work, the costliest CRs and the Foreman's wakes and context (`chantier cost --summary`).
 The Chief of Staff's own session is not counted.
 

@@ -59,7 +59,7 @@ Staff answers.
 | `cancel <cr>` | stop the CR's Driver, then `$CHANTIER cancel <cr>`, and carry out the lines it prints |
 | `merge <cr>` | `$CHANTIER merge <cr>`, and carry out the lines it prints after the first. It fails or is refused: ask `refused <cr> <exact text>` |
 | `ask-chief-of-staff <kind> <text>` | `[foreman→chief-of-staff] ask <kind> <text>` |
-| `land` | `$CHANTIER land`, send `[foreman→chief-of-staff] final <report path>`, schedule no wake, end. A later wake: answer `landed` with no tool call |
+| `land` | `$CHANTIER land`, send `[foreman→chief-of-staff] final <report path>` (the path `land` prints after `report:`, the batch's `STATUS.md`), schedule no wake, end. A later wake: answer `landed` with no tool call |
 | `ok …`, `none`, `none landed` | nothing: `$CHANTIER status` shows it to the Chief of Staff |
 
 Tools per host. A tool the table does not name for your host does not exist: the action is

@@ -18,20 +18,21 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 | Setup | `uv run --no-project python evals/kit/setup.py copilot <workspace>` |
 | Batch | `copilot` |
 | CRs | `done-unknown-id` |
-| Open | `$CHANTIER open copilot @.agents/changes/backlog/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main` |
+| Open | `$CHANTIER open copilot @.agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main` |
 
 ## The user's turns
 
 1. Give the go once the plan is shown.
 2. When `ask ready CR-101 <link>` arrives: merge the PR (`evals/kit/merge.py <workspace> 1`),
    then `$CHANTIER order merged CR-101` and send the line it prints.
-3. Wait for `final <report>`, then "what did it cost?", and delete the `/every` heartbeat.
+3. Wait for `final <report>`, then "what did it cost?", run the audit, then `$CHANTIER close --yes`, and delete the `/every` heartbeat.
 
 ## Expected
 
 - At least one heartbeat in the batch's event log.
 - One Driver; one coder, one Inspector, one verifier.
-- The CR ends `merged`, the batch `landed`; `chantier cost --by role` gives a figure per role.
+- The audit runs before `close --yes` (it needs the batch folder).
+- The CR ends `merged` (in `4-archives/`), the batch `landed`; `chantier cost --by role` gives a figure per role.
 
 ## Still to fill in from a real run
 

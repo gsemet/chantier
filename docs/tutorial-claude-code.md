@@ -78,7 +78,7 @@ chantier, what do you know about this project?
 chantier, file this: the login form should show an error when the password is empty.
 ```
 
-The Chief of Staff creates a **Change Request** folder in `.agents/changes/backlog/1-inbox/`, with
+The Chief of Staff creates a **Change Request** folder in `.agents/changes/1-inbox/`, with
 your request kept as written. Then it asks the questions that change the result ("only on submit,
 or as you type?"), each with its recommended answer, records your answers in `02-answers.md`, and
 writes the **Change Specification** (`03-change-spec.md`). Read it: it is exactly what the team
@@ -114,7 +114,7 @@ While the team works, keep talking to the Chief of Staff:
 | You say | What happens |
 | --- | --- |
 | "status?" | one line per CR, with its PR link and CI state |
-| "drop CR-102" | the Foreman stops its Driver; the folder goes back to the backlog |
+| "drop CR-102" | the Foreman stops its Driver; the folder goes to `5-trash/` |
 | "CR-103 first" | it gets the next free slot |
 | "for CR-101, also handle the remember-me checkbox" | the Driver takes it into its next round |
 | "what did it cost?" | the measured cost so far, by role or by CR |
@@ -134,8 +134,11 @@ After merging, tell it:
 I merged #42
 ```
 
-The CR's folder moves to `4-archives/`. When every CR of the batch is merged or dropped, the
-Foreman lands the batch: it removes the merged worktrees, writes a report, and ends.
+The CR's folder moves at once to `4-archives/`, named by the time of the merge. When every CR of
+the batch is merged or dropped, the Foreman lands the batch: it removes the merged worktrees,
+leaves the batch's `STATUS.md` as the exit report, and ends. Then the Chief of Staff shows what
+closing would delete (the batch folder, the dropped CRs' worktrees and branches) and the cost;
+on your yes, `chantier close --yes` does it. Without a yes, the folder stays.
 
 ## 8. Make the team yours
 
