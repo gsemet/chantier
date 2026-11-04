@@ -54,7 +54,7 @@ the stack, and heavy CI runs once at the top. After each merge you report, it re
 | "Pause." · "Resume." | no new CR starts while paused |
 | "I merged #42." | the CR is archived; the stack, if any, is rebased |
 
-Every order goes to the Foreman with an id and is confirmed; an order read twice runs once.
+Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read twice runs once.
 
 ## Ask for user testing
 

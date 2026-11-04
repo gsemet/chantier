@@ -79,7 +79,7 @@ Only in the turn where the user gave the go, in this order:
    | # | Condition | Check |
    | --- | --- | --- |
    | P1 | Claude Desktop (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`) or a Copilot agent session (`COPILOT_AGENT_SESSION_ID` set) | `$CHANTIER preflight` |
-   | P2 | Session tools load: Claude `mcp__ccd_session__start_session` and `mcp__ccd_session_mgmt__detach_session`; Copilot `create_session` and `send_message` | you, with the tool search |
+   | P2 | Session tools load: Claude `mcp__ccd_session__start_session`; Copilot `create_session` and `send_message` | you, with the tool search |
    | P3 | The go is in the user's own message of this turn | you |
    | P4 | The plugin's agents are installed, at this version | `$CHANTIER preflight` |
    | P5 | `uv` found, CLI and SKILL.md at the same version | `$CHANTIER preflight` |
@@ -125,9 +125,9 @@ Only in the turn where the user gave the go, in this order:
    - **Claude Desktop:** `start_session` with `initiation: "user_asked"`,
      `title: "Foreman <batch>"`, `context: "fresh"`, `use_worktree: false`,
      `model: "claude-sonnet-5-5"`, `effort: "low"`, the prompt, and the user's current permission
-     mode. Then, in the same turn, `$CHANTIER foreman set <returned id>` (it prints epoch `<n>`)
-     and `detach_session(<id>)`; check it says `detached`: a linked Foreman would wake you after
-     every turn. Find your own session id with `get_session("self")`.
+     mode. Then, in the same turn, `$CHANTIER foreman set <returned id>` (it prints epoch `<n>`).
+     Leave it linked, never detach it: the host tells you of its turns, even once it can no
+     longer message you. Find your own session id with `get_session("self")`.
    - **Copilot SDK host:** `create_session` with `model: "claude-sonnet-5.5"`, `workspace` = this
      repository, `worktree: false`, `title: Foreman <batch>` and the prompt (it takes no effort
      and no agent). Then `$CHANTIER foreman set <chat id>`. On
@@ -139,7 +139,7 @@ Only in the turn where the user gave the go, in this order:
 - **Status:** `$CHANTIER status [--notes]`, with PR links. A blocked CR is a question for the
   user. Never read the Foreman's transcript or files for progress.
 - **Steering:** each order is one `$CHANTIER order` that prints one line; send exactly that line
-  to the Foreman (`SendMessage` / `send_message`). The Foreman confirms with `ok O-<k>`.
+  to the Foreman (`SendMessage` / `send_message`). The Foreman sends no confirmation: `status` shows the orders still pending.
 
   ```bash
   $CHANTIER order add --note "@<prepared-folder>"     # a filed, grilled CR
@@ -153,8 +153,15 @@ Only in the turn where the user gave the go, in this order:
   A Driver's question comes as `ask blocked <cr> question: <text>`. Record the user's answer in
   the CR's `02-answers.md`, then `$CHANTIER order change <cr> --note "answer: <text>"`: a new
   Driver runs it with the answer. After `merged`, ready CRs that no longer merge cleanly go back
-  to a Driver on their own (`ok` names them). An order sent while the Foreman is busy arrives when its turn
-  ends: do not resend. No confirmation within about two minutes: ping once, then recover (below).
+  to a Driver on their own (`status` shows them). An order sent while the Foreman is busy arrives when its turn
+  ends: do not resend. Still pending about two minutes after that turn: ping once, then recover
+  (below).
+- **The host's limit (Claude Desktop):** a session can send 10 messages to other sessions since
+  someone last typed in it; the next ones are refused. The Foreman sends only what needs the user,
+  but a long batch can reach the limit. So on each note about its turns, and at each user turn,
+  read `$CHANTIER status`: a CR `ready` or `blocked`, or a landed batch, counts as its `ask` or
+  its `final`. The limit holds for you too: at most 10 orders between two lines the user types. A
+  refused send is reported to the user, never sent another way.
 - **Cost:** `$CHANTIER cost [--by cr]` gives measured figures; report its lines as they are, and
   give no figure when it fails. Your own session is not in it.
 - **When the batch lands** (`[foreman→chief-of-staff] final <report>`): summarize the report. On

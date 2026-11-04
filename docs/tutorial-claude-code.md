@@ -101,7 +101,7 @@ The Chief of Staff:
 3. waits for your **go**.
 
 Say "go". It opens the batch (each CR gets a branch `chantier/<batch>/…` and a worktree next to
-your repository), then starts the **Foreman** in its own session and detaches it. You will see
+your repository), then starts the **Foreman** in its own session. You will see
 that session in the sidebar; you never need to talk to it.
 
 ## 6. Follow and steer

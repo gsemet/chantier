@@ -13,8 +13,8 @@ do them. An action line is a verb and its arguments:
     message <cr> <text>             message the CR's Driver
     ask-chief-of-staff <kind> <text>   one message to the Chief of Staff
     land                            `chantier land`
-    ok <what>                       confirm an order to the Chief of Staff (after a merge, it names
-                                    the ready CRs sent back to rebase)
+    ok <what>                       an order is done: nothing to send, `status` shows it (after a
+                                    merge, it names the ready CRs sent back to rebase)
     none                            nothing to do
 
 A release CR waits until every other CR of its batch is merged or cancelled: it releases what is

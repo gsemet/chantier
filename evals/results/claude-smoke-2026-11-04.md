@@ -31,9 +31,9 @@ make it send 15 messages and see whether the limit applies to an attached sessio
    Foreman's session. To do: decide whether the Chief of Staff can rely on these notes, since a
    detached Foreman has none, and whether the Foreman should stay attached outside evals.
 3. **The Foreman started only from a message typed in the desktop app.** Under Remote Control the app
-   refused twice, so an eval cannot start from a phone. The user also saw a "trusted workspace"
-   dialog on the go, and which of the two blocks a remote start is unknown. To do: try a workspace
-   inside the project, in a folder git ignores.
+   refused twice, so an eval cannot start from a phone. A workspace inside the project, in a folder
+   git ignores, got the same refusal, so moving the folder does not lift it. Evals keep their workspace next to
+   the checkout.
 4. **The Foreman merged two confirmations into one message.** It answered O-3 and O-4 together, so
    orders sent in a burst count once. The operator then sent them one at a time.
 
