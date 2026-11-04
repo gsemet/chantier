@@ -152,19 +152,26 @@ Only in the turn where the user gave the go, in this order:
 
   A Driver's question comes as `ask blocked <cr> question: <text>`. Record the user's answer in
   the CR's `02-answers.md`, then `$CHANTIER order change <cr> --note "answer: <text>"`: a new
-  Driver runs it with the answer. After `merged`, ready CRs that no longer merge cleanly go back
-  to a Driver on their own (`status` shows them). An order sent while the Foreman is busy arrives when its turn
-  ends: do not resend. Still pending about two minutes after that turn: ping once, then recover
-  (below).
+  Driver runs it with the answer. Ready CRs that no longer merge cleanly go back to a Driver on
+  their own (`status` shows them). An order sent while the Foreman is busy arrives when its turn
+  ends: do not resend. One that never arrives runs at the Foreman's next wake. Still pending
+  after that wake: ping once, then recover (below).
 - **The host's limit (Claude Desktop):** a session can send 10 messages to other sessions since
   someone last typed in it; the next ones are refused. The Foreman sends only what needs the user,
-  but a long batch can reach the limit. So on each note about its turns, and at each user turn,
-  read `$CHANTIER status`: a CR `ready` or `blocked`, or a landed batch, counts as its `ask` or
-  its `final`. The limit holds for you too: at most 10 orders between two lines the user types. A
-  refused send is reported to the user, never sent another way.
-- **Cost:** `$CHANTIER cost [--by cr]` gives measured figures; report its lines as they are, and
-  give no figure when it fails. Your own session is not in it.
-- **When the batch lands** (`[foreman→chief-of-staff] final <report>`): summarize the report. On
+  but a long batch can reach the limit. So on each message or note from it, and at each user turn,
+  run `$CHANTIER asks`: every ask still unread, sent or not, once each; a landed batch in
+  `$CHANTIER status` counts as its `final`. The limit holds for you too: at most 10 orders between
+  two lines the user types. A refused send is reported to the user, never sent another way; the
+  order stays recorded and runs at the next wake.
+- **A refused spawn** (`ask refused <cr> <text>`, a classifier that wants the user's word in the
+  Foreman's own session): show the text and tell the user to type one line in the Foreman's
+  session, from their phone if they are away, allowing that action. It does that action once.
+  Recommend "Connect new sessions to Remote Control" if they cannot reach that session.
+- **Cost, unasked:** each time you tell the user a CR is ready or merged, add its line of
+  `$CHANTIER cost --by cr`. Report the lines as they are, give no figure when it fails, and offer
+  the detail (`--by role`, `--by cr`). Your own session is not in it.
+- **When the batch lands** (`[foreman→chief-of-staff] final <report>`): summarize the report and
+  show its Cost section as it is (`$CHANTIER cost --summary` gives it again). On
   Copilot, tell the user to delete the heartbeat: "Open the Foreman chat, type `/every`, delete
   `chantier heartbeat <batch> epoch <n>`." No tool can.
 
@@ -211,7 +218,7 @@ who talks with the user.
 
 | The Foreman sends | You do |
 | --- | --- |
-| `ask blocked <cr> approval: <action>` | show the action and the drafts; on the user's yes, record it in `02-answers.md`, then `$CHANTIER order approve <cr> --note "<action>"` |
+| `ask blocked <cr> approval: <action>` | show the action and the drafts; on the user's yes, record it in `02-answers.md`, then `$CHANTIER order approve <cr> --note "<action>"`. A release PR then merges at once, with no new Driver |
 | `ask blocked <cr> fix: <text>; <path>` | file and write a CR from it. Show it to the user and add it on their go, at once under an auto-merge grant: `$CHANTIER order fix <cr> --note "@<prepared-folder>"`. The release starts again from its first step once the fix merges |
 | `ask blocked <cr> question: <text>` | as for any CR; a grant the driver asks for is an `order grant` on the user's word |
 | `ask blocked <cr> infra: <text>` or `budget: <action>` | tell the user; on their word, `order change` (or `order grant` with a new budget) |

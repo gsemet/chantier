@@ -145,6 +145,11 @@ body in the CR's own `work/` folder.
 Preflight refuses everything else (a VS Code tab, the terminal, an unattended run, a linked
 worktree) and offers no fallback.
 
+**Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
+settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
+the Foreman an action (a release's spawn, say) until you allow it in that session: type one line
+there saying so, from your phone if you are away, and it does that action once.
+
 | Forge | CLI | Where |
 | --- | --- | --- |
 | GitHub | `gh` | github.com, or GitHub Enterprise when `gh` is logged in to its host |
@@ -166,6 +171,11 @@ by CR. On Claude, chantier prices the transcripts with its own rates for Opus, S
 PyPI, and flags calls that were estimated rather than billed. A missing transcript, an unknown
 model or an unpriced call is an error, never a guess. The Foreman records the spend at each
 heartbeat; past the batch budget it spawns nothing new.
+
+You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
+ready or merged, and the batch's `report.md` ends with the total, the budget, orchestration
+against work and the costliest CRs (`chantier cost --summary`). The Chief of Staff's own session
+is not counted.
 
 ## Repository layout
 

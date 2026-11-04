@@ -9,7 +9,7 @@ from .state import EXIT_USAGE, ChantierError
 
 MAX_LINES = 10
 # A prompt is useless cut short: it prints every line.
-FULL_OUTPUT = {"spawn"}
+FULL_OUTPUT = {"spawn", "asks"}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -78,6 +78,9 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("status", commands.status, "one line per CR")
     s.add_argument("--json", action="store_true")
     s.add_argument("--notes", action="store_true")
+
+    s = cmd("asks", commands.asks, "the Foreman's asks still unread; with text, record one")
+    s.add_argument("text", nargs="*", help="`<kind> <text>`, the Foreman's own ask")
 
     s = cmd("agents", commands.agents, "map a CR (or stack, qa:<cr>) to its agent id", epoch=True)
     s.add_argument("action", choices=["get", "set"])
@@ -149,6 +152,8 @@ def _parser() -> argparse.ArgumentParser:
 
     s = cmd("cost", commands.cost, "price the Foreman's transcript and its subagents")
     s.add_argument("--by", choices=["role", "cr"], default="role")
+    s.add_argument("--summary", action="store_true",
+                   help="total, budget, orchestration against work, the costliest CRs")
     s.add_argument("--update", action="store_true", help="store the total as spent_usd")
     s.add_argument("--transcript", help="session uuid (default: the recorded one)")
     s.add_argument("--host", choices=["claude", "copilot"],

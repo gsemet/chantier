@@ -14,6 +14,9 @@ You need:
   servers included;
 - a GitHub or GitLab repository you can push to, cloned on your machine.
 
+We recommend turning on "Connect new sessions to Remote Control" in the app's settings: you can
+then follow the Foreman's session from your phone, and answer it there when it needs your word.
+
 ## 1. Install the plugin
 
 In a terminal:
@@ -180,5 +183,7 @@ included.
 - **A CR is blocked.** "status?" shows why; answer the question or drop the CR.
 - Anything refused (a permission, a tool, a model) is reported with its exact text: chantier
   never works around a refusal.
+- **The Foreman was refused an action by a classifier.** It wants your word in that session: type
+  one line in the Foreman's session allowing that action, from your phone if you are away.
 
 Next: [use cases](use-cases.md) for more ways to work with chantier.

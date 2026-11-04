@@ -13,8 +13,8 @@ do them. An action line is a verb and its arguments:
     message <cr> <text>             message the CR's Driver
     ask-chief-of-staff <kind> <text>   one message to the Chief of Staff
     land                            `chantier land`
-    ok <what>                       an order is done: nothing to send, `status` shows it (after a
-                                    merge, it names the ready CRs sent back to rebase)
+    ok <what>                       nothing to send, `status` shows it: an order is done, or ready
+                                    CRs went back to rebase
     none                            nothing to do
 
 A release CR waits until every other CR of its batch is merged or cancelled: it releases what is
@@ -132,9 +132,16 @@ def _on_start(b: Batch, _cr: str, _note: str) -> list[str]:
 
 
 def _on_tick(b: Batch, _cr: str, _note: str) -> list[str]:
+    """The wake catches up on what a lost message left behind: an order whose line never came, a
+    ready PR that stopped merging, a silent Driver."""
     stale = b.repo.config.get("stale_minutes", 90)
     out = []
     from .state import age_minutes
+    for o in b.data.get("orders", []):
+        if not o["done"]:
+            out += [a for a in decide(b, o["cr"], f"order-{o['kind']}", o["note"], order=o["id"])
+                    if a != "none"]
+    out += _rebase_news(b)
     for c in _live(b):
         age = age_minutes(c.get("updated"))
         if age is not None and age > stale:
@@ -169,19 +176,19 @@ def _on_hand_back_ready(b: Batch, cr_id: str, note: str) -> list[str]:
         if _stack_ready(b):
             ready = [x for x in b.data["crs"] if x["status"] == "ready"]
             out += [_restack(b), f"ask-chief-of-staff stack-ready {_links(b, ready)}"]
-    else:
+    elif not _conflicts(b, c, fetch=True):  # in conflict: its Driver's end sends it back
         out.append(f"ask-chief-of-staff ready {cr_id} {c.get('pr') or 'no-pr'}")
     return out
 
 
 def _on_hand_back_blocked(b: Batch, cr_id: str, note: str) -> list[str]:
     c = b.cr(cr_id)
-    if c.get("kind") == "release" and note.startswith("merge:"):  # the Foreman merges, on its `go`
+    if c.get("kind") == "release" and note.startswith("merge:"):  # the Foreman merges, once allowed
         method = note.removeprefix("merge:").strip()
         if method not in MERGE_METHODS:
             raise ChantierError(f"hand-back blocked merge: <{'|'.join(MERGE_METHODS)}>", EXIT_USAGE)
         b.touch(c, status="blocked", blocked_reason=note, merge_method=method)
-        return [f"merge {cr_id}"] + fill_slots(b)
+        return _merge_release(b, c) + fill_slots(b)
     b.touch(c, status="blocked", blocked_reason=note)
     out = [f"ask-chief-of-staff blocked {cr_id} {note}".rstrip()] + fill_slots(b)
     if b.data["mode"] == "stack" and _stack_ready(b):
@@ -249,6 +256,8 @@ def _on_driver_done(b: Batch, cr_id: str, note: str) -> list[str]:
     c = b.cr(cr_id)
     if c["status"] == "working":
         return _on_driver_lost(b, cr_id, note)
+    if c["status"] == "ready":  # handed back in conflict: only now can a new Driver take it
+        return _rebase_news(b) + fill_slots(b)
     return []
 
 
@@ -318,26 +327,47 @@ def merged(b: Batch, c: dict) -> tuple[str, list[str]]:
     return (f"; rebase {' '.join(rebase)}" if rebase else ""), fill_slots(b)
 
 
+def _fetch_default(b: Batch) -> None:
+    git("fetch", "--quiet", b.repo.config["remote"], b.repo.config["default_branch"],
+        cwd=b.repo.root)
+
+
+def _conflicts(b: Batch, c: dict, fetch: bool = False) -> bool:
+    """Whether the CR's branch no longer merges cleanly into the default branch."""
+    if not c.get("branch"):
+        return False
+    if fetch:
+        _fetch_default(b)
+    remote, branch = b.repo.config["remote"], b.repo.config["default_branch"]
+    # never `--quiet`: with it, git exits 0 on a conflict
+    p = subprocess.run(["git", "merge-tree", "--write-tree", f"{remote}/{branch}", c["branch"]],
+                       cwd=b.repo.root, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace")
+    if p.returncode > 1:
+        raise ChantierError(f"git merge-tree {c['branch']}: {p.stderr.strip()}", EXIT_EXTERNAL)
+    return p.returncode == 1
+
+
 def _rebase_ready(b: Batch) -> list[str]:
     """A ready CR whose PR no longer merges cleanly into the moved default branch goes back to a
     Driver, which ships it again."""
-    remote, branch = b.repo.config["remote"], b.repo.config["default_branch"]
-    git("fetch", "--quiet", remote, branch, cwd=b.repo.root)
+    ready = [c for c in b.data["crs"] if c["status"] == "ready"]
+    if not ready or b.data["mode"] == "stack":  # a stack's PRs stand on each other
+        return []
+    _fetch_default(b)
     out = []
-    for c in b.data["crs"]:
-        if c["status"] != "ready" or not c.get("branch"):
-            continue
-        # never `--quiet`: with it, git exits 0 on a conflict
-        p = subprocess.run(["git", "merge-tree", "--write-tree", f"{remote}/{branch}",
-                            c["branch"]], cwd=b.repo.root, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace")
-        if p.returncode > 1:
-            raise ChantierError(f"git merge-tree {c['branch']}: {p.stderr.strip()}", EXIT_EXTERNAL)
-        if p.returncode == 1:
-            c.setdefault("notes", []).append(f"rebase: {branch} moved; the PR no longer merges")
+    for c in ready:
+        if _conflicts(b, c):
+            c.setdefault("notes", []).append(
+                f"rebase: {b.repo.config['default_branch']} moved; the PR no longer merges")
             b.touch(c, status="queued")
             out.append(c["id"])
     return out
+
+
+def _rebase_news(b: Batch) -> list[str]:
+    rebase = _rebase_ready(b)
+    return [f"ok rebase {' '.join(rebase)}"] if rebase else []
 
 
 def _on_order_pause(b: Batch, _cr: str, _note: str) -> list[str]:
@@ -358,6 +388,41 @@ def _release(b: Batch, cr_id: str) -> dict:
     if c.get("kind") != "release":
         raise ChantierError(f"{cr_id} is not the batch's release CR", EXIT_USAGE)
     return c
+
+
+def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
+    """Spend what allows one irreversible action: `go` and why, `budget`, or `ask`."""
+    grant = b.data["release"]
+    if _over_budget(b):
+        b.log("release-go", c["id"], action=action, result="budget")
+        return "budget", ""
+    if c.get("approvals"):
+        why = f"the user approved: {c['approvals'].pop(0)}"
+    elif grant.get("autonomous", 0) > grant.get("published", 0):
+        why = (f"the user allowed {grant['autonomous']} releases without asking; "
+               f"{grant.get('published', 0)} published")
+    else:
+        b.log("release-go", c["id"], action=action, result="ask")
+        return "ask", ""
+    b.touch(c, go=action)
+    b.log("release-go", c["id"], action=action, result="go", why=why)
+    return "go", why
+
+
+def _awaits_merge(c: dict) -> bool:
+    return c["status"] == "blocked" and bool(c.get("merge_method"))
+
+
+def _merge_release(b: Batch, c: dict) -> list[str]:
+    """The release PR needs no new Driver to merge: allowed, the Foreman merges it; not yet, the
+    user is asked, and the approval or the grant comes back here."""
+    action = f"merge the release PR {c.get('pr')} ({c['merge_method']})"
+    result, _ = release_go(b, c, action)
+    if result == "go":
+        return [f"merge {c['id']}"]
+    reason = f"{'budget' if result == 'budget' else 'approval'}: {action}"
+    b.touch(c, blocked_reason=reason)
+    return [f"ask-chief-of-staff blocked {c['id']} {reason}"]
 
 
 def release_merged(b: Batch, c: dict, method: str) -> list[str]:
@@ -390,11 +455,15 @@ def _on_order_fix(b: Batch, cr_id: str, note: str) -> list[str]:
 
 
 def _on_order_approve(b: Batch, cr_id: str, note: str) -> list[str]:
-    """The user approved one irreversible action; `chantier release go` spends it."""
+    """The user approved one irreversible action; `chantier release go` spends it, or the merge
+    of the release PR that waits for it."""
     c = _release(b, cr_id)
     if not note.strip():
         raise ChantierError("order approve needs the action the user approved", EXIT_USAGE)
     c.setdefault("approvals", []).append(note.strip())
+    if _awaits_merge(c):
+        c.setdefault("notes", []).append(f"approved: {note.strip()}")
+        return _merge_release(b, c) + [f"ok approve {cr_id}"]
     return _back_to_release(b, c, f"approved: {note.strip()}", "approve")
 
 
@@ -439,4 +508,16 @@ def _on_order_grant(b: Batch, cr_id: str, note: str) -> list[str]:
         c.setdefault("notes", []).append(f"grant: {note.strip()}")  # it waits for its fix
         b.touch(c)
         return [f"ok grant {cr_id}"]
+    if _awaits_merge(c):
+        c.setdefault("notes", []).append(f"grant: {note.strip()}")
+        return _merge_release(b, c) + [f"ok grant {cr_id}"]
     return _back_to_release(b, c, f"grant: {note.strip()}", "grant")
+
+
+def record_asks(b: Batch, actions: list[str]) -> None:
+    """What the Chief of Staff must hear stays in the state until it has read it, whatever
+    becomes of the message."""
+    for a in actions:
+        if a.startswith("ask-chief-of-staff "):
+            b.data.setdefault("asks", []).append(
+                {"text": a.removeprefix("ask-chief-of-staff "), "sent": now(), "read": None})

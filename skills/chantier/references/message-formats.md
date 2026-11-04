@@ -27,6 +27,8 @@ Print an order with `$CHANTIER order …`: the line carries the order id the For
 [foreman→chief-of-staff] final <report path>
 ```
 
+Every `ask` also stays in the state until `$CHANTIER asks` reads it: the line may never arrive.
+
 ## Foreman → Driver
 
 ```text
