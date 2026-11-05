@@ -135,8 +135,6 @@ never picks a look-alike or a workaround.
 
 ### Change Request lifecycle
 
-![Life of a change request](docs/cr-lifecycle.svg)
-
 Everything lives in `.agents/changes/`:
 
 ```text

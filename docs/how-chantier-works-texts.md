@@ -4,7 +4,7 @@
 # How chantier works
 
 You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates.
-On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent, and the stack driver runs the conflict resolver.
+On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver.
 
 The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. It runs in Claude Desktop or a Copilot SDK host.
 
@@ -99,6 +99,9 @@ release procedure
 🔦 Investigator
 🔨 Coder
 📏 Inspector
+reads the diff, before the commit
+✅ Verifier
+runs it, at the pushed head
 🔧 Debugger
 ➕ your agents
 ⛓️ Conflict resolver
@@ -135,7 +138,7 @@ open, take, ship, land
 ```md
 ## 🚧 Limits
 
-budget, usage
+slots, budget, rounds
 ```
 
 ```md

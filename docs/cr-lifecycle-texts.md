@@ -4,6 +4,8 @@
 ## 🔄 Life of a change request
 
 Every Change Request (CR) lands in one Markdown file; the CR folder moves and is enriched with prototype, spec and reports.
+A CR is usually implemented in a pull or merge request (PR/MR).
+Some CRs do not translate to a PR.
 ```
 
 ## Legend
@@ -38,7 +40,7 @@ LANDING
 🦊 GitLab · GitHub
 💬 chat
 📝 Markdown file
-🔍 QA findings
+📝 findings
 
 kept as received,
 never edited
@@ -102,6 +104,15 @@ the spec
 ```md
 ✏️ needs revision
 ✅ approved
+```
+
+## Prototype (note beside the review)
+
+```md
+## 🎨 prototype
+
+the destination, shown: a UI mockup, a vibe-coded app…
+often made by you, outside this cycle
 ```
 
 ## Clarification loop
@@ -174,6 +185,14 @@ chantier take
 worktree · isolated branch
 ```
 
+## Investigator (optional)
+
+```md
+## 🔦 Investigator
+
+when the code is unfamiliar
+```
+
 ## Rounds
 
 ```md
@@ -212,6 +231,19 @@ question, approval, budget…
 asks Foreman
 ```
 
+## Bug found
+
+```md
+## 🐞 bug found
+
+outside the CR's scope
+```
+
+```md
+👷 Foreman
+files bugs as findings
+```
+
 ```md
 ## 🧑‍💼 Chief of Staff
 
@@ -233,7 +265,7 @@ orders
 ```md
 ## 🚀 push · PR
 
-gate, rebase, ship
+rebase, gate, ship
 ```
 
 ```md
@@ -286,7 +318,7 @@ order · restack · ship · heavy CI
 ```md
 ## 📦 4-archives/
 
-after merge, by 👷 Foreman
+on `order merged`
 ```
 
 ## QA (optional)
@@ -301,9 +333,9 @@ ask for QA
 ```
 
 ```md
-## 🔍 QA driver
+## 🦺 QA driver
 
-uses it as a user
+uses the project's head as a user
 ```
 
 ```md
@@ -337,9 +369,14 @@ runs your procedure · checks
 ```
 
 ```md
+👤 your go
+unless granted
+```
+
+```md
 ## 🧯 fix CR
 
-fast track · ≤ 3
+fast track · ≤ 3 fixes per release
 ```
 
 ```md
@@ -349,7 +386,7 @@ targeted fix
 ```
 
 ```md
-## auto-merge?
+## fix grant?
 ```
 
 ```md
@@ -358,8 +395,12 @@ no
 ```
 
 ```md
-👷 Foreman
-approves the merge
+👷 Foreman merges
+within the granted budget
+```
+
+```md
+👤 you merge
 ```
 
 ## After release
@@ -377,12 +418,8 @@ long-term fixes
 ```
 
 ```md
-🧑‍💼 Chief of Staff
-offers retro as CRs
-```
-
-```md
-## 📥 1-inbox/
+📝 recommendations
+process improvement
 ```
 
 ```md
@@ -439,12 +476,9 @@ chantier close
 deletes the batch folder
 ```
 
-```md
-↩ loop to 01-intent.md
-```
-
 ## Footer
 
 ```md
 chantier CLI gives guidance and feedback to agents, writes human-readable STATUS.md.
+At any time: `order drop` → `5-trash/`, with its work.
 ```
