@@ -1,14 +1,14 @@
 # A CR is a folder that moves
 
-A change request is one folder of Markdown files in .agents/changes/; its life is that folder moving from stage to stage, never copied, and gaining files on the way. A request from the intake (a Jira issue, a GitLab or GitHub issue, the chat, a Markdown file) is filed with chantier file into 1-inbox/<slug>/, with intake/ as received and 01-intent.md, the request summarised; 02-answers.md holds your answers if you are grilled, 03-change-spec.md the spec. chantier triage moves a ready CR to 2-backlog/P1…P4/<slug>/; nothing new, you set its priority. On your go, chantier open moves it into a batch, 3-requests/<NN>-<batch>/<number>-<slug>/, where it gains STATUS.md and STATUS.json, written by the CLI; work/, written while it runs: notes, gate logs, the PR body, and for a release CR retro.md and fix-<n>.md; and evidence/, the QA and Verifier proofs. Once you merge it, chantier order merged moves it to 4-archives/<YYMMDD-HHMM>-<number>-<slug>/, kept as is. At any stage before the archive, chantier order drop moves it to 5-trash/, with its work.
+A change request is one folder of Markdown files in .agents/changes/; its life is that folder moving from stage to stage, never copied, and gaining files on the way. A request from the intake (a Jira issue, a GitLab or GitHub issue, the chat, a Markdown file, or QA and retro findings) is converted to Markdown and filed with chantier file into 1-inbox/<slug>/, with intake/ as received and 01-intent.md, the request summarised; 02-answers.md holds your answers if you are grilled, 03-change-spec.md the spec. chantier triage moves a ready CR to 2-backlog/P1…P4/<slug>/; nothing new, you set its priority. To start its implementation, chantier open moves it into a batch, 3-requests/<NN>-<batch>/<number>-<slug>/, where it gains STATUS.md and STATUS.json, written by the CLI; work/, written while it runs: notes, gate logs, the PR body, and for a release CR retro.md and fix-<n>.md; and evidence/, the QA and Verifier proofs. Once its PR or MR is merged, chantier order merged moves it to 4-archives/<YYMMDD-HHMM>-<number>-<slug>/, where it gains retro.md, its retro and final status. At any stage before the archive, chantier order drop moves it to 5-trash/, with its work.
 
 ## Header
 
 ```md
 ## 📁 A CR is a folder that moves
 
-A CR is one folder of Markdown files in .agents/changes/. Its life is that folder moving from stage to stage, never copied.
-On the way, the folder gains files.
+A CR is one folder of Markdown files in .agents/changes/.
+Folder moves from stage to stage, never copied, gaining files on the way.
 ```
 
 ## Legend (top right)
@@ -27,6 +27,7 @@ carried along
 🦊 GitLab · GitHub
 💬 chat
 📝 Markdown file
+📝 QA / Retro findings
 
 the request, any source
 ```
@@ -34,10 +35,10 @@ the request, any source
 ## Moves (arrows between stages)
 
 ```md
-chantier file            files it
+chantier file            convert to markdown
 chantier triage          ready
-chantier open            on your go
-chantier order merged    you merged
+chantier open            start implem.
+chantier order merged    PR/MR merged
 ```
 
 ## Stage headers
@@ -96,7 +97,7 @@ nothing new · you set P1…P4
 📁 evidence/                        QA, Verifier proofs
 ```
 
-## 4-archives folder (all carried)
+## 4-archives folder (new: retro.md)
 
 ```md
 📂 <YYMMDD-HHMM>-<number>-<slug>/
@@ -110,8 +111,7 @@ nothing new · you set P1…P4
   └ notes · gate logs · PR body
   └ retro.md · fix-<n>.md          release CR
 📁 evidence/                        QA, Verifier proofs
-
-nothing new · kept as is
+♻️ retro.md                         Retro / status
 ```
 
 ## Trash (bottom)
@@ -121,10 +121,4 @@ chantier order drop
 
 ### 🗑️ 5-trash/
 dropped at any stage, with its work
-```
-
-## Footer
-
-```md
-Each move is a mv of the whole folder: same files, a new place, never a copy.
 ```
