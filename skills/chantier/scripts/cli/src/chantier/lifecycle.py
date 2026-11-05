@@ -44,10 +44,10 @@ class PreparedCR:
 
 def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
     """A CR folder in the inbox or the priority backlog, with a specification."""
-    if not item.startswith("@") or len(item) == 1:
-        raise ChantierError("open requires @<prepared-CR-folder> or @<specification-file>; "
+    if not item.strip():
+        raise ChantierError("open requires <prepared-CR-folder> or <specification-file>; "
                             "file and grill the CR first", EXIT_USAGE)
-    supplied = project_path(repo.root, item[1:], "CR item")
+    supplied = project_path(repo.root, item, "CR item")
     if supplied.is_file():
         directory, specification = supplied.parent, supplied
     elif supplied.is_dir():

@@ -424,7 +424,7 @@ def scenario(w: World) -> None:
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
     code, _ = w.chantier("open", "raw-title", "Fix login", *FROM_AGENTS_MD, expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
-    w.chantier("open", "night", *(f"@{backlog}" for _, backlog in items),
+    w.chantier("open", "night", *(str(backlog) for _, backlog in items),
                "--slots", 2, "--qa", "2", "--budget", 50, *FROM_AGENTS_MD)
     w.chantier("foreman", "set", "local_foreman1", "--epoch", 1)
     fm = Foreman(w, epoch=1)
@@ -563,7 +563,7 @@ def scenario(w: World) -> None:
     _, out = w.chantier("order", "done", "O-1", "--epoch", 1)
     check("an order read twice is done once", out == ["O-1 already done"])
     _, added = prepare_cr(w, "Rate limit the login endpoint")
-    _, out = w.chantier("order", "add", "--note", f"@{added}")
+    _, out = w.chantier("order", "add", "--note", str(added))
     check("an added item becomes CR-105 at once", out[1] == "added CR-105, queued", str(out))
     fm.turn()
     check("CR-105 has a worktree and takes the second free slot",
@@ -771,12 +771,12 @@ def failed_opening(w: World) -> None:
     spec = item / "03-change-spec.md"
     good = spec.read_bytes()
     spec.write_bytes("# Spécification\n".encode("latin-1"))
-    code, _ = w.chantier("open", "latin", f"@{item}", *FROM_AGENTS_MD, expect=None)
+    code, _ = w.chantier("open", "latin", str(item), *FROM_AGENTS_MD, expect=None)
     check("a specification that is not UTF-8 is named, not a traceback",
           code == 2 and "not UTF-8" in w.last_stderr and "Traceback" not in w.last_stderr,
           w.last_stderr)
     spec.write_bytes(good)
-    code, _ = w.chantier("open", "stuck", f"@{item}", f"@{w.root / 'nowhere'}", *FROM_AGENTS_MD,
+    code, _ = w.chantier("open", "stuck", str(item), str(w.root / 'nowhere'), *FROM_AGENTS_MD,
                          expect=None)
     check("a second item that is not a prepared CR fails the opening, and the first one is "
           "restored where it was",
@@ -804,7 +804,7 @@ def cancel_during_gate(w: World) -> None:
     slow = w.root / "slow_gate.py"
     slow.write_text("import time\ntime.sleep(60)\n")
     gate = f"uv run --no-project python {slow.as_posix()}"
-    w.chantier("open", "halt", f"@{item}", "--default-branch", "main")
+    w.chantier("open", "halt", str(item), "--default-branch", "main")
     w.name, w.env["CHANTIER_BATCH"] = "halt", "halt"
     w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
     Foreman(w, epoch=1).turn()
@@ -828,7 +828,7 @@ def rails(w: World) -> None:
     slow = w.root / "slow_long.py"
     slow.write_text("import time\ntime.sleep(2)\n")
     long_gate = f'"{sys.executable}" "{slow}"'
-    w.chantier("open", "rails", f"@{a}", f"@{b}", "--slots", 1, "--budget", 1,
+    w.chantier("open", "rails", str(a), str(b), "--slots", 1, "--budget", 1,
                "--default-branch", "main")
     w.name, w.env["CHANTIER_BATCH"] = "rails", "rails"
     w.chantier("foreman", "set", "local_foreman7", "--epoch", 1)
@@ -922,10 +922,10 @@ def release(w: World) -> None:
     bad = (("--release", 3), ("--release", 2, "--qa", "2"), ("--release", 2, "--auto-merge-fixes"),
            ("--autonomous-releases", 1, "--budget", 5))
     for args in bad:
-        code, _ = w.chantier("open", "ship", f"@{change}", f"@{version}", *FROM_AGENTS_MD, *args,
+        code, _ = w.chantier("open", "ship", str(change), str(version), *FROM_AGENTS_MD, *args,
                              expect=1)
         check(f"open refuses {args}", code == 1 and change.is_dir())
-    w.chantier("open", "ship", f"@{change}", f"@{version}", "--release", 2, "--slots", 2,
+    w.chantier("open", "ship", str(change), str(version), "--release", 2, "--slots", 2,
                *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "ship", "ship"
     w.chantier("foreman", "set", "local_foreman3", "--epoch", 1)
@@ -985,7 +985,7 @@ def release(w: World) -> None:
     fm.turn()
     check("a grant leaves a release that waits for its fix alone",
           len(fm.started) == started and w.cr(rel)["status"] == "blocked")
-    _, out = w.chantier("order", "add", "--note", f"@{fix}", "--fix-for", rel)
+    _, out = w.chantier("order", "add", "--note", str(fix), "--fix-for", rel)
     fm.turn()
     fix_id = w.batch()["crs"][-1]["id"]
     check("a fix becomes a CR of the batch; the release waits for it",
@@ -1064,7 +1064,7 @@ def release(w: World) -> None:
 def release_merge_on_approval(w: World) -> None:
     note("\n## 15. A release PR merges on the user's approval")
     _, version = prepare_cr(w, "Release v1.2.0")
-    w.chantier("open", "approve", f"@{version}", "--release", 1, *FROM_AGENTS_MD)
+    w.chantier("open", "approve", str(version), "--release", 1, *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "approve", "approve"
     w.chantier("foreman", "set", "local_foreman4", "--epoch", 1)
     fm = Foreman(w, epoch=1)
@@ -1103,7 +1103,7 @@ def lost_messages(w: World) -> None:
     note("\n## 16. Lost messages: the wake catches up, and nothing is left unsaid")
     titles = ("Lost one", "Lost two", "Lost three")
     prepared = [prepare_cr(w, title)[1] for title in titles]
-    w.chantier("open", "lost", *(f"@{p}" for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
+    w.chantier("open", "lost", *(str(p) for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "lost", "lost"
     check("batch numbers go on rising after the last batch's folder is deleted",
           w.folder().name == f"{w.number_after:02d}-lost", w.folder().name)
@@ -1166,7 +1166,7 @@ def lost_messages(w: World) -> None:
 def lifecycle_regressions(w: World) -> None:
     note("\n## 12. Lifecycle recovery")
     _, original = prepare_cr(w, "Preserve failed opening")
-    code, _ = w.chantier("open", "rollback", f"@{original}", "--remote", "nowhere",
+    code, _ = w.chantier("open", "rollback", str(original), "--remote", "nowhere",
                          *FROM_AGENTS_MD, expect=4)
     check("a remote Git does not know is refused before anything moves",
           code == 4 and "nowhere" in w.last_stderr and (original / "03-change-spec.md").is_file()
@@ -1245,7 +1245,7 @@ def copilot_cost(w: World, d: dict) -> None:
           {"CHANTIER_SESSION_USAGE": missing_command})
     state.write_text(claude)
     _, missing = prepare_cr(w, "Missing transcript")
-    w.chantier("open", "cost-missing", f"@{missing}", *FROM_AGENTS_MD,
+    w.chantier("open", "cost-missing", str(missing), *FROM_AGENTS_MD,
                env={"CHANTIER_HOST": "copilot"})
     code, out = w.chantier("cost", "--batch", "cost-missing", env=env, expect=2)
     check("a missing Copilot transcript names the session variable",

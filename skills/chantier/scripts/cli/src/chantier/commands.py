@@ -511,8 +511,8 @@ def order(args) -> list[str]:
     if args.kind not in ORDER_KINDS:
         raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
     note = args.note or ""
-    if args.kind == "add" and not note.startswith("@"):
-        raise ChantierError("order add --note @<prepared-CR-folder-or-specification> "
+    if args.kind == "add" and not note.strip():
+        raise ChantierError("order add --note <prepared-CR-folder-or-specification> "
                             "[--fix-for <release-cr>]", EXIT_USAGE)
     if args.kind in CR_ORDERS and (not args.cr or args.cr == "-"):
         raise ChantierError(f"order {args.kind} <cr>", EXIT_USAGE)

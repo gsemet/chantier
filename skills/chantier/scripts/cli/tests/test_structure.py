@@ -133,7 +133,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert code == 0, out
     assert sh("git", "status", "--porcelain", cwd=repo) == ""
     folder = _prepared(repo, chantier)
-    code, _, err = chantier("open", "b1", f"@{folder}", *FROM_AGENTS_MD)
+    code, _, err = chantier("open", "b1", str(folder), *FROM_AGENTS_MD)
     assert code == 0, err
     assert chantier("status")[1][-1].startswith("CR-101 queued")
     # the CLI names the branch and the worktree; the Driver creates them
