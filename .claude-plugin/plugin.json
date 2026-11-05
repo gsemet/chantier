@@ -1,7 +1,7 @@
 {
   "name": "chantier",
   "description": "The construction site for your Software Factory: a Chief of Staff you talk to, a Foreman that runs batches of change requests, and short-lived workers that ship one pull request per change.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "author": {
     "name": "Gaetan SEMET"
   },
