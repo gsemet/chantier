@@ -60,8 +60,7 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
   each of its turns: follow these notes and `status`, and merge from there. Never send through
   another tool: the limit is the host's, and a refusal is reported.
 - **Starting the Foreman** needs a line typed in the desktop app (see above). From a phone, the
-  user starts the session and pastes the Foreman's prompt; the Chief of Staff then runs `foreman
-  set` with that session's id.
+  user starts the session and pastes the Foreman's prompt; the Foreman claims its epoch itself.
 
 ### The steps
 

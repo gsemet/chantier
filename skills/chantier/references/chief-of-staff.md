@@ -75,6 +75,7 @@ Only in the turn where the user gave the go:
    chantier Foreman of batch <batch>, epoch <n>, for the Chief of Staff <your session id>.
    Read <skill>/references/foreman.md and <skill>/references/concepts.md now and follow them.
    CLI: uv run --script "<skill>/scripts/cli/chantier.py" <command> --batch <batch>
+   Repository: <this repository's absolute path>
    Team: <role: agent, …; or "the plugin's agents">
    ```
 
@@ -83,8 +84,10 @@ Only in the turn where the user gave the go:
    false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it
    linked; your own id is `get_session("self")`. On a Copilot SDK host: `create_session` with
    `model: "claude-opus-5.5"`, `workspace` = this repository, `worktree: false`, `title: Foreman
-   <batch>`. Then `$CHANTIER foreman set <id>`. On `[foreman→chief-of-staff] ready <batch>`, on
-   Copilot, send the Foreman chat `/every 4m chantier status --refresh --batch <batch> --epoch <n>`.
+   <batch>`. The Foreman claims its epoch itself. When the host refuses to start a session (under
+   Remote Control), the user can start it and paste this prompt. On `[foreman→chief-of-staff]
+   ready <batch>`, on Copilot, send the Foreman chat `/every 4m chantier status --refresh --batch
+   <batch> --epoch <n>`.
 
 ## While it runs
 

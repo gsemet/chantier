@@ -424,7 +424,7 @@ def scenario(w: World) -> None:
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
     w.chantier("open", "night", *(f"@{backlog}" for _, backlog in items),
                "--slots", 2, "--qa", "2", "--budget", 50, *FROM_AGENTS_MD)
-    w.chantier("foreman", "set", "local_foreman1")
+    w.chantier("foreman", "set", "local_foreman1", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
     d = w.batch()
@@ -581,10 +581,13 @@ def scenario(w: World) -> None:
           not all(o["done"] for o in w.batch()["orders"]))
 
     note("\n## 6. A Foreman restart: the old one is refused")
-    w.chantier("foreman", "set", "local_foreman2")
+    w.chantier("foreman", "set", "local_foreman2", "--epoch", 2)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 2)
     code, _ = w.chantier("status", "--refresh", "--epoch", 1, expect=3)
     check("a stale Foreman (epoch 1) is refused with exit 3", code == 3)
+    code, _ = w.chantier("foreman", "set", "local_second", "--epoch", 2, expect=3)
+    check("a second session cannot claim an epoch already claimed (exit 3)",
+          code == 3 and w.batch()["foreman"] == "local_foreman2")
     fm.epoch = 2
 
     note("\n## 7. CR-104 is lost, then hands back; CR-105 and CR-101 run")
@@ -795,7 +798,7 @@ def cancel_during_gate(w: World) -> None:
     gate = f"uv run --no-project python {slow.as_posix()}"
     w.chantier("open", "halt", f"@{item}", "--default-branch", "main")
     w.name, w.env["CHANTIER_BATCH"] = "halt", "halt"
-    w.chantier("foreman", "set", "local_foreman6")
+    w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
     Foreman(w, epoch=1).turn()
     cr = w.batch()["crs"][0]["id"]
     running = subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, gate], cwd=w.work,
@@ -820,7 +823,7 @@ def rails(w: World) -> None:
     w.chantier("open", "rails", f"@{a}", f"@{b}", "--slots", 1, "--budget", 1,
                "--default-branch", "main")
     w.name, w.env["CHANTIER_BATCH"] = "rails", "rails"
-    w.chantier("foreman", "set", "local_foreman7")
+    w.chantier("foreman", "set", "local_foreman7", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
     one, two = (c["id"] for c in w.batch()["crs"])
@@ -917,7 +920,7 @@ def release(w: World) -> None:
     w.chantier("open", "ship", f"@{change}", f"@{version}", "--release", 2, "--slots", 2,
                *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "ship", "ship"
-    w.chantier("foreman", "set", "local_foreman3")
+    w.chantier("foreman", "set", "local_foreman3", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     work, rel = (c["id"] for c in w.batch()["crs"])
     fm.turn()
@@ -1055,7 +1058,7 @@ def release_merge_on_approval(w: World) -> None:
     _, version = prepare_cr(w, "Release v1.2.0")
     w.chantier("open", "approve", f"@{version}", "--release", 1, *FROM_AGENTS_MD)
     w.name, w.env["CHANTIER_BATCH"] = "approve", "approve"
-    w.chantier("foreman", "set", "local_foreman4")
+    w.chantier("foreman", "set", "local_foreman4", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
     rel = w.batch()["crs"][0]["id"]
@@ -1096,7 +1099,7 @@ def lost_messages(w: World) -> None:
     w.name, w.env["CHANTIER_BATCH"] = "lost", "lost"
     check("batch numbers go on rising after the last batch's folder is deleted",
           w.folder().name == f"{w.number_after:02d}-lost", w.folder().name)
-    w.chantier("foreman", "set", "local_foreman5")
+    w.chantier("foreman", "set", "local_foreman5", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
     one, two, three = (c["id"] for c in w.batch()["crs"])

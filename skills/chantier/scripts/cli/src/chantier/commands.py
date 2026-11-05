@@ -387,12 +387,16 @@ def foreman(args) -> list[str]:
     if args.action == "get":
         d = read_batch(repo, batch)
         return [f"{d.get('foreman') or 'none'} epoch {d.get('foreman_epoch', 0)}"]
-    with Batch(repo, batch, actor="chief-of-staff" if args.action == "set" else "foreman") as b:
+    with Batch(repo, batch, actor="foreman") as b:
         if args.action == "set":
-            if not args.value:
-                raise ChantierError("foreman set <session-id>", EXIT_USAGE)
+            if not args.value or args.epoch is None:
+                raise ChantierError("foreman set <session-id> --epoch <n>", EXIT_USAGE)
+            current = b.data.get("foreman_epoch", 0)
+            if args.epoch != current + 1:  # one session per epoch: the first to claim it runs it
+                raise ChantierError(f"epoch {args.epoch} cannot be claimed: batch {b.id} is at "
+                                    f"epoch {current}; stop now", EXIT_CONFLICT)
             b.data["foreman"] = args.value
-            b.data["foreman_epoch"] = b.data.get("foreman_epoch", 0) + 1
+            b.data["foreman_epoch"] = args.epoch
             b.data["foreman_transcript"] = None
             b.log("foreman", None, session=args.value, epoch=b.data["foreman_epoch"])
             return [f"foreman {args.value} epoch {b.data['foreman_epoch']}"]
