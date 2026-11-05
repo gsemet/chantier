@@ -128,7 +128,7 @@ the transcripts (Claude) or the billed records (Copilot). A missing transcript o
 model is an error, never an estimate. Your own session is not included.
 
 You also get it unasked: one line per CR when it is ready or merged, and a summary when the batch
-lands (total, budget, orchestration against work, the costliest CRs).
+lands (total, budget, the split between Foreman, Drivers and workers, the costliest CRs).
 
 ## On GitHub Copilot
 
