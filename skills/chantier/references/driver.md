@@ -91,7 +91,8 @@ inside the procedure and the grant, and ask for anything beyond them.
 - A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
   checks, then `<work folder>/retro.md` (what went wrong or slowly, the long-term fix for each,
   one line) and `handback ready <release link or tag>`.
-- A step fails on the product: `<work folder>/fix-<n>.md` (steps, expected, actual), then
+- A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
+  line, then steps, expected, actual), then
   `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
   infra:`. Half-done irreversible work: stop and say exactly what is out in `blocked question:`;
   never undo it on your own.

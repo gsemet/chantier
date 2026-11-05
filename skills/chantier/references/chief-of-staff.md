@@ -98,7 +98,7 @@ Only in the turn where the user gave the go:
   and marks it done; `status` shows the orders still pending.
 
   ```bash
-  $CHANTIER order add --note "<prepared-folder>" [--fix-for <release-cr>]
+  $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr>]
   $CHANTIER order drop CR-104                 # to 5-trash/ with its work
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: archived
@@ -106,13 +106,15 @@ Only in the turn where the user gave the go:
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
   $CHANTIER order approve <release-cr> --note "<the action>"
-  $CHANTIER order grant <release-cr> --note "releases=<n> auto-merge=on|off budget=<usd>"
+  $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
   ```
 
   A Driver's question (`ask … blocked <cr> question: …`): record the user's answer in the CR's
-  `02-answers.md`, then `order note <cr> --note "answer: …"`. A `fix:` from a release: file and
-  grill a CR from it, and on the user's go `order add … --fix-for <cr>`. A `refused <cr> <text>`:
-  show the exact text; the user types one line in the Foreman's session allowing that action.
+  `02-answers.md`, then `order note <cr> --note "answer: …"`. A `fix:` from a release: under the
+  grant the Foreman starts it alone; else show the user its `fix-<n>.md`, and on their go `order
+  add --note <that file> --fix-for <cr>`, or file and grill a CR when it needs more. A `refused
+  <cr> <text>`: show the exact text; the user types one line in the Foreman's session allowing
+  that action.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host limits messages between sessions (10 on
   Claude Desktop since someone last typed): a refused send is reported, never sent another way.
@@ -143,7 +145,8 @@ Prepare it as any CR (`$CHANTIER file "Release v1.4.0"`, grilled: the version, t
 the procedure is, what the user reviews), open it preferably alone with `--release 1`. The
 grant is the user's: by default each irreversible action waits for their approval (`order
 approve`); ask whether they allow more and pass only what they said (`--autonomous-releases
-<n>`, `--auto-merge-fixes`, both with `--budget`; later `order grant`). `status` shows a `draft
+<n>`, `--grant-fixes`: the Foreman starts and merges up to three fixes, both with `--budget`;
+later `order grant`). `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
 read `work/retro.md` in the archived folder and offer to file each proposal as a CR.
 

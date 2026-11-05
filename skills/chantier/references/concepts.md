@@ -36,8 +36,9 @@ started.
   per CR unless the user grants more. The CLI refuses what passes a limit.
 - **Release CR:** releases what is merged, by the project's own procedure; a Release driver runs
   it once every other CR of the batch is merged or cancelled. A **fix CR** is a CR the release
-  found it needs. A **grant** is what the user allows a release without asking (releases,
-  auto-merged fixes), always within a budget.
+  found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a
+  release without asking (releases, up to three fixes the Foreman starts and merges), always
+  within a budget.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
