@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "chantier",
   "description": "The construction site for your Software Factory: a Chief of Staff you talk to, a Foreman that runs batches of change requests, and short-lived workers that ship one pull request per change.",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "author": {
     "name": "Gaetan SEMET"
   },
