@@ -1092,11 +1092,23 @@ def qa_on_head(w: World) -> None:
     cr = w.batch()["crs"][0]["id"]
     code, _ = w.chantier("order", "qa", expect=1)
     check("a QA says what to test", code == 1 and "what to test" in w.last_stderr, w.last_stderr)
+    inbox = w.work / ".agents/changes/1-inbox"
+    before = (sorted(p.name for p in inbox.glob("qa-*")), len(w.batch()["orders"]))
+    state = w.folder() / "batch.json"
+    state.write_text(json.dumps({**w.batch(), "budget_usd": 1, "spent_usd": 2}))
+    code, _ = w.chantier("order", "qa", "--note", "try the export on a phone", expect=5)
+    check("a spent budget refuses `order qa` (exit 5): no folder, no order",
+          code == 5 and "budget" in w.last_stderr
+          and (sorted(p.name for p in inbox.glob("qa-*")), len(w.batch()["orders"])) == before,
+          w.last_stderr)
+    w.chantier("order", "budget", "--note", "10")
     _, out = w.chantier("order", "qa", "--note", "try the export on a phone")
+    check("a raised budget lets `order qa` through", len(w.batch()["orders"]) == before[1] + 2
+          and len(list(inbox.glob("qa-*"))) == len(before[0]) + 1, str(out))
     shown = out[1].removeprefix("QA folder: ").split(";")[0]
     folder = w.work / shown
     check("`order qa` makes its work folder in the inbox, with the request, and names it",
-          out[0] == f"[chief-of-staff→foreman] order O-1: qa {shown} try the export on a phone"
+          out[0] == f"[chief-of-staff→foreman] order O-2: qa {shown} try the export on a phone"
           and "/1-inbox/qa-" in folder.as_posix()
           and "phone" in (folder / "intake/request.md").read_text(encoding="utf-8"), str(out))
     fm.turn()
@@ -1105,13 +1117,13 @@ def qa_on_head(w: World) -> None:
           str(fm.qa))
     _, out = w.chantier("status")
     check("`status` shows the QA order and its folder until it is done",
-          any(ln.startswith(f"orders pending: O-1 qa {shown}") for ln in out), str(out))
+          any(ln.startswith(f"orders pending: O-2 qa {shown}") for ln in out), str(out))
     w.chantier("cancel", cr, "--epoch", 1)
     code, _ = w.chantier("land", "--epoch", 1, expect=2)
-    check("a batch does not land under a running QA", code == 2 and "O-1" in w.last_stderr,
+    check("a batch does not land under a running QA", code == 2 and "O-2" in w.last_stderr,
           w.last_stderr)
     (folder / "findings.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
-    w.chantier("order", "done", "O-1", "--epoch", 1)
+    w.chantier("order", "done", "O-2", "--epoch", 1)
     w.chantier("land", "--epoch", 1)
     w.chantier("close", "--batch", "lookup", "--yes")
     check("its findings stay in the inbox, an ordinary item",

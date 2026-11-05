@@ -546,6 +546,7 @@ def order(args) -> list[str]:
             check_epoch(b, args.epoch)
             cr = args.cr
             if args.kind == "qa":  # no CR: a work folder the QA driver fills, in the inbox
+                check_budget(b)  # a QA driver is a Driver: refused before anything is created
                 cr = _shown(repo, _new_request(repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode()))
             effect = _apply_order(b, args.kind, cr, note, args.fix_for, own)
             oid = f"O-{len(b.data['orders']) + 1}"
