@@ -1,6 +1,8 @@
 # AGENTS.md
 
 - Run `just check` before you hand back; it must pass on Linux, macOS and Windows.
+- The long gate is `just scenario`: a change to the CLI, the cards or the scenario passes it
+  before its PR; a change to the docs or the eval kit alone needs none.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
 - The plugin must work with no setup: the user's `AGENTS.md` is the only configuration, and
   chantier writes only in `.agents/changes/`, as plain JSON and Markdown.

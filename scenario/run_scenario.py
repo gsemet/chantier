@@ -1281,17 +1281,20 @@ def fake_transcripts(w: World, d: dict) -> None:
     sub = main.with_suffix("") / "subagents"
     sub.mkdir(parents=True)
 
-    def msg(mid, model, out):
-        return json.dumps({"type": "assistant", "message": {"id": mid, "model": model, "usage": {
-            "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
-            "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
+    def msg(mid, model, out, **fields):
+        return json.dumps({"type": "assistant", **fields, "message": {
+            "id": mid, "model": model, "usage": {
+                "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
+                "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
 
     def user(content):
         return json.dumps({"type": "user", "message": {"content": content}}) + "\n"
 
     result = [{"type": "tool_result", "content": "ok"}]  # the same turn goes on: not a wake
-    main.write_text("".join((user("a wake") if i % 3 == 0 else user(result))
-                            + msg(f"f{i}", "claude-sonnet-5-5", 300) for i in range(30)))
+    earlier = msg("old", "claude-sonnet-5-5", 900_000, timestamp="2000-01-01T00:00:00.000Z")
+    main.write_text(earlier + "".join((user("a wake") if i % 3 == 0 else user(result))
+                                      + msg(f"f{i}", "claude-sonnet-5-5", 300) for i in range(30)))
+    (sub / "agent-earlier.jsonl").write_text(earlier)  # the session's earlier batch costs nothing
     for c in d["crs"]:
         if c.get("agent") and c["status"] != "cancelled":
             f = sub / f"agent-{c['agent']}.jsonl"
