@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1880 664" width="1880" height="664" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>A CR is a folder that moves</title>
-  <desc>A change request is one folder of Markdown files in .agents/changes/; its life is that folder moving from stage to stage, never copied, and gaining files on the way. A request from the intake (a Jira issue, a GitLab or GitHub issue, the chat, a Markdown file, or QA and retro findings) is converted to Markdown and filed with chantier file into 1-inbox/&lt;slug&gt;/, with intake/ as received and 01-intent.md, the request summarised; 02-answers.md holds your answers if you are grilled, 03-change-spec.md the spec. chantier triage moves a ready CR to 2-backlog/P1…P4/&lt;slug&gt;/; nothing new, you set its priority. To start its implementation, chantier open moves it into a batch, 3-requests/&lt;NN&gt;-&lt;batch&gt;/&lt;number&gt;-&lt;slug&gt;/, where it gains STATUS.md and STATUS.json, written by the CLI; work/, written while it runs: notes, gate logs, the PR body, and for a release CR retro.md and fix-&lt;n&gt;.md; and evidence/, the QA and Verifier proofs. Once its PR or MR is merged, chantier order merged moves it to 4-archives/&lt;YYMMDD-HHMM&gt;-&lt;number&gt;-&lt;slug&gt;/, where it gains retro.md, its retro and final status. At any stage before the archive, chantier order drop moves it to 5-trash/, with its work.</desc>
+  <desc>A change request is one folder of Markdown files in .agents/changes/; its life is that folder moving from stage to stage, never copied, and gaining files on the way. A request from the intake (a Jira issue, a GitLab or GitHub issue, the chat, a Markdown file, or QA and retro findings) is converted to Markdown and filed with chantier file into 1-inbox/&lt;slug&gt;/, with intake/ as received and 01-intent.md, the request summarised; 02-answers.md holds your answers if you are grilled, 03-change-spec.md the spec. chantier triage moves a ready CR to 2-backlog/P1…P4/&lt;slug&gt;/; nothing new, you set its priority. To start its implementation, chantier open moves it into a batch, 3-requests/&lt;NN&gt;-&lt;batch&gt;/&lt;number&gt;-&lt;slug&gt;/, where it gains STATUS.md and STATUS.json, written by the CLI; work/, written while it runs: notes, gate logs, the PR body, and for a release CR retro.md and fix-&lt;n&gt;.md; and evidence/, the Verifier's proofs. Once its PR or MR is merged, chantier order merged moves it to 4-archives/&lt;YYMMDD-HHMM&gt;-&lt;number&gt;-&lt;slug&gt;/, where it gains retro.md, its retro and final status. At any stage before the archive, chantier order drop moves it to 5-trash/, with its work.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -113,7 +113,7 @@
   <text x="1426" y="464" font-size="11.5" fill="#15803d" text-anchor="end">release CR</text>
   <rect x="1158" y="473" width="274" height="21" rx="5" fill="#dcfce7"/>
   <text x="1168" y="488" font-size="12.5" font-weight="600" fill="#0f172a" font-family="ui-monospace, Menlo, monospace">📁 evidence/</text>
-  <text x="1426" y="488" font-size="11.5" fill="#15803d" text-anchor="end">QA, Verifier proofs</text>
+  <text x="1426" y="488" font-size="11.5" fill="#15803d" text-anchor="end">Verifier proofs</text>
   <rect x="1550" y="236" width="290" height="294" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
   <text x="1564" y="262" font-size="12.5" font-weight="700" fill="#0f172a" font-family="ui-monospace, Menlo, monospace">📂 &lt;YYMMDD-HHMM&gt;-&lt;number&gt;-&lt;slug&gt;/</text>
   <line x1="1562" y1="274" x2="1828" y2="274" stroke="#e2e8f0" stroke-width="1.5"/>
@@ -133,7 +133,7 @@
   <text x="1594" y="464" font-size="12" font-weight="400" fill="#94a3b8" >└ retro.md · fix-&lt;n&gt;.md</text>
   <text x="1826" y="464" font-size="11.5" fill="#94a3b8" text-anchor="end">release CR</text>
   <text x="1568" y="488" font-size="12.5" font-weight="400" fill="#94a3b8" font-family="ui-monospace, Menlo, monospace">📁 evidence/</text>
-  <text x="1826" y="488" font-size="11.5" fill="#94a3b8" text-anchor="end">QA, Verifier proofs</text>
+  <text x="1826" y="488" font-size="11.5" fill="#94a3b8" text-anchor="end">Verifier proofs</text>
   <rect x="1558" y="497" width="274" height="21" rx="5" fill="#dcfce7"/>
   <text x="1568" y="512" font-size="12.5" font-weight="600" fill="#0f172a" font-family="ui-monospace, Menlo, monospace">♻️ retro.md</text>
   <text x="1826" y="512" font-size="11.5" fill="#15803d" text-anchor="end">Retro / status</text>
