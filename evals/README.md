@@ -35,7 +35,9 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
 
 - The chantier plugin installed from this checkout, and the session restarted:
   `claude plugin marketplace add <this checkout>`, then `claude plugin install chantier@chantier`.
-  The plugin is read live from the checkout: do not switch branches during a run.
+  The plugin is read live from the checkout: during a run, change neither its files nor its
+  branch; other work goes in a worktree. This install is what reaches the workspace: the
+  workspace is outside this repository and does not read its `.claude/settings.json`.
 - `uv` and `git`. The forge is local (`evals/kit/forge.py`, a fake `gh` whose CI runs the long
   gate in a fresh clone): nothing reaches GitHub. `setup.py` puts it first on the `PATH` of
   every session in the workspace, so the Drivers' own `gh pr create` and the Foreman's
