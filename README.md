@@ -6,9 +6,15 @@ Modern coding agents like Claude Code or Copilot provide "nested session" featur
 Chantier uses them to give you a single "ticket office" to talk to,
 while one "Foreman" coordinates the work underneath.
 
+## How Chantier works
+
 ![How chantier works](docs/how-chantier-works.svg)
 
-## How it works
+## Detailed Lifecycle
+
+![cr-lifecycle](docs/cr-lifecycle.svg)
+
+## What is Chantier?
 
 You only ever talk to the **Chief of Staff**, in your own session.
 It keeps the backlog, asks you the questions a change needs, and starts work only on your go.
@@ -128,6 +134,8 @@ not procedures. The roles that do one bounded task run Sonnet.
 never picks a look-alike or a workaround.
 
 ### Change Request lifecycle
+
+![Life of a change request](docs/cr-lifecycle.svg)
 
 Everything lives in `.agents/changes/`:
 
