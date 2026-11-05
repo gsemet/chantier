@@ -42,7 +42,7 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("open", commands.open_batch,
             "open a batch: each prepared CR gets its folder, and a branch and worktree name", False)
     s.add_argument("batch")
-    s.add_argument("items", nargs="+", help="@path to a prepared CR folder or specification")
+    s.add_argument("items", nargs="+", help="path to a prepared CR folder or specification")
     s.add_argument("--slots", type=int, default=2)
     s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
     s.add_argument("--stack", action="store_true", help="stacked PRs")
@@ -62,7 +62,7 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("kind", help="add, drop, merged, note, rounds, slots, budget; for the release "
                    "CR: approve, grant; the Foreman: done <O-k>, merged --epoch")
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
-    s.add_argument("--note", help="add: @<folder>; note: the line; rounds, slots, budget: the "
+    s.add_argument("--note", help="add: <folder>; note: the line; rounds, slots, budget: the "
                    "number; approve: the action; grant: releases=N auto-merge=on|off budget=N")
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
 

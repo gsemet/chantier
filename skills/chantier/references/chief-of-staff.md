@@ -62,7 +62,7 @@ Only in the turn where the user gave the go:
 3. **Open:**
 
    ```bash
-   $CHANTIER open <batch> @<prepared-folder>… [--default-branch <branch>] [--slots N] \
+   $CHANTIER open <batch> <prepared-folder>… [--default-branch <branch>] [--slots N] \
      [--budget USD] [--stack] [--qa all|1,3] [--release N]
    ```
 
@@ -95,7 +95,7 @@ Only in the turn where the user gave the go:
   and marks it done; `status` shows the orders still pending.
 
   ```bash
-  $CHANTIER order add --note "@<prepared-folder>" [--fix-for <release-cr>]
+  $CHANTIER order add --note "<prepared-folder>" [--fix-for <release-cr>]
   $CHANTIER order drop CR-104                 # to 5-trash/ with its work
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: archived

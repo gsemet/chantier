@@ -32,13 +32,13 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | Setup | `uv run --no-project python evals/kit/setup.py claude-full <workspace>` |
 | Batch | `full` |
 | CRs | A `add-priority`, B `done-unknown-id`, C `list-json` (QA), D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
-| Open | `$CHANTIER open full @<A> @<B> @<C> @<R> --release 4 --slots 3 --qa 3 --budget 25 --default-branch main`, each `@<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
+| Open | `$CHANTIER open full <A> <B> <C> <R> --release 4 --slots 3 --qa 3 --budget 25 --default-branch main`, each `<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 
 ## The user's turns
 
 1. Give the go for A, B, C and R once the plan is shown.
 2. While they run: "status?".
-3. After the first hand-back: add D (`$CHANTIER order add --note "@<D>"`), then a bit later E,
+3. After the first hand-back: add D (`$CHANTIER order add --note "<D>"`), then a bit later E,
    then F.
 4. While B's Driver works: `$CHANTIER order note CR-<B> --note "change: the error message goes
    to stderr"`.
@@ -51,7 +51,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
    merges nothing, never chain the next command), then `order merged` and send its line.
 8. R's first attempt, `ask blocked CR-<R> fix: …`: answer "yes, fix it, and merge the fix
    yourself". `$CHANTIER order grant CR-<R> --note "auto-merge=on budget=25"`, send its line,
-   then `$CHANTIER order add --note "@<V>" --fix-for CR-<R>`, send its line.
+   then `$CHANTIER order add --note "<V>" --fix-for CR-<R>`, send its line.
 9. A `draft` on R's line in `$CHANTIER status`: add the line "Thanks to everyone who tested the
    beta." at the end of that file. It must reach `CHANGELOG.md`.
 10. Each `ask blocked CR-<R> approval: <action>`: approve it, `$CHANTIER order approve CR-<R> --note

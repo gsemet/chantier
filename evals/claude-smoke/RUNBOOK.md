@@ -16,7 +16,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | Setup | `uv run --no-project python evals/kit/setup.py claude-smoke <workspace>` |
 | Batch | `smoke` |
 | CRs | `done-unknown-id` (a bug: `tasks done 42` crashes with a traceback) |
-| Open | `$CHANTIER open smoke @.agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 5 --default-branch main`; the team (the project's review step) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
+| Open | `$CHANTIER open smoke .agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 5 --default-branch main`; the team (the project's review step) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 
 ## The user's turns
 
