@@ -9,11 +9,22 @@ import tomllib
 import pytest
 
 from chantier import __version__
-from chantier.commands import CARDS
-from chantier.roles import DRIVERS, ROLES, plugin_agent_file
 from conftest import PLUGIN_ROOT, SKILL, sh
 
-CLAUDE_MODELS = {"claude-sonnet-5-5"}
+CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
+DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
+WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver")
+ROLES = DRIVERS + WORKERS
+OPUS_ROLES = {"cr-driver", "stack-driver", "release-driver"}  # judgement; the rest is work
+CARDS = {**{r: "driver" for r in DRIVERS}, **{r: "worker" for r in WORKERS}}
+
+
+def agent_file(role, host):
+    """The plugin installs one agent per role and host: `chantier:<role>` on Claude from
+    `agents/`, `chantier-<role>` on Copilot from `com.github.copilot/agents/`."""
+    if host == "claude":
+        return PLUGIN_ROOT / "agents" / f"{role}.md"
+    return PLUGIN_ROOT / "com.github.copilot" / "agents" / f"chantier-{role}.agent.md"
 
 
 def _version_script():
@@ -68,19 +79,23 @@ def test_copilot_cost_helper_declares_pypi():
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_each_host_ships_one_agent_per_role_and_nothing_else(host):
-    folder = plugin_agent_file(PLUGIN_ROOT, "coder", host).parent
+    folder = agent_file("coder", host).parent
     assert sorted(p.name for p in folder.iterdir()) == \
-        sorted(plugin_agent_file(PLUGIN_ROOT, r, host).name for r in ROLES)
+        sorted(agent_file(r, host).name for r in ROLES)
 
 
 @pytest.mark.parametrize("role", ROLES)
 def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
-    claude, claude_body = _front(plugin_agent_file(PLUGIN_ROOT, role, "claude"))
-    copilot, copilot_body = _front(plugin_agent_file(PLUGIN_ROOT, role, "copilot"))
+    for host in ("claude", "copilot"):  # a BOM hides the frontmatter from a host
+        assert not agent_file(role, host).read_bytes().startswith(b"\xef\xbb\xbf")
+    claude, claude_body = _front(agent_file(role, "claude"))
+    copilot, copilot_body = _front(agent_file(role, "copilot"))
     assert claude_body == copilot_body and f"`chantier {role}`" in claude_body
     assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
     assert claude["description"] == copilot["description"]
     assert claude["model"] in CLAUDE_MODELS
+    assert (claude["model"] == "claude-opus-5-5") == (role in OPUS_ROLES)
+    assert ("Opus" in copilot["model"]) == (role in OPUS_ROLES)
     assert copilot["model-policy"] == "required" and copilot["user-invocable"] == "false"
     assert copilot["strict-tools-list"] == "true"
     assert ("Agent" in claude["tools"]) == ('"agent"' in copilot["tools"]) \
@@ -95,18 +110,20 @@ def test_skill_and_references_links_resolve():
                 assert (page.parent / link).exists(), f"{page.name}: {link}"
 
 
-def test_every_card_section_a_spawn_names_exists():
-    for card, section in [*CARDS.values(), ("worker", "Extra review step")]:
+def test_every_role_has_its_section_in_its_card():
+    """The contract a parent names in its prompt: `<card>.md`, section `<Role>`."""
+    for role, card in CARDS.items():
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
-        assert f"\n## {section}\n" in text, (card, section)
+        section = role.replace("-", " ").capitalize().replace("Cr ", "CR ").replace("Qa ", "QA ")
+        assert f"\n## {section}\n" in text, (role, section)
 
 
-GATES = ("--fast-gate", "just check", "--long-gate", "just check", "--default-branch", "main")
+FROM_AGENTS_MD = ("--default-branch", "main")  # what the Chief of Staff read in the project's rules
 
 
-@pytest.mark.parametrize("host,coder", [("claude", "chantier:coder"), ("copilot", "chantier-coder")])
+@pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
-        repo, chantier, monkeypatch, host, coder):
+        repo, chantier, monkeypatch, host):
     monkeypatch.setenv("CHANTIER_HOST", host)
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
     monkeypatch.setenv("COPILOT_AGENT_SESSION_ID", "s-1")
@@ -114,37 +131,27 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert code == 0, out
     assert sh("git", "status", "--porcelain", cwd=repo) == ""
     folder = _prepared(repo, chantier)
-    code, _, err = chantier("open", "b1", f"@{folder}", *GATES)
+    code, _, err = chantier("open", "b1", f"@{folder}", *FROM_AGENTS_MD)
     assert code == 0, err
     assert chantier("status")[1][-1].startswith("CR-101 queued")
-    _, out, _ = chantier("spawn", "coder", "CR-101", "--note", "round 1")
-    assert out[:2] == [f"agent: {coder}", "mode: foreground"]
-    assert any('references/worker.md (section "Coder")' in line for line in out)
+    # the CLI names the branch and the worktree; the Driver creates them
+    assert not (repo.parent / f"{repo.name}.worktrees").exists()
+    assert sh("git", "branch", "--list", "chantier/*", cwd=repo) == ""
+    assert chantier("gate", "CR-101", "true")[0] == 2
+    code, out, _ = chantier("take", "CR-101")
+    assert code == 0 and out[0].startswith("took CR-101")
+    assert any(ln.startswith("cards: ") and "references/" in ln for ln in out)
+    assert any(ln.startswith("worktree: ") and "not created yet" in ln for ln in out)
+    _, out, _ = chantier("round", "CR-101", "--note", "round 1")
+    assert out[0] == "round 1 of 3 for CR-101"
+    assert chantier("status")[1][-1].startswith("CR-101 working r1/3")
+    for _ in range(2):
+        chantier("round", "CR-101")
+    assert chantier("round", "CR-101")[0] == 5  # the round limit is a rail
+    assert chantier("order", "rounds", "CR-101", "--note", "4")[0] == 0
+    assert chantier("round", "CR-101")[0] == 0
+    _, out, _ = chantier("rules", "--batch", "b1")  # every prompt passes --batch
+    assert out[0].startswith(str(repo / "AGENTS.md").replace("\\", "/"))
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines() and all(
         line.startswith("?? .agents/changes/")
         for line in sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines())
-
-
-def test_a_role_runs_the_users_agent_and_a_review_step_runs_after_the_inspector(
-        repo, chantier, monkeypatch):
-    monkeypatch.setenv("CHANTIER_HOST", "claude")
-    (repo / ".claude" / "agents").mkdir(parents=True)
-    (repo / ".claude" / "agents" / "my-debugger.md").write_text("---\nname: my-debugger\n---\nDebug.\n")
-    (repo / ".claude" / "agents" / "sec.md").write_text("---\nname: sec\n---\nReview.\n")
-    folder = _prepared(repo, chantier)
-    for bad in (("--agent", "nobody=x"), ("--review", "coder=sec:y"), ("--review", "sec-review=sec"),
-                ("--agent", "debugger=missing")):
-        assert chantier("open", "bad", f"@{folder}", *GATES, *bad)[0] == 1, bad
-    code, _, err = chantier("open", "b1", f"@{folder}", *GATES,
-                            "--agent", "debugger=my-debugger",
-                            "--review", "security-review=sec:OWASP top 10")
-    assert code == 0, err
-    _, out, _ = chantier("spawn", "debugger", "CR-101")
-    assert out[0] == "agent: my-debugger" and any('(section "Debugger")' in ln for ln in out)
-    _, out, _ = chantier("spawn", "security-review", "CR-101")
-    assert out[0] == "agent: sec" and "Your review: OWASP top 10" in out
-    _, out, _ = chantier("spawn", "cr-driver", "CR-101")
-    assert out[1] == "mode: background"
-    assert any(ln.startswith("Extra review steps") and "spawn security-review CR-101" in ln
-               for ln in out)
-    assert chantier("spawn", "sec", "CR-101")[0] == 1  # the step's agent: spawn the step

@@ -1,164 +1,97 @@
 # Drivers
 
-A Driver runs in the background for the Foreman and drives work through short foreground
-children. It never codes, reviews, debugs or resolves a conflict itself: it starts the child for
-it, one at a time, and restarts a failing child rather than doing its work. Your prompt gives
-your CR (or the stack), the batch, the CLI, the worktree, the specification and your work folder.
+A Driver runs in the background for the Foreman and drives one CR (or the stack) through short
+foreground children, one at a time. It never codes, reviews, debugs or resolves a conflict
+itself: it starts the child for it, and restarts a failing child rather than doing its work.
+Git and the forge are yours: the worktree, the commits, the rebase, the push, the PR, its
+checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
+The CLI keeps the CR's record and tells you what is off.
 
-## Starting a child
+## Your means
 
-```bash
-$CHANTIER spawn <role> <cr> --note "<the round's brief: round number, what to do, findings to address>"
-```
+- `$CHANTIER handoff <cr>` and `log <cr>`: where the CR stands, what a predecessor did. Your
+  prompt's `Note:` says why the CR is with you: an answer, a change, QA findings, a red check,
+  a `rebase:`, a `resume:`. Go on from there; a round only for what the notes ask.
+- Children: `$CHANTIER round <cr> --note "<brief>"` before each Coder (refused past the limit,
+  exit 5: hand back `blocked rounds: <what is still wrong>`), then the agent and the prompt of
+  [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
+  the role. A refused start is `handback blocked refused <exact text>`.
+- `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
+  <path>` for a file the user reviews and edits in place.
+- The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree
+  add -b <branch> <path> <base>` from the main checkout, with the names your prompt gives. An
+  earlier Driver's worktree is there: use it (its branch alone: `git worktree add <path>
+  <branch>`). Workers and QA drivers never create one.
+- The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"` runs
+  it in the worktree, alone in the repository (a second long gate waits), keeps the log and
+  records the pass at that head. The fast gates you run yourself.
+- Push: `git fetch`, `git rebase <base>`, `git push --force-with-lease -u <remote> <branch>`; a
+  conflict is a `conflict-resolver`. Open or edit the PR yourself (`gh pr create --body-file
+  <work folder>/pr-body.md`, `glab mr create`), its title and body by the project's rules and
+  template. Then `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what
+  is off (uncommitted changes, a head not pushed, no long gate passed at it).
+- CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
+  ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
+  checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
+  one; a job also red on the default branch is not the CR's (note it); an infrastructure
+  failure gets one re-run; the rest is a round, with a `debugger` first when the cause is not
+  plain. Say what CI showed in a `note`.
+- Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded) or `handback
+  <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
+  `rounds:`, `refused`): it writes the state and prints the line to send the Foreman
+  (`SendMessage` to `main` on Claude, your final answer on Copilot). Then end: ending frees
+  your slot. A decision only the user can take is `blocked question: <text>`.
+- `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
+  `note` the decision. `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked
+  stopped`.
 
-Spawn exactly the `agent:` it prints, in the foreground, with the printed prompt and no model or
-effort. Each child is a new agent; it writes its notes in the work folder and replies in a few
-lines. The tool is `Agent` on Claude and `task` on Copilot. Never start a child with a prompt of
-your own: no printed prompt (no shell, the command failed) means you are blocked. A refused spawn
-is a stop: `hand-back blocked refused <exact text>`.
+## CR driver
 
-## Reporting
-
-- Milestones go to the state, not to the Foreman: `$CHANTIER report <cr> <kind> [<note>]` with
-  `pr-opened <link>`, `ci-green`, `ci-red <check>`, `ci-red-known`, `round-done "<verdict> <sentence>"`,
-  `investigated <sentence>`, `verified <sentence>`, `draft <path>`, `note <text>`. The CLI keeps
-  each note as `r<N> <verdict> <sentence>`, and the sentences appear in the CR's `STATUS.md`
-  Progress: write each as one short sentence on what was done or found.
-- Messages to the Foreman, one line each ([formats](message-formats.md)): `hand-back`,
-  `anomaly`. On Claude, `SendMessage` to `main`; on Copilot, your final answer.
-- A decision only the user can take ends your run: `hand-back blocked question: <text>`. The
-  answer comes back to a new Driver, in the CR's `02-answers.md` and its notes.
-- Ending is what tells the Foreman your slot is free: end right after your hand-back.
-
-## Waiting for CI
-
-`$CHANTIER wait ci <cr> --max 3300` in a background shell, then end your turn: its result wakes
-you. Exit 0 is pass or timeout (re-arm once; a second timeout is `anomaly ci-stuck`), exit 4 is
-red. On red, `$CHANTIER ci classify <cr>`: `product` is a new round; `known-red-on-main` is
-`$CHANTIER report <cr> ci-red-known` and not fixed; `infra` gets one re-run, then
-`anomaly infra`. Never poll, never `sleep`.
-
-## Shipping
-
-Write the PR body to `<work folder>/pr-body.md` first (the project's PR template; autonomous
-decisions under "Autonomous decisions"), commit in the worktree in the project's format with
-explicit paths, then `$CHANTIER ship <cr>`: it rebases on the fresh default branch (in a stack,
-on the CR below), pushes with lease and opens or updates the PR. A rebase conflict aborts with
-exit 4: start a `conflict-resolver`, then ship again. A rejected push is `hand-back blocked`.
-After the first push: `$CHANTIER report <cr> pr-opened <link>`.
-
-## CR Driver
-
-Take one CR from its specification to a green PR, then hand it back.
-
-1. Read the specification and the project's instructions; your CR in `$CHANTIER status --json`
-   for its state and its `notes` (the changes ordered since it started), the work folder for
-   earlier rounds' notes.
-   - Rounds already done (your prompt says how many): an earlier Driver's work is on the branch.
-     Go on from where it stopped; a round only for what the notes ask (a change, an answer, QA
-     findings, a red check), never a coder redoing approved work.
-   - Only a `rebase: …` note: no round; ship again (step 5), then CI, the verifier and the
-     hand-back.
-2. Before round 1, when the code is unfamiliar: an `investigator`, then
-   `$CHANTIER report <cr> investigated "<short sentence>"`.
-3. Each round: a `coder` with the round's brief and the previous notes, then an `inspector` on
-   the round's diff. `FIX-REQUIRED`: next round with the blocking findings. `APPROVE`: each
-   extra review step your prompt lists, in order, with the `spawn` command it gives (the step's
-   name, never its agent's), and the same verdict rules.
-4. Once per round, after its last review: `$CHANTIER report <cr> round-done "<verdict> <short
-   sentence>"`, e.g. `"APPROVE retry loop now bounded"`. The CLI
-   numbers rounds (your prompt says how many are done) and prints the new count.
-5. All approved: `$CHANTIER gate <cr> --long` (exit 4 is a new round with the failure), ship,
-   wait for CI. A red you cannot explain: a `debugger`, whose diagnosis the next coder fixes.
-6. Green: a `verifier` at the pushed head, then
-   `$CHANTIER report <cr> verified "<short sentence>"`. `NOT VERIFIED` is a new round.
-7. `[driver <cr>→foreman] hand-back ready <pr-link>`, and end.
-
-- The round limit is the batch's (`settings.max_rounds` in `$CHANTIER status --json`), for all
-  causes together; past it, `hand-back blocked round limit: <reason>`. Only the user grants more.
-- A `change <text>` message: decide steer (next round), restart (new brief) or defer (after the
-  PR); record it with `$CHANTIER report <cr> note "change: <decision>"` and say it in the hand-back.
+Take one CR from its specification to a green PR, then hand it back. Before round 1, when the
+code is unfamiliar, an `investigator`. Each round: a `coder` with the brief, then an
+`inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
+included) and each review step your `Team:` lists, in order; `FIX-REQUIRED` is the next round.
+All approved: commit, the long gate (a failure is a round), push, the PR, `ship`, CI, then a
+`verifier` at the pushed head (`NOT VERIFIED` is a round), then `handback ready <pr link>`.
 
 ## Stack driver
 
-Order the stack's CRs, rebase each PR on the one under it, and keep the stack green.
-
-- Started when every CR of the stack is ready or blocked, and again on `restack` after a merge.
-- `$CHANTIER stack order <cr>…` sets the order; `$CHANTIER stack restack` rebases and pushes every
-  PR above a merged or changed one. Heavy CI runs once, on the top of the stack.
-- A conflict that only needs resolving: a `conflict-resolver` for that CR (`$CHANTIER spawn
-  conflict-resolver <cr>`). One that needs code, or a red check: `[stack→foreman] anomaly <cr>
-  <text>`; that CR's Driver gets a round. A restack failing twice on the same CR:
-  `anomaly <cr> restack`.
-- Green: `[stack→foreman] hand-back ready <cr>=<link>…`, and end.
+Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
+under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
+`ship` each one you moved, and keep the stack green with heavy CI once at the top. A conflict
+that only needs resolving: a `conflict-resolver`; one that needs code, or a red check:
+`[stack→foreman] anomaly <cr> <text>`. Green: `[stack→foreman] hand-back ready <cr>=<link>…`.
 
 ## QA driver
 
-Use a green CR as its user would, and report what breaks. You never fix and start no children.
-
-1. `$CHANTIER qa start <cr>`.
-2. From the brief's QA notes: run the app or the long suite in the worktree, follow the user's
-   scenarios, try edge cases near the change. Reproduce before reporting; keep proof (commands,
-   output, screenshots) in the CR folder's `evidence/`, findings or not: `qa done` refuses an
-   empty one.
-3. Write `<work folder>/qa.md`, one finding per bullet: the steps, the expected and the actual
-   result. No finding: write "No findings." without bullets.
-4. `$CHANTIER qa done <cr> --findings <work folder>/qa.md`, then send the line it prints
-   (`[qa <cr>→foreman] qa done <cr> <n> findings`), and end. Findings become a new round.
-
-The app cannot start (screen locked, missing device): `[qa <cr>→foreman] qa done <cr> 1 findings`
-with that one finding in `qa.md`.
+Use a green CR as its user would, from the brief's QA notes, in the worktree, and report what
+breaks. You never fix and start no children. Reproduce before reporting; keep proof (commands,
+output, screenshots) in the CR folder's `evidence/`, findings or not. Write `<work
+folder>/qa.md`, one finding per bullet (steps, expected, actual; "No findings." without
+bullets), then `$CHANTIER qa <cr> --findings <path>` and send its line.
 
 ## Release driver
 
-Run one release CR by the project's own procedure. Every project releases differently: a tag, a
-release commit, heavy checks, notes edited by hand. The procedure is the project's, so follow
-what it says and add nothing from habit. You never fix code and start no children: a defect
-becomes a fix CR that a CR Driver codes. A release can break production, so take the initiative
+Run one release CR by the project's own procedure, and add nothing from habit. You never fix
+code and start no children: a defect becomes a fix CR a CR Driver codes. Take the initiative
 inside the procedure and the grant, and ask for anything beyond them.
 
-**Irreversible action:** anything that cannot be taken back, or that others see or receive. For
-example a pushed tag, a release commit on the default branch, a merged release PR, a published
-package, a sent announcement. If you hesitate, it is one.
-
-1. Read the specification: the version, the scope, where the procedure is, what the user reviews.
-   Your prompt gives the release grant. Read the procedure. Missing, or a step you cannot follow
-   as written: `hand-back blocked question: <what is missing>`.
-2. Your notes in the work folder and the CR's `notes` say where you are:
-   - No attempt yet, or a `fix:` note newer than your last attempt: a new attempt.
-     `$CHANTIER release start <cr>` moves the branch to the fresh default branch; follow the
-     procedure from its first step, whatever had passed before.
-   - `approved:`, `merged:`, `grant:` or an answer: go on from the step your notes name.
-3. Early, write whatever the procedure has a person review or edit (release notes, an
-   announcement) in the work folder, then `$CHANTIER report <cr> draft <path>`: the user gets the
-   link and can edit the file for as long as the release runs. Read it again each time you use
-   it, and never rewrite it once reported: a change you want is a question.
-4. Run each step in the worktree. After each, note it in `<work folder>/release.md`, and keep the
-   commands and their output in the CR folder's `evidence/`. A step that takes long runs in a
-   background shell: end your turn and let its result wake you. If the procedure goes through a
-   PR, ship and wait as under [Shipping](#shipping) and [Waiting for CI](#waiting-for-ci).
-5. Before each irreversible action: `$CHANTIER release go <cr> --note "<the action>"`.
-   - `go`: do that action and nothing more, with the procedure's own command.
-   - Exit 2: send the line it prints, adding the drafts' paths, and end. A new Driver goes on
-     after the user's approval. Exit 5: the budget is spent; the same.
-   - A release PR is the exception: the Foreman merges it, and asks the user if it has to. Green,
-     run no `release go`: `hand-back blocked merge: <the procedure's method>` (`rebase`, `squash`
-     or `merge`), and end. A new Driver goes on once it is merged.
-6. A release is out: `$CHANTIER release published <cr> --note "<version> <link>"`, then the
-   procedure's checks that it works.
-7. A step fails:
-   - The product (a test, a build, a broken release): write the steps, the expected and the
-     actual result in `<work folder>/fix-<n>.md`, then `hand-back blocked fix: <one line>; <path>`.
-     A new attempt follows once the fix is merged. A release already out is fixed by another
-     release, with its own version and its own approval or grant.
-   - The infrastructure (a runner, the network): run it again once, then
-     `hand-back blocked infra: <text>`.
-   - Half-done irreversible work (a tag pushed, the publish failed): stop, and say exactly what
-     is out in `hand-back blocked question: <text>`. Never undo it on your own.
-8. Out and checked: write `<work folder>/retro.md`, what went wrong or slowly and, for each, the
-   long-term fix you propose as a CR, in one line. Then
-   `[driver <cr>→foreman] hand-back ready <release link or tag>`, and end.
-
-Propose when it helps, never assume: when a failed release will take several attempts, ask for a
-grant (`hand-back blocked question: allow up to 3 fix releases and the automatic merge of their
-fixes, within $20?`). Only the user widens the grant.
+- An **irreversible action** is anything that cannot be taken back or that others see: a pushed
+  tag, a release commit on the default branch, a merged release PR, a published package, an
+  announcement. Before each: `$CHANTIER release go <cr> --note "<the action>"`; `go` is for
+  that action, in this Driver. Exit 2 or 5: hand back as it prints, with the drafts' paths.
+- A new attempt (no attempt yet, or a `fix merged:` note) starts on the fresh base: the
+  worktree as above, or `git fetch` and `git reset --hard <base>`, then `$CHANTIER release start
+  <cr>`, and the procedure from its first step whatever had passed before.
+- What a person reviews or edits (release notes, an announcement) goes early in the work
+  folder, then `note --draft <path>`; read it again each time you use it, never rewrite it.
+- A release PR is the Foreman's to merge: green, `handback blocked merge: <pr link>`; a new
+  Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
+  `handback blocked fix: <fix-cr> pending`.
+- A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
+  checks, then `<work folder>/retro.md` (what went wrong or slowly, the long-term fix for each,
+  one line) and `handback ready <release link or tag>`.
+- A step fails on the product: `<work folder>/fix-<n>.md` (steps, expected, actual), then
+  `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
+  infra:`. Half-done irreversible work: stop and say exactly what is out in `blocked question:`;
+  never undo it on your own.

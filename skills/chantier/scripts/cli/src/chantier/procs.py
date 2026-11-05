@@ -86,7 +86,7 @@ def _taskkill(pid: int, tree: bool) -> bool:
 
 
 def stop_group(pgid: int) -> bool:
-    """Stop a process group started by `chantier gate`; False if it is already gone."""
+    """Stop the process group of a running `chantier gate`; False if it is already gone."""
     if WINDOWS:  # the group leader's tree stands for the group
         return _taskkill(pgid, tree=True)
     try:
@@ -108,21 +108,37 @@ def stop(pids: list[int], grace_s: float = 3.0) -> list[int]:
         try:
             os.kill(pid, signal.SIGTERM)
             hit.append(pid)
-        except ProcessLookupError:
-            pass
-        except PermissionError:
+        except (ProcessLookupError, PermissionError):
             pass
     deadline = time.monotonic() + grace_s
-    alive = list(hit)
-    while alive and time.monotonic() < deadline:
+    alive_ = list(hit)
+    while alive_ and time.monotonic() < deadline:
         time.sleep(0.1)
-        alive = [p for p in alive if _alive(p)]
-    for pid in alive:
+        alive_ = [p for p in alive_ if _alive(p)]
+    for pid in alive_:
         try:
             os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
     return hit
+
+
+def alive(pid: int) -> bool:
+    """Whether a process still runs, on either platform (`os.kill(pid, 0)` ends it on Windows)."""
+    if not WINDOWS:
+        return _alive(pid)
+    import ctypes
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        code = ctypes.c_ulong()
+        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return False
+        return code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def _alive(pid: int) -> bool:

@@ -31,14 +31,14 @@ PRICE = {
 }
 
 
-def projects_dir(settings: dict | None = None) -> Path:
-    """Environment, an explicit batch setting, or the host's default ~/.claude/projects."""
-    env = os.environ.get("CHANTIER_CLAUDE_PROJECTS") or (settings or {}).get("claude_projects_dir")
+def projects_dir() -> Path:
+    """`CHANTIER_CLAUDE_PROJECTS`, else the host's own ~/.claude/projects."""
+    env = os.environ.get("CHANTIER_CLAUDE_PROJECTS")
     return Path(env).expanduser() if env else Path.home() / ".claude" / "projects"
 
 
-def transcript_path(repo_root: Path, session_uuid: str, settings: dict | None = None) -> Path:
-    base = projects_dir(settings)
+def transcript_path(repo_root: Path, session_uuid: str) -> Path:
+    base = projects_dir()
     if not base.is_absolute():
         base = repo_root / base
     slug = re.sub(r"[^A-Za-z0-9]", "-", str(repo_root))

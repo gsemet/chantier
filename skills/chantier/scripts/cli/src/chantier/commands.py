@@ -1,7 +1,15 @@
-"""The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code."""
+"""The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code.
+
+The CLI is the frame the agents work in: the CR lifecycle in `.agents/changes/` (the stages,
+the batch folders, the record and the STATUS files), the batch's limits (slots, budget, rounds,
+the user's word on an irreversible action), the means to synchronise (orders, asks, notes, the
+long gate's lock) and a few tools (the project's rules, the cost). The agents do the work, git
+and the forge included; the CLI names what they create (branches, worktrees), keeps the record,
+and runs no git command that changes anything: it reads the head, the remote and the status to
+say what is off, and no forge command at all.
+"""
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -11,27 +19,24 @@ import time
 from collections import defaultdict
 from pathlib import Path
 
-from . import __version__, costs, forge, procs
-from .decide import (check_grant, decide, driver_role, fill_slots, merged, parse_grant,
-                     record_asks, release_go, release_merged)
-from .lifecycle import (PRIORITIES, changes_lock, cr_directory, ensure_unclaimed,
+from . import __version__, costs, procs
+from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, stage_layout, trash_cr)
-from .roles import (CR_IN_NAME, DRIVERS, ROLES, agent_for, detect_host, local_agent_file,
-                    parse_team, plugin_agent_file)
+from .rails import (all_merged, archive_merged, check_budget, check_grant, check_round, check_take,
+                    live, parse_grant, record_ask, release_go, release_merged)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
-                    Batch, ChantierError, Repo, age_minutes, check_epoch, default_branch,
-                    _read_json, _retry, find_cr_batch, git, move_directory, next_cr_number, now,
-                    project_path, read_batch, resolve_batch, stamp)
+                    Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
+                    age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
+                    next_cr_number, now, project_path, read_batch, read_events, resolve_batch,
+                    round_limit, stamp)
 from .status import write_dashboard
 
+HOSTS = ("claude", "copilot")
 AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
 INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md")
-CARDS = {"cr-driver": ("driver", "CR Driver"), "stack-driver": ("driver", "Stack driver"),
-         "qa-driver": ("driver", "QA driver"), "release-driver": ("driver", "Release driver"),
-         "investigator": ("worker", "Investigator"),
-         "coder": ("worker", "Coder"), "inspector": ("worker", "Inspector"),
-         "debugger": ("worker", "Debugger"), "verifier": ("worker", "Verifier"),
-         "conflict-resolver": ("worker", "Conflict resolver")}
+CR_IN_NAME = re.compile(r"\bCR-\d+\b")
+MD_LINK = re.compile(r"\]\(([^)\s#]+\.md)(?:#[^)]*)?\)|^\[[^\]]+\]:\s*(\S+\.md)\s*$", re.M)
+LONG_GATE_WAIT_S = 3600
 
 
 def skill_dir() -> Path:
@@ -64,6 +69,21 @@ def cli_command() -> str:
     return f'uv run --script "{(skill_dir() / "scripts" / "cli" / "chantier.py").as_posix()}"'
 
 
+def detect_host(explicit: str | None = None) -> str:
+    """The host: `CHANTIER_HOST`, then the host's own environment."""
+    host = explicit or os.environ.get("CHANTIER_HOST")
+    if host:
+        if host not in HOSTS:
+            raise ChantierError(f"unknown host `{host}`: one of {', '.join(HOSTS)}", EXIT_USAGE)
+        return host
+    if os.environ.get("CLAUDE_CODE_ENTRYPOINT"):
+        return "claude"
+    if (os.environ.get("COPILOT_CLI") or os.environ.get("COPILOT_AGENT_SESSION_ID")
+            or os.environ.get("AI_AGENT", "").startswith("github_copilot")):
+        return "copilot"
+    raise ChantierError("cannot tell the host (Claude or Copilot): set CHANTIER_HOST", EXIT_USAGE)
+
+
 def _shown(repo: Repo, path: Path) -> str:
     try:
         return path.relative_to(repo.root).as_posix()
@@ -87,21 +107,20 @@ def _skill_version() -> str | None:
 
 # ---- preflight --------------------------------------------------------------------------------
 
-def _agent_problems(repo: Repo, host: str) -> list[str]:
-    """What stops a role from running here: a missing or old plugin agent."""
+def _agent_problems(host: str) -> list[str]:
+    """The plugin's agents for this host, all at this version; the CLI knows no role, only that
+    the files the plugin installs match it."""
     root = plugin_root()
     if not root:
         return ["the chantier plugin is not installed (a skill alone has no agents): install the "
                 "plugin and restart the session"]
-    problems = []
-    for role in ROLES:
-        path = plugin_agent_file(root, role, host)
-        if not path.is_file():
-            problems.append(f"missing plugin agent {_shown(repo, path)}")
-        elif (m := AGENT_VERSION.search(path.read_text(encoding="utf-8"))) is None \
-                or m[1] != __version__:
-            problems.append(f"plugin agent {path.name} is not version {__version__}")
-    return problems
+    folder = root / "agents" if host == "claude" else root / "com.github.copilot" / "agents"
+    files = sorted(folder.glob("*.md")) if folder.is_dir() else []
+    if not files:
+        return [f"no plugin agent in {folder}"]
+    return [f"plugin agent {p.name} is not version {__version__}" for p in files
+            if (m := AGENT_VERSION.search(p.read_text(encoding="utf-8"))) is None
+            or m[1] != __version__]
 
 
 def preflight(args) -> tuple[list[str], int]:
@@ -113,7 +132,7 @@ def preflight(args) -> tuple[list[str], int]:
         lines.append(f"{tag} {'ok  ' if passed else 'FAIL'} {good if passed else bad}")
 
     try:
-        host = detect_host()[0]
+        host = detect_host()
     except ChantierError:
         host = None
     entry = os.environ.get("CLAUDE_CODE_ENTRYPOINT", "")
@@ -130,10 +149,11 @@ def preflight(args) -> tuple[list[str], int]:
     except ChantierError as e:
         repo = None
         check("P6", False, "", str(e))
-    if repo and host:
-        problems = _agent_problems(repo, host)
-        check("P4", not problems, f"every role has its agent on {host}", "; ".join(problems))
-    elif repo:
+    if host:
+        problems = _agent_problems(host)
+        check("P4", not problems, f"the plugin's agents are at {__version__} on {host}",
+              "; ".join(problems))
+    else:
         check("P4", False, "", "unknown host: no agents to check")
     has_uv = shutil.which("uv") is not None
     sv = _skill_version()
@@ -150,11 +170,7 @@ def preflight(args) -> tuple[list[str], int]:
         found = project_instructions(repo)
         check("P8", found is not None, f"project instructions: {found.name if found else ''}",
               f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
-        try:
-            check("P9", True, f"forge {forge.check(repo.root, repo.config['remote'])}", "")
-        except ChantierError as e:
-            check("P9", False, "", f"{e} (another remote: `chantier open --remote <name>`)")
-    lines.append("P2, P3 and 'not unattended' are the Chief of Staff's own checks")
+    lines.append("P2, P3, P9 and 'not unattended' are the Chief of Staff's own checks")
     lines.append("preflight passed" if ok else "preflight FAILED: start nothing")
     return lines, 0 if ok else EXIT_PRECONDITION
 
@@ -239,27 +255,20 @@ def _work(repo: Repo, c: dict) -> Path:
     return cr_directory(repo, c) / "work"
 
 
-def _specification(repo: Repo, c: dict) -> Path:
-    path = cr_directory(repo, c) / c["specification"]
-    if not path.is_file():
-        raise ChantierError(f"{c['id']}: recorded Change Specification is missing: {path}")
-    return path
+def _worktree(c: dict) -> Path:
+    """The CR's worktree, once its Driver has created it; the CLI never does."""
+    if not Path(c["worktree"]).is_dir():
+        raise ChantierError(f"{c['id']}: no worktree at {c['worktree']}; its Driver creates it "
+                            f"(`git worktree add -b {c['branch']} {c['worktree']} <base>`)",
+                            EXIT_PRECONDITION)
+    return Path(c["worktree"])
+
+
+def _cr_events(repo: Repo, batch: str, cr_id: str) -> list[dict]:
+    return [e for e in read_events(repo.batch_dir(batch)) if e.get("cr") == cr_id]
 
 
 # ---- batches ----------------------------------------------------------------------------------
-
-def _base_ref(repo: Repo) -> str:
-    remote, branch = repo.config["remote"], repo.config["default_branch"]
-    if not branch:
-        raise ChantierError("the batch has no default branch: open it with --default-branch")
-    if remote not in git("remote", cwd=repo.root).split():
-        raise ChantierError(f"no remote {remote!r}: open the batch with --remote <remote>",
-                            EXIT_EXTERNAL)
-    git("fetch", "--quiet", remote, branch, cwd=repo.root)
-    ref = f"{remote}/{branch}"
-    git("rev-parse", "--verify", ref, cwd=repo.root)
-    return ref
-
 
 def grant_line(release: dict) -> str:
     """What the user allowed the release to do without asking, in one line."""
@@ -267,12 +276,13 @@ def grant_line(release: dict) -> str:
     return "; ".join([
         f"up to {n} releases without asking ({done} published)" if n
         else "every irreversible action waits for the user's approval",
-        f"fixes merged by the CLI once ready ({release['auto_merge']})" if release.get("auto_merge")
+        "the Foreman merges its fixes once ready" if release.get("auto_merge")
         else "the user merges the fixes"])
 
 
 def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
-    """Move a prepared CR into requests, then create its branch and worktree."""
+    """Move a prepared CR into requests and name its branch and worktree: the Driver creates
+    them, on the fresh default branch, as its first step."""
     repo = b.repo
     paths = stage_layout(repo)
     prepared = prepared_cr(repo, item, paths)
@@ -286,18 +296,11 @@ def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
     title = prepared.title
     branch = f"chantier/{b.id}/{cr_id.lower()}-{_slug(title)}"
     worktree = repo.worktrees / f"{b.id}-{cr_id}"
-    worktree.parent.mkdir(parents=True, exist_ok=True)
-    base = _base_ref(repo)
-    head = git("rev-parse", base, cwd=repo.root)
-    git("worktree", "add", "--quiet", "-b", branch, str(worktree), base, cwd=repo.root)
-    b.created_worktree(worktree, branch, head)
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
-    c = {"id": cr_id, "title": title, "item": item, "kind": kind, "status": "queued", "order": order,
+    c = {"id": cr_id, "title": title, "kind": kind, "status": "queued", "order": order,
          "path": cdir.relative_to(repo.root).as_posix(),
-         "specification": prepared.specification.name, "priority": prepared.priority,
-         "round": 0, "qa": qa, "qa_done": False, "agent": None, "pr": None, "ci": None,
-         "branch": branch, "worktree": str(worktree), "pgids": [], "pids": [],
-         "notes": [], "resumes": 0, "updated": now()}
+         "specification": prepared.specification.name, "round": 0, "qa": qa, "qa_done": False, "agent": None, "pr": None,
+         "branch": branch, "worktree": str(worktree), "notes": [], "updated": now()}
     b.data["crs"].append(c)
     b.log("add", cr_id, title=title, path=c["path"], origin=origin)
     return c
@@ -305,30 +308,18 @@ def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
 
 def open_batch(args) -> list[str]:
     repo = Repo.find()
-    host, _ = detect_host()
+    host = detect_host()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,40}", args.batch):
         raise ChantierError("batch id: lowercase letters, digits and hyphens", EXIT_USAGE)
     if args.slots < 1 or (args.budget is not None and args.budget <= 0):
         raise ChantierError("slots and budget must be positive", EXIT_USAGE)
-    gates = {"fast": args.fast_gate or [], "long": args.long_gate or []}
-    for kind, commands in gates.items():
-        if not commands or any(not c.strip() for c in commands):
-            raise ChantierError(f"no {kind} gate: read AGENTS.md (ask the user if it is unclear), "
-                                f"then pass --{kind}-gate")
+    if args.remote not in git("remote", cwd=repo.root).split():
+        raise ChantierError(f"no remote {args.remote!r}: pass --remote <remote>", EXIT_EXTERNAL)
     branch = args.default_branch or default_branch(repo.root, args.remote)
     if not branch:
         raise ChantierError(f"Git does not know the default branch of {args.remote!r}: read "
                             "AGENTS.md or ask the user, then pass --default-branch")
-    chosen, reviews = parse_team(args.agent or [], args.review or [])
-    if host == "claude":  # Copilot names any agent like ours: nothing to look up
-        for agent in [*chosen.values(), *(s["agent"] for s in reviews.values())]:
-            if ":" not in agent and not local_agent_file(repo.root, agent, host):
-                raise ChantierError(f"no agent `{agent}` in .claude/agents or ~/.claude/agents: "
-                                    "check its name with the user", EXIT_USAGE)
-    where = forge.check(repo.root, args.remote)
-    settings = {"default_branch": branch, "remote": args.remote, "gates": gates,
-                "agents": chosen, "reviews": reviews,
-                "claude_projects_dir": args.claude_projects_dir,
+    settings = {"default_branch": branch, "remote": args.remote,
                 "max_rounds": repo.config["max_rounds"]}
     repo.config.update(settings)
     paths = stage_layout(repo)
@@ -355,11 +346,10 @@ def open_batch(args) -> list[str]:
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
     data = {"id": args.batch, "version": __version__, "created": now(), "status": "open",
             "host": host, "mode": "stack" if args.stack else "parallel", "slots": args.slots,
-            "budget_usd": args.budget, "spent_usd": 0.0, "paused": False,
+            "budget_usd": args.budget, "spent_usd": 0.0,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
-            "chief_of_staff": args.chief_of_staff,
-            "stack_live": False, "heartbeat": None, "settings": settings, "orders": [], "crs": [],
-            "release": release}
+            "stack_agent": None, "heartbeat": None,
+            "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     with changes_lock(repo):
         with Batch(repo, args.batch, actor="chief-of-staff", create=data) as b:
             brief = b.dir / "brief.md"
@@ -368,11 +358,9 @@ def open_batch(args) -> list[str]:
                            kind="release" if i == args.release else "change")
                 if release and c["kind"] == "release":
                     release["cr"] = c["id"]
-            custom = [f"{r}={a}" for r, a in chosen.items()]
-            custom += [f"{n}={s['agent']} ({s['task']})" for n, s in reviews.items()]
             brief.write_text(
                 f"# Batch {args.batch}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
-                f"Budget: {args.budget or 'none'}. Host: {host}. Forge: {where}.\n"
+                f"Budget: {args.budget or 'none'}. Host: {host}.\n"
                 "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
                         f"{' (QA)' if c['qa'] else ''}"
@@ -380,14 +368,12 @@ def open_batch(args) -> list[str]:
                         for c in b.data["crs"]) +
                 (f"- Release grant: {grant_line(release)}\n" if release else "") +
                 f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}.\n"
-                f"- Fast gates: {' ; '.join(settings['gates']['fast'])}\n"
-                f"- Long gates: {' ; '.join(settings['gates']['long'])}\n"
-                f"- Own agents and review steps: {', '.join(custom) or 'none'}\n"
-                "- Night policy: one extra round per CR; a red PR goes to the top.\n"
-                "- Autonomous decisions:\n- Questions to bring back:\n", encoding="utf-8")
+                "- Team (who runs which role):\n"
+                "- Autonomous decisions:\n- Questions to bring back:\n- QA notes:\n",
+                encoding="utf-8")
             b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {args.batch} on {host}: {len(args.items)} CRs, {args.slots} slots, "
-             f"{data['mode']}, forge {where}"]
+             f"{data['mode']}"]
     lines += [f"{c['id']} {c['title'][:60]}" for c in b.data["crs"]]
     lines.append(f"brief: {brief}")
     return lines
@@ -423,92 +409,170 @@ def foreman(args) -> list[str]:
         return [f"transcript {args.value}"]
 
 
-ORDER_KINDS = {"add", "drop", "first", "change", "merged", "pause", "resume", "fix", "approve",
-               "grant"}
+ORDER_KINDS = {"add", "drop", "merged", "note", "rounds", "slots", "budget", "approve", "grant",
+               "done"}
+CR_ORDERS = {"drop", "merged", "rounds", "approve", "grant"}
 
 
-def _check_merged(repo: Repo, args) -> None:
-    _, _, c = _batch_cr(repo, args.cr, args.batch)
-    if not c.get("pr"):
-        raise ChantierError(f"{args.cr} has no PR: nothing to mark merged", EXIT_PRECONDITION)
-    if not forge.pr_merged(repo.root, repo.config, c["pr"]):
-        raise ChantierError(f"{args.cr}: the forge says {c['pr']} is not merged", EXIT_PRECONDITION)
+def _release_cr(b: Batch, kind: str, cr_id: str) -> dict:
+    release = b.data.get("release") or {}
+    if release.get("cr") != cr_id:
+        raise ChantierError(f"order {kind} names the batch's release CR "
+                            f"({release.get('cr') or 'none'})", EXIT_USAGE)
+    return release
+
+
+def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None) -> list[str]:
+    """The user's word, recorded at once: a folder moves, a number changes, a note is kept. Who
+    takes a CR next, and when, is the Foreman's decision from `status`."""
+    c = b.cr(cr_id) if kind in CR_ORDERS or (kind == "note" and cr_id != "-") else None
+    if kind == "add":
+        if fix_for:
+            _release_cr(b, "add --fix-for", fix_for)
+            fix = add_cr(b, note, kind="fix")
+            fix["fix_for"] = fix_for
+            rel = b.cr(fix_for)
+            rel.setdefault("notes", []).append(f"fix: {fix['id']} must merge first; then the "
+                                               "procedure starts again from its first step")
+            b.touch(rel)
+            return [f"added {fix['id']} (fix for {fix_for}), queued"]
+        return [f"added {add_cr(b, note)['id']}, queued"]
+    if kind == "drop":
+        if c["status"] == "merged":
+            raise ChantierError(f"cannot drop {cr_id}: it is already merged")
+        if c["status"] in LIVE:
+            return [f"{cr_id} is live: the Foreman stops its Driver, then `chantier cancel {cr_id}`"]
+        if c["status"] != "cancelled":
+            trash_cr(b, c)
+            b.touch(c, status="cancelled")
+        return [f"dropped {cr_id}: {c['path']}"]
+    if kind == "note":
+        if not note.strip():
+            raise ChantierError("order note [<cr>] --note \"<the user's word, in one line>\"",
+                                EXIT_USAGE)
+        if c:
+            c.setdefault("notes", []).append(note.strip())
+            b.touch(c)
+        return [f"noted{' on ' + cr_id if c else ''}: the Foreman reads it in `status`"]
+    if kind == "merged":
+        if c["status"] == "merged":
+            return [f"{cr_id} already merged"]
+        if c["status"] == "cancelled":
+            raise ChantierError(f"cannot mark cancelled {cr_id} merged")
+        if c.get("kind") == "release":
+            release_merged(b, c)
+            return [f"merged {cr_id}: the procedure goes on with a new Release driver"]
+        return archive_merged(b, c)
+    if kind == "rounds":
+        if not note.isdigit() or int(note) < 1:
+            raise ChantierError("order rounds <cr> --note <n>", EXIT_USAGE)
+        b.touch(c, rounds=int(note))
+        return [f"{cr_id}: up to {note} rounds"]
+    if kind == "slots":
+        if not note.isdigit():
+            raise ChantierError("order slots --note <n> (0 pauses: no new Driver starts)", EXIT_USAGE)
+        b.data["slots"] = int(note)
+        return [f"slots {note}"]
+    if kind == "budget":
+        if not re.fullmatch(r"\d+(\.\d+)?", note) or float(note) <= 0:
+            raise ChantierError("order budget --note <usd>", EXIT_USAGE)
+        b.data["budget_usd"] = float(note)
+        return [f"budget ${float(note):g}"]
+    if kind == "approve":
+        _release_cr(b, kind, cr_id)
+        if not note.strip():
+            raise ChantierError("order approve <release-cr> --note \"<the action the user approved>\"",
+                                EXIT_USAGE)
+        c.setdefault("approvals", []).append(note.strip())
+        c.setdefault("notes", []).append(f"approved: {note.strip()}")
+        b.touch(c)
+        return [f"approved: {note.strip()}"]
+    if kind == "grant":
+        release = _release_cr(b, kind, cr_id)
+        grant = parse_grant(note)
+        if "budget_usd" in grant:
+            b.data["budget_usd"] = grant.pop("budget_usd")
+        release.update(grant)
+        check_grant(release, b.data.get("budget_usd"))
+        c.setdefault("notes", []).append(f"grant: {note.strip()}")
+        b.touch(c)
+        return [f"granted: {grant_line(release)}"]
+    raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
 
 
 def order(args) -> list[str]:
+    """The Chief of Staff's word, in the state at once; the Foreman sees it in `status` and
+    marks it `order done` once its own part is done. `order merged --epoch <n>` is the Foreman
+    recording a merge it made itself: done at once."""
     if args.kind not in ORDER_KINDS:
         raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
-    if args.kind in ("add", "fix") and not (args.note or "").startswith("@"):
-        raise ChantierError(f"order {args.kind} needs --note @<prepared-CR-folder-or-specification>",
-                            EXIT_USAGE)
-    if args.kind == "approve" and not (args.note or "").strip():
-        raise ChantierError("order approve <release-cr> --note \"<the action the user approved>\"",
-                            EXIT_USAGE)
+    note = args.note or ""
+    if args.kind == "add" and not note.startswith("@"):
+        raise ChantierError("order add --note @<prepared-CR-folder-or-specification> "
+                            "[--fix-for <release-cr>]", EXIT_USAGE)
+    if args.kind in CR_ORDERS and (not args.cr or args.cr == "-"):
+        raise ChantierError(f"order {args.kind} <cr>", EXIT_USAGE)
     repo = Repo.find()
-    if args.kind == "merged":  # refused here: nothing is archived on a word the forge denies
-        _check_merged(repo, args)
-    with Batch(repo, resolve_batch(repo, args.batch), actor="chief-of-staff") as b:
-        if args.kind in ("fix", "approve", "grant") and \
-                (b.data.get("release") or {}).get("cr") != args.cr:
-            raise ChantierError(f"order {args.kind} names the batch's release CR "
-                                f"({(b.data.get('release') or {}).get('cr') or 'none'})",
-                                EXIT_USAGE)
-        if args.kind == "grant":  # refused here: a recorded order that fails would stay pending
-            grant = parse_grant(args.note)
-            check_grant({**b.data["release"], **grant},
-                        grant.get("budget_usd") or b.data.get("budget_usd"))
-        oid = f"O-{len(b.data['orders']) + 1}"
-        b.data["orders"].append({"id": oid, "kind": args.kind, "cr": args.cr or "-",
-                                 "note": args.note or "", "sent": now(), "done": None})
-        b.log("order", None if args.cr in (None, "-") else args.cr, order=oid, order_kind=args.kind)
-    target = f" {args.cr}" if args.cr and args.cr != "-" else ""
-    note = f" {args.note}" if args.note else ""
-    return [f"[chief-of-staff→foreman] order {oid} {args.kind}{target}{note}"]
-
-
-def event(args) -> list[str]:
-    repo = Repo.find()
-    batch = resolve_batch(repo, args.batch)
+    if args.kind == "done":
+        return _order_done(repo, args)
+    if args.epoch is not None and args.kind != "merged":
+        raise ChantierError("only `order merged` takes --epoch: the Foreman's own merge", EXIT_USAGE)
+    own = args.epoch is not None
     with changes_lock(repo):
-        with Batch(repo, batch, actor="foreman") as b:
+        with Batch(repo, resolve_batch(repo, args.batch),
+                   actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
-            kind, cr, note = args.kind, args.cr, args.note or ""
-            if args.order:
-                o = next((x for x in b.data["orders"] if x["id"] == args.order), None)
-                if o is None:
-                    raise ChantierError(f"unknown order {args.order}", EXIT_USAGE)
-                kind, cr, note = f"order-{o['kind']}", o["cr"], note or o["note"]
-            if cr not in ("-", "stack") and not cr.startswith("qa:"):
-                b.cr(cr)
-            b.data["heartbeat"] = now()
-            actions = decide(b, cr, kind, note, order=args.order)
-            record_asks(b, actions)
-            return actions
+            effect = _apply_order(b, args.kind, args.cr, note, args.fix_for)
+            oid = f"O-{len(b.data['orders']) + 1}"
+            b.data["orders"].append({"id": oid, "kind": args.kind, "cr": args.cr or "-",
+                                     "note": note, "sent": now(), "done": now() if own else None,
+                                     **({"fix_for": args.fix_for} if args.fix_for else {})})
+            b.log("order", None if args.cr in (None, "-") else args.cr, order=oid,
+                  order_kind=args.kind, note=note)
+    if own:
+        return effect
+    target = f" {args.cr}" if args.cr and args.cr != "-" else ""
+    text = f" {note}" if note else ""
+    return [f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}"] + effect
 
 
-def heartbeat(args) -> tuple[list[str], int]:
-    """The Foreman's wake: liveness, pending orders, and the spend the budget check reads."""
-    repo = Repo.find()
-    batch = resolve_batch(repo, args.batch)
-    with Batch(repo, batch, actor="foreman") as b:
+def _order_done(repo: Repo, args) -> list[str]:
+    if not args.cr or not args.cr.startswith("O-"):
+        raise ChantierError("order done <O-k>", EXIT_USAGE)
+    with Batch(repo, resolve_batch(repo, args.batch), actor="foreman") as b:
         check_epoch(b, args.epoch)
-        b.data["heartbeat"] = now()
-        b.log("heartbeat", None)
-        pending = [o for o in b.data["orders"] if not o["done"]]
-        live = [c for c in b.data["crs"] if c["status"] in LIVE]
-        ages = [age_minutes(c.get("updated")) or 0 for c in live]
-        data = dict(b.data)
-    lines = [f"heartbeat {batch}: {len(live)} live, {len(pending)} orders pending"]
-    if pending:
-        lines.append(f"oldest pending order {pending[0]['id']} "
-                     f"{age_minutes(pending[0]['sent']):.0f} min")
-    if ages:
-        lines.append(f"oldest silent Driver {max(ages):.0f} min")
+        o = next((x for x in b.data["orders"] if x["id"] == args.cr), None)
+        if o is None:
+            raise ChantierError(f"unknown order {args.cr}", EXIT_USAGE)
+        if o["done"]:
+            return [f"{args.cr} already done"]
+        o["done"] = now()
+        b.log("order-done", None, order=args.cr)
+    return [f"{args.cr} done"]
+
+
+# ---- state for every role ---------------------------------------------------------------------
+
+def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]:
+    """The facts the state cannot keep by itself: the longest silent Driver and the spend the
+    budget reads. With `--epoch`, it is the Foreman's wake, and the batch records it."""
+    lines = []
+    with changes_lock(repo):
+        with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
+            check_epoch(b, epoch)
+            if epoch is not None:
+                b.data["heartbeat"] = now()
+                b.log("heartbeat", None)
+            silent = [(c["id"], age_minutes(c.get("updated")) or 0) for c in live(b)]
+            if silent:
+                cr, age = max(silent, key=lambda x: x[1])
+                lines.append(f"longest silent Driver {cr} {age:.0f} min")
+            data = dict(b.data)
     try:
         rows = _cost_rows(repo, data, data["host"], _foreman_uuid(data))
     except ChantierError as e:
         return lines + [f"spend not updated: {e}"], e.code
-    with Batch(repo, batch, actor="foreman") as b:
+    with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
         total = _record_costs(repo, b, rows)
     return lines + [f"spent ${total:.2f}"], 0
 
@@ -525,20 +589,21 @@ def _record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
     return total
 
 
-# ---- state for every role ---------------------------------------------------------------------
-
-def status(args) -> list[str]:
+def status(args) -> tuple[list[str], int]:
     repo = Repo.find()
-    d = read_batch(repo, resolve_batch(repo, args.batch))
-    if args.json:
-        return [json.dumps(d, indent=2)]
+    batch = resolve_batch(repo, args.batch)
+    extra, code = _refresh(repo, batch, args.epoch) if args.refresh else ([], 0)
+    d = read_batch(repo, batch)
     hb = age_minutes(d.get("heartbeat"))
-    lines = [f"{d['id']} {d['status']} {d['mode']} slots {d['slots']} "
+    n_live = sum(1 for c in d["crs"] if c["status"] in LIVE)
+    queued = sum(1 for c in d["crs"] if c["status"] == "queued")
+    lines = [f"{d['id']} {d['status']} {d['mode']} live {n_live}/{d['slots']} queued {queued} "
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
              f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
-             f"{' PAUSED' if d.get('paused') else ''} spent ${d.get('spent_usd', 0):.2f}"]
+             f" spent ${d.get('spent_usd', 0):.2f}"
+             + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")]
     for c in sorted(d["crs"], key=lambda c: c["order"]):
-        row = f"{c['id']} {c['status']} r{c['round']} {c.get('pr') or '-'} ci {c.get('ci') or '-'}"
+        row = f"{c['id']} {c['status']} r{c['round']}/{round_limit(d, c)} {c.get('pr') or '-'}"
         if c.get("kind") == "release":
             row += f" release{' ' + c['released'] if c.get('released') else ''}"
             row += "".join(f" | draft {p}" for p in c.get("drafts", [])[-2:])
@@ -546,49 +611,54 @@ def status(args) -> list[str]:
             row += f" fix for {c['fix_for']}"
         if c["status"] == "blocked" and c.get("blocked_reason"):
             row += f" | blocked: {c['blocked_reason'][:70]}"
-        elif args.notes and c.get("notes"):
+        elif c.get("notes") and (args.notes or c["status"] == "queued"):
             row += f" | {c['notes'][-1][:60]}"
         lines.append(row)
-    pending = sum(1 for o in d.get("orders", []) if not o["done"])
+    pending = [o for o in d.get("orders", []) if not o["done"]]
     if pending:
-        lines.append(f"{pending} orders pending")
+        lines.append("orders pending: " + "; ".join(
+            f"{o['id']} {o['kind']}{' ' + o['cr'] if o['cr'] != '-' else ''}"
+            f"{' ' + o['note'][:40] if o['note'] else ''}" for o in pending))
     unread = sum(1 for a in d.get("asks", []) if not a["read"])
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")
-    return lines
+    return lines + extra, code
 
 
 def asks(args) -> list[str]:
-    """The Chief of Staff reads what the Foreman had to tell it, sent or not. With `text`, the
-    Foreman records an ask of its own and gets the line to send."""
+    """The Chief of Staff reads what the Foreman had to tell it, sent or not, and marks what it
+    heard. With `text`, the Foreman records an ask of its own and gets the line to send."""
     repo = Repo.find()
+    text = " ".join(args.text)
     with Batch(repo, resolve_batch(repo, args.batch),
-               actor="foreman" if args.text else "chief-of-staff") as b:
-        if args.text:
-            text = " ".join(args.text)
-            record_asks(b, [f"ask-chief-of-staff {text}"])
-            b.log("ask", None, text=text)
-            return [f"[foreman→chief-of-staff] ask {text}"]
+               actor="foreman" if text else "chief-of-staff") as b:
+        if text:
+            aid = record_ask(b, text)
+            return [f"[foreman→chief-of-staff] ask {aid}: {text}"]
+        if args.read:
+            hit = [a for a in b.data.get("asks", [])
+                   if not a["read"] and (args.read == "all" or a["id"] == args.read)]
+            if not hit and args.read != "all":
+                raise ChantierError(f"no unread ask {args.read}", EXIT_USAGE)
+            for a in hit:
+                a["read"] = now()
+            if hit:
+                b.log("asks-read", None, asks=[a["id"] for a in hit])
+            return [f"read {len(hit)}"]
         unread = [a for a in b.data.get("asks", []) if not a["read"]]
-        for a in unread:
-            a["read"] = now()
-        if unread:
-            b.log("asks-read", None, count=len(unread))
-    return [f"ask {a['text']}" for a in unread] or ["no unread ask"]
+    return [f"{a['id']}: {a['text']}" for a in unread] or ["no unread ask"]
 
 
 def agents(args) -> list[str]:
+    """The agent id a CR's Driver, a QA driver (`qa:<cr>`) or the stack driver runs under: the
+    Foreman records it after each start, so a restart and the cost know who ran what."""
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr.removeprefix("qa:"), args.batch) \
         if args.cr != "stack" else resolve_batch(repo, args.batch)
-    if args.action == "get":
-        d = read_batch(repo, batch)
-        if args.cr == "stack":
-            return [d.get("stack_agent") or "none"]
-        c = next(x for x in d["crs"] if x["id"] == args.cr.removeprefix("qa:"))
-        return [(c.get("qa_agent") if args.cr.startswith("qa:") else c.get("agent")) or "none"]
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
+        if args.agent == "-":  # the agent ended: the next one may start
+            args.agent = None
         if args.cr == "stack":
             b.data["stack_agent"] = args.agent
         else:
@@ -599,124 +669,326 @@ def agents(args) -> list[str]:
     return [f"{args.cr} → {args.agent}"]
 
 
-def spawn(args) -> list[str]:
-    """The agent a role runs for a CR and the whole prompt to give it: the role's contract
-    travels in the prompt, so the plugin's agent and a project's own agent get the same one."""
+def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
+    """In stack mode, a CR sits on the previous live CR of the stack; else on the default."""
+    default = repo.config["default_branch"]
+    if b_data["mode"] != "stack":
+        return default
+    order = [x for x in sorted(b_data["crs"], key=lambda x: x["order"])
+             if x["status"] not in {"cancelled", "merged"}]
+    ids = [x["id"] for x in order]
+    i = ids.index(c["id"]) if c["id"] in ids else 0
+    return order[i - 1]["branch"] if i > 0 else default
+
+
+def _base_of(d: dict, c: dict, repo: Repo) -> str:
+    """The ref the CR's branch stands on: the remote's default branch, or in a stack the CR
+    below it."""
+    base = _stack_base(d, c, repo)
+    return f"{repo.config['remote']}/{base}" if base == repo.config["default_branch"] else base
+
+
+def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
+    """Everything an agent needs to work on a CR, on one screen: the parent writes its prompt
+    from these lines and the role's card."""
+    folder = cr_directory(repo, c)
+    found = project_instructions(repo)
+    skill = skill_dir().as_posix()
+    made = Path(c["worktree"]).is_dir()
+    lines = [f"{c['id']} \"{c['title']}\" ({c['kind']}) {c['status']} in batch {batch} ({d['mode']})",
+             f"cli: {cli_command()} <command> --batch {batch}",
+             f"cards: {skill}/references/ (driver.md, worker.md, concepts.md); the project's "
+             "rules rank above them: `rules`",
+             f"project instructions: {found.as_posix() if found else 'none'}",
+             f"specification: {(folder / c['specification']).as_posix()}",
+             f"folder: {folder.as_posix()} (work/, evidence/)",
+             f"worktree: {c['worktree']} branch {c['branch']} base {_base_of(d, c, repo)}"
+             + ("" if made else "; not created yet: a Driver creates it first"),
+             f"PR: {c.get('pr') or 'none'}; head {c.get('head') or '-'}",
+             f"rounds: {c['round']} of {round_limit(d, c)}"]
+    if c["status"] == "blocked":
+        lines.append(f"blocked: {c.get('blocked_reason')}")
+    if c.get("kind") == "release":
+        lines.append(f"grant: {grant_line(d['release'])}; attempts {c.get('attempts', 0)}; "
+                     f"approvals unused: {'; '.join(c.get('approvals', [])) or 'none'}")
+    if c.get("kind") == "fix":
+        lines.append(f"fix for {c['fix_for']}: the release starts again once this merges")
+    if c.get("drafts"):
+        lines.append("drafts: " + "; ".join(c["drafts"]))
+    pending = [o for o in d.get("orders", []) if not o["done"] and o["cr"] == c["id"]]
+    if pending:
+        lines.append("orders pending: " + "; ".join(f"{o['id']} {o['kind']} {o['note']}".rstrip()
+                                                    for o in pending))
+    lines += ["notes:"] + [f"  {n}" for n in c["notes"][-10:]] if c.get("notes") \
+        else ["notes: none"]
+    gates = folder / "work" / "gates"
+    logs = sorted(gates.glob("*.log")) if gates.is_dir() else []
+    if logs:
+        tail = logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-5:]
+        lines += [f"last gate log {logs[-1].name}:"] + [f"  {ln}" for ln in tail]
+    return lines
+
+
+def handoff(args) -> list[str]:
+    """The CR's facts, for any agent; changes nothing."""
+    repo = Repo.find()
+    batch, d, c = _batch_cr(repo, args.cr, args.batch)
+    return _facts(repo, batch, d, c)
+
+
+def take(args) -> list[str]:
+    """The Foreman gives a CR to a Driver (or the stack to its driver, or a CR in `qa` to a QA
+    driver): the rails refuse what the batch does not allow (a slot, the budget, a CR that has
+    nothing to do), the state records it, and the CR's facts are printed for the prompt. The
+    Foreman chooses the agent."""
     repo = Repo.find()
     if args.cr == "stack":
         batch = resolve_batch(repo, args.batch)
-        d, c = read_batch(repo, batch), None
     else:
-        batch, d, c = _batch_cr(repo, args.cr, args.batch)
-    agent, task = agent_for(d["settings"], args.role, d["host"], plugin_root())
-    if args.role == "stack-driver" and c is not None or args.role != "stack-driver" and c is None:
-        raise ChantierError("the stack driver takes `stack`; every other role takes a CR",
-                            EXIT_USAGE)
-    if c and args.role in ("cr-driver", "release-driver") and args.role != driver_role(c):
-        raise ChantierError(f"{c['id']} is driven by the {driver_role(c)}", EXIT_USAGE)
-    skill = skill_dir().as_posix()
-    card, section = CARDS.get(args.role, ("worker", "Extra review step"))
-    what = f"{c['id']} \"{c['title']}\"" if c else "the stack"
-    found = project_instructions(repo)
-    prompt = [f"chantier {args.role} for {what} of batch {batch}, in the project {repo.root.as_posix()}.",
-              f"First read {skill}/references/{card}.md (section \"{section}\") and "
-              f"{skill}/references/concepts.md; read nothing else from the skill.",
-              f"CLI ($CHANTIER): {cli_command()} <command> --batch {batch}",
-              f"Project instructions: {found.as_posix() if found else 'none: ask your parent'}"]
-    if c:
-        work = _work(repo, c)
-        work.mkdir(parents=True, exist_ok=True)
-        prompt += [f"Worktree: {c['worktree']}",
-                   f"Change Specification: {_specification(repo, c).as_posix()}",
-                   f"Work folder: {work.as_posix()} (your notes and outputs)"]
-        if args.role == "cr-driver":
-            prompt.append(f"Rounds done: {c['round']} of {d['settings']['max_rounds']}")
-        if args.role == "release-driver":
-            prompt.append(f"Release grant: {grant_line(d['release'])}")
-            if c.get("approvals"):
-                prompt.append(f"Approved by the user, not yet used: {'; '.join(c['approvals'])}")
-        if c.get("kind") == "fix" and args.role == "cr-driver":
-            prompt.append(f"A fix the release {c['fix_for']} needs: it starts again once this merges")
-    if task:
-        prompt.append(f"Your review: {task}")
-    reviews = d["settings"].get("reviews", {})
-    if args.role == "cr-driver" and reviews:
-        prompt.append("Extra review steps, after the Inspector approves, in order: "
-                      + "; ".join(f"`$CHANTIER spawn {n} {c['id']}` ({s['task']})"
-                                  for n, s in reviews.items()))
-    if args.note:
-        prompt.append(f"Note: {args.note}")
-    mode = "background" if args.role in DRIVERS else "foreground"
-    return [f"agent: {agent}", f"mode: {mode}",
-            "pass no model and no effort: the agent file sets them", "prompt:"] + prompt
+        batch = find_cr_batch(repo, args.cr, args.batch)
+    with changes_lock(repo):
+        with Batch(repo, batch, actor="foreman") as b:
+            check_epoch(b, args.epoch)
+            d = b.data
+            if args.cr == "stack":
+                if d["mode"] != "stack":
+                    raise ChantierError(f"batch {batch} is not a stack")
+                if d.get("stack_agent"):
+                    raise ChantierError(f"a stack driver is recorded ({d['stack_agent']}); one "
+                                        "that ended: `agents set stack -` first")
+                check_budget(b)
+                b.log("take", None, note=args.note)
+                crs = [x for x in sorted(d["crs"], key=lambda x: x["order"])
+                       if x["status"] not in {"cancelled", "merged"}]
+                return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + [
+                    f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
+                    f"PR {x.get('pr') or 'none'}" for x in crs]
+            c = b.cr(args.cr)
+            if c["status"] == "qa":
+                if c.get("qa_agent"):
+                    raise ChantierError(f"{c['id']} has a QA driver ({c['qa_agent']}); one that "
+                                        f"ended with no `qa`: `agents set qa:{c['id']} -` first")
+                check_budget(b)
+            else:
+                check_take(b, c, args.note)
+                if c["status"] in {"ready", "blocked"}:
+                    c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
+                b.touch(c, status="working", blocked_reason=None)
+            b.log("take", c["id"], note=args.note)
+            _work(repo, c).mkdir(parents=True, exist_ok=True)
+            facts = _facts(repo, batch, d, c)
+    return [f"took {c['id']} ({len(live(b))} of {d['slots']} slots live)"] + facts
 
 
-REPORT_KINDS = {"pr-opened", "ci-green", "ci-red", "ci-red-known", "round-done", "note", "draft",
-                "investigated", "verified"}
-
-
-def report(args) -> list[str]:
-    if args.kind not in REPORT_KINDS:
-        raise ChantierError(f"report kind: one of {', '.join(sorted(REPORT_KINDS))}", EXIT_USAGE)
+def round_(args) -> list[str]:
+    """A Driver counts a round before it starts the round's Coder; past the batch's limit, or
+    the one the user granted the CR, it is refused (exit 5)."""
     repo = Repo.find()
+    batch = find_cr_batch(repo, args.cr, args.batch)
+    with changes_lock(repo):
+        with Batch(repo, batch, actor="driver") as b:
+            c = b.cr(args.cr)
+            if c["status"] not in LIVE:
+                raise ChantierError(f"{args.cr} is {c['status']}: no Driver to run a round")
+            limit = check_round(b, c)
+            b.touch(c, round=c.get("round", 0) + 1)
+            b.log("round", c["id"], round=c["round"], note=args.note)
+            _work(repo, c).mkdir(parents=True, exist_ok=True)
+            facts = _facts(repo, batch, b.data, c)
+    return [f"round {c['round']} of {limit} for {c['id']}"] + facts
+
+
+def handback(args) -> list[str]:
+    """A Driver's end, in the state first: `ready <link>` or `blocked <reason>`. Prints the line
+    to send the Foreman, and what the state did with it."""
+    repo = Repo.find()
+    note = " ".join(args.note).strip()
+    if args.result == "ready" and not note:
+        raise ChantierError("handback <cr> ready <pr link, release link or tag>", EXIT_USAGE)
+    if args.result == "blocked" and not note:
+        raise ChantierError("handback <cr> blocked <reason>: question: …, approval: …, merge: "
+                            "<pr>, fix: …; <path>, infra: …, budget: …, rounds: …, refused …",
+                            EXIT_USAGE)
+    with changes_lock(repo):
+        with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
+            c = b.cr(args.cr)
+            if c["status"] not in LIVE:
+                raise ChantierError(f"{args.cr} is {c['status']}: no Driver to hand it back")
+            line = f"[driver {args.cr}→foreman] hand-back {args.result} {note}"
+            if args.result == "blocked":
+                b.log("handback", args.cr, result=args.result, note=note)
+                b.touch(c, status="blocked", blocked_reason=note)
+                return [line, f"{args.cr} blocked; the Foreman asks the Chief of Staff"]
+            if c.get("kind") == "release":  # released: nothing is left to merge
+                c["released"] = note.split()[0]
+                b.log("handback", args.cr, result=args.result, note=note)
+                archive_cr(b, c)
+                b.touch(c, status="merged")
+                return [line, f"{args.cr} released and archived"
+                        + ("; every CR is merged or cancelled: `chantier land`"
+                           if all_merged(b) else "")]
+            if not c.get("pr"):
+                raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
+            b.log("handback", args.cr, result=args.result, note=note)
+            if c.get("qa") and not c.get("qa_done"):
+                b.touch(c, status="qa", qa_agent=None)
+                return [line, f"{args.cr} waits for its QA driver (`chantier take {args.cr}`)"]
+            b.touch(c, status="ready")
+            return [line, f"{args.cr} ready"]
+
+
+def note(args) -> list[str]:
+    """A Driver's or worker's line in the CR's state: what was done or found, shown in its
+    STATUS.md. `--draft <path>` names a file the user reviews and edits in place."""
+    repo = Repo.find()
+    text = " ".join(args.text).strip()
+    if not text and not args.draft:
+        raise ChantierError("note <cr> <text> | note <cr> --draft <path>", EXIT_USAGE)
     with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
         c = b.cr(args.cr)
-        note = args.note or ""
-        if args.kind == "pr-opened":
-            b.touch(c, pr=note.split()[0] if note else c.get("pr"))
-        elif args.kind.startswith("ci-"):
-            b.touch(c, ci=args.kind.removeprefix("ci-"))
-        elif args.kind == "round-done":  # the CLI numbers rounds: a new Driver goes on counting
-            b.touch(c, round=c.get("round", 0) + 1)
-            note = f"r{c['round']} {note}".rstrip()
-        elif args.kind == "draft":  # a file the user reviews and edits in place
-            path = Path(note).expanduser()
-            if not note or not path.is_file():
-                raise ChantierError(f"report draft <path of an existing file>, not {note!r}",
+        if args.draft:
+            path = Path(args.draft).expanduser()
+            if not path.is_file():
+                raise ChantierError(f"note --draft <path of an existing file>, not {args.draft!r}",
                                     EXIT_USAGE)
-            note = path.resolve().as_posix()
-            if note not in c.setdefault("drafts", []):
-                c["drafts"].append(note)
-            b.touch(c)
-        else:
-            b.touch(c)
-        if note and args.kind != "pr-opened":
-            c.setdefault("notes", []).append(f"{args.kind}: {note}")
-        b.log("report", args.cr, report=args.kind, note=note)
-    return [f"round {c['round']} of {b.data['settings']['max_rounds']} done"
-            if args.kind == "round-done" else "ok"]
+            draft = path.resolve().as_posix()
+            if draft not in c.setdefault("drafts", []):
+                c["drafts"].append(draft)
+            text = text or f"draft: {draft}"
+        c.setdefault("notes", []).append(text)
+        b.touch(c)
+        b.log("note", args.cr, note=text)
+    return ["ok"]
 
 
-# ---- work in the CR worktree ------------------------------------------------------------------
+def log(args) -> list[str]:
+    """The CR's events, readable: what happened and when."""
+    repo = Repo.find()
+    batch, _, c = _batch_cr(repo, args.cr, args.batch)
+    lines = []
+    for e in _cr_events(repo, batch, c["id"]):
+        rest = {k: v for k, v in e.items()
+                if k not in {"t", "actor", "kind", "cr"} and v not in (None, "", [])}
+        lines.append(f"{e['t']} {e['actor']} {e['kind']}"
+                     + (" " + " ".join(f"{k}={v}" for k, v in rest.items()) if rest else ""))
+    return lines or [f"no event for {c['id']}"]
 
-def _worktree(c: dict) -> Path:
-    if not c.get("worktree") or not Path(c["worktree"]).exists():
-        raise ChantierError(f"{c['id']} has no worktree", EXIT_PRECONDITION)
-    return Path(c["worktree"])
+
+# ---- the project's rules ----------------------------------------------------------------------
+
+def _linked(path: Path, root: Path, seen: list[Path], depth: int) -> None:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    for m in MD_LINK.finditer(text):
+        target = m.group(1) or m.group(2)
+        if target.startswith(("http://", "https://", "/")) or ".." in target.split("/"):
+            continue
+        for candidate in (path.parent / target, root / target):
+            try:
+                candidate = candidate.resolve()
+            except OSError:
+                continue
+            if candidate.is_file() and candidate.is_relative_to(root) and candidate not in seen:
+                seen.append(candidate)
+                if depth > 1:
+                    _linked(candidate, root, seen, depth - 1)
+                break
 
 
-def _track_pgid(repo: Repo, batch: str, cr: str, pgid: int, add: bool, key: str = "pgids") -> None:
-    """Record a process group (gates) or a pid (`chantier wait`) so `chantier cancel` can stop it."""
-    with Batch(repo, batch, actor="cli") as b:
-        c = b.cr(cr)
-        pg = set(c.get(key, []))
-        (pg.add if add else pg.discard)(pgid)
-        c[key] = sorted(pg)
-        b.log(f"{key[:-1]}-add" if add else f"{key[:-1]}-done", cr, **{key[:-1]: pgid})
+def rules(args) -> list[str]:
+    """The project's rules: its instruction file and the local Markdown files it links, two
+    levels deep. Every role reads them before its own card; they rank above it."""
+    repo = Repo.find()
+    found = project_instructions(repo)
+    if not found:
+        raise ChantierError(f"no {', '.join(INSTRUCTIONS)} in {repo.root}: ask your parent")
+    root = repo.root.resolve()
+    seen = [found.resolve()]
+    _linked(found.resolve(), root, seen, 2)
+    return [f"{p.as_posix()} ({sum(1 for _ in p.open(encoding='utf-8', errors='replace'))} lines)"
+            for p in seen]
+
+
+# ---- the long gate and the ship: the record of the Driver's own work ------------------------
+
+def _lock_holder(repo: Repo) -> str:
+    """Who holds the long gate, from its lock file: `<cr> pid <n> pg<m>`, or empty."""
+    try:
+        with open(repo.changes / ".long-gate.lock", encoding="utf-8") as f:
+            f.seek(1)  # byte 0 is the lock: Windows refuses to read it
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+class _LongGateLock:
+    """One long gate at a time in the repository: two full suites at once break each other
+    (app windows, ports, shared caches). The lock file names who holds it and the suite's
+    process: when the `gate` command dies, the OS frees the lock, but the suite may live on,
+    so the next gate waits for that process too."""
+
+    def __init__(self, repo: Repo, cr: str, log: Path):
+        self.path = repo.changes / ".long-gate.lock"
+        self.repo, self.cr, self.log = repo, cr, log
+
+    def _wait_note(self, holder: str) -> None:
+        with open(self.log, "a", encoding="utf-8") as f:
+            f.write(f"waiting for the long gate of {holder}\n")
+
+    def __enter__(self):
+        self.f = open(self.path, "a+", encoding="utf-8")
+        deadline = time.monotonic() + LONG_GATE_WAIT_S
+        holder = None
+        while not _try_lock(self.f):
+            if holder is None:
+                holder = _lock_holder(self.repo) or "another CR"
+                self._wait_note(holder)
+            if time.monotonic() > deadline:
+                self.f.close()
+                raise ChantierError(f"the long gate of {holder} has run for over an hour: "
+                                    "check it")
+            time.sleep(1)
+        left = _lock_holder(self.repo)  # a gate that died without cleaning up: its suite may run on
+        m = re.search(r"\bpg(\d+)\b", left)
+        if m and procs.alive(int(m[1])):
+            self._wait_note(f"{left} (its command still runs)")
+            while procs.alive(int(m[1])):
+                if time.monotonic() > deadline:
+                    _unlock(self.f)
+                    self.f.close()
+                    raise ChantierError(f"the long gate of {left} has run for over an hour: "
+                                        "check it")
+                time.sleep(1)
+        self.holding(f"{self.cr} pid {os.getpid()}")
+        return self
+
+    def holding(self, text: str) -> None:
+        self.f.seek(0)
+        self.f.truncate()
+        self.f.write(f" {text}")
+        self.f.flush()
+
+    def __exit__(self, *exc):
+        try:
+            self.holding("")
+        finally:
+            _unlock(self.f)
+            self.f.close()
 
 
 def gate(args) -> tuple[list[str], int]:
+    """The long gate: the command the project's rules name, run in the CR's worktree, alone in
+    the repository (a second one waits), logged in the work folder, recorded with its head."""
     repo = Repo.find()
-    batch, data, c = _batch_cr(repo, args.cr, args.batch)
+    batch, _, c = _batch_cr(repo, args.cr, args.batch)
     wt = _worktree(c)
-    kind = "long" if args.long else "fast"
-    cmds = data["settings"]["gates"].get(kind)
-    if not cmds:
-        raise ChantierError(f"{batch}: no {kind} gate was recorded; ask the Chief of Staff")
+    cmd = args.command.strip()
+    if not cmd:
+        raise ChantierError("gate <cr> \"<the long gate's command, from the project's rules>\"",
+                            EXIT_USAGE)
     logdir = _work(repo, c) / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
-    log = logdir / f"{time.strftime('%Y%m%d-%H%M%S')}-{kind}.log"
-    for cmd in cmds:
+    log = logdir / f"{time.strftime('%Y%m%d-%H%M%S')}.log"
+    with _LongGateLock(repo, args.cr, log) as lock:
         # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
         with open(log, "a", encoding="utf-8") as f:
             f.write(f"$ {cmd}\n")
@@ -725,267 +997,129 @@ def gate(args) -> tuple[list[str], int]:
                      if sys.platform == "win32" else {"start_new_session": True})
             p = subprocess.Popen(cmd, shell=True, cwd=wt, stdout=f, stderr=subprocess.STDOUT,
                                  **group)
-        _track_pgid(repo, batch, args.cr, p.pid, True)
-        try:
-            rc = p.wait()
-        finally:
-            _track_pgid(repo, batch, args.cr, p.pid, False)
-        if rc != 0:
-            _log_gate(repo, batch, args.cr, kind, "fail", wt)
-            # gates write in the console's code page: never fail on their bytes
-            tail = (log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
-                    if log.exists() else [])
-            return [f"FAIL {cmd} (exit {rc}); log {log}"] + tail, EXIT_EXTERNAL
-    _log_gate(repo, batch, args.cr, kind, "pass", wt)
-    return [f"pass {len(cmds)} {kind} gates; log {log}"], 0
-
-
-def _log_gate(repo: Repo, batch: str, cr: str, kind: str, result: str, wt: Path) -> None:
+        lock.holding(f"{args.cr} pid {os.getpid()} pg{p.pid}")
+        rc = p.wait()
+    head = git("rev-parse", "--short", "HEAD", cwd=wt)
+    result = "pass" if rc == 0 else "fail"
     with Batch(repo, batch, actor="driver") as b:
-        b.log("gate", cr, gate=kind, result=result, head=git("rev-parse", "--short", "HEAD", cwd=wt))
+        b.log("gate", args.cr, result=result, head=head, command=cmd)
+    if rc:
+        # gates write in the console's code page: never fail on their bytes
+        tail = (log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
+                if log.exists() else [])
+        return [f"FAIL {cmd} (exit {rc}) at {head}; log {log}"] + tail, EXIT_EXTERNAL
+    return [f"pass {cmd} at {head}; log {log}"], 0
 
 
-def wait(args) -> tuple[list[str], int]:
-    if args.what != "ci":
-        raise ChantierError("wait: only `ci` is supported; run long suites with `chantier gate --long`",
-                            EXIT_USAGE)
+def ship(args) -> list[str]:
+    """The Driver pushed and opened or updated the PR itself; this records the link at the
+    worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
+    passed at this head."""
     repo = Repo.find()
-    batch, _, c = _batch_cr(repo, args.cr, args.batch)
-    if not c.get("pr"):
-        raise ChantierError(f"{args.cr} has no PR yet", EXIT_PRECONDITION)
-    interval = float(os.environ.get("CHANTIER_WAIT_INTERVAL", "60"))
-    pid = os.getpid()  # our own pid only: our process group may hold the Driver's shell
-    _track_pgid(repo, batch, args.cr, pid, True, "pids")
-    deadline = time.monotonic() + args.max
-    try:
-        while True:
-            checks = forge.pr_checks(c.get("worktree") or repo.root, repo.config, c["pr"])
-            pending = [x for x in checks if x.get("bucket") == "pending"]
-            if checks and not pending:
-                failed = [x["name"] for x in checks if x.get("bucket") in {"fail", "cancel"}]
-                result = "fail" if failed else "pass"
-                break
-            if time.monotonic() >= deadline:
-                result, failed = "timeout", []
-                break
-            time.sleep(interval)
-    finally:
-        _track_pgid(repo, batch, args.cr, pid, False, "pids")
-    with Batch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(args.cr), ci={"pass": "green", "fail": "red"}.get(result, "pending"))
-        b.log("wait", args.cr, result=result)
-    lines = [f"ci {result} {c['pr']}"] + ([f"failed: {', '.join(failed)}"] if failed else [])
-    return lines, 0 if result == "pass" else (EXIT_EXTERNAL if result == "fail" else 0)
-
-
-def ci_classify(args) -> list[str]:
-    repo = Repo.find()
-    batch, _, c = _batch_cr(repo, args.cr, args.batch)
-    if not c.get("pr"):
-        raise ChantierError(f"{args.cr} has no PR yet", EXIT_PRECONDITION)
-    cwd = c.get("worktree") or repo.root
-    checks = forge.pr_checks(cwd, repo.config, c["pr"])
-    red = forge.main_failures(cwd, repo.config, repo.config["default_branch"])
-    logs = {x["name"]: forge.failed_log(cwd, repo.config, x.get("link", ""))
-            for x in checks if x.get("bucket") == "fail"}
-    tag = forge.classify(checks, red, logs)
-    with Batch(repo, batch, actor="driver") as b:
-        b.log("ci-classify", args.cr, tag=tag)
-    failed = [x for x in checks if x.get("bucket") in {"fail", "cancel"}]
-    return [tag] + [f"{x['name']} {x.get('link', '')}" for x in failed[:5]]
-
-
-def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
-    """In stack mode, a CR sits on the previous live CR of the stack; else on the default."""
-    default = repo.config["default_branch"]
-    if b_data["mode"] != "stack":
-        return default
-    order = [x for x in sorted(b_data["crs"], key=lambda x: x["order"])
-             if x["status"] not in {"cancelled", "merged", "landed"}]
-    ids = [x["id"] for x in order]
-    i = ids.index(c["id"]) if c["id"] in ids else 0
-    return order[i - 1]["branch"] if i > 0 else default
-
-
-def _ship(repo: Repo, batch: str, cr_id: str, title: str | None = None) -> str:
-    d = read_batch(repo, batch)
-    c = next(x for x in d["crs"] if x["id"] == cr_id)
+    batch, d, c = _batch_cr(repo, args.cr, args.batch)
     wt = _worktree(c)
+    if "://" not in args.pr:
+        raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
+    off = []
     dirty = git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
     if dirty:
         what = ("untracked files" if all(ln.startswith("??") for ln in dirty.splitlines())
                 else "uncommitted changes")
-        raise ChantierError(f"{cr_id}: {what} in the worktree; commit them (or add them to "
-                            f".gitignore) first: "
-                            f"{' '.join(ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()[:5])}")
-    body = _work(repo, c) / "pr-body.md"
-    if not body.is_file():
-        raise ChantierError(f"write {body} before `chantier ship`")
-    remote = repo.config["remote"]
-    if remote not in git("remote", cwd=wt).split():
-        raise ChantierError(f"no remote {remote!r}", EXIT_EXTERNAL)
+        off.append(f"{what} in the worktree, not in the PR: "
+                   f"{' '.join(ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()[:5])}")
+    head = git("rev-parse", "HEAD", cwd=wt)
+    pushed = git("rev-parse", "--verify", "--quiet", f"{repo.config['remote']}/{c['branch']}",
+                 cwd=wt, check=False)
+    if pushed != head:
+        off.append(f"{repo.config['remote']}/{c['branch']} is {'not pushed' if not pushed else 'at ' + pushed[:7]}, "
+                   f"not this head: push with --force-with-lease, then ship again")
+    short = head[:7]
+    if not any(e.get("kind") == "gate" and e.get("result") == "pass" and e.get("head") == short
+               for e in _cr_events(repo, batch, c["id"])):
+        off.append(f"no long gate passed at {short} (`chantier gate`)")
     base = _stack_base(d, c, repo)
-    git("fetch", "--quiet", remote, cwd=wt)
-    onto = f"{remote}/{base}" if base == repo.config["default_branch"] else base
-    rb = subprocess.run(["git", "rebase", onto], cwd=wt, capture_output=True, text=True,
-                        encoding="utf-8", errors="replace",
-                        env={**os.environ, "GIT_EDITOR": "true"})
-    if rb.returncode != 0:
-        subprocess.run(["git", "rebase", "--abort"], cwd=wt, capture_output=True)
-        raise ChantierError(f"{cr_id}: rebase on {onto} failed; aborted: "
-                            f"{rb.stdout.strip()[-200:]}", EXIT_EXTERNAL)
-    git("push", "--quiet", "--force-with-lease", "-u", remote, c["branch"], cwd=wt)
-    if c.get("pr"):
-        forge.pr_edit(wt, repo.config, c["pr"], body_file=str(body), base=base)
-        link, verb = c["pr"], "updated"
-    else:
-        link = forge.pr_create(wt, repo.config, base, c["branch"], title or c["title"], str(body))
-        verb = "opened"
     with Batch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(cr_id), pr=link, ci="pending")
-        b.log("ship", cr_id, pr=link, base=base)
-    return f"{verb} {link} (base {base})"
-
-
-def ship(args) -> list[str]:
-    repo = Repo.find()
-    return [_ship(repo, find_cr_batch(repo, args.cr, args.batch), args.cr, args.title)]
+        b.touch(b.cr(c["id"]), pr=args.pr, head=short)
+        b.log("ship", c["id"], pr=args.pr, base=base, head=short, off=off)
+    return [f"recorded {args.pr} (base {base}, head {short})"] + [f"off: {x}" for x in off]
 
 
 def stack(args) -> list[str]:
+    """The stack's order, as its driver set it; each PR's base follows from it."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
-    if args.action == "order":
-        with Batch(repo, batch, actor="stack") as b:
-            for i, cr in enumerate(args.crs, 1):
-                b.touch(b.cr(cr), order=i)
-            b.log("stack-order", None, crs=args.crs)
-        return [f"stack order: {' → '.join(args.crs)}"]
-    d = read_batch(repo, batch)
-    if d["mode"] != "stack":
-        raise ChantierError(f"batch {batch} is not a stack")
-    affected = []
-    for c in sorted(d["crs"], key=lambda x: x["order"]):
-        if c["status"] in {"cancelled", "merged", "landed"} or not c.get("pr"):
-            continue
-        _ship(repo, batch, c["id"])
-        affected.append(c["id"])
     with Batch(repo, batch, actor="stack") as b:
-        b.log("restack", None, crs=affected)
-    return [f"restacked {len(affected)}: {' '.join(affected) or 'none'}"]
+        if b.data["mode"] != "stack":
+            raise ChantierError(f"batch {batch} is not a stack")
+        for i, cr in enumerate(args.crs, 1):
+            b.touch(b.cr(cr), order=i)
+        b.log("stack-order", None, crs=args.crs)
+    return [f"stack order: {' → '.join(args.crs)}"]
 
 
 def qa(args) -> list[str]:
+    """The QA driver's end: its findings file, with proof in `evidence/`. Findings queue the CR
+    for a round; none makes it ready."""
     repo = Repo.find()
     with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="qa") as b:
         c = b.cr(args.cr)
-        if args.action == "start":
-            b.touch(c, status="qa")
-            b.log("qa-start", args.cr)
-            return ["ok"]
-        if not args.findings:
-            raise ChantierError("qa done <cr> --findings <file> (one finding per bullet)",
-                                EXIT_USAGE)
+        if c["status"] != "qa":
+            raise ChantierError(f"{args.cr} is {c['status']}: not under QA")
         evidence = repo.root / c["path"] / "evidence"
         if not evidence.is_dir() or not any(p.is_file() for p in evidence.rglob("*")):
             raise ChantierError(f"no proof in {_shown(repo, evidence)}: keep what you ran and saw "
                                 "there (commands and their output), findings or not")
         text = Path(args.findings).read_text(encoding="utf-8")
         n = sum(1 for ln in text.splitlines() if ln.lstrip().startswith(("- ", "* ")))
-        c["qa_findings"] = str(Path(args.findings).resolve())
-        b.touch(c)
-        b.log("qa-done", args.cr, findings=n)
-    return [f"qa done {args.cr}: {n} findings; tell the Foreman: "
-            f"[qa {args.cr}→foreman] qa done {args.cr} {n} findings"]
+        path = str(Path(args.findings).resolve())
+        b.log("qa-done", args.cr, findings=n, path=path)
+        if n:
+            c.setdefault("notes", []).append(f"QA found {n} findings: {path}")
+            b.touch(c, status="queued", qa_done=False, qa_agent=None)
+            hint = f"{args.cr} queued for a round on the findings"
+        else:
+            b.touch(c, status="ready", qa_done=True, qa_agent=None)
+            hint = f"{args.cr} ready"
+    return [f"[qa {args.cr}→foreman] qa done {args.cr} {n} findings", hint]
 
 
 def release(args) -> tuple[list[str], int]:
-    """The release CR's irreversible actions: each one is approved by the user, or allowed by the
-    grant the user gave, within the budget."""
+    """The release CR's attempts and its irreversible actions: each one is approved by the user,
+    or allowed by the grant the user gave, within the budget."""
     repo = Repo.find()
     with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
         c = b.cr(args.cr)
         if c.get("kind") != "release":
             raise ChantierError(f"{args.cr} is not the batch's release CR", EXIT_USAGE)
         grant = b.data["release"]
-        if args.action == "start":  # a new attempt: the release is built on what is merged now
-            wt = _worktree(c)
-            if git("status", "--porcelain", cwd=wt):
-                raise ChantierError(f"{args.cr}: uncommitted changes in the worktree; keep what "
-                                    "matters in the work folder, then clean it")
-            ref = _base_ref(repo)
-            git("checkout", "--quiet", "-B", c["branch"], ref, cwd=wt)
-            head = git("rev-parse", "--short", "HEAD", cwd=wt)
-            b.touch(c, attempts=c.get("attempts", 0) + 1, go=None)
-            b.log("release-start", args.cr, head=head)
-            return [f"attempt {c['attempts']}: {c['branch']} at {ref} {head}"], 0
+        if args.action == "start":  # a new attempt, on the branch the Driver set on the base
+            # a merged PR of an earlier attempt is not this one's
+            b.touch(c, attempts=c.get("attempts", 0) + 1, pr=None, head=None)
+            b.log("release-start", args.cr)
+            return [f"attempt {c['attempts']}: the procedure starts from its first step"], 0
         if not (args.note or "").strip():
             raise ChantierError(f"release {args.action} {args.cr} --note \"<…>\"", EXIT_USAGE)
         if args.action == "published":
             grant["published"] = grant.get("published", 0) + 1
             c.setdefault("notes", []).append(f"published: {args.note}")
-            b.touch(c, go=None)
+            b.touch(c)
             b.log("release-published", args.cr, note=args.note)
             return [f"release {grant['published']} published: {args.note}"], 0
         result, why = release_go(b, c, args.note)
         if result == "budget":
             return [f"no: the budget is spent (${b.data.get('spent_usd', 0):.2f} of "
-                    f"${b.data['budget_usd']}); send `[driver {args.cr}→foreman] hand-back blocked "
-                    f"budget: {args.note}` and end"], EXIT_BUDGET
+                    f"${b.data['budget_usd']}); only the user raises it"], EXIT_BUDGET
+        if result == "fix":
+            return [f"no: fix {why} is not merged"], EXIT_PRECONDITION
         if result == "ask":
-            return [f"no approval: send `[driver {args.cr}→foreman] hand-back blocked approval: "
-                    f"{args.note}` and end"], EXIT_PRECONDITION
+            return [f"no approval for: {args.note}; the user's word comes as `order approve`"], \
+                EXIT_PRECONDITION
         return [f"go: {args.note} ({why})"], 0
 
 
-def merge(args) -> list[str]:
-    """chantier merges only what the user allowed: a release's fix under the grant, and the
-    release's own PR after `release go`. The Foreman runs it; when it is refused, the Chief of
-    Staff runs it `--escalated`, then tells the Foreman with `order merged`."""
-    repo = Repo.find()
-    batch, d, c = _batch_cr(repo, args.cr, args.batch)
-    grant = d.get("release") or {}
-    if c.get("kind") == "fix":
-        method = grant.get("auto_merge")
-        if not method:
-            raise ChantierError(f"{args.cr}: the user merges the release's fixes (no auto-merge "
-                                "grant)", EXIT_USAGE)
-        if c["status"] != "ready" or not c.get("pr"):
-            raise ChantierError(f"{args.cr} is {c['status']}: only a ready PR is merged",
-                                EXIT_PRECONDITION)
-    elif c.get("kind") == "release":
-        if not c.get("go") or not c.get("pr"):
-            raise ChantierError(f"{args.cr}: merging the release PR is an irreversible action: "
-                                "`chantier release go` first", EXIT_PRECONDITION)
-        method = c.get("merge_method")
-        if not method:
-            raise ChantierError(f"{args.cr}: its Driver names the method: `hand-back blocked "
-                                "merge: <method>`", EXIT_USAGE)
-    else:
-        raise ChantierError(f"{args.cr}: the user merges; chantier merges only a release's fixes "
-                            "and its own PR, when the user allowed it", EXIT_USAGE)
-    if args.epoch is not None and args.epoch != d.get("foreman_epoch", 0):  # before merging
-        raise ChantierError(f"stale Foreman: epoch {args.epoch}, batch {batch} is at epoch "
-                            f"{d.get('foreman_epoch', 0)}; stop now", EXIT_CONFLICT)
-    forge.pr_merge(c.get("worktree") or repo.root, repo.config, c["pr"], method)
-    with changes_lock(repo):
-        with Batch(repo, batch, actor="chief-of-staff" if args.escalated else "foreman") as b:
-            check_epoch(b, args.epoch)
-            c = b.cr(args.cr)
-            b.log("merge", args.cr, pr=c["pr"], method=method)
-            if args.escalated:
-                return [f"merged {args.cr} {c['pr']} ({method}): now `order merged {args.cr}`"]
-            if c["kind"] == "release":
-                actions = [f"ask-chief-of-staff merged {args.cr} {c['pr']}"] \
-                    + release_merged(b, c, method)
-            else:
-                extra, follow = merged(b, c)
-                actions = [f"ask-chief-of-staff merged {args.cr} {c['pr']}{extra}"] + follow
-            record_asks(b, actions)
-    return [f"merged {args.cr} {c['pr']} ({method})"] + actions
-
-
 def cancel(args) -> list[str]:
+    """A dropped CR, on the user's word: its gate and its stray processes stopped, its folder
+    in the trash with its work."""
     repo = Repo.find()
     with changes_lock(repo):
         with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="foreman") as b:
@@ -994,61 +1128,42 @@ def cancel(args) -> list[str]:
             if c["status"] == "merged":
                 raise ChantierError(f"{args.cr} is merged: nothing to cancel")
             killed = []
-            for pg in c.get("pgids", []):
-                if procs.stop_group(pg):
-                    killed.append(f"pg{pg}")
-            killed += [str(p) for p in procs.stop(c.get("pids", []))]
+            m = re.fullmatch(rf"{re.escape(args.cr)} pid \d+ pg(\d+)", _lock_holder(repo))
+            if m and procs.stop_group(int(m[1])):
+                killed.append(f"pg{m[1]}")
             if c.get("worktree") and Path(c["worktree"]).exists():
                 killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
             trash_cr(b, c)
-            b.touch(c, status="cancelled", agent=None, pgids=[], pids=[])
+            b.touch(c, status="cancelled", agent=None, qa_agent=None)
             b.log("cancel", args.cr, killed=killed, path=c.get("path"))
-            actions = fill_slots(b)
-            record_asks(b, actions)
-    return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + actions
+            done = all_merged(b)
+    return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] \
+        + (["every CR is merged or cancelled: `chantier land`"] if done else [])
 
 
 def land(args) -> list[str]:
+    """The batch's end: the cost is final, the batch's STATUS.md is the report."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
-        live = [c["id"] for c in b.data["crs"] if c["status"] in LIVE]
+        live_ids = [c["id"] for c in b.data["crs"] if c["status"] in LIVE]
         pending = [o["id"] for o in b.data["orders"] if not o["done"]]
         queued = [c["id"] for c in b.data["crs"] if c["status"] == "queued"]
         open_ = [c["id"] for c in b.data["crs"] if c["status"] in {"ready", "blocked"}]
-        if live or pending or queued or open_ or b.data.get("stack_live"):
-            raise ChantierError(f"cannot land {batch}: live {live or '-'}, queued {queued or '-'}, "
+        if live_ids or pending or queued or open_ or b.data.get("stack_agent"):
+            raise ChantierError(f"cannot land {batch}: live {live_ids or '-'}, queued {queued or '-'}, "
                                 f"not merged {open_ or '-'}, orders pending {pending or '-'}, "
-                                f"stack driver {'live' if b.data.get('stack_live') else 'done'}")
-        cleaned, retained = [], []
-        for c in b.data["crs"]:
-            if c["status"] != "merged" or not c.get("worktree"):
-                continue
-            if Path(c["worktree"]).exists():
-                if c.get("kind") == "release" and git("status", "--porcelain", cwd=c["worktree"]):
-                    retained.append(f"{c['id']} worktree (what the procedure left in it)")
-                    continue
-                git("worktree", "remove", c["worktree"], cwd=repo.root)
-                cleaned.append(c["id"])
-            if git("rev-parse", "--verify", "--quiet", c["branch"], cwd=repo.root, check=False):
-                result = subprocess.run(["git", "branch", "-d", c["branch"]], cwd=repo.root,
-                                        capture_output=True, text=True, encoding="utf-8",
-                                        errors="replace")
-                if result.returncode:
-                    retained.append(f"{c['id']} branch ({result.stderr.strip()})")
+                                f"stack driver {b.data.get('stack_agent') or 'none'}")
         try:
             rows = _cost_rows(repo, b.data, b.data["host"], _foreman_uuid(b.data))
             _record_costs(repo, b, rows)
             summary = _cost_summary(b.data, rows, _cost_groups(repo, batch, rows, "cr"))
         except ChantierError as e:  # never a false $0.00
             summary = [f"Spent: unknown ({e})"]
-        b.data.update(status="landed", landed=now(), retained=retained, summary=summary)
-        b.log("land", None, cleaned=cleaned, retained=retained)
-    lines = [f"landed {batch}: cleaned {len(cleaned)} worktrees", f"report: {b.dir / 'STATUS.md'}"]
-    if retained:
-        lines.append(f"left for the user: {'; '.join(retained)}")
-    return lines
+        b.data.update(status="landed", landed=now(), summary=summary)
+        b.log("land", None)
+    return [f"landed {batch}", f"report: {b.dir / 'STATUS.md'}"]
 
 
 def _landed_batch(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
@@ -1063,29 +1178,22 @@ def _landed_batch(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
 
 
 def close(args) -> tuple[list[str], int]:
-    """The batch's folder goes, and what a dropped CR left: the Chief of Staff shows this to the
-    user first, and passes `--yes` on their word. Without it, nothing is touched."""
+    """The batch's folder goes: the Chief of Staff shows the user what would go, with the
+    dropped CRs' worktrees and branches it removes itself on the same word, and passes `--yes`.
+    Without it, nothing is touched."""
     repo = Repo.find()
     with changes_lock(repo):
         batch, folder, d = _landed_batch(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
-        left = [p.name for p in folder.iterdir() if p.is_dir()]
-        if left:
-            raise ChantierError(f"{folder.name} still holds {', '.join(left)}: nothing was deleted")
-        dropped = [c for c in d["crs"] if c["status"] == "cancelled"]
-        trees = [c["worktree"] for c in dropped if c.get("worktree")
-                 and Path(c["worktree"]).exists()]
-        branches = [c["branch"] for c in dropped if c.get("branch") and git(
-            "rev-parse", "--verify", "--quiet", c["branch"], cwd=repo.root, check=False)]
-        plan = [f"folder {_shown(repo, folder)}", *(f"worktree {t}" for t in trees),
-                *(f"branch {n}" for n in branches)]
+        held = [p.name for p in folder.iterdir() if p.is_dir()]
+        if held:
+            raise ChantierError(f"{folder.name} still holds {', '.join(held)}: nothing was deleted")
+        dropped = [f"{c['id']} worktree {c['worktree']} branch {c['branch']}"
+                   for c in d["crs"] if c["status"] == "cancelled"]
+        lines = [f"close {batch} deletes the folder {_shown(repo, folder)}",
+                 "the dropped CRs, to remove on the same word where they still exist "
+                 f"(`git worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}"]
         if not args.yes:
-            return [f"close {batch} would delete:", *plan, "left for the user: "
-                    f"{'; '.join(d.get('retained', [])) or 'nothing'}",
-                    "ask the user, then `chantier close --yes`"], 0
-        for tree in trees:
-            git("worktree", "remove", "--force", tree, cwd=repo.root)
-        for name in branches:
-            git("branch", "-D", name, cwd=repo.root)
+            return lines + ["ask the user, then `chantier close --yes`"], 0
         going = folder.with_name(f".closing-{folder.name}")
         try:  # a rename fails whole on a file in use; a delete would stop halfway
             _retry(os.replace, folder, going)
@@ -1094,13 +1202,15 @@ def close(args) -> tuple[list[str], int]:
                                 f"{e}", EXIT_EXTERNAL) from e
         shutil.rmtree(going)
         write_dashboard(repo, stage_layout(repo))
-    return [f"closed {batch}: deleted {len(plan)} items"], 0
+    return [f"closed {batch}: the folder is deleted"] + lines[1:], 0
 
+
+# ---- cost -------------------------------------------------------------------------------------
 
 def _cost_rows(repo: Repo, d: dict, host: str, uuid: str) -> list[dict]:
     if host == "copilot":
         return costs.copilot_session_costs(uuid)
-    return costs.session_costs(costs.transcript_path(repo.root, uuid, d["settings"]))
+    return costs.session_costs(costs.transcript_path(repo.root, uuid))
 
 
 def _foreman_uuid(d: dict) -> str:
@@ -1110,11 +1220,9 @@ def _foreman_uuid(d: dict) -> str:
 
 
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
-    """Calls and dollars, by role or by CR."""
+    """Calls and dollars, by agent type (the role, as the host names the agent) or by CR."""
     agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
-    events = repo.batch_dir(batch) / "events.jsonl"
-    for line in events.read_text(encoding="utf-8").splitlines() if events.exists() else []:
-        e = json.loads(line)
+    for e in read_events(repo.batch_dir(batch)):
         if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":
             agent_cr[e["agent"]] = e["cr"].removeprefix("qa:")
     parents = {r["agent"]: r.get("parent") for r in rows}
@@ -1138,19 +1246,16 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
     return groups
 
 
-def _orchestrates(role: str) -> bool:
-    """The Foreman and the Drivers that only run others; a QA driver does the work itself."""
-    name = role.rsplit(":", 1)[-1]
-    return name == "foreman" or (name in DRIVERS and name != "qa-driver")
-
-
 def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str]:
-    """What the user reads at the end of a batch; the detail is in `cost --by`."""
+    """What the user reads at the end of a batch; the detail is in `cost --by`. Orchestration
+    is the Foreman and every agent that started another one, from the transcripts' parent
+    links; the rest is work."""
     total = sum(r["usd"] for r in rows)
     budget = d.get("budget_usd")
-    run = sum(r["usd"] for r in rows if _orchestrates(r["type"]))
+    parents = {r.get("parent") for r in rows if r.get("parent")}
+    run = sum(r["usd"] for r in rows if r["agent"] == "main" or r["agent"] in parents)
     share = round(100 * run / total) if total else 0
-    top =sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
+    top = sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
     foreman = next((r for r in rows if r["agent"] == "main" and r.get("wakes")), None)
     wakes = [f"Foreman: {foreman['wakes']} wakes, context "
              f"{foreman['wake_context'] // foreman['wakes']:,} tokens on average, "
@@ -1164,21 +1269,18 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str
 
 
 def cost(args) -> list[str]:
+    """The batch's spend, read from the Foreman's transcript on the batch's host; `status
+    --refresh` and `land` record it."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     d = read_batch(repo, batch)
-    host = detect_host(args.host)[0] if args.host else d["host"]
-    uuid = args.transcript or d.get("foreman_transcript")
+    uuid = d.get("foreman_transcript")
     if not uuid:
-        var = "$COPILOT_AGENT_SESSION_ID" if host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
+        var = "$COPILOT_AGENT_SESSION_ID" if d["host"] == "copilot" else "$CLAUDE_CODE_SESSION_ID"
         raise ChantierError(f"no Foreman transcript recorded: the Foreman runs "
                             f"`chantier foreman transcript {var}`")
-    rows = _cost_rows(repo, d, host, uuid)
+    rows = _cost_rows(repo, d, d["host"], uuid)
     total = sum(r["usd"] for r in rows)
-    if args.update:
-        with Batch(repo, batch, actor="foreman") as b:
-            b.data["spent_usd"] = round(total, 4)
-            b.log("cost", None, usd=total)
     if args.summary:
         return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"))
     groups = _cost_groups(repo, batch, rows, args.by)

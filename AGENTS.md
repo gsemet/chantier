@@ -6,11 +6,17 @@
   chantier writes only in `.agents/changes/`, as plain JSON and Markdown.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
   per role and host: change a role on both hosts together; their bodies must stay identical.
-- A role's contract lives in `skills/chantier/references/` and travels in the prompt
-  `chantier spawn` prints, never in an agent file.
+- A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file
+  or in the CLI: the parent that starts an agent names the card in its prompt. A card says what
+  the role judges; the CLI (`rails.py`) says what it refuses; a user's project rules rank above
+  both. The CLI knows no role.
+- The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
+  to synchronise, and a few tools. The agents do the work, git and the forge included; a new
+  CLI tool comes from measured token-costly behaviour, never from speculation.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI has no dependencies and must stay portable (POSIX and Windows, UTF-8 everywhere).
 - Tests check the structure only (`tests/test_structure.py`): keep them few and fast; the batch
   workflow belongs to `just scenario`.
-- Fail, never improvise: no fallback model, tool, agent or workaround in the skill or the CLI.
+- No fallback: no look-alike model, tool or agent and no workaround in the skill or the CLI; an
+  agent judges freely within what it has.
 - Repository text in English. See [CONTRIBUTING.md](CONTRIBUTING.md).

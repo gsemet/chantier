@@ -25,10 +25,14 @@ PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|th
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
-EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(event|heartbeat|cancel|land)\b|agents set")
+EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(status --refresh|cancel|land|take)\b|agents set"
+                            r"|order (done|merged)")
+PLUGIN_AGENT = "chantier:{role}"  # the Claude plugin's agent for a role; a project names its own
 WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
 FORGE_ALLOWED = (["pr", "create"], ["pr", "edit"], ["pr", "checks"], ["pr", "view"],
-                 ["run", "list"], ["run", "view"])
+                 ["run", "list"], ["run", "view"], ["run", "rerun"])
+GIT_WRITES = re.compile(r"git\s+(commit|push|rebase|merge)\b(?!-)")
+OWN_FILES = ("/work/", "/evidence/")  # a worker's notes and proof, in the CR's folder
 
 
 def records(path: Path):
@@ -82,27 +86,27 @@ class Agent:
 
 def facts(data: dict, events: list[dict]) -> None:
     """What happened to each CR, from the event log: the part of the report anyone can read."""
-    per: dict[str, dict] = defaultdict(lambda: {"ci": [], "tags": [], "blocked": [], "notes": 0})
+    per: dict[str, dict] = defaultdict(lambda: {"gates": [], "ships": 0, "blocked": [], "notes": 0})
     for e in events:
         cr = e.get("cr")
         if not cr:
             continue
-        if e.get("kind") == "wait":
-            per[cr]["ci"].append(e.get("result"))
-        elif e.get("kind") == "ci-classify":
-            per[cr]["tags"].append(e.get("tag"))
-        elif e.get("kind") == "event" and e.get("event") == "hand-back-blocked":
+        if e.get("kind") == "gate":
+            per[cr]["gates"].append(e.get("result"))
+        elif e.get("kind") == "ship":
+            per[cr]["ships"] += 1
+        elif e.get("kind") == "handback" and e.get("result") == "blocked":
             per[cr]["blocked"].append(e.get("note", ""))
-        elif e.get("kind") == "report" and e.get("report") == "note":
+        elif e.get("kind") == "note":
             per[cr]["notes"] += 1
     print("## What happened to each CR\n")
-    print("| CR | Title | Ended | Rounds | CI runs | CI red classified | Blocked |")
-    print("| --- | --- | --- | ---: | --- | --- | --- |")
+    print("| CR | Title | Ended | Rounds | Long gates | Ships | Notes | Blocked |")
+    print("| --- | --- | --- | ---: | --- | ---: | ---: | --- |")
     for c in sorted(data["crs"], key=lambda c: c["order"]):
         p = per[c["id"]]
         print(f"| {c['id']} | {c['title']} | {c['status']} | {c['round']} | "
-              f"{', '.join(p['ci']) or '-'} | {', '.join(p['tags']) or '-'} | "
-              f"{'; '.join(b[:60] for b in p['blocked']) or '-'} |")
+              f"{', '.join(p['gates']) or '-'} | {p['ships']} | "
+              f"{p['notes']} | {'; '.join(b[:60] for b in p['blocked']) or '-'} |")
     print()
 
 
@@ -132,34 +136,49 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
     print(f"\nThe Foreman's peak context: {foreman.peak:,} tokens (the user's settings set its "
           "window).\n")
 
-    reviews = data["settings"].get("reviews", {})
-    custom = data["settings"].get("agents", {})
+    # the team is the project's `chantier` section, read by the Chief of Staff: a built-in role
+    # runs the plugin's agent unless that section names another; any other role is a review step
+    reviews = {a.role for a in agents if a.role and a.role not in DRIVERS | WORKERS}
     for a in agents:
-        expected = (reviews[a.role]["agent"] if a.role in reviews else custom.get(a.role)
-                    or f"chantier:{a.role}")
         check(a.role is not None, f"{a.id[:10]} ({a.type}) starts with a `chantier <role>` prompt")
         if a.role:
-            check(a.type == expected, f"{a.id[:10]} runs {expected} for its role {a.role}")
+            check(a.type == PLUGIN_AGENT.format(role=a.role) or not a.type.startswith("chantier:"),
+                  f"{a.id[:10]} runs the plugin's agent for {a.role}, or the project's own ({a.type})")
             card = "driver.md" if a.role in DRIVERS else "worker.md"
             check(f"references/{card}" in a.prompt, f"{a.id[:10]} is told to read {card}")
+            check("$CHANTIER rules" in a.prompt, f"{a.id[:10]} is told the project's rules rank first")
             parent_ok = (a.parent is foreman) if a.role in DRIVERS else \
                 (a.parent is not None and a.parent.role in DRIVERS)
             check(parent_ok, f"{a.id[:10]} ({a.role}) was started by "
                              f"{'the Foreman' if a.role in DRIVERS else 'a Driver'}")
-        if a.role in WORKERS | set(reviews):
-            commits = [c for c in a.bash() if re.search(r"git\s+(commit|push|merge)\b(?!-)", c)]
+        if a.role in WORKERS | reviews:
+            commits = [c for c in a.bash() if GIT_WRITES.search(c)]
             check(not commits or a.role == "conflict-resolver",
                   f"{a.id[:10]} ({a.role}) never commits, pushes or merges")
-        if a.role in READ_ONLY | set(reviews):
-            outside = [w for w in a.writes() if "/work/" not in w.replace("\\", "/")]
-            check(not outside, f"{a.id[:10]} ({a.role}) edits nothing but its notes"
+        if a.role in DRIVERS:
+            pushes = [c for c in a.bash() if re.search(r"git\s+push\b", c)]
+            check(all("--force-with-lease" in c or "-u" in c or "--set-upstream" in c
+                      for c in pushes),
+                  f"{a.id[:10]} ({a.role}) pushes with a lease or a first upstream, never --force")
+            adds = [c for c in a.bash() if re.search(r"git\s+add\s+(-A|--all|\.)(\s|$)", c)]
+            check(not adds, f"{a.id[:10]} ({a.role}) stages explicit paths only")
+            merges = [c for c in a.bash() if re.search(r"\bgh pr merge\b|\bglab mr merge\b", c)]
+            check(not merges, f"{a.id[:10]} ({a.role}) merges nothing: the Foreman does")
+        if a.role in WORKERS | {"qa-driver"} | reviews:
+            trees = [c for c in a.bash() if re.search(r"git\s+worktree\s+add\b", c)]
+            check(not trees, f"{a.id[:10]} ({a.role}) creates no worktree: the Driver did")
+        if a.role in READ_ONLY | reviews:
+            outside = [w for w in a.writes()
+                       if not any(own in w.replace("\\", "/") for own in OWN_FILES)]
+            check(not outside, f"{a.id[:10]} ({a.role}) edits nothing but its notes and proof"
                                + (f": {outside[:2]}" if outside else ""))
         if a.type.startswith("chantier:"):
             check(a.peak <= WINDOW, f"{a.id[:10]} ({a.type}) stays within its {WINDOW:,}-token "
                                     f"window (peak {a.peak:,})")
         if a.role in DRIVERS:
             # the Release driver writes what the procedure says (a changelog), never the code
-            code = [w for w in a.writes() if "/work/" not in w.replace("\\", "/")
+            code = [w for w in a.writes()
+                    if not any(own in w.replace("\\", "/") for own in OWN_FILES)
                     and (a.role != "release-driver" or re.search(r"[/\\](src|tests)[/\\]", w))]
             check(not code, f"{a.id[:10]} ({a.role}) writes no code itself"
                             + (f": {code[:2]}" if code else ""))
@@ -167,8 +186,24 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
         hand = [w for w in who.writes() if w.endswith(("batch.json", "events.jsonl"))]
         check(not hand, f"{who.id[:10]} never edits batch.json or events.jsonl by hand")
     no_epoch = [c for c in foreman.bash() if EPOCH_COMMANDS.search(c) and "--epoch" not in c]
-    check(not no_epoch, "every Foreman event, heartbeat, agents set, cancel and land carries its "
-                        f"epoch{': ' + no_epoch[0][:80] if no_epoch else ''}")
+    check(not no_epoch, "every Foreman refresh, take, agents set, order done or merged, "
+                        f"cancel and land carries its epoch{': ' + no_epoch[0][:80] if no_epoch else ''}")
+    foreman_git = [c for c in foreman.bash() if GIT_WRITES.search(c)
+                   or re.search(r"git\s+worktree\s+add\b", c)]
+    check(not foreman_git, "the Foreman never commits, pushes, rebases or creates a worktree"
+                           + (f": {foreman_git[0][:80]}" if foreman_git else ""))
+    made = {a.what for a in agents if a.role in ("cr-driver", "release-driver")
+            and any(re.search(r"git\s+worktree\s+add\b", c) for c in a.bash())}
+    check(all(c["id"] in made for c in data["crs"] if c["status"] == "merged"),
+          f"each merged CR's worktree was created by one of its Drivers ({sorted(made)})")
+    removed = [c for c in foreman.bash() if re.search(r"git\s+worktree\s+remove\b", c)]
+    check(removed, "the Foreman removed the merged CRs' worktrees before landing")
+    rules = [c for c in foreman.bash() if re.search(r"chantier\.py\"?\s+rules\b", c)]
+    check(rules, "the Foreman read the project's rules (`chantier rules`)")
+    for a in agents:
+        if a.role in ("cr-driver", "release-driver"):
+            ci = [c for c in a.bash() if re.search(r"\bgh pr checks\b|\bglab ci\b", c)]
+            check(ci, f"{a.id[:10]} ({a.role}) read its PR's checks with the forge's CLI")
     roles = Counter(a.role for a in agents)
     coded = [c for c in data["crs"] if c.get("kind") != "release"]
     check(roles["cr-driver"] >= len(coded), f"a CR Driver per CR ({roles['cr-driver']} for "
@@ -194,8 +229,12 @@ def release_checks(data: dict, events: list[dict], ws: Path, calls: list[dict], 
     allowed = {x["pr"].rsplit("/", 1)[-1] for x in data["crs"]
                if x.get("kind") in ("release", "fix") and x.get("pr")}
     merged = [r["args"][2].rsplit("/", 1)[-1] for r in calls if r["args"][:2] == ["pr", "merge"]]
-    check(merged and set(merged) <= allowed, f"chantier merged only the release and its fixes "
+    check(merged and set(merged) <= allowed, f"the Foreman merged only the release and its fixes "
                                              f"(PRs {merged}, allowed {sorted(allowed)})")
+    recorded = [e for e in events if e.get("kind") == "order" and e.get("order_kind") == "merged"
+                and e.get("actor") == "foreman"]
+    check(len(recorded) >= len(merged), "each of the Foreman's merges is recorded with "
+                                        f"`order merged --epoch` ({len(recorded)} for {len(merged)})")
 
 
 def main() -> int:

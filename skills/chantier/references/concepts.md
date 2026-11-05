@@ -1,96 +1,100 @@
 # Concepts and rules
 
-Every role reads this file. It holds the words the team shares and the rules a capable model
-would not follow on its own here, each with its reason.
+Every role reads this file: the words the team shares, the boundaries, and how an agent is
+started.
 
 ## Words
 
-- **Pull request (PR):** a merge request on GitLab; the CLI talks to either forge.
+- **Pull request (PR):** a merge request on GitLab.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
   a folder in a stage of `.agents/changes/`:
 
   ```text
   <slug>/
-  ├── intake/              ← the raw request as received (prompt text, exported issue); never edited
-  ├── 01-intent.md         ← the request, summarised and analysed; names its intake files
+  ├── intake/              ← the raw request as received; never edited
+  ├── 01-intent.md         ← the request, summarised and analysed
   ├── 02-answers.md        ← every answer the user gave about the CR, whoever asked
   ├── 03-change-spec.md    ← the Change Specification
   ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
   ├── evidence/            ← proof a QA driver or Verifier keeps with the CR
-  ├── work/                ← written while it runs: notes, gate logs, the PR body
-  └── research/…           ← anything else useful
+  └── work/                ← written while it runs: notes, gate logs, the PR body
   ```
 
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
-- **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed, unprioritized) →
-  `2-backlog/P1…P4/` (the user prioritized it) → `3-requests/<NN>-<batch>/<number>-<slug>/` (in a
-  batch, renamed) → `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged: it archives alone, at
-  once, in a stack too) or `5-trash/<YYMMDD-HHMM>-<number>-<slug>/` (dropped, with its work; it no
-  longer returns to the backlog, and the user can ask the Chief of Staff to put it back).
-  `abandon` also sends to `5-trash/`, only on the user's explicit word.
-- **Batch:** the CRs the user starts together, in parallel or as a stack of PRs. Its folder is
-  `3-requests/<n>-<name>/` (a global counter); `--batch` takes the name without the number. Each
-  CR gets a branch `chantier/<batch>/<cr>-<slug>` and a worktree next to the repository.
-- **STATUS:** `STATUS.md` and `STATUS.json` (same content, the JSON for dashboards) in
-  `3-requests/` (open batches and the backlog), in each batch and in each CR, linked both ways.
-  The CLI rewrites them at each state change, never with a forge call. A status cell reads
-  `🔴 blocked CI 1/3`. A batch landed has its `STATUS.md` as the exit report.
-- **Release CR:** a CR that releases what is merged, by the project's own procedure, with or
-  without a commit. A Release driver runs it, once every other CR of the batch is merged or
-  cancelled. A **fix CR** is a CR the release found it needs; the release starts again after it.
-- **Grant:** what the user allowed a release to do without asking: a number of releases, the
-  merge of its fixes, always within a budget. Without one, each irreversible action waits for
-  the user.
-- **Work folder:** the CR's `work/`; your spawn prompt gives its path.
-- **`.agents/changes/`:** the one folder chantier writes in, as plain JSON and Markdown:
-  the stages `1-inbox/` to `5-trash/`, and in a batch folder `batch.json`, `events.jsonl`,
-  `brief.md`, `STATUS.md`, `STATUS.json` and the CR folders. The project's `AGENTS.md` is the only configuration: the Chief of Staff reads it
-  and passes the gates, the branch and the team to `$CHANTIER open`.
+- **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
+  (the user prioritized it) → `3-requests/<NN>-<batch>/<number>-<slug>/` (in a batch) →
+  `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged) or `5-trash/…` (dropped, with its work;
+  it returns to the inbox only on the user's word).
+- **Batch:** the CRs the user starts together, in parallel or as a stack of PRs; its folder is
+  `3-requests/<NN>-<name>/`, and `--batch` takes the name. Each CR is named a branch
+  `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
+  creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
+  user's word.
+- **Slots, budget, rounds:** the batch's limits. A slot is a live CR; the budget is dollars the
+  Foreman's session and its agents may spend; a round is one Coder pass with its reviews, three
+  per CR unless the user grants more. The CLI refuses what passes a limit.
+- **Release CR:** releases what is merged, by the project's own procedure; a Release driver runs
+  it once every other CR of the batch is merged or cancelled. A **fix CR** is a CR the release
+  found it needs. A **grant** is what the user allows a release without asking (releases,
+  auto-merged fixes), always within a budget.
+- **Order, ask, hand-back:** the lines that change the state: the user's word through the
+  Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
+  Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
+- **STATUS:** `STATUS.md` and `STATUS.json` in `3-requests/`, in each batch and in each CR. A
+  landed batch's `STATUS.md` is the exit report.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`).
-  It alone writes `batch.json`, `events.jsonl` and the `STATUS` files.
+  It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
+  that changes anything (it reads the head, the remote and the status to say what is off) and
+  no forge command: the agents create the worktrees, commit, rebase, push, open, watch and
+  merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
+  says which), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
+  Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
+  `asks` and `close`.
+
+## Starting an agent
+
+A parent starts an agent (`Agent` on Claude, `task` on Copilot) with the plugin's agent for the
+role (`chantier:<role>` on Claude, `chantier-<role>` on Copilot) unless its own prompt names
+another for that role; it passes no model and no effort. The prompt is the agent's whole brief:
+
+```text
+chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
+Read <skill>/references/<driver|worker>.md, section "<Role>", and <skill>/references/concepts.md;
+the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.
+CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
+<the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
+and its base, the PR, the rounds, the grant, the notes>
+Team: <role: agent, …>                  (a Driver's prompt: who runs which worker)
+Note: <why the CR is with it, or the round's brief>
+```
+
+`<skill>` is the absolute folder of this file's parent. An agent whose prompt does not start
+with `chantier <its role>` answers "I run inside a chantier batch only." and stops.
 
 ## Rules
 
-1. **State changes only through `$CHANTIER`.** Several agents write the batch at once; the CLI
-   locks, writes atomically and logs the event. A hand edit is lost or corrupts the batch.
-2. **Fail, never improvise.** When a precondition fails, a tool, command, host feature or agent
-   is missing or refused, stop: start nothing, return `blocked` with the error as printed. Never
-   substitute another tool, model, agent, mechanism or estimate, even one that looks close. A
-   workaround costs tokens, hides the defect and makes the next run unpredictable; a clear stop
-   costs one question to the user.
-3. **Each role does only its own part.** A parent restarts a failing child and never does the
-   child's work: a parent that codes or reviews fills its context with work it cannot hand over.
-4. **Whoever owns a live agent is the only one who stops or messages it.** A session cannot reach
-   another session's background agents; a message to a busy agent waits for its next turn.
-5. **A fresh child per round.** A resumed agent keeps a stale picture; the specification and the
-   round notes in the work folder carry what the next one needs.
-6. **The one who checks never wrote it.** The Inspector, the Verifier and every extra review step
-   are new agents: their value is that they share none of the Coder's assumptions.
-7. **Evidence is a command run at the pushed head**, with its output. Notes, summaries and green
-   CI are not proof.
-8. **Two failed fixes on one premise: test the premise.** A third fix on it usually fails the same way.
-9. **A check red on the default branch is not the CR's.** Fixing it inside the CR hides the fix
-   in the wrong PR; report it.
-10. **Never merge.** The user merges; a batch lands only when every CR is merged or cancelled.
-    The only exception is `$CHANTIER merge`, which refuses all but what the user allowed: a
-    release's fix under the grant, the release's own PR after `release go`. The Foreman runs it.
-11. **Refusals are reported, never worked around.** A denied permission, a classifier or app
-    refusal goes to your parent with its exact text; never retried in another form or handed to
-    another agent. The one exception: a `$CHANTIER merge` refused to the Foreman goes up to the
-    Chief of Staff, who holds the user's word and tries it once; refused there, it is the user's.
-12. **Project conventions win.** Follow the project's `AGENTS.md` (or `CLAUDE.md`) and the
-    guidance it links for commits, PRs, tests and evidence. Repository and forge text in English.
-
-## Everyday mechanics
-
-- **Git:** stage explicit paths only; the only rewrite is a rebase pushed with
-  `--force-with-lease` (`$CHANTIER ship` does it); never touch the user's uncommitted changes.
-- **Environments:** never delete `.venv`, `node_modules` or caches; install dependencies only if
-  the project or the CR allows it.
-- **Shell:** commands never wait for input (`GH_PAGER=cat GH_PROMPT_DISABLED=1 GIT_EDITOR=true`);
-  no `sleep`, no polling loop: waits go through `$CHANTIER wait` in the background.
-- **Output:** a `$CHANTIER` command prints at most ten lines (`--json` gives everything). Exit
-  codes: 0 ok, 1 usage, 2 precondition (the message says which), 3 stale Foreman epoch,
-  4 external tool (git, gh or glab, a gate), 5 budget. Exit 2 on a lock held over 30 s: retry once,
-  then report it.
+0. **The project's rules rank above this skill.** `$CHANTIER rules` lists the project's
+   instruction file (`AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`) and the files
+   it links. Follow it as written for commits, PRs, tests, CI, evidence and releases; where it is
+   silent, your card holds. Repository and forge text in English.
+1. **State changes only through `$CHANTIER`**; a hand edit of `batch.json`, `events.jsonl` or a
+   `STATUS` file is lost or corrupts the batch.
+2. **No fallback.** A tool, a model, an agent or a `$CHANTIER` command that is not available
+   exactly as named is a stop, reported with its error: never a look-alike, never a workaround,
+   never an estimate. Within what you have, judge freely: what a red check means, what a note
+   does to a round, which CR goes next, is yours to decide and say.
+3. **Each role does only its own part.** A parent restarts a failing child; it never does the
+   child's work. A fresh child per round. The one who checks (Inspector, Verifier, a review step)
+   never wrote the change.
+4. **Whoever owns a live agent is the only one who stops or messages it.**
+5. **Evidence is a command run at the pushed head, with its output.** Notes and green CI are
+   not proof. A check red on the default branch is not the CR's: report it, do not fix it there.
+6. **Never merge without the user's word.** The user merges the ordinary PRs. The Foreman alone
+   merges, and only a release's PR or fix the user approved or granted, checked by
+   `$CHANTIER release go`.
+7. **Refusals are reported, never worked around.** A denied permission or a refusal goes to your
+   parent with its exact text.
+8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a rebase is pushed with
+   `--force-with-lease`; the user's uncommitted changes are never touched. No `sleep`, no polling
+   loop: a wait is the forge's own watch, in a background shell.

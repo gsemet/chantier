@@ -1,12 +1,13 @@
-"""A local forge for the live eval, called as `gh` (through `CHANTIER_GH`).
+"""A local forge for the live eval, called as `gh` (first on the agents' `PATH`).
 
 Pull requests live in $FAKE_GH_STATE; branches in the bare repository $LIVE_ORIGIN. A PR's checks
 are real: the long gate runs on the PR's head in a fresh clone, once per commit. With
 $LIVE_CI_CONTRACTS (a folder holding `contracts.json`, `{"<word>": "<test file>"}`), a branch
 whose name contains a word also gets that test file in its clone's `tests/`: a contract only CI
-checks. Every call is logged in `<state>.calls`. `pr merge --rebase` merges a PR whose head is
-green, for `chantier merge`; the audit checks that only what the user allowed was merged. Anything
-else an agent must never do here (close, say) is refused, and the log keeps it for the audit.
+checks. Every call is logged in `<state>.calls`. The Drivers open and edit the PRs and watch
+their checks (`pr checks --watch`); `pr merge --rebase` merges a PR whose head is green, for the
+Foreman; the audit checks that only what the user allowed was merged. Anything else an agent
+must never do here (close, say) is refused, and the log keeps it for the audit.
 """
 from __future__ import annotations
 
@@ -110,10 +111,37 @@ def merge(state: dict, n: str, method: str) -> str | None:
     return None
 
 
+def body_of(args: list[str]) -> str | None:
+    if flag(args, "--body-file"):
+        return Path(flag(args, "--body-file")).read_text(encoding="utf-8")
+    return flag(args, "--body")
+
+
+def print_checks(args: list[str], checks: list[dict]) -> None:
+    """As `gh` does: a table, or JSON with `--json`."""
+    if "--json" in args:
+        print(json.dumps(checks))
+    else:
+        for c in checks:
+            print(f"{c['name']}\t{c['bucket']}\t{c['link']}")
+
+
 def main(args: list[str]) -> int:
     with open(STATE.with_suffix(".calls"), "a", encoding="utf-8") as log:
         log.write(json.dumps({"t": time.strftime("%H:%M:%S"), "cwd": os.getcwd(),
                               "args": args}) + "\n")
+    while True:
+        with Locked():
+            state = load()
+            if args[:2] == ["pr", "checks"]:  # outside the lock while it waits
+                n = pr_number(args[2])
+                sha = head_sha(state["prs"][n]["head"])
+                first = state.setdefault("seen", {}).setdefault(sha, time.time())
+                save(state)
+                pending = time.time() - first < DELAY  # CI takes a while, as a real one does
+            if not (args[:2] == ["pr", "checks"] and pending and "--watch" in args):
+                break
+        time.sleep(1)
     with Locked():
         state = load()
         if args[:2] == ["pr", "create"]:
@@ -121,29 +149,28 @@ def main(args: list[str]) -> int:
             state["next_pr"] += 1
             state["prs"][n] = {"head": flag(args, "--head"), "base": flag(args, "--base"),
                                "title": flag(args, "--title"), "state": "open",
-                               "body": Path(flag(args, "--body-file")).read_text(encoding="utf-8")}
+                               "body": body_of(args) or ""}
             save(state)
             print(f"{URL}/pull/{n}")
         elif args[:2] == ["pr", "edit"]:
             pr = state["prs"][pr_number(args[2])]
             if flag(args, "--base"):
                 pr["base"] = flag(args, "--base")
-            if flag(args, "--body-file"):
-                pr["body"] = Path(flag(args, "--body-file")).read_text(encoding="utf-8")
+            if flag(args, "--title"):
+                pr["title"] = flag(args, "--title")
+            if body_of(args) is not None:
+                pr["body"] = body_of(args)
             save(state)
             print(args[2])
         elif args[:2] == ["pr", "checks"]:
-            n = pr_number(args[2])
-            sha = head_sha(state["prs"][n]["head"])
-            first = state.setdefault("seen", {}).setdefault(sha, time.time())
-            if time.time() - first < DELAY:  # CI takes a while, as a real one does
-                save(state)
-                print(json.dumps([{"name": "pytest", "bucket": "pending", "link": ""}]))
+            if pending:
+                print_checks(args, [{"name": "pytest", "bucket": "pending", "link": ""}])
                 return 0
             ci = run_ci(state, sha, state["prs"][n]["head"])
             save(state)
-            print(json.dumps([{"name": "pytest", "bucket": ci["bucket"],
-                               "link": f"{URL}/actions/runs/{ci['run']}/job/1"}]))
+            print_checks(args, [{"name": "pytest", "bucket": ci["bucket"],
+                                 "link": f"{URL}/actions/runs/{ci['run']}/job/1"}])
+            return 0 if "--json" in args or ci["bucket"] == "pass" else 1  # as `gh` does
         elif args[:2] == ["pr", "merge"]:
             problem = merge(state, pr_number(args[2]), args[3] if len(args) > 3 else "")
             if problem:
@@ -162,6 +189,8 @@ def main(args: list[str]) -> int:
         elif args[:2] == ["run", "view"]:
             run = int(args[2])
             print(next((c["log"] for c in state["ci"].values() if c["run"] == run), ""))
+        elif args[:2] == ["run", "rerun"]:  # CI is deterministic here: the same result again
+            print(f"rerun {args[2]}")
         else:
             print(f"fake forge: `gh {' '.join(args)}` is not allowed here", file=sys.stderr)
             return 1

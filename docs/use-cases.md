@@ -8,10 +8,10 @@ chantier? Start with the [tutorial](tutorial-claude-code.md).
 > "chantier, prepare yourself to work on this project."
 
 The Chief of Staff reads `AGENTS.md` (or `CLAUDE.md`, or `.github/copilot-instructions.md`) and
-tells you the gates and the default branch it will use. It asks about what the instructions leave
-open, with a recommended answer, and offers to write that answer in `AGENTS.md`. There is no other
-configuration: it reads `AGENTS.md` again at every session, and chantier writes only in
-`.agents/changes/`.
+tells you how it will build, test, ship, merge and release here, and on which branch. It asks
+about what the instructions leave open (a long gate, say), with a recommended answer, and offers
+to write that answer in `AGENTS.md`. There is no other configuration: every agent reads
+`AGENTS.md`, at every session, and chantier writes only in `.agents/changes/`.
 
 ## Turn ideas into ready work
 
@@ -40,19 +40,20 @@ starts until you answer. In the morning:
 
 > "These three depend on each other: build them as a stack."
 
-Each PR is based on the one below it. When every CR is ready, a stack driver orders and rebases
-the stack, and heavy CI runs once at the top. After each merge you report, it restacks the rest.
+Each PR is based on the one below it. When every CR is ready, a stack driver orders the stack,
+rebases and pushes each PR on the one below it, and heavy CI runs once at the top. After each
+merge you report, it restacks the rest.
 
 ## Steer a running batch
 
 | You say | What happens |
 | --- | --- |
 | "Add the rate-limit item to tonight's batch." | the CR (already refined) joins the queue |
-| "Drop CR-104, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog; its branch and worktree are kept until you close the batch |
-| "CR-103 goes first." | it takes the next free slot |
-| "For CR-102, keep the old API too." | its Driver decides: next round, restart, or after the PR, and says which |
-| "Pause." · "Resume." | no new CR starts while paused |
-| "I merged #42." | the CR is archived; the stack, if any, is rebased |
+| "Drop CR-104, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog; its branch and worktree stay until you close the batch and say yes |
+| "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
+| "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
+| "Pause." · "Resume." | slots 0: no new CR starts; a number resumes |
+| "I merged #42." | the CR is archived; a ready PR that stops merging goes back to a Driver, which rebases it |
 
 Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read twice runs once.
 
@@ -82,7 +83,10 @@ attempts, you can allow more up front, always within a budget:
 | You say | What it allows |
 | --- | --- |
 | "up to 3 releases without asking, budget $20" | irreversible actions go ahead, up to that number of releases |
-| "merge the fixes yourself, by rebase" | the CLI merges a release's ready fixes, if the forge gives it the rights |
+| "merge the fixes yourself" | the Foreman merges a release's ready fixes with `gh` or `glab`, by your project's method, if the forge gives it the rights |
+
+The release's own PR is merged by the Foreman too, on your approval or under that grant; every
+other PR is yours to merge.
 
 Once the release is out, the driver writes a retrospective and proposes long-term fixes; each
 becomes a CR only on your word.
@@ -91,8 +95,9 @@ becomes a CR only on your word.
 
 > "Use my `rust-coder` agent as the coder."
 
-The coder role now runs your agent, with the same contract as ours: it gets the specification,
-the worktree, the work folder and the gates in its prompt.
+The Chief of Staff writes it in the `chantier` section of your `AGENTS.md`; every Driver's prompt
+names it, and the coder role runs your agent with the same contract as ours: it gets the
+specification, the worktree, the work folder and the project's rules in its prompt.
 
 > "Add a security review with `sec-reviewer`: OWASP top 10 on the diff."
 

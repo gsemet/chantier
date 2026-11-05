@@ -34,7 +34,9 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
   `claude plugin marketplace add <this checkout>`, then `claude plugin install chantier@chantier`.
   The plugin is read live from the checkout: do not switch branches during a run.
 - `uv` and `git`. The forge is local (`evals/kit/forge.py`, a fake `gh` whose CI runs the long
-  gate in a fresh clone): nothing reaches GitHub.
+  gate in a fresh clone): nothing reaches GitHub. `setup.py` puts it first on the `PATH` of
+  every session in the workspace, so the Drivers' own `gh pr create` and the Foreman's
+  `gh pr merge` reach it too.
 - On Claude Desktop, the go must be typed in the desktop app: under Remote Control, starting
   the Foreman's session is refused.
 
@@ -69,8 +71,9 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
    operator's shell lacks the workspace's `.claude/settings.local.json`: set its `env` before
    running `$CHANTIER`.
 3. **Be the user**: play the runbook's turns, in order, and nothing else. Merge with
-   `evals/kit/merge.py <workspace> <pr>` alone, never chained: a conflict merges nothing, and
-   the CR goes back to its Driver on its own.
+   `evals/kit/merge.py <workspace> <pr>` alone, never chained: a conflict merges nothing; the
+   Foreman notices a ready PR that stopped merging with the forge's CLI (`gh pr view --json
+   mergeable`) and sends it back to a Driver.
 4. **When the batch lands** (`final <report>`): run the audit and the cost.
 
    ```bash
