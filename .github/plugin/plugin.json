@@ -16,11 +16,11 @@
     "worktree",
     "software-factory"
   ],
-  "extensions": {
-    "com.github.awesome-copilot": {
-      "skills": [
-        "./skills/chantier/"
-      ]
-    }
-  }
+  "homepage": "https://github.com/gsemet/chantier",
+  "agents": [
+    "./com.github.copilot/agents"
+  ],
+  "skills": [
+    "./skills/chantier"
+  ]
 }
