@@ -23,7 +23,7 @@
   <!-- Legend -->
   <g font-size="13.5" fill="#334155">
     <rect x="76" y="103" width="22" height="16" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/><text x="106" y="116">👤 you</text>
-    <rect x="196" y="103" width="22" height="16" rx="4" fill="#1e3a8a"/><text x="226" y="116">🧑‍💼 Chief of Staff</text>
+    <rect x="196" y="103" width="22" height="16" rx="4" fill="#1e3a8a"/><text x="226" y="116">🤵 Chief of Staff</text>
     <rect x="386" y="103" width="22" height="16" rx="4" fill="#ea580c"/><text x="416" y="116">👷 Foreman</text>
     <rect x="536" y="103" width="22" height="16" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2"/><text x="566" y="116">🚜 driver</text>
     <rect x="671" y="103" width="22" height="16" rx="4" fill="#e0e7ff"/><text x="701" y="116">🔨 worker</text>
@@ -112,7 +112,7 @@
 
   <!-- Spec loop -->
   <rect x="900" y="258" width="170" height="64" rx="10" fill="#1e3a8a"/>
-  <text x="985" y="284" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 writes the spec</text>
+  <text x="985" y="284" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 writes the spec</text>
   <text x="985" y="306" font-size="13" fill="#dbeafe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">03-change-spec.md</text>
   <line x1="1070" y1="290" x2="1098" y2="290" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)"/>
   <rect x="1100" y="258" width="140" height="64" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
@@ -132,7 +132,7 @@
 
   <!-- Clarification loop -->
   <rect x="900" y="400" width="170" height="56" rx="10" fill="#1e3a8a"/>
-  <text x="985" y="424" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 grills you</text>
+  <text x="985" y="424" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 grills you</text>
   <text x="985" y="444" font-size="12.5" fill="#dbeafe" text-anchor="middle">with recommended answers</text>
   <line x1="1070" y1="428" x2="1098" y2="428" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)"/>
   <rect x="1100" y="400" width="140" height="56" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
@@ -165,13 +165,13 @@
 
   <!-- ============ BATCH ============ -->
   <path d="M1570,412 V535" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
-  <rect x="1480" y="539" width="180" height="62" rx="10" fill="#1e3a8a"/><text x="1570.0" y="566.0" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 opens the batch</text><text x="1570.0" y="585.0" font-size="12.5" fill="#dbeafe" text-anchor="middle"><tspan font-family="ui-monospace, Menlo, monospace">3-requests/</tspan></text>
+  <rect x="1480" y="539" width="180" height="62" rx="10" fill="#1e3a8a"/><text x="1570.0" y="566.0" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 opens the batch</text><text x="1570.0" y="585.0" font-size="12.5" fill="#dbeafe" text-anchor="middle"><tspan font-family="ui-monospace, Menlo, monospace">3-requests/</tspan></text>
   <path d="M1480,556 H904" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
   <rect x="1070.0" y="543" width="130" height="26" rx="7" fill="#0f172a"/><text x="1135" y="560.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">open</tspan></text>
   <rect x="620" y="530" width="280" height="80" rx="10" fill="#ea580c" /><text x="760.0" y="566.0" font-size="17" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text><text x="760.0" y="585.0" font-size="12.5" fill="#ffedd5" text-anchor="middle">processing queue · starts every driver</text>
   <path d="M780,530 V506 H880 V526" stroke="#c2410c" stroke-width="1.8" fill="none" marker-end="url(#arrow-orange)"/>
   <rect x="680.0" y="494.0" width="300" height="24" rx="7" fill="#0f172a"/><text x="830" y="510.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">⏱ /loop · chantier </tspan><tspan fill="#fb923c" font-weight="700">status --refresh</tspan></text>
-  <rect x="140" y="542" width="240" height="56" rx="10" fill="#1e3a8a"/><text x="260.0" y="566.0" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 Chief of Staff</text><text x="260.0" y="585.0" font-size="12.5" fill="#dbeafe" text-anchor="middle">asked by Foreman; may raise to you</text>
+  <rect x="140" y="542" width="240" height="56" rx="10" fill="#1e3a8a"/><text x="260.0" y="566.0" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text><text x="260.0" y="585.0" font-size="12.5" fill="#dbeafe" text-anchor="middle">asked by Foreman; may raise to you</text>
   <line x1="384" y1="570" x2="616" y2="570" stroke="#c2410c" stroke-width="1.8" marker-start="url(#arrow-orange)" marker-end="url(#arrow-orange)"/>
   <path d="M640,610 V640 H228 V800 H218" stroke="#c2410c" stroke-width="1.8" fill="none" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
   <path d="M134,800 L174,760 L214,800 L174,840 Z" fill="#ffffff" stroke="#ea580c" stroke-width="2.5" stroke-linejoin="round"/>
@@ -255,7 +255,7 @@
   <path d="M705,1374 H726" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
   <rect x="730" y="1348" width="180" height="52" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/><text x="820.0" y="1370.0" font-size="15" font-weight="700" fill="#0f172a" text-anchor="middle">📊 <tspan font-family="ui-monospace, Menlo, monospace">STATUS.md</tspan></text><text x="820.0" y="1389.0" font-size="12.5" fill="#475569" text-anchor="middle">exit report · cost final</text>
   <path d="M910,1374 H1016" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
-  <rect x="1020" y="1348" width="180" height="52" rx="10" fill="#1e3a8a"/><text x="1110.0" y="1370.0" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 Chief of Staff</text><text x="1110.0" y="1389.0" font-size="12.5" fill="#dbeafe" text-anchor="middle">bilan + cost</text>
+  <rect x="1020" y="1348" width="180" height="52" rx="10" fill="#1e3a8a"/><text x="1110.0" y="1370.0" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text><text x="1110.0" y="1389.0" font-size="12.5" fill="#dbeafe" text-anchor="middle">bilan + cost</text>
   <path d="M1200,1374 H1226" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
   <rect x="1230" y="1348" width="150" height="52" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/><text x="1305.0" y="1370.0" font-size="15" font-weight="700" fill="#14532d" text-anchor="middle">👤 your yes</text><text x="1305.0" y="1389.0" font-size="12.5" fill="#166534" text-anchor="middle">to close the batch</text>
   <path d="M1380,1374 H1406" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
@@ -272,7 +272,7 @@
   <rect x="710.0" y="1126" width="120" height="24" rx="12" fill="#2563eb"/><text x="770" y="1142.5">✅ ready, per CR</text>
   <rect x="830.0" y="1184" width="40" height="24" rx="12" fill="#2563eb"/><text x="850" y="1200.5">no</text>
   <rect x="388.0" y="552" width="96" height="36" rx="10" fill="#c2410c"/><text x="436" y="567">👷 Foreman</text><text x="436" y="582" font-size="12" font-weight="500" fill="#ffedd5">may raise</text>
-  <rect x="488.0" y="552" width="124" height="36" rx="10" fill="#c2410c"/><text x="550" y="567">🧑‍💼 Chief of Staff</text><text x="550" y="582" font-size="12" font-weight="500" fill="#ffedd5">orders</text>
+  <rect x="488.0" y="552" width="124" height="36" rx="10" fill="#c2410c"/><text x="550" y="567">🤵 Chief of Staff</text><text x="550" y="582" font-size="12" font-weight="500" fill="#ffedd5">orders</text>
   <rect x="274.0" y="622" width="112" height="36" rx="10" fill="#16a34a"/><text x="330" y="637">👤 You</text><text x="330" y="652" font-size="12" font-weight="500" fill="#dcfce7">ask for QA</text>
   <rect x="480.0" y="646" width="120" height="36" rx="10" fill="#b91c1c"/><text x="540" y="661">🚜 CR driver</text><text x="540" y="676" font-size="12" font-weight="500" fill="#fee2e2">asks Foreman</text>
   <rect x="250.0" y="498" width="140" height="36" rx="10" fill="#b91c1c"/><text x="320" y="513">👷 Foreman</text><text x="320" y="528" font-size="12" font-weight="500" fill="#fee2e2">files bugs as findings</text>
