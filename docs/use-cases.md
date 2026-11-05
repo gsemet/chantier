@@ -70,7 +70,9 @@ in the inbox: an ordinary item you triage, which holds no CR back.
 Say "release v1.4.0" once the work is merged and validated. Your project describes how it
 releases, in `AGENTS.md` or a document it links: a tag, a release commit, heavy checks, notes
 edited by hand. chantier adds no procedure of its own; if yours is missing or unclear, the Chief
-of Staff asks you and offers to write the answer in the project.
+of Staff asks you and offers to write the answer in the project. If it has no long check on the
+default branch's exact head before the version commit, the Chief of Staff asks whether to plan
+one; your answer rules, chantier imposes no gate.
 
 A Release driver follows that procedure and stops before each irreversible action, such as a
 pushed tag or a published package, until you approve it. Release notes wait in the CR's folder
