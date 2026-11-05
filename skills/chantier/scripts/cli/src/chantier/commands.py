@@ -61,7 +61,7 @@ def plugin_root() -> Path | None:
         return Path(env).resolve() if env else None
     root = skill_dir().parents[1]
     return root if (root / ".claude-plugin" / "plugin.json").exists() \
-        or (root / "plugin.json").exists() else None
+        or (root / ".github" / "plugin" / "plugin.json").exists() else None
 
 
 def cli_command() -> str:

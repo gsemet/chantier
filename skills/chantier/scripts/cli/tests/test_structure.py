@@ -55,14 +55,16 @@ def test_every_file_carries_the_same_version():
 
 
 def test_manifests_agree():
-    agent_plugin = json.loads((PLUGIN_ROOT / "plugin.json").read_text(encoding="utf-8"))
+    agent_plugin = json.loads((PLUGIN_ROOT / ".github" / "plugin" / "plugin.json").read_text(encoding="utf-8"))
     claude = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     markets = [json.loads((PLUGIN_ROOT / p / "marketplace.json").read_text(encoding="utf-8"))
                for p in (".claude-plugin", ".github/plugin")]
     assert {agent_plugin["name"], claude["name"]} | {m["plugins"][0]["name"] for m in markets} \
         == {"chantier"}
-    for skill in agent_plugin["extensions"]["com.github.awesome-copilot"]["skills"]:
+    for skill in agent_plugin["skills"]:
         assert (PLUGIN_ROOT / skill / "SKILL.md").exists()
+    for folder in agent_plugin["agents"]:
+        assert agent_file("coder", "copilot").parent == (PLUGIN_ROOT / folder).resolve()
 
 
 def test_copilot_cost_helper_declares_pypi():

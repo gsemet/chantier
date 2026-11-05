@@ -210,9 +210,8 @@ The Chief of Staff's own session is not counted.
 ## Repository layout
 
 ```text
-plugin.json                 ← Agent Plugins manifest
 .claude-plugin/             ← Claude Code plugin manifest and marketplace
-.github/plugin/             ← GitHub Copilot marketplace
+.github/plugin/             ← GitHub Copilot plugin manifest and marketplace
 agents/                     ← Claude Code agents, one per role
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chantier/

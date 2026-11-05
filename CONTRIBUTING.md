@@ -28,8 +28,8 @@ chantier is three things in one repository:
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
-3. **A plugin**: [`plugin.json`](plugin.json) (Agent Plugins 1.0),
-   [`.claude-plugin/`](.claude-plugin/) and [`.github/plugin/`](.github/plugin/) ship the skill
+3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and
+   [`.claude-plugin/`](.claude-plugin/) (Claude Code) ship the skill
    and one agent per role and host: [`agents/`](agents/) for Claude Code (`chantier:<role>`),
    [`com.github.copilot/agents/`](com.github.copilot/agents/) for Copilot (`chantier-<role>`, a
    prefix a project agent named after the role cannot shadow). An agent file holds only its
