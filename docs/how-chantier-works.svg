@@ -1,150 +1,142 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 650" width="1100" height="650" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 812" width="1240" height="812" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works</title>
-  <desc>You talk to one Chief of Staff, which reads the project's AGENTS.md. On your go it starts one Foreman session per batch, which starts Drivers; each Driver runs short workers, any of which can be your own agent. The agents do the work with git, gh and glab. The chantier CLI is their frame: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown.</desc>
+  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent, and the stack driver runs the conflict resolver. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. It runs in Claude Desktop or a Copilot SDK host.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
     </marker>
-    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
     </marker>
   </defs>
 
-  <rect width="1100" height="650" fill="#f8fafc"/>
-  <text x="30" y="40" font-size="22" font-weight="700" fill="#0f172a">How chantier works</text>
-  <text x="30" y="62" font-size="13" fill="#475569">One office to talk to; the agents do the work, and the CLI is their frame.</text>
+  <rect width="1240" height="812" fill="#f8fafc"/>
+  <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🏗️ How chantier works</text>
+  <text x="24" y="82" font-size="17.5" fill="#475569">One office to talk to; the agents do the work.</text>
+
+  <!-- Unit of work -->
+  <rect x="930" y="22" width="280" height="88" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="950" y="56" font-size="17.5" fill="#0f172a"><tspan font-weight="700" fill="#c2410c">CR</tspan> = Change Request</text>
+  <text x="950" y="86" font-size="14.5" fill="#475569">an idea, a bug, a feature, an intent</text>
 
   <!-- Lanes -->
-  <g font-size="11" font-weight="700" fill="#64748b" letter-spacing="1">
-    <text x="30" y="92">MAIN SESSION</text>
-    <text x="30" y="226">NESTED SESSION</text>
-    <text x="30" y="338">BACKGROUND</text>
-    <text x="30" y="446">FOREGROUND</text>
-  </g>
-  <g stroke="#cbd5e1" stroke-dasharray="4 4">
-    <line x1="30" y1="206" x2="800" y2="206"/>
-    <line x1="30" y1="320" x2="800" y2="320"/>
-    <line x1="30" y1="434" x2="800" y2="434"/>
+  <rect x="24" y="252" width="880" height="148" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="550" width="880" height="130" rx="10" fill="#eef2f7"/>
+  <g font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2" text-anchor="middle">
+    <text transform="translate(48,180) rotate(-90)">MAIN SESSION</text>
+    <text transform="translate(48,326) rotate(-90)">NESTED SESSION</text>
+    <text transform="translate(48,475) rotate(-90)">DRIVERS</text>
+    <text transform="translate(48,615) rotate(-90)">WORKERS</text>
   </g>
 
   <!-- AGENTS.md -->
-  <rect x="30" y="112" width="150" height="56" rx="8" fill="#ffffff" stroke="#94a3b8"/>
-  <text x="105" y="135" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">AGENTS.md</text>
-  <text x="105" y="153" font-size="10.5" fill="#475569" text-anchor="middle">your rules, your team</text>
-  <path d="M180,160 C230,186 280,186 326,170" stroke="#94a3b8" stroke-width="1.4" fill="none" stroke-dasharray="3 3" marker-end="url(#arrow)"/>
+  <rect x="80" y="145" width="160" height="70" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="160" y="175" font-size="16.5" font-weight="700" fill="#0f172a" text-anchor="middle">📐 <tspan font-family="ui-monospace, Menlo, monospace">AGENTS.md</tspan></text>
+  <text x="160" y="199" font-size="14.5" fill="#475569" text-anchor="middle">your rules, your gates</text>
+  <path d="M200,216 C220,250 360,250 386,216" stroke="#94a3b8" stroke-width="1.6" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 
   <!-- You -->
-  <circle cx="250" cy="118" r="14" fill="#1e3a8a"/>
-  <path d="M229,154 a21,18 0 0 1 42,0 z" fill="#1e3a8a"/>
-  <line x1="276" y1="132" x2="326" y2="132" stroke="#334155" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <circle cx="300" cy="158" r="16" fill="#1e3a8a"/>
+  <path d="M276,204 a24,20 0 0 1 48,0 z" fill="#1e3a8a"/>
+  <line x1="330" y1="180" x2="386" y2="180" stroke="#334155" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
 
   <!-- Chief of Staff -->
-  <rect x="330" y="96" width="300" height="88" rx="10" fill="#1e3a8a"/>
-  <text x="480" y="132" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">Chief of Staff</text>
-  <text x="480" y="156" font-size="11.5" fill="#dbeafe" text-anchor="middle">your session · backlog, questions, your team</text>
+  <rect x="390" y="132" width="440" height="96" rx="12" fill="#1e3a8a"/>
+  <text x="610" y="174" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 Chief of Staff</text>
+  <text x="610" y="202" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · questions, prototypes, change requests</text>
 
   <!-- Chief of Staff ⇄ Foreman -->
-  <line x1="440" y1="186" x2="440" y2="226" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
-  <line x1="520" y1="226" x2="520" y2="188" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
-  <text x="434" y="214" font-size="10.5" fill="#9a3412" text-anchor="end" font-family="ui-monospace, Menlo, monospace">orders</text>
-  <text x="526" y="214" font-size="10.5" fill="#9a3412" font-family="ui-monospace, Menlo, monospace">asks</text>
+  <line x1="560" y1="230" x2="560" y2="282" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="660" y1="284" x2="660" y2="232" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <text x="550" y="263" font-size="14.5" fill="#9a3412" text-anchor="end">📋 <tspan font-family="ui-monospace, Menlo, monospace">orders</tspan></text>
+  <text x="670" y="263" font-size="14.5" fill="#9a3412">🙋 <tspan font-family="ui-monospace, Menlo, monospace">asks</tspan></text>
 
   <!-- Foreman -->
-  <rect x="330" y="230" width="300" height="80" rx="10" fill="#ea580c"/>
-  <text x="480" y="263" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">Foreman</text>
-  <text x="480" y="287" font-size="11.5" fill="#ffedd5" text-anchor="middle">one session per batch · Opus 5.5 · orchestrates</text>
+  <rect x="390" y="286" width="440" height="90" rx="12" fill="#ea580c"/>
+  <text x="610" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text>
+  <text x="610" y="353" font-size="15" fill="#ffedd5" text-anchor="middle">one session per batch of changes · Opus 5.5 · orchestrates</text>
 
   <!-- Drivers -->
-  <g font-size="12.5" font-weight="700" fill="#0f172a" text-anchor="middle">
-    <rect x="36" y="352" width="176" height="66" rx="9" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
-    <rect x="30" y="346" width="176" height="66" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
-    <text x="118" y="374">CR Driver</text>
-    <text x="118" y="393" font-size="10.5" font-weight="400" fill="#475569">one PR per CR</text>
-
-    <rect x="226" y="346" width="176" height="66" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
-    <text x="314" y="374">Stack driver</text>
-    <text x="314" y="393" font-size="10.5" font-weight="400" fill="#475569">a stack of PRs</text>
-
-    <rect x="422" y="346" width="176" height="66" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
-    <text x="510" y="374">QA driver</text>
-    <text x="510" y="393" font-size="10.5" font-weight="400" fill="#475569">uses the CR like a user</text>
-
-    <rect x="618" y="346" width="176" height="66" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
-    <text x="706" y="374">Release driver</text>
-    <text x="706" y="393" font-size="10.5" font-weight="400" fill="#475569">your release procedure</text>
+  <g stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
+    <path d="M450,378 C430,412 190,402 175,432"/>
+    <path d="M530,378 C520,406 400,404 385,432"/>
+    <line x1="595" y1="378" x2="595" y2="432"/>
+    <path d="M750,378 C780,404 795,404 805,432"/>
   </g>
-  <g stroke="#334155" stroke-width="1.6" fill="none" marker-end="url(#arrow)">
-    <path d="M370,312 C350,334 130,326 118,342"/>
-    <path d="M450,312 C440,330 330,328 314,342"/>
-    <line x1="510" y1="312" x2="510" y2="342"/>
-    <path d="M590,312 C620,330 690,328 706,342"/>
+  <g font-size="17.5" font-weight="700" fill="#0f172a" text-anchor="middle">
+    <rect x="86" y="442" width="190" height="88" rx="10" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <rect x="80" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="175" y="468">🚜 CR driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="175" y="494">takes one CR</text><text x="175" y="512">to completion</text></g>
+
+    <rect x="290" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="385" y="468">🧱 Stack driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="385" y="494">responsible for</text><text x="385" y="512">PR/MR stacks</text></g>
+
+    <rect x="500" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="595" y="468">🦺 QA driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="595" y="494">tests like a user</text></g>
+
+    <rect x="710" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="805" y="468">🚚 Release driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="805" y="494">follows your</text><text x="805" y="512">release procedure</text></g>
+  </g>
+
+  <!-- CR driver starts workers: one bus, a drop per worker -->
+  <g stroke="#334155" stroke-width="1.5" fill="none">
+    <line x1="175" y1="530" x2="175" y2="558"/>
+    <line x1="144" y1="558" x2="696" y2="558"/>
+  </g>
+  <g stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="144" y1="558" x2="144" y2="572"/>
+    <line x1="282" y1="558" x2="282" y2="572"/>
+    <line x1="420" y1="558" x2="420" y2="572"/>
+    <line x1="558" y1="558" x2="558" y2="572"/>
+    <line x1="696" y1="558" x2="696" y2="572"/>
+    <!-- The stack driver starts only the conflict resolver -->
+    <path d="M385,524 V540 H870 V572"/>
   </g>
 
   <!-- Workers -->
-  <g font-size="11.5" font-weight="600" fill="#0f172a" text-anchor="middle">
-    <rect x="30" y="464" width="104" height="40" rx="8" fill="#e0e7ff"/><text x="82" y="488">Investigator</text>
-    <rect x="140" y="464" width="104" height="40" rx="8" fill="#e0e7ff"/><text x="192" y="488">Coder</text>
-    <rect x="250" y="464" width="104" height="40" rx="8" fill="#e0e7ff"/><text x="302" y="488">Inspector</text>
-    <rect x="360" y="464" width="104" height="40" rx="8" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="4 3"/><text x="412" y="488">your reviews</text>
-    <rect x="470" y="464" width="104" height="40" rx="8" fill="#e0e7ff"/><text x="522" y="488">Debugger</text>
-    <rect x="580" y="464" width="104" height="40" rx="8" fill="#e0e7ff"/><text x="632" y="488">Verifier</text>
-    <rect x="690" y="464" width="104" height="40" rx="8" fill="#e0e7ff"/><text x="742" y="488">Conflict resolver</text>
+  <g font-size="15.5" font-weight="600" fill="#0f172a" text-anchor="middle">
+    <rect x="80" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="144" y="606">🔦 Investigator</text>
+    <rect x="218" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="282" y="606">🔨 Coder</text>
+    <rect x="356" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="420" y="606">📏 Inspector</text>
+    <rect x="494" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="558" y="606">🔧 Debugger</text>
+    <rect x="632" y="574" width="128" height="54" rx="9" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/><text x="696" y="606">➕ your agents</text>
+    <rect x="770" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="834" y="597">⛓️ Conflict</text><text x="834" y="615">resolver</text>
   </g>
-  <!-- Drivers start workers: one bus, a drop per worker -->
-  <g stroke="#334155" stroke-width="1.3" fill="none">
-    <line x1="118" y1="418" x2="118" y2="454"/>
-    <line x1="82" y1="454" x2="742" y2="454"/>
-  </g>
-  <!-- The stack driver starts only the conflict resolver -->
-  <path d="M314,414 V428 H782 V461" stroke="#334155" stroke-width="1.3" fill="none" marker-end="url(#arrow)"/>
-  <g stroke="#334155" stroke-width="1.3" fill="none" marker-end="url(#arrow)">
-    <line x1="82" y1="454" x2="82" y2="462"/>
-    <line x1="192" y1="454" x2="192" y2="462"/>
-    <line x1="302" y1="454" x2="302" y2="462"/>
-    <line x1="412" y1="454" x2="412" y2="462"/>
-    <line x1="522" y1="454" x2="522" y2="462"/>
-    <line x1="632" y1="454" x2="632" y2="462"/>
-    <line x1="742" y1="454" x2="742" y2="462"/>
-  </g>
-  <text x="30" y="528" font-size="11" fill="#475569"><tspan fill="#a16207" font-weight="600">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
+  <text x="80" y="660" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
 
   <!-- Storage -->
-  <rect x="30" y="548" width="764" height="76" rx="10" fill="#ffffff" stroke="#94a3b8"/>
-  <text x="46" y="577" font-size="12.5" font-weight="700" fill="#0f172a">.agents/changes/, as JSON and Markdown</text>
-  <text x="46" y="603" font-size="11" fill="#334155" font-family="ui-monospace, Menlo, monospace">1-inbox → 2-backlog → 3-requests → 4-archives · 5-trash</text>
+  <rect x="80" y="700" width="820" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="100" y="733" font-size="17.5" font-weight="700" fill="#0f172a">🗄️ <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>, as JSON and Markdown</text>
+  <text x="100" y="764" font-size="15.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">1-inbox → 2-backlog → 3-requests → 4-archives · 5-trash</text>
 
   <!-- chantier CLI -->
-  <rect x="830" y="96" width="240" height="408" rx="12" fill="#0f172a"/>
-  <text x="950" y="128" font-size="15" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
-  <text x="950" y="148" font-size="11" fill="#cbd5e1" text-anchor="middle">Python CLI, no dependency</text>
-  <line x1="848" y1="170" x2="1052" y2="170" stroke="#334155"/>
-  <g font-size="12" font-weight="700" fill="#e2e8f0">
-    <text x="848" y="200">CR lifecycle</text>
-    <text x="848" y="268">Frame</text>
-    <text x="848" y="336">Sync</text>
+  <rect x="930" y="132" width="280" height="496" rx="14" fill="#0f172a"/>
+  <text x="1070" y="178" font-size="24" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
+  <text x="1070" y="204" font-size="15.5" fill="#cbd5e1" text-anchor="middle">Python CLI</text>
+  <line x1="954" y1="232" x2="1186" y2="232" stroke="#334155" stroke-width="1.5"/>
+  <g font-size="17.5" font-weight="700" fill="#e2e8f0">
+    <text x="954" y="310">🔄 CR lifecycle</text>
+    <text x="954" y="420">🚧 Limits</text>
+    <text x="954" y="530">📣 Sync</text>
   </g>
-  <g font-size="11.5" fill="#cbd5e1">
-    <text x="848" y="220">open, take, ship, land</text>
-    <text x="848" y="288">slots, budget, rounds</text>
-    <text x="848" y="356">orders, asks, notes</text>
+  <g font-size="16" fill="#cbd5e1">
+    <text x="954" y="336">open, take, ship, land</text>
+    <text x="954" y="446">budget, usage</text>
+    <text x="954" y="556">orders, asks, notes</text>
   </g>
-  <line x1="848" y1="388" x2="1052" y2="388" stroke="#334155"/>
-  <g font-size="11.5" fill="#fdba74">
-    <text x="848" y="418">The agents run git, gh, glab.</text>
-    <text x="848" y="438">No fallback.</text>
-  </g>
-  <g stroke="#64748b" stroke-width="1.4" stroke-dasharray="5 4">
-    <line x1="634" y1="132" x2="826" y2="132"/>
-    <line x1="634" y1="270" x2="826" y2="270"/>
-    <line x1="798" y1="380" x2="826" y2="380"/>
-    <line x1="798" y1="484" x2="826" y2="484"/>
+  <g stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4">
+    <line x1="834" y1="180" x2="926" y2="180"/>
+    <line x1="834" y1="331" x2="926" y2="331"/>
+    <line x1="904" y1="480" x2="926" y2="480"/>
+    <line x1="902" y1="601" x2="926" y2="601"/>
   </g>
 
-  <!-- Hosts -->
-  <rect x="830" y="548" width="240" height="76" rx="10" fill="#ffffff" stroke="#94a3b8"/>
-  <text x="846" y="571" font-size="12.5" font-weight="700" fill="#0f172a">Hosts</text>
-  <g font-size="11" fill="#334155">
-    <text x="846" y="592">Claude Desktop</text>
-    <text x="846" y="610">Copilot SDK host</text>
-  </g>
+  <!-- Coding agents -->
+  <rect x="930" y="700" width="280" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="950" y="733" font-size="17.5" font-weight="700" fill="#0f172a">Coding Agents</text>
+  <text x="950" y="764" font-size="15.5" fill="#334155">Claude Desktop · Copilot SDK host</text>
 </svg>
