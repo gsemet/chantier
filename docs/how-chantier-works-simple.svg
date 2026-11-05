@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 712" width="1000" height="712" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+  <title>How chantier works (simple)</title>
+  <desc>You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="712" fill="#f8fafc"/>
+  <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🏗️ How chantier works</text>
+  <text x="24" y="82" font-size="17.5" fill="#475569">One office to talk to; the agents do the work.</text>
+
+  <!-- Lanes -->
+  <rect x="24" y="252" width="950" height="148" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="550" width="950" height="150" rx="10" fill="#eef2f7"/>
+  <g font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2" text-anchor="middle">
+    <text transform="translate(48,180) rotate(-90)">MAIN SESSION</text>
+    <text transform="translate(48,326) rotate(-90)">NESTED SESSION</text>
+    <text transform="translate(48,475) rotate(-90)">DRIVERS</text>
+    <text transform="translate(48,625) rotate(-90)">WORKERS</text>
+  </g>
+
+  <!-- AGENTS.md -->
+  <rect x="80" y="145" width="160" height="70" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="160" y="175" font-size="16.5" font-weight="700" fill="#0f172a" text-anchor="middle">📐 <tspan font-family="ui-monospace, Menlo, monospace">AGENTS.md</tspan></text>
+  <text x="160" y="199" font-size="14.5" fill="#475569" text-anchor="middle">your rules, your gates</text>
+  <path d="M200,216 C220,250 360,250 386,216" stroke="#94a3b8" stroke-width="1.6" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <!-- You -->
+  <circle cx="300" cy="158" r="16" fill="#1e3a8a"/>
+  <path d="M276,204 a24,20 0 0 1 48,0 z" fill="#1e3a8a"/>
+  <line x1="330" y1="180" x2="386" y2="180" stroke="#334155" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+
+  <!-- Chief of Staff -->
+  <rect x="390" y="132" width="440" height="96" rx="12" fill="#1e3a8a"/>
+  <text x="610" y="174" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🧑‍💼 Chief of Staff</text>
+  <text x="610" y="202" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · questions, prototypes, change requests</text>
+
+  <!-- Chief of Staff ⇄ Foreman -->
+  <line x1="560" y1="230" x2="560" y2="282" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="660" y1="284" x2="660" y2="232" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <text x="550" y="263" font-size="14.5" fill="#9a3412" text-anchor="end">📋 <tspan font-family="ui-monospace, Menlo, monospace">orders</tspan></text>
+  <text x="670" y="263" font-size="14.5" fill="#9a3412">🙋 <tspan font-family="ui-monospace, Menlo, monospace">asks</tspan></text>
+
+  <!-- Foreman -->
+  <rect x="390" y="286" width="440" height="90" rx="12" fill="#ea580c"/>
+  <text x="610" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text>
+  <text x="610" y="353" font-size="15" fill="#ffedd5" text-anchor="middle">one session per batch of changes · Opus 5.5 · orchestrates</text>
+
+  <!-- Drivers -->
+  <g stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
+    <path d="M450,378 C430,412 190,402 175,432"/>
+    <path d="M530,378 C520,406 400,404 385,432"/>
+    <line x1="595" y1="378" x2="595" y2="432"/>
+    <path d="M750,378 C780,404 795,404 805,432"/>
+  </g>
+  <g font-size="17.5" font-weight="700" fill="#0f172a" text-anchor="middle">
+    <rect x="86" y="442" width="190" height="88" rx="10" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
+    <rect x="80" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="175" y="468">🚜 CR driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="175" y="494">takes one CR</text><text x="175" y="512">to completion</text></g>
+
+    <rect x="290" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="385" y="468">🧱 Stack driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="385" y="494">responsible for</text><text x="385" y="512">PR/MR stacks</text></g>
+
+    <rect x="500" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="595" y="468">🦺 QA driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="595" y="494">tests like a user</text></g>
+
+    <rect x="710" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+    <text x="805" y="468">🚚 Release driver</text>
+    <g font-size="14.5" font-weight="400" fill="#475569"><text x="805" y="494">follows your</text><text x="805" y="512">release procedure</text></g>
+  </g>
+
+  <!-- CR driver starts workers: one bus, a drop per worker -->
+  <g stroke="#334155" stroke-width="1.5" fill="none">
+    <line x1="175" y1="530" x2="175" y2="558"/>
+    <line x1="140" y1="558" x2="888" y2="558"/>
+  </g>
+  <g stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="140" y1="558" x2="140" y2="572"/>
+    <line x1="268" y1="558" x2="268" y2="572"/>
+    <line x1="396" y1="558" x2="396" y2="572"/>
+    <line x1="524" y1="558" x2="524" y2="572"/>
+    <line x1="652" y1="558" x2="652" y2="572"/>
+    <line x1="780" y1="558" x2="780" y2="572"/>
+    <line x1="888" y1="558" x2="888" y2="572"/>
+    <!-- The stack driver starts the conflict resolver too -->
+    <path d="M385,524 V540 H928 V572"/>
+  </g>
+
+  <!-- Workers -->
+  <g font-size="15" font-weight="600" fill="#0f172a" text-anchor="middle">
+    <rect x="80" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="140" y="616">🔦 Investigator</text>
+    <rect x="208" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="268" y="616">🔨 Coder</text>
+    <rect x="336" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="396" y="600">📏 Inspector</text><g font-size="12" font-weight="500" fill="#475569"><text x="396" y="621">reads the diff,</text><text x="396" y="637">before the commit</text></g>
+    <rect x="464" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="524" y="600">✅ Verifier</text><g font-size="12" font-weight="500" fill="#475569"><text x="524" y="621">runs it, at the</text><text x="524" y="637">pushed head</text></g>
+    <rect x="592" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="652" y="616">🔧 Debugger</text>
+    <rect x="720" y="574" width="120" height="74" rx="9" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/><text x="780" y="616">➕ your agents</text>
+    <rect x="848" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="908" y="607">⛓️ Conflict</text><text x="908" y="625">resolver</text>
+  </g>
+  <text x="80" y="682" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
+
+</svg>

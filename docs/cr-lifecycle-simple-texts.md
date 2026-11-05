@@ -1,0 +1,136 @@
+# Life of a change request, in short
+
+A change request (CR) is one folder in .agents/changes/ and usually becomes one pull or merge request (PR/MR). Agents do the work; you decide at four points: triage, spec, go and merge. Plan, with the Chief of Staff: a request from the intake (Jira, GitLab, GitHub, the chat or a finding) is filed in 1-inbox/; you triage it with the Chief of Staff, who drops it, clarifies it or writes the spec, 03-change-spec.md, that you approve; it then waits in 2-backlog/ with a priority P1 to P4 until your go. Build, run by the Foreman in 3-requests/: one CR driver per CR, in its own worktree and branch, runs rounds of a Coder and an Inspector, at most 3; it rebases, passes the gate and ships a PR; CI and the Verifier check the pushed head, and a red result starts a new round. Land: you merge the PR and the CR moves to 4-archives/ with its retro and final status. Optional: the stack driver orders, restacks and ships stacked PRs; on your request a QA driver uses the project's head as a user; the release driver runs your release procedure, with at most 3 fix CRs. Out-of-scope bugs, QA findings and the release retro go back to the intake as findings. Each stage is a folder; the chantier CLI moves it. At any time, chantier order drop moves a CR to 5-trash/.
+
+## Header
+
+```md
+## 🔄 Life of a change request, in short
+
+One CR, one folder, usually one PR/MR. Agents do the work; you decide at four points: triage, spec, go, merge.
+```
+
+## Legend
+
+```md
+👤 you · 🧑‍💼 Chief of Staff · 👷 Foreman · 🚜 driver · 🔨 worker
+```
+
+## Phases
+
+```md
+PLAN · 🧑‍💼 Chief of Staff, with you
+BUILD · 👷 Foreman runs the batch
+LAND
+```
+
+## Plan
+
+```md
+## 📨 Intake
+
+Jira, GitLab, GitHub,
+chat, findings
+```
+
+```md
+## ⚖️ Triage
+
+🧑‍💼 with 👤 you
+drop · clarify · spec
+1-inbox/
+```
+
+```md
+## 📐 Spec
+
+03-change-spec.md
+👤 you approve
+1-inbox/
+```
+
+```md
+## 📋 Backlog
+
+P1…P4, set by you
+👤 your go starts it
+2-backlog/
+```
+
+## Build
+
+```md
+## 🚜 CR driver
+
+own worktree · branch
+🔨 Coder ⇄ 📏 Inspector
+3-requests/ · ≤ 3 rounds
+```
+
+```md
+## 🚀 PR
+
+rebase · gate · ship
+🧪 CI · ✅ Verifier
+3-requests/
+```
+
+```md
+🔴 red → new round
+```
+
+## Land
+
+```md
+## 👤 you merge
+
+the PR/MR
+```
+
+```md
+## 📦 Archived
+
+retro · final status
+4-archives/
+```
+
+## Optional
+
+```md
+OPTIONAL
+```
+
+```md
+## 🧱 Stack driver
+
+orders, restacks, ships PRs
+```
+
+```md
+## 🦺 QA driver
+
+on request, uses
+the head as a user
+```
+
+```md
+## 🚚 Release driver
+
+your procedure
+≤ 3 fix CRs
+```
+
+## Findings
+
+```md
+🐞 out-of-scope bug
+findings
+retro
+📝 findings go back to the intake
+```
+
+## Footer
+
+```md
+Each stage is a folder in .agents/changes/; the chantier CLI moves it. At any time: order drop → 5-trash/.
+```
