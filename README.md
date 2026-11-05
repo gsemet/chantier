@@ -12,6 +12,18 @@ while one "Foreman" coordinates the work underneath.
 
 ## Change Requests Lifecycle
 
+A "Change Request" is an idea, a bug, a report, an issue, that you want to study.
+
+Chantier translated this into a markdown file in a folder that will be carried in various folder during planning, study, implementation, QA, deployment and finally archive.
+
+![docs/cr-lifecycle-simple.svg](docs/cr-lifecycle-simple.svg)
+
+Several files, essentially markdown will be injected into the folder with prototypes, studies, spec, reports,...
+
+Some names are mandatory, you are free to add any you see fit (svg, drawio, ...).
+
+Custom connection to any external tools is also possible, as long as it translates to a text, XML, SVG, or local file an agent can interpret with our without specialized tools.
+
 ![docs/cr-folder-lifecycle.svg](docs/cr-folder-lifecycle.svg)
 
 ## Detailed lifecycle
