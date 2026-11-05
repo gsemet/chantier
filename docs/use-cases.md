@@ -59,11 +59,11 @@ Every order goes to the Foreman with an id, and `status` shows it until it is do
 
 ## Ask for user testing
 
-> "Run QA on the CSV export before handing it to me."
+> "Run QA on the CSV export."
 
-A QA driver uses the change as a user would, from the running app or CLI in the CR's worktree,
-and keeps its proof in the CR's `evidence/`. Each finding becomes a new round for the CR; it comes
-back to you only when QA finds nothing.
+During a batch, a QA driver uses the project as a user would, at the head of its default branch,
+never an unmerged PR. It leaves its findings, its proof and its long tests in a `qa-<date>` folder
+in the inbox: an ordinary item you triage, which holds no CR back.
 
 ## Make a release
 
