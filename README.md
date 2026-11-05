@@ -135,6 +135,8 @@ never picks a look-alike or a workaround.
 
 ### Change Request lifecycle
 
+![A CR is a folder that moves](docs/cr-folder-lifecycle.svg)
+
 Everything lives in `.agents/changes/`:
 
 ```text
