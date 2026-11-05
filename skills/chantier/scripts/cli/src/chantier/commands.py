@@ -1210,7 +1210,7 @@ def close(args) -> tuple[list[str], int]:
 def _cost_rows(repo: Repo, d: dict, host: str, uuid: str) -> list[dict]:
     if host == "copilot":
         return costs.copilot_session_costs(uuid)
-    return costs.session_costs(costs.transcript_path(repo.root, uuid))
+    return costs.session_costs(costs.transcript_path(repo.root, uuid), d.get("created", ""))
 
 
 def _foreman_uuid(d: dict) -> str:

@@ -71,7 +71,8 @@ def _wakes(record: dict) -> bool:
                 and all(isinstance(p, dict) and p.get("type") == "tool_result" for p in content))
 
 
-def usage(path: Path) -> dict:
+def usage(path: Path, since: str = "") -> dict:
+    """A transcript's calls from `since` on: a session can have run an earlier batch."""
     row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0,
            "wakes": 0, "wake_context": 0, "peak_context": 0}
     seen = set()
@@ -89,7 +90,7 @@ def usage(path: Path) -> dict:
                                 EXIT_EXTERNAL)
         if d.get("type") == "user":
             woken = woken or _wakes(d)
-        if d.get("type") != "assistant":
+        if d.get("type") != "assistant" or str(d.get("timestamp", since)) < since:
             continue
         m = d.get("message")
         if not isinstance(m, dict):
@@ -125,11 +126,11 @@ def usage(path: Path) -> dict:
     return row
 
 
-def session_costs(main: Path) -> list[dict]:
-    """One row for the main transcript (the Foreman) and one per subagent."""
+def session_costs(main: Path, since: str = "") -> list[dict]:
+    """One row for the main transcript (the Foreman) and one per subagent with calls since."""
     if not main.is_file():
         raise ChantierError(f"Foreman transcript not found: {main}", EXIT_EXTERNAL)
-    foreman = usage(main)
+    foreman = usage(main, since)
     if not foreman["calls"]:
         raise ChantierError(f"no priced calls in Foreman transcript: {main}", EXIT_EXTERNAL)
     rows = [{"agent": "main", "type": "foreman", "description": "", **foreman}]
@@ -138,9 +139,12 @@ def session_costs(main: Path) -> list[dict]:
         for f in sorted(sub.glob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
             meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-            rows.append({"agent": f.stem.removeprefix("agent-"),
-                         "type": meta.get("agentType", "?"), "parent": meta.get("parentAgentId"),
-                         "description": meta.get("description", ""), **usage(f)})
+            row = usage(f, since)
+            if row["calls"]:
+                rows.append({"agent": f.stem.removeprefix("agent-"),
+                             "type": meta.get("agentType", "?"),
+                             "parent": meta.get("parentAgentId"),
+                             "description": meta.get("description", ""), **row})
     return rows
 
 
