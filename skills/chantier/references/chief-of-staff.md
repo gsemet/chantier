@@ -148,6 +148,10 @@ Only in the turn where the user gave the go:
 A release is a CR a Release driver runs by the project's own procedure; chantier holds none.
 Find it in `AGENTS.md` and what it links (point to it in the `chantier` section); nothing
 written, or a gap, is a question for the user and an offer to write the answer in the project.
+If the procedure has no long check on the exact head of the default branch before the version
+commit, ask whether to plan one and say why: per-CR gates miss what CRs break together, and any
+check skipped on a PR goes unseen. Offer to write the answer in the project. The user's answer
+rules; chantier imposes no gate.
 Prepare it as any CR (`$CHANTIER file "Release v1.4.0"`, grilled: the version, the scope, where
 the procedure is, what the user reviews), open it preferably alone with `--release 1`. The
 grant is the user's: by default each irreversible action waits for their approval (`order
