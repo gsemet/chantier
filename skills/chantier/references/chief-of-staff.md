@@ -44,7 +44,12 @@ $CHANTIER abandon <unclaimed-folder>                  # only on the user's expli
 answer in `02-answers.md`, and write the Change Specification in the same folder. Grill at any
 stage, once for all the CRs of a batch: each question carries your recommended answer; skip the
 ones whose answer would not change the specification. Only the user sets priorities and picks
-what runs.
+what runs. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
+received, with its link.
+
+Triage each CR with the user, who decides its way: dropped (`abandon`); **automatable**, with a
+short specification they do not review; needing a specification they review until they approve
+it; or needing clarification: grill, then triage again. Automatable is their call, never yours.
 
 ## Starting a batch
 

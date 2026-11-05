@@ -22,13 +22,14 @@ The CLI keeps the CR's record and tells you what is off.
   add -b <branch> <path> <base>` from the main checkout, with the names your prompt gives. An
   earlier Driver's worktree is there: use it (its branch alone: `git worktree add <path>
   <branch>`). Workers never create one.
+- Rebase first, so the long gate passes on the head you push: `git fetch`, `git rebase <base>`;
+  a conflict is a `conflict-resolver`.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"` runs
   it in the worktree, alone in the repository (a second long gate waits), keeps the log and
   records the pass at that head. The fast gates you run yourself.
-- Push: `git fetch`, `git rebase <base>`, `git push --force-with-lease -u <remote> <branch>`; a
-  conflict is a `conflict-resolver`. Open or edit the PR yourself (`gh pr create --body-file
-  <work folder>/pr-body.md`, `glab mr create`), its title and body by the project's rules and
-  template. Then `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what
+- Push: `git push --force-with-lease -u <remote> <branch>`. Open or edit the PR yourself (`gh
+  pr create --body-file <work folder>/pr-body.md`, `glab mr create`), its title and body by the
+  project's rules and template. Then `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what
   is off (uncommitted changes, a head not pushed, no long gate passed at it).
 - CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
   ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
@@ -51,8 +52,9 @@ Take one CR from its specification to a green PR, then hand it back. Before roun
 code is unfamiliar, an `investigator`. Each round: a `coder` with the brief, then an
 `inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
 included) and each review step your `Team:` lists, in order; `FIX-REQUIRED` is the next round.
-All approved: commit, the long gate (a failure is a round), push, the PR, `ship`, CI, then a
-`verifier` at the pushed head (`NOT VERIFIED` is a round), then `handback ready <pr link>`.
+All approved: commit, rebase, the long gate (a failure is a round), push, the PR, `ship`, CI,
+then a `verifier` at the pushed head (`NOT VERIFIED` is a round), then `handback ready <pr
+link>`.
 
 ## Stack driver
 
@@ -92,7 +94,8 @@ inside the procedure and the grant, and ask for anything beyond them.
   Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
   `handback blocked fix: <fix-cr> pending`.
 - A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
-  checks, then `<work folder>/retro.md` (what went wrong or slowly, the long-term fix for each,
+  checks and any watch of the deploys it names (a package registry, pages), then `<work
+  folder>/retro.md` (what went wrong or slowly, the long-term fix for each,
   one line) and `handback ready <release link or tag>`.
 - A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
   line, then steps, expected, actual), then
