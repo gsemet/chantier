@@ -178,6 +178,24 @@ def preflight(args) -> tuple[list[str], int]:
 
 # ---- CR folders -------------------------------------------------------------------------------
 
+def _new_request(repo: Repo, slug: str, raw: bytes) -> Path:
+    """A new inbox folder, the request kept as received. The caller holds `changes_lock`."""
+    folder = stage_layout(repo)["inbox"] / slug
+    folder.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        folder.mkdir()
+    except FileExistsError as e:
+        raise ChantierError(f"CR folder already exists: {folder}; choose another slug",
+                            EXIT_CONFLICT) from e
+    try:
+        (folder / "intake").mkdir()
+        (folder / "intake" / "request.md").write_bytes(raw)
+    except OSError as e:
+        raise ChantierError(f"could not finish filing {folder}; preserve it for recovery: {e}",
+                            EXIT_EXTERNAL) from e
+    return folder
+
+
 def file_cr(args) -> list[str]:
     repo = Repo.find()
     paths = stage_layout(repo)
@@ -199,20 +217,8 @@ def file_cr(args) -> list[str]:
     slug = args.slug or _slug(title)
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", slug):
         raise ChantierError("CR slug: lowercase letters, digits and hyphens", EXIT_USAGE)
-    folder = paths["inbox"] / slug
     with changes_lock(repo):
-        paths["inbox"].mkdir(parents=True, exist_ok=True)
-        try:
-            folder.mkdir()
-        except FileExistsError as e:
-            raise ChantierError(f"CR folder already exists: {folder}; choose another slug",
-                                EXIT_CONFLICT) from e
-        try:
-            (folder / "intake").mkdir()
-            (folder / "intake" / "request.md").write_bytes(raw)
-        except OSError as e:
-            raise ChantierError(f"could not finish filing {folder}; preserve it for recovery: {e}",
-                                EXIT_EXTERNAL) from e
+        folder = _new_request(repo, slug, raw)
         write_dashboard(repo, paths)
     return [f"filed {_shown(repo, folder)}; write the intent and grill the CR here"]
 
@@ -288,17 +294,12 @@ def filed_fix(b: Batch, rel: dict, item: str) -> str:
     source = project_path(repo.root, item, "fix")
     if not source.is_file() or cr_directory(repo, rel) not in source.parents:
         return item
-    folder = stage_layout(repo)["inbox"] / f"{rel['id'].lower()}-{_slug(source.stem)}"
-    try:
-        (folder / "intake").mkdir(parents=True)
-    except FileExistsError as e:
-        raise ChantierError(f"CR folder already exists: {folder}", EXIT_CONFLICT) from e
-    shutil.copyfile(source, folder / "intake" / "request.md")
+    folder = _new_request(repo, f"{rel['id'].lower()}-{_slug(source.stem)}", source.read_bytes())
     shutil.copyfile(source, folder / "03-change-spec.md")
     return str(folder)
 
 
-def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
+def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
     """Move a prepared CR into requests and name its branch and worktree: the Driver creates
     them, on the fresh default branch, as its first step."""
     repo = b.repo
@@ -317,7 +318,7 @@ def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
     c = {"id": cr_id, "title": title, "kind": kind, "status": "queued", "order": order,
          "path": cdir.relative_to(repo.root).as_posix(),
-         "specification": prepared.specification.name, "round": 0, "qa": qa, "qa_done": False, "agent": None, "pr": None,
+         "specification": prepared.specification.name, "round": 0, "agent": None, "pr": None,
          "branch": branch, "worktree": str(worktree), "notes": [], "updated": now()}
     b.data["crs"].append(c)
     b.log("add", cr_id, title=title, path=c["path"], origin=origin)
@@ -341,18 +342,10 @@ def open_batch(args) -> list[str]:
                 "max_rounds": repo.config["max_rounds"]}
     repo.config.update(settings)
     paths = stage_layout(repo)
-    qa_all = args.qa == "all"
-    try:
-        qa_idx = set() if qa_all or not args.qa else {int(i) for i in args.qa.split(",")}
-    except ValueError as e:
-        raise ChantierError("QA must be 'all' or comma-separated item numbers", EXIT_USAGE) from e
-    if any(i < 1 or i > len(args.items) for i in qa_idx):
-        raise ChantierError("QA item numbers must refer to the selected CRs", EXIT_USAGE)
     release = None
     if args.release is not None:
-        if not 1 <= args.release <= len(args.items) or qa_all or args.release in qa_idx:
-            raise ChantierError("--release: the item number of the release CR, without QA",
-                                EXIT_USAGE)
+        if not 1 <= args.release <= len(args.items):
+            raise ChantierError("--release: the item number of the release CR", EXIT_USAGE)
         release = {"autonomous": args.autonomous_releases, "fixes": args.grant_fixes,
                    "published": 0}
         check_grant(release, args.budget)
@@ -371,8 +364,7 @@ def open_batch(args) -> list[str]:
         with Batch(repo, args.batch, actor="chief-of-staff", create=data) as b:
             brief = b.dir / "brief.md"
             for i, item in enumerate(args.items, 1):
-                c = add_cr(b, item, qa=qa_all or i in qa_idx,
-                           kind="release" if i == args.release else "change")
+                c = add_cr(b, item, kind="release" if i == args.release else "change")
                 if release and c["kind"] == "release":
                     release["cr"] = c["id"]
             brief.write_text(
@@ -380,13 +372,12 @@ def open_batch(args) -> list[str]:
                 f"Budget: {args.budget or 'none'}. Host: {host}.\n"
                 "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
-                        f"{' (QA)' if c['qa'] else ''}"
                         f"{' (release: starts once the others are merged)' if c['kind'] == 'release' else ''}\n"
                         for c in b.data["crs"]) +
                 (f"- Release grant: {grant_line(release)}\n" if release else "") +
                 f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}.\n"
                 "- Team (who runs which role):\n"
-                "- Autonomous decisions:\n- Questions to bring back:\n- QA notes:\n",
+                "- Autonomous decisions:\n- Questions to bring back:\n",
                 encoding="utf-8")
             b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {args.batch} on {host}: {len(args.items)} CRs, {args.slots} slots, "
@@ -431,7 +422,7 @@ def foreman(args) -> list[str]:
 
 
 ORDER_KINDS = {"add", "drop", "merged", "note", "rounds", "slots", "budget", "approve", "grant",
-               "done"}
+               "qa", "done"}
 CR_ORDERS = {"drop", "merged", "rounds", "approve", "grant"}
 
 
@@ -522,6 +513,8 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         c.setdefault("notes", []).append(f"grant: {note.strip()}")
         b.touch(c)
         return [f"granted: {grant_line(release)}"]
+    if kind == "qa":
+        return [f"QA folder: {cr_id}; the Foreman starts its QA driver"]
     raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
 
 
@@ -536,6 +529,8 @@ def order(args) -> list[str]:
     if args.kind == "add" and not note.strip():
         raise ChantierError("order add --note <prepared-CR-folder-or-specification> "
                             "[--fix-for <release-cr>]", EXIT_USAGE)
+    if args.kind == "qa" and not note.strip():
+        raise ChantierError("order qa --note \"<what to test>\"", EXIT_USAGE)
     if args.kind in CR_ORDERS and (not args.cr or args.cr == "-"):
         raise ChantierError(f"order {args.kind} <cr>", EXIT_USAGE)
     repo = Repo.find()
@@ -549,16 +544,19 @@ def order(args) -> list[str]:
         with Batch(repo, resolve_batch(repo, args.batch),
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
-            effect = _apply_order(b, args.kind, args.cr, note, args.fix_for, own)
+            cr = args.cr
+            if args.kind == "qa":  # no CR: a work folder the QA driver fills, in the inbox
+                cr = _shown(repo, _new_request(repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode()))
+            effect = _apply_order(b, args.kind, cr, note, args.fix_for, own)
             oid = f"O-{len(b.data['orders']) + 1}"
-            b.data["orders"].append({"id": oid, "kind": args.kind, "cr": args.cr or "-",
+            b.data["orders"].append({"id": oid, "kind": args.kind, "cr": cr or "-",
                                      "note": note, "sent": now(), "done": now() if own else None,
                                      **({"fix_for": args.fix_for} if args.fix_for else {})})
-            b.log("order", None if args.cr in (None, "-") else args.cr, order=oid,
+            b.log("order", None if cr in (None, "-") else cr, order=oid,
                   order_kind=args.kind, note=note)
     if own:
         return effect
-    target = f" {args.cr}" if args.cr and args.cr != "-" else ""
+    target = f" {cr}" if cr and cr != "-" else ""
     text = f" {note}" if note else ""
     return [f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}"] + effect
 
@@ -677,10 +675,10 @@ def asks(args) -> list[str]:
 
 
 def agents(args) -> list[str]:
-    """The agent id a CR's Driver, a QA driver (`qa:<cr>`) or the stack driver runs under: the
-    Foreman records it after each start, so a restart and the cost know who ran what."""
+    """The agent id a CR's Driver or the stack driver runs under: the Foreman records it after
+    each start, so a restart and the cost know who ran what."""
     repo = Repo.find()
-    batch = find_cr_batch(repo, args.cr.removeprefix("qa:"), args.batch) \
+    batch = find_cr_batch(repo, args.cr, args.batch) \
         if args.cr != "stack" else resolve_batch(repo, args.batch)
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
@@ -689,9 +687,7 @@ def agents(args) -> list[str]:
         if args.cr == "stack":
             b.data["stack_agent"] = args.agent
         else:
-            c = b.cr(args.cr.removeprefix("qa:"))
-            b.touch(c, **({"qa_agent": args.agent} if args.cr.startswith("qa:")
-                          else {"agent": args.agent}))
+            b.touch(b.cr(args.cr), agent=args.agent)
         b.log("agent", args.cr, agent=args.agent)
     return [f"{args.cr} → {args.agent}"]
 
@@ -764,10 +760,9 @@ def handoff(args) -> list[str]:
 
 
 def take(args) -> list[str]:
-    """The Foreman gives a CR to a Driver (or the stack to its driver, or a CR in `qa` to a QA
-    driver): the rails refuse what the batch does not allow (a slot, the budget, a CR that has
-    nothing to do), the state records it, and the CR's facts are printed for the prompt. The
-    Foreman chooses the agent."""
+    """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
+    batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
+    it, and the CR's facts are printed for the prompt. The Foreman chooses the agent."""
     repo = Repo.find()
     if args.cr == "stack":
         batch = resolve_batch(repo, args.batch)
@@ -791,16 +786,10 @@ def take(args) -> list[str]:
                     f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
                     f"PR {x.get('pr') or 'none'}" for x in crs]
             c = b.cr(args.cr)
-            if c["status"] == "qa":
-                if c.get("qa_agent"):
-                    raise ChantierError(f"{c['id']} has a QA driver ({c['qa_agent']}); one that "
-                                        f"ended with no `qa`: `agents set qa:{c['id']} -` first")
-                check_budget(b)
-            else:
-                check_take(b, c, args.note)
-                if c["status"] in {"ready", "blocked"}:
-                    c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
-                b.touch(c, status="working", blocked_reason=None)
+            check_take(b, c, args.note)
+            if c["status"] in {"ready", "blocked"}:
+                c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
+            b.touch(c, status="working", blocked_reason=None)
             b.log("take", c["id"], note=args.note)
             _work(repo, c).mkdir(parents=True, exist_ok=True)
             facts = _facts(repo, batch, d, c)
@@ -857,9 +846,6 @@ def handback(args) -> list[str]:
             if not c.get("pr"):
                 raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
             b.log("handback", args.cr, result=args.result, note=note)
-            if c.get("qa") and not c.get("qa_done"):
-                b.touch(c, status="qa", qa_agent=None)
-                return [line, f"{args.cr} waits for its QA driver (`chantier take {args.cr}`)"]
             b.touch(c, status="ready")
             return [line, f"{args.cr} ready"]
 
@@ -1084,32 +1070,6 @@ def stack(args) -> list[str]:
     return [f"stack order: {' → '.join(args.crs)}"]
 
 
-def qa(args) -> list[str]:
-    """The QA driver's end: its findings file, with proof in `evidence/`. Findings queue the CR
-    for a round; none makes it ready."""
-    repo = Repo.find()
-    with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="qa") as b:
-        c = b.cr(args.cr)
-        if c["status"] != "qa":
-            raise ChantierError(f"{args.cr} is {c['status']}: not under QA")
-        evidence = repo.root / c["path"] / "evidence"
-        if not evidence.is_dir() or not any(p.is_file() for p in evidence.rglob("*")):
-            raise ChantierError(f"no proof in {_shown(repo, evidence)}: keep what you ran and saw "
-                                "there (commands and their output), findings or not")
-        text = Path(args.findings).read_text(encoding="utf-8")
-        n = sum(1 for ln in text.splitlines() if ln.lstrip().startswith(("- ", "* ")))
-        path = str(Path(args.findings).resolve())
-        b.log("qa-done", args.cr, findings=n, path=path)
-        if n:
-            c.setdefault("notes", []).append(f"QA found {n} findings: {path}")
-            b.touch(c, status="queued", qa_done=False, qa_agent=None)
-            hint = f"{args.cr} queued for a round on the findings"
-        else:
-            b.touch(c, status="ready", qa_done=True, qa_agent=None)
-            hint = f"{args.cr} ready"
-    return [f"[qa {args.cr}→foreman] qa done {args.cr} {n} findings", hint]
-
-
 def release(args) -> tuple[list[str], int]:
     """The release CR's attempts and its irreversible actions: each one is approved by the user,
     or allowed by the grant the user gave, within the budget. A fix's merge is an action too:
@@ -1165,7 +1125,7 @@ def cancel(args) -> list[str]:
             if c.get("worktree") and Path(c["worktree"]).exists():
                 killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
             trash_cr(b, c)
-            b.touch(c, status="cancelled", agent=None, qa_agent=None)
+            b.touch(c, status="cancelled", agent=None)
             b.log("cancel", args.cr, killed=killed, path=c.get("path"))
             done = all_merged(b)
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] \
@@ -1255,7 +1215,7 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
     agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
     for e in read_events(repo.batch_dir(batch)):
         if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":
-            agent_cr[e["agent"]] = e["cr"].removeprefix("qa:")
+            agent_cr[e["agent"]] = e["cr"]
     parents = {r["agent"]: r.get("parent") for r in rows}
 
     def cr_of(agent: str | None, hops: int = 0) -> str | None:

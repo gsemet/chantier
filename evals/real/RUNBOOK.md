@@ -7,7 +7,7 @@ scripted campaigns plant, and `evals/kit/audit.py` does not apply: it reads a st
 | | |
 | --- | --- |
 | CRs | 1 to 5 real defects or small features, picked by the Chief of Staff, with the user's go |
-| Open | `$CHANTIER open <batch> <A> <B> … --default-branch main --slots 3 --qa <n> --budget 20` |
+| Open | `$CHANTIER open <batch> <A> <B> … --default-branch main --slots 3 --budget 20` |
 | Team | the plugin's agents |
 
 The plugin is read live from the checkout: the main checkout stays on `main` during the run, and
