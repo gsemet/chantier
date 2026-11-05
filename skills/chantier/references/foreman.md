@@ -39,13 +39,17 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   spend, and names the longest silent Driver); `handoff <cr>` and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
   for the prompt ([concepts](concepts.md), "Starting an agent"). `take stack` for the stack
-  driver, `take <cr>` on a CR in `qa` for a QA driver. Record each agent's id with `$CHANTIER
-  agents set <cr>|qa:<cr>|stack <id> --epoch <n>` (`-` when it ended without its hand-back).
+  driver. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
+  when it ended without its hand-back).
+- An `order qa`: `status` names its folder in the inbox. With a slot free and budget left, start
+  a `qa-driver` on it (`chantier qa-driver for <folder> of batch <batch>, in the project <root>`,
+  the card, the CLI, the default branch and the user's note in its prompt). It holds no CR back.
+  On its `qa done`: `order done`, and the ask `qa <folder> <n> findings`.
 - A Release driver takes the release CR once the others are merged or cancelled; its card holds
   the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
-  (refused past three fixes or the budget); else, or refused, it is an ask. A stack driver takes the stack when its open CRs are all ready or
-  blocked, and again after a merge; it ends with each hand-back: `agents set stack - --epoch
+  (refused past three fixes or the budget); else, or refused, it is an ask. A stack driver takes
+  the stack when its open CRs are all ready or blocked, and again after a merge; it ends with each hand-back: `agents set stack - --epoch
   <n>` before the next `take stack`. A ready PR that stopped merging is yours to notice (`gh pr
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to

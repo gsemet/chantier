@@ -28,8 +28,6 @@ def step(c: dict) -> str:
     status = c["status"]
     if status == "queued":
         return "Queued"
-    if status == "qa":
-        return "QA"
     if status == "ready":
         return "Notify"
     if status == "blocked":
@@ -72,7 +70,6 @@ def _now_next(c: dict) -> tuple[str, str]:
         "Queued": ("Waiting for a free slot.", "A Driver starts it."),
         "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
         "CI": (f"{pr} is open: CI, then the verifier at the pushed head.", "The hand-back."),
-        "QA": ("A QA driver uses the change as its user would.", "The hand-back."),
         "Release": ("The Release driver follows the project's procedure.", "The next step of it."),
         "Notify": (f"Ready: {pr} waits for the user's merge.", "The merge, then the archive."),
         "Merged": (f"Merged: {pr}.", "Nothing."),
@@ -97,8 +94,6 @@ def _steps(c: dict, events: list[dict]) -> list[dict]:
             add("Long gate", at, e.get("result", ""), e.get("head", ""))
         elif kind == "ship":
             add("Shipped", at, note=e.get("pr", ""))
-        elif kind == "qa-done":
-            add("QA", at, note=f"{e.get('findings', 0)} findings")
         elif kind == "handback" and e.get("result") == "ready":
             add("Handed back", at)
         elif kind == "handback":

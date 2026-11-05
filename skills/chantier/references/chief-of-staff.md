@@ -58,17 +58,17 @@ Only in the turn where the user gave the go:
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and
    what the user can do.
-2. **Show the plan:** the CRs, mode, slots, budget, QA, the team. Then the go.
+2. **Show the plan:** the CRs, mode, slots, budget, the team. Then the go.
 3. **Open:**
 
    ```bash
    $CHANTIER open <batch> <prepared-folder>… [--default-branch <branch>] [--slots N] \
-     [--budget USD] [--stack] [--qa all|1,3] [--release N]
+     [--budget USD] [--stack] [--release N]
    ```
 
    It moves each folder to `3-requests/<n>-<batch>/`, names each CR's branch and worktree, and
    writes `brief.md`: complete it from the grill (the team, autonomous decisions allowed,
-   questions to bring back, QA notes).
+   questions to bring back).
 4. **Start the Foreman**, `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one):
 
    ```text
@@ -105,6 +105,7 @@ Only in the turn where the user gave the go:
   $CHANTIER order slots --note 0              # 0 pauses; a number resumes
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
+  $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
   ```
@@ -114,7 +115,8 @@ Only in the turn where the user gave the go:
   grant the Foreman starts it alone; else show the user its `fix-<n>.md`, and on their go `order
   add --note <that file> --fix-for <cr>`, or file and grill a CR when it needs more. A `refused
   <cr> <text>`: show the exact text; the user types one line in the Foreman's session allowing
-  that action.
+  that action. A `qa <folder> <n> findings`: its inbox folder is an ordinary item; triage it with
+  the user, split into CRs as needed.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host limits messages between sessions (10 on
   Claude Desktop since someone last typed): a refused send is reported, never sent another way.
