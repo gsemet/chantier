@@ -47,7 +47,7 @@ goals and boundaries, not procedures. Keep both true in any change.
 Install [`uv`](https://docs.astral.sh/uv/), [`just`](https://just.systems/) and `git`.
 Nothing else: `uv` fetches Python and the test dependencies.
 
-To try your working copy in Claude Code, install the plugin from your checkout:
+To run your working copy in Claude Code, install the plugin from your checkout, once:
 
 ```bash
 claude plugin marketplace add ./
@@ -56,6 +56,12 @@ claude plugin marketplace add ./
 ```bash
 claude plugin install chantier@chantier
 ```
+
+The plugin is then read live from that checkout, and [`.claude/settings.json`](.claude/settings.json)
+keeps it on in every session of this repository: a session here runs chantier itself, which is
+how you debug it. An edit loads at the next session or with `/reload-plugins`, with no reinstall.
+The main checkout is what runs: a branch switched there changes the plugin, and a worktree's work
+counts once merged.
 
 ## Daily work
 

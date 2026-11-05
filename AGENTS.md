@@ -19,6 +19,12 @@
 - The CLI has no dependencies and must stay portable (POSIX and Windows, UTF-8 everywhere).
 - Tests check the structure only (`tests/test_structure.py`): keep them few and fast; the batch
   workflow belongs to `just scenario`.
+- A session here runs chantier itself, read live from the main checkout: use it to debug it. An
+  edit loads at the next session or with `/reload-plugins`, with no reinstall; a worktree's edit
+  loads once merged into the main checkout.
+- During an eval the main checkout does not change, neither its files nor its branch: any other
+  work goes in a worktree. An eval's workspace is outside this repository: it does not read
+  `.claude/settings.json` and gets the plugin from the user's own install.
 - No fallback: no look-alike model, tool or agent and no workaround in the skill or the CLI; an
   agent judges freely within what it has.
 - Repository text in English. See [CONTRIBUTING.md](CONTRIBUTING.md).
