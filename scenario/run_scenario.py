@@ -227,8 +227,8 @@ class Foreman:
         """What the user allowed the Foreman to merge: a release's fix under the grant, the
         release PR after `release go`. Done with the forge's CLI, recorded with `order merged`."""
         cr = c["id"]
-        if c.get("kind") == "release":
-            action = f"merge the release PR {c['pr']}"
+        if c.get("kind") in ("release", "fix"):
+            action = f"merge the {c['kind']} PR {c['pr']}"
             code, out = self.w.chantier("release", "go", cr, "--note", action, expect=None)
             if code == 5:
                 self.ask_once((cr, "budget"), f"budget {out[0]}")
@@ -305,7 +305,7 @@ class Foreman:
                 if (c["id"], "ready", c.get("pr")) in self.told:
                     continue
                 self.told.add((c["id"], "ready", c.get("pr")))
-                if c.get("kind") == "fix" and (d.get("release") or {}).get("auto_merge"):
+                if c.get("kind") == "fix" and (d.get("release") or {}).get("fixes"):
                     self.merge(c)
                 else:
                     self.ask(f"ready {c['id']} {c['pr']}")
@@ -711,6 +711,7 @@ def scenario(w: World) -> None:
     close_batch(w)
     lifecycle_regressions(w)
     release(w)
+    granted_fixes(w)
     release_merge_on_approval(w)
     lost_messages(w)
     failed_opening(w)
@@ -919,7 +920,7 @@ def release(w: World) -> None:
     note("\n## 14. A release: the project's procedure, approvals, a fix, a grant")
     _, change = prepare_cr(w, "Last change")
     _, version = prepare_cr(w, "Release v1.1.0")
-    bad = (("--release", 3), ("--release", 2, "--qa", "2"), ("--release", 2, "--auto-merge-fixes"),
+    bad = (("--release", 3), ("--release", 2, "--qa", "2"), ("--release", 2, "--grant-fixes"),
            ("--autonomous-releases", 1, "--budget", 5))
     for args in bad:
         code, _ = w.chantier("open", "ship", str(change), str(version), *FROM_AGENTS_MD, *args,
@@ -978,9 +979,9 @@ def release(w: World) -> None:
     w.chantier("handback", rel, "blocked", "fix: the heavy suite fails; work/fix-1.md")
     fm.turn()
     _, fix = prepare_cr(w, "Fix the heavy suite")
-    code, _ = w.chantier("order", "grant", rel, "--note", "releases=1 auto-merge=on", expect=1)
+    code, _ = w.chantier("order", "grant", rel, "--note", "releases=1 fixes=on", expect=1)
     check("a grant without a budget is refused", code == 1 and "budget" in w.last_stderr)
-    w.chantier("order", "grant", rel, "--note", "releases=1 auto-merge=on budget=5")
+    w.chantier("order", "grant", rel, "--note", "releases=1 fixes=on budget=5")
     started = len(fm.started)
     fm.turn()
     check("a grant leaves a release that waits for its fix alone",
@@ -994,9 +995,16 @@ def release(w: World) -> None:
     code, out = w.chantier("release", "go", rel, "--note", "publish v1.1.0", expect=2)
     check("no irreversible action while a fix of the release is not merged",
           code == 2 and out[0].startswith(f"no: fix {fix_id} is not merged"), str(out))
+    code, _ = w.chantier("release", "go", fix_id, "--note", "merge the fix", expect=2)
+    check("a fix that is not ready does not merge", code == 2 and "ready" in w.last_stderr)
     driver_round(w, fix_id, "heavy.py", "FIXED = True\n")
     w.gh(merge_refused=True)
     w.chantier("handback", fix_id, "ready", w.cr(fix_id)["pr"])
+    w.chantier("order", "grant", rel, "--note", "fixes=off")
+    code, out = w.chantier("release", "go", fix_id, "--note", "merge the fix", expect=2)
+    check("without the grant, the user merges the fix",
+          code == 2 and "the user merges it" in out[0], str(out))
+    w.chantier("order", "grant", rel, "--note", "fixes=on")
     fm.turn()
     check("a merge the forge refuses goes to the Chief of Staff, the fix stays ready",
           fm.asked[-1].startswith(f"refused {fix_id}") and w.cr(fix_id)["status"] == "ready",
@@ -1059,6 +1067,44 @@ def release(w: World) -> None:
     calls = (w.root / "gh-state.json.calls").read_text()
     merged = ('"merge"', '/merge"')[ARGS.forge == "gitlab"]
     check("the forge saw the Foreman's merges", calls.count(merged) >= 2)
+
+
+def granted_fixes(w: World) -> None:
+    note("\n## 14b. The Foreman starts a release's fixes under the grant, up to three")
+    _, version = prepare_cr(w, "Release v1.3.0")
+    w.chantier("open", "fixes", str(version), "--release", 1, "--slots", 1, *FROM_AGENTS_MD)
+    w.name, w.env["CHANTIER_BATCH"] = "fixes", "fixes"
+    w.chantier("foreman", "set", "local_foreman5", "--epoch", 1)
+    rel = w.batch()["crs"][0]["id"]
+    work = w.work / w.cr(rel)["path"] / "work"
+    work.mkdir()
+    files = [work / f"fix-{n}.md" for n in range(1, 5)]
+    for n, path in enumerate(files, 1):
+        path.write_text(f"# Fix step {n}\n\nExpected: it passes. Actual: it fails.\n")
+    add = ("order", "add", "--note", files[0], "--fix-for", rel)
+    code, _ = w.chantier(*add, "--epoch", 1, expect=2)
+    check("without a grant, the Foreman starts no fix", code == 2 and "no grant" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("order", "budget", "--note", 50)
+    w.chantier("order", "grant", rel, "--note", "fixes=on")
+    codes = [w.chantier("order", "add", "--note", path, "--fix-for", rel, "--epoch", 1,
+                        expect=None)[0] for path in files]
+    check("under the grant, three fixes start and a fourth is refused", codes == [0, 0, 0, 5],
+          str(codes))
+    fix = w.batch()["crs"][1]
+    spec = w.work / fix["path"] / "03-change-spec.md"
+    check("a fix file becomes a fix CR of the batch, its specification kept",
+          fix["kind"] == "fix" and fix["title"] == "Fix step 1" and fix["status"] == "queued"
+          and spec.read_text() == files[0].read_text(), str(fix))
+    w.chantier("order", "add", "--note", files[3], "--fix-for", rel)
+    check("past three, a fix is the user's go", len(w.batch()["crs"]) == 5)
+    for c in w.batch()["crs"]:
+        w.chantier("order", "drop", c["id"])
+    for o in w.batch()["orders"]:
+        if not o["done"]:
+            w.chantier("order", "done", o["id"], "--epoch", 1)
+    w.chantier("land", "--epoch", 1)
+    w.chantier("close", "--batch", "fixes", "--yes")
 
 
 def release_merge_on_approval(w: World) -> None:

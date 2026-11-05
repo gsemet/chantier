@@ -50,7 +50,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 7. Each `ask ready`: merge the PR alone (`evals/kit/merge.py <workspace> <n>`; a conflict
    merges nothing, never chain the next command), then `order merged` and send its line.
 8. R's first attempt, `ask blocked CR-<R> fix: …`: answer "yes, fix it, and merge the fix
-   yourself". `$CHANTIER order grant CR-<R> --note "auto-merge=on budget=25"`, send its line,
+   yourself". `$CHANTIER order grant CR-<R> --note "fixes=on budget=25"`, send its line,
    then `$CHANTIER order add --note "<V>" --fix-for CR-<R>`, send its line.
 9. A `draft` on R's line in `$CHANTIER status`: add the line "Thanks to everyone who tested the
    beta." at the end of that file. It must reach `CHANGELOG.md`.

@@ -12,6 +12,7 @@ from .lifecycle import archive_cr
 from .state import EXIT_BUDGET, EXIT_USAGE, LIVE, Batch, ChantierError, now, round_limit
 
 ENDED = {"merged", "cancelled"}
+MAX_GRANTED_FIXES = 3
 
 
 def live(b: Batch) -> list[dict]:
@@ -115,19 +116,42 @@ def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
     return "go", why
 
 
-GRANT = "releases=<n> auto-merge=<on|off> budget=<usd>"
+def fix_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
+    """The Foreman merges a ready fix of the release under the user's grant, within the budget:
+    `go`, `budget`, or `ask` (the user merges it)."""
+    if c["status"] != "ready":
+        raise ChantierError(f"{c['id']} is {c['status']}: only a ready fix merges")
+    result = ("budget" if over_budget(b) else
+              "go" if b.data["release"].get("fixes") else "ask")
+    b.log("release-go", c["id"], action=action, result=result)
+    return result, "the user granted the release's fixes"
+
+
+def check_granted_fix(b: Batch, c: dict) -> None:
+    """The Foreman starts a fix of release `c` only under the user's grant, within the budget,
+    and up to MAX_GRANTED_FIXES; past that, a fix is the user's go."""
+    if not b.data["release"].get("fixes"):
+        raise ChantierError("no grant for the release's fixes: the user's go comes as `order add "
+                            "--fix-for`")
+    check_budget(b)
+    if sum(x.get("fix_for") == c["id"] for x in b.data["crs"]) >= MAX_GRANTED_FIXES:
+        raise ChantierError(f"{MAX_GRANTED_FIXES} fixes under the grant: another one is the "
+                            "user's go", EXIT_BUDGET)
+
+
+GRANT = "releases=<n> fixes=<on|off> budget=<usd>"
 
 
 def parse_grant(text: str) -> dict:
-    """What the user allows without asking: a number of releases, the merge of the release's
-    fixes by the Foreman, and the budget they run within. Any of the three."""
+    """What the user allows without asking: a number of releases, the release's fixes started
+    and merged by the Foreman, and the budget they run within. Any of the three."""
     grant = {}
     for word in text.split():
         key, _, value = word.partition("=")
         if key == "releases" and value.isdigit():
             grant["autonomous"] = int(value)
-        elif key == "auto-merge" and value in ("on", "off"):
-            grant["auto_merge"] = value == "on"
+        elif key == "fixes" and value in ("on", "off"):
+            grant["fixes"] = value == "on"
         elif key == "budget" and re.fullmatch(r"\d+(\.\d+)?", value) and float(value) > 0:
             grant["budget_usd"] = float(value)
         else:
@@ -139,7 +163,7 @@ def parse_grant(text: str) -> dict:
 
 def check_grant(release: dict, budget: float | None) -> None:
     """Autonomy is always bounded by a budget."""
-    if (release.get("autonomous") or release.get("auto_merge")) and not budget:
+    if (release.get("autonomous") or release.get("fixes")) and not budget:
         raise ChantierError("a release grant needs a batch budget: `budget=<usd>` (or `open "
                             "--budget`)", EXIT_USAGE)
 

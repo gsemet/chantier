@@ -51,8 +51,8 @@ def _parser() -> argparse.ArgumentParser:
                    help="the item number of the release CR; it starts once the others are merged")
     s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",
                    help="releases the user allows without asking (needs --budget)")
-    s.add_argument("--auto-merge-fixes", action="store_true",
-                   help="the Foreman merges the release's ready fixes (needs --budget)")
+    s.add_argument("--grant-fixes", action="store_true",
+                   help="the Foreman starts and merges the release's fixes (needs --budget)")
     s.add_argument("--default-branch", help="default: the remote's HEAD")
     s.add_argument("--remote", default="origin")
 
@@ -60,10 +60,12 @@ def _parser() -> argparse.ArgumentParser:
             "the user's word, recorded at once; the Foreman does what needs its hands",
             epoch=True)
     s.add_argument("kind", help="add, drop, merged, note, rounds, slots, budget; for the release "
-                   "CR: approve, grant; the Foreman: done <O-k>, merged --epoch")
+                   "CR: approve, grant; the Foreman: done <O-k>, merged --epoch, add --fix-for "
+                   "--epoch")
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
-    s.add_argument("--note", help="add: <folder>; note: the line; rounds, slots, budget: the "
-                   "number; approve: the action; grant: releases=N auto-merge=on|off budget=N")
+    s.add_argument("--note", help="add: <folder>, or a release's fix file; note: the line; rounds, "
+                   "slots, budget: the number; approve: the action; grant: releases=N "
+                   "fixes=on|off budget=N")
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
 
     s = cmd("foreman", commands.foreman,

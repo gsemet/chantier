@@ -22,8 +22,9 @@ from pathlib import Path
 from . import __version__, costs, procs
 from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, stage_layout, trash_cr)
-from .rails import (all_merged, archive_merged, check_budget, check_grant, check_round, check_take,
-                    live, parse_grant, record_ask, release_go, release_merged)
+from .rails import (MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
+                    check_granted_fix, check_round, check_take, fix_go, live, parse_grant,
+                    record_ask, release_go, release_merged)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
                     age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -276,8 +277,25 @@ def grant_line(release: dict) -> str:
     return "; ".join([
         f"up to {n} releases without asking ({done} published)" if n
         else "every irreversible action waits for the user's approval",
-        "the Foreman merges its fixes once ready" if release.get("auto_merge")
-        else "the user merges the fixes"])
+        f"the Foreman starts and merges up to {MAX_GRANTED_FIXES} fixes" if release.get("fixes")
+        else "the user starts and merges the fixes"])
+
+
+def filed_fix(b: Batch, rel: dict, item: str) -> str:
+    """A release's fix file is the fix's specification: it becomes a prepared CR in the inbox.
+    Anything else is already a prepared CR."""
+    repo = b.repo
+    source = project_path(repo.root, item, "fix")
+    if not source.is_file() or cr_directory(repo, rel) not in source.parents:
+        return item
+    folder = stage_layout(repo)["inbox"] / f"{rel['id'].lower()}-{_slug(source.stem)}"
+    try:
+        (folder / "intake").mkdir(parents=True)
+    except FileExistsError as e:
+        raise ChantierError(f"CR folder already exists: {folder}", EXIT_CONFLICT) from e
+    shutil.copyfile(source, folder / "intake" / "request.md")
+    shutil.copyfile(source, folder / "03-change-spec.md")
+    return str(folder)
 
 
 def add_cr(b: Batch, item: str, qa: bool = False, kind: str = "change") -> dict:
@@ -335,12 +353,11 @@ def open_batch(args) -> list[str]:
         if not 1 <= args.release <= len(args.items) or qa_all or args.release in qa_idx:
             raise ChantierError("--release: the item number of the release CR, without QA",
                                 EXIT_USAGE)
-        release = {"autonomous": args.autonomous_releases, "auto_merge": args.auto_merge_fixes,
+        release = {"autonomous": args.autonomous_releases, "fixes": args.grant_fixes,
                    "published": 0}
         check_grant(release, args.budget)
-    elif args.autonomous_releases or args.auto_merge_fixes:
-        raise ChantierError("--autonomous-releases and --auto-merge-fixes need --release",
-                            EXIT_USAGE)
+    elif args.autonomous_releases or args.grant_fixes:
+        raise ChantierError("--autonomous-releases and --grant-fixes need --release", EXIT_USAGE)
     selected = [prepared_cr(repo, item, paths).directory for item in args.items]
     if len(set(selected)) != len(selected):
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
@@ -426,16 +443,20 @@ def _release_cr(b: Batch, kind: str, cr_id: str) -> dict:
     return release
 
 
-def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None) -> list[str]:
+def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None,
+                 own: bool = False) -> list[str]:
     """The user's word, recorded at once: a folder moves, a number changes, a note is kept. Who
-    takes a CR next, and when, is the Foreman's decision from `status`."""
+    takes a CR next, and when, is the Foreman's decision from `status`. `own` is the Foreman
+    acting under the user's grant."""
     c = b.cr(cr_id) if kind in CR_ORDERS or (kind == "note" and cr_id != "-") else None
     if kind == "add":
         if fix_for:
             _release_cr(b, "add --fix-for", fix_for)
-            fix = add_cr(b, note, kind="fix")
-            fix["fix_for"] = fix_for
             rel = b.cr(fix_for)
+            if own:
+                check_granted_fix(b, rel)
+            fix = add_cr(b, filed_fix(b, rel, note), kind="fix")
+            fix["fix_for"] = fix_for
             rel.setdefault("notes", []).append(f"fix: {fix['id']} must merge first; then the "
                                                "procedure starts again from its first step")
             b.touch(rel)
@@ -507,7 +528,8 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
 def order(args) -> list[str]:
     """The Chief of Staff's word, in the state at once; the Foreman sees it in `status` and
     marks it `order done` once its own part is done. `order merged --epoch <n>` is the Foreman
-    recording a merge it made itself: done at once."""
+    recording a merge it made itself, `order add --fix-for --epoch <n>` a fix it starts under
+    the grant: done at once."""
     if args.kind not in ORDER_KINDS:
         raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
     note = args.note or ""
@@ -519,14 +541,15 @@ def order(args) -> list[str]:
     repo = Repo.find()
     if args.kind == "done":
         return _order_done(repo, args)
-    if args.epoch is not None and args.kind != "merged":
-        raise ChantierError("only `order merged` takes --epoch: the Foreman's own merge", EXIT_USAGE)
     own = args.epoch is not None
+    if own and args.kind != "merged" and not (args.kind == "add" and args.fix_for):
+        raise ChantierError("only `order merged` and `order add --fix-for` take --epoch: the "
+                            "Foreman's own merge or fix", EXIT_USAGE)
     with changes_lock(repo):
         with Batch(repo, resolve_batch(repo, args.batch),
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
-            effect = _apply_order(b, args.kind, args.cr, note, args.fix_for)
+            effect = _apply_order(b, args.kind, args.cr, note, args.fix_for, own)
             oid = f"O-{len(b.data['orders']) + 1}"
             b.data["orders"].append({"id": oid, "kind": args.kind, "cr": args.cr or "-",
                                      "note": note, "sent": now(), "done": now() if own else None,
@@ -1089,11 +1112,13 @@ def qa(args) -> list[str]:
 
 def release(args) -> tuple[list[str], int]:
     """The release CR's attempts and its irreversible actions: each one is approved by the user,
-    or allowed by the grant the user gave, within the budget."""
+    or allowed by the grant the user gave, within the budget. A fix's merge is an action too:
+    `go` on the fix CR, under the grant alone."""
     repo = Repo.find()
     with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
         c = b.cr(args.cr)
-        if c.get("kind") != "release":
+        is_fix = c.get("kind") == "fix" and args.action == "go"
+        if c.get("kind") != "release" and not is_fix:
             raise ChantierError(f"{args.cr} is not the batch's release CR", EXIT_USAGE)
         grant = b.data["release"]
         if args.action == "start":  # a new attempt, on the branch the Driver set on the base
@@ -1109,7 +1134,9 @@ def release(args) -> tuple[list[str], int]:
             b.touch(c)
             b.log("release-published", args.cr, note=args.note)
             return [f"release {grant['published']} published: {args.note}"], 0
-        result, why = release_go(b, c, args.note)
+        result, why = fix_go(b, c, args.note) if is_fix else release_go(b, c, args.note)
+        if is_fix and result == "ask":
+            return [f"no grant for: {args.note}; the user merges it"], EXIT_PRECONDITION
         if result == "budget":
             return [f"no: the budget is spent (${b.data.get('spent_usd', 0):.2f} of "
                     f"${b.data['budget_usd']}); only the user raises it"], EXIT_BUDGET

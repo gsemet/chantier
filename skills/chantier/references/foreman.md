@@ -16,8 +16,9 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
 
 - **Never merge without the user's word.** An ordinary ready CR is the ask `ready <cr> <link>`;
   the user merges it and the Chief of Staff records it. You merge only a release's PR or fix,
-  after `$CHANTIER release go <cr> --note "merge <pr>"` says `go` (an approval or the grant),
-  with the forge's CLI by the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
+  after `$CHANTIER release go <cr> --note "merge <pr>"` says `go` (the release CR: an approval
+  or the grant; a fix CR: the grant, else it is an ordinary ready CR), with the forge's CLI by
+  the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit; a refusal is a fact, not an argument. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
@@ -41,7 +42,9 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   driver, `take <cr>` on a CR in `qa` for a QA driver. Record each agent's id with `$CHANTIER
   agents set <cr>|qa:<cr>|stack <id> --epoch <n>` (`-` when it ended without its hand-back).
 - A Release driver takes the release CR once the others are merged or cancelled; its card holds
-  the procedure's rules. A stack driver takes the stack when its open CRs are all ready or
+  the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
+  order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
+  (refused past three fixes or the budget); else, or refused, it is an ask. A stack driver takes the stack when its open CRs are all ready or
   blocked, and again after a merge; it ends with each hand-back: `agents set stack - --epoch
   <n>` before the next `take stack`. A ready PR that stopped merging is yours to notice (`gh pr
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.
