@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 812" width="1240" height="812" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 842" width="1310" height="842" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works</title>
-  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent, and the stack driver runs the conflict resolver. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. It runs in Claude Desktop or a Copilot SDK host.</desc>
+  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. It runs in Claude Desktop or a Copilot SDK host.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -10,23 +10,23 @@
     </marker>
   </defs>
 
-  <rect width="1240" height="812" fill="#f8fafc"/>
+  <rect width="1310" height="842" fill="#f8fafc"/>
   <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🏗️ How chantier works</text>
   <text x="24" y="82" font-size="17.5" fill="#475569">One office to talk to; the agents do the work.</text>
 
   <!-- Unit of work -->
-  <rect x="930" y="22" width="280" height="88" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
-  <text x="950" y="56" font-size="17.5" fill="#0f172a"><tspan font-weight="700" fill="#c2410c">CR</tspan> = Change Request</text>
-  <text x="950" y="86" font-size="14.5" fill="#475569">an idea, a bug, a feature, an intent</text>
+  <rect x="1000" y="22" width="280" height="88" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+  <text x="1020" y="56" font-size="17.5" fill="#0f172a"><tspan font-weight="700" fill="#c2410c">CR</tspan> = Change Request</text>
+  <text x="1020" y="86" font-size="14.5" fill="#475569">an idea, a bug, a feature, an intent</text>
 
   <!-- Lanes -->
-  <rect x="24" y="252" width="880" height="148" rx="10" fill="#eef2f7"/>
-  <rect x="24" y="550" width="880" height="130" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="252" width="950" height="148" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="550" width="950" height="150" rx="10" fill="#eef2f7"/>
   <g font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2" text-anchor="middle">
     <text transform="translate(48,180) rotate(-90)">MAIN SESSION</text>
     <text transform="translate(48,326) rotate(-90)">NESTED SESSION</text>
     <text transform="translate(48,475) rotate(-90)">DRIVERS</text>
-    <text transform="translate(48,615) rotate(-90)">WORKERS</text>
+    <text transform="translate(48,625) rotate(-90)">WORKERS</text>
   </g>
 
   <!-- AGENTS.md -->
@@ -85,58 +85,61 @@
   <!-- CR driver starts workers: one bus, a drop per worker -->
   <g stroke="#334155" stroke-width="1.5" fill="none">
     <line x1="175" y1="530" x2="175" y2="558"/>
-    <line x1="144" y1="558" x2="696" y2="558"/>
+    <line x1="140" y1="558" x2="888" y2="558"/>
   </g>
   <g stroke="#334155" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
-    <line x1="144" y1="558" x2="144" y2="572"/>
-    <line x1="282" y1="558" x2="282" y2="572"/>
-    <line x1="420" y1="558" x2="420" y2="572"/>
-    <line x1="558" y1="558" x2="558" y2="572"/>
-    <line x1="696" y1="558" x2="696" y2="572"/>
-    <!-- The stack driver starts only the conflict resolver -->
-    <path d="M385,524 V540 H870 V572"/>
+    <line x1="140" y1="558" x2="140" y2="572"/>
+    <line x1="268" y1="558" x2="268" y2="572"/>
+    <line x1="396" y1="558" x2="396" y2="572"/>
+    <line x1="524" y1="558" x2="524" y2="572"/>
+    <line x1="652" y1="558" x2="652" y2="572"/>
+    <line x1="780" y1="558" x2="780" y2="572"/>
+    <line x1="888" y1="558" x2="888" y2="572"/>
+    <!-- The stack driver starts the conflict resolver too -->
+    <path d="M385,524 V540 H928 V572"/>
   </g>
 
   <!-- Workers -->
-  <g font-size="15.5" font-weight="600" fill="#0f172a" text-anchor="middle">
-    <rect x="80" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="144" y="606">🔦 Investigator</text>
-    <rect x="218" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="282" y="606">🔨 Coder</text>
-    <rect x="356" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="420" y="606">📏 Inspector</text>
-    <rect x="494" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="558" y="606">🔧 Debugger</text>
-    <rect x="632" y="574" width="128" height="54" rx="9" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/><text x="696" y="606">➕ your agents</text>
-    <rect x="770" y="574" width="128" height="54" rx="9" fill="#e0e7ff"/><text x="834" y="597">⛓️ Conflict</text><text x="834" y="615">resolver</text>
+  <g font-size="15" font-weight="600" fill="#0f172a" text-anchor="middle">
+    <rect x="80" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="140" y="616">🔦 Investigator</text>
+    <rect x="208" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="268" y="616">🔨 Coder</text>
+    <rect x="336" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="396" y="600">📏 Inspector</text><g font-size="12" font-weight="500" fill="#475569"><text x="396" y="621">reads the diff,</text><text x="396" y="637">before the commit</text></g>
+    <rect x="464" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="524" y="600">✅ Verifier</text><g font-size="12" font-weight="500" fill="#475569"><text x="524" y="621">runs it, at the</text><text x="524" y="637">pushed head</text></g>
+    <rect x="592" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="652" y="616">🔧 Debugger</text>
+    <rect x="720" y="574" width="120" height="74" rx="9" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/><text x="780" y="616">➕ your agents</text>
+    <rect x="848" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="908" y="607">⛓️ Conflict</text><text x="908" y="625">resolver</text>
   </g>
-  <text x="80" y="660" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
+  <text x="80" y="682" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
 
   <!-- Storage -->
-  <rect x="80" y="700" width="820" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="100" y="733" font-size="17.5" font-weight="700" fill="#0f172a">🗄️ <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>, as JSON and Markdown</text>
-  <text x="100" y="764" font-size="15.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">1-inbox → 2-backlog → 3-requests → 4-archives · 5-trash</text>
+  <rect x="80" y="730" width="890" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="100" y="763" font-size="17.5" font-weight="700" fill="#0f172a">🗄️ <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>, as JSON and Markdown</text>
+  <text x="100" y="794" font-size="15.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">1-inbox → 2-backlog → 3-requests → 4-archives · 5-trash</text>
 
   <!-- chantier CLI -->
-  <rect x="930" y="132" width="280" height="496" rx="14" fill="#0f172a"/>
-  <text x="1070" y="178" font-size="24" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
-  <text x="1070" y="204" font-size="15.5" fill="#cbd5e1" text-anchor="middle">Python CLI</text>
-  <line x1="954" y1="232" x2="1186" y2="232" stroke="#334155" stroke-width="1.5"/>
+  <rect x="1000" y="132" width="280" height="516" rx="14" fill="#0f172a"/>
+  <text x="1140" y="178" font-size="24" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
+  <text x="1140" y="204" font-size="15.5" fill="#cbd5e1" text-anchor="middle">Python CLI</text>
+  <line x1="1024" y1="232" x2="1256" y2="232" stroke="#334155" stroke-width="1.5"/>
   <g font-size="17.5" font-weight="700" fill="#e2e8f0">
-    <text x="954" y="310">🔄 CR lifecycle</text>
-    <text x="954" y="420">🚧 Limits</text>
-    <text x="954" y="530">📣 Sync</text>
+    <text x="1024" y="310">🔄 CR lifecycle</text>
+    <text x="1024" y="420">🚧 Limits</text>
+    <text x="1024" y="530">📣 Sync</text>
   </g>
   <g font-size="16" fill="#cbd5e1">
-    <text x="954" y="336">open, take, ship, land</text>
-    <text x="954" y="446">budget, usage</text>
-    <text x="954" y="556">orders, asks, notes</text>
+    <text x="1024" y="336">open, take, ship, land</text>
+    <text x="1024" y="446">slots, budget, rounds</text>
+    <text x="1024" y="556">orders, asks, notes</text>
   </g>
   <g stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4">
-    <line x1="834" y1="180" x2="926" y2="180"/>
-    <line x1="834" y1="331" x2="926" y2="331"/>
-    <line x1="904" y1="480" x2="926" y2="480"/>
-    <line x1="902" y1="601" x2="926" y2="601"/>
+    <line x1="834" y1="180" x2="996" y2="180"/>
+    <line x1="834" y1="331" x2="996" y2="331"/>
+    <line x1="904" y1="480" x2="996" y2="480"/>
+    <line x1="972" y1="611" x2="996" y2="611"/>
   </g>
 
   <!-- Coding agents -->
-  <rect x="930" y="700" width="280" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="950" y="733" font-size="17.5" font-weight="700" fill="#0f172a">Coding Agents</text>
-  <text x="950" y="764" font-size="15.5" fill="#334155">Claude Desktop · Copilot SDK host</text>
+  <rect x="1000" y="730" width="280" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="1020" y="763" font-size="17.5" font-weight="700" fill="#0f172a">Coding Agents</text>
+  <text x="1020" y="794" font-size="15.5" fill="#334155">Claude Desktop · Copilot SDK host</text>
 </svg>
