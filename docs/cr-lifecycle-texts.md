@@ -12,7 +12,7 @@ Some CRs do not translate to a PR.
 
 ```md
 👤 you
-🧑‍💼 Chief of Staff
+🤵 Chief of Staff
 👷 Foreman
 🚜 driver
 🔨 worker
@@ -90,7 +90,7 @@ drop
 ## Spec loop
 
 ```md
-## 🧑‍💼 writes the spec
+## 🤵 writes the spec
 
 03-change-spec.md
 ```
@@ -118,7 +118,7 @@ often made by you, outside this cycle
 ## Clarification loop
 
 ```md
-## 🧑‍💼 grills you
+## 🤵 grills you
 
 with recommended answers
 ```
@@ -158,7 +158,7 @@ on the CRs you pick
 ## Opens the batch
 
 ```md
-## 🧑‍💼 opens the batch
+## 🤵 opens the batch
 
 3-requests/
 ```
@@ -245,7 +245,7 @@ files bugs as findings
 ```
 
 ```md
-## 🧑‍💼 Chief of Staff
+## 🤵 Chief of Staff
 
 asked by Foreman; may raise to you
 ```
@@ -256,7 +256,7 @@ may raise
 ```
 
 ```md
-🧑‍💼 Chief of Staff
+🤵 Chief of Staff
 orders
 ```
 
@@ -457,7 +457,7 @@ sends final
 ```
 
 ```md
-## 🧑‍💼 Chief of Staff
+## 🤵 Chief of Staff
 
 bilan + cost
 ```

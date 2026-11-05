@@ -13,13 +13,13 @@ One CR, one folder, usually one PR/MR. Agents do the work; you decide at four po
 ## Legend
 
 ```md
-👤 you · 🧑‍💼 Chief of Staff · 👷 Foreman · 🚜 driver · 🔨 worker
+👤 you · 🤵 Chief of Staff · 👷 Foreman · 🚜 driver · 🔨 worker
 ```
 
 ## Phases
 
 ```md
-PLAN · 🧑‍💼 Chief of Staff, with you
+PLAN · 🤵 Chief of Staff, with you
 BUILD · 👷 Foreman runs the batch
 LAND
 ```
@@ -36,7 +36,7 @@ chat, findings
 ```md
 ## ⚖️ Triage
 
-🧑‍💼 with 👤 you
+🤵 with 👤 you
 drop · clarify · spec
 1-inbox/
 ```
