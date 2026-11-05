@@ -10,7 +10,7 @@ release of chantier. About $15 and 3 h.
 - a change ordered on a CR a Driver is working on;
 - a decision only the user can take: the Driver hands back `blocked question:`, the answer goes
   to a new Driver;
-- QA on one CR;
+- QA on the project's head, on the user's word during the batch;
 - rebases: after each merge, the Foreman checks the ready PRs with the forge's CLI (`gh pr view
   --json mergeable`) and sends each one in conflict back to a Driver with a `rebase:` note;
 - **a red CI from the product**: CI runs a contract test the agents never see (the delete
@@ -31,8 +31,8 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | --- | --- |
 | Setup | `uv run --no-project python evals/kit/setup.py claude-full <workspace>` |
 | Batch | `full` |
-| CRs | A `add-priority`, B `done-unknown-id`, C `list-json` (QA), D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
-| Open | `$CHANTIER open full <A> <B> <C> <R> --release 4 --slots 3 --qa 3 --budget 25 --default-branch main`, each `<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
+| CRs | A `add-priority`, B `done-unknown-id`, C `list-json`, D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
+| Open | `$CHANTIER open full <A> <B> <C> <R> --release 4 --slots 3 --budget 25 --default-branch main`, each `<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 
 ## The user's turns
 
@@ -48,7 +48,8 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 6. F blocked (round limit, or a question about the style review against the specification):
    drop it, `$CHANTIER order drop CR-<F>`.
 7. Each `ask ready`: merge the PR alone (`evals/kit/merge.py <workspace> <n>`; a conflict
-   merges nothing, never chain the next command), then `order merged` and send its line.
+   merges nothing, never chain the next command), then `order merged` and send its line. Once C
+   is merged: `$CHANTIER order qa --note "<C's QA notes>"`, send its line.
 8. R's first attempt, `ask blocked CR-<R> fix: …`: answer "yes, fix it, and merge the fix
    yourself". `$CHANTIER order grant CR-<R> --note "fixes=on budget=25"`, send its line,
    then `$CHANTIER order add --note "<V>" --fix-for CR-<R>`, send its line.

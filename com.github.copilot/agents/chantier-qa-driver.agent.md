@@ -1,6 +1,6 @@
 ---
 name: chantier-qa-driver
-description: Uses a green chantier CR as its user would and reports findings to the Foreman. Started by the Foreman.
+description: Uses the project's head as its user would and leaves its findings in a work folder. Started by the Foreman.
 model: [Claude Sonnet 5.5, claude-sonnet-5.5]
 model-policy: required
 tools: ["execute", "read", "edit", "search", "read_agent", "write_agent", "list_agents"]

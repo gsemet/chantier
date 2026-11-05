@@ -46,7 +46,6 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--slots", type=int, default=2)
     s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
     s.add_argument("--stack", action="store_true", help="stacked PRs")
-    s.add_argument("--qa", help="'all' or 1-based item numbers, e.g. 1,3")
     s.add_argument("--release", type=int, metavar="N",
                    help="the item number of the release CR; it starts once the others are merged")
     s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",
@@ -59,13 +58,13 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("order", commands.order,
             "the user's word, recorded at once; the Foreman does what needs its hands",
             epoch=True)
-    s.add_argument("kind", help="add, drop, merged, note, rounds, slots, budget; for the release "
+    s.add_argument("kind", help="add, drop, merged, note, rounds, slots, budget, qa; for the release "
                    "CR: approve, grant; the Foreman: done <O-k>, merged --epoch, add --fix-for "
                    "--epoch")
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
     s.add_argument("--note", help="add: <folder>, or a release's fix file; note: the line; rounds, "
-                   "slots, budget: the number; approve: the action; grant: releases=N "
-                   "fixes=on|off budget=N")
+                   "slots, budget: the number; qa: what to test; approve: the action; grant: "
+                   "releases=N fixes=on|off budget=N")
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
 
     s = cmd("foreman", commands.foreman,
@@ -85,13 +84,13 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("text", nargs="*", help="the Foreman's own ask")
     s.add_argument("--read", metavar="A-k|all", help="mark heard")
 
-    s = cmd("agents", commands.agents, "map a CR (or stack, qa:<cr>) to its agent id", epoch=True)
+    s = cmd("agents", commands.agents, "map a CR (or stack) to its agent id", epoch=True)
     s.add_argument("action", choices=["set"])
     s.add_argument("cr")
     s.add_argument("agent", help="the agent id; `-` clears it")
 
     s = cmd("take", commands.take,
-            "a Driver takes the CR (or `stack`, or a CR in qa): the slot, then its facts",
+            "a Driver takes the CR (or `stack`): the slot, then its facts",
             epoch=True)
     s.add_argument("cr", help="the CR, or `stack` for the stack driver")
     s.add_argument("--note", help="why a ready or blocked CR goes back to a Driver")
@@ -128,10 +127,6 @@ def _parser() -> argparse.ArgumentParser:
 
     s = cmd("stack", commands.stack, "the stack's order, as its driver set it")
     s.add_argument("crs", nargs="+", help="the CRs, bottom first")
-
-    s = cmd("qa", commands.qa, "the QA driver's end: its findings, with proof in evidence/")
-    s.add_argument("cr")
-    s.add_argument("--findings", required=True, help="markdown file, one finding per bullet")
 
     s = cmd("release", commands.release,
             "release driver: start an attempt, go for an irreversible action, published")

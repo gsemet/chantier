@@ -96,7 +96,7 @@ SETTINGS = ("default_branch", "remote", "max_rounds")
 
 # The statuses a live Driver owns; the others are queued, ready, blocked, cancelled, merged.
 # A batch is open or landed.
-LIVE = {"working", "qa"}
+LIVE = {"working"}
 
 
 class ChantierError(Exception):

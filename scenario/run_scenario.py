@@ -41,9 +41,9 @@ GATE = "uv run --no-project python -m compileall -q ."  # what the project's AGE
 FROM_AGENTS_MD = ("--default-branch", "main")
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 BODY = "## Summary\n\n{title}.\n\n### Checks\n\nNone.\n"
-LIVE = {"working", "qa"}
+LIVE = {"working"}
 ENDED = {"merged", "cancelled"}
-BACK_NOTES = ("rebase:", "QA found", "merged:")
+BACK_NOTES = ("rebase:", "merged:")
 OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 
 
@@ -182,6 +182,7 @@ class Foreman:
         self.asked: list[str] = []
         self.messages: list[str] = []
         self.cancelled: list[str] = []
+        self.qa: list[str] = []  # the folders of the QA drivers it started
         self.told: set = set()
         self.facts: list[str] = []
         self.landed = False
@@ -202,11 +203,10 @@ class Foreman:
         if code:
             return code
         self.facts = facts
-        key = f"qa:{target}" if target != "stack" and self.w.cr(target)["status"] == "qa" \
-            else target
-        self.started.append(f"{key} {note_}" if note_ else key)
-        self.w.chantier("agents", "set", key, f"agent-{len(self.started)}", "--epoch", self.epoch)
-        if key == target != "stack":
+        self.started.append(f"{target} {note_}" if note_ else target)
+        self.w.chantier("agents", "set", target, f"agent-{len(self.started)}",
+                        "--epoch", self.epoch)
+        if target != "stack":
             start_driver(self.w, target)
         return 0
 
@@ -247,6 +247,10 @@ class Foreman:
         """The Foreman's part; False when the order stays pending until a Driver takes it."""
         c = next((x for x in d["crs"] if x["id"] == o["cr"]), None)
         rel = next((x for x in d["crs"] if x["id"] == o.get("fix_for")), None)
+        if o["kind"] == "qa":  # the order stays pending until its QA driver ends
+            if o["cr"] not in self.qa:
+                self.qa.append(o["cr"])
+            return False
         if o["kind"] == "drop" and c and c["status"] in LIVE:
             self.cancelled.append(c["id"])
             self.w.chantier("cancel", c["id"], "--epoch", self.epoch)
@@ -309,8 +313,6 @@ class Foreman:
                     self.merge(c)
                 else:
                     self.ask(f"ready {c['id']} {c['pr']}")
-            elif c["status"] == "qa" and not c.get("qa_agent"):
-                self.take(c["id"])
         d = self.w.batch()
         live = sum(c["status"] in LIVE for c in d["crs"])
         for c, note_, o in self.candidates(d):
@@ -425,7 +427,7 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("open", "raw-title", "Fix login", *FROM_AGENTS_MD, expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
     w.chantier("open", "night", *(str(backlog) for _, backlog in items),
-               "--slots", 2, "--qa", "2", "--budget", 50, *FROM_AGENTS_MD)
+               "--slots", 2, "--budget", 50, *FROM_AGENTS_MD)
     w.chantier("foreman", "set", "local_foreman1", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
@@ -502,41 +504,13 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("round", "CR-101", expect=2)
     check("a CR without a Driver runs no round", code == 2)
 
-    note("\n## 4. CR-102: two rounds, then QA")
+    note("\n## 4. CR-102: two rounds")
     driver_round(w, "CR-102", "export.py", "def export():\n    return 'csv'\n")
     w.chantier("note", "CR-102", "CI red: the product; export header missing")
     driver_round(w, "CR-102", "export.py", "def export():\n    return 'id,name\\n'\n")
-    _, out = w.chantier("handback", "CR-102", "ready", w.cr("CR-102")["pr"])
-    check("a QA CR waits for its QA driver", w.cr("CR-102")["status"] == "qa"
-          and "chantier take CR-102" in out[1], str(out))
-    fm.turn()
-    check("the Foreman gives CR-102 to a QA driver", fm.started[-1] == "qa:CR-102")
-    code, _ = w.chantier("take", "CR-102", expect=2)
-    check("a second QA driver is refused while one is recorded", code == 2
-          and "has a QA driver" in w.last_stderr, w.last_stderr)
-    findings = w.root / "qa-findings.md"
-    findings.write_text("# QA\n\n- The export button is hidden on mobile\n")
-    code, _ = w.chantier("qa", "CR-102", "--findings", findings, expect=2)
-    check("QA without proof in evidence/ is refused", code == 2 and "no proof" in w.last_stderr,
-          w.last_stderr)
-    evidence = w.work / w.cr("CR-102")["path"] / "evidence"
-    evidence.mkdir()
-    (evidence / "mobile.txt").write_text("$ open /export at 375px: no export button\n")
-    _, out = w.chantier("qa", "CR-102", "--findings", findings)
-    check("a QA finding queues the CR with the findings file",
-          out[0] == "[qa CR-102→foreman] qa done CR-102 1 findings"
-          and w.cr("CR-102")["status"] == "queued", str(out))
-    fm.turn()
-    check("the Foreman gives CR-102 a new Driver with the findings",
-          fm.started[-1].startswith("CR-102 QA found 1 findings: ")
-          and fm.started[-1].endswith("qa-findings.md"), fm.started[-1])
-    driver_round(w, "CR-102", "export_ui.py", "VISIBLE_ON_MOBILE = True\n")
     w.chantier("handback", "CR-102", "ready", w.cr("CR-102")["pr"])
     fm.turn()
-    findings.write_text("# QA\n\nNo findings.\n")
-    w.chantier("qa", "CR-102", "--findings", findings)
-    fm.turn()
-    check("a clean QA pass hands CR-102 to the Chief of Staff",
+    check("a second ready CR goes to the Chief of Staff",
           fm.asked[-1].startswith(f"ready CR-102 {PR_LINK[ARGS.forge]}"))
 
     note("\n## 5. Steering: the user drops CR-103, adds an item, changes CR-101")
@@ -701,7 +675,7 @@ def scenario(w: World) -> None:
     events = (w.folder() / "events.jsonl").read_text().splitlines()
     kinds = {json.loads(e)["kind"] for e in events}
     check("events.jsonl holds the whole story",
-          {"open", "take", "round", "gate", "ship", "note", "qa-done", "handback",
+          {"open", "take", "round", "gate", "ship", "note", "handback",
            "order", "order-done", "cancel", "land"} <= kinds, str(sorted(kinds)))
     calls = (w.root / "gh-state.json.calls").read_text()
     created, merged = (("create", '"merge"'), ('"POST"', '/merge"'))[ARGS.forge == "gitlab"]
@@ -712,6 +686,7 @@ def scenario(w: World) -> None:
     lifecycle_regressions(w)
     release(w)
     granted_fixes(w)
+    qa_on_head(w)
     release_merge_on_approval(w)
     lost_messages(w)
     failed_opening(w)
@@ -920,7 +895,7 @@ def release(w: World) -> None:
     note("\n## 14. A release: the project's procedure, approvals, a fix, a grant")
     _, change = prepare_cr(w, "Last change")
     _, version = prepare_cr(w, "Release v1.1.0")
-    bad = (("--release", 3), ("--release", 2, "--qa", "2"), ("--release", 2, "--grant-fixes"),
+    bad = (("--release", 3), ("--release", 2, "--grant-fixes"),
            ("--autonomous-releases", 1, "--budget", 5))
     for args in bad:
         code, _ = w.chantier("open", "ship", str(change), str(version), *FROM_AGENTS_MD, *args,
@@ -1105,6 +1080,43 @@ def granted_fixes(w: World) -> None:
             w.chantier("order", "done", o["id"], "--epoch", 1)
     w.chantier("land", "--epoch", 1)
     w.chantier("close", "--batch", "fixes", "--yes")
+
+
+def qa_on_head(w: World) -> None:
+    note("\n## 14c. QA on the project's head, on the user's word, during the batch")
+    _, item = prepare_cr(w, "Waits for its merge")
+    w.chantier("open", "lookup", str(item), *FROM_AGENTS_MD)
+    w.name, w.env["CHANTIER_BATCH"] = "lookup", "lookup"
+    w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    cr = w.batch()["crs"][0]["id"]
+    code, _ = w.chantier("order", "qa", expect=1)
+    check("a QA says what to test", code == 1 and "what to test" in w.last_stderr, w.last_stderr)
+    _, out = w.chantier("order", "qa", "--note", "try the export on a phone")
+    shown = out[1].removeprefix("QA folder: ").split(";")[0]
+    folder = w.work / shown
+    check("`order qa` makes its work folder in the inbox, with the request, and names it",
+          out[0] == f"[chief-of-staff→foreman] order O-1: qa {shown} try the export on a phone"
+          and "/1-inbox/qa-" in folder.as_posix()
+          and "phone" in (folder / "intake/request.md").read_text(encoding="utf-8"), str(out))
+    fm.turn()
+    check("the Foreman starts a QA driver on the folder, and the CR goes on without it",
+          fm.qa == [shown] and fm.started == [cr] and w.cr(cr)["status"] == "working",
+          str(fm.qa))
+    _, out = w.chantier("status")
+    check("`status` shows the QA order and its folder until it is done",
+          any(ln.startswith(f"orders pending: O-1 qa {shown}") for ln in out), str(out))
+    w.chantier("cancel", cr, "--epoch", 1)
+    code, _ = w.chantier("land", "--epoch", 1, expect=2)
+    check("a batch does not land under a running QA", code == 2 and "O-1" in w.last_stderr,
+          w.last_stderr)
+    (folder / "findings.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
+    w.chantier("order", "done", "O-1", "--epoch", 1)
+    w.chantier("land", "--epoch", 1)
+    w.chantier("close", "--batch", "lookup", "--yes")
+    check("its findings stay in the inbox, an ordinary item",
+          (folder / "findings.md").is_file())
+    w.chantier("abandon", folder)
 
 
 def release_merge_on_approval(w: World) -> None:

@@ -27,8 +27,8 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   the Driver creates; `take` refused past the slots and the budget, `round` past the limit;
   nothing written outside `.agents/changes/`;
 - hand-backs as state writes (refused before a PR is recorded), `ship` reporting what is off
-  (uncommitted changes, a head not pushed, no long gate at it), a QA run refused without proof,
-  a QA finding that queues the CR, a second QA driver refused, a clean QA pass;
+  (uncommitted changes, a head not pushed, no long gate at it), a QA ordered during the batch,
+  with its folder in the inbox, that holds no CR back and keeps the batch from landing until done;
 - dropping a live CR (its processes stopped), adding an item, an order applied at once and
   marked done, a note on a ready CR that the Foreman sends back with a Driver, more rounds
   granted, `slots 0` as a pause, a wider budget, a ready CR taken back only with a note;

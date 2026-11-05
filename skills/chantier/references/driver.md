@@ -21,7 +21,7 @@ The CLI keeps the CR's record and tells you what is off.
 - The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree
   add -b <branch> <path> <base>` from the main checkout, with the names your prompt gives. An
   earlier Driver's worktree is there: use it (its branch alone: `git worktree add <path>
-  <branch>`). Workers and QA drivers never create one.
+  <branch>`). Workers never create one.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"` runs
   it in the worktree, alone in the repository (a second long gate waits), keeps the log and
   records the pass at that head. The fast gates you run yourself.
@@ -64,11 +64,14 @@ that only needs resolving: a `conflict-resolver`; one that needs code, or a red 
 
 ## QA driver
 
-Use a green CR as its user would, from the brief's QA notes, in the worktree, and report what
-breaks. You never fix and start no children. Reproduce before reporting; keep proof (commands,
-output, screenshots) in the CR folder's `evidence/`, findings or not. Write `<work
-folder>/qa.md`, one finding per bullet (steps, expected, actual; "No findings." without
-bullets), then `$CHANTIER qa <cr> --findings <path>` and send its line.
+Use the project as its user would, at the head of its default branch, never an unmerged PR, and
+report what breaks. Your prompt gives a work folder in the inbox and what to test; you hold no
+CR, so no `round` and no `handback`. You never fix and start no children. Work in a worktree of
+your own (`git fetch <remote> <default branch>`, `git worktree add --detach
+<repo>.worktrees/<folder name> <remote>/<default branch>`), removed at your end. Reproduce before
+reporting. Everything goes in the folder: `findings.md`, one finding per bullet (steps, expected,
+actual; "No findings." without bullets), proof in `evidence/` (commands, output, screenshots),
+long tests and whatever else helps. End with `[qa→foreman] qa done <folder> <n> findings`.
 
 ## Release driver
 

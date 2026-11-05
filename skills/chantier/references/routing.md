@@ -11,7 +11,7 @@ the Foreman `$CHANTIER status`, a new Driver `$CHANTIER handoff <cr>`.
 | Foreman → Chief of Staff | `ready <batch>`, `ask <A-k>: …` (printed by `$CHANTIER asks`), `pong <status line>`, `final <STATUS.md path>` |
 | Foreman → Driver | `note <text>`, `fix <fix-cr>`, `ping`, `stop` |
 | Driver → Foreman | `hand-back ready <link>`, `hand-back blocked <reason>` (printed by `$CHANTIER handback`), `anomaly <text>`, `pong <step>` |
-| QA driver → Foreman | `qa done <cr> <n> findings` (printed by `$CHANTIER qa`) |
+| QA driver → Foreman | `qa done <folder> <n> findings` |
 | Stack driver → Foreman | `hand-back ready <cr>=<link>…`, `anomaly <cr> <text>` |
 
 The user talks only with the Chief of Staff; a Driver's question reaches them as a `blocked
