@@ -10,7 +10,18 @@ while one "Foreman" coordinates the work underneath.
 
 ![How chantier works](docs/how-chantier-works.svg)
 
-## Detailed Lifecycle
+## Change Requests Lifecycle
+
+![docs/cr-folder-lifecycle.svg](docs/cr-folder-lifecycle.svg)
+
+## Detailed lifecycle
+
+This displays the major operations:
+
+- Planning, mainly with the Chief of Staff
+- the central implementation loop, which delegation to drivers and strict reviews
+- a QA loop, where a validation agent can act like a user to validate all that is **not** validated by the integration, e2e tests
+- release process with supervised auto-merge, that can monitor the deployment (to production environment, to package registries, to documentation pages,...)
 
 ![cr-lifecycle](docs/cr-lifecycle.svg)
 
