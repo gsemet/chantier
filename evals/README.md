@@ -13,7 +13,7 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
-| [real](real/RUNBOOK.md) | Real CRs on this repository, in parallel, with real `gh` and CI, up to draft PRs nobody merges | ~$7 for 4 CRs, 30 min | 2026-11-05: passed with findings, about $8.85 for 5 CRs, [report](results/real-2026-11-05.md) |
+| [real](real/RUNBOOK.md) | Real CRs on this repository, in parallel, with real `gh` and CI, up to draft PRs nobody merges | ~$7 for 4 CRs, 30 min | 2026-11-05: passed with findings, $4.42 for 2 CRs and a QA, [report](results/real-2026-11-05-v0-5-0.md) |
 | [claude-smoke](claude-smoke/RUNBOOK.md) | One CR end to end on Claude: every role, the project's own review step, simulated CI | ~$1, 15 min | 2026-11-04: passed with findings, $1.34, [report](results/claude-smoke-2026-11-04.md) |
 | [claude-full](claude-full/RUNBOOK.md) | Six CRs on Claude: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04: passed with findings, $8.41, [report](results/claude-full-2026-11-04-ask-only.md) |
 | [copilot](copilot/RUNBOOK.md) | One CR on Copilot: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
