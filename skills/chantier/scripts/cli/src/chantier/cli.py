@@ -67,7 +67,7 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
 
     s = cmd("foreman", commands.foreman,
-            "the Foreman's session, or its transcript", epoch=True)
+            "the Foreman claims its epoch (set) and records its transcript", epoch=True)
     s.add_argument("action", choices=["set", "get", "transcript"])
     s.add_argument("value", nargs="?")
 

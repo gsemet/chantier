@@ -55,7 +55,10 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
 - Heartbeat: every `55m` on Claude (the `/loop` skill in dynamic mode with `chantier status
   --refresh --batch <batch> --epoch <n>`, each wake scheduled with `ScheduleWakeup`); on Copilot
   the Chief of Staff arms `/every` after your `ready <batch>`. No wake ever arriving is a stop.
-- First thing, `$CHANTIER foreman transcript <your session uuid>` (`$CLAUDE_CODE_SESSION_ID`,
+- First thing, from the repository (a session opened elsewhere sets `CHANTIER_ROOT` to it), claim
+  your epoch: `$CHANTIER foreman set <your session id> --epoch <n>` (Claude: `get_session("self")`;
+  Copilot: `$COPILOT_AGENT_SESSION_ID`). A refusal means another Foreman has it: stop. Then
+  `$CHANTIER foreman transcript <your session uuid> --epoch <n>` (`$CLAUDE_CODE_SESSION_ID`,
   `$COPILOT_AGENT_SESSION_ID`); an empty variable is a stop, never a guess. Then the brief and
   the rules, then `[foreman→chief-of-staff] ready <batch>`: the Chief of Staff waits for it.
   A `ping` from the Chief of Staff: answer `pong <the first line of status>`.
