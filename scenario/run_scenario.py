@@ -662,24 +662,30 @@ def scenario(w: World) -> None:
     note("\n## 9. Cost")
     code, out = w.chantier("cost", "--by", "cr", "--batch", "night")
     check("Claude cost prices the Foreman and each Driver",
-          code == 0 and out[:2] == ["night: $1.304 over 78 model calls",
+          code == 0 and out[:2] == ["night: $1.608 over 94 model calls",
                                     "foreman: $0.391 (30 calls)"]
-          and set(out[2:]) == {f"CR-10{i}: $0.228 (12 calls)" for i in (1, 2, 4, 5)}, str(out))
+          and set(out[2:]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
     code, out = w.chantier("cost", "--summary", "--batch", "night")
-    check("the summary gives the total, the budget and orchestration (the agents that started "
-          "others) against work",
-          code == 0 and out[0] == "Total: $1.30 of a $50 budget"
-          and out[1] == "Orchestration $0.39 (30%), work $0.91 (70%)"
+    check("the summary gives the total, the budget and the split by level: the Foreman, the "
+          "Drivers (the agents that started others) and the workers",
+          code == 0 and out[0] == "Total: $1.61 of a $50 budget"
+          and out[1] == "Foreman $0.39 (24%), Drivers $0.91 (57%), workers $0.31 (19%)"
           and out[2].startswith("Most: CR-10") and "Chief of Staff" in out[-1], str(out))
+    amounts = [int(a.replace(".", "")) for a in re.findall(r"\$(\d+\.\d\d) \(", out[1])]
+    shares = [int(s) for s in re.findall(r"\((\d+)%\)", out[1])]
+    check("the three amounts and shares add up to the total and to 100 as printed",
+          len(amounts) == 3 and sum(amounts) == int(out[0].split("$")[1].split(" ")[0]
+                                                    .replace(".", "")) and sum(shares) == 100,
+          str(out))
     check("the summary gives the Foreman's wakes and its context, average and peak",
           out[3] == "Foreman: 10 wakes, context 22,010 tokens on average, 22,010 at its peak",
           str(out))
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the batch's STATUS.md gives each CR's cost and the summary",
-          "| $0.23 |" in report and "## Cost" in report and "Total: $1.30" in report, report)
+          "| $0.30 |" in report and "## Cost" in report and "Total: $1.61" in report, report)
     archived = (w.work / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
     check("an archived CR keeps its final cost and no link into the batch",
-          "$0.23." in archived and "../STATUS.md" not in archived
+          "$0.30." in archived and "../STATUS.md" not in archived
           and "- [x] Merged" in archived, archived)
 
     note("\n## 10. Copilot cost")
@@ -1301,6 +1307,11 @@ def fake_transcripts(w: World, d: dict) -> None:
             f.write_text("".join(msg(f"{c['id']}{i}", "claude-sonnet-5-5", 900) for i in range(12)))
             f.with_suffix("").with_suffix(".meta.json").write_text(
                 json.dumps({"agentType": "cr-driver"}))
+            worker = sub / f"agent-worker-{c['agent']}.jsonl"  # started by the Driver
+            worker.write_text("".join(msg(f"w{c['id']}{i}", "claude-sonnet-5-5", 900)
+                                      for i in range(4)))
+            worker.with_suffix("").with_suffix(".meta.json").write_text(
+                json.dumps({"agentType": "coder", "parentAgentId": c["agent"]}))
 
 
 def main() -> int:

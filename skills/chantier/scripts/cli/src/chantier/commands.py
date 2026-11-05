@@ -1246,23 +1246,39 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
     return groups
 
 
+def _apportion(parts: list[float], whole: int) -> list[int]:
+    """Whole units for each part, summing to `whole` exactly (largest remainder)."""
+    sizes = sum(parts)
+    exact = [whole * p / sizes if sizes else 0.0 for p in parts]
+    out = [int(x) for x in exact]
+    order = sorted(range(len(parts)), key=lambda i: out[i] - exact[i])
+    for i in order[:whole - sum(out)] if sizes else []:
+        out[i] += 1
+    return out
+
+
 def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str]:
-    """What the user reads at the end of a batch; the detail is in `cost --by`. Orchestration
-    is the Foreman and every agent that started another one, from the transcripts' parent
-    links; the rest is work."""
+    """What the user reads at the end of a batch; the detail is in `cost --by`. The Foreman is
+    the main agent, the Drivers every other agent that started one, from the transcripts'
+    parent links, and the workers the rest. Amounts and shares add up as printed."""
     total = sum(r["usd"] for r in rows)
     budget = d.get("budget_usd")
     parents = {r.get("parent") for r in rows if r.get("parent")}
-    run = sum(r["usd"] for r in rows if r["agent"] == "main" or r["agent"] in parents)
-    share = round(100 * run / total) if total else 0
+    foreman_usd = sum(r["usd"] for r in rows if r["agent"] == "main")
+    drivers_usd = sum(r["usd"] for r in rows if r["agent"] != "main" and r["agent"] in parents)
+    parts = [foreman_usd, drivers_usd, total - foreman_usd - drivers_usd]
+    parts[2] = max(parts[2], 0.0)
+    cents = _apportion(parts, round(total * 100))
+    shares = _apportion(parts, 100) if total else [0, 0, 0]
+    split = ", ".join(f"{name} ${c / 100:.2f} ({s}%)"
+                      for name, c, s in zip(("Foreman", "Drivers", "workers"), cents, shares))
     top = sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
     foreman = next((r for r in rows if r["agent"] == "main" and r.get("wakes")), None)
     wakes = [f"Foreman: {foreman['wakes']} wakes, context "
              f"{foreman['wake_context'] // foreman['wakes']:,} tokens on average, "
              f"{foreman['peak_context']:,} at its peak"] if foreman else []
     return [f"Total: ${total:.2f}" + (f" of a ${budget:g} budget" if budget else ", no budget"),
-            f"Orchestration ${run:.2f} ({share}%), work ${max(total - run, 0):.2f} "
-            f"({100 - share}%)",
+            split,
             "Most: " + (", ".join(f"{k} ${usd:.2f}" for k, usd in top[:3]) or "-"),
             *wakes,
             "Not counted: the Chief of Staff's own session"]

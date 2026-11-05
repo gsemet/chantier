@@ -148,7 +148,7 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("cost", commands.cost, "price the Foreman's transcript and its subagents")
     s.add_argument("--by", choices=["role", "cr"], default="role")
     s.add_argument("--summary", action="store_true",
-                   help="total, budget, orchestration against work, the costliest CRs")
+                   help="total, budget, Foreman, Drivers and workers, the costliest CRs")
     return p
 
 
