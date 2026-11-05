@@ -12,20 +12,20 @@ import os
 import re
 from pathlib import Path
 
-from .state import LIVE, Repo, _read_json, age_minutes, now, write_file
+from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
-SCHEMA = 1
+SCHEMA = 2
 ICON = {"red": "🔴", "yellow": "🟡", "green": "🟢", "grey": "⚪"}
-ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused"}
-ENDED = {"merged", "landed", "cancelled"}
-AHEAD = ("Shipped", "CI", "Verified", "Handed back")
-IN_PROGRESS = ("round-done", "draft", "investigated", "verified", "ci-")  # shown in `Progress`
+ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", "rounds"}
+ENDED = {"merged", "cancelled"}
+AHEAD = ("Shipped", "Handed back")
+IN_PROGRESS = ("draft:",)  # shown in `Documents`, not in `Decisions`
 SPEC_LINK = re.compile(r"[\w./-]+\.md\b")
 TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
 
 
 def step(c: dict) -> str:
-    status, ci = c["status"], c.get("ci")
+    status = c["status"]
     if status == "queued":
         return "Queued"
     if status == "qa":
@@ -34,28 +34,25 @@ def step(c: dict) -> str:
         return "Notify"
     if status == "blocked":
         word = (c.get("blocked_reason") or "").split(":")[0].split(" ")[0].lower()
-        if word in ASKING:
-            return word.capitalize()
-        return "CI" if ci == "red" else "Blocked"
+        return word.capitalize() if word in ASKING else "Blocked"
     if status in ENDED:
         return "Merged" if status != "cancelled" else "Dropped"
     if c.get("kind") == "release":
         return "Release"
-    return {"pending": "CI", "green": "Verify"}.get(ci, "Round")
+    return "CI" if c.get("pr") else "Round"
 
 
 def severity(c: dict) -> str:
     if c["status"] == "blocked":
         return "red"
-    if c["status"] in {"ready", "merged", "landed"}:
+    if c["status"] in {"ready", "merged"}:
         return "green"
     return "grey" if c["status"] == "cancelled" else "yellow"
 
 
-def _round(c: dict, max_rounds: int) -> int:
-    """The round under way, or the last one done."""
-    done = c.get("round", 0)
-    return min(done + 1, max_rounds) if step(c) == "Round" else max(done, 1)
+def _round(c: dict) -> int:
+    """The round under way, or the last one done: `chantier round` counts it."""
+    return max(c.get("round", 0), 1)
 
 
 def label(c: dict, max_rounds: int) -> str:
@@ -63,7 +60,7 @@ def label(c: dict, max_rounds: int) -> str:
     state = "dropped" if c["status"] == "cancelled" else c["status"]
     if c["status"] in ENDED | {"queued"}:
         return f"{ICON[severity(c)]} {state}"
-    return f"{ICON[severity(c)]} {state} {step(c)} {_round(c, max_rounds)}/{max_rounds}"
+    return f"{ICON[severity(c)]} {state} {step(c)} {_round(c)}/{max_rounds}"
 
 
 def _now_next(c: dict) -> tuple[str, str]:
@@ -74,8 +71,7 @@ def _now_next(c: dict) -> tuple[str, str]:
     return {
         "Queued": ("Waiting for a free slot.", "A Driver starts it."),
         "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
-        "CI": (f"Waiting for CI on {pr}.", "The verifier at the pushed head."),
-        "Verify": ("CI is green: the verifier checks the pushed head.", "The hand-back."),
+        "CI": (f"{pr} is open: CI, then the verifier at the pushed head.", "The hand-back."),
         "QA": ("A QA driver uses the change as its user would.", "The hand-back."),
         "Release": ("The Release driver follows the project's procedure.", "The next step of it."),
         "Notify": (f"Ready: {pr} waits for the user's merge.", "The merge, then the archive."),
@@ -93,33 +89,21 @@ def _steps(c: dict, events: list[dict]) -> list[dict]:
 
     for e in events:
         kind, at, note = e.get("kind"), e.get("t", ""), e.get("note") or ""
-        if kind == "report":
-            report = e.get("report")
-            if report == "round-done":
-                head, _, rest = note.partition(" ")
-                verdict, _, text = rest.partition(" ")
-                add(f"Round {head.removeprefix('r')}", at, verdict, text)
-            elif report == "investigated":
-                add("Investigated", at, note=note)
-            elif report == "verified":
-                add("Verified", at, note=note)
-            elif report == "note":
-                add("Note", at, note=note)
-            elif report in {"ci-red", "ci-red-known"}:
-                add("CI red", at, note=note)
-        elif kind == "gate" and e.get("gate") == "long":
+        if kind == "round":
+            add(f"Round {e.get('round')}", at, note=note)
+        elif kind == "note":
+            add("Note", at, note=note)
+        elif kind == "gate":
             add("Long gate", at, e.get("result", ""), e.get("head", ""))
         elif kind == "ship":
             add("Shipped", at, note=e.get("pr", ""))
-        elif kind == "wait" and e.get("result") == "pass":
-            add("CI", at, "green")
         elif kind == "qa-done":
             add("QA", at, note=f"{e.get('findings', 0)} findings")
-        elif kind == "event" and e.get("event") == "hand-back-ready":
+        elif kind == "handback" and e.get("result") == "ready":
             add("Handed back", at)
-        elif kind == "event" and e.get("event") == "hand-back-blocked":
+        elif kind == "handback":
             add("Blocked", at, note=note)
-        elif kind == "merge" or (kind == "event" and e.get("event") == "order-merged"):
+        elif kind == "order" and e.get("order_kind") == "merged":
             if not any(s["name"] == "Merged" for s in out):
                 add("Merged", at, note=c.get("pr") or "")
     if c["status"] not in ENDED and c.get("kind") != "release":
@@ -141,7 +125,7 @@ def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
     work = folder / "work"
     if work.is_dir():
         named += [(p.stem, p) for p in sorted(work.glob("*.md"))]
-        gates = sorted((work / "gates").glob("*-long.log"))
+        gates = sorted((work / "gates").glob("*.log"))
         if gates:
             named.append(("long gate log", gates[-1]))
     if (folder / "evidence").is_dir():
@@ -166,11 +150,10 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
     number = re.search(r"(\d+)/?$", pr) if pr else None
     return {"schema": SCHEMA, "updated": now(), "cr": c["id"], "title": c["title"],
             "batch": d["folder"], "in_batch": in_batch, "state": c["status"],
-            "severity": severity(c), "step": step(c), "label": label(c, _max_rounds(d)),
-            "round": c.get("round", 0), "max_rounds": _max_rounds(d),
+            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c)),
+            "round": c.get("round", 0), "max_rounds": round_limit(d, c),
             "now": now_line, "next": next_line,
-            "pr": {"url": pr, "number": int(number[1]) if number else None, "ci": c.get("ci")}
-            if pr else None,
+            "pr": {"url": pr, "number": int(number[1]) if number else None} if pr else None,
             "steps": _steps(c, events), "documents": _documents(repo, c, folder),
             "branch": c.get("branch"), "worktree": c.get("worktree"), "agent": c.get("agent"),
             "notes": [n for n in c.get("notes", []) if not n.startswith(IN_PROGRESS)],
@@ -187,7 +170,7 @@ def _step_line(s: dict) -> str:
 def cr_markdown(v: dict) -> str:
     batch = f"[Batch {v['batch']}](../STATUS.md)" if v["in_batch"] else f"Batch {v['batch']}"
     pr = v["pr"]
-    head = f"{v['label']} · {batch}" + (f" · [PR]({pr['url']}) · CI {pr['ci'] or '-'}" if pr else "")
+    head = f"{v['label']} · {batch}" + (f" · [PR]({pr['url']})" if pr else "")
     docs = [f"- [{d.get('name') or d['kind']}]({d['path']})" for d in v["documents"]]
     lines = [f"# {v['cr']} {v['title']}", "", head, "", f"**Now:** {v['now']}",
              f"**Next:** {v['next']}", "", "## Progress", "",
@@ -208,16 +191,11 @@ def _priced(d: dict) -> bool:
     return not any(line.startswith("Spent: unknown") for line in d.get("summary", []))
 
 
-def _max_rounds(d: dict) -> int:
-    return d.get("settings", {}).get("max_rounds", 3)
-
-
 def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     folder = repo.root / c["path"] if c.get("path") else None
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
-            "step": step(c), "label": label(c, _max_rounds(d)), "round": c.get("round", 0),
-            "branch": c.get("branch"), "pr": c.get("pr"), "ci": c.get("ci"),
-            "cost_usd": c.get("cost_usd"),
+            "step": step(c), "label": label(c, round_limit(d, c)), "round": c.get("round", 0),
+            "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
             "status": _link(folder / "STATUS.md", start) if folder else None,
             "specification": _link(folder / c.get("specification", "03-change-spec.md"), start)
             if folder else None}
@@ -236,12 +214,12 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
 
 def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
     return {"schema": SCHEMA, "updated": now(), "batch": d["id"], "folder": folder.name,
-            "state": d["status"], "mode": d.get("mode"), "paused": bool(d.get("paused")),
+            "state": d["status"], "mode": d.get("mode"),
             "spent_usd": d.get("spent_usd", 0), "budget_usd": d.get("budget_usd"),
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
             "heartbeat": d.get("heartbeat"), "landed": d.get("landed"),
-            "retained": d.get("retained", []), "summary": d.get("summary", []),
+            "summary": d.get("summary", []),
             "crs": [_row(repo, d, c, folder)
                     for c in sorted(d["crs"], key=lambda x: x["order"])]}
 
@@ -255,11 +233,10 @@ def batch_markdown(v: dict) -> str:
     lines = [f"# Batch {v['folder']}: {v['state']}", "",
              f"Updated {v['updated']} · spent {_budget(v) if v['priced'] else 'unknown'} · "
              f"{v['asks_unread']} asks unread · "
-             f"{v['orders_pending']} orders pending{' · PAUSED' if v['paused'] else ''}", "",
+             f"{v['orders_pending']} orders pending", "",
              "[All change requests](../STATUS.md)", "", *_rows_markdown(v["crs"])]
     if v["landed"]:
-        lines += ["", "## Landed", "", f"- Landed: {v['landed']}",
-                  f"- Left for the user: {', '.join(v['retained']) or 'nothing'}"]
+        lines += ["", "## Landed", "", f"- Landed: {v['landed']}"]
     if v["summary"]:
         lines += ["", "## Cost", "", *(f"- {ln}" for ln in v["summary"])]
     return "\n".join(lines) + "\n"
@@ -327,23 +304,13 @@ def _write(folder: Path, markdown: str, view: dict) -> None:
     write_file(folder / "STATUS.json", json.dumps(view, indent=2, ensure_ascii=False) + "\n")
 
 
-def _events(folder: Path) -> dict[str, list[dict]]:
-    by_cr: dict[str, list[dict]] = {}
-    path = folder / "events.jsonl"
-    for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
-        try:
-            e = json.loads(line)
-        except ValueError:  # the last line of a process killed while appending
-            continue
-        if e.get("cr"):
-            by_cr.setdefault(e["cr"], []).append(e)
-    return by_cr
-
-
 def write_batch(repo: Repo, d: dict, folder: Path) -> None:
-    """Rewrite the batch's file and each of its CRs', wherever they now are."""
+    """Rewrite the batch's file and each of its CRs', wherever they are."""
     d = {**d, "folder": folder.name}
-    events = _events(folder)
+    events: dict[str, list[dict]] = {}
+    for e in read_events(folder):
+        if e.get("cr"):
+            events.setdefault(e["cr"], []).append(e)
     for c in d["crs"]:
         cr_folder = repo.root / c["path"] if c.get("path") else None
         if cr_folder and cr_folder.is_dir():

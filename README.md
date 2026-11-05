@@ -13,9 +13,9 @@ while one "Foreman" coordinates the work underneath.
 You only ever talk to the **Chief of Staff**, in your own session.
 It keeps the backlog, asks you the questions a change needs, and starts work only on your go.
 
-1. **It learns your project.** It reads your `AGENTS.md` (or `CLAUDE.md`) for the gates, the
-   default branch, your conventions and your team, and asks you what it does not say. There is
-   nothing else to configure.
+1. **It learns your project.** It reads your `AGENTS.md` (or `CLAUDE.md`) for how you build,
+   test, ship, merge and release, your default branch and your team, and asks you what it does
+   not say. There is nothing else to configure: every agent reads the same file.
 2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
    (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
    self-contained **Change Specification** (`03-change-spec.md`).
@@ -23,18 +23,24 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    Chief of Staff starts one **Foreman** in a nested session.
 4. **The Foreman runs the batch.** It owns one background **Driver** per CR slot, plus a stack
    driver and a QA driver when needed, and keeps itself warm with a heartbeat.
-5. **Each Driver runs short foreground workers** in the CR's own git worktree: Investigator,
-   Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review step you added. It
-   ships a PR and waits for CI.
-6. **The Foreman reports back.** You steer through the Chief of Staff (add, drop, reorder a CR;
-   "I merged #42"); it forwards one `order` line to the Foreman. You merge; chantier does not,
-   unless you allow it for a release's fixes.
+5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
+   in it: Investigator, Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review
+   step you added. Then it commits, rebases, pushes, opens the PR and watches its CI itself,
+   with `git` and `gh` or `glab`, as your project says.
+6. **The Foreman reports back.** You steer through the Chief of Staff (add, drop, a note on a
+   CR; "I merged #42"); it forwards one `order` line to the Foreman. You merge; the Foreman
+   merges only a release's PR or fix, on your word.
 7. **A Release driver releases, when you ask.** It follows your project's own procedure, and
    stops for your approval before each irreversible action.
 
-Agents never decide mechanics on their own. Every mechanical step goes through the `chantier`
-Python CLI (`uv run`), which owns the batch state: slots, rounds, budget, events, gates, waits,
-ship and cost. Everything it writes goes to `.agents/changes/`, as plain JSON and Markdown.
+The agents do the work, git and the forge included. The `chantier` Python CLI (`uv run`) is
+the frame beside them, in `.agents/changes/`, as plain JSON and Markdown: the CR lifecycle
+(inbox, backlog, batch, archives, trash), the batch's limits (slots, budget, rounds, your word
+on an irreversible action), the record (each CR's branch and worktree names, its PR, the long
+gate's log, the cost, the `STATUS` files) and the lines that synchronise the team (orders, asks,
+hand-backs, notes). It refuses what the batch does not allow and tells an agent what is off (an
+unpushed head, a worktree not yet created); it decides nothing: the Foreman and the Drivers do,
+under your project's own rules (`AGENTS.md` and what it links rank above chantier's cards).
 
 ## Install
 
@@ -98,23 +104,28 @@ section of your `AGENTS.md`, shared with your team:
 - security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
 ```
 
-The role's contract travels in the spawn prompt, so your agent only needs the tools the role
-uses. A name that is not a built-in role becomes an extra review step: it runs after the
-Inspector approves and answers with the same verdict. A running batch keeps the team it started
-with.
+The role's contract is its card in the skill, named in the prompt the Driver writes, so your
+agent only needs the tools the role uses. A name that is not a built-in role becomes an extra
+review step: it runs after the Inspector approves and answers with the same verdict. A running
+batch keeps the team it started with.
 
 ### Models
 
 | Role | Claude | Copilot |
 | --- | --- | --- |
 | Chief of Staff | your session (Opus 5.5 recommended) | your session |
-| Foreman | Sonnet 5.5, effort low | Claude Sonnet 5.5 |
-| Drivers (CR, stack, QA, release) | Sonnet 5.5 | Claude Sonnet 5.5 |
+| Foreman | Opus 5.5, effort medium | Claude Opus 5.5 |
+| CR, stack and release drivers | Opus 5.5 | Claude Opus 5.5 |
+| QA driver | Sonnet 5.5 | Claude Sonnet 5.5 |
 | Coder, Investigator, Debugger, Conflict resolver | Sonnet 5.5 | GPT-5.6 Luna |
 | Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
 
-**Fail, never improvise:** if a host refuses a model, a tool or an agent, chantier stops and
-says so; it never picks a look-alike or a workaround.
+The roles that judge (which CR goes next, what a red check means, whether a diff breaks a
+project rule) run Opus and are given room to judge: their cards state goals and boundaries,
+not procedures. The roles that do one bounded task run Sonnet.
+
+**No fallback:** if a host refuses a model, a tool or an agent, chantier stops and says so; it
+never picks a look-alike or a workaround.
 
 ### Change Request lifecycle
 
@@ -129,8 +140,8 @@ Everything lives in `.agents/changes/`:
 │   └── <NN>-<batch>/                      one batch; NN counts all batches
 │       ├── batch.json, events.jsonl, brief.md, .lock
 │       ├── STATUS.md, STATUS.json         the batch; at `landed`, its exit report
-│       └── <number>-<slug>/               a CR in the batch: branch chantier/<batch>/…,
-│                                          worktree next to the repo, STATUS.md, STATUS.json
+│       └── <number>-<slug>/               a CR in the batch: STATUS.md, STATUS.json; named
+│                                          branch chantier/<batch>/… and worktree next to the repo
 ├── 4-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged (time of the merge, UTC)
 └── 5-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
 ```
@@ -142,16 +153,16 @@ to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR g
 `work/` folder.
 
 `STATUS.md` and `STATUS.json` exist at three levels (`3-requests/`, the batch, the CR), each
-linking to the others. The CLI rewrites them at every state change, with no call to the forge;
-a status cell reads like `🔴 blocked CI 1/3`.
+linking to the others. The CLI rewrites them at every state change, from the state alone; a
+status cell reads like `🔴 blocked Question 1/3`.
 
-When the batch has landed, the Chief of Staff shows what `chantier close` would delete (the
-batch folder, the dropped CRs' worktrees and branches) and the cost. On your yes,
-`chantier close --yes` does it; without a yes, the folder stays. Run it last: the batch folder
-holds the exit report and the event log.
-
-The old layout (`backlog/`, `batches/`) is refused with an error listing the moves; there is no
-migration command.
+The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
+(named by chantier, next to the repository), the Foreman removes a merged CR's before the batch
+lands, and the Chief of Staff removes a dropped CR's only on your word. When the batch has
+landed, it shows what goes (the batch folder, the dropped CRs' worktrees and branches) and the
+cost. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
+without a yes, everything stays. Close last: the batch folder holds the exit report and the
+event log.
 
 ## Supported hosts
 
@@ -165,20 +176,21 @@ worktree) and offers no fallback.
 
 **Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
 settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
-the Foreman an action (a release's spawn, say) until you allow it in that session: type one line
-there saying so, from your phone if you are away, and it does that action once.
+the Foreman an action (starting a Release driver, say) until you allow it in that session: type
+one line there saying so, from your phone if you are away, and it does that action once.
 
 | Forge | CLI | Where |
 | --- | --- | --- |
 | GitHub | `gh` | github.com, or GitHub Enterprise when `gh` is logged in to its host |
 | GitLab | `glab` | gitlab.com, or a self-managed server when `glab` is logged in to its host |
 
-The forge and the project come from the batch's git remote (`origin`, or `--remote`); the login
-is the CLI's own (`glab auth login --hostname <host>`). Nothing is configured in chantier.
+The agents use the forge's CLI as it is logged in (`gh auth login`, `glab auth login --hostname
+<host>`), on the batch's git remote (`origin`, or `--remote`). Nothing is configured in chantier.
 
-On Windows, the CLI runs natively (no WSL). Gates run in `cmd.exe`, so write them for it.
-`chantier cancel` ends a CR's processes at once, with no grace period, and finds stray ones by
-their command line only, since Windows does not expose another process's current directory.
+On Windows, the CLI runs natively (no WSL). `chantier gate` runs the long gate in `cmd.exe`, so
+write it for it. `chantier cancel` ends a CR's processes at once, with no grace period, and
+finds stray ones by their command line only, since Windows does not expose another process's
+current directory.
 
 ## Costs and budgets
 
@@ -188,7 +200,7 @@ by CR. On Claude, chantier prices the transcripts with its own rates for Opus, S
 [copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
 PyPI, and flags calls that were estimated rather than billed. A missing transcript, an unknown
 model or an unpriced call is an error, never a guess. The Foreman records the spend at each
-heartbeat; past the batch budget it spawns nothing new.
+heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
 
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
 ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget, orchestration
@@ -206,7 +218,7 @@ com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chantier/
 ├── SKILL.md                ← the Chief of Staff's entry point
 ├── references/             ← one file per running context: concepts, chief-of-staff,
-│                             foreman, driver, worker, message formats
+│                             foreman, driver, worker, routing
 └── scripts/cli/            ← the `chantier` CLI and its tests
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports

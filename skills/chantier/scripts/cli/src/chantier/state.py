@@ -2,7 +2,7 @@
 
 Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
 Markdown: the stage folders, and in `3-requests/` one folder per batch, `<NN>-<name>/`, with its CRs
-(`batch.json` holds what the Chief of Staff passed to `open` from the project's AGENTS.md).
+(`batch.json` holds the batch's limits and what the Chief of Staff passed to `open`).
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
 `msvcrt` on Windows), by atomic rename, and every change appends one event.
@@ -26,7 +26,7 @@ if sys.platform == "win32":
 else:
     import fcntl
 
-EXIT_OK, EXIT_USAGE, EXIT_PRECONDITION, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_BUDGET = 0, 1, 2, 3, 4, 5
+EXIT_USAGE, EXIT_PRECONDITION, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_BUDGET = 1, 2, 3, 4, 5
 LOCK_TIMEOUT_S = 30
 
 
@@ -84,30 +84,19 @@ def write_json(path: Path, data) -> None:
 
 
 CHANGES = Path(".agents") / "changes"
-OLD_LAYOUT = ("this project's {changes} uses the layout of chantier before 0.4; nothing was done. "
-              "Finish any open batch with that version first. Then move, by hand: `backlog/1-inbox` "
-              "to `1-inbox`, `backlog/2-backlog` to `2-backlog`, `backlog/4-archives` to `4-archives`, "
-              "`backlog/5-trash` to `5-trash`, each directly under {changes}, and delete `backlog/` "
-              "and `batches/`. Archives and trash are now named `<YYMMDD-HHMM>-<folder>`, by date.")
-# What `chantier open` records in batch.json from the project's AGENTS.md (SETTINGS), and the
-# fixed rules every batch runs on.
+# What `chantier open` records in batch.json (SETTINGS: the branch and the remote the Chief of
+# Staff read in the project's AGENTS.md), and the fixed rules every batch runs on.
 DEFAULT_CONFIG = {
     "default_branch": None,
     "remote": "origin",
-    "gates": {"fast": [], "long": []},
-    "agents": {},
-    "reviews": {},
-    "claude_projects_dir": None,
     "first_cr_number": 101,
     "max_rounds": 3,
-    "stale_minutes": 90,
 }
-SETTINGS = ("default_branch", "remote", "gates", "agents", "reviews", "claude_projects_dir",
-            "max_rounds")
+SETTINGS = ("default_branch", "remote", "max_rounds")
 
-# Statuses a CR can hold. `working` means a live Driver owns it.
+# The statuses a live Driver owns; the others are queued, ready, blocked, cancelled, merged.
+# A batch is open or landed.
 LIVE = {"working", "qa"}
-DONE = {"ready", "blocked", "cancelled", "merged", "landed"}
 
 
 class ChantierError(Exception):
@@ -125,6 +114,23 @@ def now() -> str:
 def stamp() -> str:
     """The date in an archive's name: its order is the date's."""
     return datetime.now(timezone.utc).strftime("%y%m%d-%H%M")
+
+
+def round_limit(d: dict, c: dict) -> int:
+    """The batch's limit, or the one the user granted this CR (`order rounds`)."""
+    return c.get("rounds") or d.get("settings", {}).get("max_rounds", 3)
+
+
+def read_events(folder: Path) -> list[dict]:
+    """The batch's `events.jsonl`, in order; a half-written last line is skipped."""
+    path = folder / "events.jsonl"
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
+        try:
+            out.append(json.loads(line))
+        except ValueError:  # the last line of a process killed while appending
+            continue
+    return out
 
 
 def age_minutes(ts: str | None) -> float | None:
@@ -203,9 +209,6 @@ class Repo:
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
         git_dir = Path(common).resolve()
-        changes = git_dir.parent / CHANGES
-        if (changes / "backlog").is_dir() or (changes / "batches").is_dir():
-            raise ChantierError(OLD_LAYOUT.format(changes=CHANGES.as_posix()))
         return cls(git_dir.parent, git_dir, json.loads(json.dumps(DEFAULT_CONFIG)))
 
     @property
@@ -258,7 +261,6 @@ class Batch:
         self.data: dict = {}
         self._events: list[dict] = []
         self._moves: list[tuple[Path, Path]] = []
-        self._new_worktrees: list[tuple[Path, str, str]] = []
 
     def __enter__(self) -> "Batch":
         if self._create is None and not (self.dir / "batch.json").exists():
@@ -310,10 +312,7 @@ class Batch:
         finally:
             try:
                 if not state_written:
-                    try:
-                        self._rollback_moves()
-                    finally:
-                        self._rollback_worktrees()
+                    self._rollback_moves()
             finally:
                 with contextlib.suppress(Exception):
                     _unlock(self._lock)
@@ -340,9 +339,6 @@ class Batch:
         move_directory(source, destination)
         self._moves.append((source, destination))
 
-    def created_worktree(self, path: Path, branch: str, initial_head: str) -> None:
-        self._new_worktrees.append((path, branch, initial_head))
-
     def _rollback_moves(self) -> None:
         for source, destination in reversed(self._moves):
             if not destination.exists() or source.exists():
@@ -351,24 +347,6 @@ class Batch:
             source.parent.mkdir(parents=True, exist_ok=True)
             _retry(destination.rename, source)
         self._moves.clear()
-
-    def _rollback_worktrees(self) -> None:
-        for path, branch, initial_head in reversed(self._new_worktrees):
-            if path.exists():
-                dirty = git("status", "--porcelain", cwd=path, check=False)
-                head = git("rev-parse", "HEAD", cwd=path, check=False)
-                if dirty or head != initial_head:
-                    raise ChantierError(f"worktree {path} changed while opening the batch; "
-                                        "it was preserved and needs manual recovery")
-                git("worktree", "remove", str(path), cwd=self.repo.root)
-            current = git("rev-parse", "--verify", "--quiet", branch, cwd=self.repo.root,
-                          check=False)
-            if current == initial_head:
-                git("branch", "-d", branch, cwd=self.repo.root)
-            elif current:
-                raise ChantierError(f"branch {branch} changed while opening the batch; "
-                                    "it was preserved and needs manual recovery")
-        self._new_worktrees.clear()
 
 
 def resolve_batch(repo: Repo, batch: str | None) -> str:

@@ -1,4 +1,5 @@
-"""CR folders, project-specific lifecycle paths, and safe stage transitions."""
+"""The CR folders: the stage folders under `.agents/changes/`, a prepared CR, and the moves
+between stages, each refused rather than half done."""
 from __future__ import annotations
 
 import contextlib
@@ -9,7 +10,6 @@ from pathlib import Path
 from .state import (EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, Batch, ChantierError, Repo,
                     _read_json, _try_lock, _unlock, move_directory, project_path, stamp)
 PRIORITIES = ("P1", "P2", "P3", "P4")
-STAGES = ("inbox", "backlog", "requests", "archives", "trash")
 
 
 def stage_layout(repo: Repo) -> dict[str, Path]:
@@ -40,10 +40,10 @@ class PreparedCR:
     directory: Path
     specification: Path
     title: str
-    priority: str | None
 
 
 def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
+    """A CR folder in the inbox or the priority backlog, with a specification."""
     if not item.startswith("@") or len(item) == 1:
         raise ChantierError("open requires @<prepared-CR-folder> or @<specification-file>; "
                             "file and grill the CR first", EXIT_USAGE)
@@ -54,15 +54,11 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
         directory, specification = supplied, supplied / "03-change-spec.md"
     else:
         raise ChantierError(f"prepared CR not found: {supplied}", EXIT_USAGE)
-    priority = None
-    if directory.parent == paths["inbox"]:
-        pass
-    elif paths["requests"] in directory.parents:
+    in_backlog = directory.parent.parent == paths["backlog"] and directory.parent.name in PRIORITIES
+    if paths["requests"] in directory.parents:
         raise ChantierError(f"{directory} is already active; resume its existing batch instead",
                             EXIT_PRECONDITION)
-    elif directory.parent.parent == paths["backlog"] and directory.parent.name in PRIORITIES:
-        priority = directory.parent.name
-    else:
+    if directory.parent != paths["inbox"] and not in_backlog:
         raise ChantierError(f"{directory} is not a CR in the configured inbox or priority backlog",
                             EXIT_USAGE)
     if not specification.is_file():
@@ -77,7 +73,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
         raise ChantierError(f"empty Change Specification: {specification}", EXIT_PRECONDITION)
     title = next((line.lstrip("# ").strip() for line in text.splitlines() if line.strip()),
                  directory.name)
-    return PreparedCR(directory, specification, title, priority)
+    return PreparedCR(directory, specification, title)
 
 
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
@@ -86,7 +82,7 @@ def ensure_unclaimed(repo: Repo, directory: Path) -> None:
         if batch.get("status") == "landed":
             continue
         for cr in batch.get("crs", []):
-            if cr.get("status") in {"cancelled", "merged", "landed"} or not cr.get("path"):
+            if cr.get("status") in {"cancelled", "merged"} or not cr.get("path"):
                 continue
             claimed = project_path(repo.root, cr["path"], "recorded CR path")
             if claimed == directory:

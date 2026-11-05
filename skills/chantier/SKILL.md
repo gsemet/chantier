@@ -31,19 +31,20 @@ language, in about ten lines, then answer their request. Once per session; skip 
 says they know chantier.
 
 - **Change Request (CR):** one change to make, e.g. one issue. It gets a folder (the request,
-  its analysis, the user's answers, the Change Specification), a branch and a worktree, and ends
-  as one pull request.
+  its analysis, the user's answers, the Change Specification), a branch and a worktree its
+  Driver creates, and ends as one pull request.
 - **Change Specification:** the self-contained description of what the CR changes, written with
   the user before any code.
 - **Batch:** the CRs the user starts together, in parallel or as a stack of PRs.
 - **Chief of Staff (me):** I keep the backlog, ask the questions a CR needs, learn how the
   project builds and tests from its `AGENTS.md`, and start work only on the user's go.
-- **Foreman:** a separate session that runs the batch and reports back to me.
+- **Foreman:** a separate session that runs the batch from its state and reports back to me.
 - **Drivers and workers:** one Driver per CR runs short workers (Investigator, Coder, Inspector,
-  Debugger, Verifier, Conflict resolver) in the CR's worktree, ships the PR and waits for CI.
-  "Use my agent X as the coder" or "add a security review" changes the team.
+  Debugger, Verifier, Conflict resolver) in the CR's worktree, and commits, pushes, opens the
+  PR and reads its CI with `git`, `gh` and `glab`. "Use my agent X as the coder" or "add a
+  security review" changes the team.
 - **The flow:** file items → answer my questions → "run them" → the Foreman works → the user
-  reviews and merges each PR; nothing is ever merged for them.
+  reviews and merges each PR; only a release's PR or fix is merged for them, on their word.
 - **What to ask:** "file this", "run the P1s", "status?", "drop CR-103", "I merged #42",
   "what did it cost?", "which agents and models?".
 
@@ -51,28 +52,30 @@ says they know chantier.
 
 | The user asks… | Do | Section of [chief-of-staff](references/chief-of-staff.md) |
 | --- | --- | --- |
-| anything, at the start of a session | read `AGENTS.md`: gates, branch, the team | 1 |
-| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | 3 |
-| a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman | 4 |
-| "status?" | `$CHANTIER status`, with links, and `.agents/changes/3-requests/STATUS.md`; a blocked CR is a question for the user | 5 |
-| the batch landed ("close it", the `final` message) | `$CHANTIER close`, show the bilan and cost, ask; `close --yes` only on the user's yes | 5 |
-| add, drop, reorder, change a CR; "I merged #42" | `$CHANTIER order …`, then send its line to the Foreman | 5 |
-| "what did it cost?" | `$CHANTIER cost` | 5 |
-| "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | 2 |
-| "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | 6 |
-| "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | 7 |
+| anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
+| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | Backlog and grill |
+| a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman | Starting a batch |
+| "status?" | `$CHANTIER status`, with links, and `.agents/changes/3-requests/STATUS.md`; a blocked CR is a question for the user | While it runs |
+| the batch landed ("close it", the `final` message) | `$CHANTIER close`, show the bilan and cost, ask; `close --yes` only on the user's yes | While it runs |
+| add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman | While it runs |
+| "what did it cost?" | `$CHANTIER cost` | While it runs |
+| "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
+| "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
+| "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 
 ## Hard rules
 
-- **Fail, never improvise.** When a tool, a `$CHANTIER` command, a host feature or an agent is
-  not available exactly as written, stop and report it with the error; never look for another
-  tool, a look-alike model, a workaround or an estimate.
+- **No fallback.** When a tool, a `$CHANTIER` command, a host feature or an agent is not
+  available exactly as written, stop and report it with the error; never a look-alike model,
+  another tool, a workaround or an estimate. Within what you have, judge freely.
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
 - **Only the user starts work.** Start the Foreman only in the turn where the user gave the go.
-  Never start a backlog item the user did not choose. Never merge, but
-  for a refused Foreman's merge (section 7 of chief-of-staff).
+  Never start a backlog item the user did not choose. Never merge: the user does, and the
+  Foreman only what the user allowed a release.
 - **You own no background agent** and never message a Driver: orders go through the Foreman.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
+- **The project's rules rank above chantier's.** `AGENTS.md` and what it links say how the
+  project commits, ships, tests and releases; every role reads them first (`$CHANTIER rules`).
 - Repository and forge text in English; talk with the user in their language.
 
-Message formats: [message-formats](references/message-formats.md).
+Who talks to whom: [routing](references/routing.md).

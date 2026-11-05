@@ -6,9 +6,10 @@ as possible. About $1.
 **What it proves:**
 
 - **The Foreman and its heartbeat:** the Foreman starts with `create_session`, the Chief of Staff
-  arms `/every` in its chat, and a wake runs `chantier heartbeat`.
+  arms `/every` in its chat, and a wake runs `chantier status --refresh`.
 - **The Driver and its workers:** the Driver runs in the background (`task`), starts each worker
-  with the prompt `chantier spawn` prints, and ends with a hand-back.
+  with a prompt written from its card and the facts `chantier round` prints, and ends with a
+  hand-back.
 - **The cost:** `chantier cost` measures the batch through copilot-session-usage, by role.
 
 Follow the common steps in [the evals README](../README.md#run-a-campaign), on Copilot, with:
@@ -18,7 +19,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 | Setup | `uv run --no-project python evals/kit/setup.py copilot <workspace>` |
 | Batch | `copilot` |
 | CRs | `done-unknown-id` |
-| Open | `$CHANTIER open copilot @.agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main` |
+| Open | `$CHANTIER open copilot @.agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --default-branch main` |
 
 ## The user's turns
 
@@ -37,6 +38,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 ## Still to fill in from a real run
 
 - How the Copilot sessions of the batch get the local forge's environment (`setup.py` prints
-  it): Claude reads it from `.claude/settings.local.json`.
+  it, `PATH` included so the agents' own `gh` is the fake): Claude reads it from
+  `.claude/settings.local.json`.
 - The Copilot part of `evals/kit/audit.py` (roles, prompts and tools from the host's logs): until
   then the audit checks only what every host shares.

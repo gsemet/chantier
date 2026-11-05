@@ -5,12 +5,14 @@
 Creates `<workspace>` (a git repository on `main`, pushed to `<workspace>.origin.git`) and the
 forge state next to it in `<workspace>.forge/`. The campaign sets which prepared CRs go to
 `.agents/changes/2-backlog/P1/`, which review steps the project's `AGENTS.md` declares,
-and which CI contracts the forge adds. On Claude, `.claude/settings.local.json` makes every
-session in the workspace (the Foreman, its Drivers and workers) call the local forge as `gh`.
+and which CI contracts the forge adds. On Claude, `.claude/settings.local.json` puts the forge's
+folder first on `PATH` for every session in the workspace (the Foreman, its Drivers and
+workers): their `gh` is the local forge.
 """
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -74,8 +76,9 @@ def main(campaign: str, dest: Path) -> None:
         gh = forge / "gh"
         gh.write_text(f'#!/bin/sh\nexec "{sys.executable}" "{HERE / "forge.py"}" "$@"\n')
         gh.chmod(0o755)
-    env = {"CHANTIER_GH": str(gh), "FAKE_GH_STATE": str(state), "LIVE_ORIGIN": str(origin),
-           "CHANTIER_WAIT_INTERVAL": "15", "LIVE_CI_DELAY": "120"}
+    # the Drivers and the Foreman call `gh` themselves: the forge's folder comes first on PATH
+    env = {"FAKE_GH_STATE": str(state), "LIVE_ORIGIN": str(origin),
+           "LIVE_CI_DELAY": "120", "PATH": str(forge) + os.pathsep + os.environ.get("PATH", "")}
     if spec.get("contracts"):
         env["LIVE_CI_CONTRACTS"] = str(HERE / "contracts")
     if spec["host"] == "claude":

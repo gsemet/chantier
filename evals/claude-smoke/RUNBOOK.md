@@ -4,8 +4,9 @@ One CR, end to end, with real agents on Claude: the quick check after a change t
 About $1 and 15 minutes.
 
 **What it proves:** the Chief of Staff opens a batch, the Foreman starts as its own session and
-spawns a Driver; the Driver runs a coder, an Inspector, the project's own review step (a custom
-agent), the long gate, ships, waits for the simulated CI and starts a verifier; the user merges;
+starts a Driver; the Driver runs a coder, an Inspector, the project's own review step (a custom
+agent), the long gate, commits, pushes and opens the PR itself, watches the simulated CI and
+starts a verifier; the user merges;
 the batch lands with its STATUS.md as the report and a measured cost. Every agent gets its role and stays in it.
 
 Follow the common steps in [the evals README](../README.md#run-a-campaign), with:
@@ -15,7 +16,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | Setup | `uv run --no-project python evals/kit/setup.py claude-smoke <workspace>` |
 | Batch | `smoke` |
 | CRs | `done-unknown-id` (a bug: `tasks done 42` crashes with a traceback) |
-| Open | `$CHANTIER open smoke @.agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 5 --fast-gate "uv run pytest -q -x" --long-gate "uv run pytest -q" --default-branch main --review "docs-review=chantier-eval-docs-reviewer:every new or changed CLI command or option is documented in README.md, with an example"` |
+| Open | `$CHANTIER open smoke @.agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 5 --default-branch main`; the team (the project's review step) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 
 ## The user's turns
 
