@@ -8,7 +8,8 @@ agents, free and about two minutes per forge. The evals with real agents are in
 just scenario
 ```
 
-runs it on a fake `gh` (GitHub), then on a fake `glab` (GitLab); one forge alone:
+runs it on a fake `gh` (GitHub), then on a fake `glab` (GitLab). CI runs it on Linux, on each
+pull request and each push to `main`. One forge alone:
 
 ```bash
 uv run --no-project python scenario/run_scenario.py --forge gitlab [--verbose] [--keep]
@@ -47,4 +48,5 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   and branch by the Chief of Staff's git.
 
 The transcript goes to `scenario/results/<forge>-<time>.md` (not committed); exit 1 if any check
-fails.
+fails. Windows runs one check more than Linux: `close` on a folder in use, since elsewhere a file
+in use does not stop a rename.
