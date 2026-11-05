@@ -218,7 +218,9 @@ class Foreman:
             if Path(c["worktree"]).is_dir():
                 subprocess.run(["git", "worktree", "remove", c["worktree"]], cwd=self.w.work,
                                capture_output=True)
-            subprocess.run(["git", "branch", "-d", c["branch"]], cwd=self.w.work,
+            # the PR is merged (status above), the check the card asks for; -d would refuse
+            # after a rebase or squash merge
+            subprocess.run(["git", "branch", "-D", c["branch"]], cwd=self.w.work,
                            capture_output=True)
 
     def merge(self, c: dict) -> None:

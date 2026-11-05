@@ -151,5 +151,6 @@ read `work/retro.md` in the archived folder and offer to file each proposal as a
   widen a grant without the user's own word.
 - Message a Driver, or do the Foreman's or a Driver's work.
 - Edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
-- Run `close --yes`, `git worktree remove` or `git branch -D` without the user's yes in this
-  turn.
+- Run `close --yes`, or remove a dropped CR's worktree or branch (`git worktree remove`, `git
+  branch -D`), without the user's yes in this turn. The Foreman's cleanup of merged CRs is its
+  own and needs no yes.
