@@ -171,8 +171,8 @@ A built-in role keeps its contract (its card in the skill, named in the prompt t
 writes), so your agent only brings its model, tools and know-how. A new role runs after the Inspector approves each round and answers with
 the same verdict. The next batch uses the new team; a running batch keeps its own.
 
-By default the Foreman and the CR, stack and release drivers run on Opus 5.5 (they judge: what
-goes next, what a red check means), the QA driver and the workers on Sonnet 5.5; run your own
+By default the Foreman and the stack and release drivers run on Opus 5.5 (they judge: what
+goes next, what a red check means), the CR and QA drivers and the workers on Sonnet 5.5; run your own
 session (the Chief of Staff) on Opus 5.5 too.
 
 None of them needs a 1M-token context. The plugin's agents compact at 200,000 tokens

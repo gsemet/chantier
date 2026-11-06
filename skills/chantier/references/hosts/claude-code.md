@@ -24,7 +24,7 @@ Each behaviour carries a mark:
 | A Driver messages the Foreman | `SendMessage` to `main` | proved, same |
 | Stop a Driver | `TaskStop` | proved, same |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
-| Models | the Foreman and the CR, stack and release drivers run Opus 5.5; the QA driver and the workers Sonnet 5.5 | proved, same |
+| Models | the Foreman and the stack and release drivers run Opus 5.5; the CR and QA drivers and the workers Sonnet 5.5 | proved, same, except the CR driver: unproved; the trial is the model a CR driver's transcript shows in the next batch |
 | Preflight P2 | `mcp__ccd_session__start_session` loads | proved, same |
 
 "Proved, same" means seen in use in every batch since v0.3, with no dated trial kept: re-prove a
