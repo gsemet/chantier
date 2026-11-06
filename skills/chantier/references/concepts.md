@@ -111,6 +111,7 @@ with `chantier <its role>` answers "I run inside a chantier batch only." and sto
    `$CHANTIER release go`.
 7. **Refusals are reported, never worked around.** A denied permission or a refusal goes to your
    parent with its exact text.
-8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a rebase is pushed with
+8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a push is plain when
+   the remote branch is an ancestor of the local one, and a rewrite (a rebase) is pushed with
    `--force-with-lease`; the user's uncommitted changes are never touched. No `sleep`, no polling
    loop: a wait is the forge's own watch, in a background shell.

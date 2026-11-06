@@ -163,6 +163,19 @@ Only in the turn where the user gave the go:
   <cr> <text>`: show the exact text; the user types one line in the Foreman's session allowing
   that action. A `qa <folder> <n> findings`: its inbox folder is an ordinary item; triage it with
   the user, split into CRs as needed.
+- **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
+  <local sha>`, you run the push, the one exception to "do no Driver's work". From the main
+  checkout, without changing its branch or touching its files:
+  `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`.
+  First the check: the branch is `chantier/<batch>/<cr>-<slug>`, so read the CR from its name
+  (`cr-115` is `CR-115`) and run `$CHANTIER handoff <cr>`; its `worktree: … branch <branch>`
+  line must give exactly the branch on the line, and never the default branch. Else push
+  nothing and answer `push refused <branch>: not a branch of this batch`. A failed lease is
+  not retried (the remote moved; the Driver looks at why): answer `push failed <branch> <git's
+  text>`. Done: `pushed <branch>`. All go to the Foreman (`[chief-of-staff→foreman]`), never to
+  the Driver. If your own push is refused: show the user the exact text, as for any `refused`,
+  and answer the Foreman `push refused <branch>: <exact text>`; retry nothing, try no other way,
+  and never change the permission settings.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host limits messages between sessions (10 on
   Claude Desktop since someone last typed): a refused send is reported, never sent another way.
@@ -224,7 +237,7 @@ read `work/retro.md` in the archived folder and offer to file each proposal as a
 - Start a session in a turn the user did not start, or when preflight fails.
 - Merge, or start a backlog item the user did not choose; approve an irreversible action or
   widen a grant without the user's own word.
-- Message a Driver, or do the Foreman's or a Driver's work.
+- Message a Driver, or do the Foreman's or a Driver's work (but the refused force push above).
 - Edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - Run `close --yes`, or remove a dropped CR's worktree or branch (`git worktree remove`, `git
   branch -D`), without the user's yes in this turn. The Foreman's cleanup of merged CRs is its

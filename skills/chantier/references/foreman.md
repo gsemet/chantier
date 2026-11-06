@@ -68,6 +68,14 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link>`, `blocked <cr>
   <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`, `merged <cr>
   <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`.
+- A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
+  push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
+  `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through
+  `asks` (it is not for the user).
+  The Chief of Staff answers `[chief-of-staff→foreman] pushed <branch>` or `push failed
+  <branch> <text>`; tell the Driver at once, `[foreman→driver <cr>] note push <branch>: <the
+  answer>`. A push the host refuses the Chief of Staff too is the user's, shown by it; the
+  Driver hears `push refused <branch>: <exact text>` and hands back.
 - A Driver's task that ends without a hand-back: `handoff`, then a new Driver with `--note
   "resume: …"`. A second silent end on one CR is `handback <cr> blocked driver ended twice`.
   A Driver silent for over 90 minutes: `[foreman→driver <cr>] ping`; no `pong`, stop it. A
