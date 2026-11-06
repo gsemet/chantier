@@ -1002,11 +1002,15 @@ def stack_batch(w: World) -> None:
     fm.turn()
     one, two, three = (c["id"] for c in w.batch()["crs"])
     base = {c: w.chantier("handoff", c)[1] for c in (one, two, three)}
-    check("a stack: each CR stands on the one under it, the first on the default branch",
+    _, stacked = w.chantier("take", "stack", "--epoch", 1)
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    check("a stack: independent CRs are all taken at once and start on the default branch; "
+          "their place in the stack is the one under it",
           fm.started == [one, two, three]
-          and any(f"base origin/main" in ln for ln in base[one])
-          and any(f"base {w.cr(one)['branch']}" in ln for ln in base[two])
-          and any(f"base {w.cr(two)['branch']}" in ln for ln in base[three]), str(base))
+          and all(any("base origin/main" in ln for ln in base[c]) for c in (one, two, three))
+          and "base origin/main" in stacked[1]
+          and f"base {w.cr(one)['branch']}" in stacked[2]
+          and f"base {w.cr(two)['branch']}" in stacked[3], str(base) + str(stacked))
     for i, cr in enumerate((one, two, three)):
         driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
         w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
@@ -1017,7 +1021,7 @@ def stack_batch(w: World) -> None:
           len(d["crs"]) == 4 and w.cr(four)["status"] == "queued"
           and w.cr(four)["path"].startswith(f".agents/changes/3-requests/{w.name}/")
           and len(list((w.state / "3-requests").glob("batch-*"))) == 1
-          and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
+          and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]),
           str(out))
     fm.turn()
     driver_round(w, four, "stack3.py", "N = 3\n")
@@ -1382,6 +1386,28 @@ def dependencies(w: World) -> None:
           code == 2 and x in w.last_stderr and w.batch()["crs"][0]["order"] == 1, w.last_stderr)
     code, _ = w.chantier("stack", x, y)
     check("the order that respects it is taken", code == 0)
+    _, out = w.chantier("order", "after", y, "--note", "-")
+    check("`order after` with `-` frees a queued CR; it is logged and printed for the Foreman",
+          "after" not in w.cr(y) and out[0].startswith("[chief-of-staff→foreman] order O-1: after")
+          and w.batch()["orders"][-1]["kind"] == "after" and len(w.batch()["crs"]) == 2
+          and any("base origin/main" in ln for ln in w.chantier("handoff", y)[1]), str(out))
+    _, out = w.chantier("order", "after", y, "--note", x)
+    check("`order after` replaces the dependencies of a queued CR, with no new number",
+          w.cr(y).get("after") == [x] and len(w.batch()["crs"]) == 2
+          and w.chantier("take", y, expect=2)[0] == 2 and f"waits for {x} queued" in w.last_stderr,
+          str(out))
+    code, _ = w.chantier("order", "after", x, "--note", y, expect=2)
+    check("`order after` refuses a cycle and changes nothing", code == 2 and "cycle" in w.last_stderr
+          and "after" not in w.cr(x) and w.cr(y).get("after") == [x], w.last_stderr)
+    code, _ = w.chantier("order", "after", "CR-999", "--note", x, expect=2)
+    check("`order after` refuses an unknown CR", code == 2 and "CR-999" in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("order", "after", y, "--note", "CR-999", expect=2)
+    check("`order after` refuses an unknown dependency, and keeps the old one",
+          code == 2 and "CR-999" in w.last_stderr and w.cr(y).get("after") == [x], w.last_stderr)
+    w.chantier("take", x)
+    code, _ = w.chantier("order", "after", x, "--note", "-", expect=2)
+    check("`order after` refuses a CR that is not queued", code == 2 and "queued" in w.last_stderr,
+          w.last_stderr)
 
     w.reset()
     q1, q2 = prepare_cr(w, "Slot one")[1], prepare_cr(w, "Slot two")[1]

@@ -32,6 +32,9 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - dropping a live CR (its processes stopped), adding an item, an order applied at once and
   marked done, a note on a ready CR that the Foreman sends back with a Driver, more rounds
   granted, `slots 0` as a pause, a wider budget, a ready CR taken back only with a note;
+- a stack of independent CRs: all taken at once, each started on the default branch, then
+  stacked one on the other by `take stack`; a dependency changed with `order after` (refused on a
+  CR not queued, an unknown CR or a cycle);
 - a Foreman restart (the stale epoch refused), a lost Driver taken over from `handoff`;
 - `land` refused while PRs are open, then landing after the user's merges and the Foreman's
   cleanup; the long gate serialized, and held while the suite of a gate whose command died

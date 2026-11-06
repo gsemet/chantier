@@ -50,7 +50,8 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   the user's note in its prompt). It holds no CR back, but its slot stays taken until `order
   done`. On its `qa done`: `order done`, and the ask `qa <folder> <n> findings`.
 - A queued CR that `status` shows `waits for …` is not yours to start: pick among the CRs `take`
-  would accept. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
+  would accept, every one of them up to the free slots, and hold none in reserve: a batch runs
+  its CRs in parallel unless the plan says why not. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
   the user to drop that CR or change it. A CR whose dependency went back to a Driver after it
   started is restacked by the stack driver.
 - A Release driver takes the release CR once the others are merged or cancelled; its card holds
