@@ -85,11 +85,13 @@ Only in the turn where the user gave the go:
    ```
 
    `<skill>` is this skill's absolute folder. On Claude Desktop: `start_session` with
-   `initiation: "user_asked"`, `title: "Foreman <batch>"`, `context: "fresh"`, `use_worktree:
-   false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it
-   linked; your own id is `get_session("self")`. On a Copilot SDK host: `create_session` with
-   `model: "claude-opus-5.5"`, `workspace` = this repository, `worktree: false`, `title: Foreman
-   <batch>`. The Foreman claims its epoch itself. When the host refuses to start a session (under
+   `initiation: "user_asked"`, `title: "<your title> - Foreman [batch <NN>]"`, `context:
+   "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's
+   permission mode; leave it linked; your own id and `<your title>` are in `get_session("self")`.
+   On a Copilot SDK host: `create_session` with `model: "claude-opus-5.5"`, `workspace` = this
+   repository, `worktree: false`, `title: Foreman [batch <NN>]`. `<NN>` is the two-digit number
+   of the batch's folder `3-requests/<NN>-<batch>/`, as `open` prints it. The Foreman claims its
+   epoch itself. When the host refuses to start a session (under
    Remote Control), the user can start it and paste this prompt. On `[foreman→chief-of-staff]
    ready <batch>`, on Copilot, send the Foreman chat `/every 4m chantier status --refresh --batch
    <batch> --epoch <n>`.
