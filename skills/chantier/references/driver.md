@@ -21,7 +21,8 @@ The CLI keeps the CR's record and tells you what is off.
 - The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree
   add -b <branch> <path> <base>` from the main checkout, with the names your prompt gives. An
   earlier Driver's worktree is there: use it (its branch alone: `git worktree add <path>
-  <branch>`). Workers never create one.
+  <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
+  it removes at its end.
 - Rebase first, so the long gate passes on the head you push: `git fetch`, `git rebase <base>`;
   a conflict is a `conflict-resolver`.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"` runs
@@ -33,6 +34,10 @@ The CLI keeps the CR's record and tells you what is off.
   create`), its title and body by the project's rules and template. Then `$CHANTIER ship <cr>
   <pr link>`: it records the PR at this head and says what is off (uncommitted changes, a head
   not pushed, no long gate passed at it).
+- The evidence: once the Verifier has left it, you put it in the PR's description, before and
+  after side by side, as the forge's own CLI uploads images and videos (`gh pr edit --attach` on
+  GitHub, `gh` 2.103 and later); read the CLI's help for any other forge. A file its CLI cannot
+  upload stays in `work/`, and the description names it.
 - CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
   ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
@@ -61,20 +66,23 @@ The CLI keeps the CR's record and tells you what is off.
 ## CR driver
 
 Take one CR from its specification to a green PR, then hand it back. Before round 1, when the
-code is unfamiliar, an `investigator`. Each round: a `coder` with the brief, then an
-`inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
-included) and each review step your `Team:` lists, in order; `FIX-REQUIRED` is the next round.
-All approved: commit, rebase, the long gate (a failure is a round), push, the PR, `ship`, CI,
-then a `verifier` at the pushed head (`NOT VERIFIED` is a round), then `handback ready <pr
-link>`.
+code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
+investigator's report, which you validate and correct): with no investigator, you write it
+yourself. Each round: a `coder` with the brief, then an `inspector` on the round's diff (the
+worktree against the base, uncommitted and untracked files included) and each review step your
+`Team:` lists, in order; `FIX-REQUIRED` is the next round. All approved: commit, rebase, the
+long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
+head, given the plan (`NOT VERIFIED` is a round), then the evidence in the PR, then `handback
+ready <pr link>`.
 
 ## Stack driver
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
-`ship` each one you moved, and keep the stack green with heavy CI once at the top. A conflict
-that only needs resolving: a `conflict-resolver`; one that needs code, or a red check:
-`[stack→foreman] anomaly <cr> <text>`. Green: `[stack→foreman] hand-back ready <cr>=<link>…`.
+`ship` each one you moved, and keep the stack green with heavy CI once at the top. Each CR keeps its
+own evidence plan. A conflict that only needs resolving: a `conflict-resolver`; one that needs
+code, or a red check: `[stack→foreman] anomaly <cr> <text>`. Green: `[stack→foreman] hand-back
+ready <cr>=<link>…`.
 
 The stack is what `take stack` prints, each CR with its base (the state computes it: the CR under
 it, the first on the default branch). Merged CRs are gone from it, archived at once and alone,

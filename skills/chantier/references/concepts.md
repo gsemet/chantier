@@ -16,7 +16,7 @@ started.
   ├── 02-answers.md        ← every answer the user gave about the CR, whoever asked
   ├── 03-change-spec.md    ← the Change Specification
   ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
-  ├── evidence/            ← proof a Verifier keeps with the CR
+  ├── evidence/            ← other proof kept with the CR (the Verifier's: work/verifier/evidence/)
   └── work/                ← written while it runs: notes, gate logs, the PR body
   ```
 
