@@ -58,13 +58,17 @@ joins it.
 | You say | What happens |
 | --- | --- |
 | "Add the rate-limit item to tonight's batch." | the CR (already refined) joins the queue |
-| "Drop CR-104, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog; its branch and worktree stay until you close the batch and say yes |
+| "Drop CR-104, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog, and `status` shows it as `cancelled`; a second drop of it is refused ("already dropped"); its branch and worktree stay until you close the batch and say yes |
 | "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Pause." · "Resume." | slots 0: no new CR starts; a number resumes |
 | "I merged #42." | the CR is archived; a ready PR that stops merging goes back to a Driver, which rebases it |
 
 Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read twice runs once.
+`status` keeps two lines: `orders pending` for the orders nothing has touched yet (a note, a QA, the drop of a
+live CR), and one for those the CLI has applied, which the Foreman still has to mark `order done`. `land` waits
+until both are done. Without a Foreman, `order done <O-k>` ends them so that `land` can pass, but `close` needs a
+Foreman: it prices the batch from the Foreman's transcript.
 
 ## Ask for user testing
 
@@ -140,6 +144,10 @@ the billed records (Copilot). A missing transcript or an unknown model is an err
 estimate. Your own session is priced apart. Ask "why did it cost that?" and the figures are
 explained from what was measured: the calls, the model, the shares of cost, the calls after the
 cache expired, the restarted Drivers.
+
+On a batch with no Foreman yet, `cost` and `close` both refuse: no Foreman transcript is recorded, and
+`close` deletes nothing it cannot price. Once a batch has landed, `status` and `cost` without `--batch` answer
+`no open batch`: pass `--batch <name>`.
 
 You also get it unasked: one line per CR when it is ready or merged, and a summary when the batch
 lands, final once nothing runs, at `close` (total, budget, the split between Foreman, Drivers and

@@ -31,8 +31,10 @@ order, and `land` again at the end (`land` on a landed batch is refused).
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit; a refusal is a fact, not an argument. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
-- **Orders are the user's word:** `status` lists them until you mark each `order done`. Their
-  effect on the state is applied; what needs your hands is yours (stop a Driver, tell one,
+- **Orders are the user's word:** `status` lists them until you mark each `order done`: an
+  `orders pending` line holds those nothing has touched yet (a note, a QA, the drop of a live
+  CR), another line those the CLI applied, which only await your `order done`; `land` waits for
+  both. Their effect on the state is applied; what needs your hands is yours (stop a Driver, tell one,
   cancel a dropped live CR with `$CHANTIER cancel`, send a ready or blocked CR back to a Driver
   with `--note` saying why).
 - **Your own chat obeys only "stop", "pause", and the user's line allowing a refused action.**

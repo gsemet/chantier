@@ -61,6 +61,9 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
     if directory.parent != paths["inbox"] and not in_backlog:
         raise ChantierError(f"{directory} is not a CR in the configured inbox or priority backlog",
                             EXIT_USAGE)
+    if not specification.is_file() and directory.name.startswith("qa-"):
+        raise ChantierError(f"{directory} is a QA report: an item to triage and split into CRs, "
+                            "not to open", EXIT_PRECONDITION)
     if not specification.is_file():
         raise ChantierError(f"missing Change Specification: {specification}; grill the CR first",
                             EXIT_PRECONDITION)
@@ -119,9 +122,16 @@ def trash_cr(batch: Batch, cr: dict) -> None:
 def move_backlog_item(repo: Repo, item: str, priority: str, paths: dict[str, Path]) -> Path:
     if priority not in PRIORITIES:
         raise ChantierError(f"priority must be one of {', '.join(PRIORITIES)}", EXIT_USAGE)
-    source = project_path(repo.root, item, "inbox CR")
-    if source.parent != paths["inbox"]:
-        raise ChantierError(f"{source} is not directly inside {paths['inbox']}", EXIT_USAGE)
+    source = project_path(repo.root, item, "CR folder")
+    held = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
+    if source.parent != paths["inbox"] and not held:
+        raise ChantierError(f"triage expects a CR folder: 1-inbox/<item> or 2-backlog/P<n>/<item>; "
+                            f"got {source}", EXIT_USAGE)
+    if held and source.parent.name == priority:
+        raise ChantierError(f"{source.name} is already {priority}", EXIT_PRECONDITION)
     target = paths["backlog"] / priority / source.name
+    if target.exists():
+        raise ChantierError(f"{priority} already holds {source.name}: nothing moved",
+                            EXIT_PRECONDITION)
     move_directory(source, target)
     return target
