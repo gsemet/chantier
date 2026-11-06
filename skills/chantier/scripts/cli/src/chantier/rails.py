@@ -109,8 +109,9 @@ def needs_word(crs: list[dict], c: dict) -> bool:
 
 def waits_all(crs: list[dict], c: dict) -> list[str]:
     """What a queued CR waits for, as `status` shows it: its `after`, then, once that is met,
-    a release's confirmation."""
-    found = waits_for(crs, c)
+    a release's fixes not ended, then, once those are met, its confirmation."""
+    status = {x["id"]: x["status"] for x in crs}
+    found = waits_for(crs, c) + [f"{i} {status[i]}" for i in pending_fixes(crs, c)]
     if not found and needs_word(crs, c):
         return [WORD]
     return found
@@ -138,9 +139,9 @@ def check_budget(b: Batch) -> None:
                             EXIT_BUDGET)
 
 
-def pending_fixes(b: Batch, c: dict) -> list[str]:
+def pending_fixes(crs: list[dict], c: dict) -> list[str]:
     """The fix CRs of a release that have not ended: the release waits for them."""
-    return [x["id"] for x in b.data["crs"] if x.get("fix_for") == c["id"]
+    return [x["id"] for x in crs if x.get("fix_for") == c["id"]
             and x["status"] not in ENDED]
 
 
@@ -161,7 +162,7 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
         raise ChantierError(f"{c['id']} waits for {', '.join(unmet(b, c))}: it starts once each "
                             f"is {ends}")
     if is_release(c):
-        fixes = pending_fixes(b, c)
+        fixes = pending_fixes(b.data["crs"], c)
         if fixes:
             raise ChantierError(f"{c['id']} waits for {', '.join(fixes)}: a fix of the release "
                                 "must be merged or cancelled first")
@@ -204,7 +205,7 @@ def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
     if over_budget(b):
         b.log("release-go", c["id"], action=action, result="budget")
         return "budget", ""
-    fixes = pending_fixes(b, c)
+    fixes = pending_fixes(b.data["crs"], c)
     if fixes:
         b.log("release-go", c["id"], action=action, result="fix", fixes=fixes)
         return "fix", " ".join(fixes)
