@@ -134,11 +134,13 @@ Only in the turn where the user gave the go:
   - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
     name, its mode, the slots in use, the CRs done, the spend and the budget); a table, one row per
     CR: CR, subject (a few words, not the title), state, PR as a link, cost; the cost table below;
-    a last line, always there, **For you:** what the user has to review or decide, or "nothing".
+    a last line, always there, **For you:** what the user has to review or decide, or "nothing"
+    (only a Tips line can follow it, see below).
   - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
     many, the spend and the budget); a table, one row per CR: CR, subject, result, PR, rounds, cost;
     the cost table, one line per Driver type from `cost --by driver`; what the batch did not
-    prove; a last line, **For you:** closing the batch, with what `close` lists.
+    prove; a last line, **For you:** closing the batch, with what `close` lists
+    (only a Tips line can follow it, see below).
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (`SendMessage` / `send_message`), who does what needs its hands
   and marks it done; `status` shows the orders still pending.
@@ -182,6 +184,21 @@ Only in the turn where the user gave the go:
   (the `Chief of Staff:` line) is above 100k tokens, advise `/compact`, with a line ready to
   copy that says what to keep: the running batch, the open CRs, the decisions not yet
   written. Never in the middle of a subject.
+- **Tips:** when a tip fits the moment (the end of a piece of work, a report, a quiet turn), end
+  the message with one last line, after the **For you:** line, in the user's language, that
+  starts with 💡: one or two tips, each a sentence with the exact words to type. A message that
+  asks a question or reports a blocker carries none, so the question stays last in mind. A tip
+  given and not used is not repeated in the same session; the `/compact` tip follows the
+  Compacting rule alone. Examples, judged freely; say another that fits:
+  - `/compact`, with its line to copy (see Compacting).
+  - "Status", for a progress table at once.
+  - `/chantier-board`, to show or hide the CR board: Claude Code only, never on Copilot.
+  - "What did it cost?", once a CR has spent.
+  - "File this", when the user raises an idea in passing.
+  - "Run the P2s", when the backlog holds prepared CRs and no batch runs.
+
+  A tip names only what chantier really answers, and never a command the host refuses in this
+  session.
 - **Landing:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report. `$CHANTIER close --batch <batch>` without `--yes` prints what goes and touches
   nothing. Show the user the bilan, the Cost section and that list, and ask. Only on their yes,
