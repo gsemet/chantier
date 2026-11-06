@@ -91,24 +91,30 @@ function gauge(spent: number, budget: number | null): string {
   return '█'.repeat(full) + '░'.repeat(10 - full)
 }
 
-/** The steps as one line: notes dropped, a repeated name kept once, what is still ahead in brackets. */
-function stepsLine(steps: ChantierSheet['steps']): string {
-  const seen: string[] = []
-  const out: string[] = []
-  for (const s of steps) {
-    const text = s.name + (s.verdict ? ' ' + s.verdict : '')
-    if (seen.includes(text)) continue
-    seen.push(text)
-    out.push(s.done ? text : '(' + text + ')')
-  }
-  return out.join(' > ') || 'none yet'
-}
-
-// The same icons as status.py ICON; the label starts with its own, drawn here before the id instead.
-const ICON: Record<string, string> = { red: '🔴', yellow: '🟡', green: '🟢', grey: '⚪' }
-const LEADING_ICON = /^(🔴|🟡|🟢|⚪)\s*/u
 const PRIORITIES = ['inbox', 'P1', 'P2', 'P3', 'P4']
 const isWaiting = (r: ChantierRow) => r.state === 'blocked' || r.state === 'ready'
+
+// ---- the tables: Markdown, so a surface draws them as it draws a table in a reply ----
+
+const cell = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim()
+
+const table = (head: string[], rows: string[][]) =>
+  [head, head.map(() => '---'), ...rows].map(r => `| ${r.map(c => (c === '' ? '-' : c)).join(' | ')} |`).join('\n')
+
+const prCell = (url: string | null) => (url === null ? '-' : `[#${url.split('/').pop()}](${url})`)
+
+/** The label with its repeated word dropped ("blocked Blocked 2/3"), and a long silence. */
+function stateCell(r: ChantierRow): string {
+  const silent = r.silent_minutes !== null && r.silent_minutes > SILENT_MINUTES ? ` · silent ${r.silent_minutes} min` : ''
+  return cell(r.label.replace(/(\p{L}+) \1/iu, '$1') + silent)
+}
+
+const fileUrl = (path: string) => 'file://' + (path.startsWith('/') ? '' : '/') + encodeURI(path).replace(/\(/g, '%28').replace(/\)/g, '%29')
+
+function fromFileUrl(href: string): string {
+  const path = decodeURI(href.replace(/^file:\/\//, ''))
+  return clean(/^\/[A-Za-z]:/.test(path) ? path.slice(1) : path)
+}
 
 const dirLines = (t: string) => t.replace(/\r/g, '')
 
@@ -367,47 +373,67 @@ export const register: Register = on => {
     const root = where.root
     const note = f.note === null ? null : <Text italic>{f.note}</Text>
 
-    const Cr = (dir: string | null, id: string) =>
-      dir === null ? (
-        <Text bold>{id}</Text>
-      ) : (
-        <Button
-          key={'cr-' + dir}
-          plain
-          label={id}
-          onPress={() => void guarded($, () => showCr($, clean(root + '/.agents/changes/3-requests/' + dir)))}
-        />
-      )
+    const crUrl = (dir: string) => fileUrl(clean(root + '/.agents/changes/3-requests/' + dir))
+    const crCell = (dir: string | null, id: string) => (dir === null ? `**${id}**` : `[${cell(id)}](${crUrl(dir)})`)
 
-    const Row = (r: ChantierRow) => (
-      <Box key={r.cr} flexDirection="column">
-        <Box flexWrap="wrap" columnGap={1}>
-          <Text>{ICON[r.severity] ?? ''}</Text>
-          {Cr(r.folder, r.cr)}
-          <Text>{r.label.replace(LEADING_ICON, '')}</Text>
-          <Text>{r.title}</Text>
-        </Box>
-        <Box flexWrap="wrap" columnGap={1} paddingLeft={2}>
-          {r.pr !== null && <Link href={r.pr} label="PR" />}
-          <Text dimColor>{money(r.cost_usd)}</Text>
-          {r.branch !== null && <Text dimColor>{r.branch}</Text>}
-          {r.silent_minutes !== null && <Text dimColor>{`silent ${r.silent_minutes} min`}</Text>}
-        </Box>
-        {r.blocked !== null && (
-          <Box paddingLeft={2}>
-            <Text>{r.blocked}</Text>
-          </Box>
-        )}
-      </Box>
+    /** A table of `file:` links, listed by `urls`; a press on one inside the checkout calls `onOpen`, one outside opens nothing. */
+    const Linked = (key: string, text: string, urls: string[], onOpen: (path: string) => Promise<void>) => (
+      <Markdown
+        key={key}
+        text={text}
+        pressableLinks={urls}
+        onLinkPress={link => {
+          const path = fromFileUrl(link.href)
+          if (isInside(root, path)) void guarded($, () => onOpen(path))
+        }}
+      />
     )
 
-    const Past = (p: ChantierPast, i: number) => (
-      <Box key={p.path + i} flexWrap="wrap" columnGap={1}>
-        {Cr(p.path, p.cr ?? p.path.split('/').pop() ?? p.path)}
-        <Text>{p.title}</Text>
-        {p.state !== null && <Text dimColor>{p.state}</Text>}
-        {p.pr !== null && <Link href={p.pr} label="PR" />}
-        {p.cost_usd !== null && <Text dimColor>{money(p.cost_usd)}</Text>}
+    /** A table whose CR links open the CR's sheet; a PR's link keeps the surface's own behaviour. */
+    const Table = (key: string, head: string[], rows: string[][], dirs: (string | null)[]) =>
+      Linked(key, table(head, rows), dirs.filter(d => d !== null).map(crUrl), dir => showCr($, dir))
+
+    /** A document's name as a link opening it in the pane; plain text when it is outside the checkout. */
+    const docCell = (label: string, path: string | null) =>
+      path === null || !isInside(root, path) ? cell(label) : `[${cell(label)}](${fileUrl(path)})`
+
+    const Files = (key: string, head: string[], rows: { label: string; path: string | null; more?: string[] }[]) =>
+      Linked(
+        key,
+        table(head, rows.map(r => [docCell(r.label, r.path), ...(r.more ?? [])])),
+        rows.flatMap(r => (r.path !== null && isInside(root, r.path) ? [fileUrl(r.path)] : [])),
+        p => showPath($, p),
+      )
+
+    const COLUMNS = ['CR', 'Subject', 'State', 'PR', 'Cost']
+
+    const Crs = (key: string, rows: ChantierRow[]) =>
+      Table(
+        key,
+        COLUMNS,
+        rows.map(r => [crCell(r.folder, r.cr), cell(r.title), stateCell(r), prCell(r.pr), money(r.cost_usd)]),
+        rows.map(r => r.folder),
+      )
+
+    const Pasts = (key: string, rows: ChantierPast[]) =>
+      Table(
+        key,
+        COLUMNS,
+        rows.map(p => [
+          crCell(p.path, p.cr ?? p.path.split('/').pop() ?? p.path),
+          cell(p.title),
+          p.state ?? '-',
+          prCell(p.pr),
+          money(p.cost_usd),
+        ]),
+        rows.map(p => p.path),
+      )
+
+    /** A section: its fold, then what it holds while open. */
+    const Section = (key: string, byDefault: boolean, label: string, body: () => unknown) => (
+      <Box key={'section-' + key} flexDirection="column" rowGap={1}>
+        {Fold(key, byDefault, label)}
+        {isOpen(key, byDefault) && body()}
       </Box>
     )
 
@@ -421,25 +447,23 @@ export const register: Register = on => {
       const isSilent = isLive && age !== null && age > SILENT_MINUTES
       const key = 'batch-' + b.folder
       const shown = b.state !== 'landed' // a landed batch is folded, its cost still on the title line
-      return (
-        <Box key={key} flexDirection="column">
-          {Fold(key, shown, `${b.batch}  ${spent}${budget} ${gauge(b.spent_usd, b.budget_usd)}`)}
-          {isOpen(key, shown) && (
-            <Box flexDirection="column" paddingLeft={2}>
-              <Text bold>Waiting for you</Text>
-              {waiting.map(Row)}
-              {b.asks_unread > 0 && <Text>{`${b.asks_unread} unread ask${b.asks_unread === 1 ? '' : 's'}`}</Text>}
-              {isSilent && <Text>{`Foreman silent for ${age} min`}</Text>}
-              {waiting.length === 0 && b.asks_unread === 0 && !isSilent && (
-                <Text dimColor>Nothing waits for you.</Text>
-              )}
-              <Text bold>In progress</Text>
-              {rest.map(Row)}
-              {rest.length === 0 && <Text dimColor>No other live CR.</Text>}
-            </Box>
+      const why = waiting.filter(r => r.blocked !== null)
+      return Section(key, shown, `${b.batch}  ${spent}${budget} ${gauge(b.spent_usd, b.budget_usd)}`, () => (
+        <Box flexDirection="column" rowGap={1} paddingLeft={2}>
+          {b.asks_unread > 0 && <Text>{`${b.asks_unread} unread ask${b.asks_unread === 1 ? '' : 's'}`}</Text>}
+          {isSilent && <Text>{`Foreman silent for ${age} min`}</Text>}
+          {Section(key + '-waiting', true, `Waiting for you (${waiting.length})`, () =>
+            waiting.length === 0 ? <Text dimColor>Nothing waits for you.</Text> : Crs(key + '-waiting-table', waiting),
+          )}
+          {why.length > 0 &&
+            Section(key + '-why', false, `Why (${why.length})`, () => (
+              <Markdown key={key + '-why-text'} text={why.map(r => `- **${r.cr}:** ${r.blocked}`).join('\n')} />
+            ))}
+          {Section(key + '-rest', true, `In progress (${rest.length})`, () =>
+            rest.length === 0 ? <Text dimColor>No other live CR.</Text> : Crs(key + '-rest-table', rest),
           )}
         </Box>
-      )
+      ))
     }
 
     const back_ = (
@@ -450,18 +474,6 @@ export const register: Register = on => {
     const top = stack[stack.length - 1]
     if (top !== undefined) {
       const base = parentOf(top.path)
-      const Doc = (d: { label: string; path: string | null; isDir?: boolean }) => {
-        const target = d.path
-        if (target === null || !isInside(root, target)) return <Text key={d.label}>{d.label}</Text>
-        return (
-          <Button
-            key={'doc-' + target}
-            plain
-            label={d.label}
-            onPress={() => void guarded($, () => showPath($, target))}
-          />
-        )
-      }
       if (top.kind === 'cr' && top.sheet !== null) {
         const s = top.sheet
         return (
@@ -470,13 +482,28 @@ export const register: Register = on => {
             {note}
             <Text bold>{`${s.cr} ${s.title}`}</Text>
             <Text>{`${s.label}  ${money(s.cost_usd)}`}</Text>
-            <Text>{stepsLine(s.steps)}</Text>
+            {s.steps.length === 0 ? (
+              <Text dimColor>No step yet.</Text>
+            ) : (
+              <Markdown
+                key="steps"
+                text={table(['Step', 'Done', 'Verdict'], s.steps.map(x => [cell(x.name), x.done ? 'yes' : 'no', cell(x.verdict ?? '-')]))}
+              />
+            )}
             <Text>{`Now: ${s.now}`}</Text>
             <Text>{`Next: ${s.next}`}</Text>
             {s.blocked !== null && <Text>{`Blocked: ${s.blocked}`}</Text>}
             {s.pr !== null && <Link href={s.pr.url} label={s.pr.number === null ? 'PR' : `PR #${s.pr.number}`} />}
             <Text bold>Documents</Text>
-            {s.documents.map(d => Doc({ label: d.name ?? d.kind, path: resolveFrom(base, d.path) }))}
+            {s.documents.length === 0 ? (
+              <Text dimColor>No document yet.</Text>
+            ) : (
+              Files(
+                'documents',
+                ['Document', 'Kind'],
+                s.documents.map(d => ({ label: d.name ?? d.kind, path: resolveFrom(base, d.path), more: [cell(d.kind)] })),
+              )
+            )}
           </Box>
         )
       }
@@ -487,7 +514,12 @@ export const register: Register = on => {
             {note}
             <Text bold>{top.path.split('/').pop() ?? top.path}</Text>
             {top.names.length === 0 && <Text dimColor>No file here.</Text>}
-            {top.names.map(n => Doc({ label: n, path: resolveFrom(top.path, n) }))}
+            {top.names.length > 0 &&
+              Files(
+                'files',
+                ['File'],
+                top.names.map(n => ({ label: n, path: resolveFrom(top.path, n) })),
+              )}
           </Box>
         )
       }
@@ -526,38 +558,29 @@ export const register: Register = on => {
       0,
     )
     const age = f.readAt === null ? null : Math.max(0, Math.round((now - f.readAt) / 1000))
+    const backlog = PRIORITIES.flatMap(pr => index.backlog.filter(r => r.priority === pr))
     return (
-      <Box flexDirection="column">
+      <Box flexDirection="column" rowGap={1}>
         <Text bold>
           {`${index.active_crs} live · ${waitingCount} waiting for you${age === null ? '' : ` · read ${age}s ago`}`}
         </Text>
         {note}
         {index.batches.map(Batch)}
         {index.batches.length === 0 && <Text dimColor>No open batch.</Text>}
-        {Fold('backlog', false, `Backlog (${index.backlog.length})`)}
-        {isOpen('backlog', false) && (
-          <Box flexDirection="column" paddingLeft={2}>
-            {PRIORITIES.map(pr => {
-              const items = index.backlog.filter(r => r.priority === pr)
-              return (
-                <Box key={pr} flexDirection="column">
-                  {Fold('backlog-' + pr, false, `${pr} (${items.length})`)}
-                  {isOpen('backlog-' + pr, false) &&
-                    items.map(r => (
-                      <Box key={r.path} paddingLeft={2} flexWrap="wrap" columnGap={1}>
-                        {Cr(r.path, r.title)}
-                        <Text dimColor>{`${r.files} file${r.files === 1 ? '' : 's'}`}</Text>
-                      </Box>
-                    ))}
-                </Box>
-              )
-            })}
-          </Box>
+        {Section('backlog', false, `Backlog (${index.backlog.length})`, () =>
+          Table(
+            'backlog-table',
+            ['Priority', 'Item', 'Title', 'Files'],
+            backlog.map(r => [r.priority, crCell(r.path, r.item), cell(r.title), String(r.files)]),
+            backlog.map(r => r.path),
+          ),
         )}
-        {Fold('landed', false, `Landed (${index.landed.length} of ${index.landed_total})`)}
-        {isOpen('landed', false) && <Box flexDirection="column" paddingLeft={2}>{index.landed.map(Past)}</Box>}
-        {Fold('trashed', false, `Trashed (${index.trashed.length} of ${index.trashed_total})`)}
-        {isOpen('trashed', false) && <Box flexDirection="column" paddingLeft={2}>{index.trashed.map(Past)}</Box>}
+        {Section('landed', false, `Landed (${index.landed.length} of ${index.landed_total})`, () =>
+          Pasts('landed-table', index.landed),
+        )}
+        {Section('trashed', false, `Trashed (${index.trashed.length} of ${index.trashed_total})`, () =>
+          Pasts('trashed-table', index.trashed),
+        )}
       </Box>
     )
   })

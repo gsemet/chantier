@@ -155,7 +155,12 @@ function world(on: On, cwd = ROOT) {
 
 const skill = ($: Engine) => $.skill.prompt({ skill: 'chantier', text: 'THE PROMPT' })
 const board = ($: Engine) => $.ui.mount({ ...PANE, surface: 'terminal' })
-const words = async (ui: any) => (await ui.findAll({ type: 'Text' })).map((t: any) => t.text).join('\n')
+const words = async (ui: any) =>
+  [
+    ...(await ui.findAll({ type: 'Text' })).map((t: any) => t.text),
+    ...(await ui.findAll({ type: 'Button' })).map((b: any) => b.props.label),
+    ...(await ui.findAll({ type: 'Markdown' })).map((m: any) => m.props.text),
+  ].join('\n')
 
 test('the chantier skill opens the pane and returns its prompt unchanged', async ($, on) => {
   mock.clock(on)
@@ -292,16 +297,22 @@ test('the board, a sheet and a document open and go back; a path leaving the che
   const ui = await board($)
   expect(await words(ui)).toContain('Waiting for you')
 
-  await ui.press({ key: `cr-${BATCH}/01-first` })
+  await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
   const steps = await words(ui)
-  expect(steps).toContain('Round 1 > (Shipped)')
+  expect(steps).toContain('| Step | Done | Verdict |')
+  expect(steps).toContain('| Shipped | no | - |')
   expect(steps).not.toContain('a note')
-  // The escaping document is text, the other one a button.
-  expect(await ui.find({ key: `doc-${CR_DIR}/01-intent.md` })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: 'escape' })).toBeDefined()
-  expect(await ui.find({ key: 'doc-/work/outside.md' })).toBeUndefined()
+  // The escaping document is plain text in its cell, the other one a link.
+  const docs = await ui.find({ key: 'documents' })
+  expect(docs?.props.pressableLinks).toEqual([`file://${CR_DIR}/01-intent.md`])
+  expect(docs?.props.text).toContain(`[intent](file://${CR_DIR}/01-intent.md) | intent |`)
+  expect(docs?.props.text).toContain('| escape | escape |')
 
-  await ui.press({ key: `doc-${CR_DIR}/01-intent.md` })
+  // A link out of the checkout opens nothing on the sheet.
+  await ui.press({ key: 'documents', link: { href: 'file:///work/outside.md' } })
+  expect(await ui.find({ key: 'documents' })).toBeDefined()
+
+  await ui.press({ key: 'documents', link: { href: `file://${CR_DIR}/01-intent.md` } })
   const doc = await ui.find({ key: 'doc' })
   expect(doc?.props.pressableLinks).toEqual(['03-change-spec.md'])
 
@@ -312,6 +323,7 @@ test('the board, a sheet and a document open and go back; a path leaving the che
   await ui.unmount()
 })
 
+const REST = `batch-${BATCH}-rest-table`
 const batch = (over = {}) => ({ ...index().batches[0]!, ...over })
 const label = async (ui: any, key: string) => (await ui.find({ key }))?.props.label as string | undefined
 
@@ -329,7 +341,7 @@ test('a landed batch is folded, with its cost on its title line', async ($, on) 
   await ui.unmount()
 })
 
-test('a row draws its severity icon once, before the id', async ($, on) => {
+test('a row draws its severity icon once, in the State column', async ($, on) => {
   mock.clock(on)
   const w = world(on)
   w.put(INDEX, index())
@@ -337,9 +349,7 @@ test('a row draws its severity icon once, before the id', async ($, on) => {
   const ui = await board($)
   const all = (await words(ui)) as string
   expect(all.split('🟡').length - 1).toBe(1)
-  const texts = all.split('\n')
-  expect(texts.indexOf('🟡')).toBeGreaterThan(-1)
-  expect(texts[texts.indexOf('🟡') + 1]).toBe('working Round 1/3')
+  expect(all).toContain('| 🟡 working Round 1/3 |')
   await ui.unmount()
 })
 
@@ -367,15 +377,10 @@ test('Backlog, Landed and Trashed are folded and open when pressed', async ($, o
   expect(await label(ui, 'fold-trashed')).toContain('Trashed (1 of 3)')
   const closed = await words(ui)
   for (const hidden of ['CR-7 title', 'CR-8 title']) expect(closed).not.toContain(hidden)
-  expect(await ui.find({ key: 'fold-backlog-P1' })).toBeUndefined()
+  expect(await ui.find({ key: 'backlog-table' })).toBeUndefined()
 
   await ui.press({ key: 'fold-backlog' })
-  for (const [pr, n] of [['inbox', 0], ['P2', 0], ['P3', 0], ['P4', 0]] as const)
-    expect(await label(ui, 'fold-backlog-' + pr)).toContain(`${pr} (${n})`)
-  expect(await label(ui, 'fold-backlog-P1')).toContain('P1 (1)')
-  expect(await ui.find({ key: 'cr-1-backlog/P1/idea' })).toBeUndefined()
-  await ui.press({ key: 'fold-backlog-P1' })
-  expect(await ui.find({ key: 'cr-1-backlog/P1/idea' })).toBeDefined()
+  expect((await ui.find({ key: 'backlog-table' }))?.props.text).toContain('| P1 |')
 
   await ui.press({ key: 'fold-landed' })
   await ui.press({ key: 'fold-trashed' })
@@ -384,6 +389,33 @@ test('Backlog, Landed and Trashed are folded and open when pressed', async ($, o
   expect(open).toContain('CR-8 title')
   await ui.press({ key: 'fold-landed' })
   expect(await words(ui)).not.toContain('CR-7 title')
+  await ui.unmount()
+})
+
+test('a table holds no long text: why a CR is blocked is a fold of its own', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const blocked = row({ state: 'blocked', label: '🔴 blocked Blocked 2/3', blocked: 'needs a restack' })
+  w.put(INDEX, index({ batches: [batch({ crs: [blocked] })] }))
+  await skill($)
+  const ui = await board($)
+  const shown = await words(ui)
+  expect(shown).toContain('| 🔴 blocked 2/3 |')
+  expect(shown).not.toContain('needs a restack')
+  await ui.press({ key: `fold-batch-${BATCH}-why` })
+  expect(await words(ui)).toContain('needs a restack')
+  await ui.unmount()
+})
+
+test('a cell escapes backslash and pipe and folds whitespace; a link out of the checkout opens nothing on the board', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index({ batches: [batch({ crs: [row({ title: 'a|b\\c\n  d' })] })] }))
+  await skill($)
+  const ui = await board($)
+  expect(await words(ui)).toContain('| a\\|b\\\\c d |')
+  await ui.press({ key: REST, link: { href: 'file:///work/outside' } })
+  expect(await words(ui)).toContain('Waiting for you')
   await ui.unmount()
 })
 
@@ -414,11 +446,13 @@ test('an inbox or backlog item opens as the list of its Markdown files', async (
   await skill($)
   const ui = await board($)
   await ui.press({ key: 'fold-backlog' })
-  await ui.press({ key: 'fold-backlog-P1' })
-  await ui.press({ key: 'cr-1-backlog/P1/idea' })
-  expect(await ui.find({ key: `doc-${dir}/01-intent.md` })).toBeDefined()
-  expect(await ui.find({ key: `doc-${dir}/02-more.md` })).toBeDefined()
-  expect(await ui.find({ key: `doc-${dir}/notes.txt` })).toBeUndefined()
+  await ui.press({ key: 'backlog-table', link: { href: `file://${dir}` } })
+  const files = await ui.find({ key: 'files' })
+  expect(files?.props.text).toContain('| File |')
+  expect(files?.props.pressableLinks).toEqual([`file://${dir}/01-intent.md`, `file://${dir}/02-more.md`])
+  expect(files?.props.text).not.toContain('notes.txt')
+  await ui.press({ key: 'files', link: { href: `file://${dir}/01-intent.md` } })
+  expect((await ui.find({ key: 'doc' }))?.props.text).toBe('# Intent')
   await ui.unmount()
 })
 
@@ -435,12 +469,12 @@ test('a document over 200 KB or not UTF-8 is not shown, with one line', async ($
 
   await skill($)
   const ui = await board($)
-  await ui.press({ key: `cr-${BATCH}/01-first` })
-  await ui.press({ key: `doc-${CR_DIR}/big.md` })
+  await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
+  await ui.press({ key: 'documents', link: { href: `file://${CR_DIR}/big.md` } })
   expect(await words(ui)).toContain(`${CR_DIR}/big.md is over 200 KB: not shown.`)
   expect(await ui.find({ key: 'doc' })).toBeUndefined()
   await ui.press({ key: 'back' })
-  await ui.press({ key: `doc-${CR_DIR}/bin.md` })
+  await ui.press({ key: 'documents', link: { href: `file://${CR_DIR}/bin.md` } })
   expect(await words(ui)).toContain(`${CR_DIR}/bin.md is not UTF-8: not shown.`)
   expect(await ui.find({ key: 'doc' })).toBeUndefined()
   await ui.unmount()
@@ -456,8 +490,8 @@ test('an https link stays a link; a relative link opens in the pane', async ($, 
 
   await skill($)
   const ui = await board($)
-  await ui.press({ key: `cr-${BATCH}/01-first` })
-  await ui.press({ key: `doc-${CR_DIR}/01-intent.md` })
+  await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
+  await ui.press({ key: 'documents', link: { href: `file://${CR_DIR}/01-intent.md` } })
   const doc = await ui.find({ key: 'doc' })
   // The https link is left to the surface: not in the pane's list, still in the text.
   expect(doc?.props.pressableLinks).not.toContain('https://example.com')
