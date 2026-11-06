@@ -15,7 +15,11 @@ hear, what the Chief of Staff must know. The CLI holds the limits; you hold the 
 
 Every CR of the batch merged or cancelled, with the fewest questions to the user that still
 leave every decision that is theirs to them. Then `$CHANTIER land` and the line
-`[foreman→chief-of-staff] final <STATUS.md path>`.
+`[foreman→chief-of-staff] final <STATUS.md path>`. After `final` you end your work and stay
+idle: no Driver, no worker, no tool call of yours runs, because the Chief of Staff's `close`
+refuses while anything runs and prices the final cost then; `land`'s cost is not final. An
+order that adds work to the landed batch sets it running again: you start again by the usual
+order, and `land` again at the end (`land` on a landed batch is refused).
 
 ## The user's boundaries
 

@@ -448,7 +448,7 @@ chantier land
 ```md
 ## 📊 STATUS.md
 
-exit report · cost final
+exit report · cost not final
 ```
 
 ```md
@@ -459,7 +459,7 @@ sends final
 ```md
 ## 🤵 Chief of Staff
 
-bilan + cost
+bilan + final cost
 ```
 
 ```md

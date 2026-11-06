@@ -25,14 +25,14 @@ from . import __version__, costs, procs
 from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, stage_layout, trash_cr)
 from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
-                    check_granted_fix, check_no_open_batch, check_round, check_slot, check_take,
+                    check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
                     fix_go, held, live, parse_grant, record_ask, release_go, release_merged, unmet)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
                     age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
                     next_cr_number, normalize_batch, now, project_path, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
-from .status import write_dashboard
+from .status import write_dashboard, write_final_pages
 
 HOSTS = ("claude", "copilot")
 AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
@@ -669,11 +669,19 @@ def order(args) -> list[str]:
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
             cr = args.cr
+            reopened = []
+            if args.kind in {"add", "qa"} and b.data["status"] == "landed":
+                # new work starts a Driver: the batch runs again, its landing and cost are void
+                b.data["status"] = "open"
+                b.data.pop("landed", None)
+                b.data.pop("summary", None)
+                b.log("reopen", None)
+                reopened = [f"{b.id} was landed: running again; `land` runs again at the end"]
             if args.kind == "qa":  # no CR: a work folder the QA driver fills, in the inbox
                 check_budget(b)  # a QA driver is a Driver: refused before anything is created
                 check_slot(b, "a QA driver")  # the open order holds the slot until `order done`
                 cr = _shown(repo, _new_request(repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode()))
-            effect = _apply_order(b, args.kind, cr, note, args.fix_for, own)
+            effect = reopened + _apply_order(b, args.kind, cr, note, args.fix_for, own)
             oid = f"O-{len(b.data['orders']) + 1}"
             b.data["orders"].append({"id": oid, "kind": args.kind, "cr": cr or "-",
                                      "note": note, "sent": now(), "done": now() if own else None,
@@ -725,6 +733,10 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]
         return lines + [f"spend not updated: {e}"], e.code
     with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
         total = _record_costs(repo, b, rows)
+        if b.data["status"] == "landed":  # the header and the Cost section read one figure
+            b.data["summary"] = _cost_summary(
+                b.data, rows, _cost_groups(repo, b.id, rows, "cr"),
+                _cost_groups(repo, b.id, rows, "driver"), _chief_line(repo, b.data)) + [NOT_FINAL]
     return lines + [f"spent ${total:.2f}"], 0
 
 
@@ -753,7 +765,8 @@ def status(args) -> tuple[list[str], int]:
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
              f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
              f" spent ${d.get('spent_usd', 0):.2f}"
-             + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")]
+             + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")
+             + (" (landed, cost not final)" if d["status"] == "landed" else "")]
     for c in sorted(d["crs"], key=lambda c: c["order"]):
         row = f"{c['id']} {c['status']} r{c['round']}/{round_limit(d, c)} {c.get('pr') or '-'}"
         if c.get("kind") == "release":
@@ -1304,11 +1317,16 @@ def cancel(args) -> list[str]:
 
 
 def land(args) -> list[str]:
-    """The batch's end: the cost is final, the batch's STATUS.md is the report."""
+    """The batch's end of work: the cost recorded is not final, `close` prices the final one.
+    A landed batch is not landed again: `order add` sets it running first."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
+        if b.data["status"] == "landed":
+            raise ChantierError(f"{batch} is already landed (at {b.data.get('landed')}): "
+                                "`order add` sets it running again, then `land` runs again")
+        landed = now()
         live_ids = [c["id"] for c in b.data["crs"] if c["status"] in LIVE]
         pending = [o["id"] for o in b.data["orders"] if not o["done"]]
         queued = [c["id"] for c in b.data["crs"] if c["status"] == "queued"]
@@ -1322,12 +1340,13 @@ def land(args) -> list[str]:
             _record_costs(repo, b, rows)
             summary = _cost_summary(b.data, rows, _cost_groups(repo, batch, rows, "cr"),
                                     _cost_groups(repo, batch, rows, "driver"),
-                                    _chief_line(repo, b.data))
+                                    _chief_line(repo, b.data)) + [NOT_FINAL]
         except ChantierError as e:  # never a false $0.00
             summary = [f"Spent: unknown ({e})"]
-        b.data.update(status="landed", landed=now(), summary=summary)
+        b.data.update(status="landed", landed=landed, summary=summary)
         b.log("land", None)
-    return [f"landed {batch}", f"report: {b.dir / 'STATUS.md'}"]
+    return [f"landed {batch}: the cost is not final, it runs until `close`",
+            f"report: {b.dir / 'STATUS.md'}"]
 
 
 def _landed_batch(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
@@ -1345,10 +1364,12 @@ def _landed_batch(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
 def close(args) -> tuple[list[str], int]:
     """The batch's folder goes: the Chief of Staff shows the user what would go, with the
     dropped CRs' worktrees and branches it removes itself on the same word, and passes `--yes`.
-    Without it, nothing is touched."""
+    Without it, nothing is touched. It refuses while anything runs, with or without `--yes`,
+    and it prices the batch up to now: this is the final cost, printed either way."""
     repo = Repo.find()
     with changes_lock(repo):
         batch, folder, d = _landed_batch(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
+        check_idle(repo, d)
         held = [p.name for p in folder.iterdir() if p.is_dir()]
         if held:
             raise ChantierError(f"{folder.name} still holds {', '.join(held)}: nothing was deleted")
@@ -1357,8 +1378,10 @@ def close(args) -> tuple[list[str], int]:
         lines = [f"close {batch} deletes the folder {_shown(repo, folder)}",
                  "the dropped CRs, to remove on the same word where they still exist "
                  f"(`git worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}"]
+        lines += ["final cost, up to now (nothing runs):"] + _final_cost(repo, batch, d)
         if not args.yes:
             return lines + ["ask the user, then `chantier close --yes`"], 0
+        _final_pages(repo, batch, folder, d)
         going = folder.with_name(f".closing-{folder.name}")
         try:  # a rename fails whole on a file in use; a delete would stop halfway
             _retry(os.replace, folder, going)
@@ -1370,17 +1393,45 @@ def close(args) -> tuple[list[str], int]:
     return [f"closed {batch}: the folder is deleted"] + lines[1:], 0
 
 
+def _final_pages(repo: Repo, batch: str, folder: Path, d: dict) -> None:
+    """The archived CR pages outlive the batch: priced to now, they alone say the cost is final.
+    If the pricing fails they keep "so far": no page claims a figure that was not measured."""
+    try:
+        rows = _cost_rows(repo, d, d["host"], _foreman_uuid(d))
+    except ChantierError:
+        return
+    by_cr = _cost_groups(repo, batch, rows, "cr")
+    crs = [{**c, "cost_usd": round(by_cr[c["id"]][1], 4)} if c["id"] in by_cr else c
+           for c in d["crs"]]
+    write_final_pages(repo, {**d, "crs": crs}, folder)
+
+
+def _final_cost(repo: Repo, batch: str, d: dict) -> list[str]:
+    """The batch priced to now. A pricing failure is told, never a false $0.00, and does not
+    stop the close: the user decides with `Spent: unknown` in front of them."""
+    try:
+        rows = _cost_rows(repo, d, d["host"], _foreman_uuid(d))
+        return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"),
+                             _cost_groups(repo, batch, rows, "driver"), _chief_line(repo, d))
+    except ChantierError as e:
+        return [f"Spent: unknown ({e})"]
+
+
 # ---- cost -------------------------------------------------------------------------------------
 
+NOT_FINAL = "Not final: it runs until `close`, which prices the final cost"
+
+
 def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
-    """Every Foreman of the batch, summed, from its opening to its landing."""
+    """Every Foreman of the batch, summed, from its opening to now: `land` ends no window, a
+    call made after it is spend."""
     rows: list[dict] = []
     for uuid in uuids:
         if host == "copilot":
             rows += costs.copilot_session_costs(uuid)
         else:
             rows += costs.session_costs(costs.transcript_path(repo.root, uuid),
-                                        d.get("created", ""), d.get("landed", ""),
+                                        d.get("created", ""), "",
                                         allow_empty=len(uuids) > 1)
     if not any(r["calls"] for r in rows):
         raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)

@@ -201,8 +201,11 @@ status cell reads like `🔴 blocked Question 1/3`.
 The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
 (named by chantier, next to the repository), the Foreman removes a merged CR's before the batch
 lands, and the Chief of Staff removes a dropped CR's only on your word. When the batch has
-landed, it shows what goes (the batch folder, the dropped CRs' worktrees and branches) and the
-cost. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
+landed, its cost is not final: the Foreman stays idle, and `chantier close` refuses, naming the
+cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
+written in the last 5 minutes). Once nothing runs, it prices the final cost and shows it with
+what goes (the batch folder, the dropped CRs' worktrees and branches). New work added to a
+landed batch sets it running again; it lands again at the end. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
 without a yes, everything stays. Close last: the batch folder holds the exit report and the
 event log.
 

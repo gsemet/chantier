@@ -705,8 +705,9 @@ def scenario(w: World) -> None:
     check("the batch's STATUS.md gives each CR's cost and the summary",
           "| $0.30 |" in report and "## Cost" in report and "Total: $1.61" in report, report)
     archived = (w.work / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
-    check("an archived CR keeps its final cost and no link into the batch",
-          "$0.30." in archived and "../STATUS.md" not in archived
+    check("a landed batch's CR page keeps its cost and no link into the batch, and does not call "
+          "the cost final: only `close` does",
+          "$0.30 so far" in archived and "../STATUS.md" not in archived
           and "- [x] Merged" in archived, archived)
     cost_audit(w)
 
@@ -840,20 +841,143 @@ def board_index(w: World, d: dict) -> None:
         shutil.rmtree(folder)
 
 
+def age_sessions(w: World, seconds: int = 600) -> None:
+    """The session files of the fixture, last written `seconds` ago: `close` reads their times."""
+    then = time.time() - seconds
+    for base in ("claude-projects", "copilot-home"):
+        for f in (w.root / base).rglob("*"):
+            if f.is_file():
+                os.utime(f, (then, then))
+
+
+def close_refusals(w: World) -> None:
+    """A landed batch's cost is not final; `order add` reopens it; `close` refuses while any
+    CR, order, stack agent or session file shows that something runs."""
+    name, state = w.name, w.folder() / "batch.json"
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    main = w.root / "claude-projects" / slug / "uuid-foreman.jsonl"
+    sub = main.with_suffix("") / "subagents"
+    w.chantier("status", "--refresh", "--batch", name)
+    code, out = w.chantier("status", "--batch", name)
+    d = w.batch()
+    check("`land` records a cost marked not final, in the summary and in `status`",
+          "landed, cost not final" in out[0] and any(ln.startswith("Not final") for ln in d["summary"])
+          and d["status"] == "landed", str(out))
+    before = state.read_text()
+    code, _ = w.chantier("land", "--batch", name, "--epoch", 2, expect=2)
+    check("a second `land` on a landed batch is refused and changes nothing",
+          code == 2 and "already landed" in w.last_stderr and state.read_text() == before,
+          w.last_stderr)
+    w.chantier("status", "--refresh", "--batch", name)
+    report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    header = re.search(r"spent \$(\d+\.\d\d)([^·\n]*)", report)
+    total = re.search(r"Total: \$(\d+\.\d\d)", report)
+    check("STATUS.md shows one total in its header and its Cost section, marked not final",
+          header and total and header[1] == total[1] and "(not final)" in header[2]
+          and "Not final" in report, report)
+
+    # a call made after the landing is spend
+    late = json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"), "message": {
+        "id": "after-land", "model": "claude-sonnet-5-5", "usage": {
+            "input_tokens": 10, "output_tokens": 100_000, "cache_read_input_tokens": 20_000,
+            "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
+    main.write_text(main.read_text() + late)
+    code, out = w.chantier("cost", "--batch", name)
+    check("a call made after the landing shows in `cost`",
+          out[0] == f"{name}: $2.618 over 95 model calls", str(out))
+
+    # new work sets the landed batch running again
+    added = prepare_cr(w, "Work after the landing")[1]
+    code, out = w.chantier("order", "add", "--batch", name, "--note", str(added))
+    d = w.batch()
+    new = d["crs"][-1]["id"]
+    check("`order add` on a landed batch sets it running again and clears its landing, with a line "
+          "that says so",
+          d["status"] == "open" and "landed" not in d and "summary" not in d
+          and any("was landed: running again" in ln for ln in out) and w.cr(new)["status"] == "queued",
+          str(out))
+    w.chantier("cancel", new, "--epoch", 2)
+    for o in w.batch()["orders"]:
+        if not o["done"]:
+            w.chantier("order", "done", o["id"], "--epoch", 2)
+    w.chantier("land", "--epoch", 2)
+    d = w.batch()
+    check("`land` runs again at the end of the reopened batch, and counts the later call",
+          d["status"] == "landed" and d["landed"] and "Total: $2.62" in "\n".join(d["summary"]),
+          str(d.get("summary")))
+
+    # close refuses, naming the cause, with and without --yes
+    base = state.read_text()
+    d = json.loads(base)
+
+    def refused(label: str, text: str, change: dict | None = None, env: dict | None = None) -> None:
+        if change is not None:
+            state.write_text(json.dumps({**d, **change}))
+        for extra in ((), ("--yes",)):
+            code, out = w.chantier("close", "--batch", name, *extra, env=env, expect=2)
+            check(f"`close{' --yes' if extra else ''}` refuses {label}, naming it and deleting "
+                  "nothing", code == 2 and text in w.last_stderr and not out
+                  and w.folder().is_dir(), w.last_stderr)
+        state.write_text(base)
+
+    refused("a transcript written within 5 minutes", "transcript uuid-foreman was written")
+    age_sessions(w)
+    first = sorted(sub.glob("agent-*.jsonl"))[0]
+    os.utime(first, None)
+    refused("an agent's transcript written within 5 minutes, whatever its type", first.stem)
+    age_sessions(w)
+    crs = [{**c, "status": "ready"} if i == 0 else c for i, c in enumerate(d["crs"])]
+    refused("a CR that is not merged", f"{d['crs'][0]['id']} is ready", {"crs": crs})
+    refused("an open order", "order O-99 (qa) is open", {"orders": d["orders"] + [
+        {"id": "O-99", "kind": "qa", "cr": "-", "note": "x", "sent": d["created"], "done": None}]})
+    refused("a stack agent", "stack agent agent-stack is recorded", {"stack_agent": "agent-stack"})
+
+    # Copilot: the session's events file is the only time the CLI reads
+    home = w.root / "copilot-home"
+    events = home / "session-state" / "uuid-foreman" / "events.jsonl"
+    missing = [str(w.root / "missing-session-usage")]
+    env = {"COPILOT_HOME": str(home), "CHANTIER_SESSION_USAGE": subprocess.list2cmdline(missing)
+           if sys.platform == "win32" else shlex.join(missing)}
+    state.write_text(json.dumps({**d, "host": "copilot"}))
+    os.utime(events, None)
+    refused("a Copilot session file written within 5 minutes", "Copilot session uuid-foreman was "
+            "written", env=env)
+    state.write_text(json.dumps({**d, "host": "copilot"}))
+    refused("a Copilot session whose time is not measured", "not measured",
+            env={**env, "COPILOT_HOME": str(w.root / "no-copilot")})
+    age_sessions(w)
+    state.write_text(json.dumps({**d, "host": "copilot"}))
+    code, out = w.chantier("close", "--batch", name, env=env)
+    check("on Copilot, `close` passes once the session file is old, and says when it cannot price "
+          "rather than a false $0", code == 0 and any(ln.startswith("Spent: unknown") for ln in out)
+          and w.folder().is_dir(), str(out))
+    state.write_text(base)
+    # the Chief of Staff's own session writes all the time and never blocks its own close
+    os.utime(main.with_name("uuid-chief.jsonl"), None)
+
+
 def close_batch(w: World) -> None:
     note("\n## 11b. Closing the batch, on the user's word")
     folder, dropped = w.folder(), w.cr("CR-103")
     name = w.name
+    close_refusals(w)
     code, out = w.chantier("close", "--batch", name)
     check("`close` alone says what would go, names the dropped CR's worktree and branch, and "
           "touches nothing",
           code == 0 and folder.is_dir() and Path(dropped["worktree"]).is_dir()
           and any(folder.name in ln for ln in out) and "--yes" in out[-1]
           and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out), str(out))
+    check("`close` prints the final cost, with a call made after `land` in it",
+          any(ln.startswith("Total: $2.62") for ln in out) and "Not final" not in "\n".join(out),
+          str(out))
+    archived = w.work / w.cr("CR-101")["path"] / "STATUS.md"
     _, out = w.chantier("close", "--batch", name, "--yes")
     check("`close --yes` deletes the batch folder only, and repeats what is left to remove",
           not folder.exists() and Path(dropped["worktree"]).is_dir()
           and any(dropped["worktree"] in ln for ln in out), str(out))
+    page = archived.read_text(encoding="utf-8")
+    check("at `close` the archived CR page gives its cost as final, priced to then",
+          re.search(r"## Cost\s+\$\d+\.\d\d\.\s*$", page) and "so far" not in page, page)
     # the Chief of Staff removes it on the same word, with git
     w.sh("git", "worktree", "remove", "--force", dropped["worktree"])
     w.sh("git", "branch", "-D", dropped["branch"])
@@ -1739,11 +1863,13 @@ def cost_audit(w: World) -> None:
                 "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
                 "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
 
-    # a Foreman reused for a later batch: its calls after the landing are not this batch's
+    # `land` ends no window: a call made after it is spend, and a `<synthetic>` record costs nothing
     main.write_text(original + msg("later", 900_000, timestamp="2999-01-01T00:00:00.000Z"))
     code, out = w.chantier("cost", "--batch", w.name)
-    check("a landed batch stops at its landing, and a `<synthetic>` record costs nothing",
-          code == 0 and out[0] == f"{w.name}: $1.608 over 94 model calls", str(out))
+    check("a call made after the landing is counted, and a `<synthetic>` record costs nothing",
+          code == 0 and out[0].startswith(f"{w.name}: $10.6") and "over 95 model calls" in out[0],
+          str(out))
+    main.write_text(original)
     # a relay: the next Foreman's transcript is summed with the first
     main.with_name("uuid-foreman-2.jsonl").write_text(msg("r1", 300) + msg("r2", 300))
     d = json.loads(original_state)
@@ -1764,7 +1890,6 @@ def cost_audit(w: World) -> None:
     events.write_text(original_events + json.dumps(  # a Driver after another on CR-101
         {"t": when[0], "actor": "foreman", "kind": "agent", "cr": "CR-101", "agent": "odd"}) + "\n",
         encoding="utf-8")
-    state.write_text(json.dumps({k: v for k, v in d.items() if k != "landed"}))
     for name, kind, parent, n in (("odd", "my-own-driver", None, 2), ("odd-worker", "coder", "odd", 1),
                                   ("lone", "qa-driver", None, 3)):
         f = sub / f"agent-{name}.jsonl"
