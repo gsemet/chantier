@@ -12,7 +12,7 @@ description: >-
 
 # chantier: Chief of Staff
 
-chantier-version: 0.6.0
+chantier-version: 0.7.0
 
 `$CHANTIER` means `uv run --script "<this skill's folder>/scripts/cli/chantier.py"`, with the
 absolute path of the folder this file is in. Nothing to install or set up: the plugin ships the
