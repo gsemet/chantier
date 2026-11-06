@@ -36,13 +36,20 @@ starts until you answer. In the morning:
 
 > "Status?" · "What did it cost, by CR?"
 
+## Build independent pull requests
+
+> "These three do not depend on each other: run them in parallel."
+
+Each CR is based on the default branch (`open --parallel`); a batch is a stack by default.
+
 ## Build a stack of pull requests
 
-> "These three depend on each other: build them as a stack."
+> "Run these three."
 
 Each PR is based on the one below it. When every CR is ready, a stack driver orders the stack,
 rebases and pushes each PR on the one below it, and heavy CI runs once at the top. After each
-merge you report, it restacks the rest.
+merge you report, it restacks the rest on the default branch: the batch stays open, and work you add
+joins it.
 
 ## Steer a running batch
 

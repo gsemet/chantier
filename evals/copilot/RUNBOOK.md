@@ -19,7 +19,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 | Setup | `uv run --no-project python evals/kit/setup.py copilot <workspace>` |
 | Batch | `copilot` |
 | CRs | `done-unknown-id` |
-| Open | `$CHANTIER open copilot .agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --default-branch main` |
+| Open | `$CHANTIER open .agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --default-branch main` |
 
 ## The user's turns
 

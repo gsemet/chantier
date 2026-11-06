@@ -106,7 +106,7 @@ The Chief of Staff:
 2. shows you the plan: the CRs, the slots, the budget, the agents;
 3. waits for your **go**.
 
-Say "go". It opens the batch (each CR is named a branch `chantier/<batch>/…` and a worktree
+Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
 next to your repository, which its Driver creates when it starts), then starts the **Foreman**
 in its own session. You will see that session in the sidebar; you never need to talk to it.
 

@@ -1,7 +1,7 @@
 """Repository paths and the locked batch state.
 
 Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
-Markdown: the stage folders, and in `3-requests/` one folder per batch, `<NN>-<name>/`, with its CRs
+Markdown: the stage folders, and in `3-requests/` one folder per batch, `batch-<n>/`, with its CRs
 (`batch.json` holds the batch's limits and what the Chief of Staff passed to `open`).
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
@@ -231,15 +231,15 @@ class Repo:
         return sorted(d for d in self.batches.iterdir() if (d / "batch.json").is_file())
 
     def batch_dir(self, batch: str) -> Path:
-        """`--batch` is the name given to `open`; the folder adds its number."""
-        return next((d for d in self.batch_folders()
-                     if re.fullmatch(rf"\d+-{re.escape(batch)}", d.name)), self.batches / batch)
+        """`--batch` is a batch's number, `4` or `batch-04`: its folder is `batch-04`."""
+        return self.batches / normalize_batch(batch)
 
     def next_batch_number(self) -> int:
         """Numbers keep rising after a batch's folder is deleted: the last one is on file."""
         last = self.changes / ".batch-number"
         kept = int(last.read_text(encoding="utf-8")) if last.is_file() else 0
-        return max([kept, *(int(d.name.split("-")[0]) for d in self.batch_folders())]) + 1
+        return max([kept, *(int(re.search(r"\d+", d.name).group()) for d in self.batch_folders()
+                          if re.search(r"\d+", d.name))]) + 1
 
     def open_batches(self) -> list[str]:
         states = [_read_json(d / "batch.json") for d in self.batch_folders()]
@@ -249,14 +249,19 @@ class Repo:
 class Batch:
     """A locked, read-modify-write view of one batch. Use as a context manager."""
 
-    def __init__(self, repo: Repo, batch_id: str, actor: str = "cli", create: dict | None = None):
-        self.repo, self.id, self.actor = repo, batch_id, actor
-        self.dir = repo.batch_dir(batch_id)
+    def __init__(self, repo: Repo, batch_id: str | None, actor: str = "cli",
+                 create: dict | None = None):
+        """`create` opens a new batch: its number is the next, its id `batch-<n>` on two digits."""
         self._create = create
         self._number = None
-        if create is not None and not (self.dir / "batch.json").exists():
+        if create is not None:
             self._number = repo.next_batch_number()
-            self.dir = repo.batches / f"{self._number:02d}-{batch_id}"
+            batch_id = f"batch-{self._number:02d}"
+            create["id"] = batch_id
+        else:
+            batch_id = normalize_batch(batch_id)
+        self.repo, self.id, self.actor = repo, batch_id, actor
+        self.dir = repo.batches / batch_id
         self._lock = None
         self.data: dict = {}
         self._events: list[dict] = []
@@ -349,10 +354,16 @@ class Batch:
         self._moves.clear()
 
 
+def normalize_batch(batch: str) -> str:
+    """`4`, `04` and `batch-04` all name `batch-04`; anything else is left as given."""
+    match = re.fullmatch(r"(?:batch-)?(\d+)", batch.strip())
+    return f"batch-{int(match.group(1)):02d}" if match else batch
+
+
 def resolve_batch(repo: Repo, batch: str | None) -> str:
     """`--batch`, else `CHANTIER_BATCH`, else the only open batch; never a guess among several."""
     if batch or os.environ.get("CHANTIER_BATCH"):
-        return batch or os.environ["CHANTIER_BATCH"]
+        return normalize_batch(batch or os.environ["CHANTIER_BATCH"])
     names = repo.open_batches()
     if len(names) == 1:
         return names[0]
@@ -383,7 +394,7 @@ def read_batch(repo: Repo, batch_id: str) -> dict:
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
     """The batch holding a CR: the one given, else the open batch that has it."""
     if batch:
-        return batch
+        return normalize_batch(batch)
     for d in reversed(repo.batch_folders()):
         b = _read_json(d / "batch.json")
         if b.get("status") != "landed" and any(c["id"] == cr_id for c in b["crs"]):

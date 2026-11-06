@@ -21,7 +21,7 @@ def _parser() -> argparse.ArgumentParser:
         s = sub.add_parser(name, help=help_)
         s.set_defaults(fn=fn)
         if batch:
-            s.add_argument("--batch", help="batch id (default: $CHANTIER_BATCH, else the only open one)")
+            s.add_argument("--batch", help="batch number, 4 or batch-04 (default: $CHANTIER_BATCH, else the only open one)")
         if epoch:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
@@ -41,11 +41,11 @@ def _parser() -> argparse.ArgumentParser:
 
     s = cmd("open", commands.open_batch,
             "open a batch: each prepared CR gets its folder, and a branch and worktree name", False)
-    s.add_argument("batch")
     s.add_argument("items", nargs="+", help="path to a prepared CR folder or specification")
-    s.add_argument("--slots", type=int, default=2)
+    s.add_argument("--slots", type=int, default=4)
     s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
-    s.add_argument("--stack", action="store_true", help="stacked PRs")
+    s.add_argument("--parallel", action="store_true",
+                   help="independent CRs, each on the default branch (default: a stack of PRs)")
     s.add_argument("--release", type=int, metavar="N",
                    help="the item number of the release CR; it starts once the others are merged")
     s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",

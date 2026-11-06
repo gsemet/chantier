@@ -9,10 +9,19 @@ from __future__ import annotations
 import re
 
 from .lifecycle import archive_cr
-from .state import EXIT_BUDGET, EXIT_USAGE, LIVE, Batch, ChantierError, now, round_limit
+from .state import (EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, LIVE, Batch, ChantierError, Repo, now,
+                    round_limit)
 
 ENDED = {"merged", "cancelled"}
 MAX_GRANTED_FIXES = 3
+
+
+def check_no_open_batch(repo: Repo) -> None:
+    """One batch at a time, whatever its state until `close`: new work joins it by `order add`."""
+    folders = repo.batch_folders()
+    if folders:
+        raise ChantierError(f"{folders[0].name} is open (a landed batch stays until `close`): "
+                            "`order add` joins new work to it", EXIT_PRECONDITION)
 
 
 def live(b: Batch) -> list[dict]:

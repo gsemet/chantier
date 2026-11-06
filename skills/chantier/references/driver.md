@@ -66,6 +66,15 @@ under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> 
 that only needs resolving: a `conflict-resolver`; one that needs code, or a red check:
 `[stack→foreman] anomaly <cr> <text>`. Green: `[stack→foreman] hand-back ready <cr>=<link>…`.
 
+The stack is what `take stack` prints, each CR with its base (the state computes it: the CR under
+it, the first on the default branch). Merged CRs are gone from it, archived at once and alone,
+while the stack lives. After a partial merge what remains is a new stack of the same batch: on
+`origin/<default branch>`, retarget the first PR to the default branch (`gh pr edit --base`,
+`glab mr update --target-branch`), rebase it there and each other PR on the one under it, push
+with `--force-with-lease`, and `ship` each one you moved: `ship` records the new base. A CR added
+by `order add` is on top. A release CR and a fix CR are not in the stack. The batch stays open
+until its last CR ends.
+
 ## QA driver
 
 Use the project as its user would, at the head of its default branch, never an unmerged PR, and

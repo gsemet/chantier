@@ -23,12 +23,12 @@ from . import __version__, costs, procs
 from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, stage_layout, trash_cr)
 from .rails import (MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
-                    check_granted_fix, check_round, check_take, fix_go, live, parse_grant,
+                    check_granted_fix, check_no_open_batch, check_round, check_take, fix_go, live, parse_grant,
                     record_ask, release_go, release_merged)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
                     age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
-                    next_cr_number, now, project_path, read_batch, read_events, resolve_batch,
+                    next_cr_number, normalize_batch, now, project_path, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
 from .status import write_dashboard
 
@@ -328,8 +328,6 @@ def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
 def open_batch(args) -> list[str]:
     repo = Repo.find()
     host = detect_host()
-    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,40}", args.batch):
-        raise ChantierError("batch id: lowercase letters, digits and hyphens", EXIT_USAGE)
     if args.slots < 1 or (args.budget is not None and args.budget <= 0):
         raise ChantierError("slots and budget must be positive", EXIT_USAGE)
     if args.remote not in git("remote", cwd=repo.root).split():
@@ -354,21 +352,22 @@ def open_batch(args) -> list[str]:
     selected = [prepared_cr(repo, item, paths).directory for item in args.items]
     if len(set(selected)) != len(selected):
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
-    data = {"id": args.batch, "version": __version__, "created": now(), "status": "open",
-            "host": host, "mode": "stack" if args.stack else "parallel", "slots": args.slots,
+    data = {"id": None, "version": __version__, "created": now(), "status": "open",
+            "host": host, "mode": "parallel" if args.parallel else "stack", "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
             "stack_agent": None, "heartbeat": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     with changes_lock(repo):
-        with Batch(repo, args.batch, actor="chief-of-staff", create=data) as b:
+        check_no_open_batch(repo)
+        with Batch(repo, None, actor="chief-of-staff", create=data) as b:
             brief = b.dir / "brief.md"
             for i, item in enumerate(args.items, 1):
                 c = add_cr(b, item, kind="release" if i == args.release else "change")
                 if release and c["kind"] == "release":
                     release["cr"] = c["id"]
             brief.write_text(
-                f"# Batch {args.batch}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
+                f"# {b.id}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
                 f"Budget: {args.budget or 'none'}. Host: {host}.\n"
                 "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
@@ -380,7 +379,7 @@ def open_batch(args) -> list[str]:
                 "- Autonomous decisions:\n- Questions to bring back:\n",
                 encoding="utf-8")
             b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
-    lines = [f"opened {args.batch} on {host}: {len(args.items)} CRs, {args.slots} slots, "
+    lines = [f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots, "
              f"{data['mode']}"]
     lines += [f"{c['id']} {c['title'][:60]}" for c in b.data["crs"]]
     lines.append(f"brief: {brief}")
@@ -693,13 +692,20 @@ def agents(args) -> list[str]:
     return [f"{args.cr} → {args.agent}"]
 
 
-def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
-    """In stack mode, a CR sits on the previous live CR of the stack; else on the default."""
-    default = repo.config["default_branch"]
+def _chain(b_data: dict) -> list[dict]:
+    """The stack as it stands: the CRs not ended, in order. A release CR and a fix CR sit
+    outside it, on the default branch. What a partial merge leaves forms the next stack, so the
+    first CR left stands on the default branch; a CR added by `order add` goes on top."""
     if b_data["mode"] != "stack":
-        return default
-    order = [x for x in sorted(b_data["crs"], key=lambda x: x["order"])
-             if x["status"] not in {"cancelled", "merged"}]
+        return []
+    return [x for x in sorted(b_data["crs"], key=lambda x: x["order"])
+            if x["status"] not in {"cancelled", "merged"} and x.get("kind") not in {"release", "fix"}]
+
+
+def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
+    """In stack mode, a CR sits on the one below it in the chain; else on the default branch."""
+    default = repo.config["default_branch"]
+    order = _chain(b_data)
     ids = [x["id"] for x in order]
     i = ids.index(c["id"]) if c["id"] in ids else 0
     return order[i - 1]["branch"] if i > 0 else default
@@ -781,11 +787,10 @@ def take(args) -> list[str]:
                                         "that ended: `agents set stack -` first")
                 check_budget(b)
                 b.log("take", None, note=args.note)
-                crs = [x for x in sorted(d["crs"], key=lambda x: x["order"])
-                       if x["status"] not in {"cancelled", "merged"}]
+                crs = _chain(d)
                 return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + [
                     f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
-                    f"PR {x.get('pr') or 'none'}" for x in crs]
+                    f"base {_base_of(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
             c = b.cr(args.cr)
             check_take(b, c, args.note)
             if c["status"] in {"ready", "blocked"}:
@@ -1161,6 +1166,7 @@ def land(args) -> list[str]:
 def _landed_batch(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
     landed = [d for d in repo.batch_folders()
               if _read_json(d / "batch.json").get("status") == "landed"]
+    batch = normalize_batch(batch) if batch else batch
     named = [d for d in landed if not batch or _read_json(d / "batch.json")["id"] == batch]
     if len(named) != 1:
         raise ChantierError(f"close names one landed batch; landed: "
