@@ -142,7 +142,8 @@ explained from what was measured: the calls, the model, the shares of cost, the 
 cache expired, the restarted Drivers.
 
 You also get it unasked: one line per CR when it is ready or merged, and a summary when the batch
-lands (total, budget, the split between Foreman, Drivers and workers, the costliest CRs).
+lands, final once nothing runs, at `close` (total, budget, the split between Foreman, Drivers and
+workers, the costliest CRs).
 
 ## On GitHub Copilot
 

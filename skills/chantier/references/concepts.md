@@ -29,7 +29,11 @@ started.
 - **Batch:** the CRs active at one time under one Foreman. It has no name, only a number: `batch-<n>`
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
   takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
-  work joins it through the Foreman (`order add`). A batch's CRs run in parallel, each on the
+  work joins it through the Foreman (`order add`, which sets a landed batch running again: `land`
+  runs again at the end, and is refused on a batch already landed). `close` refuses while anything
+  runs: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
+  Foreman or of any of its agents written in the last 5 minutes (on Copilot the session file's
+  time; `not measured` refuses). A batch's CRs run in parallel, each on the
   default branch, each PR on the default branch. A stack is made afterwards, by the stack driver
   (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack, and the
   start base for any other). A CR stands on another only by a dependency: a real one
@@ -67,7 +71,8 @@ started.
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
 - **STATUS:** `STATUS.md` and `STATUS.json` in `3-requests/`, in each batch and in each CR. A
-  landed batch's `STATUS.md` is the exit report.
+  landed batch's `STATUS.md` is the exit report, its cost marked not final: `close` prices the
+  batch up to now, with no end date taken from `land`, and prints the final cost.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`).
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and

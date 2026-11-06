@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 
+from . import costs
 from .lifecycle import archive_cr
 from .state import (EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, LIVE, Batch, ChantierError, Repo, now,
                     round_limit)
@@ -22,6 +23,37 @@ def check_no_open_batch(repo: Repo) -> None:
     if folders:
         raise ChantierError(f"{folders[0].name} is open (a landed batch stays until `close`): "
                             "`order add` joins new work to it", EXIT_PRECONDITION)
+
+
+QUIET_SECONDS = 300  # a session record written more recently than this: something still runs
+
+
+def running(repo: Repo, d: dict) -> list[str]:
+    """What shows a batch still runs, from its record and from its sessions' files; empty when
+    nothing does. A long tool call writes nothing, so the recorded state is the first proof and
+    the files only the second. The Foreman's session tree is all the CLI knows: a Driver run
+    from another session of the user's is not in it. The Chief of Staff's own session is not
+    counted: it is the one that closes."""
+    causes = [f"{c['id']} is {c['status']}, not merged or cancelled"
+              for c in d["crs"] if c["status"] not in ENDED]
+    causes += [f"order {o['id']} ({o['kind']}) is open" for o in d.get("orders", [])
+               if not o["done"]]
+    if d.get("stack_agent"):
+        causes.append(f"stack agent {d['stack_agent']} is recorded")
+    sessions = [s for s in (d.get("foreman_transcripts") or [d.get("foreman_transcript")]) if s]
+    for label, age in costs.idle_seconds(repo.root, d["host"], sessions):
+        if age is None:
+            causes.append(f"{label}: not measured")
+        elif age < QUIET_SECONDS:
+            causes.append(f"{label} was written {age:.0f} s ago (under {QUIET_SECONDS // 60} min)")
+    return causes
+
+
+def check_idle(repo: Repo, d: dict) -> None:
+    causes = running(repo, d)
+    if causes:
+        raise ChantierError(f"cannot close {d['id']}, something still runs: " + "; ".join(causes)
+                            + ". Nothing was deleted.", EXIT_PRECONDITION)
 
 
 def live(b: Batch) -> list[dict]:

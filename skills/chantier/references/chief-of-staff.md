@@ -148,7 +148,9 @@ Only in the turn where the user gave the go:
     (only a Tips line can follow it, see below).
   - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
     many, the spend and the budget); a table, one row per CR: CR, subject, result, PR, rounds, cost;
-    the cost table (see Cost), then its explanation from `cost --explain`; what the batch did not
+    the cost table (see Cost), then its explanation from `cost --explain`, both from `close`
+    without `--yes`, the final cost and not the landing's (a refusal of `close` is reported
+    with its causes, not worked around); what the batch did not
     prove; a last line, **For you:** closing the batch, with what `close` lists
     (only a Tips line can follow it, see below).
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
@@ -239,8 +241,19 @@ Only in the turn where the user gave the go:
   A tip names only what chantier really answers, and never a command the host refuses in this
   session.
 - **Landing:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
-  report. `$CHANTIER close --batch <batch>` without `--yes` prints what goes and touches
-  nothing. Show the user the bilan, the Cost section and that list, and ask. Only on their yes,
+  report, its cost not final: the Foreman has ended its work and stays idle, and what runs after
+  `land` is in no figure yet. `$CHANTIER close --batch <batch>` without `--yes` is the check and
+  prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
+  an order is open, a stack agent is recorded, or a session file of the Foreman or of any of its
+  agents was written in the last 5 minutes (on Copilot, the session's file time; `not measured`
+  refuses too). Report a refusal to the user with its causes, do not retry in a loop, and do not
+  `close --yes`; a Driver run from another session of the user's is not in what it reads, so ask
+  the user when you know of one. When it passes it prints the final cost and what goes, and
+  touches nothing: the Completion report takes its figures (the cost table, `cost --explain`)
+  from that run or after it, never from the landing's. New work for a landed batch is `order
+  add`: it sets the batch running again, and you start the Foreman's work again by the usual
+  order; it lands again at the end. Show the user the bilan, the final Cost section and that
+  list, and ask. Only on their yes,
   in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
   yourself, from the main checkout (`git worktree remove --force <path>`, `git branch -D
   <branch>`, as listed). Where the heartbeat is yours (the host's reference says), tell the user

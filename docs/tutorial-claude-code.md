@@ -141,9 +141,10 @@ I merged #42
 
 The CR's folder moves at once to `4-archives/`, named by the time of the merge. When every CR of
 the batch is merged or dropped, the Foreman removes the merged CRs' worktrees and branches with
-git, lands the batch (its `STATUS.md` is the exit report) and ends. Then the Chief of Staff
-shows what closing deletes (the batch folder, the dropped CRs' worktrees and branches) and the
-cost; on your yes, `chantier close --yes` deletes the folder and it removes the rest with git.
+git, lands the batch (its `STATUS.md` is the exit report, its cost not final) and goes idle.
+Then the Chief of Staff runs `chantier close` without `--yes`, which refuses while anything
+still runs and otherwise prices the final cost; it shows what closing deletes (the batch folder,
+the dropped CRs' worktrees and branches) and that cost; on your yes, `chantier close --yes` deletes the folder and it removes the rest with git.
 Without a yes, everything stays.
 
 ## 8. Make the team yours

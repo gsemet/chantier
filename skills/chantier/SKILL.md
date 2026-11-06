@@ -56,7 +56,7 @@ says they know chantier.
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | Backlog and grill |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/3-requests/STATUS.md`; a blocked CR is a question for the user | While it runs |
-| the batch landed ("close it", the `final` message) | `$CHANTIER close`, show the bilan and cost, ask; `close --yes` only on the user's yes | While it runs |
+| the batch landed ("close it", the `final` message) | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | The project |

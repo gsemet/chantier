@@ -172,7 +172,7 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
             "branch": c.get("branch"), "worktree": c.get("worktree"), "agent": c.get("agent"),
             "notes": [n for n in c.get("notes", []) if not n.startswith(IN_PROGRESS)],
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
-            "cost_usd": c.get("cost_usd"), "final_cost": bool(d.get("landed")) and _priced(d),
+            "cost_usd": c.get("cost_usd"), "final_cost": bool(d.get("closing")),
             "silent_minutes": round(silent) if silent is not None else None}
 
 
@@ -252,7 +252,8 @@ def _budget(v: dict) -> str:
 
 def batch_markdown(v: dict) -> str:
     lines = [f"# {v['folder']}: {v['state']}", "",
-             f"Updated {v['updated']} · spent {_budget(v) if v['priced'] else 'unknown'} · "
+             f"Updated {v['updated']} · spent {_budget(v) if v['priced'] else 'unknown'}"
+             f"{' (not final)' if v['landed'] and v['priced'] else ''} · "
              f"{v['asks_unread']} asks unread · "
              f"{v['orders_pending']} orders pending", "",
              "[All change requests](../STATUS.md)", "", *_rows_markdown(v["crs"])]
@@ -373,6 +374,21 @@ def write_batch(repo: Repo, d: dict, folder: Path) -> None:
             _write(cr_folder, cr_markdown(v), v)
     v = batch_view(repo, d, folder)
     _write(folder, batch_markdown(v), v)
+
+
+def write_final_pages(repo: Repo, d: dict, folder: Path) -> None:
+    """At `close` only, once the cost is priced: the CR pages that outlive the batch's folder
+    (the archived ones) say their cost is final. Nothing before `close` may say so."""
+    d = {**d, "folder": folder.name, "closing": True}
+    events: dict[str, list[dict]] = {}
+    for e in read_events(folder):
+        if e.get("cr"):
+            events.setdefault(e["cr"], []).append(e)
+    for c in d["crs"]:
+        cr_folder = repo.root / c["path"] if c.get("path") else None
+        if cr_folder and cr_folder.is_dir() and cr_folder.parent != folder:
+            v = cr_view(repo, d, c, cr_folder, events.get(c["id"], []), False)
+            _write(cr_folder, cr_markdown(v), v)
 
 
 def write_dashboard(repo: Repo, paths: dict[str, Path]) -> None:

@@ -50,8 +50,13 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   `release go`, recorded with `order merged --epoch`; a merge the forge refuses; the budget;
   the number of releases), and a release PR merged on the user's approval;
 - the event log, and the forge's call log: only the agents called it;
-- closing on the user's word: the folder deleted by `close --yes`, the dropped CR's worktree
-  and branch by the Chief of Staff's git.
+- a landed batch: its cost marked not final and one total in `STATUS.md`, a second `land`
+  refused, `order add` setting it running again, a call made after `land` counted;
+- closing on the user's word: `close` refusing, with and without `--yes`, a CR not merged, an
+  open order, a stack agent, and a session file (any agent's, a Copilot one's, or one whose
+  time is not measured) written in the last 5 minutes; then the final cost printed and the
+  folder deleted by `close --yes`, the dropped CR's worktree and branch by the Chief of Staff's
+  git.
 
 The transcript goes to `scenario/results/<forge>-<time>.md` (not committed); exit 1 if any check
 fails. Windows runs one check more than Linux: `close` on a folder in use, since elsewhere a file
