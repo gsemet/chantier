@@ -456,8 +456,28 @@ def scenario(w: World) -> None:
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
     code, _ = w.chantier("open", "Fix login", *FROM_AGENTS_MD, expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
-    w.start(*(str(backlog) for _, backlog in items), "--parallel",
-            "--slots", 2, "--budget", 50, *FROM_AGENTS_MD)
+    _, spare = prepare_cr(w, "Spare item", "P2")
+    _, out = w.chantier("triage", spare, "--priority", "P3")
+    moved = spare.parent.parent / "P3" / spare.name
+    check("`triage` moves a backlog item to the new priority",
+          out[0].endswith("(P3)") and moved.is_dir() and not spare.exists(), str(out))
+    code, _ = w.chantier("triage", moved, "--priority", "P3", expect=2)
+    check("`triage` to the same priority is refused: already P3",
+          "already P3" in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("triage", w.work / "AGENTS.md", "--priority", "P1", expect=1)
+    check("`triage` of another path says what it expects", "2-backlog/P<n>/<item>" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("abandon", moved)
+    w.chantier("file", "Spare item twice")
+    code, _ = w.chantier("file", "Spare item twice", expect=2)
+    check("`file` of an existing slug exits 2 and names `--slug`", "--slug" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("abandon", w.work / ".agents/changes/1-inbox/spare-item-twice")
+    _, out = w.start(*(str(backlog) for _, backlog in items), "--parallel",
+                     "--slots", 2, "--budget", 50, *FROM_AGENTS_MD)
+    check("`open` says what comes next, then where each folder moved",
+          out[1].startswith("next:") and "2-backlog/P1/" in out[2] and "-> 3-requests/batch-01/" in out[2],
+          str(out))
     check("the batch is numbered, has no name, and `--batch` takes the number",
           w.name == "batch-01" and w.folder().is_dir()
           and w.chantier("status", "--batch", "1")[0] == 0
@@ -1474,7 +1494,30 @@ def granted_fixes(w: World) -> None:
     w.chantier("order", "add", "--note", files[3], "--fix-for", rel)
     check("past three, a fix is the user's go", len(w.batch()["crs"]) == 5)
     for c in w.batch()["crs"]:
-        w.chantier("order", "drop", c["id"])
+        if c["status"] != "cancelled":  # a second drop is refused
+            w.chantier("order", "drop", c["id"])
+    _, out = w.chantier("status")
+    check("`status` tells an order the CLI applied from one nothing has touched",
+          any(ln.startswith("orders the CLI applied") and "order done" in ln and "O-" in ln
+              for ln in out), str(out))
+    dropped = next(c for c in w.batch()["crs"] if c["status"] == "cancelled")
+    count = len(w.batch()["orders"])
+    code, _ = w.chantier("order", "drop", dropped["id"], expect=2)
+    check("a second drop of a cancelled CR is refused and records no order",
+          code == 2 and "already dropped" in w.last_stderr and len(w.batch()["orders"]) == count,
+          w.last_stderr)
+    code, _ = w.chantier("order", "drop", dropped["id"].removeprefix("CR-"), expect=2)
+    check("`101` is taken for `CR-101` in `order`", code == 2 and "already dropped" in w.last_stderr,
+          w.last_stderr)
+    code, _ = w.chantier("order", "note", dropped["id"], "--note", "late", expect=2)
+    check("a note on a cancelled CR is refused", code == 2 and "cancelled" in w.last_stderr,
+          w.last_stderr)
+    code, _ = w.chantier("order", "rounds", "--note", "0", expect=1)
+    check("`order rounds` with no CR shows its full usage", "--note <n>" in w.last_stderr,
+          w.last_stderr)
+    code, _ = w.chantier("order", "budget", "--note", "-5", expect=1)
+    check("`order budget` says why a value is refused", "'-5'" in w.last_stderr
+          and "dollars" in w.last_stderr, w.last_stderr)
     for o in w.batch()["orders"]:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 1)
@@ -1513,6 +1556,9 @@ def qa_on_head(w: World) -> None:
           out[0] == f"[chief-of-staff→foreman] order O-2: qa {shown} try the export on a phone"
           and "/1-inbox/qa-" in folder.as_posix()
           and "phone" in (folder / "intake/request.md").read_text(encoding="utf-8"), str(out))
+    code, _ = w.chantier("open", folder, *FROM_AGENTS_MD, expect=2)
+    check("a QA folder is not opened: it is an item to triage and split",
+          "QA report" in w.last_stderr and "triage" in w.last_stderr, w.last_stderr)
     fm.turn()
     check("the Foreman starts a QA driver on the folder, and the CR goes on without it",
           fm.qa == [shown] and fm.started == [cr] and w.cr(cr)["status"] == "working",

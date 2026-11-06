@@ -32,8 +32,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("item", help="request text, or @path to the raw request")
     s.add_argument("--slug", help="folder name when the inferred slug is already used")
 
-    s = cmd("triage", commands.triage, "move an inbox CR to the priority backlog", False)
-    s.add_argument("item", help="path to the inbox CR folder")
+    s = cmd("triage", commands.triage, "move an inbox or backlog CR to a priority of the backlog", False)
+    s.add_argument("item", help="path to the CR folder: 1-inbox/<item> or 2-backlog/P<n>/<item>")
     s.add_argument("--priority", required=True, choices=["P1", "P2", "P3", "P4"])
 
     s = cmd("abandon", commands.abandon, "move an explicitly abandoned CR to trash", False)
@@ -74,7 +74,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("value", nargs="?")
 
     s = cmd("status", commands.status,
-            "one line per CR, the pending orders, the unread asks; --refresh: the live facts",
+            "one line per CR, the open orders (untouched, then applied), the unread asks; "
+            "--refresh: the live facts",
             epoch=True)
     s.add_argument("--notes", action="store_true", help="each CR's last note")
     s.add_argument("--refresh", action="store_true",

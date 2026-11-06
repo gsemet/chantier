@@ -39,7 +39,7 @@ model each role runs.
 
 ```bash
 $CHANTIER file "<raw request>" [--slug <slug>]        # or @<file> for a raw request file
-$CHANTIER triage <inbox-folder> --priority P1|P2|P3|P4
+$CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog item changes priority
 $CHANTIER abandon <unclaimed-folder>                  # only on the user's explicit word
 ```
 
@@ -164,7 +164,9 @@ Only in the turn where the user gave the go:
     (only a Tips line can follow it, see below).
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
-  and marks it done; `status` shows the orders still pending.
+  and marks it done; `status` shows the orders still open, those the CLI applied apart from
+  those nothing has touched. A CR is named `CR-104` or `104`; a second drop of a dropped CR, and
+  a note on a cancelled one, are refused (exit 2).
 
   ```bash
   $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr>]

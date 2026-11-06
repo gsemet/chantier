@@ -180,15 +180,16 @@ def preflight(args) -> tuple[list[str], int]:
 
 # ---- CR folders -------------------------------------------------------------------------------
 
-def _new_request(repo: Repo, slug: str, raw: bytes) -> Path:
+def _new_request(repo: Repo, slug: str, raw: bytes, hint: str = "file it again with --slug "
+                 "<other>") -> Path:
     """A new inbox folder, the request kept as received. The caller holds `changes_lock`."""
     folder = stage_layout(repo)["inbox"] / slug
     folder.parent.mkdir(parents=True, exist_ok=True)
     try:
         folder.mkdir()
     except FileExistsError as e:
-        raise ChantierError(f"CR folder already exists: {folder}; choose another slug",
-                            EXIT_CONFLICT) from e
+        raise ChantierError(f"CR folder already exists: {_shown(repo, folder)}; {hint}",
+                            EXIT_PRECONDITION) from e
     try:
         (folder / "intake").mkdir()
         (folder / "intake" / "request.md").write_bytes(raw)
@@ -466,8 +467,11 @@ def open_batch(args) -> list[str]:
             b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots, "
              f"{data['mode']}"]
-    lines += [f"{c['id']} {c['title'][:60]}" for c in b.data["crs"]]
-    lines.append(f"brief: {brief}")
+    short = lambda p: str(p).replace("\\", "/").split("changes/")[-1]  # noqa: E731
+    # the next step comes before the CR list: past ten lines it is the list that is cut
+    lines.append(f"next: complete the brief {_shown(repo, brief)}, then start the Foreman")
+    lines += [f"{c['id']} {c['title'][:40]}: {short(src)} -> {short(c['path'])}"
+              for c, src in zip(b.data["crs"], selected)]
     return lines
 
 
@@ -519,6 +523,16 @@ def _release_cr(b: Batch, kind: str, cr_id: str) -> dict:
         raise ChantierError(f"order {kind} names the batch's release CR "
                             f"({release.get('cr') or 'none'})", EXIT_USAGE)
     return release
+
+
+def _refused(usage: str, value: str, wanted: str) -> ChantierError:
+    why = f"{value!r} is not {wanted}" if value.strip() else f"no value given: {wanted}"
+    return ChantierError(f"{usage}: {why}", EXIT_USAGE)
+
+
+def _cr_arg(value: str | None) -> str | None:
+    """`101` for `CR-101`, in `order` only."""
+    return f"CR-{value}" if value and value.isdigit() else value
 
 
 def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None,
@@ -581,14 +595,17 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
             raise ChantierError(f"cannot drop {cr_id}: it is already merged")
         if c["status"] in LIVE:
             return [f"{cr_id} is live: the Foreman stops its Driver, then `chantier cancel {cr_id}`"]
-        if c["status"] != "cancelled":
-            trash_cr(b, c)
-            b.touch(c, status="cancelled")
+        if c["status"] == "cancelled":
+            raise ChantierError(f"{cr_id} is already dropped: {c['path']}", EXIT_PRECONDITION)
+        trash_cr(b, c)
+        b.touch(c, status="cancelled")
         return [f"dropped {cr_id}: {c['path']}"]
     if kind == "note":
         if not note.strip():
             raise ChantierError("order note [<cr>] --note \"<the user's word, in one line>\"",
                                 EXIT_USAGE)
+        if c and c["status"] == "cancelled":
+            raise ChantierError(f"cannot note {cr_id}: it is cancelled", EXIT_PRECONDITION)
         if c:
             c.setdefault("notes", []).append(note.strip())
             b.touch(c)
@@ -604,7 +621,8 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         return archive_merged(b, c)
     if kind == "rounds":
         if not note.isdigit() or int(note) < 1:
-            raise ChantierError("order rounds <cr> --note <n>", EXIT_USAGE)
+            raise _refused("order rounds <cr> --note <n>", note,
+                           "a whole number of rounds, 1 or more")
         b.touch(c, rounds=int(note))
         return [f"{cr_id}: up to {note} rounds"]
     if kind == "slots":
@@ -614,7 +632,7 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         return [f"slots {note}"]
     if kind == "budget":
         if not re.fullmatch(r"\d+(\.\d+)?", note) or float(note) <= 0:
-            raise ChantierError("order budget --note <usd>", EXIT_USAGE)
+            raise _refused("order budget --note <usd>", note, "a positive amount in dollars")
         b.data["budget_usd"] = float(note)
         return [f"budget ${float(note):g}"]
     if kind == "approve":
@@ -656,10 +674,16 @@ def order(args) -> list[str]:
     if args.kind == "qa" and not note.strip():
         raise ChantierError("order qa --note \"<what to test>\"", EXIT_USAGE)
     if args.kind in CR_ORDERS and (not args.cr or args.cr == "-"):
-        raise ChantierError(f"order {args.kind} <cr>", EXIT_USAGE)
+        raise ChantierError("order rounds <cr> --note <n>" if args.kind == "rounds"
+                            else f"order {args.kind} <cr>", EXIT_USAGE)
     repo = Repo.find()
     if args.kind == "done":
         return _order_done(repo, args)
+    if args.kind in CR_ORDERS or args.kind == "note":
+        args.cr = _cr_arg(args.cr)
+    args.fix_for = _cr_arg(args.fix_for)
+    if args.kind == "after" and note.strip() != "-":
+        note = ", ".join(_cr_arg(s.strip()) for s in note.split(","))
     own = args.epoch is not None
     if own and args.kind != "merged" and not (args.kind == "add" and args.fix_for):
         raise ChantierError("only `order merged` and `order add --fix-for` take --epoch: the "
@@ -680,11 +704,18 @@ def order(args) -> list[str]:
             if args.kind == "qa":  # no CR: a work folder the QA driver fills, in the inbox
                 check_budget(b)  # a QA driver is a Driver: refused before anything is created
                 check_slot(b, "a QA driver")  # the open order holds the slot until `order done`
-                cr = _shown(repo, _new_request(repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode()))
+                cr = _shown(repo, _new_request(
+                    repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode(),
+                    "a QA folder of this minute exists: try again in a minute"))
             effect = reopened + _apply_order(b, args.kind, cr, note, args.fix_for, own)
             oid = f"O-{len(b.data['orders']) + 1}"
+            # The CLI did its whole part, the Foreman only has to end the order: not a note (the
+            # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
+            applied = args.kind not in {"note", "qa"} and not (
+                args.kind == "drop" and b.cr(cr)["status"] in LIVE)
             b.data["orders"].append({"id": oid, "kind": args.kind, "cr": cr or "-",
                                      "note": note, "sent": now(), "done": now() if own else None,
+                                     **({} if own else {"applied": applied}),
                                      **({"fix_for": args.fix_for} if args.fix_for else {})})
             b.log("order", None if cr in (None, "-") else cr, order=oid,
                   order_kind=args.kind, note=note)
@@ -783,11 +814,14 @@ def status(args) -> tuple[list[str], int]:
             row += f" | {c['notes'][-1][:60]}"
         usd = c.get("cost_usd")
         lines.append(f"{row} | {'-' if usd is None else '$%.2f' % usd}")
-    pending = [o for o in d.get("orders", []) if not o["done"]]
-    if pending:
-        lines.append("orders pending: " + "; ".join(
-            f"{o['id']} {o['kind']}{' ' + o['cr'] if o['cr'] != '-' else ''}"
-            f"{' ' + o['note'][:40] if o['note'] else ''}" for o in pending))
+    open_orders = [o for o in d.get("orders", []) if not o["done"]]
+    for applied, head in ((False, "orders pending: "), (True, "orders the CLI applied, the "
+                                                              "Foreman marks each `order done <O-k>`: ")):
+        group = [o for o in open_orders if bool(o.get("applied")) is applied]
+        if group:
+            lines.append(head + "; ".join(
+                f"{o['id']} {o['kind']}{' ' + o['cr'] if o['cr'] != '-' else ''}"
+                f"{' ' + o['note'][:40] if o['note'] else ''}" for o in group))
     unread = sum(1 for a in d.get("asks", []) if not a["read"])
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")
@@ -1332,8 +1366,11 @@ def land(args) -> list[str]:
         queued = [c["id"] for c in b.data["crs"] if c["status"] == "queued"]
         open_ = [c["id"] for c in b.data["crs"] if c["status"] in {"ready", "blocked"}]
         if live_ids or pending or queued or open_ or b.data.get("stack_agent"):
-            raise ChantierError(f"cannot land {batch}: live {live_ids or '-'}, queued {queued or '-'}, "
-                                f"not merged {open_ or '-'}, orders pending {pending or '-'}, "
+            raise ChantierError(f"cannot land {batch}: live {', '.join(live_ids) or '-'}, "
+                                f"queued {', '.join(queued) or '-'}, "
+                                f"not merged {', '.join(open_) or '-'}, orders pending "
+                                f"{', '.join(pending) or '-'} (the Foreman ends each with "
+                                "`order done <O-k>`), "
                                 f"stack driver {b.data.get('stack_agent') or 'none'}")
         try:
             rows = _cost_rows(repo, b.data, b.data["host"], _foreman_uuid(b.data))
