@@ -94,7 +94,7 @@ const n = (p: string) => p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '')
 function world(on: On, cwd = ROOT) {
   const files = new Map<string, { text: string; mtime: number }>()
   const dirs = new Map<string, string[]>()
-  const calls = { stat: [] as string[], read: [] as string[], run: [] as any[], open: 0, close: 0 }
+  const calls = { stat: [] as string[], read: [] as string[], run: [] as any[], register: [] as any[], open: 0, close: 0 }
   let gitStdout = `${ROOT}/.git\n`
   let gitExit = 0
   let gitDeny: string | null = null
@@ -104,6 +104,7 @@ function world(on: On, cwd = ROOT) {
     files.set(n(path), { text: typeof value === 'string' ? value : JSON.stringify(value), mtime: ++mtime })
 
   on('skill.prompt', (_, e) => ({ text: e.text }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: cwd }))
   on('process.run', (_, e) => {
     calls.run.push({ argv: e.argv, cwd: n(String(e.init?.cwd)) })
@@ -126,7 +127,10 @@ function world(on: On, cwd = ROOT) {
   on('fs.list', (_, e) => ({
     value: (dirs.get(n(e.path)) ?? []).map(name => ({ name, kind: 'file', size: 1, mtimeMs: 1, isLink: false })),
   }))
-  on('command.register', () => ({ value: { command: 'chantier-board' } }))
+  on('command.register', (_, e) => {
+    calls.register.push(e)
+    return { value: { command: 'chantier-board' } }
+  })
   on('ui.open', () => {
     calls.open += 1
     isOpen = true
@@ -184,10 +188,21 @@ test('/chantier-board opens the pane, then closes it', async ($, on) => {
   w.put(INDEX, index())
   const run = () => $.command.run({ command: 'chantier-board', args: '', origin: { kind: 'plugin', name: 'test' }, presentation: { isFullscreen: false, columns: 80 } })
 
-  expect((await run()).text).toBe('CR board opened.')
+  expect((await run()).text).toBe(
+    'CR board opened on the machine running this session; a Remote Control view does not show it.',
+  )
   expect(w.calls.open).toBe(1)
   expect((await run()).text).toBe('CR board closed.')
   expect(w.calls.close).toBe(1)
+})
+
+test('the command is registered immediate, to run during a turn', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+
+  await $.session.start({ source: 'startup', cwd: ROOT } as any)
+  expect(w.calls.register).toHaveLength(1)
+  expect(w.calls.register[0].immediate).toBe(true)
 })
 
 test('a session in a worktree reads the main checkout', async ($, on) => {
