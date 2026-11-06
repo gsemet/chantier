@@ -92,6 +92,12 @@ Note: <why the CR is with it, or the round's brief>
 `<skill>` is the absolute folder of this file's parent. An agent whose prompt does not start
 with `chantier <its role>` answers "I run inside a chantier batch only." and stops.
 
+A subagent of the Chief of Staff (the Demo explorer, or an exploration, a prototype or a study)
+is started the same way, with no CR: its first line is `chantier <role> for the Chief of Staff
+of batch <batch>, in the project <root>.` and its brief gives the folder it writes to. Its
+result is a report or a study. It never implements: no commit, no push, no PR, nothing in a CR's
+worktree; a prototype lives in a temporary folder and is thrown away.
+
 ## Rules
 
 0. **The project's rules rank above this skill.** `$CHANTIER rules` lists the project's
