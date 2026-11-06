@@ -802,7 +802,7 @@ def status_files(w: World) -> None:
     board = (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8")
     batch = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the status cell gives the pastille, the state, the step and the round",
-          "🟢 ready Notify 1/3" in board and "🟢 ready Notify 1/3" in batch, board)
+          "🔵 ready Notify 1/3" in board and "🔵 ready Notify 1/3" in batch, board)
     index = json.loads((w.state / "3-requests/STATUS.json").read_text(encoding="utf-8"))
     rows = [r for b in index["batches"] for r in b["crs"]]
     own = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["crs"]
@@ -1702,6 +1702,28 @@ def depends_on(item: Path, *slugs: str, raw: str | None = None) -> None:
                                        encoding="utf-8")
 
 
+def drawn(w: World, cr: str) -> tuple[set[str], dict]:
+    """The label of a CR in every record that lists it (the batch's STATUS.md and STATUS.json,
+    the index where it is active, the CR's own pair), and the CR's own STATUS.json."""
+    own_dir = w.work / w.cr(cr)["path"]
+    own = json.loads((own_dir / "STATUS.json").read_text(encoding="utf-8"))
+    batch = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
+    index = json.loads((w.state / "3-requests/STATUS.json").read_text(encoding="utf-8"))
+    labels = {own["label"]} | {r["label"] for r in batch["crs"] if r["cr"] == cr}
+    labels |= {r["label"] for b in index["batches"] for r in b["crs"] if r["cr"] == cr}
+    texts = [(w.folder() / "STATUS.md").read_text(encoding="utf-8"),
+             (own_dir / "STATUS.md").read_text(encoding="utf-8")]
+    return {lb for lb in labels if all(lb in t for t in texts)} | {
+        "MISSING " + lb for lb in labels if not all(lb in t for t in texts)}, own
+
+
+def icon_is(w: World, cr: str, icon: str, what: str) -> dict:
+    labels, own = drawn(w, cr)
+    check(f"{what}: {icon} in STATUS.md and STATUS.json, at every level",
+          len(labels) == 1 and next(iter(labels)).startswith(icon + " "), str(labels))
+    return own
+
+
 def dependencies(w: World) -> None:
     note("\n## 14d. A CR declares what it depends on; a slot is a running Driver")
     one, two = prepare_cr(w, "Cycle one")[1], prepare_cr(w, "Cycle two")[1]
@@ -1728,6 +1750,8 @@ def dependencies(w: World) -> None:
     a, b = (c["id"] for c in w.batch()["crs"])
     check("`open` records `after` as CR ids", w.cr(b).get("after") == [a] and "after" not in w.cr(a),
           str(w.batch()["crs"]))
+    icon_is(w, a, "⚪", "a queued CR with a free slot")
+    icon_is(w, b, "🟠", "a queued CR with `waits`")
     _, out = w.chantier("status")
     check("`status` shows what a queued CR waits for",
           any(ln.startswith(b) and f"waits for {a} queued" in ln for ln in out), str(out))
@@ -1764,6 +1788,7 @@ def dependencies(w: World) -> None:
     w.chantier("order", "add", "--note", str(cancelled))
     dropped = w.batch()["crs"][-1]["id"]
     w.chantier("order", "drop", dropped)
+    icon_is(w, dropped, "⚪", "a dropped CR")
     waiting = prepare_cr(w, "Dep waiting")[1]
     depends_on(waiting, cancelled.name)
     w.chantier("order", "add", "--note", str(waiting))
@@ -1817,12 +1842,30 @@ def dependencies(w: World) -> None:
     code, _ = w.chantier("take", c2, expect=2)
     check("with the QA driver and a CR, no slot is free for the next", code == 2
           and "no free slot" in w.last_stderr and "O-1 qa" in w.last_stderr, w.last_stderr)
+    icon_is(w, c1, "🟡", "a working CR")
+    icon_is(w, c2, "🟠", "a queued CR with no free slot (a QA order holds the last one)")
     code, _ = w.chantier("order", "qa", "--note", "again", expect=2)
     check("a second QA order is refused too: its driver would have no slot",
           code == 2 and "no free slot" in w.last_stderr, w.last_stderr)
     w.chantier("order", "done", "O-1")
+    icon_is(w, c2, "⚪", "a queued CR once `order done` frees the slot")
     code, _ = w.chantier("take", c2)
     check("the QA driver's end frees its slot", code == 0)
+    start_driver(w, c2)
+    w.chantier("handback", c2, "blocked", "waits: the stack driver")
+    own = icon_is(w, c2, "🟠", "a CR blocked with `waits:`")
+    check("`waits:` keeps severity red and its Next names the thing, not the user's answer",
+          own["severity"] == "red" and own["label"] == "🟠 blocked Waits 1/3"
+          and "the stack driver" in own["next"] and "user's answer" not in own["next"], str(own))
+    w.chantier("take", c2, "--note", "the stack driver landed")
+    w.chantier("handback", c2, "blocked", "question: which one?")
+    icon_is(w, c2, "🔴", "a CR blocked for any other reason")
+    start_driver(w, c1)
+    driver_round(w, c1, "icons_one.py", "ONE = 1\n")
+    w.chantier("handback", c1, "ready", w.cr(c1)["pr"])
+    icon_is(w, c1, "🔵", "a ready CR")
+    w.chantier("order", "merged", c1)
+    icon_is(w, c1, "✅", "a merged CR")
     w.env.pop("CHANTIER_BATCH", None)
 
 

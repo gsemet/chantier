@@ -87,6 +87,8 @@ order, and `land` again at the end (`land` on a landed batch is refused).
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link>`, `blocked <cr>
   <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`, `merged <cr>
   <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`.
+- A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
+  CR back to a Driver with `take <cr> --note`.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
   push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
   `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through

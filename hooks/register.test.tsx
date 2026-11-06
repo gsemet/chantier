@@ -374,6 +374,28 @@ test('a row draws its severity icon once, in the State column', async ($, on) =>
   await ui.unmount()
 })
 
+test('the board shows each label the CLI draws unchanged, one icon per state', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const labels = [
+    '⚪ queued',
+    '🟠 queued, waits for CR-1 queued',
+    '🟡 working Round 1/3',
+    '🟠 blocked Waits 1/3',
+    '🔴 blocked Question 1/3',
+    '🔵 ready Notify 1/3',
+    '✅ merged',
+    '⚪ dropped',
+  ]
+  const crs = labels.map((label, i) => row({ cr: `CR-${i + 1}`, label, silent_minutes: null }))
+  w.put(INDEX, index({ batches: [batch({ crs })] }))
+  await skill($)
+  const ui = await board($)
+  const shown = (await words(ui)) as string
+  for (const label of labels) expect(shown).toContain(`| ${label} |`)
+  await ui.unmount()
+})
+
 test('Backlog, Landed and Trashed are folded and open when pressed', async ($, on) => {
   mock.clock(on)
   const w = world(on)

@@ -1145,8 +1145,8 @@ def handback(args) -> list[str]:
         raise ChantierError("handback <cr> ready <pr link, release link or tag>", EXIT_USAGE)
     if args.result == "blocked" and not note:
         raise ChantierError("handback <cr> blocked <reason>: question: …, approval: …, merge: "
-                            "<pr>, fix: …; <path>, infra: …, budget: …, rounds: …, refused …",
-                            EXIT_USAGE)
+                            "<pr>, fix: …; <path>, infra: …, budget: …, rounds: …, refused …, "
+                            "waits: <what it waits for>", EXIT_USAGE)
     with changes_lock(repo):
         with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
             c = b.cr(args.cr)
@@ -1156,6 +1156,8 @@ def handback(args) -> list[str]:
             if args.result == "blocked":
                 b.log("handback", args.cr, result=args.result, note=note)
                 b.touch(c, status="blocked", blocked_reason=note)
+                if note.lower().startswith("waits:"):
+                    return [line, f"{args.cr} waits; the Foreman takes it back when that lands"]
                 return [line, f"{args.cr} blocked; the Foreman asks the Chief of Staff"]
             if c.get("kind") == "release":  # released: nothing is left to merge
                 c["released"] = note.split()[0]
