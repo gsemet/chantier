@@ -139,7 +139,7 @@ Only in the turn where the user gave the go:
   ✅ merged; they belong to the report, `STATUS.md` keeps its own.
   - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
     name, its mode, the slots in use, the CRs done, the spend and the budget); a table, one row per
-    CR: CR, subject (a few words, not the title), state, PR as a link, cost; the cost table below;
+    CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); the cost table below;
     a last line, always there, **For you:** what the user has to review or decide, or "nothing"
     (only a Tips line can follow it, see below).
   - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
@@ -194,7 +194,8 @@ Only in the turn where the user gave the go:
   `--read all` once the user has heard them. A host limits messages between sessions (10 on
   Claude Desktop since someone last typed): a refused send is reported, never sent another way.
 - **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at landing, four lines from
-  `$CHANTIER cost --by role` (and, for a CR's own figure, its line of `--by cr`): orchestration,
+  `$CHANTIER cost --by role` (a CR's own figure is the last field of its row in `status --refresh`,
+  a merged CR's included, never looked up elsewhere): orchestration,
   the Foreman; review, the Inspector, the Verifier and a QA driver; implementation, all the
   other roles, an unknown agent included; and your own session, the `Chief of Staff:` line of
   that output, with its two figures (since the batch opened, the whole session) and its context

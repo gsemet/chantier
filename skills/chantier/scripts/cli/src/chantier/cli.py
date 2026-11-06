@@ -9,7 +9,7 @@ from .state import ChantierError
 
 MAX_LINES = 10
 # The facts of a CR, a list of files, the whole batch, or what the user approves, is useless cut short.
-FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "rules", "log", "status"}
+FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "rules", "log", "status", "cost"}
 
 
 def _parser() -> argparse.ArgumentParser:

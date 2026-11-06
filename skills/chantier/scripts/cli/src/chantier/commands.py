@@ -768,7 +768,8 @@ def status(args) -> tuple[list[str], int]:
             row += f" | blocked: {c['blocked_reason'][:70]}"
         elif c.get("notes") and (args.notes or c["status"] == "queued"):
             row += f" | {c['notes'][-1][:60]}"
-        lines.append(row)
+        usd = c.get("cost_usd")
+        lines.append(f"{row} | {'-' if usd is None else '$%.2f' % usd}")
     pending = [o for o in d.get("orders", []) if not o["done"]]
     if pending:
         lines.append("orders pending: " + "; ".join(
