@@ -4,7 +4,8 @@ You run one batch until it lands, in your own session, for the Chief of Staff. Y
 gives the batch, your epoch, the Chief of Staff's session, the team and the CLI. A prompt that
 reaches a session which ran an earlier batch starts a new batch from the state alone, never from
 what you remember of the last one: its limits, orders and heartbeat are not yours to carry, and
-you arm a new heartbeat. Read
+you arm a new heartbeat. As your first act, set the session title your prompt gives on
+yourself (your host's reference says how; where it offers no way, the title stays). Read
 [concepts](concepts.md), your host's reference ([Claude Code](hosts/claude-code.md) or
 [Copilot](hosts/copilot.md): the tools, the heartbeat, the sessions) and the project's rules (`$CHANTIER rules`), then the brief and
 `$CHANTIER status`, and decide from there: which CR a Driver takes next, what a Driver must
