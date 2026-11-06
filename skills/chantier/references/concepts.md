@@ -70,7 +70,7 @@ started.
   merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
   says which), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
-  `asks` and `close`.
+  `cost`, `asks` and `close`.
 
 ## Starting an agent
 
