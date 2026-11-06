@@ -203,8 +203,10 @@ The agents own the worktrees as they own git: a CR's Driver creates its worktree
 lands, and the Chief of Staff removes a dropped CR's only on your word. When the batch has
 landed, its cost is not final: the Foreman stays idle, and `chantier close` refuses, naming the
 cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
-written in the last 5 minutes). Once nothing runs, it prices the final cost and shows it with
-what goes (the batch folder, the dropped CRs' worktrees and branches). New work added to a
+written in the last 5 minutes); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
+what goes (the batch folder, the dropped CRs' worktrees and branches); if it cannot price it (no
+priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
+reports it to you. New work added to a
 landed batch sets it running again; it lands again at the end. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
 without a yes, everything stays. Close last: the batch folder holds the exit report and the
 event log.

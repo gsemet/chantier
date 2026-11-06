@@ -246,9 +246,12 @@ Only in the turn where the user gave the go:
   prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
   an order is open, a stack agent is recorded, or a session file of the Foreman or of any of its
   agents was written in the last 5 minutes (on Copilot, the session's file time; `not measured`
-  refuses too). Report a refusal to the user with its causes, do not retry in a loop, and do not
-  `close --yes`; a Driver run from another session of the user's is not in what it reads, so ask
-  the user when you know of one. When it passes it prints the final cost and what goes, and
+  refuses too). It refuses too, with or without `--yes` and naming the cause, when the final cost
+  cannot be priced (no priced call; no Foreman transcript recorded, which leaves the batch no way
+  through `close`), and, on a batch set running again by `order add` or `order qa`, it names what
+  runs (or says `land` comes first). Report a refusal to the user with its cause, do not retry in
+  a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
+  it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes, and
   touches nothing: the Completion report takes its figures (the cost table, `cost --explain`)
   from that run or after it, never from the landing's. New work for a landed batch is `order
   add`: it sets the batch running again, and you start the Foreman's work again by the usual
