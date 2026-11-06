@@ -36,7 +36,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   stacked one on the other by `take stack`; a dependency changed with `order after` (refused on a
   CR not queued, an unknown CR or a cycle);
 - a Foreman restart (the stale epoch refused), a lost Driver taken over from `handoff`; a Foreman
-  started in a linked worktree stopping at its first act, before it claims its epoch: no CR
+  started in a linked worktree stopping at its worktree check, before it claims its epoch: no CR
   taken, one ask;
 - `land` refused while PRs are open, then landing after the user's merges and the Foreman's
   cleanup; the long gate serialized, and held while the suite of a gate whose command died

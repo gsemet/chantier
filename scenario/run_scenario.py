@@ -201,8 +201,8 @@ class Foreman:
         self.facts: list[str] = []
         self.landed = False
 
-    def first_act(self, session: str, cwd: Path | None = None) -> bool:
-        """foreman.md's first act, before the epoch is claimed: in a linked worktree (`--git-dir`
+    def worktree_check(self, session: str, cwd: Path | None = None) -> bool:
+        """foreman.md's worktree check, before the epoch is claimed: in a linked worktree (`--git-dir`
         differs from `--git-common-dir`) take no CR and ask; else claim the epoch."""
         cwd = cwd or self.w.work
         git_dir, common = (
@@ -750,7 +750,7 @@ def foreman_in_a_worktree(w: World) -> None:
     linked = w.root / "foreman-session"
     w.sh("git", "worktree", "add", "--quiet", "--detach", str(linked), "origin/main")
     fm = Foreman(w, epoch=1)
-    check("in a linked worktree the first act stops", fm.first_act("local_wt", linked) is False)
+    check("in a linked worktree the worktree check stops", fm.worktree_check("local_wt", linked) is False)
     d = w.batch()
     check("no epoch claimed, no CR taken, and the Chief of Staff hears it",
           not d.get("foreman") and all(c["status"] == "queued" for c in d["crs"])
@@ -759,8 +759,8 @@ def foreman_in_a_worktree(w: World) -> None:
     code, out = w.chantier("asks", expect=None)
     check("the ask is recorded", code == 0 and any("worktree" in ln for ln in out), str(out))
     w.chantier("asks", "--read", "all")
-    check("on the main checkout the same first act claims the epoch",
-          fm.first_act("local_main") is True and w.batch()["foreman"] == "local_main")
+    check("on the main checkout the same worktree check claims the epoch",
+          fm.worktree_check("local_main") is True and w.batch()["foreman"] == "local_main")
     w.sh("git", "worktree", "remove", "--force", str(linked))
 
 
