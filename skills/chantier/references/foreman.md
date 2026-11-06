@@ -58,10 +58,21 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`.
 - A Driver's task that ends without a hand-back: `handoff`, then a new Driver with `--note
   "resume: …"`. A second silent end on one CR is `handback <cr> blocked driver ended twice`.
-  A Driver silent for over 90 minutes: `[foreman→driver <cr>] ping`; no `pong`, stop it.
-- Heartbeat: every `55m` on Claude (the `/loop` skill in dynamic mode with `chantier status
+  A Driver silent for over 90 minutes: `[foreman→driver <cr>] ping`; no `pong`, stop it. A
+  `pong` proves a Driver is alive, not that it moves: one with no new round, head or note for 3
+  hours gets `stop`.
+- Heartbeat: every `30m` on Claude (the `/loop` skill in dynamic mode with `chantier status
   --refresh --batch <batch> --epoch <n>`, each wake scheduled with `ScheduleWakeup`); on Copilot
   the Chief of Staff arms `/every` after your `ready <batch>`. No wake ever arriving is a stop.
+- End the heartbeat, never your session (an idle session still receives an order): on Claude,
+  end the `/loop` with `ScheduleWakeup` `stop: true` right after `land`, and on a wake where no
+  Driver of any kind (CR, stack, QA, release) has run since the last wake and no order is
+  undone: every Driver has ended, ready or blocked, for 30 minutes at least. A stack or batch
+  blocked and not finished is such a stop: the batch stays open, the user wakes you, and its asks
+  are recorded, so send no further line. While any Driver runs, the heartbeat goes on. An order's
+  line or a `ping` starts a turn; if it leaves a Driver running, arm the heartbeat again. On
+  Copilot you cannot end `/every`: the Chief of Staff has the user delete it and arms it again
+  with the next order.
 - First thing, from the repository (a session opened elsewhere sets `CHANTIER_ROOT` to it), claim
   your epoch: `$CHANTIER foreman set <your session id> --epoch <n>` (Claude: `get_session("self")`;
   Copilot: `$COPILOT_AGENT_SESSION_ID`). A refusal means another Foreman has it: stop. Then
