@@ -42,6 +42,14 @@ def step(c: dict) -> str:
     return "CI" if c.get("pr") else "Round"
 
 
+def forge_word(links) -> str:
+    """"MR" for a GitLab merge request link, "PR" for any other, "PR/MR" with no link yet."""
+    links = [x for x in links if x]
+    if not links:
+        return "PR/MR"
+    return "MR" if any("/merge_requests/" in x for x in links) else "PR"
+
+
 def severity(c: dict) -> str:
     if c["status"] == "blocked":
         return "red"
@@ -71,7 +79,7 @@ def label(c: dict, max_rounds: int, waiting: list[str] | None = None) -> str:
 
 
 def _now_next(c: dict, waiting: list[str]) -> tuple[str, str]:
-    pr = c.get("pr") or "its PR"
+    pr = c.get("pr") or f"its {forge_word([])}"
     if c["status"] == "blocked":
         return (c.get("blocked_reason") or "Blocked.",
                 "The user's answer, through the Chief of Staff.")
@@ -176,7 +184,7 @@ def _step_line(s: dict) -> str:
 def cr_markdown(v: dict) -> str:
     batch = f"[{v['batch']}](../STATUS.md)" if v["in_batch"] else f"{v['batch']}"
     pr = v["pr"]
-    head = f"{v['label']} · {batch}" + (f" · [PR]({pr['url']})" if pr else "")
+    head = f"{v['label']} · {batch}" + (f" · [{forge_word([pr['url']])}]({pr['url']})" if pr else "")
     docs = [f"- [{d.get('name') or d['kind']}]({d['path']})" for d in v["documents"]]
     lines = [f"# {v['cr']} {v['title']}", "", head, "", f"**Now:** {v['now']}",
              f"**Next:** {v['next']}", "", "## Progress", "",
@@ -217,10 +225,11 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
     def number(r: dict) -> str:
         return r["cr"].removeprefix("CR-")
 
-    return ["| CR | Subject | Status | Branch | PR | Cost |", "| --- | --- | --- | --- | --- | ---: |",
+    word = forge_word(r["pr"] for r in rows)
+    return [f"| CR | Subject | Status | Branch | {word} | Cost |", "| --- | --- | --- | --- | --- | ---: |",
             *(f"| [{number(r)}]({r['specification']}) | {r['title']} | "
               f"[{r['label']}]({r['status']}) | `{r['branch'] or '-'}` | "
-              f"{'[PR](' + r['pr'] + ')' if r['pr'] else '-'} | "
+              f"{'[' + word + '](' + r['pr'] + ')' if r['pr'] else '-'} | "
               f"{'-' if r['cost_usd'] is None else '$%.2f' % r['cost_usd']} |" for r in rows)]
 
 

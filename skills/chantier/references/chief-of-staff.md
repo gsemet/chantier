@@ -123,7 +123,22 @@ Only in the turn where the user gave the go:
 ## While it runs
 
 - **Status:** `$CHANTIER status [--notes]`, with PR links, and `.agents/changes/3-requests/STATUS.md`
-  for the user. A blocked CR is a question for the user. Never read the Foreman's transcript.
+  for the user. Before a report, run `$CHANTIER status --refresh` with no epoch: it records the
+  current spend and `STATUS.md` and leaves the Foreman's heartbeat alone. A blocked CR is a
+  question for the user. Never read the Foreman's transcript.
+- **Reports:** a Progress report and a Completion report always have the same shape: the columns
+  are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
+  remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote, as for
+  P9). Icons, each with its word beside it: ⚪ waiting, 🟡 working, 🔵 to review, 🔴 blocked,
+  ✅ merged; they belong to the report, `STATUS.md` keeps its own.
+  - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
+    name, its mode, the slots in use, the CRs done, the spend and the budget); a table, one row per
+    CR: CR, subject (a few words, not the title), state, PR as a link, cost; the cost table below;
+    a last line, always there, **For you:** what the user has to review or decide, or "nothing".
+  - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
+    many, the spend and the budget); a table, one row per CR: CR, subject, result, PR, rounds, cost;
+    the cost table, one line per Driver type from `cost --by driver`; what the batch did not
+    prove; a last line, **For you:** closing the batch, with what `close` lists.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (`SendMessage` / `send_message`), who does what needs its hands
   and marks it done; `status` shows the orders still pending.
@@ -151,7 +166,7 @@ Only in the turn where the user gave the go:
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host limits messages between sessions (10 on
   Claude Desktop since someone last typed): a refused send is reported, never sent another way.
-- **Cost:** on a CR ready or merged, on "status?" and at landing, report four lines from
+- **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at landing, four lines from
   `$CHANTIER cost --by role` (and, for a CR's own figure, its line of `--by cr`): orchestration,
   the Foreman; review, the Inspector, the Verifier and a QA driver; implementation, all the
   other roles, an unknown agent included; and your own session, the `Chief of Staff:` line of
