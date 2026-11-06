@@ -212,9 +212,9 @@ Only in the turn where the user gave the go:
   the message with one last line, after the **For you:** line, in the user's language, that
   starts with 💡: one or two tips, each a sentence with the exact words to type. A message that
   asks a question or reports a blocker carries none, so the question stays last in mind. A tip
-  given and not used is not repeated in the same session; the `/compact` tip follows the
-  Compacting rule alone. Examples, judged freely; say another that fits:
-  - `/compact`, with its line to copy (see Compacting).
+  given and not used is not repeated in the same session; the host's compact command tip
+  follows the Compacting rule alone. Examples, judged freely; say another that fits:
+  - The host's compact command, with its line to copy (see Compacting and the host's reference).
   - "Status", for a progress table at once.
   - `/chantier-board`, to show or hide the CR board: Claude Code only, never on Copilot.
   - "What did it cost?", once a CR has spent.
