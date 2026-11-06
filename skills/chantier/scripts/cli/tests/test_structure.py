@@ -134,7 +134,22 @@ def test_every_role_has_its_section_in_its_card():
         assert f"\n## {section}\n" in text, (role, section)
 
 
-FROM_AGENTS_MD = ("--default-branch", "main")  # what the Chief of Staff read in the project's rules
+HOST_TOOLS = ("SendMessage", "send_message", "write_agent", "TaskStop", "ScheduleWakeup",
+              "start_session", "create_session", "get_session", "/every", "/loop", "/compact",
+              "/autocompact", "CLAUDE_CODE_SESSION_ID", "COPILOT_AGENT_SESSION_ID")
+
+
+def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool():
+    hosts = SKILL / "references" / "hosts"
+    for name in ("claude-code.md", "copilot.md"):
+        assert (hosts / name).is_file(), name
+    for card in ("chief-of-staff", "foreman", "driver", "worker", "concepts"):
+        text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
+        body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
+        assert [t for t in HOST_TOOLS if t in body] == [], card
+
+
+FROM_AGENTS_MD =("--default-branch", "main")  # what the Chief of Staff read in the project's rules
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
