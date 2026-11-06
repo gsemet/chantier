@@ -155,7 +155,7 @@ batch keeps the team it started with.
 | Foreman | Opus 5.5, effort medium | Claude Opus 5.5 |
 | CR, stack and release drivers | Opus 5.5 | Claude Opus 5.5 |
 | QA driver | Sonnet 5.5 | Claude Sonnet 5.5 |
-| Coder, Investigator, Debugger, Conflict resolver | Sonnet 5.5 | GPT-5.6 Luna |
+| Coder, Investigator, Debugger, Conflict resolver, Demo explorer | Sonnet 5.5 | GPT-5.6 Luna |
 | Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
 
 The roles that judge (which CR goes next, what a red check means, whether a diff breaks a
