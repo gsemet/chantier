@@ -96,6 +96,7 @@ Only in the turn where the user gave the go:
 
    ```text
    chantier Foreman of batch <batch>, epoch <n>, for the Chief of Staff <your session id>.
+   Your session title: <title>. Set it on yourself first.
    Read <skill>/references/foreman.md, <skill>/references/hosts/<host>.md and
    <skill>/references/concepts.md now and follow them.
    CLI: uv run --script "<skill>/scripts/cli/chantier.py" <command> --batch <batch>
@@ -103,7 +104,10 @@ Only in the turn where the user gave the go:
    Team: <role: agent, …; or "the plugin's agents">
    ```
 
-   `<skill>` is this skill's absolute folder; `<host>` is `claude-code` or `copilot`. Start the
+   `<skill>` is this skill's absolute folder; `<host>` is `claude-code` or `copilot`. `<title>` is
+   `<your title> - [Foreman Batch <nn>]`, `<nn>` the batch's number on two digits:
+   `[Battlestation] Chantier - [Foreman Batch 06]`; a later Foreman of the same batch has the same
+   title. Start the
    session as your host's reference says, in a session fit for a Foreman (its table of classes);
    the Foreman claims its epoch itself, after its worktree check. Where the host refuses to start
    a session, or the session you are in is not fit, the way is a step of the user's: give the
@@ -114,7 +118,8 @@ Only in the turn where the user gave the go:
    **Reusing the last Foreman.** When the previous batch's Foreman session still exists, even
    stopped, you may reuse it instead of starting a session, with the new batch and its epoch 1.
    It claims the batch's epoch, which starts at 0 for a new batch, so 1; it does not continue the
-   old Foreman's. A new session stays the default where the host lets you start one: a reused
+   old Foreman's. Its title names the old batch: the prompt's title makes it rename itself. A
+   new session stays the default where the host lets you start one: a reused
    Foreman carries its old context, and the batch pays for it. The host's reference says how the
    prompt reaches an idle session and a closed one, what is proved, and what the user types
    first.
