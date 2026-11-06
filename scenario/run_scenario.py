@@ -1562,6 +1562,7 @@ def release_last(w: World) -> None:
     check("status shows the release waiting for each CR",
           any(ln.startswith(rel) and f"waits for {work} queued, {late} queued" in ln for ln in out),
           str(out))
+    icon_is(w, rel, "🟠", "a queued release behind other CRs")
     w.chantier("order", "add", "--release", "--note", str(other), expect=2)
     check("a second release is refused, the next batch named", "next batch" in w.last_stderr,
           w.last_stderr)
@@ -1593,6 +1594,7 @@ def release_last(w: World) -> None:
     check("status says the release waits for the word",
           any(ln.startswith(rel) and "waits for the user's confirmation" in ln for ln in out),
           str(out))
+    icon_is(w, rel, "🟠", "a queued release waiting for the user's confirmation")
     w.chantier("order", "confirm", rel, "--note", "v1.5.0, the notes settled")
     check("the word is kept on the CR and in its notes",
           w.cr(rel)["confirmed"] == "v1.5.0, the notes settled"
@@ -1628,6 +1630,14 @@ def release_last(w: World) -> None:
           "has started" in w.last_stderr, w.last_stderr)
     w.chantier("order", "add", "--note", str(fix_two), "--fix-for", rel)
     check("order add --fix-for still works", w.batch()["crs"][-1]["fix_for"] == rel)
+    fixes = [x["id"] for x in w.batch()["crs"] if x.get("fix_for") == rel]
+    own = icon_is(w, rel, "🟠", "a queued release with an open fix (`take` refuses it)")
+    check("the open fixes are in the release's `waits`",
+          all(any(wt.startswith(f"{i} ") for wt in own["waits"]) for i in fixes)
+          and f"waits for {fixes[0]}" in own["label"], str(own))
+    for i in fixes:
+        w.chantier("order", "drop", i)
+    icon_is(w, rel, "⚪", "a queued release once its fixes have ended")
 
     w.reset()
     _, alone = prepare_cr(w, "Release v1.7.0")
@@ -1849,6 +1859,13 @@ def dependencies(w: World) -> None:
           code == 2 and "no free slot" in w.last_stderr, w.last_stderr)
     w.chantier("order", "done", "O-1")
     icon_is(w, c2, "⚪", "a queued CR once `order done` frees the slot")
+    state = w.folder() / "batch.json"
+    w.chantier("order", "budget", "--note", "10")
+    state.write_text(json.dumps({**w.batch(), "spent_usd": 2}))
+    w.chantier("order", "budget", "--note", "1")
+    icon_is(w, c2, "🟠", "a queued CR on a spent budget (`take` refuses it)")
+    w.chantier("order", "budget", "--note", "10")
+    icon_is(w, c2, "⚪", "a queued CR once the budget is raised")
     code, _ = w.chantier("take", c2)
     check("the QA driver's end frees its slot", code == 0)
     start_driver(w, c2)

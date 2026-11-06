@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from .rails import slot_free, waits_all
+from .rails import over_budget, slot_free, waits_all
 from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
@@ -73,8 +73,10 @@ def _waits_on(c: dict) -> bool:
     return c["status"] == "blocked" and (c.get("blocked_reason") or "").lower().startswith("waits:")
 
 
-def free_slot(d: dict) -> bool:
-    return slot_free(SimpleNamespace(data=d))
+def can_start(d: dict) -> bool:
+    """A queued CR could start now: `take` refuses on no free slot and on a spent budget."""
+    b = SimpleNamespace(data=d)
+    return slot_free(b) and not over_budget(b)
 
 
 def icon(c: dict, waiting: list[str], free: bool) -> str:
@@ -98,7 +100,13 @@ def label(c: dict, max_rounds: int, waiting: list[str] | None = None, free: bool
     return f"{mark} {state} {step(c)} {_round(c)}/{max_rounds}"
 
 
-def _now_next(c: dict, waiting: list[str]) -> tuple[str, str]:
+def _no_start(d: dict) -> str:
+    """Why a queued CR with nothing to wait for does not start: the budget, else the slots."""
+    spent = over_budget(SimpleNamespace(data=d))
+    return "Waiting for the budget." if spent else "Waiting for a free slot."
+
+
+def _now_next(d: dict, c: dict, waiting: list[str]) -> tuple[str, str]:
     pr = c.get("pr") or f"its {forge_word([])}"
     if _waits_on(c):
         what = c["blocked_reason"].split(":", 1)[1].strip() or "something on its way"
@@ -108,7 +116,7 @@ def _now_next(c: dict, waiting: list[str]) -> tuple[str, str]:
         return (c.get("blocked_reason") or "Blocked.",
                 "The user's answer, through the Chief of Staff.")
     return {
-        "Queued": (f"Waits for {', '.join(waiting)}." if waiting else "Waiting for a free slot.",
+        "Queued": (f"Waits for {', '.join(waiting)}." if waiting else _no_start(d),
                    "A Driver starts it."),
         "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
         "CI": (f"{pr} is open: CI, then the verifier at the pushed head.", "The hand-back."),
@@ -182,13 +190,13 @@ def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
 def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
             in_batch: bool) -> dict:
     waiting = waits(d, c)
-    now_line, next_line = _now_next(c, waiting)
+    now_line, next_line = _now_next(d, c, waiting)
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     pr = c.get("pr")
     number = re.search(r"(\d+)/?$", pr) if pr else None
     return {"schema": SCHEMA, "updated": now(), "cr": c["id"], "title": c["title"],
             "batch": d["folder"], "in_batch": in_batch, "state": c["status"],
-            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c), waiting, free_slot(d)),
+            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c), waiting, can_start(d)),
             "waits": waiting, "round": c.get("round", 0), "max_rounds": round_limit(d, c),
             "now": now_line, "next": next_line,
             "pr": {"url": pr, "number": int(number[1]) if number else None} if pr else None,
@@ -234,7 +242,7 @@ def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     waiting = waits(d, c)
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
-            "step": step(c), "label": label(c, round_limit(d, c), waiting, free_slot(d)), "waits": waiting,
+            "step": step(c), "label": label(c, round_limit(d, c), waiting, can_start(d)), "waits": waiting,
             "round": c.get("round", 0), "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
             "silent_minutes": round(silent) if silent is not None else None,

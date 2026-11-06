@@ -142,7 +142,8 @@ Only in the turn where the user gave the go:
   P9). Icons, each with its word beside it: ⚪ not started or dropped, 🟡 working, 🟠 waiting,
   🔵 to review, 🔴 blocked, ✅ merged. Each icon is the one `status` draws in the CR's `label`
   (the same as `STATUS.md` and the board): copy it, never judge it. 🟠 is a CR that waits for a
-  thing already on its way, named: the stack driver, another CR, a slot. 🔴 is a CR that
+  thing already on its way, named: the stack driver, another CR, a fix of a release, a slot, the
+  user's word on a release, the budget a queued CR cannot start on; ⚪ is a queued CR that could start now. 🔴 is a CR that
   nothing moves until someone decides or repairs it.
   - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
     name, its mode, the slots in use, the CRs done, the spend and the budget); a legend line of
