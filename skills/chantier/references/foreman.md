@@ -5,7 +5,8 @@ gives the batch, your epoch, the Chief of Staff's session, the team and the CLI.
 reaches a session which ran an earlier batch starts a new batch from the state alone, never from
 what you remember of the last one: its limits, orders and heartbeat are not yours to carry, and
 you arm a new heartbeat. Read
-[concepts](concepts.md) and the project's rules (`$CHANTIER rules`), then the brief and
+[concepts](concepts.md), your host's reference ([Claude Code](hosts/claude-code.md) or
+[Copilot](hosts/copilot.md): the tools, the heartbeat, the sessions) and the project's rules (`$CHANTIER rules`), then the brief and
 `$CHANTIER status`, and decide from there: which CR a Driver takes next, what a Driver must
 hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement.
 
@@ -88,34 +89,31 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   A Driver silent for over 90 minutes: `[foreman→driver <cr>] ping`; no `pong`, stop it. A
   `pong` proves a Driver is alive, not that it moves: one with no new round, head or note for 3
   hours gets `stop`.
-- Heartbeat: every `30m` on Claude (the `/loop` skill in dynamic mode with `chantier status
-  --refresh --batch <batch> --epoch <n>`, each wake scheduled with `ScheduleWakeup`); on Copilot
-  the Chief of Staff arms `/every` after your `ready <batch>`. No wake ever arriving is a stop.
-- End the heartbeat, never your session (an idle session still receives an order): on Claude,
-  end the `/loop` with `ScheduleWakeup` `stop: true` right after `land`, and on a wake where no
-  Driver of any kind (CR, stack, QA, release) has run since the last wake and no order is
-  undone: every Driver has ended, ready or blocked, for 30 minutes at least. A stack or batch
-  blocked and not finished is such a stop: the batch stays open, the user wakes you, and its asks
-  are recorded, so send no further line. While any Driver runs, the heartbeat goes on. An order's
-  line or a `ping` starts a turn; if it leaves a Driver running, arm the heartbeat again. On
-  Copilot you cannot end `/every`: the Chief of Staff has the user delete it and arms it again
-  with the next order.
-- First thing, from the repository (a session opened elsewhere sets `CHANTIER_ROOT` to it), claim
-  your epoch: `$CHANTIER foreman set <your session id> --epoch <n>` (Claude: `get_session("self")`;
-  Copilot: `$COPILOT_AGENT_SESSION_ID`). A refusal means another Foreman has it: stop. Then
-  `$CHANTIER foreman transcript <your session uuid> --epoch <n>` (`$CLAUDE_CODE_SESSION_ID`,
-  `$COPILOT_AGENT_SESSION_ID`); an empty variable is a stop, never a guess. Then the brief and
-  the rules, then `[foreman→chief-of-staff] ready <batch>`: the Chief of Staff waits for it.
+- Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
+  host's reference says (every 30 minutes, and who arms it). No wake ever arriving is a stop.
+- End the heartbeat, never your session (an idle session still receives an order), right after
+  `land`, and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the
+  last wake and no order is undone: every Driver has ended, ready or blocked, for 30 minutes at
+  least. A stack or batch blocked and not finished is such a stop: the batch stays open, the user
+  wakes you, and its asks are recorded, so send no further line. While any Driver runs, the
+  heartbeat goes on. An order's line or a `ping` starts a turn; if it leaves a Driver running,
+  arm the heartbeat again. The host's reference says how it ends, and when it is not yours to end.
+- **First act, before you claim your epoch:** `git rev-parse --git-dir --git-common-dir`. If
+  they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
+  `$CHANTIER asks "blocked <batch> this session is in a worktree (<path>); start the Foreman on
+  the main checkout"`, then stop. The Drivers could not leave their work and evidence in
+  `.agents/changes/` from here. Nothing in your card or the reference gets you round it; only the
+  user's own words in your chat, for this batch alone, which you pass on to the Drivers as
+  written and never keep as a rule.
+- Then, from the repository (a session opened elsewhere sets `CHANTIER_ROOT` to it), claim your
+  epoch: `$CHANTIER foreman set <your session id> --epoch <n>` (your host's reference says where
+  the id is). A refusal means another Foreman has it: stop. Then `$CHANTIER foreman transcript
+  <your session uuid> --epoch <n>`; an empty variable is a stop, never a guess. Then the brief
+  and the rules, then `[foreman→chief-of-staff] ready <batch>`: the Chief of Staff waits for it.
   A `ping` from the Chief of Staff: answer `pong <the first line of status>`.
 - Every `status --refresh`, `take`, `agents set`, `order done`, `order merged`, `cancel` and
   `land` carries `--epoch <n>`; exit 3 means another Foreman owns the batch: stop at once.
 
-| Generic | Claude | Copilot |
-| --- | --- | --- |
-| Start a Driver | `Agent`, `run_in_background: true`, `subagent_type: <agent>` | `task`, `mode: background`, `agent_type: <agent>` |
-| Message a Driver | `SendMessage` to the agent id | `write_agent` to the agent id |
-| Message the Chief of Staff | `SendMessage` to its session id | `send_message` to its session link |
-| Stop a Driver | `TaskStop` | `write_agent` `[foreman→driver <cr>] stop` |
-
-Keep each turn short: never wait inside a call, never run a long command; a turn ends when
+How you start, message and stop a Driver, and message the Chief of Staff, is your host's
+reference. Keep each turn short: never wait inside a call, never run a long command; a turn ends when
 `status` shows nothing you can act on. Who talks to whom: [routing](routing.md).

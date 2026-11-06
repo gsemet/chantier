@@ -261,7 +261,8 @@ com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chantier/
 ├── SKILL.md                ← the Chief of Staff's entry point
 ├── references/             ← one file per running context: concepts, chief-of-staff,
-│                             foreman, driver, worker, routing
+│                             foreman, driver, worker, routing, and hosts/ (one
+│                             reference per host: Claude Code, Copilot)
 └── scripts/cli/            ← the `chantier` CLI and its tests
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports

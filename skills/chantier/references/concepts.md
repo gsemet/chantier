@@ -79,13 +79,14 @@ started.
 
 ## Starting an agent
 
-A parent starts an agent (`Agent` on Claude, `task` on Copilot) with the plugin's agent for the
-role (`chantier:<role>` on Claude, `chantier-<role>` on Copilot) unless its own prompt names
-another for that role; it passes no model and no effort. The prompt is the agent's whole brief:
+A parent starts an agent, by its host's means, with the plugin's agent for the role unless its
+own prompt names another for that role; it passes no model and no effort (the host's reference
+gives the tool and the agent's name). The prompt is the agent's whole brief:
 
 ```text
 chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
-Read <skill>/references/<driver|worker>.md, section "<Role>", and <skill>/references/concepts.md;
+Read <skill>/references/<driver|worker>.md, section "<Role>", and <skill>/references/concepts.md
+(a Driver also <skill>/references/hosts/<host>.md, `claude-code` or `copilot`);
 the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
