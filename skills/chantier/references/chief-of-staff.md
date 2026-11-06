@@ -107,13 +107,13 @@ Only in the turn where the user gave the go:
    `<skill>` is this skill's absolute folder; `<host>` is `claude-code` or `copilot`. `<title>` is
    `<your title> - [Foreman Batch <nn>]`, `<nn>` the batch's number on two digits:
    `[Battlestation] Chantier - [Foreman Batch 06]`; a later Foreman of the same batch has the same
-   title. Start the
-   session as your host's reference says, in a session fit for a Foreman (its table of classes);
-   the Foreman claims its epoch itself, after its worktree check. Where the host refuses to start
-   a session, or the session you are in is not fit, the way is a step of the user's: give the
-   "For you" block of the reference, after saying what the choice costs, and say "I have not
-   tested this path" for a block it marks unproved. On `[foreman→chief-of-staff] ready <batch>`,
-   arm the heartbeat if your host's reference says you do.
+   title. Start the session as your host's reference says, in a session fit for a Foreman (its
+   table of classes); the Foreman claims its epoch itself, after its worktree check. Where the
+   host refuses to start a session, or the session you are in is not fit, the way is a step of
+   the user's: give the "For you" block of the reference, after saying what the choice costs, and
+   say "I have not tested this path" for a block it marks unproved. On
+   `[foreman→chief-of-staff] ready <batch>`, arm the heartbeat if your host's reference says you
+   do.
 
    **Reusing the last Foreman.** When the previous batch's Foreman session still exists, even
    stopped, you may reuse it instead of starting a session, with the new batch and its epoch 1.
