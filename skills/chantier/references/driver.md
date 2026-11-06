@@ -27,10 +27,12 @@ The CLI keeps the CR's record and tells you what is off.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"` runs
   it in the worktree, alone in the repository (a second long gate waits), keeps the log and
   records the pass at that head. The fast gates you run yourself.
-- Push: `git push --force-with-lease -u <remote> <branch>`. Open or edit the PR yourself (`gh
-  pr create --body-file <work folder>/pr-body.md`, `glab mr create`), its title and body by the
-  project's rules and template. Then `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what
-  is off (uncommitted changes, a head not pushed, no long gate passed at it).
+- Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
+  head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
+  Open or edit the PR yourself (`gh pr create --body-file <work folder>/pr-body.md`, `glab mr
+  create`), its title and body by the project's rules and template. Then `$CHANTIER ship <cr>
+  <pr link>`: it records the PR at this head and says what is off (uncommitted changes, a head
+  not pushed, no long gate passed at it).
 - CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
   ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
@@ -44,6 +46,14 @@ The CLI keeps the CR's record and tells you what is off.
   `rounds:`, `refused`): it writes the state and prints the line to send the Foreman
   (`SendMessage` to `main` on Claude, your final answer on Copilot). Then end: ending frees
   your slot. A decision only the user can take is `blocked question: <text>`.
+- A force push the host refuses (any Driver that pushes): the Chief of Staff runs it for you.
+  With your work committed, send `[driver <cr>→foreman] push <branch> <expected remote sha>
+  <local sha>` (the remote head you expect, from `git ls-remote`, and your head), then wait: no
+  other push, no other way. The Foreman tells you the result. Done: `ship` and go on. A failed
+  lease (the remote moved): look at why (`git fetch`, what the remote gained), never the same
+  push again. A `push refused` note, whether the branch is not this batch's or the Chief of
+  Staff's own push was refused, ends with `handback blocked refused <exact text>`; it goes to
+  the user. Any other refused action stays `blocked refused` as above.
 - `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
   `note` the decision. `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked
   stopped`.
@@ -71,8 +81,8 @@ it, the first on the default branch). Merged CRs are gone from it, archived at o
 while the stack lives. After a partial merge what remains is a new stack of the same batch: on
 `origin/<default branch>`, retarget the first PR to the default branch (`gh pr edit --base`,
 `glab mr update --target-branch`), rebase it there and each other PR on the one under it, push
-with `--force-with-lease`, and `ship` each one you moved: `ship` records the new base. A CR added
-by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
+with `--force-with-lease` (a refused one goes up as above), and `ship` each one you moved:
+`ship` records the new base. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
 last one still open, as `take stack` prints, and `stack` refuses an order that puts it below one
 of them; a dependency sent back to a Driver is yours to restack. A release CR and a fix CR are
 not in the stack. The batch stays open until its last CR ends.
