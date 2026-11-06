@@ -14,5 +14,8 @@ the Foreman `$CHANTIER status`, a new Driver `$CHANTIER handoff <cr>`.
 | QA driver → Foreman | `qa done <folder> <n> findings` |
 | Stack driver → Foreman | `hand-back ready <cr>=<link>…`, `anomaly <cr> <text>` |
 
+The Chief of Staff's subagents (the Demo explorer) answer the Chief of Staff alone, in their
+reply; they send no line to the Foreman or a Driver.
+
 The user talks only with the Chief of Staff; a Driver's question reaches them as a `blocked
 <cr> question: …` ask, and the answer comes back to a new Driver as a note.

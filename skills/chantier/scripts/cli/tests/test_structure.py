@@ -13,7 +13,8 @@ from conftest import PLUGIN_ROOT, SKILL, sh
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
-WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver")
+WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver",
+           "demo-explorer")
 ROLES = DRIVERS + WORKERS
 OPUS_ROLES = {"cr-driver", "stack-driver", "release-driver"}  # judgement; the rest is work
 CARDS = {**{r: "driver" for r in DRIVERS}, **{r: "worker" for r in WORKERS}}

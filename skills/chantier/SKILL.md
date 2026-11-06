@@ -61,6 +61,7 @@ says they know chantier.
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
+| a stack is ready, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 
 ## Hard rules
@@ -72,7 +73,8 @@ says they know chantier.
 - **Only the user starts work.** Start the Foreman only in the turn where the user gave the go.
   Never start a backlog item the user did not choose. Never merge: the user does, and the
   Foreman only what the user allowed a release.
-- **You own no background agent** and never message a Driver: orders go through the Foreman.
+- **You start no Driver** and never message one: orders go through the Foreman. Your own subagents
+  explore, prototype or study; none implements.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - **The project's rules rank above chantier's.** `AGENTS.md` and what it links say how the
   project commits, ships, tests and releases; every role reads them first (`$CHANTIER rules`).
