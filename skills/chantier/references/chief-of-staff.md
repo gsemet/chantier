@@ -134,16 +134,23 @@ Only in the turn where the user gave the go:
 
 - **Status:** `$CHANTIER status [--notes]`, with PR links, and `.agents/changes/3-requests/STATUS.md`
   for the user. Before a report, run `$CHANTIER status --refresh` with no epoch: it records the
-  current spend and `STATUS.md` and leaves the Foreman's heartbeat alone. A blocked CR is a
+  current spend and `STATUS.md` and leaves the Foreman's heartbeat alone. A 🔴 CR is a
   question for the user. Never read the Foreman's transcript.
 - **Reports:** a Progress report and a Completion report always have the same shape: the columns
   are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
   remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote, as for
-  P9). Icons, each with its word beside it: ⚪ waiting, 🟡 working, 🔵 to review, 🔴 blocked,
-  ✅ merged; they belong to the report, `STATUS.md` keeps its own.
+  P9). Icons, each with its word beside it: ⚪ not started, 🟡 working, 🟠 waiting, 🔵 to
+  review, 🔴 blocked, ✅ merged. They belong to the Progress report: `STATUS.md`, the board and
+  `status` keep their own, and the record does not change (it has one `blocked` state). You
+  judge 🟠 or 🔴 from the `blocked` text and the batch's state. 🟠 is a CR that waits for a
+  thing already on its way, named: the stack driver, another CR, a slot. 🔴 is a CR that
+  nothing moves until someone decides or repairs it.
   - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
-    name, its mode, the slots in use, the CRs done, the spend and the budget); a table, one row per
-    CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); the cost table below (see Cost);
+    name, its mode, the slots in use, the CRs done, the spend and the budget); a legend line of
+    the six icons, each with its word, which opens the table; a table, one row per
+    CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); rows with one cause get the same words, whatever each
+    Driver wrote; under the table, when a CR is 🟠 or 🔴, a short explanation: what it waits for,
+    and who unblocks it; the cost table below (see Cost);
     a last line, always there, **For you:** what the user has to review or decide, or "nothing"
     (only a Tips line can follow it, see below).
   - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
