@@ -125,7 +125,13 @@ function world(on: On, cwd = ROOT) {
   })
   on('fs.exists', (_, e) => ({ value: files.has(n(e.path)) || dirs.has(n(e.path)) }))
   on('fs.list', (_, e) => ({
-    value: (dirs.get(n(e.path)) ?? []).map(name => ({ name, kind: 'file', size: 1, mtimeMs: 1, isLink: false })),
+    value: (dirs.get(n(e.path)) ?? []).map(name => ({
+      name,
+      kind: dirs.has(n(e.path) + '/' + name) ? 'dir' : 'file',
+      size: 1,
+      mtimeMs: 1,
+      isLink: false,
+    })),
   }))
   on('command.register', (_, e) => {
     calls.register.push(e)
@@ -450,7 +456,31 @@ test('a live batch whose Foreman is silent for long says so', async ($, on) => {
   await fresh.unmount()
 })
 
-test('an inbox or backlog item opens as the list of its Markdown files', async ($, on) => {
+test('an item holding only a sub-folder lists it, and the folder lists its file, which opens', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const dir = `${ROOT}/.agents/changes/3-requests/1-backlog/P1/idea`
+  w.put(INDEX, index({ backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '1-backlog/P1/idea', files: 1 }] }))
+  w.put(`${dir}/intake/request.md`, '# Request')
+  w.dirs.set(n(dir), ['intake'])
+  w.dirs.set(n(`${dir}/intake`), ['request.md'])
+
+  await skill($)
+  const ui = await board($)
+  await ui.press({ key: 'fold-backlog' })
+  await ui.press({ key: 'backlog-table', link: { href: `file://${dir}` } })
+  const top = await ui.find({ key: 'files' })
+  expect(top?.props.pressableLinks).toEqual([`file://${dir}/intake`])
+  expect(top?.props.text).toContain('intake/')
+  await ui.press({ key: 'files', link: { href: `file://${dir}/intake` } })
+  const inner = await ui.find({ key: 'files' })
+  expect(inner?.props.text).toContain('request.md')
+  await ui.press({ key: 'files', link: { href: `file://${dir}/intake/request.md` } })
+  expect((await ui.find({ key: 'doc' }))?.props.text).toBe('# Request')
+  await ui.unmount()
+})
+
+test('an inbox or backlog item opens as the list of every file it holds', async ($, on) => {
   mock.clock(on)
   const w = world(on)
   const dir = `${ROOT}/.agents/changes/3-requests/1-backlog/P1/idea`
@@ -464,8 +494,8 @@ test('an inbox or backlog item opens as the list of its Markdown files', async (
   await ui.press({ key: 'backlog-table', link: { href: `file://${dir}` } })
   const files = await ui.find({ key: 'files' })
   expect(files?.props.text).toContain('| File |')
-  expect(files?.props.pressableLinks).toEqual([`file://${dir}/01-intent.md`, `file://${dir}/02-more.md`])
-  expect(files?.props.text).not.toContain('notes.txt')
+  expect(files?.props.pressableLinks).toEqual([`file://${dir}/01-intent.md`, `file://${dir}/02-more.md`, `file://${dir}/notes.txt`])
+  expect(files?.props.text).toContain('notes.txt')
   await ui.press({ key: 'files', link: { href: `file://${dir}/01-intent.md` } })
   expect((await ui.find({ key: 'doc' }))?.props.text).toBe('# Intent')
   await ui.unmount()

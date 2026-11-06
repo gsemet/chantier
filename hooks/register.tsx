@@ -199,7 +199,6 @@ async function loadPage($: Engine, kind: ChantierPage['kind'], path: string): Pr
   } else if (kind === 'items' || kind === 'dir') {
     const entries: { name: string; kind: string }[] = await $.fs.list(path)
     page.names = entries
-      .filter(e => (kind === 'dir' ? true : e.kind === 'file' && /\.md$/i.test(e.name)))
       .map(e => e.name + (e.kind === 'dir' ? '/' : ''))
       .sort()
   } else {
@@ -282,7 +281,7 @@ async function push($: Engine, kind: ChantierPage['kind'], path: string): Promis
   await update($, pages, list => [...list, page])
 }
 
-/** A CR's sheet from its folder, or the list of an inbox or backlog item's Markdown files. */
+/** A CR's sheet from its folder, or the list of every entry of an inbox or backlog item. */
 async function showCr($: Engine, dir: string): Promise<void> {
   const status = dir + '/STATUS.json'
   if (await $.fs.exists(status)) await push($, 'cr', status)
