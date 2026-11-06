@@ -69,8 +69,11 @@ order, and `land` again at the end (`land` on a landed batch is refused).
   queued: the Chief of Staff records it with `order after` and `order note`, and the user may
   turn it off while the CR is queued. Once the CR has started, the chain stands until the stack
   driver restacks.
-- A Release driver takes the release CR once the others are merged or cancelled; its card holds
-  the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
+- A Release driver takes the release CR once the others are merged or cancelled and, when it
+  shares the batch, the user has confirmed it: `status` shows the release waiting for
+  confirmation once the others have ended, so ask the Chief of Staff for it (`[foreman→chief-of-staff]
+  release <cr>: the others have ended, confirm the version`), then start the Release driver when
+  `order confirm` is in. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
   (refused past three fixes or the budget); else, or refused, it is an ask. A batch is a stack
   unless it was opened `--parallel`: a stack driver takes the stack when its open CRs are all

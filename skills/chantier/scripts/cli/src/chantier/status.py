@@ -12,7 +12,7 @@ import os
 import re
 from pathlib import Path
 
-from .rails import waits_for
+from .rails import waits_all
 from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
@@ -65,7 +65,7 @@ def _round(c: dict) -> int:
 
 def waits(d: dict, c: dict) -> list[str]:
     """What a queued CR waits for: the rule of `take`, read from the batch's record."""
-    return waits_for(d["crs"], c) if c["status"] == "queued" else []
+    return waits_all(d["crs"], c) if c["status"] == "queued" else []
 
 
 def label(c: dict, max_rounds: int, waiting: list[str] | None = None) -> str:
