@@ -1412,7 +1412,7 @@ def _chief_line(repo: Repo, d: dict) -> str:
 
 
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
-    """Calls and dollars, by agent type (the role, as the host names the agent) or by CR."""
+    """Calls and dollars, by CR (`cr`) or by the Driver type a chain of parents leads back to."""
     agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
     for e in read_events(repo.batch_dir(batch)):
         if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":
@@ -1432,7 +1432,7 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
             named = CR_IN_NAME.search(r.get("description") or "")
             key = ("foreman" if r["agent"] == "main"
                    else cr_of(r["agent"]) or (named.group(0) if named else "other"))
-        elif by == "driver":  # the type of the agent a chain of parents leads back to
+        else:  # "driver": the type of the agent a chain of parents leads back to
             root = r
             for _ in range(5):
                 parent = by_agent.get(root.get("parent"))
@@ -1440,8 +1440,6 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
                     break
                 root = parent
             key = root["type"]
-        else:
-            key = r["type"]
         groups[key][0] += r["calls"]
         groups[key][1] += r["usd"]
     return groups
@@ -1458,22 +1456,97 @@ def _apportion(parts: list[float], whole: int) -> list[int]:
     return out
 
 
+COMPACTION_USD = 0.12  # what a compaction call costs, about: it leaves no record to price
+
+
+def _kind(r: dict) -> str:
+    """Who an agent is, from the record alone: the Foreman is the main agent, a Driver an agent
+    with no parent, a worker one with a parent. No role name: the type is the host's own string.
+    Where the host gives no parent link (Copilot), the agent is only an agent."""
+    if r["agent"] == "main":
+        return "Foreman"
+    if "parent" not in r:
+        return "Agent"
+    return "Worker" if r["parent"] else "Driver"
+
+
+def _breakdown(rows: list[dict]) -> list[dict]:
+    """One entry for the Foreman, then one per Driver type, per worker type (and per agent type
+    where the parent link is not measured), each with its own calls and dollars only."""
+    entries: dict[tuple[str, str], dict] = {}
+    for r in rows:
+        kind = _kind(r)
+        e = entries.setdefault((kind, "" if kind == "Foreman" else r["type"]), {
+            "kind": kind, "label": kind if kind == "Foreman" else f"{kind} {r['type']}",
+            "rows": [], "calls": 0, "usd": 0.0})
+        e["rows"].append(r)
+        e["calls"] += r["calls"]
+        e["usd"] += r["usd"]
+    order = ("Foreman", "Driver", "Worker", "Agent")
+    return sorted((e for e in entries.values() if e["calls"]),
+                  key=lambda e: (order.index(e["kind"]), -e["usd"]))
+
+
+def _restarted(repo: Repo, batch: str) -> set[str]:
+    """The Drivers that came after another on the same CR, from the log's `agent` events."""
+    seen: dict[str, list[str]] = {}
+    for e in read_events(repo.batch_dir(batch)):
+        if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack" and e.get("agent"):
+            ids = seen.setdefault(e["cr"], [])
+            if e["agent"] not in ids:
+                ids.append(e["agent"])
+    return {a for ids in seen.values() for a in ids[1:]}
+
+
+def _explain(entry: dict, restarted: set[str]) -> str:
+    """What explains a line's figure, all measured; `not measured` where the host gives none."""
+    rows = [r for r in entry["rows"] if r["calls"]]
+    n = len(rows)
+    parts = [f"{n} agent{'s' if n != 1 else ''}, {entry['calls']} calls"]
+    if not all("models" in r for r in rows):  # Copilot: per-call records, no token detail
+        parts.append("model, shares of cost and calls after the cache expired: not measured")
+    else:
+        models = sorted(set().union(*(r["models"] for r in rows)))
+        parts.append("model " + ", ".join(models))
+        total = sum(r["usd"] for r in rows)
+        kinds = [sum(r[k] for r in rows) for k in ("usd_read", "usd_write", "usd_out", "usd_in")]
+        shares = _apportion(kinds, 100) if total else [0] * 4
+        parts.append("cost: " + ", ".join(f"{name} {s}%" for name, s in zip(
+            ("cache reads", "cache writes", "output", "input"), shares)))
+        timed, expired = sum(r["timed"] for r in rows), sum(r["expired"] for r in rows)
+        parts.append(f"{expired} of {timed} timed calls after the cache expired" if timed
+                     else "calls after the cache expired: not measured (no timestamps)")
+    if entry["kind"] == "Driver":
+        parts.append(f"{sum(r['agent'] in restarted for r in rows)} restarted on a CR that "
+                     "already had one")
+    elif entry["kind"] == "Agent":
+        parts.append("restarts: not measured (no parent link)")
+    return "  " + "; ".join(parts)
+
+
+EXPIRY_NOTE = ("A cache has expired when the gap from the agent's previous call is over its "
+               "lifetime: 5 min after a 5-minute cache write, 1 h after a 1-hour one")
+
+
 def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
                   by_driver: dict[str, list], chief: str) -> list[str]:
-    """What the user reads at the end of a batch; the detail is in `cost --by`. The Foreman is
-    the main agent, the Drivers every other agent that started one, from the transcripts'
-    parent links, and the workers the rest. Amounts and shares add up as printed."""
+    """What the user reads at the end of a batch; the detail is in `cost`. The split is the
+    breakdown of `cost` summed by kind: the Foreman, the Drivers alone, the workers alone. The
+    per-Driver figures say "with its workers". Amounts and shares add up as printed."""
     total = sum(r["usd"] for r in rows)
     budget = d.get("budget_usd")
-    parents = {r.get("parent") for r in rows if r.get("parent")}
-    foreman_usd = sum(r["usd"] for r in rows if r["agent"] == "main")
-    drivers_usd = sum(r["usd"] for r in rows if r["agent"] != "main" and r["agent"] in parents)
-    parts = [foreman_usd, drivers_usd, total - foreman_usd - drivers_usd]
-    parts[2] = max(parts[2], 0.0)
+    entries = _breakdown(rows)
+    kinds = [(name, sum(e["usd"] for e in entries if e["kind"] == kind))
+             for name, kind in (("Foreman", "Foreman"), ("Drivers", "Driver"),
+                                ("workers", "Worker"), ("agents, Driver or worker not measured",
+                                                         "Agent"))]
+    kinds = [k for k in kinds if k[1] or k[0] in ("Foreman", "Drivers", "workers")]
+    parts = [usd for _, usd in kinds]
     cents = _apportion(parts, round(total * 100))
-    shares = _apportion(parts, 100) if total else [0, 0, 0]
+    shares = _apportion(parts, 100) if total else [0] * len(parts)
     split = ", ".join(f"{name} ${c / 100:.2f} ({s}%)"
-                      for name, c, s in zip(("Foreman", "Drivers", "workers"), cents, shares))
+                      for (name, _), c, s in zip(kinds, cents, shares))
+    measured = all("parent" in r for r in rows if r["agent"] != "main")
     top = sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
     mains = [r for r in rows if r["agent"] == "main"]  # one per Foreman session of the batch
     n = sum(r.get("wakes", 0) for r in mains)
@@ -1484,10 +1557,12 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
             split,
             "Most: " + (", ".join(f"{k} ${usd:.2f}" for k, usd in top[:3]) or "-"),
             *wakes,
-            *(f"Driver {k}: ${v[1]:.2f} ({v[0]} calls)" for k, v in
-              sorted(by_driver.items(), key=lambda kv: -kv[1][1]) if k != "foreman"),
+            *(f"Driver {k} with its workers: ${v[1]:.2f} ({v[0]} calls)" for k, v in
+              sorted(by_driver.items(), key=lambda kv: -kv[1][1])
+              if k != "foreman" and measured),
             chief,
-            "Not counted: compaction calls, which leave no record (about $0.12 each)"]
+            f"Not counted: compaction calls, which leave no record (about ${COMPACTION_USD:.2f} "
+            "each)"]
 
 
 def cost(args) -> list[str]:
@@ -1506,10 +1581,29 @@ def cost(args) -> list[str]:
     if args.summary:
         return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"),
                              _cost_groups(repo, batch, rows, "driver"), chief)
-    groups = _cost_groups(repo, batch, rows, args.by)
+    if args.explain and args.by == "cr":
+        raise ChantierError("`--explain` explains the breakdown by role, not `--by cr`")
+    if args.by == "cr":  # a CR's Driver and its workers
+        lines = [(k, v[0], v[1], None) for k, v in
+                 sorted(_cost_groups(repo, batch, rows, "cr").items(), key=lambda kv: -kv[1][1])]
+    else:  # the Foreman, each Driver type, each worker type: their own calls and dollars
+        restarted = _restarted(repo, batch) if args.explain else set()
+        lines = [(e["label"], e["calls"], e["usd"], _explain(e, restarted) if args.explain else None)
+                 for e in _breakdown(rows)]
+    mills = ([round(usd * 1000) for _, _, usd, _ in lines] if args.by == "cr"  # each CR's own
+             else _apportion([usd for _, _, usd, _ in lines], round(total * 1000)))  # add up
     estimated = sum(r.get("estimated", 0) for r in rows)
-    lines = [f"{batch}: ${total:.3f} over {sum(r['calls'] for r in rows)} model calls"
-             + (f" ({estimated} estimated, not billed)" if estimated else "")]
-    lines += [f"{k}: ${v[1]:.3f} ({v[0]} calls)"
-              for k, v in sorted(groups.items(), key=lambda kv: -kv[1][1])]
-    return lines + [chief]
+    out = [f"{batch}: ${total:.3f} over {sum(r['calls'] for r in rows)} model calls"
+           + (f" ({estimated} estimated, not billed)" if estimated else "")]
+    for (label, calls, _, why), m in zip(lines, mills):
+        out += [f"{label}: ${m / 1000:.3f} ({calls} calls)"] + ([why] if why else [])
+    out.append(chief)
+    if args.explain:
+        n = sum(r.get("compactions", 0) for r in rows)
+        out += [EXPIRY_NOTE if all("models" in r for r in rows) else
+                "Cache expiry: not measured on this host",
+                f"Not counted: {n} compaction calls, which leave no record (about "
+                f"${COMPACTION_USD:.2f} each, ${n * COMPACTION_USD:.2f})" if all(
+                    "compactions" in r for r in rows) else
+                "Not counted: compaction calls are not measured on this host"]
+    return out

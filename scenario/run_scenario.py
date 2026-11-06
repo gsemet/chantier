@@ -691,7 +691,7 @@ def scenario(w: World) -> None:
           and out[1] == "Foreman $0.39 (24%), Drivers $0.91 (57%), workers $0.31 (19%)"
           and out[2].startswith("Most: CR-10") and out[-2].startswith("Chief of Staff: $0.01")
           and out[-1].startswith("Not counted: compaction calls")
-          and "Driver cr-driver: $1.22 (64 calls)" in out, str(out))
+          and "Driver cr-driver with its workers: $1.22 (64 calls)" in out, str(out))
     amounts = [int(a.replace(".", "")) for a in re.findall(r"\$(\d+\.\d\d) \(", out[1])]
     shares = [int(s) for s in re.findall(r"\((\d+)%\)", out[1])]
     check("the three amounts and shares add up to the total and to 100 as printed",
@@ -1642,11 +1642,18 @@ def copilot_cost(w: World, d: dict) -> None:
     claude = state.read_text()
     state.write_text(json.dumps({**json.loads(claude), "host": "copilot"}))
     code, out = w.chantier("cost", "--batch", w.name, env=env)
-    check("Copilot cost groups billed and estimated calls by role (the host's agent type)",
+    check("Copilot cost lists the Foreman, then each agent type: no parent link, so Driver or "
+          "worker is not told",
           code == 0 and out == [
               f"{w.name}: $1.875 over 4 model calls (1 estimated, not billed)",
-              "foreman: $1.000 (1 calls)", "cr-driver: $0.500 (1 calls)",
-              "coder: $0.375 (2 calls)", "Chief of Staff: not measured"], str(out))
+              "Foreman: $1.000 (1 calls)", "Agent cr-driver: $0.500 (1 calls)",
+              "Agent coder: $0.375 (2 calls)", "Chief of Staff: not measured"], str(out))
+    code, out = w.chantier("cost", "--explain", "--batch", w.name, env=env)
+    check("Copilot cost --explain says `not measured` where the host gives no detail",
+          code == 0 and out[2].count("not measured") == 1 and "restarts: not measured" in out[4]
+          and out[-2:] == ["Cache expiry: not measured on this host",
+                           "Not counted: compaction calls are not measured on this host"],
+          str(out))
     code, out = w.chantier("cost", "--batch", w.name, "--by", "cr", env=env)
     check("Copilot cost attributes calls by agent, name and other",
           code == 0 and out[1:] == [
@@ -1745,21 +1752,70 @@ def cost_audit(w: World) -> None:
     check("a relay's Foreman transcripts are summed", code == 0
           and out[0] == f"{w.name}: $1.634 over 96 model calls", str(out))
     state.write_text(original_state)
-    # a Driver of a type nobody knows gets its own line, with the worker it started
+    main.write_text(original)
+    # the fixture: the Foreman, Drivers with workers (cr-driver), a Driver with none (qa-driver) and
+    # a root agent of a type nobody knows (my-own-driver, with a worker); each gets its own line
     sub = main.with_suffix("") / "subagents"
-    for name, kind, parent, n in (("odd", "my-own-driver", None, 2), ("odd-worker", "coder", "odd", 1)):
+    created = datetime.fromisoformat(json.loads(original_state)["created"].replace("Z", "+00:00"))
+    when = [(created + timedelta(seconds=s)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            for s in (10, 2 * 3600)]  # two hours apart: the 1-hour cache has expired
+    events = w.folder() / "events.jsonl"
+    original_events = events.read_text(encoding="utf-8")
+    events.write_text(original_events + json.dumps(  # a Driver after another on CR-101
+        {"t": when[0], "actor": "foreman", "kind": "agent", "cr": "CR-101", "agent": "odd"}) + "\n",
+        encoding="utf-8")
+    state.write_text(json.dumps({k: v for k, v in d.items() if k != "landed"}))
+    for name, kind, parent, n in (("odd", "my-own-driver", None, 2), ("odd-worker", "coder", "odd", 1),
+                                  ("lone", "qa-driver", None, 3)):
         f = sub / f"agent-{name}.jsonl"
-        f.write_text("".join(msg(f"{name}{i}", 900) for i in range(n)))
+        f.write_text("".join(msg(f"{name}{i}", 900, **({"timestamp": when[i]} if name == "odd" else {}))
+                             for i in range(n)))
         f.with_suffix("").with_suffix(".meta.json").write_text(
             json.dumps({"agentType": kind, **({"parentAgentId": parent} if parent else {})}))
-    code, out = w.chantier("cost", "--by", "driver", "--batch", w.name)
-    check("`cost --by driver` gives a Driver type its workers' calls, and an unknown type its own line",
-          code == 0 and "cr-driver: $1.217 (64 calls)" in out
-          and "my-own-driver: $0.057 (3 calls)" in out and "foreman: $0.391 (30 calls)" in out
-          and "coder: $0.012" not in "".join(out), str(out))
-    for name in ("odd", "odd-worker"):
+    code, out = w.chantier("cost", "--batch", w.name)
+    lines = [l for l in out[1:] if l.startswith(("Foreman", "Driver", "Worker", "Agent"))]
+    check("`cost` shows the Foreman, each Driver type and each worker type on its own line, in "
+          "that order, with their own calls",
+          code == 0 and [l.split(":")[0] for l in lines] == [
+              "Foreman", "Driver cr-driver", "Driver qa-driver", "Driver my-own-driver",
+              "Worker coder"]
+          and "Driver cr-driver: $0.913 (48 calls)" in out and "Worker coder: $0.323 (17 calls)" in out
+          and "Driver my-own-driver: $0.038 (2 calls)" in out, str(out))
+    printed = [int(a.replace(".", "")) for l in lines for a in re.findall(r"\$(\d+\.\d{3}) \(", l)]
+    check("the lines add up to the total as printed", out[0] == f"{w.name}: $1.722 over 100 model calls"
+          and sum(printed) == 1722, str(out))
+    code, out = w.chantier("cost", "--explain", "--batch", w.name)
+    text = "\n".join(out)
+    shares = [int(s) for s in re.findall(r"(?:reads|writes|output|input) (\d+)%", out[2])]
+    check("`cost --explain` gives, per line, the agents, the model, the shares of cost, the calls "
+          "after the cache expired and the restarts", code == 0
+          and out[2].startswith("  1 agent, 30 calls; model claude-sonnet-5-5; cost: cache reads")
+          and len(shares) == 4 and sum(shares) == 100
+          and "no timestamps" in out[2] and "4 agents, 48 calls" in text
+          and "1 of 1 timed calls after the cache expired; 1 restarted on a CR that already had one"
+          in text and "0 restarted on a CR that already had one" in text, str(out))
+    check("`cost --explain` says the lifetime it used and ends with what the figures do not count",
+          "5 min after a 5-minute cache write, 1 h after a 1-hour one" in out[-2]
+          and out[-1] == "Not counted: 0 compaction calls, which leave no record (about $0.12 each, $0.00)",
+          str(out))
+    foreman_transcript = main.read_text()
+    main.write_text(foreman_transcript + json.dumps(
+        {"type": "system", "subtype": "compact_boundary", "timestamp": when[0]}) + "\n")
+    code, out = w.chantier("cost", "--explain", "--batch", w.name)
+    check("a compaction boundary is counted in what the figures do not count",
+          out[-1].startswith("Not counted: 1 compaction calls") and "$0.12 each, $0.12" in out[-1],
+          str(out))
+    main.write_text(foreman_transcript)
+    code, out = w.chantier("cost", "--by", "cr", "--batch", w.name)
+    crs = [int(a.replace(".", "")) for l in out[1:-1] for a in re.findall(r"\$(\d+\.\d{3}) \(", l)]
+    check("`cost --by cr` still adds up to the Drivers and workers, the Foreman first among them",
+          code == 0 and abs(sum(crs) - 1722) <= 3 and "foreman: $0.391 (30 calls)" in out
+          and "CR-101: $0.361 (19 calls)" in out and "other: $0.057 (3 calls)" in out, str(out))
+    for name in ("odd", "odd-worker", "lone"):
         (sub / f"agent-{name}.jsonl").unlink()
         (sub / f"agent-{name}.meta.json").unlink()
+    events.write_text(original_events, encoding="utf-8")
+    state.write_text(original_state)
     main.write_text(original)
 
 

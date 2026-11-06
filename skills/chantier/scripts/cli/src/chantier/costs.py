@@ -24,6 +24,7 @@ UV_INDEX_VARIABLES = ("UV_INDEX", "UV_DEFAULT_INDEX", "UV_INDEX_URL", "UV_EXTRA_
 
 # $/MTok: input, 5-min write, 1-h write, cache read, output, per exact model (a dated id of the
 # same model, `claude-sonnet-5-5-20261001`, has the same price). Any other model is refused.
+CACHE_5M, CACHE_1H = 300, 3600  # seconds a cache write lives, by the write used
 PRICE = {
     "claude-opus-5-5": (4, 5, 8, 0.20, 20),
     "claude-sonnet-5-5": (2, 2.5, 4, 0.10, 10),
@@ -85,10 +86,13 @@ def _when(text, path: Path, number: int) -> datetime | None:
 
 def usage(path: Path, since: str = "", until: str = "") -> dict:
     """A transcript's calls from `since` to `until`: a session can have run another batch."""
-    row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0,
-           "wakes": 0, "wake_context": 0, "peak_context": 0, "last_context": 0}
+    row = {"calls": 0, "usd": 0.0, "model": "?", "models": set(), "w5m": 0, "w1h": 0, "read": 0,
+           "out": 0, "wakes": 0, "wake_context": 0, "peak_context": 0, "last_context": 0,
+           "usd_in": 0.0, "usd_write": 0.0, "usd_read": 0.0, "usd_out": 0.0,  # dollars by kind
+           "compactions": 0, "timed": 0, "expired": 0}
     start, end = _when(since, path, 0), _when(until, path, 0)
     seen = set()
+    previous, lifetime = None, 0  # the last call's time, and how long its cache write lives
     woken = False  # a prompt, a message or a notification came in; a tool result is the same turn
     for number, line in enumerate(_transcript_lines(path), 1):
         if not line.strip():
@@ -104,6 +108,8 @@ def usage(path: Path, since: str = "", until: str = "") -> dict:
         when = _when(d.get("timestamp"), path, number)
         if (start and when and when < start) or (end and when and when > end):
             continue  # outside the window: neither a call nor a wake
+        if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
+            row["compactions"] += 1  # the compaction call itself leaves no priced record
         if d.get("type") == "user":
             woken = woken or _wakes(d)
         if d.get("type") != "assistant":
@@ -135,7 +141,18 @@ def usage(path: Path, since: str = "", until: str = "") -> dict:
         row["calls"] += 1
         for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
             row[k] += v
-        row["usd"] += sum(a * b for a, b in zip(t, PRICE[_family(row["model"], sum(t[:4]))])) / 1e6
+        row["models"].add(model)
+        parts = [a * b / 1e6 for a, b in zip(t, PRICE[_family(model, sum(t[:4]))])]
+        row["usd"] += sum(parts)
+        row["usd_in"] += parts[0]
+        row["usd_write"] += parts[1] + parts[2]
+        row["usd_read"] += parts[3]
+        row["usd_out"] += parts[4]
+        if previous and when and lifetime:  # measured: the gap since this agent's previous call
+            row["timed"] += 1
+            row["expired"] += (when - previous).total_seconds() > lifetime
+        previous = when
+        lifetime = CACHE_1H if t[2] else CACHE_5M if t[1] else lifetime
         row["peak_context"] = max(row["peak_context"], sum(t[:4]))
         row["last_context"] = sum(t[:4])
         if woken:

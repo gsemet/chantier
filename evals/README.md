@@ -85,7 +85,7 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
    uv run --no-project python evals/kit/audit.py <workspace>
    ```
 
-   and `$CHANTIER cost --by role`, `$CHANTIER cost --by cr` from the workspace.
+   and `$CHANTIER cost --explain`, `$CHANTIER cost --by cr` from the workspace.
 5. **Read the transcripts** for what a script cannot judge: did each agent do its role well
    (the Inspector's findings, the verifier's proof, the QA's scenarios, how a question was
    handled)?
@@ -113,7 +113,7 @@ Per CR, in plain words: what it asked, how it went, how it ended.
 Numbered. Each: what went wrong or could be better, why it matters, what to do.
 
 ## Numbers
-Duration, cost (total, by role, by CR), agents started, audit checks passed.
+Duration, cost (total, the breakdown, by CR), agents started, audit checks passed.
 
 ## For maintainers
 chantier version and commit, failed audit checks verbatim, anything to reproduce.

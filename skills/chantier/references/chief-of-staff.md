@@ -143,12 +143,12 @@ Only in the turn where the user gave the go:
   ✅ merged; they belong to the report, `STATUS.md` keeps its own.
   - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
     name, its mode, the slots in use, the CRs done, the spend and the budget); a table, one row per
-    CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); the cost table below;
+    CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); the cost table below (see Cost);
     a last line, always there, **For you:** what the user has to review or decide, or "nothing"
     (only a Tips line can follow it, see below).
   - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
     many, the spend and the budget); a table, one row per CR: CR, subject, result, PR, rounds, cost;
-    the cost table, one line per Driver type from `cost --by driver`; what the batch did not
+    the cost table (see Cost), then its explanation from `cost --explain`; what the batch did not
     prove; a last line, **For you:** closing the batch, with what `close` lists
     (only a Tips line can follow it, see below).
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
@@ -197,16 +197,26 @@ Only in the turn where the user gave the go:
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
-- **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at landing, four lines from
-  `$CHANTIER cost --by role` (a CR's own figure is the last field of its row in `status --refresh`,
-  a merged CR's included, never looked up elsewhere): orchestration,
-  the Foreman; review, the Inspector, the Verifier and a QA driver; implementation, all the
-  other roles, an unknown agent included; and your own session, the `Chief of Staff:` line of
-  that output, with its two figures (since the batch opened, the whole session) and its context
-  size. Report the lines as they are and give no figure when it fails; `not measured` stays
-  `not measured`. Your session is never in the batch's spend nor in its budget. `--by driver`
-  gives one line per Driver type, workers included. Compaction calls leave no record and are
-  not counted.
+- **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at landing, the
+  lines of `$CHANTIER cost`, as printed and in that order (a CR's own figure is the last field of
+  its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman,
+  one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff:`
+  line of that output, with its two figures (since the batch opened, the whole session) and its
+  context size. The CLI knows who is who from the record, not from a role name: the Foreman is
+  the main agent, a Driver has no parent, a worker has one, and a Driver of the user's own gets
+  its line under the type the host gives it. You group, add and regroup nothing: no orchestration,
+  implementation or review lines. Give no figure when it fails; `not measured` stays `not
+  measured` (on Copilot, where the host gives no parent link, an agent's line says only its
+  type). A Driver's line covers its own rebases, gates and file writes, besides the workers it
+  starts, which have their own lines. Your session is never in the batch's spend nor in its
+  budget.
+  - **Explaining the figures:** in the Completion report, and when the user asks why it cost
+    that, run `$CHANTIER cost --explain` and say it in a few plain lines in the user's language:
+    from the measures under each line (the agents, the calls, the model, the share of cost in
+    cache reads, cache writes and output, the calls after the cache expired, the Drivers
+    restarted on a CR that already had one) and its last lines (the cache's lifetime, what the
+    figures do not count: compaction calls leave no record). Say only what the output says; no
+    subagent is started for it, and nothing is guessed where it says `not measured`.
 - **Compacting:** once per session, advise the user to set the host's auto-compact window, if
   its reference names one (it says which command and setting, and names none when none exists).
   When the talk moves to another subject and your context size (the `Chief of Staff:` line) is

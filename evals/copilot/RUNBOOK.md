@@ -10,7 +10,7 @@ as possible. About $1.
 - **The Driver and its workers:** the Driver runs in the background (`task`), starts each worker
   with a prompt written from its card and the facts `chantier round` prints, and ends with a
   hand-back.
-- **The cost:** `chantier cost` measures the batch through copilot-session-usage, by role.
+- **The cost:** `chantier cost` measures the batch through copilot-session-usage, as a breakdown (`Agent <type>` lines).
 
 Follow the common steps in [the evals README](../README.md#run-a-campaign), on Copilot, with:
 
@@ -33,7 +33,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 - At least one heartbeat in the batch's event log.
 - One Driver; one coder, one Inspector, one verifier.
 - The audit runs before `close --yes` (it needs the batch folder).
-- The CR ends `merged` (in `4-archives/`), the batch `landed`; `chantier cost --by role` gives a figure per role.
+- The CR ends `merged` (in `4-archives/`), the batch `landed`; `chantier cost` prints the breakdown, an `Agent <type>` line per agent type.
 
 ## Still to fill in from a real run
 
