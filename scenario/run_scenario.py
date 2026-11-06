@@ -71,8 +71,10 @@ class World:
         self.env = {**os.environ, "PYTHONPATH": str(SKILL / "scripts" / "cli" / "src"),
                     "CHANTIER_SKILL_DIR": str(SKILL), "FAKE_GH_STATE": str(self.gh_state),
                     "CHANTIER_CLAUDE_PROJECTS": str(root / "claude-projects"),
-                    "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CHANTIER_HOST": "claude"}
-        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT"):
+                    "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CHANTIER_HOST": "claude",
+                    "CLAUDE_CODE_SESSION_ID": "uuid-chief"}  # the Chief of Staff's session
+        for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT",
+                    "COPILOT_AGENT_SESSION_ID"):
             self.env.pop(var, None)
         self.last_stderr = ""
         self.last_out: list[str] = []
@@ -662,13 +664,20 @@ def scenario(w: World) -> None:
     check("Claude cost prices the Foreman and each Driver",
           code == 0 and out[:2] == [f"{w.name}: $1.608 over 94 model calls",
                                     "foreman: $0.391 (30 calls)"]
-          and set(out[2:]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
+          and set(out[2:-1]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
+    check("the Chief of Staff's two figures and context size come apart from the batch's spend",
+          out[-1] == "Chief of Staff: $0.01 since the batch opened, $9.02 the whole session, "
+                     "context 22,010 tokens"
+          and abs(w.batch()["spent_usd"] - 1.608) < 0.001 and w.batch()["chief_transcript"]
+          == "uuid-chief", str(out))
     code, out = w.chantier("cost", "--summary", "--batch", w.name)
     check("the summary gives the total, the budget and the split by level: the Foreman, the "
           "Drivers (the agents that started others) and the workers",
           code == 0 and out[0] == "Total: $1.61 of a $50 budget"
           and out[1] == "Foreman $0.39 (24%), Drivers $0.91 (57%), workers $0.31 (19%)"
-          and out[2].startswith("Most: CR-10") and "Chief of Staff" in out[-1], str(out))
+          and out[2].startswith("Most: CR-10") and out[-2].startswith("Chief of Staff: $0.01")
+          and out[-1].startswith("Not counted: compaction calls")
+          and "Driver cr-driver: $1.22 (64 calls)" in out, str(out))
     amounts = [int(a.replace(".", "")) for a in re.findall(r"\$(\d+\.\d\d) \(", out[1])]
     shares = [int(s) for s in re.findall(r"\((\d+)%\)", out[1])]
     check("the three amounts and shares add up to the total and to 100 as printed",
@@ -685,6 +694,7 @@ def scenario(w: World) -> None:
     check("an archived CR keeps its final cost and no link into the batch",
           "$0.30." in archived and "../STATUS.md" not in archived
           and "- [x] Merged" in archived, archived)
+    cost_audit(w)
 
     note("\n## 10. Copilot cost")
     copilot_cost(w, d)
@@ -1553,12 +1563,13 @@ def copilot_cost(w: World, d: dict) -> None:
           code == 0 and out == [
               f"{w.name}: $1.875 over 4 model calls (1 estimated, not billed)",
               "foreman: $1.000 (1 calls)", "cr-driver: $0.500 (1 calls)",
-              "coder: $0.375 (2 calls)"], str(out))
+              "coder: $0.375 (2 calls)", "Chief of Staff: not measured"], str(out))
     code, out = w.chantier("cost", "--batch", w.name, "--by", "cr", env=env)
     check("Copilot cost attributes calls by agent, name and other",
           code == 0 and out[1:] == [
               "foreman: $1.000 (1 calls)", f"{assigned['id']}: $0.500 (1 calls)",
-              f"{named['id']}: $0.250 (1 calls)", "other: $0.125 (1 calls)"], str(out))
+              f"{named['id']}: $0.250 (1 calls)", "other: $0.125 (1 calls)",
+              "Chief of Staff: not measured"], str(out))
 
     def fails(label, expected, message, overrides=None):
         code, out = w.chantier("cost", "--batch", w.name, env={**env, **(overrides or {})},
@@ -1625,6 +1636,50 @@ def copilot_uv(w: World) -> None:
               and all(os.environ.get(name) == env[name] for name in index_variables))
 
 
+def cost_audit(w: World) -> None:
+    """The window of a batch's cost: a relay's sum, a reused Foreman, a Driver of an unknown type."""
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    main = w.root / "claude-projects" / slug / "uuid-foreman.jsonl"
+    state = w.folder() / "batch.json"
+    original, original_state = main.read_text(), state.read_text()
+
+    def msg(mid, out, **fields):
+        return json.dumps({"type": "assistant", **fields, "message": {
+            "id": mid, "model": "claude-sonnet-5-5", "usage": {
+                "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
+                "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
+
+    # a Foreman reused for a later batch: its calls after the landing are not this batch's
+    main.write_text(original + msg("later", 900_000, timestamp="2999-01-01T00:00:00.000Z"))
+    code, out = w.chantier("cost", "--batch", w.name)
+    check("a landed batch stops at its landing, and a `<synthetic>` record costs nothing",
+          code == 0 and out[0] == f"{w.name}: $1.608 over 94 model calls", str(out))
+    # a relay: the next Foreman's transcript is summed with the first
+    main.with_name("uuid-foreman-2.jsonl").write_text(msg("r1", 300) + msg("r2", 300))
+    d = json.loads(original_state)
+    state.write_text(json.dumps({**d, "foreman_transcripts": ["uuid-foreman", "uuid-foreman-2"]}))
+    code, out = w.chantier("cost", "--batch", w.name)
+    check("a relay's Foreman transcripts are summed", code == 0
+          and out[0] == f"{w.name}: $1.634 over 96 model calls", str(out))
+    state.write_text(original_state)
+    # a Driver of a type nobody knows gets its own line, with the worker it started
+    sub = main.with_suffix("") / "subagents"
+    for name, kind, parent, n in (("odd", "my-own-driver", None, 2), ("odd-worker", "coder", "odd", 1)):
+        f = sub / f"agent-{name}.jsonl"
+        f.write_text("".join(msg(f"{name}{i}", 900) for i in range(n)))
+        f.with_suffix("").with_suffix(".meta.json").write_text(
+            json.dumps({"agentType": kind, **({"parentAgentId": parent} if parent else {})}))
+    code, out = w.chantier("cost", "--by", "driver", "--batch", w.name)
+    check("`cost --by driver` gives a Driver type its workers' calls, and an unknown type its own line",
+          code == 0 and "cr-driver: $1.217 (64 calls)" in out
+          and "my-own-driver: $0.057 (3 calls)" in out and "foreman: $0.391 (30 calls)" in out
+          and "coder: $0.012" not in "".join(out), str(out))
+    for name in ("odd", "odd-worker"):
+        (sub / f"agent-{name}.jsonl").unlink()
+        (sub / f"agent-{name}.meta.json").unlink()
+    main.write_text(original)
+
+
 def fake_transcripts(w: World, d: dict) -> None:
     from_root = str(w.work.resolve())
     slug = "".join(ch if ch.isalnum() else "-" for ch in from_root)
@@ -1643,8 +1698,17 @@ def fake_transcripts(w: World, d: dict) -> None:
 
     result = [{"type": "tool_result", "content": "ok"}]  # the same turn goes on: not a wake
     earlier = msg("old", "claude-sonnet-5-5", 900_000, timestamp="2000-01-01T00:00:00.000Z")
-    main.write_text(earlier + "".join((user("a wake") if i % 3 == 0 else user(result))
-                                      + msg(f"f{i}", "claude-sonnet-5-5", 300) for i in range(30)))
+    # a call in the opening second, with a fraction: a text comparison drops it
+    opening = d["created"].removesuffix("Z") + ".250Z"
+    synthetic = json.dumps({"type": "assistant", "message": {  # an API error: no tokens
+        "id": "syn", "model": "<synthetic>", "usage": {
+            "input_tokens": 0, "output_tokens": 0, "cache_read_input_tokens": 0}}}) + "\n"
+    main.write_text(earlier + synthetic + "".join(
+        (user("a wake") if i % 3 == 0 else user(result))
+        + msg(f"f{i}", "claude-sonnet-5-5", 300, **({"timestamp": opening} if i == 0 else {}))
+        for i in range(30)))
+    chief = main.with_name("uuid-chief.jsonl")  # the Chief of Staff: an earlier subject, then now
+    chief.write_text(earlier + msg("c1", "claude-sonnet-5-5", 300))
     (sub / "agent-earlier.jsonl").write_text(earlier)  # the session's earlier batch costs nothing
     for c in d["crs"]:
         if c.get("agent") and c["status"] != "cancelled":
