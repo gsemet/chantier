@@ -139,10 +139,9 @@ Only in the turn where the user gave the go:
 - **Reports:** a Progress report and a Completion report always have the same shape: the columns
   are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
   remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote, as for
-  P9). Icons, each with its word beside it: ⚪ not started, 🟡 working, 🟠 waiting, 🔵 to
-  review, 🔴 blocked, ✅ merged. They belong to the Progress report: `STATUS.md`, the board and
-  `status` keep their own, and the record does not change (it has one `blocked` state). You
-  judge 🟠 or 🔴 from the `blocked` text and the batch's state. 🟠 is a CR that waits for a
+  P9). Icons, each with its word beside it: ⚪ not started or dropped, 🟡 working, 🟠 waiting,
+  🔵 to review, 🔴 blocked, ✅ merged. Each icon is the one `status` draws in the CR's `label`
+  (the same as `STATUS.md` and the board): copy it, never judge it. 🟠 is a CR that waits for a
   thing already on its way, named: the stack driver, another CR, a slot. 🔴 is a CR that
   nothing moves until someone decides or repairs it.
   - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and

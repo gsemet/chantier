@@ -11,14 +11,14 @@ import json
 import os
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
-from .rails import waits_all
+from .rails import slot_free, waits_all
 from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
 PAST_LIMIT = 50  # landed and trashed CRs listed in the index; the totals count them all
-ICON = {"red": "🔴", "yellow": "🟡", "green": "🟢", "grey": "⚪"}
-ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", "rounds"}
+ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", "rounds", "waits"}
 ENDED = {"merged", "cancelled"}
 AHEAD = ("Shipped", "Handed back")
 IN_PROGRESS = ("draft:",)  # shown in `Documents`, not in `Decisions`
@@ -68,18 +68,42 @@ def waits(d: dict, c: dict) -> list[str]:
     return waits_all(d["crs"], c) if c["status"] == "queued" else []
 
 
-def label(c: dict, max_rounds: int, waiting: list[str] | None = None) -> str:
+def _waits_on(c: dict) -> bool:
+    """A blocked CR that waits for a thing already on its way: nobody has to decide."""
+    return c["status"] == "blocked" and (c.get("blocked_reason") or "").lower().startswith("waits:")
+
+
+def free_slot(d: dict) -> bool:
+    return slot_free(SimpleNamespace(data=d))
+
+
+def icon(c: dict, waiting: list[str], free: bool) -> str:
+    """The icon of a state, the one the report copies; `severity` is another reading."""
+    status = c["status"]
+    if status == "queued":
+        return "🟠" if waiting or not free else "⚪"
+    if status == "blocked":
+        return "🟠" if _waits_on(c) else "🔴"
+    return {"working": "🟡", "ready": "🔵", "merged": "✅", "cancelled": "⚪"}[status]
+
+
+def label(c: dict, max_rounds: int, waiting: list[str] | None = None, free: bool = True) -> str:
     """`🔴 blocked CI 1/3`: how a CR's state reads in every table."""
     state = "dropped" if c["status"] == "cancelled" else c["status"]
+    mark = icon(c, waiting or [], free)
     if waiting:
-        return f"{ICON[severity(c)]} {state}, waits for {', '.join(waiting)}"
+        return f"{mark} {state}, waits for {', '.join(waiting)}"
     if c["status"] in ENDED | {"queued"}:
-        return f"{ICON[severity(c)]} {state}"
-    return f"{ICON[severity(c)]} {state} {step(c)} {_round(c)}/{max_rounds}"
+        return f"{mark} {state}"
+    return f"{mark} {state} {step(c)} {_round(c)}/{max_rounds}"
 
 
 def _now_next(c: dict, waiting: list[str]) -> tuple[str, str]:
     pr = c.get("pr") or f"its {forge_word([])}"
+    if _waits_on(c):
+        what = c["blocked_reason"].split(":", 1)[1].strip() or "something on its way"
+        return (c["blocked_reason"],
+                f"Waits for {what}; the Foreman takes it back when that lands.")
     if c["status"] == "blocked":
         return (c.get("blocked_reason") or "Blocked.",
                 "The user's answer, through the Chief of Staff.")
@@ -164,7 +188,7 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
     number = re.search(r"(\d+)/?$", pr) if pr else None
     return {"schema": SCHEMA, "updated": now(), "cr": c["id"], "title": c["title"],
             "batch": d["folder"], "in_batch": in_batch, "state": c["status"],
-            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c), waiting),
+            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c), waiting, free_slot(d)),
             "waits": waiting, "round": c.get("round", 0), "max_rounds": round_limit(d, c),
             "now": now_line, "next": next_line,
             "pr": {"url": pr, "number": int(number[1]) if number else None} if pr else None,
@@ -210,7 +234,7 @@ def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     waiting = waits(d, c)
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
-            "step": step(c), "label": label(c, round_limit(d, c), waiting), "waits": waiting,
+            "step": step(c), "label": label(c, round_limit(d, c), waiting, free_slot(d)), "waits": waiting,
             "round": c.get("round", 0), "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
             "silent_minutes": round(silent) if silent is not None else None,

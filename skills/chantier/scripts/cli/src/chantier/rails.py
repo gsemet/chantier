@@ -70,8 +70,13 @@ def held(b: Batch) -> list[str]:
     return [x["id"] + " working" for x in live(b)] + [f"{o['id']} qa" for o in qa_open(b)]
 
 
+def slot_free(b) -> bool:
+    """A slot is free by the rule `take` applies. `b` is a Batch or anything with a `.data`."""
+    return len(held(b)) < b.data["slots"]
+
+
 def check_slot(b: Batch, what: str) -> None:
-    if len(held(b)) >= b.data["slots"]:
+    if not slot_free(b):
         raise ChantierError(f"no free slot for {what}: {len(held(b))} of {b.data['slots']} held "
                             f"({', '.join(held(b)) or 'slots 0'})")
 

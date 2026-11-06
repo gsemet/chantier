@@ -62,9 +62,11 @@ The CLI keeps the CR's record and tells you what is off.
   branch; on another base it stays a draft and the text after the link says so and what it
   waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
-  `rounds:`, `refused`): it writes the state and prints the line to send the Foreman
-  (how it reaches the Foreman is your host's reference). Then end: ending frees
-  your slot. A decision only the user can take is `blocked question: <text>`.
+  `rounds:`, `refused`, `waits: <what>`): it writes the state and prints the line to send the
+  Foreman (how it reaches the Foreman is your host's reference). Then end: ending frees
+  your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
+  <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
+  decide: the CR shows 🟠, and the Foreman takes it back when that thing lands.
 - A force push the host refuses (any Driver that pushes): the Chief of Staff runs it for you.
   With your work committed, send `[driver <cr>→foreman] push <branch> <expected remote sha>
   <local sha>` (the remote head you expect, from `git ls-remote`, and your head), then wait: no
