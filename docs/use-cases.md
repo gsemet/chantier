@@ -134,9 +134,12 @@ is kept.
 
 > "What did tonight's batch cost?" · "Who cost the most?"
 
-`chantier cost` measures the Foreman's session and every agent under it, by role or by CR, from
-the transcripts (Claude) or the billed records (Copilot). A missing transcript or an unknown
-model is an error, never an estimate. Your own session is not included.
+`chantier cost` measures the Foreman's session and every agent under it, in one line for the
+Foreman, one per Driver type and one per worker type (or by CR), from the transcripts (Claude) or
+the billed records (Copilot). A missing transcript or an unknown model is an error, never an
+estimate. Your own session is priced apart. Ask "why did it cost that?" and the figures are
+explained from what was measured: the calls, the model, the shares of cost, the calls after the
+cache expired, the restarted Drivers.
 
 You also get it unasked: one line per CR when it is ready or merged, and a summary when the batch
 lands (total, budget, the split between Foreman, Drivers and workers, the costliest CRs).

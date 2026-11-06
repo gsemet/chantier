@@ -117,7 +117,7 @@ Talk to the Chief of Staff in plain language:
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the Foreman, never a direct action on a Driver |
 | "release v1.4.0" | a release CR, run by your project's procedure; you approve each irreversible action |
-| "what did it cost?" | measured cost, by role or by CR |
+| "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
 | "which agents and models?" | the team: each role, its agent, its model |
@@ -236,19 +236,24 @@ current directory.
 
 ## Costs and budgets
 
-`chantier cost` reports what the Foreman's session and its subagents cost, in total, by role or
-by CR. On Claude, chantier prices the transcripts with its own rates for Opus, Sonnet and Haiku
-5.5; on Copilot, it reads per-call costs from
+`chantier cost` reports what the Foreman's session and its subagents cost, in total and in one
+line for the Foreman, one per Driver type and one per worker type (or by CR), and the lines add up
+to the total. `chantier cost --explain` adds what explains each figure: the agents, the calls, the
+model, the shares of cost in cache reads, cache writes and output, the calls made after the cache
+expired and the Drivers restarted. The reports show these lines as printed. On Claude, chantier
+prices the transcripts with its own rates for Opus, Sonnet and Haiku 5.5; on Copilot, it reads
+per-call costs from
 [copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
 PyPI, and flags calls that were estimated rather than billed. A missing transcript, an unknown
 model or an unpriced call is an error, never a guess. The Foreman records the spend at each
 heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
 
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
-ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget, the split between
-Foreman, Drivers and workers, the costliest CRs and the Foreman's wakes and context (`chantier cost --summary`).
-The Chief of Staff's own session is priced apart: its line shows two figures (since the batch opened, the whole
-session) and its context size, and it is never in the batch's spend nor in its budget.
+ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget,
+the split between Foreman, Drivers alone and workers alone, the costliest CRs and the Foreman's
+wakes and context (`chantier cost --summary`). The Chief of Staff's own session is priced apart:
+its line shows two figures (since the batch opened, the whole session) and its context size, and
+it is never in the batch's spend nor in its budget.
 
 ## Repository layout
 

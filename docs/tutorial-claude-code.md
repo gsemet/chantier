@@ -120,7 +120,7 @@ While the team works, keep talking to the Chief of Staff:
 | "drop CR-102" | the Foreman stops its Driver; the folder goes to `5-trash/` |
 | "CR-103 first" | a note on the CR; the Foreman gives it the next free slot |
 | "for CR-101, also handle the remember-me checkbox" | a note on the CR; the Driver takes it into its next round |
-| "what did it cost?" | the measured cost so far, by role or by CR |
+| "what did it cost?" | the measured cost so far: the Foreman, each Driver type, each worker type |
 
 When a CR needs a decision only you can take, the Chief of Staff brings you the question. Your
 answer is recorded in the CR's `02-answers.md` and the work resumes.

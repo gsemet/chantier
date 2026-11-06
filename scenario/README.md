@@ -42,7 +42,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - `land` refused while PRs are open, then landing after the user's merges and the Foreman's
   cleanup; the long gate serialized, and held while the suite of a gate whose command died
   still runs;
-- Claude cost by CR; Copilot cost by role and CR, estimated calls, updates and failures;
+- Claude cost by CR; Copilot cost breakdown (`Agent <type>` lines) and by CR, estimated calls, updates and failures;
 - prepared-CR filing, lifecycle moves, collisions and rollback;
 - a release: it waits for the batch's other CRs, an irreversible action refused then approved
   (a `go` that dies with its Driver), a fix CR that stops every `go` until it merges and a new
