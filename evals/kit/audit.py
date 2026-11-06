@@ -245,14 +245,15 @@ def main() -> int:
     args = ap.parse_args()
     ws = args.workspace.resolve()
     changes = ws / ".agents" / "changes"
-    # a batch folder is `3-requests/<NN>-<name>/` and holds a batch.json; run before `close --yes`
+    # a batch folder is `3-requests/batch-<n>/` and holds a batch.json; run before `close --yes`
     found = sorted(p.parent for p in (changes / "3-requests").glob("*/batch.json"))
     if args.batch:
-        found = [p for p in found if re.fullmatch(rf"\d+-{re.escape(args.batch)}", p.name)]
+        number = re.sub(r"\D", "", args.batch)  # `4`, `04` or `batch-04`
+        found = [p for p in found if re.fullmatch(rf"batch-0*{number}", p.name)]
     if not found:
         raise SystemExit("no batch folder in 3-requests/: run the audit before `chantier close --yes`")
     folder = found[-1]
-    batch = folder.name.split("-", 1)[1]
+    batch = folder.name
     data = json.loads((folder / "batch.json").read_text(encoding="utf-8"))
     events = list(records(folder / "events.jsonl"))
     results: list[tuple[bool, str]] = []

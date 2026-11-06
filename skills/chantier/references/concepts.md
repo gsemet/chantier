@@ -23,11 +23,16 @@ started.
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
-  (the user prioritized it) → `3-requests/<NN>-<batch>/<number>-<slug>/` (in a batch) →
+  (the user prioritized it) → `3-requests/batch-<n>/<number>-<slug>/` (in a batch) →
   `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged) or `5-trash/…` (dropped, with its work;
   it returns to the inbox only on the user's word).
-- **Batch:** the CRs the user starts together, in parallel or as a stack of PRs; its folder is
-  `3-requests/<NN>-<name>/`, and `--batch` takes the name. Each CR is named a branch
+- **Batch:** the CRs active at one time under one Foreman. It has no name, only a number: `batch-<n>`
+  (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
+  takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
+  work joins it through the Foreman (`order add`). It is a stack of PRs by default, each CR on the
+  one under it; `open --parallel` makes independent CRs instead. A release CR and a fix CR sit
+  outside the stack, on the default branch. When a stack merges only in part, what remains forms
+  another stack in the same batch, restacked on the default branch. Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
   user's word.

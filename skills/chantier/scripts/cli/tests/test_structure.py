@@ -146,7 +146,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert code == 0, out
     assert sh("git", "status", "--porcelain", cwd=repo) == ""
     folder = _prepared(repo, chantier)
-    code, _, err = chantier("open", "b1", str(folder), *FROM_AGENTS_MD)
+    code, _, err = chantier("open", str(folder), *FROM_AGENTS_MD)
     assert code == 0, err
     assert chantier("status")[1][-1].startswith("CR-101 queued")
     # the CLI names the branch and the worktree; the Driver creates them
@@ -165,7 +165,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert chantier("round", "CR-101")[0] == 5  # the round limit is a rail
     assert chantier("order", "rounds", "CR-101", "--note", "4")[0] == 0
     assert chantier("round", "CR-101")[0] == 0
-    _, out, _ = chantier("rules", "--batch", "b1")  # every prompt passes --batch
+    _, out, _ = chantier("rules", "--batch", "1")  # every prompt passes --batch
     assert out[0].startswith(str(repo / "AGENTS.md").replace("\\", "/"))
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines() and all(
         line.startswith("?? .agents/changes/")

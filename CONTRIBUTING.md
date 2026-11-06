@@ -23,7 +23,7 @@ chantier is four things in one repository:
    only in the target repository's
    `.agents/changes/`, as plain JSON and Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
    `3-requests/`, `4-archives/` and `5-trash/` (each with a `work/` folder while it runs), and
-   the batch folders `3-requests/<NN>-<batch>/` (`batch.json`, `events.jsonl`, the brief,
+   the batch folders `3-requests/batch-<n>/` (`batch.json`, `events.jsonl`, the brief,
    `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. A new CLI tool comes only from measured token-costly behaviour of the

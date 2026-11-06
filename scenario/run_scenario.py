@@ -76,7 +76,7 @@ class World:
             self.env.pop(var, None)
         self.last_stderr = ""
         self.last_out: list[str] = []
-        self.name = "night"
+        self.name = ""  # the open batch's id, `batch-<n>`: the CLI numbers it
 
     def sh(self, *args, cwd=None):
         return subprocess.run(args, cwd=cwd or self.work, check=True, capture_output=True,
@@ -141,7 +141,19 @@ class World:
         return json.loads((self.folder() / "batch.json").read_text())
 
     def folder(self, name=None):
-        return next((self.state / "3-requests").glob(f"*-{name or self.name}"))
+        return self.state / "3-requests" / (name or self.name)
+
+    def start(self, *args, **kw):
+        """`open` takes no name: the batch is `batch-<n>`, and it is the one open batch."""
+        code, out = self.chantier("open", *args, **kw)
+        if code == 0:
+            self.name = out[0].split()[1]
+        return code, out
+
+    def reset(self) -> None:
+        """Sweep what an earlier case left open: `open` refuses a second batch."""
+        for d in (self.state / "3-requests").glob("batch-*"):
+            shutil.rmtree(d)
 
     def cr(self, cr_id):
         return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
@@ -424,24 +436,28 @@ def scenario(w: World) -> None:
     note("\n## 2. The Chief of Staff opens the batch and starts the Foreman")
     items = [prepare_cr(w, title) for title in
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
-    code, _ = w.chantier("open", "raw-title", "Fix login", *FROM_AGENTS_MD, expect=1)
+    code, _ = w.chantier("open", "Fix login", *FROM_AGENTS_MD, expect=1)
     check("a raw title cannot bypass the prepared CR", code == 1 and items[0][1].is_dir())
-    w.chantier("open", "night", *(str(backlog) for _, backlog in items),
-               "--slots", 2, "--budget", 50, *FROM_AGENTS_MD)
+    w.start(*(str(backlog) for _, backlog in items), "--parallel",
+            "--slots", 2, "--budget", 50, *FROM_AGENTS_MD)
+    check("the batch is numbered, has no name, and `--batch` takes the number",
+          w.name == "batch-01" and w.folder().is_dir()
+          and w.chantier("status", "--batch", "1")[0] == 0
+          and w.chantier("status", "--batch", "batch-01")[0] == 0, w.name)
     w.chantier("foreman", "set", "local_foreman1", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
     d = w.batch()
     check("four CRs, each with a branch and a worktree named, none created: the CLI changes "
           "nothing in git",
-          len(d["crs"]) == 4 and all(c["branch"].startswith("chantier/night/cr-10")
+          len(d["crs"]) == 4 and all(c["branch"].startswith(f"chantier/{w.name}/cr-10")
                                      and not Path(c["worktree"]).exists() for c in d["crs"]))
     code, _ = w.chantier("gate", "CR-103", GATE, expect=2)
     check("a command that needs the worktree says who creates it",
           code == 2 and "its Driver creates it" in w.last_stderr, w.last_stderr)
     check("opening moves the entire prepared folders into requests",
           all(not backlog.exists() for _, backlog in items)
-          and all("/3-requests/01-night/" in c["path"]
+          and all(f"/3-requests/{w.name}/" in c["path"]
                   and (w.work / c["path"] / "intake/request.md").is_file()
                   and (w.work / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
     fm.turn()
@@ -461,7 +477,7 @@ def scenario(w: World) -> None:
     _, added = prepare_cr(w, "Waits in the backlog", "P3")
     board = (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8")
     check("the board shows the open batch and what `triage` just moved",
-          "[Batch 01-night](01-night/STATUS.md)" in board and "Fix login timeout" in board
+          f"[{w.name}]({w.name}/STATUS.md)" in board and "Fix login timeout" in board
           and "| P3 |" in board and "Waits in the backlog" in board, board)
 
     note("\n## 3. CR-101: one round, the Driver's own push and PR, hand-back")
@@ -640,12 +656,12 @@ def scenario(w: World) -> None:
     check("four PRs were opened on the fake forge by the Drivers", len(set(prs.values())) == 4)
 
     note("\n## 9. Cost")
-    code, out = w.chantier("cost", "--by", "cr", "--batch", "night")
+    code, out = w.chantier("cost", "--by", "cr", "--batch", w.name)
     check("Claude cost prices the Foreman and each Driver",
-          code == 0 and out[:2] == ["night: $1.608 over 94 model calls",
+          code == 0 and out[:2] == [f"{w.name}: $1.608 over 94 model calls",
                                     "foreman: $0.391 (30 calls)"]
           and set(out[2:]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
-    code, out = w.chantier("cost", "--summary", "--batch", "night")
+    code, out = w.chantier("cost", "--summary", "--batch", w.name)
     check("the summary gives the total, the budget and the split by level: the Foreman, the "
           "Drivers (the agents that started others) and the workers",
           code == 0 and out[0] == "Total: $1.61 of a $50 budget"
@@ -684,7 +700,9 @@ def scenario(w: World) -> None:
           created in calls and merged not in calls and "edit" not in calls and '"PUT"' not in calls,
           calls[-300:])
     close_batch(w)
+    copilot_missing_transcript(w)
     lifecycle_regressions(w)
+    stack_batch(w)
     release(w)
     granted_fixes(w)
     qa_on_head(w)
@@ -703,7 +721,7 @@ def status_files(w: World) -> None:
           all(part in text for part in ("**Now:**", "**Next:**", "## Progress", "- [x] Round 1",
                                         "- [x] Long gate", "- [x] Shipped", "- [x] Handed back",
                                         "## Documents", "[specification](03-change-spec.md)",
-                                        "## Where", "[Batch 01-night](../STATUS.md)")), text)
+                                        "## Where", f"[{w.name}](../STATUS.md)")), text)
     view = json.loads((folder / "STATUS.json").read_text(encoding="utf-8"))
     check("its STATUS.json says the same, with more",
           view["cr"] == "CR-104" and view["state"] == "ready" and view["step"] == "Notify"
@@ -773,14 +791,15 @@ def board_index(w: World, d: dict) -> None:
 
 def close_batch(w: World) -> None:
     note("\n## 11b. Closing the batch, on the user's word")
-    folder, dropped = w.folder("night"), w.cr("CR-103")
-    code, out = w.chantier("close", "--batch", "night")
+    folder, dropped = w.folder(), w.cr("CR-103")
+    name = w.name
+    code, out = w.chantier("close", "--batch", name)
     check("`close` alone says what would go, names the dropped CR's worktree and branch, and "
           "touches nothing",
           code == 0 and folder.is_dir() and Path(dropped["worktree"]).is_dir()
           and any(folder.name in ln for ln in out) and "--yes" in out[-1]
           and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out), str(out))
-    _, out = w.chantier("close", "--batch", "night", "--yes")
+    _, out = w.chantier("close", "--batch", name, "--yes")
     check("`close --yes` deletes the batch folder only, and repeats what is left to remove",
           not folder.exists() and Path(dropped["worktree"]).is_dir()
           and any(dropped["worktree"] in ln for ln in out), str(out))
@@ -792,26 +811,27 @@ def close_batch(w: World) -> None:
           and not w.sh("git", "branch", "--list", dropped["branch"]))
     board = (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8")
     check("the archives and the trash stay, and the board forgets the batch",
-          "01-night" not in board and (w.work / dropped["path"] / "STATUS.md").is_file(), board)
+          name not in board and (w.work / dropped["path"] / "STATUS.md").is_file(), board)
 
 
 def failed_opening(w: World) -> None:
     note("\n## 17. Openings that fail")
+    w.reset()
     _, item = prepare_cr(w, "Latin one specification")
     spec = item / "03-change-spec.md"
     good = spec.read_bytes()
     spec.write_bytes("# Spécification\n".encode("latin-1"))
-    code, _ = w.chantier("open", "latin", str(item), *FROM_AGENTS_MD, expect=None)
+    code, _ = w.chantier("open", str(item), *FROM_AGENTS_MD, expect=None)
     check("a specification that is not UTF-8 is named, not a traceback",
           code == 2 and "not UTF-8" in w.last_stderr and "Traceback" not in w.last_stderr,
           w.last_stderr)
     spec.write_bytes(good)
-    code, _ = w.chantier("open", "stuck", str(item), str(w.root / 'nowhere'), *FROM_AGENTS_MD,
+    code, _ = w.chantier("open", str(item), str(w.root / 'nowhere'), *FROM_AGENTS_MD,
                          expect=None)
     check("a second item that is not a prepared CR fails the opening, and the first one is "
           "restored where it was",
           code != 0 and (item / "03-change-spec.md").is_file()
-          and not list((w.state / "3-requests").glob("*-stuck")), w.last_stderr)
+          and not list((w.state / "3-requests").glob("batch-*")), w.last_stderr)
 
 
 def lock_names(w: World, what: str) -> bool:
@@ -834,8 +854,9 @@ def cancel_during_gate(w: World) -> None:
     slow = w.root / "slow_gate.py"
     slow.write_text("import time\ntime.sleep(60)\n")
     gate = f"uv run --no-project python {slow.as_posix()}"
-    w.chantier("open", "halt", str(item), "--default-branch", "main")
-    w.name, w.env["CHANTIER_BATCH"] = "halt", "halt"
+    w.reset()
+    w.start(str(item), "--default-branch", "main")
+    w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
     Foreman(w, epoch=1).turn()
     cr = w.batch()["crs"][0]["id"]
@@ -858,9 +879,9 @@ def rails(w: World) -> None:
     slow = w.root / "slow_long.py"
     slow.write_text("import time\ntime.sleep(2)\n")
     long_gate = f'"{sys.executable}" "{slow}"'
-    w.chantier("open", "rails", str(a), str(b), "--slots", 1, "--budget", 1,
-               "--default-branch", "main")
-    w.name, w.env["CHANTIER_BATCH"] = "rails", "rails"
+    w.reset()
+    w.start(str(a), str(b), "--parallel", "--slots", 1, "--budget", 1, "--default-branch", "main")
+    w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman7", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
@@ -945,6 +966,81 @@ def rails(w: World) -> None:
           f"{waited:.1f}s {out}")
 
 
+def stack_batch(w: World) -> None:
+    note("\n## 13. A stack by default, one open batch, a stack merged in part")
+    w.reset()
+    bottom, middle, top = (prepare_cr(w, t)[1] for t in ("Stack bottom", "Stack middle", "Stack top"))
+    _, joined = prepare_cr(w, "Stack joiner")
+    w.start(str(bottom), str(middle), str(top), *FROM_AGENTS_MD)
+    d = w.batch()
+    check("`open` makes a stack of four slots by default; the batch is `batch-<n>`",
+          d["mode"] == "stack" and d["slots"] == 4 and re.fullmatch(r"batch-\d\d", d["id"])
+          and d["id"] == w.name and w.folder().name == w.name
+          and d["crs"][0]["branch"].startswith(f"chantier/{w.name}/")
+          and Path(d["crs"][0]["worktree"]).name == f"{w.name}-{d['crs'][0]['id']}", str(d))
+    code, _ = w.chantier("open", str(joined), *FROM_AGENTS_MD, expect=2)
+    check("a second `open` is refused while a batch is open, and says which",
+          code == 2 and w.name in w.last_stderr and "order add" in w.last_stderr
+          and joined.is_dir() and len(list((w.state / "3-requests").glob("batch-*"))) == 1,
+          w.last_stderr)
+    w.chantier("foreman", "set", "local_foreman8", "--epoch", 1)
+    w.env["CHANTIER_BATCH"] = w.name.removeprefix("batch-").lstrip("0")  # the number alone
+    fm = Foreman(w, epoch=1)
+    fm.turn()
+    one, two, three = (c["id"] for c in w.batch()["crs"])
+    base = {c: w.chantier("handoff", c)[1] for c in (one, two, three)}
+    check("a stack: each CR stands on the one under it, the first on the default branch",
+          fm.started == [one, two, three]
+          and any(f"base origin/main" in ln for ln in base[one])
+          and any(f"base {w.cr(one)['branch']}" in ln for ln in base[two])
+          and any(f"base {w.cr(two)['branch']}" in ln for ln in base[three]), str(base))
+    for i, cr in enumerate((one, two, three)):
+        driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
+        w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+    _, out = w.chantier("order", "add", "--note", str(joined))
+    d = w.batch()
+    four = d["crs"][-1]["id"]
+    check("`order add` joins the open batch, on top of the stack; no batch is opened",
+          len(d["crs"]) == 4 and w.cr(four)["status"] == "queued"
+          and w.cr(four)["path"].startswith(f".agents/changes/3-requests/{w.name}/")
+          and len(list((w.state / "3-requests").glob("batch-*"))) == 1
+          and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
+          str(out))
+    fm.turn()
+    driver_round(w, four, "stack3.py", "N = 3\n")
+    w.chantier("handback", four, "ready", w.cr(four)["pr"])
+
+    _, out = w.chantier("order", "merged", one)
+    d = w.batch()
+    check("the bottom merges alone: it is archived at once and the batch stays open",
+          w.cr(one)["status"] == "merged" and "/4-archives/" in w.cr(one)["path"]
+          and (w.work / w.cr(two)["path"]).is_dir() and d["status"] == "open"
+          and all(w.cr(c)["status"] == "ready" for c in (two, three, four)), str(out))
+    _, out = w.chantier("take", "stack", "--epoch", 1)
+    check("what remains forms another stack: the first now stands on the default branch",
+          out[0].endswith(f"{two} → {three} → {four}")
+          and f"{two} ready" in out[1] and "base origin/main" in out[1]
+          and f"base {w.cr(two)['branch']}" in out[2], str(out))
+    w.chantier("agents", "set", "stack", "agent-stack", "--epoch", 1)
+    code, _ = w.chantier("take", "stack", "--epoch", 1, expect=2)
+    check("one stack driver at a time, and the batch does not land under it",
+          code == 2 and w.chantier("land", "--epoch", 1, expect=2)[0] == 2
+          and w.batch()["status"] == "open")
+    w.chantier("ship", two, w.cr(two)["pr"])
+    ships = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
+    last = [e for e in ships if e["kind"] == "ship" and e["cr"] == two][-1]
+    check("the restacked PR is recorded on the default branch", last["base"] == "main", str(last))
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    for cr in (two, three, four):
+        w.chantier("order", "merged", cr)
+    fm.turn()
+    check("the stack merged piece by piece: the batch lands, then closes",
+          fm.landed and w.batch()["status"] == "landed"
+          and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
+          and not w.folder().exists())
+    w.env.pop("CHANTIER_BATCH", None)
+
+
 def release(w: World) -> None:
     note("\n## 14. A release: the project's procedure, approvals, a fix, a grant")
     _, change = prepare_cr(w, "Last change")
@@ -952,12 +1048,12 @@ def release(w: World) -> None:
     bad = (("--release", 3), ("--release", 2, "--grant-fixes"),
            ("--autonomous-releases", 1, "--budget", 5))
     for args in bad:
-        code, _ = w.chantier("open", "ship", str(change), str(version), *FROM_AGENTS_MD, *args,
+        code, _ = w.chantier("open", str(change), str(version), *FROM_AGENTS_MD, *args,
                              expect=1)
         check(f"open refuses {args}", code == 1 and change.is_dir())
-    w.chantier("open", "ship", str(change), str(version), "--release", 2, "--slots", 2,
-               *FROM_AGENTS_MD)
-    w.name, w.env["CHANTIER_BATCH"] = "ship", "ship"
+    w.reset()
+    w.start(str(change), str(version), "--release", 2, "--slots", 2, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman3", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     work, rel = (c["id"] for c in w.batch()["crs"])
@@ -1101,8 +1197,9 @@ def release(w: World) -> None:
 def granted_fixes(w: World) -> None:
     note("\n## 14b. The Foreman starts a release's fixes under the grant, up to three")
     _, version = prepare_cr(w, "Release v1.3.0")
-    w.chantier("open", "fixes", str(version), "--release", 1, "--slots", 1, *FROM_AGENTS_MD)
-    w.name, w.env["CHANTIER_BATCH"] = "fixes", "fixes"
+    w.reset()
+    w.start(str(version), "--release", 1, "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman5", "--epoch", 1)
     rel = w.batch()["crs"][0]["id"]
     work = w.work / w.cr(rel)["path"] / "work"
@@ -1133,14 +1230,15 @@ def granted_fixes(w: World) -> None:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 1)
     w.chantier("land", "--epoch", 1)
-    w.chantier("close", "--batch", "fixes", "--yes")
+    w.chantier("close", "--batch", w.name, "--yes")
 
 
 def qa_on_head(w: World) -> None:
     note("\n## 14c. QA on the project's head, on the user's word, during the batch")
     _, item = prepare_cr(w, "Waits for its merge")
-    w.chantier("open", "lookup", str(item), *FROM_AGENTS_MD)
-    w.name, w.env["CHANTIER_BATCH"] = "lookup", "lookup"
+    w.reset()
+    w.start(str(item), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     cr = w.batch()["crs"][0]["id"]
@@ -1179,7 +1277,7 @@ def qa_on_head(w: World) -> None:
     (folder / "findings.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
     w.chantier("order", "done", "O-2", "--epoch", 1)
     w.chantier("land", "--epoch", 1)
-    w.chantier("close", "--batch", "lookup", "--yes")
+    w.chantier("close", "--batch", w.name, "--yes")
     check("its findings stay in the inbox, an ordinary item",
           (folder / "findings.md").is_file())
     w.chantier("abandon", folder)
@@ -1188,8 +1286,9 @@ def qa_on_head(w: World) -> None:
 def release_merge_on_approval(w: World) -> None:
     note("\n## 15. A release PR merges on the user's approval")
     _, version = prepare_cr(w, "Release v1.2.0")
-    w.chantier("open", "approve", str(version), "--release", 1, *FROM_AGENTS_MD)
-    w.name, w.env["CHANTIER_BATCH"] = "approve", "approve"
+    w.reset()
+    w.start(str(version), "--release", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman4", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
@@ -1215,22 +1314,23 @@ def release_merge_on_approval(w: World) -> None:
     last = w.folder()
     if sys.platform == "win32":  # elsewhere a file in use does not stop a rename
         with open(last / "STATUS.md", encoding="utf-8"):
-            code, _ = w.chantier("close", "--batch", "approve", "--yes", expect=None)
+            code, _ = w.chantier("close", "--batch", w.name, "--yes", expect=None)
         check("`close` on a folder in use deletes nothing and can run again",
               code != 0 and "in use" in w.last_stderr and (last / "batch.json").is_file(),
               w.last_stderr)
-    w.chantier("close", "--batch", "approve", "--yes")
-    w.number_after = int(last.name.split("-")[0]) + 1
+    w.chantier("close", "--batch", w.name, "--yes")
+    w.number_after = int(last.name.split("-")[1]) + 1
 
 
 def lost_messages(w: World) -> None:
     note("\n## 16. Lost messages: the wake catches up, and nothing is left unsaid")
     titles = ("Lost one", "Lost two", "Lost three")
     prepared = [prepare_cr(w, title)[1] for title in titles]
-    w.chantier("open", "lost", *(str(p) for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
-    w.name, w.env["CHANTIER_BATCH"] = "lost", "lost"
+    w.reset()
+    w.start(*(str(p) for p in prepared), "--parallel", "--slots", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
     check("batch numbers go on rising after the last batch's folder is deleted",
-          w.folder().name == f"{w.number_after:02d}-lost", w.folder().name)
+          w.folder().name == f"batch-{w.number_after:02d}", w.folder().name)
     w.chantier("foreman", "set", "local_foreman5", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
@@ -1289,12 +1389,13 @@ def lost_messages(w: World) -> None:
 
 def lifecycle_regressions(w: World) -> None:
     note("\n## 12. Lifecycle recovery")
+    w.reset()
     _, original = prepare_cr(w, "Preserve failed opening")
-    code, _ = w.chantier("open", "rollback", str(original), "--remote", "nowhere",
+    code, _ = w.chantier("open", str(original), "--remote", "nowhere",
                          *FROM_AGENTS_MD, expect=4)
     check("a remote Git does not know is refused before anything moves",
           code == 4 and "nowhere" in w.last_stderr and (original / "03-change-spec.md").is_file()
-          and not list((w.state / "3-requests").glob("*-rollback")), w.last_stderr)
+          and not list((w.state / "3-requests").glob("batch-*")), w.last_stderr)
     check("chantier wrote nothing outside .agents/changes",
           all(line[3:].startswith(".agents/changes/")
               for line in w.sh("git", "status", "--porcelain", "-uall").splitlines()))
@@ -1336,20 +1437,20 @@ def copilot_cost(w: World, d: dict) -> None:
     state = w.folder() / "batch.json"
     claude = state.read_text()
     state.write_text(json.dumps({**json.loads(claude), "host": "copilot"}))
-    code, out = w.chantier("cost", "--batch", "night", env=env)
+    code, out = w.chantier("cost", "--batch", w.name, env=env)
     check("Copilot cost groups billed and estimated calls by role (the host's agent type)",
           code == 0 and out == [
-              "night: $1.875 over 4 model calls (1 estimated, not billed)",
+              f"{w.name}: $1.875 over 4 model calls (1 estimated, not billed)",
               "foreman: $1.000 (1 calls)", "cr-driver: $0.500 (1 calls)",
               "coder: $0.375 (2 calls)"], str(out))
-    code, out = w.chantier("cost", "--batch", "night", "--by", "cr", env=env)
+    code, out = w.chantier("cost", "--batch", w.name, "--by", "cr", env=env)
     check("Copilot cost attributes calls by agent, name and other",
           code == 0 and out[1:] == [
               "foreman: $1.000 (1 calls)", f"{assigned['id']}: $0.500 (1 calls)",
               f"{named['id']}: $0.250 (1 calls)", "other: $0.125 (1 calls)"], str(out))
 
     def fails(label, expected, message, overrides=None):
-        code, out = w.chantier("cost", "--batch", "night", env={**env, **(overrides or {})},
+        code, out = w.chantier("cost", "--batch", w.name, env={**env, **(overrides or {})},
                                expect=expected)
         check(label, code == expected and not out and message in w.last_stderr,
               f"exit {code}, stdout {out}, stderr {w.last_stderr}")
@@ -1368,10 +1469,14 @@ def copilot_cost(w: World, d: dict) -> None:
     fails("Copilot cost reports a missing command", 2, "not found",
           {"CHANTIER_SESSION_USAGE": missing_command})
     state.write_text(claude)
+
+
+def copilot_missing_transcript(w: World) -> None:
+    w.reset()
     _, missing = prepare_cr(w, "Missing transcript")
-    w.chantier("open", "cost-missing", str(missing), *FROM_AGENTS_MD,
-               env={"CHANTIER_HOST": "copilot"})
-    code, out = w.chantier("cost", "--batch", "cost-missing", env=env, expect=2)
+    w.start(str(missing), *FROM_AGENTS_MD, env={"CHANTIER_HOST": "copilot"})
+    code, out = w.chantier("cost", "--batch", w.name, env={"COPILOT_HOME": str(w.root / "copilot-home")},
+                           expect=2)
     check("a missing Copilot transcript names the session variable",
           code == 2 and not out and "$COPILOT_AGENT_SESSION_ID" in w.last_stderr,
           f"exit {code}, stdout {out}, stderr {w.last_stderr}")

@@ -48,7 +48,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
 2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
    (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
    self-contained **Change Specification** (`03-change-spec.md`).
-3. **You start a batch** ("run the P1s", "build a PR stack"). After a preflight and your go, the
+3. **You start a batch** ("run the P1s"; a stack of PRs by default, four slots). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session.
 4. **The Foreman runs the batch.** It owns one background **Driver** per CR slot, plus a stack
    driver and a QA driver when needed, and keeps itself warm with a heartbeat.
@@ -174,19 +174,20 @@ Everything lives in `.agents/changes/`:
 ├── 2-backlog/P1…P4/<slug>/                prioritized by you
 ├── 3-requests/
 │   ├── STATUS.md, STATUS.json             open batches, backlog table
-│   └── <NN>-<batch>/                      one batch; NN counts all batches
+│   └── batch-<n>/                         the one open batch; n counts all batches
 │       ├── batch.json, events.jsonl, brief.md, .lock
 │       ├── STATUS.md, STATUS.json         the batch; at `landed`, its exit report
 │       └── <number>-<slug>/               a CR in the batch: STATUS.md, STATUS.json; named
-│                                          branch chantier/<batch>/… and worktree next to the repo
+│                                          branch chantier/batch-<n>/… and worktree next to the repo
 ├── 4-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged (time of the merge, UTC)
 └── 5-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
 ```
 
 The folder moves, it is never copied; collisions are errors rather than overwrites. A CR moves
 to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR goes to
-`5-trash/` and does not return to the backlog. `--batch` takes the bare batch name, without
-`NN-`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
+`5-trash/` and does not return to the backlog. A batch has no name, only a
+number, and `--batch` takes it (`4` or `batch-04`). One batch is open at a time: new work joins it
+through the Foreman, and it is a stack of PRs unless its CRs are independent. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
 `STATUS.md` and `STATUS.json` exist at three levels (`3-requests/`, the batch, the CR), each

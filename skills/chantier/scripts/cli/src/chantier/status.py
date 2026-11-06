@@ -164,7 +164,7 @@ def _step_line(s: dict) -> str:
 
 
 def cr_markdown(v: dict) -> str:
-    batch = f"[Batch {v['batch']}](../STATUS.md)" if v["in_batch"] else f"Batch {v['batch']}"
+    batch = f"[{v['batch']}](../STATUS.md)" if v["in_batch"] else f"{v['batch']}"
     pr = v["pr"]
     head = f"{v['label']} · {batch}" + (f" · [PR]({pr['url']})" if pr else "")
     docs = [f"- [{d.get('name') or d['kind']}]({d['path']})" for d in v["documents"]]
@@ -231,7 +231,7 @@ def _budget(v: dict) -> str:
 
 
 def batch_markdown(v: dict) -> str:
-    lines = [f"# Batch {v['folder']}: {v['state']}", "",
+    lines = [f"# {v['folder']}: {v['state']}", "",
              f"Updated {v['updated']} · spent {_budget(v) if v['priced'] else 'unknown'} · "
              f"{v['asks_unread']} asks unread · "
              f"{v['orders_pending']} orders pending", "",
@@ -321,7 +321,7 @@ def dashboard_markdown(v: dict) -> str:
              f"> Updated {v['updated']}: {v['active_crs']} active CRs in {len(v['batches'])} "
              "batches.", "", "## Active"]
     for b in v["batches"]:
-        lines += ["", f"### [Batch {b['folder']}]({b['folder']}/STATUS.md): {b['state']}, "
+        lines += ["", f"### [{b['folder']}]({b['folder']}/STATUS.md): {b['state']}, "
                   f"{_budget(b)}", ""]
         lines += _rows_markdown(b["crs"]) if b["crs"] else ["No active CR."]
     if not v["batches"]:

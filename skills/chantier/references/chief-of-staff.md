@@ -63,18 +63,23 @@ Only in the turn where the user gave the go:
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and
    what the user can do.
-2. **Show the plan:** the CRs, mode, slots, budget, the team. Then the go.
+2. **Show the plan:** the CRs, mode (a stack unless the CRs are independent), slots (4 unless
+   you say otherwise), budget, the team. Then the go. While a batch is open, whatever its state
+   until `close`, there is no new plan: new work joins it with `order add`.
 3. **Open:**
 
    ```bash
-   $CHANTIER open <batch> <prepared-folder>… [--default-branch <branch>] [--slots N] \
-     [--budget USD] [--stack] [--release N]
+   $CHANTIER open <prepared-folder>… [--default-branch <branch>] [--slots N] \
+     [--budget USD] [--parallel] [--release N]
    ```
 
-   It moves each folder to `3-requests/<n>-<batch>/`, names each CR's branch and worktree, and
-   writes `brief.md`: complete it from the grill (the team, autonomous decisions allowed,
-   questions to bring back).
-4. **Start the Foreman**, `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one):
+   The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
+   makes a stack; `--parallel` makes independent CRs. It exits 2 while a batch is open. It moves
+   each folder to `3-requests/<batch>/`, names each CR's branch and worktree, and writes
+   `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
+   bring back).
+4. **Start the Foreman**, `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one; a new
+   batch starts at epoch 1, even in a reused session):
 
    ```text
    chantier Foreman of batch <batch>, epoch <n>, for the Chief of Staff <your session id>.
@@ -85,16 +90,27 @@ Only in the turn where the user gave the go:
    ```
 
    `<skill>` is this skill's absolute folder. On Claude Desktop: `start_session` with
-   `initiation: "user_asked"`, `title: "<your title> - Foreman [batch <NN>]"`, `context:
+   `initiation: "user_asked"`, `title: "<your title> - Foreman [<batch>]"`, `context:
    "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's
    permission mode; leave it linked; your own id and `<your title>` are in `get_session("self")`.
    On a Copilot SDK host: `create_session` with `model: "claude-opus-5.5"`, `workspace` = this
-   repository, `worktree: false`, `title: Foreman [batch <NN>]`. `<NN>` is the two-digit number
-   of the batch's folder `3-requests/<NN>-<batch>/`, as `open` prints it. The Foreman claims its
-   epoch itself. When the host refuses to start a session (under
-   Remote Control), the user can start it and paste this prompt. On `[foreman→chief-of-staff]
+   repository, `worktree: false`, `title: Foreman [<batch>]`. The Foreman claims its epoch itself. When the host refuses to start
+   a session (under Remote Control), the user can start it and paste this prompt. On `[foreman→chief-of-staff]
    ready <batch>`, on Copilot, send the Foreman chat `/every 4m chantier status --refresh --batch
    <batch> --epoch <n>`.
+
+   **Reusing the last Foreman.** When the previous batch's Foreman session still exists, even
+   stopped, you may send it this prompt instead of starting a session (`SendMessage` /
+   `send_message`), with the new batch and epoch 1: this is the way to start a batch under Remote
+   Control. A new session stays the default at the desktop: a reused Foreman carries its old
+   context, and the batch pays for it. Before a reuse, always recommend that the user type
+   `/compact` in the Foreman's session, not `/clear`: compaction continues the same conversation,
+   connected devices follow it, and `$CHANTIER cost` keeps the Foreman's transcript, which
+   `/clear` may replace. No role can run it for them: the person types it. Claude Code's docs do
+   not say that a message reaches a stopped session, whose process has ended; they describe
+   waking it by a reply from the user. A stopped Foreman is woken by the user, who pastes the
+   prompt into it. Not proved on the host: that the epoch claim works in a reused session, and
+   whether a message wakes a stopped one; do not tell the user either as a fact.
 
 ## While it runs
 

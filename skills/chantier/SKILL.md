@@ -35,7 +35,7 @@ says they know chantier.
   Driver creates, and ends as one pull request.
 - **Change Specification:** the self-contained description of what the CR changes, written with
   the user before any code.
-- **Batch:** the CRs the user starts together, in parallel or as a stack of PRs.
+- **Batch:** the CRs active at one time under one Foreman, numbered (`batch-<n>`), a stack of PRs by default or independent (`--parallel`).
 - **Chief of Staff (me):** I keep the backlog, ask the questions a CR needs, learn how the
   project builds and tests from its `AGENTS.md`, and start work only on the user's go.
 - **Foreman:** a separate session that runs the batch from its state and reports back to me.
