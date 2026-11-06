@@ -54,8 +54,9 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   refused, `order add` setting it running again, a call made after `land` counted;
 - closing on the user's word: `close` refusing, with and without `--yes`, a CR not merged, an
   open order, a stack agent, and a session file (any agent's, a Copilot one's, or one whose
-  time is not measured) written in the last 5 minutes; then the final cost printed and the
-  folder deleted by `close --yes`, the dropped CR's worktree and branch by the Chief of Staff's
+  time is not measured) written in the last 5 minutes; a pricing failure and a missing
+  Foreman transcript refused the same way; a reopened batch named as such; then the final cost
+  printed (with a call made after the last `land`) and the folder deleted by `close --yes`, the dropped CR's worktree and branch by the Chief of Staff's
   git.
 
 The transcript goes to `scenario/results/<forge>-<time>.md` (not committed); exit 1 if any check

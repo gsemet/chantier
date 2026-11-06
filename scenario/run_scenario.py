@@ -850,6 +850,24 @@ def age_sessions(w: World, seconds: int = 600) -> None:
                 os.utime(f, (then, then))
 
 
+def priced_foreman(w: World) -> None:
+    """Give the open batch a Foreman transcript with one priced call, written long ago: `close`
+    prices the batch before anything is touched, and refuses a batch it cannot price."""
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    f = w.root / "claude-projects" / slug / "uuid-closing.jsonl"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps({"type": "assistant", "message": {
+        "id": "closing", "model": "claude-sonnet-5-5", "usage": {
+            "input_tokens": 10, "output_tokens": 300, "cache_read_input_tokens": 20_000,
+            "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n")
+    then = time.time() - 600
+    os.utime(f, (then, then))
+    state = w.folder() / "batch.json"
+    d = json.loads(state.read_text())
+    d.pop("foreman_transcripts", None)
+    state.write_text(json.dumps({**d, "foreman_transcript": "uuid-closing"}))
+
+
 def close_refusals(w: World) -> None:
     """A landed batch's cost is not final; `order add` reopens it; `close` refuses while any
     CR, order, stack agent or session file shows that something runs."""
@@ -896,15 +914,36 @@ def close_refusals(w: World) -> None:
           d["status"] == "open" and "landed" not in d and "summary" not in d
           and any("was landed: running again" in ln for ln in out) and w.cr(new)["status"] == "queued",
           str(out))
+    for extra in ((), ("--yes",)):
+        code, out = w.chantier("close", "--batch", name, *extra, expect=2)
+        check(f"`close{' --yes' if extra else ''}` on the reopened batch names what runs, with the "
+              "queued CR, not a bare usage error",
+              code == 2 and f"cannot close {name}, something still runs" in w.last_stderr
+              and f"{new} is queued" in w.last_stderr and "landed: none" not in w.last_stderr
+              and w.folder().is_dir(), w.last_stderr)
     w.chantier("cancel", new, "--epoch", 2)
     for o in w.batch()["orders"]:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 2)
+    age_sessions(w)
+    for extra in ((), ("--yes",)):
+        code, out = w.chantier("close", "--batch", name, *extra, expect=2)
+        check(f"`close{' --yes' if extra else ''}` on an open batch where nothing runs says it is not "
+              "landed and `land` comes first",
+              code == 2 and "not landed" in w.last_stderr and "`land` comes first" in w.last_stderr
+              and "landed: none" not in w.last_stderr and w.folder().is_dir(), w.last_stderr)
     w.chantier("land", "--epoch", 2)
     d = w.batch()
     check("`land` runs again at the end of the reopened batch, and counts the later call",
           d["status"] == "landed" and d["landed"] and "Total: $2.62" in "\n".join(d["summary"]),
           str(d.get("summary")))
+    # a call made after the LAST landing: `close` counts it, `land` could not
+    w.landed_total = float(re.search(r"Total: \$(\d+\.\d\d)", "\n".join(d["summary"]))[1])
+    later = json.loads(late)
+    later["message"]["id"] = "after-last-land"
+    later["message"]["usage"]["output_tokens"] = 50_000
+    later["timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    main.write_text(main.read_text() + json.dumps(later) + "\n")
 
     # close refuses, naming the cause, with and without --yes
     base = state.read_text()
@@ -931,6 +970,18 @@ def close_refusals(w: World) -> None:
     refused("an open order", "order O-99 (qa) is open", {"orders": d["orders"] + [
         {"id": "O-99", "kind": "qa", "cr": "-", "note": "x", "sent": d["created"], "done": None}]})
     refused("a stack agent", "stack agent agent-stack is recorded", {"stack_agent": "agent-stack"})
+    # a batch that cannot be priced is never closed on `Spent: unknown`
+    original, aged = main.read_text(), main.stat()
+    main.write_text(original + json.dumps({"type": "assistant", "message": {
+        "id": "mystery", "model": "mystery-model", "usage": {"input_tokens": 1, "output_tokens": 1}}})
+        + "\n")
+    os.utime(main, (aged.st_atime, aged.st_mtime))
+    refused("a batch whose final cost cannot be priced (a model with no price)",
+            "its final cost cannot be priced", None)
+    main.write_text(original)
+    os.utime(main, (aged.st_atime, aged.st_mtime))
+    refused("a batch with no recorded Foreman transcript", "no Foreman transcript recorded",
+            {"foreman_transcript": None, "foreman_transcripts": []})
 
     # Copilot: the session's events file is the only time the CLI reads
     home = w.root / "copilot-home"
@@ -946,11 +997,8 @@ def close_refusals(w: World) -> None:
     refused("a Copilot session whose time is not measured", "not measured",
             env={**env, "COPILOT_HOME": str(w.root / "no-copilot")})
     age_sessions(w)
-    state.write_text(json.dumps({**d, "host": "copilot"}))
-    code, out = w.chantier("close", "--batch", name, env=env)
-    check("on Copilot, `close` passes once the session file is old, and says when it cannot price "
-          "rather than a false $0", code == 0 and any(ln.startswith("Spent: unknown") for ln in out)
-          and w.folder().is_dir(), str(out))
+    refused("on Copilot, a final cost that cannot be priced (no session usage tool)",
+            "its final cost cannot be priced", {"host": "copilot"}, env=env)
     state.write_text(base)
     # the Chief of Staff's own session writes all the time and never blocks its own close
     os.utime(main.with_name("uuid-chief.jsonl"), None)
@@ -967,9 +1015,10 @@ def close_batch(w: World) -> None:
           code == 0 and folder.is_dir() and Path(dropped["worktree"]).is_dir()
           and any(folder.name in ln for ln in out) and "--yes" in out[-1]
           and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out), str(out))
-    check("`close` prints the final cost, with a call made after `land` in it",
-          any(ln.startswith("Total: $2.62") for ln in out) and "Not final" not in "\n".join(out),
-          str(out))
+    shown = [float(m[1]) for m in (re.match(r"Total: \$(\d+\.\d\d)", ln) for ln in out) if m]
+    check("`close` prints the final cost, with a call made after the last `land` in it",
+          shown and shown[0] > w.landed_total and "Not final" not in "\n".join(out),
+          f"{out} (last land: {w.landed_total})")
     archived = w.work / w.cr("CR-101")["path"] / "STATUS.md"
     _, out = w.chantier("close", "--batch", name, "--yes")
     check("`close --yes` deletes the batch folder only, and repeats what is left to remove",
@@ -1232,6 +1281,8 @@ def stack_batch(w: World) -> None:
     for cr in (two, three, four):
         w.chantier("order", "merged", cr)
     fm.turn()
+    if fm.landed:
+        priced_foreman(w)
     check("the stack merged piece by piece: the batch lands, then closes",
           fm.landed and w.batch()["status"] == "landed"
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
@@ -1428,6 +1479,7 @@ def granted_fixes(w: World) -> None:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 1)
     w.chantier("land", "--epoch", 1)
+    priced_foreman(w)
     w.chantier("close", "--batch", w.name, "--yes")
 
 
@@ -1475,6 +1527,7 @@ def qa_on_head(w: World) -> None:
     (folder / "findings.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
     w.chantier("order", "done", "O-2", "--epoch", 1)
     w.chantier("land", "--epoch", 1)
+    priced_foreman(w)
     w.chantier("close", "--batch", w.name, "--yes")
     check("its findings stay in the inbox, an ordinary item",
           (folder / "findings.md").is_file())
@@ -1640,6 +1693,7 @@ def release_merge_on_approval(w: World) -> None:
     fm.turn()
     check("the batch lands", fm.landed)
     last = w.folder()
+    priced_foreman(w)
     if sys.platform == "win32":  # elsewhere a file in use does not stop a rename
         with open(last / "STATUS.md", encoding="utf-8"):
             code, _ = w.chantier("close", "--batch", w.name, "--yes", expect=None)
