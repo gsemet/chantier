@@ -12,6 +12,7 @@ import os
 import re
 from pathlib import Path
 
+from .rails import waits_for
 from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
@@ -54,21 +55,29 @@ def _round(c: dict) -> int:
     return max(c.get("round", 0), 1)
 
 
-def label(c: dict, max_rounds: int) -> str:
+def waits(d: dict, c: dict) -> list[str]:
+    """What a queued CR waits for: the rule of `take`, read from the batch's record."""
+    return waits_for(d["crs"], c) if c["status"] == "queued" else []
+
+
+def label(c: dict, max_rounds: int, waiting: list[str] | None = None) -> str:
     """`🔴 blocked CI 1/3`: how a CR's state reads in every table."""
     state = "dropped" if c["status"] == "cancelled" else c["status"]
+    if waiting:
+        return f"{ICON[severity(c)]} {state}, waits for {', '.join(waiting)}"
     if c["status"] in ENDED | {"queued"}:
         return f"{ICON[severity(c)]} {state}"
     return f"{ICON[severity(c)]} {state} {step(c)} {_round(c)}/{max_rounds}"
 
 
-def _now_next(c: dict) -> tuple[str, str]:
+def _now_next(c: dict, waiting: list[str]) -> tuple[str, str]:
     pr = c.get("pr") or "its PR"
     if c["status"] == "blocked":
         return (c.get("blocked_reason") or "Blocked.",
                 "The user's answer, through the Chief of Staff.")
     return {
-        "Queued": ("Waiting for a free slot.", "A Driver starts it."),
+        "Queued": (f"Waits for {', '.join(waiting)}." if waiting else "Waiting for a free slot.",
+                   "A Driver starts it."),
         "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
         "CI": (f"{pr} is open: CI, then the verifier at the pushed head.", "The hand-back."),
         "Release": ("The Release driver follows the project's procedure.", "The next step of it."),
@@ -140,14 +149,15 @@ def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
 
 def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
             in_batch: bool) -> dict:
-    now_line, next_line = _now_next(c)
+    waiting = waits(d, c)
+    now_line, next_line = _now_next(c, waiting)
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     pr = c.get("pr")
     number = re.search(r"(\d+)/?$", pr) if pr else None
     return {"schema": SCHEMA, "updated": now(), "cr": c["id"], "title": c["title"],
             "batch": d["folder"], "in_batch": in_batch, "state": c["status"],
-            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c)),
-            "round": c.get("round", 0), "max_rounds": round_limit(d, c),
+            "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c), waiting),
+            "waits": waiting, "round": c.get("round", 0), "max_rounds": round_limit(d, c),
             "now": now_line, "next": next_line,
             "pr": {"url": pr, "number": int(number[1]) if number else None} if pr else None,
             "steps": _steps(c, events), "documents": _documents(repo, c, folder),
@@ -190,9 +200,10 @@ def _priced(d: dict) -> bool:
 def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     folder = repo.root / c["path"] if c.get("path") else None
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
+    waiting = waits(d, c)
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
-            "step": step(c), "label": label(c, round_limit(d, c)), "round": c.get("round", 0),
-            "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
+            "step": step(c), "label": label(c, round_limit(d, c), waiting), "waits": waiting,
+            "round": c.get("round", 0), "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
             "silent_minutes": round(silent) if silent is not None else None,
             # always relative to `3-requests/`, whatever `start` is: the board resolves it there

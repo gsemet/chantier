@@ -36,9 +36,19 @@ started.
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
   user's word.
-- **Slots, budget, rounds:** the batch's limits. A slot is a live CR; the budget is dollars the
-  Foreman's session and its agents may spend; a round is one Coder pass with its reviews, three
-  per CR unless the user grants more. The CLI refuses what passes a limit.
+- **Slots, budget, rounds:** the batch's limits. A slot is a running Driver: a CR in `working`,
+  or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused
+  when none is free). A `ready` or `blocked` CR holds none. The budget is dollars the Foreman's
+  session and its agents may spend; a round is one Coder pass with its reviews, three per CR
+  unless the user grants more. The CLI refuses what passes a limit.
+- **Dependencies:** a CR's folder may hold `depends.json`, `{"after": ["<slug>", …]}`, written
+  with the Chief of Staff during the grill; a slug is the folder's name without its number. `open`
+  and `order add` record `after` as CR ids (a slug already archived as merged is met, not
+  recorded; an unknown slug, a malformed file or a cycle exits 2). `take` refuses a queued CR until
+  each CR of its `after` is `ready` or `merged` (a cancelled one stays unmet: an ask for the user,
+  who drops the CR or changes it). The CR starts on the branch of its last dependency still open,
+  in the order of `after`, else on the default branch. `stack` refuses an order that puts a CR
+  below one of its `after`.
 - **Release CR:** releases what is merged, by the project's own procedure; a Release driver runs
   it once every other CR of the batch is merged or cancelled. A **fix CR** is a CR the release
   found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a

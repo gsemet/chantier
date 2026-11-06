@@ -47,6 +47,11 @@ ones whose answer would not change the specification. Only the user sets priorit
 what runs. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link.
 
+When a CR needs another to be merged or ready first, write `depends.json` in its folder
+(`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) and put the
+dependencies in the plan; `open` and `order add` read it and exit 2 on an unknown slug, a
+malformed file or a cycle. A CR without the file depends on nothing.
+
 Triage each CR with the user, who decides its way: dropped (`abandon`); **automatable**, with a
 short specification they do not review; needing a specification they review until they approve
 it; or needing clarification: grill, then triage again. Automatable is their call, never yours.
@@ -63,8 +68,8 @@ Only in the turn where the user gave the go:
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and
    what the user can do.
-2. **Show the plan:** the CRs, mode (a stack unless the CRs are independent), slots (4 unless
-   you say otherwise), budget, the team. Then the go. While a batch is open, whatever its state
+2. **Show the plan:** the CRs and what each one waits for, mode (a stack unless the CRs are
+   independent), slots (4 unless you say otherwise), budget, the team. Then the go. While a batch is open, whatever its state
    until `close`, there is no new plan: new work joins it with `order add`.
 3. **Open:**
 
@@ -131,7 +136,7 @@ Only in the turn where the user gave the go:
   $CHANTIER order slots --note 0              # 0 pauses; a number resumes
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
-  $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head
+  $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
   ```

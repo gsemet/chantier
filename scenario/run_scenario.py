@@ -326,7 +326,9 @@ class Foreman:
                 else:
                     self.ask(f"ready {c['id']} {c['pr']}")
         d = self.w.batch()
-        live = sum(c["status"] in LIVE for c in d["crs"])
+        # a slot is a running Driver: a CR working, or a QA order not done
+        live = sum(c["status"] in LIVE for c in d["crs"]) \
+            + sum(o["kind"] == "qa" and not o["done"] for o in d["orders"])
         for c, note_, o in self.candidates(d):
             if live >= d["slots"]:
                 break
@@ -706,6 +708,7 @@ def scenario(w: World) -> None:
     release(w)
     granted_fixes(w)
     qa_on_head(w)
+    dependencies(w)
     release_merge_on_approval(w)
     lost_messages(w)
     failed_opening(w)
@@ -1281,6 +1284,114 @@ def qa_on_head(w: World) -> None:
     check("its findings stay in the inbox, an ordinary item",
           (folder / "findings.md").is_file())
     w.chantier("abandon", folder)
+
+
+def depends_on(item: Path, *slugs: str, raw: str | None = None) -> None:
+    """The Chief of Staff's `depends.json`, in the CR's folder."""
+    (item / "depends.json").write_text(raw if raw is not None else json.dumps({"after": list(slugs)}),
+                                       encoding="utf-8")
+
+
+def dependencies(w: World) -> None:
+    note("\n## 14d. A CR declares what it depends on; a slot is a running Driver")
+    one, two = prepare_cr(w, "Cycle one")[1], prepare_cr(w, "Cycle two")[1]
+    depends_on(one, two.name)
+    depends_on(two, one.name)
+    w.reset()
+    code, _ = w.start(str(one), str(two), expect=2)
+    check("a cycle is refused at `open`, naming it; nothing is opened or moved",
+          code == 2 and "cycle" in w.last_stderr and one.is_dir() and two.is_dir()
+          and not list((w.state / "3-requests").glob("batch-*")), w.last_stderr)
+    depends_on(two, "no-such-cr")
+    code, _ = w.start(str(two), expect=2)
+    check("an unknown slug is refused, named", code == 2 and "no-such-cr" in w.last_stderr
+          and two.is_dir(), w.last_stderr)
+    depends_on(two, raw="{not json")
+    code, _ = w.start(str(two), expect=2)
+    check("a malformed `depends.json` is refused", code == 2 and "depends.json" in w.last_stderr
+          and two.is_dir(), w.last_stderr)
+
+    base_, next_ = prepare_cr(w, "Dep base")[1], prepare_cr(w, "Dep next")[1]
+    depends_on(next_, base_.name)
+    w.start(str(base_), str(next_), "--parallel", "--slots", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b = (c["id"] for c in w.batch()["crs"])
+    check("`open` records `after` as CR ids", w.cr(b).get("after") == [a] and "after" not in w.cr(a),
+          str(w.batch()["crs"]))
+    _, out = w.chantier("status")
+    check("`status` shows what a queued CR waits for",
+          any(ln.startswith(b) and f"waits for {a} queued" in ln for ln in out), str(out))
+    board = json.loads((w.state / "3-requests" / w.name / "STATUS.json").read_text(encoding="utf-8"))
+    check("the STATUS files name what a queued CR waits for, as `status` does",
+          any(r["cr"] == b and r["waits"] == [f"{a} queued"] and f"waits for {a} queued" in r["label"]
+              for r in board["crs"]), str(board["crs"]))
+    code, _ = w.chantier("take", b, expect=2)
+    check("a CR is refused until its dependency is ready, and the refusal names it",
+          code == 2 and f"waits for {a} queued" in w.last_stderr and w.cr(b)["status"] == "queued",
+          w.last_stderr)
+    w.chantier("take", a)
+    start_driver(w, a)
+    code, _ = w.chantier("take", b, expect=2)
+    check("a working dependency is not enough", code == 2 and f"{a} working" in w.last_stderr,
+          w.last_stderr)
+    driver_round(w, a, "dep_a.py", "A = 1\n")
+    w.chantier("handback", a, "ready", w.cr(a)["pr"])
+    _, out = w.chantier("take", b)
+    check("once it is ready, the dependent starts on its branch (even in a parallel batch)",
+          any(f"base {w.cr(a)['branch']}" in ln for ln in out), str(out))
+    w.chantier("order", "merged", a)
+    _, out = w.chantier("handoff", b)
+    check("when the dependency is merged, the base is the default branch",
+          any("base origin/main" in ln for ln in out), str(out))
+    after_archive = prepare_cr(w, "Dep late")[1]
+    depends_on(after_archive, base_.name)
+    _, out = w.chantier("order", "add", "--note", str(after_archive))
+    late = w.batch()["crs"][-1]
+    check("a dependency already archived as merged is met and not recorded",
+          "after" not in late and late["status"] == "queued"
+          and w.chantier("take", late["id"])[0] == 0, str(out))
+    cancelled = prepare_cr(w, "Dep dropped")[1]
+    w.chantier("order", "add", "--note", str(cancelled))
+    dropped = w.batch()["crs"][-1]["id"]
+    w.chantier("order", "drop", dropped)
+    waiting = prepare_cr(w, "Dep waiting")[1]
+    depends_on(waiting, cancelled.name)
+    w.chantier("order", "add", "--note", str(waiting))
+    code, _ = w.chantier("take", w.batch()["crs"][-1]["id"], expect=2)
+    check("a cancelled dependency stays unmet", code == 2 and f"{dropped} cancelled" in w.last_stderr,
+          w.last_stderr)
+
+    w.reset()
+    s1, s2 = prepare_cr(w, "Stack first")[1], prepare_cr(w, "Stack second")[1]
+    depends_on(s2, s1.name)
+    w.start(str(s1), str(s2), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    x, y = (c["id"] for c in w.batch()["crs"])
+    code, _ = w.chantier("stack", y, x, expect=2)
+    check("a stack order that puts a CR below its dependency is refused",
+          code == 2 and x in w.last_stderr and w.batch()["crs"][0]["order"] == 1, w.last_stderr)
+    code, _ = w.chantier("stack", x, y)
+    check("the order that respects it is taken", code == 0)
+
+    w.reset()
+    q1, q2 = prepare_cr(w, "Slot one")[1], prepare_cr(w, "Slot two")[1]
+    w.start(str(q1), str(q2), "--parallel", "--slots", 2, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    c1, c2 = (c["id"] for c in w.batch()["crs"])
+    w.chantier("take", c1)
+    w.chantier("order", "qa", "--note", "try it")
+    check("an open QA order holds a slot: `status` counts it",
+          w.chantier("status")[1][0].split(" live ")[1].startswith("2/2"), str(w.last_out))
+    code, _ = w.chantier("take", c2, expect=2)
+    check("with the QA driver and a CR, no slot is free for the next", code == 2
+          and "no free slot" in w.last_stderr and "O-1 qa" in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("order", "qa", "--note", "again", expect=2)
+    check("a second QA order is refused too: its driver would have no slot",
+          code == 2 and "no free slot" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "done", "O-1")
+    code, _ = w.chantier("take", c2)
+    check("the QA driver's end frees its slot", code == 0)
+    w.env.pop("CHANTIER_BATCH", None)
 
 
 def release_merge_on_approval(w: World) -> None:

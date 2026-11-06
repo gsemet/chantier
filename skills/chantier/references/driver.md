@@ -72,8 +72,10 @@ while the stack lives. After a partial merge what remains is a new stack of the 
 `origin/<default branch>`, retarget the first PR to the default branch (`gh pr edit --base`,
 `glab mr update --target-branch`), rebase it there and each other PR on the one under it, push
 with `--force-with-lease`, and `ship` each one you moved: `ship` records the new base. A CR added
-by `order add` is on top. A release CR and a fix CR are not in the stack. The batch stays open
-until its last CR ends.
+by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
+last one still open, as `take stack` prints, and `stack` refuses an order that puts it below one
+of them; a dependency sent back to a Driver is yours to restack. A release CR and a fix CR are
+not in the stack. The batch stays open until its last CR ends.
 
 ## QA driver
 
