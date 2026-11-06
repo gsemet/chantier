@@ -44,7 +44,9 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   still runs;
 - Claude cost by CR; Copilot cost breakdown (`Agent <type>` lines) and by CR, estimated calls, updates and failures;
 - prepared-CR filing, lifecycle moves, collisions and rollback;
-- a release: it waits for the batch's other CRs, an irreversible action refused then approved
+- a release: added to a running batch (`order add --release`) it waits for each other CR, a
+  later one too, then for the user's `order confirm` (voided by a CR added after, refused once
+  it has started), and alone in its batch it needs none; an irreversible action refused then approved
   (a `go` that dies with its Driver), a fix CR that stops every `go` until it merges and a new
   attempt, a grant (the Foreman merging the fix and the release PR with the forge's CLI after
   `release go`, recorded with `order merged --epoch`; a merge the forge refuses; the budget;

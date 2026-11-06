@@ -26,7 +26,8 @@ from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensu
                         move_backlog_item, prepared_cr, stage_layout, trash_cr)
 from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
                     check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
-                    fix_go, held, live, parse_grant, record_ask, release_go, release_merged, unmet)
+                    alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
+                    release_merged, waits_all, waits_for)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
                     age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -377,6 +378,10 @@ def declare_dependencies(b: Batch, added: list[dict]) -> None:
                     continue
                 raise ChantierError(f"{c['id']}: depends.json names {slug!r}, which is in "
                                     "neither the batch nor the archives as merged")
+            if is_release(dep) and dep["id"] != c["id"]:
+                raise ChantierError(f"{c['id']}: depends.json names {slug!r}, the batch's release "
+                                    f"CR {dep['id']}, which waits for every other CR: a cycle. "
+                                    "Remove it from depends.json")
             if dep["status"] == "merged":  # archived: met, so not recorded
                 continue
             if dep["id"] not in ids:
@@ -384,6 +389,28 @@ def declare_dependencies(b: Batch, added: list[dict]) -> None:
         if ids:
             c["after"] = ids
             b.log("depends", c["id"], after=ids)
+    check_cycles(b)
+
+
+def _release_tag(b: Batch, c: dict) -> str:
+    if alone(b.data["crs"], c):
+        return " (release, alone in its batch: it starts when taken)"
+    return (" (release: starts once every other CR is merged or cancelled, then on the user's "
+            "confirmation)")
+
+
+def release_waits_for_all(b: Batch) -> None:
+    """The release CR's `after` holds every other CR of the batch that has not ended, fix CRs
+    excepted (`pending_fixes` rules those); the CLI keeps the list, and an entry that ends stays
+    as history."""
+    for rel in b.data["crs"]:
+        if not is_release(rel) or rel["status"] in ENDED:
+            continue
+        after = rel.setdefault("after", [])
+        after += [x["id"] for x in b.data["crs"] if x["id"] != rel["id"]
+                  and x.get("kind") != "fix" and x["status"] not in ENDED and x["id"] not in after]
+        if not after:
+            rel.pop("after")
     check_cycles(b)
 
 
@@ -451,13 +478,14 @@ def open_batch(args) -> list[str]:
                 if release and c["kind"] == "release":
                     release["cr"] = c["id"]
             declare_dependencies(b, list(b.data["crs"]))
+            release_waits_for_all(b)
             brief.write_text(
                 f"# {b.id}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
                 f"Budget: {args.budget or 'none'}. Host: {host}.\n"
                 "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
-                        f"{' (release: starts once the others are merged)' if c['kind'] == 'release' else ''}"
-                        f"{' (after ' + ', '.join(c['after']) + ')' if c.get('after') else ''}\n"
+                        f"{_release_tag(b, c) if c['kind'] == 'release' else ''}"
+                        f"{' (after ' + ', '.join(c['after']) + ')' if c.get('after') and c['kind'] != 'release' else ''}\n"
                         for c in b.data["crs"]) +
                 (f"- Release grant: {grant_line(release)}\n" if release else "") +
                 f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}.\n"
@@ -513,8 +541,8 @@ def foreman(args) -> list[str]:
 
 
 ORDER_KINDS = {"add", "after", "drop", "merged", "note", "rounds", "slots", "budget", "approve",
-               "grant", "qa", "done"}
-CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant"}
+               "grant", "confirm", "qa", "done"}
+CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant", "confirm"}
 
 
 def _release_cr(b: Batch, kind: str, cr_id: str) -> dict:
@@ -535,8 +563,54 @@ def _cr_arg(value: str | None) -> str | None:
     return f"CR-{value}" if value and value.isdigit() else value
 
 
+def _started(c: dict) -> bool:
+    """A release has started when it ran an attempt or a Driver holds it or it is handed back; a
+    merged release PR puts it back to `queued`, which `attempts` still tells."""
+    return c.get("attempts", 0) > 0 or c["status"] != "queued"
+
+
+def _add_release(b: Batch, note: str) -> list[str]:
+    """`order add --release`: the batch's release CR, with the default grant, waiting for every
+    other CR; the grant and the approvals are the user's word after (`order grant`, `approve`)."""
+    open_ = next((x for x in b.data["crs"] if is_release(x) and x["status"] != "cancelled"), None)
+    if open_:
+        raise ChantierError(f"order add --release: {open_['id']} is already the release CR of "
+                            f"{b.id}; a batch has one. Put the second release in the next batch, "
+                            "once this one is closed")
+    c = add_cr(b, note, kind="release")
+    b.data["release"] = {"autonomous": 0, "fixes": False, "published": 0, "cr": c["id"]}
+    declare_dependencies(b, [c])
+    release_waits_for_all(b)
+    waits = f", after {', '.join(c['after'])}" if c.get("after") else ""
+    word = "" if alone(b.data["crs"], c) else "; it starts on `order confirm`, once the others end"
+    return [f"added {c['id']} (release), queued{waits}; each irreversible action waits for the "
+            f"user (`order grant` changes it){word}"]
+
+
+def _join_release(b: Batch, added: dict) -> None:
+    """A CR joined the batch: the release waits for it, and a confirmation given before no
+    longer holds, since what ships changed. A release that started takes no new CR."""
+    rel = next((x for x in b.data["crs"] if is_release(x) and x["status"] not in ENDED), None)
+    if rel is None:
+        return
+    release_waits_for_all(b)
+    if rel.pop("confirmed", None):
+        rel.setdefault("notes", []).append(f"confirmation voided: {added['id']} was added")
+        b.touch(rel)
+        b.log("confirm-void", rel["id"], added=added["id"])
+
+
+def _check_release_open(b: Batch) -> None:
+    rel = next((x for x in b.data["crs"] if is_release(x) and x["status"] not in ENDED), None)
+    if rel and _started(rel):
+        raise ChantierError(f"order add: {rel['id']} has started ({rel['status']}, attempts "
+                            f"{rel.get('attempts', 0)}) and ships what was merged before it. Add "
+                            f"a fix with `order add --fix-for {rel['id']}`, or put the new work "
+                            "in the next batch")
+
+
 def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None,
-                 own: bool = False) -> list[str]:
+                 own: bool = False, release: bool = False) -> list[str]:
     """The user's word, recorded at once: a folder moves, a number changes, a note is kept. Who
     takes a CR next, and when, is the Foreman's decision from `status`. `own` is the Foreman
     acting under the user's grant."""
@@ -555,14 +629,21 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
                                                "procedure starts again from its first step")
             b.touch(rel)
             return [f"added {fix['id']} (fix for {fix_for}), queued"]
+        if release:
+            return _add_release(b, note)
+        _check_release_open(b)
         added = add_cr(b, note)
         declare_dependencies(b, [added])
+        _join_release(b, added)
         waits = f", after {', '.join(added['after'])}" if added.get("after") else ""
         return [f"added {added['id']}, queued{waits}"]
     if kind == "after":
         usage = 'order after <cr> --note "<CR ids, comma separated, or - for none>"'
         if not note.strip():
             raise ChantierError(usage, EXIT_USAGE)
+        if is_release(c):
+            raise ChantierError(f"order after: {cr_id} is the release CR: the CLI keeps what it "
+                                "waits for (every other CR of the batch)")
         if c["status"] != "queued":
             raise ChantierError(f"cannot change what {cr_id} waits for: it is {c['status']}, "
                                 "not queued")
@@ -570,6 +651,9 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         for dep in ([] if note.strip() == "-" else [s.strip() for s in note.split(",")]):
             if not any(x["id"] == dep for x in b.data["crs"]):
                 raise ChantierError(f"order after: unknown CR {dep!r} in batch {b.id}")
+            if is_release(b.cr(dep)):
+                raise ChantierError(f"order after: {dep} is the release CR, which waits for every "
+                                    f"other CR: {cr_id} waiting for it is a cycle")
             if dep == cr_id:
                 raise ChantierError(f"order after: {cr_id} cannot wait for itself")
             if b.cr(dep)["status"] != "merged" and dep not in ids:  # merged: met, not recorded
@@ -654,6 +738,25 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         c.setdefault("notes", []).append(f"grant: {note.strip()}")
         b.touch(c)
         return [f"granted: {grant_line(release)}"]
+    if kind == "confirm":
+        _release_cr(b, kind, cr_id)
+        if not note.strip():
+            raise ChantierError("order confirm <release-cr> --note \"<the version and what else "
+                                "was settled>\"", EXIT_USAGE)
+        if alone(b.data["crs"], c):
+            raise ChantierError(f"order confirm: {cr_id} is alone in its batch, it needs no "
+                                "confirmation")
+        if _started(c) or c["status"] in ENDED:
+            raise ChantierError(f"order confirm: {cr_id} has started or ended ({c['status']}, "
+                                f"attempts {c.get('attempts', 0)}): the word comes before the start")
+        waiting = waits_for(b.data["crs"], c)
+        if waiting:
+            raise ChantierError(f"order confirm: {cr_id} still waits for {', '.join(waiting)}: "
+                                "give the word once the others have ended")
+        c["confirmed"] = note.strip()
+        c.setdefault("notes", []).append(f"confirmed: {note.strip()}")
+        b.touch(c)
+        return [f"confirmed {cr_id}: {note.strip()}; the Foreman may start the Release driver"]
     if kind == "qa":
         return [f"QA folder: {cr_id}; the Foreman starts its QA driver, which holds a slot "
                 "until `order done`"]
@@ -668,9 +771,13 @@ def order(args) -> list[str]:
     if args.kind not in ORDER_KINDS:
         raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
     note = args.note or ""
+    new_release = bool(getattr(args, "release", False))
     if args.kind == "add" and not note.strip():
         raise ChantierError("order add --note <prepared-CR-folder-or-specification> "
-                            "[--fix-for <release-cr>]", EXIT_USAGE)
+                            "[--fix-for <release-cr> | --release]", EXIT_USAGE)
+    if new_release and (args.kind != "add" or args.fix_for):
+        raise ChantierError("--release goes with `order add` alone: it adds the batch's release "
+                            "CR; a fix of it is `order add --fix-for <release-cr>`", EXIT_USAGE)
     if args.kind == "qa" and not note.strip():
         raise ChantierError("order qa --note \"<what to test>\"", EXIT_USAGE)
     if args.kind in CR_ORDERS and (not args.cr or args.cr == "-"):
@@ -707,7 +814,7 @@ def order(args) -> list[str]:
                 cr = _shown(repo, _new_request(
                     repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode(),
                     "a QA folder of this minute exists: try again in a minute"))
-            effect = reopened + _apply_order(b, args.kind, cr, note, args.fix_for, own)
+            effect = reopened + _apply_order(b, args.kind, cr, note, args.fix_for, own, new_release)
             oid = f"O-{len(b.data['orders']) + 1}"
             # The CLI did its whole part, the Foreman only has to end the order: not a note (the
             # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
@@ -716,7 +823,8 @@ def order(args) -> list[str]:
             b.data["orders"].append({"id": oid, "kind": args.kind, "cr": cr or "-",
                                      "note": note, "sent": now(), "done": now() if own else None,
                                      **({} if own else {"applied": applied}),
-                                     **({"fix_for": args.fix_for} if args.fix_for else {})})
+                                     **({"fix_for": args.fix_for} if args.fix_for else {}),
+                                     **({"release": True} if new_release else {})})
             b.log("order", None if cr in (None, "-") else cr, order=oid,
                   order_kind=args.kind, note=note)
     if own:
@@ -805,7 +913,7 @@ def status(args) -> tuple[list[str], int]:
             row += "".join(f" | draft {p}" for p in c.get("drafts", [])[-2:])
         elif c.get("kind") == "fix":
             row += f" fix for {c['fix_for']}"
-        waits = unmet(view, c) if c["status"] == "queued" else []
+        waits = waits_all(d["crs"], c) if c["status"] == "queued" else []
         if waits:
             row += f" | waits for {', '.join(waits)}"
         if c["status"] == "blocked" and c.get("blocked_reason"):
@@ -945,7 +1053,9 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
         lines.append(f"grant: {grant_line(d['release'])}; attempts {c.get('attempts', 0)}; "
                      f"approvals unused: {'; '.join(c.get('approvals', [])) or 'none'}")
     if c.get("after"):
-        lines.append(f"after: {', '.join(c['after'])} (the base is the branch of the last one "
+        lines.append(f"after: {', '.join(c['after'])} (a release starts from the default branch)"
+                     if c.get("kind") == "release" else
+                     f"after: {', '.join(c['after'])} (the base is the branch of the last one "
                      "still open)")
     if c.get("kind") == "fix":
         lines.append(f"fix for {c['fix_for']}: the release starts again once this merges")

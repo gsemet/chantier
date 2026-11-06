@@ -169,8 +169,8 @@ Only in the turn where the user gave the go:
   a note on a cancelled one, are refused (exit 2).
 
   ```bash
-  $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr>]
-  $CHANTIER order after CR-104 --note "CR-102,CR-103"   # what a queued CR waits for; "-" for none
+  $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr> | --release]
+  $CHANTIER order after CR-104 --note "CR-102,CR-103"   # what a queued CR waits for; "-" for none (not a release's)
   $CHANTIER order drop CR-104                 # to 5-trash/ with its work
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: archived
@@ -180,6 +180,7 @@ Only in the turn where the user gave the go:
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
+  $CHANTIER order confirm <release-cr> --note "<the version and what else was settled>"
   ```
 
   A Driver's question (`ask … blocked <cr> question: …`): record the user's answer in the CR's
@@ -317,7 +318,15 @@ commit, ask whether to plan one and say why: per-CR gates miss what CRs break to
 check skipped on a PR goes unseen. Offer to write the answer in the project. The user's answer
 rules; chantier imposes no gate.
 Prepare it as any CR (`$CHANTIER file "Release v1.4.0"`, grilled: the version, the scope, where
-the procedure is, what the user reviews), open it preferably alone with `--release 1`. The
+the procedure is, what the user reviews), open it preferably alone with `--release 1`. A release
+may also join a running batch: `$CHANTIER order add --release --note <folder>` (one per batch,
+default grant; `order grant` after). It then waits for every other CR of the batch, the ones
+added later too (the CLI keeps its `after`; `order after` is refused on it), and once they have
+ended it starts only on the user's word. File it early with what is known; settle the rest at
+the end. When the Foreman asks for the confirmation, grill the version from what was merged,
+complete the specification, then `$CHANTIER order confirm <release-cr> --note "<the version and
+what was settled>"`. A CR added after that voids the word; none is added once the release has
+started (a fix, `--fix-for`, or the next batch). A release alone in its batch needs no word. The
 grant is the user's: by default each irreversible action waits for their approval (`order
 approve`); ask whether they allow more and pass only what they said (`--autonomous-releases
 <n>`, `--grant-fixes`: the Foreman starts and merges up to three fixes, both with `--budget`;

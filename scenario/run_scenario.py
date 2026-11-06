@@ -752,6 +752,7 @@ def scenario(w: World) -> None:
     stack_batch(w)
     release(w)
     granted_fixes(w)
+    release_last(w)
     qa_on_head(w)
     dependencies(w)
     release_merge_on_approval(w)
@@ -1330,7 +1331,7 @@ def release(w: World) -> None:
     check("the release waits for the batch's other CRs", fm.started == [work])
     code, _ = w.chantier("take", rel, expect=2)
     check("the release CR is refused until the others are merged",
-          code == 2 and "once every other CR" in w.last_stderr, w.last_stderr)
+          code == 2 and "merged or cancelled" in w.last_stderr, w.last_stderr)
     driver_round(w, work, "last.py", "LAST = True\n")
     w.chantier("handback", work, "ready", w.cr(work)["pr"])
     fm.turn()
@@ -1338,7 +1339,12 @@ def release(w: World) -> None:
           fm.asked[-1].startswith(f"ready {work} "), str(fm.asked))
     w.chantier("order", "merged", work)
     fm.turn()
-    check("once it is merged, the release CR is taken, with the grant in its facts",
+    check("once it is merged, the release shares its batch: it waits for the user's word",
+          fm.started[-1] != rel and any(ln.startswith(rel) and "confirmation" in ln
+                                        for ln in w.chantier("status")[1]), str(fm.started))
+    w.chantier("order", "confirm", rel, "--note", "v1.1.0, nothing else to settle")
+    fm.turn()
+    check("once confirmed, the release CR is taken, with the grant in its facts",
           fm.started[-1] == rel and any(ln.startswith("grant: every irreversible action waits")
                                         for ln in fm.facts), str(fm.facts))
 
@@ -1524,6 +1530,116 @@ def granted_fixes(w: World) -> None:
     w.chantier("land", "--epoch", 1)
     priced_foreman(w)
     w.chantier("close", "--batch", w.name, "--yes")
+
+
+def release_last(w: World) -> None:
+    note("\n## 14c. A release added to a running batch waits for every other CR, then for the user")
+    _, first = prepare_cr(w, "First change")
+    _, second = prepare_cr(w, "Second change")
+    _, third = prepare_cr(w, "Third change")
+    _, version = prepare_cr(w, "Release v1.5.0")
+    _, other = prepare_cr(w, "Release v1.6.0")
+    _, fix_one = prepare_cr(w, "Fix one")
+    _, fix_two = prepare_cr(w, "Fix two")
+    w.reset()
+    w.start(str(first), "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman6", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    work = w.batch()["crs"][0]["id"]
+    w.chantier("order", "add", "--release", "--fix-for", work, "--note", str(version), expect=1)
+    check("--release goes with no --fix-for", w.last_stderr.count("--release") >= 1, w.last_stderr)
+    w.chantier("order", "add", "--release", "--note", str(version))
+    rel = w.batch()["crs"][-1]["id"]
+    check("order add --release adds the batch's release CR, with the default grant, after the CR",
+          w.cr(rel)["kind"] == "release" and w.cr(rel)["after"] == [work]
+          and w.batch()["release"] == {"autonomous": 0, "fixes": False, "published": 0, "cr": rel},
+          str(w.cr(rel)))
+    w.chantier("order", "add", "--note", str(second))
+    late = w.batch()["crs"][-1]["id"]
+    check("a CR added later is waited for too", w.cr(rel)["after"] == [work, late])
+    _, out = w.chantier("status")
+    check("status shows the release waiting for each CR",
+          any(ln.startswith(rel) and f"waits for {work} queued, {late} queued" in ln for ln in out),
+          str(out))
+    w.chantier("order", "add", "--release", "--note", str(other), expect=2)
+    check("a second release is refused, the next batch named", "next batch" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("order", "after", rel, "--note", work, expect=2)
+    check("order after is refused on the release", "release CR" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "after", late, "--note", rel, expect=2)
+    check("a CR that waits for the release is a cycle, the release named",
+          "cycle" in w.last_stderr and rel in w.last_stderr, w.last_stderr)
+    w.chantier("order", "confirm", work, "--note", "v1.5.0", expect=1)
+    check("only a release is confirmed", rel in w.last_stderr, w.last_stderr)
+    w.chantier("order", "confirm", rel, "--note", "v1.5.0", expect=2)
+    check("a confirmation is refused while the release waits for a CR",
+          "still waits" in w.last_stderr, w.last_stderr)
+
+    check("the first CR starts", fm.take(work) == 0)
+    driver_round(w, work, "first.py", "FIRST = True\n")
+    w.chantier("handback", work, "ready", w.cr(work)["pr"])
+    code, _ = w.chantier("take", rel, expect=2)
+    check("a ready CR keeps the release waiting",
+          code == 2 and f"{work} ready" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "merged", work)
+    w.chantier("order", "drop", late)
+    check("a merged CR and a dropped one are met",
+          w.cr(work)["status"] == "merged" and w.cr(late)["status"] == "cancelled")
+    code, _ = w.chantier("take", rel, expect=2)
+    check("with the others ended, a take is refused until the user's word",
+          code == 2 and "confirmation" in w.last_stderr, w.last_stderr)
+    _, out = w.chantier("status")
+    check("status says the release waits for the word",
+          any(ln.startswith(rel) and "waits for the user's confirmation" in ln for ln in out),
+          str(out))
+    w.chantier("order", "confirm", rel, "--note", "v1.5.0, the notes settled")
+    check("the word is kept on the CR and in its notes",
+          w.cr(rel)["confirmed"] == "v1.5.0, the notes settled"
+          and any(n.startswith("confirmed:") for n in w.cr(rel)["notes"]))
+    w.chantier("order", "add", "--note", str(third))
+    added = w.batch()["crs"][-1]["id"]
+    check("a CR added then voids the confirmation, which the log and a note explain",
+          "confirmed" not in w.cr(rel) and w.cr(rel)["after"][-1] == added
+          and any("voided" in n for n in w.cr(rel)["notes"])
+          and any(e["kind"] == "confirm-void" for e in map(json.loads, (w.folder() / "events.jsonl").read_text().splitlines())))
+    w.chantier("order", "drop", added)
+    code, _ = w.chantier("take", rel, expect=2)
+    check("the release waits for the word again", code == 2 and "confirmation" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("order", "confirm", rel, "--note", "v1.5.0, with the third change dropped")
+    check("the release starts once confirmed", fm.take(rel) == 0)
+
+    w.chantier("order", "add", "--note", str(second), expect=2)
+    check("order add is refused once the release has started, with its two ways out",
+          "--fix-for" in w.last_stderr and "next batch" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "confirm", rel, "--note", "again", expect=2)
+    check("a confirmation is refused once the release has started", "started" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("order", "add", "--note", str(fix_one), "--fix-for", rel)
+    check("a fix of the release is still added",
+          w.batch()["crs"][-1]["kind"] == "fix" and "confirmed" in w.cr(rel))
+    w.chantier("release", "start", rel)
+    w.chantier("order", "merged", rel)
+    check("a merged release PR puts the release back to queued, attempts kept",
+          w.cr(rel)["status"] == "queued" and w.cr(rel)["attempts"] == 1)
+    w.chantier("order", "add", "--note", str(second), expect=2)
+    check("order add is refused again, whatever the state, since attempts says so",
+          "has started" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "add", "--note", str(fix_two), "--fix-for", rel)
+    check("order add --fix-for still works", w.batch()["crs"][-1]["fix_for"] == rel)
+
+    w.reset()
+    _, alone = prepare_cr(w, "Release v1.7.0")
+    w.start(str(alone), "--release", 1, "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman7", "--epoch", 1)
+    only = w.batch()["crs"][0]["id"]
+    w.chantier("order", "confirm", only, "--note", "v1.7.0", expect=2)
+    check("a release alone in its batch needs no confirmation", "alone" in w.last_stderr,
+          w.last_stderr)
+    check("a release alone starts with no confirmation", Foreman(w, epoch=1).take(only) == 0)
+    w.reset()
 
 
 def qa_on_head(w: World) -> None:

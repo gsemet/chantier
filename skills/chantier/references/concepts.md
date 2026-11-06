@@ -66,7 +66,8 @@ started.
   not queued, an unknown CR or a cycle). `depends.json` is written only when a CR needs the
   result of another: CRs that touch the same file do not depend on each other.
 - **Release CR:** releases what is merged, by the project's own procedure; a Release driver runs
-  it once every other CR of the batch is merged or cancelled. A **fix CR** is a CR the release
+  it once every other CR of the batch is merged or cancelled (its `after`, which the CLI writes),
+  and, when it shares the batch, on the user's `order confirm`. A **fix CR** is a CR the release
   found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a
   release without asking (releases, up to three fixes the Foreman starts and merges), always
   within a budget.

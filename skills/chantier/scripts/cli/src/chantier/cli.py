@@ -47,7 +47,7 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--parallel", action="store_true",
                    help="independent CRs, each on the default branch (default: a stack of PRs)")
     s.add_argument("--release", type=int, metavar="N",
-                   help="the item number of the release CR; it starts once the others are merged")
+                   help="the item number of the release CR; it starts once the others have ended, on the user's word if it has company")
     s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",
                    help="releases the user allows without asking (needs --budget)")
     s.add_argument("--grant-fixes", action="store_true",
@@ -58,15 +58,18 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("order", commands.order,
             "the user's word, recorded at once; the Foreman does what needs its hands",
             epoch=True)
-    s.add_argument("kind", help="add, after, drop, merged, note, rounds, slots, budget, qa; for the release "
-                   "CR: approve, grant; the Foreman: done <O-k>, merged --epoch, add --fix-for "
-                   "--epoch")
+    s.add_argument("kind", help="add [--release], after, drop, merged, note, rounds, slots, budget, qa; "
+                   "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "
+                   "--epoch, add --fix-for --epoch")
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
     s.add_argument("--note", help="add: <folder>, or a release's fix file; after: the CR ids it waits "
                    "for, comma separated, or - for none; note: the line; rounds, "
                    "slots, budget: the number; qa: what to test; approve: the action; grant: "
-                   "releases=N fixes=on|off budget=N")
+                   "releases=N fixes=on|off budget=N; confirm: the version and what else was "
+                   "settled")
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
+    s.add_argument("--release", action="store_true",
+                   help="add: the folder is the batch's release CR, which waits for every other CR")
 
     s = cmd("foreman", commands.foreman,
             "the Foreman claims its epoch (set) and records its transcript", epoch=True)

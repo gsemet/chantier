@@ -1,4 +1,4 @@
-﻿"""The rails: what the CLI refuses whatever an agent decides, and the facts it keeps straight.
+"""The rails: what the CLI refuses whatever an agent decides, and the facts it keeps straight.
 
 Nothing here decides what a batch does next; the Foreman does, from `chantier status`. A rail is
 a refusal (a take past the budget or the slots, a round past the limit, an irreversible action
@@ -76,11 +76,39 @@ def check_slot(b: Batch, what: str) -> None:
                             f"({', '.join(held(b)) or 'slots 0'})")
 
 
+WORD = "the user's confirmation (`order confirm`)"
+
+
+def is_release(c: dict) -> bool:
+    return c.get("kind") == "release"
+
+
+def alone(crs: list[dict], c: dict) -> bool:
+    """A release alone in its batch: no other CR but fixes was ever in it, whatever its state."""
+    return not any(x["id"] != c["id"] and x.get("kind") != "fix" for x in crs)
+
+
 def waits_for(crs: list[dict], c: dict) -> list[str]:
-    """The CRs of `after` that are neither ready nor merged (a cancelled one stays unmet)."""
+    """The CRs of `after` not yet met. For a CR, met is ready or merged (a cancelled one stays
+    unmet); for a release, merged or cancelled, since it ships what is merged."""
     found = {x["id"]: x for x in crs}
+    met = ENDED if is_release(c) else {"ready", "merged"}
     return [f"{i} {found[i]['status']}" for i in c.get("after", [])
-            if i in found and found[i]["status"] not in {"ready", "merged"}]
+            if i in found and found[i]["status"] not in met]
+
+
+def needs_word(crs: list[dict], c: dict) -> bool:
+    """A release that shares its batch starts only on the user's confirmation."""
+    return is_release(c) and not alone(crs, c) and not c.get("confirmed")
+
+
+def waits_all(crs: list[dict], c: dict) -> list[str]:
+    """What a queued CR waits for, as `status` shows it: its `after`, then, once that is met,
+    a release's confirmation."""
+    found = waits_for(crs, c)
+    if not found and needs_word(crs, c):
+        return [WORD]
+    return found
 
 
 def unmet(b: Batch, c: dict) -> list[str]:
@@ -90,10 +118,6 @@ def unmet(b: Batch, c: dict) -> list[str]:
 def over_budget(b: Batch) -> bool:
     budget = b.data.get("budget_usd")
     return bool(budget) and b.data.get("spent_usd", 0) >= budget
-
-
-def others_merged(b: Batch, c: dict) -> bool:
-    return all(x["status"] in ENDED for x in b.data["crs"] if x is not c)
 
 
 def all_merged(b: Batch) -> bool:
@@ -128,11 +152,17 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
     if c["status"] != "working":
         check_slot(b, c["id"])
     if c["status"] == "queued" and unmet(b, c):
+        ends = "merged or cancelled" if is_release(c) else "ready or merged"
         raise ChantierError(f"{c['id']} waits for {', '.join(unmet(b, c))}: it starts once each "
-                            "is ready or merged")
-    if c.get("kind") == "release" and not others_merged(b, c):
-        raise ChantierError(f"{c['id']} releases what is merged: it starts once every other CR "
-                            "is merged or cancelled")
+                            f"is {ends}")
+    if is_release(c):
+        fixes = pending_fixes(b, c)
+        if fixes:
+            raise ChantierError(f"{c['id']} waits for {', '.join(fixes)}: a fix of the release "
+                                "must be merged or cancelled first")
+        if needs_word(b.data["crs"], c):
+            raise ChantierError(f"{c['id']} needs {WORD}: the Chief of Staff grills the version "
+                                "with the user once the others have ended, then gives it")
 
 
 def check_round(b: Batch, c: dict) -> int:
