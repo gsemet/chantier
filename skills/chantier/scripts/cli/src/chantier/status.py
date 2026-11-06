@@ -15,6 +15,7 @@ from pathlib import Path
 from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
+PAST_LIMIT = 50  # landed and trashed CRs listed in the index; the totals count them all
 ICON = {"red": "🔴", "yellow": "🟡", "green": "🟢", "grey": "⚪"}
 ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", "rounds"}
 ENDED = {"merged", "cancelled"}
@@ -188,9 +189,14 @@ def _priced(d: dict) -> bool:
 
 def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     folder = repo.root / c["path"] if c.get("path") else None
+    silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
             "step": step(c), "label": label(c, round_limit(d, c)), "round": c.get("round", 0),
             "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
+            "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
+            "silent_minutes": round(silent) if silent is not None else None,
+            # always relative to `3-requests/`, whatever `start` is: the board resolves it there
+            "folder": _link(folder, repo.batches) if folder else None,
             "status": _link(folder / "STATUS.md", start) if folder else None,
             "specification": _link(folder / c.get("specification", "03-change-spec.md"), start)
             if folder else None}
@@ -261,6 +267,34 @@ def _backlog(paths: dict[str, Path], start: Path) -> list[dict]:
     return rows
 
 
+def _when(name: str) -> str | None:
+    """`261105-1059-...` read as a UTC timestamp, or None for a name without the prefix."""
+    m = re.match(r"(\d\d)(\d\d)(\d\d)-(\d\d)(\d\d)", name)
+    return f"20{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:00Z" if m else None
+
+
+def _past(stage: Path, start: Path) -> tuple[list[dict], int]:
+    """The last `PAST_LIMIT` CRs of an archive or trash stage, newest first, and the stage's count.
+
+    At most `PAST_LIMIT` STATUS.json files are read; a folder without one gives its title only.
+    """
+    folders = sorted((p for p in stage.iterdir() if p.is_dir()), reverse=True) \
+        if stage.is_dir() else []
+    out = []
+    for folder in folders[:PAST_LIMIT]:
+        try:
+            s = json.loads((folder / "STATUS.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            s = {}
+        pr = s.get("pr")
+        out.append({"cr": s.get("cr"), "title": s.get("title") or _title(folder),
+                    "state": s.get("state"), "batch": s.get("batch"),
+                    "pr": pr.get("url") if isinstance(pr, dict) else pr,
+                    "cost_usd": s.get("cost_usd"), "when": _when(folder.name),
+                    "path": _link(folder, start)})
+    return out, len(folders)
+
+
 def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
     start = repo.batches
     batches = []
@@ -270,11 +304,16 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
         active = [c for c in sorted(d["crs"], key=lambda x: x["order"]) if c["status"] not in ENDED]
         batches.append({"batch": v["batch"], "folder": folder.name, "state": v["state"],
                         "spent_usd": v["spent_usd"], "budget_usd": v["budget_usd"],
-                        "asks_unread": v["asks_unread"],
+                        "asks_unread": v["asks_unread"], "heartbeat": v["heartbeat"],
+                        "orders_pending": v["orders_pending"],
                         "crs": [_row(repo, d, c, start) for c in active]})
+    landed, landed_total = _past(paths["archives"], start)
+    trashed, trashed_total = _past(paths["trash"], start)
     return {"schema": SCHEMA, "updated": now(), "batches": batches,
             "active_crs": sum(len(b["crs"]) for b in batches),
-            "backlog": _backlog(paths, start)}
+            "backlog": _backlog(paths, start),
+            "landed": landed, "landed_total": landed_total,
+            "trashed": trashed, "trashed_total": trashed_total}
 
 
 def dashboard_markdown(v: dict) -> str:

@@ -635,6 +635,7 @@ def scenario(w: World) -> None:
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the batch's STATUS.md, once landed, lists every CR",
           "landed" in report and all(c["id"].removeprefix("CR-") in report for c in d["crs"]))
+    board_index(w, d)
     prs = {c["id"]: c["pr"] for c in d["crs"] if c["pr"]}
     check("four PRs were opened on the fake forge by the Drivers", len(set(prs.values())) == 4)
 
@@ -711,10 +712,63 @@ def status_files(w: World) -> None:
     batch = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the status cell gives the pastille, the state, the step and the round",
           "🟢 ready Notify 1/3" in board and "🟢 ready Notify 1/3" in batch, board)
+    index = json.loads((w.state / "3-requests/STATUS.json").read_text(encoding="utf-8"))
+    rows = [r for b in index["batches"] for r in b["crs"]]
+    own = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["crs"]
+    check("the index gives each batch its heartbeat and pending orders, and each CR row its "
+          "blocked reason, silent time and folder, relative to 3-requests/ in the batch's file too",
+          index["schema"] == 2 and rows
+          and all({"heartbeat", "orders_pending"} <= set(b) for b in index["batches"])
+          and all({"blocked", "silent_minutes", "folder"} <= set(r) for r in rows + own)
+          and all((w.state / "3-requests" / r["folder"] / "STATUS.json").is_file()
+                  for r in rows + own if r["folder"]), str(rows[:1]))
+    check("a CR that is not working has no silent time, and none is blocked here",
+          all(r["silent_minutes"] is None and r["blocked"] is None
+              for r in rows if r["state"] == "ready"), str(rows))
     links = [(w.state / "3-requests", ln) for ln in re.findall(r"\]\(([^)h][^)]*)\)", board)]
     links += [(w.folder(), ln) for ln in re.findall(r"\]\(([^)h][^)]*)\)", batch)]
     check("every link of the board and the batch resolves",
           links and all((start / ln).exists() for start, ln in links), str(links))
+
+
+def board_index(w: World, d: dict) -> None:
+    """The index the CR board reads: the landed and trashed CRs, their totals and the limit."""
+    path = w.state / "3-requests/STATUS.json"
+    index = json.loads(path.read_text(encoding="utf-8"))
+    merged = {c["id"] for c in d["crs"] if c["status"] == "merged"}
+    got = {e["cr"]: e for e in index["landed"]}
+    check("the index lists the landed CRs with their state, batch, PR, cost, time and folder",
+          merged <= set(got) and index["landed_total"] >= len(merged)
+          and all(got[i]["state"] == "merged" and got[i]["batch"] == w.folder().name
+                  and got[i]["pr"] and got[i]["cost_usd"] is not None
+                  and re.fullmatch(r"20\d\d-\d\d-\d\dT\d\d:\d\d:00Z", got[i]["when"])
+                  and (w.state / "3-requests" / got[i]["path"] / "STATUS.json").is_file()
+                  for i in merged), str(index["landed"]))
+    check("the index lists the trashed CR, with a total",
+          any(e["cr"] == "CR-103" and e["state"] == "cancelled" for e in index["trashed"])
+          and index["trashed_total"] >= 1, str(index["trashed"]))
+    landed_before = index["landed_total"]
+    stage = w.state / "4-archives"
+    made = []
+    for n in range(60):  # older than any real archive, none with a STATUS.json
+        folder = stage / f"250101-{n // 60:02d}{n % 60:02d}-padding-{n}"
+        folder.mkdir()
+        made.append(folder)
+        (folder / "01-intent.md").write_text(f"# Padding {n}\n", encoding="utf-8")
+    w.chantier("file", "Board index probe")  # rewrites the index
+    index = json.loads(path.read_text(encoding="utf-8"))
+    whens = [e["when"] for e in index["landed"]]
+    bare = [e for e in index["landed"] if e["cr"] is None]
+    check("the index keeps the last 50 landed CRs, newest first, and counts them all",
+          len(index["landed"]) == 50 and index["landed_total"] == landed_before + 60
+          and whens == sorted(whens, reverse=True) and not any("padding" in e["path"] for e in index["landed"][:len(merged)]),
+          f"{len(index['landed'])} of {index['landed_total']}")
+    check("a folder without a STATUS.json gives its title and null for the rest",
+          all(e["title"].startswith("Padding") and e["state"] is None and e["pr"] is None
+              and e["cost_usd"] is None and e["batch"] is None for e in bare) and bare,
+          str(bare[:1]))
+    for folder in made:
+        shutil.rmtree(folder)
 
 
 def close_batch(w: World) -> None:

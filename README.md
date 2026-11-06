@@ -121,6 +121,14 @@ Talk to the Chief of Staff in plain language:
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
 | "which agents and models?" | the team: each role, its agent, its model |
 
+### The CR board (Claude Code)
+
+`/chantier-board` shows or hides the **CR board**, a read-only pane over
+`.agents/changes/3-requests/STATUS.json`: the open batches with what waits for you and what is in
+progress, the backlog, and the landed and trashed CRs. Press a CR for its sheet and its documents.
+Loading the `chantier` skill opens it too. It refreshes every 15 seconds while open, writes
+nothing, and runs no process but `git rev-parse` to find the main checkout from a worktree. It is
+a Claude Code mod (early access): nothing of it on Copilot.
 ### Your own agents
 
 Any role can run one of your agents. Tell the Chief of Staff, and it writes it in a `chantier`
@@ -242,6 +250,7 @@ The Chief of Staff's own session is not counted.
 .claude-plugin/             ← Claude Code plugin manifest and marketplace
 .github/plugin/             ← GitHub Copilot plugin manifest and marketplace
 agents/                     ← Claude Code agents, one per role
+hooks/, types/              ← Claude Code only: the CR board mod and its contract
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chantier/
 ├── SKILL.md                ← the Chief of Staff's entry point
