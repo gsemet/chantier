@@ -58,11 +58,12 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("order", commands.order,
             "the user's word, recorded at once; the Foreman does what needs its hands",
             epoch=True)
-    s.add_argument("kind", help="add, drop, merged, note, rounds, slots, budget, qa; for the release "
+    s.add_argument("kind", help="add, after, drop, merged, note, rounds, slots, budget, qa; for the release "
                    "CR: approve, grant; the Foreman: done <O-k>, merged --epoch, add --fix-for "
                    "--epoch")
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
-    s.add_argument("--note", help="add: <folder>, or a release's fix file; note: the line; rounds, "
+    s.add_argument("--note", help="add: <folder>, or a release's fix file; after: the CR ids it waits "
+                   "for, comma separated, or - for none; note: the line; rounds, "
                    "slots, budget: the number; qa: what to test; approve: the action; grant: "
                    "releases=N fixes=on|off budget=N")
     s.add_argument("--fix-for", help="add: the release CR this fix is for")

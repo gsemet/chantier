@@ -383,6 +383,10 @@ def declare_dependencies(b: Batch, added: list[dict]) -> None:
         if ids:
             c["after"] = ids
             b.log("depends", c["id"], after=ids)
+    check_cycles(b)
+
+
+def check_cycles(b: Batch) -> None:
     graph = {x["id"]: x.get("after", []) for x in b.data["crs"]}
     done: set[str] = set()
 
@@ -504,9 +508,9 @@ def foreman(args) -> list[str]:
         return [f"transcript {args.value}"]
 
 
-ORDER_KINDS = {"add", "drop", "merged", "note", "rounds", "slots", "budget", "approve", "grant",
-               "qa", "done"}
-CR_ORDERS = {"drop", "merged", "rounds", "approve", "grant"}
+ORDER_KINDS = {"add", "after", "drop", "merged", "note", "rounds", "slots", "budget", "approve",
+               "grant", "qa", "done"}
+CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant"}
 
 
 def _release_cr(b: Batch, kind: str, cr_id: str) -> dict:
@@ -522,6 +526,8 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
     """The user's word, recorded at once: a folder moves, a number changes, a note is kept. Who
     takes a CR next, and when, is the Foreman's decision from `status`. `own` is the Foreman
     acting under the user's grant."""
+    if kind == "after" and not any(x["id"] == cr_id for x in b.data["crs"]):
+        raise ChantierError(f"order after: unknown CR {cr_id} in batch {b.id}")
     c = b.cr(cr_id) if kind in CR_ORDERS or (kind == "note" and cr_id != "-") else None
     if kind == "add":
         if fix_for:
@@ -539,6 +545,37 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         declare_dependencies(b, [added])
         waits = f", after {', '.join(added['after'])}" if added.get("after") else ""
         return [f"added {added['id']}, queued{waits}"]
+    if kind == "after":
+        usage = 'order after <cr> --note "<CR ids, comma separated, or - for none>"'
+        if not note.strip():
+            raise ChantierError(usage, EXIT_USAGE)
+        if c["status"] != "queued":
+            raise ChantierError(f"cannot change what {cr_id} waits for: it is {c['status']}, "
+                                "not queued")
+        ids: list[str] = []
+        for dep in ([] if note.strip() == "-" else [s.strip() for s in note.split(",")]):
+            if not any(x["id"] == dep for x in b.data["crs"]):
+                raise ChantierError(f"order after: unknown CR {dep!r} in batch {b.id}")
+            if dep == cr_id:
+                raise ChantierError(f"order after: {cr_id} cannot wait for itself")
+            if b.cr(dep)["status"] != "merged" and dep not in ids:  # merged: met, not recorded
+                ids.append(dep)
+        previous = c.get("after", [])
+        if ids:
+            c["after"] = ids
+        else:
+            c.pop("after", None)
+        try:
+            check_cycles(b)
+        except ChantierError:
+            if previous:
+                c["after"] = previous
+            else:
+                c.pop("after", None)
+            raise
+        b.touch(c)
+        b.log("depends", cr_id, after=ids)
+        return [f"{cr_id} now waits for {', '.join(ids)}" if ids else f"{cr_id} waits for nothing"]
     if kind == "drop":
         if c["status"] == "merged":
             raise ChantierError(f"cannot drop {cr_id}: it is already merged")
@@ -795,25 +832,42 @@ def _chain(b_data: dict) -> list[dict]:
             if x["status"] not in {"cancelled", "merged"} and x.get("kind") not in {"release", "fix"}]
 
 
-def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
-    """In stack mode, a CR sits on the one below it in the chain; else on the default branch."""
+def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
+    """The branch a CR starts on: that of its last dependency still open, in the order of
+    `after`; with none open, the default branch, whatever its place in a stack."""
     default = repo.config["default_branch"]
     if c.get("after") and c.get("kind") not in {"release", "fix"}:
-        # on the branch of its last dependency still open, in the order of `after`
         found = {x["id"]: x for x in b_data["crs"]}
         open_ = [found[i] for i in c["after"] if i in found and found[i]["status"] not in ENDED]
         return open_[-1]["branch"] if open_ else default
+    return default
+
+
+def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
+    """Its place in the stack: a CR sits on the one below it in the chain (the first on the
+    default branch); a CR with an open dependency, on that dependency's branch."""
+    default = repo.config["default_branch"]
+    if c.get("after") and c.get("kind") not in {"release", "fix"}:
+        return _start_base(b_data, c, repo)
     order = _chain(b_data)
     ids = [x["id"] for x in order]
     i = ids.index(c["id"]) if c["id"] in ids else 0
     return order[i - 1]["branch"] if i > 0 else default
 
 
+def _ref(repo: Repo, branch: str) -> str:
+    return f"{repo.config['remote']}/{branch}" if branch == repo.config["default_branch"] else branch
+
+
 def _base_of(d: dict, c: dict, repo: Repo) -> str:
-    """The ref the CR's branch stands on: the remote's default branch, or in a stack the CR
-    below it."""
-    base = _stack_base(d, c, repo)
-    return f"{repo.config['remote']}/{base}" if base == repo.config["default_branch"] else base
+    """The ref the CR's branch starts on: the remote's default branch, or the branch of its
+    last open dependency."""
+    return _ref(repo, _start_base(d, c, repo))
+
+
+def _stack_ref(d: dict, c: dict, repo: Repo) -> str:
+    """The ref under the CR's PR in the stack, which the stack driver sets."""
+    return _ref(repo, _stack_base(d, c, repo))
 
 
 def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
@@ -891,7 +945,7 @@ def take(args) -> list[str]:
                 crs = _chain(d)
                 return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + [
                     f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
-                    f"base {_base_of(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
+                    f"base {_stack_ref(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
             c = b.cr(args.cr)
             check_take(b, c, args.note)
             if c["status"] in {"ready", "blocked"}:

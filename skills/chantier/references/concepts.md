@@ -29,8 +29,9 @@ started.
 - **Batch:** the CRs active at one time under one Foreman. It has no name, only a number: `batch-<n>`
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
   takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
-  work joins it through the Foreman (`order add`). It is a stack of PRs by default, each CR on the
-  one under it; `open --parallel` makes independent CRs instead. A release CR and a fix CR sit
+  work joins it through the Foreman (`order add`). It is a stack of PRs by default, each PR on the
+  one under it once the CRs are ready, but the CRs start in parallel, each on the default branch
+  unless it has an open dependency; `open --parallel` makes independent CRs instead. A release CR and a fix CR sit
   outside the stack, on the default branch. When a stack merges only in part, what remains forms
   another stack in the same batch, restacked on the default branch. Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
@@ -47,8 +48,11 @@ started.
   recorded; an unknown slug, a malformed file or a cycle exits 2). `take` refuses a queued CR until
   each CR of its `after` is `ready` or `merged` (a cancelled one stays unmet: an ask for the user,
   who drops the CR or changes it). The CR starts on the branch of its last dependency still open,
-  in the order of `after`, else on the default branch. `stack` refuses an order that puts a CR
-  below one of its `after`.
+  in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
+  place in the stack are two things. `stack` refuses an order that puts a CR below one of its
+  `after`. `order after <cr> --note "<ids|->"` replaces the `after` of a queued CR (exit 2 on a CR
+  not queued, an unknown CR or a cycle). `depends.json` is written only when a CR needs the
+  result of another: CRs that touch the same file do not depend on each other.
 - **Release CR:** releases what is merged, by the project's own procedure; a Release driver runs
   it once every other CR of the batch is merged or cancelled. A **fix CR** is a CR the release
   found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a
