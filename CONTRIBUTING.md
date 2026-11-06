@@ -48,7 +48,7 @@ chantier is four things in one repository:
 
 The design rule that shapes everything: **no fallback.** When a tool, a host feature, a model
 or an agent is not exactly available, chantier stops and says so; it never picks a look-alike.
-Within what they have, the Foreman and the Drivers (Opus 5.5) judge freely: the cards state
+Within what they have, the Foreman and the stack and release Drivers (Opus 5.5), the CR and QA Drivers (Sonnet 5.5) judge freely: the cards state
 goals and boundaries, not procedures. Keep both true in any change.
 
 ## Set up

@@ -1,7 +1,7 @@
 ---
 name: chantier-cr-driver
 description: Drives one chantier change request through rounds, ship, CI and hand-back. Started by the Foreman.
-model: [Claude Opus 5.5, claude-opus-5.5]
+model: [Claude Sonnet 5.5, claude-sonnet-5.5]
 model-policy: required
 tools: ["agent", "execute", "read", "edit", "search", "read_agent", "write_agent", "list_agents"]
 strict-tools-list: true
