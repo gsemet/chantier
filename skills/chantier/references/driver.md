@@ -1,7 +1,9 @@
 # Drivers
 
 A Driver runs in the background for the Foreman and drives one CR (or the stack) through short
-foreground children, one at a time. It never codes, reviews, debugs or resolves a conflict
+foreground children, one at a time. Read your host's reference with this card ([Claude
+Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)): how to start a child and reach the
+Foreman. It never codes, reviews, debugs or resolves a conflict
 itself: it starts the child for it, and restarts a failing child rather than doing its work.
 Git and the forge are yours: the worktree, the commits, the rebase, the push, the PR, its
 checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
@@ -42,7 +44,7 @@ The CLI keeps the CR's record and tells you what is off.
 - Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`): it writes the state and prints the line to send the Foreman
-  (`SendMessage` to `main` on Claude, your final answer on Copilot). Then end: ending frees
+  (how it reaches the Foreman is your host's reference). Then end: ending frees
   your slot. A decision only the user can take is `blocked question: <text>`.
 - `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
   `note` the decision. `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked

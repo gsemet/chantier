@@ -201,6 +201,20 @@ class Foreman:
         self.facts: list[str] = []
         self.landed = False
 
+    def first_act(self, session: str, cwd: Path | None = None) -> bool:
+        """foreman.md's first act, before the epoch is claimed: in a linked worktree (`--git-dir`
+        differs from `--git-common-dir`) take no CR and ask; else claim the epoch."""
+        cwd = cwd or self.w.work
+        git_dir, common = (
+            (cwd / ln).resolve() for ln in self.w.sh("git", "rev-parse", "--git-dir",
+                                                     "--git-common-dir", cwd=cwd).splitlines())
+        if git_dir != common:
+            self.ask(f"blocked {self.w.name} this session is in the worktree {cwd}; "
+                     "start the Foreman on the main checkout")
+            return False
+        self.w.chantier("foreman", "set", session, "--epoch", self.epoch, cwd=cwd)
+        return True
+
     def ask(self, text: str) -> None:
         self.asked.append(text)
         self.w.chantier("asks", "--", *text.split(" "))
@@ -724,6 +738,30 @@ def scenario(w: World) -> None:
     failed_opening(w)
     cancel_during_gate(w)
     rails(w)
+    foreman_in_a_worktree(w)
+
+
+def foreman_in_a_worktree(w: World) -> None:
+    note("\n## 17. A Foreman started in a worktree stops before it claims its epoch")
+    prepared = prepare_cr(w, "Worktree guard")[1]
+    w.reset()
+    w.start(str(prepared), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    linked = w.root / "foreman-session"
+    w.sh("git", "worktree", "add", "--quiet", "--detach", str(linked), "origin/main")
+    fm = Foreman(w, epoch=1)
+    check("in a linked worktree the first act stops", fm.first_act("local_wt", linked) is False)
+    d = w.batch()
+    check("no epoch claimed, no CR taken, and the Chief of Staff hears it",
+          not d.get("foreman") and all(c["status"] == "queued" for c in d["crs"])
+          and not fm.started and len(fm.asked) == 1 and fm.asked[0].startswith("blocked "),
+          str(fm.asked))
+    code, out = w.chantier("asks", expect=None)
+    check("the ask is recorded", code == 0 and any("worktree" in ln for ln in out), str(out))
+    w.chantier("asks", "--read", "all")
+    check("on the main checkout the same first act claims the epoch",
+          fm.first_act("local_main") is True and w.batch()["foreman"] == "local_main")
+    w.sh("git", "worktree", "remove", "--force", str(linked))
 
 
 def status_files(w: World) -> None:
