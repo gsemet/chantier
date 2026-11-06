@@ -99,8 +99,8 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   wakes you, and its asks are recorded, so send no further line. While any Driver runs, the
   heartbeat goes on. An order's line or a `ping` starts a turn; if it leaves a Driver running,
   arm the heartbeat again. The host's reference says how it ends, and when it is not yours to end.
-- **First act, before you claim your epoch:** `git rev-parse --git-dir --git-common-dir`. If
-  they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
+- **Next, after the title and before you claim your epoch:** `git rev-parse --git-dir
+  --git-common-dir`. If they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
   `$CHANTIER asks "blocked <batch> this session is in a worktree (<path>); start the Foreman on
   the main checkout"`, then stop. The Drivers could not leave their work and evidence in
   `.agents/changes/` from here. Nothing in your card or the reference gets you round it; only the
