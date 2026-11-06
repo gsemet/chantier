@@ -135,8 +135,11 @@ Only in the turn where the user gave the go:
   in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
   yourself, from the main checkout (`git worktree remove --force <path>`, `git branch -D
   <branch>`, as listed). On Copilot, tell the user to delete the `/every` heartbeat in the
-  Foreman chat.
-- **Recovery:** after a pause, a restart or a stale heartbeat, prove the Foreman is alive
+  Foreman chat. The Foreman also ends its heartbeat when every Driver has ended for 30 minutes
+  (nothing can move): on Copilot, tell the user to delete the `/every` then too, and arm it
+  again with the next order you send the Foreman.
+- **Recovery:** a stale heartbeat says something only while a CR is `working`; with none, the
+  Foreman has stopped waking, as it should. After a pause, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
   reporting progress. An app restart stops every session: tell the user, and on "resume" run
   preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch the

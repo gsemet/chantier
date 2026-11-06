@@ -36,7 +36,9 @@ The CLI keeps the CR's record and tells you what is off.
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
   failure gets one re-run; the rest is a round, with a `debugger` first when the cause is not
-  plain. Say what CI showed in a `note`.
+  plain. Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
+  and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
+  project's rules gives its own limit).
 - Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`): it writes the state and prints the line to send the Foreman

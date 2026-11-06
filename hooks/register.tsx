@@ -17,7 +17,7 @@ const TITLE = 'CR board'
 const COMMAND = 'chantier-board'
 const SCHEMA = 2
 const EVERY_MS = 15000
-const SILENT_MINUTES = 20
+const SILENT_MINUTES = 40
 const MAX_DOC_BYTES = 200 * 1024
 const INDEX = '.agents/changes/3-requests/STATUS.json'
 

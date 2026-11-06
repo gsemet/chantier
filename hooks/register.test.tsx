@@ -390,10 +390,10 @@ test('Backlog, Landed and Trashed are folded and open when pressed', async ($, o
 test('a live batch whose Foreman is silent for long says so', async ($, on) => {
   mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
   const w = world(on)
-  w.put(INDEX, index({ batches: [batch({ heartbeat: '2026-11-06T09:30:00Z' })] }))
+  w.put(INDEX, index({ batches: [batch({ heartbeat: '2026-11-06T09:10:00Z' })] }))
   await skill($)
   const ui = await board($)
-  expect(await words(ui)).toContain('Foreman silent for 30 min')
+  expect(await words(ui)).toContain('Foreman silent for 50 min')
   await ui.unmount()
 
   w.put(INDEX, index({ batches: [batch({ heartbeat: '2026-11-06T09:55:00Z' })] }))
