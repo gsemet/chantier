@@ -10,6 +10,7 @@ say what is off, and no forge command at all.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -18,13 +19,14 @@ import sys
 import time
 from collections import defaultdict
 from pathlib import Path
+from types import SimpleNamespace
 
 from . import __version__, costs, procs
 from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensure_unclaimed,
                         move_backlog_item, prepared_cr, stage_layout, trash_cr)
-from .rails import (MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
-                    check_granted_fix, check_no_open_batch, check_round, check_take, fix_go, live, parse_grant,
-                    record_ask, release_go, release_merged)
+from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
+                    check_granted_fix, check_no_open_batch, check_round, check_slot, check_take,
+                    fix_go, held, live, parse_grant, record_ask, release_go, release_merged, unmet)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
                     age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -325,6 +327,79 @@ def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
     return c
 
 
+def cr_slug(folder_name: str) -> str:
+    """A CR folder's name without its date and its number: how `depends.json` names it."""
+    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", folder_name)
+    return re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
+
+
+def read_depends(folder: Path) -> list[str]:
+    """The slugs of `depends.json`'s `after`; no file, no dependency."""
+    path = folder / "depends.json"
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise ChantierError(f"{path}: not valid UTF-8 JSON ({e}); expected "
+                            '{"after": ["<slug>", …]}') from e
+    after = data.get("after", []) if isinstance(data, dict) else None
+    if not isinstance(after, list) or not all(isinstance(s, str) and s.strip() for s in after):
+        raise ChantierError(f'{path}: expected {{"after": ["<slug>", …]}}, slugs being folder '
+                            "names without their number")
+    return after
+
+
+def archived_merged(repo: Repo, slug: str) -> bool:
+    archives = stage_layout(repo)["archives"]
+    for folder in sorted(archives.iterdir()) if archives.is_dir() else []:
+        if folder.is_dir() and cr_slug(folder.name) == slug:
+            try:
+                state = json.loads((folder / "STATUS.json").read_text(encoding="utf-8")).get("state")
+            except (OSError, ValueError):
+                state = "merged"  # an archive holds only merged CRs
+            if state == "merged":
+                return True
+    return False
+
+
+def declare_dependencies(b: Batch, added: list[dict]) -> None:
+    """Record the `after` of each CR just added, as CR ids, once all of them are in the batch.
+    A slug archived as merged is met and not recorded; the rest is refused, naming the slug."""
+    for c in added:
+        ids = []
+        for slug in read_depends(cr_directory(b.repo, c)):
+            key = _slug(slug)
+            dep = next((x for x in b.data["crs"] if cr_slug(Path(x["path"]).name) == key), None)
+            if dep is None:
+                if archived_merged(b.repo, key):
+                    continue
+                raise ChantierError(f"{c['id']}: depends.json names {slug!r}, which is in "
+                                    "neither the batch nor the archives as merged")
+            if dep["status"] == "merged":  # archived: met, so not recorded
+                continue
+            if dep["id"] not in ids:
+                ids.append(dep["id"])
+        if ids:
+            c["after"] = ids
+            b.log("depends", c["id"], after=ids)
+    graph = {x["id"]: x.get("after", []) for x in b.data["crs"]}
+    done: set[str] = set()
+
+    def visit(node: str, path: list[str]) -> None:
+        if node in path:
+            cycle = path[path.index(node):] + [node]
+            raise ChantierError(f"dependency cycle: {' → '.join(cycle)}")
+        if node in done:
+            return
+        for nxt in graph.get(node, []):
+            visit(nxt, path + [node])
+        done.add(node)
+
+    for node in graph:
+        visit(node, [])
+
+
 def open_batch(args) -> list[str]:
     repo = Repo.find()
     host = detect_host()
@@ -366,12 +441,14 @@ def open_batch(args) -> list[str]:
                 c = add_cr(b, item, kind="release" if i == args.release else "change")
                 if release and c["kind"] == "release":
                     release["cr"] = c["id"]
+            declare_dependencies(b, list(b.data["crs"]))
             brief.write_text(
                 f"# {b.id}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
                 f"Budget: {args.budget or 'none'}. Host: {host}.\n"
                 "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
-                        f"{' (release: starts once the others are merged)' if c['kind'] == 'release' else ''}\n"
+                        f"{' (release: starts once the others are merged)' if c['kind'] == 'release' else ''}"
+                        f"{' (after ' + ', '.join(c['after']) + ')' if c.get('after') else ''}\n"
                         for c in b.data["crs"]) +
                 (f"- Release grant: {grant_line(release)}\n" if release else "") +
                 f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}.\n"
@@ -451,7 +528,10 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
                                                "procedure starts again from its first step")
             b.touch(rel)
             return [f"added {fix['id']} (fix for {fix_for}), queued"]
-        return [f"added {add_cr(b, note)['id']}, queued"]
+        added = add_cr(b, note)
+        declare_dependencies(b, [added])
+        waits = f", after {', '.join(added['after'])}" if added.get("after") else ""
+        return [f"added {added['id']}, queued{waits}"]
     if kind == "drop":
         if c["status"] == "merged":
             raise ChantierError(f"cannot drop {cr_id}: it is already merged")
@@ -513,7 +593,8 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         b.touch(c)
         return [f"granted: {grant_line(release)}"]
     if kind == "qa":
-        return [f"QA folder: {cr_id}; the Foreman starts its QA driver"]
+        return [f"QA folder: {cr_id}; the Foreman starts its QA driver, which holds a slot "
+                "until `order done`"]
     raise ChantierError(f"order kind: one of {', '.join(sorted(ORDER_KINDS))}", EXIT_USAGE)
 
 
@@ -546,6 +627,7 @@ def order(args) -> list[str]:
             cr = args.cr
             if args.kind == "qa":  # no CR: a work folder the QA driver fills, in the inbox
                 check_budget(b)  # a QA driver is a Driver: refused before anything is created
+                check_slot(b, "a QA driver")  # the open order holds the slot until `order done`
                 cr = _shown(repo, _new_request(repo, f"qa-{stamp()}", f"# QA\n\n{note}\n".encode()))
             effect = _apply_order(b, args.kind, cr, note, args.fix_for, own)
             oid = f"O-{len(b.data['orders']) + 1}"
@@ -620,7 +702,8 @@ def status(args) -> tuple[list[str], int]:
     extra, code = _refresh(repo, batch, args.epoch) if args.refresh else ([], 0)
     d = read_batch(repo, batch)
     hb = age_minutes(d.get("heartbeat"))
-    n_live = sum(1 for c in d["crs"] if c["status"] in LIVE)
+    view = SimpleNamespace(data=d)  # the rails read only `.data`
+    n_live = len(held(view))
     queued = sum(1 for c in d["crs"] if c["status"] == "queued")
     lines = [f"{d['id']} {d['status']} {d['mode']} live {n_live}/{d['slots']} queued {queued} "
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
@@ -634,6 +717,9 @@ def status(args) -> tuple[list[str], int]:
             row += "".join(f" | draft {p}" for p in c.get("drafts", [])[-2:])
         elif c.get("kind") == "fix":
             row += f" fix for {c['fix_for']}"
+        waits = unmet(view, c) if c["status"] == "queued" else []
+        if waits:
+            row += f" | waits for {', '.join(waits)}"
         if c["status"] == "blocked" and c.get("blocked_reason"):
             row += f" | blocked: {c['blocked_reason'][:70]}"
         elif c.get("notes") and (args.notes or c["status"] == "queued"):
@@ -705,6 +791,11 @@ def _chain(b_data: dict) -> list[dict]:
 def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
     """In stack mode, a CR sits on the one below it in the chain; else on the default branch."""
     default = repo.config["default_branch"]
+    if c.get("after") and c.get("kind") not in {"release", "fix"}:
+        # on the branch of its last dependency still open, in the order of `after`
+        found = {x["id"]: x for x in b_data["crs"]}
+        open_ = [found[i] for i in c["after"] if i in found and found[i]["status"] not in ENDED]
+        return open_[-1]["branch"] if open_ else default
     order = _chain(b_data)
     ids = [x["id"] for x in order]
     i = ids.index(c["id"]) if c["id"] in ids else 0
@@ -741,6 +832,9 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
     if c.get("kind") == "release":
         lines.append(f"grant: {grant_line(d['release'])}; attempts {c.get('attempts', 0)}; "
                      f"approvals unused: {'; '.join(c.get('approvals', [])) or 'none'}")
+    if c.get("after"):
+        lines.append(f"after: {', '.join(c['after'])} (the base is the branch of the last one "
+                     "still open)")
     if c.get("kind") == "fix":
         lines.append(f"fix for {c['fix_for']}: the release starts again once this merges")
     if c.get("drafts"):
@@ -799,7 +893,7 @@ def take(args) -> list[str]:
             b.log("take", c["id"], note=args.note)
             _work(repo, c).mkdir(parents=True, exist_ok=True)
             facts = _facts(repo, batch, d, c)
-    return [f"took {c['id']} ({len(live(b))} of {d['slots']} slots live)"] + facts
+    return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)"] + facts
 
 
 def round_(args) -> list[str]:
@@ -1070,6 +1164,12 @@ def stack(args) -> list[str]:
     with Batch(repo, batch, actor="stack") as b:
         if b.data["mode"] != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
+        place = {cr: i for i, cr in enumerate(args.crs, 1)}
+        for cr in args.crs:
+            below = [a for a in b.cr(cr).get("after", []) if place.get(a, 0) > place[cr]]
+            if below:
+                raise ChantierError(f"{cr} depends on {', '.join(below)}: it cannot sit below "
+                                    f"{'it' if len(below) == 1 else 'them'}")
         for i, cr in enumerate(args.crs, 1):
             b.touch(b.cr(cr), order=i)
         b.log("stack-order", None, crs=args.crs)

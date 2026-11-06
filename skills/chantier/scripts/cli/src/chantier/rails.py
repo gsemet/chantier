@@ -1,4 +1,4 @@
-"""The rails: what the CLI refuses whatever an agent decides, and the facts it keeps straight.
+﻿"""The rails: what the CLI refuses whatever an agent decides, and the facts it keeps straight.
 
 Nothing here decides what a batch does next; the Foreman does, from `chantier status`. A rail is
 a refusal (a take past the budget or the slots, a round past the limit, an irreversible action
@@ -26,6 +26,33 @@ def check_no_open_batch(repo: Repo) -> None:
 
 def live(b: Batch) -> list[dict]:
     return [c for c in b.data["crs"] if c["status"] in LIVE]
+
+
+def qa_open(b: Batch) -> list[dict]:
+    """The QA orders not done: each is a QA driver, and holds a slot from the order on."""
+    return [o for o in b.data.get("orders", []) if o["kind"] == "qa" and not o["done"]]
+
+
+def held(b: Batch) -> list[str]:
+    """What holds a slot: a CR in `working` and an open QA order, never a ready or blocked CR."""
+    return [x["id"] + " working" for x in live(b)] + [f"{o['id']} qa" for o in qa_open(b)]
+
+
+def check_slot(b: Batch, what: str) -> None:
+    if len(held(b)) >= b.data["slots"]:
+        raise ChantierError(f"no free slot for {what}: {len(held(b))} of {b.data['slots']} held "
+                            f"({', '.join(held(b)) or 'slots 0'})")
+
+
+def waits_for(crs: list[dict], c: dict) -> list[str]:
+    """The CRs of `after` that are neither ready nor merged (a cancelled one stays unmet)."""
+    found = {x["id"]: x for x in crs}
+    return [f"{i} {found[i]['status']}" for i in c.get("after", [])
+            if i in found and found[i]["status"] not in {"ready", "merged"}]
+
+
+def unmet(b: Batch, c: dict) -> list[str]:
+    return waits_for(b.data["crs"], c)
 
 
 def over_budget(b: Batch) -> bool:
@@ -66,9 +93,11 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
     if c["status"] not in {"queued", "working", "ready", "blocked"}:
         raise ChantierError(f"{c['id']} is {c['status']}: nothing for a Driver to do")
     check_budget(b)
-    if c["status"] != "working" and len(live(b)) >= b.data["slots"]:
-        raise ChantierError(f"no free slot: {len(live(b))} of {b.data['slots']} live "
-                            f"({', '.join(x['id'] for x in live(b)) or 'slots 0'})")
+    if c["status"] != "working":
+        check_slot(b, c["id"])
+    if c["status"] == "queued" and unmet(b, c):
+        raise ChantierError(f"{c['id']} waits for {', '.join(unmet(b, c))}: it starts once each "
+                            "is ready or merged")
     if c.get("kind") == "release" and not others_merged(b, c):
         raise ChantierError(f"{c['id']} releases what is merged: it starts once every other CR "
                             "is merged or cancelled")

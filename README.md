@@ -47,11 +47,12 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    not say. There is nothing else to configure: every agent reads the same file.
 2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
    (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
-   self-contained **Change Specification** (`03-change-spec.md`).
+   self-contained **Change Specification** (`03-change-spec.md`), and, when it needs another CR
+   first, a `depends.json` (`{"after": ["<slug>"]}`).
 3. **You start a batch** ("run the P1s"; a stack of PRs by default, four slots). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session.
-4. **The Foreman runs the batch.** It owns one background **Driver** per CR slot, plus a stack
-   driver and a QA driver when needed, and keeps itself warm with a heartbeat.
+4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
+   running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
 5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
    in it: Investigator, Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review
    step you added. Then it commits, rebases, pushes, opens the PR and watches its CI itself,

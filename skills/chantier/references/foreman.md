@@ -44,10 +44,15 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   for the prompt ([concepts](concepts.md), "Starting an agent"). `take stack` for the stack
   driver. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended without its hand-back).
-- An `order qa`: `status` names its folder in the inbox. With a slot free and budget left, start
-  a `qa-driver` on it (`chantier qa-driver for <folder> of batch <batch>, in the project <root>`,
-  the card, the CLI, the default branch and the user's note in its prompt). It holds no CR back.
-  On its `qa done`: `order done`, and the ask `qa <folder> <n> findings`.
+- An `order qa`: `status` names its folder in the inbox. The order already holds its slot (it is
+  refused when none is free), so start a `qa-driver` on it at once (`chantier qa-driver for
+  <folder> of batch <batch>, in the project <root>`, the card, the CLI, the default branch and
+  the user's note in its prompt). It holds no CR back, but its slot stays taken until `order
+  done`. On its `qa done`: `order done`, and the ask `qa <folder> <n> findings`.
+- A queued CR that `status` shows `waits for …` is not yours to start: pick among the CRs `take`
+  would accept. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
+  the user to drop that CR or change it. A CR whose dependency went back to a Driver after it
+  started is restacked by the stack driver.
 - A Release driver takes the release CR once the others are merged or cancelled; its card holds
   the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
