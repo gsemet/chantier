@@ -30,7 +30,7 @@ EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(status --refresh|cancel|land|ta
 PLUGIN_AGENT = "chantier:{role}"  # the Claude plugin's agent for a role; a project names its own
 WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
 FORGE_ALLOWED = (["pr", "create"], ["pr", "edit"], ["pr", "checks"], ["pr", "view"],
-                 ["run", "list"], ["run", "view"], ["run", "rerun"], ["auth", "status"])
+                 ["pr", "ready"], ["run", "list"], ["run", "view"], ["run", "rerun"], ["auth", "status"])
 GIT_WRITES = re.compile(r"git\s+(commit|push|rebase|merge)\b(?!-)")
 OWN_FILES = ("/work/", "/evidence/")  # a worker's notes and proof, in the CR's folder
 

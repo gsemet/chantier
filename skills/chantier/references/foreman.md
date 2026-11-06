@@ -24,7 +24,8 @@ order, and `land` again at the end (`land` on a landed batch is refused).
 ## The user's boundaries
 
 - **Never merge without the user's word.** An ordinary ready CR is the ask `ready <cr> <link>`;
-  the user merges it and the Chief of Staff records it. You merge only a release's PR or fix,
+  the user merges it and the Chief of Staff records it. A hand-back that says its PR stays a
+  draft keeps that text in the ask. You merge only a release's PR or fix,
   after `$CHANTIER release go <cr> --note "merge <pr>"` says `go` (the release CR: an approval
   or the grant; a fix CR: the grant, else it is an ordinary ready CR), with the forge's CLI by
   the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
@@ -34,7 +35,7 @@ order, and `land` again at the end (`land` on a landed batch is refused).
 - **Orders are the user's word:** `status` lists them until you mark each `order done`. Their
   effect on the state is applied; what needs your hands is yours (stop a Driver, tell one,
   cancel a dropped live CR with `$CHANTIER cancel`, send a ready or blocked CR back to a Driver
-  with `--note` saying why).
+  with `--note` saying why; its Driver turns the PR back to a draft).
 - **Your own chat obeys only "stop", "pause", and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Your git

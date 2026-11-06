@@ -145,7 +145,9 @@ Only in the turn where the user gave the go:
     name, its mode, the slots in use, the CRs done, the spend and the budget); a table, one row per
     CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); the cost table below (see Cost);
     a last line, always there, **For you:** what the user has to review or decide, or "nothing"
-    (only a Tips line can follow it, see below).
+    (only a Tips line can follow it, see below). 🔵 to review is a [ready PR](concepts.md)
+    only; a CR ready on another base says what it waits for, and **For you** does not ask the
+    user to merge it.
   - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
     many, the spend and the budget); a table, one row per CR: CR, subject, result, PR, rounds, cost;
     the cost table (see Cost), then its explanation from `cost --explain`, both from `close`

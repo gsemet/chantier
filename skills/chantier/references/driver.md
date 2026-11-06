@@ -32,11 +32,19 @@ The CLI keeps the CR's record and tells you what is off.
   records the pass at that head. The fast gates you run yourself.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
-  Open or edit the PR yourself (`gh pr create --body-file <work folder>/pr-body.md`, `glab mr
-  create`), its title and body by the project's rules and template. Then `$CHANTIER ship <cr>
-  <pr link>`: it records the PR at this head and says what is off (uncommitted changes, a head
-  not pushed, no long gate passed at it). The PR's base is the `base` that `take` printed, never
-  another: a Driver does not retarget a PR, the stack driver does.
+  Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
+  --body-file <work folder>/pr-body.md`, `glab mr create --draft`), a Release driver
+  opens its PR ready; the title and body follow the project's rules and template. Then
+  `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what is off
+  (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
+  `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
+  does.
+- A CR's PR says on the forge when it is not [ready to merge](concepts.md). When a CR is sent
+  back to a CR Driver (ready or blocked, with a PR, whatever the note), it turns the PR back to
+  a draft first (`gh pr ready --undo`, `glab mr update --draft`): the Foreman never edits a PR.
+  A release PR is left as it is (it is no draft). A project that shows it otherwise (a label, a
+  title prefix, no draft at all) is followed as written, on the opening and on turning ready. A forge or plan that refuses a draft stops that step:
+  `handback blocked refused <exact text>` (the stack driver: its `anomaly` line); no look-alike.
 - The evidence: once the Verifier has left it, you put it in the PR's description, before and
   after side by side, as the forge's own CLI uploads images and videos (`gh pr edit --attach` on
   GitHub, `gh` 2.103 and later); read the CLI's help for any other forge. A file its CLI cannot
@@ -49,7 +57,10 @@ The CLI keeps the CR's record and tells you what is off.
   plain. Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit).
-- Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded) or `handback
+- Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded; just before
+  it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
+  branch; on another base it stays a draft and the text after the link says so and what it
+  waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`): it writes the state and prints the line to send the Foreman
   (how it reaches the Foreman is your host's reference). Then end: ending frees
@@ -75,14 +86,17 @@ yourself. Each round: a `coder` with the brief, then an `inspector` on the round
 worktree against the base, uncommitted and untracked files included) and each review step your
 `Team:` lists, in order; `FIX-REQUIRED` is the next round. All approved: commit, rebase, the
 long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
-head, given the plan (`NOT VERIFIED` is a round), then the evidence in the PR, then `handback
-ready <pr link>`.
+head, given the plan (`NOT VERIFIED` is a round), then the evidence in the PR, the PR turned
+ready when its base is the default branch, then `handback ready <pr link>`.
 
 ## Stack driver
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
-`ship` each one you moved, and keep the stack green with heavy CI once at the top. Each CR keeps its
+`ship` each one you moved, and keep the stack green with heavy CI once at the top. You open no PR
+(a CR with none is an anomaly) and keep each PR you move true to [ready to merge](concepts.md):
+on the default branch with its CR ready, ready (`gh pr ready`, `glab mr update --ready`); on
+another base, a draft (`gh pr ready --undo`, `glab mr update --draft`). Each CR keeps its
 own evidence plan. A conflict that only needs resolving: a `conflict-resolver`; one that needs
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. Green: `[stack→foreman] hand-back
 ready <cr>=<link>…`.
@@ -93,7 +107,7 @@ while the stack lives. After a partial merge what remains is a new stack of the 
 `origin/<default branch>`, retarget the first PR to the default branch (`gh pr edit --base`,
 `glab mr update --target-branch`), rebase it there and each other PR on the one under it, push
 with `--force-with-lease` (a refused one goes up as above), and `ship` each one you moved:
-`ship` records the new base. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
+`ship` records the new base. The new first PR turns ready once retargeted and green. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
 last one still open, as `take stack` prints, and `stack` refuses an order that puts it below one
 of them; a dependency sent back to a Driver is yours to restack. A release CR and a fix CR are
 not in the stack. The batch stays open until its last CR ends.
@@ -124,7 +138,7 @@ inside the procedure and the grant, and ask for anything beyond them.
   <cr>`, and the procedure from its first step whatever had passed before.
 - What a person reviews or edits (release notes, an announcement) goes early in the work
   folder, then `note --draft <path>`; read it again each time you use it, never rewrite it.
-- A release PR is the Foreman's to merge: green, `handback blocked merge: <pr link>`; a new
+- A release PR is the Foreman's to merge, so it is opened ready, not as a draft: green, `handback blocked merge: <pr link>`; a new
   Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
   `handback blocked fix: <fix-cr> pending`.
 - A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's

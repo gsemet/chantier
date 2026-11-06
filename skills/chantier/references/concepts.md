@@ -6,6 +6,9 @@ started.
 ## Words
 
 - **Pull request (PR):** a merge request on GitLab.
+- **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch.
+  Any other CR's PR is a draft on the forge: it says so itself, and no one merges it. A release
+  PR is no draft: the Foreman merges it.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
   a folder in a stage of `.agents/changes/`:
 

@@ -150,9 +150,13 @@ def main(args: list[str]) -> int:
             state["next_pr"] += 1
             state["prs"][n] = {"head": flag(args, "--head"), "base": flag(args, "--base"),
                                "title": flag(args, "--title"), "state": "open",
-                               "body": body_of(args) or ""}
+                               "body": body_of(args) or "", "draft": "--draft" in args}
             save(state)
             print(f"{URL}/pull/{n}")
+        elif args[:2] == ["pr", "ready"]:
+            state["prs"][pr_number(args[2])]["draft"] = "--undo" in args
+            save(state)
+            print(args[2])
         elif args[:2] == ["pr", "edit"]:
             pr = state["prs"][pr_number(args[2])]
             if flag(args, "--base"):
@@ -184,7 +188,7 @@ def main(args: list[str]) -> int:
             pr = state["prs"][n]
             print(json.dumps({"number": int(n), "url": f"{URL}/pull/{n}", "state": pr["state"].upper(),
                               "headRefName": pr["head"], "baseRefName": pr["base"],
-                              "title": pr["title"]}))
+                              "title": pr["title"], "isDraft": pr.get("draft", False)}))
         elif args[:2] == ["auth", "status"]:  # an agent checks it can reach the forge
             print("Logged in to forge.local as eval (fake forge)")
         elif args[:2] == ["run", "list"]:
