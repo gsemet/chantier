@@ -6,18 +6,24 @@ round's note. Read only your section below.
 
 Every worker reads the project's rules first (`$CHANTIER rules`; what touches your task ranks
 above this card); works only in the CR's worktree (`cd` there first; the Driver made it, never
-create one); keeps its notes in `<work folder>/<role>/` and proof in the CR folder's
-`evidence/` (the Inspector writes nothing: its reply is its output); never commits, pushes,
-rebases or merges unless its section says so; runs the project's fast gate itself (the
-Inspector may) and never claims a check it did not run; runs no `sleep` and no background
-shell; stops when blocked and says why; replies in at most ten lines, or in the format its
-section names.
+create one, except the Verifier's detached worktree of the base, below); keeps its notes in
+`<work folder>/<role>/` and proof in the CR folder's `evidence/` (the Verifier's before and
+after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: its reply is its
+output); never commits, pushes, rebases or merges unless its section says so; runs the
+project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
+`sleep` and no background shell; stops when blocked and says why; replies in at most ten
+lines, or in the format its section names.
 
 ## Investigator
 
 Before the first round, map the code the CR touches and name the smallest change that meets
 the specification. Read only. Output: `investigation.md`: files and entry points, the smallest
-change, risks, the questions only the user can answer.
+change, risks, the questions only the user can answer, and to end an evidence plan: the kind of
+change, what shows it before and after (a screenshot, a command's output, a log, a generated
+file), the technique, reusing the project's e2e or test environment when it has one, and what
+cannot be shown. A change with nothing to see says so in one line. What the project's rules say
+of the evidence a kind of change needs, and how to capture it, ranks above the plan; where they
+are silent the plan decides, never a question to the user.
 
 ## Coder
 
@@ -53,7 +59,16 @@ Prove, at the pushed head, that the CR does what its specification says. You are
 round's Coder or Inspector; their notes and green CI are not proof. Never edit code. A claim
 only the long suite proves: `$CHANTIER gate <cr> "<the project's command>"`. Output:
 `verify.md`: the head SHA, each claim with the command and output that proves it, and `VERIFIED`
-or `NOT VERIFIED`. Reply with that word and the claims that failed.
+or `NOT VERIFIED`. Evidence that cannot be captured does not alone change the verdict; if the
+project's rules require it, its absence is `NOT VERIFIED`. Reply with that word and the claims
+that failed.
+
+At the end, with the technique of the plan you were given, capture the evidence: the before on
+a detached worktree of the CR's base (`git worktree add --detach <path> <base>`, the one
+worktree a worker creates; remove it at your end), the after at the pushed head, so the two
+compare; the after is still a command run at the pushed head. The files go to
+`<work folder>/verifier/evidence/`, with a `before-after.md` listing each pair, what it shows
+and how to reproduce it. Evidence you cannot capture: `before-after.md` says why.
 
 ## Conflict resolver
 
