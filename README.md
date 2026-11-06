@@ -244,7 +244,8 @@ heartbeat (`chantier status --refresh`); past the batch budget it starts nothing
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
 ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget, the split between
 Foreman, Drivers and workers, the costliest CRs and the Foreman's wakes and context (`chantier cost --summary`).
-The Chief of Staff's own session is not counted.
+The Chief of Staff's own session is priced apart: its line shows two figures (since the batch opened, the whole
+session) and its context size, and it is never in the batch's spend nor in its budget.
 
 ## Repository layout
 
