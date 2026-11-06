@@ -324,10 +324,12 @@ export const register: Register = on => {
     await $.command.register({
       name: COMMAND,
       description: 'Show or hide the chantier CR board',
+      immediate: true,
     })
     return next(e)
   })
 
+  // `immediate`: it also runs during a turn, so this hook assumes nothing of the turn's state.
   on('command.run', { command: COMMAND }, async $ => {
     const shown = (await $.ui.panes()).some((p: { id: string }) => p.id === PANE)
     if (shown) {
@@ -336,7 +338,12 @@ export const register: Register = on => {
       return { text: 'CR board closed.' }
     }
     const isPlaced = await open($)
-    return { text: isPlaced ? 'CR board opened.' : 'The CR board could not be placed here.' }
+    // No detection of the view: a Remote Control view is answered as the host is.
+    return {
+      text: isPlaced
+        ? 'CR board opened on the machine running this session; a Remote Control view does not show it.'
+        : 'The CR board could not be placed here.',
+    }
   })
 
   // A closed pane runs nothing.

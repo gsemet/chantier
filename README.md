@@ -129,7 +129,9 @@ Talk to the Chief of Staff in plain language:
 progress, the backlog, and the landed and trashed CRs. Press a CR for its sheet and its documents.
 Loading the `chantier` skill opens it too. It refreshes every 15 seconds while open, writes
 nothing, and runs no process but `git rev-parse` to find the main checkout from a worktree. It is
-a Claude Code mod (early access): nothing of it on Copilot.
+a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
+the session, not in a Remote Control view
+([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)).
 ### Your own agents
 
 Any role can run one of your agents. Tell the Chief of Staff, and it writes it in a `chantier`
