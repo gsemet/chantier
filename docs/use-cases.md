@@ -40,14 +40,16 @@ starts until you answer. In the morning:
 
 > "These three do not depend on each other: run them in parallel."
 
-Each CR is based on the default branch (`open --parallel`); a batch is a stack by default.
+Each CR is based on the default branch, and `open --parallel` leaves no stack at the end.
 
 ## Build a stack of pull requests
 
 > "Run these three."
 
-Each PR is based on the one below it. When every CR is ready, a stack driver orders the stack,
-rebases and pushes each PR on the one below it, and heavy CI runs once at the top. After each
+The CRs run in parallel, each PR based on the default branch. The stack comes after: when every
+CR is ready, a stack driver orders the stack, rebases and pushes each PR on the one below it, and
+heavy CI runs once at the top. A CR stands on another before that only by a dependency or a chain
+the Foreman decided, which you can turn off while the CR is queued. After each
 merge you report, it restacks the rest on the default branch: the batch stays open, and work you add
 joins it.
 

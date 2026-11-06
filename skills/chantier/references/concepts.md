@@ -29,11 +29,14 @@ started.
 - **Batch:** the CRs active at one time under one Foreman. It has no name, only a number: `batch-<n>`
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
   takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
-  work joins it through the Foreman (`order add`). It is a stack of PRs by default, each PR on the
-  one under it once the CRs are ready, but the CRs start in parallel, each on the default branch
-  unless it has an open dependency; `open --parallel` makes independent CRs instead. A release CR and a fix CR sit
-  outside the stack, on the default branch. When a stack merges only in part, what remains forms
-  another stack in the same batch, restacked on the default branch. Each CR is named a branch
+  work joins it through the Foreman (`order add`). A batch's CRs run in parallel, each on the
+  default branch, each PR on the default branch. A stack is made afterwards, by the stack driver
+  (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack, and the
+  start base for any other). A CR stands on another only by a dependency: a real one
+  (`depends.json`) or a chain the Foreman decided (`order after`). `open --parallel` makes a
+  batch with no stack at the end. A release CR and a fix CR sit outside the stack, on the default
+  branch. When a stack merges only in part, what remains forms another stack in the same batch,
+  restacked on the default branch. Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
   user's word.
@@ -49,7 +52,9 @@ started.
   each CR of its `after` is `ready` or `merged` (a cancelled one stays unmet: an ask for the user,
   who drops the CR or changes it). The CR starts on the branch of its last dependency still open,
   in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
-  place in the stack are two things. `stack` refuses an order that puts a CR below one of its
+  place in the stack are two things. A chain is an `after` with no real dependency, which the
+  Foreman decided for a queued CR; it ends with `order after <cr> --note -` while the CR is
+  queued. `stack` refuses an order that puts a CR below one of its
   `after`. `order after <cr> --note "<ids|->"` replaces the `after` of a queued CR (exit 2 on a CR
   not queued, an unknown CR or a cycle). `depends.json` is written only when a CR needs the
   result of another: CRs that touch the same file do not depend on each other.

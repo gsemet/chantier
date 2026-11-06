@@ -1014,6 +1014,18 @@ def stack_batch(w: World) -> None:
     for i, cr in enumerate((one, two, three)):
         driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
         w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+
+    def ship_bases(cr: str) -> list[str]:
+        events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
+        return [e["base"] for e in events if e["kind"] == "ship" and e["cr"] == cr]
+    check("before `stack`, `ship` records the default branch for every independent CR",
+          all(ship_bases(c)[-1] == "main" for c in (one, two, three)), str(ship_bases(two)))
+    w.chantier("stack", one, two, three)
+    w.chantier("ship", three, w.cr(three)["pr"])
+    w.chantier("ship", one, w.cr(one)["pr"])
+    check("after `stack`, `ship` records the CR under it, the first on the default branch",
+          ship_bases(three)[-1] == w.cr(two)["branch"] and ship_bases(one)[-1] == "main",
+          str(ship_bases(three)))
     _, out = w.chantier("order", "add", "--note", str(joined))
     d = w.batch()
     four = d["crs"][-1]["id"]
@@ -1023,6 +1035,13 @@ def stack_batch(w: World) -> None:
           and len(list((w.state / "3-requests").glob("batch-*"))) == 1
           and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]),
           str(out))
+    w.chantier("order", "after", four, "--note", two)
+    chained = any(f"base {w.cr(two)['branch']}" in ln for ln in w.chantier("handoff", four)[1])
+    w.chantier("order", "after", four, "--note", "-")
+    check("a chain through `order after` starts on the ready CR's branch; `--note -` puts the "
+          "queued CR back on the default branch",
+          chained and w.cr(four)["status"] == "queued" and "after" not in w.cr(four)
+          and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]))
     fm.turn()
     driver_round(w, four, "stack3.py", "N = 3\n")
     w.chantier("handback", four, "ready", w.cr(four)["pr"])
