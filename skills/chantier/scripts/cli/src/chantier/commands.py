@@ -431,6 +431,10 @@ def open_batch(args) -> list[str]:
             "host": host, "mode": "parallel" if args.parallel else "stack", "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
+            "foreman_transcripts": [],
+            "chief_transcript": os.environ.get(
+                "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID")
+            or None,
             "stack_agent": None, "heartbeat": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     with changes_lock(repo):
@@ -493,6 +497,9 @@ def foreman(args) -> list[str]:
             raise ChantierError(f"epoch {b.data.get('foreman_epoch', 0)} of batch {b.id} is already run "
                                 f"by transcript {claimed}; stop now", EXIT_CONFLICT)
         b.data["foreman_transcript"] = args.value
+        seen = b.data.setdefault("foreman_transcripts", [])  # a relay keeps the earlier ones
+        if args.value not in seen:
+            seen.append(args.value)
         b.log("foreman-transcript", None, transcript=args.value)
         return [f"transcript {args.value}"]
 
@@ -1255,7 +1262,9 @@ def land(args) -> list[str]:
         try:
             rows = _cost_rows(repo, b.data, b.data["host"], _foreman_uuid(b.data))
             _record_costs(repo, b, rows)
-            summary = _cost_summary(b.data, rows, _cost_groups(repo, batch, rows, "cr"))
+            summary = _cost_summary(b.data, rows, _cost_groups(repo, batch, rows, "cr"),
+                                    _cost_groups(repo, batch, rows, "driver"),
+                                    _chief_line(repo, b.data))
         except ChantierError as e:  # never a false $0.00
             summary = [f"Spent: unknown ({e})"]
         b.data.update(status="landed", landed=now(), summary=summary)
@@ -1305,16 +1314,43 @@ def close(args) -> tuple[list[str], int]:
 
 # ---- cost -------------------------------------------------------------------------------------
 
-def _cost_rows(repo: Repo, d: dict, host: str, uuid: str) -> list[dict]:
-    if host == "copilot":
-        return costs.copilot_session_costs(uuid)
-    return costs.session_costs(costs.transcript_path(repo.root, uuid), d.get("created", ""))
+def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
+    """Every Foreman of the batch, summed, from its opening to its landing."""
+    rows: list[dict] = []
+    for uuid in uuids:
+        if host == "copilot":
+            rows += costs.copilot_session_costs(uuid)
+        else:
+            rows += costs.session_costs(costs.transcript_path(repo.root, uuid),
+                                        d.get("created", ""), d.get("landed", ""),
+                                        allow_empty=len(uuids) > 1)
+    if not any(r["calls"] for r in rows):
+        raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)
+    return rows
 
 
-def _foreman_uuid(d: dict) -> str:
-    if not d.get("foreman_transcript"):
+def _foreman_uuid(d: dict) -> list[str]:
+    uuids = d.get("foreman_transcripts") or [d.get("foreman_transcript")]
+    if not uuids[0]:
         raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
-    return d["foreman_transcript"]
+    return uuids
+
+
+def _chief_line(repo: Repo, d: dict) -> str:
+    """The Chief of Staff's session, priced apart: it is never in `spent_usd` nor in the budget."""
+    uuid = d.get("chief_transcript")
+    if not uuid or d.get("host") == "copilot":
+        return "Chief of Staff: not measured"
+    path = costs.transcript_path(repo.root, uuid)
+    try:
+        whole = costs.session_costs(path, kind="chief-of-staff")
+        since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
+                                    allow_empty=True)
+    except ChantierError as e:
+        return f"Chief of Staff: not measured ({e})"
+    return (f"Chief of Staff: ${sum(r['usd'] for r in since):.2f} since the batch opened, "
+            f"${sum(r['usd'] for r in whole):.2f} the whole session, "
+            f"context {whole[0]['last_context']:,} tokens")
 
 
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
@@ -1324,6 +1360,7 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
         if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":
             agent_cr[e["agent"]] = e["cr"]
     parents = {r["agent"]: r.get("parent") for r in rows}
+    by_agent = {r["agent"]: r for r in rows if r["agent"] != "main"}
 
     def cr_of(agent: str | None, hops: int = 0) -> str | None:
         """A worker counts for the CR of the Driver that started it."""
@@ -1337,6 +1374,14 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
             named = CR_IN_NAME.search(r.get("description") or "")
             key = ("foreman" if r["agent"] == "main"
                    else cr_of(r["agent"]) or (named.group(0) if named else "other"))
+        elif by == "driver":  # the type of the agent a chain of parents leads back to
+            root = r
+            for _ in range(5):
+                parent = by_agent.get(root.get("parent"))
+                if root["agent"] == "main" or parent is None or parent["agent"] == "main":
+                    break
+                root = parent
+            key = root["type"]
         else:
             key = r["type"]
         groups[key][0] += r["calls"]
@@ -1355,7 +1400,8 @@ def _apportion(parts: list[float], whole: int) -> list[int]:
     return out
 
 
-def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str]:
+def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
+                  by_driver: dict[str, list], chief: str) -> list[str]:
     """What the user reads at the end of a batch; the detail is in `cost --by`. The Foreman is
     the main agent, the Drivers every other agent that started one, from the transcripts'
     parent links, and the workers the rest. Amounts and shares add up as printed."""
@@ -1371,15 +1417,19 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list]) -> list[str
     split = ", ".join(f"{name} ${c / 100:.2f} ({s}%)"
                       for name, c, s in zip(("Foreman", "Drivers", "workers"), cents, shares))
     top = sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
-    foreman = next((r for r in rows if r["agent"] == "main" and r.get("wakes")), None)
-    wakes = [f"Foreman: {foreman['wakes']} wakes, context "
-             f"{foreman['wake_context'] // foreman['wakes']:,} tokens on average, "
-             f"{foreman['peak_context']:,} at its peak"] if foreman else []
+    mains = [r for r in rows if r["agent"] == "main"]  # one per Foreman session of the batch
+    n = sum(r.get("wakes", 0) for r in mains)
+    wakes = [f"Foreman: {n} wakes, context "
+             f"{sum(r.get('wake_context', 0) for r in mains) // n:,} tokens on average, "
+             f"{max(r.get('peak_context', 0) for r in mains):,} at its peak"] if n else []
     return [f"Total: ${total:.2f}" + (f" of a ${budget:g} budget" if budget else ", no budget"),
             split,
             "Most: " + (", ".join(f"{k} ${usd:.2f}" for k, usd in top[:3]) or "-"),
             *wakes,
-            "Not counted: the Chief of Staff's own session"]
+            *(f"Driver {k}: ${v[1]:.2f} ({v[0]} calls)" for k, v in
+              sorted(by_driver.items(), key=lambda kv: -kv[1][1]) if k != "foreman"),
+            chief,
+            "Not counted: compaction calls, which leave no record (about $0.12 each)"]
 
 
 def cost(args) -> list[str]:
@@ -1388,19 +1438,20 @@ def cost(args) -> list[str]:
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     d = read_batch(repo, batch)
-    uuid = d.get("foreman_transcript")
-    if not uuid:
+    if not (d.get("foreman_transcripts") or d.get("foreman_transcript")):
         var = "$COPILOT_AGENT_SESSION_ID" if d["host"] == "copilot" else "$CLAUDE_CODE_SESSION_ID"
         raise ChantierError(f"no Foreman transcript recorded: the Foreman runs "
                             f"`chantier foreman transcript {var}`")
-    rows = _cost_rows(repo, d, d["host"], uuid)
+    rows = _cost_rows(repo, d, d["host"], _foreman_uuid(d))
     total = sum(r["usd"] for r in rows)
+    chief = _chief_line(repo, d)
     if args.summary:
-        return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"))
+        return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"),
+                             _cost_groups(repo, batch, rows, "driver"), chief)
     groups = _cost_groups(repo, batch, rows, args.by)
     estimated = sum(r.get("estimated", 0) for r in rows)
     lines = [f"{batch}: ${total:.3f} over {sum(r['calls'] for r in rows)} model calls"
              + (f" ({estimated} estimated, not billed)" if estimated else "")]
     lines += [f"{k}: ${v[1]:.3f} ({v[0]} calls)"
               for k, v in sorted(groups.items(), key=lambda kv: -kv[1][1])]
-    return lines
+    return lines + [chief]

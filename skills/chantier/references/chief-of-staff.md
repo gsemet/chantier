@@ -151,8 +151,22 @@ Only in the turn where the user gave the go:
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host limits messages between sessions (10 on
   Claude Desktop since someone last typed): a refused send is reported, never sent another way.
-- **Cost:** each time a CR is ready or merged, its line of `$CHANTIER cost --by cr`; report the
-  lines as they are and give no figure when it fails. Your own session is not in it.
+- **Cost:** on a CR ready or merged, on "status?" and at landing, report four lines from
+  `$CHANTIER cost --by role` (and, for a CR's own figure, its line of `--by cr`): orchestration,
+  the Foreman; review, the Inspector, the Verifier and a QA driver; implementation, all the
+  other roles, an unknown agent included; and your own session, the `Chief of Staff:` line of
+  that output, with its two figures (since the batch opened, the whole session) and its context
+  size. Report the lines as they are and give no figure when it fails; `not measured` stays
+  `not measured`. Your session is never in the batch's spend nor in its budget. `--by driver`
+  gives one line per Driver type, workers included. Compaction calls leave no record and are
+  not counted.
+- **Compacting:** auto-compact is on by default on Claude Code; what the user sets is its
+  window. Once per session, advise them to set the host's auto-compact window. On Claude Code
+  its documentation names the `/autocompact` command and the `autoCompactWindow` setting; on
+  Copilot name none. When the talk moves to another subject and your context size
+  (the `Chief of Staff:` line) is above 100k tokens, advise `/compact`, with a line ready to
+  copy that says what to keep: the running batch, the open CRs, the decisions not yet
+  written. Never in the middle of a subject.
 - **Landing:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report. `$CHANTIER close --batch <batch>` without `--yes` prints what goes and touches
   nothing. Show the user the bilan, the Cost section and that list, and ask. Only on their yes,

@@ -13,6 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .state import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
@@ -71,10 +72,22 @@ def _wakes(record: dict) -> bool:
                 and all(isinstance(p, dict) and p.get("type") == "tool_result" for p in content))
 
 
-def usage(path: Path, since: str = "") -> dict:
-    """A transcript's calls from `since` on: a session can have run an earlier batch."""
+def _when(text, path: Path, number: int) -> datetime | None:
+    """A record's time, to compare as a time and not as text; none when it has none."""
+    if not text:
+        return None
+    try:
+        when = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError as e:
+        raise ChantierError(f"unreadable timestamp at {path}:{number}", EXIT_EXTERNAL) from e
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+
+
+def usage(path: Path, since: str = "", until: str = "") -> dict:
+    """A transcript's calls from `since` to `until`: a session can have run another batch."""
     row = {"calls": 0, "usd": 0.0, "model": "?", "w5m": 0, "w1h": 0, "read": 0, "out": 0,
-           "wakes": 0, "wake_context": 0, "peak_context": 0}
+           "wakes": 0, "wake_context": 0, "peak_context": 0, "last_context": 0}
+    start, end = _when(since, path, 0), _when(until, path, 0)
     seen = set()
     woken = False  # a prompt, a message or a notification came in; a tool result is the same turn
     for number, line in enumerate(_transcript_lines(path), 1):
@@ -88,15 +101,18 @@ def usage(path: Path, since: str = "") -> dict:
         if not isinstance(d, dict):
             raise ChantierError(f"invalid Claude transcript record {path}:{number}",
                                 EXIT_EXTERNAL)
+        when = _when(d.get("timestamp"), path, number)
+        if (start and when and when < start) or (end and when and when > end):
+            continue  # outside the window: neither a call nor a wake
         if d.get("type") == "user":
             woken = woken or _wakes(d)
-        if d.get("type") != "assistant" or str(d.get("timestamp", since)) < since:
+        if d.get("type") != "assistant":
             continue
         m = d.get("message")
         if not isinstance(m, dict):
             raise ChantierError(f"invalid Claude assistant record {path}:{number}", EXIT_EXTERNAL)
-        if not m.get("usage"):
-            continue
+        if not m.get("usage") or m.get("model") == "<synthetic>":
+            continue  # an API error or a session limit: no tokens, no price
         message_id, model, u = m.get("id"), m.get("model"), m["usage"]
         if not isinstance(message_id, str) or not message_id:
             raise ChantierError(f"Claude usage has no message id at {path}:{number}", EXIT_EXTERNAL)
@@ -107,18 +123,21 @@ def usage(path: Path, since: str = "") -> dict:
         cc = u.get("cache_creation") or {}
         if not isinstance(cc, dict):
             raise ChantierError(f"invalid Claude cache usage at {path}:{number}", EXIT_EXTERNAL)
-        seen.add(message_id)
         t = (u.get("input_tokens", 0), cc.get("ephemeral_5m_input_tokens", 0),
              cc.get("ephemeral_1h_input_tokens", 0), u.get("cache_read_input_tokens", 0),
              u.get("output_tokens", 0))
         if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in t):
             raise ChantierError(f"invalid Claude token counts at {path}:{number}", EXIT_EXTERNAL)
+        if not any(t):
+            continue  # a record without tokens
+        seen.add(message_id)
         row["model"] = model
         row["calls"] += 1
         for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
             row[k] += v
         row["usd"] += sum(a * b for a, b in zip(t, PRICE[_family(row["model"], sum(t[:4]))])) / 1e6
         row["peak_context"] = max(row["peak_context"], sum(t[:4]))
+        row["last_context"] = sum(t[:4])
         if woken:
             row["wakes"] += 1
             row["wake_context"] += sum(t[:4])
@@ -126,20 +145,23 @@ def usage(path: Path, since: str = "") -> dict:
     return row
 
 
-def session_costs(main: Path, since: str = "") -> list[dict]:
-    """One row for the main transcript (the Foreman) and one per subagent with calls since."""
+def session_costs(main: Path, since: str = "", until: str = "", kind: str = "foreman",
+                  allow_empty: bool = False) -> list[dict]:
+    """One row for the main transcript (`kind`: the Foreman or the Chief of Staff) and one per
+    subagent with calls in the window. A window without a call is an error unless allowed."""
+    label = kind.replace("-", " ").capitalize()
     if not main.is_file():
-        raise ChantierError(f"Foreman transcript not found: {main}", EXIT_EXTERNAL)
-    foreman = usage(main, since)
-    if not foreman["calls"]:
-        raise ChantierError(f"no priced calls in Foreman transcript: {main}", EXIT_EXTERNAL)
-    rows = [{"agent": "main", "type": "foreman", "description": "", **foreman}]
+        raise ChantierError(f"{label} transcript not found: {main}", EXIT_EXTERNAL)
+    foreman = usage(main, since, until)
+    if not foreman["calls"] and not allow_empty:
+        raise ChantierError(f"no priced calls in {label} transcript: {main}", EXIT_EXTERNAL)
+    rows = [{"agent": "main", "type": kind, "description": "", **foreman}]
     sub = main.with_suffix("") / "subagents"
     if sub.exists():
         for f in sorted(sub.glob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
             meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-            row = usage(f, since)
+            row = usage(f, since, until)
             if row["calls"]:
                 rows.append({"agent": f.stem.removeprefix("agent-"),
                              "type": meta.get("agentType", "?"),

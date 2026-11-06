@@ -110,18 +110,22 @@ def facts(data: dict, events: list[dict]) -> None:
     print()
 
 
-def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
-    main_path = next(projects.glob(f"*/{uuid}.jsonl"), None) if uuid else None
-    check(main_path is not None, f"the Foreman's transcript {uuid} is found")
-    if not main_path:
+def claude_checks(data: dict, uuids: list, projects: Path, check) -> None:
+    # a relayed batch has one Foreman transcript per Foreman: the checks run over their union
+    foremen, agents = [], []
+    for uuid in uuids:
+        main_path = next(projects.glob(f"*/{uuid}.jsonl"), None) if uuid else None
+        check(main_path is not None, f"the Foreman's transcript {uuid} is found")
+        if not main_path:
+            continue
+        foremen.append(Agent(main_path, {"agentType": "foreman"}))
+        for f in sorted(main_path.with_suffix("").rglob("agent-*.jsonl")):
+            meta_path = f.with_suffix("").with_suffix(".meta.json")
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+            agents.append(Agent(f, meta))
+    if not foremen:
         return
-    foreman = Agent(main_path, {"agentType": "foreman"})
-    agents = []
-    for f in sorted(main_path.with_suffix("").rglob("agent-*.jsonl")):
-        meta_path = f.with_suffix("").with_suffix(".meta.json")
-        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-        agents.append(Agent(f, meta))
-    by_tool = {tid: a for a in [foreman, *agents] for tid in a.spawned}
+    by_tool = {tid: a for a in [*foremen, *agents] for tid in a.spawned}
     for a in agents:
         a.parent = by_tool.get(a.meta.get("toolUseId"))
 
@@ -129,11 +133,11 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
     print("| agent | type | role in prompt | for | parent | depth | peak context |")
     print("| --- | --- | --- | --- | --- | --- | ---: |")
     for a in agents:
-        parent = "foreman" if a.parent is foreman else (a.parent.role or a.parent.type) \
+        parent = "foreman" if a.parent in foremen else (a.parent.role or a.parent.type) \
             if a.parent else "?"
         print(f"| {a.id[:10]} | {a.type} | {a.role or '-'} | {a.what or '-'} | {parent} | "
               f"{a.meta.get('spawnDepth', '?')} | {a.peak:,} |")
-    print(f"\nThe Foreman's peak context: {foreman.peak:,} tokens (the user's settings set its "
+    print(f"\nThe Foreman's peak context: {max(f.peak for f in foremen):,} tokens (the user's settings set its "
           "window).\n")
 
     # the team is the project's `chantier` section, read by the Chief of Staff: a built-in role
@@ -147,7 +151,7 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
             card = "driver.md" if a.role in DRIVERS else "worker.md"
             check(f"references/{card}" in a.prompt, f"{a.id[:10]} is told to read {card}")
             check("$CHANTIER rules" in a.prompt, f"{a.id[:10]} is told the project's rules rank first")
-            parent_ok = (a.parent is foreman) if a.role in DRIVERS else \
+            parent_ok = (a.parent in foremen) if a.role in DRIVERS else \
                 (a.parent is not None and a.parent.role in DRIVERS)
             check(parent_ok, f"{a.id[:10]} ({a.role}) was started by "
                              f"{'the Foreman' if a.role in DRIVERS else 'a Driver'}")
@@ -182,13 +186,13 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
                     and (a.role != "release-driver" or re.search(r"[/\\](src|tests)[/\\]", w))]
             check(not code, f"{a.id[:10]} ({a.role}) writes no code itself"
                             + (f": {code[:2]}" if code else ""))
-    for who in [foreman, *agents]:
+    for who in [*foremen, *agents]:
         hand = [w for w in who.writes() if w.endswith(("batch.json", "events.jsonl"))]
         check(not hand, f"{who.id[:10]} never edits batch.json or events.jsonl by hand")
-    no_epoch = [c for c in foreman.bash() if EPOCH_COMMANDS.search(c) and "--epoch" not in c]
+    no_epoch = [c for c in sum((f.bash() for f in foremen), []) if EPOCH_COMMANDS.search(c) and "--epoch" not in c]
     check(not no_epoch, "every Foreman refresh, take, agents set, order done or merged, "
                         f"cancel and land carries its epoch{': ' + no_epoch[0][:80] if no_epoch else ''}")
-    foreman_git = [c for c in foreman.bash() if GIT_WRITES.search(c)
+    foreman_git = [c for c in sum((f.bash() for f in foremen), []) if GIT_WRITES.search(c)
                    or re.search(r"git\s+worktree\s+add\b", c)]
     check(not foreman_git, "the Foreman never commits, pushes, rebases or creates a worktree"
                            + (f": {foreman_git[0][:80]}" if foreman_git else ""))
@@ -196,9 +200,9 @@ def claude_checks(data: dict, uuid: str | None, projects: Path, check) -> None:
             and any(re.search(r"git\s+worktree\s+add\b", c) for c in a.bash())}
     check(all(c["id"] in made for c in data["crs"] if c["status"] == "merged"),
           f"each merged CR's worktree was created by one of its Drivers ({sorted(made)})")
-    removed = [c for c in foreman.bash() if re.search(r"git\s+worktree\s+remove\b", c)]
+    removed = [c for c in sum((f.bash() for f in foremen), []) if re.search(r"git\s+worktree\s+remove\b", c)]
     check(removed, "the Foreman removed the merged CRs' worktrees before landing")
-    rules = [c for c in foreman.bash() if re.search(r"chantier\.py\"?\s+rules\b", c)]
+    rules = [c for c in sum((f.bash() for f in foremen), []) if re.search(r"chantier\.py\"?\s+rules\b", c)]
     check(rules, "the Foreman read the project's rules (`chantier rules`)")
     for a in agents:
         if a.role in ("cr-driver", "release-driver"):
@@ -264,7 +268,9 @@ def main() -> int:
     print(f"# Batch {batch} on {data['host']}\n")
     facts(data, events)
     if data["host"] == "claude":
-        claude_checks(data, data.get("foreman_transcript"), args.projects, check)
+        # a relayed batch has several Foreman transcripts; an old one has a single field
+        uuids = data.get("foreman_transcripts") or [data.get("foreman_transcript")]
+        claude_checks(data, uuids, args.projects, check)
     else:
         print(f"## The agents\n\nNot audited: the {data['host']} transcript checks are not "
               "written yet.\n")
