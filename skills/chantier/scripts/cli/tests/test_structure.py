@@ -67,6 +67,19 @@ def test_manifests_agree():
         assert agent_file("coder", "copilot").parent == (PLUGIN_ROOT / folder).resolve()
 
 
+def test_the_board_mod_is_wired_on_claude_only():
+    claude = json.loads((PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    hooks = json.loads((PLUGIN_ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    assert hooks["modules"]
+    for module in hooks["modules"]:
+        assert (PLUGIN_ROOT / "hooks" / module).is_file(), module
+    if "types" in claude:
+        assert (PLUGIN_ROOT / claude["types"]).is_file()
+    copilot = json.loads((PLUGIN_ROOT / ".github" / "plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert "/schemas/1.0.0/" in copilot["$schema"]
+    assert "hooks" not in copilot and "types" not in copilot
+
+
 def test_copilot_cost_helper_declares_pypi():
     text = (SKILL / "scripts" / "cli" / "session_usage.py").read_text(encoding="utf-8")
     block = re.search(r"(?m)^# /// script\n((?:#.*\n)*?)# ///$", text.replace("\r\n", "\n"))

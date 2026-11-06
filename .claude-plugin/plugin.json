@@ -7,6 +7,7 @@
   },
   "repository": "https://github.com/gsemet/chantier",
   "license": "MIT",
+  "types": "./types/index.d.ts",
   "keywords": [
     "agents",
     "orchestration",
