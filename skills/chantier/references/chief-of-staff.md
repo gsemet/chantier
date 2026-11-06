@@ -172,6 +172,11 @@ Only in the turn where the user gave the go:
   <cr> <text>`: show the exact text; the user types one line in the Foreman's session allowing
   that action. A `qa <folder> <n> findings`: its inbox folder is an ordinary item; triage it with
   the user, split into CRs as needed.
+- **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
+  without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
+  "chain: <reason>"`. Your next report has a line with the chain and its reason. The user turns
+  it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
+  started, the chain stands until the stack driver restacks.
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
   <local sha>`, you run the push, the one exception to "do no Driver's work". From the main
   checkout, without changing its branch or touching its files:

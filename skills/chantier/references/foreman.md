@@ -54,6 +54,12 @@ leave every decision that is theirs to them. Then `$CHANTIER land` and the line
   its CRs in parallel unless the plan says why not. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
   the user to drop that CR or change it. A CR whose dependency went back to a Driver after it
   started is restacked by the stack driver.
+- You may chain a queued CR on another when that costs less than rebasing, for instance small
+  work on the same lines; a shared file alone is no reason, and a CR that has started is never
+  chained. Send `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>` and leave the CR
+  queued: the Chief of Staff records it with `order after` and `order note`, and the user may
+  turn it off while the CR is queued. Once the CR has started, the chain stands until the stack
+  driver restacks.
 - A Release driver takes the release CR once the others are merged or cancelled; its card holds
   the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track

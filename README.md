@@ -49,7 +49,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
    self-contained **Change Specification** (`03-change-spec.md`), and, when it needs another CR
    first, a `depends.json` (`{"after": ["<slug>"]}`).
-3. **You start a batch** ("run the P1s"; a stack of PRs by default, four slots). After a preflight and your go, the
+3. **You start a batch** ("run the P1s"; the CRs run in parallel and are stacked afterwards, four slots). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session.
 4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
    running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
@@ -188,7 +188,8 @@ The folder moves, it is never copied; collisions are errors rather than overwrit
 to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR goes to
 `5-trash/` and does not return to the backlog. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch is open at a time: new work joins it
-through the Foreman, and it is a stack of PRs unless its CRs are independent. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
+through the Foreman. Its CRs run in parallel, each PR on the default branch, and a stack driver
+stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
 `STATUS.md` and `STATUS.json` exist at three levels (`3-requests/`, the batch, the CR), each

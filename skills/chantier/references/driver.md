@@ -33,7 +33,8 @@ The CLI keeps the CR's record and tells you what is off.
   Open or edit the PR yourself (`gh pr create --body-file <work folder>/pr-body.md`, `glab mr
   create`), its title and body by the project's rules and template. Then `$CHANTIER ship <cr>
   <pr link>`: it records the PR at this head and says what is off (uncommitted changes, a head
-  not pushed, no long gate passed at it).
+  not pushed, no long gate passed at it). The PR's base is the `base` that `take` printed, never
+  another: a Driver does not retarget a PR, the stack driver does.
 - The evidence: once the Verifier has left it, you put it in the PR's description, before and
   after side by side, as the forge's own CLI uploads images and videos (`gh pr edit --attach` on
   GitHub, `gh` 2.103 and later); read the CLI's help for any other forge. A file its CLI cannot

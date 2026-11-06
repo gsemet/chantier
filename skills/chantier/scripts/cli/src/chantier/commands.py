@@ -843,11 +843,14 @@ def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
     return default
 
 
-def _stack_base(b_data: dict, c: dict, repo: Repo) -> str:
-    """Its place in the stack: a CR sits on the one below it in the chain (the first on the
-    default branch); a CR with an open dependency, on that dependency's branch."""
+def _stack_base(b_data: dict, c: dict, repo: Repo, planned: bool = False) -> str:
+    """The base its PR has: its place in the stack once `stack` marked the CR (`planned`: the
+    place it will take); otherwise where it started. A CR sits on the one below it in the chain
+    (the first on the default branch); a CR with an open dependency, on that dependency's branch."""
     default = repo.config["default_branch"]
     if c.get("after") and c.get("kind") not in {"release", "fix"}:
+        return _start_base(b_data, c, repo)
+    if not (planned or c.get("stacked")):
         return _start_base(b_data, c, repo)
     order = _chain(b_data)
     ids = [x["id"] for x in order]
@@ -867,7 +870,7 @@ def _base_of(d: dict, c: dict, repo: Repo) -> str:
 
 def _stack_ref(d: dict, c: dict, repo: Repo) -> str:
     """The ref under the CR's PR in the stack, which the stack driver sets."""
-    return _ref(repo, _stack_base(d, c, repo))
+    return _ref(repo, _stack_base(d, c, repo, planned=True))
 
 
 def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
@@ -1232,7 +1235,7 @@ def stack(args) -> list[str]:
                 raise ChantierError(f"{cr} depends on {', '.join(below)}: it cannot sit below "
                                     f"{'it' if len(below) == 1 else 'them'}")
         for i, cr in enumerate(args.crs, 1):
-            b.touch(b.cr(cr), order=i)
+            b.touch(b.cr(cr), order=i, stacked=True)
         b.log("stack-order", None, crs=args.crs)
     return [f"stack order: {' → '.join(args.crs)}"]
 
