@@ -12,7 +12,8 @@ fact.
 
 | Generic | Copilot |
 | --- | --- |
-| Start the Foreman's session | `create_session` with `model: "claude-opus-5.5"`, `workspace` = the repository, `worktree: false`, `title: Foreman [<batch>]` |
+| Start the Foreman's session | `create_session` with `model: "claude-opus-5.5"`, `workspace` = the repository, `worktree: false`, `title: "<title>"` |
+| Set the Foreman's own title, first | when the host offers a way; else the title stays |
 | Own session id | `$COPILOT_AGENT_SESSION_ID` (also the transcript's id) |
 | Start a Driver or a worker | `task`, `mode: background`, `agent_type: <agent>`; the plugin's agent is `chantier-<role>`; no model, no effort |
 | Message a Driver | `write_agent` to the agent id |

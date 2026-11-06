@@ -15,8 +15,9 @@ Each behaviour carries a mark:
 
 | Generic | Claude Code | Mark |
 | --- | --- | --- |
-| Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<your title> - Foreman [<batch>]"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | proved: every batch started from Claude Desktop (v0.3 on) |
+| Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | proved: every batch started from Claude Desktop (v0.3 on) |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
+| Set the Foreman's own title, first | `set_session_title` | unproved: not tried here; the trial is a Foreman that sets its title and `get_session("self")` shows it |
 | Start a Driver or a worker | `Agent`, `run_in_background: true` for a Driver, `subagent_type: <agent>`; the plugin's agent is `chantier:<role>`; no model, no effort | proved, same |
 | Message a Driver | `SendMessage` to the agent id | proved, same |
 | Message the Chief of Staff | `SendMessage` to its session id | proved, same |
@@ -90,7 +91,7 @@ words, and never becomes a rule.
 
 When the previous batch's Foreman session still exists, even stopped, the Chief of Staff may
 reuse it with the new batch and its epoch 1 (a new batch starts at 0). It does not continue the
-old Foreman's epoch.
+old Foreman's epoch. Its title names the old batch: the prompt's title makes it rename itself.
 
 - An idle session answers a message (`SendMessage`): **proved**, a Chief of Staff's message
   started a turn in an idle Foreman session.
