@@ -79,7 +79,7 @@ Only in the turn where the user gave the go:
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back).
 4. **Start the Foreman**, `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one; a new
-   batch starts at epoch 1, even in a reused session):
+   batch starts at 0, so claims 1, even in a reused session):
 
    ```text
    chantier Foreman of batch <batch>, epoch <n>, for the Chief of Staff <your session id>.
@@ -94,23 +94,26 @@ Only in the turn where the user gave the go:
    "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's
    permission mode; leave it linked; your own id and `<your title>` are in `get_session("self")`.
    On a Copilot SDK host: `create_session` with `model: "claude-opus-5.5"`, `workspace` = this
-   repository, `worktree: false`, `title: Foreman [<batch>]`. The Foreman claims its epoch itself. When the host refuses to start
-   a session (under Remote Control), the user can start it and paste this prompt. On `[foreman→chief-of-staff]
-   ready <batch>`, on Copilot, send the Foreman chat `/every 4m chantier status --refresh --batch
-   <batch> --epoch <n>`.
+   repository, `worktree: false`, `title: Foreman [<batch>]`. The Foreman claims its epoch
+   itself. When the host refuses to start a session (under Remote Control), the user can start
+   it and paste this prompt. On `[foreman→chief-of-staff] ready <batch>`, on Copilot, send the
+   Foreman chat `/every 4m chantier status --refresh --batch <batch> --epoch <n>`.
 
    **Reusing the last Foreman.** When the previous batch's Foreman session still exists, even
-   stopped, you may send it this prompt instead of starting a session (`SendMessage` /
-   `send_message`), with the new batch and epoch 1: this is the way to start a batch under Remote
-   Control. A new session stays the default at the desktop: a reused Foreman carries its old
-   context, and the batch pays for it. Before a reuse, always recommend that the user type
-   `/compact` in the Foreman's session, not `/clear`: compaction continues the same conversation,
-   connected devices follow it, and `$CHANTIER cost` keeps the Foreman's transcript, which
-   `/clear` may replace. No role can run it for them: the person types it. Claude Code's docs do
-   not say that a message reaches a stopped session, whose process has ended; they describe
-   waking it by a reply from the user. A stopped Foreman is woken by the user, who pastes the
-   prompt into it. Not proved on the host: that the epoch claim works in a reused session, and
-   whether a message wakes a stopped one; do not tell the user either as a fact.
+   stopped, you may reuse it instead of starting a session, with the new batch and its epoch 1:
+   this is the way to start a batch under Remote Control. An idle session gets this prompt by a
+   message (`SendMessage` / `send_message`); into a closed session, whose process has ended, the
+   user pastes it. The reused Foreman claims the batch's epoch, which starts at 0 for a new
+   batch, so 1; it does not continue the old Foreman's. A new session stays the default at the
+   desktop: a reused Foreman carries its old context, and the batch pays for it. Before a reuse,
+   always recommend that the user type `/compact` in the Foreman's session, not `/clear`:
+   compaction continues the same conversation, connected devices follow it, and `$CHANTIER cost`
+    keeps the Foreman's transcript, which `/clear` may replace. No role can run it for them: the
+    person types it. Proved on the host: `foreman set --epoch 1` was accepted in a reused session,
+    and a Chief of Staff's message started a turn in an idle Foreman session. An idle session
+    answers a message. A session whose process has ended (closed) is unproved: Claude Code's docs do
+    not say that a message reaches it, and describe waking it by a reply from the user, who pastes
+    the prompt into it. Do not tell the user that a message wakes a closed session.
 
 ## While it runs
 
