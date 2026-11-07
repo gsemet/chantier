@@ -841,8 +841,11 @@ def order(args) -> list[str]:
         with Batch(repo, resolve_batch(repo, args.batch),
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
-            if args.kind in {"add", "qa"} and b.data.get("steering") == "direct":
-                raise ChantierError("a direct batch is strict: switch to Foreman mode to add work",
+            if (args.kind in {"add", "qa"} and b.data.get("steering") == "direct"
+                    and b.data["status"] != "landed"
+                    and not (args.kind == "add" and (new_release or args.fix_for))):
+                raise ChantierError("a running direct batch is strict: add the CR once the batch "
+                                    "has landed (`land`), or switch to Foreman mode",
                                     EXIT_PRECONDITION)
             cr = args.cr
             reopened = []

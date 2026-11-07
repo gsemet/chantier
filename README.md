@@ -53,7 +53,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
    host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a
-   strict batch (no CR joins it while it runs); it may switch to Foreman mode on your word.
+   strict batch (no CR joins it while it runs, but a landed batch takes new ones); it may switch to Foreman mode on your word.
 4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
    running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
 5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
