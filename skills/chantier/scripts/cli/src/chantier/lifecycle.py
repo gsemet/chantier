@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .state import (EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, Batch, ChantierError, Repo,
-                    _read_json, _try_lock, _unlock, move_directory, project_path, stamp)
+                    read_batch_json, _try_lock, _unlock, move_directory, project_path, stamp)
 PRIORITIES = ("P1", "P2", "P3", "P4")
 
 
@@ -81,8 +81,8 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
 
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
     for batch_dir in repo.batch_folders():
-        batch = _read_json(batch_dir / "batch.json")
-        if batch.get("status") == "landed":
+        batch = read_batch_json(batch_dir / "batch.json")
+        if batch.get("status") == "paused":
             continue
         for cr in batch.get("crs", []):
             if cr.get("status") in {"cancelled", "merged"} or not cr.get("path"):

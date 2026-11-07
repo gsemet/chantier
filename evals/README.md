@@ -79,7 +79,7 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
    `evals/kit/merge.py <workspace> <pr>` alone, never chained: a conflict merges nothing; the
    Foreman notices a ready PR that stopped merging with the forge's CLI (`gh pr view --json
    mergeable`) and sends it back to a Driver.
-4. **When the batch lands** (`final <report>`): run the audit and the cost.
+4. **When the batch is paused** (`final <report>`): run the audit and the cost.
 
    ```bash
    uv run --no-project python evals/kit/audit.py <workspace>

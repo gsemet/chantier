@@ -131,7 +131,7 @@ Python CLI
 ```md
 ## 🔄 CR lifecycle
 
-open, take, ship, land
+open, take, ship, pause
 ```
 
 ```md

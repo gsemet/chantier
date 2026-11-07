@@ -111,8 +111,8 @@ Only in the turn where the user gave the go:
    mode** (you steer the batch yourself, no Foreman session) when the host cannot start a Foreman
    session (a terminal or IDE host, a Remote Control session with no Foreman to reuse) or when the
    batch has few CRs, and say why in the plan. The limits are the same in both modes; there is no
-   CR threshold of its own. Then the go. While a batch is open, whatever its state
-   until `close`, there is no new plan: new work joins it with `order add`.
+   CR threshold of its own. Then the go. While a batch is not closed, whatever its state
+   (running or paused), there is no new plan: new work joins it with `order add`.
 3. **Open:**
 
    ```bash
@@ -121,7 +121,7 @@ Only in the turn where the user gave the go:
    ```
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
-   makes a stack; `--parallel` makes independent CRs. It exits 2 while a batch is open. It moves
+   makes a stack; `--parallel` makes independent CRs. It exits 2 while a batch is not closed. It moves
    each folder to `3-requests/<batch>/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back).
@@ -191,12 +191,13 @@ Only in the turn where the user gave the go:
     (only a Tips line can follow it, see below). 🔵 to review is a [ready PR](concepts.md)
     only; a CR ready on another base says what it waits for, and **For you** does not ask the
     user to merge it.
-  - **Completion**, on the `final` message: a header line (the batch, the CRs merged out of how
-    many, the spend and the budget); a table, one row per CR: CR, subject, result, PR, rounds, cost;
-    the cost table (see Cost), then its explanation from `cost --explain`, both from `close`
-    without `--yes`, the final cost and not the landing's (a refusal of `close` is reported
-    with its causes, not worked around); what the batch did not
-    prove; a last line, **For you:** closing the batch, with what `close` lists
+  - **Completion**, on the `final` message (Foreman mode) or right after your own `pause`
+    (direct mode): a header line (the batch, the CRs merged out of how many, the spend and the
+    budget); a table, one row per CR: CR, subject, result, PR, rounds, cost; the cost table (see
+    Cost), then its explanation from `cost --explain`, both run at the pause: the cost to date;
+    what the batch did not prove; a last line, **For you:** the batch is paused, the inbox ideas
+    ready for a grill (each by its slug), and, if it fits, an invitation to add other CRs to this
+    batch later or to close it ("close the batch")
     (only a Tips line can follow it, see below).
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
@@ -210,7 +211,7 @@ Only in the turn where the user gave the go:
   $CHANTIER order drop CR-104                 # to 5-trash/ with its work
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: archived
-  $CHANTIER order slots --note 0              # 0 pauses; a number resumes
+  $CHANTIER order slots --note 0              # 0 holds; a number resumes
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
@@ -247,7 +248,7 @@ Only in the turn where the user gave the go:
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
-- **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at landing, the
+- **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at the pause, the
   lines of `$CHANTIER cost`, as printed and in that order (a CR's own figure is the last field of
   its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman
   (in direct mode, `Chief of Staff (steering)`), one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff:`
@@ -288,31 +289,31 @@ Only in the turn where the user gave the go:
 
   A tip names only what chantier really answers, and never a command the host refuses in this
   session.
-- **Landing:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
-  report, its cost not final: the Foreman has ended its work and stays idle, and what runs after
-  `land` is in no figure yet. `$CHANTIER close --batch <batch>` without `--yes` is the check and
-  prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
+- **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
+  report with the cost to date: the Foreman has removed the merged CRs' worktrees and branches,
+  paused the batch, and stays idle. Give the Completion report. New work for the paused batch is
+  `order add`: it sets the batch running again, you start the Foreman's work again by the usual
+  order, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
+  tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
+  because every Driver has ended for 30 minutes (nothing can move); arm it again with the next
+  order you send the Foreman.
+- **Closing:** only on the user's word ("close the batch"). `$CHANTIER close --batch <batch>`
+  without `--yes` is the check and prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
   an order is open, a stack agent is recorded, or a session file of the Foreman or of any of its
   agents was written in the last 5 minutes (on Copilot, the session's file time; `not measured`
   refuses too). It refuses too, with or without `--yes` and naming the cause, when the final cost
   cannot be priced (no priced call; no Foreman transcript recorded, which leaves the batch no way
   through `close`), and, on a batch set running again by `order add` or `order qa`, it names what
-  runs (or says `land` comes first). Report a refusal to the user with its cause, do not retry in
+  runs (or says `pause` comes first). Report a refusal to the user with its cause, do not retry in
   a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
   it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes, and
-  touches nothing: the Completion report takes its figures (the cost table, `cost --explain`)
-  from that run or after it, never from the landing's. New work for a landed batch is `order
-  add`: it sets the batch running again, and you start the Foreman's work again by the usual
-  order; it lands again at the end. Show the user the bilan, the final Cost section and that
+  touches nothing. Show the user the bilan, the final Cost section and that
   list, and ask. Only on their yes,
   in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
   yourself, from the main checkout (`git worktree remove --force <path>`, `git branch -D
-  <branch>`, as listed). Where the heartbeat is yours (the host's reference says), tell the user
-  to delete it in the Foreman chat at landing, and again when the Foreman ends it because every
-  Driver has ended for 30 minutes (nothing can move); arm it again with the next order you send
-  the Foreman.
+  <branch>`, as listed).
 - **Recovery:** a stale heartbeat says something only while a CR is `working`; with none, the
-  Foreman has stopped waking, as it should. After a pause, a restart or a stale heartbeat, prove the Foreman is alive
+  Foreman has stopped waking, as it should. After a break, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
   reporting progress. An app restart stops every session: tell the user, and on "resume" run
   preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch the
@@ -324,7 +325,7 @@ Only in the turn where the user gave the go:
 ## Steering a batch yourself
 
 In direct mode no Foreman session is started: you steer the batch from your own session. The CR
-lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `land`, `close`), the folders,
+lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `pause`, `close`), the folders,
 `STATUS.md`, the reports and the user's boundaries are the same in both modes. Read
 [foreman](foreman.md) and your host's reference ([Claude Code](hosts/claude-code.md) or
 [Copilot](hosts/copilot.md)) and do what they say of the Foreman, until the batch completes, with
@@ -333,7 +334,7 @@ these differences.
 - **Your epoch.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
   <n>`; carry `--epoch <n>` on every steering command (`take`, `agents set`, `status
-  --refresh`, `order done`, `order merged`, `cancel`, `land`) and arm the same heartbeat, as
+  --refresh`, `order done`, `order merged`, `cancel`, `pause`) and arm the same heartbeat, as
   your host's reference says. The CLI prices your transcript from that claim, as one `Chief of
   Staff (steering)` row; the `Chief of Staff:` line then leaves that window out, and the steering
   counts in the spend and the budget as a Foreman's does.
@@ -348,20 +349,19 @@ these differences.
   Driver hears the result as a note.
 - **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
   refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
-  --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch has
-  landed it is paused, and takes new CRs (below).
+  --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch
+  is paused it takes new CRs (below).
 - **What you accept while you steer:** "status?" and "what did it cost?"; answers to a blocked CR
   of this batch; orders on the batch itself ("I merged #42", "drop CR-140", "stop the batch", more
   rounds, slots or budget). Any other request is noted word for word and handed back when the
   batch completes; an idea that arrives while the batch runs is filed in the inbox at once (`file`,
   no grill). You hold no grill, no triage, no demo and no discussion until the batch completes.
-- **The pause.** Once `land` has run, nothing is running: the batch is paused. Grill the ideas
-  stacked in the inbox with the user, and on the user's word add them to the same batch
-  (`order add --note <folder>`): it runs again, and `land` runs again at the end. `close` stays
-  the user's word.
-- **The end.** `$CHANTIER land --epoch <n>`, then, with nothing running, the `close` flow of
-  Landing: the bilan, the final cost, `close --yes` on the user's yes. `close` does not count your
-  own session's file as something that runs, only your Drivers'.
+- **The pause.** Once every CR is merged or cancelled, remove the merged CRs' worktrees and
+  branches (your Foreman's work in direct mode), then run `$CHANTIER pause --epoch <n>`: the batch
+  is paused. Give the Completion report. Grill the inbox ideas with the user and, on their word,
+  `order add --note <folder>`: it runs again, and `pause` runs again at the end. `close` stays the
+  user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session
+  files as something that runs, not your own.
 - **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:
   preflight in Foreman mode passes first (P1, P2), and on Remote Control the switch needs a
   Foreman to reuse, else it is refused, with the reason. Start no new Driver; let the running ones

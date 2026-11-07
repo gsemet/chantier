@@ -25,7 +25,7 @@ PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|th
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
-EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(status --refresh|cancel|land|take)\b|agents set"
+EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(status --refresh|cancel|pause|take)\b|agents set"
                             r"|order (done|merged)")
 PLUGIN_AGENT = "chantier:{role}"  # the Claude plugin's agent for a role; a project names its own
 WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
@@ -191,7 +191,7 @@ def claude_checks(data: dict, uuids: list, projects: Path, check) -> None:
         check(not hand, f"{who.id[:10]} never edits batch.json or events.jsonl by hand")
     no_epoch = [c for c in sum((f.bash() for f in foremen), []) if EPOCH_COMMANDS.search(c) and "--epoch" not in c]
     check(not no_epoch, "every Foreman refresh, take, agents set, order done or merged, "
-                        f"cancel and land carries its epoch{': ' + no_epoch[0][:80] if no_epoch else ''}")
+                        f"cancel and pause carries its epoch{': ' + no_epoch[0][:80] if no_epoch else ''}")
     foreman_git = [c for c in sum((f.bash() for f in foremen), []) if GIT_WRITES.search(c)
                    or re.search(r"git\s+worktree\s+add\b", c)]
     check(not foreman_git, "the Foreman never commits, pushes, rebases or creates a worktree"
@@ -201,7 +201,7 @@ def claude_checks(data: dict, uuids: list, projects: Path, check) -> None:
     check(all(c["id"] in made for c in data["crs"] if c["status"] == "merged"),
           f"each merged CR's worktree was created by one of its Drivers ({sorted(made)})")
     removed = [c for c in sum((f.bash() for f in foremen), []) if re.search(r"git\s+worktree\s+remove\b", c)]
-    check(removed, "the Foreman removed the merged CRs' worktrees before landing")
+    check(removed, "the Foreman removed the merged CRs' worktrees before the pause")
     rules = [c for c in sum((f.bash() for f in foremen), []) if re.search(r"chantier\.py\"?\s+rules\b", c)]
     check(rules, "the Foreman read the project's rules (`chantier rules`)")
     for a in agents:
@@ -275,7 +275,7 @@ def main() -> int:
         print(f"## The agents\n\nNot audited: the {data['host']} transcript checks are not "
               "written yet.\n")
 
-    check(data.get("status") == "landed", f"the batch landed (status {data.get('status')})")
+    check(data.get("status") == "paused", f"the batch paused (status {data.get('status')})")
     for c in data["crs"]:
         check(c["status"] in {"merged", "cancelled"}, f"{c['id']} ended {c['status']}")
         num = re.sub(r"\D", "", c["id"])

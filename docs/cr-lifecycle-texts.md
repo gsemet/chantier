@@ -28,7 +28,7 @@ PLANNING
 QUALITY ASSURANCE
 IMPLEMENTATION
 RELEASE
-LANDING
+PAUSE
 ```
 
 ## Intake (red)
@@ -434,7 +434,7 @@ ready · release link
 release CR
 ```
 
-## Landing
+## Pause
 
 ```md
 👷 Foreman
@@ -442,13 +442,13 @@ all merged or cancelled
 ```
 
 ```md
-chantier land
+chantier pause
 ```
 
 ```md
 ## 📊 STATUS.md
 
-exit report · cost not final
+exit report · cost to date
 ```
 
 ```md
@@ -459,13 +459,13 @@ sends final
 ```md
 ## 🤵 Chief of Staff
 
-bilan + final cost
+report + cost to date
 ```
 
 ```md
-## 👤 your yes
+## 👤 your word
 
-to close the batch
+later, to close it
 ```
 
 ```md

@@ -132,7 +132,7 @@ with `--force-with-lease` (a refused one goes up as above), and `ship` each one 
 `ship` records the new base. The new first PR turns ready once retargeted and green. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
 last one still open, as `take stack` prints, and `stack` refuses an order that puts it below one
 of them; a dependency sent back to a Driver is yours to restack. A release CR and a fix CR are
-not in the stack. The batch stays open until its last CR ends.
+not in the stack. The batch stays running until its last CR ends.
 
 ## QA driver
 

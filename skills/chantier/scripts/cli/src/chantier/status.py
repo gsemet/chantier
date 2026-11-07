@@ -1,6 +1,6 @@
 """What a person reads, and what a dashboard parses: `STATUS.md` and `STATUS.json`.
 
-Three levels, linked both ways: `3-requests/` (the open batches and the backlog), the batch, the
+Three levels, linked both ways: `3-requests/` (the batches and the backlog), the batch, the
 CR. Everything comes from the state already written, never from the forge: this runs at each
 change, so it must stay fast and cannot fail on the network. The JSON says what the Markdown says,
 with more indicators; `schema` moves when a field changes meaning.
@@ -14,10 +14,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from .rails import held, over_budget, slot_free, waits_all
-from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
+from .state import LIVE, Repo, read_batch_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
-PAST_LIMIT = 50  # landed and trashed CRs listed in the index; the totals count them all
+PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
 ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", "rounds", "waits"}
 ENDED = {"merged", "cancelled"}
 AHEAD = ("Shipped", "Handed back")
@@ -271,7 +271,7 @@ def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
             "spent_usd": d.get("spent_usd", 0), "budget_usd": d.get("budget_usd"),
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
-            "heartbeat": d.get("heartbeat"), "landed": d.get("landed"),
+            "heartbeat": d.get("heartbeat"), "paused": d.get("paused"),
             "summary": d.get("summary", []),
             "crs": [_row(repo, d, c, folder)
                     for c in sorted(d["crs"], key=lambda x: x["order"])]}
@@ -285,12 +285,12 @@ def _budget(v: dict) -> str:
 def batch_markdown(v: dict) -> str:
     lines = [f"# {v['folder']}: {v['state']}", "",
              f"Updated {v['updated']} · steering {v.get('steering', 'foreman')} · spent {_budget(v) if v['priced'] else 'unknown'}"
-             f"{' (not final)' if v['landed'] and v['priced'] else ''} · "
+             f"{' (to date)' if v['paused'] and v['priced'] else ''} · "
              f"{v['asks_unread']} asks unread · "
              f"{v['orders_pending']} orders pending", "",
              "[All change requests](../STATUS.md)", "", *_rows_markdown(v["crs"])]
-    if v["landed"]:
-        lines += ["", "## Landed", "", f"- Landed: {v['landed']}"]
+    if v["paused"]:
+        lines += ["", "## Paused", "", f"- Paused: {v['paused']}"]
     if v["summary"]:
         lines += ["", "## Cost", "", *(f"- {ln}" for ln in v["summary"])]
     return "\n".join(lines) + "\n"
@@ -360,7 +360,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
     start = repo.batches
     batches = []
     for folder in repo.batch_folders():
-        d = _read_json(folder / "batch.json")
+        d = read_batch_json(folder / "batch.json")
         v = batch_view(repo, d, folder)
         active = [c for c in sorted(d["crs"], key=lambda x: x["order"]) if c["status"] not in ENDED]
         batches.append({"batch": v["batch"], "folder": folder.name, "state": v["state"],
@@ -369,12 +369,12 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
                         "orders_pending": v["orders_pending"],
                         "slots": {"taken": len(held(SimpleNamespace(data=d))), "total": d["slots"]},
                         "crs": [_row(repo, d, c, start) for c in active]})
-    landed, landed_total = _past(paths["archives"], start)
+    merged, merged_total = _past(paths["archives"], start)
     trashed, trashed_total = _past(paths["trash"], start)
     return {"schema": SCHEMA, "updated": now(), "batches": batches,
             "active_crs": sum(len(b["crs"]) for b in batches),
             "backlog": _backlog(paths, start),
-            "landed": landed, "landed_total": landed_total,
+            "merged": merged, "merged_total": merged_total,
             "trashed": trashed, "trashed_total": trashed_total}
 
 
@@ -387,7 +387,7 @@ def dashboard_markdown(v: dict) -> str:
                   f"{_budget(b)}", ""]
         lines += _rows_markdown(b["crs"]) if b["crs"] else ["No active CR."]
     if not v["batches"]:
-        lines += ["", "No open batch."]
+        lines += ["", "No batch."]
     lines += ["", "## Backlog", "", "| Priority | Item | Title | Spec | Files |",
               "| --- | --- | --- | --- | ---: |",
               *(f"| {r['priority']} | [{r['item']}]({r['path']}) | {r['title']} | "

@@ -7,7 +7,7 @@ About $1 and 15 minutes.
 starts a Driver; the Driver runs a coder, an Inspector, the project's own review step (a custom
 agent), the long gate, commits, pushes and opens the PR itself, watches the simulated CI and
 starts a verifier; the user merges;
-the batch lands with its STATUS.md as the report and a measured cost. Every agent gets its role and stays in it.
+the batch is paused with its STATUS.md as the report and a measured cost to date. Every agent gets its role and stays in it.
 
 Follow the common steps in [the evals README](../README.md#run-a-campaign), with:
 
@@ -29,5 +29,5 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 
 - One Driver; one coder, one Inspector, one docs reviewer, one verifier, all started by it.
 - The docs reviewer runs after the Inspector approves.
-- CI is green on the first run; the CR ends `merged`, the batch `landed`; the CR is in `4-archives/`.
+- CI is green on the first run; the CR ends `merged`, the batch `paused`; the CR is in `4-archives/`.
 - The audit passes every check, run before `$CHANTIER close --yes` (it needs the batch folder); the cost is under $2.

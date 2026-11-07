@@ -9,7 +9,7 @@ from .state import ChantierError
 
 MAX_LINES = 10
 # The facts of a CR, a list of files, the whole batch, or what the user approves, is useless cut short.
-FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "rules", "log", "status", "cost"}
+FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "pause", "rules", "log", "status", "cost"}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -21,7 +21,7 @@ def _parser() -> argparse.ArgumentParser:
         s = sub.add_parser(name, help=help_)
         s.set_defaults(fn=fn)
         if batch:
-            s.add_argument("--batch", help="batch number, 4 or batch-04 (default: $CHANTIER_BATCH, else the only open one)")
+            s.add_argument("--batch", help="batch number, 4 or batch-04 (default: $CHANTIER_BATCH, else the only running one)")
         if epoch:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
@@ -148,9 +148,9 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("cancel", commands.cancel, "stop a CR's processes and mark it cancelled", epoch=True)
     s.add_argument("cr")
 
-    cmd("land", commands.land, "finish the batch's work: refused while anything is live or already landed; the cost is not final", epoch=True)
+    cmd("pause", commands.pause, "pause the batch once its work is done: refused while anything is live or already paused; prints the cost to date", epoch=True)
 
-    s = cmd("close", commands.close, "refused while anything runs; prints the final cost and what deleting a landed batch would remove; --yes deletes it")
+    s = cmd("close", commands.close, "refused while anything runs; prints the final cost and what deleting a paused batch would remove; --yes deletes it")
     s.add_argument("--yes", action="store_true", help="on the user's word")
 
     s = cmd("cost", commands.cost, "price the Foreman's transcript and its subagents")
