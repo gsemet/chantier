@@ -1043,8 +1043,11 @@ def board_index(w: World, d: dict) -> None:
     probe = next(r for r in index["backlog"] if r["title"].startswith("Board index probe"))
     item = w.state / "3-requests" / probe["path"]
 
+    refreshes = [0]
+
     def spec_of() -> object:
-        w.chantier("file", "Spec state refresh")  # rewrites the index
+        refreshes[0] += 1
+        w.chantier("file", f"Spec state refresh {refreshes[0]}")  # rewrites the index
         again = json.loads(path.read_text(encoding="utf-8"))["backlog"]
         return next(r for r in again if r["path"] == probe["path"]).get("spec")
 
