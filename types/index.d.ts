@@ -28,6 +28,7 @@ export type ChantierBatch = {
   asks_unread: number
   heartbeat: string | null
   orders_pending: number
+  slots?: { taken: number; total: number }
   crs: ChantierRow[]
 }
 
