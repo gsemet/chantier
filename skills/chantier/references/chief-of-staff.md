@@ -398,6 +398,9 @@ cost table, outside the budget. In Foreman mode, still no message to a Driver.
 A release is a CR a Release driver runs by the project's own procedure; chantier holds none.
 Find it in `AGENTS.md` and what it links (point to it in the `chantier` section); nothing
 written, or a gap, is a question for the user and an offer to write the answer in the project.
+A procedure silent on release notes or on an announcement is no gap: the release Driver then
+follows [release-template](release-template.md). Offer to write the project's own version in the
+project.
 If the procedure has no long check on the exact head of the default branch before the version
 commit, ask whether to plan one and say why: per-CR gates miss what CRs break together, and any
 check skipped on a PR goes unseen. Offer to write the answer in the project. The user's answer
@@ -407,10 +410,15 @@ the procedure is, what the user reviews), open it preferably alone with `--relea
 may also join a running batch: `$CHANTIER order add --release --note <folder>` (one per batch,
 default grant; `order grant` after). It then waits for every other CR of the batch, the ones
 added later too (the CLI keeps its `after`; `order after` is refused on it), and once they have
-ended it starts only on the user's word. File it early with what is known; settle the rest at
-the end. When the Foreman asks for the confirmation, grill the version from what was merged,
-complete the specification, then `$CHANTIER order confirm <release-cr> --note "<the version and
-what was settled>"`. A CR added after that voids the word; none is added once the release has
+ended it starts only on the user's word. (chantier's own release joins the batch whose work it
+ships, as `docs/release-process.md` says; that file ranks above this card as a project rule.)
+File it early with what is known; settle the rest at the end. When the Foreman asks for the
+confirmation, grill the version from what was merged, complete the specification and, before the
+confirmation, write your latest Progress report and the conversation excerpts you choose into the release CR's folder, as `report.md` and
+`conversation.md` (the release Driver renders them from there, anonymised). In the same grill,
+ask whether a docs diagram should be shown in the notes; only the user's yes puts one in, named in
+the release CR's specification. Then `$CHANTIER order confirm <release-cr> --note "<the version
+and what was settled>"`. A CR added after that voids the word; none is added once the release has
 started (a fix, `--fix-for`, or the next batch). A release alone in its batch needs no word. The
 grant is the user's: by default each irreversible action waits for their approval (`order
 approve`); ask whether they allow more and pass only what they said (`--autonomous-releases

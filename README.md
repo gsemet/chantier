@@ -309,13 +309,13 @@ skills/chantier/
 ├── SKILL.md                ← the Chief of Staff's entry point
 ├── references/             ← one file per running context: concepts, chief-of-staff,
 │                             foreman, driver, worker, routing, spec-writer, init,
-│                             pr-template, and hosts/ (one
+│                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
 └── scripts/cli/            ← the `chantier` CLI and its tests
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
-docs/                       ← diagrams and the user docs (tutorial, use cases)
+docs/                       ← diagrams, the user docs (tutorial, use cases), release notes
 ```
 
 ## Develop
