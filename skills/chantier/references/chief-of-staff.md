@@ -330,14 +330,19 @@ these differences.
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused force push is run by you, as above; the
   Driver hears the result as a note.
-- **The batch is strict.** No CR joins it while it runs: `order add` and `order qa` are refused
-  by the CLI (exit 2). A release fix that needs `order add --fix-for` is an ask to the user, who
-  may switch the batch to Foreman mode.
+- **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
+  refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
+  --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch has
+  landed it is paused, and takes new CRs (below).
 - **What you accept while you steer:** "status?" and "what did it cost?"; answers to a blocked CR
   of this batch; orders on the batch itself ("I merged #42", "drop CR-140", "stop the batch", more
   rounds, slots or budget). Any other request is noted word for word and handed back when the
-  batch completes; an idea may be filed in the inbox at once (`file`, no grill). You hold no
-  grill, no triage, no demo and no discussion until the batch completes.
+  batch completes; an idea that arrives while the batch runs is filed in the inbox at once (`file`,
+  no grill). You hold no grill, no triage, no demo and no discussion until the batch completes.
+- **The pause.** Once `land` has run, nothing is running: the batch is paused. Grill the ideas
+  stacked in the inbox with the user, and on the user's word add them to the same batch
+  (`order add --note <folder>`): it runs again, and `land` runs again at the end. `close` stays
+  the user's word.
 - **The end.** `$CHANTIER land --epoch <n>`, then, with nothing running, the `close` flow of
   Landing: the bilan, the final cost, `close --yes` on the user's yes. `close` does not count your
   own session's file as something that runs, only your Drivers'.

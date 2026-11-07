@@ -800,6 +800,8 @@ def direct_batch(w: World) -> None:
           code == 0 and out[0].startswith("P1 ok") and "P2" not in "\n".join(out), str(out))
     _, item = prepare_cr(w, "Direct work")
     _, extra = prepare_cr(w, "Direct extra")
+    _, later = prepare_cr(w, "Direct after landing")
+    _, rel_item = prepare_cr(w, "Direct release")
     w.reset()
     code, out = w.chantier("open", item, "--direct", *FROM_AGENTS_MD, env={"CLAUDE_CODE_SESSION_ID": ""},
                            expect=2)
@@ -820,7 +822,8 @@ def direct_batch(w: World) -> None:
     edit(created=t0, foreman_claims=[{"transcript": "uuid-chief", "since": t1}])
     for kind, note_ in (("add", str(extra)), ("qa", "try it")):
         code, _ = w.chantier("order", kind, "--note", note_, expect=2)
-        check(f"`order {kind}` is refused on a direct batch", "a direct batch is strict" in w.last_stderr
+        check(f"`order {kind}` is refused on a running direct batch",
+              "a running direct batch is strict" in w.last_stderr
               and len(w.batch()["crs"]) == 1, w.last_stderr)
     fm = Foreman(w, epoch=1)
     fm.turn()
@@ -859,6 +862,22 @@ def direct_batch(w: World) -> None:
     _, out = w.chantier("cost", "--summary")
     check("the summary splits the steering under its own name", out[1].startswith(
           "Chief of Staff (steering) $") and "Foreman" not in out[1], str(out))
+    # a landed batch is paused: new work reopens it, and runs
+    w.chantier("order", "add", "--note", str(later))
+    check("`order add` on a landed direct batch reopens it, with the new CR",
+          w.batch()["status"] == "open" and len(w.batch()["crs"]) == 2
+          and "was landed: running again" in "\n".join(w.last_out), str(w.last_out))
+    cr2 = w.batch()["crs"][1]["id"]
+    fm.turn()
+    check("the reopened direct batch starts the new CR", cr2 in fm.started
+          and w.cr(cr2)["status"] == "working", str(fm.started))
+    driver_round(w, cr2, "direct2.py", "DIRECT = 2\n")
+    w.chantier("handback", cr2, "ready", w.cr(cr2)["pr"])
+    fm.turn()
+    w.chantier("order", "merged", cr2)
+    fm.turn()
+    check("the reopened direct batch lands again", fm.landed and w.batch()["status"] == "landed",
+          str(w.batch()["status"]))
     age_sessions(w)
     os.utime(chief, None)  # the Chief of Staff's own session is written by the very call that closes
     os.utime(driver, None)  # a Driver's file is not
@@ -880,6 +899,10 @@ def direct_batch(w: World) -> None:
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
     w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
     edit(created=t0, foreman_claims=[{"transcript": "uuid-chief", "since": t1}])
+    w.chantier("order", "add", "--release", "--note", str(rel_item))
+    check("`order add --release` is accepted on a running direct batch",
+          len(w.batch()["crs"]) == 2 and w.batch()["crs"][1].get("kind") == "release",
+          str(w.last_out))
     w.chantier("foreman", "set", "local_foreman_next", "--epoch", 2)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 2)
     d = w.batch()
@@ -892,7 +915,7 @@ def direct_batch(w: World) -> None:
     _, out = w.chantier("status")
     check("`status` now says Foreman", " steering foreman " in out[0], str(out))
     w.chantier("order", "add", "--note", str(extra))
-    check("a batch steered by a Foreman takes added work", len(w.batch()["crs"]) == 2)
+    check("a batch steered by a Foreman takes added work", len(w.batch()["crs"]) == 3)
     _, out = w.chantier("cost")
     labels = [ln.split(":")[0] for ln in out if ln.startswith(("Foreman", "Chief of Staff ("))]
     check("each steering session is priced under its own name", labels == [

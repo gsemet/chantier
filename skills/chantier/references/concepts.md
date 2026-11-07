@@ -37,7 +37,9 @@ started.
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
   takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
   work joins it through the steering session (`order add`, which sets a landed batch running again: `land`
-  runs again at the end, and is refused on a batch already landed; a direct batch is strict: `order add` and `order qa` are refused). `close` refuses while anything
+  runs again at the end, and is refused on a batch already landed; a running direct batch is strict: `order add` and `order qa` are
+  refused, except a release CR; a landed batch, of either steering, is paused and takes new CRs, which set it running
+  again). `close` refuses while anything
   runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
   Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
   time; `not measured` refuses). A batch's CRs run in parallel, each on the
