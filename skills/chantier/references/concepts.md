@@ -29,6 +29,10 @@ started.
   (the user prioritized it) → `3-requests/batch-<n>/<number>-<slug>/` (in a batch) →
   `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged) or `5-trash/…` (dropped, with its work;
   it returns to the inbox only on the user's word).
+- **A CR's name:** when an agent names a CR to a person or in a report (messages, report tables,
+  asks, PR titles and bodies where the project allows), it gives the number and the short slug
+  together, like "CR-142 grill-rules", never one alone. An item with no number yet (inbox,
+  backlog) is named by its slug. The CLI's own outputs are unchanged.
 - **Batch:** the CRs active at one time under one steering session (a Foreman, or the Chief of Staff in direct mode). It has no name, only a number: `batch-<n>`
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
   takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new

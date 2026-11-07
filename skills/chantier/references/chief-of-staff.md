@@ -50,6 +50,17 @@ ones whose answer would not change the specification. Only the user sets priorit
 what runs. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link.
 
+Record at once: every human answer and decision about a CR goes into that CR's `02-answers.md`,
+with the date and the user's words, right after it is given: before the next question, before
+any other work, in the same turn. This covers decisions given outside a grill (a priority, "left
+aside", "same batch", "later"). A grill round with several answers is one write per CR touched.
+Nothing waits in the conversation only.
+
+Shared understanding: ask whether a CR is grilled enough only after a complete restatement of it,
+in the user's language: what it changes, every decision taken (from `02-answers.md`), what is
+still open. The user corrects it, and a correction is an answer (record it at once). Never decide
+on your own that a CR is grilled enough: you ask, and the user decides.
+
 A batch runs its CRs in parallel unless the plan says why not: a CR starts as soon as a slot is
 free, and the stack driver rebases afterwards. Touching the same file is no reason to wait, and
 two CRs editing the same file do not depend on each other. Write `depends.json` in a CR's folder
@@ -145,7 +156,7 @@ Only in the turn where the user gave the go:
   for the user. Before a report, run `$CHANTIER status --refresh` with no epoch: it records the
   current spend and `STATUS.md` and leaves the Foreman's heartbeat alone. A 🔴 CR is a
   question for the user. Never read the Foreman's transcript.
-- **Reports:** a Progress report and a Completion report always have the same shape: the columns
+- **Reports:** name every CR by its number and slug together (`concepts.md`, "A CR's name"). A Progress report and a Completion report always have the same shape: the columns
   are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
   remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote, as for
   P9). Icons, each with its word beside it: ⚪ not started or dropped, 🟡 working, 🟠 waiting,

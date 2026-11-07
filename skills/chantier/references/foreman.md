@@ -87,7 +87,8 @@ order, and `land` again at the end (`land` on a landed batch is refused).
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link>`, `blocked <cr>
   <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`, `merged <cr>
-  <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`.
+  <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`. In the text of an ask, name a CR
+  by its number and slug together (`concepts.md`, "A CR's name").
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
   CR back to a Driver with `take <cr> --note`.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
