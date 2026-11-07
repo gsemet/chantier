@@ -90,6 +90,12 @@ order, and `land` again at the end (`land` on a landed batch is refused).
   <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`.
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
   CR back to a Driver with `take <cr> --note`.
+- On an `order merged <dependency>` (the user's or your own), each CR handed back ready as a
+  draft waiting for that dependency, whose dependencies are now all merged, goes back to a
+  Driver at once: `take <cr> --note "rebase: <dependency> merged"`, a new CR Driver (it takes a
+  slot, or waits like any queued CR when none is free). One still waiting for another open
+  dependency is rebased onto that one and stays a draft: the note says which. A stack batch is
+  unchanged: the stack driver restacks.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
   push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
   `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through
