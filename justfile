@@ -29,11 +29,16 @@ scenario:
     uv run --no-project python scenario/run_scenario.py --forge github
     uv run --no-project python scenario/run_scenario.py --forge gitlab
 
+# The reviewed release notes and thread of the current version (none needed before 0.8.0)
+release-notes:
+    uv run --script scripts/release_notes.py --check
+
 # Everything a change must pass
-check: test
+check: test release-notes
 
 # Prepare a release on a new branch: bump, check and commit (pushes nothing)
 release part="patch": (bump-version part) check
+    git add docs/release-notes
     git commit -am "release: v$(uv run --script scripts/version.py show)"
 
 # After the release PR is merged: tag the version on origin/main and push the tag

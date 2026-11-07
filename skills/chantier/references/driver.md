@@ -159,7 +159,14 @@ inside the procedure and the grant, and ask for anything beyond them.
   worktree as above, or `git fetch` and `git reset --hard <base>`, then `$CHANTIER release start
   <cr>`, and the procedure from its first step whatever had passed before.
 - What a person reviews or edits (release notes, an announcement) goes early in the work
-  folder, then `note --draft <path>`; read it again each time you use it, never rewrite it.
+  folder, or where the project's procedure keeps it (a folder committed with the version), then
+  `note --draft <path>`; read it again each time you use it, never rewrite it.
+- The release notes and the announcement thread follow the project's procedure, else
+  [release-template](release-template.md). Their captures come from the release's batch (its
+  `STATUS.md`, the board, CLI output) and from `report.md` and `conversation.md` in the release
+  CR's folder when the Chief of Staff wrote them; a docs diagram only when the release CR's
+  specification names it. Their images are anonymised before they leave the machine, and the
+  thread is never posted by an agent.
 - A release PR is the Foreman's to merge, so it is opened ready, not as a draft: green, `handback blocked merge: <pr link>`; a new
   Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
   `handback blocked fix: <fix-cr> pending`.

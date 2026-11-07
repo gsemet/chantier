@@ -11,9 +11,10 @@ chantier is four things in one repository:
    point. [`references/`](skills/chantier/references/) holds one file per running context:
    `concepts.md` (read by everyone), `chief-of-staff.md`, `foreman.md`, `driver.md`, `worker.md`
    and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
-   Inspector audits; `hosts/claude-code.md` and `hosts/copilot.md` hold what is proper to a host
-   (tools, heartbeat, sessions), each behaviour marked proved, documented or unproved, and the
-   cards only point to them. They are written for agents: short, exact, one meaning per word. A card
+   Inspector audits; `release-template.md` is the default release notes and announcement thread the
+   release Driver writes when the project has none of its own; `hosts/claude-code.md` and
+   `hosts/copilot.md` hold what is proper to a host (tools, heartbeat, sessions), each behaviour
+   marked proved, documented or unproved, and the cards only point to them. They are written for agents: short, exact, one meaning per word. A card
    says what a role judges and how; the project's own rules (`chantier rules`) rank above it.
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): plain Python with
    no dependency, run by `uv run --script`, on Linux, macOS and Windows. Its scope is the frame
@@ -129,25 +130,35 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
 
 ## Release
 
-1. From an up-to-date `main` with green CI, on a new branch, prepare the release. This bumps
-   the version, runs `just check` and commits `release: vX.Y.Z`; it pushes nothing:
+1. From an up-to-date `main` with green CI, agree on the version. Then, on a new branch, write the
+   release folder `docs/release-notes/<today>-vX.Y.Z/` as
+   [docs/release-process.md](docs/release-process.md) says.
+2. Prepare the release. This bumps the version and runs `just check`, which refuses missing or
+   invalid notes. It then stages `docs/release-notes/` and commits `release: vX.Y.Z`; it pushes
+   nothing:
 
    ```bash
    just release          # patch; or `just release minor`, `just release major`
    ```
 
-2. Push the branch, open a pull request and merge it by rebase once CI is green.
-3. Tag the merged commit on `main` and push the tag:
+3. Push the branch and open the pull request. The user reviews the release folder in it. Merge it
+   by rebase once CI is green.
+4. Tag the merged commit on `main` and push the tag:
 
    ```bash
    just tag
    ```
 
-4. Publish the GitHub release with its notes:
+5. Publish the reviewed notes as they are, with the images attached:
 
    ```bash
-   gh release create vX.Y.Z --generate-notes
+   uv run --script scripts/release_notes.py --prepare vX.Y.Z --output <tmp>/release-notes.md --assets <tmp>/assets
+   gh release create vX.Y.Z --notes-file <tmp>/release-notes.md <each file that --prepare listed>
    ```
+
+   A typo found after publication is fixed by editing the release on GitHub. The published text
+   may then differ from the file, and that is accepted.
+6. The user posts the thread from `tweet.md`.
 
 Users get the new version by updating the plugin from its marketplace, then restarting their
 session.
