@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+  :root { --bg: #fafaf7; --fg: #1d1d1b; --muted: #5f5f58; --line: #d8d8d0; --accent: #b8860b; --code: #efeee8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17171a; --fg: #e8e8e2; --muted: #a0a09a; --line: #34343a; --accent: #e0b040; --code: #232328; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: 1rem 1rem 4rem; }
+  h1 { font-size: 1.7rem; margin: 1.2rem 0 .3rem; }
+  h2 { font-size: 1.25rem; margin: 2.2rem 0 .6rem; border-bottom: 1px solid var(--line); padding-bottom: .2rem; }
+  nav { background: var(--code); border-radius: .5rem; padding: .6rem 1rem; margin: 1rem 0; }
+  nav ol { margin: 0; padding-left: 1.2rem; }
+  a { color: var(--accent); }
+  code, pre { background: var(--code); border-radius: .3rem; font: .9em ui-monospace, Consolas, monospace; }
+  code { padding: .05rem .3rem; }
+  pre { padding: .7rem; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--line); padding: .3rem .6rem; text-align: left; }
+  svg { max-width: 100%; height: auto; }
+  svg text { fill: var(--fg); }
+  svg .box { fill: var(--code); stroke: var(--line); }
+  svg .arrow { stroke: var(--muted); fill: none; }
+  .lead { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{TITLE}}</h1>
+  <p class="lead">{{ONE_SENTENCE}}</p>
+
+  <nav aria-label="Contents">
+    <ol>
+      <li><a href="#story">The story of one request</a></li>
+      <li><a href="#diagrams">Three diagrams</a></li>
+      <li><a href="#previews">What you will read</a></li>
+      <li><a href="#money">Money and your decisions</a></li>
+      <li><a href="#start">Getting started here</a></li>
+      <li><a href="#phrases">Phrases to say</a></li>
+      <li><a href="#glossary">Glossary</a></li>
+    </ol>
+  </nav>
+
+  <section id="story">
+    <h2>The story of one request</h2>
+    <!-- SLOT story: an ordered list, one step per stage of a real CR of this project, then the direct-mode sentences -->
+    {{STORY}}
+  </section>
+
+  <section id="diagrams">
+    <h2>Three diagrams</h2>
+    <!-- SLOT diagrams: three inline SVGs, each in a <figure> with a <figcaption>; use the classes box and arrow -->
+    {{DIAGRAM_WHO_TALKS_TO_WHOM}}
+    {{DIAGRAM_FIVE_FOLDERS}}
+    {{DIAGRAM_ONE_CR_OVER_TIME}}
+  </section>
+
+  <section id="previews">
+    <h2>What you will read</h2>
+    <!-- SLOT previews: the CR folder tree in a <pre>, then the status table with $… for money -->
+    {{PREVIEW_TREE}}
+    {{PREVIEW_STATUS}}
+  </section>
+
+  <section id="money">
+    <h2>Money and your decisions</h2>
+    {{MONEY_AND_DECISIONS}}
+  </section>
+
+  <section id="start">
+    <h2>Getting started here</h2>
+    {{GETTING_STARTED}}
+  </section>
+
+  <section id="phrases">
+    <h2>Phrases to say</h2>
+    {{PHRASES}}
+  </section>
+
+  <section id="glossary">
+    <h2>Glossary</h2>
+    {{GLOSSARY}}
+  </section>
+</main>
+</body>
+</html>

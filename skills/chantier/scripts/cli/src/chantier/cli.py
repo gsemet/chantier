@@ -30,6 +30,8 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--direct", action="store_true",
                    help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point")
 
+    cmd("init", commands.init, "create the five empty stage folders of .agents/changes/; changes nothing else", False)
+
     s = cmd("file", commands.file_cr, "file a request in the inbox", False)
     s.add_argument("item", help="request text, or @path to the raw request")
     s.add_argument("--slug", help="folder name when the inferred slug is already used")
