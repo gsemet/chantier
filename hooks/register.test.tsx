@@ -462,6 +462,22 @@ test('a cell escapes backslash and pipe and folds whitespace; a link out of the 
   await ui.unmount()
 })
 
+test('a batch header shows its slots, and nothing when the index has none', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index({ batches: [batch({ slots: { taken: 2, total: 3 } })] }))
+  await skill($)
+  const ui = await board($)
+  expect(await words(ui)).toContain('Slots 2/3, 1 free')
+  await ui.unmount()
+
+  w.put(INDEX, index({ batches: [batch()] }))
+  await skill($)
+  const old = await board($)
+  expect(await words(old)).not.toContain('Slots')
+  await old.unmount()
+})
+
 test('a live batch whose Foreman is silent for long says so', async ($, on) => {
   mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
   const w = world(on)

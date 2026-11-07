@@ -13,7 +13,7 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from .rails import over_budget, slot_free, waits_all
+from .rails import held, over_budget, slot_free, waits_all
 from .state import LIVE, Repo, _read_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 2
@@ -359,6 +359,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
                         "spent_usd": v["spent_usd"], "budget_usd": v["budget_usd"],
                         "asks_unread": v["asks_unread"], "heartbeat": v["heartbeat"],
                         "orders_pending": v["orders_pending"],
+                        "slots": {"taken": len(held(SimpleNamespace(data=d))), "total": d["slots"]},
                         "crs": [_row(repo, d, c, start) for c in active]})
     landed, landed_total = _past(paths["archives"], start)
     trashed, trashed_total = _past(paths["trash"], start)
