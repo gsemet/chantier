@@ -58,7 +58,7 @@ init for a guided tour".
 | --- | --- | --- |
 | "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](references/init.md) |
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
-| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | Backlog and grill |
+| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification | Backlog and grill |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/3-requests/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the batch landed ("close it", the `final` message) | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |

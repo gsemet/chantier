@@ -164,6 +164,7 @@ batch keeps the team it started with.
 | QA driver | Sonnet 5.5 | Claude Sonnet 5.5 |
 | Coder, Investigator, Debugger, Conflict resolver, Demo explorer | Sonnet 5.5 | GPT-5.6 Luna |
 | Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
+| Spec-writer | Opus 5.5 | Claude Opus 5.5 |
 
 The roles that judge (which CR goes next, what a red check means, whether a diff breaks a
 project rule) run Opus, except the CR driver, which reads red checks on Sonnet; they are given

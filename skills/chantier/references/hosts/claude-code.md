@@ -19,12 +19,13 @@ Each behaviour carries a mark:
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
 | Set the Foreman's own title, first | `set_session_title` | unproved: not tried here; the trial is a Foreman that sets its title and `get_session("self")` shows it |
 | Start a Driver or a worker | `Agent`, `run_in_background: true` for a Driver, `subagent_type: <agent>`; the plugin's agent is `chantier:<role>`; no model, no effort | proved, same |
+| Start the Spec-writer (Chief of Staff) | `Agent`, `run_in_background: true`, `subagent_type: chantier:spec-writer`; no model, no effort | unproved until a CR is specified this way |
 | Message a Driver | `SendMessage` to the agent id | proved, same |
 | Message the Chief of Staff | `SendMessage` to its session id | proved, same |
 | A Driver messages its steering session (the Foreman; in direct mode the Chief of Staff, which is `main` there) | `SendMessage` to `main` | proved, same; in direct mode the same mechanism, unproved until a direct batch runs |
 | Stop a Driver | `TaskStop` | proved, same |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
-| Models | the Foreman and the stack and release drivers run Opus 5.5; the CR and QA drivers and the workers Sonnet 5.5 | proved, same, except the CR driver: unproved; the trial is the model a CR driver's transcript shows in the next batch |
+| Models | the Foreman, the stack and release drivers and the Spec-writer run Opus 5.5; the CR and QA drivers and the workers Sonnet 5.5 | proved, same, except the CR driver: unproved; the trial is the model a CR driver's transcript shows in the next batch |
 | Preflight P2 | `mcp__ccd_session__start_session` loads | proved, same |
 
 "Proved, same" means seen in use in every batch since v0.3, with no dated trial kept: re-prove a

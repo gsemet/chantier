@@ -307,6 +307,14 @@ def _title(folder: Path) -> str:
     return folder.name
 
 
+def spec_state(folder: Path) -> str | None:
+    """The spec-writer's state, read from the folder: `specifying` while the Chief of Staff's
+    `work/specifying` marker exists, `specified` once the specification exists without it."""
+    if (folder / "work" / "specifying").exists():
+        return "specifying"
+    return "specified" if (folder / "03-change-spec.md").is_file() else None
+
+
 def _backlog(paths: dict[str, Path], start: Path) -> list[dict]:
     found = [("P" + p.name[1:], p) for p in sorted(paths["backlog"].glob("P[1-4]"))]
     found.append(("inbox", paths["inbox"]))
@@ -315,7 +323,7 @@ def _backlog(paths: dict[str, Path], start: Path) -> list[dict]:
         for item in sorted(stage.iterdir()) if stage.is_dir() else []:
             if item.is_dir():
                 rows.append({"priority": priority, "item": item.name, "title": _title(item),
-                             "path": _link(item, start),
+                             "path": _link(item, start), "spec": spec_state(item),
                              "files": sum(1 for p in item.rglob("*") if p.is_file())})
     return rows
 
@@ -380,9 +388,10 @@ def dashboard_markdown(v: dict) -> str:
         lines += _rows_markdown(b["crs"]) if b["crs"] else ["No active CR."]
     if not v["batches"]:
         lines += ["", "No open batch."]
-    lines += ["", "## Backlog", "", "| Priority | Item | Title | Files |",
-              "| --- | --- | --- | ---: |",
-              *(f"| {r['priority']} | [{r['item']}]({r['path']}) | {r['title']} | {r['files']} |"
+    lines += ["", "## Backlog", "", "| Priority | Item | Title | Spec | Files |",
+              "| --- | --- | --- | --- | ---: |",
+              *(f"| {r['priority']} | [{r['item']}]({r['path']}) | {r['title']} | "
+                f"{r.get('spec') or '-'} | {r['files']} |"
                 for r in v["backlog"])]
     return "\n".join(lines) + "\n"
 

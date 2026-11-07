@@ -16,6 +16,7 @@ fact.
 | Set the Foreman's own title, first | when the host offers a way; else the title stays |
 | Own session id | `$COPILOT_AGENT_SESSION_ID` (also the transcript's id) |
 | Start a Driver or a worker | `task`, `mode: background`, `agent_type: <agent>`; the plugin's agent is `chantier-<role>`; no model, no effort |
+| Start the Spec-writer (Chief of Staff) | `task`, `mode: background`, `agent_type: chantier-spec-writer`; no model, no effort |
 | Message a Driver | `write_agent` to the agent id |
 | Message the Chief of Staff | `send_message` to its session link |
 | A Driver's hand-back to its steering session (the Foreman; in direct mode the Chief of Staff) | the Driver's final answer; in direct mode it returns to the Chief of Staff that started the Driver: unproved |

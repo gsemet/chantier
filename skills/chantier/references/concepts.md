@@ -126,6 +126,11 @@ of batch <batch>, in the project <root>.` and its brief gives the folder it writ
 result is a report or a study. It never implements: no commit, no push, no PR, nothing in a CR's
 worktree; a prototype lives in a temporary folder and is thrown away.
 
+The Spec-writer is the Chief of Staff's subagent too, outside any batch: its first line is
+`chantier spec-writer for the Chief of Staff, in the project <root>.`, it reads
+[`spec-writer.md`](spec-writer.md) instead of a Driver or worker section, and its brief gives the
+CR folder. It writes `03-change-spec.md` there and takes no slot and no budget of a batch.
+
 ## Rules
 
 0. **The project's rules rank above this skill.** `$CHANTIER rules` lists the project's
