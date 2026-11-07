@@ -29,13 +29,13 @@ started.
   (the user prioritized it) → `3-requests/batch-<n>/<number>-<slug>/` (in a batch) →
   `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged) or `5-trash/…` (dropped, with its work;
   it returns to the inbox only on the user's word).
-- **Batch:** the CRs active at one time under one Foreman. It has no name, only a number: `batch-<n>`
+- **Batch:** the CRs active at one time under one steering session (a Foreman, or the Chief of Staff in direct mode). It has no name, only a number: `batch-<n>`
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
   takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
-  work joins it through the Foreman (`order add`, which sets a landed batch running again: `land`
-  runs again at the end, and is refused on a batch already landed). `close` refuses while anything
+  work joins it through the steering session (`order add`, which sets a landed batch running again: `land`
+  runs again at the end, and is refused on a batch already landed; a direct batch is strict: `order add` and `order qa` are refused). `close` refuses while anything
   runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
-  Foreman or of any of its agents written in the last 5 minutes (on Copilot the session file's
+  Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
   time; `not measured` refuses). A batch's CRs run in parallel, each on the
   default branch, each PR on the default branch. A stack is made afterwards, by the stack driver
   (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack, and the
@@ -71,6 +71,10 @@ started.
   found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a
   release without asking (releases, up to three fixes the Foreman starts and merges), always
   within a budget.
+- **Steering session:** the session that runs the batch from its state: a Foreman, or, in direct
+  mode (`open --direct`), the Chief of Staff itself. Both claim an epoch the same way. The batch
+  records which steers it and switches to Foreman mode when a later epoch is claimed by another
+  transcript; a Foreman batch never switches to direct mode.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.

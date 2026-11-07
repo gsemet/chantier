@@ -36,6 +36,11 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   stacked afterwards by `stack` (`ship` records the default branch before, the CR under it
   after); a dependency changed with `order after` (refused on a CR not queued, an unknown CR or
   a cycle), a chain started on the ready CR's branch and undone by `--note -`;
+- direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
+  `order qa` refused, a direct batch from `open` to `land` and `close` (priced with one `Chief of
+  Staff (steering)` row and a Chief of Staff line that leaves the steering window out, `close` not
+  blocked by the Chief of Staff's own transcript but by a Driver that writes), then a Foreman
+  claiming a later epoch from another transcript: the steering switches and the old epoch is refused;
 - a Foreman restart (the stale epoch refused), a lost Driver taken over from `handoff`; a Foreman
   started in a linked worktree stopping at its worktree check, before it claims its epoch: no CR
   taken, one ask;

@@ -761,6 +761,149 @@ def scenario(w: World) -> None:
     cancel_during_gate(w)
     rails(w)
     foreman_in_a_worktree(w)
+    direct_batch(w)
+
+
+def direct_batch(w: World) -> None:
+    """A batch steered by the Chief of Staff itself, from `open` to `close`, priced with one steering
+    row and a Chief of Staff line that leaves the steering window out; then a Foreman takes it over."""
+    note("\n## 16. Direct mode: the Chief of Staff steers the batch")
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    chief = w.root / "claude-projects" / slug / "uuid-chief.jsonl"
+    kept = chief.read_text(encoding="utf-8") if chief.is_file() else None
+    sub = chief.with_suffix("") / "subagents"
+    t0, t1 = "2026-03-01T00:00:00Z", "2026-03-01T01:00:00Z"  # the opening, then the claim
+
+    def at(minutes: int) -> str:
+        return (datetime.fromisoformat(t1.replace("Z", "+00:00")) + timedelta(minutes=minutes)
+                ).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    def msg(mid: str, stamp: str) -> str:
+        return json.dumps({"type": "assistant", "timestamp": stamp, "message": {
+            "id": mid, "model": "claude-sonnet-5-5", "usage": {
+                "input_tokens": 10, "output_tokens": 1_000_000, "cache_read_input_tokens": 20_000,
+                "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
+
+    def edit(**fields) -> None:
+        state = w.folder() / "batch.json"
+        state.write_text(json.dumps({**w.batch(), **fields}))
+
+    def money(out: list[str], start: str) -> float:
+        line = next(ln for ln in out if ln.startswith(start))
+        return float(re.search(r"\$(\d+\.\d+)", line)[1])
+
+    code, out = w.chantier("preflight", env={"CLAUDE_CODE_ENTRYPOINT": "cli"}, expect=2)
+    check("preflight refuses a terminal session while a Foreman must start", code == 2
+          and out[0].startswith("P1 FAIL"), str(out))
+    code, out = w.chantier("preflight", "--direct", env={"CLAUDE_CODE_ENTRYPOINT": "cli"})
+    check("`preflight --direct` passes P1 on any Claude Code entry point and leaves P2 out",
+          code == 0 and out[0].startswith("P1 ok") and "P2" not in "\n".join(out), str(out))
+    _, item = prepare_cr(w, "Direct work")
+    _, extra = prepare_cr(w, "Direct extra")
+    w.reset()
+    code, out = w.chantier("open", item, "--direct", *FROM_AGENTS_MD, env={"CLAUDE_CODE_SESSION_ID": ""},
+                           expect=2)
+    check("`open --direct` needs the Chief of Staff's own session id", code == 2
+          and "session id" in w.last_stderr, w.last_stderr)
+    w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    check("`open --direct` records the steering, and says to steer it yourself",
+          w.batch()["steering"] == "direct" and w.last_out[1].endswith("then steer it yourself")
+          and "steering direct" in w.last_out[0]
+          and "Steering: direct" in (w.folder() / "brief.md").read_text(encoding="utf-8"),
+          str(w.last_out))
+    _, out = w.chantier("status")
+    check("`status` and STATUS.md show the steering", " steering direct " in out[0]
+          and "steering direct" in (w.folder() / "STATUS.md").read_text(encoding="utf-8"), str(out))
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
+    w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
+    edit(created=t0, foreman_claims=[{"transcript": "uuid-chief", "since": t1}])
+    for kind, note_ in (("add", str(extra)), ("qa", "try it")):
+        code, _ = w.chantier("order", kind, "--note", note_, expect=2)
+        check(f"`order {kind}` is refused on a direct batch", "a direct batch is strict" in w.last_stderr
+              and len(w.batch()["crs"]) == 1, w.last_stderr)
+    fm = Foreman(w, epoch=1)
+    fm.turn()
+    cr = w.batch()["crs"][0]["id"]
+    check("the Chief of Staff, as steering session, starts the Driver as a Foreman does",
+          fm.started == [cr] and w.cr(cr)["status"] == "working", str(fm.started))
+    sub.mkdir(parents=True, exist_ok=True)
+    # outside the window: an earlier session, then a call after the opening and before the claim;
+    # inside it: two calls of the steering and three of its Driver
+    chief.write_text(msg("c-old", "2000-01-01T00:00:00.000Z") + msg("c-pre", "2026-03-01T00:10:00.000Z")
+                     + msg("c-in1", at(10)) + msg("c-in2", at(20)), encoding="utf-8")
+    driver = sub / "agent-agent-1.jsonl"
+    driver.write_text("".join(msg(f"d{i}", at(15)) for i in range(3)), encoding="utf-8")
+    driver.with_suffix("").with_suffix(".meta.json").write_text(
+        json.dumps({"agentType": "cr-driver"}), encoding="utf-8")
+    driver_round(w, cr, "direct.py", "DIRECT = True\n")
+    w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+    fm.turn()
+    w.chantier("order", "merged", cr)
+    fm.turn()
+    check("a direct batch runs from open to land", fm.landed and w.batch()["status"] == "landed",
+          str(w.batch()["status"]))
+    _, out = w.chantier("cost")
+    lines = [ln for ln in out if ln.startswith(("Foreman", "Chief of Staff (steering)", "Driver"))]
+    printed = [int(a.replace(".", "")) for ln in lines for a in re.findall(r"\$(\d+\.\d{3}) \(", ln)]
+    check("`cost` shows one 'Chief of Staff (steering)' row, no 'Foreman' row, and the lines add up",
+          [ln.split(":")[0] for ln in lines] == ["Chief of Staff (steering)", "Driver cr-driver"]
+          and "(2 calls)" in lines[0] and "(3 calls)" in lines[1]
+          and out[0].split()[1] == f"${sum(printed) / 1000:.3f}", str(out))
+    steering = money(out, "Chief of Staff (steering)")
+    since, whole = money(out, "Chief of Staff:"), float(re.findall(r"\$(\d+\.\d+)", out[-1])[1])
+    check("the 'Chief of Staff' line leaves the steering window out: one call since the opening, "
+          "two in the whole session",
+          abs(since - steering / 2) <= 0.01 and abs(whole - steering) <= 0.01
+          and "since the batch opened" in out[-1], f"{out[-1]} (steering ${steering})")
+    _, out = w.chantier("cost", "--summary")
+    check("the summary splits the steering under its own name", out[1].startswith(
+          "Chief of Staff (steering) $") and "Foreman" not in out[1], str(out))
+    age_sessions(w)
+    os.utime(chief, None)  # the Chief of Staff's own session is written by the very call that closes
+    os.utime(driver, None)  # a Driver's file is not
+    code, _ = w.chantier("close", "--batch", w.name, "--yes", expect=2)
+    check("`close` still sees a Driver that writes, on a direct batch", "agent-agent-1" in w.last_stderr
+          and "uuid-chief was written" not in w.last_stderr.replace("agent-agent-1", ""), w.last_stderr)
+    age_sessions(w)
+    os.utime(chief, None)
+    code, out = w.chantier("close", "--batch", w.name, "--yes")
+    check("`close` is not blocked by the Chief of Staff's own fresh transcript", code == 0
+          and not w.folder().exists(), str(out))
+
+    # a Foreman takes the batch over: the steering switches, the old epoch is refused
+    w.reset()
+    shutil.rmtree(sub)
+    _, other = prepare_cr(w, "Direct then Foreman")
+    w.start(other, "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
+    w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
+    edit(created=t0, foreman_claims=[{"transcript": "uuid-chief", "since": t1}])
+    w.chantier("foreman", "set", "local_foreman_next", "--epoch", 2)
+    w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 2)
+    d = w.batch()
+    code, _ = w.chantier("status", "--refresh", "--epoch", 1, expect=3)
+    check("a later epoch from another transcript switches the steering to Foreman, and refuses "
+          "the old epoch", d["steering"] == "foreman" and code == 3
+          and [c["transcript"] for c in d["foreman_claims"]] == ["uuid-chief", "uuid-foreman"]
+          and any(json.loads(e)["kind"] == "steering" for e in
+                  (w.folder() / "events.jsonl").read_text(encoding="utf-8").splitlines()), str(d))
+    _, out = w.chantier("status")
+    check("`status` now says Foreman", " steering foreman " in out[0], str(out))
+    w.chantier("order", "add", "--note", str(extra))
+    check("a batch steered by a Foreman takes added work", len(w.batch()["crs"]) == 2)
+    _, out = w.chantier("cost")
+    labels = [ln.split(":")[0] for ln in out if ln.startswith(("Foreman", "Chief of Staff ("))]
+    check("each steering session is priced under its own name", labels == [
+        "Chief of Staff (steering)", "Foreman"] or labels == ["Foreman", "Chief of Staff (steering)"],
+          str(out))
+    w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
+    if kept is None:
+        chief.unlink()
+    else:
+        chief.write_text(kept, encoding="utf-8")
 
 
 def foreman_in_a_worktree(w: World) -> None:

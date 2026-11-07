@@ -1,6 +1,6 @@
 ---
 name: cr-driver
-description: Drives one chantier change request through rounds, ship, CI and hand-back. Started by the Foreman.
+description: Drives one chantier change request through rounds, ship, CI and hand-back. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
 tools: Agent, Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor

@@ -21,7 +21,7 @@ Each behaviour carries a mark:
 | Start a Driver or a worker | `Agent`, `run_in_background: true` for a Driver, `subagent_type: <agent>`; the plugin's agent is `chantier:<role>`; no model, no effort | proved, same |
 | Message a Driver | `SendMessage` to the agent id | proved, same |
 | Message the Chief of Staff | `SendMessage` to its session id | proved, same |
-| A Driver messages the Foreman | `SendMessage` to `main` | proved, same |
+| A Driver messages its steering session (the Foreman; in direct mode the Chief of Staff, which is `main` there) | `SendMessage` to `main` | proved, same; in direct mode the same mechanism, unproved until a direct batch runs |
 | Stop a Driver | `TaskStop` | proved, same |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
 | Models | the Foreman and the stack and release drivers run Opus 5.5; the CR and QA drivers and the workers Sonnet 5.5 | proved, same, except the CR driver: unproved; the trial is the model a CR driver's transcript shows in the next batch |
@@ -36,7 +36,7 @@ the earlier card, with no dated trial.
 
 ## Heartbeat
 
-The Foreman runs the `/loop` skill in dynamic mode with `chantier status --refresh --batch
+The Foreman (in direct mode the Chief of Staff, in its own session) runs the `/loop` skill in dynamic mode with `chantier status --refresh --batch
 <batch> --epoch <n>`, every `30m`, each wake scheduled with `ScheduleWakeup`. It ends the
 heartbeat, never its session, with `ScheduleWakeup` `stop: true`: right after `land`, and on a
 wake where no Driver of any kind (CR, stack, QA, release) has run since the last wake and no

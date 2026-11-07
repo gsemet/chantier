@@ -1,9 +1,10 @@
 # Drivers
 
-A Driver runs in the background for the Foreman and drives one CR (or the stack) through short
+A Driver runs in the background for its steering session (the Foreman, or the Chief of Staff in direct
+mode) and drives one CR (or the stack) through short
 foreground children, one at a time. Read your host's reference with this card ([Claude
 Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)): how to start a child and reach the
-Foreman. It never codes, reviews, debugs or resolves a conflict
+steering session. It never codes, reviews, debugs or resolves a conflict
 itself: it starts the child for it, and restarts a failing child rather than doing its work.
 Git and the forge are yours: the worktree, the commits, the rebase, the push, the PR, its
 checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
@@ -63,14 +64,14 @@ The CLI keeps the CR's record and tells you what is off.
   waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`): it writes the state and prints the line to send the
-  Foreman (how it reaches the Foreman is your host's reference). Then end: ending frees
+  Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference). Then end: ending frees
   your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
-  decide: the CR shows 🟠, and the Foreman takes it back when that thing lands.
+  decide: the CR shows 🟠, and the steering session takes it back when that thing lands.
 - A force push the host refuses (any Driver that pushes): the Chief of Staff runs it for you.
   With your work committed, send `[driver <cr>→foreman] push <branch> <expected remote sha>
   <local sha>` (the remote head you expect, from `git ls-remote`, and your head), then wait: no
-  other push, no other way. The Foreman tells you the result. Done: `ship` and go on. A failed
+  other push, no other way. The steering session tells you the result. Done: `ship` and go on. A failed
   lease (the remote moved): look at why (`git fetch`, what the remote gained), never the same
   push again. A `push refused` note, whether the branch is not this batch's or the Chief of
   Staff's own push was refused, ends with `handback blocked refused <exact text>`; it goes to
