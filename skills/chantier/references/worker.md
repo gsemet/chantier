@@ -47,6 +47,11 @@ may run the fast gate to check a claim. Reply with JSON only:
 missing test, a broken gate, a part of the specification missed. Style the project has no rule
 on goes to `minor`. You cannot judge: `FIX-REQUIRED` with one blocking item saying so.
 
+On a CR's round, read `<work folder>/pr-body.md` with the diff and audit it against the
+project's PR template and rules, else against [pr-template](pr-template.md) (its audit list). A
+missing `pr-body.md` or a failed audit item is `blocking`, written `pr-body.md: <section>: …`.
+The extra review steps do not audit the body.
+
 ## Debugger
 
 Find why a check is red or a behavior is wrong, and prove it. A diagnosis, not a fix: you

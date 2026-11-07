@@ -40,7 +40,9 @@ CHECKS = {"pass": 0, "fail": 0}
 GATE = "uv run --no-project python -m compileall -q ."  # what the project's AGENTS.md names
 FROM_AGENTS_MD = ("--default-branch", "main")
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
-BODY = "## Summary\n\n{title}.\n\n### Checks\n\nNone.\n"
+BODY = ("## Summary\n\n{title}.\n\n## Deliverables\n\nNone.\n\n## Changes\n\nNone.\n\n"
+        "## Impacts\n\nNone.\n\n## Blast radius\n\nGrade: 1\n\n## Test plan\n\nNone.\n\n"
+        "## Autonomous decisions\n\nNone.\n\n## Internal references\n\n{cr}\n")
 LIVE = {"working"}
 ENDED = {"merged", "cancelled"}
 BACK_NOTES = ("rebase:", "merged:")
@@ -412,7 +414,7 @@ def ship(w: World, cr_id: str, title: str) -> None:
     body.parent.mkdir(exist_ok=True)
     push(w, cr_id)
     first = cr_id not in OPENED
-    body.write_text(BODY.format(title=c["title"]))
+    body.write_text(BODY.format(title=c["title"], cr=cr_id))
     link = OPENED.setdefault(cr_id, open_pr(w, cr_id, title) if first else c["pr"])
     w.chantier("ship", cr_id, link)
 

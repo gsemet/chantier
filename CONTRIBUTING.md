@@ -10,7 +10,8 @@ chantier is four things in one repository:
 1. **A skill** ([`skills/chantier/`](skills/chantier/)). `SKILL.md` is the Chief of Staff's entry
    point. [`references/`](skills/chantier/references/) holds one file per running context:
    `concepts.md` (read by everyone), `chief-of-staff.md`, `foreman.md`, `driver.md`, `worker.md`
-   and `routing.md`; `hosts/claude-code.md` and `hosts/copilot.md` hold what is proper to a host
+   and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
+   Inspector audits; `hosts/claude-code.md` and `hosts/copilot.md` hold what is proper to a host
    (tools, heartbeat, sessions), each behaviour marked proved, documented or unproved, and the
    cards only point to them. They are written for agents: short, exact, one meaning per word. A card
    says what a role judges and how; the project's own rules (`chantier rules`) rank above it.
