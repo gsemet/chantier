@@ -8,7 +8,7 @@
       "name": "chantier",
       "source": "./",
       "description": "The construction site for your Software Factory: a Chief of Staff, a Foreman and short-lived workers that ship one pull request per change request.",
-      "version": "0.7.0"
+      "version": "0.8.0"
     }
   ]
 }
