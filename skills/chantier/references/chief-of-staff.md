@@ -313,6 +313,8 @@ these differences.
 - **The Drivers.** You start them, several in parallel on the free slots, in the background, and
   hear their hand-backs, as the Foreman's card says. "Never message a Driver" does not hold for the
   Drivers of a batch you steer.
+- **A dependent draft PR.** The Foreman's rule after an `order merged` (a ready draft waiting
+  for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused force push is run by you, as above; the

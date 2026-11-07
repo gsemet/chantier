@@ -92,6 +92,15 @@ long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at
 head, given the plan (`NOT VERIFIED` is a round), then the evidence in the PR, the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
 
+A CR taken with the note `rebase: <dependency> merged`: fetch, rebase onto `origin/<default
+branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
+a round), retarget the PR to the default branch (`gh pr edit --base`, `glab mr update
+--target-branch`), push with `--force-with-lease` (a refused one goes up as written above),
+`ship`, read CI (red is a round). Green and mergeable: turn the PR ready and `handback ready
+<link>`. A clean rebase and green CI start no new `coder` round. If the note names another open
+dependency instead, rebase onto that branch, keep the PR a draft and `handback ready <link>` as
+a draft on that base.
+
 ## Stack driver
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
