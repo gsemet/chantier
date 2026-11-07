@@ -18,7 +18,7 @@ chantier is four things in one repository:
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): plain Python with
    no dependency, run by `uv run --script`, on Linux, macOS and Windows. Its scope is the frame
    the agents work in: the CR lifecycle (`file`, `triage`, `abandon`, `open`, the stages,
-   `cancel`, `land`, `close`), the batch's limits and record (`take`, `round`, `handback`,
+   `cancel`, `pause`, `close`), the batch's limits and record (`take`, `round`, `handback`,
    `ship`, `release go`; `rails.py` says what is refused), the means to synchronise (`order`,
    `asks`, `note`, `gate` and its lock) and a few tools (`rules`, `cost`). It runs no git
    command that changes anything (it reads the head, the remote and the status to say what is

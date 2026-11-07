@@ -39,8 +39,8 @@ getting started here, phrases to say, the glossary.
   its paths, branch name and gate commands are this project's.
 - **Steering.** A batch is steered either by the **Foreman**, a separate session, or by you in
   **direct mode**: no Foreman session, you start the Drivers and hold no grill or discussion
-  until the batch completes, and no CR joins the batch while it runs (once it has landed, it is
-  paused and takes the next grilled CRs). Direct mode is used where
+  until the batch completes, and no CR joins the batch while it runs (once it is
+  paused, it takes the next grilled CRs). Direct mode is used where
   the host cannot start a Foreman session or for a small batch; the plan names it and the
   user's go approves it. The story follows the Foreman; one or two sentences after step 4 give
   direct mode, and the first diagram notes it. Present it as how chantier works, never as new.

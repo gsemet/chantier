@@ -36,11 +36,11 @@ started.
   backlog) is named by its slug. The CLI's own outputs are unchanged.
 - **Batch:** the CRs active at one time under one steering session (a Foreman, or the Chief of Staff in direct mode). It has no name, only a number: `batch-<n>`
   (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
-  takes the number, `4` or `batch-04`. One batch is open at a time, until the user's `close`; new
-  work joins it through the steering session (`order add`, which sets a landed batch running again: `land`
-  runs again at the end, and is refused on a batch already landed; a running direct batch is strict: `order add` and `order qa` are
-  refused, except a release CR; a landed batch, of either steering, is paused and takes new CRs, which set it running
-  again). `close` refuses while anything
+  takes the number, `4` or `batch-04`. One batch at a time, from `open` to the user's `close`; new
+  work joins it through the steering session (`order add`, which sets a paused batch running again: `pause`
+  runs again at the end, and is refused on a batch already paused; a running direct batch is strict: `order add` and `order qa` are
+  refused, except a release CR; a paused batch, of either steering, takes new CRs, which set it running
+  again; see **Batch lifecycle**). `close` refuses while anything
   runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
   Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
   time; `not measured` refuses). A batch's CRs run in parallel, each on the
@@ -54,6 +54,23 @@ started.
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
   user's word.
+- **Batch lifecycle:** three states, and only these words: **running**, **paused**, **closed**.
+  1. **Running:** `open` creates the batch, running. Its CRs are taken by Drivers on the free
+     slots, worked, handed back, merged by the user, or dropped.
+  2. **Complete:** every CR is merged or cancelled. The steering session (the Foreman, or the
+     Chief of Staff in direct mode) removes each merged CR's worktree and branch, from the main
+     checkout, then runs `pause`: the batch is **paused**.
+  3. **Paused:** nothing runs. The cost to date has been computed and shown. The batch is not
+     closed (one batch at a time, so `open` still refuses a new batch). It takes new CRs:
+     `order add` (or `order qa`) sets it running again, and it pauses again at the end with the
+     cost to date, which has grown.
+  4. **Closed:** only on the user's word ("close the batch"): the `close` flow (the check and the
+     final cost from `close` without `--yes`, then `close --yes` on the user's yes in that turn).
+     Until then, a paused batch stays paused, however long.
+
+  The same in both steerings. A *running* direct batch is strict (`order add` and `order qa`
+  refused, except a release CR); a *paused* batch, of either steering, takes new CRs. "Pause"
+  names only the batch state: the hold on new Drivers (`order slots --note 0`) is called **hold**.
 - **Slots, budget, rounds:** the batch's limits. A slot is a running Driver: a CR in `working`,
   or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused
   when none is free). A `ready` or `blocked` CR holds none. The budget is dollars the Foreman's
@@ -86,8 +103,8 @@ started.
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
 - **STATUS:** `STATUS.md` and `STATUS.json` in `3-requests/`, in each batch and in each CR. A
-  landed batch's `STATUS.md` is the exit report, its cost marked not final: `close` prices the
-  batch up to now, with no end date taken from `land`, and prints the final cost. If it cannot price it
+  paused batch's `STATUS.md` is the exit report, its cost to date: `close` prices the
+  batch up to now, with no end date taken from `pause`, and prints the final cost. If it cannot price it
   (no priced call, no Foreman transcript recorded), `close` refuses, naming the cause, with or
   without `--yes`: the Chief of Staff reports the cause to the user. A batch with no recorded Foreman
   transcript has no way through `close`.
@@ -98,7 +115,7 @@ started.
   merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
   says which), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
-  `cost`, `asks` and `close`.
+  `cost`, `asks`, `pause` and `close`.
 
 ## Starting an agent
 

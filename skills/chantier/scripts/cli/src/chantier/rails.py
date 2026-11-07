@@ -18,10 +18,10 @@ MAX_GRANTED_FIXES = 3
 
 
 def check_no_open_batch(repo: Repo) -> None:
-    """One batch at a time, whatever its state until `close`: new work joins it by `order add`."""
+    """One batch at a time, running or paused until `close`: new work joins it by `order add`."""
     folders = repo.batch_folders()
     if folders:
-        raise ChantierError(f"{folders[0].name} is open (a landed batch stays until `close`): "
+        raise ChantierError(f"{folders[0].name} is not closed (a paused batch stays until `close`): "
                             "`order add` joins new work to it", EXIT_PRECONDITION)
 
 
@@ -187,7 +187,7 @@ def archive_merged(b: Batch, c: dict) -> list[str]:
     b.touch(c, status="merged")
     lines = [f"merged {c['id']}: archived to {c['path']}"]
     if all_merged(b):
-        lines.append("every CR is merged or cancelled: `chantier land`")
+        lines.append("every CR is merged or cancelled: `chantier pause`")
     return lines
 
 

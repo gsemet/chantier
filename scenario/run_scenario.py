@@ -2,7 +2,7 @@
 """Global scenario: one whole chantier batch, end to end, through the real CLI.
 
 A scripted Foreman reads the batch's state and does what its card leaves it (fills the slots,
-asks the Chief of Staff, merges what the user allowed, cleans up, lands); scripted
+asks the Chief of Staff, merges what the user allowed, cleans up, pauses); scripted
 Drivers create their worktree, commit, rebase, push and open their PRs against a bare origin and
 a fake `gh` (or `glab`), and use the CLI for its record (`round`, `gate`, `ship`, `handback`).
 The Chief of Staff steers with `chantier order`. Nothing calls a model: the scripted agents prove
@@ -80,7 +80,7 @@ class World:
             self.env.pop(var, None)
         self.last_stderr = ""
         self.last_out: list[str] = []
-        self.name = ""  # the open batch's id, `batch-<n>`: the CLI numbers it
+        self.name = ""  # the running batch's id, `batch-<n>`: the CLI numbers it
 
     def sh(self, *args, cwd=None):
         return subprocess.run(args, cwd=cwd or self.work, check=True, capture_output=True,
@@ -148,7 +148,7 @@ class World:
         return self.state / "3-requests" / (name or self.name)
 
     def start(self, *args, **kw):
-        """`open` takes no name: the batch is `batch-<n>`, and it is the one open batch."""
+        """`open` takes no name: the batch is `batch-<n>`, and it is the one running batch."""
         code, out = self.chantier("open", *args, **kw)
         if code == 0:
             self.name = out[0].split()[1]
@@ -190,7 +190,7 @@ def merge_pr(w: World, pr: str) -> tuple[int, str]:
 class Foreman:
     """Does what foreman.md leaves it, from `batch.json` (a real one reads `chantier status`):
     the pending orders, the asks, the merges the user allowed, the free slots, the QA drivers,
-    the cleanup, the landing."""
+    the cleanup, the pause."""
 
     def __init__(self, w: World, epoch: int):
         self.w, self.epoch = w, epoch
@@ -201,7 +201,7 @@ class Foreman:
         self.qa: list[str] = []  # the folders of the QA drivers it started
         self.told: set = set()
         self.facts: list[str] = []
-        self.landed = False
+        self.paused = False
 
     def worktree_check(self, session: str, cwd: Path | None = None) -> bool:
         """foreman.md's worktree check, before the epoch is claimed: in a linked worktree (`--git-dir`
@@ -241,7 +241,7 @@ class Foreman:
         return 0
 
     def remove_merged(self) -> None:
-        """Before `land`: the merged CRs' worktrees and branches, the Foreman's own hands."""
+        """Before `pause`: the merged CRs' worktrees and branches, the Foreman's own hands."""
         for c in self.w.batch()["crs"]:
             if c["status"] != "merged":
                 continue
@@ -361,11 +361,11 @@ class Foreman:
             elif c.get("kind") != "release":
                 self.ask(f"refused {c['id']} {self.w.last_stderr}")
         d = self.w.batch()
-        if d["status"] != "landed" and d["crs"] and all(c["status"] in ENDED for c in d["crs"]) \
+        if d["status"] != "paused" and d["crs"] and all(c["status"] in ENDED for c in d["crs"]) \
                 and all(o["done"] for o in d["orders"]):
             self.remove_merged()
-            self.w.chantier("land", "--epoch", self.epoch)
-            self.landed = True
+            self.w.chantier("pause", "--epoch", self.epoch)
+            self.paused = True
 
     def driver_died(self, cr: str) -> None:
         """A task ended with no hand-back: the facts say where it stood."""
@@ -648,9 +648,9 @@ def scenario(w: World) -> None:
     w.chantier("cancel", "CR-103", "--epoch", 2)
     check("a second cancel leaves the trashed CR where it is", w.cr("CR-103")["path"] == trashed)
 
-    note("\n## 8. The user merges; the Foreman cleans up and lands the batch")
-    code, _ = w.chantier("land", "--epoch", 2, expect=2)
-    check("land is refused while PRs are not merged", code == 2 and w.batch()["status"] == "open")
+    note("\n## 8. The user merges; the Foreman cleans up and pauses the batch")
+    code, _ = w.chantier("pause", "--epoch", 2, expect=2)
+    check("pause is refused while PRs are not merged", code == 2 and w.batch()["status"] == "running")
     fake_transcripts(w, w.batch())
     orders = len(w.batch()["orders"])
     first = w.cr("CR-101")
@@ -675,10 +675,10 @@ def scenario(w: World) -> None:
     for cr_id in ("CR-102", "CR-104", "CR-105"):
         w.chantier("order", "merged", cr_id)
         fm.turn()
-    check("the last merge makes the Foreman land the batch", fm.landed)
+    check("the last merge makes the Foreman pause the batch", fm.paused)
     d = w.batch()
     check("the Foreman removed the merged worktrees and branches; the cancelled one stays",
-          d["status"] == "landed" and all(
+          d["status"] == "paused" and all(
               Path(c["worktree"]).exists() == (c["status"] == "cancelled") for c in d["crs"])
           and not any(w.sh("git", "branch", "--list", c["branch"]) for c in d["crs"]
                       if c["status"] == "merged"))
@@ -689,8 +689,8 @@ def scenario(w: World) -> None:
               and (w.work / c["path"] / "STATUS.json").is_file()
               for c in d["crs"] if c["status"] == "merged"))
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
-    check("the batch's STATUS.md, once landed, lists every CR",
-          "landed" in report and all(c["id"].removeprefix("CR-") in report for c in d["crs"]))
+    check("the batch's STATUS.md, once paused, lists every CR",
+          "paused" in report and all(c["id"].removeprefix("CR-") in report for c in d["crs"]))
     board_index(w, d)
     prs = {c["id"]: c["pr"] for c in d["crs"] if c["pr"]}
     check("four PRs were opened on the fake forge by the Drivers", len(set(prs.values())) == 4)
@@ -727,7 +727,7 @@ def scenario(w: World) -> None:
     check("the batch's STATUS.md gives each CR's cost and the summary",
           "| $0.30 |" in report and "## Cost" in report and "Total: $1.61" in report, report)
     archived = (w.work / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
-    check("a landed batch's CR page keeps its cost and no link into the batch, and does not call "
+    check("a paused batch's CR page keeps its cost and no link into the batch, and does not call "
           "the cost final: only `close` does",
           "$0.30 so far" in archived and "../STATUS.md" not in archived
           and "- [x] Merged" in archived, archived)
@@ -742,7 +742,7 @@ def scenario(w: World) -> None:
     kinds = {json.loads(e)["kind"] for e in events}
     check("events.jsonl holds the whole story",
           {"open", "take", "round", "gate", "ship", "note", "handback",
-           "order", "order-done", "cancel", "land"} <= kinds, str(sorted(kinds)))
+           "order", "order-done", "cancel", "pause"} <= kinds, str(sorted(kinds)))
     calls = (w.root / "gh-state.json.calls").read_text()
     created, merged = (("create", '"merge"'), ('"POST"', '/merge"'))[ARGS.forge == "gitlab"]
     check("only the agents called the forge: the Drivers created the PRs, nobody merged",
@@ -756,6 +756,7 @@ def scenario(w: World) -> None:
     granted_fixes(w)
     release_last(w)
     qa_on_head(w)
+    old_words(w)
     dependencies(w)
     release_merge_on_approval(w)
     lost_messages(w)
@@ -802,7 +803,7 @@ def direct_batch(w: World) -> None:
           code == 0 and out[0].startswith("P1 ok") and "P2" not in "\n".join(out), str(out))
     _, item = prepare_cr(w, "Direct work")
     _, extra = prepare_cr(w, "Direct extra")
-    _, later = prepare_cr(w, "Direct after landing")
+    _, later = prepare_cr(w, "Direct after the pause")
     _, rel_item = prepare_cr(w, "Direct release")
     w.reset()
     code, out = w.chantier("open", item, "--direct", *FROM_AGENTS_MD, env={"CLAUDE_CODE_SESSION_ID": ""},
@@ -846,7 +847,7 @@ def direct_batch(w: World) -> None:
     fm.turn()
     w.chantier("order", "merged", cr)
     fm.turn()
-    check("a direct batch runs from open to land", fm.landed and w.batch()["status"] == "landed",
+    check("a direct batch runs from open to the pause", fm.paused and w.batch()["status"] == "paused",
           str(w.batch()["status"]))
     _, out = w.chantier("cost")
     cost_out = out
@@ -877,11 +878,11 @@ def direct_batch(w: World) -> None:
           and money(out, "Chief of Staff:") > chief_before, f"{out} (before: {chief_before})")
     writer.unlink()
     writer.with_suffix("").with_suffix(".meta.json").unlink()
-    # a landed batch is paused: new work reopens it, and runs
+    # a paused batch takes new work: it reopens, and runs
     w.chantier("order", "add", "--note", str(later))
-    check("`order add` on a landed direct batch reopens it, with the new CR",
-          w.batch()["status"] == "open" and len(w.batch()["crs"]) == 2
-          and "was landed: running again" in "\n".join(w.last_out), str(w.last_out))
+    check("`order add` on a paused direct batch reopens it, with the new CR",
+          w.batch()["status"] == "running" and len(w.batch()["crs"]) == 2
+          and "was paused: running again" in "\n".join(w.last_out), str(w.last_out))
     cr2 = w.batch()["crs"][1]["id"]
     fm.turn()
     check("the reopened direct batch starts the new CR", cr2 in fm.started
@@ -891,7 +892,7 @@ def direct_batch(w: World) -> None:
     fm.turn()
     w.chantier("order", "merged", cr2)
     fm.turn()
-    check("the reopened direct batch lands again", fm.landed and w.batch()["status"] == "landed",
+    check("the reopened direct batch pauses again", fm.paused and w.batch()["status"] == "paused",
           str(w.batch()["status"]))
     age_sessions(w)
     os.utime(chief, None)  # the Chief of Staff's own session is written by the very call that closes
@@ -1004,22 +1005,22 @@ def status_files(w: World) -> None:
 
 
 def board_index(w: World, d: dict) -> None:
-    """The index the CR board reads: the landed and trashed CRs, their totals and the limit."""
+    """The index the CR board reads: the merged and trashed CRs, their totals and the limit."""
     path = w.state / "3-requests/STATUS.json"
     index = json.loads(path.read_text(encoding="utf-8"))
     merged = {c["id"] for c in d["crs"] if c["status"] == "merged"}
-    got = {e["cr"]: e for e in index["landed"]}
-    check("the index lists the landed CRs with their state, batch, PR, cost, time and folder",
-          merged <= set(got) and index["landed_total"] >= len(merged)
+    got = {e["cr"]: e for e in index["merged"]}
+    check("the index lists the merged CRs with their state, batch, PR, cost, time and folder",
+          merged <= set(got) and index["merged_total"] >= len(merged)
           and all(got[i]["state"] == "merged" and got[i]["batch"] == w.folder().name
                   and got[i]["pr"] and got[i]["cost_usd"] is not None
                   and re.fullmatch(r"20\d\d-\d\d-\d\dT\d\d:\d\d:00Z", got[i]["when"])
                   and (w.state / "3-requests" / got[i]["path"] / "STATUS.json").is_file()
-                  for i in merged), str(index["landed"]))
+                  for i in merged), str(index["merged"]))
     check("the index lists the trashed CR, with a total",
           any(e["cr"] == "CR-103" and e["state"] == "cancelled" for e in index["trashed"])
           and index["trashed_total"] >= 1, str(index["trashed"]))
-    landed_before = index["landed_total"]
+    merged_before = index["merged_total"]
     stage = w.state / "4-archives"
     made = []
     for n in range(60):  # older than any real archive, none with a STATUS.json
@@ -1029,12 +1030,12 @@ def board_index(w: World, d: dict) -> None:
         (folder / "01-intent.md").write_text(f"# Padding {n}\n", encoding="utf-8")
     w.chantier("file", "Board index probe")  # rewrites the index
     index = json.loads(path.read_text(encoding="utf-8"))
-    whens = [e["when"] for e in index["landed"]]
-    bare = [e for e in index["landed"] if e["cr"] is None]
-    check("the index keeps the last 50 landed CRs, newest first, and counts them all",
-          len(index["landed"]) == 50 and index["landed_total"] == landed_before + 60
-          and whens == sorted(whens, reverse=True) and not any("padding" in e["path"] for e in index["landed"][:len(merged)]),
-          f"{len(index['landed'])} of {index['landed_total']}")
+    whens = [e["when"] for e in index["merged"]]
+    bare = [e for e in index["merged"] if e["cr"] is None]
+    check("the index keeps the last 50 merged CRs, newest first, and counts them all",
+          len(index["merged"]) == 50 and index["merged_total"] == merged_before + 60
+          and whens == sorted(whens, reverse=True) and not any("padding" in e["path"] for e in index["merged"][:len(merged)]),
+          f"{len(index['merged'])} of {index['merged_total']}")
     check("a folder without a STATUS.json gives its title and null for the rest",
           all(e["title"].startswith("Padding") and e["state"] is None and e["pr"] is None
               and e["cost_usd"] is None and e["batch"] is None for e in bare) and bare,
@@ -1077,7 +1078,7 @@ def age_sessions(w: World, seconds: int = 600) -> None:
 
 
 def priced_foreman(w: World) -> None:
-    """Give the open batch a Foreman transcript with one priced call, written long ago: `close`
+    """Give the running batch a Foreman transcript with one priced call, written long ago: `close`
     prices the batch before anything is touched, and refuses a batch it cannot price."""
     slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
     f = w.root / "claude-projects" / slug / "uuid-closing.jsonl"
@@ -1095,7 +1096,7 @@ def priced_foreman(w: World) -> None:
 
 
 def close_refusals(w: World) -> None:
-    """A landed batch's cost is not final; `order add` reopens it; `close` refuses while any
+    """A paused batch shows its cost to date; `order add` reopens it; `close` refuses while any
     CR, order, stack agent or session file shows that something runs."""
     name, state = w.name, w.folder() / "batch.json"
     slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
@@ -1104,48 +1105,50 @@ def close_refusals(w: World) -> None:
     w.chantier("status", "--refresh", "--batch", name)
     code, out = w.chantier("status", "--batch", name)
     d = w.batch()
-    check("`land` records a cost marked not final, in the summary and in `status`",
-          "landed, cost not final" in out[0] and any(ln.startswith("Not final") for ln in d["summary"])
-          and d["status"] == "landed", str(out))
+    check("`pause` records the cost to date, in the summary and in `status`",
+          "paused, cost to date" in out[0] and d["summary"][-1].startswith("To date")
+          and not any("Not final" in ln for ln in d["summary"])
+          and d["status"] == "paused" and d.get("paused"), str(out))
     before = state.read_text()
-    code, _ = w.chantier("land", "--batch", name, "--epoch", 2, expect=2)
-    check("a second `land` on a landed batch is refused and changes nothing",
-          code == 2 and "already landed" in w.last_stderr and state.read_text() == before,
+    code, _ = w.chantier("pause", "--batch", name, "--epoch", 2, expect=2)
+    check("a second `pause` on a paused batch is refused and changes nothing",
+          code == 2 and "already paused" in w.last_stderr and state.read_text() == before,
           w.last_stderr)
     w.chantier("status", "--refresh", "--batch", name)
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     header = re.search(r"spent \$(\d+\.\d\d)([^·\n]*)", report)
     total = re.search(r"Total: \$(\d+\.\d\d)", report)
-    check("STATUS.md shows one total in its header and its Cost section, marked not final",
-          header and total and header[1] == total[1] and "(not final)" in header[2]
-          and "Not final" in report, report)
+    check("STATUS.md shows one total in its header and its Cost section, marked (to date)",
+          header and total and header[1] == total[1] and "(to date)" in header[2]
+          and "To date" in report and "Not final" not in report
+          and report.startswith(f"# {w.folder().name}: paused") and "## Paused" in report, report)
 
-    # a call made after the landing is spend
+    # a call made after the pause is spend
     late = json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"), "message": {
-        "id": "after-land", "model": "claude-sonnet-5-5", "usage": {
+        "id": "after-pause", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100_000, "cache_read_input_tokens": 20_000,
             "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
     main.write_text(main.read_text() + late)
     code, out = w.chantier("cost", "--batch", name)
-    check("a call made after the landing shows in `cost`",
+    check("a call made after the pause shows in `cost`",
           out[0] == f"{name}: $2.618 over 95 model calls", str(out))
 
-    # new work sets the landed batch running again
-    added = prepare_cr(w, "Work after the landing")[1]
+    # new work sets the paused batch running again
+    added = prepare_cr(w, "Work after the pause")[1]
     code, out = w.chantier("order", "add", "--batch", name, "--note", str(added))
     d = w.batch()
     new = d["crs"][-1]["id"]
-    check("`order add` on a landed batch sets it running again and clears its landing, with a line "
+    check("`order add` on a paused batch sets it running again and clears its pause, with a line "
           "that says so",
-          d["status"] == "open" and "landed" not in d and "summary" not in d
-          and any("was landed: running again" in ln for ln in out) and w.cr(new)["status"] == "queued",
+          d["status"] == "running" and "paused" not in d and "summary" not in d
+          and any("was paused: running again" in ln for ln in out) and w.cr(new)["status"] == "queued",
           str(out))
     for extra in ((), ("--yes",)):
         code, out = w.chantier("close", "--batch", name, *extra, expect=2)
         check(f"`close{' --yes' if extra else ''}` on the reopened batch names what runs, with the "
               "queued CR, not a bare usage error",
               code == 2 and f"cannot close {name}, something still runs" in w.last_stderr
-              and f"{new} is queued" in w.last_stderr and "landed: none" not in w.last_stderr
+              and f"{new} is queued" in w.last_stderr and "paused: none" not in w.last_stderr
               and w.folder().is_dir(), w.last_stderr)
     w.chantier("cancel", new, "--epoch", 2)
     for o in w.batch()["orders"]:
@@ -1154,19 +1157,22 @@ def close_refusals(w: World) -> None:
     age_sessions(w)
     for extra in ((), ("--yes",)):
         code, out = w.chantier("close", "--batch", name, *extra, expect=2)
-        check(f"`close{' --yes' if extra else ''}` on an open batch where nothing runs says it is not "
-              "landed and `land` comes first",
-              code == 2 and "not landed" in w.last_stderr and "`land` comes first" in w.last_stderr
-              and "landed: none" not in w.last_stderr and w.folder().is_dir(), w.last_stderr)
-    w.chantier("land", "--epoch", 2)
+        check(f"`close{' --yes' if extra else ''}` on a running batch where nothing runs says it is not "
+              "paused and `pause` comes first",
+              code == 2 and "not paused" in w.last_stderr and "`pause` comes first" in w.last_stderr
+              and "paused: none" not in w.last_stderr and w.folder().is_dir(), w.last_stderr)
+    _, out = w.chantier("pause", "--epoch", 2)
     d = w.batch()
-    check("`land` runs again at the end of the reopened batch, and counts the later call",
-          d["status"] == "landed" and d["landed"] and "Total: $2.62" in "\n".join(d["summary"]),
+    check("`pause` runs again at the end of the reopened batch, and counts the later call",
+          d["status"] == "paused" and d["paused"] and "Total: $2.62" in "\n".join(d["summary"]),
           str(d.get("summary")))
-    # a call made after the LAST landing: `close` counts it, `land` could not
-    w.landed_total = float(re.search(r"Total: \$(\d+\.\d\d)", "\n".join(d["summary"]))[1])
+    check("`pause` prints the cost summary, past ten lines and not cut, ending with the to-date line",
+          any(ln.startswith("Total: $") for ln in out) and out[0].startswith(f"paused {name}")
+          and out[-1].startswith("To date") and not any("more lines" in ln for ln in out), str(out))
+    # a call made after the LAST pause: `close` counts it, `pause` could not
+    w.paused_total = float(re.search(r"Total: \$(\d+\.\d\d)", "\n".join(d["summary"]))[1])
     later = json.loads(late)
-    later["message"]["id"] = "after-last-land"
+    later["message"]["id"] = "after-last-pause"
     later["message"]["usage"]["output_tokens"] = 50_000
     later["timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     main.write_text(main.read_text() + json.dumps(later) + "\n")
@@ -1242,9 +1248,9 @@ def close_batch(w: World) -> None:
           and any(folder.name in ln for ln in out) and "--yes" in out[-1]
           and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out), str(out))
     shown = [float(m[1]) for m in (re.match(r"Total: \$(\d+\.\d\d)", ln) for ln in out) if m]
-    check("`close` prints the final cost, with a call made after the last `land` in it",
-          shown and shown[0] > w.landed_total and "Not final" not in "\n".join(out),
-          f"{out} (last land: {w.landed_total})")
+    check("`close` prints the final cost, with a call made after the last `pause` in it",
+          shown and shown[0] > w.paused_total and "Not final" not in "\n".join(out)
+          and "To date" not in "\n".join(out), f"{out} (last pause: {w.paused_total})")
     archived = w.work / w.cr("CR-101")["path"] / "STATUS.md"
     _, out = w.chantier("close", "--batch", name, "--yes")
     check("`close --yes` deletes the batch folder only, and repeats what is left to remove",
@@ -1361,7 +1367,14 @@ def rails(w: World) -> None:
     check("the hand-back stands: CI is the Driver's judgement, not the CLI's",
           w.cr(one)["status"] == "ready", str(out))
     code, _ = w.chantier("take", two, expect=2)
-    check("slots 0 pauses: no Driver starts", code == 2 and "no free slot" in w.last_stderr)
+    check("slots 0 holds: no Driver starts", code == 2 and "no free slot" in w.last_stderr)
+    code, _ = w.chantier("order", "slots", "--note", "none", expect=1)
+    check("the `order slots` usage line says \"0 holds\"", "0 holds" in w.last_stderr,
+          w.last_stderr)
+    code, _ = w.chantier("land", "--epoch", 1, expect=None)
+    check("`land` is no longer a command: usage error, nothing changed",
+          code in (1, 2) and "invalid choice" in w.last_stderr and w.batch()["status"] == "running",
+          w.last_stderr)
     w.chantier("order", "slots", "--note", "1")
     state = w.folder() / "batch.json"
     data = w.batch()
@@ -1487,7 +1500,7 @@ def stack_batch(w: World) -> None:
     d = w.batch()
     check("the bottom merges alone: it is archived at once and the batch stays open",
           w.cr(one)["status"] == "merged" and "/4-archives/" in w.cr(one)["path"]
-          and (w.work / w.cr(two)["path"]).is_dir() and d["status"] == "open"
+          and (w.work / w.cr(two)["path"]).is_dir() and d["status"] == "running"
           and all(w.cr(c)["status"] == "ready" for c in (two, three, four)), str(out))
     _, out = w.chantier("take", "stack", "--epoch", 1)
     check("what remains forms another stack: the first now stands on the default branch",
@@ -1496,9 +1509,9 @@ def stack_batch(w: World) -> None:
           and f"base {w.cr(two)['branch']}" in out[2], str(out))
     w.chantier("agents", "set", "stack", "agent-stack", "--epoch", 1)
     code, _ = w.chantier("take", "stack", "--epoch", 1, expect=2)
-    check("one stack driver at a time, and the batch does not land under it",
-          code == 2 and w.chantier("land", "--epoch", 1, expect=2)[0] == 2
-          and w.batch()["status"] == "open")
+    check("one stack driver at a time, and the batch does not pause under it",
+          code == 2 and w.chantier("pause", "--epoch", 1, expect=2)[0] == 2
+          and w.batch()["status"] == "running")
     w.chantier("ship", two, w.cr(two)["pr"])
     ships = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
     last = [e for e in ships if e["kind"] == "ship" and e["cr"] == two][-1]
@@ -1507,10 +1520,10 @@ def stack_batch(w: World) -> None:
     for cr in (two, three, four):
         w.chantier("order", "merged", cr)
     fm.turn()
-    if fm.landed:
+    if fm.paused:
         priced_foreman(w)
-    check("the stack merged piece by piece: the batch lands, then closes",
-          fm.landed and w.batch()["status"] == "landed"
+    check("the stack merged piece by piece: the batch pauses, then closes",
+          fm.paused and w.batch()["status"] == "paused"
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
           and not w.folder().exists())
     w.env.pop("CHANTIER_BATCH", None)
@@ -1665,10 +1678,10 @@ def release(w: World) -> None:
     code, _ = w.chantier("release", "go", rel, "--note", "publish v1.1.1", expect=2)
     check("the grant ends with its number of releases", code == 2)
     _, out = w.chantier("handback", rel, "ready", "https://forge.example/v1.1.0")
-    check("a released CR is archived, and the batch can land",
-          "/4-archives/" in w.cr(rel)["path"] and "chantier land" in out[1], str(out))
+    check("a released CR is archived, and the batch can pause",
+          "/4-archives/" in w.cr(rel)["path"] and "chantier pause" in out[1], str(out))
     fm.turn()
-    check("the release done, the batch lands", fm.landed, str(fm.asked))
+    check("the release done, the batch pauses", fm.paused, str(fm.asked))
     calls = (w.root / "gh-state.json.calls").read_text()
     merged = ('"merge"', '/merge"')[ARGS.forge == "gitlab"]
     check("the forge saw the Foreman's merges", calls.count(merged) >= 2)
@@ -1732,7 +1745,7 @@ def granted_fixes(w: World) -> None:
     for o in w.batch()["orders"]:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 1)
-    w.chantier("land", "--epoch", 1)
+    w.chantier("pause", "--epoch", 1)
     priced_foreman(w)
     w.chantier("close", "--batch", w.name, "--yes")
 
@@ -1898,17 +1911,71 @@ def qa_on_head(w: World) -> None:
     check("`status` shows the QA order and its folder until it is done",
           any(ln.startswith(f"orders pending: O-2 qa {shown}") for ln in out), str(out))
     w.chantier("cancel", cr, "--epoch", 1)
-    code, _ = w.chantier("land", "--epoch", 1, expect=2)
-    check("a batch does not land under a running QA", code == 2 and "O-2" in w.last_stderr,
+    code, _ = w.chantier("pause", "--epoch", 1, expect=2)
+    check("a batch does not pause under a running QA", code == 2 and "O-2" in w.last_stderr,
           w.last_stderr)
     (folder / "findings.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
     w.chantier("order", "done", "O-2", "--epoch", 1)
-    w.chantier("land", "--epoch", 1)
+    w.chantier("pause", "--epoch", 1)
     priced_foreman(w)
     w.chantier("close", "--batch", w.name, "--yes")
     check("its findings stay in the inbox, an ordinary item",
           (folder / "findings.md").is_file())
     w.chantier("abandon", folder)
+
+
+def old_words(w: World) -> None:
+    note("\n## 14d. A batch written with the old words: `open` and `landed`")
+    _, item = prepare_cr(w, "Old words")
+    w.reset()
+    w.start(str(item), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_old", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    cr = w.batch()["crs"][0]["id"]
+    state = w.folder() / "batch.json"
+
+    def written(status: str, **more) -> None:
+        d = w.batch()
+        d["status"] = status
+        d.update(more)
+        state.write_text(json.dumps(d))
+
+    # a batch recorded `open`: running for `status`, taken by `take`, stored as running
+    written("open")
+    _, out = w.chantier("status")
+    check("a batch written with status open is reported running by `status`",
+          out[0].split()[1] == "running", str(out))
+    check("`take` takes a CR of a batch recorded open, and stores it as running",
+          fm.take(cr) == 0 and w.batch()["status"] == "running"
+          and '"open"' not in state.read_text(), w.last_stderr)
+    w.chantier("cancel", cr, "--epoch", 1)
+    priced_foreman(w)
+    written("open")
+    w.chantier("pause", "--epoch", 1)
+    d = w.batch()
+    check("`pause` pauses a batch recorded open as a running batch, and stores no open",
+          d["status"] == "paused" and d.get("paused") and '"open"' not in state.read_text(),
+          str(d.get("status")))
+
+    # a batch recorded `landed` with a `landed` time: paused for `status` and for `close`
+    d = w.batch()
+    paused = d.pop("paused")
+    state.write_text(json.dumps({**d, "status": "landed", "landed": paused}))
+    _, out = w.chantier("status")
+    check("a batch written with status landed is reported paused by `status`",
+          out[0].split()[1] == "paused" and "paused, cost to date" in out[0], str(out))
+    age_sessions(w)
+    code, out = w.chantier("close", "--batch", w.name, expect=None)
+    check("`close` treats a batch recorded landed as paused: it names what would go, deletes nothing",
+          code == 0 and "not paused" not in w.last_stderr and w.folder().is_dir(), w.last_stderr)
+    w.chantier("status", "--refresh")
+    text = state.read_text()
+    d = w.batch()
+    check("the next write through the CLI stores the new words: no `landed` key, no landed status",
+          d["status"] == "paused" and d.get("paused") and "landed" not in d
+          and '"landed"' not in text and '"open"' not in text, text[:300])
+    w.chantier("close", "--batch", w.name, "--yes")
 
 
 def depends_on(item: Path, *slugs: str, raw: str | None = None) -> None:
@@ -2118,7 +2185,7 @@ def release_merge_on_approval(w: World) -> None:
           and w.cr(rel)["status"] == "working", str(fm.asked))
     w.chantier("handback", rel, "ready", "v1.2.0")
     fm.turn()
-    check("the batch lands", fm.landed)
+    check("the batch pauses", fm.paused)
     last = w.folder()
     priced_foreman(w)
     if sys.platform == "win32":  # elsewhere a file in use does not stop a rename
@@ -2344,10 +2411,10 @@ def cost_audit(w: World) -> None:
                 "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
                 "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
 
-    # `land` ends no window: a call made after it is spend, and a `<synthetic>` record costs nothing
+    # `pause` ends no window: a call made after it is spend, and a `<synthetic>` record costs nothing
     main.write_text(original + msg("later", 900_000, timestamp="2999-01-01T00:00:00.000Z"))
     code, out = w.chantier("cost", "--batch", w.name)
-    check("a call made after the landing is counted, and a `<synthetic>` record costs nothing",
+    check("a call made after the pause is counted, and a `<synthetic>` record costs nothing",
           code == 0 and out[0].startswith(f"{w.name}: $10.6") and "over 95 model calls" in out[0],
           str(out))
     main.write_text(original)

@@ -71,6 +71,20 @@ def _read_json(path: Path):
     return json.loads(_retry(path.read_text, "utf-8"))
 
 
+def read_batch_json(path: Path) -> dict:
+    """A `batch.json`, in today's words. Batches written before the words running and paused
+    recorded `status: "open"` and `status: "landed"` (with a `landed` time): read them as running
+    and paused. Nothing is written here; the next write through `Batch` stores the new words."""
+    data = _read_json(path)
+    if data.get("status") == "landed":
+        data["status"] = "paused"
+        if "landed" in data:
+            data["paused"] = data.pop("landed")
+    elif data.get("status") == "open":
+        data["status"] = "running"
+    return data
+
+
 def write_file(path: Path, text: str) -> None:
     """Write by atomic rename, so a reader never sees half a file."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -95,7 +109,7 @@ DEFAULT_CONFIG = {
 SETTINGS = ("default_branch", "remote", "max_rounds")
 
 # The statuses a live Driver owns; the others are queued, ready, blocked, cancelled, merged.
-# A batch is open or landed.
+# A batch is running or paused (a closed batch has no folder).
 LIVE = {"working"}
 
 
@@ -242,8 +256,8 @@ class Repo:
                           if re.search(r"\d+", d.name))]) + 1
 
     def open_batches(self) -> list[str]:
-        states = [_read_json(d / "batch.json") for d in self.batch_folders()]
-        return sorted(s["id"] for s in states if s.get("status") != "landed")
+        states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
+        return sorted(s["id"] for s in states if s.get("status") != "paused")
 
 
 class Batch:
@@ -284,7 +298,7 @@ class Batch:
             if path.exists():
                 if self._create is not None:
                     raise ChantierError(f"batch {self.id} already exists")
-                self.data = _read_json(path)
+                self.data = read_batch_json(path)
             else:
                 self.data = self._create
             apply_batch_settings(self.repo, self.data)
@@ -361,15 +375,15 @@ def normalize_batch(batch: str) -> str:
 
 
 def resolve_batch(repo: Repo, batch: str | None) -> str:
-    """`--batch`, else `CHANTIER_BATCH`, else the only open batch; never a guess among several."""
+    """`--batch`, else `CHANTIER_BATCH`, else the only running batch; never a guess among several."""
     if batch or os.environ.get("CHANTIER_BATCH"):
         return normalize_batch(batch or os.environ["CHANTIER_BATCH"])
     names = repo.open_batches()
     if len(names) == 1:
         return names[0]
     if not names:
-        raise ChantierError("no open batch: run `chantier open` first")
-    raise ChantierError(f"several open batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
+        raise ChantierError("no running batch: run `chantier open` first")
+    raise ChantierError(f"several running batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
 
 
 def check_epoch(b: "Batch", epoch: int | None) -> None:
@@ -386,20 +400,20 @@ def read_batch(repo: Repo, batch_id: str) -> dict:
     path = repo.batch_dir(batch_id) / "batch.json"
     if not path.exists():
         raise ChantierError(f"unknown batch {batch_id}")
-    data = _read_json(path)
+    data = read_batch_json(path)
     apply_batch_settings(repo, data)
     return data
 
 
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
-    """The batch holding a CR: the one given, else the open batch that has it."""
+    """The batch holding a CR: the one given, else the running batch that has it."""
     if batch:
         return normalize_batch(batch)
     for d in reversed(repo.batch_folders()):
-        b = _read_json(d / "batch.json")
-        if b.get("status") != "landed" and any(c["id"] == cr_id for c in b["crs"]):
+        b = read_batch_json(d / "batch.json")
+        if b.get("status") != "paused" and any(c["id"] == cr_id for c in b["crs"]):
             return b["id"]
-    raise ChantierError(f"no open batch holds {cr_id}", EXIT_USAGE)
+    raise ChantierError(f"no running batch holds {cr_id}", EXIT_USAGE)
 
 
 def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
@@ -414,7 +428,7 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
                     if match:
                         previous = max(previous, int(match.group(1)))
     for batch in repo.batch_folders():
-        for cr in _read_json(batch / "batch.json").get("crs", []):
+        for cr in read_batch_json(batch / "batch.json").get("crs", []):
             match = re.fullmatch(r"CR-(\d+)", cr.get("id", ""))
             if match:
                 previous = max(previous, int(match.group(1)))

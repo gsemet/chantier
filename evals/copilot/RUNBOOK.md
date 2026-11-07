@@ -33,7 +33,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 - At least one heartbeat in the batch's event log.
 - One Driver; one coder, one Inspector, one verifier.
 - The audit runs before `close --yes` (it needs the batch folder).
-- The CR ends `merged` (in `4-archives/`), the batch `landed`; `chantier cost` prints the breakdown, an `Agent <type>` line per agent type.
+- The CR ends `merged` (in `4-archives/`), the batch `paused`; `chantier cost` prints the breakdown, an `Agent <type>` line per agent type.
 
 ## Still to fill in from a real run
 

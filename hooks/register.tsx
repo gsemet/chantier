@@ -449,10 +449,10 @@ export const register: Register = on => {
       const waiting = b.crs.filter(isWaiting)
       const rest = b.crs.filter(r => !isWaiting(r))
       const age = minutesSince(b.heartbeat, now)
-      const isLive = b.state === 'open' && b.crs.some(r => r.state === 'working')
+      const isLive = b.state === 'running' && b.crs.some(r => r.state === 'working')
       const isSilent = isLive && age !== null && age > SILENT_MINUTES
       const key = 'batch-' + b.folder
-      const shown = b.state !== 'landed' // a landed batch is folded, its cost still on the title line
+      const shown = b.state !== 'paused' // a paused batch is folded, its cost still on the title line
       const why = waiting.filter(r => r.blocked !== null)
       return Section(key, shown, `${b.batch}  ${spent}${budget} ${gauge(b.spent_usd, b.budget_usd)}`, () => (
         <Box flexDirection="column" rowGap={1} paddingLeft={2}>
@@ -584,8 +584,8 @@ export const register: Register = on => {
             backlog.map(r => r.path),
           ),
         )}
-        {Section('landed', false, `Landed (${index.landed.length} of ${index.landed_total})`, () =>
-          Pasts('landed-table', index.landed),
+        {Section('merged', false, `Merged (${index.merged.length} of ${index.merged_total})`, () =>
+          Pasts('merged-table', index.merged),
         )}
         {Section('trashed', false, `Trashed (${index.trashed.length} of ${index.trashed_total})`, () =>
           Pasts('trashed-table', index.trashed),

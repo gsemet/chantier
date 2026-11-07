@@ -47,7 +47,7 @@ const index = (over = {}) => ({
     {
       batch: 'demo',
       folder: BATCH,
-      state: 'open',
+      state: 'running',
       spent_usd: 5.07,
       budget_usd: 20,
       asks_unread: 0,
@@ -58,8 +58,8 @@ const index = (over = {}) => ({
   ],
   active_crs: 1,
   backlog: [],
-  landed: [],
-  landed_total: 0,
+  merged: [],
+  merged_total: 0,
   trashed: [],
   trashed_total: 0,
   ...over,
@@ -309,7 +309,7 @@ test('a file that does not parse keeps the last view; another schema is said alo
 test('the board, a sheet and a document open and go back; a path leaving the checkout is plain text', async ($, on) => {
   mock.clock(on)
   const w = world(on)
-  w.put(INDEX, index({ landed: [], landed_total: 0 }))
+  w.put(INDEX, index({ merged: [], merged_total: 0 }))
   w.put(`${CR_DIR}/STATUS.json`, sheet())
   w.put(`${CR_DIR}/01-intent.md`, '# Intent\n\nSee [the spec](03-change-spec.md) and [site](https://example.com).')
   w.put(`${CR_DIR}/03-change-spec.md`, '# Spec')
@@ -348,10 +348,10 @@ const REST = `batch-${BATCH}-rest-table`
 const batch = (over = {}) => ({ ...index().batches[0]!, ...over })
 const label = async (ui: any, key: string) => (await ui.find({ key }))?.props.label as string | undefined
 
-test('a landed batch is folded, with its cost on its title line', async ($, on) => {
+test('a paused batch is folded, with its cost on its title line', async ($, on) => {
   mock.clock(on)
   const w = world(on)
-  w.put(INDEX, index({ batches: [batch({ state: 'landed' })] }))
+  w.put(INDEX, index({ batches: [batch({ state: 'paused' })] }))
 
   await skill($)
   const ui = await board($)
@@ -396,7 +396,7 @@ test('the board shows each label the CLI draws unchanged, one icon per state', a
   await ui.unmount()
 })
 
-test('Backlog, Landed and Trashed are folded and open when pressed', async ($, on) => {
+test('Backlog, Merged and Trashed are folded and open when pressed', async ($, on) => {
   mock.clock(on)
   const w = world(on)
   const past = (cr: string, state: string) => ({
@@ -406,8 +406,8 @@ test('Backlog, Landed and Trashed are folded and open when pressed', async ($, o
     INDEX,
     index({
       backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '1-backlog/P1/idea', files: 2 }],
-      landed: [past('CR-7', 'merged')],
-      landed_total: 12,
+      merged: [past('CR-7', 'merged')],
+      merged_total: 12,
       trashed: [past('CR-8', 'cancelled')],
       trashed_total: 3,
     }),
@@ -416,7 +416,7 @@ test('Backlog, Landed and Trashed are folded and open when pressed', async ($, o
   await skill($)
   const ui = await board($)
   expect(await label(ui, 'fold-backlog')).toContain('Backlog (1)')
-  expect(await label(ui, 'fold-landed')).toContain('Landed (1 of 12)')
+  expect(await label(ui, 'fold-merged')).toContain('Merged (1 of 12)')
   expect(await label(ui, 'fold-trashed')).toContain('Trashed (1 of 3)')
   const closed = await words(ui)
   for (const hidden of ['CR-7 title', 'CR-8 title']) expect(closed).not.toContain(hidden)
@@ -425,12 +425,12 @@ test('Backlog, Landed and Trashed are folded and open when pressed', async ($, o
   await ui.press({ key: 'fold-backlog' })
   expect((await ui.find({ key: 'backlog-table' }))?.props.text).toContain('| P1 |')
 
-  await ui.press({ key: 'fold-landed' })
+  await ui.press({ key: 'fold-merged' })
   await ui.press({ key: 'fold-trashed' })
   const open = await words(ui)
   expect(open).toContain('CR-7 title')
   expect(open).toContain('CR-8 title')
-  await ui.press({ key: 'fold-landed' })
+  await ui.press({ key: 'fold-merged' })
   expect(await words(ui)).not.toContain('CR-7 title')
   await ui.unmount()
 })

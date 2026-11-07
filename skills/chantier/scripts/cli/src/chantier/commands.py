@@ -29,7 +29,7 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, archive_merged, check_
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
                     release_merged, waits_all, waits_for)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
-                    Batch, ChantierError, Repo, _read_json, _retry, _try_lock, _unlock,
+                    Batch, ChantierError, Repo, read_batch_json, _retry, _try_lock, _unlock,
                     age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
                     next_cr_number, normalize_batch, now, project_path, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
@@ -493,7 +493,7 @@ def open_batch(args) -> list[str]:
     selected = [prepared_cr(repo, item, paths).directory for item in args.items]
     if len(set(selected)) != len(selected):
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
-    data = {"id": None, "version": __version__, "created": now(), "status": "open",
+    data = {"id": None, "version": __version__, "created": now(), "status": "running",
             "host": host, "mode": "parallel" if args.parallel else "stack", "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
@@ -753,7 +753,7 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         return [f"{cr_id}: up to {note} rounds"]
     if kind == "slots":
         if not note.isdigit():
-            raise ChantierError("order slots --note <n> (0 pauses: no new Driver starts)", EXIT_USAGE)
+            raise ChantierError("order slots --note <n> (0 holds: no new Driver starts)", EXIT_USAGE)
         b.data["slots"] = int(note)
         return [f"slots {note}"]
     if kind == "budget":
@@ -842,20 +842,20 @@ def order(args) -> list[str]:
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
             if (args.kind in {"add", "qa"} and b.data.get("steering") == "direct"
-                    and b.data["status"] != "landed"
+                    and b.data["status"] != "paused"
                     and not (args.kind == "add" and (new_release or args.fix_for))):
                 raise ChantierError("a running direct batch is strict: add the CR once the batch "
-                                    "has landed (`land`), or switch to Foreman mode",
+                                    "is paused (`pause`), or switch to Foreman mode",
                                     EXIT_PRECONDITION)
             cr = args.cr
             reopened = []
-            if args.kind in {"add", "qa"} and b.data["status"] == "landed":
-                # new work starts a Driver: the batch runs again, its landing and cost are void
-                b.data["status"] = "open"
-                b.data.pop("landed", None)
+            if args.kind in {"add", "qa"} and b.data["status"] == "paused":
+                # new work starts a Driver: the batch runs again, its pause and cost to date are void
+                b.data["status"] = "running"
+                b.data.pop("paused", None)
                 b.data.pop("summary", None)
                 b.log("reopen", None)
-                reopened = [f"{b.id} was landed: running again; `land` runs again at the end"]
+                reopened = [f"{b.id} was paused: running again; `pause` runs again at the end"]
             if args.kind == "qa":  # no CR: a work folder the QA driver fills, in the inbox
                 check_budget(b)  # a QA driver is a Driver: refused before anything is created
                 check_slot(b, "a QA driver")  # the open order holds the slot until `order done`
@@ -920,10 +920,10 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]
         return lines + [f"spend not updated: {e}"], e.code
     with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
         total = _record_costs(repo, b, rows)
-        if b.data["status"] == "landed":  # the header and the Cost section read one figure
+        if b.data["status"] == "paused":  # the header and the Cost section read one figure
             b.data["summary"] = _cost_summary(
                 b.data, rows, _cost_groups(repo, b.id, rows, "cr"),
-                _cost_groups(repo, b.id, rows, "driver"), _chief_line(repo, b.data)) + [NOT_FINAL]
+                _cost_groups(repo, b.id, rows, "driver"), _chief_line(repo, b.data)) + [TO_DATE]
     return lines + [f"spent ${total:.2f}"], 0
 
 
@@ -954,7 +954,7 @@ def status(args) -> tuple[list[str], int]:
              f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
              f" spent ${d.get('spent_usd', 0):.2f}"
              + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")
-             + (" (landed, cost not final)" if d["status"] == "landed" else "")]
+             + (" (paused, cost to date)" if d["status"] == "paused" else "")]
     for c in sorted(d["crs"], key=lambda c: c["order"]):
         row = f"{c['id']} {c['status']} r{c['round']}/{round_limit(d, c)} {c.get('pr') or '-'}"
         if c.get("kind") == "release":
@@ -1214,7 +1214,7 @@ def handback(args) -> list[str]:
                 archive_cr(b, c)
                 b.touch(c, status="merged")
                 return [line, f"{args.cr} released and archived"
-                        + ("; every CR is merged or cancelled: `chantier land`"
+                        + ("; every CR is merged or cancelled: `chantier pause`"
                            if all_merged(b) else "")]
             if not c.get("pr"):
                 raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
@@ -1508,26 +1508,27 @@ def cancel(args) -> list[str]:
             b.log("cancel", args.cr, killed=killed, path=c.get("path"))
             done = all_merged(b)
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] \
-        + (["every CR is merged or cancelled: `chantier land`"] if done else [])
+        + (["every CR is merged or cancelled: `chantier pause`"] if done else [])
 
 
-def land(args) -> list[str]:
-    """The batch's end of work: the cost recorded is not final, `close` prices the final one.
-    A landed batch is not landed again: `order add` sets it running first."""
+def pause(args) -> list[str]:
+    """The batch's end of work: it is paused, and the cost to date is computed and printed;
+    `close` prices the final one. A paused batch is not paused again: `order add` sets it
+    running first."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
-        if b.data["status"] == "landed":
-            raise ChantierError(f"{batch} is already landed (at {b.data.get('landed')}): "
-                                "`order add` sets it running again, then `land` runs again")
-        landed = now()
+        if b.data["status"] == "paused":
+            raise ChantierError(f"{batch} is already paused (at {b.data.get('paused')}): "
+                                "`order add` sets it running again, then `pause` runs again")
+        paused = now()
         live_ids = [c["id"] for c in b.data["crs"] if c["status"] in LIVE]
         pending = [o["id"] for o in b.data["orders"] if not o["done"]]
         queued = [c["id"] for c in b.data["crs"] if c["status"] == "queued"]
         open_ = [c["id"] for c in b.data["crs"] if c["status"] in {"ready", "blocked"}]
         if live_ids or pending or queued or open_ or b.data.get("stack_agent"):
-            raise ChantierError(f"cannot land {batch}: live {', '.join(live_ids) or '-'}, "
+            raise ChantierError(f"cannot pause {batch}: live {', '.join(live_ids) or '-'}, "
                                 f"queued {', '.join(queued) or '-'}, "
                                 f"not merged {', '.join(open_) or '-'}, orders pending "
                                 f"{', '.join(pending) or '-'} (the Foreman ends each with "
@@ -1538,32 +1539,31 @@ def land(args) -> list[str]:
             _record_costs(repo, b, rows)
             summary = _cost_summary(b.data, rows, _cost_groups(repo, batch, rows, "cr"),
                                     _cost_groups(repo, batch, rows, "driver"),
-                                    _chief_line(repo, b.data)) + [NOT_FINAL]
+                                    _chief_line(repo, b.data)) + [TO_DATE]
         except ChantierError as e:  # never a false $0.00
             summary = [f"Spent: unknown ({e})"]
-        b.data.update(status="landed", landed=landed, summary=summary)
-        b.log("land", None)
-    return [f"landed {batch}: the cost is not final, it runs until `close`",
-            f"report: {b.dir / 'STATUS.md'}"]
+        b.data.update(status="paused", paused=paused, summary=summary)
+        b.log("pause", None)
+    return [f"paused {batch}: cost to date below", f"report: {b.dir / 'STATUS.md'}", *summary]
 
 
 def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
-    """The batch `close` acts on: the named one, else the only landed one, else the only batch.
-    One that is not landed is refused with what runs in it, or with "`land` first"."""
+    """The batch `close` acts on: the named one, else the only paused one, else the only batch.
+    One that is not paused is refused with what runs in it, or with "`pause` first"."""
     folders = repo.batch_folders()
     batch = normalize_batch(batch) if batch else batch
-    datas = {d: _read_json(d / "batch.json") for d in folders}
+    datas = {d: read_batch_json(d / "batch.json") for d in folders}
     named = [d for d in folders if not batch or datas[d]["id"] == batch]
-    landed = [d for d in named if datas[d].get("status") == "landed"]
-    pick = landed if not batch and len(landed) == 1 else named
+    paused = [d for d in named if datas[d].get("status") == "paused"]
+    pick = paused if not batch and len(paused) == 1 else named
     if len(pick) != 1:
         raise ChantierError(f"close names one batch; batches: "
                             f"{', '.join(d.name for d in folders) or 'none'}", EXIT_USAGE)
     d = datas[pick[0]]
-    if d.get("status") != "landed":
+    if d.get("status") != "paused":
         check_idle(repo, d)
-        raise ChantierError(f"cannot close {d['id']}: it is {d.get('status')}, not landed; "
-                            "`land` comes first. Nothing was deleted.", EXIT_PRECONDITION)
+        raise ChantierError(f"cannot close {d['id']}: it is {d.get('status')}, not paused; "
+                            "`pause` comes first. Nothing was deleted.", EXIT_PRECONDITION)
     return d["id"], pick[0], d
 
 def close(args) -> tuple[list[str], int]:
@@ -1622,11 +1622,11 @@ def _final_pages(repo: Repo, batch: str, folder: Path, d: dict, rows: list[dict]
 
 # ---- cost -------------------------------------------------------------------------------------
 
-NOT_FINAL = "Not final: it runs until `close`, which prices the final cost"
+TO_DATE = "To date: it grows if the batch runs again; `close` prices the final cost"
 
 
 def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
-    """Every Foreman of the batch, summed, from its opening to now: `land` ends no window, a
+    """Every Foreman of the batch, summed, from its opening to now: `pause` ends no window, a
     call made after it is spend."""
     rows: list[dict] = []
     chief = d.get("chief_transcript")
@@ -1864,7 +1864,7 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
 
 def cost(args) -> list[str]:
     """The batch's spend, read from the Foreman's transcript on the batch's host; `status
-    --refresh` and `land` record it."""
+    --refresh` and `pause` record it."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     d = read_batch(repo, batch)

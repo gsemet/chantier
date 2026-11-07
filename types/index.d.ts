@@ -43,7 +43,7 @@ export type ChantierBacklogItem = {
   files: number
 }
 
-/** A landed or trashed CR. */
+/** A merged or trashed CR. */
 export type ChantierPast = {
   cr: string | null
   title: string
@@ -63,8 +63,8 @@ export type ChantierIndex = {
   batches: ChantierBatch[]
   active_crs: number
   backlog: ChantierBacklogItem[]
-  landed: ChantierPast[]
-  landed_total: number
+  merged: ChantierPast[]
+  merged_total: number
   trashed: ChantierPast[]
   trashed_total: number
 }

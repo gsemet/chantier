@@ -53,7 +53,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
    host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a
-   strict batch (no CR joins it while it runs, but a landed batch takes new ones); it may switch to Foreman mode on your word.
+   strict batch (no CR joins it while it runs, but a paused batch takes new ones); it may switch to Foreman mode on your word.
 4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
    running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
 5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
@@ -129,8 +129,8 @@ Talk to the Chief of Staff in plain language:
 ### The CR board (Claude Code)
 
 `/chantier-board` shows or hides the **CR board**, a read-only pane over
-`.agents/changes/3-requests/STATUS.json`: the open batches with what waits for you and what is in
-progress, the backlog, and the landed and trashed CRs. Press a CR for its sheet and its documents.
+`.agents/changes/3-requests/STATUS.json`: the live batches with what waits for you and what is in
+progress, the backlog, and the merged and trashed CRs. Press a CR for its sheet and its documents.
 Loading the `chantier` skill opens it too. It refreshes every 15 seconds while open, writes
 nothing, and runs no process but `git rev-parse` to find the main checkout from a worktree. It is
 a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
@@ -183,10 +183,10 @@ Everything lives in `.agents/changes/`:
 ├── 1-inbox/<slug>/                        filed, not prioritized
 ├── 2-backlog/P1…P4/<slug>/                prioritized by you
 ├── 3-requests/
-│   ├── STATUS.md, STATUS.json             open batches, backlog table
-│   └── batch-<n>/                         the one open batch; n counts all batches
+│   ├── STATUS.md, STATUS.json             live batches, backlog table
+│   └── batch-<n>/                         the one batch, until `close`; n counts all batches
 │       ├── batch.json, events.jsonl, brief.md, .lock
-│       ├── STATUS.md, STATUS.json         the batch; at `landed`, its exit report
+│       ├── STATUS.md, STATUS.json         the batch; once paused, its exit report
 │       └── <number>-<slug>/               a CR in the batch: STATUS.md, STATUS.json; named
 │                                          branch chantier/batch-<n>/… and worktree next to the repo
 ├── 4-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged (time of the merge, UTC)
@@ -196,7 +196,7 @@ Everything lives in `.agents/changes/`:
 The folder moves, it is never copied; collisions are errors rather than overwrites. A CR moves
 to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR goes to
 `5-trash/` and does not return to the backlog. A batch has no name, only a
-number, and `--batch` takes it (`4` or `batch-04`). One batch is open at a time: new work joins it
+number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
 through the Foreman. Its CRs run in parallel, each PR on the default branch, and a stack driver
 stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
@@ -207,14 +207,16 @@ status cell reads like `🔴 blocked Question 1/3`.
 
 The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
 (named by chantier, next to the repository), the Foreman removes a merged CR's before the batch
-lands, and the Chief of Staff removes a dropped CR's only on your word. When the batch has
-landed, its cost is not final: the Foreman stays idle, and `chantier close` refuses, naming the
+is paused, and the Chief of Staff removes a dropped CR's only on your word. When every CR is
+merged or cancelled, the batch is **paused** (`chantier pause`), not closed: its cost to date is
+computed and shown, and the Foreman stays idle. New work added to a paused batch sets it running
+again; it pauses again at the end, with the cost to date grown. A batch is closed only on your
+word ("close the batch"): `chantier close` refuses, naming the
 cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
 written in the last 5 minutes); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
 what goes (the batch folder, the dropped CRs' worktrees and branches); if it cannot price it (no
 priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
-reports it to you. New work added to a
-landed batch sets it running again; it lands again at the end. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
+reports it to you. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
 without a yes, everything stays. Close last: the batch folder holds the exit report and the
 event log.
 
