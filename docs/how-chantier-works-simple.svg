@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 712" width="1000" height="712" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works (simple)</title>
-  <desc>You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver.</desc>
+  <desc>You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word. On your go the Chief of Staff starts one Foreman session per batch of changes (Foreman mode), or steers the batch itself in direct mode, with no Foreman session; the steering session starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -50,6 +50,23 @@
   <rect x="390" y="286" width="440" height="90" rx="12" fill="#ea580c"/>
   <text x="610" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text>
   <text x="610" y="353" font-size="15" fill="#ffedd5" text-anchor="middle">one session per batch of changes · Opus 5.5 · orchestrates</text>
+  <rect x="714" y="293" width="108" height="22" rx="11" fill="#ffffff"/>
+  <text x="768" y="308.5" font-size="12.5" font-weight="700" fill="#c2410c" text-anchor="middle">Foreman mode</text>
+
+  <!-- Spec-writer: the Chief of Staff's agent -->
+  <rect x="852" y="140" width="130" height="80" rx="9" fill="#e0e7ff" stroke="#1e3a8a" stroke-width="1.5"/>
+  <text x="917" y="162" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">✍️ Spec-writer</text>
+  <g font-size="12" fill="#475569" text-anchor="middle"><text x="917" y="181">writes the spec,</text><text x="917" y="196">in the background,</text><text x="917" y="211">on your word</text></g>
+  <line x1="832" y1="180" x2="848" y2="180" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- Direct mode: the Chief of Staff starts the Drivers itself -->
+  <path d="M404,230 V266 H240 V430" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <g font-size="12.5" fill="#1e3a8a">
+    <text x="68" y="296" font-weight="700">🤵 direct mode:</text>
+    <text x="68" y="314">the Chief of Staff</text>
+    <text x="68" y="330">steers the batch itself,</text>
+    <text x="68" y="346">no Foreman session</text>
+  </g>
 
   <!-- Drivers -->
   <g stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)">

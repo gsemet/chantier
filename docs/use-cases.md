@@ -3,7 +3,53 @@
 Each section is a situation, what you say to the Chief of Staff, and what happens. New to
 chantier? Start with the [tutorial](tutorial-claude-code.md).
 
+This page holds what does not depend on who steers a batch. The situations that do (running a
+batch, steering it, releasing) are in one document per configuration, below.
+
+## Choose your configuration
+
+A batch is steered by a session of its own, a **Foreman**, or by the Chief of Staff itself in
+**direct mode**. The lifecycle is the same; what differs is how dynamic the batch is while it runs.
+
+| Configuration | Where it runs | Use cases |
+| --- | --- | --- |
+| Foreman mode | Claude Desktop (nested session), a Copilot agent session | [Foreman mode](use-cases-foreman.md) |
+| Direct mode | any Claude Code entry point (the Desktop app, the terminal, VS Code, a Remote Control session), a Copilot agent session | [Direct mode](use-cases-direct.md) |
+
+GitHub Copilot is not a third configuration: each document ends with its own "On GitHub Copilot"
+section.
+
+The plan the Chief of Staff shows before a batch says who steers it. It proposes direct mode when
+the host cannot start a Foreman session (a terminal or IDE host, a Remote Control session with no
+Foreman to reuse) or when the batch has few CRs, and says why. Your go decides: nothing starts
+without it.
+
+## The life of a batch
+
+![The life of a batch: running, paused, closed](batch-lifecycle.svg)
+
+- A batch is **running** from `open` until every CR is merged or cancelled.
+- It is then **paused**: the cost to date is shown, `STATUS.md` is its exit report, and you get the
+  Completion report. New work sets it running again; it pauses again at the end.
+- It is **closed** only on your word ("close the batch"), after a check and the final cost.
+
+One batch at a time. Whoever steers it, the three states are the same.
+
 ## Start on a new project
+
+> "init" · "I am new here."
+
+`chantier init` creates the five stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`,
+`3-requests`, `4-archives`, `5-trash`), empty, and says which it created and which existed. The
+Chief of Staff then gives a guided tour of your project: it reads your instructions, your build
+files and your CI lightly, and tells the story of one CR of your project, from the request to the
+archive. You choose the chat or an HTML page. The tour writes nothing in the project, except what
+you say yes to at the end: `AGENTS.md` rules, or a CR filed in the inbox for work that needs code.
+Without a git repository, it explains what chantier needs and offers `git init`, which it runs
+only on your yes. Run `init` again whenever you like: it changes nothing and assesses the
+improvements again.
+
+The other way in:
 
 > "chantier, prepare yourself to work on this project."
 
@@ -19,94 +65,40 @@ to write that answer in `AGENTS.md`. There is no other configuration: every agen
 
 Each item becomes a CR folder in the inbox, with the raw request kept as received. Refining
 (the "grill") can happen at any stage: the Chief of Staff asks only the questions that change the
-result, writes your answers in `02-answers.md`, and keeps the Change Specification self-contained.
-Only you set priorities.
+result, each with a recommended answer, and writes every answer in `02-answers.md` at once, so
+nothing waits in the conversation only. Only you set priorities.
+
+When the questions run out, the Chief of Staff restates the CR: what it changes, every decision
+taken, what is still open. You correct it, and a correction is an answer. Only then it asks
+whether the CR is grilled enough, and you decide, never the Chief of Staff.
+
+> "It is grilled enough."
+
+A **spec-writer** agent writes the Change Specification (`03-change-spec.md`) in the background,
+while you go on talking. The Chief of Staff reviews it against your answers, nothing dropped and
+nothing invented, before it shows it to you; open questions come to you, and the writer runs again
+with your answers. A specified CR waits in the inbox or the backlog until you prioritise it and
+pick it for a batch.
 
 > "Drop the dark-mode idea for good."
 
 Only on your explicit word does a CR go to `5-trash/`.
 
-## Run a batch overnight
+## Your pull requests' description
 
-> "Run the P1s, three slots, budget 20 dollars, I'm going to bed."
+Each CR's pull request (a merge request on GitLab) is described from a default template shipped in
+the skill, for a reader outside your team: Summary, Deliverables (with small visuals), Changes,
+Impacts, Blast radius, Test plan, Autonomous decisions, and Internal references. The title and the
+body are in English, and name no CR, batch, round or agent: the CR's name goes in the last
+section, "Internal references", and nowhere else. The Inspector checks it.
 
-After the preflight, the plan and your go, the Foreman runs up to three CRs at once. A CR that
-needs you is parked as blocked with its question; the others go on. Past the budget, nothing new
-starts until you answer. (In direct mode, which the Chief of Staff proposes when the host cannot
-start a Foreman session or the batch is small, it steers the batch itself: the same limits and
-reports, and no CR is added while it runs.) In the morning:
+Your project ranks above the default: a pull request template the forge reads, or a PR rule in
+your instructions, is used as written.
 
-> "Status?" · "What did it cost, by CR?"
+> "I want my own PR template."
 
-## Build independent pull requests
-
-> "These three do not depend on each other: run them in parallel."
-
-Each CR is based on the default branch, and `open --parallel` leaves no stack at the end.
-
-## Build a stack of pull requests
-
-> "Run these three."
-
-The CRs run in parallel, each PR based on the default branch. The stack comes after: when every
-CR is ready, a stack driver orders the stack, rebases and pushes each PR on the one below it, and
-heavy CI runs once at the top. A CR stands on another before that only by a dependency or a chain
-the Foreman decided, which you can turn off while the CR is queued. After each
-merge you report, it restacks the rest on the default branch: the batch stays running, and work you add
-joins it.
-
-## Steer a running batch
-
-| You say | What happens |
-| --- | --- |
-| "Add the rate-limit item to tonight's batch." | the CR (already refined) joins the queue |
-| "Drop CR-104, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog, and `status` shows it as `cancelled`; a second drop of it is refused ("already dropped"); its branch and worktree stay until you close the batch and say yes |
-| "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
-| "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
-| "Hold." · "Resume." | slots 0: no new CR starts; a number resumes |
-| "I merged #42." | the CR is archived; a ready PR that stops merging goes back to a Driver, which rebases it |
-
-Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read twice runs once.
-`status` keeps two lines: `orders pending` for the orders nothing has touched yet (a note, a QA, the drop of a
-live CR), and one for those the CLI has applied, which the Foreman still has to mark `order done`. `pause` waits
-until both are done. Without a Foreman, `order done <O-k>` ends them so that `pause` can pass, but `close` needs a
-Foreman: it prices the batch from the Foreman's transcript.
-
-## Ask for user testing
-
-> "Run QA on the CSV export."
-
-During a batch, a QA driver uses the project as a user would, at the head of its default branch,
-never an unmerged PR. It leaves its findings, its proof and its long tests in a `qa-<date>` folder
-in the inbox: an ordinary item you triage, which holds no CR back.
-
-## Make a release
-
-Say "release v1.4.0" once the work is merged and validated. Your project describes how it
-releases, in `AGENTS.md` or a document it links: a tag, a release commit, heavy checks, notes
-edited by hand. chantier adds no procedure of its own; if yours is missing or unclear, the Chief
-of Staff asks you and offers to write the answer in the project. If it has no long check on the
-default branch's exact head before the version commit, the Chief of Staff asks whether to plan
-one; your answer rules, chantier imposes no gate.
-
-A Release driver follows that procedure and stops before each irreversible action, such as a
-pushed tag or a published package, until you approve it. Release notes wait in the CR's folder
-from the start: you get a link and can edit them while the release runs.
-
-When a step finds a defect, the driver does not fix it: a fix CR goes to a CR Driver and, once it
-is merged, the procedure starts again from its first step. For a release that may take several
-attempts, you can allow more up front, always within a budget:
-
-| You say | What it allows |
-| --- | --- |
-| "up to 3 releases without asking, budget $20" | irreversible actions go ahead, up to that number of releases |
-| "merge the fixes yourself" | the Foreman merges a release's ready fixes with `gh` or `glab`, by your project's method, if the forge gives it the rights |
-
-The release's own PR is merged by the Foreman too, on your approval or under that grant; every
-other PR is yours to merge.
-
-Once the release is out, the driver writes a retrospective and proposes long-term fixes; each
-becomes a CR only on your word.
+The Chief of Staff files it as a CR, grilled and specified like any other; a CR Driver delivers it
+by pull request, and once merged your version ranks above the default.
 
 ## Use your own agents
 
@@ -127,43 +119,32 @@ another round.
 The Chief of Staff writes the team in a `chantier` section of `AGENTS.md`, so your colleagues get
 the same one. The next batch uses it; a running batch keeps the team it started with.
 
-## Recover after a restart
-
-> "I restarted the app." · "Resume."
-
-The Chief of Staff checks whether the Foreman is alive. If not, it tells you what it found and,
-on your word, runs the preflight again and starts a new Foreman, which relaunches the Driver of
-every CR still in progress, from its recorded state and worktree. Uncommitted work in a worktree
-is kept.
-
 ## Know what it costs
 
 > "What did tonight's batch cost?" · "Who cost the most?"
 
-`chantier cost` measures the Foreman's session and every agent under it, in one line for the
-Foreman, one per Driver type and one per worker type (or by CR), from the transcripts (Claude) or
-the billed records (Copilot). A missing transcript or an unknown model is an error, never an
-estimate. Your own session is priced apart. Ask "why did it cost that?" and the figures are
-explained from what was measured: the calls, the model, the shares of cost, the calls after the
-cache expired, the restarted Drivers.
+`chantier cost` measures the steering session and every agent under it, in one line for the
+steering session, one per Driver type and one per worker type (or by CR), from the transcripts
+(Claude) or the billed records (Copilot). With a Foreman, the first line is the Foreman; in direct
+mode it is `Chief of Staff (steering)`, counted in the batch's spend and budget as a Foreman's
+is. A missing transcript or an unknown model is an error, never an estimate. The rest of your own
+session is priced apart. Ask "why did it cost that?" and the figures are explained from what was
+measured: the calls, the model, the shares of cost, the calls after the cache expired, the
+restarted Drivers.
 
-On a batch with no Foreman yet, `cost` and `close` both refuse: no Foreman transcript is recorded, and
-`close` deletes nothing it cannot price. Once a batch is paused, `status` and `cost` without `--batch` answer
-`no running batch`: pass `--batch <name>`.
+On a batch with no recorded steering transcript yet (no Foreman started, or the Chief of Staff's
+steering not claimed), `cost` and `close` both refuse: `close` deletes nothing it cannot price.
+Once a batch is paused, `status` and `cost` without `--batch` answer `no running batch`: pass
+`--batch <name>`.
 
-You also get it unasked: one line per CR when it is ready or merged, and the full cost to date when the batch
-is paused, final once nothing runs, at `close` (total, budget, the split between Foreman, Drivers and
-workers, the costliest CRs).
-
-## On GitHub Copilot
-
-Everything above works in a Copilot SDK host (the Copilot app) the same way, with two
-differences: the Foreman's heartbeat runs every four minutes through `/every` (the Chief of Staff
-arms it, and asks you to delete it when the batch is paused); and your own agents are named by their
-file in `.github/agents/` or `~/.copilot/agents/`.
+You also get it unasked: one line per CR when it is ready or merged, and the full cost to date when
+the batch is paused, final at `close` (total, budget, the split between the steering session,
+Drivers and workers, the costliest CRs).
 
 ## When chantier says no
 
-chantier stops instead of improvising: outside the Desktop app or a Copilot SDK host, in a linked
-worktree, without project instructions, with a missing agent, a refused tool or an unknown model.
-It tells you which condition failed and what you can do; it never offers a workaround.
+chantier stops instead of improvising: in a linked worktree, unattended, without project
+instructions, with a missing agent, a refused tool or an unknown model. Foreman mode also needs
+the Desktop app or a Copilot agent session; where the host cannot start a Foreman session, the
+plan proposes direct mode instead. It tells you which condition failed and what you can do; it
+never offers a workaround.

@@ -1,3 +1,7 @@
+# Life of a change request
+
+Every change request, from Jira, a GitLab or GitHub issue, the chat, a Markdown file or a finding, is filed by the chantier CLI and lands in one Markdown file, 01-intent.md, in 1-inbox. A CR is usually implemented in a pull or merge request (PR/MR). Some CRs do not translate to a PR. The Chief of Staff triages it with you: drop it to 5-trash, send it straight to the backlog when it is automatable with a short spec, start the spec-writer agent in the background, on your word that the CR is grilled enough, to write a Change Specification you review until approved, or grill you and record your answers in 02-answers.md before triaging again. A prototype may feed your review: the destination, shown, such as a UI mockup or a vibe-coded app, often made by you, outside this cycle. In 2-backlog you set its priority, P1 to P4. The chantier triage command moves a ready CR to the backlog. On your go, the Chief of Staff opens a batch in 3-requests with chantier open; the steering session, the Foreman, or the Chief of Staff itself in direct mode (chantier open --direct), whose heartbeat loop runs chantier status --refresh, queues the CR and hands it with chantier take to a CR driver, runs it in its own worktree and branch: when the code is unfamiliar, an Investigator maps it before round 1; then rounds of Coder and Inspector until the driver approves the implementation, at most three rounds. Then a rebase, the gate and ship open the PR, so the gate passes on the final head; CI and a Verifier at the pushed head follow, and a red check or a failed verification is a new round. The driver hands back ready, you merge, and chantier order merged moves the CR to 4-archives. With a stacked batch, a Stack driver orders, restacks and ships the PRs, runs the heavy CI once at the top and hands each CR back ready. On your request, at any time of the batch, the Foreman starts a QA driver that uses the head of the default branch as its user would, never an unmerged PR; its findings come back to the intake. The batch has three parts, all started by the Foreman: quality assurance, implementation and release. Once every other CR is merged or cancelled, the Foreman hands the release CR to a Release driver with chantier take; it runs your release procedure and its checks, and asks the Foreman before merging the release PR, which chantier release go allows on your approval or grant. A failed step writes fix-n.md, which becomes a fix CR on your go, unless your grant covers it; the fast track takes up to three fixes per release. A CR driver makes the targeted fix. A fix merges on its own only under your fix grant, an exceptional authorisation for this release's fixes, always bounded by a budget: the Foreman merges it within the granted budget; otherwise you merge it. Either way, the Release driver resumes to finish the release. Once released, the Release driver may monitor the deploys, on package registries, pages and the like, writes retro.md, whose recommendations come back to the intake as a process-improvement CR, and hands back ready; the release CR goes to 4-archives. Once every CR is merged or cancelled, the Foreman runs chantier pause: the batch is paused, and its STATUS.md becomes the exit report, with the cost to date; the Foreman sends it as final to the Chief of Staff, who shows you the report and the cost. The batch stays paused and takes new CRs: new work sets it running again, and it pauses again at the end. Only on your later word ("close the batch") and your yes does the Chief of Staff run chantier close, the check, then chantier close --yes, which deletes the batch folder. The batch itself, running, paused, closed, is drawn in batch-lifecycle.svg. A blocked driver hands back to the Foreman, which may raise the question to the Chief of Staff, who asks you and sends orders back. A bug found outside the CR's scope goes to the Foreman too, which judges: the driver takes it into the CR, the Foreman raises it to the Chief of Staff, who presents it to you for a decision, or the Foreman files it as a finding in the intake. So each part ends with findings or recommendations back in the intake: often several findings from QA, bugs from implementation, a process-improvement CR from release; from there the loop starts again. At any time, chantier order drop moves a CR to 5-trash, with its work. The chantier CLI gives guidance and feedback to agents and writes a human-readable STATUS.md.
+
 ## Header
 
 ```md
@@ -13,9 +17,9 @@ Some CRs do not translate to a PR.
 ```md
 👤 you
 🤵 Chief of Staff
-👷 Foreman
+👷 Foreman (🤵 Chief of Staff in direct mode)
 🚜 driver
-🔨 worker
+🔨 worker · ✍️ spec-writer
 ⌨️ chantier CLI
 📄 file · 📁 folder
 📨 intake
@@ -90,9 +94,10 @@ drop
 ## Spec loop
 
 ```md
-## 🤵 writes the spec
+## ✍️ spec-writer writes
 
 03-change-spec.md
+🤵 starts it on your word
 ```
 
 ```md
@@ -473,12 +478,17 @@ chantier close
 ```
 
 ```md
-deletes the batch folder
+then close --yes deletes the batch folder
+```
+
+```md
+⏸️ the batch is paused; new work sets it running again
 ```
 
 ## Footer
 
 ```md
 chantier CLI gives guidance and feedback to agents, writes human-readable STATUS.md.
+The batch itself: running → paused → closed, in `batch-lifecycle.svg`.
 At any time: `order drop` → `5-trash/`, with its work.
 ```

@@ -4,9 +4,13 @@ The construction site for your Software Factory.
 
 Modern coding agents like Claude Code or Copilot provide "nested session" features.
 Chantier uses them to give you a single "ticket office" to talk to,
-while one "Foreman" coordinates the work underneath.
+while one "Foreman" coordinates the work underneath, or, in direct mode, the Chief of Staff itself.
 
 ## How Chantier works
+
+![How chantier works, in short](docs/how-chantier-works-simple.svg)
+
+The same, in detail:
 
 ![How chantier works](docs/how-chantier-works.svg)
 
@@ -48,21 +52,30 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
 2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
    (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
    self-contained **Change Specification** (`03-change-spec.md`), and, when it needs another CR
-   first, a `depends.json` (`{"after": ["<slug>"]}`).
+   first, a `depends.json` (`{"after": ["<slug>"]}`). After the grill, the Chief of Staff
+   restates the CR and asks whether it is grilled enough; on your word a **spec-writer** agent
+   writes `03-change-spec.md` in the background, and the Chief of Staff reviews it against your
+   answers before showing it to you.
 3. **You start a batch** ("run the P1s"; the CRs run in parallel and are stacked afterwards, four slots). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
    host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a
    strict batch (no CR joins it while it runs, but a paused batch takes new ones); it may switch to Foreman mode on your word.
+   Direct mode is less dynamic than Foreman mode (a running batch takes no new CR, and the Chief
+   of Staff, busy steering, holds no grill in that session) but has the same lifecycle: a batch is
+   running, then paused, then closed on your word. See [direct mode](docs/use-cases-direct.md).
 4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
    running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
 5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
    in it: Investigator, Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review
    step you added. Then it commits, rebases, pushes, opens the PR and watches its CI itself,
-   with `git` and `gh` or `glab`, as your project says.
-6. **The Foreman reports back.** You steer through the Chief of Staff (add, drop, a note on a
-   CR; "I merged #42"); it forwards one `order` line to the Foreman. You merge; the Foreman
-   merges only a release's PR or fix, on your word.
+   with `git` and `gh` or `glab`, as your project says. The Driver writes the PR description from
+   the default template shipped in the skill
+   (`skills/chantier/references/pr-template.md`), unless your project has its own template,
+   which ranks above it.
+6. **The Foreman reports back** (the Chief of Staff, in direct mode). You steer through the Chief
+   of Staff (add, drop, a note on a CR; "I merged #42"); it forwards one `order` line to the
+   Foreman. You merge; the Foreman merges only a release's PR or fix, on your word.
 7. **A Release driver releases, when you ask.** It follows your project's own procedure, and
    stops for your approval before each irreversible action.
 
@@ -102,7 +115,8 @@ copilot plugin install chantier@chantier
 ```
 
 New to chantier? Follow the [step-by-step tutorial for Claude Code](docs/tutorial-claude-code.md),
-then browse the [use cases](docs/use-cases.md).
+then browse the [use cases](docs/use-cases.md), with one page per configuration:
+[Foreman mode](docs/use-cases-foreman.md) and [direct mode](docs/use-cases-direct.md).
 
 Then restart the session and type `/chantier` (on Claude Code, `/chantier:chantier`). Besides
 the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); working on a
@@ -117,9 +131,11 @@ Talk to the Chief of Staff in plain language:
 | "init", "I am new here" | the five stage folders are created, then a guided tour of how your project works with chantier |
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
-| "run the P1s", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go |
+| "it is grilled enough" | the spec-writer writes the Change Specification in the background |
+| "run the P1s", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
-| "drop CR-103", "I merged #42" | an order for the Foreman, never a direct action on a Driver |
+| "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
+| "close the batch" | the check and the final cost, then closing on your yes |
 | "release v1.4.0" | a release CR, run by your project's procedure; you approve each irreversible action |
 | "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
@@ -130,7 +146,8 @@ Talk to the Chief of Staff in plain language:
 
 `/chantier-board` shows or hides the **CR board**, a read-only pane over
 `.agents/changes/3-requests/STATUS.json`: the live batches with what waits for you and what is in
-progress, the backlog, and the merged and trashed CRs. Press a CR for its sheet and its documents.
+progress, the backlog, and the merged and trashed CRs. Each live batch shows its slots
+(`Slots 2/4, 2 free`). Press a CR for its sheet and its documents.
 Loading the `chantier` skill opens it too. It refreshes every 15 seconds while open, writes
 nothing, and runs no process but `git rev-parse` to find the main checkout from a worktree. It is
 a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
@@ -197,7 +214,7 @@ The folder moves, it is never copied; collisions are errors rather than overwrit
 to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR goes to
 `5-trash/` and does not return to the backlog. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
-through the Foreman. Its CRs run in parallel, each PR on the default branch, and a stack driver
+through the Foreman (in direct mode, once it is paused). Its CRs run in parallel, each PR on the default branch, and a stack driver
 stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
@@ -206,10 +223,11 @@ linking to the others. The CLI rewrites them at every state change, from the sta
 status cell reads like `🔴 blocked Question 1/3`.
 
 The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
-(named by chantier, next to the repository), the Foreman removes a merged CR's before the batch
-is paused, and the Chief of Staff removes a dropped CR's only on your word. When every CR is
-merged or cancelled, the batch is **paused** (`chantier pause`), not closed: its cost to date is
-computed and shown, and the Foreman stays idle. New work added to a paused batch sets it running
+(named by chantier, next to the repository), the steering session (the Foreman, or the Chief of
+Staff in direct mode) removes a merged CR's before the batch is paused, and the Chief of Staff
+removes a dropped CR's only on your word. When every CR is merged or cancelled, the batch is
+**paused** (`chantier pause`), not closed: its cost to date is computed and shown, and the
+steering session stays idle. New work added to a paused batch sets it running
 again; it pauses again at the end, with the cost to date grown. A batch is closed only on your
 word ("close the batch"): `chantier close` refuses, naming the
 cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
@@ -222,13 +240,21 @@ event log.
 
 ## Supported hosts
 
+For Foreman mode:
+
 | Host | Nested session | Foreman heartbeat |
 | --- | --- | --- |
 | Claude Desktop | `start_session`, left linked | 30 minutes |
 | Copilot SDK host | `create_session` + `send_message` | 4 minutes (`/every`) |
 
-Preflight refuses everything else (a VS Code tab, the terminal, an unattended run, a linked
-worktree) and offers no fallback.
+Foreman mode refuses every other host (a VS Code tab, the terminal, ...), and the plan proposes
+direct mode there. An unattended run and a linked worktree are refused in both modes, with no
+fallback.
+
+Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a
+Remote Control session with no Foreman to reuse) and in a Copilot agent session, checked by
+`chantier preflight --direct`. The heartbeat is the same, run in the Chief of Staff's own
+session.
 
 **Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
 settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
@@ -258,7 +284,9 @@ expired and the Drivers restarted. The reports show these lines as printed. On C
 prices the transcripts with its own rates for Opus, Sonnet and Haiku 5.5; on Copilot, it reads
 per-call costs from
 [copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
-PyPI, and flags calls that were estimated rather than billed. A missing transcript, an unknown
+PyPI, and flags calls that were estimated rather than billed. In direct mode the steering is one
+`Chief of Staff (steering)` line, counted in the batch's spend and budget as a Foreman's is; the
+rest of the Chief of Staff's session stays apart. A missing transcript, an unknown
 model or an unpriced call is an error, never a guess. The Foreman records the spend at each
 heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
 
@@ -287,7 +315,7 @@ skills/chantier/
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
-docs/                       ← diagrams
+docs/                       ← diagrams and the user docs (tutorial, use cases)
 ```
 
 ## Develop
