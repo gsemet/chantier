@@ -15,9 +15,11 @@ any other work goes in another worktree.
 
 ## Nothing merges
 
-Each specification and the brief say so: the PR is a draft, the first line of its body is
+Each specification and the brief say so: the PR opens as a draft and its Driver turns it ready once it can merge (base on the
+default branch, CI green, evidence in; on another base it stays a draft), the first line of its
+body is
 `**Eval run: do not merge.** The maintainer decides what happens to this PR.`, and nobody merges
-it, marks it ready or enables auto-merge. The batch stops at `ready` for each CR. Whatever comes
+it or enables auto-merge. The batch stops at `ready` for each CR. Whatever comes
 next is the user's word: a merged PR is `order merged`, a closed one `order drop`.
 
 ## Starting
@@ -29,7 +31,8 @@ as the [README](../README.md) says. It may open outside the repository: the prom
 
 ## Check
 
-- Each PR on the forge: draft, open, no auto-merge, its first line, CI green at its head.
+- Each PR on the forge: open, ready if its base is the default branch (a draft on another base),
+  no auto-merge, its first line, CI green at its head.
 - `$CHANTIER log <cr>`: the rounds, the gates, the verifier's proof.
 - `$CHANTIER cost --by cr` before `close`: the batch's folder goes with it.
 - A sample of the diffs, read by hand, against each specification.
