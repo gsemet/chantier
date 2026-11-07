@@ -35,7 +35,11 @@ The CLI keeps the CR's record and tells you what is off.
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
   --body-file <work folder>/pr-body.md`, `glab mr create --draft`), a Release driver
-  opens its PR ready; the title and body follow the project's rules and template. Then
+  opens its PR ready. A CR Driver writes the title and `<work folder>/pr-body.md` from the
+  project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
+  and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update
+  --description`); `glab mr create --draft` takes the body with `--description`. The stack
+  driver's and a Release driver's PRs keep their form, by the project's rules. Then
   `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what is off
   (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
@@ -46,10 +50,11 @@ The CLI keeps the CR's record and tells you what is off.
   A release PR is left as it is (it is no draft). A project that shows it otherwise (a label, a
   title prefix, no draft at all) is followed as written, on the opening and on turning ready. A forge or plan that refuses a draft stops that step:
   `handback blocked refused <exact text>` (the stack driver: its `anomaly` line); no look-alike.
-- The evidence: once the Verifier has left it, you put it in the PR's description, before and
-  after side by side, as the forge's own CLI uploads images and videos (`gh pr edit --attach` on
-  GitHub, `gh` 2.103 and later); read the CLI's help for any other forge. A file its CLI cannot
-  upload stays in `work/`, and the description names it.
+- The evidence: once the Verifier has left it, you put it in the PR's description, in its
+  Impacts section, before and after side by side, as the forge's own CLI uploads images and
+  videos (`gh pr edit --attach` on GitHub, `gh` 2.103 and later); read the CLI's help for any
+  other forge. A file its CLI cannot upload stays in `work/`, and the description names it in
+  its Internal references section.
 - CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
   ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
@@ -85,11 +90,16 @@ The CLI keeps the CR's record and tells you what is off.
 Take one CR from its specification to a green PR, then hand it back. Before round 1, when the
 code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
 investigator's report, which you validate and correct): with no investigator, you write it
-yourself. Each round: a `coder` with the brief, then an `inspector` on the round's diff (the
-worktree against the base, uncommitted and untracked files included) and each review step your
-`Team:` lists, in order; `FIX-REQUIRED` is the next round. All approved: commit, rebase, the
+yourself. Each round: a `coder` with the brief, then you write or update `pr-body.md`, then an
+`inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
+included) and `pr-body.md`, and each review step your `Team:` lists, in order; `FIX-REQUIRED` is
+the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (written
+`pr-body.md: …`) is not a new round: you fix `pr-body.md` yourself and start a new `inspector`
+in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
+or with body items, is the next round. All approved: commit, rebase, the
 long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
-head, given the plan (`NOT VERIFIED` is a round), then the evidence in the PR, the PR turned
+head, given the plan (`NOT VERIFIED` is a round), then the evidence in Impacts and the Test plan
+boxes updated (`gh pr edit --body-file` again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
 
 A CR taken with the note `rebase: <dependency> merged`: fetch, rebase onto `origin/<default

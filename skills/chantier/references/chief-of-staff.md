@@ -36,6 +36,11 @@ id is what the host knows (its reference says where). You pass the team to the F
 in its prompt; a running batch keeps the team it started with. The host's reference says which
 model each role runs.
 
+On the user's request for their own PR template, file a CR for it (`$CHANTIER file`, section
+"Backlog and grill"), grilled and specified like any other; a CR Driver delivers the guideline
+and the template by PR, as [pr-template](pr-template.md) part "A customised version" says. You
+do not write them in the main checkout yourself.
+
 ## Backlog and grill
 
 ```bash
