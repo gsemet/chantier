@@ -187,6 +187,12 @@ def session_costs(main: Path, since: str = "", until: str = "", kind: str = "for
     return rows
 
 
+def without_spec_writers(rows: list[dict]) -> list[dict]:
+    """The Chief of Staff's subagents of type spec-writer (`spec-writer`, `chantier:spec-writer`,
+    `chantier-spec-writer`) belong to no batch: they stay on the Chief of Staff's own line."""
+    return [r for r in rows if not str(r.get("type", "")).endswith("spec-writer")]
+
+
 def copilot_home() -> Path:
     return Path(os.environ.get("COPILOT_HOME") or Path.home() / ".copilot").expanduser()
 

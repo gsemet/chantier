@@ -15,8 +15,9 @@ CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 DRIVERS = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
 WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver",
            "demo-explorer")
-ROLES = DRIVERS + WORKERS
-OPUS_ROLES = {"stack-driver", "release-driver"}  # judgement; the rest is work
+CHIEF_ROLES = ("spec-writer",)  # started by the Chief of Staff; its card is its own file
+ROLES = DRIVERS + WORKERS + CHIEF_ROLES
+OPUS_ROLES = {"stack-driver", "release-driver", "spec-writer"}  # judgement; the rest is work
 CARDS = {**{r: "driver" for r in DRIVERS}, **{r: "worker" for r in WORKERS}}
 
 
@@ -128,6 +129,8 @@ def test_skill_and_references_links_resolve():
 
 def test_every_role_has_its_section_in_its_card():
     """The contract a parent names in its prompt: `<card>.md`, section `<Role>`."""
+    for role in CHIEF_ROLES:
+        assert (SKILL / "references" / f"{role}.md").is_file(), role
     for role, card in CARDS.items():
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         section = role.replace("-", " ").capitalize().replace("Cr ", "CR ").replace("Qa ", "QA ")

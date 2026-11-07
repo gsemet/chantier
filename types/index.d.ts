@@ -38,6 +38,8 @@ export type ChantierBacklogItem = {
   title: string
   /** Relative to `3-requests/`. */
   path: string
+  /** The spec-writer's state, read from the folder; null with no specification. */
+  spec?: 'specifying' | 'specified' | null
   files: number
 }
 

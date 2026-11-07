@@ -579,8 +579,8 @@ export const register: Register = on => {
         {Section('backlog', false, `Backlog (${index.backlog.length})`, () =>
           Table(
             'backlog-table',
-            ['Priority', 'Item', 'Title', 'Files'],
-            backlog.map(r => [r.priority, crCell(r.path, r.item), cell(r.title), String(r.files)]),
+            ['Priority', 'Item', 'Title', 'Spec', 'Files'],
+            backlog.map(r => [r.priority, crCell(r.path, r.item), cell(r.title), r.spec ?? '-', String(r.files)]),
             backlog.map(r => r.path),
           ),
         )}

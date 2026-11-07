@@ -1641,6 +1641,7 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
                                       allow_empty=len(uuids) > 1)
         if steering:
             got[0]["type"] = "chief-of-staff"
+            got = costs.without_spec_writers(got)  # the Chief of Staff's line keeps them
         rows += got
     if not any(r["calls"] for r in rows):
         raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)
@@ -1682,8 +1683,9 @@ def _chief_line(repo: Repo, d: dict) -> str:
         since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
                                     allow_empty=True)
         # what it spent steering is the steering row's: counted there, not twice
-        steered = costs.session_costs(path, *_window(d, uuid), kind="chief-of-staff",
-                                      allow_empty=True) if uuid in _claimed(d) else []
+        steered = costs.without_spec_writers(costs.session_costs(
+            path, *_window(d, uuid), kind="chief-of-staff",
+            allow_empty=True)) if uuid in _claimed(d) else []
     except ChantierError as e:
         return f"Chief of Staff: not measured ({e})"
     inside = sum(r["usd"] for r in steered)

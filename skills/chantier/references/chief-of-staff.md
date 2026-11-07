@@ -29,7 +29,8 @@ section you edit only on the user's word:
 ```
 
 A built-in role (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`, `investigator`,
-`coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`, `demo-explorer`) keeps its
+`coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`, `demo-explorer`,
+`spec-writer`) keeps its
 card; any other name is an extra review step the CR Driver runs after the Inspector. An agent
 id is what the host knows (its reference says where). You pass the team to the Foreman
 in its prompt; a running batch keeps the team it started with. The host's reference says which
@@ -43,11 +44,21 @@ $CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog 
 $CHANTIER abandon <unclaimed-folder>                  # only on the user's explicit word
 ```
 
-`file` keeps the request as received in `intake/request.md`. Write `01-intent.md`, record every
-answer in `02-answers.md`, and write the Change Specification in the same folder. Grill at any
-stage, once for all the CRs of a batch: each question carries your recommended answer; skip the
-ones whose answer would not change the specification. Only the user sets priorities and picks
-what runs. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
+`file` keeps the request as received in `intake/request.md`. Write `01-intent.md` and record every
+answer in `02-answers.md`. Grill at any stage, once for all the CRs of a batch: each question
+carries your recommended answer; skip the ones whose answer would not change the specification.
+Only the user sets priorities and picks what runs.
+
+The Change Specification is the `spec-writer`'s ([`spec-writer.md`](spec-writer.md)), not yours.
+On the user's word that a CR is grilled enough, write `work/specifying` in its folder (one line:
+the time and the agent id) and start the `spec-writer` in the background, at any time, a batch
+running or not; its prompt names the card and the CR folder. When it ends, whatever the result,
+remove `work/specifying`. Review `03-change-spec.md` against `02-answers.md` before you show it:
+nothing dropped, nothing invented. Its open questions go to the user; record the answers in
+`02-answers.md`, then run the writer again. A specified CR stays in the inbox or the backlog
+until the user prioritises it and picks it for a batch. The spec-writer takes no slot and no
+budget of any batch; its cost is on your line. A release CR's and a fix's specification stay
+yours. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link.
 
 Record at once: every human answer and decision about a CR goes into that CR's `02-answers.md`,

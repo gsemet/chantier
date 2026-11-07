@@ -847,6 +847,7 @@ def direct_batch(w: World) -> None:
     check("a direct batch runs from open to land", fm.landed and w.batch()["status"] == "landed",
           str(w.batch()["status"]))
     _, out = w.chantier("cost")
+    cost_out = out
     lines = [ln for ln in out if ln.startswith(("Foreman", "Chief of Staff (steering)", "Driver"))]
     printed = [int(a.replace(".", "")) for ln in lines for a in re.findall(r"\$(\d+\.\d{3}) \(", ln)]
     check("`cost` shows one 'Chief of Staff (steering)' row, no 'Foreman' row, and the lines add up",
@@ -862,6 +863,18 @@ def direct_batch(w: World) -> None:
     _, out = w.chantier("cost", "--summary")
     check("the summary splits the steering under its own name", out[1].startswith(
           "Chief of Staff (steering) $") and "Foreman" not in out[1], str(out))
+    # a spec-writer of the Chief of Staff, in the window: on the Chief of Staff's line, not the batch's
+    chief_before = money(cost_out, "Chief of Staff:")
+    writer = sub / "agent-agent-spec.jsonl"
+    writer.write_text("".join(msg(f"s{i}", at(30)) for i in range(2)), encoding="utf-8")
+    writer.with_suffix("").with_suffix(".meta.json").write_text(
+        json.dumps({"agentType": "spec-writer"}), encoding="utf-8")
+    _, out = w.chantier("cost")
+    check("a spec-writer's transcript is left out of the batch's cost and kept on the Chief of "
+          "Staff's line", out[0] == cost_out[0] and "spec-writer" not in "\n".join(out[:-1])
+          and money(out, "Chief of Staff:") > chief_before, f"{out} (before: {chief_before})")
+    writer.unlink()
+    writer.with_suffix("").with_suffix(".meta.json").unlink()
     # a landed batch is paused: new work reopens it, and runs
     w.chantier("order", "add", "--note", str(later))
     check("`order add` on a landed direct batch reopens it, with the new CR",
@@ -1026,6 +1039,27 @@ def board_index(w: World, d: dict) -> None:
           str(bare[:1]))
     for folder in made:
         shutil.rmtree(folder)
+    # the spec-writer's state, read from the folder: none, specifying, then specified
+    probe = next(r for r in index["backlog"] if r["title"].startswith("Board index probe"))
+    item = w.state / "3-requests" / probe["path"]
+
+    def spec_of() -> object:
+        w.chantier("file", "Spec state refresh")  # rewrites the index
+        again = json.loads(path.read_text(encoding="utf-8"))["backlog"]
+        return next(r for r in again if r["path"] == probe["path"]).get("spec")
+
+    check("an inbox item with no specification has no spec state", probe.get("spec") is None
+          and spec_of() is None, str(probe))
+    (item / "work").mkdir(exist_ok=True)
+    (item / "work" / "specifying").write_text("2026-11-07T10:00:00Z agent-1\n", encoding="utf-8")
+    check("work/specifying makes the item `specifying`, in STATUS.json and STATUS.md",
+          spec_of() == "specifying" and "specifying" in (w.state / "3-requests/STATUS.md").read_text(
+              encoding="utf-8"), "")
+    (item / "03-change-spec.md").write_text("# Spec\n", encoding="utf-8")
+    check("a specification still being written stays `specifying`", spec_of() == "specifying", "")
+    (item / "work" / "specifying").unlink()
+    check("the specification without work/specifying makes it `specified`", spec_of() == "specified"
+          and "specified" in (w.state / "3-requests/STATUS.md").read_text(encoding="utf-8"), "")
 
 
 def age_sessions(w: World, seconds: int = 600) -> None:
