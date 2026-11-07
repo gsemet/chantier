@@ -5,9 +5,9 @@ Claude Desktop app. It takes about twenty minutes, most of it waiting for the te
 
 You need:
 
-- the **Claude Desktop app**, with its Code tab. chantier starts the Foreman as a nested session,
-  which only the Desktop app can do: Claude Code in a terminal or in VS Code refuses to start a
-  batch, on purpose;
+- the **Claude Desktop app**, with its Code tab. Foreman mode starts the Foreman as a nested
+  session, which only the Desktop app can do. In a terminal or in VS Code the plan proposes
+  [direct mode](use-cases-direct.md) instead, where the Chief of Staff steers the batch itself;
 - [`uv`](https://docs.astral.sh/uv/), `git`, and your forge's CLI logged in to its host: the
   [GitHub CLI](https://cli.github.com/) `gh` (`gh auth status`) or the
   [GitLab CLI](https://gitlab.com/gitlab-org/cli) `glab` (`glab auth status`), self-hosted
@@ -29,7 +29,7 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
-This installs one skill (the Chief of Staff) and ten agents (`chantier:cr-driver`,
+This installs one skill (the Chief of Staff) and twelve agents (`chantier:cr-driver`,
 `chantier:coder`, …). Restart the Desktop app so it loads them. There is nothing else to install
 and nothing to configure.
 
@@ -69,6 +69,11 @@ not settle, and offers to write the answer in `AGENTS.md`. It records nothing an
 reads `AGENTS.md` again at every session, and everything chantier writes later goes to
 `.agents/changes/`.
 
+New to chantier, or on a project with no `.agents/changes/` yet? Type
+`/chantier:chantier init` instead. It creates the five stage folders (inbox, backlog, requests,
+archives, trash), then gives you a guided tour of your project, in the chat or as an HTML page.
+It writes nothing in the project except what you say yes to at the end.
+
 You can check at any time:
 
 ```text
@@ -83,9 +88,11 @@ chantier, file this: the login form should show an error when the password is em
 
 The Chief of Staff creates a **Change Request** folder in `.agents/changes/1-inbox/`, with
 your request kept as written. Then it asks the questions that change the result ("only on submit,
-or as you type?"), each with its recommended answer, records your answers in `02-answers.md`, and
-writes the **Change Specification** (`03-change-spec.md`). Read it: it is exactly what the team
-will build.
+or as you type?"), each with its recommended answer, and records your answers in `02-answers.md`.
+When the questions are done, it restates the CR and asks whether it is grilled enough. On your
+word, a **spec-writer** agent writes the **Change Specification** (`03-change-spec.md`) in the
+background, and the Chief of Staff shows it to you after checking it against your answers. Read
+it: it is exactly what the team will build.
 
 File as many items as you like. To prioritize one:
 
@@ -103,7 +110,8 @@ The Chief of Staff:
 
 1. runs the **preflight** (Desktop app, plugin agents, `uv`, main checkout, project
    instructions, the forge's CLI logged in) and stops with the reason if anything is missing;
-2. shows you the plan: the CRs, the slots, the budget, the agents;
+2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch
+   (a Foreman, by default);
 3. waits for your **go**.
 
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
@@ -111,7 +119,9 @@ next to your repository, which its Driver creates when it starts), then starts t
 in its own session. You will see that session in the sidebar; you never need to talk to it. In
 direct mode, which the plan proposes when a Foreman session cannot start or the batch is small, no
 Foreman starts: the Chief of Staff steers the batch itself and, while it does, answers only
-"status?", "what did it cost?", your answers to a blocked CR and orders on the batch.
+"status?", "what did it cost?", your answers to a blocked CR and orders on the batch. Direct mode
+is less dynamic (no CR joins a running batch, and that session holds no grill) but has the same
+lifecycle: running, paused, closed on your word.
 
 ## 6. Follow and steer
 
@@ -133,7 +143,8 @@ answer is recorded in the CR's `02-answers.md` and the work resumes.
 When a CR is ready, the Chief of Staff gives you its pull request. Each PR was built in rounds
 (Coder, then a fresh Inspector), passed the long gate and CI, and was checked at its pushed head
 by a Verifier that did not write it; the Driver committed, rebased, pushed and opened it by your
-project's rules. Review it like any PR. **chantier never merges your PRs**: you do (only a
+project's rules; its description follows the default PR template shipped in the skill, unless
+your project has its own template, which ranks above it. Review it like any PR. **chantier never merges your PRs**: you do (only a
 release's PR or fix is merged by the Foreman, on your word).
 
 After merging, tell it:
@@ -174,8 +185,8 @@ A built-in role keeps its contract (its card in the skill, named in the prompt t
 writes), so your agent only brings its model, tools and know-how. A new role runs after the Inspector approves each round and answers with
 the same verdict. The next batch uses the new team; a running batch keeps its own.
 
-By default the Foreman and the stack and release drivers run on Opus 5.5 (they judge: what
-goes next, what a red check means), the CR and QA drivers and the workers on Sonnet 5.5; run your own
+By default the Foreman, the spec-writer and the stack and release drivers run on Opus 5.5 (they
+judge: what goes next, what a red check means, what a specification must say), the CR and QA drivers and the workers on Sonnet 5.5; run your own
 session (the Chief of Staff) on Opus 5.5 too.
 
 None of them needs a 1M-token context. The plugin's agents compact at 200,000 tokens
@@ -191,7 +202,8 @@ included.
 ## If something goes wrong
 
 - **"chantier cannot run here: nothing was started."** The preflight names the failed condition
-  and what to do. The usual one: you are in the terminal or VS Code; open the Desktop app.
+  and what to do. The usual one: you are in the terminal or VS Code, where Foreman mode is
+  refused; the plan then offers direct mode there, or you can open the Desktop app.
 - **The app restarted during a batch.** Say "resume". The Chief of Staff checks the Foreman, and
   on your word starts a new one that picks up every CR where it was.
 - **A CR is blocked.** "status?" shows why; answer the question or drop the CR.

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 842" width="1310" height="842" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works</title>
-  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your go it starts one Foreman session per batch of changes, which starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. It runs in Claude Desktop or a Copilot SDK host.</desc>
+  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background. On your go the Chief of Staff starts one Foreman session per batch of changes (Foreman mode), or steers the batch itself in direct mode, with no Foreman session; the steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -30,10 +30,16 @@
   </g>
 
   <!-- AGENTS.md -->
-  <rect x="760" y="132" width="160" height="70" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="840" y="162" font-size="16.5" font-weight="700" fill="#0f172a" text-anchor="middle">📐 <tspan font-family="ui-monospace, Menlo, monospace">AGENTS.md</tspan></text>
-  <text x="840" y="186" font-size="14.5" fill="#475569" text-anchor="middle">your rules, your gates</text>
-  <line x1="759" y1="167" x2="714" y2="167" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <rect x="760" y="156" width="160" height="54" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="840" y="179" font-size="16.5" font-weight="700" fill="#0f172a" text-anchor="middle">📐 <tspan font-family="ui-monospace, Menlo, monospace">AGENTS.md</tspan></text>
+  <text x="840" y="200" font-size="14.5" fill="#475569" text-anchor="middle">your rules, your gates</text>
+  <line x1="759" y1="183" x2="714" y2="183" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <!-- Spec-writer: the Chief of Staff's agent -->
+  <rect x="740" y="88" width="250" height="62" rx="9" fill="#e0e7ff" stroke="#1e3a8a" stroke-width="1.5"/>
+  <text x="756" y="109" font-size="15" font-weight="700" fill="#0f172a">✍️ Spec-writer</text>
+  <g font-size="12.5" fill="#475569"><text x="756" y="127">writes the Change Specification,</text><text x="756" y="143">in the background, on your word</text></g>
+  <line x1="712" y1="141" x2="736" y2="141" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
 
   <!-- You -->
   <circle cx="170" cy="150" r="16" fill="#1e3a8a"/>
@@ -56,6 +62,17 @@
   <rect x="270" y="286" width="440" height="90" rx="12" fill="#ea580c"/>
   <text x="490" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text>
   <text x="490" y="353" font-size="15" fill="#ffedd5" text-anchor="middle">one session per batch of changes · Opus 5.5 · orchestrates</text>
+  <rect x="594" y="293" width="108" height="22" rx="11" fill="#ffffff"/>
+  <text x="648" y="308.5" font-size="12.5" font-weight="700" fill="#c2410c" text-anchor="middle">Foreman mode</text>
+
+  <!-- Direct mode: the Chief of Staff starts the Drivers itself -->
+  <path d="M300,230 V242 H250 V400" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <g font-size="12.5" fill="#1e3a8a">
+    <text x="70" y="290" font-weight="700">🤵 direct mode:</text>
+    <text x="70" y="308">the Chief of Staff</text>
+    <text x="70" y="324">steers the batch itself,</text>
+    <text x="70" y="340">no Foreman session</text>
+  </g>
 
   <!-- Foreman starts drivers: one bus, a drop per driver -->
   <g stroke="#334155" stroke-width="1.8" fill="none">
@@ -141,7 +158,11 @@
   </g>
 
   <!-- Coding agents -->
-  <rect x="1000" y="730" width="280" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="1020" y="763" font-size="17.5" font-weight="700" fill="#0f172a">Coding Agents</text>
-  <text x="1020" y="794" font-size="15.5" fill="#334155">Claude Desktop · Copilot SDK host</text>
+  <rect x="1000" y="668" width="280" height="146" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="1020" y="698" font-size="17.5" font-weight="700" fill="#0f172a">Coding Agents</text>
+  <text x="1020" y="722" font-size="13" font-weight="700" fill="#c2410c">👷 Foreman mode</text>
+  <text x="1020" y="741" font-size="14.5" fill="#334155">Claude Desktop · Copilot SDK host</text>
+  <text x="1020" y="765" font-size="13" font-weight="700" fill="#1e3a8a">🤵 direct mode</text>
+  <text x="1020" y="784" font-size="14.5" fill="#334155">any Claude Code entry point ·</text>
+  <text x="1020" y="802" font-size="14.5" fill="#334155">Copilot agent session</text>
 </svg>

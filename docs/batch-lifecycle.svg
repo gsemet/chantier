@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 880" width="1310" height="880" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+  <title>Life of a batch</title>
+  <desc>One batch at a time: it is running, then paused, and closed only on your word. The states and the transitions are the same with a Foreman (Foreman mode: a Foreman session steers the batch, CRs join it while it runs, and your session stays free to grill, file and triage) and with the Chief of Staff steering the batch itself (direct mode: no Foreman session; less dynamic, no grill in that session while the batch runs, so you grill in another session of yours and file your ideas to the backlog). Running: on your go on the plan, chantier open (Foreman mode) or chantier open --direct (direct mode) creates the batch, running; open is refused while a batch is not closed. Drivers take the CRs on the free slots; each is worked, handed back, merged by you, or dropped. A running direct batch is strict: order add and order qa are refused, except a release CR and its fixes. Paused: once every CR is merged or cancelled, the steering session removes the merged CRs' worktrees and branches, then runs chantier pause. Nothing runs; the cost to date is computed and shown; the batch's STATUS.md is its exit report; the Completion report goes to you. A paused batch, of either steering, takes new CRs: chantier order add (or order qa) sets it running again, and it pauses again at the end, with the cost to date grown. It stays paused, however long, until you say "close the batch". Closed: only on your word. chantier close is the check: it refuses, naming the cause, while anything runs or the final cost cannot be priced; otherwise it shows the final cost and what goes. On your yes, chantier close --yes deletes the batch folder, and the dropped CRs' worktrees and branches are removed with git. Without a yes, everything stays. Hold (order slots --note 0: no new Driver starts) is not a state.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <rect width="1310" height="880" fill="#f8fafc"/>
+  <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">📦 Life of a batch</text>
+  <text x="24" y="82" font-size="17.5" fill="#475569">One batch at a time: running, then paused, closed only on your word.</text>
+
+  <!-- Two steerings, one lifecycle -->
+  <rect x="24" y="100" width="1262" height="140" rx="10" fill="#eef2f7"/>
+  <text x="44" y="124" font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2">SAME STATES, SAME TRANSITIONS, WITH EITHER STEERING</text>
+  <rect x="44" y="136" width="592" height="92" rx="12" fill="#ea580c"/>
+  <text x="64" y="161" font-size="17" font-weight="700" fill="#ffffff">👷 Foreman mode</text>
+  <g font-size="13.5" fill="#ffedd5">
+    <text x="64" y="183">a Foreman session steers the batch</text>
+    <text x="64" y="201">CRs join while it runs (<tspan font-family="ui-monospace, Menlo, monospace">order add</tspan>, <tspan font-family="ui-monospace, Menlo, monospace">order qa</tspan>)</text>
+    <text x="64" y="219">your session stays free: grill, file, triage</text>
+  </g>
+  <rect x="656" y="136" width="610" height="92" rx="12" fill="#1e3a8a"/>
+  <text x="676" y="161" font-size="17" font-weight="700" fill="#ffffff">🤵 direct mode</text>
+  <g font-size="13.5" fill="#dbeafe">
+    <text x="676" y="183">the Chief of Staff steers it from your session, no Foreman session</text>
+    <text x="676" y="201">less dynamic: no grill in that session while the batch runs;</text>
+    <text x="676" y="219">grill in another session of yours, and file your ideas to the backlog</text>
+  </g>
+
+  <!-- Into running -->
+  <rect x="120" y="256" width="200" height="56" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="220" y="280" font-size="15" font-weight="700" fill="#14532d" text-anchor="middle">👤 your go</text>
+  <text x="220" y="300" font-size="13" fill="#166534" text-anchor="middle">on the plan</text>
+  <text x="340" y="289" font-size="12.5" fill="#475569"><tspan font-family="ui-monospace, Menlo, monospace">open</tspan> is refused while a batch is not closed</text>
+  <line x1="220" y1="312" x2="220" y2="396" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="236" y="322" width="130" height="26" rx="7" fill="#0f172a"/><text x="301" y="339.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">open</tspan></text>
+  <text x="376" y="339.5" font-size="12.5" fill="#9a3412">👷 Foreman mode</text>
+  <rect x="236" y="356" width="196" height="26" rx="7" fill="#0f172a"/><text x="334" y="373.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">open --direct</tspan></text>
+  <text x="442" y="373.5" font-size="12.5" fill="#1e3a8a">🤵 direct mode</text>
+
+  <!-- State: running -->
+  <rect x="60" y="400" width="320" height="220" rx="14" fill="#fff7ed" stroke="#ea580c" stroke-width="2.5"/>
+  <text x="220" y="440" font-size="22" font-weight="700" fill="#c2410c" text-anchor="middle">▶️ running</text>
+  <g font-size="14" fill="#334155" text-anchor="middle">
+    <text x="220" y="470">Drivers take the CRs on the free slots;</text>
+    <text x="220" y="490">each is worked, handed back,</text>
+    <text x="220" y="510">merged by you, or dropped</text>
+  </g>
+  <rect x="76" y="526" width="288" height="80" rx="10" fill="#dbeafe" stroke="#1e3a8a" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="220" y="549" font-size="13.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">🤵 direct mode: strict while running</text>
+  <g font-size="12.5" fill="#1e3a8a" text-anchor="middle">
+    <text x="220" y="569"><tspan font-family="ui-monospace, Menlo, monospace">order add</tspan> and <tspan font-family="ui-monospace, Menlo, monospace">order qa</tspan> refused,</text>
+    <text x="220" y="587">except a release CR and its fixes</text>
+  </g>
+
+  <!-- running → paused -->
+  <line x1="380" y1="470" x2="556" y2="470" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <g font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">
+    <text x="468" y="430">✅ every CR merged</text>
+    <text x="468" y="447">or cancelled</text>
+  </g>
+  <rect x="398" y="457" width="140" height="26" rx="7" fill="#0f172a"/><text x="468" y="474.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">pause</tspan></text>
+  <g font-size="12.5" fill="#475569" text-anchor="middle">
+    <text x="468" y="506">first, the steering session</text>
+    <text x="468" y="522">removes the merged CRs'</text>
+    <text x="468" y="538">worktrees and branches</text>
+  </g>
+
+  <!-- State: paused -->
+  <rect x="560" y="400" width="300" height="220" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2.5"/>
+  <text x="710" y="440" font-size="22" font-weight="700" fill="#1e3a8a" text-anchor="middle">⏸️ paused</text>
+  <g font-size="14" fill="#334155" text-anchor="middle">
+    <text x="710" y="468">nothing runs</text>
+    <text x="710" y="489">📊 cost to date, computed and shown</text>
+    <text x="710" y="510">📄 <tspan font-family="ui-monospace, Menlo, monospace">STATUS.md</tspan>: the exit report</text>
+    <text x="710" y="531">Completion report to you</text>
+    <text x="710" y="552" font-weight="700" fill="#1e3a8a">takes new CRs, either steering</text>
+  </g>
+  <rect x="580" y="566" width="260" height="42" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <g font-size="12" fill="#1e3a8a" text-anchor="middle">
+    <text x="710" y="583">stays paused, however long,</text>
+    <text x="710" y="599">until you say “close the batch”</text>
+  </g>
+
+  <!-- paused → running: new work -->
+  <path d="M710,620 V680 H220 V624" stroke="#2563eb" stroke-width="1.8" fill="none" marker-end="url(#arrow-blue)"/>
+  <rect x="366" y="667" width="170" height="26" rx="7" fill="#0f172a"/><text x="451" y="684.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">order add</tspan></text>
+  <rect x="546" y="672" width="112" height="18" fill="#f8fafc"/>
+  <text x="550" y="685" font-size="12.5" fill="#1e3a8a">(or <tspan font-family="ui-monospace, Menlo, monospace">order qa</tspan>)</text>
+  <text x="466" y="712" font-size="12.5" fill="#475569" text-anchor="middle">new work sets it running again; it pauses again at the end, the cost to date grown</text>
+
+  <!-- paused → closed -->
+  <line x1="860" y1="470" x2="1036" y2="470" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="872" y="432" width="152" height="26" rx="13" fill="#16a34a"/><text x="948" y="449.5" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">👤 only on your word</text>
+  <text x="948" y="496" font-size="12.5" fill="#475569" text-anchor="middle">the check,</text>
+  <text x="948" y="512" font-size="12.5" fill="#475569" text-anchor="middle">then your yes</text>
+  <line x1="948" y1="522" x2="948" y2="644" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+  <!-- State: closed -->
+  <rect x="1040" y="400" width="240" height="220" rx="14" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
+  <text x="1160" y="440" font-size="22" font-weight="700" fill="#0f172a" text-anchor="middle">⏹️ closed</text>
+  <g font-size="14" fill="#334155" text-anchor="middle">
+    <text x="1160" y="474">the batch folder</text>
+    <text x="1160" y="494">is deleted</text>
+    <text x="1160" y="526">the dropped CRs'</text>
+    <text x="1160" y="546">worktrees and branches</text>
+    <text x="1160" y="566">are removed with git</text>
+  </g>
+
+  <!-- Closing, on your word -->
+  <rect x="880" y="644" width="406" height="210" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="900" y="670" font-size="15" font-weight="700" fill="#0f172a">🔒 Closing, only on your word</text>
+  <text x="900" y="694" font-size="13.5" fill="#14532d" font-weight="600">👤 you say “close the batch”</text>
+  <rect x="900" y="706" width="140" height="26" rx="7" fill="#0f172a"/><text x="970" y="723.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">close</tspan></text>
+  <text x="1050" y="723.5" font-size="12.5" font-weight="700" fill="#0f172a">the check</text>
+  <g font-size="12.5" fill="#475569">
+    <text x="900" y="752">refused, naming the cause, while anything runs</text>
+    <text x="900" y="768">or the final cost cannot be priced;</text>
+    <text x="900" y="784">otherwise: the final cost and what goes</text>
+  </g>
+  <rect x="900" y="796" width="196" height="26" rx="7" fill="#0f172a"/><text x="998" y="813.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">close --yes</tspan></text>
+  <text x="1106" y="813.5" font-size="12.5" font-weight="700" fill="#14532d">👤 on your yes</text>
+  <text x="900" y="842" font-size="12.5" fill="#475569" font-style="italic">Without a yes, everything stays.</text>
+
+  <!-- Hold is not a state -->
+  <rect x="60" y="744" width="470" height="56" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.5" stroke-dasharray="6 3"/>
+  <text x="80" y="767" font-size="14" font-weight="700" fill="#0f172a">✋ hold is not a state</text>
+  <text x="80" y="788" font-size="12.5" fill="#475569"><tspan font-family="ui-monospace, Menlo, monospace">order slots --note 0</tspan>: no new Driver starts</text>
+</svg>
