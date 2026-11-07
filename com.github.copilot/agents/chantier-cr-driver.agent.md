@@ -1,6 +1,6 @@
 ---
 name: chantier-cr-driver
-description: Drives one chantier change request through rounds, ship, CI and hand-back. Started by the Foreman.
+description: Drives one chantier change request through rounds, ship, CI and hand-back. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).
 model: [Claude Sonnet 5.5, claude-sonnet-5.5]
 model-policy: required
 tools: ["agent", "execute", "read", "edit", "search", "read_agent", "write_agent", "list_agents"]

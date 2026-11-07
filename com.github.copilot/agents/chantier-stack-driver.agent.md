@@ -1,6 +1,6 @@
 ---
 name: chantier-stack-driver
-description: Orders, restacks and ships a chantier stack of pull requests. Started by the Foreman.
+description: Orders, restacks and ships a chantier stack of pull requests. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).
 model: [Claude Opus 5.5, claude-opus-5.5]
 model-policy: required
 tools: ["agent", "execute", "read", "edit", "search", "read_agent", "write_agent", "list_agents"]

@@ -186,3 +186,39 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines() and all(
         line.startswith("?? .agents/changes/")
         for line in sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines())
+
+
+def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch):
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-chief")
+    first, second = _prepared(repo, chantier), _prepared(repo, chantier, "Fix logout")
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID")
+    code, _, err = chantier("open", str(first), "--direct", *FROM_AGENTS_MD)
+    assert code == 2 and "session id" in err  # nothing could tell a Foreman's claim from its own
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-chief")
+    code, out, err = chantier("open", str(first), "--direct", *FROM_AGENTS_MD)
+    assert code == 0, err
+    assert out[1].endswith("then steer it yourself")
+    batch = next((repo / ".agents" / "changes").glob("**/batch.json"))
+    assert json.loads(batch.read_text(encoding="utf-8"))["steering"] == "direct"
+    assert "Steering: direct" in (batch.parent / "brief.md").read_text(encoding="utf-8")
+    assert " steering direct " in chantier("status")[1][0]
+    assert "steering direct" in (batch.parent / "STATUS.md").read_text(encoding="utf-8")
+    for kind, note in (("add", str(second)), ("qa", "test it")):
+        code, _, err = chantier("order", kind, "--note", note)
+        assert code == 2 and "a direct batch is strict" in err
+    assert chantier("order", "note", "CR-101", "--note", "hello")[0] == 0  # the rest still works
+
+
+def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(
+        repo, chantier, monkeypatch):
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
+    code, out, _ = chantier("preflight")
+    assert code == 2 and any(ln.startswith("P1 FAIL") for ln in out)
+    code, out, _ = chantier("preflight", "--direct")
+    assert code == 0, out
+    assert any(ln.startswith("P1 ok") for ln in out)
+    assert any(ln.startswith("P3, P9 and") for ln in out) and not any("P2" in ln for ln in out)
+    chantier("open", str(_prepared(repo, chantier)), *FROM_AGENTS_MD)
+    assert chantier("order", "qa", "--note", "test it")[0] == 0

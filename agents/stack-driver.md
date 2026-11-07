@@ -1,6 +1,6 @@
 ---
 name: stack-driver
-description: Orders, restacks and ships a chantier stack of pull requests. Started by the Foreman.
+description: Orders, restacks and ships a chantier stack of pull requests. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).
 model: claude-opus-5-5
 autoCompactWindow: 200000
 tools: Agent, Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor

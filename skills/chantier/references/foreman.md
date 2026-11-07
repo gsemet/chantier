@@ -9,7 +9,8 @@ yourself (your host's reference says how; where it offers no way, the title stay
 [concepts](concepts.md), your host's reference ([Claude Code](hosts/claude-code.md) or
 [Copilot](hosts/copilot.md): the tools, the heartbeat, the sessions) and the project's rules (`$CHANTIER rules`), then the brief and
 `$CHANTIER status`, and decide from there: which CR a Driver takes next, what a Driver must
-hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement.
+hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
+steers the batch itself, with the differences of [chief-of-staff](chief-of-staff.md#steering-a-batch-yourself).
 
 ## Your goal
 

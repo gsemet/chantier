@@ -32,7 +32,9 @@ Only on your explicit word does a CR go to `5-trash/`.
 
 After the preflight, the plan and your go, the Foreman runs up to three CRs at once. A CR that
 needs you is parked as blocked with its question; the others go on. Past the budget, nothing new
-starts until you answer. In the morning:
+starts until you answer. (In direct mode, which the Chief of Staff proposes when the host cannot
+start a Foreman session or the batch is small, it steers the batch itself: the same limits and
+reports, and no CR is added while it runs.) In the morning:
 
 > "Status?" · "What did it cost, by CR?"
 

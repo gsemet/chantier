@@ -108,7 +108,10 @@ The Chief of Staff:
 
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
 next to your repository, which its Driver creates when it starts), then starts the **Foreman**
-in its own session. You will see that session in the sidebar; you never need to talk to it.
+in its own session. You will see that session in the sidebar; you never need to talk to it. In
+direct mode, which the plan proposes when a Foreman session cannot start or the batch is small, no
+Foreman starts: the Chief of Staff steers the batch itself and, while it does, answers only
+"status?", "what did it cost?", your answers to a blocked CR and orders on the batch.
 
 ## 6. Follow and steer
 

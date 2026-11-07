@@ -33,7 +33,8 @@ def running(repo: Repo, d: dict) -> list[str]:
     nothing does. A long tool call writes nothing, so the recorded state is the first proof and
     the files only the second. The Foreman's session tree is all the CLI knows: a Driver run
     from another session of the user's is not in it. The Chief of Staff's own session is not
-    counted: it is the one that closes."""
+    counted: it is the one that closes, and on a direct batch it is also the steering session,
+    so its own file is skipped and its subagents (the Drivers) are checked."""
     causes = [f"{c['id']} is {c['status']}, not merged or cancelled"
               for c in d["crs"] if c["status"] not in ENDED]
     causes += [f"order {o['id']} ({o['kind']}) is open" for o in d.get("orders", [])
@@ -41,7 +42,7 @@ def running(repo: Repo, d: dict) -> list[str]:
     if d.get("stack_agent"):
         causes.append(f"stack agent {d['stack_agent']} is recorded")
     sessions = [s for s in (d.get("foreman_transcripts") or [d.get("foreman_transcript")]) if s]
-    for label, age in costs.idle_seconds(repo.root, d["host"], sessions):
+    for label, age in costs.idle_seconds(repo.root, d["host"], sessions, d.get("chief_transcript")):
         if age is None:
             causes.append(f"{label}: not measured")
         elif age < QUIET_SECONDS:

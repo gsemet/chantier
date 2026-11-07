@@ -15,6 +15,11 @@ the Foreman `$CHANTIER status`, a new Driver `$CHANTIER handoff <cr>`.
 | QA driver → Foreman | `qa done <folder> <n> findings` |
 | Stack driver → Foreman | `hand-back ready <cr>=<link>…`, `anomaly <cr> <text>` |
 
+In direct mode the steering session is the Chief of Staff: the rows between the Chief of Staff and
+the Foreman do not travel (what it would send itself is not sent; an ask is still recorded with
+`$CHANTIER asks`), and a Driver's lines go to the Chief of Staff, keeping the `foreman` prefix of
+the steering session's lines.
+
 The Chief of Staff's subagents (the Demo explorer) answer the Chief of Staff alone, in their
 reply; they send no line to the Foreman or a Driver.
 

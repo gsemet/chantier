@@ -1,6 +1,6 @@
 ---
 name: qa-driver
-description: Uses the project's head as its user would and leaves its findings in a work folder. Started by the Foreman.
+description: Uses the project's head as its user would and leaves its findings in a work folder. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
 tools: Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor

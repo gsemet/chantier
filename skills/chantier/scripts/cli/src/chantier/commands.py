@@ -144,6 +144,10 @@ def preflight(args) -> tuple[list[str], int]:
         check("P1", bool(os.environ.get("COPILOT_AGENT_SESSION_ID")),
               "host is a Copilot agent session",
               "host is Copilot but COPILOT_AGENT_SESSION_ID is empty: not a Copilot agent session")
+    elif getattr(args, "direct", False):  # the Chief of Staff steers: no session to start
+        check("P1", bool(entry), f"host is Claude Code ({entry})",
+              "host is unknown (CLAUDE_CODE_ENTRYPOINT is empty), not a Claude Code or a "
+              "Copilot agent session")
     else:
         check("P1", entry == "claude-desktop", "host is Claude Desktop",
               f"host is {entry or 'unknown'} (CLAUDE_CODE_ENTRYPOINT), not claude-desktop "
@@ -174,7 +178,8 @@ def preflight(args) -> tuple[list[str], int]:
         found = project_instructions(repo)
         check("P8", found is not None, f"project instructions: {found.name if found else ''}",
               f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
-    lines.append("P2, P3, P9 and 'not unattended' are the Chief of Staff's own checks")
+    own = "P3, P9" if getattr(args, "direct", False) else "P2, P3, P9"
+    lines.append(f"{own} and 'not unattended' are the Chief of Staff's own checks")
     lines.append("preflight passed" if ok else "preflight FAILED: start nothing")
     return lines, 0 if ok else EXIT_PRECONDITION
 
@@ -456,6 +461,13 @@ def open_batch(args) -> list[str]:
         check_grant(release, args.budget)
     elif args.autonomous_releases or args.grant_fixes:
         raise ChantierError("--autonomous-releases and --grant-fixes need --release", EXIT_USAGE)
+    chief = os.environ.get(
+        "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID") or None
+    if args.direct and not chief:
+        raise ChantierError("--direct needs the Chief of Staff's own session id "
+                            "(CLAUDE_CODE_SESSION_ID or COPILOT_AGENT_SESSION_ID): none is known, "
+                            "so a Foreman's claim could not be told from the Chief of Staff's",
+                            EXIT_PRECONDITION)
     selected = [prepared_cr(repo, item, paths).directory for item in args.items]
     if len(set(selected)) != len(selected):
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
@@ -463,10 +475,9 @@ def open_batch(args) -> list[str]:
             "host": host, "mode": "parallel" if args.parallel else "stack", "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
-            "foreman_transcripts": [],
-            "chief_transcript": os.environ.get(
-                "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID")
-            or None,
+            "foreman_transcripts": [], "foreman_claims": [],
+            "steering": "direct" if args.direct else "foreman",
+            "chief_transcript": chief,
             "stack_agent": None, "heartbeat": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     with changes_lock(repo):
@@ -481,7 +492,8 @@ def open_batch(args) -> list[str]:
             release_waits_for_all(b)
             brief.write_text(
                 f"# {b.id}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
-                f"Budget: {args.budget or 'none'}. Host: {host}.\n"
+                f"Budget: {args.budget or 'none'}. Host: {host}. "
+                f"Steering: {data['steering']}.\n"
                 "- CRs, in order:\n" +
                 "".join(f"  - {c['id']}: {c['title']} ({c['path']})"
                         f"{_release_tag(b, c) if c['kind'] == 'release' else ''}"
@@ -494,10 +506,11 @@ def open_batch(args) -> list[str]:
                 encoding="utf-8")
             b.log("open", None, crs=[c["id"] for c in b.data["crs"]])
     lines = [f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots, "
-             f"{data['mode']}"]
+             f"{data['mode']}, steering {data['steering']}"]
     short = lambda p: str(p).replace("\\", "/").split("changes/")[-1]  # noqa: E731
     # the next step comes before the CR list: past ten lines it is the list that is cut
-    lines.append(f"next: complete the brief {_shown(repo, brief)}, then start the Foreman")
+    lines.append(f"next: complete the brief {_shown(repo, brief)}, then "
+                 + ("steer it yourself" if args.direct else "start the Foreman"))
     lines += [f"{c['id']} {c['title'][:40]}: {short(src)} -> {short(c['path'])}"
               for c, src in zip(b.data["crs"], selected)]
     return lines
@@ -536,6 +549,13 @@ def foreman(args) -> list[str]:
         seen = b.data.setdefault("foreman_transcripts", [])  # a relay keeps the earlier ones
         if args.value not in seen:
             seen.append(args.value)
+            # each steering transcript is priced from its claim to the next one
+            b.data.setdefault("foreman_claims", []).append(
+                {"transcript": args.value, "since": now()})
+        if (b.data.get("steering") == "direct" and b.data.get("chief_transcript")
+                and args.value != b.data["chief_transcript"]):
+            b.data["steering"] = "foreman"  # a Foreman took the batch over from the Chief of Staff
+            b.log("steering", None, steering="foreman", transcript=args.value)
         b.log("foreman-transcript", None, transcript=args.value)
         return [f"transcript {args.value}"]
 
@@ -799,6 +819,9 @@ def order(args) -> list[str]:
         with Batch(repo, resolve_batch(repo, args.batch),
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
+            if args.kind in {"add", "qa"} and b.data.get("steering") == "direct":
+                raise ChantierError("a direct batch is strict: switch to Foreman mode to add work",
+                                    EXIT_PRECONDITION)
             cr = args.cr
             reopened = []
             if args.kind in {"add", "qa"} and b.data["status"] == "landed":
@@ -901,6 +924,7 @@ def status(args) -> tuple[list[str], int]:
     n_live = len(held(view))
     queued = sum(1 for c in d["crs"] if c["status"] == "queued")
     lines = [f"{d['id']} {d['status']} {d['mode']} live {n_live}/{d['slots']} queued {queued} "
+             f"steering {d.get('steering', 'foreman')} "
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
              f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
              f" spent ${d.get('spent_usd', 0):.2f}"
@@ -1580,16 +1604,39 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
     """Every Foreman of the batch, summed, from its opening to now: `land` ends no window, a
     call made after it is spend."""
     rows: list[dict] = []
+    chief = d.get("chief_transcript")
     for uuid in uuids:
+        steering = bool(chief) and uuid == chief  # the Chief of Staff's own steering window
         if host == "copilot":
-            rows += costs.copilot_session_costs(uuid)
+            got = costs.copilot_session_costs(uuid)  # no timestamps: the whole session
         else:
-            rows += costs.session_costs(costs.transcript_path(repo.root, uuid),
-                                        d.get("created", ""), "",
-                                        allow_empty=len(uuids) > 1)
+            since, until = _window(d, uuid)
+            got = costs.session_costs(costs.transcript_path(repo.root, uuid), since, until,
+                                      kind="chief-of-staff" if steering else "foreman",
+                                      allow_empty=len(uuids) > 1)
+        if steering:
+            got[0]["type"] = "chief-of-staff"
+        rows += got
     if not any(r["calls"] for r in rows):
         raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)
     return rows
+
+
+def _window(d: dict, uuid: str) -> tuple[str, str]:
+    """The part of a steering transcript that belongs to the batch's steering: a Foreman's from
+    the batch's opening (its startup is the batch's), the Chief of Staff's from its claim; each
+    ends where the next claim begins. A batch with no recorded claims has no end."""
+    claims = d.get("foreman_claims") or []
+    names = [c["transcript"] for c in claims]
+    if uuid not in names:
+        return d.get("created", ""), ""
+    i = names.index(uuid)
+    since = claims[i]["since"] if uuid == d.get("chief_transcript") else d.get("created", "")
+    return since, claims[i + 1]["since"] if i + 1 < len(claims) else ""
+
+
+def _claimed(d: dict) -> list[str]:
+    return [c["transcript"] for c in d.get("foreman_claims") or []]
 
 
 def _foreman_uuid(d: dict) -> list[str]:
@@ -1609,10 +1656,14 @@ def _chief_line(repo: Repo, d: dict) -> str:
         whole = costs.session_costs(path, kind="chief-of-staff")
         since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
                                     allow_empty=True)
+        # what it spent steering is the steering row's: counted there, not twice
+        steered = costs.session_costs(path, *_window(d, uuid), kind="chief-of-staff",
+                                      allow_empty=True) if uuid in _claimed(d) else []
     except ChantierError as e:
         return f"Chief of Staff: not measured ({e})"
-    return (f"Chief of Staff: ${sum(r['usd'] for r in since):.2f} since the batch opened, "
-            f"${sum(r['usd'] for r in whole):.2f} the whole session, "
+    inside = sum(r["usd"] for r in steered)
+    return (f"Chief of Staff: ${sum(r['usd'] for r in since) - inside:.2f} since the batch opened, "
+            f"${sum(r['usd'] for r in whole) - inside:.2f} the whole session, "
             f"context {whole[0]['last_context']:,} tokens")
 
 
@@ -1669,10 +1720,23 @@ def _kind(r: dict) -> str:
     with no parent, a worker one with a parent. No role name: the type is the host's own string.
     Where the host gives no parent link (Copilot), the agent is only an agent."""
     if r["agent"] == "main":
-        return "Foreman"
+        return "Foreman"  # the steering session; `_label` says whose
     if "parent" not in r:
         return "Agent"
     return "Worker" if r["parent"] else "Driver"
+
+
+STEERING = "Chief of Staff (steering)"
+
+
+def _label(r: dict) -> str:
+    """The steering row of a direct batch is the Chief of Staff's, a Foreman's is the Foreman's."""
+    return STEERING if r["agent"] == "main" and r.get("type") == "chief-of-staff" else _kind(r)
+
+
+def _steers(mains: list[dict]) -> str:
+    names = list(dict.fromkeys(_label(r) for r in mains))
+    return " and ".join(names) or "Foreman"
 
 
 def _breakdown(rows: list[dict]) -> list[dict]:
@@ -1681,8 +1745,8 @@ def _breakdown(rows: list[dict]) -> list[dict]:
     entries: dict[tuple[str, str], dict] = {}
     for r in rows:
         kind = _kind(r)
-        e = entries.setdefault((kind, "" if kind == "Foreman" else r["type"]), {
-            "kind": kind, "label": kind if kind == "Foreman" else f"{kind} {r['type']}",
+        e = entries.setdefault((kind, _label(r) if kind == "Foreman" else r["type"]), {
+            "kind": kind, "label": _label(r) if kind == "Foreman" else f"{kind} {r['type']}",
             "rows": [], "calls": 0, "usd": 0.0})
         e["rows"].append(r)
         e["calls"] += r["calls"]
@@ -1741,11 +1805,13 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
     total = sum(r["usd"] for r in rows)
     budget = d.get("budget_usd")
     entries = _breakdown(rows)
+    mains = [r for r in rows if r["agent"] == "main"]  # one per steering session of the batch
+    steer = _steers(mains)
     kinds = [(name, sum(e["usd"] for e in entries if e["kind"] == kind))
-             for name, kind in (("Foreman", "Foreman"), ("Drivers", "Driver"),
+             for name, kind in ((steer, "Foreman"), ("Drivers", "Driver"),
                                 ("workers", "Worker"), ("agents, Driver or worker not measured",
                                                          "Agent"))]
-    kinds = [k for k in kinds if k[1] or k[0] in ("Foreman", "Drivers", "workers")]
+    kinds = [k for k in kinds if k[1] or k[0] in (steer, "Drivers", "workers")]
     parts = [usd for _, usd in kinds]
     cents = _apportion(parts, round(total * 100))
     shares = _apportion(parts, 100) if total else [0] * len(parts)
@@ -1753,9 +1819,8 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
                       for (name, _), c, s in zip(kinds, cents, shares))
     measured = all("parent" in r for r in rows if r["agent"] != "main")
     top = sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
-    mains = [r for r in rows if r["agent"] == "main"]  # one per Foreman session of the batch
     n = sum(r.get("wakes", 0) for r in mains)
-    wakes = [f"Foreman: {n} wakes, context "
+    wakes = [f"{steer}: {n} wakes, context "
              f"{sum(r.get('wake_context', 0) for r in mains) // n:,} tokens on average, "
              f"{max(r.get('peak_context', 0) for r in mains):,} at its peak"] if n else []
     return [f"Total: ${total:.2f}" + (f" of a ${budget:g} budget" if budget else ", no budget"),

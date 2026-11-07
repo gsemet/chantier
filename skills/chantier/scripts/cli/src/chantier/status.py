@@ -267,7 +267,7 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
 
 def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
     return {"schema": SCHEMA, "updated": now(), "batch": d["id"], "folder": folder.name,
-            "state": d["status"], "mode": d.get("mode"),
+            "state": d["status"], "mode": d.get("mode"), "steering": d.get("steering", "foreman"),
             "spent_usd": d.get("spent_usd", 0), "budget_usd": d.get("budget_usd"),
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
@@ -284,7 +284,7 @@ def _budget(v: dict) -> str:
 
 def batch_markdown(v: dict) -> str:
     lines = [f"# {v['folder']}: {v['state']}", "",
-             f"Updated {v['updated']} · spent {_budget(v) if v['priced'] else 'unknown'}"
+             f"Updated {v['updated']} · steering {v.get('steering', 'foreman')} · spent {_budget(v) if v['priced'] else 'unknown'}"
              f"{' (not final)' if v['landed'] and v['priced'] else ''} · "
              f"{v['asks_unread']} asks unread · "
              f"{v['orders_pending']} orders pending", "",

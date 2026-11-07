@@ -74,16 +74,23 @@ Only in the turn where the user gave the go:
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and
-   what the user can do.
+   what the user can do. In direct mode (step 2) run `$CHANTIER preflight --direct`: P1 then
+   passes on any Claude Code entry point or a Copilot agent session, and you leave P2 out, since
+   no session is started.
 2. **Show the plan:** the CRs and what each one waits for, with the reason of any queue that is
    no real dependency; how many CRs start at once, on how many slots (4 unless you say
-   otherwise); mode (a stack unless the CRs are independent), budget, the team. Then the go. While a batch is open, whatever its state
+   otherwise); mode (a stack unless the CRs are independent), budget, the team; and who steers
+   the batch. **Foreman mode** (a separate Foreman session) is the default. Propose **direct
+   mode** (you steer the batch yourself, no Foreman session) when the host cannot start a Foreman
+   session (a terminal or IDE host, a Remote Control session with no Foreman to reuse) or when the
+   batch has few CRs, and say why in the plan. The limits are the same in both modes; there is no
+   CR threshold of its own. Then the go. While a batch is open, whatever its state
    until `close`, there is no new plan: new work joins it with `order add`.
 3. **Open:**
 
    ```bash
    $CHANTIER open <prepared-folder>… [--default-branch <branch>] [--slots N] \
-     [--budget USD] [--parallel] [--release N]
+     [--budget USD] [--parallel] [--release N] [--direct]
    ```
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
@@ -91,7 +98,9 @@ Only in the turn where the user gave the go:
    each folder to `3-requests/<batch>/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back).
-4. **Start the Foreman**, `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one; a new
+4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
+   ([Steering a batch yourself](#steering-a-batch-yourself)); `open --direct` refuses when your
+   own session id is unknown. Starting the Foreman: `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one; a new
    batch starts at 0, so claims 1, even in a reused session):
 
    ```text
@@ -213,11 +222,11 @@ Only in the turn where the user gave the go:
   reference says how): a refused send is reported, never sent another way.
 - **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at landing, the
   lines of `$CHANTIER cost`, as printed and in that order (a CR's own figure is the last field of
-  its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman,
-  one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff:`
+  its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman
+  (in direct mode, `Chief of Staff (steering)`), one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff:`
   line of that output, with its two figures (since the batch opened, the whole session) and its
   context size. The CLI knows who is who from the record, not from a role name: the Foreman is
-  the main agent, a Driver has no parent, a worker has one, and a Driver of the user's own gets
+  the main agent (the steering session), a Driver has no parent, a worker has one, and a Driver of the user's own gets
   its line under the type the host gives it. You group, add and regroup nothing: no orchestration,
   implementation or review lines. Give no figure when it fails; `not measured` stays `not
   measured` (on Copilot, where the host gives no parent link, an agent's line says only its
@@ -285,13 +294,55 @@ Only in the turn where the user gave the go:
 - **Putting back:** on the user's word, a CR in `5-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.
 
+## Steering a batch yourself
+
+In direct mode no Foreman session is started: you steer the batch from your own session. The CR
+lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `land`, `close`), the folders,
+`STATUS.md`, the reports and the user's boundaries are the same in both modes. Read
+[foreman](foreman.md) and your host's reference ([Claude Code](hosts/claude-code.md) or
+[Copilot](hosts/copilot.md)) and do what they say of the Foreman, until the batch completes, with
+these differences.
+
+- **Your epoch.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
+  <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
+  <n>`; carry `--epoch <n>` on every steering command (`take`, `agents set`, `status
+  --refresh`, `order done`, `order merged`, `cancel`, `land`) and arm the same heartbeat, as
+  your host's reference says. The CLI prices your transcript from that claim, as one `Chief of
+  Staff (steering)` row; the `Chief of Staff:` line then leaves that window out, and the steering
+  counts in the spend and the budget as a Foreman's does.
+- **The Drivers.** You start them, several in parallel on the free slots, in the background, and
+  hear their hand-backs, as the Foreman's card says. "Never message a Driver" does not hold for the
+  Drivers of a batch you steer.
+- **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
+  ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
+  user at once, in the report's shape. A Driver's refused force push is run by you, as above; the
+  Driver hears the result as a note.
+- **The batch is strict.** No CR joins it while it runs: `order add` and `order qa` are refused
+  by the CLI (exit 2). A release fix that needs `order add --fix-for` is an ask to the user, who
+  may switch the batch to Foreman mode.
+- **What you accept while you steer:** "status?" and "what did it cost?"; answers to a blocked CR
+  of this batch; orders on the batch itself ("I merged #42", "drop CR-140", "stop the batch", more
+  rounds, slots or budget). Any other request is noted word for word and handed back when the
+  batch completes; an idea may be filed in the inbox at once (`file`, no grill). You hold no
+  grill, no triage, no demo and no discussion until the batch completes.
+- **The end.** `$CHANTIER land --epoch <n>`, then, with nothing running, the `close` flow of
+  Landing: the bilan, the final cost, `close --yes` on the user's yes. `close` does not count your
+  own session's file as something that runs, only your Drivers'.
+- **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:
+  preflight in Foreman mode passes first (P1, P2), and on Remote Control the switch needs a
+  Foreman to reuse, else it is refused, with the reason. Start no new Driver; let the running ones
+  hand back (or stop them: a new Driver resumes with `handoff`); then start the Foreman with the
+  next epoch, as in Starting a batch. Your epoch is then stale and the CLI refuses your steering
+  commands (exit 3); the batch's steering becomes Foreman. A Foreman batch does not switch to
+  direct mode.
+
 ## Subagents and the demo
 
 You may start a subagent of your own for an exploration, a prototype or a study, in this
 session; its result is a report or a study. It never starts an implementation: no commit, no
 push, no PR, nothing in a CR's worktree, and a prototype lives in a temporary folder and is
 thrown away. Implementation goes through a CR and the Foreman. Its cost is in your line of the
-cost table, outside the budget. Still no message to a Driver.
+cost table, outside the budget. In Foreman mode, still no message to a Driver.
 
 - **The offer.** On the Foreman's `ready` that is the last of a stack, when no CR of the batch
   is working, end the Progress report with the offer of a demo of what the stack delivers.
@@ -339,8 +390,9 @@ read `work/retro.md` in the archived folder and offer to file each proposal as a
 - Start a session in a turn the user did not start, or when preflight fails.
 - Merge, or start a backlog item the user did not choose; approve an irreversible action or
   widen a grant without the user's own word.
-- Message a Driver, do the Foreman's or a Driver's work (but the refused force push above), or
-  let a subagent implement.
+- In Foreman mode, message a Driver or do the Foreman's or a Driver's work (but the refused force
+  push above); in direct mode the Foreman's work is yours (Steering a batch yourself), a
+  Driver's still not. Never let a subagent implement.
 - Edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - Run `close --yes`, or remove a dropped CR's worktree or branch (`git worktree remove`, `git
   branch -D`), without the user's yes in this turn. The Foreman's cleanup of merged CRs is its
