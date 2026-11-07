@@ -114,6 +114,7 @@ Talk to the Chief of Staff in plain language:
 
 | You say | What happens |
 | --- | --- |
+| "init", "I am new here" | the five stage folders are created, then a guided tour of how your project works with chantier |
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "run the P1s", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go |

@@ -222,3 +222,21 @@ def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(
     assert any(ln.startswith("P3, P9 and") for ln in out) and not any("P2" in ln for ln in out)
     chantier("open", str(_prepared(repo, chantier)), *FROM_AGENTS_MD)
     assert chantier("order", "qa", "--note", "test it")[0] == 0
+
+
+def test_init_creates_the_five_folders_once_and_refuses_outside_a_main_checkout(
+        repo, chantier, tmp_path, monkeypatch):
+    code, out, _ = chantier("init")
+    assert code == 0 and [ln.split()[0] for ln in out] == ["created"] * 5
+    changes = repo / ".agents" / "changes"
+    assert sorted(p.name for p in changes.iterdir()) == [
+        "1-inbox", "2-backlog", "3-requests", "4-archives", "5-trash"]
+    assert not list(changes.rglob("*.*"))  # empty, no .gitkeep
+    assert [ln.split()[0] for ln in chantier("init")[1]] == ["exists"] * 5
+    sh("git", "worktree", "add", "--quiet", str(tmp_path / "wt"), "-b", "side", cwd=repo)
+    monkeypatch.chdir(tmp_path / "wt")
+    code, _, err = chantier("init")
+    assert code == 2 and "main checkout" in err
+    monkeypatch.chdir(tmp_path.parent)
+    code, _, err = chantier("init")
+    assert code == 2 and "git" in err

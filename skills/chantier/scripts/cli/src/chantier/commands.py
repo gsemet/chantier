@@ -184,6 +184,28 @@ def preflight(args) -> tuple[list[str], int]:
     return lines, 0 if ok else EXIT_PRECONDITION
 
 
+# ---- init -------------------------------------------------------------------------------------
+
+def init(args) -> list[str]:
+    """Create the five stage folders, empty; leave the ones that exist; write nothing else."""
+    try:
+        repo = Repo.find()
+    except ChantierError as e:
+        raise ChantierError(f"no git repository found ({e}): chantier needs one; "
+                            "run `git init` first", EXIT_PRECONDITION) from e
+    gitdir = Path(git("rev-parse", "--path-format=absolute", "--git-dir", check=False)
+                  or ".").resolve()
+    if gitdir != repo.git_dir:  # preflight's P7
+        raise ChantierError("this is a linked worktree: init runs in the main checkout "
+                            f"({repo.root})", EXIT_PRECONDITION)
+    lines = []
+    for folder in stage_layout(repo).values():
+        existed = folder.is_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        lines.append(f"{'exists ' if existed else 'created'} {_shown(repo, folder)}")
+    return lines
+
+
 # ---- CR folders -------------------------------------------------------------------------------
 
 def _new_request(repo: Repo, slug: str, raw: bytes, hint: str = "file it again with --slug "

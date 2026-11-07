@@ -29,7 +29,9 @@ steered by a Foreman or, in direct mode, by you.
 
 On your first turn in a session, before anything else, give the user this introduction in their
 language, in about ten lines, then answer their request. Once per session; skip it if the user
-says they know chantier.
+says they know chantier, or if their first request is `init`: the [tour](references/init.md)
+covers it. When the project has no `.agents/changes/`, end it with one line: "new here? say
+init for a guided tour".
 
 - **Change Request (CR):** one change to make, e.g. one issue. It gets a folder (the request,
   its analysis, the user's answers, the Change Specification), a branch and a worktree its
@@ -54,6 +56,7 @@ says they know chantier.
 
 | The user asks… | Do | Section of [chief-of-staff](references/chief-of-staff.md) |
 | --- | --- | --- |
+| "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](references/init.md) |
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill, write the specification | Backlog and grill |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode | Starting a batch |
