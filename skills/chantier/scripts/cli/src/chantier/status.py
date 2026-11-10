@@ -1,9 +1,10 @@
 """What a person reads, and what a dashboard parses: `STATUS.md` and `STATUS.json`.
 
-Three levels, linked both ways: `3-requests/` (the batches and the backlog), the batch, the
-CR. Everything comes from the state already written, never from the forge: this runs at each
-change, so it must stay fast and cannot fail on the network. The JSON says what the Markdown says,
-with more indicators; `schema` moves when a field changes meaning.
+Three levels, linked both ways: `.agents/changes/` (the index: the backlog, `3-ready`, the batch,
+the merged), `4-batches/` (the batch), the CR. Everything comes from the state already written,
+never from the forge: this runs at each change, so it must stay fast and cannot fail on the
+network. The JSON says what the Markdown says, with more indicators; `schema` moves when a field
+changes meaning.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from types import SimpleNamespace
 from .rails import held, over_budget, slot_free, waits_all
 from .state import LIVE, Repo, read_batch_json, age_minutes, now, read_events, round_limit, write_file
 
-SCHEMA = 2
+SCHEMA = 3
 PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
 ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", "rounds", "waits"}
 ENDED = {"merged", "cancelled"}
@@ -195,7 +196,7 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
     pr = c.get("pr")
     number = re.search(r"(\d+)/?$", pr) if pr else None
     return {"schema": SCHEMA, "updated": now(), "cr": c["id"], "title": c["title"],
-            "batch": d["folder"], "in_batch": in_batch, "state": c["status"],
+            "batch": d["id"], "in_batch": in_batch, "state": c["status"],
             "severity": severity(c), "step": step(c), "label": label(c, round_limit(d, c), waiting, can_start(d)),
             "waits": waiting, "round": c.get("round", 0), "max_rounds": round_limit(d, c),
             "now": now_line, "next": next_line,
@@ -214,7 +215,7 @@ def _step_line(s: dict) -> str:
 
 
 def cr_markdown(v: dict) -> str:
-    batch = f"[{v['batch']}](../STATUS.md)" if v["in_batch"] else f"{v['batch']}"
+    batch = f"[{v['batch']}](../../STATUS.md)" if v["in_batch"] else f"{v['batch']}"
     pr = v["pr"]
     head = f"{v['label']} · {batch}" + (f" · [{forge_word([pr['url']])}]({pr['url']})" if pr else "")
     docs = [f"- [{d.get('name') or d['kind']}]({d['path']})" for d in v["documents"]]
@@ -246,8 +247,8 @@ def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
             "round": c.get("round", 0), "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
             "silent_minutes": round(silent) if silent is not None else None,
-            # always relative to `3-requests/`, whatever `start` is: the board resolves it there
-            "folder": _link(folder, repo.batches) if folder else None,
+            # always relative to `.agents/changes/`, whatever `start` is: the board resolves it there
+            "folder": _link(folder, repo.changes) if folder else None,
             "status": _link(folder / "STATUS.md", start) if folder else None,
             "specification": _link(folder / c.get("specification", "03-change-spec.md"), start)
             if folder else None}
@@ -283,7 +284,7 @@ def _budget(v: dict) -> str:
 
 
 def batch_markdown(v: dict) -> str:
-    lines = [f"# {v['folder']}: {v['state']}", "",
+    lines = [f"# {v['batch']}: {v['state']}", "",
              f"Updated {v['updated']} · steering {v.get('steering', 'foreman')} · spent {_budget(v) if v['priced'] else 'unknown'}"
              f"{' (to date)' if v['paused'] and v['priced'] else ''} · "
              f"{v['asks_unread']} asks unread · "
@@ -316,7 +317,8 @@ def spec_state(folder: Path) -> str | None:
 
 
 def _backlog(paths: dict[str, Path], start: Path) -> list[dict]:
-    found = [("P" + p.name[1:], p) for p in sorted(paths["backlog"].glob("P[1-4]"))]
+    found = [("3-ready", paths["ready"])]
+    found += [("P" + p.name[1:], p) for p in sorted(paths["backlog"].glob("P[1-4]"))]
     found.append(("inbox", paths["inbox"]))
     rows = []
     for priority, stage in found:
@@ -356,8 +358,23 @@ def _past(stage: Path, start: Path) -> tuple[list[dict], int]:
     return out, len(folders)
 
 
+def _done_rows(repo: Repo, start: Path) -> list[dict]:
+    """The batch's CRs waiting in `3-done`, newest merge first: they head the merged list."""
+    out = []
+    for folder in repo.batch_folders():
+        d = read_batch_json(folder / "batch.json")
+        for c in d["crs"]:
+            where = repo.root / c["path"] if c.get("path") else None
+            if where is None or where.parent != folder / "3-done":
+                continue
+            out.append({"cr": c["id"], "title": c["title"], "state": c["status"], "batch": d["id"],
+                        "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
+                        "when": c.get("merged_at"), "path": _link(where, start)})
+    return sorted(out, key=lambda r: r["when"] or "", reverse=True)
+
+
 def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
-    start = repo.batches
+    start = repo.changes
     batches = []
     for folder in repo.batch_folders():
         d = read_batch_json(folder / "batch.json")
@@ -370,6 +387,8 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
                         "slots": {"taken": len(held(SimpleNamespace(data=d))), "total": d["slots"]},
                         "crs": [_row(repo, d, c, start) for c in active]})
     merged, merged_total = _past(paths["archives"], start)
+    done = _done_rows(repo, start)
+    merged, merged_total = (done + merged)[:PAST_LIMIT], merged_total + len(done)
     trashed, trashed_total = _past(paths["trash"], start)
     return {"schema": SCHEMA, "updated": now(), "batches": batches,
             "active_crs": sum(len(b["crs"]) for b in batches),
@@ -383,7 +402,7 @@ def dashboard_markdown(v: dict) -> str:
              f"> Updated {v['updated']}: {v['active_crs']} active CRs in {len(v['batches'])} "
              "batches.", "", "## Active"]
     for b in v["batches"]:
-        lines += ["", f"### [{b['folder']}]({b['folder']}/STATUS.md): {b['state']}, "
+        lines += ["", f"### [{b['batch']}](4-batches/STATUS.md): {b['state']}, "
                   f"{_budget(b)}", ""]
         lines += _rows_markdown(b["crs"]) if b["crs"] else ["No active CR."]
     if not v["batches"]:
@@ -403,7 +422,6 @@ def _write(folder: Path, markdown: str, view: dict) -> None:
 
 def write_batch(repo: Repo, d: dict, folder: Path) -> None:
     """Rewrite the batch's file and each of its CRs', wherever they are."""
-    d = {**d, "folder": folder.name}
     events: dict[str, list[dict]] = {}
     for e in read_events(folder):
         if e.get("cr"):
@@ -412,28 +430,28 @@ def write_batch(repo: Repo, d: dict, folder: Path) -> None:
         cr_folder = repo.root / c["path"] if c.get("path") else None
         if cr_folder and cr_folder.is_dir():
             v = cr_view(repo, d, c, cr_folder, events.get(c["id"], []),
-                        cr_folder.parent == folder)
+                        cr_folder.parent.parent == folder)
             _write(cr_folder, cr_markdown(v), v)
     v = batch_view(repo, d, folder)
     _write(folder, batch_markdown(v), v)
 
 
 def write_final_pages(repo: Repo, d: dict, folder: Path) -> None:
-    """At `close` only, once the cost is priced: the CR pages that outlive the batch's folder
+    """At `close` only, once the cost is priced: the CR pages that outlive the batch's files
     (the archived ones) say their cost is final. Nothing before `close` may say so."""
-    d = {**d, "folder": folder.name, "closing": True}
+    d = {**d, "closing": True}
     events: dict[str, list[dict]] = {}
     for e in read_events(folder):
         if e.get("cr"):
             events.setdefault(e["cr"], []).append(e)
     for c in d["crs"]:
         cr_folder = repo.root / c["path"] if c.get("path") else None
-        if cr_folder and cr_folder.is_dir() and cr_folder.parent != folder:
+        if cr_folder and cr_folder.is_dir() and folder not in cr_folder.parents:
             v = cr_view(repo, d, c, cr_folder, events.get(c["id"], []), False)
             _write(cr_folder, cr_markdown(v), v)
 
 
 def write_dashboard(repo: Repo, paths: dict[str, Path]) -> None:
     v = dashboard_view(repo, paths)
-    repo.batches.mkdir(parents=True, exist_ok=True)
-    _write(repo.batches, dashboard_markdown(v), v)
+    repo.changes.mkdir(parents=True, exist_ok=True)
+    _write(repo.changes, dashboard_markdown(v), v)

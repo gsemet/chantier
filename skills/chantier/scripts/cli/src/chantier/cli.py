@@ -30,15 +30,17 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--direct", action="store_true",
                    help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point")
 
-    cmd("init", commands.init, "create the five empty stage folders of .agents/changes/; changes nothing else", False)
+    cmd("init", commands.init, "create the eight empty stage folders of .agents/changes/; changes nothing else", False)
 
     s = cmd("file", commands.file_cr, "file a request in the inbox", False)
     s.add_argument("item", help="request text, or @path to the raw request")
     s.add_argument("--slug", help="folder name when the inferred slug is already used")
 
-    s = cmd("triage", commands.triage, "move an inbox or backlog CR to a priority of the backlog", False)
-    s.add_argument("item", help="path to the CR folder: 1-inbox/<item> or 2-backlog/P<n>/<item>")
-    s.add_argument("--priority", required=True, choices=["P1", "P2", "P3", "P4"])
+    s = cmd("triage", commands.triage, "move an inbox, backlog or 3-ready CR to a priority of the backlog, or to 3-ready", False)
+    s.add_argument("item", help="path to the CR folder: 1-inbox/<item>, 2-backlog/P<n>/<item> or 3-ready/<item>")
+    g = s.add_mutually_exclusive_group(required=True)
+    g.add_argument("--priority", choices=["P1", "P2", "P3", "P4"])
+    g.add_argument("--ready", action="store_true", help="the CR waits in 3-ready for the next batch")
 
     s = cmd("abandon", commands.abandon, "move an explicitly abandoned CR to trash", False)
     s.add_argument("item", help="path to the unclaimed CR folder")

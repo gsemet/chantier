@@ -105,7 +105,7 @@ order, and stop as soon as you can write:
    else a detached worktree at the top of the stack, made clean and outside the repository,
    which you remove at your end. Read only; run nothing that writes in a CR's worktree.
 
-Output: `demo/demo.md` in the batch's folder, in the user's language:
+Output: `demo/demo.md` in `4-batches/`, in the user's language:
 
 - What is delivered, by feature; the bugs fixed; the architectural impact that matters.
 - The evidence for each, with its link or path; before and after screenshots when there are

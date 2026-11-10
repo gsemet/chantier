@@ -238,7 +238,7 @@ def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch
     code, out, err = chantier("open", str(first), "--direct", *FROM_AGENTS_MD)
     assert code == 0, err
     assert out[1].endswith("then steer it yourself")
-    batch = next((repo / ".agents" / "changes").glob("**/batch.json"))
+    batch = repo / ".agents" / "changes" / "4-batches" / "batch.json"
     assert json.loads(batch.read_text(encoding="utf-8"))["steering"] == "direct"
     assert "Steering: direct" in (batch.parent / "brief.md").read_text(encoding="utf-8")
     assert " steering direct " in chantier("status")[1][0]
@@ -299,15 +299,15 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
     assert code == 0 and not any("P10" in ln for ln in out)
 
 
-def test_init_creates_the_five_folders_once_and_refuses_outside_a_main_checkout(
+def test_init_creates_the_eight_folders_once_and_refuses_outside_a_main_checkout(
         repo, chantier, tmp_path, monkeypatch):
     code, out, _ = chantier("init")
-    assert code == 0 and [ln.split()[0] for ln in out] == ["created"] * 5
+    assert code == 0 and [ln.split()[0] for ln in out] == ["created"] * 8
     changes = repo / ".agents" / "changes"
     assert sorted(p.name for p in changes.iterdir()) == [
-        "1-inbox", "2-backlog", "3-requests", "4-archives", "5-trash"]
+        "1-inbox", "2-backlog", "3-ready", "4-batches", "5-archives", "6-trash"]
     assert not list(changes.rglob("*.*"))  # empty, no .gitkeep
-    assert [ln.split()[0] for ln in chantier("init")[1]] == ["exists"] * 5
+    assert [ln.split()[0] for ln in chantier("init")[1]] == ["exists"] * 8
     sh("git", "worktree", "add", "--quiet", str(tmp_path / "wt"), "-b", "side", cwd=repo)
     monkeypatch.chdir(tmp_path / "wt")
     code, _, err = chantier("init")

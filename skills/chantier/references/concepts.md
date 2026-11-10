@@ -26,16 +26,23 @@ started.
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
-  (the user prioritized it) → `3-requests/batch-<n>/<number>-<slug>/` (in a batch) →
-  `4-archives/<YYMMDD-HHMM>-<number>-<slug>/` (merged) or `5-trash/…` (dropped, with its work;
-  it returns to the inbox only on the user's word).
+  (the user prioritized it) → `3-ready/` (waiting for the next batch) →
+  `4-batches/1-pending/<number>-<slug>/` (in the batch, not started) → `2-actives/` (taken by a
+  Driver) → `3-done/` (merged, until `close`) → `5-archives/<YYMMDD-HHMM>-<number>-<slug>/`
+  (after `close`, the time of the merge) or `6-trash/…` (dropped, with its work; it returns to
+  the inbox only on the user's word).
+- **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no
+  specification: the Driver works from the request alone), moved there on the user's word. It is
+  not "ready to merge": a CR handed back `ready` sits in `4-batches/2-actives/`, never in
+  `3-ready`. Write the folder `3-ready`, never "the ready CRs".
 - **A CR's name:** when an agent names a CR to a person or in a report (messages, report tables,
   asks; in a CR's PR only the description's Internal references section, never the title or the
   body's text, unless the project's rules say otherwise), it gives the number and the short slug
   together, like "CR-142 grill-rules", never one alone. An item with no number yet (inbox,
   backlog) is named by its slug. The CLI's own outputs are unchanged.
 - **Batch:** the CRs active at one time under one steering session (a Foreman, or the Chief of Staff in direct mode). It has no name, only a number: `batch-<n>`
-  (`<n>` on two digits, counting all batches), its folder `3-requests/batch-<n>/`, and `--batch`
+  (`<n>` on two digits, counting all batches), its own files in `4-batches/` (its CRs in the
+  three state folders there), and `--batch`
   takes the number, `4` or `batch-04`. One batch at a time, from `open` to the user's `close`; new
   work joins it through the steering session (`order add`, which sets a paused batch running again: `pause`
   runs again at the end, and is refused on a batch already paused; a running direct batch is strict: `order add` and `order qa` are
@@ -78,8 +85,8 @@ started.
   unless the user grants more. The CLI refuses what passes a limit.
 - **Dependencies:** a CR's folder may hold `depends.json`, `{"after": ["<slug>", …]}`, written
   with the Chief of Staff during the grill; a slug is the folder's name without its number. `open`
-  and `order add` record `after` as CR ids (a slug already archived as merged is met, not
-  recorded; an unknown slug, a malformed file or a cycle exits 2). `take` refuses a queued CR until
+  and `order add` record `after` as CR ids (a slug already merged, in `3-done` or
+  `5-archives`, is met, not recorded; an unknown slug, a malformed file or a cycle exits 2). `take` refuses a queued CR until
   each CR of its `after` is `ready` or `merged` (a cancelled one stays unmet: an ask for the user,
   who drops the CR or changes it). The CR starts on the branch of its last dependency still open,
   in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
@@ -111,7 +118,7 @@ started.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
-- **STATUS:** `STATUS.md` and `STATUS.json` in `3-requests/`, in each batch and in each CR. A
+- **STATUS:** `STATUS.md` and `STATUS.json` in `.agents/changes/` (the index), in `4-batches/` and in each CR. A
   paused batch's `STATUS.md` is the exit report, its cost to date: `close` prices the
   batch up to now, with no end date taken from `pause`, and prints the final cost. If it cannot price it
   (no priced call, no Foreman transcript recorded), `close` refuses, naming the cause, with or

@@ -68,7 +68,7 @@ the end, with the cost to date grown. A paused batch stays paused, however long,
 > "Close the batch."
 
 Only on your word, and exactly as in Foreman mode: the check and the final cost, then your yes,
-then the batch folder is deleted and the dropped CRs' worktrees and branches are removed. In
+then the batch's own files are deleted, each merged CR moves to `5-archives`, and the dropped CRs' worktrees and branches are removed. In
 direct mode the check counts only your Drivers' session files as something that runs, not your
 own session. Without a recorded steering transcript, nothing can be priced and `close` refuses.
 

@@ -1,4 +1,4 @@
-// The CR board: a read-only pane over `.agents/changes/3-requests/STATUS.json`.
+// The CR board: a read-only pane over `.agents/changes/STATUS.json`.
 // It writes nothing and runs no process but `git rev-parse`. See README.md.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface as Engine, Register } from 'claude-code'
@@ -16,11 +16,11 @@ const PANE = 'cr-board'
 const TITLE = 'CR board'
 const COMMAND = 'chantier-board'
 const PANE_SKILLS = ['chantier', 'chief-of-staff']
-const SCHEMA = 2
+const SCHEMA = 3
 const EVERY_MS = 15000
 const SILENT_MINUTES = 40
 const MAX_DOC_BYTES = 200 * 1024
-const INDEX = '.agents/changes/3-requests/STATUS.json'
+const INDEX = '.agents/changes/STATUS.json'
 
 // Change a tag when the shape of its value changes: it declines what an earlier
 // version stored, which outlives a reload.
@@ -92,7 +92,7 @@ function gauge(spent: number, budget: number | null): string {
   return '█'.repeat(full) + '░'.repeat(10 - full)
 }
 
-const PRIORITIES = ['inbox', 'P1', 'P2', 'P3', 'P4']
+const PRIORITIES = ['3-ready', 'inbox', 'P1', 'P2', 'P3', 'P4']
 const isWaiting = (r: ChantierRow) => r.state === 'blocked' || r.state === 'ready'
 
 // ---- the tables: Markdown, so a surface draws them as it draws a table in a reply ----
@@ -381,7 +381,7 @@ export const register: Register = on => {
     const root = where.root
     const note = f.note === null ? null : <Text italic>{f.note}</Text>
 
-    const crUrl = (dir: string) => fileUrl(clean(root + '/.agents/changes/3-requests/' + dir))
+    const crUrl = (dir: string) => fileUrl(clean(root + '/.agents/changes/' + dir))
     const crCell = (dir: string | null, id: string) => (dir === null ? `**${id}**` : `[${cell(id)}](${crUrl(dir)})`)
 
     /** A table of `file:` links, listed by `urls`; a press on one inside the checkout calls `onOpen`, one outside opens nothing. */

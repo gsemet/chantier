@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 880" width="1310" height="880" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Life of a batch</title>
-  <desc>One batch at a time: it is running, then paused, and closed only on your word. The states and the transitions are the same with a Foreman (Foreman mode: a Foreman session steers the batch, CRs join it while it runs, and your session stays free to grill, file and triage) and with the Chief of Staff steering the batch itself (direct mode: no Foreman session; less dynamic, no grill in that session while the batch runs, so you grill in a Griller session and file your ideas to the backlog). Running: on your go on the plan, chantier open (Foreman mode) or chantier open --direct (direct mode) creates the batch, running; open is refused while a batch is not closed. Drivers take the CRs on the free slots; each is worked, handed back, merged by you, or dropped. A running direct batch is strict: order add and order qa are refused, except a release CR and its fixes. Paused: once every CR is merged or cancelled, the steering session removes the merged CRs' worktrees and branches, then runs chantier pause. Nothing runs; the cost to date is computed and shown; the batch's STATUS.md is its exit report; the Completion report goes to you. A paused batch, of either steering, takes new CRs: chantier order add (or order qa) sets it running again, and it pauses again at the end, with the cost to date grown. It stays paused, however long, until you say "close the batch". Closed: only on your word. chantier close is the check: it refuses, naming the cause, while anything runs or the final cost cannot be priced; otherwise it shows the final cost and what goes. On your yes, chantier close --yes deletes the batch folder, and the dropped CRs' worktrees and branches are removed with git. Without a yes, everything stays. Hold (order slots --note 0: no new Driver starts) is not a state.</desc>
+  <desc>One batch at a time: it is running, then paused, and closed only on your word. The states and the transitions are the same with a Foreman (Foreman mode: a Foreman session steers the batch, CRs join it while it runs, and your session stays free to grill, file and triage) and with the Chief of Staff steering the batch itself (direct mode: no Foreman session; less dynamic, no grill in that session while the batch runs, so you grill in a Griller session and file your ideas to the backlog). Running: on your go on the plan, chantier open (Foreman mode) or chantier open --direct (direct mode) creates the batch in 4-batches/, running; open is refused while a batch is not closed. Drivers take the CRs on the free slots; each is worked, handed back, merged by you, or dropped. A running direct batch is strict: order add and order qa are refused, except a release CR and its fixes. Paused: once every CR is merged or cancelled, the steering session removes the merged CRs' worktrees and branches, then runs chantier pause. Nothing runs; the cost to date is computed and shown; the batch's STATUS.md is its exit report; the Completion report goes to you. A paused batch, of either steering, takes new CRs: chantier order add (or order qa) sets it running again, and it pauses again at the end, with the cost to date grown. It stays paused, however long, until you say "close the batch". Closed: only on your word. chantier close is the check: it refuses, naming the cause, while anything runs or the final cost cannot be priced; otherwise it shows the final cost and what goes. On your yes, chantier close --yes moves each merged CR from 4-batches/3-done/ to 5-archives/, deletes the batch's own files in 4-batches/, and the dropped CRs' worktrees and branches are removed with git. Without a yes, everything stays. Hold (order slots --note 0: no new Driver starts) is not a state.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -108,11 +108,13 @@
   <rect x="1040" y="400" width="240" height="220" rx="14" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>
   <text x="1160" y="440" font-size="22" font-weight="700" fill="#0f172a" text-anchor="middle">⏹️ closed</text>
   <g font-size="14" fill="#334155" text-anchor="middle">
-    <text x="1160" y="474">the batch folder</text>
-    <text x="1160" y="494">is deleted</text>
-    <text x="1160" y="526">the dropped CRs'</text>
-    <text x="1160" y="546">worktrees and branches</text>
-    <text x="1160" y="566">are removed with git</text>
+    <text x="1160" y="466">the batch's own files</text>
+    <text x="1160" y="486">in <tspan font-family="ui-monospace, Menlo, monospace" font-size="13">4-batches/</tspan> are deleted</text>
+    <text x="1160" y="518">each merged CR moves from</text>
+    <text x="1160" y="538"><tspan font-family="ui-monospace, Menlo, monospace" font-size="13">3-done/</tspan> to <tspan font-family="ui-monospace, Menlo, monospace" font-size="13">5-archives/</tspan></text>
+    <text x="1160" y="570">the dropped CRs'</text>
+    <text x="1160" y="590">worktrees and branches</text>
+    <text x="1160" y="610">are removed with git</text>
   </g>
 
   <!-- Closing, on your word -->

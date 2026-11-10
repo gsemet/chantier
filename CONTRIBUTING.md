@@ -29,9 +29,9 @@ chantier is four things in one repository:
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the target repository's
    `.agents/changes/`, as plain JSON and Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
-   `3-requests/`, `4-archives/` and `5-trash/` (each with a `work/` folder while it runs), and
-   the batch folders `3-requests/batch-<n>/` (`batch.json`, `events.jsonl`, the brief,
-   `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
+   `3-ready/`, `4-batches/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
+   (each with a `work/` folder while it runs), and the batch's own files at the root of
+   `4-batches/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
@@ -45,11 +45,11 @@ chantier is four things in one repository:
    [`chief-of-staff.md`](skills/chantier/references/chief-of-staff.md), where it is started.
 
 4. **A mod** ([`hooks/`](hooks/), Claude Code only): the CR board, a read-only pane over
-   `.agents/changes/3-requests/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
+   `.agents/changes/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
    hooks `skill.prompt`, the `/chantier-board` command and the `cr-board` pane; `types/index.d.ts`
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
-   `STATUS.json` (`schema` 2) as `status.py` writes it: change both together.
+   `STATUS.json` (`schema` 3) as `status.py` writes it: change both together.
 
 The design rule that shapes everything: **no fallback.** When a tool, a host feature, a model
 or an agent is not exactly available, chantier stops and says so; it never picks a look-alike.

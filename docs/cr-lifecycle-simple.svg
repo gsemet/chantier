@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 898" width="1040" height="898" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Life of a change request, in short</title>
-  <desc>A change request (CR) is one folder in .agents/changes/ and usually becomes one pull or merge request (PR/MR). Agents do the work; you decide at four points: triage, spec, go and merge. Plan, with the Chief of Staff: a request from the intake (Jira, GitLab, GitHub, the chat or a finding) is filed in 1-inbox/; you triage it with the Chief of Staff (or a Griller, optional), who drops it or clarifies it; on your word the spec-writer, started by the Chief of Staff or a Griller, writes the spec, 03-change-spec.md, that you approve; it then waits in 2-backlog/ with a priority P1 to P4 until your go. Build, run by the Foreman, or by the Chief of Staff in direct mode, in 3-requests/: one CR driver per CR, in its own worktree and branch, runs rounds of a Coder and an Inspector, at most 3; it rebases, passes the gate and ships a PR; CI and the Verifier check the pushed head, and a red result starts a new round. Merge: you merge the PR and the CR moves to 4-archives/ with its retro and final status. Optional: the stack driver orders, restacks and ships stacked PRs; on your request a QA driver uses the project's head as a user; the release driver runs your release procedure, with at most 3 fix CRs. Out-of-scope bugs, QA findings and the release retro go back to the intake as findings. Each stage is a folder; the chantier CLI moves it. At any time, chantier order drop moves a CR to 5-trash/.</desc>
+  <desc>A change request (CR) is one folder in .agents/changes/ and usually becomes one pull or merge request (PR/MR). Agents do the work; you decide at four points: triage, spec, go and merge. Plan, with the Chief of Staff: a request from the intake (Jira, GitLab, GitHub, the chat or a finding) is filed in 1-inbox/; you triage it with the Chief of Staff (or a Griller, optional), who drops it or clarifies it; on your word the spec-writer, started by the Chief of Staff or a Griller, writes the spec, 03-change-spec.md, that you approve; it then waits in 2-backlog/ with a priority P1 to P4, or in 3-ready/ for the next batch, until your go. Build, run by the Foreman, or by the Chief of Staff in direct mode, in 4-batches/: one CR driver per CR, in its own worktree and branch, runs rounds of a Coder and an Inspector, at most 3; it rebases, passes the gate and ships a PR; CI and the Verifier check the pushed head, and a red result starts a new round. Merge: you merge the PR and the CR moves to 3-done/, then to 5-archives/ at close, with its retro and final status. Optional: the stack driver orders, restacks and ships stacked PRs; on your request a QA driver uses the project's head as a user; the release driver runs your release procedure, with at most 3 fix CRs. Out-of-scope bugs, QA findings and the release retro go back to the intake as findings. Each stage is a folder; the chantier CLI moves it. At any time, chantier order drop moves a CR to 6-trash/.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -38,9 +38,10 @@
   <line x1="768" y1="247" x2="806" y2="247" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="808" y="182" width="208" height="130" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
   <text x="912" y="212" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">📋 Backlog</text>
-  <text x="912" y="236" font-size="13.5" fill="#475569" text-anchor="middle">P1…P4, set by you</text>
-  <text x="912" y="256" font-size="13.5" fill="#475569" text-anchor="middle">👤 your go starts it</text>
-  <text x="912" y="298" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">2-backlog/</text>
+  <text x="912" y="236" font-size="13.5" fill="#475569" text-anchor="middle">P1…P4, set by you,</text>
+  <text x="912" y="256" font-size="13.5" fill="#475569" text-anchor="middle">or waiting for the next batch</text>
+  <text x="912" y="276" font-size="13.5" fill="#475569" text-anchor="middle">👤 your go starts it</text>
+  <text x="912" y="298" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">2-backlog/ · 3-ready/</text>
   <path d="M912,312 V362 H40 V571 H62" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="64" y="404" width="510" height="48" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
   <text x="319" y="425" font-size="14" font-weight="700" fill="#c2410c" text-anchor="middle" letter-spacing="0.5">BUILD · 👷 Foreman runs the batch</text>
@@ -56,24 +57,26 @@
   <text x="251" y="588" font-size="13.5" font-weight="600" fill="#0f172a" text-anchor="middle">📏 Inspector</text>
   <line x1="168" y1="577" x2="198" y2="577" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
   <line x1="198" y1="589" x2="168" y2="589" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <text x="189" y="622" font-size="13" fill="#64748b" text-anchor="middle"><tspan font-family="ui-monospace, Menlo, monospace">3-requests/</tspan> · ≤ 3 rounds</text>
+  <text x="189" y="622" font-size="13" fill="#64748b" text-anchor="middle"><tspan font-family="ui-monospace, Menlo, monospace">4-batches/</tspan> · ≤ 3 rounds</text>
   <line x1="314" y1="571" x2="362" y2="571" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="364" y="506" width="210" height="130" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
   <text x="469" y="536" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">🚀 PR</text>
   <text x="469" y="560" font-size="13.5" fill="#475569" text-anchor="middle">rebase · gate · ship</text>
   <text x="469" y="580" font-size="13.5" fill="#475569" text-anchor="middle">🧪 CI · ✅ Verifier</text>
-  <text x="469" y="622" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">3-requests/</text>
+  <text x="469" y="622" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">4-batches/</text>
   <path d="M469,506 V480 H189 V504" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-red)"/>
   <text x="329" y="472" font-size="13" font-weight="600" fill="#b91c1c" text-anchor="middle">🔴 red → new round</text>
   <line x1="574" y1="571" x2="628" y2="571" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="630" y="506" width="170" height="130" rx="12" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
   <text x="715" y="536" font-size="17" font-weight="700" fill="#14532d" text-anchor="middle">👤 you merge</text>
   <text x="715" y="560" font-size="13.5" fill="#475569" text-anchor="middle">the PR/MR</text>
+  <text x="715" y="582" font-size="13.5" fill="#475569" text-anchor="middle">→ <tspan font-family="ui-monospace, Menlo, monospace" font-size="12.5">3-done/</tspan></text>
   <line x1="800" y1="571" x2="834" y2="571" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="836" y="506" width="180" height="130" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
   <text x="926" y="536" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">📦 Archived</text>
   <text x="926" y="560" font-size="13.5" fill="#475569" text-anchor="middle">retro · final status</text>
-  <text x="926" y="622" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">4-archives/</text>
+  <text x="926" y="580" font-size="13.5" fill="#475569" text-anchor="middle">at close</text>
+  <text x="926" y="622" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">5-archives/</text>
   <text x="335" y="744" font-size="13" font-weight="700" fill="#64748b" text-anchor="end" letter-spacing="1">OPTIONAL</text>
   <rect x="349" y="696" width="240" height="86" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4"/>
   <text x="469" y="726" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">🧱 Stack driver</text>
@@ -95,5 +98,5 @@
   <text x="936" y="810" font-size="13" fill="#b91c1c">retro</text>
   <rect x="300" y="813" width="330" height="30" rx="15" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
   <text x="465" y="833" font-size="13.5" font-weight="600" fill="#b91c1c" text-anchor="middle">📝 findings go back to the intake</text>
-  <text x="24" y="874" font-size="13.5" fill="#475569">Each stage is a folder in <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>; the chantier CLI moves it. At any time: <tspan font-family="ui-monospace, Menlo, monospace">order drop</tspan> → <tspan font-family="ui-monospace, Menlo, monospace">5-trash/</tspan>.</text>
+  <text x="24" y="874" font-size="13.5" fill="#475569">Each stage is a folder in <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>; the chantier CLI moves it. At any time: <tspan font-family="ui-monospace, Menlo, monospace">order drop</tspan> → <tspan font-family="ui-monospace, Menlo, monospace">6-trash/</tspan>.</text>
 </svg>

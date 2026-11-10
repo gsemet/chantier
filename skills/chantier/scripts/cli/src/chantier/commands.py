@@ -10,6 +10,7 @@ say what is off, and no forge command at all.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -22,9 +23,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from . import __version__, costs, procs
-from .lifecycle import (PRIORITIES, archive_cr, changes_lock, cr_directory, ensure_unclaimed,
-                        move_backlog_item, prepared_cr, stage_layout, trash_cr)
-from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, archive_merged, check_budget, check_grant,
+from .lifecycle import (PRIORITIES, STATE_FOLDERS, archive_name, changes_lock, convert_old_tree,
+                        cr_directory, done_cr, ensure_unclaimed, move_backlog_item, prepared_cr,
+                        stage_layout, start_cr, trash_cr)
+from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budget, check_grant,
                     check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
                     release_merged, waits_all, waits_for)
@@ -238,9 +240,9 @@ def preflight(args) -> tuple[list[str], int]:
 # ---- init -------------------------------------------------------------------------------------
 
 def init(args) -> list[str]:
-    """Create the five stage folders, empty; leave the ones that exist; write nothing else."""
+    """Create the eight stage folders, empty; leave the ones that exist; write nothing else."""
     try:
-        repo = Repo.find()
+        repo = Repo.find(convert=False)
     except ChantierError as e:
         raise ChantierError(f"no git repository found ({e}): chantier needs one; "
                             "run `git init` first", EXIT_PRECONDITION) from e
@@ -249,8 +251,11 @@ def init(args) -> list[str]:
     if gitdir != repo.git_dir:  # preflight's P7
         raise ChantierError("this is a linked worktree: init runs in the main checkout "
                             f"({repo.root})", EXIT_PRECONDITION)
+    convert_old_tree(repo)  # an older tree first, so that its folders are not made twice
     lines = []
-    for folder in stage_layout(repo).values():
+    for key, folder in stage_layout(repo).items():
+        if key == "batches":  # the parent of the three state folders, made with them
+            continue
         existed = folder.is_dir()
         folder.mkdir(parents=True, exist_ok=True)
         lines.append(f"{'exists ' if existed else 'created'} {_shown(repo, folder)}")
@@ -308,9 +313,10 @@ def file_cr(args) -> list[str]:
 def triage(args) -> list[str]:
     repo = Repo.find()
     with changes_lock(repo):
-        target = move_backlog_item(repo, args.item, args.priority, stage_layout(repo))
+        target = move_backlog_item(repo, args.item, args.priority, stage_layout(repo),
+                                   ready=args.ready)
         write_dashboard(repo, stage_layout(repo))
-    return [f"triaged {_shown(repo, target)} ({args.priority})"]
+    return [f"triaged {_shown(repo, target)}" + (f" ({args.priority})" if args.priority else "")]
 
 
 def abandon(args) -> list[str]:
@@ -318,10 +324,10 @@ def abandon(args) -> list[str]:
     paths = stage_layout(repo)
     source = project_path(repo.root, args.item, "CR folder")
     in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
-    in_requests = source.parent.parent == paths["requests"]
-    if source.parent != paths["inbox"] and not in_requests and not in_backlog:
-        raise ChantierError("only an inbox, backlog, or unclaimed active CR can be abandoned",
-                            EXIT_USAGE)
+    in_batch = source.parent in (paths["pending"], paths["actives"])
+    if source.parent not in (paths["inbox"], paths["ready"]) and not in_batch and not in_backlog:
+        raise ChantierError("only an inbox, backlog, 3-ready or unclaimed batch CR can be "
+                            "abandoned", EXIT_USAGE)
     with changes_lock(repo):
         ensure_unclaimed(repo, source)
         target = paths["trash"] / f"{stamp()}-{source.name}"
@@ -382,16 +388,17 @@ def filed_fix(b: Batch, rel: dict, item: str) -> str:
 
 
 def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
-    """Move a prepared CR into requests and name its branch and worktree: the Driver creates
+    """Move a prepared CR into `1-pending` and name its branch and worktree: the Driver creates
     them, on the fresh default branch, as its first step."""
     repo = b.repo
     paths = stage_layout(repo)
     prepared = prepared_cr(repo, item, paths)
     ensure_unclaimed(repo, prepared.directory)
-    number = next_cr_number(repo, (paths["archives"], paths["trash"], b.dir, *repo.batch_folders()))
+    number = next_cr_number(repo, (paths["archives"], paths["trash"], paths["pending"],
+                                   paths["actives"], paths["done"]))
     cr_id = f"CR-{number}"
     slug = re.sub(r"^(?:CR-)?\d+-", "", prepared.directory.name, flags=re.I)
-    cdir = b.dir / f"{number:03d}-{_slug(slug)}"
+    cdir = paths["pending"] / f"{number:03d}-{_slug(slug)}"
     origin = prepared.directory.relative_to(repo.root).as_posix()
     b.move(prepared.directory, cdir)
     title = prepared.title
@@ -400,7 +407,8 @@ def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
     c = {"id": cr_id, "title": title, "kind": kind, "status": "queued", "order": order,
          "path": cdir.relative_to(repo.root).as_posix(),
-         "specification": prepared.specification.name, "round": 0, "agent": None, "pr": None,
+         "specification": prepared.specification.relative_to(prepared.directory).as_posix(),
+         "round": 0, "agent": None, "pr": None,
          "branch": branch, "worktree": str(worktree), "notes": [], "updated": now()}
     b.data["crs"].append(c)
     b.log("add", cr_id, title=title, path=c["path"], origin=origin)
@@ -431,8 +439,10 @@ def read_depends(folder: Path) -> list[str]:
 
 
 def archived_merged(repo: Repo, slug: str) -> bool:
-    archives = stage_layout(repo)["archives"]
-    for folder in sorted(archives.iterdir()) if archives.is_dir() else []:
+    paths = stage_layout(repo)
+    folders = [f for stage in (paths["archives"], paths["done"]) if stage.is_dir()
+               for f in sorted(stage.iterdir())]
+    for folder in folders:
         if folder.is_dir() and cr_slug(folder.name) == slug:
             try:
                 state = json.loads((folder / "STATUS.json").read_text(encoding="utf-8")).get("state")
@@ -680,9 +690,9 @@ def seat(args) -> list[str]:
         write_json(path, {"session": args.session, "transcript": transcript, "env": args.env,
                           "title": args.title, "link": args.link})
         lines = [f"seat {args.session}"]
-        # a batch folder exists until `close`: each one is the (single) non-closed batch
-        for folder in (repo.batch_folders() if transcript else []):
-            with Batch(repo, folder.name, actor="chief-of-staff") as b:
+        # the batch's files exist until `close`: it is the (single) non-closed batch
+        for batch_id in (repo.batch_ids() if transcript else []):
+            with Batch(repo, batch_id, actor="chief-of-staff") as b:
                 if transcript != b.data.get("chief_transcript"):
                     seen = chief_sessions(b.data)  # before the old one is replaced
                     if transcript not in seen:
@@ -856,7 +866,7 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         if c.get("kind") == "release":
             release_merged(b, c)
             return [f"merged {cr_id}: the procedure goes on with a new Release driver"]
-        return archive_merged(b, c)
+        return merge_done(b, c)
     if kind == "rounds":
         if not note.isdigit() or int(note) < 1:
             raise _refused("order rounds <cr> --note <n>", note,
@@ -1274,6 +1284,7 @@ def take(args) -> list[str]:
                 c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
             b.touch(c, status="working", blocked_reason=None)
             b.log("take", c["id"], note=args.note)
+            start_cr(b, c)  # `1-pending` to `2-actives`, before the Driver gets its facts
             _work(repo, c).mkdir(parents=True, exist_ok=True)
             facts = _facts(repo, batch, d, c)
     return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)"] + facts
@@ -1323,9 +1334,9 @@ def handback(args) -> list[str]:
             if c.get("kind") == "release":  # released: nothing is left to merge
                 c["released"] = note.split()[0]
                 b.log("handback", args.cr, result=args.result, note=note)
-                archive_cr(b, c)
+                done_cr(b, c)
                 b.touch(c, status="merged")
-                return [line, f"{args.cr} released and archived"
+                return [line, f"{args.cr} released, in 3-done"
                         + ("; every CR is merged or cancelled: `chantier pause`"
                            if all_merged(b) else "")]
             if not c.get("pr"):
@@ -1660,17 +1671,15 @@ def pause(args) -> list[str]:
 
 
 def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
-    """The batch `close` acts on: the named one, else the only paused one, else the only batch.
-    One that is not paused is refused with what runs in it, or with "`pause` first"."""
+    """The batch `close` acts on: the project's one batch, named or not. One that is not paused is
+    refused with what runs in it, or with "`pause` first"."""
     folders = repo.batch_folders()
     batch = normalize_batch(batch) if batch else batch
     datas = {d: read_batch_json(d / "batch.json") for d in folders}
-    named = [d for d in folders if not batch or datas[d]["id"] == batch]
-    paused = [d for d in named if datas[d].get("status") == "paused"]
-    pick = paused if not batch and len(paused) == 1 else named
+    pick = [d for d in folders if not batch or datas[d]["id"] == batch]
     if len(pick) != 1:
         raise ChantierError(f"close names one batch; batches: "
-                            f"{', '.join(d.name for d in folders) or 'none'}", EXIT_USAGE)
+                            f"{', '.join(d['id'] for d in datas.values()) or 'none'}", EXIT_USAGE)
     d = datas[pick[0]]
     if d.get("status") != "paused":
         check_idle(repo, d)
@@ -1678,10 +1687,17 @@ def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
                             "`pause` comes first. Nothing was deleted.", EXIT_PRECONDITION)
     return d["id"], pick[0], d
 
+
+def _batch_files(folder: Path) -> list[Path]:
+    """What `close` deletes: everything in `4-batches/` but the three state folders."""
+    return sorted(p for p in folder.iterdir() if p.name not in STATE_FOLDERS)
+
+
 def close(args) -> tuple[list[str], int]:
-    """The batch's folder goes: the Chief of Staff shows the user what would go, with the
-    dropped CRs' worktrees and branches it removes itself on the same word, and passes `--yes`.
-    Without it, nothing is touched. It refuses while anything runs, with or without `--yes`,
+    """The batch's own files go and its merged CRs move from `3-done` to `5-archives`: the Chief
+    of Staff shows the user what would happen, with the dropped CRs' worktrees and branches it
+    removes itself on the same word, and passes `--yes`. Without it, nothing is touched. It
+    refuses while anything runs or `1-pending` or `2-actives` holds a CR, with or without `--yes`,
     and it prices the batch up to now: this is the final cost, printed either way. It refuses,
     with or without `--yes`, when it cannot price it (no Foreman transcript recorded, no priced
     call): a batch is never closed on an unknown cost."""
@@ -1689,12 +1705,22 @@ def close(args) -> tuple[list[str], int]:
     with changes_lock(repo):
         batch, folder, d = _close_target(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
         check_idle(repo, d)
-        held = [p.name for p in folder.iterdir() if p.is_dir()]
+        paths = stage_layout(repo)
+        held = [f"{stage}/{p.name}" for stage in ("1-pending", "2-actives")
+                for p in sorted((folder / stage).iterdir() if (folder / stage).is_dir() else [])
+                if p.is_dir()]
         if held:
-            raise ChantierError(f"{folder.name} still holds {', '.join(held)}: nothing was deleted")
+            raise ChantierError(f"{batch} still holds {', '.join(held)} in 4-batches: nothing "
+                                "was deleted")
+        archived = [(c, cr_directory(repo, c)) for c in d["crs"]
+                    if c.get("path") and cr_directory(repo, c).parent == paths["done"]]
         dropped = [f"{c['id']} worktree {c['worktree']} branch {c['branch']}"
                    for c in d["crs"] if c["status"] == "cancelled"]
-        lines = [f"close {batch} deletes the folder {_shown(repo, folder)}",
+        own = _batch_files(folder)
+        lines = [f"close {batch} deletes its files in {_shown(repo, folder)}: "
+                 f"{', '.join(p.name for p in own) or 'none'}",
+                 f"{len(archived)} CRs move from 3-done to 5-archives: "
+                 f"{', '.join(c['id'] for c, _ in archived) or 'none'}",
                  "the dropped CRs, to remove on the same word where they still exist "
                  f"(`git worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}"]
         rows = _final_rows(repo, batch, d)
@@ -1703,16 +1729,44 @@ def close(args) -> tuple[list[str], int]:
             _chief_line(repo, d))
         if not args.yes:
             return lines + ["ask the user, then `chantier close --yes`"], 0
-        _final_pages(repo, batch, folder, d, rows)
-        going = folder.with_name(f".closing-{folder.name}")
+        _archive_and_delete(repo, batch, folder, d, rows, archived, own)
+        write_dashboard(repo, paths)
+    return [f"closed {batch}: its files are deleted, {len(archived)} CRs archived"] + lines[1:], 0
+
+
+def _archive_and_delete(repo: Repo, batch: str, folder: Path, d: dict, rows: list[dict],
+                        archived: list[tuple[dict, Path]], own: list[Path]) -> None:
+    """All or nothing: each `3-done` CR is renamed into `5-archives` (named for its merge time),
+    the final pages are written where the CRs are now, and the batch's own files go by a rename
+    first. Any failure puts every rename back."""
+    archives = stage_layout(repo)["archives"]
+    done: list[tuple[Path, Path]] = []
+    try:
+        record = {**d, "crs": [dict(c) for c in d["crs"]]}
+        for c, source in archived:
+            target = archives / archive_name(c, source)
+            move_directory(source, target)
+            done.append((source, target))
+            next(x for x in record["crs"] if x["id"] == c["id"])["path"] = \
+                target.relative_to(repo.root).as_posix()
+        _final_pages(repo, batch, folder, record, rows)
+        going = repo.changes / f".closing-{batch}"
+        going.mkdir()
         try:  # a rename fails whole on a file in use; a delete would stop halfway
-            _retry(os.replace, folder, going)
+            for p in own:
+                _retry(p.rename, going / p.name)
+                done.append((p, going / p.name))
         except OSError as e:
-            raise ChantierError(f"{folder.name} is in use, close what holds it and run this again: "
-                                f"{e}", EXIT_EXTERNAL) from e
-        shutil.rmtree(going)
-        write_dashboard(repo, stage_layout(repo))
-    return [f"closed {batch}: the folder is deleted"] + lines[1:], 0
+            raise ChantierError(f"{p.name} of {_shown(repo, folder)} is in use, close what holds "
+                                f"it and run this again: {e}", EXIT_EXTERNAL) from e
+    except BaseException:
+        for source, target in reversed(done):
+            if target.exists() and not source.exists():
+                _retry(target.rename, source)
+        with contextlib.suppress(OSError):
+            (repo.changes / f".closing-{batch}").rmdir()
+        raise
+    shutil.rmtree(going)
 
 
 def _final_rows(repo: Repo, batch: str, d: dict) -> list[dict]:

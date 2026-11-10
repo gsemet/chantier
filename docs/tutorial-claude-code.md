@@ -76,8 +76,8 @@ reads `AGENTS.md` again at every session, and everything chantier writes later g
 `.agents/changes/`.
 
 New to chantier, or on a project with no `.agents/changes/` yet? Type
-`/chantier:chief-of-staff init` instead. It creates the five stage folders (inbox, backlog, requests,
-archives, trash), then gives you a guided tour of your project, in the chat or as an HTML page.
+`/chantier:chief-of-staff init` instead. It creates the empty stage folders (inbox, backlog, `3-ready`,
+batches, archives, trash), then gives you a guided tour of your project, in the chat or as an HTML page.
 It writes nothing in the project except what you say yes to at the end.
 
 You can check at any time:
@@ -142,7 +142,7 @@ While the team works, keep talking to the Chief of Staff:
 | You say | What happens |
 | --- | --- |
 | "status?" | one line per CR, with its PR link |
-| "drop CR-102" | the Foreman stops its Driver; the folder goes to `5-trash/` |
+| "drop CR-102" | the Foreman stops its Driver; the folder goes to `6-trash/` |
 | "CR-103 first" | a note on the CR; the Foreman gives it the next free slot |
 | "for CR-101, also handle the remember-me checkbox" | a note on the CR; the Driver takes it into its next round |
 | "what did it cost?" | the measured cost so far: the Foreman, each Driver type, each worker type |
@@ -165,12 +165,13 @@ After merging, tell it:
 I merged #42
 ```
 
-The CR's folder moves at once to `4-archives/`, named by the time of the merge. When every CR of
+The CR's folder moves at once to `3-done`, then to `5-archives`, named by the time of the merge,
+at `close`. When every CR of
 the batch is merged or dropped, the Foreman removes the merged CRs' worktrees and branches with
 git, pauses the batch (its `STATUS.md` is the exit report, its cost to date) and goes idle.
 The batch stays paused, and takes new CRs, until you say "close the batch". Then the Chief of Staff runs `chantier close` without `--yes`, which refuses while anything
-still runs or the final cost cannot be priced (it names the cause) and otherwise prices it; it shows what closing deletes (the batch folder,
-the dropped CRs' worktrees and branches) and that cost; on your yes, `chantier close --yes` deletes the folder and it removes the rest with git.
+still runs or the final cost cannot be priced (it names the cause) and otherwise prices it; it shows what closing deletes (the batch's own files,
+the dropped CRs' worktrees and branches) and that cost; on your yes, `chantier close --yes` moves the merged CRs to `5-archives`, deletes those files and removes the rest with git.
 Without a yes, everything stays.
 
 ## 8. Make the team yours

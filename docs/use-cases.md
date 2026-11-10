@@ -41,8 +41,9 @@ One batch at a time. Whoever steers it, the three states are the same.
 
 > "init" · "I am new here."
 
-`chantier init` creates the five stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`,
-`3-requests`, `4-archives`, `5-trash`), empty, and says which it created and which existed. The
+`chantier init` creates the empty stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`,
+`3-ready`, `4-batches` with `1-pending`, `2-actives` and `3-done`, `5-archives`, `6-trash`), and
+says which it created and which existed. The
 Chief of Staff then gives a guided tour of your project: it reads your instructions, your build
 files and your CI lightly, and tells the story of one CR of your project, from the request to the
 archive. You choose the chat or an HTML page. The tour writes nothing in the project, except what
@@ -79,12 +80,13 @@ whether the CR is grilled enough, and you decide, never the Chief of Staff.
 A **spec-writer** agent writes the Change Specification (`03-change-spec.md`) in the background,
 while you go on talking. The Chief of Staff reviews it against your answers, nothing dropped and
 nothing invented, before it shows it to you; open questions come to you, and the writer runs again
-with your answers. A specified CR waits in the inbox or the backlog until you prioritise it and
-pick it for a batch.
+with your answers. A specified CR waits in the inbox or the backlog until you say it is for
+the next batch: it then moves to `3-ready`. A simple CR may go there with no specification
+(automatable): its Driver works from the request alone.
 
 > "Drop the dark-mode idea for good."
 
-Only on your explicit word does a CR go to `5-trash/`.
+Only on your explicit word does a CR go to `6-trash/`.
 
 ## A Chief of Staff and Grillers in remote
 
