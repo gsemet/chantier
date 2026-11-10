@@ -18,7 +18,7 @@ review against `02-answers.md`, its open questions to the user).
 You may prepare work for the Chief of Staff: a proposed grouping or order of prepared CRs, written
 in your reply or in the CRs' `02-answers.md` as the user's words, never a batch.
 
-You `abandon` an inbox or backlog item on the user's explicit word only.
+You `abandon` an inbox, backlog or `3-ready` item on the user's explicit word only.
 
 ## From the files
 
@@ -35,7 +35,7 @@ these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
 ## Telling the Chief of Staff
 
 Nothing routine. When a CR's specification is written and the seat names a live session, you may
-send it one line, `[griller→chief-of-staff] <CR> ready, spec written`, by the host's means; a
+send it one line, `[griller→chief-of-staff] <slug> specified`, by the host's means; a
 refused send is reported, never sent another way ([routing](routing.md)).
 
 ## In a worktree

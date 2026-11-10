@@ -7,8 +7,9 @@ The first-turn introduction is skipped: the tour covers it.
 
 ## 1. Run `$CHANTIER init`
 
-It creates the five folders of `.agents/changes/` (`1-inbox`, `2-backlog`, `3-requests`,
-`4-archives`, `5-trash`), empty, and says which it created and which existed.
+It creates the empty stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`, `3-ready`,
+`4-batches/1-pending`, `4-batches/2-actives`, `4-batches/3-done`, `5-archives`, `6-trash`), and
+says which it created and which existed.
 
 On exit 2 for no git repository, explain what chantier needs: a git repository, a remote on
 GitHub or GitLab, `gh` or `glab` logged in, `git` and `uv`. Offer `git init`; run it only on the user's
@@ -33,9 +34,9 @@ getting started here, phrases to say, the glossary.
 
 - **The thread is the story of one CR of this project,** from the request to the archive: filed
   in `1-inbox`, grilled with a question and its recommended answer, specified, prioritized into
-  `2-backlog/P<n>`, run in a batch by the Foreman, taken by a Driver in a slot on its branch and
-  worktree, rounds of Coder then Inspector, long gate, PR, CI, Verifier, ready, the user's
-  merge, `4-archives`. The example CR is a real, small improvement you pick from what you read;
+  `2-backlog/P<n>`, put in `3-ready` for the next batch, run in a batch by the Foreman, taken by a
+  Driver in a slot on its branch and worktree, rounds of Coder then Inspector, long gate, PR, CI,
+  Verifier, ready, the user's merge, `3-done`, then `5-archives` at `close`. The example CR is a real, small improvement you pick from what you read;
   its paths, branch name and gate commands are this project's.
 - **Steering.** A batch is steered either by the **Foreman**, a separate session, or by you in
   **direct mode**: no Foreman session, you start the Drivers and hold no grill or discussion

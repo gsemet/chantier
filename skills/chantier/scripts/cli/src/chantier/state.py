@@ -1,8 +1,10 @@
 """Repository paths and the locked batch state.
 
 Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
-Markdown: the stage folders, and in `3-requests/` one folder per batch, `batch-<n>/`, with its CRs
-(`batch.json` holds the batch's limits and what the Chief of Staff passed to `open`).
+Markdown: the stage folders, and in `4-batches/` the project's one current batch: its own files
+(`batch.json` holds the batch's limits and what the Chief of Staff passed to `open`) beside the
+state folders `1-pending/`, `2-actives/` and `3-done/` that hold its CRs. The batch keeps its id,
+`batch-<n>`, in `batch.json`; its folder carries no number.
 
 Only this module writes `batch.json` and `events.jsonl`: under an exclusive lock (`fcntl` on POSIX,
 `msvcrt` on Windows), by atomic rename, and every change appends one event.
@@ -13,7 +15,6 @@ import contextlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import time
@@ -222,15 +223,21 @@ class Repo:
     config: dict
 
     @classmethod
-    def find(cls, cwd: Path | None = None) -> "Repo":
-        """`CHANTIER_ROOT` wins, so agents in a CR worktree or elsewhere reach the same state."""
+    def find(cls, cwd: Path | None = None, convert: bool = True) -> "Repo":
+        """`CHANTIER_ROOT` wins, so agents in a CR worktree or elsewhere reach the same state.
+        The first command run after an update converts a tree of the old layout, once, before
+        anything else (`convert_old_tree`); `init` converts after its own checks."""
         cwd = Path(cwd or os.environ.get("CHANTIER_ROOT") or os.getcwd())
         try:
             common = git("rev-parse", "--path-format=absolute", "--git-common-dir", cwd=cwd)
         except ChantierError as e:
             raise ChantierError(f"not inside a git repository: {cwd}") from e
         git_dir = Path(common).resolve()
-        return cls(git_dir.parent, git_dir, json.loads(json.dumps(DEFAULT_CONFIG)))
+        repo = cls(git_dir.parent, git_dir, json.loads(json.dumps(DEFAULT_CONFIG)))
+        if convert:
+            from .lifecycle import convert_old_tree  # avoid an import cycle
+            convert_old_tree(repo)
+        return repo
 
     @property
     def changes(self) -> Path:
@@ -239,28 +246,34 @@ class Repo:
 
     @property
     def batches(self) -> Path:
-        """`3-requests/`: one folder per batch, which holds its CRs."""
-        return self.changes / "3-requests"
+        """`4-batches/`: the current batch's own files and, in its state folders, its CRs."""
+        return self.changes / "4-batches"
 
     @property
     def worktrees(self) -> Path:
         return self.root.parent / f"{self.root.name}.worktrees"
 
     def batch_folders(self) -> list[Path]:
-        if not self.batches.is_dir():
-            return []
-        return sorted(d for d in self.batches.iterdir() if (d / "batch.json").is_file())
+        """The folder of the current batch, if there is one: `[4-batches]` or `[]`."""
+        return [self.batches] if (self.batches / "batch.json").is_file() else []
+
+    def batch_ids(self) -> list[str]:
+        """The id of the current batch, read from its `batch.json`, never from a folder name."""
+        return [read_batch_json(d / "batch.json")["id"] for d in self.batch_folders()]
 
     def batch_dir(self, batch: str) -> Path:
-        """`--batch` is a batch's number, `4` or `batch-04`: its folder is `batch-04`."""
-        return self.batches / normalize_batch(batch)
+        """`--batch` is a batch's number, `4` or `batch-04`: it must be the current batch's, whose
+        folder is `4-batches/`; any other number is unknown."""
+        if normalize_batch(batch) not in self.batch_ids():
+            raise ChantierError(f"unknown batch {normalize_batch(batch)}")
+        return self.batches
 
     def next_batch_number(self) -> int:
         """Numbers keep rising after a batch's folder is deleted: the last one is on file."""
         last = self.changes / ".batch-number"
         kept = int(last.read_text(encoding="utf-8")) if last.is_file() else 0
-        return max([kept, *(int(re.search(r"\d+", d.name).group()) for d in self.batch_folders()
-                          if re.search(r"\d+", d.name))]) + 1
+        return max([kept, *(int(m.group()) for i in self.batch_ids()
+                          if (m := re.search(r"\d+", i)))]) + 1
 
     def open_batches(self) -> list[str]:
         states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
@@ -282,14 +295,14 @@ class Batch:
         else:
             batch_id = normalize_batch(batch_id)
         self.repo, self.id, self.actor = repo, batch_id, actor
-        self.dir = repo.batches / batch_id
+        self.dir = repo.batches
         self._lock = None
         self.data: dict = {}
         self._events: list[dict] = []
         self._moves: list[tuple[Path, Path]] = []
 
     def __enter__(self) -> "Batch":
-        if self._create is None and not (self.dir / "batch.json").exists():
+        if self._create is None and self.id not in self.repo.batch_ids():
             raise ChantierError(f"unknown batch {self.id}")
         self.dir.mkdir(parents=True, exist_ok=True)
         self._lock = open(self.dir / ".lock", "a+")
@@ -343,10 +356,12 @@ class Batch:
                 with contextlib.suppress(Exception):
                     _unlock(self._lock)
                 self._lock.close()
-                # a failed `open` leaves no empty folder, and never deletes a CR it could not restore
-                if (self._number and not state_written and self.dir.is_dir()
-                        and not any(p.is_dir() for p in self.dir.iterdir())):
-                    shutil.rmtree(self.dir, ignore_errors=True)
+                # a failed `open` leaves none of the batch's own files, and touches no CR folder:
+                # the state folders stay
+                if self._number and not state_written:
+                    for name in (".lock", "brief.md"):
+                        with contextlib.suppress(OSError):
+                            (self.dir / name).unlink()
 
     def log(self, kind: str, cr: str | None = None, **fields) -> None:
         self._events.append({"t": now(), "actor": self.actor, "kind": kind, "cr": cr, **fields})
@@ -404,10 +419,7 @@ def check_epoch(b: "Batch", epoch: int | None) -> None:
 
 
 def read_batch(repo: Repo, batch_id: str) -> dict:
-    path = repo.batch_dir(batch_id) / "batch.json"
-    if not path.exists():
-        raise ChantierError(f"unknown batch {batch_id}")
-    data = read_batch_json(path)
+    data = read_batch_json(repo.batch_dir(batch_id) / "batch.json")
     apply_batch_settings(repo, data)
     return data
 

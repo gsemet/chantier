@@ -5,9 +5,9 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 
 const ROOT = '/work/repo'
-const INDEX = `${ROOT}/.agents/changes/3-requests/STATUS.json`
-const BATCH = '01-demo'
-const CR_DIR = `${ROOT}/.agents/changes/3-requests/${BATCH}/01-first`
+const INDEX = `${ROOT}/.agents/changes/STATUS.json`
+const BATCH = '4-batches'
+const CR_DIR = `${ROOT}/.agents/changes/4-batches/2-actives/01-first`
 
 const PANE = {
   plugin: 'chantier',
@@ -36,12 +36,12 @@ const row = (over = {}) => ({
   cost_usd: 1.5,
   blocked: null,
   silent_minutes: 2,
-  folder: `${BATCH}/01-first`,
+  folder: '4-batches/2-actives/01-first',
   ...over,
 })
 
 const index = (over = {}) => ({
-  schema: 2,
+  schema: 3,
   updated: '2026-11-06T10:00:00Z',
   batches: [
     {
@@ -66,7 +66,7 @@ const index = (over = {}) => ({
 })
 
 const sheet = (over = {}) => ({
-  schema: 2,
+  schema: 3,
   cr: 'CR-1',
   title: 'First change',
   label: '🟡 working Round 1/3',
@@ -239,10 +239,10 @@ test('outside a git repository the session folder is the root', async ($, on) =>
   mock.clock(on)
   const w = world(on, '/work/plain')
   w.git('', 128)
-  w.put('/work/plain/.agents/changes/3-requests/STATUS.json', index())
+  w.put('/work/plain/.agents/changes/STATUS.json', index())
 
   await skill($)
-  expect(w.calls.stat[0]).toBe('/work/plain/.agents/changes/3-requests/STATUS.json')
+  expect(w.calls.stat[0]).toBe('/work/plain/.agents/changes/STATUS.json')
 })
 
 test('a process that is refused is said in one line, with its error', async ($, on) => {
@@ -311,10 +311,10 @@ test('a file that does not parse keeps the last view; another schema is said alo
   expect(kept).toContain('does not parse')
   expect(kept).toContain('First change')
 
-  w.put(INDEX, index({ schema: 3 }))
+  w.put(INDEX, index({ schema: 4 }))
   await clock.advance(15000)
   const alone = await words(ui)
-  expect(alone).toContain('schema 3')
+  expect(alone).toContain('schema 4')
   expect(alone).not.toContain('First change')
   await ui.unmount()
 })
@@ -418,7 +418,7 @@ test('Backlog, Merged and Trashed are folded and open when pressed', async ($, o
   w.put(
     INDEX,
     index({
-      backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '1-backlog/P1/idea', files: 2 }],
+      backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '2-backlog/P1/idea', files: 2 }],
       merged: [past('CR-7', 'merged')],
       merged_total: 12,
       trashed: [past('CR-8', 'cancelled')],
@@ -510,8 +510,8 @@ test('a live batch whose Foreman is silent for long says so', async ($, on) => {
 test('an item holding only a sub-folder lists it, and the folder lists its file, which opens', async ($, on) => {
   mock.clock(on)
   const w = world(on)
-  const dir = `${ROOT}/.agents/changes/3-requests/1-backlog/P1/idea`
-  w.put(INDEX, index({ backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '1-backlog/P1/idea', files: 1 }] }))
+  const dir = `${ROOT}/.agents/changes/2-backlog/P1/idea`
+  w.put(INDEX, index({ backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '2-backlog/P1/idea', files: 1 }] }))
   w.put(`${dir}/intake/request.md`, '# Request')
   w.dirs.set(n(dir), ['intake'])
   w.dirs.set(n(`${dir}/intake`), ['request.md'])
@@ -534,8 +534,8 @@ test('an item holding only a sub-folder lists it, and the folder lists its file,
 test('an inbox or backlog item opens as the list of every file it holds', async ($, on) => {
   mock.clock(on)
   const w = world(on)
-  const dir = `${ROOT}/.agents/changes/3-requests/1-backlog/P1/idea`
-  w.put(INDEX, index({ backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '1-backlog/P1/idea', files: 2 }] }))
+  const dir = `${ROOT}/.agents/changes/2-backlog/P1/idea`
+  w.put(INDEX, index({ backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '2-backlog/P1/idea', files: 2 }] }))
   w.put(`${dir}/01-intent.md`, '# Intent')
   w.dirs.set(n(dir), ['01-intent.md', 'notes.txt', '02-more.md'])
 

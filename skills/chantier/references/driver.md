@@ -125,7 +125,7 @@ code, or a red check: `[stack→foreman] anomaly <cr> <text>`. Green: `[stack→
 ready <cr>=<link>…`.
 
 The stack is what `take stack` prints, each CR with its base (the state computes it: the CR under
-it, the first on the default branch). Merged CRs are gone from it, archived at once and alone,
+it, the first on the default branch). Merged CRs are gone from it, moved to `3-done` at once and alone,
 while the stack lives. After a partial merge what remains is a new stack of the same batch: on
 `origin/<default branch>`, retarget the first PR to the default branch (`gh pr edit --base`,
 `glab mr update --target-branch`), rebase it there and each other PR on the one under it, push

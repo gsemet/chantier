@@ -23,7 +23,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification | Backlog and grill |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode comes from the session | Starting a batch |
-| "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/3-requests/STATUS.md`; a blocked CR is a question for the user | While it runs |
+| "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | the Completion report (the cost to date from `cost` and `cost --explain`) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
@@ -94,6 +94,7 @@ do not write them in the main checkout yourself.
 ```bash
 $CHANTIER file "<raw request>" [--slug <slug>]        # or @<file> for a raw request file
 $CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog item changes priority
+$CHANTIER triage <inbox-or-backlog-folder> --ready    # to 3-ready, for the next batch, on the user's word
 $CHANTIER abandon <unclaimed-folder>                  # only on the user's explicit word
 ```
 
@@ -108,8 +109,10 @@ the time and the agent id) and start the `spec-writer` in the background (you or
 starts it), at any time, a batch running or not; its prompt names the card and the CR folder. When it ends, whatever the result,
 remove `work/specifying`. Review `03-change-spec.md` against `02-answers.md` before you show it:
 nothing dropped, nothing invented. Its open questions go to the user; record the answers in
-`02-answers.md`, then run the writer again. A specified CR stays in the inbox or the backlog
-until the user prioritises it and picks it for a batch. The spec-writer takes no slot and no
+`02-answers.md`, then run the writer again. A CR moves to `3-ready` (`triage --ready`)
+only on the user's word, specified or not; until then it stays in the inbox or the backlog. A
+`3-ready` CR keeps no priority: it is one flat set, the next batch's candidates (`triage
+<3-ready-folder> --priority Pn` puts it back in the backlog). The spec-writer takes no slot and no
 budget of any batch; its cost is on your line. A release CR's and a fix's specification stay
 yours. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link.
@@ -143,7 +146,8 @@ CR queued this way, and the user's go approves it. There is no threshold: you ju
 
 Triage each CR with the user, who decides its way: dropped (`abandon`); **automatable**, with a
 short specification they do not review; needing a specification they review until they approve
-it; or needing clarification: grill, then triage again. Automatable is their call, never yours.
+it; or needing clarification: grill, then triage again. Automatable is their call, never yours:
+such a CR may go to `3-ready` with no specification, and its Driver works from the request alone.
 
 ## Starting a batch
 
@@ -160,7 +164,7 @@ Only in the turn where the user gave the go:
    what the user can do. In direct mode (step 2) run `$CHANTIER preflight --direct`: P1 then
    passes on any Claude Code entry point or a Copilot agent session, and you leave P2 out, since
    no session is started.
-2. **Show the plan:** the CRs and what each one waits for, with the reason of any queue that is
+2. **Show the plan:** the CRs (the `3-ready` ones first) and what each one waits for, with the reason of any queue that is
    no real dependency; how many CRs start at once, on how many slots (4 unless you say
    otherwise); mode (a stack unless the CRs are independent), budget, the team; and who steers
    the batch. Re-read the seat first ([session-start](session-start.md)). The steering mode is
@@ -182,7 +186,7 @@ Only in the turn where the user gave the go:
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
    makes a stack; `--parallel` makes independent CRs. It exits 2 while a batch is not closed. It moves
-   each folder to `3-requests/<batch>/`, names each CR's branch and worktree, and writes
+   each folder to `4-batches/1-pending/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back).
 4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
@@ -229,7 +233,7 @@ Only in the turn where the user gave the go:
 
 ## While it runs
 
-- **Status:** `$CHANTIER status [--notes]`, with PR links, and `.agents/changes/3-requests/STATUS.md`
+- **Status:** `$CHANTIER status [--notes]`, with PR links, and `.agents/changes/STATUS.md`
   for the user. Before a report, run `$CHANTIER status --refresh` with no epoch: it records the
   current spend and `STATUS.md` and leaves the Foreman's heartbeat alone. A 🔴 CR is a
   question for the user. Never read the Foreman's transcript.
@@ -269,9 +273,9 @@ Only in the turn where the user gave the go:
   ```bash
   $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr> | --release]
   $CHANTIER order after CR-104 --note "CR-102,CR-103"   # what a queued CR waits for; "-" for none (not a release's)
-  $CHANTIER order drop CR-104                 # to 5-trash/ with its work
+  $CHANTIER order drop CR-104                 # to 6-trash/ with its work
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
-  $CHANTIER order merged CR-101               # the user merged its PR: archived
+  $CHANTIER order merged CR-101               # the user merged its PR: to 3-done
   $CHANTIER order slots --note 0              # 0 holds; a number resumes
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
@@ -346,7 +350,7 @@ Only in the turn where the user gave the go:
   - `/chantier-board`, to show or hide the CR board: Claude Code only, never on Copilot.
   - "What did it cost?", once a CR has spent.
   - "File this", when the user raises an idea in passing.
-  - "Run the P2s", when the backlog holds prepared CRs and no batch runs.
+  - "Run what is in 3-ready", when that folder holds CRs and no batch runs.
 
   A tip names only what chantier really answers, and never a command the host refuses in this
   session.
@@ -367,8 +371,8 @@ Only in the turn where the user gave the go:
   through `close`), and, on a batch set running again by `order add` or `order qa`, it names what
   runs (or says `pause` comes first). Report a refusal to the user with its cause, do not retry in
   a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
-  it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes, and
-  touches nothing. Show the user the bilan, the final Cost section and that
+  it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to
+  `5-archives`), and touches nothing. Show the user the bilan, the final Cost section and that
   list, and ask. Only on their yes,
   in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
   yourself, from the main checkout (`git worktree remove --force <path>`, `git branch -D
@@ -380,7 +384,7 @@ Only in the turn where the user gave the go:
   preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch the
   Driver of each CR still working from its recorded state; stop orphan processes with
   `$CHANTIER cancel`."
-- **Putting back:** on the user's word, a CR in `5-trash/` returns to `1-inbox/` by moving its
+- **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.
 
 ## Steering a batch yourself
@@ -444,7 +448,7 @@ Rules only; the models judge the rest.
 - A running Driver is never stopped nor moved to another session. On the user's agreement the old
   Chief of Staff finishes the running work itself, or through its Foreman: it starts no new
   Driver (`order slots --note 0` while CRs are queued). Once every Driver has finished (a PR may
-  still be open, not merged or archived), it sends the new session `[chief-of-staff→chief-of-staff]
+  still be open, not merged, so not in `3-done`), it sends the new session `[chief-of-staff→chief-of-staff]
   your turn, you are the Chief of Staff`.
 - The new one answers `I have the batch`, then `$CHANTIER seat take <own id> --over <old id> …`.
   A direct batch: it claims the next epoch as in Steering a batch yourself (`foreman set`,
@@ -466,8 +470,8 @@ cost table, outside the budget. In Foreman mode, still no message to a Driver.
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
 - **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";
-  prompt as in `concepts.md`, with the batch's folder and the user's language). It writes
-  `demo/demo.md` in the batch's folder.
+  prompt as in `concepts.md`, with `4-batches/` as its folder and the user's language). It writes
+  `demo/demo.md` in `4-batches/`.
 - **The demo.** Show the summary, then guide one change at a time and wait for the user's
   result: they try each change themselves. Prepare the fixture or the environment outside the
   repository's tracked files, and remove it at the end. The code under demo is the top of the
@@ -508,7 +512,7 @@ approve`); ask whether they allow more and pass only what they said (`--autonomo
 <n>`, `--grant-fixes`: the Foreman starts and merges up to three fixes, both with `--budget`;
 later `order grant`). `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
-read `work/retro.md` in the archived folder and offer to file each proposal as a CR.
+read `work/retro.md` in the release CR's folder (`4-batches/3-done/`) and offer to file each proposal as a CR.
 
 ## Never
 

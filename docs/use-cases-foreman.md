@@ -44,11 +44,11 @@ it restacks the rest on the default branch.
 | You say | What happens |
 | --- | --- |
 | "Add the rate-limit item to tonight's batch." | the CR (already specified) joins the queue |
-| "Drop CR-104 export-csv, we'll do it later." | its Driver stops; its folder goes to `5-trash/`, not back to the backlog, and `status` shows it as `cancelled`; a second drop of it is refused ("already dropped"); its branch and worktree stay until you close the batch and say yes |
+| "Drop CR-104 export-csv, we'll do it later." | its Driver stops; its folder goes to `6-trash/`, not back to the backlog, and `status` shows it as `cancelled`; a second drop of it is refused ("already dropped"); its branch and worktree stay until you close the batch and say yes |
 | "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Hold." · "Resume." | slots 0: no new CR starts (a hold); a number resumes |
-| "I merged #42." | the CR is archived; a ready PR that stops merging goes back to a Driver, which rebases it |
+| "I merged #42." | the CR moves to `3-done`; a ready PR that stops merging goes back to a Driver, which rebases it |
 
 Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read
 twice runs once. `status` keeps two lines: `orders pending` for the orders nothing has touched yet
@@ -74,7 +74,7 @@ grown. A paused batch still blocks a new plan: new work joins it.
 Only on your word. The Chief of Staff runs the check: it refuses, naming the cause, while a CR is
 not merged or cancelled, an order is open, an agent of the batch still runs, or the final cost
 cannot be priced. When it passes, you see the final cost and what goes, and you say yes. Then the
-batch folder is deleted and the dropped CRs' worktrees and branches are removed. Without your yes,
+batch's own files are deleted, each merged CR moves to `5-archives`, and the dropped CRs' worktrees and branches are removed. Without your yes,
 everything stays.
 
 ## Ask for user testing

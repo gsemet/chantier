@@ -15,7 +15,7 @@ export type ChantierRow = {
   cost_usd: number | null
   blocked: string | null
   silent_minutes: number | null
-  /** Relative to `3-requests/`. */
+  /** Relative to `.agents/changes/`. */
   folder: string | null
 }
 
@@ -36,7 +36,7 @@ export type ChantierBacklogItem = {
   priority: string
   item: string
   title: string
-  /** Relative to `3-requests/`. */
+  /** Relative to `.agents/changes/`. */
   path: string
   /** The spec-writer's state, read from the folder; null with no specification. */
   spec?: 'specifying' | 'specified' | null
@@ -52,11 +52,11 @@ export type ChantierPast = {
   pr: string | null
   cost_usd: number | null
   when: string | null
-  /** Relative to `3-requests/`. */
+  /** Relative to `.agents/changes/`. */
   path: string
 }
 
-/** `3-requests/STATUS.json`. */
+/** `.agents/changes/STATUS.json`. */
 export type ChantierIndex = {
   schema: number
   updated: string

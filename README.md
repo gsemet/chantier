@@ -172,8 +172,8 @@ Talk to the Chief of Staff in plain language:
 ### The CR board (Claude Code)
 
 `/chantier-board` shows or hides the **CR board**, a read-only pane over
-`.agents/changes/3-requests/STATUS.json`: the live batches with what waits for you and what is in
-progress, the backlog, and the merged and trashed CRs. Each live batch shows its slots
+`.agents/changes/STATUS.json`: the live batches with what waits for you and what is in
+progress, the backlog (and `3-ready`), and the merged and trashed CRs. Each live batch shows its slots
 (`Slots 2/4, 2 free`). Press a CR for its sheet and its documents.
 Loading the `chantier` or `chief-of-staff` skill opens it too (not `griller`). It refreshes every 15 seconds while open, writes
 nothing, and runs no process but `git rev-parse` to find the main checkout from a worktree. It is
@@ -226,26 +226,30 @@ Everything lives in `.agents/changes/`:
 .agents/changes/
 ├── 1-inbox/<slug>/                        filed, not prioritized
 ├── 2-backlog/P1…P4/<slug>/                prioritized by you
-├── 3-requests/
-│   ├── STATUS.md, STATUS.json             live batches, backlog table
-│   └── batch-<n>/                         the one batch, until `close`; n counts all batches
-│       ├── batch.json, events.jsonl, brief.md, .lock
-│       ├── STATUS.md, STATUS.json         the batch; once paused, its exit report
-│       └── <number>-<slug>/               a CR in the batch: STATUS.md, STATUS.json; named
-│                                          branch chantier/batch-<n>/… and worktree next to the repo
-├── 4-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged (time of the merge, UTC)
-└── 5-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
+├── 3-ready/<slug>/                        waiting for the next batch, specified or automatable
+├── STATUS.md, STATUS.json                 the index: live batch, backlog table
+├── 4-batches/                             the one batch, until `close`; n counts all batches
+│   ├── batch.json, events.jsonl, brief.md, .lock   the batch's own files, local
+│   ├── STATUS.md, STATUS.json             the batch; once paused, its exit report
+│   ├── 1-pending/<number>-<slug>/         in the batch, not started
+│   ├── 2-actives/<number>-<slug>/         taken by a Driver: working, ready or blocked; named
+│   │                                      branch chantier/batch-<n>/… and worktree next to the repo
+│   └── 3-done/<number>-<slug>/            merged, until `close`
+├── 5-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged, after `close` (time of the merge, UTC)
+└── 6-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
 ```
 
-The folder moves, it is never copied; collisions are errors rather than overwrites. A CR moves
-to `4-archives/` alone and at once when it merges, a stack's too. A dropped CR goes to
-`5-trash/` and does not return to the backlog. A batch has no name, only a
+The folder moves, it is never copied; collisions are errors rather than overwrites. `3-ready`
+holds what you say waits for the next batch (`chantier triage --ready`), with a specification or
+without one (then its Driver works from the request alone). A CR moves to `3-done` alone and at
+once when it merges, a stack's too, and to `5-archives` at `close`. A dropped CR goes to
+`6-trash/` and does not return to the backlog. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
 through the Foreman (in direct mode, once it is paused). Its CRs run in parallel, each PR on the default branch, and a stack driver
 stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
-`STATUS.md` and `STATUS.json` exist at three levels (`3-requests/`, the batch, the CR), each
+`STATUS.md` and `STATUS.json` exist at three levels (`.agents/changes/`, `4-batches/`, the CR), each
 linking to the others. The CLI rewrites them at every state change, from the state alone; a
 status cell reads like `🔴 blocked Question 1/3`.
 
@@ -259,11 +263,10 @@ again; it pauses again at the end, with the cost to date grown. A batch is close
 word ("close the batch"): `chantier close` refuses, naming the
 cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
 written in the last 5 minutes); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
-what goes (the batch folder, the dropped CRs' worktrees and branches); if it cannot price it (no
+what goes (the batch's own files, the dropped CRs' worktrees and branches) and what moves to `5-archives`; if it cannot price it (no
 priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
-reports it to you. On your yes, `chantier close --yes` deletes the folder and it removes the rest with git;
-without a yes, everything stays. Close last: the batch folder holds the exit report and the
-event log.
+reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, deletes the batch's own files and removes the rest with git;
+without a yes, everything stays. Close last: those files hold the exit report and the event log.
 
 ## Supported hosts
 

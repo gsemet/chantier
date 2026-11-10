@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 
 from . import costs
-from .lifecycle import archive_cr
+from .lifecycle import done_cr
 from .state import (EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, LIVE, Batch, ChantierError, Repo, chief_sessions,
                     now, round_limit)
 
@@ -19,9 +19,9 @@ MAX_GRANTED_FIXES = 3
 
 def check_no_open_batch(repo: Repo) -> None:
     """One batch at a time, running or paused until `close`: new work joins it by `order add`."""
-    folders = repo.batch_folders()
-    if folders:
-        raise ChantierError(f"{folders[0].name} is not closed (a paused batch stays until `close`): "
+    ids = repo.batch_ids()
+    if ids:
+        raise ChantierError(f"{ids[0]} is not closed (a paused batch stays until `close`): "
                             "`order add` joins new work to it", EXIT_PRECONDITION)
 
 
@@ -181,11 +181,12 @@ def check_round(b: Batch, c: dict) -> int:
     return limit
 
 
-def archive_merged(b: Batch, c: dict) -> list[str]:
-    """The PR is merged: the folder goes to the archives. Returns what the Foreman should hear."""
-    archive_cr(b, c)
+def merge_done(b: Batch, c: dict) -> list[str]:
+    """The PR is merged: the folder goes to `3-done`, where it stays until `close` archives it.
+    Returns what the Foreman should hear."""
+    done_cr(b, c)
     b.touch(c, status="merged")
-    lines = [f"merged {c['id']}: archived to {c['path']}"]
+    lines = [f"merged {c['id']}: moved to 3-done"]
     if all_merged(b):
         lines.append("every CR is merged or cancelled: `chantier pause`")
     return lines
