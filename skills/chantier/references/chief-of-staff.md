@@ -94,7 +94,7 @@ reference, row "Models"): say so and offer the user's own agent that names the m
 `chantier` section of `AGENTS.md` keeps the extra review steps (any other name is a review step
 the CR Driver runs after the Inspector), the release pointer and the `planning:` line; when it
 still names an agent for a role, tell the user and offer to move it to `chantier.yaml`. A running
-batch keeps the playbook it opened with (`open` records it). You pass the Foreman the `team:` lines
+batch keeps the playbook it opened with (`open` records it). You pass the Foreman the lines
 of `$CHANTIER playbook` as printed, with the review steps.
 
 **Required skills and tools.** For each skill or tool a role's `skills` or `tools` name, at your

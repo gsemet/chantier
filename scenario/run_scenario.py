@@ -1459,7 +1459,7 @@ def playbook_config(w: World) -> None:
 
     def batch_of(*titles: str) -> list[str]:
         w.reset()
-        w.start(*(str(prepare_cr(w, t)[1]) for t in titles), "--parallel", *FROM_AGENTS_MD)
+        w.start(*(str(prepare_cr(w, t)[1]) for t in titles), *FROM_AGENTS_MD)
         w.env["CHANTIER_BATCH"] = w.name
         w.chantier("foreman", "set", "local_foreman_playbook", "--epoch", 1)
         return [c["id"] for c in w.batch()["crs"]]
@@ -1537,7 +1537,7 @@ def playbook_config(w: World) -> None:
     ]
     for label, text, line, why in refusals:
         yaml.write_text(text, encoding="utf-8")
-        code, _ = w.chantier("open", str(item), "--parallel", *FROM_AGENTS_MD, expect=None)
+        code, _ = w.chantier("open", str(item), *FROM_AGENTS_MD, expect=None)
         check(f"S4: {label} is refused by `open` at its line, and nothing moved",
               code == 2 and f"chantier.yaml:{line}:" in w.last_stderr and why in w.last_stderr
               and (item / "03-change-spec.md").is_file()
