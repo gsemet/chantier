@@ -48,7 +48,9 @@ missing test, a broken gate, a part of the specification missed. Style the proje
 on goes to `minor`. You cannot judge: `FIX-REQUIRED` with one blocking item saying so.
 
 On a CR's round, read `<work folder>/pr-body.md` with the diff and audit it against the
-project's PR template and rules, else against [pr-template](pr-template.md) (its audit list). A
+project's PR template and rules, else against [pr-template](pr-template.md) (its audit list); when
+the CR was grilled it also reads the CR's `02-answers.md` (in the CR's folder, the parent of the work
+folder), for the Human decisions item. A
 missing `pr-body.md` or a failed audit item is `blocking`, written `pr-body.md: <section>: …`.
 The extra review steps do not audit the body.
 

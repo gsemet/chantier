@@ -27,27 +27,46 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   last section, "Internal references", and nowhere else.
 - The title says what changes; where the project's rules give no style, a Conventional Commit
   subject (`feat: …`, `fix: …`).
-- Every section is kept and filled; "None" rather than a deleted section.
+- Every section is kept and filled; "None" rather than a deleted section. One exception: Human
+  decisions is omitted, never written "None", when the CR has no decision to show: it had no grill
+  (for instance a quick fix, or a fix CR, whose specification is a `fix-<n>.md` and which has no
+  `02-answers.md`), or it was grilled but its answers hold no decision that shapes the change.
+- The layout: Summary, Deliverables, Blast radius and Autonomous decisions are visible, in that
+  order; the rest goes in one `<details><summary>Details</summary>` block, in this order: Changes,
+  Human decisions, Impacts, Test plan, Internal references. A blank line after `</summary>` and
+  before `</details>`, or the forge does not render the Markdown inside; nothing follows
+  `</details>`. The before/after screenshots of a visible change stay in Deliverables, outside the
+  fold.
 - Deliverables, right after Summary: what the reader gets, shown with one or more small visuals,
-  each next to the one or two sentences it supports; one kind, sometimes several, rarely all:
+  each next to the one or two sentences it supports, and the impactful choices the change made, by
+  kind of change: for a UI, the important aesthetic and behaviour choices; for an architecture, the
+  architecture choices; for a rework or refactoring, the targets set (for instance scores to
+  reach). The visuals are one kind, sometimes several, rarely all:
   - a Mermaid `flowchart` of the modules or layers that change, arrows for the calls or allowed
     imports (about 10 nodes at most);
   - a Mermaid `sequenceDiagram` of one real flow, before and after when the order is the fix;
   - a before/after tree or table (files moved or split, sizes, settings);
-  - before/after screenshots for a visible change (they go in Impacts, see below);
+  - before/after screenshots for a visible change, its main visual, side by side, attached as
+    [driver](driver.md) says (the forge's own CLI);
   - a 5 to 15 line code sketch of the new interface, message or registration a contributor will
     reuse, with `...` for the rest.
 
   Only the calls, files, props and boundaries the reviewer needs, with real names checked against
   the diff. A one-line fix may write "None"; a structural change never does.
-- Impacts: what users and developers will notice. The Verifier's before/after screenshots go
-  there, side by side, attached as [driver](driver.md) says (the forge's own CLI). A file the
+- Impacts, inside the fold: what users and developers will notice. The Verifier's before/after
+  screenshots are in Deliverables, not here; Impacts says in one line what they show. A file the
   forge's CLI cannot upload is named under "Internal references" (its path is under `work/`),
   not in the text. With nothing visible: one line, e.g. "No visual change".
+- Human decisions, inside the fold: the impactful decisions the user took during the grill,
+  extracted from the CR's `02-answers.md` (in the CR's folder, the parent of the work folder):
+  only the decisions that shape the change, not every answer; one bullet each. No internal
+  reference (no CR, batch, round, agent role, `.agents/changes/` path), written for a reader
+  outside the team. Omitted when there is no such decision (no grill, or a grill with none).
 - Blast radius: one grade kept, explained in one or two lines (what could break, how to roll
   back).
-- Autonomous decisions: each decision an agent took without the user (in the investigation, a
-  round, a conflict resolution), one bullet each, with its reason; "None" when there is none.
+- Autonomous decisions, visible right after Blast radius: each decision an agent took without the
+  user (in the investigation, a round, a conflict resolution), one bullet each, with its reason;
+  "None" when there is none.
 - The body describes the PR as it is now, not its history: it is updated whenever the scope
   changes (a new round, a dropped item, a rebase that changes what the PR holds).
 
@@ -58,7 +77,9 @@ To copy into `pr-body.md`:
 ```markdown
 <!-- Title and body in English, for a reader outside the team: no internal ids (CR, batch,
 round, agent roles, .agents/changes/ paths). Put such references, the CR's name first, in the
-last section "Internal references". Fill every section; write "None" rather than delete one. -->
+last section "Internal references". Fill every section; write "None" rather than delete one,
+except Human decisions, omitted when the CR has no decision from the grill to show. Keep the fold
+as written. -->
 
 ## Summary
 
@@ -69,17 +90,11 @@ last section "Internal references". Fill every section; write "None" rather than
 <!-- What the reader gets, with small visuals each next to the sentence it supports: a Mermaid
 flowchart of the modules or calls that change (about 10 nodes), a sequence diagram of one real
 flow (before and after when the order is the fix), a before/after tree or table, or a 5-15 line
-code sketch of the new interface. Real names, checked against the diff. A one-line fix may write
-"None"; a structural change never does. -->
-
-## Changes
-
-<!-- What: the key mechanisms and files, as a short list. Not a diff summary. -->
-
-## Impacts
-
-<!-- What users and developers will notice. For a visible change: before/after screenshots side
-by side. Otherwise one line, e.g. "No visual change". -->
+code sketch of the new interface. For a visible change, the before/after screenshots side by
+side are the main visual. Also the impactful choices made, by kind of change: UI, the aesthetic
+and behaviour choices; architecture, the architecture choices; rework or refactoring, the targets
+set. Real names, checked against the diff. A one-line fix may write "None"; a structural change
+never does. -->
 
 ## Blast radius
 
@@ -91,22 +106,42 @@ by side. Otherwise one line, e.g. "No visual change". -->
 
 Grade: <!-- 1 | 2 | 3 -->
 
+## Autonomous decisions
+
+<!-- Each decision taken without the user, one bullet with its reason; or "None". -->
+
+<details>
+<summary>Details</summary>
+
+## Changes
+
+<!-- What: the key mechanisms and files, as a short list. Not a diff summary. -->
+
+## Human decisions
+
+<!-- The decisions the user took during the grill that shape the change, from the CR's
+02-answers.md, one bullet each, no internal reference. Delete this section when there is none
+(no grill, or no decision that shapes the change); never write "None". -->
+
+## Impacts
+
+<!-- What users and developers will notice. The before/after screenshots are in Deliverables:
+say here in one line what they show. With nothing visible, one line, e.g. "No visual change". -->
+
 ## Test plan
 
 - [ ] New or changed tests (they fail on the previous code) <!-- or "No behaviour change" -->
 - [ ] Local gates: <!-- the commands run and their results -->
-- [ ] Evidence: <!-- the before/after in Impacts, or why there is none -->
+- [ ] Evidence: <!-- the before/after in Deliverables, or why there is none -->
 - [ ] Review
 - [ ] CI green
-
-## Autonomous decisions
-
-<!-- Each decision taken without the user, one bullet with its reason; or "None". -->
 
 ## Internal references
 
 <!-- Always last: the CR's name (number and slug, e.g. "CR-142 grill-rules"), work files,
 anything only the maintainers need. -->
+
+</details>
 ```
 
 The studio's Test plan item on requirements (SwRS, `just requirements-update`) is specific to
@@ -117,16 +152,25 @@ before/after.
 
 What the Inspector checks, one line each, so a defect names its section:
 
-1. Every section of the template present, in order, each filled or "None"; Internal references
-   last.
-2. No internal reference, the CR's name included, in the title or outside Internal references.
-3. Deliverables has at least one visual, unless the change is a one-line fix; the names in it
-   exist in the diff or the code.
-4. Changes and Impacts match the diff and the specification (nothing claimed that the diff does
+1. Every section of the template present, in order, each filled or "None", except Human
+   decisions, present when the CR's `02-answers.md` records a decision that shapes the change and
+   absent otherwise; Internal references last.
+2. The fold in place: one `<details><summary>Details</summary>` block, after Autonomous
+   decisions, holding Changes, Human decisions (when present), Impacts, Test plan and Internal
+   references, with a blank line after `</summary>` and before `</details>`, nothing after it;
+   Summary, Deliverables, Blast radius and Autonomous decisions outside it; the before/after
+   screenshots of a visible change in Deliverables.
+3. No internal reference, the CR's name included, in the title or outside Internal references
+   (Human decisions included).
+4. Deliverables has at least one visual, unless the change is a one-line fix; the names in it
+   exist in the diff or the code; it shows the impactful choices the change made.
+5. Changes and Impacts match the diff and the specification (nothing claimed that the diff does
    not do, nothing the diff does left out).
-5. Blast radius has one grade and its explanation.
-6. Autonomous decisions lists the decisions the round's notes record as taken without the user,
+6. Blast radius has one grade and its explanation.
+7. Autonomous decisions lists the decisions the round's notes record as taken without the user,
    or says "None".
+8. Human decisions matches the CR's `02-answers.md`: each decision that shapes the change is
+   there, nothing dropped, nothing invented; absent only when there is no such decision.
 
 With a project template, the audit is: that template's sections, filled as it asks, and the
 project's PR rules.
