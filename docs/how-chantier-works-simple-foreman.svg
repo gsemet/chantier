@@ -127,6 +127,7 @@
     <rect x="848" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="908" y="607">⛓️ Conflict</text><text x="908" y="625">resolver</text>
   </g>
   <text x="80" y="682" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
+  <text x="80" y="708" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Planning folder</tspan>: <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan> in the project, or in an external surface.</text>
   </g>
 
 </svg>

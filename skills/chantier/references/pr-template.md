@@ -17,7 +17,12 @@ The default description of a CR's PR, written by the CR Driver and checked by th
 ## The rules
 
 - Title and body in English, for a reader outside the team: reviewers, stakeholders, future
-  maintainers. They do not know the backlog, and `.agents/changes/` is not in git.
+  maintainers. They do not know the backlog, and `.agents/changes/` is not in git (but see the
+  archive below).
+- When `take` says `archive: in the PR at <path>`, that archive folder is part of the diff: the
+  description names it only in its Internal references section, as any `.agents/changes/` path,
+  and the Verifier's check of the description against the diff takes it as expected, not as an
+  unexplained file.
 - Explain the change from the reader's side: what was wrong or missing, what the PR changes, what
   they will notice. Name features by what they do, not by internal ids. Define a project term on
   first use.

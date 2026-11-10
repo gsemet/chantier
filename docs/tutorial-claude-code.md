@@ -228,4 +228,5 @@ included.
 - **The Foreman was refused an action by a classifier.** It wants your word in that session: type
   one line in the Foreman's session allowing that action, from your phone if you are away.
 
-Next: [use cases](use-cases.md) for more ways to work with chantier.
+Next: [use cases](use-cases.md) for more ways to work with chantier, or
+[planning modes](planning-modes.md) to plan in a git repository of its own.

@@ -22,7 +22,8 @@ The CLI keeps the CR's record and tells you what is off.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
   <path>` for a file the user reviews and edits in place.
 - The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree
-  add -b <branch> <path> <base>` from the main checkout, with the names your prompt gives. An
+  add -b <branch> <path> <base>` from the main checkout (with a planning surface, from the clone
+  that `take` names: `git -C <clone>`), with the names your prompt gives. An
   earlier Driver's worktree is there: use it (its branch alone: `git worktree add <path>
   <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
   it removes at its end.
@@ -55,6 +56,16 @@ The CLI keeps the CR's record and tells you what is off.
   videos (`gh pr edit --attach` on GitHub, `gh` 2.103 and later); read the CLI's help for any
   other forge. A file its CLI cannot upload stays in `work/`, and the description names it in
   its Internal references section.
+- The archive in the PR: when `take` or `handoff` prints `archive: in the PR at <path>`, before
+  each `handback <cr> ready` write the cleaned archive in your worktree at that path and commit
+  it with the change: `intake/`, `evidence/`, `01-intent.md`, `02-answers.md`,
+  `03-change-spec.md`, `delivery.md` (what the PR delivers, from the PR body's summary, with the PR
+  link once known) and `STATUS.md` as it stands; no `work/`, no log. Keep it current at each later
+  round. `ship` says `archive missing from the PR at <path>` when it is off. When the project
+  ignores `.agents/changes/`, say it in a `note` and hand back with the PR as it is: the Chief of
+  Staff asks the user (no `git add -f`). `archive: not in the PR`: nothing to add.
+- Logs: a raw log goes in `work/gates/` or a `*.log` file, never in a file that is published with
+  the CR.
 - CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
   ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
@@ -140,7 +151,7 @@ not in the stack. The batch stays running until its last CR ends.
 Use the project as its user would, at the head of its default branch, never an unmerged PR, and
 report what breaks. Your prompt gives a work folder in the inbox and what to test; you hold no
 CR, so no `round` and no `handback`. You never fix and start no children. Work in a worktree of
-your own (`git fetch <remote> <default branch>`, `git worktree add --detach
+your own, under the same worktrees folder (`git fetch <remote> <default branch>`, `git worktree add --detach
 <repo>.worktrees/<folder name> <remote>/<default branch>`), removed at your end. Reproduce before
 reporting. Everything goes in the folder: `findings.md`, one finding per bullet (steps, expected,
 actual; "No findings." without bullets), proof in `evidence/` (commands, output, screenshots),

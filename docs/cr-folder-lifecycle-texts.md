@@ -1,13 +1,13 @@
 # A CR is a folder that moves
 
-A change request is one folder of Markdown files in .agents/changes/; its life is that folder moving from stage to stage, never copied, and gaining files on the way. A request from the intake (a Jira issue, a GitLab or GitHub issue, the chat, a Markdown file, or QA and retro findings) is converted to Markdown and filed with chantier file into 1-inbox/<slug>/, with intake/ as received and 01-intent.md, the request summarised; 02-answers.md holds your answers if you are grilled, 03-change-spec.md the spec; they are written with you by the Chief of Staff, or by a Griller (optional, another session of yours). chantier triage moves a CR to 2-backlog/P1…P4/<slug>/; nothing new, you set its priority. chantier triage --ready moves a CR from 1-inbox or 2-backlog to 3-ready/<slug>/, where it waits for the next batch, specified or automatable. To start its implementation, chantier open moves it into the batch, 4-batch/1-pending/<number>-<slug>/, where it gains STATUS.md and STATUS.json, written by the CLI; chantier take moves it to 2-actives/ when a Driver takes it, where it gains work/, written while it runs: notes, gate logs, the PR body, and for a release CR retro.md and fix-<n>.md; and evidence/, the Verifier's proofs. Once its PR or MR is merged, chantier order merged moves it to 3-done/. When the batch is closed, chantier close moves it to 5-archives/<YYMMDD-HHMM>-<number>-<slug>/, where it gains retro.md, its retro and final status. At any stage before the archive, chantier order drop moves it to 6-trash/, with its work.
+A change request is one folder of Markdown files in the planning folder (.agents/changes/ or an external surface); its life is that folder moving from stage to stage, never copied, and gaining files on the way. A request from the intake (a Jira issue, a GitLab or GitHub issue, the chat, a Markdown file, or QA and retro findings) is converted to Markdown and filed with chantier file into 1-inbox/<slug>/, with intake/ as received and 01-intent.md, the request summarised; 02-answers.md holds your answers if you are grilled, 03-change-spec.md the spec; they are written with you by the Chief of Staff, or by a Griller (optional, another session of yours). chantier triage moves a CR to 2-backlog/P1…P4/<slug>/; nothing new, you set its priority. chantier triage --ready moves a CR from 1-inbox or 2-backlog to 3-ready/<slug>/, where it waits for the next batch, specified or automatable. To start its implementation, chantier open moves it into the batch, 4-batch/1-pending/<number>-<slug>/, where it gains STATUS.md and STATUS.json, written by the CLI; chantier take moves it to 2-actives/ when a Driver takes it, where it gains work/, written while it runs: notes, gate logs, the PR body, and for a release CR retro.md and fix-<n>.md; and evidence/, the Verifier's proofs. Once its PR or MR is merged, chantier order merged moves it to 3-done/. When the batch is closed, chantier close moves it to 5-archives/<YYMMDD-HHMM>-<number>-<slug>/, where it gains retro.md, its retro and final status, and a delivery.md (the PR and the merge time). In external mode, by the project setting, a cleaned copy of the archive (no work/, no logs) is also in the CR's PR. At any stage before the archive, chantier order drop moves it to 6-trash/, with its work.
 
 ## Header
 
 ```md
 ## 📁 A CR is a folder that moves
 
-A CR is one folder of Markdown files in .agents/changes/.
+A CR is one folder of Markdown files in the planning folder (.agents/changes/ or an external surface).
 Folder moves from stage to stage, never copied, gaining files on the way.
 ```
 
@@ -168,6 +168,16 @@ nothing new · merged
   └ retro.md · fix-<n>.md          release CR
 📁 evidence/                        Verifier proofs
 ♻️ retro.md                         Retro / status
+```
+
+## Archive, two places (box under the 5-archives folder)
+
+```md
+The archive, in two places
+📄 delivery.md (PR, merge time) travels with it
+· the planning folder's 5-archives/
+· external: by project.md's setting, a cleaned copy
+  in the CR's PR (no work/, no logs)
 ```
 
 ## Note under the 1-inbox folder

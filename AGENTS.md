@@ -5,7 +5,9 @@
   before its PR; a change to the docs or the eval kit alone needs none.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
 - The plugin must work with no setup: the user's `AGENTS.md` is the only configuration, and
-  chantier writes only in `.agents/changes/`, as plain JSON and Markdown.
+  chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
+  when the project asks for it.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
   per role and host: change a role on both hosts together; their bodies must stay identical.
 - A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file

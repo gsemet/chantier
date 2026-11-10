@@ -239,7 +239,7 @@ def _priced(d: dict) -> bool:
 
 
 def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
-    folder = repo.root / c["path"] if c.get("path") else None
+    folder = repo.planning_path(c["path"]) if c.get("path") else None
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     waiting = waits(d, c)
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
@@ -364,7 +364,7 @@ def _done_rows(repo: Repo, start: Path) -> list[dict]:
     for folder in repo.batch_folders():
         d = read_batch_json(folder / "batch.json")
         for c in d["crs"]:
-            where = repo.root / c["path"] if c.get("path") else None
+            where = repo.planning_path(c["path"]) if c.get("path") else None
             if where is None or where.parent != folder / "3-done":
                 continue
             out.append({"cr": c["id"], "title": c["title"], "state": c["status"], "batch": d["id"],
@@ -427,7 +427,7 @@ def write_batch(repo: Repo, d: dict, folder: Path) -> None:
         if e.get("cr"):
             events.setdefault(e["cr"], []).append(e)
     for c in d["crs"]:
-        cr_folder = repo.root / c["path"] if c.get("path") else None
+        cr_folder = repo.planning_path(c["path"]) if c.get("path") else None
         if cr_folder and cr_folder.is_dir():
             v = cr_view(repo, d, c, cr_folder, events.get(c["id"], []),
                         cr_folder.parent.parent == folder)
@@ -445,7 +445,7 @@ def write_final_pages(repo: Repo, d: dict, folder: Path) -> None:
         if e.get("cr"):
             events.setdefault(e["cr"], []).append(e)
     for c in d["crs"]:
-        cr_folder = repo.root / c["path"] if c.get("path") else None
+        cr_folder = repo.planning_path(c["path"]) if c.get("path") else None
         if cr_folder and cr_folder.is_dir() and folder not in cr_folder.parents:
             v = cr_view(repo, d, c, cr_folder, events.get(c["id"], []), False)
             _write(cr_folder, cr_markdown(v), v)

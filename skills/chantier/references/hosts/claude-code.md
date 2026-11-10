@@ -242,8 +242,9 @@ above, is unproved: the same trial settles it.
 | Desktop, driven by Remote Control | the host's Remote Control notice | no: refused, the message must be typed in the desktop app | it reuses the last Foreman, or the user acts |
 | Session on the main checkout | `git rev-parse --git-dir` equals `--git-common-dir` | n/a | yes |
 | Session in a worktree | they differ | n/a | no: Write refuses the main checkout, `change_directory` is refused, `request_directory` does not help |
-| Remote or app session | often starts in a linked worktree, `.claude/worktrees/<name>`: the row above | n/a | no, as the worktree row says; proved 2026-11-10, Battlestation, session `epic-lamport-b88c2f`: preflight P6 and P7 failed and the hook refused writes in the main checkout's `.agents/changes/` |
+| Remote or app session | often starts in a linked worktree, `.claude/worktrees/<name>`: the row above | n/a | no, as the worktree row says; proved 2026-11-10, Battlestation, session `epic-lamport-b88c2f`: preflight P6 and P7 failed and the hook refused writes in the main checkout's planning folder |
 | Cloud | the host's environment | n/a | no: no main checkout |
+| Session in a planning surface | its folder is the surface's root | n/a | yes, if the host lets it write in the project's clone and worktrees, which are outside its folder (`checkout.yml`); **unproved** |
 
 Proved: the worktree row, batch-06, 2026-11 (the user picked the `chantier` entry under "Remote
 Control": it names the main checkout, shows no worktree option, the session landed in a
@@ -256,8 +257,14 @@ for the offer to fork.
 `mcp__ccd_directory__change_directory` to the repository's root was refused for a session in an
 isolated worktree, even clean with no commit (proved 2026-11-10, same session). So moving to the
 main checkout is the user's step: a new session on the main checkout, without worktree ("For you"
-below). Whether a remote session can start without a worktree: unproved; trial: start one with
-Worktree off and run `git rev-parse --git-dir --git-common-dir`.
+below).
+
+**A Chief of Staff and Grillers in remote: the user's own finding (2026-11-10), not a proved
+trial.** A remote session cannot be started outside a worktree, which blocks chantier's planning
+on the default branch; nested sessions are a problem in remote too. So the Chief of Staff is
+started locally (desktop, no worktree), then put in remote (Remote Control). In remote the setup
+is: reuse the Chief of Staff's session (direct mode), plus, optionally, Griller sessions in
+worktrees that are never merged (their files go to the Chief of Staff, which places them).
 
 Documented, not proved here: the desktop docs say Worktree is off by default and is set per
 environment (<https://code.claude.com/docs/en/desktop>); `claude remote-control --spawn
@@ -274,7 +281,7 @@ a new Foreman needs the desktop, and the reuse is offered.
 ## A Foreman in a worktree asks
 
 The Foreman checks before it claims its epoch (its card). In a worktree it takes no CR and sends
-the ask. The Chief of Staff tells the user the impact: Write is refused in `.agents/changes/`, so
+the ask. The Chief of Staff tells the user the impact: Write is refused in the planning folder, so
 no Driver can leave its work and evidence there. Then it gives the "For you" block of a new
 Foreman, to start again on the main checkout. This reference names no way around the refusal. A
 user may allow one for a batch: that word stays in that batch, is sent with the user's own
@@ -344,6 +351,19 @@ and offer the reuse. Once the trial recorded a path, the block is:
 - **You should see:** the Foreman's `ready <batch>` in my session within a few minutes; else tell
   me what the session shows, and run `git rev-parse --git-dir --git-common-dir` in it.
 
+### A planning surface: the project's folders
+
+Cost: none. **Unproved** (trial: a Chief of Staff in a surface whose Driver creates a worktree
+from the clone and commits there). A session in the surface writes in the project's clone and
+worktrees, outside its folder; the host must allow them.
+
+- **Where:** Claude Code, the surface's session.
+- **Do:** add the project's clone and its worktrees folder as additional working directories
+  (`/add-dir <path>`, or `additionalDirectories` in `.claude/settings.json`).
+- **Paste:** the two absolute paths `checkout.yml` resolves to, complete.
+- **You should see:** the Driver's `git worktree add` and commit accepted; else tell me the
+  refusal as written.
+
 ### A reused Foreman
 
 Cost: its context is carried, and the batch pays for it.
@@ -377,17 +397,19 @@ worktree clean with no commit. **Unproved** until followed once.
 
 ### A Chief of Staff and Grillers in remote
 
-The guided flow, **unproved** until followed once by hand. Chantier explains the steps and never
-does them (the fork, auto mode, no worktree).
+Built on the user's own finding (2026-11-10), not a proved trial: a remote session cannot start
+outside a worktree, so the Chief of Staff starts locally. Chantier explains the steps and never
+does them. The path is **unproved** until followed once by hand.
 
-1. Start a remote session with no worktree and the tools allowed in auto mode (your own steps).
-2. Run `/chantier:chief-of-staff` (or `/chantier:chantier`): it becomes the Chief of Staff.
-3. After the boot, fork the session (the label on screen, recorded by the trial): the fork
-   becomes a Griller by itself, or asks with a batch active.
-4. Each renames itself; you grill in the fork.
+1. Start the Chief of Staff locally, in the desktop app, with no worktree and the tools allowed in
+   auto mode (your own steps), then run `/chantier:chief-of-staff` (or `/chantier:chantier`).
+2. Put that session in remote (Remote Control). In remote, reuse this session, in direct mode.
+3. Optionally, start Griller sessions in worktrees that are never merged: they send their files
+   to the Chief of Staff, which places them.
+4. Each session renames itself.
 
-What is not possible on the host (a fork that cannot be told apart, a remote session that cannot
-start without a worktree) is written here as found, with no workaround.
+What is not possible on the host (a fork that cannot be told apart, nested sessions in remote) is
+written here as found, with no workaround.
 
 ### `/compact`
 

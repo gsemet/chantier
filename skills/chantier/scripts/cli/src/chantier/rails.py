@@ -42,7 +42,7 @@ def running(repo: Repo, d: dict) -> list[str]:
     if d.get("stack_agent"):
         causes.append(f"stack agent {d['stack_agent']} is recorded")
     sessions = [s for s in (d.get("foreman_transcripts") or [d.get("foreman_transcript")]) if s]
-    for label, age in costs.idle_seconds(repo.root, d["host"], sessions, chief_sessions(d)):
+    for label, age in costs.idle_seconds(repo.session_root, d["host"], sessions, chief_sessions(d)):
         if age is None:
             causes.append(f"{label}: not measured")
         elif age < QUIET_SECONDS:

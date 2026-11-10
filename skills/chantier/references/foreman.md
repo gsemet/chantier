@@ -43,9 +43,10 @@ order, and `pause` again at the end (`pause` on a paused batch is refused).
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Your git
-  is the merged CRs' cleanup before `pause`, from the main checkout: confirm on the forge that
-  the CR's PR is merged, then `git worktree remove <path>` and `git branch -D <branch>` (`-d`
-  refuses after a rebase or squash merge). A dropped CR's stays for the user's word at `close`.
+  is the merged CRs' cleanup before `pause`, from the main checkout (with a planning surface you
+  run in the surface's checkout and use `git -C <clone>`, the clone `take` names): confirm on the
+  forge that the CR's PR is merged, then `git worktree remove <path>` and `git branch -D <branch>`
+  (`-d` refuses after a rebase or squash merge). A dropped CR's stays for the user's word at `close`.
 
 ## Your means
 
@@ -124,7 +125,7 @@ order, and `pause` again at the end (`pause` on a paused batch is refused).
   --git-common-dir`. If they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
   `$CHANTIER asks "blocked <batch> this session is in a worktree (<path>); start the Foreman on
   the main checkout"`, then stop. The Drivers could not leave their work and evidence in
-  `.agents/changes/` from here. Nothing in your card or the reference gets you round it; only the
+  the planning folder from here. Nothing in your card or the reference gets you round it; only the
   user's own words in your chat, for this batch alone, which you pass on to the Drivers as
   written and never keep as a rule.
 - Then, from the repository (a session opened elsewhere sets `CHANTIER_ROOT` to it), claim your

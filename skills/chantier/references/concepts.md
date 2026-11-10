@@ -10,7 +10,7 @@ started.
   Any other CR's PR is a draft on the forge: it says so itself, and no one merges it. A release
   PR is no draft: the Foreman merges it.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
-  a folder in a stage of `.agents/changes/`:
+  a folder in a stage of the planning folder:
 
   ```text
   <slug>/
@@ -23,6 +23,27 @@ started.
   └── work/                ← written while it runs: notes, gate logs, the PR body
   ```
 
+- **Planning folder:** where chantier writes everything: `<project>/.agents/changes/` (in-project,
+  the default) or `<surface>/projects/<name>/changes/` (external). A CR's folder, the stages, the
+  STATUS files and the seat are in it. Its `.gitignore`, written by the CLI, keeps the batch's own
+  files (`batch.json`, `events.jsonl`, `brief.md`, STATUS, locks, `.batch-number`, `seat.json`) and
+  the detailed logs (`work/gates/`, `*.log`) out of git: a raw log goes in such a file, never in a
+  published one. The rest of a CR's folder is pushed with the surface.
+- **Planning surface:** a git repository of its own, one folder per project, always worked on
+  its default branch (never in a worktree; only the project's code gets worktrees):
+  `projects/<name>/` holds `project.md` (the project, its remote, `- Archive in the PR: yes|no`,
+  `yes` when absent), `checkout.yml` (`repo:` and `worktrees:`, paths relative to the project's
+  folder; defaults `.repo/` and `.worktrees/` there) and `changes/` (the planning folder). The
+  surface's `AGENTS.md` holds its own rules, its sync first. The project's **clone** is the
+  "main checkout" for git only (`git -C <clone>`): no session runs in it. The project's
+  `AGENTS.md` may point to its surface with one line, `- planning: <url>, projects/<name>`, which
+  the Chief of Staff reads and the CLI does not. With a surface, every `$CHANTIER` carries
+  `--project <the project's folder>`; a `cli:` line says so. Full account:
+  [planning modes](../../../docs/planning-modes.md).
+- **Archive:** the CR's folder in `5-archives/`, with a `delivery.md` (the PR, the merge time,
+  whether the archive is also in the PR). In external mode the Driver also commits a cleaned
+  archive (`intake/`, `evidence/`, `01`–`03`, `delivery.md`, `STATUS.md`; no `work/`) in its PR,
+  when `take` prints `archive: in the PR at <path>`.
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
@@ -58,7 +79,8 @@ started.
   batch with no stack at the end. A release CR and a fix CR sit outside the stack, on the default
   branch. When a stack merges only in part, what remains forms another stack in the same batch,
   restacked on the default branch. Each CR is named a branch
-  `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>`: its Driver
+  `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
+  external mode): its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
   user's word.
 - **Batch lifecycle:** three states, and only these words: **running**, **paused**, **closed**.
@@ -106,7 +128,7 @@ started.
   answers, specification) and may prepare work for the Chief of Staff. It opens no batch, sends
   no order, steers nothing, closes nothing, merges nothing. Usually short: started for a few
   items, it ends quickly.
-- **The Chief of Staff's seat:** a small file kept by the CLI, `.agents/changes/seat.json`, that
+- **The Chief of Staff's seat:** a small file kept by the CLI, `seat.json` in the planning folder (one per project, local), that
   names the repository's Chief of Staff session: its session id, its transcript id, the
   environment, the title and the link. It records no date: no activity date is ever taken as
   proof of life. The host says whether the seat's session is alive.
@@ -118,13 +140,13 @@ started.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
-- **STATUS:** `STATUS.md` and `STATUS.json` in `.agents/changes/` (the index), in `4-batch/` and in each CR. A
+- **STATUS:** `STATUS.md` and `STATUS.json` in the planning folder (the index), in `4-batch/` and in each CR. A
   paused batch's `STATUS.md` is the exit report, its cost to date: `close` prices the
   batch up to now, with no end date taken from `pause`, and prints the final cost. If it cannot price it
   (no priced call, no Foreman transcript recorded), `close` refuses, naming the cause, with or
   without `--yes`: the Chief of Staff reports the cause to the user. A batch with no recorded Foreman
   transcript has no way through `close`.
-- **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`).
+- **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`; with a planning surface, plus `--project <folder>` before the command).
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and
   no forge command: the agents create the worktrees, commit, rebase, push, open, watch and

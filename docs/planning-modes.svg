@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+  <title>Planning modes: in-project and external</title>
+  <desc>Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote, the user's own finding: a remote session cannot start outside a worktree, so the Chief of Staff starts locally and is then put in remote; Grillers may run in worktrees that are never merged and send their files to the Chief of Staff. Outside contributors submit a CR by a pull request on the surface.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="800" fill="#f8fafc"/>
+  <text x="24" y="48" font-size="28" font-weight="700" fill="#0f172a">🗺️ Planning modes</text>
+  <text x="24" y="76" font-size="16.5" fill="#475569">Same commands, cards and agents in both: only where the planning folder lives changes.</text>
+
+  <!-- ============ In-project ============ -->
+  <rect x="24" y="100" width="560" height="470" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="44" y="130" font-size="20" font-weight="700" fill="#0f172a">In-project <tspan font-size="14" font-weight="400" fill="#475569">(the default)</tspan></text>
+
+  <rect x="44" y="146" width="520" height="150" rx="10" fill="#eef2f7" stroke="#64748b" stroke-width="1.5"/>
+  <text x="58" y="168" font-size="13.5" font-weight="700" fill="#0f172a">Project repository · main checkout · default branch</text>
+  <rect x="58" y="182" width="156" height="48" rx="9" fill="#1e3a8a"/><text x="136" y="203" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text><text x="136" y="220" font-size="11.5" fill="#bfdbfe" text-anchor="middle">+ Foreman</text>
+  <rect x="226" y="182" width="136" height="48" rx="9" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/><text x="294" y="203" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">🔥 Griller</text><text x="294" y="220" font-size="11.5" fill="#475569" text-anchor="middle">optional</text>
+  <rect x="374" y="182" width="176" height="48" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/><text x="462" y="203" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">.agents/changes/</text><text x="462" y="220" font-size="11.5" fill="#475569" text-anchor="middle">the planning folder</text>
+  <path d="M136,230 V243 H462 V232" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="58" y="264" font-size="12.5" fill="#475569">Write the planning folder directly, on the default branch.</text>
+  <text x="58" y="284" font-size="12.5" fill="#475569">The folder may stay out of git (the init advice); no archive in the PR.</text>
+
+  <rect x="44" y="322" width="520" height="110" rx="10" fill="#ffffff" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="58" y="344" font-size="13.5" font-weight="700" fill="#c2410c">Worktrees · <tspan font-family="ui-monospace, Menlo, monospace" font-weight="400">&lt;repo&gt;.worktrees/&lt;batch&gt;-&lt;cr&gt;</tspan></text>
+  <rect x="58" y="358" width="210" height="52" rx="9" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/><text x="163" y="380" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">🚜 CR driver</text><text x="163" y="398" font-size="11.5" fill="#475569" text-anchor="middle">one worktree per CR</text>
+  <rect x="284" y="358" width="266" height="52" rx="9" fill="#e0e7ff"/><text x="417" y="380" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">🔨 Workers</text><text x="417" y="398" font-size="11.5" fill="#475569" text-anchor="middle">Coder · Inspector · Verifier · …</text>
+  <line x1="90" y1="232" x2="90" y2="320" stroke="#c2410c" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow-orange)"/>
+  <text x="98" y="312" font-size="11.5" fill="#c2410c">starts</text>
+
+  <text x="44" y="462" font-size="13.5" font-weight="700" fill="#0f172a">Remote (the user's own finding, not a proved trial)</text>
+  <text x="44" y="482" font-size="12.5" fill="#475569">A remote session cannot start outside a worktree, which blocks planning</text>
+  <text x="44" y="500" font-size="12.5" fill="#475569">on the default branch. So: start the Chief of Staff locally (desktop,</text>
+  <text x="44" y="518" font-size="12.5" fill="#475569">no worktree), then put it in remote (Remote Control); reuse it, in direct</text>
+  <text x="44" y="536" font-size="12.5" fill="#475569">mode. Grillers may run in worktrees that are never merged: their files</text>
+  <text x="44" y="554" font-size="12.5" fill="#475569">go to the Chief of Staff, which places them.</text>
+
+  <!-- ============ External ============ -->
+  <rect x="616" y="100" width="560" height="470" rx="14" fill="#ffffff" stroke="#1e3a8a" stroke-width="2"/>
+  <text x="636" y="130" font-size="20" font-weight="700" fill="#0f172a">External <tspan font-size="14" font-weight="400" fill="#475569">(a planning surface)</tspan></text>
+
+  <rect x="636" y="146" width="520" height="190" rx="10" fill="#eef2f7" stroke="#1e3a8a" stroke-width="1.5"/>
+  <text x="650" y="168" font-size="13.5" font-weight="700" fill="#0f172a">Planning surface · its own git repository · always its default branch</text>
+  <rect x="650" y="182" width="156" height="48" rx="9" fill="#1e3a8a"/><text x="728" y="203" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text><text x="728" y="220" font-size="11.5" fill="#bfdbfe" text-anchor="middle">+ Foreman</text>
+  <rect x="818" y="182" width="136" height="48" rx="9" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/><text x="886" y="203" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">🔥 Griller</text><text x="886" y="220" font-size="11.5" fill="#475569" text-anchor="middle">optional</text>
+  <rect x="966" y="182" width="176" height="48" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/><text x="1054" y="203" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">changes/</text><text x="1054" y="220" font-size="11.5" fill="#475569" text-anchor="middle">the planning folder</text>
+  <path d="M728,230 V243 H1054 V232" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <g font-size="12" fill="#334155" font-family="ui-monospace, Menlo, monospace">
+    <text x="650" y="264">AGENTS.md                the surface's own rules (its sync)</text>
+    <text x="650" y="280">projects/&lt;name&gt;/project.md    remote, archive setting</text>
+    <text x="650" y="296">projects/&lt;name&gt;/checkout.yml repo: · worktrees:</text>
+    <text x="650" y="312">projects/&lt;name&gt;/changes/     1-inbox … 6-trash</text>
+  </g>
+  <text x="650" y="328" font-size="11">A team of 2 to 4, one subject: every change pushed to the default branch, like an Obsidian vault.</text>
+
+  <rect x="636" y="352" width="250" height="80" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="650" y="374" font-size="13.5" font-weight="700" fill="#0f172a">Project's clone</text>
+  <text x="650" y="392" font-size="12" fill="#475569">git only: <tspan font-family="ui-monospace, Menlo, monospace">git -C &lt;clone&gt;</tspan></text>
+  <text x="650" y="410" font-size="12" fill="#475569">no session runs in it</text>
+  <rect x="906" y="352" width="250" height="80" rx="10" fill="#ffffff" stroke="#c2410c" stroke-width="1.5"/>
+  <text x="920" y="374" font-size="13.5" font-weight="700" fill="#c2410c">Worktrees (checkout.yml)</text>
+  <text x="920" y="394" font-size="12" fill="#0f172a">🚜 CR driver · 🔨 workers</text>
+  <text x="920" y="412" font-size="12" fill="#475569">archive in the PR, by the setting</text>
+  <line x1="886" y1="392" x2="902" y2="392" stroke="#c2410c" stroke-width="1.6" marker-end="url(#arrow-orange)"/>
+  <line x1="1100" y1="232" x2="1100" y2="348" stroke="#c2410c" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow-orange)"/>
+  <text x="1108" y="300" font-size="11.5" fill="#c2410c">starts</text>
+
+  <text x="636" y="462" font-size="13.5" font-weight="700" fill="#0f172a">Kept local, and published</text>
+  <text x="636" y="482" font-size="12.5" fill="#475569">Local (ignored by git): the batch's own files (batch.json, events,</text>
+  <text x="636" y="500" font-size="12.5" fill="#475569">STATUS, locks, seat) and the detailed logs (work/gates/, *.log).</text>
+  <text x="636" y="518" font-size="12.5" fill="#475569">Pushed while a CR runs: its documents, reports and evidence.</text>
+  <text x="636" y="536" font-size="12.5" fill="#475569">Archive: the surface's 5-archives/ (with delivery.md) and, by</text>
+  <text x="636" y="554" font-size="12.5" fill="#475569">project.md's setting, a cleaned copy in the CR's PR.</text>
+
+  <!-- ============ Bottom band ============ -->
+  <rect x="24" y="596" width="1152" height="178" rx="14" fill="#f0fdf4" stroke="#15803d" stroke-width="1.5"/>
+  <text x="44" y="626" font-size="16" font-weight="700" fill="#0f172a">Who runs where, in both modes</text>
+  <g font-size="13" fill="#334155">
+    <text x="44" y="654"><tspan font-weight="700">On the default branch:</tspan> the Chief of Staff, the Foreman and the Griller. In-project, the project's main checkout; external, the surface's checkout.</text>
+    <text x="44" y="676"><tspan font-weight="700">In a worktree:</tspan> only the project's code: each CR's Driver and workers. A Griller in a never-merged worktree joins no autosync and commits nothing there.</text>
+    <text x="44" y="698"><tspan font-weight="700">Outside contributors:</tspan> submit a CR into 1-inbox or 2-backlog only by a pull request on the surface; the maintainer reviews and merges it.</text>
+    <text x="44" y="720"><tspan font-weight="700">Privacy:</tspan> a public surface exposes the requests, the grills, the reports and the evidence; you choose its visibility.</text>
+    <text x="44" y="742"><tspan font-weight="700">Sync:</tspan> the surface's own rules win; without any, the Chief of Staff commits and pushes after each step that changes it.</text>
+    <text x="44" y="764" fill="#475569">Next to a tracker: the planning folder is the tactical, short-term plan; the tracker keeps the strategic, long-term plan.</text>
+  </g>
+</svg>

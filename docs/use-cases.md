@@ -99,10 +99,13 @@ role in its title, in the form `[env] Project [role]`, so you tell them apart in
 
 In a remote session, the steps are yours (chantier explains them and never does them):
 
-1. Start a remote session with no worktree and the tools allowed in auto mode.
-2. Run `/chantier:chief-of-staff`: the session becomes the Chief of Staff.
-3. Fork the session: the fork becomes a Griller by itself, or asks first when a batch is active.
-4. Each session renames itself; you grill in the fork.
+1. Start the Chief of Staff locally (desktop, no worktree, tools allowed in auto mode): a remote
+   session cannot start outside a worktree (the author's own finding, not a proved trial).
+2. Run `/chantier:chief-of-staff`, then put the session in remote (Remote Control). In remote,
+   reuse that session, in direct mode.
+3. Optionally, start Griller sessions in worktrees that are never merged: their files go to the
+   Chief of Staff.
+4. Each session renames itself.
 
 A second session tells you who holds the seat and offers one thing only: say "become chief of
 staff" to take over. To hand the seat over, say so in the new session. The old Chief of Staff
@@ -111,11 +114,18 @@ and takes the seat, and the batch follows it.
 
 - A Griller files its work in the CR folders; the Chief of Staff reads the folders, not the Griller.
   When a Griller works in a worktree, its files go to the main checkout's folders.
-- The Chief of Staff holds the **seat** (`.agents/changes/seat.json`). A new session that asks for
+- The Chief of Staff holds the **seat** (`seat.json` in the planning folder). A new session that asks for
   it is told who holds it and does not take it.
 - A running batch follows the new Chief of Staff; its cost counts both.
 - The steps above are unproved until followed once by hand; what is proved and what is not is in
   the [Claude Code reference, "A Chief of Staff and Grillers in remote"](../skills/chantier/references/hosts/claude-code.md#a-chief-of-staff-and-grillers-in-remote).
+
+## Plan outside your project's repository
+
+> "Plan this project in my planning surface."
+
+Chantier can keep the whole planning in a git repository of its own, with one folder per project.
+See [planning modes](planning-modes.md).
 
 ## Your pull requests' description
 

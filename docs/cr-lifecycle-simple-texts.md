@@ -137,5 +137,5 @@ retro
 ## Footer
 
 ```md
-Each stage is a folder in .agents/changes/; the chantier CLI moves it. At any time: order drop → 6-trash/.
+Each stage is a folder in the planning folder (.agents/changes/ or a surface); the chantier CLI moves it. At any time: order drop → 6-trash/.
 ```
