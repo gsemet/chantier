@@ -154,12 +154,18 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
    just tag
    ```
 
+   It refuses unless origin/main's head is the `release: vX.Y.Z` commit of the local version, so
+   a commit pushed after the merge never gets the tag.
+
 5. Publish the reviewed notes as they are, with the images attached:
 
    ```bash
    uv run --script scripts/release_notes.py --prepare vX.Y.Z --output <tmp>/release-notes.md --assets <tmp>/assets
-   gh release create vX.Y.Z --notes-file <tmp>/release-notes.md <each file that --prepare listed>
+   gh release create vX.Y.Z --title vX.Y.Z --verify-tag --notes-file <tmp>/release-notes.md <each file that --prepare listed>
    ```
+
+   `--verify-tag` makes `gh` refuse when the tag `just tag` pushed is not on the forge, instead
+   of creating one.
 
    A typo found after publication is fixed by editing the release on GitHub. The published text
    may then differ from the file, and that is accepted.

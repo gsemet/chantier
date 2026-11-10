@@ -39,7 +39,7 @@ IMAGE_LINE = re.compile(r"^Image:\s*(.+?)\s*$", re.MULTILINE)
 FIXED = [
     ("home path", re.compile(r"[A-Za-z]:[\\/]+Users[\\/]|/Users/[^/\s]|/home/[^/\s]")),
     ("email", re.compile(r"[\w.+-]+@(?!example\.(?:com|org)\b)[\w-]+(?:\.[\w-]+)+")),
-    ("uuid", re.compile(r"\b[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\b")),
+    ("uuid", re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}(?![0-9a-fA-F])")),
 ]
 
 

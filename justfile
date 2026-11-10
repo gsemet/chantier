@@ -44,5 +44,6 @@ release part="patch": (bump-version part) check
 # After the release PR is merged: tag the version on origin/main and push the tag
 tag:
     git fetch origin main
+    uv run --script scripts/version.py check-tag
     git tag "v$(uv run --script scripts/version.py show)" origin/main
     git push origin "v$(uv run --script scripts/version.py show)"

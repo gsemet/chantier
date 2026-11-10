@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -92,6 +93,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("show", help="print the current version")
+    sub.add_parser("check-tag", help="succeed only if origin/main's head is `release: v<version>`")
     s = sub.add_parser("set", help="set an exact version")
     s.add_argument("version")
     b = sub.add_parser("bump", help="bump one part of the version")
@@ -101,6 +103,14 @@ def main() -> int:
     old = current()
     if args.cmd == "show":
         print(old)
+        return 0
+    if args.cmd == "check-tag":
+        subject = subprocess.run(["git", "log", "-1", "--format=%s", "origin/main"], cwd=ROOT,
+                                 capture_output=True, text=True, encoding="utf-8").stdout.strip()
+        expected = f"release: v{old}"
+        if subject != expected:
+            print(f'just tag: origin/main is "{subject}", expected "{expected}"', file=sys.stderr)
+            return 1
         return 0
     new = args.version if args.cmd == "set" else bump(old, args.part)
     if not SEMVER.match(new):

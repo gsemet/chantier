@@ -182,6 +182,10 @@ inside the procedure and the grant, and ask for anything beyond them.
 - A release PR is the Foreman's to merge, so it is opened ready, not as a draft: green, `handback blocked merge: <pr link>`; a new
   Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
   `handback blocked fix: <fix-cr> pending`.
+- A release PR the user has already merged needs no release go: you see the merge on the forge
+  (`gh pr view <pr>`, or the forge's equivalent the host card names) and go on to the
+  procedure's next step without asking; the user's merge is the go. Only the merge: every other
+  irreversible action keeps its `release go`.
 - A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
   checks and any watch of the deploys it names (a package registry, pages), then `<work
   folder>/retro.md` (what went wrong or slowly, the long-term fix for each,
