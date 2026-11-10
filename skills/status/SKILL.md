@@ -25,6 +25,8 @@ each active batch when there are several (`--batch <batch>`):
 2. `$CHANTIER status`;
 3. `$CHANTIER cost`.
 
+Read each CR's icon and label from the batch's `STATUS.md` (the Status column; or `label` in its
+`STATUS.json`), just refreshed by step 1: the text output of `status` draws no icon.
 Write the Progress report from their output, in the user's language, in the shape `report.md`
 gives.
 
