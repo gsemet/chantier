@@ -1,4 +1,4 @@
-﻿"""The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code.
+"""The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code.
 
 The CLI is the frame the agents work in: the CR lifecycle in `.agents/changes/` (the stages,
 the batch folders, the record and the STATUS files), the batch's limits (slots, budget, rounds,
