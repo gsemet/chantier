@@ -185,7 +185,7 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool():
     for name in ("claude-code.md", "copilot.md"):
         assert (hosts / name).is_file(), name
     for card in ("chief-of-staff", "foreman", "driver", "worker", "concepts", "griller",
-                 "session-start", "report"):
+                 "session-start", "status-layout"):
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
         assert [t for t in HOST_TOOLS if t in body] == [], card

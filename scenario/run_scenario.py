@@ -2056,13 +2056,13 @@ def qa_on_head(w: World) -> None:
     code, _ = w.chantier("pause", "--epoch", 1, expect=2)
     check("a batch does not pause under a running QA", code == 2 and "O-2" in w.last_stderr,
           w.last_stderr)
-    (folder / "findings.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
+    (folder / "qa-notes.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
     w.chantier("order", "done", "O-2", "--epoch", 1)
     w.chantier("pause", "--epoch", 1)
     priced_foreman(w)
     w.chantier("close", "--batch", w.name, "--yes")
     check("its findings stay in the inbox, an ordinary item",
-          (folder / "findings.md").is_file())
+          (folder / "qa-notes.md").is_file())
     w.chantier("abandon", folder)
 
 

@@ -153,7 +153,7 @@ report what breaks. Your prompt gives a work folder in the inbox and what to tes
 CR, so no `round` and no `handback`. You never fix and start no children. Work in a worktree of
 your own, under the same worktrees folder (`git fetch <remote> <default branch>`, `git worktree add --detach
 <repo>.worktrees/<folder name> <remote>/<default branch>`), removed at your end. Reproduce before
-reporting. Everything goes in the folder: `findings.md`, one finding per bullet (steps, expected,
+reporting. Everything goes in the folder: `qa-notes.md`, one finding per bullet (steps, expected,
 actual; "No findings." without bullets), proof in `evidence/` (commands, output, screenshots),
 long tests and whatever else helps. End with `[qa→foreman] qa done <folder> <n> findings`.
 

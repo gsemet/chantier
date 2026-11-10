@@ -244,9 +244,9 @@ Only in the turn where the user gave the go:
 ## While it runs
 
 - **Status:** `$CHANTIER status [--notes]`, with PR links, and the planning folder's
-  `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`report.md`).
+  `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`status-layout.md`).
   A 🔴 CR is a question for the user. Never read the Foreman's transcript.
-- **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `report.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
+- **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `status-layout.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from
@@ -277,7 +277,7 @@ Only in the turn where the user gave the go:
   the user, split into CRs as needed.
 - **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
   without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
-  "chain: <reason>"`. Your next report says the chain and its reason (`report.md`). The user turns
+  "chain: <reason>"`. Your next report says the chain and its reason (`status-layout.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
@@ -296,7 +296,7 @@ Only in the turn where the user gave the go:
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
-- **Cost:** the cost table of a report, and `cost --explain`: see `report.md`, "Cost".
+- **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".
 - **Compacting:** once per session, advise the user to set the host's auto-compact window, if
   its reference names one (it says which command and setting, and names none when none exists).
   When the talk moves to another subject and your context size (the `Chief of Staff:` line) is
@@ -431,7 +431,7 @@ thrown away. Implementation goes through a CR and the Foreman. Its cost is in yo
 cost table, outside the budget. In Foreman mode, still no message to a Driver.
 
 - **The offer.** On the Foreman's `ready` that is the last of a stack, when no CR of the batch
-  is working, end the Progress report with the offer of a demo (`report.md`).
+  is working, end the Progress report with the offer of a demo (`status-layout.md`).
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
 - **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";

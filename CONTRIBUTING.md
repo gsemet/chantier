@@ -12,7 +12,7 @@ chantier is four things in one repository:
    [`skills/chief-of-staff/`](skills/chief-of-staff/), [`skills/griller/`](skills/griller/) and
    [`skills/status/`](skills/status/) are thin and load the same cards. [`references/`](skills/chantier/references/) holds one file per
    running context: `concepts.md` (read by everyone), `session-start.md` (the start checks, the
-   seat, the session titles), `chief-of-staff.md`, `griller.md`, `report.md`, `foreman.md`, `driver.md`, `worker.md`
+   seat, the session titles), `chief-of-staff.md`, `griller.md`, `status-layout.md`, `foreman.md`, `driver.md`, `worker.md`
    and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
    Inspector audits; `release-template.md` is the default release notes and announcement thread the
    release Driver writes when the project has none of its own; `hosts/claude-code.md` and

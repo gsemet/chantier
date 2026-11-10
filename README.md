@@ -382,7 +382,7 @@ hooks/, types/              ← Claude Code only: the CR board mod and its contr
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
 skills/griller/             ← the Griller's entry point (thin)
-skills/status/              ← `/chantier:status`, the progress report (thin: it loads report.md)
+skills/status/              ← `/chantier:status`, the progress report (thin: it loads status-layout.md)
 skills/chantier/
 ├── SKILL.md                ← the router: asks which role this session takes
 ├── references/             ← one file per running context: concepts, session-start,
