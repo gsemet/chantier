@@ -60,8 +60,14 @@ In the Desktop app, open the Code tab on your repository's folder (its root, not
 type:
 
 ```text
-/chantier:chantier prepare yourself to work on this project
+/chantier:chief-of-staff prepare yourself to work on this project
 ```
+
+`/chantier:chief-of-staff` is the session that opens and runs batches (`direct` after it makes it
+steer batches itself). `/chantier:griller` is a session that refines the inbox and the backlog
+while the Chief of Staff runs batches. One Chief of Staff holds the seat per repository; a
+second session that asks for it becomes a Griller and offers "become chief of staff", which you
+say to take over.
 
 The Chief of Staff introduces chantier in a few lines, reads your `AGENTS.md`, and tells you
 what it learned: how you check, ship and merge, and the default branch. It asks about anything your instructions do
@@ -70,7 +76,7 @@ reads `AGENTS.md` again at every session, and everything chantier writes later g
 `.agents/changes/`.
 
 New to chantier, or on a project with no `.agents/changes/` yet? Type
-`/chantier:chantier init` instead. It creates the five stage folders (inbox, backlog, requests,
+`/chantier:chief-of-staff init` instead. It creates the five stage folders (inbox, backlog, requests,
 archives, trash), then gives you a guided tour of your project, in the chat or as an HTML page.
 It writes nothing in the project except what you say yes to at the end.
 

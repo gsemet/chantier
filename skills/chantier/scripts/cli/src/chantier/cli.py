@@ -82,6 +82,16 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("action", choices=["set", "get", "transcript"])
     s.add_argument("value", nargs="?")
 
+    s = cmd("seat", commands.seat,
+            "the repository's Chief of Staff session: show, take or leave the seat", False)
+    s.add_argument("action", nargs="?", choices=["get", "take", "leave"], default="get")
+    s.add_argument("session", nargs="?", help="the session id, for take and leave")
+    s.add_argument("--env", help="take: the machine's name, or Remote")
+    s.add_argument("--title", help="take: the session's current title")
+    s.add_argument("--link", help="take: the session's link")
+    s.add_argument("--over", metavar="SESSION",
+                   help="take: the session whose seat this one takes, on the user's word")
+
     s = cmd("status", commands.status,
             "one line per CR, the open orders (untouched, then applied), the unread asks; "
             "--refresh: the live facts",

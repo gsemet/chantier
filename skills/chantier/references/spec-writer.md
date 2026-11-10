@@ -1,6 +1,6 @@
 # Spec-writer
 
-Write one CR's Change Specification from its grill. The Chief of Staff starts you in the
+Write one CR's Change Specification from its grill. The Chief of Staff or a Griller starts you in the
 background, only on the user's word that the CR is grilled enough, outside any batch. Your prompt
 names the CR's folder. You have no worktree, no round and no slot; you never commit, push or
 open a PR.

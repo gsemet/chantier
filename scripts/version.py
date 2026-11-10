@@ -31,6 +31,8 @@ TARGETS: list[tuple[Path, str, int]] = [
     (CLI / "pyproject.toml", rf'^version = "{V}"$', 1),
     (CLI / "uv.lock", rf'^name = "chantier"\nversion = "{V}"$', 1),
     (SKILL / "SKILL.md", rf"^chantier-version: {V}$", 1),
+    (ROOT / "skills" / "chief-of-staff" / "SKILL.md", rf"^chantier-version: {V}$", 1),
+    (ROOT / "skills" / "griller" / "SKILL.md", rf"^chantier-version: {V}$", 1),
     (ROOT / ".github" / "plugin" / "plugin.json", rf'^  "version": "{V}",$', 1),
     (ROOT / ".claude-plugin" / "plugin.json", rf'^  "version": "{V}",$', 1),
     (ROOT / ".claude-plugin" / "marketplace.json", rf'^      "version": "{V}"$', 1),

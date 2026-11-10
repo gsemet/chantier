@@ -10,8 +10,8 @@ import re
 
 from . import costs
 from .lifecycle import archive_cr
-from .state import (EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, LIVE, Batch, ChantierError, Repo, now,
-                    round_limit)
+from .state import (EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, LIVE, Batch, ChantierError, Repo, chief_sessions,
+                    now, round_limit)
 
 ENDED = {"merged", "cancelled"}
 MAX_GRANTED_FIXES = 3
@@ -42,7 +42,7 @@ def running(repo: Repo, d: dict) -> list[str]:
     if d.get("stack_agent"):
         causes.append(f"stack agent {d['stack_agent']} is recorded")
     sessions = [s for s in (d.get("foreman_transcripts") or [d.get("foreman_transcript")]) if s]
-    for label, age in costs.idle_seconds(repo.root, d["host"], sessions, d.get("chief_transcript")):
+    for label, age in costs.idle_seconds(repo.root, d["host"], sessions, chief_sessions(d)):
         if age is None:
             causes.append(f"{label}: not measured")
         elif age < QUIET_SECONDS:

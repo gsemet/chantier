@@ -198,15 +198,16 @@ def copilot_home() -> Path:
 
 
 def idle_seconds(root: Path, host: str, sessions: list[str],
-                 own: str | None = None) -> list[tuple[str, float | None]]:
+                 own: list[str] | None = None) -> list[tuple[str, float | None]]:
     """How long ago each session record of the batch was last written, whatever the agent.
 
     Claude: the Foreman's transcript and every `subagents/agent-*.jsonl` beside it, a Driver, a
     worker, a QA or a user's own one alike. Copilot: the session's `events.jsonl`, the only record
     the CLI reads, subagents included. A file's time is its modification time: many records carry
     no time of their own. None: a file that is not there, so the time is not measured. `own`: the
-    session that asks (the Chief of Staff steering a direct batch): its own file is written by the
-    very call that asks, so only its subagents count."""
+    sessions that ask (every Chief of Staff session of a direct batch): a file of its own is written
+    by the very call that asks, so only the subagents count."""
+    own = own or []
     found: list[tuple[str, float | None]] = []
     clock = datetime.now(timezone.utc).timestamp()
 
@@ -219,11 +220,11 @@ def idle_seconds(root: Path, host: str, sessions: list[str],
     for session in sessions:
         if host == "copilot":
             path = copilot_home() / "session-state" / session / "events.jsonl"
-            if session != own:
+            if session not in own:
                 found.append((f"Copilot session {session}", age(path)))
             continue
         main = transcript_path(root, session)
-        if session != own:
+        if session not in own:
             found.append((f"transcript {session}", age(main)))
         for f in sorted((main.with_suffix("") / "subagents").glob("agent-*.jsonl")):
             found.append((f"transcript {session} {f.stem}", age(f)))

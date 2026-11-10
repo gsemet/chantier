@@ -780,6 +780,50 @@ def scenario(w: World) -> None:
     rails(w)
     foreman_in_a_worktree(w)
     direct_batch(w)
+    seat_handover(w)
+
+
+def seat_handover(w: World) -> None:
+    """Two Chief of Staff sessions on one repository: the seat, the refused take-over, the
+    take-over on purpose, and the new session steering the same direct batch."""
+    note("\n## 16b. The seat and the hand-over between two Chief of Staff sessions")
+    b_env = {"CLAUDE_CODE_SESSION_ID": "uuid-chief-b"}
+    _, item = prepare_cr(w, "Seat work")
+    w.reset()
+    w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[remote] proj [Chief of Staff]",
+               "--link", "link-a")
+    seat = json.loads((w.state / "seat.json").read_text(encoding="utf-8"))
+    check("`seat take` writes one file with the session, transcript, env, title and link, no date",
+          set(seat) == {"session", "transcript", "env", "title", "link"}
+          and seat["transcript"] == "uuid-chief", str(seat))
+    w.chantier("seat", "take", "sess-b", env=b_env, expect=2)
+    check("a second session is refused the seat, and told to take it over only on the user's word",
+          "sess-a" in w.last_stderr and "--over" in w.last_stderr, w.last_stderr)
+    w.chantier("seat", "take", "sess-b", "--over", "sess-x", env=b_env, expect=2)
+    check("`--over` must name the session that holds the seat", "sess-a" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("seat", "take", "sess-b", "--over", "sess-a", "--env", "remote", env=b_env)
+    d = w.batch()
+    check("`seat take --over` hands the seat and the batch's Chief of Staff transcript over, "
+          "keeping the earlier one",
+          d["chief_transcript"] == "uuid-chief-b"
+          and d["chief_transcripts"] == ["uuid-chief", "uuid-chief-b"], str(d))
+    _, out = w.chantier("seat", "get")
+    check("`seat get` names the new holder", out[0].startswith("seat sess-b "), str(out))
+    w.chantier("seat", "leave", "sess-a", expect=2)
+    w.chantier("foreman", "set", "uuid-chief-b", "--epoch", 1, env=b_env)
+    w.chantier("foreman", "transcript", "uuid-chief-b", "--epoch", 1, env=b_env)
+    check("the new session claims the epoch and the steering stays direct",
+          w.batch()["steering"] == "direct", str(w.batch()["steering"]))
+    w.chantier("status", "--refresh", "--epoch", 0, expect=3)
+    w.chantier("cost")
+    w.chantier("seat", "leave", "sess-b", env=b_env)
+    _, out = w.chantier("seat", "get")
+    check("`seat leave` frees the seat", out == ["seat none"], str(out))
+    w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
 
 
 def direct_batch(w: World) -> None:

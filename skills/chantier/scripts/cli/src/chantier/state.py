@@ -130,6 +130,13 @@ def stamp() -> str:
     return datetime.now(timezone.utc).strftime("%y%m%d-%H%M")
 
 
+def chief_sessions(d: dict) -> list[str]:
+    """Every session that was the batch's Chief of Staff, the current one last; an old batch has
+    only `chief_transcript`."""
+    return list(d.get("chief_transcripts") or ([d["chief_transcript"]] if d.get("chief_transcript")
+                                               else []))
+
+
 def round_limit(d: dict, c: dict) -> int:
     """The batch's limit, or the one the user granted this CR (`order rounds`)."""
     return c.get("rounds") or d.get("settings", {}).get("max_rounds", 3)

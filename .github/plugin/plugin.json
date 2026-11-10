@@ -21,6 +21,8 @@
     "./com.github.copilot/agents"
   ],
   "skills": [
-    "./skills/chantier"
+    "./skills/chantier",
+    "./skills/chief-of-staff",
+    "./skills/griller"
   ]
 }

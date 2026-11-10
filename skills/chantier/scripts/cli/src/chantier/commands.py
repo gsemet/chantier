@@ -1,4 +1,4 @@
-"""The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code.
+﻿"""The `chantier` commands. Each returns the lines to print; errors raise ChantierError with an exit code.
 
 The CLI is the frame the agents work in: the CR lifecycle in `.agents/changes/` (the stages,
 the batch folders, the record and the STATUS files), the batch's limits (slots, budget, rounds,
@@ -29,8 +29,8 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, archive_merged, check_
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
                     release_merged, waits_all, waits_for)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
-                    Batch, ChantierError, Repo, read_batch_json, _retry, _try_lock, _unlock,
-                    age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
+                    Batch, ChantierError, Repo, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
+                    write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
                     next_cr_number, normalize_batch, now, project_path, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
 from .status import write_dashboard, write_final_pages
@@ -534,8 +534,7 @@ def open_batch(args) -> list[str]:
         check_grant(release, args.budget)
     elif args.autonomous_releases or args.grant_fixes:
         raise ChantierError("--autonomous-releases and --grant-fixes need --release", EXIT_USAGE)
-    chief = os.environ.get(
-        "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID") or None
+    chief = _own_transcript(host)
     if args.direct and not chief:
         raise ChantierError("--direct needs the Chief of Staff's own session id "
                             "(CLAUDE_CODE_SESSION_ID or COPILOT_AGENT_SESSION_ID): none is known, "
@@ -550,7 +549,7 @@ def open_batch(args) -> list[str]:
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
             "foreman_transcripts": [], "foreman_claims": [],
             "steering": "direct" if args.direct else "foreman",
-            "chief_transcript": chief,
+            "chief_transcript": chief, "chief_transcripts": [chief] if chief else [],
             "stack_agent": None, "heartbeat": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     with changes_lock(repo):
@@ -631,6 +630,68 @@ def foreman(args) -> list[str]:
             b.log("steering", None, steering="foreman", transcript=args.value)
         b.log("foreman-transcript", None, transcript=args.value)
         return [f"transcript {args.value}"]
+
+
+def _own_transcript(host: str) -> str | None:
+    """This session's transcript id, from the host's environment; None when unknown."""
+    return os.environ.get(
+        "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID") or None
+
+
+def _read_seat(repo: Repo) -> dict | None:
+    path = repo.changes / "seat.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(_retry(path.read_text, "utf-8"))
+    except ValueError as e:
+        raise ChantierError(f"{path} is not valid JSON: {e}", EXIT_PRECONDITION) from e
+    return data if data.get("session") else None
+
+
+def seat(args) -> list[str]:
+    """The repository's Chief of Staff session: it records a session and refuses a silent
+    take-over; who may take it is the cards' to say."""
+    repo = Repo.find()
+    path = repo.changes / "seat.json"
+    if args.action == "get":
+        held = _read_seat(repo)
+        if not held:
+            return ["seat none"]
+        return [f"seat {held['session']} env {held.get('env') or 'unknown'} "
+                f"title \"{held.get('title') or ''}\" link {held.get('link') or 'unknown'}",
+                f"transcript {held.get('transcript') or 'unknown'}"]
+    if not args.session:
+        raise ChantierError(f"seat {args.action} <session-id>", EXIT_USAGE)
+    with changes_lock(repo):
+        held = _read_seat(repo)
+        if args.action == "leave":
+            if not held:
+                return ["seat none"]
+            if held["session"] != args.session:
+                raise ChantierError(f"the seat is held by {held['session']}", EXIT_PRECONDITION)
+            path.unlink()
+            return ["seat none"]
+        if held and held["session"] != args.session and args.over != held["session"]:
+            raise ChantierError(f"the seat is held by {held['session']} "
+                                f"({held.get('link') or 'unknown'}): take it over only on the "
+                                f"user's word, with --over {held['session']}", EXIT_PRECONDITION)
+        transcript = _own_transcript(detect_host())
+        write_json(path, {"session": args.session, "transcript": transcript, "env": args.env,
+                          "title": args.title, "link": args.link})
+        lines = [f"seat {args.session}"]
+        # a batch folder exists until `close`: each one is the (single) non-closed batch
+        for folder in (repo.batch_folders() if transcript else []):
+            with Batch(repo, folder.name, actor="chief-of-staff") as b:
+                if transcript != b.data.get("chief_transcript"):
+                    seen = chief_sessions(b.data)  # before the old one is replaced
+                    if transcript not in seen:
+                        seen.append(transcript)
+                    b.data["chief_transcript"] = transcript
+                    b.data["chief_transcripts"] = seen
+                    b.log("chief", None, transcript=transcript)
+                    lines.append(f"{b.id}: Chief of Staff transcript {transcript}")
+    return lines
 
 
 ORDER_KINDS = {"add", "after", "drop", "merged", "note", "rounds", "slots", "budget", "approve",
@@ -1680,9 +1741,9 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
     """Every Foreman of the batch, summed, from its opening to now: `pause` ends no window, a
     call made after it is spend."""
     rows: list[dict] = []
-    chief = d.get("chief_transcript")
+    chiefs = chief_sessions(d)
     for uuid in uuids:
-        steering = bool(chief) and uuid == chief  # the Chief of Staff's own steering window
+        steering = uuid in chiefs  # a Chief of Staff's own steering window
         if host == "copilot":
             got = costs.copilot_session_costs(uuid)  # no timestamps: the whole session
         else:
@@ -1708,7 +1769,7 @@ def _window(d: dict, uuid: str) -> tuple[str, str]:
     if uuid not in names:
         return d.get("created", ""), ""
     i = names.index(uuid)
-    since = claims[i]["since"] if uuid == d.get("chief_transcript") else d.get("created", "")
+    since = claims[i]["since"] if uuid in chief_sessions(d) else d.get("created", "")
     return since, claims[i + 1]["since"] if i + 1 < len(claims) else ""
 
 
@@ -1725,24 +1786,29 @@ def _foreman_uuid(d: dict) -> list[str]:
 
 def _chief_line(repo: Repo, d: dict) -> str:
     """The Chief of Staff's session, priced apart: it is never in `spent_usd` nor in the budget."""
-    uuid = d.get("chief_transcript")
-    if not uuid or d.get("host") == "copilot":
+    chiefs = chief_sessions(d)
+    if not chiefs or d.get("host") == "copilot":
         return "Chief of Staff: not measured"
-    path = costs.transcript_path(repo.root, uuid)
-    try:
-        whole = costs.session_costs(path, kind="chief-of-staff")
-        since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
-                                    allow_empty=True)
-        # what it spent steering is the steering row's: counted there, not twice
-        steered = costs.without_spec_writers(costs.session_costs(
-            path, *_window(d, uuid), kind="chief-of-staff",
-            allow_empty=True)) if uuid in _claimed(d) else []
-    except ChantierError as e:
-        return f"Chief of Staff: not measured ({e})"
-    inside = sum(r["usd"] for r in steered)
-    return (f"Chief of Staff: ${sum(r['usd'] for r in since) - inside:.2f} since the batch opened, "
-            f"${sum(r['usd'] for r in whole) - inside:.2f} the whole session, "
-            f"context {whole[0]['last_context']:,} tokens")
+    since_usd = whole_usd = 0.0
+    context = 0
+    for uuid in chiefs:  # every Chief of Staff session of the batch, summed
+        path = costs.transcript_path(repo.root, uuid)
+        try:
+            whole = costs.session_costs(path, kind="chief-of-staff")
+            since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
+                                        allow_empty=True)
+            # what it spent steering is the steering row's: counted there, not twice
+            steered = costs.without_spec_writers(costs.session_costs(
+                path, *_window(d, uuid), kind="chief-of-staff",
+                allow_empty=True)) if uuid in _claimed(d) else []
+        except ChantierError as e:
+            return f"Chief of Staff: not measured ({e})"
+        inside = sum(r["usd"] for r in steered)
+        since_usd += sum(r["usd"] for r in since) - inside
+        whole_usd += sum(r["usd"] for r in whole) - inside
+        context = whole[0]["last_context"]  # the current session's, the last
+    return (f"Chief of Staff: ${since_usd:.2f} since the batch opened, "
+            f"${whole_usd:.2f} the whole session, context {context:,} tokens")
 
 
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:

@@ -74,7 +74,7 @@ getting started here, phrases to say, the glossary.
 2. **Phrases to say:** "file this: …", "make it a P1", "run the P1s", "status?", "drop CR-<n>",
    "I merged #<n>", "what did it cost?".
 3. **Glossary:** one line per term not in the story: stack, fast gate, long gate, Investigator,
-   Debugger, Conflict resolver, release CR, grant, `STATUS.md`, `close`, direct mode if the
+   Debugger, Conflict resolver, Griller, release CR, grant, `STATUS.md`, `close`, direct mode if the
    story's sentences need a reminder, and any other the user will read in reports.
 
 ## 6. Length
