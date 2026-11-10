@@ -71,6 +71,12 @@ or `NOT VERIFIED`. Evidence that cannot be captured does not alone change the ve
 project's rules require it, its absence is `NOT VERIFIED`. Reply with that word and the claims
 that failed.
 
+The PR's description, as posted on the forge, is one of the claims: it must be clean (it renders: line
+breaks, sections, the fold, images that resolve) and consistent with what the PR delivers (the
+Summary, Deliverables and Changes match the diff at the pushed head: no claimed change missing, no
+delivered change unmentioned). A description that fails either is `NOT VERIFIED`. Given only
+the description to check, check only it.
+
 At the end, with the technique of the plan you were given, capture the evidence: the before on
 a detached worktree of the CR's base (`git worktree add --detach <path> <base>`, the one
 worktree a worker creates; remove it at your end), the after at the pushed head, so the two

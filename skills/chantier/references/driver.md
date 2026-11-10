@@ -99,7 +99,8 @@ in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on 
 or with body items, is the next round. All approved: commit, rebase, the
 long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
 head, given the plan (`NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
-boxes updated (`gh pr edit --body-file` again), the PR turned
+boxes updated (`gh pr edit --body-file` again), then, once the description is final, a short `verifier` pass on the posted description alone
+(`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
 
 A CR taken with the note `rebase: <dependency> merged`: fetch, rebase onto `origin/<default
