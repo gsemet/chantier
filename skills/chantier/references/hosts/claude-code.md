@@ -174,13 +174,17 @@ and chantier does not do them unasked. Each with why:
   user's word) stay asked, not allowed.
 - `Remove-Item -Recurse -Force` (or `rm -rf`) on `.claude`, or on temporary folders named by a
   wildcard (`claude-eval-*`, `chsmoke-*`): a pattern can reach what is not chantier's.
-- A subagent's Write of a file named like a report: the host refuses it before any permission
+- A subagent's Write of a `.md` file whose name starts with `report`, `summary`, `findings` or
+  `analysis` (case-insensitive, the file name only): the host refuses it before any permission
   check, with "Subagents should return findings as text, not write report files. Include this
-  content in your final response instead." Proved refused (Write by a subagent, 2026-11-10):
-  `report.md`, `findings.md`, `report-format.md`. Proved accepted: `progress-report.md`,
-  `status-layout.md`, `qa-notes.md` and the other chantier file names (`delivery.md`,
-  `STATUS.md`, `retro.md`, `work/` files, ...). The matching rule is **unproved**: try a name
-  with a subagent before using it.
+  content in your final response instead." The rule is as users report it in
+  <https://github.com/anthropics/claude-code/issues/44657> and
+  <https://github.com/anthropics/claude-code/issues/101519>: **unproved** by Anthropic. Proof by
+  probe (Write by a subagent, 2026-11-10): refused `report.md`, `findings.md`,
+  `report-format.md`, `summary.md`, `analysis.md`; accepted `04-result.md`, `04-report.md`,
+  `04-summary.md`, `04-findings.md`, `04-analysis.md`, `status-layout.md`, `progress-report.md`
+  and the other chantier names (`delivery.md`, `STATUS.md`, `retro.md`, `work/` files, ...).
+  Name a subagent's file with a number first, such as `04-result.md`.
 
 ### Auto mode
 

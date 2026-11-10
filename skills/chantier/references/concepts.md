@@ -181,9 +181,11 @@ A subagent of the Chief of Staff (the Demo explorer, or an exploration, a protot
 is started the same way, with no CR: its first line is `chantier <role> for the Chief of Staff
 of batch <batch>, in the project <root>.` and its brief gives the folder it writes to. Its
 result is a report or a study. It never implements: no commit, no push, no PR, nothing in a CR's
-worktree; a prototype lives in a temporary folder and is thrown away. The files it writes get a
-name that does not look like a report (`study.md`, not `report.md`): the host may refuse a
-subagent's Write of a report-like file ([host's reference](hosts/claude-code.md)).
+worktree; a prototype lives in a temporary folder and is thrown away.
+
+Tell every subagent that writes a file not to start a `.md` name with `report`, `summary`,
+`findings` or `analysis`, and to prefer a numbered name such as `04-result.md`: the host may
+refuse a subagent's Write of such a file ([host's reference](hosts/claude-code.md)).
 
 The Spec-writer is the subagent of the Chief of Staff or of a Griller, outside any batch: its first line is
 `chantier spec-writer for the Chief of Staff, in the project <root>.`, it reads
