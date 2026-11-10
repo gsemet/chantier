@@ -17,7 +17,7 @@ common skill at `../chantier/` from this file's folder, with its cards (`../chan
 its CLI (`../chantier/scripts/cli/`) and its assets. Nothing to install or set up: the
 project's `AGENTS.md` is the only configuration.
 
-Read [report](../chantier/references/report.md) now, and nothing else of chantier: not the main
+Read [status-layout](../chantier/references/status-layout.md) now, and nothing else of chantier: not the main
 skill, not the Chief of Staff's card, not the introduction. Then, for the active batch, or for
 each active batch when there are several (`--batch <batch>`):
 
@@ -27,7 +27,7 @@ each active batch when there are several (`--batch <batch>`):
 
 Read each CR's icon and label from the batch's `STATUS.md` (the Status column; or `label` in its
 `STATUS.json`), just refreshed by step 1: the text output of `status` draws no icon.
-Write the Progress report from their output, in the user's language, in the shape `report.md`
+Write the Progress report from their output, in the user's language, in the shape `status-layout.md`
 gives.
 
 With no active batch, say so in one line and give the backlog count from

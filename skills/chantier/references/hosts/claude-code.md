@@ -174,6 +174,13 @@ and chantier does not do them unasked. Each with why:
   user's word) stay asked, not allowed.
 - `Remove-Item -Recurse -Force` (or `rm -rf`) on `.claude`, or on temporary folders named by a
   wildcard (`claude-eval-*`, `chsmoke-*`): a pattern can reach what is not chantier's.
+- A subagent's Write of a file named like a report: the host refuses it before any permission
+  check, with "Subagents should return findings as text, not write report files. Include this
+  content in your final response instead." Proved refused (Write by a subagent, 2026-11-10):
+  `report.md`, `findings.md`, `report-format.md`. Proved accepted: `progress-report.md`,
+  `status-layout.md`, `qa-notes.md` and the other chantier file names (`delivery.md`,
+  `STATUS.md`, `retro.md`, `work/` files, ...). The matching rule is **unproved**: try a name
+  with a subagent before using it.
 
 ### Auto mode
 
