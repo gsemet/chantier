@@ -1,6 +1,6 @@
 # How chantier works
 
-A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background. On your go the Chief of Staff starts one Foreman session per batch of changes (Foreman mode), or steers the batch itself in direct mode, with no Foreman session; the steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.
+A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background. On your go the Chief of Staff starts the batch in one of two modes. In Foreman mode, a nested session, one Foreman per batch, not recommended in a remote session, the conversation with the Chief of Staff stays fully dynamic and natural. In direct mode the Chief of Staff plays the Foreman's role in the same session: it works in a remote session, but it cannot grill while the batch runs, so use a Griller session. The steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.
 
 ## Header
 
@@ -22,7 +22,8 @@ an idea, a bug, a feature, an intent
 
 ```md
 MAIN SESSION
-NESTED SESSION
+GRILLER
+STEERING
 DRIVERS
 WORKERS
 ```
@@ -52,32 +53,54 @@ YOU
 ```md
 ## 🤵 Chief of Staff
 
+/chantier:chief-of-staff · direct
 your session · questions, prototypes, change requests
 ```
 
-## Arrows Chief of Staff <-> Foreman
+## Griller (optional)
+
+```md
+## 🔥 Griller
+
+optional
+another session of yours ·
+grills and specifies the backlog,
+beside the Chief of Staff
+/chantier:griller
+```
+
+## Arrows Chief of Staff <-> Foreman mode
 
 ```md
 📋 orders
 🙋 asks
 ```
 
-## Foreman
+## Arrow Chief of Staff -> direct mode
 
 ```md
-## 👷 Foreman
-
-one session per batch of changes · Opus 5.5 · orchestrates
-Foreman mode
+same session
 ```
 
-## Direct mode
+## Foreman mode (left half)
 
 ```md
-🤵 direct mode:
-the Chief of Staff
-steers the batch itself,
-no Foreman session
+## 👷 Foreman mode
+
+a nested session · Opus 5.5 · one per batch
+fully dynamic, natural talk with the Chief of Staff
+not recommended in remote
+```
+
+## Direct mode (right half)
+
+```md
+## 🤵 direct mode
+
+the Chief of Staff plays the Foreman's role
+works in a remote session
+no grill while the batch runs:
+use a 🔥 Griller session
 ```
 
 ## Drivers

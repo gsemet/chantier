@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 898" width="1040" height="898" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Life of a change request, in short</title>
-  <desc>A change request (CR) is one folder in .agents/changes/ and usually becomes one pull or merge request (PR/MR). Agents do the work; you decide at four points: triage, spec, go and merge. Plan, with the Chief of Staff: a request from the intake (Jira, GitLab, GitHub, the chat or a finding) is filed in 1-inbox/; you triage it with the Chief of Staff, who drops it or clarifies it; on your word the spec-writer, started by the Chief of Staff, writes the spec, 03-change-spec.md, that you approve; it then waits in 2-backlog/ with a priority P1 to P4 until your go. Build, run by the Foreman, or by the Chief of Staff in direct mode, in 3-requests/: one CR driver per CR, in its own worktree and branch, runs rounds of a Coder and an Inspector, at most 3; it rebases, passes the gate and ships a PR; CI and the Verifier check the pushed head, and a red result starts a new round. Merge: you merge the PR and the CR moves to 4-archives/ with its retro and final status. Optional: the stack driver orders, restacks and ships stacked PRs; on your request a QA driver uses the project's head as a user; the release driver runs your release procedure, with at most 3 fix CRs. Out-of-scope bugs, QA findings and the release retro go back to the intake as findings. Each stage is a folder; the chantier CLI moves it. At any time, chantier order drop moves a CR to 5-trash/.</desc>
+  <desc>A change request (CR) is one folder in .agents/changes/ and usually becomes one pull or merge request (PR/MR). Agents do the work; you decide at four points: triage, spec, go and merge. Plan, with the Chief of Staff: a request from the intake (Jira, GitLab, GitHub, the chat or a finding) is filed in 1-inbox/; you triage it with the Chief of Staff (or a Griller, optional), who drops it or clarifies it; on your word the spec-writer, started by the Chief of Staff or a Griller, writes the spec, 03-change-spec.md, that you approve; it then waits in 2-backlog/ with a priority P1 to P4 until your go. Build, run by the Foreman, or by the Chief of Staff in direct mode, in 3-requests/: one CR driver per CR, in its own worktree and branch, runs rounds of a Coder and an Inspector, at most 3; it rebases, passes the gate and ships a PR; CI and the Verifier check the pushed head, and a red result starts a new round. Merge: you merge the PR and the CR moves to 4-archives/ with its retro and final status. Optional: the stack driver orders, restacks and ships stacked PRs; on your request a QA driver uses the project's head as a user; the release driver runs your release procedure, with at most 3 fix CRs. Out-of-scope bugs, QA findings and the release retro go back to the intake as findings. Each stage is a folder; the chantier CLI moves it. At any time, chantier order drop moves a CR to 5-trash/.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -15,9 +15,9 @@
   <rect width="1040" height="898" fill="#f8fafc"/>
   <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🔄 Life of a change request, in short</text>
   <text x="24" y="84" font-size="16" fill="#475569">One CR, one folder, usually one PR/MR. Agents do the work; you decide at four points: triage, spec, go, merge.</text>
-  <text x="24" y="108" font-size="13.5" fill="#334155">👤 you · 🤵 Chief of Staff · ✍️ spec-writer · 👷 Foreman · 🚜 driver · 🔨 worker</text>
+  <text x="24" y="108" font-size="13.5" fill="#334155">👤 you · 🤵 Chief of Staff · ✍️ spec-writer · 🔥 Griller (optional) · 👷 Foreman · 🚜 driver · 🔨 worker</text>
   <rect x="64" y="128" width="952" height="34" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
-  <text x="540" y="151" font-size="14" font-weight="700" fill="#1e3a8a" text-anchor="middle" letter-spacing="0.5">PLAN · 🤵 Chief of Staff, with you</text>
+  <text x="540" y="151" font-size="14" font-weight="700" fill="#1e3a8a" text-anchor="middle" letter-spacing="0.5">PLAN · 🤵 Chief of Staff, or a 🔥 Griller (optional), with you</text>
   <rect x="64" y="182" width="208" height="130" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
   <text x="168" y="212" font-size="17" font-weight="700" fill="#b91c1c" text-anchor="middle">📨 Intake</text>
   <text x="168" y="236" font-size="13.5" fill="#475569" text-anchor="middle">Jira, GitLab, GitHub,</text>
@@ -25,7 +25,7 @@
   <line x1="272" y1="247" x2="310" y2="247" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
   <rect x="312" y="182" width="208" height="130" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
   <text x="416" y="212" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">⚖️ Triage</text>
-  <text x="416" y="236" font-size="13.5" fill="#475569" text-anchor="middle">🤵 with 👤 you</text>
+  <text x="416" y="236" font-size="13.5" fill="#475569" text-anchor="middle">🤵 or 🔥 with 👤 you</text>
   <text x="416" y="256" font-size="13.5" fill="#475569" text-anchor="middle">drop · clarify · spec</text>
   <text x="416" y="298" font-size="13" fill="#64748b" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">1-inbox/</text>
   <line x1="520" y1="247" x2="558" y2="247" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>

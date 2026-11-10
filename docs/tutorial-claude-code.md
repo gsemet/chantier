@@ -29,8 +29,8 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
-This installs one skill (the Chief of Staff) and twelve agents (`chantier:cr-driver`,
-`chantier:coder`, …). Restart the Desktop app so it loads them. There is nothing else to install
+This installs three skills (the router `chantier`, `chief-of-staff` and `griller`) and twelve
+agents (`chantier:cr-driver`, `chantier:coder`, …). Restart the Desktop app so it loads them. There is nothing else to install
 and nothing to configure.
 
 ## 2. Tell chantier how your project builds

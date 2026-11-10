@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 842" width="1310" height="842" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 962" width="1310" height="962" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works</title>
-  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background. On your go the Chief of Staff starts one Foreman session per batch of changes (Foreman mode), or steers the batch itself in direct mode, with no Foreman session; the steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.</desc>
+  <desc>A CR is a change request: an idea, a bug, a feature, an intent. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff. On your word that a CR is grilled enough, its Spec-writer writes the Change Specification, in the background. On your go the Chief of Staff starts the batch in one of two modes. In Foreman mode, a nested session, one Foreman per batch, not recommended in a remote session, the conversation with the Chief of Staff stays fully dynamic and natural. In direct mode the Chief of Staff plays the Foreman's role in the same session: it works in a remote session, but it cannot grill while the batch runs, so use a Griller session. The steering session starts Drivers; the CR driver runs short workers: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger. The project harness, AGENTS.md and its encoded rules, always prevails and can define custom agents or skills. The chantier Python CLI frames them: the change-request lifecycle, the limits and the means to synchronise. It writes only in .agents/changes, as JSON and Markdown. Foreman mode runs in Claude Desktop or a Copilot SDK host; direct mode in any Claude Code entry point or a Copilot agent session.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -8,9 +8,12 @@
     <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
     </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1e3a8a"/>
+    </marker>
   </defs>
 
-  <rect width="1310" height="842" fill="#f8fafc"/>
+  <rect width="1310" height="962" fill="#f8fafc"/>
   <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🏗️ How chantier works</text>
   <text x="24" y="82" font-size="17.5" fill="#475569">One office to talk to; the agents do the work.</text>
 
@@ -20,13 +23,11 @@
   <text x="1020" y="86" font-size="14.5" fill="#475569">an idea, a bug, a feature, an intent</text>
 
   <!-- Lanes -->
-  <rect x="24" y="252" width="950" height="148" rx="10" fill="#eef2f7"/>
-  <rect x="24" y="550" width="950" height="150" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="360" width="950" height="160" rx="10" fill="#eef2f7"/>
   <g font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2" text-anchor="middle">
-    <text transform="translate(48,180) rotate(-90)">MAIN SESSION</text>
-    <text transform="translate(48,326) rotate(-90)">NESTED SESSION</text>
-    <text transform="translate(48,475) rotate(-90)">DRIVERS</text>
-    <text transform="translate(48,625) rotate(-90)">WORKERS</text>
+    <text transform="translate(48,165) rotate(-90)">MAIN SESSION</text>
+    <text transform="translate(48,300) rotate(-90)">GRILLER</text>
+    <text transform="translate(48,440) rotate(-90)">STEERING</text>
   </g>
 
   <!-- AGENTS.md -->
@@ -49,34 +50,55 @@
 
   <!-- Chief of Staff -->
   <rect x="270" y="132" width="440" height="96" rx="12" fill="#1e3a8a"/>
-  <text x="490" y="174" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
-  <text x="490" y="202" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · questions, prototypes, change requests</text>
+  <text x="490" y="165" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
+  <text x="490" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff · direct</text>
+  <text x="490" y="212" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · questions, prototypes, change requests</text>
 
-  <!-- Chief of Staff ⇄ Foreman -->
-  <line x1="440" y1="230" x2="440" y2="282" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
-  <line x1="540" y1="284" x2="540" y2="232" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
-  <text x="430" y="263" font-size="14.5" fill="#9a3412" text-anchor="end">📋 <tspan font-family="ui-monospace, Menlo, monospace">orders</tspan></text>
-  <text x="550" y="263" font-size="14.5" fill="#9a3412">🙋 <tspan font-family="ui-monospace, Menlo, monospace">asks</tspan></text>
+  <!-- Griller: optional, another session of yours, linked to you -->
+  <line x1="170" y1="222" x2="170" y2="252" stroke="#334155" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <rect x="80" y="254" width="210" height="96" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="94" y="278" font-size="17" font-weight="700" fill="#0f172a">🔥 Griller</text>
+  <rect x="206" y="261" width="70" height="20" rx="10" fill="#ffffff" stroke="#ca8a04" stroke-width="1.2"/>
+  <text x="241" y="275.5" font-size="12.5" font-weight="700" fill="#a16207" text-anchor="middle">optional</text>
+  <g font-size="12" fill="#475569"><text x="94" y="298">another session of yours ·</text><text x="94" y="313">grills and specifies the backlog,</text><text x="94" y="328">beside the Chief of Staff</text></g>
+  <text x="94" y="343" font-size="12" fill="#475569" font-family="ui-monospace, Menlo, monospace">/chantier:griller</text>
 
-  <!-- Foreman -->
-  <rect x="270" y="286" width="440" height="90" rx="12" fill="#ea580c"/>
-  <text x="490" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text>
-  <text x="490" y="353" font-size="15" fill="#ffedd5" text-anchor="middle">one session per batch of changes · Opus 5.5 · orchestrates</text>
-  <rect x="594" y="293" width="108" height="22" rx="11" fill="#ffffff"/>
-  <text x="648" y="308.5" font-size="12.5" font-weight="700" fill="#c2410c" text-anchor="middle">Foreman mode</text>
+  <!-- Chief of Staff ⇄ Foreman half: orders and asks -->
+  <line x1="310" y1="230" x2="310" y2="390" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <line x1="400" y1="392" x2="400" y2="232" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
+  <text x="320" y="316" font-size="14.5" fill="#9a3412">📋 <tspan font-family="ui-monospace, Menlo, monospace">orders</tspan></text>
+  <text x="410" y="316" font-size="14.5" fill="#9a3412">🙋 <tspan font-family="ui-monospace, Menlo, monospace">asks</tspan></text>
 
-  <!-- Direct mode: the Chief of Staff starts the Drivers itself -->
-  <path d="M300,230 V242 H250 V400" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-  <g font-size="12.5" fill="#1e3a8a">
-    <text x="70" y="290" font-weight="700">🤵 direct mode:</text>
-    <text x="70" y="308">the Chief of Staff</text>
-    <text x="70" y="324">steers the batch itself,</text>
-    <text x="70" y="340">no Foreman session</text>
+  <!-- Chief of Staff, same session: the direct half -->
+  <line x1="600" y1="230" x2="600" y2="390" stroke="#1e3a8a" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="610" y="316" font-size="14.5" font-weight="600" fill="#1e3a8a">same session</text>
+
+  <!-- Steering, one half per mode -->
+  <rect x="86" y="394" width="324" height="112" rx="12" fill="#ea580c"/>
+  <text x="248" y="422" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman mode</text>
+  <g font-size="12.5" fill="#ffedd5" text-anchor="middle">
+    <text x="248" y="448">a nested session · Opus 5.5 · one per batch</text>
+    <text x="248" y="468">fully dynamic, natural talk with the Chief of Staff</text>
+    <text x="248" y="488">not recommended in remote</text>
+  </g>
+  <rect x="418" y="394" width="292" height="112" rx="12" fill="#1e3a8a"/>
+  <text x="564" y="422" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 direct mode</text>
+  <g font-size="12.5" fill="#dbeafe" text-anchor="middle">
+    <text x="564" y="444">the Chief of Staff plays the Foreman's role</text>
+    <text x="564" y="460">works in a remote session</text>
+    <text x="564" y="476">no grill while the batch runs:</text>
+    <text x="564" y="492">use a 🔥 Griller session</text>
   </g>
 
-  <!-- Foreman starts drivers: one bus, a drop per driver -->
+  <!-- Both halves start the drivers -->
   <g stroke="#334155" stroke-width="1.8" fill="none">
-    <line x1="490" y1="376" x2="490" y2="404"/>
+    <line x1="248" y1="506" x2="248" y2="524"/>
+    <line x1="564" y1="506" x2="564" y2="524"/>
+  </g>
+
+  <g transform="translate(0,120)">
+  <!-- Steering starts drivers: one bus, a drop per driver -->
+  <g stroke="#334155" stroke-width="1.8" fill="none">
     <line x1="175" y1="404" x2="805" y2="404"/>
   </g>
   <g stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
@@ -84,6 +106,13 @@
     <line x1="385" y1="404" x2="385" y2="432"/>
     <line x1="595" y1="404" x2="595" y2="432"/>
     <line x1="805" y1="404" x2="805" y2="432"/>
+  </g>
+
+  <!-- Lanes, drivers and workers -->
+  <rect x="24" y="550" width="950" height="150" rx="10" fill="#eef2f7"/>
+  <g font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2" text-anchor="middle">
+    <text transform="translate(48,475) rotate(-90)">DRIVERS</text>
+    <text transform="translate(48,625) rotate(-90)">WORKERS</text>
   </g>
 
   <!-- Drivers -->
@@ -136,24 +165,8 @@
   <text x="100" y="763" font-size="17.5" font-weight="700" fill="#0f172a">🗄️ <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>, as JSON and Markdown</text>
   <text x="100" y="794" font-size="15.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">1-inbox → 2-backlog → 3-requests → 4-archives · 5-trash</text>
 
-  <!-- chantier CLI -->
-  <rect x="1000" y="132" width="280" height="516" rx="14" fill="#0f172a"/>
-  <text x="1140" y="178" font-size="24" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
-  <text x="1140" y="204" font-size="15.5" fill="#cbd5e1" text-anchor="middle">Python CLI</text>
-  <line x1="1024" y1="232" x2="1256" y2="232" stroke="#334155" stroke-width="1.5"/>
-  <g font-size="17.5" font-weight="700" fill="#e2e8f0">
-    <text x="1024" y="310">🔄 CR lifecycle</text>
-    <text x="1024" y="420">🚧 Limits</text>
-    <text x="1024" y="530">📣 Sync</text>
-  </g>
-  <g font-size="16" fill="#cbd5e1">
-    <text x="1024" y="336">open, take, ship, pause</text>
-    <text x="1024" y="446">slots, budget, rounds</text>
-    <text x="1024" y="556">order, status</text>
-  </g>
+  <!-- CLI links from the workers -->
   <g stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4">
-    <line x1="714" y1="216" x2="996" y2="216"/>
-    <line x1="714" y1="331" x2="996" y2="331"/>
     <line x1="904" y1="480" x2="996" y2="480"/>
   </g>
 
@@ -165,4 +178,25 @@
   <text x="1020" y="765" font-size="13" font-weight="700" fill="#1e3a8a">🤵 direct mode</text>
   <text x="1020" y="784" font-size="14.5" fill="#334155">any Claude Code entry point ·</text>
   <text x="1020" y="802" font-size="14.5" fill="#334155">Copilot agent session</text>
+  </g>
+
+  <!-- chantier CLI -->
+  <rect x="1000" y="132" width="280" height="636" rx="14" fill="#0f172a"/>
+  <text x="1140" y="178" font-size="24" font-weight="700" fill="#fb923c" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">chantier</text>
+  <text x="1140" y="204" font-size="15.5" fill="#cbd5e1" text-anchor="middle">Python CLI</text>
+  <line x1="1024" y1="232" x2="1256" y2="232" stroke="#334155" stroke-width="1.5"/>
+  <g font-size="17.5" font-weight="700" fill="#e2e8f0">
+    <text x="1024" y="340">🔄 CR lifecycle</text>
+    <text x="1024" y="480">🚧 Limits</text>
+    <text x="1024" y="620">📣 Sync</text>
+  </g>
+  <g font-size="16" fill="#cbd5e1">
+    <text x="1024" y="366">open, take, ship, pause</text>
+    <text x="1024" y="506">slots, budget, rounds</text>
+    <text x="1024" y="646">order, status</text>
+  </g>
+  <g stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4">
+    <line x1="714" y1="216" x2="996" y2="216"/>
+    <line x1="714" y1="450" x2="996" y2="450"/>
+  </g>
 </svg>

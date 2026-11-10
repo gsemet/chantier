@@ -31,7 +31,7 @@ Every `feat:` and `fix:` commit since the previous version appears once.
 Each highlight shows what ships. The sources are:
 
 - the Verifier's before/after in the archived CRs' `evidence/` folders;
-- the screenshots in the merged PRs' Impacts sections;
+- the screenshots in the merged PRs' Deliverables sections;
 - captures of the product running, made by the Driver;
 - CLI output.
 

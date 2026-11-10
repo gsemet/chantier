@@ -1,34 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 712" width="1000" height="712" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
-  <title>How chantier works (simple)</title>
-  <desc>You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word. On your go the Chief of Staff starts one Foreman session per batch of changes (Foreman mode), or steers the batch itself in direct mode, with no Foreman session; the steering session starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 812" width="1000" height="812" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+  <title>How chantier works (simple, direct mode)</title>
+  <desc>In direct mode there is no Foreman session. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word. On your go the Chief of Staff steers the batch itself and starts the Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. While a batch runs, the Chief of Staff's session holds no grill: an optional Griller, another session of yours, grills and specifies beside it.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
     </marker>
-    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/>
-    </marker>
   </defs>
 
-  <rect width="1000" height="712" fill="#f8fafc"/>
+  <rect width="1000" height="812" fill="#f8fafc"/>
   <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🏗️ How chantier works</text>
-  <text x="24" y="82" font-size="17.5" fill="#475569">One office to talk to; the agents do the work.</text>
+  <text x="24" y="82" font-size="17.5" fill="#475569">Direct mode: the Chief of Staff steers the batch itself.</text>
 
   <!-- Lanes -->
-  <rect x="24" y="252" width="950" height="148" rx="10" fill="#eef2f7"/>
-  <rect x="24" y="550" width="950" height="150" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="352" width="950" height="148" rx="10" fill="#eef2f7"/>
+  <rect x="24" y="650" width="950" height="150" rx="10" fill="#eef2f7"/>
   <g font-size="13.5" font-weight="700" fill="#64748b" letter-spacing="1.2" text-anchor="middle">
-    <text transform="translate(48,180) rotate(-90)">MAIN SESSION</text>
-    <text transform="translate(48,326) rotate(-90)">NESTED SESSION</text>
-    <text transform="translate(48,475) rotate(-90)">DRIVERS</text>
-    <text transform="translate(48,625) rotate(-90)">WORKERS</text>
+    <text transform="translate(48,165) rotate(-90)">MAIN SESSION</text>
+    <text transform="translate(48,305) rotate(-90)">GRILLER</text>
+    <text transform="translate(48,426) rotate(-90)">NO FOREMAN</text>
+    <text transform="translate(48,575) rotate(-90)">DRIVERS</text>
+    <text transform="translate(48,725) rotate(-90)">WORKERS</text>
   </g>
 
   <!-- AGENTS.md -->
   <rect x="80" y="145" width="160" height="70" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
   <text x="160" y="175" font-size="16.5" font-weight="700" fill="#0f172a" text-anchor="middle">📐 <tspan font-family="ui-monospace, Menlo, monospace">AGENTS.md</tspan></text>
   <text x="160" y="199" font-size="14.5" fill="#475569" text-anchor="middle">your rules, your gates</text>
-  <path d="M200,216 C220,250 360,250 386,216" stroke="#94a3b8" stroke-width="1.6" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <path d="M160,144 V112 H500 V130" stroke="#94a3b8" stroke-width="1.6" fill="none" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
 
   <!-- You -->
   <circle cx="300" cy="158" r="16" fill="#1e3a8a"/>
@@ -37,21 +35,11 @@
 
   <!-- Chief of Staff -->
   <rect x="390" y="132" width="440" height="96" rx="12" fill="#1e3a8a"/>
-  <text x="610" y="174" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
-  <text x="610" y="202" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · questions, prototypes, change requests</text>
-
-  <!-- Chief of Staff ⇄ Foreman -->
-  <line x1="560" y1="230" x2="560" y2="282" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
-  <line x1="660" y1="284" x2="660" y2="232" stroke="#c2410c" stroke-width="2" marker-end="url(#arrow-orange)"/>
-  <text x="550" y="263" font-size="14.5" fill="#9a3412" text-anchor="end">📋 <tspan font-family="ui-monospace, Menlo, monospace">orders</tspan></text>
-  <text x="670" y="263" font-size="14.5" fill="#9a3412">🙋 <tspan font-family="ui-monospace, Menlo, monospace">asks</tspan></text>
-
-  <!-- Foreman -->
-  <rect x="390" y="286" width="440" height="90" rx="12" fill="#ea580c"/>
-  <text x="610" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman</text>
-  <text x="610" y="353" font-size="15" fill="#ffedd5" text-anchor="middle">one session per batch of changes · Opus 5.5 · orchestrates</text>
-  <rect x="714" y="293" width="108" height="22" rx="11" fill="#ffffff"/>
-  <text x="768" y="308.5" font-size="12.5" font-weight="700" fill="#c2410c" text-anchor="middle">Foreman mode</text>
+  <text x="610" y="165" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
+  <text x="610" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff direct</text>
+  <text x="610" y="212" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · plays the Foreman's role</text>
+  <rect x="714" y="139" width="108" height="22" rx="11" fill="#ffffff"/>
+  <text x="768" y="154.5" font-size="12.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">direct mode</text>
 
   <!-- Spec-writer: the Chief of Staff's agent -->
   <rect x="852" y="140" width="130" height="80" rx="9" fill="#e0e7ff" stroke="#1e3a8a" stroke-width="1.5"/>
@@ -59,22 +47,34 @@
   <g font-size="12" fill="#475569" text-anchor="middle"><text x="917" y="181">writes the spec,</text><text x="917" y="196">in the background,</text><text x="917" y="211">on your word</text></g>
   <line x1="832" y1="180" x2="848" y2="180" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
 
+  <!-- Griller: optional, another session of yours, linked to you -->
+  <line x1="300" y1="208" x2="300" y2="246" stroke="#334155" stroke-width="2" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <rect x="80" y="248" width="340" height="92" rx="10" fill="#fef9c3" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="96" y="274" font-size="17.5" font-weight="700" fill="#0f172a">🔥 Griller</text>
+  <rect x="338" y="256" width="70" height="20" rx="10" fill="#ffffff" stroke="#ca8a04" stroke-width="1.2"/>
+  <text x="373" y="270.5" font-size="12.5" font-weight="700" fill="#a16207" text-anchor="middle">optional</text>
+  <g font-size="13" fill="#475569"><text x="96" y="296">another session of yours ·</text><text x="96" y="313">grills and specifies while the batch runs ·</text></g>
+  <text x="96" y="330" font-size="12.5" fill="#475569" font-family="ui-monospace, Menlo, monospace">/chantier:griller</text>
+
   <!-- Direct mode: the Chief of Staff starts the Drivers itself -->
-  <path d="M404,230 V266 H240 V430" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-  <g font-size="12.5" fill="#1e3a8a">
-    <text x="68" y="296" font-weight="700">🤵 direct mode:</text>
-    <text x="68" y="314">the Chief of Staff</text>
-    <text x="68" y="330">steers the batch itself,</text>
-    <text x="68" y="346">no Foreman session</text>
+  <line x1="610" y1="230" x2="610" y2="504" stroke="#334155" stroke-width="1.8"/>
+  <g font-size="13" fill="#1e3a8a" text-anchor="end">
+    <text x="596" y="410" font-weight="700">no Foreman session:</text>
+    <text x="596" y="428">the Chief of Staff</text>
+    <text x="596" y="444">starts the Drivers itself</text>
+  </g>
+  <g stroke="#334155" stroke-width="1.8" fill="none">
+    <line x1="175" y1="504" x2="805" y2="504"/>
+  </g>
+  <g stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
+    <line x1="175" y1="504" x2="175" y2="532"/>
+    <line x1="385" y1="504" x2="385" y2="532"/>
+    <line x1="595" y1="504" x2="595" y2="532"/>
+    <line x1="805" y1="504" x2="805" y2="532"/>
   </g>
 
+  <g transform="translate(0,100)">
   <!-- Drivers -->
-  <g stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)">
-    <path d="M450,378 C430,412 190,402 175,432"/>
-    <path d="M530,378 C520,406 400,404 385,432"/>
-    <line x1="595" y1="378" x2="595" y2="432"/>
-    <path d="M750,378 C780,404 795,404 805,432"/>
-  </g>
   <g font-size="17.5" font-weight="700" fill="#0f172a" text-anchor="middle">
     <rect x="86" y="442" width="190" height="88" rx="10" fill="#ffffff" stroke="#fdba74" stroke-width="1.5"/>
     <rect x="80" y="436" width="190" height="88" rx="10" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
@@ -122,5 +122,6 @@
     <rect x="848" y="574" width="120" height="74" rx="9" fill="#e0e7ff"/><text x="908" y="607">⛓️ Conflict</text><text x="908" y="625">resolver</text>
   </g>
   <text x="80" y="682" font-size="15.5" fill="#475569"><tspan fill="#a16207" font-weight="700">Any role can run your own agent</tspan>, named in AGENTS.md.</text>
+  </g>
 
 </svg>

@@ -96,20 +96,28 @@ session; skip it if the user says they know chantier, or if their first request 
 [tour](init.md) covers it. When the project has no `.agents/changes/`, end it with one line: "new
 here? say init for a guided tour".
 
-- **Change Request (CR):** one change to make, e.g. one issue. It gets a folder (the request,
-  its analysis, the user's answers, the Change Specification), a branch and a worktree its
-  Driver creates, and ends as one pull request.
-- **Change Specification:** the self-contained description of what the CR changes, written with
-  the user before any code.
-- **Batch:** the CRs active at one time under one Foreman (or, in direct mode, under me), numbered
-  (`batch-<n>`), a stack of PRs by default or independent (`--parallel`).
-- **Chief of Staff (me):** the only session that opens and runs batches; I keep the backlog, ask
-  the questions a CR needs, learn how the project builds and tests from its `AGENTS.md`, and start
-  work only on the user's go. (A Griller says "the Chief of Staff" of another session instead.)
-- **Griller:** another session of yours that grills and specifies the backlog beside the Chief of
-  Staff; it never runs batches.
-- **Foreman:** a separate session that runs the batch from its state and reports back to me; in
-  direct mode there is none, and I run the batch myself.
+- **Change Request (CR):** one more level over the project's tracker issues (Jira, GitHub,
+  GitLab…). It lets small requests outside the tracker be accepted and prioritised; the tracker
+  keeps the strategic vision, external requests and long-term planning. A CR gets:
+  - a folder in `.agents/changes/` (the request, its analysis, the user's answers, the
+    self-contained Change Specification written before any code);
+  - a branch and a worktree its Driver creates.
+
+  It ends as one pull request.
+- **One person to talk to, the Chief of Staff (me):** the only session that opens and runs
+  batches. It keeps the backlog and asks the questions a CR needs. Nothing starts without the
+  user's go. The user reviews and merges each PR; only a release's PR or fix is merged for them,
+  on their word. (A Griller says "the Chief of Staff" of another session instead.)
+  - A **Griller** is another session of yours that grills and specifies the backlog beside it,
+    optional, never running batches.
+- **Direct or Foreman:** a batch (`batch-<n>`) is steered either:
+  - by a **Foreman**, a separate session that reports back to me, where a CR may join while the
+    batch runs;
+  - or by me in **direct mode**, where a CR joins only once every other CR is handled and the
+    batch is paused, and I hold no grill while it runs (use a Griller).
+- **Zero configuration:** the project's `AGENTS.md` is the only configuration (I learn how it
+  builds, tests and merges from it). Everything chantier writes is Markdown and JSON in
+  `.agents/changes/`.
 - **Drivers and workers:** one Driver per CR runs short workers (Investigator, Coder, Inspector,
   Debugger, Verifier, Conflict resolver) in the CR's worktree, and commits, pushes, opens the
   PR and reads its CI with `git`, `gh` and `glab`. "Use my agent X as the coder" or "add a
