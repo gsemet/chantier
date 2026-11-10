@@ -18,7 +18,10 @@ The CLI keeps the CR's record and tells you what is off.
 - Children: `$CHANTIER round <cr> --note "<brief>"` before each Coder (refused past the limit,
   exit 5: hand back `blocked rounds: <what is still wrong>`), then the agent and the prompt of
   [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
-  the role. A refused start is `handback blocked refused <exact text>`.
+  the role, and the worker's agent and model as the `team:` lines of `round` print them, passed as
+  printed (no model printed: none passed). A refused start, a model included, is `handback
+  blocked refused <exact text>`, never retried without the model. A `Needs:` you cannot meet
+  is a `$CHANTIER note`, and you do your part without it.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
   <path>` for a file the user reviews and edits in place.
 - The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree

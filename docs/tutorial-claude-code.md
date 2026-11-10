@@ -185,16 +185,25 @@ add a security review with my sec-reviewer agent: OWASP top 10 on the diff
 which agents and models?
 ```
 
-The Chief of Staff writes them in a `chantier` section of your `AGENTS.md`:
+The agent goes in `chantier.yaml`, an optional file at your project's root, and the review step in
+a `chantier` section of your `AGENTS.md`. A model and the skills a role needs go in the same
+`chantier.yaml`:
+
+```yaml
+roles:
+  coder:
+    agent: rust-coder
+    model: opus          # the CLI resolves it to the exact model, or refuses the name
+    skills: [jira]       # the Chief of Staff warns you if its session lacks it
+```
 
 ```markdown
 ## chantier
 
-- coder: `rust-coder`
 - security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
 ```
 
-A built-in role keeps its contract (its card in the skill, named in the prompt the Driver
+"Which agents and models?" runs `chantier playbook`, which prints what each role runs. A built-in role keeps its contract (its card in the skill, named in the prompt the Driver
 writes), so your agent only brings its model, tools and know-how. A new role runs after the Inspector approves each round and answers with
 the same verdict. The next batch uses the new team; a running batch keeps its own.
 

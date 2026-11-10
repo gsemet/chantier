@@ -23,6 +23,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from . import __version__, costs, procs
+from . import playbook as pb
 from .lifecycle import (PRIORITIES, STATE_FOLDERS, archive_name, changes_lock, convert_old_tree,
                         cr_directory, done_cr, ensure_unclaimed, move_backlog_item, prepared_cr,
                         stage_layout, start_cr, trash_cr)
@@ -130,15 +131,35 @@ def _skill_version() -> str | None:
 
 # ---- preflight --------------------------------------------------------------------------------
 
+def _agent_files(host: str) -> tuple[Path | None, list[Path]]:
+    """The plugin's folder for this host and the agent files it installs."""
+    root = plugin_root()
+    if not root:
+        return None, []
+    folder = root / "agents" if host == "claude" else root / "com.github.copilot" / "agents"
+    return folder, sorted(folder.glob("*.md")) if folder.is_dir() else []
+
+
+def plugin_roles(host: str) -> list[str]:
+    """The roles of the plugin's agents for this host, from the installed files, in their order:
+    the CLI knows no role by itself."""
+    return [p.name.removesuffix(".md").removesuffix(".agent").removeprefix("chantier-")
+            if host == "copilot" else p.name.removesuffix(".md") for p in _agent_files(host)[1]]
+
+
+def read_playbook(repo: Repo, host: str) -> tuple[dict | None, list[str]]:
+    """The project's `chantier.yaml`, resolved for this host: `(None, [])` when absent, else the
+    playbook, or the problems found."""
+    return pb.load(repo.root / pb.FILE, host, plugin_roles(host))
+
+
 def _agent_problems(host: str) -> list[str]:
     """The plugin's agents for this host, all at this version; the CLI knows no role, only that
     the files the plugin installs match it."""
-    root = plugin_root()
-    if not root:
+    folder, files = _agent_files(host)
+    if folder is None:
         return ["the chantier plugin is not installed (a skill alone has no agents): install the "
                 "plugin and restart the session"]
-    folder = root / "agents" if host == "claude" else root / "com.github.copilot" / "agents"
-    files = sorted(folder.glob("*.md")) if folder.is_dir() else []
     if not files:
         return [f"no plugin agent in {folder}"]
     return [f"plugin agent {p.name} is not version {__version__}" for p in files
@@ -251,6 +272,14 @@ def preflight(args) -> tuple[list[str], int]:
         else:
             check("P8", found is not None, f"project instructions: {found.name if found else ''}",
                   f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
+        if host:
+            made, problems = read_playbook(repo, host)
+            check("P12", not problems,
+                  f"{pb.FILE} valid: {len(made['roles'])} roles configured" if made
+                  else f"no {pb.FILE}: the plugin's agents and models",
+                  f"{problems[0] if problems else ''}"
+                  f"{f' (and {len(problems) - 1} more)' if len(problems) > 1 else ''}: "
+                  "run `$CHANTIER playbook`")
         if repo.external:
             here = git("branch", "--show-current", check=False)
             main = default_branch(repo.surface)
@@ -572,6 +601,9 @@ def check_cycles(b: Batch) -> None:
 def open_batch(args) -> list[str]:
     repo = Repo.find()
     host = detect_host()
+    team, problems = read_playbook(repo, host)  # before any folder moves
+    if problems:
+        raise ChantierError("\n".join(problems), EXIT_PRECONDITION)
     if args.slots < 1 or (args.budget is not None and args.budget <= 0):
         raise ChantierError("slots and budget must be positive", EXIT_USAGE)
     if args.remote not in git("remote", cwd=repo.root).split():
@@ -611,6 +643,8 @@ def open_batch(args) -> list[str]:
             "chief_transcript": chief, "chief_transcripts": [chief] if chief else [],
             "stack_agent": None, "heartbeat": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
+    if team:  # a running batch keeps the playbook it opened with
+        data["playbook"] = team
     with changes_lock(repo):
         check_no_open_batch(repo)
         with Batch(repo, None, actor="chief-of-staff", create=data) as b:
@@ -1314,7 +1348,7 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
     if logs:
         tail = logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-5:]
         lines += [f"last gate log {logs[-1].name}:"] + [f"  {ln}" for ln in tail]
-    return lines
+    return lines + pb.team_lines(d.get("playbook"))
 
 
 def handoff(args) -> list[str]:
@@ -1487,6 +1521,25 @@ def _linked(path: Path, root: Path, seen: list[Path], depth: int) -> None:
                 if depth > 1:
                     _linked(candidate, root, seen, depth - 1)
                 break
+
+
+def playbook(args) -> tuple[list[str], int]:
+    """The project's playbook: which agent and model each role of the plugin runs. Without
+    `--batch` it reads `chantier.yaml` now, for the host; with it, the playbook the batch opened
+    with (a batch with none recorded runs the plugin's agents and models)."""
+    repo = Repo.find()
+    if args.batch:
+        d = read_batch(repo, resolve_batch(repo, args.batch))
+        made, host = d.get("playbook"), d["host"]
+        label = d.get("id") or args.batch
+    else:
+        host = detect_host(args.host)
+        made, problems = read_playbook(repo, host)
+        label = None
+        if problems:
+            return [f"playbook: {pb.FILE} is not valid ({len(problems)} problems)"] + problems, \
+                EXIT_PRECONDITION
+    return pb.playbook_lines(made, host, plugin_roles(host), label), 0
 
 
 def rules(args) -> list[str]:

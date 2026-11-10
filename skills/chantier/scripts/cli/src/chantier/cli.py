@@ -10,7 +10,8 @@ from .state import ChantierError
 
 MAX_LINES = 10
 # The facts of a CR, a list of files, the whole batch, or what the user approves, is useless cut short.
-FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "pause", "rules", "log", "status", "cost"}
+FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "pause", "rules", "log", "status", "cost",
+               "playbook", "preflight"}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -31,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
 
-    s = cmd("preflight", commands.preflight, "check P1, P4–P8 and P10; exit 2 if any fails (P10 only warns)", False)
+    s = cmd("preflight", commands.preflight, "check P1, P4–P8, P10 and P12; exit 2 if any fails (P10 only warns)", False)
     s.add_argument("--direct", action="store_true",
                    help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point")
 
@@ -143,6 +144,12 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("cr")
 
     cmd("rules", commands.rules, "the project's instruction file and the files it links")
+
+    s = cmd("playbook", commands.playbook,
+            "the agent and model each role runs, from chantier.yaml (or, with --batch, as the batch opened); "
+            "exit 2 if the file is invalid")
+    s.add_argument("--host", choices=["claude", "copilot"],
+                   help="the host to resolve for (default: the detected host); ignored with --batch")
 
     s = cmd("handoff", commands.handoff, "the CR's facts, for any agent; changes nothing")
     s.add_argument("cr")

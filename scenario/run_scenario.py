@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Global scenario: one whole chantier batch, end to end, through the real CLI.
 
 A scripted Foreman reads the batch's state and does what its card leaves it (fills the slots,
@@ -771,6 +771,7 @@ def scenario(w: World) -> None:
     release_merge_on_approval(w)
     lost_messages(w)
     failed_opening(w)
+    playbook_config(w)
     cancel_during_gate(w)
     rails(w)
     foreman_in_a_worktree(w)
@@ -1431,6 +1432,130 @@ def failed_opening(w: World) -> None:
           "restored where it was",
           code != 0 and (item / "03-change-spec.md").is_file()
           and not list((w.state / "4-batch").glob("batch.json")), w.last_stderr)
+
+
+def playbook_config(w: World) -> None:
+    """chantier.yaml: absent, valid, kept by a running batch, refused with its line, and a host
+    that cannot set a model at a start."""
+    from chantier.playbook import SETS_MODEL_AT_START
+    note("\n## 17b. The playbook: an optional chantier.yaml")
+    yaml = w.work / "chantier.yaml"
+    earlier = w.env.pop("CHANTIER_BATCH", None)
+    yaml.unlink(missing_ok=True)
+
+    def batch_of(*titles: str) -> list[str]:
+        w.reset()
+        w.start(*(str(prepare_cr(w, t)[1]) for t in titles), "--parallel", *FROM_AGENTS_MD)
+        w.env["CHANTIER_BATCH"] = w.name
+        w.chantier("foreman", "set", "local_foreman_playbook", "--epoch", 1)
+        return [c["id"] for c in w.batch()["crs"]]
+
+    def team(out: list[str]) -> list[str]:
+        return [ln for ln in out if ln.startswith("team:")]
+
+    # S1: no chantier.yaml, chantier runs as before
+    code, out = w.chantier("playbook")
+    check("S1: `playbook` with no chantier.yaml prints the plugin's agents and `(its file's)`",
+          code == 0 and out[0].startswith("playbook: no chantier.yaml")
+          and "coder: agent=chantier:coder model=(its file's)" in out, str(out))
+    _, out = w.chantier("preflight")
+    check("S1: preflight P12 is ok with no chantier.yaml",
+          any(ln.startswith("P12 ok") and "no chantier.yaml" in ln for ln in out), str(out))
+    crs = batch_of("Playbook none one", "Playbook none two")
+    _, took = w.chantier("take", crs[0], "--epoch", 1)
+    _, shown = w.chantier("handoff", crs[1])
+    code, out = w.chantier("playbook", "--batch", w.name, "--host", "copilot")
+    check("S1: with no chantier.yaml `open` records nothing, `take` and `handoff` print no team "
+          "line, and `playbook --batch` prints the plugin's agents, whatever `--host`",
+          "playbook" not in w.batch() and not team(took) and not team(shown)
+          and code == 0 and out[0].startswith("playbook: no chantier.yaml")
+          and "coder: agent=chantier:coder model=(its file's)" in out, str(out))
+
+    # S2: a valid file (with a BOM, as a Windows editor writes it)
+    sets_model = SETS_MODEL_AT_START["claude"]
+    yaml.write_text("# the team\nroles:\n  coder:\n" + ("    model: opus\n" if sets_model else "")
+                    + "    skills: [jira]\n  cr-driver:\n    agent: my-driver  # my own\n",
+                    encoding="utf-8-sig")
+    coder = ("coder: agent=chantier:coder model=opus (claude-opus-5-5, Claude Opus 5.5) skills=jira"
+             if sets_model else "coder: agent=chantier:coder model=(its file's) skills=jira")
+    code, out = w.chantier("playbook")
+    now_lines = out
+    check("S2: `playbook` prints the resolved model with its start value, its exact identifier and "
+          "its display name, the skills, and the user's own Driver",
+          code == 0 and out[0] == "playbook: chantier.yaml, valid, host claude"
+          and coder in out and "cr-driver: agent=my-driver model=(its file's)" in out, str(out))
+    crs = batch_of("Playbook set one", "Playbook set two")
+    _, took = w.chantier("take", crs[0], "--epoch", 1)
+    recorded = w.batch().get("playbook", {})
+    want = ("team: coder model=opus (claude-opus-5-5, Claude Opus 5.5) skills=jira" if sets_model
+            else "team: coder skills=jira")
+    check("S2: `open` records the resolved playbook, `take` prints one team line per role",
+          recorded.get("roles", {}).get("cr-driver") == {"agent": "my-driver"}
+          and team(took) == [want, "team: cr-driver agent=my-driver"], str(took))
+    code, out = w.chantier("playbook", "--batch", w.name)
+    check("S2: `playbook --batch` prints the playbook the batch recorded",
+          code == 0 and out[1:] == now_lines[1:] and "opened it" in out[0], str(out))
+
+    # S3: a running batch keeps the playbook it opened with
+    yaml.write_text("roles:\n  coder:\n    agent: other-coder\n", encoding="utf-8")
+    _, took = w.chantier("take", crs[1], "--epoch", 1)
+    code, out = w.chantier("playbook", "--batch", w.name)
+    check("S3: after chantier.yaml changed, `take` of another CR and `playbook --batch` still "
+          "print the opening's",
+          "other-coder" not in "".join(took + out) and "agent=my-driver" in "".join(team(took))
+          and out[1:] == now_lines[1:], str(out))
+
+    # S4: refusals, each exit 2 with its line, `open` moving nothing
+    w.reset()
+    _, item = prepare_cr(w, "Playbook refused")
+    head = "roles:\n  coder:\n"
+    refusals = [
+        ("an unknown role", "roles:\n  codr:\n    agent: x\n", 2, "is not one of the plugin's agents"),
+        ("an unknown key", head + "    colour: red\n", 3, 'unknown key "colour"'),
+        ("an empty role", head, 2, "is empty"),
+        ("a tab", head + "\tagent: x\n", 3, "a tab"),
+        ("an anchor", head + "    agent: &a x\n", 3, "anchors"),
+        ("a duplicate key", head + "    agent: x\n    agent: y\n", 4, "duplicate key"),
+        ("a flow mapping", head + "    agent: {a: b}\n", 3, "flow mappings"),
+        ("a second document", "roles:\n  coder:\n    agent: x\n---\n", 4, "several documents"),
+        ("an unknown model", head + "    model: opus 5.6\n", 3, "is unknown on Claude Code; known:"),
+        ("a model with no letter", head + "    model: 5.5\n", 3, "name the model, not only its version"),
+    ]
+    for label, text, line, why in refusals:
+        yaml.write_text(text, encoding="utf-8")
+        code, _ = w.chantier("open", str(item), "--parallel", *FROM_AGENTS_MD, expect=None)
+        check(f"S4: {label} is refused by `open` at its line, and nothing moved",
+              code == 2 and f"chantier.yaml:{line}:" in w.last_stderr and why in w.last_stderr
+              and (item / "03-change-spec.md").is_file()
+              and not list((w.state / "4-batch").glob("batch.json")), w.last_stderr)
+    yaml.write_text(refusals[0][1], encoding="utf-8")
+    code, out = w.chantier("playbook", expect=None)
+    _, pre = w.chantier("preflight", expect=2)
+    check("S4: `playbook` exits 2 with the problem and its line, and preflight P12 fails",
+          code == 2 and any(ln.startswith("chantier.yaml:2:") for ln in out)
+          and any(ln.startswith("P12 FAIL chantier.yaml:2:") for ln in pre) and pre[-1].endswith("start nothing"),
+          str(out + pre))
+    yaml.write_text(head + "    model: gpt\n", encoding="utf-8")
+    code, out = w.chantier("playbook", "--host", "copilot", expect=None)
+    check("S4: a name that fits several models is refused as ambiguous, listing them",
+          code == 2 and "ambiguous" in "".join(out) and "Luna" in "".join(out) and "Sol" in "".join(out),
+          str(out))
+
+    # S5: a host that cannot set a model at a start refuses clearly
+    yaml.write_text(head + "    model: opus\n", encoding="utf-8")
+    code, out = w.chantier("playbook", "--host", "copilot", expect=None)
+    check("S5: a `model` on a host that cannot set one at a start is refused, naming the reference",
+          code == 2 and any("cannot set a model when it starts an agent" in ln
+                            and 'hosts/copilot.md, "Models"' in ln for ln in out), str(out))
+
+    # S6: no chantier.yaml again
+    yaml.unlink()
+    batch_of("Playbook none again")
+    check("S6: with no chantier.yaml again, `open` of the next batch records nothing",
+          "playbook" not in w.batch())
+    w.env.pop("CHANTIER_BATCH", None)
+    if earlier:
+        w.env["CHANTIER_BATCH"] = earlier
 
 
 def lock_names(w: World, what: str) -> bool:

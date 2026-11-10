@@ -149,7 +149,8 @@ by pull request, and once merged your version ranks above the default.
 
 > "Use my `rust-coder` agent as the coder."
 
-The Chief of Staff writes it in the `chantier` section of your `AGENTS.md`; every Driver's prompt
+The Chief of Staff writes it in `chantier.yaml`, at your project's root (a `model` and the skills
+a role needs go there too, and `chantier playbook` shows what each role runs); every Driver's prompt
 names it, and the coder role runs your agent with the same contract as ours: it gets the
 specification, the worktree, the work folder and the project's rules in its prompt.
 
@@ -161,8 +162,8 @@ another round.
 
 > "Which agents and models?" · "Back to the default coder."
 
-The Chief of Staff writes the team in a `chantier` section of `AGENTS.md`, so your colleagues get
-the same one. The next batch uses it; a running batch keeps the team it started with.
+The Chief of Staff writes the team in `chantier.yaml` (the review steps stay in the `chantier`
+section of `AGENTS.md`), so your colleagues get the same one. The next batch uses it; a running batch keeps the team it started with.
 
 ## Know what it costs
 

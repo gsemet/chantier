@@ -11,7 +11,7 @@ The construction site for your Software Factory.
 - **Direct or Foreman.** The Chief of Staff steers a batch itself (direct mode), or a nested
   Foreman session steers it (Foreman mode). In Foreman mode a CR can join a running batch; in
   direct mode, only once the batch is paused.
-- **Zero configuration.** Your `AGENTS.md` is the only configuration. Everything chantier writes
+- **Zero configuration.** Your `AGENTS.md`, and an optional `chantier.yaml` at the project's root (the agent and model of each role, the skills it needs), are the only configuration. Everything chantier writes
   is Markdown and JSON in the planning folder: `.agents/changes/` in your project, or the
   project's folder of an [external planning surface](docs/planning-modes.md).
 
@@ -218,7 +218,8 @@ Talk to the Chief of Staff in plain language:
 | "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
-| "which agents and models?" | the team: each role, its agent, its model |
+| "which agents and models?" | the team: each role, its agent, its model (`chantier playbook`) |
+| "run the inspector on Opus" | a `model` for the role in `chantier.yaml`, which the CLI resolves to the exact model (or refuses an unknown or ambiguous name) |
 
 ### The CR board (Claude Code)
 
@@ -233,20 +234,35 @@ the session, not in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)).
 ### Your own agents
 
-Any role can run one of your agents. Tell the Chief of Staff, and it writes it in a `chantier`
-section of your `AGENTS.md`, shared with your team:
+Any role can run one of your agents, with a model of your choice and the skills it needs. Tell
+the Chief of Staff, and it writes them in an optional `chantier.yaml` at your project's root,
+shared with your team (with none, every role runs the plugin's agent):
+
+```yaml
+roles:
+  coder:
+    agent: rust-coder
+    model: opus
+    skills: [jira]
+  cr-driver:
+    agent: my-driver
+```
+
+Only the `chantier` CLI reads this file: it refuses an unknown role, key or model with the
+line, and turns a model name into an exact identifier (`chantier playbook` shows the result); the
+agents pass it as printed. A host that cannot set a model when it starts an agent refuses a
+`model`. A required skill the Chief of Staff's session lacks is warned about, and the role works
+without it. The role's contract is its card in the skill, so your agent only needs the tools the
+role uses. Extra review steps stay in a `chantier` section of your `AGENTS.md`:
 
 ```markdown
 ## chantier
 
-- coder: `rust-coder`
 - security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
 ```
 
-The role's contract is its card in the skill, named in the prompt the Driver writes, so your
-agent only needs the tools the role uses. A name that is not a built-in role becomes an extra
-review step: it runs after the Inspector approves and answers with the same verdict. A running
-batch keeps the team it started with.
+A name that is not a built-in role becomes an extra review step: it runs after the Inspector
+approves and answers with the same verdict. A running batch keeps the team it started with.
 
 ### Models
 

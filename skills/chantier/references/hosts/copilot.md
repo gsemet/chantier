@@ -15,8 +15,11 @@ fact.
 | Start the Foreman's session | `create_session` with `model: "claude-opus-5.5"`, `workspace` = the repository, `worktree: false`, `title: "<title>"` |
 | Set the Foreman's own title, first | when the host offers a way; else the title stays |
 | Own session id | `$COPILOT_AGENT_SESSION_ID` (also the transcript's id) |
-| Start a Driver or a worker | `task`, `mode: background`, `agent_type: <agent>`; the plugin's agent is `chantier-<role>`; no model, no effort |
-| Start the Spec-writer (Chief of Staff) | `task`, `mode: background`, `agent_type: chantier-spec-writer`; no model, no effort |
+| Start a Driver or a worker | `task`, `mode: background`, `agent_type: <agent>`; the plugin's agent is `chantier-<role>`; no model (the capability is none, below), no effort |
+| Start the Spec-writer (Chief of Staff) | `task`, `mode: background`, `agent_type: chantier-spec-writer`; no model (as above), no effort |
+| Models | each plugin agent's file names its model (`[display name, id]`): Luna, Sol, Sonnet 5.5 or Opus 5.5 |
+| Models at an agent's start (capability, start value) | capability: none, unproved; no start value. A `model` in `chantier.yaml` is refused on this host, with the CLI's message "cannot set a model when it starts an agent". Trial that would settle it: start a plugin agent through `task` with a model passed, read the model its transcript shows, and record the parameter and the value it took here |
+| Skills and tools of a session (what the Chief of Staff compares a role's needs with) | not known (unproved); trial: a `chantier.yaml` naming one skill that is installed and one that is not; the Chief of Staff names only the second |
 | Message a Driver | `write_agent` to the agent id |
 | Message the Chief of Staff | `send_message` to its session link |
 | A Driver's hand-back to its steering session (the Foreman; in direct mode the Chief of Staff) | the Driver's final answer; in direct mode it returns to the Chief of Staff that started the Driver: unproved |
