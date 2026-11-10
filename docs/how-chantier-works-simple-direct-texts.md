@@ -117,3 +117,9 @@ resolver
 ```md
 **Any role can run your own agent**, named in AGENTS.md.
 ```
+
+## Planning folder note
+
+```md
+**Planning folder**: .agents/changes/ in the project, or in an external surface.
+```

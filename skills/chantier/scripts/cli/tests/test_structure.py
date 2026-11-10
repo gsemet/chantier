@@ -3,7 +3,9 @@ repository. The batch workflow itself is the scenario's job (`just scenario`).
 """
 import importlib.util
 import json
+import os
 import re
+from pathlib import Path
 import tomllib
 
 import pytest
@@ -122,7 +124,8 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
 
 
 def test_skill_and_references_links_resolve():
-    for page in [*(PLUGIN_ROOT / "skills").glob("*/SKILL.md"), *(SKILL / "references").glob("*.md")]:
+    for page in [*(PLUGIN_ROOT / "skills").glob("*/SKILL.md"), *(SKILL / "references").glob("*.md"),
+                 PLUGIN_ROOT / "README.md", *(PLUGIN_ROOT / "docs").glob("*.md")]:
         for link in re.findall(r"\]\(([^)#\s]+)", page.read_text(encoding="utf-8")):
             if not link.startswith("http"):
                 assert (page.parent / link).exists(), f"{page.name}: {link}"
@@ -192,7 +195,7 @@ FROM_AGENTS_MD =("--default-branch", "main")  # what the Chief of Staff read in 
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
-def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
+def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
         repo, chantier, monkeypatch, host):
     monkeypatch.setenv("CHANTIER_HOST", host)
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
@@ -225,6 +228,40 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_agents_changes(
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines() and all(
         line.startswith("?? .agents/changes/")
         for line in sh("git", "status", "--porcelain", "-uall", cwd=repo).splitlines())
+
+
+def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean(
+        repo, chantier, monkeypatch, tmp_path):
+    surface = tmp_path / "surface"
+    project = surface / "projects" / "demo"
+    project.mkdir(parents=True)
+    (project / "checkout.yml").write_text(
+        f"# the clone\nrepo: {Path(os.path.relpath(repo, project)).as_posix()}\n"
+        "worktrees: ../../../wt\n")
+    sh("git", "init", "--quiet", "-b", "main", str(surface))
+    sh("git", "add", ".", cwd=surface)
+    sh("git", "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "--quiet",
+       "-m", "init", cwd=surface)
+    monkeypatch.chdir(surface)
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    assert chantier("preflight")[0] == 0
+    folder = _prepared(surface, chantier)  # one project: taken without --project
+    assert folder.relative_to(surface).as_posix().startswith("projects/demo/changes/1-inbox/")
+    code, _, err = chantier("open", str(folder), *FROM_AGENTS_MD)
+    assert code == 0, err
+    code, out, _ = chantier("take", "CR-101")
+    assert code == 0, out
+    assert any(ln.startswith("cli: ") and f'--project "{project.resolve().as_posix()}"' in ln
+               for ln in out)
+    assert any(ln.startswith("clone: ") and repo.name in ln for ln in out)
+    assert any(ln.startswith("worktree: ") and "/wt/batch-01-CR-101" in ln.replace("\\", "/") for ln in out)
+    assert any(ln.startswith("archive: in the PR at .agents/changes/5-archives/") for ln in out)
+    shown = sh("git", "status", "--porcelain", "-uall", cwd=surface).splitlines()
+    assert shown and all(ln.startswith("?? projects/demo/changes/") for ln in shown)
+    local = ("batch.json", "events.jsonl", "STATUS", ".lock", ".batch-number", "seat.json")
+    assert not [ln for ln in shown if any(name in ln for name in local)], shown
+    assert sh("git", "status", "--porcelain", "-uall", cwd=repo) == ""
 
 
 def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch):
@@ -305,8 +342,8 @@ def test_init_creates_the_eight_folders_once_and_refuses_outside_a_main_checkout
     assert code == 0 and [ln.split()[0] for ln in out] == ["created"] * 8
     changes = repo / ".agents" / "changes"
     assert sorted(p.name for p in changes.iterdir()) == [
-        "1-inbox", "2-backlog", "3-ready", "4-batch", "5-archives", "6-trash"]
-    assert not list(changes.rglob("*.*"))  # empty, no .gitkeep
+        ".gitignore", "1-inbox", "2-backlog", "3-ready", "4-batch", "5-archives", "6-trash"]
+    assert not [p for p in changes.rglob("*.*") if p.name != ".gitignore"]  # empty, no .gitkeep
     assert [ln.split()[0] for ln in chantier("init")[1]] == ["exists"] * 8
     sh("git", "worktree", "add", "--quiet", str(tmp_path / "wt"), "-b", "side", cwd=repo)
     monkeypatch.chdir(tmp_path / "wt")

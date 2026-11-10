@@ -5,6 +5,7 @@ import argparse
 import sys
 
 from . import __version__, commands
+from . import state
 from .state import ChantierError
 
 MAX_LINES = 10
@@ -15,11 +16,15 @@ FULL_OUTPUT = {"take", "round", "handoff", "asks", "close", "pause", "rules", "l
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chantier", description="The chantier team's CLI.")
     p.add_argument("--version", action="version", version=f"chantier {__version__}")
+    p.add_argument("--project", help="the project's folder in a planning surface "
+                   "(`<surface>/projects/<name>`, or the bare name); omitted: the project's own "
+                   ".agents/changes/, or the surface's only project")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     def cmd(name, fn, help_, batch=True, epoch=False):
         s = sub.add_parser(name, help=help_)
         s.set_defaults(fn=fn)
+        s.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
         if batch:
             s.add_argument("--batch", help="batch number, 4 or batch-04 (default: $CHANTIER_BATCH, else the only running one)")
         if epoch:
@@ -30,7 +35,7 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--direct", action="store_true",
                    help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point")
 
-    cmd("init", commands.init, "create the eight empty stage folders of .agents/changes/; changes nothing else", False)
+    cmd("init", commands.init, "create the empty stage folders of the planning folder and its .gitignore; changes nothing else", False)
 
     s = cmd("file", commands.file_cr, "file a request in the inbox", False)
     s.add_argument("item", help="request text, or @path to the raw request")
@@ -182,6 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
     args = _parser().parse_args(argv)
+    state.PROJECT = args.project
     try:
         result = args.fn(args)
     except ChantierError as e:

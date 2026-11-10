@@ -28,6 +28,7 @@ fact.
 | List the sessions; is the seat's session alive | not known: the seat's session always "looks stopped" to a new session, and the "looks stopped" line of `session-start.md` is asked (unproved) |
 | Message another session of the user (hand-over, a Griller's line) | `send_message` to its link (unproved) |
 | A Griller in a worktree | its files sent as for a Griller on Claude Code (unproved) |
+| A session in a planning surface writing in the project's clone and worktrees (outside its folder) | the host must allow those folders (unproved); the remote finding is Claude Code's: not tried on Copilot |
 
 ## Heartbeat
 

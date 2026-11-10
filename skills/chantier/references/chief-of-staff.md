@@ -126,8 +126,18 @@ Nothing waits in the conversation only.
 Grillers write the CR folders too: re-read the backlog's folders before proposing a batch, on
 "status?", and when the user says a Griller has finished; re-read a CR's folder before each act
 on it. Files from a Griller in a worktree (`files for <slug>: <paths>`): read them, place them in
-the CR folder of the main checkout as received (a new item through `$CHANTIER file @<its
+the CR folder of the planning folder as received (a new item through `$CHANTIER file @<its
 request>` first), tell the user, and review a specification as one from the `spec-writer`.
+
+**With a planning surface** ([concepts](concepts.md)): the surface's own rules win for its sync,
+its `AGENTS.md` first. Without sync rules there, commit and push the surface after each step that
+changes it (a file, a grill answer, a specification, `open`, a merge recorded, `close`) and, in a
+batch, at each hand-back you hear: explicit paths (`git add -- <path>`), a plain push to the
+default branch, a rebase on a rejected push, never a force push. A clone missing at
+`checkout.yml`'s path (`preflight` fails naming it) is cloned on the user's word. Outside
+contributors submit a CR by a PR on the surface, which the user reviews and merges on the forge;
+a CR so merged into `1-inbox` or `2-backlog/P<n>` is read like any other. Never touch the
+project's clone except by `git -C <clone>`.
 
 Shared understanding: ask whether a CR is grilled enough only after a complete restatement of it,
 in the user's language: what it changes, every decision taken (from `02-answers.md`), what is
@@ -226,15 +236,15 @@ Only in the turn where the user gave the go:
    first.
 
    **An ask from a Foreman in a worktree.** Tell the user the impact (Write is refused in
-   `.agents/changes/`, so no Driver can leave its work and evidence there) and give the "For
+   the planning folder, so no Driver can leave its work and evidence there) and give the "For
    you" block to start again on the main checkout. Suggest no way around the refusal; the user
    may allow one, for that batch only: pass their words to the Foreman as they wrote them, and
    never turn them into a rule.
 
 ## While it runs
 
-- **Status:** `$CHANTIER status [--notes]`, with PR links, and `.agents/changes/STATUS.md`
-  for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`report.md`).
+- **Status:** `$CHANTIER status [--notes]`, with PR links, and the planning folder's
+  `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`report.md`).
   A 🔴 CR is a question for the user. Never read the Foreman's transcript.
 - **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `report.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
@@ -329,8 +339,8 @@ Only in the turn where the user gave the go:
   `5-archives`), and touches nothing. Show the user the bilan, the final Cost section and that
   list, and ask. Only on their yes,
   in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
-  yourself, from the main checkout (`git worktree remove --force <path>`, `git branch -D
-  <branch>`, as listed).
+  yourself, from the main checkout (`git -C <clone>` with a planning surface; `git worktree remove
+  --force <path>`, `git branch -D <branch>`, as listed).
 - **Recovery:** a stale heartbeat says something only while a CR is `working`; with none, the
   Foreman has stopped waking, as it should. After a break, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before

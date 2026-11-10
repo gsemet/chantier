@@ -163,11 +163,15 @@ class World:
     def cr(self, cr_id):
         return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
 
+    def at(self, path):
+        """A recorded CR path in the planning folder; the older `.agents/changes/` form reads too."""
+        return self.state / str(path).removeprefix(".agents/changes/")
+
 
 def open_pr(w: World, cr_id: str, title: str) -> str:
     """The Driver opens the PR with the forge's CLI, from the body it wrote."""
     c = w.cr(cr_id)
-    body = w.work / c["path"] / "work" / "pr-body.md"
+    body = w.at(c["path"]) / "work" / "pr-body.md"
     if ARGS.forge == "github":
         _, out, _ = w.forge("pr", "create", "--base", "main", "--head", c["branch"], "--title",
                             title, "--body-file", str(body))
@@ -411,7 +415,7 @@ def push(w: World, cr_id: str) -> None:
 def ship(w: World, cr_id: str, title: str) -> None:
     """The Driver writes the PR body, pushes, opens or updates the PR itself, then records it."""
     c = w.cr(cr_id)
-    body = w.work / c["path"] / "work" / "pr-body.md"
+    body = w.at(c["path"]) / "work" / "pr-body.md"
     body.parent.mkdir(exist_ok=True)
     push(w, cr_id)
     first = cr_id not in OPENED
@@ -481,7 +485,7 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("triage", moved, "--priority", "P3", expect=2)
     check("`triage` to the same priority is refused: already P3",
           "already P3" in w.last_stderr, w.last_stderr)
-    code, _ = w.chantier("triage", w.work / "AGENTS.md", "--priority", "P1", expect=1)
+    code, _ = w.chantier("triage", w.state / "STATUS.md", "--priority", "P1", expect=1)
     check("`triage` of another path says what it expects", "2-backlog/P<n>/<item>" in w.last_stderr,
           w.last_stderr)
     w.chantier("abandon", moved)
@@ -512,9 +516,9 @@ def scenario(w: World) -> None:
           code == 2 and "its Driver creates it" in w.last_stderr, w.last_stderr)
     check("opening moves the entire prepared folders into 1-pending",
           all(not backlog.exists() for _, backlog in items)
-          and all("/4-batch/1-pending/" in c["path"]
-                  and (w.work / c["path"] / "intake/request.md").is_file()
-                  and (w.work / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
+          and all("4-batch/1-pending/" in c["path"]
+                  and (w.state / c["path"] / "intake/request.md").is_file()
+                  and (w.state / c["path"] / "03-change-spec.md").is_file() for c in d["crs"]))
     fm.turn()
     check("the Foreman gives two CRs to Drivers (two slots)", fm.started == ["CR-101", "CR-102"])
     check("each Driver created its worktree and branch on the fresh default branch",
@@ -601,9 +605,9 @@ def scenario(w: World) -> None:
           fm.cancelled == ["CR-103"] and sleeper.poll() is not None
           and w.cr("CR-103")["status"] == "cancelled")
     check("a dropped CR goes to the trash with its work, under the date",
-          re.search(r"/6-trash/\d{6}-\d{4}-103-", w.cr("CR-103")["path"])
-          and (w.work / w.cr("CR-103")["path"] / "02-answers.md").is_file()
-          and "⚪ dropped" in (w.work / w.cr("CR-103")["path"] / "STATUS.md").read_text("utf-8"))
+          re.search(r"6-trash/\d{6}-\d{4}-103-", w.cr("CR-103")["path"])
+          and (w.state / w.cr("CR-103")["path"] / "02-answers.md").is_file()
+          and "⚪ dropped" in (w.state / w.cr("CR-103")["path"] / "STATUS.md").read_text("utf-8"))
     check("the freed slot goes to CR-104", "CR-104" in fm.started)
     _, out = w.chantier("order", "done", "O-1", "--epoch", 1)
     check("an order read twice is done once", out == ["O-1 already done"])
@@ -670,8 +674,8 @@ def scenario(w: World) -> None:
     orders = len(w.batch()["orders"])
     _, out = w.chantier("order", "merged", "CR-101")
     check("`order merged` moves the CR to 3-done at once and records the time",
-          w.cr("CR-101")["status"] == "merged" and "/4-batch/3-done/" in w.cr("CR-101")["path"]
-          and (w.work / w.cr("CR-101")["path"] / "03-change-spec.md").is_file()
+          w.cr("CR-101")["status"] == "merged" and "4-batch/3-done/" in w.cr("CR-101")["path"]
+          and (w.state / w.cr("CR-101")["path"] / "03-change-spec.md").is_file()
           and re.fullmatch(r"20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ", w.cr("CR-101")["merged_at"]),
           str(out))
     fm.turn()
@@ -686,10 +690,10 @@ def scenario(w: World) -> None:
           and not any(w.sh("git", "branch", "--list", c["branch"]) for c in d["crs"]
                       if c["status"] == "merged"))
     check("merged CR folders wait intact in 3-done until the close",
-          all(re.search(r"/4-batch/3-done/\d{3}-", c["path"])
-              and (w.work / c["path"] / "03-change-spec.md").is_file()
-              and (w.work / c["path"] / "STATUS.md").is_file()
-              and (w.work / c["path"] / "STATUS.json").is_file()
+          all(re.search(r"4-batch/3-done/\d{3}-", c["path"])
+              and (w.state / c["path"] / "03-change-spec.md").is_file()
+              and (w.state / c["path"] / "STATUS.md").is_file()
+              and (w.state / c["path"] / "STATUS.json").is_file()
               for c in d["crs"] if c["status"] == "merged"))
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the batch's STATUS.md, once paused, lists every CR",
@@ -729,7 +733,7 @@ def scenario(w: World) -> None:
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the batch's STATUS.md gives each CR's cost and the summary",
           "| $0.30 |" in report and "## Cost" in report and "Total: $1.61" in report, report)
-    archived = (w.work / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
+    archived = (w.state / w.cr("CR-101")["path"] / "STATUS.md").read_text(encoding="utf-8")
     check("a paused batch's CR page keeps its cost and its link to the batch, and does not call "
           "the cost final: only `close` does",
           "$0.30 so far" in archived and "(../../STATUS.md)" in archived
@@ -1038,7 +1042,7 @@ def foreman_in_a_worktree(w: World) -> None:
 
 def status_files(w: World) -> None:
     c = w.cr("CR-104")
-    folder = w.work / c["path"]
+    folder = w.state / c["path"]
     text = (folder / "STATUS.md").read_text(encoding="utf-8")
     check("a CR's STATUS.md says where it stands and links back to its batch",
           all(part in text for part in ("**Now:**", "**Next:**", "## Progress", "- [x] Round 1",
@@ -1329,7 +1333,7 @@ def close_batch(w: World) -> None:
     code, _ = w.chantier("close", "--batch", name, "--yes", expect=3)
     check("an archive collision refuses the close and puts everything back",
           code == 3 and (collision / "sentinel.txt").read_text() == "do not overwrite"
-          and (w.work / first["path"] / "03-change-spec.md").is_file()
+          and (w.state / first["path"] / "03-change-spec.md").is_file()
           and (folder / "batch.json").is_file() and (folder / "events.jsonl").is_file()
           and len(list((folder / "3-done").iterdir())) == 4
           and not (w.state / f".closing-{name}").exists(), w.last_stderr)
@@ -1359,7 +1363,7 @@ def close_batch(w: World) -> None:
     board = (w.state / "STATUS.md").read_text(encoding="utf-8")
     check("the archives and the trash stay, and the board forgets the batch",
           name not in board and "No batch." in board
-          and (w.work / dropped["path"] / "STATUS.md").is_file(), board)
+          and (w.state / dropped["path"] / "STATUS.md").is_file(), board)
 
 
 def failed_opening(w: World) -> None:
@@ -1416,7 +1420,7 @@ def cancel_during_gate(w: World) -> None:
     w.chantier("cancel", cr, "--epoch", 1)
     out, err = running.communicate(timeout=30)
     check("a cancel stops the suite and moves the CR while its gate runs; the gate ends cleanly",
-          "/6-trash/" in w.cr(cr)["path"] and out.startswith("FAIL") and "Traceback" not in err
+          "6-trash/" in w.cr(cr)["path"] and out.startswith("FAIL") and "Traceback" not in err
           and "pg" in w.last_out[0], f"{out} {err} {w.last_out}")
 
 
@@ -1504,7 +1508,7 @@ def rails(w: World) -> None:
     code, out = w.chantier("gate", two, long_gate)
     waited = time.monotonic() - started
     held.communicate(timeout=30)
-    log = max((w.work / w.cr(two)["path"] / "work" / "gates").glob("*.log"))
+    log = max((w.state / w.cr(two)["path"] / "work" / "gates").glob("*.log"))
     check("a second long gate waits for the first (one long gate at a time)",
           code == 0 and waited >= 1 and "waiting for the long gate of" in log.read_text("utf-8"),
           f"{waited:.1f}s {out}")
@@ -1515,7 +1519,7 @@ def rails(w: World) -> None:
     started = time.monotonic()
     code, out = w.chantier("gate", two, long_gate)
     waited = time.monotonic() - started
-    log = max((w.work / w.cr(two)["path"] / "work" / "gates").glob("*.log"))
+    log = max((w.state / w.cr(two)["path"] / "work" / "gates").glob("*.log"))
     check("a long gate whose command died still holds the next one while its suite runs",
           code == 0 and waited >= 1 and "its command still runs" in log.read_text("utf-8"),
           f"{waited:.1f}s {out}")
@@ -1573,7 +1577,7 @@ def stack_batch(w: World) -> None:
     four = d["crs"][-1]["id"]
     check("`order add` joins the open batch, on top of the stack; no batch is opened",
           len(d["crs"]) == 4 and w.cr(four)["status"] == "queued"
-          and w.cr(four)["path"].startswith(".agents/changes/4-batch/1-pending/")
+          and w.cr(four)["path"].startswith("4-batch/1-pending/")
           and len(list((w.state / "4-batch").glob("batch.json"))) == 1
           and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]),
           str(out))
@@ -1592,7 +1596,7 @@ def stack_batch(w: World) -> None:
     d = w.batch()
     check("the bottom merges alone: it moves to 3-done at once and the batch stays open",
           w.cr(one)["status"] == "merged" and "/3-done/" in w.cr(one)["path"]
-          and (w.work / w.cr(two)["path"]).is_dir() and d["status"] == "running"
+          and (w.state / w.cr(two)["path"]).is_dir() and d["status"] == "running"
           and all(w.cr(c)["status"] == "ready" for c in (two, three, four)), str(out))
     _, out = w.chantier("take", "stack", "--epoch", 1)
     check("what remains forms another stack: the first now stands on the default branch",
@@ -1661,7 +1665,7 @@ def release(w: World) -> None:
     tag = "push tag v1.1.0"
     _, out = w.chantier("release", "start", rel)
     check("an attempt is counted", out[0].startswith("attempt 1"), str(out))
-    notes = w.work / w.cr(rel)["path"] / "work" / "notes-v1.1.0.md"
+    notes = w.state / w.cr(rel)["path"] / "work" / "notes-v1.1.0.md"
     notes.write_text("# v1.1.0\n")
     w.chantier("note", rel, "--draft", notes)
     _, out = w.chantier("status")
@@ -1763,7 +1767,7 @@ def release(w: World) -> None:
     check("merged with the forge's CLI, `order merged --epoch` sends the release on with a new "
           "Driver, not to the archives",
           len(fm.started) == drivers + 1 and fm.started[-1].startswith(f"{rel} merged:")
-          and "/5-archives/" not in w.cr(rel)["path"]
+          and "5-archives/" not in w.cr(rel)["path"]
           and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
     check("the merged PR is not the next attempt's", w.cr(rel).get("pr") is None)
     w.chantier("release", "published", rel, "--note", "v1.1.0 https://forge.example/v1.1.0")
@@ -1787,7 +1791,7 @@ def granted_fixes(w: World) -> None:
     w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman5", "--epoch", 1)
     rel = w.batch()["crs"][0]["id"]
-    work = w.work / w.cr(rel)["path"] / "work"
+    work = w.state / w.cr(rel)["path"] / "work"
     work.mkdir()
     files = [work / f"fix-{n}.md" for n in range(1, 5)]
     for n, path in enumerate(files, 1):
@@ -1803,7 +1807,7 @@ def granted_fixes(w: World) -> None:
     check("under the grant, three fixes start and a fourth is refused", codes == [0, 0, 0, 5],
           str(codes))
     fix = w.batch()["crs"][1]
-    spec = w.work / fix["path"] / "03-change-spec.md"
+    spec = w.state / fix["path"] / "03-change-spec.md"
     check("a fix file becomes a fix CR of the batch, its specification kept",
           fix["kind"] == "fix" and fix["title"] == "Fix step 1" and fix["status"] == "queued"
           and spec.read_text() == files[0].read_text(), str(fix))
@@ -2109,7 +2113,7 @@ def changes_tree(w: World) -> None:
     one, two = d["crs"]
     check("`open` takes both 3-ready items into 1-pending; the one with no specification records "
           "the request as its specification",
-          all("/4-batch/1-pending/" in c["path"] for c in d["crs"])
+          all("4-batch/1-pending/" in c["path"] for c in d["crs"])
           and one["specification"] == "03-change-spec.md"
           and two["specification"] == "intake/request.md" and two["title"].startswith("Tree without")
           and not ready_spec.exists() and not ready_bare.exists(), str(d["crs"]))
@@ -2117,23 +2121,23 @@ def changes_tree(w: World) -> None:
     fm = Foreman(w, epoch=1)
     fm.take(two["id"])
     check("`take` moves the folder to 2-actives and shows the request as the specification",
-          "/4-batch/2-actives/" in w.cr(two["id"])["path"]
-          and (w.work / w.cr(two["id"])["path"] / "intake/request.md").is_file()
+          "4-batch/2-actives/" in w.cr(two["id"])["path"]
+          and (w.state / w.cr(two["id"])["path"] / "intake/request.md").is_file()
           and any("intake/request.md" in ln for ln in fm.facts), str(fm.facts))
     fm.take(one["id"])
     driver_round(w, one["id"], "tree.py", "N = 1\n")
     w.chantier("handback", one["id"], "ready", w.cr(one["id"])["pr"])
     w.chantier("handback", two["id"], "blocked", "question: which one")
     check("the folder stays in 2-actives after `handback`, ready or blocked",
-          all("/4-batch/2-actives/" in w.cr(c["id"])["path"] for c in (one, two))
+          all("4-batch/2-actives/" in w.cr(c["id"])["path"] for c in (one, two))
           and w.cr(one["id"])["status"] == "ready" and w.cr(two["id"])["status"] == "blocked")
     w.chantier("order", "merged", one["id"])
-    done = w.work / w.cr(one["id"])["path"]
+    done = w.state / w.cr(one["id"])["path"]
     check("`order merged` moves the folder to 3-done and records the merge time",
           done.parent == w.state / "4-batch" / "3-done" and done.is_dir()
           and w.cr(one["id"]).get("merged_at"), w.cr(one["id"])["path"])
     w.chantier("order", "drop", two["id"])
-    dropped = w.work / w.cr(two["id"])["path"]
+    dropped = w.state / w.cr(two["id"])["path"]
     check("`order drop` moves the folder to 6-trash at once",
           dropped.parent == w.state / "6-trash" and dropped.is_dir(), w.cr(two["id"])["path"])
     fm.turn()
@@ -2219,12 +2223,12 @@ def old_tree(w: World) -> None:
         paths = {c["id"]: c["path"] for c in d["crs"]}
         check("the next command converts the tree, says so once, and every recorded path exists",
               converted.startswith("converted .agents/changes to the new tree")
-              and all((w.work / p).is_dir() for p in paths.values()), converted)
+              and all(w.at(p).is_dir() for p in paths.values()), converted)
         check("queued goes to 1-pending, ready to 2-actives, working stays; archives and trash "
               "are renamed",
-              "/4-batch/1-pending/" in paths[queued] and "/4-batch/2-actives/" in paths[ready]
+              "4-batch/1-pending/" in paths[queued] and "4-batch/2-actives/" in paths[ready]
               and paths[working] == f".agents/changes/3-requests/{w.name}/{Path(paths[working]).name}"
-              and "/5-archives/" in paths["CR-190"] and "/6-trash/" in paths["CR-191"]
+              and "5-archives/" in paths["CR-190"] and "6-trash/" in paths["CR-191"]
               and not (w.state / "4-archives").exists() and not (w.state / "5-trash").exists()
               and (w.state / "STATUS.json").is_file(), str(paths))
         w.chantier("status")
@@ -2233,7 +2237,7 @@ def old_tree(w: World) -> None:
         w.chantier("handback", working, "ready", w.cr(working)["pr"])
         w.chantier("order", "merged", working)
         check("the working CR moves to 3-done on `order merged`, and 3-requests/ is gone",
-              "/4-batch/3-done/" in w.cr(working)["path"]
+              "4-batch/3-done/" in w.cr(working)["path"]
               and not (w.state / "3-requests").exists(), w.cr(working)["path"])
         index = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
         check("the index at .agents/changes/STATUS.json has schema 3 and paths that resolve",
@@ -2255,7 +2259,7 @@ def depends_on(item: Path, *slugs: str, raw: str | None = None) -> None:
 def drawn(w: World, cr: str) -> tuple[set[str], dict]:
     """The label of a CR in every record that lists it (the batch's STATUS.md and STATUS.json,
     the index where it is active, the CR's own pair), and the CR's own STATUS.json."""
-    own_dir = w.work / w.cr(cr)["path"]
+    own_dir = w.state / w.cr(cr)["path"]
     own = json.loads((own_dir / "STATUS.json").read_text(encoding="utf-8"))
     batch = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
     index = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
@@ -2802,6 +2806,199 @@ def fake_transcripts(w: World, d: dict) -> None:
             worker.with_suffix("").with_suffix(".meta.json").write_text(
                 json.dumps({"agentType": "coder", "parentAgentId": c["agent"]}))
 
+class SurfaceWorld(World):
+    """A planning surface (its own git repository) with two projects, each with its clone and
+    worktrees outside the surface. `state` is the demo project's planning folder."""
+
+    def __init__(self, root: Path):
+        super().__init__(root)
+        self.work = root / "code"  # the demo project's clone: the code repository
+        self.surface = root / "surface"
+        self.project = self.surface / "projects" / "demo"
+        self.state = self.project / "changes"
+
+    def chantier(self, *args, project="demo", cwd=None, **kw):
+        head = ("--project", project) if project else ()
+        return super().chantier(*head, *args, cwd=cwd or self.surface, **kw)
+
+    def build(self) -> None:
+        super().build()
+        self.sh("git", "clone", "--quiet", str(self.root / "origin.git"), str(self.root / "code2"),
+                cwd=self.root)
+        self.sh("git", "init", "--quiet", "-b", "main", str(self.surface), cwd=self.root)
+        self.sh("git", "config", "user.name", "scenario", cwd=self.surface)
+        self.sh("git", "config", "user.email", "scenario@example.com", cwd=self.surface)
+        (self.surface / "AGENTS.md").write_text("# Surface rules\n\nPlan on the default branch.\n")
+        for name, suffix, archive in (("demo", "", "yes"), ("other", "2", "no")):
+            folder = self.surface / "projects" / name
+            folder.mkdir(parents=True)
+            (folder / "checkout.yml").write_text(
+                f"repo: ../../../code{suffix}\nworktrees: ../../../wt{suffix}\n")
+            (folder / "project.md").write_text(
+                f"# {name}\n\n- Remote: {self.root / 'origin.git'}\n- Archive in the PR: {archive}\n")
+        self.sh("git", "add", ".", cwd=self.surface)
+        self.sh("git", "commit", "--quiet", "-m", "init", cwd=self.surface)
+
+    def prepare(self, title: str, project="demo") -> Path:
+        _, out = self.chantier("file", title, project=project)
+        inbox = self.surface / out[0].removeprefix("filed ").split(";", 1)[0]
+        (inbox / "01-intent.md").write_text(f"# {title}\n\nThe original request is in intake.\n")
+        (inbox / "02-answers.md").write_text("# Decisions\n\nNo open questions.\n")
+        (inbox / "03-change-spec.md").write_text(f"# {title}\n\nImplement {title}.\n")
+        _, out = self.chantier("triage", inbox, "--priority", "P1", project=project)
+        return self.surface / out[0].removeprefix("triaged ").rsplit(" (", 1)[0]
+
+    def surface_files(self) -> list[str]:
+        p = subprocess.run(["git", "status", "--porcelain", "-uall"], cwd=self.surface,
+                           capture_output=True, text=True, encoding="utf-8", check=True)
+        return [ln.split(maxsplit=1)[1].strip('"') for ln in p.stdout.splitlines()]
+
+
+LOCAL_FILES = {"STATUS.md", "STATUS.json", ".lock", ".lifecycle.lock", ".long-gate.lock",
+               ".batch-number", "seat.json", "batch.json", "events.jsonl", "brief.md"}
+
+
+def surface_publishes(w: SurfaceWorld, label: str) -> None:
+    """The surface's git sees the CR documents and evidence, never a running batch's local files."""
+    files = w.surface_files()
+    local = [f for f in files if Path(f).name in LOCAL_FILES or Path(f).name.startswith(".closing-")
+             or "/work/gates/" in f or f.endswith((".log", ".tmp"))]
+    check(f"{label}: the surface's git lists no local file", not local, str(local))
+    check(f"{label}: and still lists the CR's documents",
+          any(f.endswith("03-change-spec.md") for f in files), str(files))
+
+
+def external_surface(tmp: Path) -> None:
+    note("\n## 20. A planning surface: the project's plans in a repository of their own")
+    OPENED.clear()
+    tmp.mkdir()
+    w = SurfaceWorld(tmp)
+    w.build()
+    # at the surface's root, with two projects: a command names the project
+    code, out = w.chantier("preflight", project=None)
+    check("preflight at a surface lists its projects and passes",
+          code == 0 and any("demo" in ln and "other" in ln for ln in out), str(out))
+    code, _ = w.chantier("status", project=None, expect=2)
+    check("a command at a surface with two projects exits 2 naming both",
+          "demo" in w.last_stderr and "other" in w.last_stderr and "--project" in w.last_stderr,
+          w.last_stderr)
+    away = w.root / "code.away"
+    (w.root / "code").rename(away)
+    code, out = w.chantier("preflight", expect=2)
+    check("a missing clone fails preflight and names the path and the remote",
+          any("P8" in ln and "code" in ln and "origin.git" in ln for ln in out), str(out))
+    away.rename(w.root / "code")
+    w.chantier("init")
+    ignore = (w.state / ".gitignore").read_text(encoding="utf-8")
+    check("`init` makes the planning folder and its .gitignore of local files",
+          (w.state / "1-inbox").is_dir() and "seat.json" in ignore and "/4-batch/batch.json" in ignore
+          and "work/gates/" in ignore and not (w.work / ".agents").exists(), ignore)
+    code, out = w.chantier("preflight")
+    check("preflight passes in the surface's main checkout", code == 0, str(out))
+    item = w.prepare("Surface work")
+    item2 = w.prepare("Surface second")
+    w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    check("the batch opens in the project's planning folder, the CR path is relative to it",
+          w.batch()["crs"][0]["path"].startswith("4-batch/") and (w.state / "4-batch" / "batch.json").is_file()
+          and not (w.work / ".agents").exists(), str(w.batch()["crs"][0]))
+    code, _ = w.chantier("open", item2, "--direct", *FROM_AGENTS_MD, expect=None)
+    check("a second open on the same project is refused", code != 0, w.last_stderr)
+    # another project of the surface opens its own batch at once; the seat is one per project
+    other = w.prepare("Other work", project="other")
+    w.chantier("init", project="other")
+    _, out = w.chantier("open", other, "--direct", "--slots", 1, *FROM_AGENTS_MD, project="other")
+    other_batch = out[0].split()[1]
+    w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[remote] surface", "--link", "l")
+    _, out = w.chantier("seat", "get", project="other")
+    check("two projects of one surface each run a batch, and the seat is one per project",
+          out == ["seat none"] and (w.project / "changes" / "seat.json").is_file(), str(out))
+    w.chantier("seat", "leave", "sess-a")
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", other_batch, project="other")
+    code, out = w.chantier("take", "CR-101", "--epoch", 1, "--batch", other_batch, project="other")
+    check("a project set to keep its archive out of the PR says so in the facts",
+          "archive: not in the PR" in out and any(ln.startswith("clone: ") and "code2" in ln for ln in out),
+          str(out))
+    shutil.rmtree(w.surface / "projects" / "other" / "changes" / "4-batch")
+    # the demo batch, as a Driver of the project lives it
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
+    w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    fm.turn()
+    cr = w.batch()["crs"][0]["id"]
+    c = w.cr(cr)
+    facts = fm.facts
+    cli_line = next((ln for ln in facts if ln.startswith("cli:")), "")
+    archive_line = next((ln for ln in facts if ln.startswith("archive: ")), "")
+    check("the facts carry `cli:` with --project, the clone and the archive path",
+          f'--project "{w.project.as_posix()}"' in cli_line.replace("\\", "/")
+          and any(ln.startswith("clone: ") and "/code" in ln.replace("\\", "/") for ln in facts)
+          and re.search(r"in the PR at \.agents/changes/5-archives/\d{6}-\d{4}-101-", archive_line),
+          str(facts))
+    check("the worktree is created under the project's `worktrees` folder, outside the surface",
+          Path(c["worktree"]).is_dir() and Path(c["worktree"]).resolve().is_relative_to(
+              (w.root / "wt").resolve()), c["worktree"])
+    _, out = w.chantier("rules")
+    text = "\n".join(out).replace("\\", "/")
+    check("`rules` lists the project's instructions, then the surface's",
+          out[0] == "project:" and "surface:" in out and "/code/AGENTS.md" in text
+          and "/surface/AGENTS.md" in text
+          and text.index("/code/AGENTS.md") < text.index("surface:") < text.index("/surface/AGENTS.md"),
+          text)
+    surface_publishes(w, "after the take")
+    # the Driver's round: a change, the long gate, a PR without the archive, then with it
+    w.chantier("round", cr, "--note", "edit surface.py")
+    commit(w, cr, "surface.py", "SURFACE = True\n")
+    w.chantier("gate", cr, GATE)
+    ship(w, cr, "feat: surface")
+    check("`ship` says the archive is missing from the PR, at its path",
+          "archive missing from the PR at .agents/changes/5-archives/" in "\n".join(w.last_out),
+          str(w.last_out))
+    wt = Path(c["worktree"])
+    where = archive_line.split(" at ", 1)[1].strip()
+    folder = w.at(c["path"])
+    target = wt / where
+    shutil.copytree(folder, target, ignore=shutil.ignore_patterns("work", "*.log"))
+    (target / "evidence").mkdir(exist_ok=True)
+    (target / "evidence" / "check.txt").write_text("ok\n")
+    msg = w.root / "commit-msg.txt"
+    msg.write_text(f"{cr}: archive\n\n{TRAILER}\n")
+    w.sh("git", "add", "-f", "--", ".agents", cwd=wt)
+    w.sh("git", "commit", "--quiet", "-F", str(msg), cwd=wt)
+    ship(w, cr, "feat: surface")
+    check("with the archive in the PR, `ship` raises nothing about it",
+          "archive missing" not in "\n".join(w.last_out), str(w.last_out))
+    tree = w.sh("git", "ls-tree", "-r", "--name-only", "HEAD", where, cwd=wt).splitlines()
+    check("the PR's archive holds the documents and the evidence, and no work folder",
+          any(f.endswith("03-change-spec.md") for f in tree) and any(f.endswith("evidence/check.txt") for f in tree)
+          and not any("/work/" in f for f in tree), str(tree))
+    surface_publishes(w, "after the PR")
+    check("the project's clone stays clean: its worktrees hold the Driver's commits",
+          w.sh("git", "status", "--porcelain", cwd=w.work) == "", w.sh("git", "status", "--porcelain", cwd=w.work))
+    w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+    fm.turn()
+    merge_pr(w, w.cr(cr)["pr"])
+    w.chantier("order", "merged", cr)
+    delivery = w.at(w.cr(cr)["path"]) / "delivery.md"
+    page = delivery.read_text(encoding="utf-8") if delivery.is_file() else ""
+    check("`order merged` writes delivery.md: the PR, the merge time, where the archive is",
+          w.cr(cr)["pr"] in page and re.search(r"Merged: \d{4}-\d\d-\d\dT", page)
+          and f"Archive in the PR: yes, at {where}" in page, page)
+    fm.turn()
+    check("the batch pauses once its CR is merged", fm.paused, str(w.batch()["status"]))
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.surface.resolve()))
+    chief = w.root / "claude-projects" / slug / "uuid-chief.jsonl"  # the session's own transcript
+    chief.parent.mkdir(parents=True, exist_ok=True)
+    chief.write_text(json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "model": "claude-sonnet-5-5", "usage": {
+            "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
+    w.chantier("close", "--batch", w.name, "--yes")
+    archives = list((w.state / "5-archives").glob("*-101-*"))
+    check("`close` puts the merged CR in 5-archives with its delivery.md, the gate log staying off the surface's git",
+          len(archives) == 1 and (archives[0] / "delivery.md").is_file(), str(archives))
+    surface_publishes(w, "after the close")
+    w.env.pop("CHANTIER_BATCH", None)
+
 
 def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="chantier-scenario-"))
@@ -2809,7 +3006,9 @@ def main() -> int:
     started = time.monotonic()
     try:
         w.build()
-        scenario(w)
+        if not ARGS.external_only:
+            scenario(w)
+        external_surface(tmp / "external")
     except Exception as e:  # a crash is a failed check with its reason
         check("scenario ran to the end", False, f"{type(e).__name__}: {e}")
     finally:
@@ -2833,6 +3032,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--forge", choices=sorted(FAKE), default="github",
                         help="the fake forge CLI the Drivers ship to")
+    parser.add_argument("--external-only", action="store_true",
+                        help="run only the planning-surface case")
     parser.add_argument("--keep", action="store_true", help="keep the temporary workspace")
     parser.add_argument("--verbose", action="store_true", help="print the transcript live")
     ARGS = parser.parse_args()

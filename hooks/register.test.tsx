@@ -245,6 +245,30 @@ test('outside a git repository the session folder is the root', async ($, on) =>
   expect(w.calls.stat[0]).toBe('/work/plain/.agents/changes/STATUS.json')
 })
 
+test('a planning surface shows one section per project, each read from its own folder', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.dirs.set(`${ROOT}/projects`, ['demo', 'other'])
+  for (const name of ['demo', 'other']) {
+    w.dirs.set(`${ROOT}/projects/${name}`, ['changes'])
+    w.dirs.set(`${ROOT}/projects/${name}/changes`, [])
+  }
+  w.put(`${ROOT}/projects/demo/changes/STATUS.json`, index())
+  w.put(`${ROOT}/projects/other/changes/STATUS.json`, index({ active_crs: 4 }))
+
+  await skill($)
+  expect(w.calls.stat).toContain(`${ROOT}/projects/demo/changes/STATUS.json`)
+  expect(w.calls.stat).toContain(`${ROOT}/projects/other/changes/STATUS.json`)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('demo')
+  expect(text).toContain('other')
+  expect(text).toContain('1 live')
+  expect(text).toContain('4 live')
+  const links = (await ui.findAll({ type: 'Markdown' })).map((m: any) => m.props.text).join('\n')
+  expect(links).toContain(`${ROOT}/projects/demo/changes/4-batch/2-actives/01-first`)
+  await ui.unmount()
+})
 test('a process that is refused is said in one line, with its error', async ($, on) => {
   mock.clock(on)
   const w = world(on)

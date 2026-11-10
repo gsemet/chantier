@@ -162,7 +162,7 @@
 
   <!-- Storage -->
   <rect x="80" y="730" width="890" height="84" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="100" y="763" font-size="17.5" font-weight="700" fill="#0f172a">🗄️ <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>, as JSON and Markdown</text>
+  <text x="100" y="763" font-size="17.5" font-weight="700" fill="#0f172a">🗄️ planning folder: <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan> or an external surface</text>
   <text x="100" y="794" font-size="15.5" fill="#334155" font-family="ui-monospace, Menlo, monospace">1-inbox → 2-backlog → 3-ready → 4-batch → 5-archives · 6-trash</text>
 
   <!-- CLI links from the workers -->

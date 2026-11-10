@@ -10,7 +10,8 @@ above this card); works only in the CR's worktree (`cd` there first; the Driver 
 create one, except the Verifier's detached worktree of the base, below); keeps its notes in
 `<work folder>/<role>/` and proof in the CR folder's `evidence/` (the Verifier's before and
 after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: its reply is its
-output); never commits, pushes, rebases or merges unless its section says so; runs the
+output); keeps a raw log in a `*.log` file or `work/gates/`, never in a file that is published with
+the CR (reports and evidence are); never commits, pushes, rebases or merges unless its section says so; runs the
 project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
 `sleep` and no background shell; stops when blocked and says why; replies in at most ten
 lines, or in the format its section names.

@@ -12,7 +12,8 @@ The construction site for your Software Factory.
   Foreman session steers it (Foreman mode). In Foreman mode a CR can join a running batch; in
   direct mode, only once the batch is paused.
 - **Zero configuration.** Your `AGENTS.md` is the only configuration. Everything chantier writes
-  is Markdown and JSON in `.agents/changes/`, in your project.
+  is Markdown and JSON in the planning folder: `.agents/changes/` in your project, or the
+  project's folder of an [external planning surface](docs/planning-modes.md).
 
 ## How Chantier works
 
@@ -34,13 +35,36 @@ The same, in detail:
 
 ![How chantier works](docs/how-chantier-works.svg)
 
+## Planning modes
+
+Chantier plans in one of two places, the **planning folder**:
+
+- **In-project** (the default, nothing to declare): `.agents/changes/` in your project.
+- **External**: a git repository of its own, the *planning surface*, with one folder per project
+  (`projects/<name>/` with `project.md`, `checkout.yml` and `changes/`). Your project's repository
+  gets only the code and, if you want, each CR's cleaned archive in its PR.
+
+The Chief of Staff, the Foreman and the Griller run on the default branch: your project's main
+checkout in-project, the surface's checkout in external mode. Only the code gets worktrees: each
+CR's Driver and workers, in your project; a Griller in a never-merged worktree, in remote. About
+remote sessions, this is the author's own finding, not a proved trial: a remote session cannot start
+outside a worktree, so the Chief of Staff starts locally, then goes remote (Remote Control).
+
+![Planning modes: in-project and external](docs/planning-modes.svg)
+
+The full account (the surface, what stays local, archives, outside contributors, privacy, setting
+one up) is in [planning modes](docs/planning-modes.md).
+
 ## Change Requests Lifecycle
 
 A "Change Request" is one more level over the issues of your tracker (Jira, GitHub, GitLab...).
 Small requests that do not belong in the tracker (an idea, a bug, a report) are accepted and
 prioritised as CRs. The tracker keeps the strategic vision, the external requests and the long-term planning.
+The planning folder, in your project or external, is the tactical, short-term plan, the closest to
+the work site; Jira, GitLab work items or GitHub issues keep the strategic, long-term plan, or
+serve as the interface for outside customers and support.
 
-Chantier turns each request into a folder in `.agents/changes/`, carried through planning, study, implementation, QA, deployment and finally archive.
+Chantier turns each request into a folder in the planning folder, carried through planning, study, implementation, QA, deployment and finally archive.
 
 ![docs/cr-lifecycle-simple.svg](docs/cr-lifecycle-simple.svg)
 
@@ -102,7 +126,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    stops for your approval before each irreversible action.
 
 The agents do the work, git and the forge included. The `chantier` Python CLI (`uv run`) is
-the frame beside them, in `.agents/changes/`, as plain JSON and Markdown: the CR lifecycle
+the frame beside them, in the planning folder (`.agents/changes/`, or an external surface), as plain JSON and Markdown: the CR lifecycle
 (inbox, backlog, batch, archives, trash), the batch's limits (slots, budget, rounds, your word
 on an irreversible action), the record (each CR's branch and worktree names, its PR, the long
 gate's log, the cost, the `STATUS` files) and the lines that synchronise the team (orders, asks,
@@ -138,7 +162,8 @@ copilot plugin install chantier@chantier
 
 New to chantier? Follow the [step-by-step tutorial for Claude Code](docs/tutorial-claude-code.md),
 then browse the [use cases](docs/use-cases.md), with one page per configuration:
-[Foreman mode](docs/use-cases-foreman.md) and [direct mode](docs/use-cases-direct.md).
+[Foreman mode](docs/use-cases-foreman.md) and [direct mode](docs/use-cases-direct.md). To plan
+outside your project's repository, see [planning modes](docs/planning-modes.md).
 
 Then restart the session and type one of the entries (on Claude Code, `/chantier:<name>`):
 `/chantier` asks which role this session takes, `/chief-of-staff` makes it the Chief of Staff
@@ -173,7 +198,7 @@ Talk to the Chief of Staff in plain language:
 ### The CR board (Claude Code)
 
 `/chantier-board` shows or hides the **CR board**, a read-only pane over
-`.agents/changes/STATUS.json`: the live batches with what waits for you and what is in
+the planning folder's `STATUS.json` (one section per project in a surface): the live batches with what waits for you and what is in
 progress, the backlog (and `3-ready`), and the merged and trashed CRs. Each live batch shows its slots
 (`Slots 2/4, 2 free`). Press a CR for its sheet and its documents.
 Loading the `chantier` or `chief-of-staff` skill opens it too (not `griller`). It refreshes every 15 seconds while open, writes
@@ -221,10 +246,11 @@ never picks a look-alike or a workaround.
 
 ### Change Request lifecycle
 
-Everything lives in `.agents/changes/`:
+Everything lives in the planning folder, `.agents/changes/` in your project or
+`<surface>/projects/<name>/changes/` in an external surface:
 
 ```text
-.agents/changes/
+<planning folder>/
 ├── 1-inbox/<slug>/                        filed, not prioritized
 ├── 2-backlog/P1…P4/<slug>/                prioritized by you
 ├── 3-ready/<slug>/                        waiting for the next batch, specified or automatable
@@ -250,7 +276,25 @@ through the Foreman (in direct mode, once it is paused). Its CRs run in parallel
 stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
-`STATUS.md` and `STATUS.json` exist at three levels (`.agents/changes/`, `4-batch/`, the CR), each
+External layout, beside it:
+
+```text
+<surface>/
+├── AGENTS.md                the surface's own rules (its sync, among others)
+└── projects/<name>/
+    ├── project.md           the project: remote, default branch, `- Archive in the PR: yes|no`
+    ├── checkout.yml         `repo:` and `worktrees:`, relative to this folder
+    └── changes/             the planning folder, as above
+```
+
+What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
+`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`) and the detailed logs
+(`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
+folder. A running CR's documents, reports and evidence are pushed with the surface. The archive
+has two places: the surface's `5-archives/` (with a `delivery.md`: the PR, the merge time) and,
+by the project's setting (default yes), a cleaned copy in the CR's PR, in external mode.
+
+`STATUS.md` and `STATUS.json` exist at three levels (the planning folder, `4-batch/`, the CR), each
 linking to the others. The CLI rewrites them at every state change, from the state alone; a
 status cell reads like `🔴 blocked Question 1/3`.
 

@@ -9,12 +9,12 @@ in their language; repository text in English.
 
 Before the role, once per invocation: `$CHANTIER preflight --direct` (it prints P6 and P7 on any
 host entry point). On a P6 or P7 failure, or on a host whose reference says it refuses writes in
-the main checkout's `.agents/changes/` from this session, the first message says, before
+the main checkout's planning folder from this session, the first message says, before
 anything else:
 
 - what fails, in one line;
 - what it means for this role: a Chief of Staff here cannot steer a batch (preflight will fail at
-  the go); a Griller cannot write in `.agents/changes/`, but may work here and send its files to
+  the go); a Griller cannot write in the planning folder, but may work here and send its files to
   the Chief of Staff ([griller](griller.md), "In a worktree");
 - what the user does: open a new session on the main checkout, without a worktree; nothing is
   lost, since the files hold the state. Before proposing it, check nothing would be left behind:
@@ -22,13 +22,19 @@ anything else:
   name what would be left (the uncommitted files, the commits) and ask. Where the host's reference
   names a way to move this session and marks it proved, offer that; Claude Code's is refused for
   an isolated worktree (its reference).
-- Once a planning surface exists (P1 `planning-repo`), "the main checkout" means the surface's
-  checkout on its default branch.
+- With a planning surface, "the main checkout" is the surface's checkout, on its default branch:
+  the project's clone hosts no session. A session started in a project whose `AGENTS.md` holds
+  the pointer line (`- planning: <url>, projects/<name>`) says, first, "this project plans in the
+  surface at <url>; start the session there", and plans nothing in the project.
 
 The other preflight lines are a batch's and are not reported here, except what the configuration
 checks add to the first message (P5, P9, P10), which goes in the same message.
 
 ## 2. The seat and the role
+
+In a surface with several projects, the Chief of Staff first learns its project (the user's word,
+or the only one), and `$CHANTIER` is the skill's command plus `--project <absolute folder>`; the
+seat is that project's.
 
 `$CHANTIER seat` prints the seat: the repository's Chief of Staff session (its id, environment,
 title, link). Then, by the skill invoked:
@@ -76,8 +82,8 @@ As soon as the role is set and whenever it changes, the session renames itself b
 means (its reference); a host that cannot rename: nothing, no workaround.
 
 - `[env] Project [role]`: `[env]` the machine's name (`Battlestation`, `Mac`), `Remote` in a cloud
-  session (the host's reference says how to tell); `Project` the repository's folder name,
-  capitalised (`Chantier`); role `Chief of Staff` or `Griller`. The machine's name is the first
+  session (the host's reference says how to tell); `Project` the project's name (the repository's folder name,
+  or, in a surface, the project's folder in it), capitalised (`Chantier`); role `Chief of Staff` or `Griller`. The machine's name is the first
   label of its host name (`hostname`); a user's word renames it for the session only.
 - A Griller may add its subject once known: `[Battlestation] Chantier [Griller] landing-page`.
 - A Chief of Staff steering a direct batch: `[env] Project [Chief of Staff - Batch 06 - Direct]`
@@ -93,13 +99,13 @@ means (its reference); a host that cannot rename: nothing, no workaround.
 On your first turn in a session, after the start checks and before anything else, give the user
 this introduction in their language, in about ten lines, then answer their request. Once per
 session; skip it if the user says they know chantier, or if their first request is `init`: the
-[tour](init.md) covers it. When the project has no `.agents/changes/`, end it with one line: "new
+[tour](init.md) covers it. When the project has no planning folder, end it with one line: "new
 here? say init for a guided tour".
 
 - **Change Request (CR):** one more level over the project's tracker issues (Jira, GitHub,
   GitLab…). It lets small requests outside the tracker be accepted and prioritised; the tracker
   keeps the strategic vision, external requests and long-term planning. A CR gets:
-  - a folder in `.agents/changes/` (the request, its analysis, the user's answers, the
+  - a folder in the planning folder (the request, its analysis, the user's answers, the
     self-contained Change Specification written before any code);
   - a branch and a worktree its Driver creates.
 
@@ -117,7 +123,8 @@ here? say init for a guided tour".
     batch is paused, and I hold no grill while it runs (use a Griller).
 - **Zero configuration:** the project's `AGENTS.md` is the only configuration (I learn how it
   builds, tests and merges from it). Everything chantier writes is Markdown and JSON in
-  `.agents/changes/`.
+  the planning folder: `.agents/changes/` in the project, or the project's folder of an external
+  planning surface.
 - **Drivers and workers:** one Driver per CR runs short workers (Investigator, Coder, Inspector,
   Debugger, Verifier, Conflict resolver) in the CR's worktree, and commits, pushes, opens the
   PR and reads its CI with `git`, `gh` and `glab`. "Use my agent X as the coder" or "add a

@@ -31,9 +31,9 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budg
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
                     release_merged, waits_all, waits_for)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
-                    Batch, ChantierError, Repo, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
+                    Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
-                    next_cr_number, normalize_batch, now, project_path, read_batch, read_events, resolve_batch,
+                    next_cr_number, normalize_batch, now, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
 from .status import write_dashboard, write_final_pages
 
@@ -70,9 +70,10 @@ def plugin_root() -> Path | None:
         or (root / ".github" / "plugin" / "plugin.json").exists() else None
 
 
-def cli_command() -> str:
+def cli_command(repo: Repo | None = None) -> str:
     """How every agent runs this CLI: the exact command, with the absolute path."""
-    return f'uv run --script "{(skill_dir() / "scripts" / "cli" / "chantier.py").as_posix()}"'
+    option = f' --project "{repo.project_dir.as_posix()}"' if repo and repo.external else ""
+    return f'uv run --script "{(skill_dir() / "scripts" / "cli" / "chantier.py").as_posix()}"{option}'
 
 
 def detect_host(explicit: str | None = None) -> str:
@@ -92,7 +93,7 @@ def detect_host(explicit: str | None = None) -> str:
 
 def _shown(repo: Repo, path: Path) -> str:
     try:
-        return path.relative_to(repo.root).as_posix()
+        return path.relative_to(repo.session_root).as_posix()
     except ValueError:
         return path.as_posix()
 
@@ -103,6 +104,22 @@ def _slug(text: str) -> str:
 
 def project_instructions(repo: Repo) -> Path | None:
     return next((repo.root / name for name in INSTRUCTIONS if (repo.root / name).is_file()), None)
+
+
+def surface_instructions(repo: Repo) -> Path | None:
+    """The surface's own rules (its sync, among others); none in-project."""
+    if not repo.external:
+        return None
+    return next((repo.surface / n for n in INSTRUCTIONS if (repo.surface / n).is_file()), None)
+
+
+def archive_path(repo: Repo, c: dict) -> str | None:
+    """Where the CR's cleaned archive goes in its PR, in the project's repository; None when the
+    mode is in-project or the project's setting says no."""
+    if not (repo.external and repo.archive_in_pr):
+        return None
+    name = Path(c["path"]).name if c.get("path") else c["id"]
+    return f".agents/changes/5-archives/{c.get('archive_stamp') or stamp()}-{name}/"
 
 
 def _skill_version() -> str | None:
@@ -153,8 +170,8 @@ def _allowed_rules(repo: Repo | None) -> tuple[set[str], list[str]]:
     could not be read. A file that is absent holds nothing."""
     files = [Path.home() / ".claude" / "settings.json"]
     if repo:
-        files += [repo.root / ".claude" / "settings.json",
-                  repo.root / ".claude" / "settings.local.json"]
+        files += [repo.session_root / ".claude" / "settings.json",
+                  repo.session_root / ".claude" / "settings.local.json"]
     rules: set[str] = set()
     unreadable: list[str] = []
     for path in files:
@@ -197,6 +214,10 @@ def preflight(args) -> tuple[list[str], int]:
               "or a Copilot agent session")
     try:
         repo = Repo.find(Path(os.getcwd()))
+    except SurfaceChoice as e:  # a surface: the projects are listed, a command names one
+        repo = None
+        lines.append(f"P6 ok   a planning surface with projects {', '.join(e.names)}: "
+                     "pass --project <name>")
     except ChantierError as e:
         repo = None
         check("P6", False, "", str(e))
@@ -213,15 +234,29 @@ def preflight(args) -> tuple[list[str], int]:
           f"CLI {__version__}, SKILL.md {sv}")
     if repo:
         top = Path(git("rev-parse", "--show-toplevel", check=False) or ".").resolve()
-        check("P6", top == repo.root.resolve(), f"in the main checkout of {repo.root.name}",
-              f"session folder {top} is not the repository root {repo.root}")
+        where = repo.session_root
+        check("P6", top == where.resolve(), f"in the main checkout of {where.name}",
+              f"session folder {top} is not the repository root {where}")
         gitdir = Path(git("rev-parse", "--path-format=absolute", "--git-dir", check=False)
                       or ".").resolve()
         check("P7", gitdir == repo.git_dir, "not a linked worktree",
               "this session runs in a linked worktree: the Foreman must start in the main checkout")
         found = project_instructions(repo)
-        check("P8", found is not None, f"project instructions: {found.name if found else ''}",
-              f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
+        if repo.external and not repo.clone_dir.is_dir():
+            text = (repo.project_dir / "project.md")
+            remote = re.search(r"^\W*remote\W*:?\s*(\S+)", text.read_text(encoding="utf-8"),
+                               re.I | re.M) if text.is_file() else None
+            check("P8", False, "", f"no clone of the project at {repo.clone_dir.as_posix()} "
+                  f"(remote {remote[1] if remote else 'see project.md'}): clone it there")
+        else:
+            check("P8", found is not None, f"project instructions: {found.name if found else ''}",
+                  f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
+        if repo.external:
+            here = git("branch", "--show-current", check=False)
+            main = default_branch(repo.surface)
+            check("P11", not main or here == main, f"the surface is on its default branch ({here})",
+                  f"the surface is on {here or 'no branch'}, its default branch is {main}: it is "
+                  "always worked on its default branch", warn=True)
     if host == "claude":
         wanted = [r for r in RECOMMENDED_ALLOW if os.name == "nt" or not r.startswith("PowerShell(")]
         have, unreadable = _allowed_rules(repo)
@@ -250,8 +285,10 @@ def init(args) -> list[str]:
                   or ".").resolve()
     if gitdir != repo.git_dir:  # preflight's P7
         raise ChantierError("this is a linked worktree: init runs in the main checkout "
-                            f"({repo.root})", EXIT_PRECONDITION)
+                            f"({repo.session_root})", EXIT_PRECONDITION)
     convert_old_tree(repo)  # an older tree first, so that its folders are not made twice
+    repo.changes.mkdir(parents=True, exist_ok=True)
+    repo.ensure_gitignore()
     lines = []
     for key, folder in stage_layout(repo).items():
         if key == "batches":  # the parent of the three state folders, made with them
@@ -289,7 +326,7 @@ def file_cr(args) -> list[str]:
     if args.item.startswith("@"):
         source = Path(args.item[1:]).expanduser()
         if not source.is_absolute():
-            source = repo.root / source
+            source = (Path.cwd() if repo.external else repo.root) / source
         try:
             raw = source.read_bytes()
             text = raw.decode("utf-8")
@@ -322,7 +359,7 @@ def triage(args) -> list[str]:
 def abandon(args) -> list[str]:
     repo = Repo.find()
     paths = stage_layout(repo)
-    source = project_path(repo.root, args.item, "CR folder")
+    source = repo.planning_path(args.item, "CR folder")
     in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
     in_batch = source.parent in (paths["pending"], paths["actives"])
     if source.parent not in (paths["inbox"], paths["ready"]) and not in_batch and not in_backlog:
@@ -379,7 +416,7 @@ def filed_fix(b: Batch, rel: dict, item: str) -> str:
     """A release's fix file is the fix's specification: it becomes a prepared CR in the inbox.
     Anything else is already a prepared CR."""
     repo = b.repo
-    source = project_path(repo.root, item, "fix")
+    source = repo.planning_path(item, "fix")
     if not source.is_file() or cr_directory(repo, rel) not in source.parents:
         return item
     folder = _new_request(repo, f"{rel['id'].lower()}-{_slug(source.stem)}", source.read_bytes())
@@ -399,14 +436,14 @@ def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
     cr_id = f"CR-{number}"
     slug = re.sub(r"^(?:CR-)?\d+-", "", prepared.directory.name, flags=re.I)
     cdir = paths["pending"] / f"{number:03d}-{_slug(slug)}"
-    origin = prepared.directory.relative_to(repo.root).as_posix()
+    origin = repo.rel(prepared.directory)
     b.move(prepared.directory, cdir)
     title = prepared.title
     branch = f"chantier/{b.id}/{cr_id.lower()}-{_slug(title)}"
     worktree = repo.worktrees / f"{b.id}-{cr_id}"
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
     c = {"id": cr_id, "title": title, "kind": kind, "status": "queued", "order": order,
-         "path": cdir.relative_to(repo.root).as_posix(),
+         "path": repo.rel(cdir),
          "specification": prepared.specification.relative_to(prepared.directory).as_posix(),
          "round": 0, "agent": None, "pr": None,
          "branch": branch, "worktree": str(worktree), "notes": [], "updated": now()}
@@ -582,7 +619,9 @@ def open_batch(args) -> list[str]:
                         f"{' (after ' + ', '.join(c['after']) + ')' if c.get('after') and c['kind'] != 'release' else ''}\n"
                         for c in b.data["crs"]) +
                 (f"- Release grant: {grant_line(release)}\n" if release else "") +
-                f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}.\n"
+                f"- Project instructions: {', '.join(n for n in INSTRUCTIONS if (repo.root / n).is_file()) or 'none'}"
+                + (f"; the surface's: {', '.join(n for n in INSTRUCTIONS if (repo.surface / n).is_file()) or 'none'}"
+                   if repo.external else "") + ".\n"
                 "- Team (who runs which role):\n"
                 "- Autonomous decisions:\n- Questions to bring back:\n",
                 encoding="utf-8")
@@ -1208,7 +1247,7 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
     skill = skill_dir().as_posix()
     made = Path(c["worktree"]).is_dir()
     lines = [f"{c['id']} \"{c['title']}\" ({c['kind']}) {c['status']} in batch {batch} ({d['mode']})",
-             f"cli: {cli_command()} <command> --batch {batch}",
+             f"cli: {cli_command(repo)} <command> --batch {batch}",
              f"cards: {skill}/references/ (driver.md, worker.md, concepts.md); the project's "
              "rules rank above them: `rules`",
              f"project instructions: {found.as_posix() if found else 'none'}",
@@ -1216,6 +1255,10 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
              f"folder: {folder.as_posix()} (work/, evidence/)",
              f"worktree: {c['worktree']} branch {c['branch']} base {_base_of(d, c, repo)}"
              + ("" if made else "; not created yet: a Driver creates it first"),
+             *([f"clone: {repo.clone_dir.as_posix()} (`git -C` it to create the worktree)"]
+               if repo.external else []),
+             *([f"archive: in the PR at {archive_path(repo, c)}" if archive_path(repo, c)
+                else "archive: not in the PR"] if repo.external else []),
              f"PR: {c.get('pr') or 'none'}; head {c.get('head') or '-'}",
              f"rounds: {c['round']} of {round_limit(d, c)}"]
     if c["status"] == "blocked":
@@ -1285,6 +1328,8 @@ def take(args) -> list[str]:
             b.touch(c, status="working", blocked_reason=None)
             b.log("take", c["id"], note=args.note)
             start_cr(b, c)  # `1-pending` to `2-actives`, before the Driver gets its facts
+            if repo.external:
+                c.setdefault("archive_stamp", stamp())  # the archive's name, kept from the first take
             _work(repo, c).mkdir(parents=True, exist_ok=True)
             facts = _facts(repo, batch, d, c)
     return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)"] + facts
@@ -1407,14 +1452,21 @@ def rules(args) -> list[str]:
     """The project's rules: its instruction file and the local Markdown files it links, two
     levels deep. Every role reads them before its own card; they rank above it."""
     repo = Repo.find()
-    found = project_instructions(repo)
-    if not found:
-        raise ChantierError(f"no {', '.join(INSTRUCTIONS)} in {repo.root}: ask your parent")
-    root = repo.root.resolve()
-    seen = [found.resolve()]
-    _linked(found.resolve(), root, seen, 2)
-    return [f"{p.as_posix()} ({sum(1 for _ in p.open(encoding='utf-8', errors='replace'))} lines)"
-            for p in seen]
+    found, outer = project_instructions(repo), surface_instructions(repo)
+    if not found and not outer:
+        raise ChantierError(f"no {', '.join(INSTRUCTIONS)} in {repo.session_root}: ask your parent")
+
+    def listed(first: Path | None, root: Path) -> list[str]:
+        if not first:
+            return []
+        seen = [first.resolve()]
+        _linked(first.resolve(), root.resolve(), seen, 2)
+        return [f"{p.as_posix()} ({sum(1 for _ in p.open(encoding='utf-8', errors='replace'))} lines)"
+                for p in seen]
+
+    if not repo.external:
+        return listed(found, repo.root)
+    return ["project:", *listed(found, repo.root), "surface:", *listed(outer, repo.surface)]
 
 
 # ---- the long gate and the ship: the record of the Driver's own work ------------------------
@@ -1543,12 +1595,19 @@ def ship(args) -> list[str]:
         off.append(f"{repo.config['remote']}/{c['branch']} is {'not pushed' if not pushed else 'at ' + pushed[:7]}, "
                    f"not this head: push with --force-with-lease, then ship again")
     short = head[:7]
+    where = archive_path(repo, c)
+    seen = None
+    if where:
+        seen = bool(git("ls-tree", "-d", "--name-only", head, where.rstrip("/"), cwd=wt,
+                        check=False))
+        if not seen:
+            off.append(f"archive missing from the PR at {where}")
     if not any(e.get("kind") == "gate" and e.get("result") == "pass" and e.get("head") == short
                for e in _cr_events(repo, batch, c["id"])):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     base = _stack_base(d, c, repo)
     with Batch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(c["id"]), pr=args.pr, head=short)
+        b.touch(b.cr(c["id"]), pr=args.pr, head=short, archive_seen=seen)
         b.log("ship", c["id"], pr=args.pr, base=base, head=short, off=off)
     return [f"recorded {args.pr} (base {base}, head {short})"] + [f"off: {x}" for x in off]
 
@@ -1722,7 +1781,8 @@ def close(args) -> tuple[list[str], int]:
                  f"{len(archived)} CRs move from 3-done to 5-archives: "
                  f"{', '.join(c['id'] for c, _ in archived) or 'none'}",
                  "the dropped CRs, to remove on the same word where they still exist "
-                 f"(`git worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}"]
+                 f"(`git {'-C ' + repo.clone_dir.as_posix() + ' ' if repo.external else ''}"
+                 f"worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}"]
         rows = _final_rows(repo, batch, d)
         lines += ["final cost, up to now (nothing runs):"] + _cost_summary(
             d, rows, _cost_groups(repo, batch, rows, "cr"), _cost_groups(repo, batch, rows, "driver"),
@@ -1748,7 +1808,7 @@ def _archive_and_delete(repo: Repo, batch: str, folder: Path, d: dict, rows: lis
             move_directory(source, target)
             done.append((source, target))
             next(x for x in record["crs"] if x["id"] == c["id"])["path"] = \
-                target.relative_to(repo.root).as_posix()
+                repo.rel(target)
         _final_pages(repo, batch, folder, record, rows)
         going = repo.changes / f".closing-{batch}"
         going.mkdir()
@@ -1802,7 +1862,7 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
             got = costs.copilot_session_costs(uuid)  # no timestamps: the whole session
         else:
             since, until = _window(d, uuid)
-            got = costs.session_costs(costs.transcript_path(repo.root, uuid), since, until,
+            got = costs.session_costs(costs.transcript_path(repo.session_root, uuid), since, until,
                                       kind="chief-of-staff" if steering else "foreman",
                                       allow_empty=len(uuids) > 1)
         if steering:
@@ -1846,7 +1906,7 @@ def _chief_line(repo: Repo, d: dict) -> str:
     since_usd = whole_usd = 0.0
     context = 0
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
-        path = costs.transcript_path(repo.root, uuid)
+        path = costs.transcript_path(repo.session_root, uuid)
         try:
             whole = costs.session_costs(path, kind="chief-of-staff")
             since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",

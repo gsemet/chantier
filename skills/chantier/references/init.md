@@ -7,7 +7,9 @@ The first-turn introduction is skipped: the tour covers it.
 
 ## 1. Run `$CHANTIER init`
 
-It creates the empty stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`, `3-ready`,
+It creates the empty stage folders of the planning folder, `.agents/changes/` or, in a planning
+surface (`--project`), the named project's `changes/` (it writes neither `project.md` nor
+`checkout.yml`, which are the user's), and the folder's `.gitignore` (`1-inbox`, `2-backlog`, `3-ready`,
 `4-batch/1-pending`, `4-batch/2-actives`, `4-batch/3-done`, `5-archives`, `6-trash`), and
 says which it created and which existed.
 
@@ -66,8 +68,9 @@ getting started here, phrases to say, the glossary.
    improve, each with its impact on the team when missing. A rule (a gate, the merge method, the
    commit convention) is proposed as the exact `AGENTS.md` text, written only on the user's yes,
    section by section. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
-   only on the user's yes. The `.gitignore` line is explained only: keep `.agents/changes/` out
-   of git so the main checkout stays clean and the CRs stay local; the user adds it themself.
+   only on the user's yes. For an in-project planning folder, the `.gitignore` line is explained only: keep `.agents/changes/` out
+   of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
+   surface it does not apply: the planning folder is the surface's, and the tour says where it is.
    The example CR is offered for the inbox. The host's configuration comes from preflight's P5
    and P10 and from P9: the missing tools, and your host's "Allow rules to add" block for the
    missing rules, explained only; the user adds them themself, like the `.gitignore` line. The

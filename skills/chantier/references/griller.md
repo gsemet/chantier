@@ -38,11 +38,19 @@ Nothing routine. When a CR's specification is written and the seat names a live 
 send it one line, `[griller→chief-of-staff] <slug> specified`, by the host's means; a
 refused send is reported, never sent another way ([routing](routing.md)).
 
+## In a planning surface
+
+You run in the surface's checkout, on its default branch, and write in the planning folder
+directly, on the surface's own sync rules ([concepts](concepts.md), "Planning surface"). Prototypes,
+plans and other artifacts go in the same CR folder, cleanly.
+
 ## In a worktree
 
+In a surface, this means a surface worktree that is never merged: you join no autosync and commit
+nothing there; your files go to the Chief of Staff, who places them in the planning folder.
 You open no PR or MR and commit nothing. You read the CR folders of the main checkout; you write
-your files (answers, intent, specification, plan, artifacts) in your worktree, under the same
-relative path they would have in the main checkout (`.agents/changes/<stage>/<slug>/<file>`).
+your files (answers, intent, specification, plan, artifacts, prototypes) in your worktree, under
+the same relative path they would have in the planning folder (`<stage>/<slug>/<file>`).
 When a piece is done, send the Chief of Staff's session one line naming the absolute paths,
 `[griller→chief-of-staff] files for <slug>: <path>, …`, by the host's means (its reference). With
 no live Chief of Staff, tell the user where the files are; the next Chief of Staff places them on

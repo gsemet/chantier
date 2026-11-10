@@ -1,4 +1,5 @@
-// The CR board: a read-only pane over `.agents/changes/STATUS.json`.
+// The CR board: a read-only pane over the planning folder's `STATUS.json`: the project's
+// `.agents/changes/`, or, in a planning surface, one section per `projects/<name>/changes/`.
 // It writes nothing and runs no process but `git rev-parse`. See README.md.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface as Engine, Register } from 'claude-code'
@@ -20,16 +21,27 @@ const SCHEMA = 3
 const EVERY_MS = 15000
 const SILENT_MINUTES = 40
 const MAX_DOC_BYTES = 200 * 1024
-const INDEX = '.agents/changes/STATUS.json'
+const INDEX = 'STATUS.json'
+const CHANGES = '.agents/changes'
+
+/** A planning folder: the project's own (no name), or one project of a planning surface. */
+type Base = { name: string | null; dir: string }
+type View = {
+  dir: string
+  name: string | null
+  index: ChantierIndex | null
+  mtime: number | null
+  readAt: number | null
+  note: string | null
+  fatal: string | null
+  missing: string | null
+}
+const newView = (b: Base): View => ({ dir: b.dir, name: b.name, index: null, mtime: null, readAt: null, note: null, fatal: null, missing: null })
 
 // Change a tag when the shape of its value changes: it declines what an earlier
 // version stored, which outlives a reload.
-const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, error: null }, { shape: 'site-1' })
-const feed = atom(
-  { plugin: 'chantier', key: 'feed' } as const,
-  { index: null, mtime: null, readAt: null, note: null, fatal: null, missing: null },
-  { shape: 'feed-1' },
-)
+const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, bases: [], error: null }, { shape: 'site-2' })
+const feed = atom({ plugin: 'chantier', key: 'feed' } as const, { views: [], note: null }, { shape: 'feed-2' })
 const pages = atom({ plugin: 'chantier', key: 'pages' } as const, [], { shape: 'pages-1' })
 const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape: 'turned-1' })
 const checkedAt = atom({ plugin: 'chantier', key: 'checkedAt' } as const, null, { shape: 'checked-1' })
@@ -121,17 +133,35 @@ const dirLines = (t: string) => t.replace(/\r/g, '')
 
 // ---- the files ----
 
-async function findRoot($: Engine): Promise<{ root: string | null; error: string | null }> {
+/** The planning folders under `root`: its own `.agents/changes/`, else a surface's `projects/*/changes/`. */
+async function findBases($: Engine, root: string): Promise<Base[]> {
+  const own = { name: null, dir: root + '/' + CHANGES }
+  if (await $.fs.exists(own.dir)) return [own]
+  let entries: { name: string; kind: string }[] = []
+  try {
+    entries = await $.fs.list(root + '/projects')
+  } catch {
+    return [own]
+  }
+  const found: Base[] = []
+  for (const e of entries.filter(x => x.kind === 'dir').sort((a, b) => a.name.localeCompare(b.name))) {
+    const dir = `${root}/projects/${e.name}/changes`
+    if (await $.fs.exists(dir)) found.push({ name: e.name, dir })
+  }
+  return found.length > 0 ? found : [own]
+}
+
+async function findRoot($: Engine): Promise<{ root: string | null; bases: Base[]; error: string | null }> {
   const cwd = slash(await $.session.cwd())
   let out: { exitCode: number; stdout: string }
   try {
     out = await $.process.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })
   } catch (err) {
-    return { root: null, error: `Cannot look for the main checkout: ${message(err)}` }
+    return { root: null, bases: [], error: `Cannot look for the main checkout: ${message(err)}` }
   }
   // Not a repository: the session's folder.
-  if (out.exitCode !== 0) return { root: clean(cwd), error: null }
-  return { root: parentOf(out.stdout.trim()), error: null }
+  const root = out.exitCode !== 0 ? clean(cwd) : parentOf(out.stdout.trim())
+  return { root, bases: await findBases($, root), error: null }
 }
 
 const isMissing = (err: unknown) => /ENOENT|ENOTDIR|no such file|not found|does not exist/i.test(message(err))
@@ -142,47 +172,48 @@ async function readJson($: Engine, path: string): Promise<unknown> {
   return JSON.parse(await $.fs.read(path))
 }
 
-/** Reads the index again only if its modification time changed. */
-async function checkIndex($: Engine, root: string): Promise<void> {
-  const path = root + '/' + INDEX
+const setView = ($: Engine, dir: string, patch: Partial<View>) =>
+  update($, feed, f => ({ ...f, views: f.views.map((v: View) => (v.dir === dir ? { ...v, ...patch } : v)) }))
+
+/** Reads a planning folder's index again only if its modification time changed. */
+async function checkIndex($: Engine, dir: string): Promise<void> {
+  const path = dir + '/' + INDEX
   let mtime: number
   try {
     mtime = (await $.fs.stat(path)).mtimeMs
   } catch (err) {
     if (!isMissing(err)) {
-      await update($, feed, f => ({ ...f, note: `Cannot read ${path}: ${message(err)}`, missing: null }))
+      await setView($, dir, { note: `Cannot read ${path}: ${message(err)}`, missing: null })
       return
     }
-    await update($, feed, f => ({ ...f, index: null, mtime: null, missing: path, note: null, fatal: null }))
+    await setView($, dir, { index: null, mtime: null, missing: path, note: null, fatal: null })
     return
   }
-  const before = await read($, feed)
-  if (mtime === before.mtime && before.missing === null) return
+  const before = (await read($, feed)).views.find((v: View) => v.dir === dir)
+  if (before && mtime === before.mtime && before.missing === null) return
   const now = await $.clock.now()
   let data: unknown
   try {
     data = await readJson($, path)
   } catch (err) {
-    await update($, feed, f => ({
-      ...f,
+    await setView($, dir, {
       mtime,
       missing: null,
       note: `${path} does not parse (${message(err)}): showing the last view.`,
-    }))
+    })
     return
   }
   if (schemaOf(data) !== SCHEMA) {
-    await update($, feed, f => ({
-      ...f,
+    await setView($, dir, {
       mtime,
       missing: null,
       note: null,
       index: null,
       fatal: `${path} has schema ${String(schemaOf(data))}; this board reads schema ${SCHEMA}.`,
-    }))
+    })
     return
   }
-  await update($, feed, () => ({ index: data as ChantierIndex, mtime, readAt: now, note: null, fatal: null, missing: null }))
+  await setView($, dir, { index: data as ChantierIndex, mtime, readAt: now, note: null, fatal: null, missing: null })
 }
 
 async function loadPage($: Engine, kind: ChantierPage['kind'], path: string): Promise<ChantierPage> {
@@ -238,7 +269,7 @@ async function check($: Engine): Promise<void> {
   try {
     const where = await read($, site)
     if (where.root === null) return
-    await checkIndex($, where.root)
+    for (const b of where.bases) await checkIndex($, b.dir)
     await checkPage($)
   } catch (err) {
     await update($, feed, f => ({ ...f, note: `Could not check the files: ${message(err)}` }))
@@ -250,6 +281,7 @@ async function check($: Engine): Promise<void> {
 async function begin($: Engine): Promise<void> {
   const where = await findRoot($)
   await update($, site, () => where)
+  await update($, feed, f => ({ ...f, views: where.bases.map(newView) }))
   await update($, pages, () => [])
   if (timer === null) timer = $.clock.every(EVERY_MS, () => void check($))
   await check($)
@@ -375,13 +407,21 @@ export const register: Register = on => {
 
     if (where.error !== null) return <Text>{where.error}</Text>
     if (where.root === null) return <Text dimColor>Looking for the chantier files...</Text>
-    if (f.fatal !== null) return <Text>{f.fatal}</Text>
-    if (f.missing !== null) return <Text>{`No chantier status here: ${f.missing} not found.`}</Text>
+    const views: View[] = f.views
+    if (views.length === 1) {
+      const only = views[0] as View
+      if (only.fatal !== null) return <Text>{only.fatal}</Text>
+      if (only.missing !== null) return <Text>{`No chantier status here: ${only.missing} not found.`}</Text>
+    }
 
     const root = where.root
     const note = f.note === null ? null : <Text italic>{f.note}</Text>
 
-    const crUrl = (dir: string) => fileUrl(clean(root + '/.agents/changes/' + dir))
+    // The planning folder and the fold-key prefix of the project being drawn: set before each
+    // project's section is built, which runs at once.
+    let planning = root + '/' + CHANGES
+    let scope = ''
+    const crUrl = (dir: string) => fileUrl(clean(planning + '/' + dir))
     const crCell = (dir: string | null, id: string) => (dir === null ? `**${id}**` : `[${cell(id)}](${crUrl(dir)})`)
 
     /** A table of `file:` links, listed by `urls`; a press on one inside the checkout calls `onOpen`, one outside opens nothing. */
@@ -438,12 +478,15 @@ export const register: Register = on => {
       )
 
     /** A section: its fold, then what it holds while open. */
-    const Section = (key: string, byDefault: boolean, label: string, body: () => unknown) => (
-      <Box key={'section-' + key} flexDirection="column" rowGap={1}>
-        {Fold(key, byDefault, label)}
-        {isOpen(key, byDefault) && body()}
-      </Box>
-    )
+    const Section = (key: string, byDefault: boolean, label: string, body: () => unknown) => {
+      const id = scope + key
+      return (
+        <Box key={'section-' + id} flexDirection="column" rowGap={1}>
+          {Fold(id, byDefault, label)}
+          {isOpen(id, byDefault) && body()}
+        </Box>
+      )
+    }
 
     const Batch = (b: ChantierBatch) => {
       const spent = money(b.spent_usd)
@@ -561,21 +604,28 @@ export const register: Register = on => {
       )
     }
 
-    // ---- the board ----
-    const index = f.index
-    if (index === null) return <Text dimColor>Reading the status...</Text>
+    // ---- the board: one project's planning folder ----
+    const Board = (v: View) => {
+    planning = v.dir
+    scope = v.name === null ? '' : v.name + '|'
+    const index = v.index
+    if (v.fatal !== null) return <Text key={'view-' + v.dir}>{v.fatal}</Text>
+    if (v.missing !== null) return <Text key={'view-' + v.dir}>{`No chantier status here: ${v.missing} not found.`}</Text>
+    if (index === null) return <Text key={'view-' + v.dir} dimColor>Reading the status...</Text>
     const waitingCount = index.batches.reduce(
       (n, b) => n + b.crs.filter(isWaiting).length + b.asks_unread,
       0,
     )
-    const age = f.readAt === null ? null : Math.max(0, Math.round((now - f.readAt) / 1000))
+    const age = v.readAt === null ? null : Math.max(0, Math.round((now - v.readAt) / 1000))
     const backlog = PRIORITIES.flatMap(pr => index.backlog.filter(r => r.priority === pr))
+    const viewNote = v.note === null ? note : <Text italic>{v.note}</Text>
     return (
-      <Box flexDirection="column" rowGap={1}>
+      <Box key={'view-' + v.dir} flexDirection="column" rowGap={1}>
+        {v.name !== null && <Text bold>{v.name}</Text>}
         <Text bold>
           {`${index.active_crs} live · ${waitingCount} waiting for you${age === null ? '' : ` · read ${age}s ago`}`}
         </Text>
-        {note}
+        {viewNote}
         {index.batches.map(Batch)}
         {index.batches.length === 0 && <Text dimColor>No open batch.</Text>}
         {Section('backlog', false, `Backlog (${index.backlog.length})`, () =>
@@ -592,6 +642,15 @@ export const register: Register = on => {
         {Section('trashed', false, `Trashed (${index.trashed.length} of ${index.trashed_total})`, () =>
           Pasts('trashed-table', index.trashed),
         )}
+      </Box>
+    )
+    }
+
+    if (views.length === 0) return <Text dimColor>Reading the status...</Text>
+    if (views.length === 1) return Board(views[0] as View)
+    return (
+      <Box flexDirection="column" rowGap={2}>
+        {views.map(Board)}
       </Box>
     )
   })

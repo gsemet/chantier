@@ -27,7 +27,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   and `P10 ok` once they are in a temporary home's `.claude/settings.json`;
 - the batch opened with the branch from `AGENTS.md`, each CR named a branch and a worktree that
   the Driver creates; `take` refused past the slots and the budget, `round` past the limit;
-  nothing written outside `.agents/changes/`;
+  nothing written outside the planning folder;
 - hand-backs as state writes (refused before a PR is recorded), `ship` reporting what is off
   (uncommitted changes, a head not pushed, no long gate at it), a QA ordered during the batch,
   with its folder in the inbox, that holds no CR back and keeps the batch from pausing until done;
@@ -53,6 +53,15 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   cleanup; `land` no longer a command; the long gate serialized, and held while the suite of a gate whose command died
   still runs;
 - Claude cost by CR; Copilot cost breakdown (`Agent <type>` lines) and by CR, estimated calls, updates and failures;
+- a planning surface (its own git repository, two projects, each clone and worktrees outside it,
+  run on both forges after the in-project batch): a command at the surface exits 2 naming the
+  projects, a missing clone fails preflight, init makes the planning folder and its
+  .gitignore; a batch in each project at once, a second open on one refused, one seat per
+  project; 	ake carries cli: with --project, clone: and rchive: (`not in the PR` for a
+  project that sets it so); the surface's git lists the CR documents and never a local file (atch.json,
+  events.jsonl, STATUS files, locks, seat.json, gate logs), the clone stays clean; ship says
+  the archive is missing from the PR until it is there; order merged writes delivery.md;
+  ules lists the project's instructions then the surface's; close archives the CR;
 - prepared-CR filing, lifecycle moves, collisions and rollback;
 - a release: added to a running batch (`order add --release`) it waits for each other CR, a
   later one too, then for the user's `order confirm` (voided by a CR added after, refused once

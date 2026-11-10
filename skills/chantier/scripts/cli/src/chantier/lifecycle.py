@@ -21,7 +21,7 @@ from pathlib import Path
 
 from .state import (EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LOCK_TIMEOUT_S, Batch,
                     ChantierError, Repo, read_batch_json, _retry, _try_lock, _unlock, move_directory,
-                    now, project_path, stamp, write_file)
+                    now, stamp, write_file)
 PRIORITIES = ("P1", "P2", "P3", "P4")
 STATE_FOLDERS = ("1-pending", "2-actives", "3-done")  # the batch's, in `4-batch/`
 
@@ -39,6 +39,7 @@ def stage_layout(repo: Repo) -> dict[str, Path]:
 @contextlib.contextmanager
 def changes_lock(repo: Repo):
     repo.changes.mkdir(parents=True, exist_ok=True)
+    repo.ensure_gitignore()
     with open(repo.changes / ".lifecycle.lock", "a+") as lock:
         deadline = time.monotonic() + 30
         while not _try_lock(lock):
@@ -64,7 +65,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
     if not item.strip():
         raise ChantierError("open requires <prepared-CR-folder> or <specification-file>; "
                             "file and grill the CR first", EXIT_USAGE)
-    supplied = project_path(repo.root, item, "CR item")
+    supplied = repo.planning_path(item, "CR item")
     if supplied.is_file():
         directory, specification = supplied.parent, supplied
     elif supplied.is_dir():
@@ -108,7 +109,7 @@ def ensure_unclaimed(repo: Repo, directory: Path) -> None:
         for cr in batch.get("crs", []):
             if cr.get("status") in {"cancelled", "merged"} or not cr.get("path"):
                 continue
-            claimed = project_path(repo.root, cr["path"], "recorded CR path")
+            claimed = repo.planning_path(cr["path"], "recorded CR path")
             if claimed == directory:
                 raise ChantierError(f"{directory} is already in batch {batch['id']}",
                                     EXIT_CONFLICT)
@@ -117,13 +118,13 @@ def ensure_unclaimed(repo: Repo, directory: Path) -> None:
 def cr_directory(repo: Repo, cr: dict) -> Path:
     if not cr.get("path"):
         raise ChantierError(f"{cr['id']} has no recorded CR folder", EXIT_PRECONDITION)
-    return project_path(repo.root, cr["path"], "recorded CR path")
+    return repo.planning_path(cr["path"], "recorded CR path")
 
 
 def _relocate(batch: Batch, cr: dict, target: Path) -> None:
     source = cr_directory(batch.repo, cr)
     batch.move(source, target)
-    cr["path"] = target.relative_to(batch.repo.root).as_posix()
+    cr["path"] = batch.repo.rel(target)
     old = batch.repo.changes / "3-requests"  # a working CR of a converted tree was its last tenant
     for folder in (source.parent, source.parent.parent):
         if old in (folder, *folder.parents) and folder.is_dir() and not any(folder.iterdir()):
@@ -152,6 +153,22 @@ def done_cr(batch: Batch, cr: dict) -> None:
     if source.parent not in (paths["done"], paths["archives"], paths["trash"]):
         _relocate(batch, cr, paths["done"] / source.name)
     cr["merged_at"] = cr.get("merged_at") or now()
+    if batch.repo.external and cr_directory(batch.repo, cr).is_dir():
+        _delivery(batch.repo, cr, cr_directory(batch.repo, cr))
+
+
+def _delivery(repo: Repo, cr: dict, folder: Path) -> None:
+    """`delivery.md`, written in the surface when the merge is recorded: it travels into the
+    archive and says where the CR was delivered."""
+    if not repo.archive_in_pr:
+        mine = "no (project setting)"
+    elif cr.get("archive_seen"):
+        name = Path(cr["path"]).name
+        mine = f"yes, at .agents/changes/5-archives/{cr.get('archive_stamp') or '?'}-{name}/"
+    else:
+        mine = "no (missing from the PR)"
+    write_file(folder / "delivery.md", f"# Delivery\n\n- PR: {cr.get('pr') or 'none'}\n"
+               f"- Merged: {cr['merged_at']}\n- Archive in the PR: {mine}\n")
 
 
 def trash_cr(batch: Batch, cr: dict) -> None:
@@ -183,7 +200,7 @@ def move_backlog_item(repo: Repo, item: str, priority: str | None, paths: dict[s
         raise ChantierError("triage takes --priority P<n> or --ready, one of them", EXIT_USAGE)
     if priority is not None and priority not in PRIORITIES:
         raise ChantierError(f"priority must be one of {', '.join(PRIORITIES)}", EXIT_USAGE)
-    source = project_path(repo.root, item, "CR folder")
+    source = repo.planning_path(item, "CR folder")
     held = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
     waiting = source.parent == paths["ready"]
     if source.parent != paths["inbox"] and not held and not waiting:
@@ -305,7 +322,7 @@ def _convert(repo: Repo) -> list[str]:
             for cr in data["crs"]:
                 if not cr.get("path"):
                     continue
-                folder = project_path(repo.root, cr["path"], "recorded CR path")
+                folder = repo.planning_path(cr["path"], "recorded CR path")
                 if folder.parent == batch.resolve() and folder.is_dir():
                     state = {"queued": "1-pending", "ready": "2-actives",
                              "blocked": "2-actives"}.get(cr["status"])
@@ -327,7 +344,7 @@ def _convert(repo: Repo) -> list[str]:
                     path = cr.get("path")
                     if not path:
                         continue
-                    moved = where.get(project_path(repo.root, path, "recorded CR path"))
+                    moved = where.get(repo.planning_path(path, "recorded CR path"))
                     cr["path"] = (_rel(repo, moved) if moved else
                                   path.replace(".agents/changes/4-archives/",
                                                ".agents/changes/5-archives/")
@@ -365,7 +382,7 @@ def _convert(repo: Repo) -> list[str]:
 
 
 def _rel(repo: Repo, path: Path) -> str:
-    return path.relative_to(repo.root).as_posix()
+    return repo.rel(path)
 
 
 def _undo(renames: list[tuple[Path, Path]], batch: Path | None, original: bytes | None, lock) -> None:

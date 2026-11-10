@@ -98,5 +98,5 @@
   <text x="936" y="810" font-size="13" fill="#b91c1c">retro</text>
   <rect x="300" y="813" width="330" height="30" rx="15" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
   <text x="465" y="833" font-size="13.5" font-weight="600" fill="#b91c1c" text-anchor="middle">📝 findings go back to the intake</text>
-  <text x="24" y="874" font-size="13.5" fill="#475569">Each stage is a folder in <tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan>; the chantier CLI moves it. At any time: <tspan font-family="ui-monospace, Menlo, monospace">order drop</tspan> → <tspan font-family="ui-monospace, Menlo, monospace">6-trash/</tspan>.</text>
+  <text x="24" y="874" font-size="13.5" fill="#475569">Each stage is a folder in the planning folder (<tspan font-family="ui-monospace, Menlo, monospace">.agents/changes/</tspan> or a surface); the chantier CLI moves it. At any time: <tspan font-family="ui-monospace, Menlo, monospace">order drop</tspan> → <tspan font-family="ui-monospace, Menlo, monospace">6-trash/</tspan>.</text>
 </svg>
