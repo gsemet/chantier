@@ -1,7 +1,7 @@
 """What a person reads, and what a dashboard parses: `STATUS.md` and `STATUS.json`.
 
 Three levels, linked both ways: `.agents/changes/` (the index: the backlog, `3-ready`, the batch,
-the merged), `4-batches/` (the batch), the CR. Everything comes from the state already written,
+the merged), `4-batch/` (the batch), the CR. Everything comes from the state already written,
 never from the forge: this runs at each change, so it must stay fast and cannot fail on the
 network. The JSON says what the Markdown says, with more indicators; `schema` moves when a field
 changes meaning.
@@ -402,7 +402,7 @@ def dashboard_markdown(v: dict) -> str:
              f"> Updated {v['updated']}: {v['active_crs']} active CRs in {len(v['batches'])} "
              "batches.", "", "## Active"]
     for b in v["batches"]:
-        lines += ["", f"### [{b['batch']}](4-batches/STATUS.md): {b['state']}, "
+        lines += ["", f"### [{b['batch']}](4-batch/STATUS.md): {b['state']}, "
                   f"{_budget(b)}", ""]
         lines += _rows_markdown(b["crs"]) if b["crs"] else ["No active CR."]
     if not v["batches"]:

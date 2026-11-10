@@ -1,7 +1,7 @@
 """Repository paths and the locked batch state.
 
 Everything chantier keeps lives in `.agents/changes/` at the repository's root, as plain JSON and
-Markdown: the stage folders, and in `4-batches/` the project's one current batch: its own files
+Markdown: the stage folders, and in `4-batch/` the project's one current batch: its own files
 (`batch.json` holds the batch's limits and what the Chief of Staff passed to `open`) beside the
 state folders `1-pending/`, `2-actives/` and `3-done/` that hold its CRs. The batch keeps its id,
 `batch-<n>`, in `batch.json`; its folder carries no number.
@@ -246,15 +246,15 @@ class Repo:
 
     @property
     def batches(self) -> Path:
-        """`4-batches/`: the current batch's own files and, in its state folders, its CRs."""
-        return self.changes / "4-batches"
+        """`4-batch/`: the current batch's own files and, in its state folders, its CRs."""
+        return self.changes / "4-batch"
 
     @property
     def worktrees(self) -> Path:
         return self.root.parent / f"{self.root.name}.worktrees"
 
     def batch_folders(self) -> list[Path]:
-        """The folder of the current batch, if there is one: `[4-batches]` or `[]`."""
+        """The folder of the current batch, if there is one: `[4-batch]` or `[]`."""
         return [self.batches] if (self.batches / "batch.json").is_file() else []
 
     def batch_ids(self) -> list[str]:
@@ -263,7 +263,7 @@ class Repo:
 
     def batch_dir(self, batch: str) -> Path:
         """`--batch` is a batch's number, `4` or `batch-04`: it must be the current batch's, whose
-        folder is `4-batches/`; any other number is unknown."""
+        folder is `4-batch/`; any other number is unknown."""
         if normalize_batch(batch) not in self.batch_ids():
             raise ChantierError(f"unknown batch {normalize_batch(batch)}")
         return self.batches

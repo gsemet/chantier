@@ -186,7 +186,7 @@ Only in the turn where the user gave the go:
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
    makes a stack; `--parallel` makes independent CRs. It exits 2 while a batch is not closed. It moves
-   each folder to `4-batches/1-pending/`, names each CR's branch and worktree, and writes
+   each folder to `4-batch/1-pending/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back).
 4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
@@ -470,8 +470,8 @@ cost table, outside the budget. In Foreman mode, still no message to a Driver.
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
 - **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";
-  prompt as in `concepts.md`, with `4-batches/` as its folder and the user's language). It writes
-  `demo/demo.md` in `4-batches/`.
+  prompt as in `concepts.md`, with `4-batch/` as its folder and the user's language). It writes
+  `demo/demo.md` in `4-batch/`.
 - **The demo.** Show the summary, then guide one change at a time and wait for the user's
   result: they try each change themselves. Prepare the fixture or the environment outside the
   repository's tracked files, and remove it at the end. The code under demo is the top of the
@@ -512,7 +512,7 @@ approve`); ask whether they allow more and pass only what they said (`--autonomo
 <n>`, `--grant-fixes`: the Foreman starts and merges up to three fixes, both with `--budget`;
 later `order grant`). `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
-read `work/retro.md` in the release CR's folder (`4-batches/3-done/`) and offer to file each proposal as a CR.
+read `work/retro.md` in the release CR's folder (`4-batch/3-done/`) and offer to file each proposal as a CR.
 
 ## Never
 

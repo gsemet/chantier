@@ -1689,7 +1689,7 @@ def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
 
 
 def _batch_files(folder: Path) -> list[Path]:
-    """What `close` deletes: everything in `4-batches/` but the three state folders."""
+    """What `close` deletes: everything in `4-batch/` but the three state folders."""
     return sorted(p for p in folder.iterdir() if p.name not in STATE_FOLDERS)
 
 
@@ -1710,7 +1710,7 @@ def close(args) -> tuple[list[str], int]:
                 for p in sorted((folder / stage).iterdir() if (folder / stage).is_dir() else [])
                 if p.is_dir()]
         if held:
-            raise ChantierError(f"{batch} still holds {', '.join(held)} in 4-batches: nothing "
+            raise ChantierError(f"{batch} still holds {', '.join(held)} in 4-batch: nothing "
                                 "was deleted")
         archived = [(c, cr_directory(repo, c)) for c in d["crs"]
                     if c.get("path") and cr_directory(repo, c).parent == paths["done"]]

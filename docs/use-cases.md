@@ -42,7 +42,7 @@ One batch at a time. Whoever steers it, the three states are the same.
 > "init" · "I am new here."
 
 `chantier init` creates the empty stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`,
-`3-ready`, `4-batches` with `1-pending`, `2-actives` and `3-done`, `5-archives`, `6-trash`), and
+`3-ready`, `4-batch` with `1-pending`, `2-actives` and `3-done`, `5-archives`, `6-trash`), and
 says which it created and which existed. The
 Chief of Staff then gives a guided tour of your project: it reads your instructions, your build
 files and your CI lightly, and tells the story of one CR of your project, from the request to the
