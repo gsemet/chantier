@@ -234,36 +234,9 @@ Only in the turn where the user gave the go:
 ## While it runs
 
 - **Status:** `$CHANTIER status [--notes]`, with PR links, and `.agents/changes/STATUS.md`
-  for the user. Before a report, run `$CHANTIER status --refresh` with no epoch: it records the
-  current spend and `STATUS.md` and leaves the Foreman's heartbeat alone. A 🔴 CR is a
-  question for the user. Never read the Foreman's transcript.
-- **Reports:** name every CR by its number and slug together (`concepts.md`, "A CR's name"). A Progress report and a Completion report always have the same shape: the columns
-  are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
-  remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote, as for
-  P9). Icons, each with its word beside it: ⚪ not started or dropped, 🟡 working, 🟠 waiting,
-  🔵 to review, 🔴 blocked, ✅ merged. Each icon is the one `status` draws in the CR's `label`
-  (the same as `STATUS.md` and the board): copy it, never judge it. 🟠 is a CR that waits for a
-  thing already on its way, named: the stack driver, another CR, a fix of a release, a slot, the
-  user's word on a release, the budget a queued CR cannot start on; ⚪ is a queued CR that could start now. 🔴 is a CR that
-  nothing moves until someone decides or repairs it.
-  - **Progress**, on a CR ready or merged and on "status?": a header line (the batch's number and
-    name, its mode, the slots in use, the CRs done, the spend and the budget); a legend line of
-    the six icons, each with its word, which opens the table; a table, one row per
-    CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); rows with one cause get the same words, whatever each
-    Driver wrote; under the table, when a CR is 🟠 or 🔴, a short explanation: what it waits for,
-    and who unblocks it; the cost table below (see Cost);
-    a last line, always there, **For you:** what the user has to review or decide, or "nothing"
-    (only a Tips line can follow it, see below). 🔵 to review is a [ready PR](concepts.md)
-    only; a CR ready on another base says what it waits for, and **For you** does not ask the
-    user to merge it.
-  - **Completion**, on the `final` message (Foreman mode) or right after your own `pause`
-    (direct mode): a header line (the batch, the CRs merged out of how many, the spend and the
-    budget); a table, one row per CR: CR, subject, result, PR, rounds, cost; the cost table (see
-    Cost), then its explanation from `cost --explain`, both run at the pause: the cost to date;
-    what the batch did not prove; a last line, **For you:** the batch is paused, the inbox ideas
-    ready for a grill (each by its slug), and, if it fits, an invitation to add other CRs to this
-    batch later or to close it ("close the batch")
-    (only a Tips line can follow it, see below).
+  for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`report.md`).
+  A 🔴 CR is a question for the user. Never read the Foreman's transcript.
+- **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `report.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from
@@ -294,7 +267,7 @@ Only in the turn where the user gave the go:
   the user, split into CRs as needed.
 - **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
   without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
-  "chain: <reason>"`. Your next report has a line with the chain and its reason. The user turns
+  "chain: <reason>"`. Your next report says the chain and its reason (`report.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
@@ -313,26 +286,7 @@ Only in the turn where the user gave the go:
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
-- **Cost:** the cost table of a report: on a CR ready or merged, on "status?" and at the pause, the
-  lines of `$CHANTIER cost`, as printed and in that order (a CR's own figure is the last field of
-  its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman
-  (in direct mode, `Chief of Staff (steering)`), one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff:`
-  line of that output, with its two figures (since the batch opened, the whole session) and its
-  context size. The CLI knows who is who from the record, not from a role name: the Foreman is
-  the main agent (the steering session), a Driver has no parent, a worker has one, and a Driver of the user's own gets
-  its line under the type the host gives it. You group, add and regroup nothing: no orchestration,
-  implementation or review lines. Give no figure when it fails; `not measured` stays `not
-  measured` (on Copilot, where the host gives no parent link, an agent's line says only its
-  type). A Driver's line covers its own rebases, gates and file writes, besides the workers it
-  starts, which have their own lines. Your session is never in the batch's spend nor in its
-  budget.
-  - **Explaining the figures:** in the Completion report, and when the user asks why it cost
-    that, run `$CHANTIER cost --explain` and say it in a few plain lines in the user's language:
-    from the measures under each line (the agents, the calls, the model, the share of cost in
-    cache reads, cache writes and output, the calls after the cache expired, the Drivers
-    restarted on a CR that already had one) and its last lines (the cache's lifetime, what the
-    figures do not count: compaction calls leave no record). Say only what the output says; no
-    subagent is started for it, and nothing is guessed where it says `not measured`.
+- **Cost:** the cost table of a report, and `cost --explain`: see `report.md`, "Cost".
 - **Compacting:** once per session, advise the user to set the host's auto-compact window, if
   its reference names one (it says which command and setting, and names none when none exists).
   When the talk moves to another subject and your context size (the `Chief of Staff:` line) is
@@ -346,7 +300,7 @@ Only in the turn where the user gave the go:
   given and not used is not repeated in the same session; the host's compact command tip
   follows the Compacting rule alone. Examples, judged freely; say another that fits:
   - The host's compact command, with its line to copy (see Compacting and the host's reference).
-  - "Status", for a progress table at once.
+  - "Status" or `/chantier:status`, for a progress table at once.
   - `/chantier-board`, to show or hide the CR board: Claude Code only, never on Copilot.
   - "What did it cost?", once a CR has spent.
   - "File this", when the user raises an idea in passing.
@@ -466,7 +420,7 @@ thrown away. Implementation goes through a CR and the Foreman. Its cost is in yo
 cost table, outside the budget. In Foreman mode, still no message to a Driver.
 
 - **The offer.** On the Foreman's `ready` that is the last of a stack, when no CR of the batch
-  is working, end the Progress report with the offer of a demo of what the stack delivers.
+  is working, end the Progress report with the offer of a demo (`report.md`).
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
 - **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";

@@ -140,10 +140,10 @@ New to chantier? Follow the [step-by-step tutorial for Claude Code](docs/tutoria
 then browse the [use cases](docs/use-cases.md), with one page per configuration:
 [Foreman mode](docs/use-cases-foreman.md) and [direct mode](docs/use-cases-direct.md).
 
-Then restart the session and type one of the three entries (on Claude Code, `/chantier:<name>`):
+Then restart the session and type one of the entries (on Claude Code, `/chantier:<name>`):
 `/chantier` asks which role this session takes, `/chief-of-staff` makes it the Chief of Staff
 (`/chief-of-staff direct` to steer batches itself), `/griller` makes it a Griller, a session that
-refines the inbox and the backlog while the Chief of Staff runs batches. Besides
+refines the inbox and the backlog while the Chief of Staff runs batches, and `/status` gives the progress report of the running batch at once, in the same shape as the Chief of Staff's. Besides
 the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); working on a
 repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab.
 
@@ -156,6 +156,7 @@ Talk to the Chief of Staff in plain language:
 | "init", "I am new here" | the five stage folders are created, then a guided tour of how your project works with chantier |
 | "become chief of staff" (`/chief-of-staff`) | this session takes the seat: the one session that opens and runs batches in the repository |
 | "you are a griller" (`/griller`) | this session refines the inbox and the backlog, never opens a batch; the Chief of Staff picks up what it files |
+| "status?" (`/status`) | the progress report: the table of CRs, their state, their PR and the cost; it changes nothing |
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background |
@@ -337,10 +338,11 @@ hooks/, types/              ← Claude Code only: the CR board mod and its contr
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
 skills/griller/             ← the Griller's entry point (thin)
+skills/status/              ← `/chantier:status`, the progress report (thin: it loads report.md)
 skills/chantier/
 ├── SKILL.md                ← the router: asks which role this session takes
 ├── references/             ← one file per running context: concepts, session-start,
-│                             chief-of-staff, griller, foreman, driver, worker, routing,
+│                             chief-of-staff, griller, report, foreman, driver, worker, routing,
 │                             spec-writer, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
