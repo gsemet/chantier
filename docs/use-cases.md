@@ -9,7 +9,9 @@ batch, steering it, releasing) are in one document per configuration, below.
 ## Choose your configuration
 
 A batch is steered by a session of its own, a **Foreman**, or by the Chief of Staff itself in
-**direct mode**. The lifecycle is the same; what differs is how dynamic the batch is while it runs.
+**direct mode**. The lifecycle is the same; what differs is how dynamic the batch is while it
+runs: with a Foreman a CR may join a running batch; in direct mode a new CR, specified or not,
+joins only once every other CR is handled and the batch is paused.
 
 | Configuration | Where it runs | Use cases |
 | --- | --- | --- |

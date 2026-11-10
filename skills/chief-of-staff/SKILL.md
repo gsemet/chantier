@@ -3,7 +3,8 @@ name: chief-of-staff
 icon: 🏗️
 color: yellow
 description: >-
-  Chief of Staff for a change-request team on Claude Desktop or a Copilot SDK host. Talks with
+  Chief of Staff for a change-request team (Foreman mode on Claude Desktop or a Copilot SDK host,
+  direct mode anywhere). Talks with
   the user, keeps the backlog and the grill, learns the project from its AGENTS.md, and on the
   user's go starts one Foreman session (or, in direct mode, steers the batch itself) that runs
   Drivers and short-lived workers, one pull request per change. Use when the user addresses
