@@ -21,7 +21,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | --- | --- | --- |
 | "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](init.md) |
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
-| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification | Backlog and grill |
+| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
 | a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode comes from the session | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | the Completion report (the cost to date from `cost` and `cost --explain`) | While it runs |
@@ -183,7 +183,7 @@ Only in the turn where the user gave the go:
    session). In Foreman mode on a host that cannot start a Foreman session (a terminal or IDE
    host, a Remote Control session with no Foreman to reuse), propose direct mode in the plan, say
    why, and say clearly what changes: no Foreman session; you steer the Drivers yourself; no
-   grill, triage or discussion while the batch runs; new ideas go to the inbox. Wait for the
+   grill while the batch runs (backlog work and the spec-writer stay open); new ideas go to the inbox. Wait for the
    user's yes. The limits are the same in both modes; there is no CR threshold of its own. Then
    the go. While a batch is not closed, whatever its state
    (running or paused), there is no new plan: new work joins it with `order add`.
@@ -351,6 +351,34 @@ Only in the turn where the user gave the go:
 - **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.
 
+## Offering options
+
+Before you offer the user an option, check where they can take it from: the phone on Remote
+Control, the desktop app, a terminal. Where the user is comes only from the host's signal, as the
+host's reference describes it; never guess it.
+
+- **The host signals where the user is:** offer only what they can do from there. When no option
+  fits, say so, and why; never offer one they cannot take.
+- **The host says nothing:** offer every option that fits, each with its condition in a few words
+  ("from the machine", "from the phone too").
+- Something you can do yourself (run a command, send a file) you do, or you say you cannot and
+  why; it is not handed to a user who has no shell.
+
+The checklist: what an option needs, and why. Each host's reference gives the condition there.
+
+| Option | It needs | Why |
+| --- | --- | --- |
+| Switch to Foreman mode | a Foreman session the user can see and steer, or one to reuse | the Foreman is a separate session |
+| "Run this command in a terminal" | a shell on the machine | otherwise you run it, or say you cannot and why |
+| Open a local URL or a file path | the machine | send the file or a forge link instead |
+| A host command that opens a terminal dialog | a terminal | the app and a remote view have no such panel; use the app's own UI |
+| Restart the app, reload the plugins, open a file in an editor | the machine | |
+| Review renders, review and merge a PR | the forge, from any device | never refused |
+| A host feature (a scheduled wake, start a session, a monitor) | the host to have it in this session | no fallback: say it is missing, offer no look-alike |
+| Work in the main checkout | no eval running, a session on the main checkout | the project's rules (an eval leaves the main checkout untouched); fail fast |
+
+The Tips bullet of "While it runs" and the "For you" block follow this section.
+
 ## Steering a batch yourself
 
 In direct mode no Foreman session is started: you steer the batch from your own session. The CR
@@ -383,13 +411,25 @@ these differences.
   refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
   --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch
   is paused it takes any number of CRs before its first `take` (below).
-- **What you accept while you steer:** "status?" and "what did it cost?"; answers to a blocked CR
-  of this batch; orders on the batch itself ("I merged #42", "drop CR-140", "stop the batch", more
-  rounds, slots or budget). Any other request is noted word for word and handed back when the
-  batch completes; an idea that arrives while the batch runs is filed in the inbox at once (`file`,
-  no grill). You hold no grill, no triage, no demo and no discussion until the batch completes. A
-  request to grill gets one line besides being noted: "to grill in parallel, fork this session;
-  the fork becomes a Griller" (the fork is the user's step; explain it, never do it).
+- **What you accept while you steer:**
+  - "status?" and "what did it cost?"; answers to a blocked CR of this batch; orders on the batch
+    itself ("I merged #42", "drop CR-140", "stop the batch", more rounds, slots or budget).
+  - **Backlog work.** Any work on the backlog's files: file (`file`), triage (`triage`, on the
+    user's word as always, directly or on a Griller's request), reorganise, merge items, drop
+    (`abandon`, on the user's explicit word), and record answers and decisions in a CR's
+    `02-answers.md` (the "Record at once" rule holds). `triage --ready` moves a CR to `3-ready`; it
+    does not join the running batch.
+  - **The spec-writer.** On the user's word that a CR already grilled (by a Griller, or before the
+    batch) is grilled enough, start it as "Backlog and grill" says.
+  - **Not while the batch runs:** grill a CR (ask its questions, write its `01-intent.md` from a
+    discussion with the user); touch the running batch from backlog work (no CR joins it, the CLI
+    refuses `order add` and `order qa`; nothing starts that the user did not order on the batch);
+    the demo.
+  - Any other request is noted word for word and handed back when the batch completes; an idea
+    that arrives while the batch runs is filed in the inbox at once (`file`, no grill). A request
+    to grill gets one line besides being noted: "to grill in parallel, fork this session; the
+    fork becomes a Griller" (the fork is the user's step; explain it, never do it).
+  - A paused batch is not running: all of this lifts at the pause.
 - **The pause.** Once every CR is merged or cancelled, remove the merged CRs' worktrees and
   branches (your Foreman's work in direct mode), then run `$CHANTIER pause --epoch <n>`: the batch
   is paused. Give the Completion report. Grill the inbox ideas with the user and, on their word,

@@ -29,3 +29,4 @@ You are the **Chief of Staff**. Read [concepts](../chantier/references/concepts.
 [session-start](../chantier/references/session-start.md) and
 [chief-of-staff](../chantier/references/chief-of-staff.md) now. If the invocation's argument is
 `direct`, or the user says so, your batches are direct (`chief-of-staff.md`, Starting a batch).
+"chantier reload" follows `session-start.md`, "Reload".

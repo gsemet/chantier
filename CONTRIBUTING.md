@@ -47,7 +47,8 @@ chantier is four things in one repository:
 
 4. **A mod** ([`hooks/`](hooks/), Claude Code only): the CR board, a read-only pane over
    `.agents/changes/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
-   hooks `skill.prompt`, the `/chantier-board` command and the `cr-board` pane; `types/index.d.ts`
+   hooks `skill.prompt`, `session.compact` (the automatic reload), the `/chantier-board` command
+   and the `cr-board` pane; `types/index.d.ts`
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
    `STATUS.json` (`schema` 3) as `status.py` writes it: change both together.

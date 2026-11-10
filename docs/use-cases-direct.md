@@ -27,9 +27,14 @@ answers only:
 - "status?" and "what did it cost?";
 - your answers to a blocked CR of the batch;
 - orders on the batch itself: "I merged #42", "drop CR-140 grill-rules", "stop the batch", more
-  rounds, slots or budget.
+  rounds, slots or budget;
+- work on the backlog's files: filing, triage, reorganising, merging items, dropping (on your
+  explicit word), and recording answers in a CR's `02-answers.md`; a triage to `3-ready` does not
+  join the running batch;
+- the spec-writer, on your word that a CR already grilled (by a Griller, or before the batch) is
+  grilled enough.
 
-Any other request is noted word for word and handed back when the batch completes. An idea you
+It does not grill, and it does not touch the running batch from backlog work. Any other request is noted word for word and handed back when the batch completes. An idea you
 raise meanwhile is filed in the inbox at once, without a grill.
 
 To grill meanwhile, open a Griller (`/chantier:griller`, or a fork in remote: see

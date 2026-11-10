@@ -18,7 +18,7 @@ Each behaviour carries a mark:
 | Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | proved: every batch started from Claude Desktop (v0.3 on) |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
 | Set a session's own title (the Chief of Staff, a Griller, the Foreman) | `set_session_title` | proved for a Chief of Staff's own session, 2026-11-08 (Battlestation, a session renamed itself); the Foreman's case stays unproved: the trial is a Foreman that sets its title and `get_session("self")` shows it |
-| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [direct]`, `/chantier:griller`, `/chantier:status`: a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills) |
+| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`): a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling is unproved until a reload runs; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
 | Load another skill (the router) | the host's Skill tool | unproved until the router runs; trial: `/chantier:chantier` in a session with no Chief of Staff, answer a role, see the skill load |
 | List the sessions and their state; is the seat's session alive | the session tools found in the `mcp__ccd_session__` set: the exact tool and its states are not recorded | unproved; trial: two sessions on one repository, one stopped, list both and record the states |
 | Message another session of the user (hand-over, a Griller's line) | `SendMessage` to its session id | proved for the Chief of Staff's session (the row above); between two sessions of the user, unproved; trial: a Griller's `ready` line to the Chief of Staff's session |
@@ -245,6 +245,24 @@ above, is unproved: the same trial settles it.
 { "idleCompaction": true, "autoCompactWindow": 400000 }
 ```
 
+## Reload after a compaction
+
+The plugin's mod hooks the engine's `session.compact` event. After every compaction of the main
+conversation, manual (`/compact`) or automatic, of a session that loaded the `chantier`,
+`chief-of-staff` or `griller` skill, it adds one message to the compacted conversation: the
+automatic reload's line, which makes the model follow `session-start.md`, "5. Reload", and open
+its next answer with one line saying chantier's rules were reloaded. It does not rely on the
+summary or on the model noticing. It never vetoes a compaction, and it leaves a subagent's own
+compaction alone (a Driver's, a worker's). The `status` skill does not count as a role.
+
+The contract is the engine's own (`claude-code/index.d.ts`: the hook's `next(e)` resolves
+`{ messages }`, to which the mod adds its message), checked 2026-11-10 against the engine's types
+as they stood on 2026-11-06. **Unproved** until seen in a session; trial: a Chief of Staff session,
+`/compact`, then the next answer opens with the reload line and the cards are read (tool calls
+visible). The mod is Claude Code's only (`CONTRIBUTING.md`): the automatic reload exists only
+where the plugin's mod loads. The manual reload ("chantier reload", or `/chantier:chantier
+reload`) works everywhere, and is what a session without the mod has.
+
 ## Classes of session
 
 | Class | How it is known | Can start a session | Fit for a Foreman |
@@ -288,6 +306,32 @@ user's word): from the remote client, pick the "Remote Control" entry and, in a 
 "Local" group's entry or a saved environment with Worktree off; in each, run `git rev-parse
 --git-dir --git-common-dir`. Record here the path that lands on the main checkout. If none does,
 a new Foreman needs the desktop, and the reuse is offered.
+
+## Surfaces and options
+
+The surfaces where the user can be: the phone (or another device) on Remote Control; the desktop
+app, typed at the keyboard; a terminal (the CLI).
+
+How the host signals the surface: the desktop app adds a Remote Control notice to the conversation
+when the user works through Remote Control (proved 2026-11-10, Battlestation: said at each turn's
+end that day). A terminal gives no signal, and no signal is said when the user is at the desktop
+app's keyboard: the absence of the notice does not prove the user is at the machine. The class row
+"no Remote Control notice" ("Desktop, typed") above is qualified by this. Where there is no
+notice, the host says nothing: offer every option that fits, each with its condition ("Offering
+options", `chief-of-staff.md`). The rest of this section is **unproved** except where a mark says
+otherwise.
+
+| Option | Desktop, typed | Remote Control | Terminal | Why and mark |
+| --- | --- | --- | --- | --- |
+| Switch to Foreman mode | yes | only by reusing a Foreman ("Reusing the last Foreman"), else no | no | preflight P1 fails in a terminal; proved by the classes table for the first two |
+| Run a command in a terminal | yes | no | yes | Remote Control has no shell; unproved |
+| Open `localhost` or a file path | yes | no: send the file or a forge link | yes | unproved |
+| `/permissions`, `/config` | no: the app's own settings | no | yes | terminal dialogs; unproved |
+| Restart the app, `/reload-plugins`, open in an editor | yes (terminal: restart the CLI) | no | restart the CLI | the machine; unproved |
+| `/chantier-board` | yes | the pane does not show in a Remote Control view (`README.md`, the CR board) | yes | documented in the README |
+| Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
+| A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |
+| Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |
 
 ## A Foreman in a worktree asks
 

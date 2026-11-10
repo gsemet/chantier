@@ -96,4 +96,5 @@ When a tip fits the moment, a report ends with one last line, after the **For yo
 the user's language, that starts with 💡: one or two tips, each a sentence with the exact words
 to type. A report that asks a question or reports a blocker carries none, so the question stays
 last in mind. A tip names only what chantier really answers, and never a command the host
-refuses in this session. It may name `/chantier:status`, for a progress table at once.
+refuses in this session, nor what the user cannot take from where they are (the host's signal of
+where the user is, if it gives one). It may name `/chantier:status`, for a progress table at once.

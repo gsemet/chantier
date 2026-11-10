@@ -134,6 +134,8 @@ declare module 'claude-code' {
       pages: Shaped<ChantierPage[]>
       /** Sections turned from their default (batches open, the rest folded). */
       turned: Shaped<string[]>
+      /** The chantier role skills this session loaded: a compaction of such a session gets the reload line. */
+      roles: Shaped<string[]>
       /** The time of the last check, drawn as the age of the read. */
       checkedAt: Shaped<number | null>
     }

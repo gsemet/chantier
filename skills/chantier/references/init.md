@@ -41,8 +41,8 @@ getting started here, phrases to say, the glossary.
   Verifier, ready, the user's merge, `3-done`, then `5-archives` at `close`. The example CR is a real, small improvement you pick from what you read;
   its paths, branch name and gate commands are this project's.
 - **Steering.** A batch is steered either by the **Foreman**, a separate session, or by you in
-  **direct mode**: no Foreman session, you start the Drivers and hold no grill or discussion
-  until the batch completes, and no CR joins the batch while it runs (once it is
+  **direct mode**: no Foreman session, you start the Drivers and hold no grill
+  until the batch completes (filing, triage and the spec-writer stay open), and no CR joins the batch while it runs (once it is
   paused, it takes the next grilled CRs). Direct mode is used where
   the host cannot start a Foreman session or for a small batch; the plan names it and the
   user's go approves it. The story follows the Foreman; one or two sentences after step 4 give

@@ -17,6 +17,9 @@ const PANE = 'cr-board'
 const TITLE = 'CR board'
 const COMMAND = 'chantier-board'
 const PANE_SKILLS = ['chantier', 'chief-of-staff']
+const ROLE_SKILLS = ['chantier', 'chief-of-staff', 'griller']
+const RELOAD_LINE =
+  'chantier reload (automatic, after a compaction): follow session-start.md, "5. Reload"; start your next answer with one line saying the rules of chantier were reloaded.'
 const SCHEMA = 3
 const EVERY_MS = 15000
 const SILENT_MINUTES = 40
@@ -44,6 +47,8 @@ const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, ba
 const feed = atom({ plugin: 'chantier', key: 'feed' } as const, { views: [], note: null }, { shape: 'feed-2' })
 const pages = atom({ plugin: 'chantier', key: 'pages' } as const, [], { shape: 'pages-1' })
 const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape: 'turned-1' })
+// The chantier role skills this session loaded: a compaction of such a session gets the reload line.
+const roles = atom({ plugin: 'chantier', key: 'roles' } as const, [], { shape: 'roles-1' })
 const checkedAt = atom({ plugin: 'chantier', key: 'checkedAt' } as const, null, { shape: 'checked-1' })
 
 // ---- paths: plain strings, `/` everywhere, no Node ----
@@ -133,7 +138,7 @@ const dirLines = (t: string) => t.replace(/\r/g, '')
 
 // ---- the files ----
 
-/** The planning folders under `root`: its own `.agents/changes/`, else a surface's `projects/*/changes/`. */
+// The planning folders under `root`: its own `.agents/changes/`, else a surface's `projects/<name>/changes/`.
 async function findBases($: Engine, root: string): Promise<Base[]> {
   const own = { name: null, dir: root + '/' + CHANGES }
   if (await $.fs.exists(own.dir)) return [own]
@@ -344,13 +349,26 @@ export const register: Register = on => {
   // pane, a griller does not; the prompt is returned unchanged.
   on('skill.prompt', async ($, e, next) => {
     const result = await next(e)
-    if (!PANE_SKILLS.includes(e.skill.split(':').pop() ?? '')) return result
+    const name = e.skill.split(':').pop() ?? ''
+    if (ROLE_SKILLS.includes(name)) await update($, roles, list => (list.includes(name) ? list : [...list, name]))
+    if (!PANE_SKILLS.includes(name)) return result
     try {
       await open($)
     } catch (err) {
       await update($, feed, f => ({ ...f, note: message(err) }))
     }
     return result
+  })
+
+  // The automatic reload: after a compaction of the main loop (`/compact` or the threshold) of a
+  // session that loaded a chantier role skill, one message carries the reload line into the
+  // compacted conversation. A subagent's compaction and a plugin's are left alone; it never skips.
+  on('session.compact', async ($, e, next) => {
+    const result = await next(e)
+    if (result.skip !== undefined || e.agentId !== undefined) return result
+    if (e.trigger !== 'manual' && e.trigger !== 'auto') return result
+    if ((await read($, roles)).length === 0) return result
+    return { ...result, messages: [...result.messages, { role: 'user' as const, text: RELOAD_LINE, toolUses: [] }] }
   })
 
   on('session.start', async ($, e, next) => {
@@ -496,7 +514,7 @@ export const register: Register = on => {
       const age = minutesSince(b.heartbeat, now)
       const isLive = b.state === 'running' && b.crs.some(r => r.state === 'working')
       const isSilent = isLive && age !== null && age > SILENT_MINUTES
-      const key = 'batch-' + b.folder
+      const key = scope + 'batch-' + b.folder
       const shown = b.state !== 'paused' // a paused batch is folded, its cost still on the title line
       const why = waiting.filter(r => r.blocked !== null)
       return Section(key, shown, `${b.batch}  ${spent}${budget} ${gauge(b.spent_usd, b.budget_usd)}`, () => (
