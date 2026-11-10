@@ -106,7 +106,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
    host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a
-   strict batch (no CR joins it while it runs, but a paused batch takes new ones); it may switch to Foreman mode on your word.
+   strict batch (no CR joins it while it runs, but a paused batch takes several, and the first start sets it running); it may switch to Foreman mode on your word.
    Direct mode is less dynamic than Foreman mode (a running batch takes no new CR, and the Chief
    of Staff, busy steering, holds no grill in that session) but has the same lifecycle: a batch is
    running, then paused, then closed on your word. See [direct mode](docs/use-cases-direct.md).
@@ -303,7 +303,7 @@ The agents own the worktrees as they own git: a CR's Driver creates its worktree
 Staff in direct mode) removes a merged CR's before the batch is paused, and the Chief of Staff
 removes a dropped CR's only on your word. When every CR is merged or cancelled, the batch is
 **paused** (`chantier pause`), not closed: its cost to date is computed and shown, and the
-steering session stays idle. New work added to a paused batch sets it running
+steering session stays idle. Several CRs can be added to a paused batch, which stays paused until the first one starts, then runs
 again; it pauses again at the end, with the cost to date grown. A batch is closed only on your
 word ("close the batch"): `chantier close` refuses, naming the
 cause, while anything still runs (a CR not merged, an open order, a stack agent, a session

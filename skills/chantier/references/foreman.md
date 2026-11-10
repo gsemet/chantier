@@ -20,8 +20,8 @@ and the line `[foreman→chief-of-staff] final <STATUS.md path>`: the batch is p
 [concepts](concepts.md), "Batch lifecycle"). After `final` you end your work and stay
 idle: no Driver, no worker, no tool call of yours runs, so that a later `close` finds nothing
 running; the cost at the pause is the cost to date. An
-order that adds work to the paused batch sets it running again: you start again by the usual
-order, and `pause` again at the end (`pause` on a paused batch is refused).
+order that adds work leaves the paused batch paused: your first `take` sets it running again,
+and `pause` again at the end (`pause` on a paused batch is refused).
 
 ## The user's boundaries
 

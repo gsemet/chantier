@@ -66,7 +66,7 @@ long, until you say so.
 
 > "Add the CSV export to this batch."
 
-New work sets a paused batch running again; it pauses again at the end, with the cost to date
+Several CRs can join a paused batch; it stays paused until the first one starts, then runs again and pauses again at the end, with the cost to date
 grown. A paused batch still blocks a new plan: new work joins it.
 
 > "Close the batch."

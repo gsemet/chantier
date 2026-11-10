@@ -32,7 +32,7 @@ by saying so. Your go decides: nothing starts without it.
 
 - A batch is **running** from `open` until every CR is merged or cancelled.
 - It is then **paused**: the cost to date is shown, `STATUS.md` is its exit report, and you get the
-  Completion report. New work sets it running again; it pauses again at the end.
+  Completion report. Several CRs can join it; the first start sets it running again, and it pauses again at the end.
 - It is **closed** only on your word ("close the batch"), after a check and the final cost.
 
 One batch at a time. Whoever steers it, the three states are the same.

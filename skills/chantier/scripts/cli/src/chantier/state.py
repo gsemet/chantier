@@ -552,14 +552,15 @@ def read_batch(repo: Repo, batch_id: str) -> dict:
 
 
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
-    """The batch holding a CR: the one given, else the running batch that has it."""
+    """The batch holding a CR: the one given, else the batch that has it (a paused batch
+    can hold queued CRs)."""
     if batch:
         return normalize_batch(batch)
     for d in reversed(repo.batch_folders()):
         b = read_batch_json(d / "batch.json")
-        if b.get("status") != "paused" and any(c["id"] == cr_id for c in b["crs"]):
+        if any(c["id"] == cr_id for c in b["crs"]):
             return b["id"]
-    raise ChantierError(f"no running batch holds {cr_id}", EXIT_USAGE)
+    raise ChantierError(f"no batch holds {cr_id}", EXIT_USAGE)
 
 
 def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
