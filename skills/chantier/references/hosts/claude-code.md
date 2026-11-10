@@ -227,6 +227,7 @@ above, is unproved: the same trial settles it.
 ```json
 { "idleCompaction": true, "autoCompactWindow": 400000 }
 ```
+
 ## Classes of session
 
 | Class | How it is known | Can start a session | Fit for a Foreman |

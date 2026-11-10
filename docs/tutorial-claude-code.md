@@ -216,7 +216,8 @@ included.
 - Anything refused (a permission, a tool, a model) is reported with its exact text: chantier
   never works around a refusal.
 - **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): add the
-  allow rules of the "Configuration" section above to your settings.
+  allow rules of the "Configuration" section of the
+  [host reference](../skills/chantier/references/hosts/claude-code.md) to your settings.
 - **The Foreman was refused an action by a classifier.** It wants your word in that session: type
   one line in the Foreman's session allowing that action, from your phone if you are away.
 
