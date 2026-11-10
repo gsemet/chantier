@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Global scenario: one whole chantier batch, end to end, through the real CLI.
 
 A scripted Foreman reads the batch's state and does what its card leaves it (fills the slots,
@@ -876,6 +876,7 @@ def direct_batch(w: World) -> None:
     _, item = prepare_cr(w, "Direct work")
     _, extra = prepare_cr(w, "Direct extra")
     _, later = prepare_cr(w, "Direct after the pause")
+    _, later2 = prepare_cr(w, "Direct after the pause, too")
     _, rel_item = prepare_cr(w, "Direct release")
     w.reset()
     code, out = w.chantier("open", item, "--direct", *FROM_AGENTS_MD, env={"CLAUDE_CODE_SESSION_ID": ""},
@@ -899,6 +900,7 @@ def direct_batch(w: World) -> None:
         code, _ = w.chantier("order", kind, "--note", note_, expect=2)
         check(f"`order {kind}` is refused on a running direct batch",
               "a running direct batch is strict" in w.last_stderr
+              and "Foreman mode" not in w.last_stderr
               and len(w.batch()["crs"]) == 1, w.last_stderr)
     fm = Foreman(w, epoch=1)
     fm.turn()
@@ -950,20 +952,43 @@ def direct_batch(w: World) -> None:
           and money(out, "Chief of Staff:") > chief_before, f"{out} (before: {chief_before})")
     writer.unlink()
     writer.with_suffix("").with_suffix(".meta.json").unlink()
-    # a paused batch takes new work: it reopens, and runs
-    w.chantier("order", "add", "--note", str(later))
-    check("`order add` on a paused direct batch reopens it, with the new CR",
-          w.batch()["status"] == "running" and len(w.batch()["crs"]) == 2
-          and "was paused: running again" in "\n".join(w.last_out), str(w.last_out))
-    cr2 = w.batch()["crs"][1]["id"]
+    # a paused batch takes any number of new CRs and stays paused; the first `take` runs it again
+    paused_at = w.batch()["paused"]
+    summary = w.batch()["summary"]
+    for n, folder in enumerate((later, later2), start=2):
+        w.chantier("order", "add", "--note", str(folder))
+        b = w.batch()
+        check(f"`order add` {n - 1} on a paused direct batch leaves it paused, with the new CR queued",
+              b["status"] == "paused" and b.get("paused") == paused_at and b.get("summary") == summary
+              and len(b["crs"]) == n and b["crs"][-1]["status"] == "queued"
+              and "stays paused: the first `take` sets it running again" in "\n".join(w.last_out),
+              str(w.last_out))
+    cr2, cr3 = w.batch()["crs"][1]["id"], w.batch()["crs"][2]["id"]
+    check("both new CRs are in the paused batch", {cr2, cr3} <= {c["id"] for c in w.batch()["crs"]})
+    code, _ = w.chantier("order", "add", "--note", str(later), expect=None)
+    check("a CR folder already in the paused batch is not added twice",
+          code != 0 and len(w.batch()["crs"]) == 3, w.last_stderr)
     fm.turn()
-    check("the reopened direct batch starts the new CR", cr2 in fm.started
-          and w.cr(cr2)["status"] == "working", str(fm.started))
-    driver_round(w, cr2, "direct2.py", "DIRECT = 2\n")
-    w.chantier("handback", cr2, "ready", w.cr(cr2)["pr"])
-    fm.turn()
-    w.chantier("order", "merged", cr2)
-    fm.turn()
+    b = w.batch()
+    check("the first `take` sets the paused direct batch running again",
+          b["status"] == "running" and "paused" not in b and "summary" not in b
+          and cr2 in fm.started and w.cr(cr2)["status"] == "working", str(fm.started))
+    kinds = [json.loads(e)["kind"] for e in
+             (w.folder() / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+    check("the first `take` says the batch was paused, and the event log has `reopen` before "
+          "that `take`", "was paused: running again" in "\n".join(fm.facts)
+          and "reopen" in kinds and kinds[::-1].index("take") < kinds[::-1].index("reopen"),
+          str(kinds[-8:]))
+    for cr_n, name in ((cr2, "direct2.py"), (cr3, "direct3.py")):
+        if cr_n not in fm.started:
+            fm.turn()
+        check(f"the reopened direct batch starts {cr_n}", cr_n in fm.started
+              and w.cr(cr_n)["status"] == "working", str(fm.started))
+        driver_round(w, cr_n, name, f"DIRECT = {name!r}\n")
+        w.chantier("handback", cr_n, "ready", w.cr(cr_n)["pr"])
+        fm.turn()
+        w.chantier("order", "merged", cr_n)
+        fm.turn()
     check("the reopened direct batch pauses again", fm.paused and w.batch()["status"] == "paused",
           str(w.batch()["status"]))
     age_sessions(w)
@@ -1169,7 +1194,7 @@ def priced_foreman(w: World) -> None:
 
 
 def close_refusals(w: World) -> None:
-    """A paused batch shows its cost to date; `order add` reopens it; `close` refuses while any
+    """A paused batch shows its cost to date; the first `take` reopens it; `close` refuses while any
     CR, order, stack agent or session file shows that something runs."""
     name, state = w.name, w.folder() / "batch.json"
     slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
@@ -1185,7 +1210,8 @@ def close_refusals(w: World) -> None:
     before = state.read_text()
     code, _ = w.chantier("pause", "--batch", name, "--epoch", 2, expect=2)
     check("a second `pause` on a paused batch is refused and changes nothing",
-          code == 2 and "already paused" in w.last_stderr and state.read_text() == before,
+          code == 2 and "already paused" in w.last_stderr and "first `take`" in w.last_stderr
+          and state.read_text() == before,
           w.last_stderr)
     w.chantier("status", "--refresh", "--batch", name)
     report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
@@ -1206,23 +1232,43 @@ def close_refusals(w: World) -> None:
     check("a call made after the pause shows in `cost`",
           out[0] == f"{name}: $2.618 over 95 model calls", str(out))
 
-    # new work sets the paused batch running again
+    # new work leaves the paused batch paused; the first `take` sets it running again
+    paused_d = w.batch()
     added = prepare_cr(w, "Work after the pause")[1]
     code, out = w.chantier("order", "add", "--batch", name, "--note", str(added))
     d = w.batch()
     new = d["crs"][-1]["id"]
-    check("`order add` on a paused batch sets it running again and clears its pause, with a line "
-          "that says so",
-          d["status"] == "running" and "paused" not in d and "summary" not in d
-          and any("was paused: running again" in ln for ln in out) and w.cr(new)["status"] == "queued",
+    check("`order add` on a paused batch leaves it paused, keeps its pause and summary, queues the "
+          "CR, with a line that says so",
+          d["status"] == "paused" and d.get("paused") == paused_d["paused"]
+          and d.get("summary") == paused_d["summary"] and w.cr(new)["status"] == "queued"
+          and any("stays paused: the first `take` sets it running again" in ln for ln in out),
           str(out))
+    code, _ = w.chantier("order", "add", "--batch", name, "--note", str(added), expect=None)
+    check("a CR folder already queued in the paused batch is refused, the batch unchanged",
+          code != 0 and len(w.batch()["crs"]) == len(d["crs"]), w.last_stderr)
     for extra in ((), ("--yes",)):
         code, out = w.chantier("close", "--batch", name, *extra, expect=2)
-        check(f"`close{' --yes' if extra else ''}` on the reopened batch names what runs, with the "
+        check(f"`close{' --yes' if extra else ''}` on the paused batch names what holds it, with the "
               "queued CR, not a bare usage error",
               code == 2 and f"cannot close {name}, something still runs" in w.last_stderr
               and f"{new} is queued" in w.last_stderr and "paused: none" not in w.last_stderr
               and (w.folder() / "batch.json").is_file(), w.last_stderr)
+    # a refused take leaves the batch paused and unchanged (no free slot)
+    held = state.read_text()
+    state.write_text(json.dumps({**json.loads(held), "slots": 0}))
+    zero = state.read_text()
+    code, _ = w.chantier("take", new, "--epoch", 2, expect=None)
+    check("a refused `take` on a paused batch leaves it paused and unchanged",
+          code != 0 and state.read_text() == zero and w.batch()["status"] == "paused", w.last_stderr)
+    state.write_text(held)
+    # the steering takes it, without --batch: the CR is found in a paused batch, which runs again
+    code, out = w.chantier("take", new, "--epoch", 2)
+    d = w.batch()
+    check("`take` finds a paused batch's CR and sets the batch running again, with a line that "
+          "says so", d["status"] == "running" and "paused" not in d and "summary" not in d
+          and any("was paused: running again" in ln for ln in out) and w.cr(new)["status"] == "working",
+          str(out))
     w.chantier("cancel", new, "--epoch", 2)
     for o in w.batch()["orders"]:
         if not o["done"]:

@@ -283,6 +283,7 @@ def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch
     for kind, note in (("add", str(second)), ("qa", "test it")):
         code, _, err = chantier("order", kind, "--note", note)
         assert code == 2 and "a running direct batch is strict" in err
+        assert "Foreman mode" not in err and "once the batch is paused" in err
     code, out, err = chantier("order", "add", "--release", "--note", str(second))
     assert code == 0, err  # the release exception
     assert chantier("order", "note", "CR-101", "--note", "hello")[0] == 0  # the rest still works

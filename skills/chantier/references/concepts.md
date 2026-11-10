@@ -65,10 +65,10 @@ started.
   (`<n>` on two digits, counting all batches), its own files in `4-batch/` (its CRs in the
   three state folders there), and `--batch`
   takes the number, `4` or `batch-04`. One batch at a time, from `open` to the user's `close`; new
-  work joins it through the steering session (`order add`, which sets a paused batch running again: `pause`
-  runs again at the end, and is refused on a batch already paused; a running direct batch is strict: `order add` and `order qa` are
-  refused, except a release CR; a paused batch, of either steering, takes new CRs, which set it running
-  again; see **Batch lifecycle**). `close` refuses while anything
+  work joins it through the steering session (`order add`, which on a paused batch leaves it paused, any number of times: the first
+  `take` sets it running again, `pause` runs again at the end, and is refused on a batch already paused;
+  a running direct batch is strict: `order add` and `order qa` are
+  refused, except a release CR; `order qa` on a paused batch sets it running at once; see **Batch lifecycle**). `close` refuses while anything
   runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
   Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
   time; `not measured` refuses). A batch's CRs run in parallel, each on the
@@ -91,14 +91,15 @@ started.
      checkout, then runs `pause`: the batch is **paused**.
   3. **Paused:** nothing runs. The cost to date has been computed and shown. The batch is not
      closed (one batch at a time, so `open` still refuses a new batch). It takes new CRs:
-     `order add` (or `order qa`) sets it running again, and it pauses again at the end with the
-     cost to date, which has grown.
+     `order add` adds them, any number, and the batch stays paused; the first `take` (or an
+     `order qa`) sets it running again, and it pauses again at the end with the cost to date,
+     which has grown.
   4. **Closed:** only on the user's word ("close the batch"): the `close` flow (the check and the
      final cost from `close` without `--yes`, then `close --yes` on the user's yes in that turn).
      Until then, a paused batch stays paused, however long.
 
   The same in both steerings. A *running* direct batch is strict (`order add` and `order qa`
-  refused, except a release CR); a *paused* batch, of either steering, takes new CRs. "Pause"
+  refused, except a release CR); a *paused* batch, of either steering, takes any number of new CRs before its first `take`. "Pause"
   names only the batch state: the hold on new Drivers (`order slots --note 0`) is called **hold**.
 - **Slots, budget, rounds:** the batch's limits. A slot is a running Driver: a CR in `working`,
   or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused

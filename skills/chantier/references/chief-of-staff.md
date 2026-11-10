@@ -321,8 +321,8 @@ Only in the turn where the user gave the go:
 - **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report with the cost to date: the Foreman has removed the merged CRs' worktrees and branches,
   paused the batch, and stays idle. Give the Completion report. New work for the paused batch is
-  `order add`: it sets the batch running again, you start the Foreman's work again by the usual
-  order, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
+  `order add`, once per CR: the batch stays paused until the Foreman's first `take`; send the
+  Foreman the usual order once all are added, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
   because every Driver has ended for 30 minutes (nothing can move); arm it again with the next
   order you send the Foreman.
@@ -332,7 +332,7 @@ Only in the turn where the user gave the go:
   agents was written in the last 5 minutes (on Copilot, the session's file time; `not measured`
   refuses too). It refuses too, with or without `--yes` and naming the cause, when the final cost
   cannot be priced (no priced call; no Foreman transcript recorded, which leaves the batch no way
-  through `close`), and, on a batch set running again by `order add` or `order qa`, it names what
+  through `close`), and, on a batch set running again by a `take` or `order qa`, it names what
   runs (or says `pause` comes first). Report a refusal to the user with its cause, do not retry in
   a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
   it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to
@@ -382,7 +382,7 @@ these differences.
 - **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
   refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
   --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch
-  is paused it takes new CRs (below).
+  is paused it takes any number of CRs before its first `take` (below).
 - **What you accept while you steer:** "status?" and "what did it cost?"; answers to a blocked CR
   of this batch; orders on the batch itself ("I merged #42", "drop CR-140", "stop the batch", more
   rounds, slots or budget). Any other request is noted word for word and handed back when the
@@ -393,7 +393,8 @@ these differences.
 - **The pause.** Once every CR is merged or cancelled, remove the merged CRs' worktrees and
   branches (your Foreman's work in direct mode), then run `$CHANTIER pause --epoch <n>`: the batch
   is paused. Give the Completion report. Grill the inbox ideas with the user and, on their word,
-  `order add --note <folder>`: it runs again, and `pause` runs again at the end. `close` stays the
+  `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
+  running again, and `pause` runs again at the end. `close` stays the
   user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session
   files as something that runs, not your own.
 - **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:

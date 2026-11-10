@@ -104,8 +104,6 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
     for batch_dir in repo.batch_folders():
         batch = read_batch_json(batch_dir / "batch.json")
-        if batch.get("status") == "paused":
-            continue
         for cr in batch.get("crs", []):
             if cr.get("status") in {"cancelled", "merged"} or not cr.get("path"):
                 continue

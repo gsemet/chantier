@@ -39,7 +39,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   after); a dependency changed with `order after` (refused on a CR not queued, an unknown CR or
   a cycle), a chain started on the ready CR's branch and undone by `--note -`;
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
-  `order qa` refused, a direct batch from `open` to the pause, reopened by `order add` and paused again, and `close` (priced with one `Chief of
+  `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch, which stays paused until the first `take`, then paused again, and `close` (priced with one `Chief of
   Staff (steering)` row and a Chief of Staff line that leaves the steering window out, `close` not
   blocked by the Chief of Staff's own transcript but by a Driver that writes), then a Foreman
   claiming a later epoch from another transcript: the steering switches and the old epoch is refused;
@@ -72,7 +72,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   the number of releases), and a release PR merged on the user's approval;
 - the event log, and the forge's call log: only the agents called it;
 - a paused batch: `pause` printing the cost to date (the whole summary, not cut), recorded with a
-  to-date line and one total in `STATUS.md`, a second `pause` refused, `order add` setting it
+  to-date line and one total in `STATUS.md`, a second `pause` refused, `order add` leaving it paused, `take` setting it
   running again, `close` on a running batch saying `pause` comes first, a call made after `pause`
   counted;
 - an old batch: `batch.json` written by hand with `status: "landed"` and a `landed` time read as

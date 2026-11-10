@@ -19,7 +19,7 @@ dynamic while it runs, in two ways.
 
 **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
 refused. The exception is a release: a release CR and its fixes are accepted. Once the batch is
-paused, it takes new CRs, like any paused batch, and they set it running again.
+paused, it takes any number of new CRs, like any paused batch, and the first one to start sets it running again.
 
 **No grill in the same session.** While the batch runs, the Chief of Staff, busy steering,
 answers only:
@@ -60,9 +60,9 @@ branches, then pauses the batch, and gives you the Completion report: the cost t
 batch did not prove, the inbox ideas ready for a grill. Now it can grill, with you, in this
 session.
 
-> "Grill the CSV export, then add it to this batch."
+> "Grill the CSV export and the import, then add them to this batch."
 
-Once it is specified and you say so, the CR is added: the batch runs again, and pauses again at
+Once it is specified and you say so, the CRs are added, as many as you want: the batch stays paused until the first one starts, then runs again, and pauses again at
 the end, with the cost to date grown. A paused batch stays paused, however long, until you say:
 
 > "Close the batch."

@@ -1006,12 +1006,15 @@ def order(args) -> list[str]:
                     and b.data["status"] != "paused"
                     and not (args.kind == "add" and (new_release or args.fix_for))):
                 raise ChantierError("a running direct batch is strict: add the CR once the batch "
-                                    "is paused (`pause`), or switch to Foreman mode",
-                                    EXIT_PRECONDITION)
+                                    "is paused (`pause`)", EXIT_PRECONDITION)
             cr = args.cr
             reopened = []
-            if args.kind in {"add", "qa"} and b.data["status"] == "paused":
-                # new work starts a Driver: the batch runs again, its pause and cost to date are void
+            if args.kind == "add" and b.data["status"] == "paused":
+                # the batch stays paused: the first `take` sets it running again
+                reopened = [f"{b.id} stays paused: the first `take` sets it running again"]
+            elif args.kind == "qa" and b.data["status"] == "paused":
+                # a QA driver holds a slot from the order on: the batch runs again, its pause and
+                # cost to date are void
                 b.data["status"] = "running"
                 b.data.pop("paused", None)
                 b.data.pop("summary", None)
@@ -1296,6 +1299,17 @@ def handoff(args) -> list[str]:
     return _facts(repo, batch, d, c)
 
 
+def _reopen(b: Batch) -> list[str]:
+    """A take on a paused batch sets it running again: its pause and cost to date are void."""
+    if b.data["status"] != "paused":
+        return []
+    b.data["status"] = "running"
+    b.data.pop("paused", None)
+    b.data.pop("summary", None)
+    b.log("reopen", None)
+    return [f"{b.id} was paused: running again; `pause` runs again at the end"]
+
+
 def take(args) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
@@ -1316,13 +1330,15 @@ def take(args) -> list[str]:
                     raise ChantierError(f"a stack driver is recorded ({d['stack_agent']}); one "
                                         "that ended: `agents set stack -` first")
                 check_budget(b)
+                reopened = _reopen(b)
                 b.log("take", None, note=args.note)
                 crs = _chain(d)
-                return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + [
+                return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + reopened + [
                     f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
                     f"base {_stack_ref(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
             c = b.cr(args.cr)
             check_take(b, c, args.note)
+            reopened = _reopen(b)
             if c["status"] in {"ready", "blocked"}:
                 c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
             b.touch(c, status="working", blocked_reason=None)
@@ -1332,7 +1348,7 @@ def take(args) -> list[str]:
                 c.setdefault("archive_stamp", stamp())  # the archive's name, kept from the first take
             _work(repo, c).mkdir(parents=True, exist_ok=True)
             facts = _facts(repo, batch, d, c)
-    return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)"] + facts
+    return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)"] + reopened + facts
 
 
 def round_(args) -> list[str]:
@@ -1695,15 +1711,16 @@ def cancel(args) -> list[str]:
 
 def pause(args) -> list[str]:
     """The batch's end of work: it is paused, and the cost to date is computed and printed;
-    `close` prices the final one. A paused batch is not paused again: `order add` sets it
-    running first."""
+    `close` prices the final one. A paused batch is not paused again: `order add` adds work,
+    the first `take` sets it running, then `pause` runs again."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
         if b.data["status"] == "paused":
             raise ChantierError(f"{batch} is already paused (at {b.data.get('paused')}): "
-                                "`order add` sets it running again, then `pause` runs again")
+                                "`order add` adds work, the first `take` sets it running again, "
+                                "then `pause` runs again")
         paused = now()
         live_ids = [c["id"] for c in b.data["crs"] if c["status"] in LIVE]
         pending = [o["id"] for o in b.data["orders"] if not o["done"]]
