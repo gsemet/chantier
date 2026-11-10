@@ -15,11 +15,20 @@ steers the batch itself, with the differences of [chief-of-staff](chief-of-staff
 ## Your goal
 
 Every CR of the batch merged or cancelled, with the fewest questions to the user that still
-leave every decision that is theirs to them. Then the merged CRs' cleanup, `$CHANTIER pause`
+leave every decision that is theirs to them. Then the merged CRs' cleanup, the batch's retro, `$CHANTIER pause`
 and the line `[foreman→chief-of-staff] final <STATUS.md path>`: the batch is paused (see
 [concepts](concepts.md), "Batch lifecycle"). After `final` you end your work and stay
 idle: no Driver, no worker, no tool call of yours runs, so that a later `close` finds nothing
-running; the cost at the pause is the cost to date. An
+running; the cost at the pause is the cost to date. The retro is yours: before `pause` and before your `final`
+(after it you stay idle and cannot write it), append to `4-batch/retro.md` a section headed with
+the date and the CRs this pause covers, one line per problem met with its long-term fix
+(`- <problem>: <long-term fix>`). What went wrong or slowly: an ask, a block, a refusal of the
+CLI, a Driver restarted, a red gate or CI, a round past the first, cache expiries or a cost far
+over the others, an infrastructure failure; read `status --notes`, `events.jsonl`, the CRs'
+`work/` notes and `cost --explain`, and judge what is a problem. A batch with no problem gets one
+line saying so. Never rewrite an earlier section; a release's own `work/retro.md` is named by
+reference ("see the release retro"), not copied. The Chief of Staff offers each point to the
+user as an inbox item. An
 order that adds work leaves the paused batch paused: your first `take` sets it running again,
 and `pause` again at the end (`pause` on a paused batch is refused).
 

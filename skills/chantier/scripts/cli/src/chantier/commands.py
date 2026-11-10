@@ -36,7 +36,7 @@ from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
                     next_cr_number, normalize_batch, now, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
-from .status import write_dashboard, write_final_pages
+from .status import shape_word, steering_word, write_dashboard, write_final_pages
 
 HOSTS = ("claude", "copilot")
 AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
@@ -1169,8 +1169,8 @@ def status(args) -> tuple[list[str], int]:
     view = SimpleNamespace(data=d)  # the rails read only `.data`
     n_live = len(held(view))
     queued = sum(1 for c in d["crs"] if c["status"] == "queued")
-    lines = [f"{d['id']} {d['status']} {d['mode']} live {n_live}/{d['slots']} queued {queued} "
-             f"steering {d.get('steering', 'foreman')} "
+    lines = [f"{d['id']} {d['status']} steering {steering_word(d.get('steering'))} "
+             f"shape {shape_word(d.get('mode'))} live {n_live}/{d['slots']} queued {queued} "
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
              f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
              f" spent {spent_text(d)}"
@@ -1960,10 +1960,10 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
             since, until = _window(d, uuid)
             got = costs.session_costs(costs.transcript_path(repo.session_root, uuid), since, until,
                                       kind="chief-of-staff" if steering else "foreman",
-                                      allow_empty=len(uuids) > 1)
+                                      allow_empty=len(uuids) > 1, split=steering)
         if steering:
             got[0]["type"] = "chief-of-staff"
-            got = costs.without_spec_writers(got)  # the Chief of Staff's line keeps them
+            got = costs.without_spec_writers(got)  # grill and specifications: their own line
         rows += got
     if not any(r["calls"] for r in rows):
         raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)
@@ -1994,31 +1994,75 @@ def _foreman_uuid(d: dict) -> list[str]:
     return uuids
 
 
-def _chief_line(repo: Repo, d: dict) -> str:
-    """The Chief of Staff's session, priced apart: it is never in `spent_usd` nor in the budget."""
+STEER_OUT = "Chief of Staff, steering the batch (outside the budget)"
+GRILL_OUT = "Chief of Staff, grill and specifications with the user (outside the budget)"
+WHOLE = "Chief of Staff, whole session"
+
+
+def _chief_unknown(cause: str) -> list[str]:
+    """The Chief of Staff's lines when nothing can be measured: unknown, never $0.00."""
+    why = f"unknown: {cause}" if cause.startswith("not measured") else f"unknown ({cause})"
+    return [f"{STEER_OUT}: {why}", f"{GRILL_OUT}: {why}",
+            f"{WHOLE}: {why}" + ("; compactions: not measured on this host"
+                                 if "this host" in cause else "")]
+
+
+def _chief_line(repo: Repo, d: dict) -> list[str]:
+    """The Chief of Staff's session, priced apart from the spend and the budget, in the lines
+    that add up: what it spent since the batch opened, steering and grilling apart, and the whole
+    session. What a direct batch's steering row holds is that row's, never counted twice."""
     chiefs = chief_sessions(d)
-    if not chiefs or d.get("host") == "copilot":
-        return "Chief of Staff: not measured"
-    since_usd = whole_usd = 0.0
-    context = 0
+    if d.get("host") == "copilot":
+        return _chief_unknown("not measured on this host")
+    if not chiefs:
+        return _chief_unknown("no Chief of Staff transcript recorded")
+    steer = [0, 0.0]  # calls, dollars since the batch opened, the steering row's own left out
+    grill = [0, 0.0]
+    writers = untimed = compactions = 0
+    whole_usd, context, inside_calls = 0.0, 0, 0
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
         path = costs.transcript_path(repo.session_root, uuid)
         try:
             whole = costs.session_costs(path, kind="chief-of-staff")
             since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
-                                        allow_empty=True)
-            # what it spent steering is the steering row's: counted there, not twice
+                                        allow_empty=True, split=True)
             steered = costs.without_spec_writers(costs.session_costs(
-                path, *_window(d, uuid), kind="chief-of-staff",
-                allow_empty=True)) if uuid in _claimed(d) else []
+                path, *_window(d, uuid), kind="chief-of-staff", allow_empty=True,
+                split=True)) if uuid in _claimed(d) else []
         except ChantierError as e:
-            return f"Chief of Staff: not measured ({e})"
-        inside = sum(r["usd"] for r in steered)
-        since_usd += sum(r["usd"] for r in since) - inside
+            return _chief_unknown(str(e))
+        main = since[0]
+        for r in since:
+            if costs.is_spec_writer(r):
+                writers += 1
+                grill[0] += r["calls"]
+                grill[1] += r["usd"]
+            else:
+                steer[0] += r["calls"]
+                steer[1] += r["usd"]
+        grill[0] += main["grill"]["calls"]
+        grill[1] += main["grill"]["usd"]
+        compactions += main["compactions"]
+        untimed += main["untimed"]
+        inside = sum(r["usd"] for r in steered)  # the steering row: counted in the spend
+        steer[0] -= sum(r["calls"] for r in steered)
+        steer[1] -= inside
+        inside_calls += sum(r["calls"] for r in steered)
         whole_usd += sum(r["usd"] for r in whole) - inside
         context = whole[0]["last_context"]  # the current session's, the last
-    return (f"Chief of Staff: ${since_usd:.2f} since the batch opened, "
-            f"${whole_usd:.2f} the whole session, context {context:,} tokens")
+    lines = []
+    if not steer[0] and untimed:  # the only calls of this part cannot be placed: unknown, not $0.00
+        lines.append(f"{STEER_OUT}: unknown ({untimed} calls without a time, not placed)")
+    elif steer[0] or not inside_calls:  # a direct batch's steering is its row, not a line
+        lines.append(f"{STEER_OUT}: ${steer[1]:.2f} since the batch opened ({steer[0]} calls)")
+    lines += [f"{GRILL_OUT}: ${grill[1]:.2f} since the batch opened ({grill[0]} calls, "
+              f"{writers} spec-writers)",
+              f"{WHOLE}: ${whole_usd:.2f}, context {context:,} tokens; not counted: "
+              f"{compactions} compactions since the batch opened, which leave no record "
+              f"(about ${COMPACTION_USD:.2f} each)"]
+    if untimed and steer[0]:
+        lines.append(f"Chief of Staff: {untimed} calls without a time, not placed")
+    return lines
 
 
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
@@ -2080,12 +2124,15 @@ def _kind(r: dict) -> str:
     return "Worker" if r["parent"] else "Driver"
 
 
-STEERING = "Chief of Staff (steering)"
+STEERING = "Chief of Staff, steering the batch"
+UNSPLIT = "Chief of Staff, steering the batch, grill included (not split on this host)"
 
 
 def _label(r: dict) -> str:
     """The steering row of a direct batch is the Chief of Staff's, a Foreman's is the Foreman's."""
-    return STEERING if r["agent"] == "main" and r.get("type") == "chief-of-staff" else _kind(r)
+    if r["agent"] == "main" and r.get("type") == "chief-of-staff":
+        return STEERING if "grill" in r else UNSPLIT  # Copilot rows are not split
+    return _kind(r)
 
 
 def _steers(mains: list[dict]) -> str:
@@ -2152,7 +2199,7 @@ EXPIRY_NOTE = ("A cache has expired when the gap from the agent's previous call 
 
 
 def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
-                  by_driver: dict[str, list], chief: str) -> list[str]:
+                  by_driver: dict[str, list], chief: list[str]) -> list[str]:
     """What the user reads at the end of a batch; the detail is in `cost`. The split is the
     breakdown of `cost` summed by kind: the Foreman, the Drivers alone, the workers alone. The
     per-Driver figures say "with its workers". Amounts and shares add up as printed."""
@@ -2184,7 +2231,7 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
             *(f"Driver {k} with its workers: ${v[1]:.2f} ({v[0]} calls)" for k, v in
               sorted(by_driver.items(), key=lambda kv: -kv[1][1])
               if k != "foreman" and measured),
-            chief,
+            *chief,
             f"Not counted: compaction calls, which leave no record (about ${COMPACTION_USD:.2f} "
             "each)"]
 
@@ -2221,7 +2268,7 @@ def cost(args) -> list[str]:
            + (f" ({estimated} estimated, not billed)" if estimated else "")]
     for (label, calls, _, why), m in zip(lines, mills):
         out += [f"{label}: ${m / 1000:.3f} ({calls} calls)"] + ([why] if why else [])
-    out.append(chief)
+    out += chief
     if args.explain:
         n = sum(r.get("compactions", 0) for r in rows)
         out += [EXPIRY_NOTE if all("models" in r for r in rows) else

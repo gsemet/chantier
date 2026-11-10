@@ -401,8 +401,9 @@ prices the transcripts with its own rates for Opus, Sonnet and Haiku 5.5; on Cop
 per-call costs from
 [copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
 PyPI, and flags calls that were estimated rather than billed. In direct mode the steering is one
-`Chief of Staff (steering)` line, counted in the batch's spend and budget as a Foreman's is; the
-rest of the Chief of Staff's session stays apart. A missing transcript, an unknown
+`Chief of Staff, steering the batch` line, counted in the batch's spend and budget as a Foreman's is; the
+Chief of Staff's grill and specifications with you, and the rest of its session, stay apart on their own lines (a part that
+cannot be measured says `unknown`, and the compactions are counted, not priced). A missing transcript, an unknown
 model or an unpriced call is an error, never a guess. The Foreman records the spend at each
 heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
 

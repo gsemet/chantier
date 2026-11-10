@@ -24,7 +24,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
 | a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode comes from the session | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
-| the `final` message, the batch paused | the Completion report (the cost to date from `cost` and `cost --explain`) | While it runs |
+| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
@@ -137,7 +137,7 @@ nothing dropped, nothing invented. Its open questions go to the user; record the
 only on the user's word, specified or not; until then it stays in the inbox or the backlog. A
 `3-ready` CR keeps no priority: it is one flat set, the next batch's candidates (`triage
 <3-ready-folder> --priority Pn` puts it back in the backlog). The spec-writer takes no slot and no
-budget of any batch; its cost is on your line. A release CR's and a fix's specification stay
+budget of any batch; its cost is on the `grill and specifications with the user` line. A release CR's and a fix's specification stay
 yours. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link.
 
@@ -335,7 +335,7 @@ Only in the turn where the user gave the go:
 - **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".
 - **Compacting:** once per session, advise the user to set the host's auto-compact window, if
   its reference names one (it says which command and setting, and names none when none exists).
-  When the talk moves to another subject and your context size (the `Chief of Staff:` line) is
+  When the talk moves to another subject and your context size (the `Chief of Staff, whole session` line) is
   above 100k tokens, advise the host's compact command, with a line ready to copy that says what
   to keep: the running batch, the open CRs, the decisions not yet
   written. Never in the middle of a subject.
@@ -369,7 +369,13 @@ Only in the turn where the user gave the go:
   - During a release: "auto"; the draft's link to review as soon as `status` shows it.
 - **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report with the cost to date: the Foreman has removed the merged CRs' worktrees and branches,
-  paused the batch, and stays idle. Give the Completion report. New work for the paused batch is
+  paused the batch, and stays idle. The Foreman wrote the retro of the batch in `4-batch/retro.md`
+  before its `final` (a section for this pause: one line per problem met, `<problem>: <long-term
+  fix>`); read it. Give the Completion report, with its Retro offered: each point numbered, and
+  on the user's word for a point, `$CHANTIER file "<the point>"` files it in `1-inbox`. A point
+  that matches an item already in the inbox or the backlog is named with that item, not offered
+  twice. A release's `work/retro.md` is offered once, with the batch's. Offer the Retro before
+  any `close`, which deletes `4-batch/retro.md`. New work for the paused batch is
   `order add`, once per CR: the batch stays paused until the Foreman's first `take`; send the
   Foreman the usual order once all are added, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
@@ -445,8 +451,13 @@ these differences.
   <n>`; carry `--epoch <n>` on every steering command (`take`, `agents set`, `status
   --refresh`, `order done`, `order merged`, `cancel`, `pause`) and arm the same heartbeat, as
   your host's reference says. The CLI prices your transcript from that claim, as one `Chief of
-  Staff (steering)` row; the `Chief of Staff:` line then leaves that window out, and the steering
-  counts in the spend and the budget as a Foreman's does.
+  Staff, steering the batch` row, which counts in the spend and the budget as a Foreman's does;
+  the turns that grill with the user or write specifications (a turn that names a CR's
+  `01-intent.md`, `02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a
+  spec-writer) leave that row for the `grill and specifications with the user` line, outside the
+  budget; a `steering the batch (outside the budget)` line also shows what you spent since the
+  batch opened outside your claim window (before the claim, after a Foreman took over); the `Chief of Staff, whole session` line leaves the steering window out and counts the
+  compactions since the batch opened.
 - **The Drivers.** You start them, several in parallel on the free slots, in the background, and
   hear their hand-backs, as the Foreman's card says. "Never message a Driver" does not hold for the
   Drivers of a batch you steer.
@@ -480,8 +491,14 @@ these differences.
     fork becomes a Griller" (the fork is the user's step; explain it, never do it).
   - A paused batch is not running: all of this lifts at the pause.
 - **The pause.** Once every CR is merged or cancelled, remove the merged CRs' worktrees and
-  branches (your Foreman's work in direct mode), then run `$CHANTIER pause --epoch <n>`: the batch
-  is paused. Give the Completion report. Grill the inbox ideas with the user and, on their word,
+  branches (your Foreman's work in direct mode), write the batch's retro in `4-batch/retro.md`
+  (a section headed with the date and the CRs it covers: one line per problem met with its
+  long-term fix, `- <problem>: <long-term fix>`; what went wrong or slowly, from `status
+  --notes`, `events.jsonl`, the CRs' `work/` notes and `cost --explain`; one line saying so when
+  there was none; never rewrite an earlier section; a release's retro is named by reference, not
+  copied), then run `$CHANTIER pause --epoch <n>`: the batch is paused. Give the Completion
+  report, with its Retro offered as the Foreman-mode pause says (each point numbered, filed with
+  `$CHANTIER file` on the user's word, before any `close`). Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
   running again, and `pause` runs again at the end. `close` stays the
   user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session
@@ -516,8 +533,7 @@ Rules only; the models judge the rest.
 You may start a subagent of your own for an exploration, a prototype or a study, in this
 session; its result is a report or a study. It never starts an implementation: no commit, no
 push, no PR, nothing in a CR's worktree, and a prototype lives in a temporary folder and is
-thrown away. Implementation goes through a CR and the Foreman. Its cost is in your line of the
-cost table, outside the budget. In Foreman mode, still no message to a Driver.
+thrown away. Implementation goes through a CR and the Foreman. Its cost is on the `steering the batch` line (outside the budget in Foreman mode). In Foreman mode, still no message to a Driver.
 
 - **The offer.** On the Foreman's `ready` that is the last of a stack, when no CR of the batch
   is working, end the Progress report with the offer of a demo (`status-layout.md`).
@@ -592,7 +608,9 @@ raise of the budget.
 
 `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
-read `work/retro.md` in the release CR's folder (`4-batch/3-done/`) and offer to file each proposal as a CR.
+read `work/retro.md` in the release CR's folder (`4-batch/3-done/`); it is offered once, in the Retro
+of the Completion report at the pause that follows, with the batch's own points (a point filed
+becomes an inbox item).
 
 ## Never
 

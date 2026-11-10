@@ -172,8 +172,8 @@ section of `AGENTS.md`), so your colleagues get the same one. The next batch use
 `chantier cost` measures the steering session and every agent under it, in one line for the
 steering session, one per Driver type and one per worker type (or by CR), from the transcripts
 (Claude) or the billed records (Copilot). With a Foreman, the first line is the Foreman; in direct
-mode it is `Chief of Staff (steering)`, counted in the batch's spend and budget as a Foreman's
-is. A missing transcript or an unknown model is an error, never an estimate. The rest of your own
+mode it is `Chief of Staff, steering the batch`, counted in the batch's spend and budget as a Foreman's
+is. Your Chief of Staff's grill and specifications with you are a line of their own, outside the budget. A missing transcript or an unknown model is an error, never an estimate. The rest of your own
 session is priced apart. Ask "why did it cost that?" and the figures are explained from what was
 measured: the calls, the model, the shares of cost, the calls after the cache expired, the
 restarted Drivers.

@@ -91,9 +91,9 @@ Chief of Staff the way it reaches a Foreman is not yet proved until a direct bat
 
 ## What it costs
 
-The steering is one `Chief of Staff (steering)` line in the cost table. It counts in the batch's
-spend and budget as a Foreman's does; the rest of your Chief of Staff session stays apart, on the
-`Chief of Staff:` line, and is never in the batch's spend.
+The steering is one `Chief of Staff, steering the batch` line in the cost table. It counts in the batch's
+spend and budget as a Foreman's does; the grill and specifications with you, and the whole
+session (with its compaction count), stay apart on their own `Chief of Staff, ...` lines and are never in the batch's spend.
 
 ## Switch to Foreman mode
 

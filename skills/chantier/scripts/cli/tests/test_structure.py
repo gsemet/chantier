@@ -307,7 +307,8 @@ def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch
     assert json.loads(batch.read_text(encoding="utf-8"))["steering"] == "direct"
     assert "Steering: direct" in (batch.parent / "brief.md").read_text(encoding="utf-8")
     assert " steering direct " in chantier("status")[1][0]
-    assert "steering direct" in (batch.parent / "STATUS.md").read_text(encoding="utf-8")
+    assert "steered by the Chief of Staff (direct mode) · a stack of PRs" in (
+        batch.parent / "STATUS.md").read_text(encoding="utf-8")
     for kind, note in (("add", str(second)), ("qa", "test it")):
         code, _, err = chantier("order", kind, "--note", note)
         assert code == 2 and "a running direct batch is strict" in err
