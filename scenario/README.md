@@ -51,7 +51,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   a cycle), a chain started on the ready CR's branch and undone by `--note -`;
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch, which stays paused until the first `take`, then paused again, and `close` (priced with one `Chief of
-  Staff (steering)` row and a Chief of Staff line that leaves the steering window out, `close` not
+  Staff, steering the batch` row, a grill and specifications line and a whole-session line that leaves the steering window out, `close` not
   blocked by the Chief of Staff's own transcript but by a Driver that writes), then a Foreman
   claiming a later epoch from another transcript: the steering switches and the old epoch is refused;
 - the seat: `seat take` refused to a second session, taken over only with `--over` naming the

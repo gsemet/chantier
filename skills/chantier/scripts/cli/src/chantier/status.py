@@ -269,7 +269,7 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
 
 def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
     return {"schema": SCHEMA, "updated": now(), "batch": d["id"], "folder": folder.name,
-            "state": d["status"], "mode": d.get("mode"), "steering": d.get("steering", "foreman"),
+            "state": d["status"], "mode": d.get("mode"), "steering": d.get("steering"),
             "spent_usd": d.get("spent_usd"), "budget_usd": d.get("budget_usd"),
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
@@ -284,9 +284,22 @@ def _budget(v: dict) -> str:
     return ("unknown" if spent is None else f"${spent:.2f}") + (f" of ${budget:g}" if budget else "")
 
 
+def steering_word(steering) -> str:
+    """Who steers the batch, in the words the user reads; a batch that says nothing is unknown."""
+    return {"direct": "direct (the Chief of Staff)", "foreman": "Foreman"}.get(steering, "unknown")
+
+
+def shape_word(mode) -> str:
+    return mode if mode in ("stack", "parallel") else "unknown"
+
+
 def batch_markdown(v: dict) -> str:
+    who = {"direct": "steered by the Chief of Staff (direct mode)",
+           "foreman": "steered by a Foreman"}.get(v.get("steering"), "steering unknown")
+    shape = {"stack": "a stack of PRs", "parallel": "independent PRs (parallel)"}.get(
+        v.get("mode"), "shape unknown")
     lines = [f"# {v['batch']}: {v['state']}", "",
-             f"Updated {v['updated']} · steering {v.get('steering', 'foreman')} · spent {_budget(v) if v['priced'] else 'unknown'}"
+             f"Updated {v['updated']} · {who} · {shape} · spent {_budget(v) if v['priced'] else 'unknown'}"
              f"{' (to date)' if v['paused'] and v['priced'] else ''} · "
              f"{v['asks_unread']} asks unread · "
              f"{v['orders_pending']} orders pending", "",

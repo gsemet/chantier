@@ -84,15 +84,63 @@ def _when(text, path: Path, number: int) -> datetime | None:
     return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
-def usage(path: Path, since: str = "", until: str = "") -> dict:
-    """A transcript's calls from `since` to `until`: a session can have run another batch."""
-    row = {"calls": 0, "usd": 0.0, "model": "?", "models": set(), "w5m": 0, "w1h": 0, "read": 0,
-           "out": 0, "wakes": 0, "wake_context": 0, "peak_context": 0, "last_context": 0,
-           "usd_in": 0.0, "usd_write": 0.0, "usd_read": 0.0, "usd_out": 0.0,  # dollars by kind
-           "compactions": 0, "timed": 0, "expired": 0}
+GRILL_NAMES = ("01-intent.md", "02-answers.md", "03-change-spec.md", "work/specifying")
+
+
+def _grill_use(block) -> bool:
+    """Whether a tool use belongs to the grill and the specifications: its input names a CR's
+    intent, answers, specification or `work/specifying` marker, or it starts a spec-writer."""
+    if not isinstance(block, dict) or block.get("type") != "tool_use":
+        return False
+    given = block.get("input")
+    if isinstance(given, dict) and str(given.get("subagent_type", "")).endswith("spec-writer"):
+        return True
+    text = json.dumps(given).replace("\\\\", "/")  # a Windows path, escaped by JSON
+    return any(name in text for name in GRILL_NAMES)
+
+
+def _new_row() -> dict:
+    return {"calls": 0, "usd": 0.0, "model": "?", "models": set(), "w5m": 0, "w1h": 0, "read": 0,
+            "out": 0, "wakes": 0, "wake_context": 0, "peak_context": 0, "last_context": 0,
+            "usd_in": 0.0, "usd_write": 0.0, "usd_read": 0.0, "usd_out": 0.0,  # dollars by kind
+            "compactions": 0, "timed": 0, "expired": 0, "untimed": 0}
+
+
+def _add(row: dict, c: dict) -> None:
+    t = c["tokens"]
+    row["model"] = c["model"]
+    row["calls"] += 1
+    for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
+        row[k] += v
+    row["models"].add(c["model"])
+    row["usd"] += sum(c["parts"])
+    row["usd_in"] += c["parts"][0]
+    row["usd_write"] += c["parts"][1] + c["parts"][2]
+    row["usd_read"] += c["parts"][3]
+    row["usd_out"] += c["parts"][4]
+    if c["expired"] is not None:  # measured: the gap since the agent's previous call
+        row["timed"] += 1
+        row["expired"] += c["expired"]
+    row["peak_context"] = max(row["peak_context"], sum(t[:4]))
+    row["last_context"] = sum(t[:4])
+    if c["woke"]:
+        row["wakes"] += 1
+        row["wake_context"] += sum(t[:4])
+
+
+def usage(path: Path, since: str = "", until: str = "", split: bool = False) -> dict:
+    """A transcript's calls from `since` to `until`: a session can have run another batch.
+
+    `split`: the calls of the turns that grill with the user or write specifications (a turn is
+    from a wake to the next, attributed whole) go to `row["grill"]`, a row of the same shape; the
+    row itself keeps the others. A call with no time cannot be placed in a window: with `split`
+    and a window it is in neither, and `untimed` counts it."""
+    row = _new_row()
     start, end = _when(since, path, 0), _when(until, path, 0)
     seen = set()
-    previous, lifetime = None, 0  # the last call's time, and how long its cache write lives
+    calls: list[dict] = []
+    grill_turns: set[int] = set()
+    turn = 0
     woken = False  # a prompt, a message or a notification came in; a tool result is the same turn
     for number, line in enumerate(_transcript_lines(path), 1):
         if not line.strip():
@@ -106,7 +154,14 @@ def usage(path: Path, since: str = "", until: str = "") -> dict:
             raise ChantierError(f"invalid Claude transcript record {path}:{number}",
                                 EXIT_EXTERNAL)
         when = _when(d.get("timestamp"), path, number)
-        if (start and when and when < start) or (end and when and when > end):
+        inside = not ((start and when and when < start) or (end and when and when > end))
+        if d.get("type") == "user" and _wakes(d):
+            turn += 1
+        if d.get("type") == "assistant" and isinstance(d.get("message"), dict):
+            content = d["message"].get("content")  # one record per block, the same message id
+            if isinstance(content, list) and any(_grill_use(b) for b in content):
+                grill_turns.add(turn)
+        if not inside:
             continue  # outside the window: neither a call nor a wake
         if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
             row["compactions"] += 1  # the compaction call itself leaves no priced record
@@ -137,40 +192,36 @@ def usage(path: Path, since: str = "", until: str = "") -> dict:
         if not any(t):
             continue  # a record without tokens
         seen.add(message_id)
-        row["model"] = model
-        row["calls"] += 1
-        for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
-            row[k] += v
-        row["models"].add(model)
-        parts = [a * b / 1e6 for a, b in zip(t, PRICE[_family(model, sum(t[:4]))])]
-        row["usd"] += sum(parts)
-        row["usd_in"] += parts[0]
-        row["usd_write"] += parts[1] + parts[2]
-        row["usd_read"] += parts[3]
-        row["usd_out"] += parts[4]
-        if previous and when and lifetime:  # measured: the gap since this agent's previous call
-            row["timed"] += 1
-            row["expired"] += (when - previous).total_seconds() > lifetime
-        previous = when
+        calls.append({"turn": turn, "when": when, "model": model, "tokens": t, "woke": woken,
+                      "parts": [a * b / 1e6 for a, b in zip(t, PRICE[_family(model, sum(t[:4]))])]})
+        woken = False
+    grill = _new_row() if split else None
+    previous, lifetime = None, 0  # the last call's time, and how long its cache write lives
+    for c in calls:
+        c["expired"] = None
+        if previous and c["when"] and lifetime:
+            c["expired"] = (c["when"] - previous).total_seconds() > lifetime
+        previous = c["when"]
+        t = c["tokens"]
         lifetime = CACHE_1H if t[2] else CACHE_5M if t[1] else lifetime
-        row["peak_context"] = max(row["peak_context"], sum(t[:4]))
-        row["last_context"] = sum(t[:4])
-        if woken:
-            row["wakes"] += 1
-            row["wake_context"] += sum(t[:4])
-            woken = False
+        row["untimed"] += c["when"] is None
+        if split and c["when"] is None and (start or end):
+            continue  # not placed in the window: counted, in neither share
+        _add(grill if split and c["turn"] in grill_turns else row, c)
+    if split:
+        row["grill"] = grill
     return row
 
 
 def session_costs(main: Path, since: str = "", until: str = "", kind: str = "foreman",
-                  allow_empty: bool = False) -> list[dict]:
+                  allow_empty: bool = False, split: bool = False) -> list[dict]:
     """One row for the main transcript (`kind`: the Foreman or the Chief of Staff) and one per
     subagent with calls in the window. A window without a call is an error unless allowed."""
     label = kind.replace("-", " ").capitalize()
     if not main.is_file():
         raise ChantierError(f"{label} transcript not found: {main}", EXIT_EXTERNAL)
-    foreman = usage(main, since, until)
-    if not foreman["calls"] and not allow_empty:
+    foreman = usage(main, since, until, split)
+    if not foreman["calls"] + (foreman["grill"]["calls"] if split else 0) and not allow_empty:
         raise ChantierError(f"no priced calls in {label} transcript: {main}", EXIT_EXTERNAL)
     rows = [{"agent": "main", "type": kind, "description": "", **foreman}]
     sub = main.with_suffix("") / "subagents"
@@ -190,7 +241,11 @@ def session_costs(main: Path, since: str = "", until: str = "", kind: str = "for
 def without_spec_writers(rows: list[dict]) -> list[dict]:
     """The Chief of Staff's subagents of type spec-writer (`spec-writer`, `chantier:spec-writer`,
     `chantier-spec-writer`) belong to no batch: they stay on the Chief of Staff's own line."""
-    return [r for r in rows if not str(r.get("type", "")).endswith("spec-writer")]
+    return [r for r in rows if not is_spec_writer(r)]
+
+
+def is_spec_writer(row: dict) -> bool:
+    return str(row.get("type", "")).endswith("spec-writer")
 
 
 def copilot_home() -> Path:

@@ -32,7 +32,9 @@ leaves the Foreman's heartbeat alone.
 On a CR ready or merged and on "status?":
 
 - a header line (the batch's number and
-  name, its mode, the slots in use, the CRs done, the spend and the budget);
+  name, who steers it and its shape, the slots in use, the CRs done, the spend and the budget):
+  who steers (`direct (the Chief of Staff)` or `Foreman`) and the shape (`stack` or `parallel`)
+  are copied from the first line of `$CHANTIER status`, never judged; `unknown` stays `unknown`;
 - a legend line of
   the six icons, each with its word, which opens the table;
 - a table, one row per
@@ -57,15 +59,20 @@ the Progress report with the offer of a demo of what the stack delivers.
 
 On the `final` message (Foreman mode) or right after your own `pause` (direct mode):
 
-- a header line (the batch, the CRs merged out of how many, the spend and the
-  budget);
+- a header line (the batch, who steers it and its shape as in a Progress report, the CRs
+  merged out of how many, the spend and the budget);
 - a table, one row per CR: CR, subject, result, PR, rounds, cost;
 - the cost table (see Cost), then its explanation from `cost --explain`, both run at the pause:
   the cost to date;
 - what the batch did not prove;
-- a last line, **For you:** the batch is paused, the inbox ideas
-  ready for a grill (each by its slug), and, if it fits, an invitation to add other CRs to this
-  batch later or to close it ("close the batch")
+- the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
+  `work/retro.md` if the batch had a release, each point once), one numbered line each,
+  `<n>. <problem>: <long-term fix>`; a point that matches an inbox or backlog item names that
+  item;
+- a last line, **For you:** the batch is paused, which Retro points to file as inbox items
+  (by their numbers), the inbox ideas ready for a grill (each by its slug), and, if it fits, an
+  invitation to add other CRs to this batch later or to close it ("close the batch"); the
+  Retro is offered before the close, which deletes `4-batch/retro.md`
   (only a Tips line can follow it, see below).
 
 ## Cost
@@ -73,16 +80,24 @@ On the `final` message (Foreman mode) or right after your own `pause` (direct mo
 The cost table of a report: on a CR ready or merged, on "status?" and at the pause, the
 lines of `$CHANTIER cost`, as printed and in that order (a CR's own figure is the last field of
 its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman
-(in direct mode, `Chief of Staff (steering)`), one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff:`
-line of that output, with its two figures (since the batch opened, the whole session) and its
-context size. The CLI knows who is who from the record, not from a role name: the Foreman is
+(in direct mode, `Chief of Staff, steering the batch`), one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff, ...` lines of that output:
+`steering the batch` (Foreman mode: what you spent relaying and reporting; in direct mode the
+line outside the budget appears too when you spent outside your claim window, before the claim
+or after a Foreman took over; when the only calls of that part carry no time, it says `unknown
+(<n> calls without a time, not placed)`), `grill and
+specifications with the user` (every call of a turn that names a CR's `01-intent.md`,
+`02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a spec-writer, and the
+spec-writers' own calls; a turn is attributed whole), each since the batch opened, and `whole
+session` with its context size and its compaction count. In a direct batch the grill and
+specifications are outside the batch's spend, as the spec-writer is. The CLI knows who is who from the record, not from a role name: the Foreman is
 the main agent (the steering session), a Driver has no parent, a worker has one, and a Driver of the user's own gets
 its line under the type the host gives it. You group, add and regroup nothing: no orchestration,
-implementation or review lines. Give no figure when it fails; `not measured` stays `not
-measured` (on Copilot, where the host gives no parent link, an agent's line says only its
-type). A Driver's line covers its own rebases, gates and file writes, besides the workers it
-starts, which have their own lines. Your session is never in the batch's spend nor in its
-budget.
+implementation or review lines. Give no figure when it fails; `not measured` and `unknown` stay `not measured` and
+`unknown` (never `$0.00`; the compactions leave no record: they are counted, not priced, and
+the count is said with them; calls with no time are said as such; on Copilot, where the host gives no parent link, an agent's line says only its
+type, and the Chief of Staff's two lines say unknown). A Driver's line covers its own rebases, gates and file writes, besides the workers it
+starts, which have their own lines. Your session is in the batch's spend and budget only as the steering row of a direct
+batch.
 
 - **Explaining the figures:** in the Completion report, and when the user asks why it cost
   that, run `$CHANTIER cost --explain` and say it in a few plain lines in the user's language:

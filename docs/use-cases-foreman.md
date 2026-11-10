@@ -131,8 +131,8 @@ attempts, you can allow more up front, always within a budget:
 The release's own PR is merged by the Foreman too, on your approval or under that grant; every
 other PR is yours to merge.
 
-Once the release is out, the driver writes a retrospective and proposes long-term fixes; each
-becomes a CR only on your word.
+At each pause of the batch, and once a release is out, a retrospective lists each problem met with
+its long-term fix, one line each; each point becomes an inbox item only on your word.
 
 ## Recover after a restart
 

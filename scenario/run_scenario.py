@@ -714,10 +714,15 @@ def scenario(w: World) -> None:
     check("Claude cost prices the Foreman and each Driver",
           code == 0 and out[:2] == [f"{w.name}: $1.608 over 94 model calls",
                                     "foreman: $0.391 (30 calls)"]
-          and set(out[2:-1]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
-    check("the Chief of Staff's two figures and context size come apart from the batch's spend",
-          out[-1] == "Chief of Staff: $0.01 since the batch opened, $9.02 the whole session, "
-                     "context 22,010 tokens"
+          and set(out[2:-3]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
+    check("the Chief of Staff's lines (steering, grill and specifications, whole session with its "
+          "context size and compactions) come apart from the batch's spend",
+          out[-3] == "Chief of Staff, steering the batch (outside the budget): unknown (1 calls "
+                     "without a time, not placed)"
+          and out[-2] == "Chief of Staff, grill and specifications with the user (outside the budget): "
+                         "$0.00 since the batch opened (0 calls, 0 spec-writers)"
+          and out[-1] == "Chief of Staff, whole session: $9.02, context 22,010 tokens; not counted: "
+                         "0 compactions since the batch opened, which leave no record (about $0.12 each)"
           and abs(w.batch()["spent_usd"] - 1.608) < 0.001 and w.batch()["chief_transcript"]
           == "uuid-chief", str(out))
     w.chantier("status", "--refresh", "--batch", w.name)
@@ -732,7 +737,7 @@ def scenario(w: World) -> None:
           "Drivers (the agents that started others) and the workers",
           code == 0 and out[0] == "Total: $1.61 of a $50 budget"
           and out[1] == "Foreman $0.39 (24%), Drivers $0.91 (57%), workers $0.31 (19%)"
-          and out[2].startswith("Most: CR-10") and out[-2].startswith("Chief of Staff: $0.01")
+          and out[2].startswith("Most: CR-10") and out[-4].startswith("Chief of Staff, steering the batch (out")
           and out[-1].startswith("Not counted: compaction calls")
           and "Driver cr-driver with its workers: $1.22 (64 calls)" in out, str(out))
     amounts = [int(a.replace(".", "")) for a in re.findall(r"\$(\d+\.\d\d) \(", out[1])]
@@ -753,6 +758,7 @@ def scenario(w: World) -> None:
           "$0.30 so far" in archived and "(../../STATUS.md)" in archived
           and "- [x] Merged" in archived, archived)
     cost_audit(w)
+    foreman_chief_lines(w)
 
     note("\n## 10. Copilot cost")
     copilot_cost(w, d)
@@ -855,6 +861,49 @@ def seat_handover(w: World) -> None:
     w.reset()
 
 
+def foreman_chief_lines(w: World) -> None:
+    """Foreman mode: a timed Chief of Staff transcript (a steering call, a grill turn, a spec-writer
+    turn) prices into the two lines outside the budget, which add up to everything priced since
+    the batch opened and leave `spent_usd` alone."""
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    chief = w.root / "claude-projects" / slug / "uuid-chief.jsonl"
+    kept = chief.read_text(encoding="utf-8")
+    spent = w.batch()["spent_usd"]
+    opened = datetime.fromisoformat(w.batch()["created"].replace("Z", "+00:00"))
+
+    def at(minutes: int) -> str:
+        return (opened + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    def call(mid: str, stamp: str, *blocks) -> str:
+        return json.dumps({"type": "assistant", "timestamp": stamp, "message": {
+            "id": mid, "model": "claude-sonnet-5-5", "content": list(blocks), "usage": {
+                "input_tokens": 10, "output_tokens": 1_000_000, "cache_read_input_tokens": 20_000,
+                "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
+
+    def wake(stamp: str) -> str:
+        return json.dumps({"type": "user", "timestamp": stamp, "message": {"content": "go"}}) + "\n"
+
+    answers = {"type": "tool_use", "name": "Edit", "input": {"file_path": "x/02-answers.md"}}
+    writer = {"type": "tool_use", "name": "Agent", "input": {"subagent_type": "chantier:spec-writer"}}
+    try:
+        chief.write_text(wake(at(1)) + call("f-steer", at(2)) + wake(at(3)) + call("f-g1", at(4), answers)
+                         + wake(at(5)) + call("f-g2", at(6), writer), encoding="utf-8")
+        _, out = w.chantier("cost", "--batch", w.name)
+        steer = next((ln for ln in out if ln.startswith("Chief of Staff, steering the batch (outside")), "")
+        grill = next((ln for ln in out if ln.startswith("Chief of Staff, grill and")), "")
+        whole = next((ln for ln in out if ln.startswith("Chief of Staff, whole session")), "")
+        money = lambda ln: float(re.search(r"\$(\d+\.\d+)", ln)[1]) if ln else -1.0
+        a, b, total = money(steer), money(grill), money(whole)
+        check("Foreman mode: the Chief of Staff's two lines add up to everything priced since the "
+              "batch opened, each with its call count, and nothing of it is in the spend",
+              "(1 calls)" in steer and "(2 calls, 0 spec-writers)" in grill
+              and abs(a + b - total) <= 0.02 and abs(a * 2 - b) <= 0.02 and a > 0
+              and abs(w.batch()["spent_usd"] - spent) < 0.001, str(out))
+    finally:
+        chief.write_text(kept, encoding="utf-8")
+        w.chantier("cost", "--batch", w.name)  # the stored spend is the batch's own again
+
+
 def direct_batch(w: World) -> None:
     """A batch steered by the Chief of Staff itself, from `open` to `close`, priced with one steering
     row and a Chief of Staff line that leaves the steering window out; then a Foreman takes it over."""
@@ -907,8 +956,25 @@ def direct_batch(w: World) -> None:
           and "Steering: direct" in (w.folder() / "brief.md").read_text(encoding="utf-8"),
           str(w.last_out))
     _, out = w.chantier("status")
-    check("`status` and STATUS.md show the steering", " steering direct " in out[0]
-          and "steering direct" in (w.folder() / "STATUS.md").read_text(encoding="utf-8"), str(out))
+    check("`status` and STATUS.md show who steers and the shape",
+          " steering direct (the Chief of Staff) shape stack " in out[0]
+          and "steered by the Chief of Staff (direct mode) · a stack of PRs" in
+          (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+          and json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["steering"]
+          == "direct", str(out))
+    kept_batch = w.batch()
+    state = w.folder() / "batch.json"
+    for fields, words, what in (({"mode": "parallel"}, " shape parallel ", "parallel for a --parallel batch"),
+                                ({"steering": None}, " steering unknown ", "steering unknown, not foreman, "
+                                 "when batch.json has no steering")):
+        state.write_text(json.dumps({k: v for k, v in {**kept_batch, **fields}.items() if v is not None}))
+        _, out = w.chantier("status")
+        check(f"`status` says {what}", words in out[0], str(out))
+    w.chantier("order", "note", w.batch()["crs"][0]["id"], "--note", "a batch.json without a steering")
+    check("STATUS.json says null for a steering it does not know",
+          json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["steering"] is None
+          and "steering unknown" in (w.folder() / "STATUS.md").read_text(encoding="utf-8"))
+    state.write_text(json.dumps(kept_batch))
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
     w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
     edit(created=t0, foreman_claims=[{"transcript": "uuid-chief", "since": t1}])
@@ -926,8 +992,30 @@ def direct_batch(w: World) -> None:
     sub.mkdir(parents=True, exist_ok=True)
     # outside the window: an earlier session, then a call after the opening and before the claim;
     # inside it: two calls of the steering and three of its Driver
-    chief.write_text(msg("c-old", "2000-01-01T00:00:00.000Z") + msg("c-pre", "2026-03-01T00:10:00.000Z")
-                     + msg("c-in1", at(10)) + msg("c-in2", at(20)), encoding="utf-8")
+    def wake(stamp: str) -> str:
+        return json.dumps({"type": "user", "timestamp": stamp, "message": {"content": "go"}}) + "\n"
+
+    def uses(mid: str, stamp: str, *blocks) -> str:  # a call whose record carries tool uses
+        return json.dumps({"type": "assistant", "timestamp": stamp, "message": {
+            "id": mid, "model": "claude-sonnet-5-5", "content": list(blocks), "usage": {
+                "input_tokens": 10, "output_tokens": 1_000_000, "cache_read_input_tokens": 20_000,
+                "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
+
+    def boundary(stamp: str) -> str:
+        return json.dumps({"type": "system", "subtype": "compact_boundary", "timestamp": stamp}) + "\n"
+
+    answers = {"type": "tool_use", "name": "Edit", "input": {"file_path": "x/02-answers.md"}}
+    writer_use = {"type": "tool_use", "name": "Agent", "input": {"subagent_type": "chantier:spec-writer"}}
+    # before the opening: a compaction and a grill turn of an earlier batch (in the whole session
+    # only); in the window: two steering calls, a grill turn, a spec-writer turn, two compactions,
+    # and a call repeated after the first of them (same message id: priced once)
+    chief.write_text(
+        msg("c-old", "2000-01-01T00:00:00.000Z") + boundary("2000-01-01T00:00:01.000Z")
+        + wake("2000-01-01T00:00:02.000Z") + uses("c-oldg", "2000-01-01T00:00:03.000Z", answers)
+        + wake("2026-03-01T00:09:00.000Z") + msg("c-pre", "2026-03-01T00:10:00.000Z") + wake(at(5)) + msg("c-in1", at(10))
+        + msg("c-in2", at(20)) + wake(at(21)) + uses("c-g1", at(22), answers)
+        + wake(at(23)) + uses("c-g2", at(24), writer_use) + boundary(at(25)) + boundary(at(26))
+        + msg("c-g2", at(27)), encoding="utf-8")
     driver = sub / "agent-agent-1.jsonl"
     driver.write_text("".join(msg(f"d{i}", at(15)) for i in range(3)), encoding="utf-8")
     driver.with_suffix("").with_suffix(".meta.json").write_text(
@@ -941,31 +1029,50 @@ def direct_batch(w: World) -> None:
           str(w.batch()["status"]))
     _, out = w.chantier("cost")
     cost_out = out
-    lines = [ln for ln in out if ln.startswith(("Foreman", "Chief of Staff (steering)", "Driver"))]
+    ROW, STEER, GRILL, WHOLE = ("Chief of Staff, steering the batch: ",
+                                "Chief of Staff, steering the batch (outside the budget): ",
+                                "Chief of Staff, grill and specifications with the user (outside the budget): ",
+                                "Chief of Staff, whole session: ")
+    lines = [ln for ln in out if ln.startswith(("Foreman", ROW, "Driver"))]
     printed = [int(a.replace(".", "")) for ln in lines for a in re.findall(r"\$(\d+\.\d{3}) \(", ln)]
-    check("`cost` shows one 'Chief of Staff (steering)' row, no 'Foreman' row, and the lines add up",
-          [ln.split(":")[0] for ln in lines] == ["Chief of Staff (steering)", "Driver cr-driver"]
+    check("`cost` shows one 'Chief of Staff, steering the batch' row without the grill turns, no "
+          "'Foreman' row, and the lines add up",
+          [ln.split(":")[0] for ln in lines] == ["Chief of Staff, steering the batch", "Driver cr-driver"]
           and "(2 calls)" in lines[0] and "(3 calls)" in lines[1]
-          and out[0].split()[1] == f"${sum(printed) / 1000:.3f}", str(out))
-    steering = money(out, "Chief of Staff (steering)")
-    since, whole = money(out, "Chief of Staff:"), float(re.findall(r"\$(\d+\.\d+)", out[-1])[1])
-    check("the 'Chief of Staff' line leaves the steering window out: one call since the opening, "
-          "two in the whole session",
-          abs(since - steering / 2) <= 0.01 and abs(whole - steering) <= 0.01
-          and "since the batch opened" in out[-1], f"{out[-1]} (steering ${steering})")
+          and out[0].split()[1] == f"${sum(printed) / 1000:.3f}"
+          and not any("Chief of Staff (steering)" in ln for ln in out), str(out))
+    steering = money(out, ROW)
+    one = steering / 2  # a call of the Chief of Staff's transcript
+    a, b, whole = money(out, STEER), money(out, GRILL), money(out, WHOLE)
+    check("the Chief of Staff's lines add up: the steering row's two calls, one steering call "
+          "before the claim, the two grill and specification turns (the repeated call priced once), "
+          "and the whole session leaves the steering row out",
+          abs(a - one) <= 0.02 and abs(b - 2 * one) <= 0.02 and abs(whole - 5 * one) <= 0.03
+          and "(1 calls)" in next(ln for ln in out if ln.startswith(STEER))
+          and "(2 calls, 0 spec-writers)" in next(ln for ln in out if ln.startswith(GRILL))
+          and abs(w.batch()["spent_usd"] - float(out[0].split()[1][1:])) <= 0.01
+          and abs(float(out[0].split()[1][1:]) - 2.5 * steering) <= 0.02,
+          f"{out} (steering ${steering})")
+    check("the whole-session line counts the compactions of the window, not the one before it",
+          "2 compactions since the batch opened" in next(ln for ln in out if ln.startswith(WHOLE)),
+          str(out))
     _, out = w.chantier("cost", "--summary")
     check("the summary splits the steering under its own name", out[1].startswith(
-          "Chief of Staff (steering) $") and "Foreman" not in out[1], str(out))
-    # a spec-writer of the Chief of Staff, in the window: on the Chief of Staff's line, not the batch's
-    chief_before = money(cost_out, "Chief of Staff:")
+          "Chief of Staff, steering the batch $") and "Foreman" not in out[1]
+          and any(ln.startswith(GRILL) for ln in out), str(out))
+    # a spec-writer of the Chief of Staff, in the window: on the grill line, not the batch's
+    grill_before = b
     writer = sub / "agent-agent-spec.jsonl"
     writer.write_text("".join(msg(f"s{i}", at(30)) for i in range(2)), encoding="utf-8")
     writer.with_suffix("").with_suffix(".meta.json").write_text(
         json.dumps({"agentType": "spec-writer"}), encoding="utf-8")
     _, out = w.chantier("cost")
-    check("a spec-writer's transcript is left out of the batch's cost and kept on the Chief of "
-          "Staff's line", out[0] == cost_out[0] and "spec-writer" not in "\n".join(out[:-1])
-          and money(out, "Chief of Staff:") > chief_before, f"{out} (before: {chief_before})")
+    check("a spec-writer's transcript is left out of the batch's cost and kept on the grill and "
+          "specifications line", out[0] == cost_out[0]
+          and "spec-writer" not in "\n".join(ln for ln in out if not ln.startswith(GRILL))
+          and money(out, GRILL) > grill_before and abs(money(out, GRILL) - 4 * one) <= 0.03
+          and "(4 calls, 1 spec-writers)" in next(ln for ln in out if ln.startswith(GRILL)),
+          f"{out} (before: {grill_before})")
     writer.unlink()
     writer.with_suffix("").with_suffix(".meta.json").unlink()
     # a paused batch takes any number of new CRs and stays paused; the first `take` runs it again
@@ -1042,13 +1149,14 @@ def direct_batch(w: World) -> None:
           and any(json.loads(e)["kind"] == "steering" for e in
                   (w.folder() / "events.jsonl").read_text(encoding="utf-8").splitlines()), str(d))
     _, out = w.chantier("status")
-    check("`status` now says Foreman", " steering foreman " in out[0], str(out))
+    check("`status` now says Foreman", " steering Foreman shape stack " in out[0], str(out))
     w.chantier("order", "add", "--note", str(extra))
     check("a batch steered by a Foreman takes added work", len(w.batch()["crs"]) == 3)
     _, out = w.chantier("cost")
-    labels = [ln.split(":")[0] for ln in out if ln.startswith(("Foreman", "Chief of Staff ("))]
+    labels = [ln.split(":")[0] for ln in out if ln.startswith(("Foreman", "Chief of Staff, steering the batch:"))]
     check("each steering session is priced under its own name", labels == [
-        "Chief of Staff (steering)", "Foreman"] or labels == ["Foreman", "Chief of Staff (steering)"],
+        "Chief of Staff, steering the batch", "Foreman"] or labels == [
+        "Foreman", "Chief of Staff, steering the batch"],
           str(out))
     w.env.pop("CHANTIER_BATCH", None)
     w.reset()
@@ -2883,7 +2991,10 @@ def copilot_cost(w: World, d: dict) -> None:
           code == 0 and out == [
               f"{w.name}: $1.875 over 4 model calls (1 estimated, not billed)",
               "Foreman: $1.000 (1 calls)", "Agent cr-driver: $0.500 (1 calls)",
-              "Agent coder: $0.375 (2 calls)", "Chief of Staff: not measured"], str(out))
+              "Agent coder: $0.375 (2 calls)",
+              "Chief of Staff, steering the batch (outside the budget): unknown: not measured on this host",
+              "Chief of Staff, grill and specifications with the user (outside the budget): unknown: not measured on this host",
+              "Chief of Staff, whole session: unknown: not measured on this host; compactions: not measured on this host"] and "$0.00" not in "\n".join(out[-3:]), str(out))
     code, out = w.chantier("cost", "--explain", "--batch", w.name, env=env)
     check("Copilot cost --explain says `not measured` where the host gives no detail",
           code == 0 and out[2].count("not measured") == 1 and "restarts: not measured" in out[4]
@@ -2895,7 +3006,9 @@ def copilot_cost(w: World, d: dict) -> None:
           code == 0 and out[1:] == [
               "foreman: $1.000 (1 calls)", f"{assigned['id']}: $0.500 (1 calls)",
               f"{named['id']}: $0.250 (1 calls)", "other: $0.125 (1 calls)",
-              "Chief of Staff: not measured"], str(out))
+              "Chief of Staff, steering the batch (outside the budget): unknown: not measured on this host",
+              "Chief of Staff, grill and specifications with the user (outside the budget): unknown: not measured on this host",
+              "Chief of Staff, whole session: unknown: not measured on this host; compactions: not measured on this host"], str(out))
 
     def fails(label, expected, message, overrides=None):
         code, out = w.chantier("cost", "--batch", w.name, env={**env, **(overrides or {})},
