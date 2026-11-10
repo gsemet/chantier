@@ -7,9 +7,12 @@ This guide is for the people who work on chantier itself. To use it, read the
 
 chantier is four things in one repository:
 
-1. **A skill** ([`skills/chantier/`](skills/chantier/)). `SKILL.md` is the Chief of Staff's entry
-   point. [`references/`](skills/chantier/references/) holds one file per running context:
-   `concepts.md` (read by everyone), `chief-of-staff.md`, `foreman.md`, `driver.md`, `worker.md`
+1. **Three skills.** [`skills/chantier/`](skills/chantier/) holds the router (`SKILL.md` asks
+   which role the session takes), the cards, the CLI and the assets; the entries
+   [`skills/chief-of-staff/`](skills/chief-of-staff/) and [`skills/griller/`](skills/griller/) are
+   thin and load the same cards. [`references/`](skills/chantier/references/) holds one file per
+   running context: `concepts.md` (read by everyone), `session-start.md` (the start checks, the
+   seat, the session titles), `chief-of-staff.md`, `griller.md`, `foreman.md`, `driver.md`, `worker.md`
    and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
    Inspector audits; `release-template.md` is the default release notes and announcement thread the
    release Driver writes when the project has none of its own; `hosts/claude-code.md` and

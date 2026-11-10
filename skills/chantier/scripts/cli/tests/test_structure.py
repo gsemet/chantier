@@ -122,10 +122,44 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
 
 
 def test_skill_and_references_links_resolve():
-    for page in [SKILL / "SKILL.md", *(SKILL / "references").glob("*.md")]:
+    for page in [*(PLUGIN_ROOT / "skills").glob("*/SKILL.md"), *(SKILL / "references").glob("*.md")]:
         for link in re.findall(r"\]\(([^)#\s]+)", page.read_text(encoding="utf-8")):
             if not link.startswith("http"):
                 assert (page.parent / link).exists(), f"{page.name}: {link}"
+
+
+def test_three_skills_the_router_and_two_thin_ones_listed_by_copilot():
+    names = ("chantier", "chief-of-staff", "griller")
+    for name in names:
+        front, _ = _front(PLUGIN_ROOT / "skills" / name / "SKILL.md")
+        assert front["name"] == name
+    for name in names[1:]:
+        text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        assert "../chantier/references/" in text and "../chantier/scripts/cli/" in text
+    copilot = json.loads((PLUGIN_ROOT / ".github" / "plugin" / "plugin.json").read_text(encoding="utf-8"))
+    assert copilot["skills"] == [f"./skills/{n}" for n in names]
+
+
+def test_the_seat_is_one_file_held_until_taken_over_on_purpose(repo, chantier, monkeypatch):
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    changes = repo / ".agents" / "changes"
+    assert chantier("seat")[1] == ["seat none"]
+    code, out, _ = chantier("seat", "take", "s-1", "--env", "Mac", "--title", "[Mac] Proj [Chief of Staff]",
+                            "--link", "claude://s-1")
+    assert (code, out) == (0, ["seat s-1"])
+    assert sorted(p.name for p in changes.iterdir() if not p.name.startswith(".")) == ["seat.json"]
+    seat = json.loads((changes / "seat.json").read_text(encoding="utf-8"))
+    assert seat["session"] == "s-1" and seat["link"] == "claude://s-1"
+    assert set(seat) == {"session", "transcript", "env", "title", "link"}  # no date
+    assert chantier("seat")[1][0] == 'seat s-1 env Mac title "[Mac] Proj [Chief of Staff]" link claude://s-1'
+    assert chantier("seat", "take", "s-1", "--title", "again")[0] == 0  # the same session
+    code, _, err = chantier("seat", "take", "s-2")
+    assert code == 2 and "held by s-1" in err and "--over s-1" in err
+    assert chantier("seat", "take", "s-2", "--over", "s-3")[0] == 2
+    assert chantier("seat", "leave", "s-2")[0] == 2
+    assert chantier("seat", "take", "s-2", "--over", "s-1")[1] == ["seat s-2"]
+    assert chantier("seat", "leave", "s-2")[1] == ["seat none"]
+    assert chantier("seat", "leave", "s-2")[1] == ["seat none"]
 
 
 def test_every_role_has_its_section_in_its_card():
@@ -147,7 +181,8 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool():
     hosts = SKILL / "references" / "hosts"
     for name in ("claude-code.md", "copilot.md"):
         assert (hosts / name).is_file(), name
-    for card in ("chief-of-staff", "foreman", "driver", "worker", "concepts"):
+    for card in ("chief-of-staff", "foreman", "driver", "worker", "concepts", "griller",
+                 "session-start"):
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
         assert [t for t in HOST_TOOLS if t in body] == [], card

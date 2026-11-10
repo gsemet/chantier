@@ -9,7 +9,8 @@ them and reports to the Chief of Staff. It is the default, and the most dynamic 
 
 It runs in Claude Desktop (the Foreman is a nested session) and in a Copilot agent session. Where
 a host cannot start a Foreman session, the plan proposes [direct mode](use-cases-direct.md)
-instead. The situations that do not depend on the steering (a new project, ready work, PR
+instead. Chosen at the plan, or by starting the session as `/chief-of-staff` without `direct`,
+the mode is yours to change before the go. The situations that do not depend on the steering (a new project, ready work, PR
 descriptions, your own agents, cost) are on the [common page](use-cases.md).
 
 ## Run a batch overnight

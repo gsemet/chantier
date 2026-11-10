@@ -188,6 +188,19 @@ test('the chantier skill opens the pane and returns its prompt unchanged', async
   expect(w.calls.open).toBe(1)
 })
 
+test('the chief-of-staff skill opens the pane, the griller skill does not', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+
+  await $.skill.prompt({ skill: 'chantier:griller', text: 'THE PROMPT' })
+  expect(w.calls.open).toBe(0)
+
+  const out = await $.skill.prompt({ skill: 'chantier:chief-of-staff', text: 'THE PROMPT' })
+  expect(out.text).toBe('THE PROMPT')
+  expect(w.calls.open).toBe(1)
+})
+
 test('/chantier-board opens the pane, then closes it', async ($, on) => {
   mock.clock(on)
   const w = world(on)

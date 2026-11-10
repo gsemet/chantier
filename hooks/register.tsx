@@ -15,6 +15,7 @@ import type {
 const PANE = 'cr-board'
 const TITLE = 'CR board'
 const COMMAND = 'chantier-board'
+const PANE_SKILLS = ['chantier', 'chief-of-staff']
 const SCHEMA = 2
 const EVERY_MS = 15000
 const SILENT_MINUTES = 40
@@ -307,10 +308,11 @@ function minutesSince(iso: string | null, now: number): number | null {
 }
 
 export const register: Register = on => {
-  // Any session that loads the chantier skill gets the pane; the prompt is returned unchanged.
+  // A session that loads the chantier skill (the router) or the chief-of-staff skill gets the
+  // pane, a griller does not; the prompt is returned unchanged.
   on('skill.prompt', async ($, e, next) => {
     const result = await next(e)
-    if (e.skill.split(':').pop() !== 'chantier') return result
+    if (!PANE_SKILLS.includes(e.skill.split(':').pop() ?? '')) return result
     try {
       await open($)
     } catch (err) {

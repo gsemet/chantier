@@ -43,6 +43,9 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   Staff (steering)` row and a Chief of Staff line that leaves the steering window out, `close` not
   blocked by the Chief of Staff's own transcript but by a Driver that writes), then a Foreman
   claiming a later epoch from another transcript: the steering switches and the old epoch is refused;
+- the seat: `seat take` refused to a second session, taken over only with `--over` naming the
+  holder, the batch keeping both Chief of Staff transcripts, the new session claiming the epoch
+  with the steering still direct, `seat leave`;
 - a Foreman restart (the stale epoch refused), a lost Driver taken over from `handoff`; a Foreman
   started in a linked worktree stopping at its worktree check, before it claims its epoch: no CR
   taken, one ask;

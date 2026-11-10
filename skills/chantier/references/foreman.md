@@ -133,6 +133,9 @@ order, and `pause` again at the end (`pause` on a paused batch is refused).
   <your session uuid> --epoch <n>`; an empty variable is a stop, never a guess. Then the brief
   and the rules, then `[foreman→chief-of-staff] ready <batch>`: the Chief of Staff waits for it.
   A `ping` from the Chief of Staff: answer `pong <the first line of status>`.
+- On `[chief-of-staff→foreman] chief-of-staff <session id>` (a hand-over of the seat), check that
+  `$CHANTIER seat` names that session; then send your lines to it from then on. Otherwise ignore
+  the line and ask (`asks`) the Chief of Staff of your prompt.
 - Every `status --refresh`, `take`, `agents set`, `order done`, `order merged`, `cancel` and
   `pause` carries `--epoch <n>`; exit 3 means another Foreman owns the batch: stop at once.
 

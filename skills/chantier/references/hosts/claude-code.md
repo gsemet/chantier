@@ -17,7 +17,12 @@ Each behaviour carries a mark:
 | --- | --- | --- |
 | Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | proved: every batch started from Claude Desktop (v0.3 on) |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
-| Set the Foreman's own title, first | `set_session_title` | unproved: not tried here; the trial is a Foreman that sets its title and `get_session("self")` shows it |
+| Set a session's own title (the Chief of Staff, a Griller, the Foreman) | `set_session_title` | proved for a Chief of Staff's own session, 2026-11-08 (Battlestation, a session renamed itself); the Foreman's case stays unproved: the trial is a Foreman that sets its title and `get_session("self")` shows it |
+| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [direct]`, `/chantier:griller`: a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills) |
+| Load another skill (the router) | the host's Skill tool | unproved until the router runs; trial: `/chantier:chantier` in a session with no Chief of Staff, answer a role, see the skill load |
+| List the sessions and their state; is the seat's session alive | the session tools found in the `mcp__ccd_session__` set: the exact tool and its states are not recorded | unproved; trial: two sessions on one repository, one stopped, list both and record the states |
+| Message another session of the user (hand-over, a Griller's line) | `SendMessage` to its session id | proved for the Chief of Staff's session (the row above); between two sessions of the user, unproved; trial: a Griller's `ready` line to the Chief of Staff's session |
+| A session's link (for the seat) | what `get_session` gives | unproved until recorded; trial: `get_session("self")` and note the link field |
 | Start a Driver or a worker | `Agent`, `run_in_background: true` for a Driver, `subagent_type: <agent>`; the plugin's agent is `chantier:<role>`; no model, no effort | proved, same |
 | Start the Spec-writer (Chief of Staff) | `Agent`, `run_in_background: true`, `subagent_type: chantier:spec-writer`; no model, no effort | unproved until a CR is specified this way |
 | Message a Driver | `SendMessage` to the agent id | proved, same |
@@ -33,7 +38,8 @@ line by a trial before relying on it for something new.
 
 **Limit on messages.** Claude Desktop limits messages between sessions (10 since someone last
 typed): a refused send is reported, never sent another way. Proved in use, same; the figure comes from
-the earlier card, with no dated trial.
+the earlier card, with no dated trial. The limit applies to the lines between a Griller and the
+Chief of Staff, and to a hand-over's.
 
 ## Heartbeat
 
@@ -236,13 +242,22 @@ above, is unproved: the same trial settles it.
 | Desktop, driven by Remote Control | the host's Remote Control notice | no: refused, the message must be typed in the desktop app | it reuses the last Foreman, or the user acts |
 | Session on the main checkout | `git rev-parse --git-dir` equals `--git-common-dir` | n/a | yes |
 | Session in a worktree | they differ | n/a | no: Write refuses the main checkout, `change_directory` is refused, `request_directory` does not help |
+| Remote or app session | often starts in a linked worktree, `.claude/worktrees/<name>`: the row above | n/a | no, as the worktree row says; proved 2026-11-10, Battlestation, session `epic-lamport-b88c2f`: preflight P6 and P7 failed and the hook refused writes in the main checkout's `.agents/changes/` |
 | Cloud | the host's environment | n/a | no: no main checkout |
 
 Proved: the worktree row, batch-06, 2026-11 (the user picked the `chantier` entry under "Remote
 Control": it names the main checkout, shows no worktree option, the session landed in a
 worktree, and Write refused `.agents/changes/`, so Drivers were blocked). The refusal on a
 Remote Control session to start a session: proved in use. The cloud row: unproved; trial: start a
-Foreman there and run `git rev-parse --show-toplevel`.
+Foreman there and run `git rev-parse --show-toplevel`; the same trial tells a cloud session, for
+`Remote` in the title. A Remote Control session is told by its notice (the Remote Control row),
+for the offer to fork.
+
+`mcp__ccd_directory__change_directory` to the repository's root was refused for a session in an
+isolated worktree, even clean with no commit (proved 2026-11-10, same session). So moving to the
+main checkout is the user's step: a new session on the main checkout, without worktree ("For you"
+below). Whether a remote session can start without a worktree: unproved; trial: start one with
+Worktree off and run `git rev-parse --git-dir --git-common-dir`.
 
 Documented, not proved here: the desktop docs say Worktree is off by default and is set per
 environment (<https://code.claude.com/docs/en/desktop>); `claude remote-control --spawn
@@ -282,6 +297,22 @@ old Foreman's epoch. Its title names the old batch: the prompt's title makes it 
 What a choice costs, said first: a new session starts with an empty context; a reused Foreman
 carries its old context, and the batch pays for it. Before a reuse, always recommend `/compact`
 in the Foreman's session, not `/clear`.
+
+## Sessions of one repository
+
+- The seat: liveness is asked of the host (the Tools row), never read from a date. Where the host
+  cannot tell, the session asks the user (the "looks stopped" line of `session-start.md`).
+  Unproved until the session tool is recorded.
+- A fork: what it inherits (the conversation), whether it gets its own session id and transcript
+  id (`$CLAUDE_CODE_SESSION_ID`), and whether anything tells it it is a fork: unproved; trial:
+  fork a Chief of Staff session, compare `get_session("self")` and the variable with the seat. If
+  the fork has its own id, comparing it with the seat at its next turn makes it a Griller; if not,
+  record here that a fork cannot be told apart and that the user says "you are a griller" in it.
+- A Griller in a worktree sends its files by `SendMessage` to the seat's session, naming the
+  absolute paths; the Chief of Staff on the main checkout reads them under
+  `.claude/worktrees/<name>/`. Unproved; trial: one file sent and placed.
+- The two-Chiefs case and the hand-over lines travel by `SendMessage` like the rest (unproved
+  between two sessions of the user, as the Tools row says).
 
 ## The "For you" block
 
@@ -331,6 +362,32 @@ Cost: as a reuse. Unproved that a message wakes it, so the user pastes.
 - **Do:** open the session, then click its input.
 - **Paste:** the prompt, in its own code block, complete.
 - **You should see:** the session starts a turn and I hear `ready <batch>` within a few minutes.
+
+### A session on the main checkout
+
+Cost: a fresh context; the files hold the state, nothing is lost once the start check found the
+worktree clean with no commit. **Unproved** until followed once.
+
+- **Where:** the Claude Desktop app (or the remote client).
+- **Do:** start a new session on the repository's folder, with Worktree off (the labels as the
+  desktop docs give them; documented: <https://code.claude.com/docs/en/desktop>).
+- **Paste:** `/chantier:chief-of-staff` or `/chantier:griller`.
+- **You should see:** the session's introduction with no start-check failure; else tell me what
+  the session shows.
+
+### A Chief of Staff and Grillers in remote
+
+The guided flow, **unproved** until followed once by hand. Chantier explains the steps and never
+does them (the fork, auto mode, no worktree).
+
+1. Start a remote session with no worktree and the tools allowed in auto mode (your own steps).
+2. Run `/chantier:chief-of-staff` (or `/chantier:chantier`): it becomes the Chief of Staff.
+3. After the boot, fork the session (the label on screen, recorded by the trial): the fork
+   becomes a Griller by itself, or asks with a batch active.
+4. Each renames itself; you grill in the fork.
+
+What is not possible on the host (a fork that cannot be told apart, a remote session that cannot
+start without a worktree) is written here as found, with no workaround.
 
 ### `/compact`
 

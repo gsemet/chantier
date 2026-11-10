@@ -21,8 +21,8 @@ section.
 
 The plan the Chief of Staff shows before a batch says who steers it. It proposes direct mode when
 the host cannot start a Foreman session (a terminal or IDE host, a Remote Control session with no
-Foreman to reuse) or when the batch has few CRs, and says why. Your go decides: nothing starts
-without it.
+Foreman to reuse), and says why. You can also choose it with `/chantier:chief-of-staff direct` or
+by saying so. Your go decides: nothing starts without it.
 
 ## The life of a batch
 
@@ -83,6 +83,35 @@ pick it for a batch.
 > "Drop the dark-mode idea for good."
 
 Only on your explicit word does a CR go to `5-trash/`.
+
+## A Chief of Staff and Grillers in remote
+
+> "Start `/chantier:chief-of-staff`." · in a second session: "You are a griller." (`/chantier:griller`)
+
+One session per repository is the **Chief of Staff**: the only one that opens and runs batches.
+Any other session can be a **Griller**: it refines the inbox and the backlog (questions,
+`02-answers.md`, the restated CR, the spec-writer) and never opens a batch. Each session shows its
+role in its title, in the form `[env] Project [role]`, so you tell them apart in the session list.
+
+In a remote session, the steps are yours (chantier explains them and never does them):
+
+1. Start a remote session with no worktree and the tools allowed in auto mode.
+2. Run `/chantier:chief-of-staff`: the session becomes the Chief of Staff.
+3. Fork the session: the fork becomes a Griller by itself, or asks first when a batch is active.
+4. Each session renames itself; you grill in the fork.
+
+A second session tells you who holds the seat and offers one thing only: say "become chief of
+staff" to take over. To hand the seat over, say so in the new session. The old Chief of Staff
+finishes the running work and starts no new Driver; then the new one answers "I have the batch"
+and takes the seat, and the batch follows it.
+
+- A Griller files its work in the CR folders; the Chief of Staff reads the folders, not the Griller.
+  When a Griller works in a worktree, its files go to the main checkout's folders.
+- The Chief of Staff holds the **seat** (`.agents/changes/seat.json`). A new session that asks for
+  it is told who holds it and does not take it.
+- A running batch follows the new Chief of Staff; its cost counts both.
+- The steps above are unproved until followed once by hand; what is proved and what is not is in
+  the [Claude Code reference, "A Chief of Staff and Grillers in remote"](../skills/chantier/references/hosts/claude-code.md#a-chief-of-staff-and-grillers-in-remote).
 
 ## Your pull requests' description
 

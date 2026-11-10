@@ -8,8 +8,8 @@ project, ready work, PR descriptions, your own agents, cost) are on the
 [common page](use-cases.md).
 
 The plan proposes direct mode when the host cannot start a Foreman session (a terminal or IDE
-host, a Remote Control session with no Foreman to reuse) or when the batch has few CRs, and says
-why. Your go approves it.
+host, a Remote Control session with no Foreman to reuse), and says why. Your go approves it. You
+can also start the session in this mode (`/chantier:chief-of-staff direct`) or say so.
 
 ## Same lifecycle, less dynamic
 
@@ -32,8 +32,9 @@ answers only:
 Any other request is noted word for word and handed back when the batch completes. An idea you
 raise meanwhile is filed in the inbox at once, without a grill.
 
-To grill meanwhile, open another session yourself on the same repository. There, a Chief of Staff
-grills, files, specifies and prioritises your own ideas into the backlog, beside the batch. Those
+To grill meanwhile, open a Griller (`/chantier:griller`, or a fork in remote: see
+[the how-to](use-cases.md#a-chief-of-staff-and-grillers-in-remote)). It grills, files and
+specifies your own ideas into the backlog, beside the batch. Those
 CRs join the batch through the steering session once it is paused (you say so there, and it adds
 them), or wait for the next batch.
 

@@ -95,8 +95,17 @@ started.
   found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a
   release without asking (releases, up to three fixes the Foreman starts and merges), always
   within a budget.
+- **Griller:** a session that keeps the inbox and the backlog with the user (file, triage, grill,
+  answers, specification) and may prepare work for the Chief of Staff. It opens no batch, sends
+  no order, steers nothing, closes nothing, merges nothing. Usually short: started for a few
+  items, it ends quickly.
+- **The Chief of Staff's seat:** a small file kept by the CLI, `.agents/changes/seat.json`, that
+  names the repository's Chief of Staff session: its session id, its transcript id, the
+  environment, the title and the link. It records no date: no activity date is ever taken as
+  proof of life. The host says whether the seat's session is alive.
+- **Session title:** `[env] Project [role]` ([session-start](session-start.md), "Titles").
 - **Steering session:** the session that runs the batch from its state: a Foreman, or, in direct
-  mode (`open --direct`), the Chief of Staff itself. Both claim an epoch the same way. The batch
+  mode (`open --direct`), the Chief of Staff itself, the session the seat names. Both claim an epoch the same way. The batch
   records which steers it and switches to Foreman mode when a later epoch is claimed by another
   transcript; a Foreman batch never switches to direct mode.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
@@ -144,7 +153,7 @@ of batch <batch>, in the project <root>.` and its brief gives the folder it writ
 result is a report or a study. It never implements: no commit, no push, no PR, nothing in a CR's
 worktree; a prototype lives in a temporary folder and is thrown away.
 
-The Spec-writer is the Chief of Staff's subagent too, outside any batch: its first line is
+The Spec-writer is the subagent of the Chief of Staff or of a Griller, outside any batch: its first line is
 `chantier spec-writer for the Chief of Staff, in the project <root>.`, it reads
 [`spec-writer.md`](spec-writer.md) instead of a Driver or worker section, and its brief gives the
 CR folder. It writes `03-change-spec.md` there and takes no slot and no budget of a batch.
