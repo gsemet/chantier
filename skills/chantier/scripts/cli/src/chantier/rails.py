@@ -139,7 +139,13 @@ def unmet(b: Batch, c: dict) -> list[str]:
 
 def over_budget(b: Batch) -> bool:
     budget = b.data.get("budget_usd")
-    return bool(budget) and b.data.get("spent_usd", 0) >= budget
+    return bool(budget) and (b.data.get("spent_usd") or 0) >= budget  # unpriced: no spend seen yet
+
+
+def spent_text(data: dict) -> str:
+    """The spend as shown to a reader: `unknown` until a priced refresh, never a false $0.00."""
+    spent = data.get("spent_usd")
+    return "unknown" if spent is None else f"${spent:.2f}"
 
 
 def all_merged(b: Batch) -> bool:
@@ -150,7 +156,7 @@ def check_budget(b: Batch) -> None:
     """No Driver of any kind starts past the budget; the ones already live, and their workers,
     go on."""
     if over_budget(b):
-        raise ChantierError(f"budget spent: ${b.data.get('spent_usd', 0):.2f} of "
+        raise ChantierError(f"budget spent: {spent_text(b.data)} of "
                             f"${b.data['budget_usd']}; only the user raises it (`order budget`)",
                             EXIT_BUDGET)
 

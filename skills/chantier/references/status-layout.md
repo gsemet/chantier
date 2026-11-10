@@ -15,6 +15,8 @@ leaves the Foreman's heartbeat alone.
 
 - **A CR's name:** name every CR by its number and slug together, like "CR-142 grill-rules",
   never one alone; an item with no number yet is named by its slug.
+- A cost or a time chantier did not observe is written `unknown` (or as the CLI prints it: `-`,
+  `never`, `not measured`), never 0; a 0 is only a measured zero.
 - A Progress report and a Completion report always have the same shape: the columns
   are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
   remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote).
