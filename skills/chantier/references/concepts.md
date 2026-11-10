@@ -175,4 +175,12 @@ CR folder. It writes `03-change-spec.md` there and takes no slot and no budget o
 8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a push is plain when
    the remote branch is an ancestor of the local one, and a rewrite (a rebase) is pushed with
    `--force-with-lease`; the user's uncommitted changes are never touched. No `sleep`, no polling
-   loop: a wait is the forge's own watch, in a background shell.
+   loop: a wait is the forge's own watch, in a background shell. `git -C <worktree>` is accepted
+   for any git command; the push rule is unchanged (plain when the remote branch is an ancestor,
+   `--force-with-lease` after a rewrite).
+9. **Commands and files.** One command per call when you can: a chain (`a; b`, `a && b`, a
+   pipe) passes the host's allow rules only if every part does, and a refused part stops the
+   whole call. No leading assignment before a command (`X=1 cmd`, `$w='…'; cmd`): write the value
+   into the command itself, because an allow rule does not see past it. Read a file before you
+   overwrite it; to change part of a file, edit it rather than rewrite it. The host's side of
+   this is in your host's reference, section "Configuration" (the workers do not need it).

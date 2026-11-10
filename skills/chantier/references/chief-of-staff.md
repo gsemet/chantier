@@ -14,7 +14,11 @@ Never tell the user as a fact what it marks unproved.
 At the start of each session, `$CHANTIER rules`: the project's `AGENTS.md` (else `CLAUDE.md` or
 `.github/copilot-instructions.md`) and what it links say how the project builds, tests, ships,
 merges and releases, on which branch, and which agents run which roles. Nothing is configured
-anywhere else. A project with no long gate written down is a question for the user, with your
+anywhere else. Once per session, at your first turn, run `$CHANTIER preflight` and P9's check
+(step 1 of "Starting a batch"); tell the user only what P5, P9 and P10 say (the other conditions
+are a batch's). For a P10 warn, give the "For you" block "Allow rules to add" of your host's
+reference with the missing rules; a missing tool is said with what to install. Nothing blocks
+the user's request there. A project with no long gate written down is a question for the user, with your
 recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success.
 
 The team: every role runs the plugin's agent unless `AGENTS.md` says otherwise, in a `chantier`
@@ -96,8 +100,10 @@ it; or needing clarification: grill, then triage again. Automatable is their cal
 Only in the turn where the user gave the go:
 
 1. **Preflight, all or nothing.** `$CHANTIER preflight` checks P1 (Claude Desktop or a Copilot
-   agent session), P4 (the plugin's agents at this version), P5 (`uv`, versions), P6 (the
-   repository's root), P7 (not a linked worktree), P8 (project instructions). You check P2 (the
+   agent session), P4 (the plugin's agents at this version), P5 (`uv` and `git`, versions), P6 (the
+   repository's root), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
+   Code: the recommended allow rules), which warns and never fails: give the user the block
+   for the missing rules, then go on. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and

@@ -9,6 +9,7 @@ import tomllib
 import pytest
 
 from chantier import __version__
+from chantier.commands import RECOMMENDED_ALLOW
 from conftest import PLUGIN_ROOT, SKILL, sh
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
@@ -227,6 +228,40 @@ def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(
     assert any(ln.startswith("P3, P9 and") for ln in out) and not any("P2" in ln for ln in out)
     chantier("open", str(_prepared(repo, chantier)), *FROM_AGENTS_MD)
     assert chantier("order", "qa", "--note", "test it")[0] == 0
+
+
+def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks():
+    text = (SKILL / "references" / "hosts" / "claude-code.md").read_text(encoding="utf-8")
+    section = text.split("### Allow rules\n", 1)[1]
+    block = re.search(r"```json\n(.*?)\n```", section, re.S)[1]
+    assert tuple(json.loads(block)["permissions"]["allow"]) == RECOMMENDED_ALLOW
+
+
+def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
+        repo, chantier, monkeypatch):
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    code, out, _ = chantier("preflight")
+    assert code == 0, out
+    assert any(ln.startswith("P10 warn") and "SendMessage" in ln for ln in out)
+    assert len(out) <= 10
+    settings = repo / ".claude"
+    settings.mkdir()
+    (settings / "settings.local.json").write_text(
+        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
+    assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])
+    (settings / "settings.local.json").write_text("{not json", encoding="utf-8")
+    code, out, _ = chantier("preflight")
+    assert code == 0 and any(ln.startswith("P10 warn") and "settings.local.json" in ln
+                             for ln in out)
+    (settings / "settings.local.json").unlink()
+    (settings / "settings.json").write_text(
+        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
+    assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])
+    monkeypatch.setenv("CHANTIER_HOST", "copilot")
+    monkeypatch.setenv("COPILOT_AGENT_SESSION_ID", "s-1")
+    code, out, _ = chantier("preflight")
+    assert code == 0 and not any("P10" in ln for ln in out)
 
 
 def test_init_creates_the_five_folders_once_and_refuses_outside_a_main_checkout(

@@ -11,7 +11,7 @@ It creates the five folders of `.agents/changes/` (`1-inbox`, `2-backlog`, `3-re
 `4-archives`, `5-trash`), empty, and says which it created and which existed.
 
 On exit 2 for no git repository, explain what chantier needs: a git repository, a remote on
-GitHub or GitLab, `gh` or `glab` logged in, and `uv`. Offer `git init`; run it only on the user's
+GitHub or GitLab, `gh` or `glab` logged in, `git` and `uv`. Offer `git init`; run it only on the user's
 yes, then run `init` again. Nothing else is created on the user's behalf. On exit 2 in a linked
 worktree, say init runs in the main checkout and stop.
 
@@ -67,7 +67,10 @@ getting started here, phrases to say, the glossary.
    section by section. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
    only on the user's yes. The `.gitignore` line is explained only: keep `.agents/changes/` out
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself.
-   The example CR is offered for the inbox.
+   The example CR is offered for the inbox. The host's configuration comes from preflight's P5
+   and P10 and from P9: the missing tools, and your host's "Allow rules to add" block for the
+   missing rules, explained only; the user adds them themself, like the `.gitignore` line. The
+   tour writes nothing in the user's settings.
 2. **Phrases to say:** "file this: …", "make it a P1", "run the P1s", "status?", "drop CR-<n>",
    "I merged #<n>", "what did it cost?".
 3. **Glossary:** one line per term not in the story: stack, fast gate, long gate, Investigator,
