@@ -156,7 +156,7 @@ runs it, at the pushed head
 ```md
 ## 🗄️ .agents/changes/, as JSON and Markdown
 
-1-inbox → 2-backlog → 3-ready → 4-batches → 5-archives · 6-trash
+1-inbox → 2-backlog → 3-ready → 4-batch → 5-archives · 6-trash
 ```
 
 ## chantier CLI

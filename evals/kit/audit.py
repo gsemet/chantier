@@ -249,15 +249,15 @@ def main() -> int:
     args = ap.parse_args()
     ws = args.workspace.resolve()
     changes = ws / ".agents" / "changes"
-    # the batch's files are in `4-batches/` and hold a batch.json; run before `close --yes`
-    folder = changes / "4-batches"
+    # the batch's files are in `4-batch/` and hold a batch.json; run before `close --yes`
+    folder = changes / "4-batch"
     if not (folder / "batch.json").is_file():
-        raise SystemExit("no batch in 4-batches/: run the audit before `chantier close --yes`")
+        raise SystemExit("no batch in 4-batch/: run the audit before `chantier close --yes`")
     data = json.loads((folder / "batch.json").read_text(encoding="utf-8"))
     batch = data["id"]
     number = re.sub(r"\D", "", args.batch or "")  # `4`, `04` or `batch-04`
     if args.batch and not re.fullmatch(rf"batch-0*{number}", batch):
-        raise SystemExit(f"{args.batch} is not the batch in 4-batches/ ({batch})")
+        raise SystemExit(f"{args.batch} is not the batch in 4-batch/ ({batch})")
     events = list(records(folder / "events.jsonl"))
     results: list[tuple[bool, str]] = []
 
@@ -280,7 +280,7 @@ def main() -> int:
         num = re.sub(r"\D", "", c["id"])
         if c["status"] == "merged":  # waits in 3-done until `close`, named <NNN>-<slug>
             check(any(folder.glob(f"3-done/{num}-*")),
-                  f"{c['id']} is in 4-batches/3-done as {num}-<slug>")
+                  f"{c['id']} is in 4-batch/3-done as {num}-<slug>")
         elif c["status"] == "cancelled":  # dropped: in 6-trash, never back in the backlog
             check(any(changes.glob(f"6-trash/??????-????-{num}-*")),
                   f"{c['id']} is in 6-trash as <YYMMDD-HHMM>-{num}-<slug>")

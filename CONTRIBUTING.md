@@ -29,9 +29,9 @@ chantier is four things in one repository:
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the target repository's
    `.agents/changes/`, as plain JSON and Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
-   `3-ready/`, `4-batches/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
+   `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
    (each with a `work/` folder while it runs), and the batch's own files at the root of
-   `4-batches/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
+   `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.

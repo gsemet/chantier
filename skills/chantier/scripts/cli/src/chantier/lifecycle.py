@@ -2,7 +2,7 @@
 between stages, each refused rather than half done.
 
 The tree, in `.agents/changes/`: `1-inbox`, `2-backlog/P1..P4`, `3-ready` (waiting for the next
-batch), `4-batches` (the one current batch: its own files and the state folders `1-pending`,
+batch), `4-batch` (the one current batch: its own files and the state folders `1-pending`,
 `2-actives`, `3-done`), `5-archives` (merged, after `close`) and `6-trash` (dropped).
 
 An older tree (`3-requests/batch-<n>/`, `4-archives/`, `5-trash/`) is converted in place by the
@@ -23,14 +23,14 @@ from .state import (EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE,
                     ChantierError, Repo, read_batch_json, _retry, _try_lock, _unlock, move_directory,
                     now, project_path, stamp, write_file)
 PRIORITIES = ("P1", "P2", "P3", "P4")
-STATE_FOLDERS = ("1-pending", "2-actives", "3-done")  # the batch's, in `4-batches/`
+STATE_FOLDERS = ("1-pending", "2-actives", "3-done")  # the batch's, in `4-batch/`
 
 
 def stage_layout(repo: Repo) -> dict[str, Path]:
     """The stage folders, always the same: `.agents/changes/1-inbox` and so on. `batches` is the
     parent of `pending`, `actives` and `done`, the states of the CRs inside the batch."""
     base = repo.changes.resolve()
-    batches = base / "4-batches"
+    batches = base / "4-batch"
     return {"inbox": base / "1-inbox", "backlog": base / "2-backlog", "ready": base / "3-ready",
             "batches": batches, "pending": batches / "1-pending", "actives": batches / "2-actives",
             "done": batches / "3-done", "archives": base / "5-archives", "trash": base / "6-trash"}
@@ -229,7 +229,7 @@ def old_tree(repo: Repo) -> bool:
 def convert_old_tree(repo: Repo) -> None:
     """Convert the older tree to the current one, once, before any other work: `5-trash/` to
     `6-trash/`, `4-archives/` to `5-archives/`, the batch folder `3-requests/batch-<n>/` to
-    `4-batches/` (its own files there, its queued CR in `1-pending`, its ready and blocked CRs in
+    `4-batch/` (its own files there, its queued CR in `1-pending`, its ready and blocked CRs in
     `2-actives`; a working CR stays at its old path, as its Driver holds it, and moves at its
     merge or its drop), and every recorded path rewritten. Renames only, rolled back on a
     failure; a new name that is not empty, or more than one batch, exits 2 with nothing moved."""
@@ -266,7 +266,7 @@ def _convert(repo: Repo) -> list[str]:
     plain = [(base / a, base / b) for a, b in plain if (base / a).is_dir()]
     clear = [_free_target(a, b) for a, b in plain]
     batch = batches[0] if batches else None
-    target = base / "4-batches"
+    target = base / "4-batch"
     clear_batch = _free_target(batch, target) if batch else False
     renames: list[tuple[Path, Path]] = []
     parts: list[str] = []
@@ -337,7 +337,7 @@ def _convert(repo: Repo) -> list[str]:
                 b.log("tree", None, moves=moves + [[f".agents/changes/{a.name}",
                                                     f".agents/changes/{z.name}"]
                                                    for a, z in plain])
-            parts.insert(0, "3-requests -> 4-batches")
+            parts.insert(0, "3-requests -> 4-batch")
     except BaseException as e:
         _undo(renames, batch, original, lock)
         if isinstance(e, OSError):

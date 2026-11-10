@@ -228,7 +228,7 @@ Everything lives in `.agents/changes/`:
 ├── 2-backlog/P1…P4/<slug>/                prioritized by you
 ├── 3-ready/<slug>/                        waiting for the next batch, specified or automatable
 ├── STATUS.md, STATUS.json                 the index: live batch, backlog table
-├── 4-batches/                             the one batch, until `close`; n counts all batches
+├── 4-batch/                             the one batch, until `close`; n counts all batches
 │   ├── batch.json, events.jsonl, brief.md, .lock   the batch's own files, local
 │   ├── STATUS.md, STATUS.json             the batch; once paused, its exit report
 │   ├── 1-pending/<number>-<slug>/         in the batch, not started
@@ -249,7 +249,7 @@ through the Foreman (in direct mode, once it is paused). Its CRs run in parallel
 stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
-`STATUS.md` and `STATUS.json` exist at three levels (`.agents/changes/`, `4-batches/`, the CR), each
+`STATUS.md` and `STATUS.json` exist at three levels (`.agents/changes/`, `4-batch/`, the CR), each
 linking to the others. The CLI rewrites them at every state change, from the state alone; a
 status cell reads like `🔴 blocked Question 1/3`.
 

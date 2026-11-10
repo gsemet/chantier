@@ -8,7 +8,7 @@ The first-turn introduction is skipped: the tour covers it.
 ## 1. Run `$CHANTIER init`
 
 It creates the empty stage folders of `.agents/changes/` (`1-inbox`, `2-backlog`, `3-ready`,
-`4-batches/1-pending`, `4-batches/2-actives`, `4-batches/3-done`, `5-archives`, `6-trash`), and
+`4-batch/1-pending`, `4-batch/2-actives`, `4-batch/3-done`, `5-archives`, `6-trash`), and
 says which it created and which existed.
 
 On exit 2 for no git repository, explain what chantier needs: a git repository, a remote on

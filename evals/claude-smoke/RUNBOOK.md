@@ -29,5 +29,5 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 
 - One Driver; one coder, one Inspector, one docs reviewer, one verifier, all started by it.
 - The docs reviewer runs after the Inspector approves.
-- CI is green on the first run; the CR ends `merged`, the batch `paused`; the CR is in `4-batches/3-done/`.
+- CI is green on the first run; the CR ends `merged`, the batch `paused`; the CR is in `4-batch/3-done/`.
 - The audit passes every check, run before `$CHANTIER close --yes` (it needs the batch folder); the cost is under $2.

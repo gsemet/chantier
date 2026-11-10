@@ -6,8 +6,8 @@ import type { Engine } from 'claude-code/testing'
 
 const ROOT = '/work/repo'
 const INDEX = `${ROOT}/.agents/changes/STATUS.json`
-const BATCH = '4-batches'
-const CR_DIR = `${ROOT}/.agents/changes/4-batches/2-actives/01-first`
+const BATCH = '4-batch'
+const CR_DIR = `${ROOT}/.agents/changes/4-batch/2-actives/01-first`
 
 const PANE = {
   plugin: 'chantier',
@@ -36,7 +36,7 @@ const row = (over = {}) => ({
   cost_usd: 1.5,
   blocked: null,
   silent_minutes: 2,
-  folder: '4-batches/2-actives/01-first',
+  folder: '4-batch/2-actives/01-first',
   ...over,
 })
 
@@ -418,7 +418,10 @@ test('Backlog, Merged and Trashed are folded and open when pressed', async ($, o
   w.put(
     INDEX,
     index({
-      backlog: [{ priority: 'P1', item: 'idea', title: 'An idea', path: '2-backlog/P1/idea', files: 2 }],
+      backlog: [
+        { priority: 'P1', item: 'idea', title: 'An idea', path: '2-backlog/P1/idea', files: 2 },
+        { priority: '3-ready', item: 'ready', title: 'A ready item', path: '3-ready/ready', files: 1 },
+      ],
       merged: [past('CR-7', 'merged')],
       merged_total: 12,
       trashed: [past('CR-8', 'cancelled')],
@@ -428,7 +431,7 @@ test('Backlog, Merged and Trashed are folded and open when pressed', async ($, o
 
   await skill($)
   const ui = await board($)
-  expect(await label(ui, 'fold-backlog')).toContain('Backlog (1)')
+  expect(await label(ui, 'fold-backlog')).toContain('Backlog (2)')
   expect(await label(ui, 'fold-merged')).toContain('Merged (1 of 12)')
   expect(await label(ui, 'fold-trashed')).toContain('Trashed (1 of 3)')
   const closed = await words(ui)
@@ -437,6 +440,7 @@ test('Backlog, Merged and Trashed are folded and open when pressed', async ($, o
 
   await ui.press({ key: 'fold-backlog' })
   expect((await ui.find({ key: 'backlog-table' }))?.props.text).toContain('| P1 |')
+  expect((await ui.find({ key: 'backlog-table' }))?.props.text).toContain('| 3-ready |')
 
   await ui.press({ key: 'fold-merged' })
   await ui.press({ key: 'fold-trashed' })

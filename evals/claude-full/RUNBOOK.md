@@ -58,11 +58,11 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 10. Each `ask blocked CR-<R> approval: <action>`: approve it, `$CHANTIER order approve CR-<R> --note
     "<action>"`, and send its line. Expect two: the merge of the release PR (the Foreman merges
     it itself, then `ask merged`), then the tag.
-11. Wait for `final <report>`, read R's `work/retro.md` (in its `4-batches/3-done/` folder), then "what did it cost?". Run the audit, then `$CHANTIER close --yes`.
+11. Wait for `final <report>`, read R's `work/retro.md` (in its `4-batch/3-done/` folder), then "what did it cost?". Run the audit, then `$CHANTIER close --yes`.
 
 ## Expected
 
-- A, B, C, D, E, V and R end `merged`; F ends `cancelled`, in `6-trash/`; the others are in `4-batches/3-done/`, and `close` moves them to `5-archives/`.
+- A, B, C, D, E, V and R end `merged`; F ends `cancelled`, in `6-trash/`; the others are in `4-batch/3-done/`, and `close` moves them to `5-archives/`.
 - R: no Release driver before every other CR is merged or cancelled; two attempts at least; the
   tag `v0.2.0` on the origin; the user's line in `CHANGELOG.md`; no irreversible action without a
   `go`; a `retro.md`.

@@ -58,7 +58,7 @@ Smaller changes or in All fixes.
 All of them come from the release's real batch: the release CR joins the batch whose work it ships
 (see "Which batch"), so that batch's board and `STATUS.md` show the work. The sources are:
 
-- the board and the batch's `STATUS.md` (`.agents/changes/4-batches/STATUS.md`);
+- the board and the batch's `STATUS.md` (`.agents/changes/4-batch/STATUS.md`);
 - the Chief of Staff's latest Progress report, `report.md` in the release CR's folder;
 - excerpts of a conversation with the Chief of Staff, `conversation.md` in the release CR's
   folder (the Chief of Staff writes both at `order confirm`);
