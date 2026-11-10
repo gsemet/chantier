@@ -32,7 +32,7 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), with
 | Setup | `uv run --no-project python evals/kit/setup.py claude-full <workspace>` |
 | Batch | `full` |
 | CRs | A `add-priority`, B `done-unknown-id`, C `list-json`, D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
-| Open | `$CHANTIER open <A> <B> <C> <R> --parallel --release 4 --slots 3 --budget 25 --default-branch main`, each `<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
+| Open | `$CHANTIER open <A> <B> <C> <R> --mode parallel --release 4 --slots 3 --budget 25 --default-branch main`, each `<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 
 ## The user's turns
 

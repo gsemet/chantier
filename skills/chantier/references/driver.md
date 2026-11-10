@@ -114,16 +114,25 @@ boxes updated (`gh pr edit --body-file` again), then, once the description is fi
 (`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
 
-A CR taken with the note `rebase: <dependency> merged`: fetch, rebase onto `origin/<default
+A CR taken with the note `rebase: <cr> merged` and no open dependency or predecessor left (also
+a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin/<default
 branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
-a round), retarget the PR to the default branch (`gh pr edit --base`, `glab mr update
---target-branch`), push with `--force-with-lease` (a refused one goes up as written above),
-`ship`, read CI (red is a round). Green and mergeable: turn the PR ready and `handback ready
-<link>`. A clean rebase and green CI start no new `coder` round. If the note names another open
-dependency instead, rebase onto that branch, keep the PR a draft and `handback ready <link>` as
-a draft on that base.
+a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
+update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
+above), `ship`, run the long gate at the new head, read CI (red is a round). Green and mergeable,
+ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
+green CI start no new `coder` round. If the note names another open dependency instead, or is
+`rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
+keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
+`blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
+`note rebase: …` received while working: rebase before the next push; the gate and CI run at the
+new head. A series CR's PR opens, as a draft, on the base `take` printed: a Driver still retargets
+nothing but on a `rebase:` note.
 
 ## Stack driver
+
+A stack batch is one opened `--mode stack`, or a series switched by `order mode`; after a switch,
+the stack's order starts from the series order.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),

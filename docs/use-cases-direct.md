@@ -51,8 +51,9 @@ After the preflight, the plan and your go, the Chief of Staff opens the batch in
 starts the Drivers itself, several in parallel on the free slots. A CR that needs you is parked
 as blocked with its question, and the Chief of Staff tells you at once, in the shape of a
 progress report; the others go on. Past the budget, nothing new starts until you answer. Parallel
-or stacked pull requests work as in Foreman mode: each CR is based on the default branch, and a
-stack driver orders the stack afterwards.
+(the default), series and stacked pull requests work as in Foreman mode: parallel CRs are all based
+on the default branch and rebased after each merge, a series goes one CR after the other, each on
+the previous one's branch, and a stack driver orders a stack afterwards.
 
 The orders of Foreman mode that act on the batch itself work the same: drop a CR, a note on a CR,
 "I merged #42", more rounds, slots or budget, and a hold ("Hold" sets the slots to 0, "Resume"

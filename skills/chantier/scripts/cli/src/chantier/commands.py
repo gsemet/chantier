@@ -29,7 +29,7 @@ from .lifecycle import (PRIORITIES, STATE_FOLDERS, archive_name, changes_lock, c
 from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budget, check_grant,
                     check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
-                    release_merged, waits_all, waits_for)
+                    release_merged, series_predecessor, waits_all, waits_for)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -517,6 +517,18 @@ def declare_dependencies(b: Batch, added: list[dict]) -> None:
     check_cycles(b)
 
 
+def check_series_order(b: Batch) -> None:
+    """A series runs in the order given: a CR cannot come before one it depends on."""
+    place = {x["id"]: x["order"] for x in b.data["crs"]}
+    for c in b.data["crs"]:
+        if c.get("kind") in {"release", "fix"}:
+            continue
+        for dep in c.get("after", []):
+            if place.get(dep, 0) > c["order"]:
+                raise ChantierError(f"{c['id']} depends on {dep}: it cannot come before it in the "
+                                    "series")
+
+
 def _release_tag(b: Batch, c: dict) -> str:
     if alone(b.data["crs"], c):
         return " (release, alone in its batch: it starts when taken)"
@@ -591,7 +603,7 @@ def open_batch(args) -> list[str]:
     if len(set(selected)) != len(selected):
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
     data = {"id": None, "version": __version__, "created": now(), "status": "running",
-            "host": host, "mode": "parallel" if args.parallel else "stack", "slots": args.slots,
+            "host": host, "mode": args.mode, "slots": args.slots,
             "budget_usd": args.budget, "spent_usd": 0.0,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
             "foreman_transcripts": [], "foreman_claims": [],
@@ -609,6 +621,8 @@ def open_batch(args) -> list[str]:
                     release["cr"] = c["id"]
             declare_dependencies(b, list(b.data["crs"]))
             release_waits_for_all(b)
+            if args.mode == "series":
+                check_series_order(b)
             brief.write_text(
                 f"# {b.id}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
                 f"Budget: {args.budget or 'none'}. Host: {host}. "
@@ -744,7 +758,7 @@ def seat(args) -> list[str]:
 
 
 ORDER_KINDS = {"add", "after", "drop", "merged", "note", "rounds", "slots", "budget", "approve",
-               "grant", "confirm", "qa", "done"}
+               "grant", "confirm", "qa", "done", "mode"}
 CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant", "confirm"}
 
 
@@ -952,7 +966,7 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         if _started(c) or c["status"] in ENDED:
             raise ChantierError(f"order confirm: {cr_id} has started or ended ({c['status']}, "
                                 f"attempts {c.get('attempts', 0)}): the word comes before the start")
-        waiting = waits_for(b.data["crs"], c)
+        waiting = waits_for(b.data["crs"], c, b.data["mode"])
         if waiting:
             raise ChantierError(f"order confirm: {cr_id} still waits for {', '.join(waiting)}: "
                                 "give the word once the others have ended")
@@ -960,6 +974,14 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         c.setdefault("notes", []).append(f"confirmed: {note.strip()}")
         b.touch(c)
         return [f"confirmed {cr_id}: {note.strip()}; the Foreman may start the Release driver"]
+    if kind == "mode":
+        if b.data["mode"] != "series" or note.strip() != "stack":
+            raise ChantierError("order mode: only a series batch switches, to a stack "
+                                "(`order mode --note stack`)")
+        b.data["mode"] = "stack"
+        b.log("mode", None, mode="stack")
+        return [f"{b.id} is a stack now: a queued CR waits only for its `after`; the stack "
+                "driver stacks the PRs"]
     if kind == "qa":
         return [f"QA folder: {cr_id}; the Foreman starts its QA driver, which holds a slot "
                 "until `order done`"]
@@ -1126,7 +1148,7 @@ def status(args) -> tuple[list[str], int]:
             row += "".join(f" | draft {p}" for p in c.get("drafts", [])[-2:])
         elif c.get("kind") == "fix":
             row += f" fix for {c['fix_for']}"
-        waits = waits_all(d["crs"], c) if c["status"] == "queued" else []
+        waits = waits_all(d["crs"], c, d["mode"]) if c["status"] == "queued" else []
         if waits:
             row += f" | waits for {', '.join(waits)}"
         if c["status"] == "blocked" and c.get("blocked_reason"):
@@ -1205,6 +1227,9 @@ def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
     """The branch a CR starts on: that of its last dependency still open, in the order of
     `after`; with none open, the default branch, whatever its place in a stack."""
     default = repo.config["default_branch"]
+    if b_data["mode"] == "series":
+        pred = series_predecessor(b_data["crs"], c)
+        return pred["branch"] if pred and pred["status"] != "merged" else default
     if c.get("after") and c.get("kind") not in {"release", "fix"}:
         found = {x["id"]: x for x in b_data["crs"]}
         open_ = [found[i] for i in c["after"] if i in found and found[i]["status"] not in ENDED]

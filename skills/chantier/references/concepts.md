@@ -71,14 +71,23 @@ started.
   refused, except a release CR; `order qa` on a paused batch sets it running at once; see **Batch lifecycle**). `close` refuses while anything
   runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
   Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
-  time; `not measured` refuses). A batch's CRs run in parallel, each on the
-  default branch, each PR on the default branch. A stack is made afterwards, by the stack driver
-  (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack, and the
-  start base for any other). A CR stands on another only by a dependency: a real one
-  (`depends.json`) or a chain the Foreman decided (`order after`). `open --parallel` makes a
-  batch with no stack at the end. A release CR and a fix CR sit outside the stack, on the default
-  branch. When a stack merges only in part, what remains forms another stack in the same batch,
-  restacked on the default branch. Each CR is named a branch
+  time; `not measured` refuses). A batch has one of three **modes**, set by
+  `open --mode parallel|series|stack` and shown by `status`. **Parallel** (the default, when the
+  user names none): every CR starts from the default branch at once and its PR is on the default
+  branch; the first one ready wins, and the user merges in the order things become ready unless
+  told otherwise; after each merge, every PR still open is rebased onto the default branch and
+  its checks run again. **Series**: the CRs have a precise order, the one given to `open` (`order
+  add` puts a CR on top); the next CR starts once the previous one is `ready`, from the previous
+  CR's pushed branch, and its PR is a draft; once the previous one merges, the next is rebased
+  onto the default branch and turns ready; `order mode --note stack` switches the series to a
+  stack, on the user's word. **Stack**: parallel, with a stack driver: every CR starts at once, on
+  the default branch or on its last open dependency, and the stack driver puts the PRs each on the
+  previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
+  and the start base for any other); the user merges from the bottom up. A CR stands on another
+  only by a dependency: a real one (`depends.json`) or a chain the Foreman decided (`order
+  after`). A release CR and a fix CR sit outside a series and a stack, on the default branch. When
+  a stack merges only in part, what remains forms another stack in the same batch, restacked on
+  the default branch. Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
   external mode): its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
@@ -110,7 +119,7 @@ started.
   with the Chief of Staff during the grill; a slug is the folder's name without its number. `open`
   and `order add` record `after` as CR ids (a slug already merged, in `3-done` or
   `5-archives`, is met, not recorded; an unknown slug, a malformed file or a cycle exits 2). `take` refuses a queued CR until
-  each CR of its `after` is `ready` or `merged` (a cancelled one stays unmet: an ask for the user,
+  each CR of its `after` is `ready` or `merged`, and, in a series, its predecessor too (a cancelled one stays unmet: an ask for the user,
   who drops the CR or changes it). The CR starts on the branch of its last dependency still open,
   in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
   place in the stack are two things. A chain is an `after` with no real dependency, which the
