@@ -957,14 +957,15 @@ def direct_batch(w: World) -> None:
           str(w.last_out))
     _, out = w.chantier("status")
     check("`status` and STATUS.md show who steers and the shape",
-          " steering direct (the Chief of Staff) shape stack " in out[0]
-          and "steered by the Chief of Staff (direct mode) · a stack of PRs" in
+          " steering direct (the Chief of Staff) shape parallel " in out[0]
+          and "steered by the Chief of Staff (direct mode) · independent PRs (parallel)" in
           (w.folder() / "STATUS.md").read_text(encoding="utf-8")
           and json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["steering"]
           == "direct", str(out))
     kept_batch = w.batch()
     state = w.folder() / "batch.json"
-    for fields, words, what in (({"mode": "parallel"}, " shape parallel ", "parallel for a --parallel batch"),
+    for fields, words, what in (({"mode": "series"}, " shape series ", "series for a --mode series batch"),
+                                ({"mode": "stack"}, " shape stack ", "stack for a --mode stack batch"),
                                 ({"steering": None}, " steering unknown ", "steering unknown, not foreman, "
                                  "when batch.json has no steering")):
         state.write_text(json.dumps({k: v for k, v in {**kept_batch, **fields}.items() if v is not None}))
@@ -1149,7 +1150,7 @@ def direct_batch(w: World) -> None:
           and any(json.loads(e)["kind"] == "steering" for e in
                   (w.folder() / "events.jsonl").read_text(encoding="utf-8").splitlines()), str(d))
     _, out = w.chantier("status")
-    check("`status` now says Foreman", " steering Foreman shape stack " in out[0], str(out))
+    check("`status` now says Foreman", " steering Foreman shape parallel " in out[0], str(out))
     w.chantier("order", "add", "--note", str(extra))
     check("a batch steered by a Foreman takes added work", len(w.batch()["crs"]) == 3)
     _, out = w.chantier("cost")

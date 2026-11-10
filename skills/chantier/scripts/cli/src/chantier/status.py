@@ -290,13 +290,14 @@ def steering_word(steering) -> str:
 
 
 def shape_word(mode) -> str:
-    return mode if mode in ("stack", "parallel") else "unknown"
+    return mode if mode in ("stack", "series", "parallel") else "unknown"
 
 
 def batch_markdown(v: dict) -> str:
     who = {"direct": "steered by the Chief of Staff (direct mode)",
            "foreman": "steered by a Foreman"}.get(v.get("steering"), "steering unknown")
-    shape = {"stack": "a stack of PRs", "parallel": "independent PRs (parallel)"}.get(
+    shape = {"stack": "a stack of PRs", "series": "a series of PRs, one after the other",
+             "parallel": "independent PRs (parallel)"}.get(
         v.get("mode"), "shape unknown")
     lines = [f"# {v['batch']}: {v['state']}", "",
              f"Updated {v['updated']} · {who} · {shape} · spent {_budget(v) if v['priced'] else 'unknown'}"

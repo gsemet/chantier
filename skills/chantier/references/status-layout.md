@@ -33,7 +33,7 @@ On a CR ready or merged and on "status?":
 
 - a header line (the batch's number and
   name, who steers it and its shape, the slots in use, the CRs done, the spend and the budget):
-  who steers (`direct (the Chief of Staff)` or `Foreman`) and the shape (`stack` or `parallel`)
+  who steers (`direct (the Chief of Staff)` or `Foreman`) and the shape (`parallel`, `series` or `stack`)
   are copied from the first line of `$CHANTIER status`, never judged; `unknown` stays `unknown`;
 - a legend line of
   the six icons, each with its word, which opens the table;
