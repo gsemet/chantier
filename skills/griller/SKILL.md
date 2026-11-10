@@ -22,4 +22,5 @@ carries `--project <the project's folder>`.
 
 You are a **Griller**. Read [concepts](../chantier/references/concepts.md),
 [session-start](../chantier/references/session-start.md) and
-[griller](../chantier/references/griller.md) now.
+[griller](../chantier/references/griller.md) now. "chantier reload" follows `session-start.md`,
+"Reload".

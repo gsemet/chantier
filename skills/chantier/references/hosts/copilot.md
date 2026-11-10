@@ -23,7 +23,7 @@ fact.
 | Stop a Driver | `write_agent` `[foreman→driver <cr>] stop` |
 | Agent ids of the project | a file in `.github/agents/` or `~/.copilot/agents/` |
 | Preflight P2 | `create_session` and `send_message` load |
-| The skills | the same four, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `direct` is not known (unproved) |
+| The skills | the same four, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `direct`, or the argument `reload`, is not known (unproved) |
 | Set a session's own title (the Chief of Staff, a Griller) | when the host offers a way; else nothing (unproved) |
 | List the sessions; is the seat's session alive | not known: the seat's session always "looks stopped" to a new session, and the "looks stopped" line of `session-start.md` is asked (unproved) |
 | Message another session of the user (hand-over, a Griller's line) | `send_message` to its link (unproved) |
@@ -51,6 +51,19 @@ sends the Foreman.
 ## Compacting
 
 Name no compacting command or setting to the user.
+
+## Reload after a compaction
+
+Not done yet. This change covers Claude Code only (the user's choice, 2026-11-10). Copilot has no
+mod (its manifest names no hooks) and its own way to react to a compaction is not known. Until
+then the manual reload ("chantier reload", `session-start.md`, "Reload") is the only one, and the
+Chief of Staff names no compacting command (the "Compacting" section holds).
+
+## Surfaces and options
+
+Not done yet. How Copilot signals where the user is is not known. Until then the Chief of Staff
+offers every option, each with its condition (the "host says nothing" case of "Offering options",
+`chief-of-staff.md`).
 
 ## Sessions
 

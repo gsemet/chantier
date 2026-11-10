@@ -139,3 +139,27 @@ A Griller gives the same introduction, ending with the message of section 2. A C
 a remote session (Remote Control or cloud, per the host's reference) ends it with one line: "to
 grill in parallel, fork this session; the fork becomes a Griller". It explains the user's steps
 (the fork, auto mode, no worktree) and never does them.
+
+## 5. Reload
+
+After a compaction a session keeps only a summary of the cards. A reload reads them again.
+
+- **Trigger:** the user says "chantier reload" (plain text, any language around it); or the router
+  skill is invoked with the argument `reload` (the host's form is in its reference); or the host
+  puts the automatic reload's line in the conversation after a compaction (the host's reference
+  says how). A session that holds no chantier role yet (the router never ran, no seat names it,
+  it is not a Griller): a reload is the router's start, as with no argument.
+- **Reads again, whole:** [concepts](concepts.md), this file, the card of the session's role
+  ([chief-of-staff](chief-of-staff.md) or [griller](griller.md)), your host's reference, and
+  [report](report.md); while this session steers a direct batch (the seat names this session and
+  the active batch's steering is `direct`, from `$CHANTIER status`), also [foreman](foreman.md).
+- **Does:** re-read the seat, as at any skill invocation (a seat that names another session makes
+  this session a Griller, as section 2 says). The role is the one the session already holds: no
+  role question, no introduction (section 4 is skipped), no first-turn preflight report, no title
+  change unless the seat changed the role.
+- **Touches nothing of the batch:** no order, no epoch claim, no `take`, no heartbeat armed or
+  stopped, no Driver started or messaged. It reads only (`$CHANTIER seat`, `$CHANTIER status`).
+- **Says:** one short line, in the user's language, that chantier's rules are reloaded; then, if a
+  batch is active, the current status in the Progress shape of `report.md` (`status --refresh`
+  with no epoch first, as it says). After an automatic reload, that line opens the next answer,
+  before whatever answers the user's message.

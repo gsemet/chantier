@@ -627,3 +627,64 @@ test('an https link stays a link; a relative link opens in the pane', async ($, 
   expect((await ui.find({ key: 'doc' }))?.props.text).toContain('See [the spec]')
   await ui.unmount()
 })
+// ---- the automatic reload, at a compaction ----
+
+const SUMMARY = [{ role: 'user' as const, text: 'SUMMARY', toolUses: [] }]
+const compacting = (on: On, seen: any[] = []) =>
+  on('session.compact', (_, e) => {
+    seen.push(e)
+    return { messages: SUMMARY }
+  })
+const LONG = [{ role: 'user' as const, text: 'A LONG TALK', toolUses: [] }]
+const RELOAD = 'chantier reload (automatic, after a compaction)'
+
+test('a compaction of a session that loaded a role skill ends with the reload line, manual or auto', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  compacting(on)
+  await $.skill.prompt({ skill: 'chantier:chief-of-staff', text: 'THE PROMPT' })
+
+  for (const trigger of ['auto', 'manual']) {
+    const out: any = await ($.session.compact as any)({ messages: LONG, trigger })
+    expect(out.skip).toBeUndefined()
+    expect(out.messages[0].text).toBe('SUMMARY')
+    expect(out.messages[out.messages.length - 1].text).toContain(RELOAD)
+  }
+})
+
+test('a session that loaded no role skill, or only another, gets its compaction unchanged', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  compacting(on)
+
+  expect(((await ($.session.compact as any)({ messages: LONG, trigger: 'auto' })) as any).messages).toEqual(SUMMARY)
+  await $.skill.prompt({ skill: 'chantier:status', text: 'THE PROMPT' })
+  expect(((await ($.session.compact as any)({ messages: LONG, trigger: 'manual' })) as any).messages).toEqual(SUMMARY)
+})
+
+test('a subagent\'s own compaction is unchanged', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  compacting(on)
+  await $.skill.prompt({ skill: 'chantier:griller', text: 'THE PROMPT' })
+
+  const out: any = await ($.session.compact as any)({ messages: LONG, trigger: 'auto', agentId: 'driver-1' })
+  expect(out.messages).toEqual(SUMMARY)
+})
+
+test('the reload hook never vetoes a compaction', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  compacting(on)
+  await $.skill.prompt({ skill: 'chantier', text: 'THE PROMPT' })
+
+  for (const trigger of ['auto', 'manual', 'plugin']) {
+    const out: any = await ($.session.compact as any)({ messages: LONG, trigger })
+    expect(out.skip).toBeUndefined()
+    expect(out.messages.length).toBeGreaterThan(0)
+  }
+})
