@@ -51,6 +51,14 @@ def _prepared(repo, chantier, title="Fix login"):
     return folder
 
 
+def test_release_scan_catches_a_uuid_after_an_underscore():
+    spec = importlib.util.spec_from_file_location("release_notes", PLUGIN_ROOT / "scripts" / "release_notes.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    hits = module.scan_text("see local_00000000-1111-2222-3333-444444444444", "f", module.FIXED)
+    assert any(h.endswith("uuid") for h in hits)
+
+
 def test_every_file_carries_the_same_version():
     version = _version_script()
     for path, pattern, count in version.TARGETS:
