@@ -54,7 +54,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   spend, and names the longest silent Driver); `handoff <cr>` and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
   for the prompt ([concepts](concepts.md), "Starting an agent"). `take stack` for the stack
-  driver. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
+  driver. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
+  `team:` line): its agent and model are passed as printed, with no model when none is printed
+  ("Starting an agent"). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended without its hand-back).
 - An `order qa`: `status` names its folder in the inbox. The order already holds its slot (it is
   refused when none is free), so start a `qa-driver` on it at once (`chantier qa-driver for

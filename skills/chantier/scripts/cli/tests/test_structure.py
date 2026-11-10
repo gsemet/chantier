@@ -131,6 +131,26 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
     assert (claude.get("background") == "true") == (role in DRIVERS)
 
 
+@pytest.mark.parametrize("host", ["claude", "copilot"])
+def test_the_model_table_names_every_model_the_agent_files_name(host):
+    from chantier.playbook import resolve
+    for role in ROLES:
+        front, _ = _front(agent_file(role, host))
+        # Copilot writes `[Display name, id]`; Claude the id alone
+        named = front["model"].strip("[]").split(", ")[-1]
+        found, why = resolve(host, named)
+        assert why is None and found.id == named, (role, named, why)
+
+
+def test_the_model_table_names_no_model_twice_per_host():
+    from chantier.playbook import MODELS, normalise
+    for host, models in MODELS.items():
+        ids = [normalise(m.id) for m in models]
+        assert len(set(ids)) == len(ids), host
+        names = [normalise(m.name) for m in models]
+        assert len(set(names)) == len(names), host
+
+
 def test_skill_and_references_links_resolve():
     for page in [*(PLUGIN_ROOT / "skills").glob("*/SKILL.md"), *(SKILL / "references").glob("*.md"),
                  PLUGIN_ROOT / "README.md", *(PLUGIN_ROOT / "docs").glob("*.md")]:

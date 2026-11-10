@@ -29,7 +29,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
-| "use my agent for <role>", "add a <kind> review", "which models?" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
+| "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result | The project |
+| "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
 | a stack is ready, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
@@ -40,7 +41,9 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 
 - **No fallback.** When a tool, a `$CHANTIER` command, a host feature or an agent is not
   available exactly as written, stop and report it with the error; never a look-alike model,
-  another tool, a workaround or an estimate. Within what you have, judge freely.
+  another tool, a workaround or an estimate. Within what you have, judge freely. A skill or tool
+  the playbook says a role needs and your session lacks is not a stop: warn the user, the role
+  works without it ("Required skills and tools" under The project).
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
 - **Only the user starts work.** Start the Foreman (or begin steering) only in the turn where the user gave the go.
   Never start a backlog item the user did not choose. Never merge: the user does, and the
@@ -58,32 +61,52 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 
 At the start of each session, `$CHANTIER rules`: the project's `AGENTS.md` (else `CLAUDE.md` or
 `.github/copilot-instructions.md`) and what it links say how the project builds, tests, ships,
-merges and releases, on which branch, and which agents run which roles. Nothing is configured
-anywhere else. Once per session, at your first turn, run `$CHANTIER preflight` and P9's check
+merges and releases, on which branch, and the extra review steps. Nothing else is configured
+except `chantier.yaml` (below). Once per session, at your first turn, run `$CHANTIER preflight` and P9's check
 (step 1 of "Starting a batch"); tell the user only what P5, P9 and P10 say (the other conditions
 are a batch's). For a P10 warn, give the "For you" block "Allow rules to add" of your host's
 reference with the missing rules; a missing tool is said with what to install. Nothing blocks
 the user's request there. A project with no long gate written down is a question for the user, with your
 recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success.
 
-The team: every role runs the plugin's agent unless `AGENTS.md` says otherwise, in a `chantier`
-section you edit only on the user's word:
+The team: every role runs the plugin's agent with its file's model unless the project's optional
+`chantier.yaml` (at its root) says otherwise. Only the CLI reads, validates and resolves it, and
+you edit it only on the user's word:
 
-```markdown
-## chantier
-
-- coder: `rust-coder`
-- security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
-- release: CONTRIBUTING.md#release
+```yaml
+roles:
+  coder:
+    agent: rust-coder        # an agent id the host knows (its reference says where)
+    model: opus              # a name; the CLI resolves it to the exact model, or refuses it
+    skills: [jira]           # what the role needs
+  cr-driver:
+    agent: my-driver         # your own Driver; it keeps driver.md as its card
 ```
 
-A built-in role (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`, `investigator`,
-`coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`, `demo-explorer`,
-`spec-writer`) keeps its
-card; any other name is an extra review step the CR Driver runs after the Inspector. An agent
-id is what the host knows (its reference says where). You pass the team to the Foreman
-in its prompt; a running batch keeps the team it started with. The host's reference says which
-model each role runs.
+A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,
+`investigator`, `coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`,
+`demo-explorer`, `spec-writer`); it keeps its card, whoever runs it. `$CHANTIER playbook` prints
+what each role runs (the exact agent and model to pass, "Starting an agent" in
+[concepts](concepts.md)), or says there is no `chantier.yaml`; an invalid file exits 2 with each
+problem and its line, and preflight's P12 fails: show the user the lines, never fix the file
+yourself. A host that cannot set a model when it starts an agent refuses a `model` (its
+reference, row "Models"): say so and offer the user's own agent that names the model. The
+`chantier` section of `AGENTS.md` keeps the extra review steps (any other name is a review step
+the CR Driver runs after the Inspector), the release pointer and the `planning:` line; when it
+still names an agent for a role, tell the user and offer to move it to `chantier.yaml`. A running
+batch keeps the playbook it opened with (`open` records it). You pass the Foreman the `team:` lines
+of `$CHANTIER playbook` as printed, with the review steps.
+
+**Required skills and tools.** For each skill or tool a role's `skills` or `tools` name, at your
+first turn's preflight and at step 1 of "Starting a batch" (and before you start a subagent of
+your own), compare it with what your own session has (your host's reference, row "Skills and
+tools of a session"). Each one you cannot find, tell the user in one line: `<role> needs the
+skill <name>: not found in this session; <role> works without it.` It is a warning, never a
+preflight failure, and nothing blocks. The role then works without it, and never reaches the same
+thing by another means ([concepts](concepts.md), rule 2).
+
+Your own subagents (the `spec-writer`, the `demo-explorer`) are started with the agent and model
+`$CHANTIER playbook` prints for their role, as printed.
 
 On the user's request for their own PR template, file a CR for it (`$CHANTIER file`, section
 "Backlog and grill"), grilled and specified like any other; a CR Driver delivers the guideline
@@ -169,7 +192,8 @@ Only in the turn where the user gave the go:
    agent session), P4 (the plugin's agents at this version), P5 (`uv` and `git`, versions), P6 (the
    repository's root), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
    Code: the recommended allow rules), which warns and never fails: give the user the block
-   for the missing rules, then go on. You check P2 (the
+   for the missing rules, then go on; and P12 (`chantier.yaml`, absent or valid). You warn the
+   user of each skill or tool the playbook names and your session lacks. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and
@@ -178,7 +202,7 @@ Only in the turn where the user gave the go:
    no session is started.
 2. **Show the plan:** the CRs (the `3-ready` ones first) and what each one waits for, with the reason of any queue that is
    no real dependency; how many CRs start at once, on how many slots (4 unless you say
-   otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team; and who steers
+   otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. Re-read the seat first ([session-start](session-start.md)). The steering mode is
    the session's: **direct mode** (you steer the batch yourself, no Foreman session) when the
    skill was invoked with `direct` or the user said so, else **Foreman mode** (a separate Foreman
@@ -215,7 +239,9 @@ Only in the turn where the user gave the go:
    <skill>/references/concepts.md now and follow them.
    CLI: uv run --script "<skill>/scripts/cli/chantier.py" <command> --batch <batch>
    Repository: <this repository's absolute path>
-   Team: <role: agent, …; or "the plugin's agents">
+   Team: <the lines of `$CHANTIER playbook`, as printed, and the review steps; or "the plugin's agents">
+   Needs: <only if a role needs skills or tools: as printed>
+   (the Foreman reads `$CHANTIER playbook --batch <batch>` itself to start a Driver)
    ```
 
    `<skill>` is the common `chantier` skill's absolute folder; `<host>` is `claude-code` or
@@ -498,7 +524,8 @@ cost table, outside the budget. In Foreman mode, still no message to a Driver.
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
 - **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";
-  prompt as in `concepts.md`, with `4-batch/` as its folder and the user's language). It writes
+  prompt as in `concepts.md`, with `4-batch/` as its folder and the user's language, and the
+  agent and model `$CHANTIER playbook` prints for it). It writes
   `demo/demo.md` in `4-batch/`.
 - **The demo.** Show the summary, then guide one change at a time and wait for the user's
   result: they try each change themselves. Prepare the fixture or the environment outside the

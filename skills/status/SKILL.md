@@ -15,7 +15,7 @@ chantier-version: 0.8.0
 `$CHANTIER` means `uv run --script "<../chantier made absolute>/scripts/cli/chantier.py"`: the
 common skill at `../chantier/` from this file's folder, with its cards (`../chantier/references/`),
 its CLI (`../chantier/scripts/cli/`) and its assets. Nothing to install or set up: the
-project's `AGENTS.md` is the only configuration.
+project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration.
 
 Read [status-layout](../chantier/references/status-layout.md) now, and nothing else of chantier: not the main
 skill, not the Chief of Staff's card, not the introduction. Then, for the active batch, or for

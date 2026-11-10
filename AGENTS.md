@@ -4,7 +4,7 @@
 - The long gate is `just scenario`: a change to the CLI, the cards or the scenario passes it
   before its PR; a change to the docs or the eval kit alone needs none.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
-- The plugin must work with no setup: the user's `AGENTS.md` is the only configuration, and
+- The plugin must work with no setup: the user's `AGENTS.md`, and an optional `chantier.yaml` at the project's root, are the only configuration (with no `chantier.yaml` chantier runs as if it were empty), and
   chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
   when the project asks for it.

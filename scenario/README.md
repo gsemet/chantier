@@ -28,6 +28,11 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - the batch opened with the branch from `AGENTS.md`, each CR named a branch and a worktree that
   the Driver creates; `take` refused past the slots and the budget, `round` past the limit;
   nothing written outside the planning folder;
+- the optional `chantier.yaml`: none (the plugin's agents, no `team:` line), a valid one (the
+  resolved model, recorded at `open`, printed by `take` and `playbook --batch`), kept by a running
+  batch when the file changes, refused with its line and nothing moved (an unknown role or key, a
+  tab, an anchor, a duplicate key, an unknown, ambiguous or version-only model name), and a model
+  on a host that cannot set one at a start;
 - hand-backs as state writes (refused before a PR is recorded), `ship` reporting what is off
   (uncommitted changes, a head not pushed, no long gate at it), a QA ordered during the batch,
   with its folder in the inbox, that holds no CR back and keeps the batch from pausing until done;

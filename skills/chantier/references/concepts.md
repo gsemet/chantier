@@ -163,13 +163,33 @@ started.
   merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
   says which), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
-  `cost`, `asks`, `pause` and `close`.
+  `cost`, `asks`, `pause`, `close`, `playbook` and `preflight`.
 
 ## Starting an agent
 
-A parent starts an agent, by its host's means, with the plugin's agent for the role unless its
-own prompt names another for that role; it passes no model and no effort (the host's reference
-gives the tool and the agent's name). The prompt is the agent's whole brief:
+A parent starts an agent, by its host's means (the host's reference gives the tool and the
+agent's name). Which agent and which model come from the project's playbook, an optional
+`chantier.yaml` that only the CLI reads, validates and resolves:
+
+- The parent passes the agent and, when one is printed, the model, exactly as `$CHANTIER` printed
+  them (`playbook`, `playbook --batch`, or the `team:` lines of `take`, `round` and `handoff`):
+  copied as printed, never typed from memory, completed, shortened or "corrected". It never
+  reads a model name and works out which model it is: the CLI resolved it. No model printed: no
+  model is passed and the agent file's model runs. Never an effort. The tool's parameter that
+  takes the model is in the host's reference.
+- Who reads what: the Chief of Staff, for its own subagents (the Spec-writer, the Demo
+  explorer), `$CHANTIER playbook`; the Foreman (the Chief of Staff in direct mode), for a Driver,
+  `$CHANTIER playbook --batch <batch>`; a Driver, for a worker, the `team:` lines of `take`,
+  `round` or `handoff`. A role the playbook does not name runs the plugin's agent with its file's
+  model.
+- A start the host refuses with a model (an unknown value, a model the host cannot take at a
+  start) is reported with its exact text (rule 7): never retried without the model, never with
+  another one.
+- When the playbook gives the role skills or tools, the prompt gets a `Needs:` line, as printed.
+  An agent that does not have one of them says so in a note and does its part without it (rule
+  2).
+
+The prompt is the agent's whole brief:
 
 ```text
 chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
@@ -179,7 +199,8 @@ the project's rules rank above them: run `$CHANTIER rules` first and read what t
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
-Team: <role: agent, …>                  (a Driver's prompt: who runs which worker)
+Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt: who runs which worker)
+Needs: skills <…>; tools <…>            (only when the playbook gives the role some, as printed)
 Note: <why the CR is with it, or the round's brief>
 ```
 
@@ -212,7 +233,9 @@ CR folder. It writes `03-change-spec.md` there and takes no slot and no budget o
 2. **No fallback.** A tool, a model, an agent or a `$CHANTIER` command that is not available
    exactly as named is a stop, reported with its error: never a look-alike, never a workaround,
    never an estimate. Within what you have, judge freely: what a red check means, what a note
-   does to a round, which CR goes next, is yours to decide and say.
+   does to a round, which CR goes next, is yours to decide and say. A skill or tool the playbook
+   says a role needs and the session lacks is not a stop: the Chief of Staff warns the user, the
+   role says so in a note and works without it, never reaching the same thing by another means.
 3. **Each role does only its own part.** A parent restarts a failing child; it never does the
    child's work. A fresh child per round. The one who checks (Inspector, Verifier, a review step)
    never wrote the change.
