@@ -20,7 +20,7 @@ leaves the Foreman's heartbeat alone.
   remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote).
   Icons, each with its word beside it: ⚪ not started or dropped, 🟡 working, 🟠 waiting,
   🔵 to review, 🔴 blocked, ✅ merged. Each icon is the one `status` draws in the CR's `label`
-  (the same as `STATUS.md` and the board): copy it, never judge it. 🟠 is a CR that waits for a
+  (the same as `STATUS.md` and the board; read it there, in the Status column of the batch's `STATUS.md`, or in `label` of its `STATUS.json`, which `status --refresh` has just written): copy it, never judge it. 🟠 is a CR that waits for a
   thing already on its way, named: the stack driver, another CR, a fix of a release, a slot, the
   user's word on a release, the budget a queued CR cannot start on; ⚪ is a queued CR that could start now. 🔴 is a CR that
   nothing moves until someone decides or repairs it.
@@ -46,7 +46,7 @@ On a CR ready or merged and on "status?":
 default branch); a CR ready on another base says what it waits for, and **For you** does not ask
 the user to merge it.
 
-Your next report has a line with the chain and its reason.
+When a CR is chained (queued after another by the Foreman's decision, with no real dependency), your next report has a line with the chain and its reason.
 
 On the Foreman's `ready` that is the last of a stack, when no CR of the batch is working, end
 the Progress report with the offer of a demo of what the stack delivers.
