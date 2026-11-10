@@ -51,7 +51,7 @@ The CLI keeps the CR's record and tells you what is off.
   title prefix, no draft at all) is followed as written, on the opening and on turning ready. A forge or plan that refuses a draft stops that step:
   `handback blocked refused <exact text>` (the stack driver: its `anomaly` line); no look-alike.
 - The evidence: once the Verifier has left it, you put it in the PR's description, in its
-  Impacts section, before and after side by side, as the forge's own CLI uploads images and
+  Deliverables section, before and after side by side, as the forge's own CLI uploads images and
   videos (`gh pr edit --attach` on GitHub, `gh` 2.103 and later); read the CLI's help for any
   other forge. A file its CLI cannot upload stays in `work/`, and the description names it in
   its Internal references section.
@@ -98,7 +98,7 @@ the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (w
 in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
 or with body items, is the next round. All approved: commit, rebase, the
 long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
-head, given the plan (`NOT VERIFIED` is a round), then the evidence in Impacts and the Test plan
+head, given the plan (`NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
 boxes updated (`gh pr edit --body-file` again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
 
