@@ -22,7 +22,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](init.md) |
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
-| a batch, "run the P1s", a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode comes from the session | Starting a batch |
+| a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode comes from the session | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | the Completion report (the cost to date from `cost` and `cost --explain`) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
@@ -144,8 +144,9 @@ in the user's language: what it changes, every decision taken (from `02-answers.
 still open. The user corrects it, and a correction is an answer (record it at once). Never decide
 on your own that a CR is grilled enough: you ask, and the user decides.
 
-A batch runs its CRs in parallel unless the plan says why not: a CR starts as soon as a slot is
-free, and the stack driver rebases afterwards. Touching the same file is no reason to wait, and
+A batch is parallel unless the user asks for a series or a stack, or a selected CR depends on
+another: then the plan proposes a series or a stack, and says why. In a parallel batch a CR starts
+as soon as a slot is free, and every open PR is rebased after each merge. Touching the same file is no reason to wait, and
 two CRs editing the same file do not depend on each other. Write `depends.json` in a CR's folder
 (`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) only when it needs
 the result of another, merged or ready first, and say in the plan what it needs; `open` and
@@ -176,7 +177,7 @@ Only in the turn where the user gave the go:
    no session is started.
 2. **Show the plan:** the CRs (the `3-ready` ones first) and what each one waits for, with the reason of any queue that is
    no real dependency; how many CRs start at once, on how many slots (4 unless you say
-   otherwise); mode (a stack unless the CRs are independent), budget, the team; and who steers
+   otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team; and who steers
    the batch. Re-read the seat first ([session-start](session-start.md)). The steering mode is
    the session's: **direct mode** (you steer the batch yourself, no Foreman session) when the
    skill was invoked with `direct` or the user said so, else **Foreman mode** (a separate Foreman
@@ -191,11 +192,13 @@ Only in the turn where the user gave the go:
 
    ```bash
    $CHANTIER open <prepared-folder>… [--default-branch <branch>] [--slots N] \
-     [--budget USD] [--parallel] [--release N] [--direct]
+     [--budget USD] [--mode parallel|series|stack] [--release N] [--direct]
    ```
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
-   makes a stack; `--parallel` makes independent CRs. It exits 2 while a batch is not closed. It moves
+   makes the mode you name: `parallel` (the default), independent CRs, each on the default branch;
+   `series`, one CR after the other, in the order given, each on the previous one's branch; `stack`,
+   independent CRs that the stack driver then stacks. It exits 2 while a batch is not closed. It moves
    each folder to `4-batch/1-pending/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back).
@@ -262,6 +265,7 @@ Only in the turn where the user gave the go:
   $CHANTIER order slots --note 0              # 0 holds; a number resumes
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
+  $CHANTIER order mode --note stack           # a series becomes a stack, on the user's word
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
@@ -280,6 +284,11 @@ Only in the turn where the user gave the go:
   "chain: <reason>"`. Your next report says the chain and its reason (`status-layout.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
+- **A series batch:** the CRs merge one by one, in order. On each `ready` ask, tell the user which
+  PR is next to merge (the bottom one, ready on the default branch) and that the others are drafts
+  waiting on it; when the user says it is merged, `order merged <cr>`, then say what comes next.
+  Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
+  --note stack`.
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
   <local sha>`, you run the push, the one exception to "do no Driver's work". From the main
   checkout, without changing its branch or touching its files:

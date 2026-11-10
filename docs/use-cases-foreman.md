@@ -25,19 +25,39 @@ others go on. Past the budget, nothing new starts until you answer. In the morni
 
 ## Build independent pull requests
 
-> "These three do not depend on each other: run them in parallel."
+> "These three do not depend on each other: run them."
 
-Each CR is based on the default branch, and `open --parallel` leaves no stack at the end.
+Parallel is the default: no flag, no word. Every CR starts from the default branch at once and its
+PR is on the default branch. The first one ready wins: you merge in the order things become ready,
+unless you say otherwise. After each merge you report, every PR still open is rebased onto the
+default branch and its checks run again, conflict or not.
 
 ## Build a stack of pull requests
 
-> "Run these three."
+> "Build a stack of these three."
 
-The CRs run in parallel, each PR based on the default branch. The stack comes after: when every
-CR is ready, a stack driver orders the stack, rebases and pushes each PR on the one below it, and
-heavy CI runs once at the top. A CR stands on another before that only by a dependency or a chain
-the Foreman decided, which you can turn off while the CR is queued. After each merge you report,
-it restacks the rest on the default branch.
+Asked for, `open --mode stack`. The CRs run in parallel, each PR based on the default branch. The
+stack comes after: when every CR is ready, a stack driver orders the stack, rebases and pushes each
+PR on the one below it, and heavy CI runs once at the top; you merge from the bottom up. A CR
+stands on another before that only by a dependency or a chain the Foreman decided, which you can
+turn off while the CR is queued. After each merge you report, it restacks the rest on the default
+branch.
+
+## Build a series of pull requests
+
+> "Run these three in series, in this order."
+
+Asked for, `open --mode series`: the CRs have a precise order, the one you gave. Only the first
+starts. The next starts once the previous one is handed back ready, from the previous CR's pushed
+branch, and its PR is a draft. The Chief of Staff tells you which PR to merge next, the bottom one,
+ready on the default branch; the others are drafts waiting on it. After you say it is merged, the
+next one is rebased onto the default branch and turns ready; if the previous one changes during
+review, the next is rebased on it. You can switch at any time:
+
+> "Switch to a stack."
+
+Every CR left then starts at once, each on the previous one, and a stack driver keeps the stack up
+to date.
 
 ## Steer a running batch
 
@@ -48,6 +68,7 @@ it restacks the rest on the default branch.
 | "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Hold." · "Resume." | slots 0: no new CR starts (a hold); a number resumes |
+| "Switch to a stack." | a series becomes a stack at once (`order mode --note stack`): every CR left starts, each on the previous one |
 | "I merged #42." | the CR moves to `3-done`; a ready PR that stops merging goes back to a Driver, which rebases it |
 
 Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read

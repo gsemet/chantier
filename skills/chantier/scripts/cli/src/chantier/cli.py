@@ -55,8 +55,10 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("items", nargs="+", help="path to a prepared CR folder or specification")
     s.add_argument("--slots", type=int, default=4)
     s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
-    s.add_argument("--parallel", action="store_true",
-                   help="independent CRs, each on the default branch (default: a stack of PRs)")
+    s.add_argument("--mode", choices=["parallel", "series", "stack"], default="parallel",
+                   help="parallel (default): independent CRs, each on the default branch; series: "
+                        "one after the other, in the order given, each on the previous one's "
+                        "branch; stack: independent CRs, then a stack driver stacks the PRs")
     s.add_argument("--release", type=int, metavar="N",
                    help="the item number of the release CR; it starts once the others have ended, on the user's word if it has company")
     s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",
@@ -71,7 +73,7 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("order", commands.order,
             "the user's word, recorded at once; the Foreman does what needs its hands",
             epoch=True)
-    s.add_argument("kind", help="add [--release], after, drop, merged, note, rounds, slots, budget, qa; "
+    s.add_argument("kind", help="add [--release], after, drop, merged, note, rounds, slots, budget, qa, mode (series to stack); "
                    "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "
                    "--epoch, add --fix-for --epoch")
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")

@@ -66,7 +66,7 @@ def _round(c: dict) -> int:
 
 def waits(d: dict, c: dict) -> list[str]:
     """What a queued CR waits for: the rule of `take`, read from the batch's record."""
-    return waits_all(d["crs"], c) if c["status"] == "queued" else []
+    return waits_all(d["crs"], c, d["mode"]) if c["status"] == "queued" else []
 
 
 def _waits_on(c: dict) -> bool:

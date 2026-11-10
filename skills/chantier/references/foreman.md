@@ -62,24 +62,25 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   the user's note in its prompt). It holds no CR back, but its slot stays taken until `order
   done`. On its `qa done`: `order done`, and the ask `qa <folder> <n> findings`.
 - A queued CR that `status` shows `waits for …` is not yours to start: pick among the CRs `take`
-  would accept, every one of them up to the free slots, and hold none in reserve: a batch runs
-  its CRs in parallel unless the plan says why not. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
+  would accept, every one of them up to the free slots, and hold none in reserve. In a series
+  batch `take` accepts only the next CR: that is the rule, not a reason to wait. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for
   the user to drop that CR or change it. A CR whose dependency went back to a Driver after it
-  started is restacked by the stack driver.
+  started is restacked by the stack driver in a stack batch; in a series or a parallel batch it gets the
+  rebase note below instead.
 - You may chain a queued CR on another when that costs less than rebasing, for instance small
   work on the same lines; a shared file alone is no reason, and a CR that has started is never
   chained. Send `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>` and leave the CR
   queued: the Chief of Staff records it with `order after` and `order note`, and the user may
   turn it off while the CR is queued. Once the CR has started, the chain stands until the stack
-  driver restacks.
+  driver restacks (in a series or a parallel batch, until its rebase note).
 - A Release driver takes the release CR once the others are merged or cancelled and, when it
   shares the batch, the user has confirmed it: `status` shows the release waiting for
   confirmation once the others have ended, so ask the Chief of Staff for it (`[foreman→chief-of-staff]
   release <cr>: the others have ended, confirm the version`), then start the Release driver when
   `order confirm` is in. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
-  (refused past three fixes or the budget); else, or refused, it is an ask. A batch is a stack
-  unless it was opened `--parallel`: a stack driver takes the stack when its open CRs are all
+  (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
+  (`--mode stack`, or a series switched by `order mode`): a stack driver takes the stack when its open CRs are all
   ready or blocked, and again after a merge. `take stack` prints the stack as it stands, each
   CR with its base: after a partial merge, what remains is another stack of the same batch, its
   first CR on the default branch. A release CR and a fix CR are outside it. A CR added by `order
@@ -97,8 +98,19 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   draft waiting for that dependency, whose dependencies are now all merged, goes back to a
   Driver at once: `take <cr> --note "rebase: <dependency> merged"`, a new CR Driver (it takes a
   slot, or waits like any queued CR when none is free). One still waiting for another open
-  dependency is rebased onto that one and stays a draft: the note says which. A stack batch is
-  unchanged: the stack driver restacks.
+  dependency is rebased onto that one and stays a draft: the note says which. This holds in every
+  mode. Then, by mode:
+  - **Parallel:** every CR with a PR still open goes back to a Driver: a `ready` or `blocked` one
+    with `take <cr> --note "rebase: <merged cr> merged"` (a new CR Driver, a slot, or it waits
+    like a queued CR when none is free); a `working` one gets `[foreman→driver <cr>] note rebase:
+    <merged cr> merged`. Conflict or not, its checks run again at the new head. A queued CR needs
+    nothing.
+  - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
+    "rebase: <cr> merged"` and turns ready on the default branch. Whenever a CR's branch moves (a
+    rebase, a new round after review), the started CR above it goes back to a Driver with
+    `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
+    that branch; each one moved this way moves the next.
+  - **Stack:** unchanged: the stack driver restacks.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
   push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
   `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through

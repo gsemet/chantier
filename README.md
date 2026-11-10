@@ -55,6 +55,30 @@ outside a worktree, so the Chief of Staff starts locally, then goes remote (Remo
 The full account (the surface, what stays local, archives, outside contributors, privacy, setting
 one up) is in [planning modes](docs/planning-modes.md).
 
+## Batch modes
+
+A batch has one of three modes. They say how the pull requests of the batch relate, and who merges
+what, when. You never merge through chantier: you merge, and the steering session guides you.
+
+![Batch modes: parallel, series and stack](docs/batch-modes.svg)
+
+- **Parallel** (the default; ask for nothing): every CR starts from the default branch at once and
+  its PR is on the default branch. The first one ready wins: you merge in the order things become
+  ready, unless you say otherwise. After each merge, every PR still open is rebased onto the
+  default branch and its checks run again, conflict or not.
+- **Series** ("run these in series"): the CRs have a precise order, the one you gave. The next CR
+  starts once the previous one is handed back ready, from the previous CR's pushed branch, and its
+  PR is a draft. Once the previous one merges, the next one is rebased onto the default branch and
+  turns ready. The Chief of Staff guides you merge by merge. On request ("switch to a stack"), a
+  series becomes a stack at once.
+- **Stack** ("build a stack of these"): parallel, with a stack driver. Every CR starts at once, the
+  PRs go each on the previous one, and the stack driver keeps the stack up to date; you merge from
+  the bottom up.
+
+A CR that depends on another (`depends.json`) waits for it in every mode. A release CR and a fix CR
+sit outside a series and a stack. The lifecycle of a batch (running, paused, closed) is the same in
+all three.
+
 ## Change Requests Lifecycle
 
 A "Change Request" is one more level over the issues of your tracker (Jira, GitHub, GitLab...).
@@ -102,7 +126,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    restates the CR and asks whether it is grilled enough; on your word a **spec-writer** agent
    writes `03-change-spec.md` in the background, and the Chief of Staff reviews it against your
    answers before showing it to you.
-3. **You start a batch** ("run the P1s"; the CRs run in parallel and are stacked afterwards, four slots). After a preflight and your go, the
+3. **You start a batch** ("run the P1s"; four slots; the CRs run in parallel unless you ask for a [series or a stack](#batch-modes)). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
    host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a
@@ -186,7 +210,7 @@ Talk to the Chief of Staff in plain language:
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background |
-| "run the P1s", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode |
+| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
 | "close the batch" | the check and the final cost, then closing on your yes |
@@ -273,8 +297,8 @@ without one (then its Driver works from the request alone). A CR moves to `3-don
 once when it merges, a stack's too, and to `5-archives` at `close`. A dropped CR goes to
 `6-trash/` and does not return to the backlog. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
-through the Foreman (in direct mode, once it is paused). Its CRs run in parallel, each PR on the default branch, and a stack driver
-stacks them afterwards unless the batch is `--parallel`. While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
+through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](#batch-modes), `open --mode parallel|series|stack`
+(parallel unless you ask otherwise). While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 
 External layout, beside it:

@@ -94,12 +94,27 @@ def alone(crs: list[dict], c: dict) -> bool:
     return not any(x["id"] != c["id"] and x.get("kind") != "fix" for x in crs)
 
 
-def waits_for(crs: list[dict], c: dict) -> list[str]:
-    """The CRs of `after` not yet met. For a CR, met is ready or merged (a cancelled one stays
-    unmet); for a release, merged or cancelled, since it ships what is merged."""
+def series_predecessor(crs: list[dict], c: dict) -> dict | None:
+    """In a series, the nearest CR before `c` in the order that is neither a release nor a fix
+    CR and not cancelled; a merged one counts, it is met."""
+    if c.get("kind") in {"release", "fix"}:
+        return None
+    before = [x for x in crs if x["order"] < c["order"] and x.get("kind") not in {"release", "fix"}
+              and x["status"] != "cancelled"]
+    return max(before, key=lambda x: x["order"], default=None)
+
+
+def waits_for(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
+    """The CRs not yet met: those of `after`, then, in a series, the predecessor. For a CR, met
+    is ready or merged (a cancelled one stays unmet); for a release, merged or cancelled, since
+    it ships what is merged."""
     found = {x["id"]: x for x in crs}
     met = ENDED if is_release(c) else {"ready", "merged"}
-    return [f"{i} {found[i]['status']}" for i in c.get("after", [])
+    ids = list(c.get("after", []))
+    pred = series_predecessor(crs, c) if mode == "series" else None
+    if pred and pred["id"] not in ids:
+        ids.append(pred["id"])
+    return [f"{i} {found[i]['status']}" for i in ids
             if i in found and found[i]["status"] not in met]
 
 
@@ -108,18 +123,18 @@ def needs_word(crs: list[dict], c: dict) -> bool:
     return is_release(c) and not alone(crs, c) and not c.get("confirmed")
 
 
-def waits_all(crs: list[dict], c: dict) -> list[str]:
+def waits_all(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
     """What a queued CR waits for, as `status` shows it: its `after`, then, once that is met,
     a release's fixes not ended, then, once those are met, its confirmation."""
     status = {x["id"]: x["status"] for x in crs}
-    found = waits_for(crs, c) + [f"{i} {status[i]}" for i in pending_fixes(crs, c)]
+    found = waits_for(crs, c, mode) + [f"{i} {status[i]}" for i in pending_fixes(crs, c)]
     if not found and needs_word(crs, c):
         return [WORD]
     return found
 
 
 def unmet(b: Batch, c: dict) -> list[str]:
-    return waits_for(b.data["crs"], c)
+    return waits_for(b.data["crs"], c, b.data["mode"])
 
 
 def over_budget(b: Batch) -> bool:

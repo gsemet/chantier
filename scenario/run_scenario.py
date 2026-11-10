@@ -494,7 +494,7 @@ def scenario(w: World) -> None:
     check("`file` of an existing slug exits 2 and names `--slug`", "--slug" in w.last_stderr,
           w.last_stderr)
     w.chantier("abandon", w.work / ".agents/changes/1-inbox/spare-item-twice")
-    _, out = w.start(*(str(backlog) for _, backlog in items), "--parallel",
+    _, out = w.start(*(str(backlog) for _, backlog in items),
                      "--slots", 2, "--budget", 50, *FROM_AGENTS_MD)
     check("`open` says what comes next, then where each folder moved",
           out[1].startswith("next:") and "2-backlog/P1/" in out[2] and "-> 4-batch/1-pending/" in out[2],
@@ -759,6 +759,7 @@ def scenario(w: World) -> None:
     copilot_missing_transcript(w)
     lifecycle_regressions(w)
     stack_batch(w)
+    batch_modes(w)
     release(w)
     granted_fixes(w)
     release_last(w)
@@ -1478,7 +1479,7 @@ def rails(w: World) -> None:
     slow.write_text("import time\ntime.sleep(2)\n")
     long_gate = f'"{sys.executable}" "{slow}"'
     w.reset()
-    w.start(str(a), str(b), "--parallel", "--slots", 1, "--budget", 1, "--default-branch", "main")
+    w.start(str(a), str(b), "--slots", 1, "--budget", 1, "--default-branch", "main")
     w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman7", "--epoch", 1)
     fm = Foreman(w, epoch=1)
@@ -1572,13 +1573,13 @@ def rails(w: World) -> None:
 
 
 def stack_batch(w: World) -> None:
-    note("\n## 13. A stack by default, one open batch, a stack merged in part")
+    note("\n## 13. A stack on request, one open batch, a stack merged in part")
     w.reset()
     bottom, middle, top = (prepare_cr(w, t)[1] for t in ("Stack bottom", "Stack middle", "Stack top"))
     _, joined = prepare_cr(w, "Stack joiner")
-    w.start(str(bottom), str(middle), str(top), *FROM_AGENTS_MD)
+    w.start(str(bottom), str(middle), str(top), "--mode", "stack", *FROM_AGENTS_MD)
     d = w.batch()
-    check("`open` makes a stack of four slots by default; the batch is `batch-<n>`",
+    check("`open --mode stack` makes a stack of four slots; the batch is `batch-<n>`",
           d["mode"] == "stack" and d["slots"] == 4 and re.fullmatch(r"batch-\d\d", d["id"])
           and d["id"] == w.name and w.folder().name == "4-batch"
           and d["crs"][0]["branch"].startswith(f"chantier/{w.name}/")
@@ -1668,6 +1669,112 @@ def stack_batch(w: World) -> None:
           fm.paused and w.batch()["status"] == "paused"
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
           and not (w.folder() / "batch.json").exists())
+    w.env.pop("CHANTIER_BATCH", None)
+
+
+def batch_modes(w: World) -> None:
+    note("\n## 13b. The three modes: parallel by default, series, the switch to a stack")
+    w.reset()
+    p1, p2 = prepare_cr(w, "Mode one")[1], prepare_cr(w, "Mode two")[1]
+    code, _ = w.start(str(p1), "--parallel", *FROM_AGENTS_MD, expect=2)
+    check("`open --parallel` is refused as an unknown argument", code == 2 and p1.is_dir(),
+          w.last_stderr)
+    w.start(str(p1), str(p2), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    one, two = (c["id"] for c in w.batch()["crs"])
+    check("a batch with no mode named is parallel", w.batch()["mode"] == "parallel",
+          str(w.batch()["mode"]))
+    code, _ = w.chantier("take", "stack", expect=2)
+    code2, _ = w.chantier("stack", one, two, expect=2)
+    check("parallel: `take stack` and `stack` are refused, `order mode` too",
+          code == 2 and code2 == 2 and w.chantier("order", "mode", "--note", "stack", expect=2)[0] == 2
+          and w.batch()["mode"] == "parallel", w.last_stderr)
+    for cr, name in ((one, "mode_one.py"), (two, "mode_two.py")):
+        w.chantier("take", cr)
+        start_driver(w, cr)
+        driver_round(w, cr, name, "N = 1\n")
+        w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+    w.chantier("order", "merged", one)
+    code, out = w.chantier("take", two, "--note", f"rebase: {one} merged")
+    check("parallel: after a merge, a ready CR goes back to a Driver for its rebase, on the "
+          "default branch", code == 0 and any("base origin/main" in ln for ln in out), str(out))
+
+    w.reset()
+    sa, sb, sc = (prepare_cr(w, t)[1] for t in ("Series first", "Series second", "Series third"))
+    w.start(str(sa), str(sb), str(sc), "--mode", "series", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    _, out = w.chantier("status")
+    check("series: `status` shows the next CR waiting for the previous one",
+          w.batch()["mode"] == "series"
+          and any(ln.startswith(b) and f"waits for {a} queued" in ln for ln in out)
+          and any(ln.startswith(c) and f"waits for {b} queued" in ln for ln in out), str(out))
+    code, _ = w.chantier("take", b, expect=2)
+    check("series: `take` refuses the next CR until the previous one is ready",
+          code == 2 and f"waits for {a} queued" in w.last_stderr, w.last_stderr)
+    w.chantier("take", a)
+    start_driver(w, a)
+    driver_round(w, a, "series_a.py", "A = 1\n")
+    code, _ = w.chantier("take", b, expect=2)
+    check("series: a working predecessor is not enough", code == 2 and f"{a} working" in w.last_stderr,
+          w.last_stderr)
+    w.chantier("handback", a, "ready", w.cr(a)["pr"])
+    _, out = w.chantier("take", b)
+    start_driver(w, b)
+    check("series: once the previous one is ready, the next starts on its branch, and the third "
+          "still waits", any(f"base {w.cr(a)['branch']}" in ln for ln in out)
+          and w.chantier("take", c, expect=2)[0] == 2 and f"waits for {b} working" in w.last_stderr,
+          str(out))
+    driver_round(w, b, "series_b.py", "B = 1\n")
+    w.chantier("handback", b, "ready", w.cr(b)["pr"])
+    w.chantier("order", "merged", a)
+    _, out = w.chantier("take", b, "--note", f"rebase: {a} merged")
+    check("series: once the previous one is merged, the next one is rebased on the default branch",
+          any("base origin/main" in ln for ln in out), str(out))
+    w.chantier("handback", b, "ready", w.cr(b)["pr"])
+    _, out = w.chantier("take", c)
+    check("series: the third starts on the second's branch once that one is ready",
+          any(f"base {w.cr(b)['branch']}" in ln for ln in out), str(out))
+    w.chantier("handback", c, "blocked", "question: which one?")
+    sd = prepare_cr(w, "Series on top")[1]
+    w.chantier("order", "add", "--note", str(sd))
+    d = w.batch()["crs"][-1]["id"]
+    _, out = w.chantier("status")
+    check("series: `order add` puts the new CR on top, waiting for the last one",
+          w.cr(d)["order"] == max(x["order"] for x in w.batch()["crs"])
+          and any(ln.startswith(d) and f"waits for {c} blocked" in ln for ln in out), str(out))
+
+    w.reset()
+    x1, x2 = prepare_cr(w, "Series late")[1], prepare_cr(w, "Series early")[1]
+    depends_on(x1, x2.name)
+    code, _ = w.start(str(x1), str(x2), "--mode", "series", *FROM_AGENTS_MD, expect=2)
+    check("series: a CR placed before its dependency is refused at `open`",
+          code == 2 and "cannot come before it in the series" in w.last_stderr and x1.is_dir()
+          and x2.is_dir(), w.last_stderr)
+
+    w.reset()
+    y = [prepare_cr(w, t)[1] for t in ("Switch one", "Switch two", "Switch three")]
+    w.start(*(str(p) for p in y), "--mode", "series", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    code, _ = w.chantier("order", "mode", "--note", "parallel", expect=2)
+    check("`order mode --note parallel` is refused on a series", code == 2
+          and w.batch()["mode"] == "series", w.last_stderr)
+    code, _ = w.chantier("take", c, expect=2)
+    _, out = w.chantier("order", "mode", "--note", "stack")
+    check("`order mode --note stack` turns a series into a stack at once, and logs it",
+          code == 2 and w.batch()["mode"] == "stack" and w.batch()["orders"][-1]["kind"] == "mode"
+          and w.batch()["orders"][-1]["applied"]
+          and any('"kind": "mode"' in ln for ln in (w.folder() / "events.jsonl").read_text().splitlines()),
+          str(out))
+    code, out = w.chantier("take", c)
+    check("after the switch, a queued CR is taken at once, on the default branch",
+          code == 0 and any("base origin/main" in ln for ln in out), str(out))
+    code, out = w.chantier("take", "stack")
+    check("after the switch, `take stack` works", code == 0 and out[0].startswith("the stack of batch"),
+          str(out))
+    code, _ = w.chantier("order", "mode", "--note", "stack", expect=2)
+    check("`order mode` is refused on a stack", code == 2, w.last_stderr)
     w.env.pop("CHANTIER_BATCH", None)
 
 
@@ -2153,7 +2260,7 @@ def changes_tree(w: World) -> None:
           code == 2 and bare_backlog.is_dir() and not (w.state / "4-batch/batch.json").exists(),
           w.last_stderr)
     w.chantier("abandon", bare_backlog)
-    _, out = w.start(ready_spec, ready_bare, "--parallel", "--slots", 2, *FROM_AGENTS_MD)
+    _, out = w.start(ready_spec, ready_bare, "--slots", 2, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     d = w.batch()
     one, two = d["crs"]
@@ -2216,7 +2323,7 @@ def old_tree(w: World) -> None:
         w.chantier("init")
         (w.state / ".batch-number").write_text("80\n")  # no branch of the other batches is reused
         items = [prepare_cr(w, title)[1] for title in ("Old queued", "Old ready", "Old working")]
-        w.start(*items, "--parallel", "--slots", 2, *FROM_AGENTS_MD)
+        w.start(*items, "--slots", 2, *FROM_AGENTS_MD)
         w.env["CHANTIER_BATCH"] = w.name
         w.chantier("foreman", "set", "local_foreman_old_tree", "--epoch", 1)
         fm = Foreman(w, epoch=1)
@@ -2345,7 +2452,7 @@ def dependencies(w: World) -> None:
 
     base_, next_ = prepare_cr(w, "Dep base")[1], prepare_cr(w, "Dep next")[1]
     depends_on(next_, base_.name)
-    w.start(str(base_), str(next_), "--parallel", "--slots", 3, *FROM_AGENTS_MD)
+    w.start(str(base_), str(next_), "--slots", 3, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     a, b = (c["id"] for c in w.batch()["crs"])
     check("`open` records `after` as CR ids", w.cr(b).get("after") == [a] and "after" not in w.cr(a),
@@ -2399,7 +2506,7 @@ def dependencies(w: World) -> None:
     w.reset()
     s1, s2 = prepare_cr(w, "Stack first")[1], prepare_cr(w, "Stack second")[1]
     depends_on(s2, s1.name)
-    w.start(str(s1), str(s2), *FROM_AGENTS_MD)
+    w.start(str(s1), str(s2), "--mode", "stack", *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     x, y = (c["id"] for c in w.batch()["crs"])
     code, _ = w.chantier("stack", y, x, expect=2)
@@ -2432,7 +2539,7 @@ def dependencies(w: World) -> None:
 
     w.reset()
     q1, q2 = prepare_cr(w, "Slot one")[1], prepare_cr(w, "Slot two")[1]
-    w.start(str(q1), str(q2), "--parallel", "--slots", 2, *FROM_AGENTS_MD)
+    w.start(str(q1), str(q2), "--slots", 2, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     c1, c2 = (c["id"] for c in w.batch()["crs"])
     w.chantier("take", c1)
@@ -2521,7 +2628,7 @@ def lost_messages(w: World) -> None:
     titles = ("Lost one", "Lost two", "Lost three")
     prepared = [prepare_cr(w, title)[1] for title in titles]
     w.reset()
-    w.start(*(str(p) for p in prepared), "--parallel", "--slots", 3, *FROM_AGENTS_MD)
+    w.start(*(str(p) for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     check("batch numbers go on rising after the last batch's folder is deleted",
           w.name == f"batch-{w.number_after:02d}", w.name)

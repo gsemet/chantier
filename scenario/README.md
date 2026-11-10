@@ -34,7 +34,13 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - dropping a live CR (its processes stopped), adding an item, an order applied at once and
   marked done, a note on a ready CR that the Foreman sends back with a Driver, more rounds
   granted, `slots 0` as a hold (its usage line says "0 holds"), a wider budget, a ready CR taken back only with a note;
-- a stack of independent CRs: all taken at once, each started on the default branch, then
+- the three modes: `open --parallel` refused; parallel by default (`take stack` and `stack`
+  refused, `order mode` refused, a rebase note on a ready CR after a merge, on the default
+  branch); a series (the next CR waits for the previous one to be ready, starts on its branch,
+  is rebased on the default branch once the previous one is merged; `order add` goes on top; a
+  CR before its dependency refused at `open`); `order mode --note stack` turning a series into a
+  stack at once, and refused anywhere else;
+- a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the default branch, then
   stacked afterwards by `stack` (`ship` records the default branch before, the CR under it
   after); a dependency changed with `order after` (refused on a CR not queued, an unknown CR or
   a cycle), a chain started on the ready CR's branch and undone by `--note -`;
