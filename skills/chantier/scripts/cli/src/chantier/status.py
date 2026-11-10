@@ -235,7 +235,8 @@ def cr_markdown(v: dict) -> str:
 
 
 def _priced(d: dict) -> bool:
-    return not any(line.startswith("Spent: unknown") for line in d.get("summary", []))
+    return d.get("spent_usd") is not None and not any(
+        line.startswith("Spent: unknown") for line in d.get("summary", []))
 
 
 def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
@@ -269,7 +270,7 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
 def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
     return {"schema": SCHEMA, "updated": now(), "batch": d["id"], "folder": folder.name,
             "state": d["status"], "mode": d.get("mode"), "steering": d.get("steering", "foreman"),
-            "spent_usd": d.get("spent_usd", 0), "budget_usd": d.get("budget_usd"),
+            "spent_usd": d.get("spent_usd"), "budget_usd": d.get("budget_usd"),
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
             "heartbeat": d.get("heartbeat"), "paused": d.get("paused"),
@@ -280,7 +281,7 @@ def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
 
 def _budget(v: dict) -> str:
     spent, budget = v["spent_usd"], v["budget_usd"]
-    return f"${spent:.2f}" + (f" of ${budget:g}" if budget else "")
+    return ("unknown" if spent is None else f"${spent:.2f}") + (f" of ${budget:g}" if budget else "")
 
 
 def batch_markdown(v: dict) -> str:

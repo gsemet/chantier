@@ -219,6 +219,8 @@ CR folder. It writes `03-change-spec.md` there and takes no slot and no budget o
 4. **Whoever owns a live agent is the only one who stops or messages it.**
 5. **Evidence is a command run at the pushed head, with its output.** Notes and green CI are
    not proof. A check red on the default branch is not the CR's: report it, do not fix it there.
+   Every judgment names the SHA it covers; after a move, what the move touched is judged again and
+   the rest is carried, saying so.
 6. **Never merge without the user's word.** The user merges the ordinary PRs. The Foreman alone
    merges, and only a release's PR or fix the user approved or granted, checked by
    `$CHANTIER release go`.

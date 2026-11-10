@@ -62,6 +62,13 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   screenshots are in Deliverables, not here; Impacts says in one line what they show. A file the
   forge's CLI cannot upload is named under "Internal references" (its path is under `work/`),
   not in the text. With nothing visible: one line, e.g. "No visual change".
+- Each proof names the SHA it covers (seven characters): the Test plan items, and the captions of
+  the before/after visuals in Deliverables (before at the base's SHA, after at the head's). A
+  proof carried over a move says so (`carried from <sha7>`). A proof the head has moved past, not
+  yet judged again, is marked `STALE (judged at <sha7>, head now <sha7>)`. A claim in Summary,
+  Deliverables, Changes or Impacts with no proof (no test, no gate, no Verifier claim, no
+  evidence) starts with `**UNVERIFIED:**`, or is narrowed to what is proven; it is never left as a
+  plain fact.
 - Human decisions, inside the fold: the impactful decisions the user took during the grill,
   extracted from the CR's `02-answers.md` (in the CR's folder, the parent of the work folder):
   only the decisions that shape the change, not every answer; one bullet each. No internal
@@ -84,7 +91,8 @@ To copy into `pr-body.md`:
 round, agent roles, .agents/changes/ paths). Put such references, the CR's name first, in the
 last section "Internal references". Fill every section; write "None" rather than delete one,
 except Human decisions, omitted when the CR has no decision from the grill to show. Keep the fold
-as written. -->
+as written. Name the SHA of each proof; mark a stale one STALE and an unproven claim
+UNVERIFIED. -->
 
 ## Summary
 
@@ -136,10 +144,11 @@ say here in one line what they show. With nothing visible, one line, e.g. "No vi
 ## Test plan
 
 - [ ] New or changed tests (they fail on the previous code) <!-- or "No behaviour change" -->
-- [ ] Local gates: <!-- the commands run and their results -->
-- [ ] Evidence: <!-- the before/after in Deliverables, or why there is none -->
-- [ ] Review
-- [ ] CI green
+- [ ] Local gates at `<sha7>`: <!-- the commands run and their results -->
+- [ ] Evidence: before at `<sha7>`, after at `<sha7>` <!-- or why there is none -->
+- [ ] Review: approved at `<sha7>`
+- [ ] Verified at `<sha7>` <!-- claims carried from an earlier SHA say so -->
+- [ ] CI green at `<sha7>`
 
 ## Internal references
 

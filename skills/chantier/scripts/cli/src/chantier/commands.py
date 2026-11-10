@@ -29,7 +29,7 @@ from .lifecycle import (PRIORITIES, STATE_FOLDERS, archive_name, changes_lock, c
 from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budget, check_grant,
                     check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
-                    release_merged, series_predecessor, waits_all, waits_for)
+                    release_merged, series_predecessor, spent_text, waits_all, waits_for)
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -604,7 +604,7 @@ def open_batch(args) -> list[str]:
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
     data = {"id": None, "version": __version__, "created": now(), "status": "running",
             "host": host, "mode": args.mode, "slots": args.slots,
-            "budget_usd": args.budget, "spent_usd": 0.0,
+            "budget_usd": args.budget, "spent_usd": None,
             "foreman": None, "foreman_epoch": 0, "foreman_transcript": None,
             "foreman_transcripts": [], "foreman_claims": [],
             "steering": "direct" if args.direct else "foreman",
@@ -1095,7 +1095,8 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]
             if epoch is not None:
                 b.data["heartbeat"] = now()
                 b.log("heartbeat", None)
-            silent = [(c["id"], age_minutes(c.get("updated")) or 0) for c in live(b)]
+            silent = [(c["id"], a) for c in live(b)
+                      if (a := age_minutes(c.get("updated"))) is not None]
             if silent:
                 cr, age = max(silent, key=lambda x: x[1])
                 lines.append(f"longest silent Driver {cr} {age:.0f} min")
@@ -1138,7 +1139,7 @@ def status(args) -> tuple[list[str], int]:
              f"steering {d.get('steering', 'foreman')} "
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
              f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
-             f" spent ${d.get('spent_usd', 0):.2f}"
+             f" spent {spent_text(d)}"
              + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")
              + (" (paused, cost to date)" if d["status"] == "paused" else "")]
     for c in sorted(d["crs"], key=lambda c: c["order"]):
@@ -1700,7 +1701,7 @@ def release(args) -> tuple[list[str], int]:
         if is_fix and result == "ask":
             return [f"no grant for: {args.note}; the user merges it"], EXIT_PRECONDITION
         if result == "budget":
-            return [f"no: the budget is spent (${b.data.get('spent_usd', 0):.2f} of "
+            return [f"no: the budget is spent ({spent_text(b.data)} of "
                     f"${b.data['budget_usd']}); only the user raises it"], EXIT_BUDGET
         if result == "fix":
             return [f"no: fix {why} is not merged"], EXIT_PRECONDITION

@@ -66,8 +66,11 @@ The CLI keeps the CR's record and tells you what is off.
   Staff asks the user (no `git add -f`). `archive: not in the PR`: nothing to add.
 - Logs: a raw log goes in `work/gates/` or a `*.log` file, never in a file that is published with
   the CR.
-- CI: wait with the forge's own watch in a background shell (`gh pr checks <pr> --watch`, `glab
-  ci status --live`), end your turn, and let its end wake you. Read the result yourself (`gh pr
+- CI: while CI runs, do everything that does not need its result first: `pr-body.md` and the
+  description as far as they can go, the archive's `delivery.md`, your notes. Then one long wait:
+  the forge's watch in a background shell (`gh pr checks <pr> --watch`, `glab ci status
+  --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
+  between. Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
   failure gets one re-run; the rest is a round, with a `debugger` first when the cause is not
@@ -107,19 +110,30 @@ included) and `pr-body.md`, and each review step your `Team:` lists, in order; `
 the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (written
 `pr-body.md: …`) is not a new round: you fix `pr-body.md` yourself and start a new `inspector`
 in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
-or with body items, is the next round. All approved: commit, rebase, the
-long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
+or with body items, is the next round. All approved: commit with nothing changed since the
+review and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
+the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
 head, given the plan (`NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
-boxes updated (`gh pr edit --body-file` again), then, once the description is final, a short `verifier` pass on the posted description alone
+boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
+[PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
+narrowed in `pr-body.md` before the description pass), then, once the description is final, a short `verifier` pass on the posted description alone
 (`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
+
+A move is any change of the head after a judgment: a new round, a rebase, a restack, a conflict
+resolution. Every `verifier` you start after the first is given the previous `verify.md`, the move
+(`<old head>..<new head>`, with the old and new base for a rebase) and its kind, so it judges
+again only what the move touched. After a rebase whose range-diff shows the CR's patch changed (a
+resolved conflict), an `inspector` reviews that change alone, with no `$CHANTIER round` and no
+`coder`, as for a body-only re-inspection; `FIX-REQUIRED` on the code is a round. Before
+`handback ready`, no proof in the PR is stale.
 
 A CR taken with the note `rebase: <cr> merged` and no open dependency or predecessor left (also
 a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin/<default
 branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
 a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
-above), `ship`, run the long gate at the new head, read CI (red is a round). Green and mergeable,
+above), `ship`, run the long gate at the new head, read CI (red is a round). The `verifier`, given the move, judges again what it touched before `handback ready`. Green and mergeable,
 ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round. If the note names another open dependency instead, or is
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
@@ -141,7 +155,12 @@ under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> 
 on the default branch with its CR ready, ready (`gh pr ready`, `glab mr update --ready`); on
 another base, a draft (`gh pr ready --undo`, `glab mr update --draft`). Each CR keeps its
 own evidence plan. A conflict that only needs resolving: a `conflict-resolver`; one that needs
-code, or a red check: `[stack→foreman] anomaly <cr> <text>`. Green: `[stack→foreman] hand-back
+code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
+touched a CR's proofs (its patch changed, or the base brought changes to what the proofs run),
+start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
+CR's patch changed; update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
+--body-file` / `glab mr update --description`. A touched proof you cannot judge again stays
+marked stale in the PR and is an `anomaly`. Green: `[stack→foreman] hand-back
 ready <cr>=<link>…`.
 
 The stack is what `take stack` prints, each CR with its base (the state computes it: the CR under

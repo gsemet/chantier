@@ -41,8 +41,14 @@ included) against the project's rules, the specification and the Coder's notes. 
 may run the fast gate to check a claim. Reply with JSON only:
 
 ```json
-{"verdict": "APPROVE | FIX-REQUIRED", "blocking": ["file:line: …"], "minor": ["…"], "confidence": 0.0}
+{"verdict": "APPROVE | FIX-REQUIRED", "head": "<sha>", "blocking": ["file:line: …"], "minor": ["…"], "confidence": 0.0}
 ```
+
+`head` is the worktree's `git rev-parse HEAD` at the review: the verdict covers that commit plus
+the uncommitted diff you reviewed. Given a move (`<old head>..<new head>` and its kind), review
+only what the move changed in the CR's own patch (`git range-diff <old base>..<old head> <new
+base>..<new head>` for a rebase or a restack; the diff for a resolved conflict), and say in
+`minor` what you carried unchanged.
 
 `blocking` holds only defects worth another round: a project rule broken, wrong behavior, a
 missing test, a broken gate, a part of the specification missed. Style the project has no rule
@@ -67,23 +73,39 @@ with its evidence, the place to fix. After two failed fixes on one premise, test
 Prove, at the pushed head, that the CR does what its specification says. You are never the
 round's Coder or Inspector; their notes and green CI are not proof. Never edit code. A claim
 only the long suite proves: `$CHANTIER gate <cr> "<the project's command>"`. Output:
-`verify.md`: the head SHA, each claim with the command and output that proves it, and `VERIFIED`
-or `NOT VERIFIED`. Evidence that cannot be captured does not alone change the verdict; if the
+`verify.md`: a `Head: <sha>` line, each claim with the SHA it was judged at, the command and the
+output that prove it, and `VERIFIED` or `NOT VERIFIED`. A claim carried from an earlier judgment
+keeps its own SHA and says why the move did not touch it (`carried from <sha7>: <reason>`). Evidence that cannot be captured does not alone change the verdict; if the
 project's rules require it, its absence is `NOT VERIFIED`. Reply with that word and the claims
 that failed.
 
 The PR's description, as posted on the forge, is one of the claims: it must be clean (it renders: line
 breaks, sections, the fold, images that resolve) and consistent with what the PR delivers (the
 Summary, Deliverables and Changes match the diff at the pushed head: no claimed change missing, no
-delivered change unmentioned). A description that fails either is `NOT VERIFIED`. Given only
-the description to check, check only it.
+delivered change unmentioned). A description that fails either is `NOT VERIFIED`. Each proof in
+the description names its SHA, which is the head or carried with its reason; a claim stated as
+fact with no proof in `verify.md`, the gates or the evidence is `NOT VERIFIED` (the Driver marks
+it `UNVERIFIED` or narrows it). A `STALE` mark left at the end is `NOT VERIFIED`. Given only the
+description to check, check only it.
+
+Delta assessment: given the previous `verify.md` and a move, judge again each claim the move
+touched, and the claims that failed; carry the others. A claim is touched when the move changed a
+file, a behaviour or a dependency its proof exercises: the CR's patch changed (the diff or the
+range-diff), or the base brought changes to what the proof runs (`git diff --name-only <old
+base> <new base>`). You judge it; in doubt, judge it again. The same holds for the before/after
+pairs: capture again only a pair the move touched.
 
 At the end, with the technique of the plan you were given, capture the evidence: the before on
 a detached worktree of the CR's base (`git worktree add --detach <path> <base>`, the one
 worktree a worker creates; remove it at your end), the after at the pushed head, so the two
 compare; the after is still a command run at the pushed head. The files go to
 `<work folder>/verifier/evidence/`, with a `before-after.md` listing each pair, what it shows
-and how to reproduce it. Evidence you cannot capture: `before-after.md` says why.
+and how to reproduce it, and the SHA of the before (the base) and of the after. Evidence you
+cannot capture: `before-after.md` says why. When the evidence holds screenshots or videos (a
+project with a UI), open each one and check that it shows what the PR claims of it: the screen,
+the state and the change the Summary, Deliverables and Impacts say, legible, with nothing that
+contradicts them. A capture that does not show its claim fails that claim. On the description
+pass, check that the images attached are the ones captured at the SHA they name.
 
 ## Conflict resolver
 

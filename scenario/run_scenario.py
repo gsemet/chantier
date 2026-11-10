@@ -503,6 +503,13 @@ def scenario(w: World) -> None:
           w.name == "batch-01" and (w.folder() / "batch.json").is_file()
           and w.chantier("status", "--batch", "1")[0] == 0
           and w.chantier("status", "--batch", "batch-01")[0] == 0, w.name)
+    _, first = w.chantier("status")
+    board = (w.state / "STATUS.md").read_text(encoding="utf-8")
+    batch_report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    check("a spend not priced yet is unknown, never $0.00: `status`, the batch's STATUS.md and the board",
+          w.batch()["spent_usd"] is None and "spent unknown" in first[0] and "spent $0.00" not in first[0]
+          and "spent unknown" in batch_report and "spent $0.00" not in batch_report
+          and "unknown" in board and "$0.00" not in board, f"{first[0]}\n{batch_report}\n{board}")
     w.chantier("foreman", "set", "local_foreman1", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
@@ -713,6 +720,13 @@ def scenario(w: World) -> None:
                      "context 22,010 tokens"
           and abs(w.batch()["spent_usd"] - 1.608) < 0.001 and w.batch()["chief_transcript"]
           == "uuid-chief", str(out))
+    w.chantier("status", "--refresh", "--batch", w.name)
+    _, priced = w.chantier("status", "--batch", w.name)
+    batch_report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    board = (w.state / "STATUS.md").read_text(encoding="utf-8")
+    check("once the spend is priced, `status`, the batch's STATUS.md and the board show a dollar figure",
+          re.search(r"spent \$\d+\.\d\d", priced[0]) and re.search(r"spent \$\d+\.\d\d", batch_report)
+          and re.search(r"\$\d+\.\d\d of \$50", board), f"{priced[0]}\n{batch_report}\n{board}")
     code, out = w.chantier("cost", "--summary", "--batch", w.name)
     check("the summary gives the total, the budget and the split by level: the Foreman, the "
           "Drivers (the agents that started others) and the workers",
