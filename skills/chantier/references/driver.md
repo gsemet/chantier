@@ -176,6 +176,8 @@ inside the procedure and the grant, and ask for anything beyond them.
   tag, a release commit on the default branch, a merged release PR, a published package, an
   announcement. Before each: `$CHANTIER release go <cr> --note "<the action>"`; `go` is for
   that action, in this Driver. Exit 2 or 5: hand back as it prints, with the drafts' paths.
+  Under a grant ("auto"), `release go` answers `go` for the merge, the tag and the publication;
+  the announcement thread stays a draft, never posted.
 - A new attempt (no attempt yet, or a `fix merged:` note) starts on the fresh base: the
   worktree as above, or `git fetch` and `git reset --hard <base>`, then `$CHANTIER release start
   <cr>`, and the procedure from its first step whatever had passed before.

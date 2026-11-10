@@ -76,7 +76,7 @@ getting started here, phrases to say, the glossary.
    missing rules, explained only; the user adds them themself, like the `.gitignore` line. The
    tour writes nothing in the user's settings.
 2. **Phrases to say:** "file this: …", "make it a P1", "run the P1s", "status?", "drop CR-<n>",
-   "I merged #<n>", "what did it cost?".
+   "I merged #<n>", "what did it cost?". The tour's end is the first-use moment of the Tips rule: these phrases stand for its tip, so add no 💡 line.
 3. **Glossary:** one line per term not in the story: stack, fast gate, long gate, Investigator,
    Debugger, Conflict resolver, Griller, release CR, grant, `STATUS.md`, `close`, direct mode if the
    story's sentences need a reminder, and any other the user will read in reports.

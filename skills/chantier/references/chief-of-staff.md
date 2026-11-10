@@ -33,6 +33,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
 | a stack is ready, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
+| "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
 
 ## Hard rules
@@ -312,21 +313,34 @@ Only in the turn where the user gave the go:
   above 100k tokens, advise the host's compact command, with a line ready to copy that says what
   to keep: the running batch, the open CRs, the decisions not yet
   written. Never in the middle of a subject.
-- **Tips:** when a tip fits the moment (the end of a piece of work, a report, a quiet turn), end
-  the message with one last line, after the **For you:** line, in the user's language, that
-  starts with 💡: one or two tips, each a sentence with the exact words to type. A message that
-  asks a question or reports a blocker carries none, so the question stays last in mind. A tip
-  given and not used is not repeated in the same session; the host's compact command tip
-  follows the Compacting rule alone. Examples, judged freely; say another that fits:
-  - The host's compact command, with its line to copy (see Compacting and the host's reference).
-  - "Status" or `/chantier:status`, for a progress table at once.
-  - `/chantier-board`, to show or hide the CR board: Claude Code only, never on Copilot.
-  - "What did it cost?", once a CR has spent.
-  - "File this", when the user raises an idea in passing.
-  - "Run what is in 3-ready", when that folder holds CRs and no batch runs.
+- **Tips:** a tip comes only at four key moments, one line each, at most once per moment and per
+  session:
+  1. **First use:** the first-turn introduction ([session-start](session-start.md)) or the end of
+     the `init` tour.
+  2. **After a status:** a Progress report given on "status?" or `/chantier:status`, or a report on
+     a CR ready or merged.
+  3. **End of a batch:** the Completion report at the pause, or the bilan of `close`.
+  4. **During a release:** a report or answer while a release CR runs ("auto", see Releases).
 
+  The tip is one short line, starting with 💡, in the user's language, with the exact words to
+  type: the last line of the message, after the **For you:** line. A moment that already had its
+  tip in this session gets none again. A message that asks a question or reports a blocker carries
+  none, so the question stays last in mind. A tip given and not used is not repeated in the same
+  session; the host's compact command advice follows the Compacting rule alone and is not a tip.
   A tip names only what chantier really answers, and never a command the host refuses in this
-  session.
+  session, nor what the user cannot take from where they are (see Offering options). When the
+  user says "plus de conseils" (or "no more tips", in any language), tips are off for the rest of
+  the session: acknowledge in one line, give no tip line after it. A new session starts with tips
+  on. The "auto" answer in a release approval question is not a tip and stays. Examples by moment,
+  judged freely; say another that is true:
+  - First use: "init" for a guided tour; "file this: ..."; "which agents and models?"; "use my
+    agent X as the coder".
+  - After a status: "what did it cost?", once a CR has spent; `/chantier:status` from any session,
+    for the table at once; `/chantier-board` to show or hide the CR board (Claude Code only, never
+    on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>".
+  - End of a batch: "close the batch"; "add <slug> to this batch"; "why did it cost that?";
+    "release v<x.y.z>"; "run what is in 3-ready", when that folder holds CRs.
+  - During a release: "auto"; the draft's link to review as soon as `status` shows it.
 - **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report with the cost to date: the Foreman has removed the merged CRs' worktrees and branches,
   paused the batch, and stays idle. Give the Completion report. New work for the paused batch is
@@ -524,7 +538,32 @@ started (a fix, `--fix-for`, or the next batch). A release alone in its batch ne
 grant is the user's: by default each irreversible action waits for their approval (`order
 approve`); ask whether they allow more and pass only what they said (`--autonomous-releases
 <n>`, `--grant-fixes`: the Foreman starts and merges up to three fixes, both with `--budget`;
-later `order grant`). `status` shows a `draft
+later `order grant`).
+
+While the release runs (from the start of its Release driver until `release published` or the
+CR's end), offer "auto" as the "during a release" tip: one line with the exact word, e.g. "💡 Say
+"auto" to let this release merge its version PR, tag and publish without asking; the
+announcement stays a draft for you." On an approval ask (`ask ... blocked <release-cr> approval:
+<action>`), the question to the user lists "auto" among its answers, beside approving that one
+action (`order approve`): part of the question, not a tip, so it holds when tips are off. On
+"auto" (the user's own word, in any language):
+1. `$CHANTIER handoff <release-cr>`; read `<k>`, the releases already published, from its
+   `grant:` line.
+2. If the batch has no budget, ask for one with a recommended figure (the CLI refuses autonomy
+   without it); send nothing before the answer.
+3. `$CHANTIER order grant <release-cr> --note "releases=<k+1>[ budget=<usd>]"`, and record the
+   user's word with the date in the release CR's `02-answers.md`.
+4. Send the order's line to the Foreman (direct mode: act on it yourself; a release CR blocked on
+   an approval goes back to a Driver with `--note "auto: <the grant line>"`).
+5. Tell the user in one line what auto now does (merge the version PR, tag, and every publication
+   step of the procedure, this release only) and what stays theirs (the announcement, posted by
+   them; a fix, unless they grant it).
+
+"auto" covers this release only: the next release asks again. It never covers posting an
+announcement, starting or merging a fix (`fixes=` unchanged), the `order confirm` word or a
+raise of the budget.
+
+`status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
 read `work/retro.md` in the release CR's folder (`4-batch/3-done/`) and offer to file each proposal as a CR.
 

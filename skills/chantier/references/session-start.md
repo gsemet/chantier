@@ -100,7 +100,7 @@ On your first turn in a session, after the start checks and before anything else
 this introduction in their language, in about ten lines, then answer their request. Once per
 session; skip it if the user says they know chantier, or if their first request is `init`: the
 [tour](init.md) covers it. When the project has no planning folder, end it with one line: "new
-here? say init for a guided tour".
+here? say init for a guided tour". That line is the first-use tip; any other tip follows the Tips rule of the Chief of Staff's card.
 
 - **Change Request (CR):** one more level over the project's tracker issues (Jira, GitHub,
   GitLab…). It lets small requests outside the tracker be accepted and prioritised; the tracker

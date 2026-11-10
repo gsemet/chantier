@@ -92,9 +92,13 @@ budget.
 
 ## Tips
 
-When a tip fits the moment, a report ends with one last line, after the **For you:** line, in
-the user's language, that starts with 💡: one or two tips, each a sentence with the exact words
-to type. A report that asks a question or reports a blocker carries none, so the question stays
-last in mind. A tip names only what chantier really answers, and never a command the host
-refuses in this session, nor what the user cannot take from where they are (the host's signal of
-where the user is, if it gives one). It may name `/chantier:status`, for a progress table at once.
+A tip comes only at four key moments: first use, after a status (a Progress report), the end of a
+batch (a Completion report or the bilan of `close`), and during a release. It is one short line,
+starting with 💡, in the user's language, with the exact words to type: the last line of the
+report, after the **For you:** line. At most one per moment and per session. A report that asks a
+question or reports a blocker carries none, so the question stays last in mind. A tip names only
+what chantier really answers, and never a command the host refuses in this session, nor what the
+user cannot take from where they are (the host's signal of where the user is, if it gives one). It
+may name `/chantier:status`, for a progress table at once. After "plus de conseils" (or the same in
+any language) a report carries none for the rest of the session. The examples and the full rule
+are in [chief-of-staff](chief-of-staff.md), "Tips".
