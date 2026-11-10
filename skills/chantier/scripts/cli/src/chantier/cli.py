@@ -26,7 +26,7 @@ def _parser() -> argparse.ArgumentParser:
             s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
         return s
 
-    s = cmd("preflight", commands.preflight, "check P1 and P4–P8; exit 2 if any fails", False)
+    s = cmd("preflight", commands.preflight, "check P1, P4–P8 and P10; exit 2 if any fails (P10 only warns)", False)
     s.add_argument("--direct", action="store_true",
                    help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point")
 

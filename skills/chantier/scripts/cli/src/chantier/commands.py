@@ -127,13 +127,54 @@ def _agent_problems(host: str) -> list[str]:
             or m[1] != __version__]
 
 
+_ALLOW_COMMANDS = (
+    "git push --force-with-lease*",
+    "git -C * push --force-with-lease*",
+    "git push -u origin chantier/*",
+    "git -C * push -u origin chantier/*",
+    "uv run --script *chantier.py *",
+    "gh pr create*",
+    "gh pr checks*",
+    "glab mr create*",
+    "glab ci status*",
+)
+
+# The allow rules hosts/claude-code.md recommends, in its table's order (a test compares them).
+RECOMMENDED_ALLOW = tuple(f"{tool}({rule})" for rule in _ALLOW_COMMANDS
+                          for tool in ("Bash", "PowerShell")) + ("SendMessage",)
+
+_SETTINGS_SHOWN = "~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json"
+
+
+def _allowed_rules(repo: Repo | None) -> tuple[set[str], list[str]]:
+    """The `permissions.allow` strings of the user's three settings files, and the files that
+    could not be read. A file that is absent holds nothing."""
+    files = [Path.home() / ".claude" / "settings.json"]
+    if repo:
+        files += [repo.root / ".claude" / "settings.json",
+                  repo.root / ".claude" / "settings.local.json"]
+    rules: set[str] = set()
+    unreadable: list[str] = []
+    for path in files:
+        if not path.is_file():
+            continue
+        try:
+            allow = json.loads(path.read_text(encoding="utf-8")).get("permissions", {}).get("allow", [])
+            rules.update(r for r in allow if isinstance(r, str))
+        except (OSError, ValueError, AttributeError):
+            unreadable.append(str(path))
+    return rules, unreadable
+
+
 def preflight(args) -> tuple[list[str], int]:
     lines, ok = [], True
 
-    def check(tag: str, passed: bool, good: str, bad: str):
+    def check(tag: str, passed: bool, good: str, bad: str, warn: bool = False):
         nonlocal ok
-        ok &= passed
-        lines.append(f"{tag} {'ok  ' if passed else 'FAIL'} {good if passed else bad}")
+        if not warn:
+            ok &= passed
+        state = "ok  " if passed else "warn" if warn else "FAIL"
+        lines.append(f"{tag} {state} {good if passed else bad}")
 
     try:
         host = detect_host()
@@ -163,10 +204,11 @@ def preflight(args) -> tuple[list[str], int]:
               "; ".join(problems))
     else:
         check("P4", False, "", "unknown host: no agents to check")
-    has_uv = shutil.which("uv") is not None
+    missing = [t for t in ("uv", "git") if shutil.which(t) is None]
     sv = _skill_version()
-    check("P5", has_uv and sv == __version__, f"chantier {__version__}, uv found",
-          f"uv {'found' if has_uv else 'missing'}; CLI {__version__}, SKILL.md {sv}")
+    check("P5", not missing and sv == __version__, f"chantier {__version__}, uv and git found",
+          f"{', '.join(missing) + ' missing' if missing else 'uv and git found'}; "
+          f"CLI {__version__}, SKILL.md {sv}")
     if repo:
         top = Path(git("rev-parse", "--show-toplevel", check=False) or ".").resolve()
         check("P6", top == repo.root.resolve(), f"in the main checkout of {repo.root.name}",
@@ -178,6 +220,15 @@ def preflight(args) -> tuple[list[str], int]:
         found = project_instructions(repo)
         check("P8", found is not None, f"project instructions: {found.name if found else ''}",
               f"no {', '.join(INSTRUCTIONS)}: ask the user how the project builds and tests")
+    if host == "claude":
+        wanted = [r for r in RECOMMENDED_ALLOW if os.name == "nt" or not r.startswith("PowerShell(")]
+        have, unreadable = _allowed_rules(repo)
+        absent = [r for r in wanted if r not in have]
+        note = f" (unreadable: {', '.join(unreadable)})" if unreadable else ""
+        check("P10", not absent, f"the recommended allow rules are in your settings{note}",
+              f"{len(absent)} of {len(wanted)} recommended allow rules not found as written in "
+              f"your settings ({_SETTINGS_SHOWN}){note}: {', '.join(absent)}; the block is in "
+              'hosts/claude-code.md, "Allow rules"', warn=True)
     own = "P3, P9" if getattr(args, "direct", False) else "P2, P3, P9"
     lines.append(f"{own} and 'not unattended' are the Chief of Staff's own checks")
     lines.append("preflight passed" if ok else "preflight FAILED: start nothing")

@@ -108,11 +108,17 @@ run the P1s, two at a time
 
 The Chief of Staff:
 
-1. runs the **preflight** (Desktop app, plugin agents, `uv`, main checkout, project
-   instructions, the forge's CLI logged in) and stops with the reason if anything is missing;
+1. runs the **preflight** (Desktop app, plugin agents, `uv` and `git`, main checkout, project
+   instructions, the forge's CLI logged in, and the allow rules it recommends, a warning only)
+   and stops with the reason if anything is missing;
 2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch
    (a Foreman, by default);
 3. waits for your **go**.
+
+For fewer auto-mode interruptions, the Chief of Staff gives you the allow rules to add to your
+Claude Code settings when the preflight finds some missing; chantier never edits your settings
+itself. The rules, the risk each accepts and what must stay refused are in the host reference's
+section "Configuration" ([claude-code.md](../skills/chantier/references/hosts/claude-code.md)).
 
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
 next to your repository, which its Driver creates when it starts), then starts the **Foreman**
@@ -209,6 +215,8 @@ included.
 - **A CR is blocked.** "status?" shows why; answer the question or drop the CR.
 - Anything refused (a permission, a tool, a model) is reported with its exact text: chantier
   never works around a refusal.
+- **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): add the
+  allow rules of the "Configuration" section above to your settings.
 - **The Foreman was refused an action by a classifier.** It wants your word in that session: type
   one line in the Foreman's session allowing that action, from your phone if you are away.
 

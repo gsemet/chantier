@@ -445,9 +445,23 @@ def scenario(w: World) -> None:
                                              "CHANTIER_HOST": ""}, expect=2)
     check("preflight refuses Claude in VS Code (P1) and says to start nothing",
           code == 2 and out[0].startswith("P1 FAIL") and out[-1].endswith("start nothing"))
-    code, out = w.chantier("preflight")
+    home = w.root / "home"  # a home of its own: the developer's settings are not read
+    homes = {"HOME": str(home), "USERPROFILE": str(home)}
+    code, out = w.chantier("preflight", env=homes)
     check("preflight passes on Claude Desktop with no setup", code == 0
           and out[-1] == "preflight passed")
+    p10 = next((ln for ln in out if ln.startswith("P10")), "")
+    check("preflight warns (P10) on the allow rules missing from the settings, names one, and "
+          "still passes", p10.startswith("P10 warn") and "Bash(git push --force-with-lease*)" in p10,
+          p10)
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    from chantier.commands import RECOMMENDED_ALLOW
+    (home / ".claude").mkdir(parents=True)
+    (home / ".claude" / "settings.json").write_text(
+        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
+    code, out = w.chantier("preflight", env=homes)
+    check("preflight says P10 ok once the rules are in the home settings", code == 0
+          and any(ln.startswith("P10 ok") for ln in out), str(out))
     check("nothing was written in the working tree", w.sh("git", "status", "--porcelain") == "")
     _, out = w.chantier("rules")
     check("`rules` lists the project's instructions and what they link, with line counts",

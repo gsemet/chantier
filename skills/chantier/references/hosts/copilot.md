@@ -34,6 +34,14 @@ also ends its heartbeat when every Driver has ended for 30 minutes (nothing can 
 of Staff then tells the user to delete the `/every`, and arms it again with the next order it
 sends the Foreman.
 
+## Configuration
+
+- Prerequisites, the same as Claude Code's for a batch: `git` and `uv` (P5), `gh` or `glab`
+  logged in (P9). P10 does not run on Copilot.
+- No permission configuration is recorded for Copilot: **unproved**; nothing is recommended
+  until a Copilot trial records one.
+- The command hygiene of `concepts.md` rule 9 applies on both hosts.
+
 ## Compacting
 
 Name no compacting command or setting to the user.

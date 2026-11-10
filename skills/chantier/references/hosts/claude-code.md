@@ -44,6 +44,158 @@ wake where no Driver of any kind (CR, stack, QA, release) has run since the last
 order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
 Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
 
+## Configuration
+
+What the user configures so chantier runs on Claude Code with few interruptions. chantier never
+writes the user's settings: preflight's P10 compares, the user adds. Marks as above; a doc-check
+of 2026-11-09 against <https://code.claude.com/docs> gave the **documented** lines, each with its
+page (`https://code.claude.com/docs/en/<page>`).
+
+### Who reads it, when
+
+- The Chief of Staff, at its first turn of a session and at each batch's preflight: it runs the
+  check (P5, P9, P10) and gives the user the block of "Allow rules to add" for what is missing.
+- The Foreman and the Drivers read this file with their card (their prompts already name it):
+  "Auto mode" tells them what a refusal means and that it is reported, never worked around.
+- The workers do not read this file; what they need (one command per call, read before you
+  overwrite, no leading assignment, `git -C`) is in `concepts.md`, rule 9.
+
+### Prerequisites
+
+| Tool | Needed for | Checked by | Missing |
+| --- | --- | --- | --- |
+| `git` | every Driver, the CLI's reads | P5 (CLI) | preflight fails |
+| `uv` | `$CHANTIER` (`uv run --script`) | P5 (CLI) | preflight fails |
+| `gh` or `glab`, logged in to the remote's host | the Drivers' PRs and CI | P9 (the Chief of Staff: `gh auth status` / `glab auth status`) | preflight fails |
+| `python` | none directly: `uv run --script` provides the interpreter | not checked | say so; on Windows a `python` that resolves to the Microsoft Store alias fails (seen 15 times in the user's week): the fix is the user's (App execution aliases); **unproved** as to which roles call `python` |
+| `bash` | Claude Code's Bash tool on POSIX | not checked | **unproved** whether chantier needs it on Windows, where the PowerShell tool is used |
+| `claude` | not a batch's need | not checked | seen missing from PATH 5 times in the user's week; no card calls it |
+
+The last three rows are not checked: a default the Driver of this change chose to keep, and may
+change on its judgment.
+
+### Allow rules
+
+How rules match (each line **documented**, <https://code.claude.com/docs/en/permissions>):
+
+- `*` matches anywhere; `cmd *` (with a space) is a word boundary and also matches bare `cmd`.
+- `Bash(git push …)` does not match `git -C <path> push …`: the `-C` form needs its own rule.
+- `PowerShell(...)` rules have the Bash shape; aliases are canonicalized; matching is
+  case-insensitive.
+- A compound command passes only when every part is allowed (Bash: `&&`, `||`, `;`, `|`, `&`,
+  newline; PowerShell: `|`, `;`, and `&&`, `||` from PowerShell 7).
+- Bash: an allow rule does not match past a leading assignment (`X=1 cmd`), except known-safe
+  environment variables; deny and ask rules do. PowerShell assignments (`$w='…'; cmd`):
+  **unproved**, not documented (checked 2026-11-09).
+- `mcp__<server>__<tool>` is an exact tool name; a bare tool name matches all its uses.
+- `Edit(~/path/**)`: `~` is the home folder, `**` gitignore-style; an Edit rule covers Write and
+  NotebookEdit (<https://code.claude.com/docs/en/tools-reference>).
+- Settings precedence: managed > command line > local > project > user; deny > ask > allow; a
+  user deny blocks a project allow (<https://code.claude.com/docs/en/settings>, permissions).
+
+The recommended rules, in the order P10 checks them. Each has a `Bash(…)` and a `PowerShell(…)`
+form (P10 compares only the Bash forms on POSIX):
+
+| Rule | chantier's use | Risk accepted | Mark |
+| --- | --- | --- | --- |
+| `Bash(git push --force-with-lease*)` and `PowerShell(…)` | a Driver's push after a rebase (`driver.md`, Push) | any `--force-with-lease` push, to any branch, and any flag after it | documented (rule form) |
+| `Bash(git -C * push --force-with-lease*)` and `PowerShell(…)` | the same from outside the worktree, the form refused 4 times as "Git Destructive" | as above, in any repository the `-C` path names | documented (rule form) |
+| `Bash(git push -u origin chantier/*)` and `PowerShell(…)` | a Driver's plain push (`driver.md`: `git push -u <remote> <branch>`, branches `chantier/<batch>/…`) | `*` matches any further text, so a flag added after the branch passes too; a remote not named `origin` is not covered | documented (rule form) |
+| `Bash(git -C * push -u origin chantier/*)` and `PowerShell(…)` | the same with `git -C <worktree>` | as above | documented (rule form) |
+| `Bash(uv run --script *chantier.py *)` and `PowerShell(…)` | every `$CHANTIER` command (`merge`, `ship`, `spawn`… were refused 5 times) | any script whose path ends in `chantier.py` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
+| `Bash(gh pr create*)` and `PowerShell(…)` | a Driver opens its PR (refused once as "Git Destructive") | any PR on any repository `gh` can reach | documented (rule form) |
+| `Bash(gh pr checks*)` and `PowerShell(…)` | a Driver reads its CI | read-only | documented (rule form) |
+| `Bash(glab mr create*)` and `PowerShell(…)` | a Driver opens its MR on GitLab (`driver.md`: `glab mr create --draft`) | any MR on any project `glab` can reach | documented (rule form) |
+| `Bash(glab ci status*)` and `PowerShell(…)` | a Driver reads its CI on GitLab (`glab ci status --live`) | read-only | documented (rule form) |
+| `SendMessage` | the Foreman and the Drivers message each other (refused twice) | any message between this session's agents and sessions | **unproved**: `SendMessage` as a rule is not documented (absent from tools-reference, checked 2026-11-09); trial: set it, enter auto mode, have the Foreman message a Driver |
+
+The same rules as one block, ready to paste into the `permissions.allow` array of
+`~/.claude/settings.json` (a test compares it with the CLI's list):
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push --force-with-lease*)",
+      "PowerShell(git push --force-with-lease*)",
+      "Bash(git -C * push --force-with-lease*)",
+      "PowerShell(git -C * push --force-with-lease*)",
+      "Bash(git push -u origin chantier/*)",
+      "PowerShell(git push -u origin chantier/*)",
+      "Bash(git -C * push -u origin chantier/*)",
+      "PowerShell(git -C * push -u origin chantier/*)",
+      "Bash(uv run --script *chantier.py *)",
+      "PowerShell(uv run --script *chantier.py *)",
+      "Bash(gh pr create*)",
+      "PowerShell(gh pr create*)",
+      "Bash(gh pr checks*)",
+      "PowerShell(gh pr checks*)",
+      "Bash(glab mr create*)",
+      "PowerShell(glab mr create*)",
+      "Bash(glab ci status*)",
+      "PowerShell(glab ci status*)",
+      "SendMessage"
+    ]
+  }
+}
+```
+
+Two rules described here that P10 does not check:
+
+- `mcp__ccd_pr__set_monitor`: Claude Desktop's PR monitor (auto-fix), refused twice in the
+  user's week. No chantier card uses it. Risk: the session arms auto-fix on a PR. Rule form
+  documented; the tool itself is Claude Desktop's, **unproved** here.
+- `Edit(<the folder that holds the repository and its .worktrees>/**)` (the user's form:
+  `Edit(~/Projets/**)`): lets agents edit in the CR worktrees next to the repository. Risk: every
+  file below that folder. Not checked: the path is the user's.
+
+What not to add, and why (**documented**, <https://code.claude.com/docs/en/permission-modes>,
+<https://code.claude.com/docs/en/auto-mode-config>): auto mode drops on entry, and restores on
+leaving, broad rules: `Bash(*)`, `PowerShell(*)`, interpreter wildcards, package-manager run
+commands (`PowerShell(uv run *)`), every `Agent` rule and every `Monitor` rule. So no
+`Agent(chantier:cr-driver)` rule is recommended: starting a Driver in auto mode stays the
+classifier's call (refused 3 times in the user's week). The `Agent(Name)` form exists
+(documented); plugin agent names in it (`chantier:<role>`): **unproved**, not documented.
+
+### What stays refused
+
+No allow rule for these; when the host refuses or asks, the agent reports it (concepts rule 7),
+and chantier does not do them unasked. Each with why:
+
+- `git commit --amend --reset-author`: rewrites authorship.
+- `git branch -D` with `git push origin --delete`, and `git update-ref -d`: delete refs; the
+  Foreman's removal of a merged CR's branch and the Chief of Staff's of a dropped CR's (on the
+  user's word) stay asked, not allowed.
+- `Remove-Item -Recurse -Force` (or `rm -rf`) on `.claude`, or on temporary folders named by a
+  wildcard (`claude-eval-*`, `chsmoke-*`): a pattern can reach what is not chantier's.
+
+### Auto mode
+
+- Allow, ask and deny matches resolve at once in auto mode, without the classifier, except
+  protected paths, critical-path `rm`/`rmdir` and per-command domains (**documented**,
+  <https://code.claude.com/docs/en/permission-modes>).
+- The classifier label "Git Destructive" and `claude auto-mode defaults`, which lists the
+  classifier's rules: **documented** (<https://code.claude.com/docs/en/auto-mode-config>). The
+  labels "Merge Without Review" and "Create Public Surface", seen in the user's week:
+  **unproved**, not documented (checked 2026-11-09).
+- A refusal is reported with its exact text (concepts rule 7). A refused force push takes the
+  route already written (`driver.md`, `foreman.md`: Driver → Foreman → Chief of Staff).
+
+### What the docs do not say
+
+Each **unproved**, not documented (checked 2026-11-09):
+
+- `CLAUDE_CODE_ENTRYPOINT` and its values (`claude-desktop`): preflight P1 relies on it, and it
+  holds in use; the env-vars page does not list it.
+- The exact text "File has not been read yet". Documented: a Write to an existing file not read
+  first fails on older models; newer models may overwrite under conditions (v2.1.228+)
+  (<https://code.claude.com/docs/en/tools-reference>). Seen 177 times in the user's week, mostly
+  from subagents.
+- PowerShell assignments and allow rules; `SendMessage` as a rule; plugin names in `Agent(…)`;
+  the auto-mode fate of `uv run --script *chantier.py *` (as above).
+- Whether a running session picks up a change of the settings files: not checked; the block of
+  "Allow rules to add" says to start a new session.
+
 ## Compacting
 
 Auto-compact is on by default. What the user sets is its window: the `/autocompact` command and
@@ -51,6 +203,30 @@ the `autoCompactWindow` setting. Documented: <https://code.claude.com/docs/en/se
 `/compact` continues the same conversation, connected devices follow it, and `$CHANTIER cost`
 keeps the transcript; `/clear` may replace it. No role runs it: the person types it.
 
+Documented (<https://code.claude.com/docs/en/settings-reference>,
+<https://code.claude.com/docs/en/prompt-caching>):
+
+- `autoCompactWindow`: 100000 to 1000000; the default is tuned per model; capped at the model's
+  context window.
+- `idleCompaction`: default true; compacts after about an hour idle; Claude Code v2.1.290 and
+  later.
+- The prompt cache lasts 1 h on a subscription within plan usage, 5 min on an API key or a cloud
+  provider; `promptCacheTtl` sets it. Why it matters: Chief of Staff and Foreman sessions last
+  days (393 messages and 50 compactions in 45 h for one), with pauses past the cache's life.
+
+**Unproved**, not explained by the docs (checked 2026-11-09): sessions with `autoCompactWindow:
+300000` compacting around 165 to 170k tokens (the user's week). Trial: one session, the setting
+read back with `/autocompact`, the token count at the first compaction recorded here.
+
+**Recommendation**, not a proved fact: keep `idleCompaction` on (its default), and set
+`autoCompactWindow` to 400000 in `~/.claude/settings.json` for the Chief of Staff's and the
+Foreman's sessions (the plugin's agents carry 200,000 in their files). Why: long sessions with
+pauses past the cache's life. Whether 400000 holds, given the unexplained 165 to 170k compaction
+above, is unproved: the same trial settles it.
+
+```json
+{ "idleCompaction": true, "autoCompactWindow": 400000 }
+```
 ## Classes of session
 
 | Class | How it is known | Can start a session | Fit for a Foreman |
@@ -163,3 +339,18 @@ Cost: none beyond the summary; the same conversation continues.
 - **Do:** type `/compact` and send.
 - **Paste:** when I ask to keep something, the line I give you in its own code block.
 - **You should see:** a summary and a smaller context size within a minute.
+
+### Allow rules to add
+
+The block the Chief of Staff gives when P10 warns. Unproved until followed once by hand, like
+every block above.
+
+- **Where:** the computer running Claude Desktop, the file `~/.claude/settings.json` (or the
+  project's `.claude/settings.json`, which the team shares through git, or
+  `.claude/settings.local.json`, the user's own in this project).
+- **Do:** open the file; add the lines below to `permissions.allow` (create the key if absent);
+  save; then start a new session. Whether a running session picks up a settings change is
+  **unproved** (see "What the docs do not say").
+- **Paste:** only the missing rules P10 named, as JSON strings, in their table order, copied
+  from "Allow rules"; complete, no placeholder.
+- **You should see:** at the next preflight, `P10 ok`.
