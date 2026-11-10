@@ -5,7 +5,7 @@ color: yellow
 description: >-
   The entry that asks which role you want in this session: the Chief of Staff (with a Foreman,
   or in direct mode) or a Griller, then loads that skill. Use when the user addresses chantier
-  without a role. `/chantier:chief-of-staff` and `/chantier:griller` start a role directly.
+  without a role. `/chantier:chief-of-staff` and `/chantier:griller` start a role directly; `/chantier:status` gives the progress report.
 ---
 
 # chantier: the router

@@ -29,7 +29,7 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
-This installs three skills (the router `chantier`, `chief-of-staff` and `griller`) and twelve
+This installs four skills (the router `chantier`, `chief-of-staff`, `griller` and `status`) and twelve
 agents (`chantier:cr-driver`, `chantier:coder`, …). Restart the Desktop app so it loads them. There is nothing else to install
 and nothing to configure.
 
@@ -67,7 +67,7 @@ type:
 steer batches itself). `/chantier:griller` is a session that refines the inbox and the backlog
 while the Chief of Staff runs batches. One Chief of Staff holds the seat per repository; a
 second session that asks for it becomes a Griller and offers "become chief of staff", which you
-say to take over.
+say to take over. `/chantier:status` shows the progress report of the running batch at once, from any session, and changes nothing.
 
 The Chief of Staff introduces chantier in a few lines, reads your `AGENTS.md`, and tells you
 what it learned: how you check, ship and merge, and the default branch. It asks about anything your instructions do

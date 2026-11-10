@@ -23,7 +23,7 @@ fact.
 | Stop a Driver | `write_agent` `[foreman→driver <cr>] stop` |
 | Agent ids of the project | a file in `.github/agents/` or `~/.copilot/agents/` |
 | Preflight P2 | `create_session` and `send_message` load |
-| The skills | the same three, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `direct` is not known (unproved) |
+| The skills | the same four, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `direct` is not known (unproved) |
 | Set a session's own title (the Chief of Staff, a Griller) | when the host offers a way; else nothing (unproved) |
 | List the sessions; is the seat's session alive | not known: the seat's session always "looks stopped" to a new session, and the "looks stopped" line of `session-start.md` is asked (unproved) |
 | Message another session of the user (hand-over, a Griller's line) | `send_message` to its link (unproved) |

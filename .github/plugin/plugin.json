@@ -23,6 +23,7 @@
   "skills": [
     "./skills/chantier",
     "./skills/chief-of-staff",
-    "./skills/griller"
+    "./skills/griller",
+    "./skills/status"
   ]
 }
