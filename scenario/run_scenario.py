@@ -818,7 +818,26 @@ def seat_handover(w: World) -> None:
     check("the new session claims the epoch and the steering stays direct",
           w.batch()["steering"] == "direct", str(w.batch()["steering"]))
     w.chantier("status", "--refresh", "--epoch", 0, expect=3)
-    w.chantier("cost")
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    projects = w.root / "claude-projects" / slug
+    projects.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    call = json.dumps({"type": "assistant", "timestamp": now, "message": {
+        "id": "seat", "model": "claude-sonnet-5-5", "usage": {
+            "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n"
+    for name in ("uuid-chief", "uuid-chief-b"):  # each Chief of Staff session has its own file
+        if not (projects / f"{name}.jsonl").is_file():
+            (projects / f"{name}.jsonl").write_text(call, encoding="utf-8")
+    code, _ = w.chantier("cost")
+    check("`cost` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
+          w.last_stderr)
+    w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1, env=b_env)
+    code, _ = w.chantier("pause", "--epoch", 1, env=b_env)
+    check("`pause` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
+          w.last_stderr)
+    code, _ = w.chantier("close", "--batch", w.name, "--yes", env=b_env)
+    check("`close` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
+          w.last_stderr)
     w.chantier("seat", "leave", "sess-b", env=b_env)
     _, out = w.chantier("seat", "get")
     check("`seat leave` frees the seat", out == ["seat none"], str(out))
