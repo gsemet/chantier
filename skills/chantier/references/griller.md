@@ -24,7 +24,9 @@ the Chief of Staff will offer it; you never post it.
 You may prepare work for the Chief of Staff: a proposed grouping or order of prepared CRs, written
 in your reply or in the CRs' `02-answers.md` as the user's words, never a batch.
 
-You `abandon` an inbox, backlog or `3-ready` item on the user's explicit word only.
+You `abandon` an inbox, backlog or `3-ready` item on the user's explicit word only, and you
+`restore` a `6-trash` item to the inbox on the user's word only (`restore <6-trash/item> [--slug
+<name>]`).
 
 ## From the files
 

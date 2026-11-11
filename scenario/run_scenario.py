@@ -821,6 +821,8 @@ def scenario(w: World) -> None:
     cancel_during_gate(w)
     rails(w)
     handback_proofs(w)
+    gate_proof(w)
+    restore_cr(w)
     foreman_in_a_worktree(w)
     direct_batch(w)
     seat_handover(w)
@@ -2413,6 +2415,230 @@ def handback_proofs(w: World) -> None:
     code, out = w.chantier("ship", num, link)
     check("`ship`, `gate`, `handback` and `verdict` all resolve a bare number, or `cr-<n>`, to "
           f"{cr}", code == 0 and out[0].startswith("recorded "), str(out))
+
+
+def gate_proof(w: World) -> None:
+    note("\n## 12c. The gate binds to a commit; the budget bounds the rounds")
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    from chantier.commands import gate_passed
+    items = [prepare_cr(w, t)[1] for t in ("Gate head", "Gate abbrev", "Gate short", "Gate budget",
+                                           "Gate rounds", "Gate free")]
+    w.reset()
+    w.start(*map(str, items), "--slots", 6, "--budget", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman9", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    a, b, c, d, e, f = (x["id"] for x in w.batch()["crs"])
+
+    def wt(cr):
+        return Path(w.cr(cr)["worktree"])
+
+    def head(cr):
+        return w.sh("git", "rev-parse", "HEAD", cwd=wt(cr))
+
+    def events(kind, cr):
+        return [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+                if json.loads(ln)["kind"] == kind and json.loads(ln)["cr"] == cr]
+
+    def last_log(cr):
+        return max((w.at(w.cr(cr)["path"]) / "work" / "gates").glob("*.log")).read_text(
+            "utf-8").splitlines()
+
+    commit(w, a, "g1.py", "G = 1\n")
+    w.chantier("gate", a, GATE)
+    lines, sha = last_log(a), head(a)
+    check("the gate log's first line holds the CR and the 40-character HEAD, and the event the "
+          "same SHA; its last line gives the result",
+          lines[0].startswith(f"gate {a} branch ") and lines[0].split()[-1] == sha
+          and len(sha) == 40 and events("gate", a)[-1]["head"] == sha
+          and lines[-1].startswith("result: pass"), str(lines))
+    # a dirty tree: nothing runs
+    before = len(events("gate", a))
+    (wt(a) / "g1.py").write_text("G = 100\n")
+    code, _ = w.chantier("gate", a, GATE, expect=2)
+    tracked = code == 2 and "commit first" in w.last_stderr
+    (wt(a) / "g1.py").write_text("G = 1\n")
+    (wt(a) / "loose.txt").write_text("untracked\n")
+    code, _ = w.chantier("gate", a, GATE, expect=2)
+    (wt(a) / "loose.txt").unlink()
+    check("`gate` on a worktree with a modified or an untracked file exits 2 and runs nothing",
+          tracked and code == 2 and len(events("gate", a)) == before, w.last_stderr)
+    # a gate command that commits: no pass at either head
+    code, out = w.chantier("gate", a, "git commit --allow-empty --quiet -m moved", expect=4)
+    new = head(a)
+    evs = events("gate", a)
+    check("a gate command that commits leaves no pass at either head, says the head moved, and "
+          "exits 4",
+          code == 4 and new != sha and not gate_passed(evs, sha) and not gate_passed(evs, new)
+          and any("head moved" in ln for ln in out) and "head moved" in last_log(a)[-1],
+          str(out))
+    # handback ready: the head, the tree, the push, the gate
+    commit(w, a, "g2.py", "G = 2\n")
+    w.chantier("gate", a, GATE)
+    w.chantier("verdict", a, "VERIFIED")
+    ship(w, a, "feat: g2")
+    link, shipped = w.cr(a)["pr"], head(a)
+    check("`ship` records the full SHA of the head in the CR and its event",
+          w.cr(a)["head"] == shipped and events("ship", a)[-1]["head"] == shipped
+          and len(shipped) == 40)
+    commit(w, a, "g3.py", "G = 3\n")
+    refusals = []
+    for extra in ([], ["--no-gate", "AGENTS.md declares no long gate"]):
+        code, _ = w.chantier("handback", a, "ready", link, *extra, expect=2)
+        refusals.append(code == 2 and "the worktree is at" in w.last_stderr)
+    w.sh("git", "reset", "--hard", "--quiet", shipped, cwd=wt(a))
+    (wt(a) / "junk.txt").write_text("loose\n")
+    for extra in ([], ["--no-gate", "AGENTS.md declares no long gate"]):
+        code, _ = w.chantier("handback", a, "ready", link, *extra, expect=2)
+        refusals.append(code == 2 and "uncommitted" in w.last_stderr
+                        and "the worktree is at" not in w.last_stderr)
+    (wt(a) / "junk.txt").unlink()
+    w.sh("git", "update-ref", "-d", f"refs/remotes/origin/{w.cr(a)['branch']}", cwd=wt(a))
+    for extra in ([], ["--no-gate", "AGENTS.md declares no long gate"]):
+        code, _ = w.chantier("handback", a, "ready", link, *extra, expect=2)
+        refusals.append(code == 2 and "not pushed" in w.last_stderr)
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wt(a))
+    check("`handback ready` exits 2 naming the cause: a commit after `ship`, a dirty tree, a head "
+          "not pushed; `--no-gate` waives none of these", all(refusals) and len(refusals) == 6,
+          str(refusals))
+    commit(w, a, "g4.py", "G = 4\n")
+    ship(w, a, "feat: g4")
+    w.chantier("verdict", a, "VERIFIED")
+    code, _ = w.chantier("handback", a, "ready", link, expect=2)
+    check("a gate passed only at an earlier head is refused, with that cause alone",
+          code == 2 and "no long gate passed" in w.last_stderr
+          and "the worktree is at" not in w.last_stderr and "not pushed" not in w.last_stderr
+          and "uncommitted" not in w.last_stderr, w.last_stderr)
+    w.chantier("gate", a, GATE)
+    w.chantier("handback", a, "ready", link)
+    check("with the commit shipped, clean, pushed, gated and verified, `handback ready` passes",
+          w.cr(a)["status"] == "ready")
+
+    # core.abbrev 12: the heads are the full SHA, so `ship` and `handback` agree
+    w.sh("git", "config", "core.abbrev", "12")
+    try:
+        commit(w, b, "g5.py", "G = 5\n")
+        w.chantier("gate", b, GATE)
+        ship(w, b, "feat: g5")
+        w.chantier("verdict", b, "VERIFIED")
+        w.chantier("handback", b, "ready", w.cr(b)["pr"])
+    finally:
+        w.sh("git", "config", "--unset", "core.abbrev")
+    check("with core.abbrev 12, `gate`, `ship`, `verdict` then `handback ready` succeed",
+          w.cr(b)["status"] == "ready" and len(w.cr(b)["head"]) == 40)
+
+    # a record whose heads were short, before the change
+    commit(w, c, "g6.py", "G = 6\n")
+    w.chantier("gate", c, GATE)
+    ship(w, c, "feat: g6")
+    w.chantier("verdict", c, "VERIFIED")
+    long_head = w.cr(c)["head"]
+    for name in ("events.jsonl", "batch.json"):
+        path = w.folder() / name
+        path.write_text(path.read_text("utf-8").replace(long_head, long_head[:7]), encoding="utf-8")
+    w.chantier("handback", c, "ready", w.cr(c)["pr"])
+    check("a record holding short heads from before the change still reaches `handback ready`",
+          w.cr(c)["status"] == "ready" and w.cr(c)["head"] == long_head[:7])
+
+    # the budget bounds the rounds
+    state = w.folder() / "batch.json"
+    for _ in range(3):
+        w.chantier("round", d)
+    state.write_text(json.dumps({**w.batch(), "spent_usd": 2}), encoding="utf-8")
+    code, _ = w.chantier("round", e, expect=5)
+    refused = code == 5 and "budget" in w.last_stderr and "round limit" not in w.last_stderr
+    code, _ = w.chantier("round", d, expect=5)
+    both = code == 5 and "budget" in w.last_stderr and "round limit" not in w.last_stderr
+    check("with the budget spent, `round` exits 5 with a budget message, the round count "
+          "unchanged and nothing logged; with the limit reached too, the budget message wins",
+          refused and both and w.cr(e)["round"] == 0 and not events("round", e)
+          and w.cr(d)["round"] == 3, w.last_stderr)
+    commit(w, d, "g7.py", "G = 7\n")
+    w.chantier("gate", d, GATE)
+    ship(w, d, "feat: g7")
+    w.chantier("note", d, "still open past the budget")
+    w.chantier("verdict", d, "VERIFIED")
+    w.chantier("handback", d, "ready", w.cr(d)["pr"])
+    check("`gate`, `ship`, `note`, `verdict` and `handback` are never refused for the budget",
+          w.cr(d)["status"] == "ready")
+    state.write_text(json.dumps({**w.batch(), "spent_usd": 0}), encoding="utf-8")
+    for _ in range(3):
+        w.chantier("round", e)
+    code, _ = w.chantier("round", e, expect=5)
+    check("within the budget, the round-limit refusal keeps its own message",
+          code == 5 and "round limit" in w.last_stderr and "budget" not in w.last_stderr,
+          w.last_stderr)
+    state.write_text(json.dumps({**w.batch(), "budget_usd": None, "spent_usd": 2}),
+                     encoding="utf-8")
+    w.chantier("round", f)
+    check("with no budget, `round` is unchanged whatever the spend", w.cr(f)["round"] == 1)
+
+
+def restore_cr(w: World) -> None:
+    note("\n## 12d. `restore`: a trashed CR back to the inbox")
+    inbox_of = lambda out: w.work / out[0].removeprefix("filed ").split(";", 1)[0]  # noqa: E731
+    trash = w.state / "6-trash"
+
+    def trashed(out):
+        return w.work / out[0].removeprefix("abandoned ")
+
+    plain = inbox_of(w.chantier("file", "Restore plain")[1])
+    (plain / "01-intent.md").write_text("# Restore plain\n")
+    (plain / "work").mkdir()
+    (plain / "work" / "notes.md").write_text("kept\n")
+    old = trashed(w.chantier("abandon", plain)[1])
+    code, out = w.chantier("restore", old)
+    check("`restore 6-trash/<stamp>-<slug>` puts `1-inbox/<slug>` back, whole, and updates STATUS.md",
+          code == 0 and (w.state / "1-inbox" / "restore-plain" / "work" / "notes.md").is_file()
+          and (w.state / "1-inbox" / "restore-plain" / "intake" / "request.md").is_file()
+          and not old.exists() and "restore-plain" in (w.state / "STATUS.md").read_text("utf-8"),
+          str(out))
+    numbered = inbox_of(w.chantier("file", "2026 plan")[1])
+    gone = trashed(w.chantier("abandon", numbered)[1])
+    w.chantier("restore", gone)
+    check("a leading number of a plain slug is not stripped",
+          (w.state / "1-inbox" / "2026-plan").is_dir() and not (w.state / "1-inbox" / "plan").exists())
+    # a name clash, an item that is not directly under 6-trash
+    gone = trashed(w.chantier("abandon", w.state / "1-inbox" / "restore-plain")[1])
+    inbox_of(w.chantier("file", "Restore plain")[1])
+    code, _ = w.chantier("restore", gone, expect=2)
+    stayed = gone.is_dir()
+    w.chantier("restore", gone, "--slug", "restore-again")
+    check("a name clash exits 2 with nothing moved, and `--slug` resolves it",
+          code == 2 and stayed and (w.state / "1-inbox" / "restore-again").is_dir())
+    old_archive = w.state / "5-archives" / "260101-0000-9-old"
+    old_archive.mkdir(parents=True)
+    code, _ = w.chantier("restore", old_archive, expect=2)
+    check("an item of `5-archives` is refused, and stays", code == 2 and old_archive.is_dir())
+    # a cancelled CR of an open batch
+    one, two = (prepare_cr(w, t)[1] for t in ("Restore one", "Restore two"))
+    w.reset()
+    w.start(str(one), str(two), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman10", "--epoch", 1)
+    x, y = (k["id"] for k in w.batch()["crs"])
+    w.chantier("cancel", x, "--epoch", 1)
+    w.chantier("cancel", y, "--epoch", 1)
+    path = w.at(w.cr(y)["path"])
+    code, out = w.chantier("restore", path)
+    back = w.state / "1-inbox" / "restore-two"
+    check("a former batch CR loses its number and keeps `formerly CR-<n> of <batch>`; the output "
+          "says in one line that its branch, worktree and PR stay",
+          code == 0 and back.is_dir() and not path.exists() and len(out) == 2
+          and f"formerly {y} of {w.name}" in (back / "01-intent.md").read_text("utf-8")
+          and w.cr(y)["status"] == "cancelled" and w.cr(y)["branch"] in out[1], str(out))
+    w.chantier("pause", "--epoch", 1)
+    priced_foreman(w)
+    code, out = w.chantier("close")
+    check("after restoring a cancelled CR of a paused batch, `close` (without `--yes`) still runs",
+          code == 0 and out[-1].startswith("ask the user"), str(out))
+    number = int(y.removeprefix("CR-"))
+    w.reset()
+    _, fresh = prepare_cr(w, "Restore number")
+    w.start(str(fresh), *FROM_AGENTS_MD)
+    new = int(w.batch()["crs"][0]["id"].removeprefix("CR-"))
+    check("a CR number taken off a restored folder is never given again", new > number,
+          f"{y} then CR-{new}")
 
 
 def stack_batch(w: World) -> None:

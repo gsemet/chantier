@@ -57,7 +57,8 @@ started.
   `4-batch/1-pending/<number>-<slug>/` (in the batch, not started) → `2-actives/` (taken by a
   Driver) → `3-done/` (merged, until `close`) → `5-archives/<YYMMDD-HHMM>-<number>-<slug>/`
   (after `close`, the time of the merge) or `6-trash/…` (dropped, with its work; it returns to
-  the inbox only on the user's word).
+  the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
+  date or its batch number, and with a line `formerly CR-<n> of batch-<m>`).
 - **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no
   specification: the Driver works from the request alone), moved there on the user's word. It is
   not "ready to merge": a CR handed back `ready` sits in `4-batch/2-actives/`, never in
@@ -125,7 +126,9 @@ started.
   or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused
   when none is free). A `ready` or `blocked` CR holds none. The budget is dollars the Foreman's
   session and its agents may spend; a round is one Coder pass with its reviews, three per CR
-  unless the user grants more. The CLI refuses what passes a limit.
+  unless the user grants more. The CLI refuses what passes a limit: `take` and `round` are refused
+  (exit 5) once the budget is spent, on the last recorded spend, the budget before the round
+  limit; `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it.
 - **Dependencies:** a CR's folder may hold `depends.json`, `{"after": ["<slug>", …]}`, written
   with the Chief of Staff during the grill; a slug is the folder's name without its number. `open`
   and `order add` record `after` as CR ids (a slug already merged, in `3-done` or
@@ -172,16 +175,22 @@ started.
   that changes anything (it reads the head, the remote and the status to say what is off) and
   no forge command: the agents create the worktrees, commit, rebase, push, open, watch and
   merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
-  says which; `handback ready` without a passed long gate and a `VERIFIED` verdict at the PR's
-  head is one), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
-  A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are one CR.
+  says which; `handback ready` is one when the worktree's head is not the one `ship` recorded,
+  the tree is dirty, the remote branch is not at that head, or there is no passed long gate or
+  `VERIFIED` verdict at it; `gate` on a dirty tree is another), 3 stale Foreman epoch, 4 external
+  (git, a gate; a gate whose head moved during the run), 5 the budget (`take`, `round`) or the
+  round limit (`round`). A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are
+  one CR. Heads are the full 40-character SHA in the state and the events (7 characters only for
+  display); a head recorded short by an older version matches the full SHA it is a prefix of.
   The long gate is `gate <cr> "<cmd>" ["<cmd>"...]`: one command per argument, never a `;` or
   `&&` chain; it stops at the first failure, and it has passed at a head when the last `gate`
-  there passed every command it was given. The Verifier records its verdict with `verdict <cr>
+  there passed every command it was given and the head did not move during the run. The log's
+  first line names the CR, the branch and the full SHA it ran at; its last line, the result.
+  The Verifier records its verdict with `verdict <cr>
   VERIFIED` or `verdict <cr> "NOT VERIFIED"` at the head it verified; the last verdict at a head
-  decides. `handback <cr> ready` needs both at the PR's head; `--no-gate "<the project's rule>"`
-  waives the long gate only, for a project whose rules declare none or exempt this CR, and the
-  steering session checks it.
+  decides. `handback <cr> ready` needs both at the PR's head, committed, clean and pushed;
+  `--no-gate "<the project's rule>"` waives the long gate check only, for a project whose rules
+  declare none or exempt this CR, and the steering session checks it.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
   `cost`, `asks`, `pause`, `close`, `playbook` and `preflight`.
 

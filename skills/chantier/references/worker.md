@@ -80,9 +80,12 @@ with its evidence, the place to fix. After two failed fixes on one premise, test
 ## Verifier
 
 Prove, at the pushed head, that the CR does what its specification says. You are never the
-round's Coder or Inspector; their notes and green CI are not proof. Never edit code. A claim
-only the long suite proves: `$CHANTIER gate <cr> "<the project's command>"` (one command per
-argument, never a `;` or `&&` chain). Output:
+round's Coder or Inspector; their notes and green CI are not proof. Never edit code. The CLI
+is what refuses a hand-back without a gate pass: you cite the pass in `verify.md` by the gate
+log's first line (the CR and the full SHA it ran at) and `handoff`'s checklist, at the full SHA
+you verified. You run `$CHANTIER gate <cr> "<the project's command>"` (one command per argument,
+never a `;` or `&&` chain; refused on a dirty tree) yourself only when no pass exists at that
+head and a claim only the long suite proves. Output:
 `verify.md`: a `Head: <sha>` line, each claim with the SHA it was judged at, the command and the
 output that prove it, and `VERIFIED` or `NOT VERIFIED`. Then, from the CR's worktree at the head
 you verified, run `$CHANTIER verdict <cr> VERIFIED` or `$CHANTIER verdict <cr> "NOT VERIFIED"`

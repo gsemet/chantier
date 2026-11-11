@@ -16,7 +16,8 @@ The CLI keeps the CR's record and tells you what is off.
   prompt's `Note:` says why the CR is with you: an answer, a change, QA findings, a red check,
   a `rebase:`, a `resume:`. Go on from there; a round only for what the notes ask.
 - Children: `$CHANTIER round <cr> --note "<brief>"` before each Coder (refused past the limit,
-  exit 5: hand back `blocked rounds: <what is still wrong>`), then the agent and the prompt of
+  exit 5: hand back `blocked rounds: <what is still wrong>`; refused once the budget is spent,
+  exit 5 with a budget message: hand back `blocked budget: <what is still wrong>`), then the agent and the prompt of
   [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
   the role, and the worker's agent and model as the `team:` lines print them, passed as
   printed (no model printed: none passed). Read those lines with `$CHANTIER handoff <cr>`, which
@@ -43,8 +44,11 @@ The CLI keeps the CR's record and tells you what is off.
   with routine steps.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
-  gate waits), stops at the first failure, keeps the log and records the pass at that head. One
-  command per argument, never a `;` or `&&` chain. The fast gates you run yourself.
+  gate waits), stops at the first failure, keeps the log and records the pass at that head. It
+  is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
+  first line names the CR, the branch and the full SHA it ran at, its last line the result; a
+  head that moved during the run (a gate command committed) is no pass at either head (exit 4).
+  One command per argument, never a `;` or `&&` chain. The fast gates you run yourself.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
@@ -56,8 +60,8 @@ The CLI keeps the CR's record and tells you what is off.
   the closing line of each `issue:` of the specification ([pr-template](pr-template.md)); a
   Driver never comments on, closes or reopens an issue. The stack driver's and a Release
   driver's PRs keep their form, by the project's rules. Then
-  `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what is off
-  (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
+  `$CHANTIER ship <cr> <pr link>`: it records the PR at this head (the full SHA) and says what
+  is off (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
   does.
 - A CR's PR says on the forge when it is not [ready to merge](concepts.md). When a CR is sent
@@ -94,9 +98,12 @@ The CLI keeps the CR's record and tells you what is off.
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit).
 - Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
-  at the PR's head, a passed long gate and a last verdict `VERIFIED`: run the missing gate or
-  start a new `verifier`, then hand back again; `--no-gate "<the project's rule>"` replaces the
-  long gate only where the project's rules declare none or exempt this CR, and quotes that rule:
+  at the PR's head, a passed long gate and a last verdict `VERIFIED`, and refused, one line per
+  cause, when the worktree's head is not the one `ship` recorded (a commit after `ship`), the
+  tree is dirty, or the remote branch is not at that head (not pushed): fix the cause, `ship`
+  again, run the missing gate or start a new `verifier`, then hand back again; `--no-gate "<the
+  project's rule>"` replaces the long gate check only, never the head, clean, pushed and verdict
+  checks, and only where the project's rules declare none or exempt this CR, and quotes that rule:
   the steering session checks it, and sends the CR back with a note if it does not hold: run
   the long gate, then hand back again without `--no-gate`; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
@@ -105,8 +112,10 @@ The CLI keeps the CR's record and tells you what is off.
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`): it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
-  `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5); never skip a
-  proof pass to save budget. Then end: ending frees
+  `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5: `round` is
+  refused once the budget is spent, and the budget is checked before the round limit, so with
+  both spent you hand back `budget:`, not `rounds:`); never skip a proof pass to save budget:
+  `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it. Then end: ending frees
   your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
   decide: the CR shows 🟠, and the steering session takes it back when that thing lands.

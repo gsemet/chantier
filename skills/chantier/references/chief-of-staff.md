@@ -128,6 +128,7 @@ $CHANTIER file "<raw request>" [--slug <slug>]        # or @<file> for a raw req
 $CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog item changes priority
 $CHANTIER triage <inbox-or-backlog-folder> --ready    # to 3-ready, for the next batch, on the user's word
 $CHANTIER abandon <unclaimed-folder>                  # only on the user's explicit word
+$CHANTIER restore <6-trash/item> [--slug <slug>]      # only on the user's word
 ```
 
 `file` keeps the request as received in `intake/request.md`. Write `01-intent.md` and record every
@@ -368,7 +369,7 @@ Only in the turn where the user gave the go:
      branch, or another CR's branch in a series or a stack): the base is an ancestor of the
      local head and the remote head's commits are in it (`git range-diff`, or `git cherry`); a
      patch changed by a resolved conflict is not by itself a doubt. The long gate passed at the
-     local head: the last `gate` invocation at the local short sha in the batch's `events.jsonl`
+     local head: the last `gate` invocation at the local full sha in the batch's `events.jsonl`
      passed every command it was given (its events share a `run`), or the Driver's notes and last gate log in `handoff`; the stack
      driver's restack follows its own card. No gate pass at the local head is the Driver's slip,
      not a doubt: push nothing and answer `push refused <branch>: no long gate passed at <local

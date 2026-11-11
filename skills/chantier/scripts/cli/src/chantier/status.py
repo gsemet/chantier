@@ -143,9 +143,9 @@ def _steps(c: dict, events: list[dict]) -> list[dict]:
         elif kind == "note":
             add("Note", at, note=note)
         elif kind == "gate":
-            add("Long gate", at, e.get("result", ""), e.get("head", ""))
+            add("Long gate", at, e.get("result", ""), (e.get("head") or "")[:7])  # display only
         elif kind == "verdict":
-            add("Verdict", at, e.get("result", ""), e.get("head", ""))
+            add("Verdict", at, e.get("result", ""), (e.get("head") or "")[:7])
         elif kind == "ship":
             add("Shipped", at, note=e.get("pr", ""))
         elif kind == "handback" and e.get("result") == "ready":

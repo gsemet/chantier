@@ -166,8 +166,9 @@ def all_merged(b: Batch) -> bool:
 
 
 def check_budget(b: Batch) -> None:
-    """No Driver of any kind starts past the budget; the ones already live, and their workers,
-    go on."""
+    """No Driver of any kind starts, and no Driver starts a new round, past the budget; the spend
+    is the last recorded one. The gate, the verdict, the ship, the notes and the hand-back stay
+    open, and so do the workers of a round already started."""
     if over_budget(b):
         raise ChantierError(f"budget spent: {spent_text(b.data)} of "
                             f"${b.data['budget_usd']}; only the user raises it (`order budget`)",
@@ -207,7 +208,10 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
 
 
 def check_round(b: Batch, c: dict) -> int:
-    """A round is counted before its Coder starts; past the limit, only the user grants more."""
+    """A round is counted before its Coder starts; past the budget, or past the limit, only the
+    user grants more. The budget is checked first: when both are spent, more rounds alone would
+    not let the Driver go on."""
+    check_budget(b)
     limit = round_limit(b.data, c)
     if c.get("round", 0) >= limit:
         raise ChantierError(f"{c['id']}: round limit {limit} reached; hand back blocked, only the "

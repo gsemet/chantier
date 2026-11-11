@@ -51,6 +51,10 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("abandon", commands.abandon, "move an explicitly abandoned CR to trash", False)
     s.add_argument("item", help="path to the unclaimed CR folder")
 
+    s = cmd("restore", commands.restore, "bring a trashed CR back to the inbox", False)
+    s.add_argument("item", help="path to the folder directly under 6-trash")
+    s.add_argument("--slug", help="the inbox name, when the old one is taken or to rename")
+
     s = cmd("open", commands.open_batch,
             "open a batch: each prepared CR gets its folder, and a branch and worktree name", False)
     s.add_argument("items", nargs="+", help="path to a prepared CR folder or specification")
@@ -136,7 +140,7 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("cr", help="the CR, or `stack` for the stack driver")
     s.add_argument("--note", help="why a ready or blocked CR goes back to a Driver")
 
-    s = cmd("round", commands.round_, "count a round of the CR (exit 5 past the limit); its facts")
+    s = cmd("round", commands.round_, "count a round of the CR (exit 5 past the budget or the limit); its facts")
     s.add_argument("cr")
     s.add_argument("--note", help="the round's brief, kept in the log")
 

@@ -49,7 +49,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   or the grant; a fix CR: the grant, else it is an ordinary ready CR), with the forge's CLI by
   the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
-  past the limit; a refusal is a fact, not an argument. A spent budget, a round limit, a
+  past the limit or the budget; a refusal is a fact, not an argument. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
 - **Orders are the user's word:** `status` lists them until you mark each `order done`: an
   `orders pending` line holds those nothing has touched yet (a note, a QA, the drop of a live
