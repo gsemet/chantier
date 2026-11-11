@@ -738,6 +738,18 @@ def scenario(w: World) -> None:
     check("once the spend is priced, `status`, the batch's STATUS.md and the board show a dollar figure",
           re.search(r"spent \$\d+\.\d\d", priced[0]) and re.search(r"spent \$\d+\.\d\d", batch_report)
           and re.search(r"\$\d+\.\d\d of \$50", board), f"{priced[0]}\n{batch_report}\n{board}")
+    code, out = w.chantier("cost", "--batch", w.name)
+    spend = [ln for ln in out if re.match(r"(Foreman|Driver|Worker|Agent)\b", ln)]
+    each = [re.search(r"\((\d+) calls, (\d+)%\)$", ln) for ln in spend]
+    ratio = next((ln for ln in out if ln.startswith("Orchestration")), "")
+    check("each line of the batch's spend carries its share, the shares add up to 100 as printed, "
+          "the ratio line is the steering share plus the Drivers', and the Chief of Staff's lines "
+          "carry no share",
+          spend and all(each) and sum(int(m[2]) for m in each) == 100
+          and ratio == "Orchestration (steering + Drivers): " + str(sum(
+              int(m[2]) for ln, m in zip(spend, each) if ln.startswith(("Foreman", "Driver"))))
+          + "% of the batch's spend"
+          and not any("%" in ln for ln in out if ln.startswith("Chief of Staff")), str(out))
     code, out = w.chantier("cost", "--summary", "--batch", w.name)
     check("the summary gives the total, the budget and the split by level: the Foreman, the "
           "Drivers (the agents that started others) and the workers",
@@ -1053,7 +1065,7 @@ def direct_batch(w: World) -> None:
     check("`cost` shows one 'Chief of Staff, steering the batch' row without the grill turns, no "
           "'Foreman' row, and the lines add up",
           [ln.split(":")[0] for ln in lines] == ["Chief of Staff, steering the batch", "Driver cr-driver"]
-          and "(2 calls)" in lines[0] and "(3 calls)" in lines[1]
+          and "(2 calls," in lines[0] and "(3 calls," in lines[1]
           and out[0].split()[1] == f"${sum(printed) / 1000:.3f}"
           and not any("Chief of Staff (steering)" in ln for ln in out), str(out))
     steering = money(out, ROW)
@@ -1075,6 +1087,16 @@ def direct_batch(w: World) -> None:
     check("the summary splits the steering under its own name", out[1].startswith(
           "Chief of Staff, steering the batch $") and "Foreman" not in out[1]
           and any(ln.startswith(GRILL) for ln in out), str(out))
+    # no line that starts with "Driver" names the steering session; its figure is the steering row's
+    named = ("chief-of-staff", "Chief of Staff", "Foreman")
+    _, pause_summary = w.chantier("cost", "--summary")
+    status_md = (w.folder() / "STATUS.md").read_text(encoding="utf-8").splitlines()
+    every = out + cost_out + w.batch()["summary"] + status_md + pause_summary
+    check("a direct batch: no line that starts with `Driver` names the steering session, in `cost`, "
+          "`cost --summary`, the pause summary and STATUS.md's Cost; the steering figure is the row's",
+          not any(re.match(r"(- )?Driver", ln) and any(n in ln for n in named) for ln in every)
+          and abs(float(re.match(r"Chief of Staff, steering the batch \$(\d+\.\d\d)", out[1])[1])
+                  - steering) <= 0.006, str(every))
     # a spec-writer of the Chief of Staff, in the window: on the grill line, not the batch's
     grill_before = b
     writer = sub / "agent-agent-spec.jsonl"
@@ -1097,7 +1119,7 @@ def direct_batch(w: World) -> None:
         json.dumps({"agentType": "Explore"}), encoding="utf-8")
     _, out = w.chantier("cost")
     check("`cost` puts a subagent the steering session ran itself on its own line, not on a Driver",
-          any(ln.startswith("Chief of Staff's own subagents") and "(2 calls)" in ln for ln in out)
+          any(ln.startswith("Chief of Staff's own subagents") and "(2 calls," in ln for ln in out)
           and not any(ln.startswith("Driver") and "Explore" in ln for ln in out), str(out))
     own.unlink()
     own.with_suffix("").with_suffix(".meta.json").unlink()
@@ -1343,6 +1365,82 @@ def priced_foreman(w: World) -> None:
     state.write_text(json.dumps({**d, "foreman_transcript": "uuid-closing"}))
 
 
+MYSTERY_CALL = json.dumps({"type": "assistant", "message": {
+    "id": "mys-1", "model": "mystery-model", "usage": {"input_tokens": 1000, "output_tokens": 2000}}}) + "\n"
+DATED_CALL = MYSTERY_CALL.replace("mys-1", "mys-2").replace("mystery-model", "mystery-model-20270101")
+MYSTERY_PRICES = ("prices:\n  mystery-model:\n    input: 1\n    cache_write_5m: 1\n"
+                  "    cache_write_1h: 1\n    cache_read: 1\n    output: 1\n")
+
+
+def unpriced_model(w: World, main: Path, name: str) -> None:
+    """One call of a model with no price: counted and named, never priced, never a block; the
+    figures are a floor everywhere. A price in `chantier.yaml` prices it, the dated id too."""
+    yaml = w.work / "chantier.yaml"
+    before = main.read_text()
+    _, out = w.chantier("cost", "--batch", name)
+    total, calls = float(re.search(r"\$(\d+\.\d{3}) over", out[0])[1]), int(re.search(r"over (\d+) ", out[0])[1])
+    main.write_text(before + MYSTERY_CALL)
+    code, out = w.chantier("cost", "--batch", name)
+    shared = [ln for ln in out if re.match(r"(Foreman|Driver|Worker|Agent)\b", ln)]
+    check("a model with no price: `cost` says `at least` with the priced calls and counts the others "
+          "apart", code == 0 and out[0] == f"{name}: at least ${total:.3f} over {calls} priced model "
+          "calls; 1 calls of mystery-model not priced", str(out))
+    check("each share reads `share not measured` and the ratio `not measured (calls not priced)`, "
+          "with the one line that gives the id to add",
+          shared and all("share not measured" in ln for ln in shared)
+          and "Orchestration (steering + Drivers): not measured (calls not priced)" in out
+          and out.count("mystery-model has no price: add it under prices: in chantier.yaml "
+                        "(exact id: mystery-model)") == 1, str(out))
+    _, out = w.chantier("cost", "--explain", "--batch", name)
+    check("`--explain` names the model with `(not priced)` and the shares as of the priced calls",
+          any("model claude-sonnet-5-5, mystery-model (not priced)" in ln or
+              "mystery-model (not priced)" in ln for ln in out)
+          and any("cost of the priced calls:" in ln for ln in out), str(out))
+    _, out = w.chantier("cost", "--summary", "--batch", name)
+    check("`--summary` gives `at least`, the not-priced calls, and `not measured` shares",
+          out[0].startswith("Total: at least $") and out[0].endswith("; 1 calls of mystery-model not priced")
+          and "(not measured)" in out[1] and "(%)" not in out[1], str(out))
+    code, out = w.chantier("status", "--refresh", "--batch", name)
+    check("`status --refresh` records the floor and does not say `spend not updated`",
+          code == 0 and not any("spend not updated" in ln for ln in out)
+          and any(ln.startswith("spent at least $") and "1 calls of mystery-model not priced" in ln
+                  for ln in out) and w.batch()["unpriced"] == {"mystery-model": 1}, str(out))
+    _, out = w.chantier("status", "--batch", name)
+    report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+    board = (w.state / "STATUS.md").read_text(encoding="utf-8")
+    data = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
+    check("`status`, the batch's STATUS.md, its STATUS.json and the board say `at least`",
+          re.search(r"spent at least \$\d+\.\d\d of \$50", out[0])
+          and re.search(r"spent at least \$\d+\.\d\d", report)
+          and re.search(r"at least \$\d+\.\d\d of \$50", board)
+          and data["unpriced"] == {"mystery-model": 1} and data["priced"] is True,
+          f"{out[0]}\n{report}\n{board}")
+    # a price of the project's prices it, with no release; the dated id by the same entry
+    yaml.write_text(MYSTERY_PRICES, encoding="utf-8")
+    code, out = w.chantier("cost", "--batch", name)
+    check("a `prices:` entry in chantier.yaml prices the call: no `at least`, the total grows by the "
+          "expected amount", code == 0 and out[0].startswith(f"{name}: $")
+          and "at least" not in "\n".join(out)
+          and abs(float(re.search(r"\$(\d+\.\d{3}) over", out[0])[1]) - total - 0.003) <= 0.0011
+          and f"over {calls + 1} model calls" in out[0], str(out))
+    main.write_text(before + MYSTERY_CALL + DATED_CALL)
+    code, out = w.chantier("cost", "--batch", name)
+    check("a dated id (mystery-model-20270101) is priced by the same entry",
+          code == 0 and "at least" not in "\n".join(out)
+          and abs(float(re.search(r"\$(\d+\.\d{3}) over", out[0])[1]) - total - 0.006) <= 0.0016
+          and f"over {calls + 2} model calls" in out[0], str(out))
+    _, out = w.chantier("playbook")
+    check("`playbook` prints the `prices:` line", "prices: mystery-model (chantier.yaml, above the "
+          "built-in table)" in out, str(out))
+    yaml.write_text("prices:\n  mystery-model:\n    input: 1\n", encoding="utf-8")
+    code, out = w.chantier("cost", "--batch", name, expect=2)
+    check("a chantier.yaml that is not valid makes `cost` refuse with its line, never price with the "
+          "file ignored", code == 2 and "chantier.yaml:2:" in w.last_stderr
+          and "$CHANTIER playbook" in w.last_stderr and not out, w.last_stderr)
+    yaml.unlink()
+    main.write_text(before + MYSTERY_CALL)
+
+
 def close_refusals(w: World) -> None:
     """A paused batch shows its cost to date; the first `take` reopens it; `close` refuses while any
     CR, order, stack agent or session file shows that something runs."""
@@ -1413,12 +1511,17 @@ def close_refusals(w: World) -> None:
           code != 0 and state.read_text() == zero and w.batch()["status"] == "paused", w.last_stderr)
     state.write_text(held)
     # the steering takes it, without --batch: the CR is found in a paused batch, which runs again
+    unpriced_model(w, main, name)  # a call of a model with no price is in the transcript now
     code, out = w.chantier("take", new, "--epoch", 2)
     d = w.batch()
+    check("`take` on a queued CR is not refused for a model with no price, and the batch keeps "
+          "its calls apart", d["status"] == "running" and d.get("unpriced") == {"mystery-model": 1},
+          str(d.get("unpriced")))
     check("`take` finds a paused batch's CR and sets the batch running again, with a line that "
           "says so", d["status"] == "running" and "paused" not in d and "summary" not in d
           and any("was paused: running again" in ln for ln in out) and w.cr(new)["status"] == "working",
           str(out))
+    main.write_text(main.read_text().replace(MYSTERY_CALL, ""))  # the later steps price as before
     w.chantier("cancel", new, "--epoch", 2)
     for o in w.batch()["orders"]:
         if not o["done"]:
@@ -1471,16 +1574,32 @@ def close_refusals(w: World) -> None:
     refused("an open order", "order O-99 (qa) is open", {"orders": d["orders"] + [
         {"id": "O-99", "kind": "qa", "cr": "-", "note": "x", "sent": d["created"], "done": None}]})
     refused("a stack agent", "stack agent agent-stack is recorded", {"stack_agent": "agent-stack"})
-    # a batch that cannot be priced is never closed on `Spent: unknown`
+    # a model with no price does not refuse the close: its calls are counted apart, the cost is a floor
     original, aged = main.read_text(), main.stat()
-    main.write_text(original + json.dumps({"type": "assistant", "message": {
-        "id": "mystery", "model": "mystery-model", "usage": {"input_tokens": 1, "output_tokens": 1}}})
-        + "\n")
+    call = json.dumps({"type": "assistant", "message": {
+        "id": "mystery", "model": "mystery-model", "usage": {"input_tokens": 1, "output_tokens": 1}}}) + "\n"
+    main.write_text(original + call)
     os.utime(main, (aged.st_atime, aged.st_mtime))
-    refused("a batch whose final cost cannot be priced (a model with no price)",
-            "its final cost cannot be priced", None)
+    code, out = w.chantier("close", "--batch", name)
+    text = "\n".join(out)
+    check("`close` of a batch with one call of a model with no price exits 0, prints the final cost "
+          "as `at least` with the call counted apart and the line that names the id to add, and "
+          "deletes nothing",
+          code == 0 and re.search(r"Total: at least \$\d+\.\d\d of a \$50 budget; "
+                                  r"1 calls of mystery-model not priced", text)
+          and "mystery-model has no price: add it under prices: in chantier.yaml "
+              "(exact id: mystery-model)" in text
+          and "Not final" not in text and (w.folder() / "batch.json").is_file(), text)
     main.write_text(original)
     os.utime(main, (aged.st_atime, aged.st_mtime))
+    # nothing at all can be priced (every call is of a model with no price): refused, nothing deleted
+    only = main.with_name("uuid-unpriced.jsonl")
+    only.write_text(call)
+    os.utime(only, (aged.st_atime, aged.st_mtime))
+    refused("a batch where nothing can be priced (every call of a model with no price)",
+            "its final cost cannot be priced", {"foreman_transcript": "uuid-unpriced",
+                                                "foreman_transcripts": ["uuid-unpriced"]})
+    only.unlink()
     refused("a batch with no recorded Foreman transcript", "no Foreman transcript recorded",
             {"foreman_transcript": None, "foreman_transcripts": []})
 
@@ -1767,6 +1886,9 @@ def playbook_config(w: World) -> None:
     w.reset()
     _, item = prepare_cr(w, "Playbook refused")
     head = "roles:\n  coder:\n"
+    PRICES = "prices:\n  mystery-model:\n"
+    four = "".join(f"    {k}: 1\n" for k in ("input", "cache_write_5m", "cache_write_1h", "cache_read"))
+    five = four + "    output: 1\n"
     refusals = [
         ("an unknown role", "roles:\n  codr:\n    agent: x\n", 2, "is not one of the plugin's agents"),
         ("an unknown key", head + "    colour: red\n", 3, 'unknown key "colour"'),
@@ -1778,6 +1900,13 @@ def playbook_config(w: World) -> None:
         ("a second document", "roles:\n  coder:\n    agent: x\n---\n", 4, "several documents"),
         ("an unknown model", head + "    model: opus 5.6\n", 3, "is unknown on Claude Code; known:"),
         ("a model with no letter", head + "    model: 5.5\n", 3, "name the model, not only its version"),
+        ("a price missing", PRICES + four, 2, "missing output"),
+        ("a price that is not a number", PRICES + four + "    output: cheap\n", 7, '"output" is a number'),
+        ("a negative price", PRICES + four + "    output: -1\n", 7, '"output" is a number, not negative'),
+        ("an unknown key under a price entry", PRICES + five + "    colour: red\n", 8, 'unknown key "colour"'),
+        ("a long_context without above", PRICES + five + "    long_context:\n"
+         + "".join(f"      {k}: 1\n" for k in ("input", "cache_write_5m", "cache_write_1h",
+                                                   "cache_read", "output")), 8, "missing above"),
     ]
     for label, text, line, why in refusals:
         yaml.write_text(text, encoding="utf-8")
@@ -3228,8 +3357,9 @@ def copilot_cost(w: World, d: dict) -> None:
           "worker is not told",
           code == 0 and out == [
               f"{w.name}: $1.875 over 4 model calls (1 estimated, not billed)",
-              "Foreman: $1.000 (1 calls)", "Agent cr-driver: $0.500 (1 calls)",
-              "Agent coder: $0.375 (2 calls)",
+              "Foreman: $1.000 (1 calls, 53%)", "Agent cr-driver: $0.500 (1 calls, 27%)",
+              "Agent coder: $0.375 (2 calls, 20%)",
+              "Orchestration (steering + Drivers): not measured (no parent link on this host)",
               "Chief of Staff, steering the batch (outside the budget): unknown: not measured on this host",
               "Chief of Staff, grill and specifications with the user (outside the budget): unknown: not measured on this host",
               "Chief of Staff, whole session: unknown: not measured on this host; compactions: not measured on this host"] and "$0.00" not in "\n".join(out[-3:]), str(out))
@@ -3369,8 +3499,10 @@ def cost_audit(w: World) -> None:
           code == 0 and [l.split(":")[0] for l in lines] == [
               "Foreman", "Driver cr-driver", "Driver qa-driver", "Driver my-own-driver",
               "Worker coder"]
-          and "Driver cr-driver: $0.913 (48 calls)" in out and "Worker coder: $0.323 (17 calls)" in out
-          and "Driver my-own-driver: $0.038 (2 calls)" in out, str(out))
+          and "Driver cr-driver: $0.913 (48 calls, 53%)" in out
+          and "Worker coder: $0.323 (17 calls, 19%)" in out
+          and "Driver my-own-driver: $0.038 (2 calls, 2%)" in out
+          and "Orchestration (steering + Drivers): 81% of the batch's spend" in out, str(out))
     printed = [int(a.replace(".", "")) for l in lines for a in re.findall(r"\$(\d+\.\d{3}) \(", l)]
     check("the lines add up to the total as printed", out[0] == f"{w.name}: $1.722 over 100 model calls"
           and sum(printed) == 1722, str(out))

@@ -173,7 +173,7 @@ section of `AGENTS.md`), so your colleagues get the same one. The next batch use
 steering session, one per Driver type and one per worker type (or by CR), from the transcripts
 (Claude) or the billed records (Copilot). With a Foreman, the first line is the Foreman; in direct
 mode it is `Chief of Staff, steering the batch`, counted in the batch's spend and budget as a Foreman's
-is. Your Chief of Staff's grill and specifications with you are a line of their own, outside the budget. A missing transcript or an unknown model is an error, never an estimate. The rest of your own
+is. Your Chief of Staff's grill and specifications with you are a line of their own, outside the budget. A missing transcript is an error, never an estimate; the calls of a model with no price are counted apart and the figure is a floor. The rest of your own
 session is priced apart. Ask "why did it cost that?" and the figures are explained from what was
 measured: the calls, the model, the shares of cost, the calls after the cache expired, the
 restarted Drivers.

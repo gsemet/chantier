@@ -9,12 +9,14 @@ caller lists.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 FILE = "chantier.yaml"
 ROLE_KEYS = ("agent", "model", "skills", "tools")
+PRICE_NAMES = ("input", "cache_write_5m", "cache_write_1h", "cache_read", "output")
 HOST_NAMES = {"claude": "Claude Code", "copilot": "Copilot"}
 HOST_FILES = {"claude": "claude-code", "copilot": "copilot"}
 
@@ -28,8 +30,9 @@ class Model:
     start: str  # the value a start of an agent takes on this host
 
 
-# Seeded from the plugin's agent files (a test checks they cannot drift). A new model reaches
-# the table by a release, like a new price in `costs.PRICE`.
+# Seeded from the plugin's agent files (a test checks they cannot drift). A new role model reaches
+# the table by a release; a new model's price does not need one: a project sets it under `prices:`
+# in `chantier.yaml`, above the built-in `costs.PRICE`.
 MODELS = {
     "claude": (
         Model("claude-opus-5-5", "Claude Opus 5.5", "opus"),
@@ -304,9 +307,13 @@ def load(path: Path, host: str, roles: list[str]) -> tuple[dict | None, list[str
         problems.append((line, message))
 
     resolved: dict[str, dict] = {}
+    prices: dict[str, dict] = {}
     for key, (kline, node) in tree.value.items():
+        if key == "prices":
+            prices = _prices(node, kline, bad)
+            continue
         if key != "roles":
-            bad(kline, f'unknown key "{key}": the only top-level key is "roles"')
+            bad(kline, f'unknown key "{key}": the top-level keys are "roles" and "prices"')
             continue
         if node.kind != "map" or not node.value:
             bad(kline, '"roles" holds one entry per role: `<role>:` then its keys')
@@ -324,7 +331,67 @@ def load(path: Path, host: str, roles: list[str]) -> tuple[dict | None, list[str
             resolved[role] = _role(host, role, rnode, bad)
     problems.sort(key=lambda p: p[0])
     lines = [f"{FILE}:{n}: {m}" for n, m in problems]
-    return ({"file": FILE, "host": host, "roles": resolved} if not lines else None), lines
+    return ({"file": FILE, "host": host, "roles": resolved, "prices": prices}
+            if not lines else None), lines
+
+
+def _number(node: Node) -> float | None:
+    """A non-negative finite number from a scalar, else None."""
+    if node.kind != "scalar":
+        return None
+    try:
+        value = float(node.value)
+    except ValueError:
+        return None
+    return value if math.isfinite(value) and value >= 0 else None
+
+
+def _five(node: Node, line: int, where: str, bad, tier: bool) -> dict | None:
+    """The five prices of an entry (or of its `long_context`, which also has `above`), or None
+    when a value is wrong or one is missing: none is derived from another."""
+    need = PRICE_NAMES + (("above",) if tier else ())
+    keys = need if tier else need + ("long_context",)
+    rec: dict = {}
+    ok = True
+    for key, (kline, value) in node.value.items():
+        if key not in keys:
+            bad(kline, f'{where}: unknown key "{key}": one of {", ".join(keys)}')
+            ok = False
+        elif key == "long_context":
+            found = _five(value, kline, f"{where}: long_context", bad, True) \
+                if value.kind == "map" and value.value else None
+            if found:
+                rec[key] = found
+            else:
+                if value.kind != "map" or not value.value:
+                    bad(kline, f"{where}: long_context holds `above` and the five prices")
+                ok = False
+        elif (number := _number(value)) is None:
+            bad(kline, f'{where}: "{key}" is a number, not negative')
+            ok = False
+        else:
+            rec[key] = number
+    absent = [k for k in need if k not in node.value]
+    if absent:
+        bad(line, f"{where}: missing {', '.join(absent)} (all five prices are required, "
+            "none is derived from another)")
+    return rec if ok and not absent else None
+
+
+def _prices(node: Node, kline: int, bad) -> dict[str, dict]:
+    """`prices:` one entry per exact model id, in $/MTok."""
+    if node.kind != "map" or not node.value:
+        bad(kline, '"prices" holds one entry per model id: `<id>:` then its five prices')
+        return {}
+    out: dict[str, dict] = {}
+    for model, (mline, mnode) in node.value.items():
+        if mnode.kind != "map" or not mnode.value:
+            bad(mline, f'prices: "{model}" is empty: set {", ".join(PRICE_NAMES)}')
+            continue
+        found = _five(mnode, mline, f'prices: "{model}"', bad, False)
+        if found:
+            out[model] = found
+    return out
 
 
 def _role(host: str, role: str, node: Node, bad) -> dict:
@@ -388,6 +455,10 @@ def playbook_lines(resolved: dict | None, host: str, roles: list[str], recorded:
     for role in roles:
         rec = configured.get(role, {})
         lines.append(f"{role}: " + _fields(rec, rec.get("agent") or default_agent(host, role), True))
+    if resolved and resolved.get("prices"):
+        lines.append(f"prices: {', '.join(resolved['prices'])} ({FILE}, above the built-in table)")
+        if host == "copilot":
+            lines.append("prices: not used on Copilot, whose records carry the price")
     lines += [f"needs: {role}: " + "; ".join(f"{k} {', '.join(rec[k])}" for k in ("skills", "tools")
                                               if rec.get(k))
               for role, rec in configured.items() if rec.get("skills") or rec.get("tools")]

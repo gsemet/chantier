@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from .rails import held, over_budget, slot_free, waits_all
+from .rails import held, not_priced as _not_priced, over_budget, slot_free, usd_text as _usd, waits_all
 from .state import LIVE, Repo, read_batch_json, age_minutes, now, read_events, round_limit, write_file
 
 SCHEMA = 3
@@ -210,7 +210,8 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict],
             "branch": c.get("branch"), "worktree": c.get("worktree"), "agent": c.get("agent"),
             "notes": [n for n in c.get("notes", []) if not n.startswith(IN_PROGRESS)],
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
-            "cost_usd": c.get("cost_usd"), "final_cost": bool(d.get("closing")),
+            "cost_usd": c.get("cost_usd"), "cost_unpriced": c.get("cost_unpriced") or {},
+            "final_cost": bool(d.get("closing")),
             "silent_minutes": round(silent) if silent is not None else None}
 
 
@@ -234,8 +235,10 @@ def cr_markdown(v: dict) -> str:
              *([f"- Open: {v['blocked']}"] if v["blocked"] else []),
              *(["- None."] if not v["notes"] and not v["blocked"] else []), "", "## Cost", ""]
     usd = v["cost_usd"]
+    floor = "at least " if v["cost_unpriced"] else ""
     lines.append("No figure yet." if usd is None else
-                 f"${usd:.2f}{'' if v['final_cost'] else ' so far (at the last heartbeat)'}.")
+                 f"{floor}${usd:.2f}{'' if v['final_cost'] else ' so far (at the last heartbeat)'}."
+                 + (f" {_not_priced(v['cost_unpriced'])}." if floor else ""))
     return "\n".join(lines) + "\n"
 
 
@@ -251,6 +254,7 @@ def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     return {"cr": c["id"], "title": c["title"], "state": c["status"], "severity": severity(c),
             "step": step(c), "label": label(c, round_limit(d, c), waiting, can_start(d)), "waits": waiting,
             "round": c.get("round", 0), "branch": c.get("branch"), "pr": c.get("pr"), "cost_usd": c.get("cost_usd"),
+            "cost_unpriced": c.get("cost_unpriced") or {},
             "blocked": c.get("blocked_reason") if c["status"] == "blocked" else None,
             "silent_minutes": round(silent) if silent is not None else None,
             # always relative to `.agents/changes/`, whatever `start` is: the board resolves it there
@@ -269,13 +273,15 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
             *(f"| [{number(r)}]({r['specification']}) | {r['title']} | "
               f"[{r['label']}]({r['status']}) | `{r['branch'] or '-'}` | "
               f"{'[' + word + '](' + r['pr'] + ')' if r['pr'] else '-'} | "
-              f"{'-' if r['cost_usd'] is None else '$%.2f' % r['cost_usd']} |" for r in rows)]
+              f"{'-' if r['cost_usd'] is None else _usd(r['cost_usd'], r['cost_unpriced'])} |"
+              for r in rows)]
 
 
 def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
     return {"schema": SCHEMA, "updated": now(), "batch": d["id"], "folder": folder.name,
             "state": d["status"], "mode": d.get("mode"), "steering": d.get("steering"),
             "spent_usd": d.get("spent_usd"), "budget_usd": d.get("budget_usd"),
+            "unpriced": d.get("unpriced") or {},  # model -> calls left out of spent_usd (a floor)
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
             "heartbeat": d.get("heartbeat"), "paused": d.get("paused"),
@@ -286,7 +292,8 @@ def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
 
 def _budget(v: dict) -> str:
     spent, budget = v["spent_usd"], v["budget_usd"]
-    return ("unknown" if spent is None else f"${spent:.2f}") + (f" of ${budget:g}" if budget else "")
+    return ("unknown" if spent is None else _usd(spent, v.get("unpriced"))) \
+        + (f" of ${budget:g}" if budget else "")
 
 
 def steering_word(steering) -> str:
@@ -404,6 +411,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
         active = [c for c in sorted(d["crs"], key=lambda x: x["order"]) if c["status"] not in ENDED]
         batches.append({"batch": v["batch"], "folder": folder.name, "state": v["state"],
                         "spent_usd": v["spent_usd"], "budget_usd": v["budget_usd"],
+                        "unpriced": v["unpriced"],
                         "asks_unread": v["asks_unread"], "heartbeat": v["heartbeat"],
                         "orders_pending": v["orders_pending"],
                         "slots": {"taken": len(held(SimpleNamespace(data=d))), "total": d["slots"]},

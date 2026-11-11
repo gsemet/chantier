@@ -448,9 +448,11 @@ Only in the turn where the user gave the go:
   without `--yes` is the check and prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
   an order is open, a stack agent is recorded, or a session file of the Foreman or of any of its
   agents was written in the last 5 minutes (on Copilot, the session's file time; `not measured`
-  refuses too). It refuses too, with or without `--yes` and naming the cause, when the final cost
-  cannot be priced (no priced call; no Foreman transcript recorded, which leaves the batch no way
-  through `close`), and, on a batch set running again by a `take` or `order qa`, it names what
+  refuses too). It refuses too, with or without `--yes` and naming the cause, when nothing at
+  all can be priced (no priced call in the batch; no Foreman transcript recorded, which leaves the
+  batch no way through `close`). A model with no price does not refuse it: the final cost is a
+  floor (`at least`) with its calls not priced, and the CLI says which id to add under `prices:`
+  in `chantier.yaml`. On a batch set running again by a `take` or `order qa`, it names what
   runs (or says `pause` comes first). Report a refusal to the user with its cause, do not retry in
   a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
   it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to

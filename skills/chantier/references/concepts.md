@@ -163,9 +163,9 @@ started.
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
 - **STATUS:** `STATUS.md` and `STATUS.json` in the planning folder (the index), in `4-batch/` and in each CR. A
   paused batch's `STATUS.md` is the exit report, its cost to date: `close` prices the
-  batch up to now, with no end date taken from `pause`, and prints the final cost. If it cannot price it
-  (no priced call, no Foreman transcript recorded), `close` refuses, naming the cause, with or
-  without `--yes`: the Chief of Staff reports the cause to the user. A batch with no recorded Foreman
+  batch up to now, with no end date taken from `pause`, and prints the final cost. If nothing can be priced
+  (no priced call in the batch, no Foreman transcript recorded), `close` refuses, naming the cause, with or
+  without `--yes` (calls of a model with no price do not refuse it: the cost is a floor): the Chief of Staff reports the cause to the user. A batch with no recorded Foreman
   transcript has no way through `close`.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`; with a planning surface, plus `--project <folder>` before the command).
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
@@ -189,7 +189,8 @@ started.
 
 A parent starts an agent, by its host's means (the host's reference gives the tool and the
 agent's name). Which agent and which model come from the project's playbook, an optional
-`chantier.yaml` that only the CLI reads, validates and resolves:
+`chantier.yaml` that only the CLI reads, validates and resolves (it may also carry `prices:` for
+models the built-in table lacks, read by the CLI only when it prices):
 
 - The parent passes the agent and, when one is printed, the model, exactly as `$CHANTIER` printed
   them (`playbook`, `playbook --batch`, or the `team:` lines of `take`, `round` and `handoff`):

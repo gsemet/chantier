@@ -287,11 +287,19 @@ roles:
     skills: [jira]
   cr-driver:
     agent: my-driver
+prices:                    # a model chantier has no price for yet, in $/MTok
+  claude-example-6-0:
+    input: 3
+    cache_write_5m: 3.75
+    cache_write_1h: 6
+    cache_read: 0.30
+    output: 15
 ```
 
-Only the `chantier` CLI reads this file: it refuses an unknown role, key or model with the
-line, and turns a model name into an exact identifier (`chantier playbook` shows the result); the
-agents pass it as printed. A host that cannot set a model when it starts an agent refuses a
+Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
+incomplete price entry, with the line, and turns a model name into an exact identifier
+(`chantier playbook` shows the result); the agents pass it as printed. A host that cannot set a
+model when it starts an agent refuses a
 `model`. A required skill the Chief of Staff's session lacks is warned about, and the role works
 without it. The role's contract is its card in the skill, so your agent only needs the tools the
 role uses. Extra review steps stay in a `chantier` section of your `AGENTS.md`:
@@ -438,15 +446,18 @@ current directory.
 line for the Foreman, one per Driver type and one per worker type (or by CR), and the lines add up
 to the total. `chantier cost --explain` adds what explains each figure: the agents, the calls, the
 model, the shares of cost in cache reads, cache writes and output, the calls made after the cache
-expired and the Drivers restarted. The reports show these lines as printed. On Claude, chantier
-prices the transcripts with its own rates for Opus, Sonnet and Haiku 5.5; on Copilot, it reads
+expired and the Drivers restarted. The reports show them as a table with the ratio of orchestration
+(steering + Drivers over the batch's spend), the figures as printed. On Claude, chantier
+prices the transcripts with its own rates for the models the host offers; on Copilot, it reads
 per-call costs from
 [copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
 PyPI, and flags calls that were estimated rather than billed. In direct mode the steering is one
 `Chief of Staff, steering the batch` line, counted in the batch's spend and budget as a Foreman's is; the
 Chief of Staff's grill and specifications with you, and the rest of its session, stay apart on their own lines (a part that
-cannot be measured says `unknown`, and the compactions are counted, not priced). A missing transcript, an unknown
-model or an unpriced call is an error, never a guess. The Foreman records the spend at each
+cannot be measured says `unknown`, and the compactions are counted, not priced). A missing
+transcript is an error, never a guess. The calls of a model with no price are counted and
+named, the figure is a floor (`at least`), and you add the price under `prices:` in
+`chantier.yaml`. The Foreman records the spend at each
 heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
 
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is

@@ -1,4 +1,4 @@
-"""Cost totals refuse missing or unpriceable Claude usage."""
+"""Cost totals refuse missing or unreadable Claude usage and count the calls with no price."""
 import json
 
 import pytest
@@ -24,16 +24,38 @@ def test_claude_cost_deduplicates_and_prices_known_usage(tmp_path):
 @pytest.mark.parametrize(("contents", "message"), [
     ("", "no priced calls"),
     ("not JSON\n", "unreadable Claude transcript"),
-    (json.dumps(record("unknown-model")) + "\n", "no Claude price"),
     (json.dumps({"type": "assistant", "message": {"model": "claude-sonnet-5-5",
                 "usage": {"output_tokens": 1}}}) + "\n", "no message id"),
 ])
-def test_claude_cost_refuses_unpriced_or_unreadable_usage(tmp_path, contents, message):
+def test_claude_cost_refuses_unreadable_usage(tmp_path, contents, message):
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(contents)
     with pytest.raises(ChantierError, match=message) as error:
         session_costs(transcript)
     assert error.value.code == EXIT_EXTERNAL
+
+
+def test_a_model_with_no_price_is_counted_and_named_and_never_priced(tmp_path):
+    other = record("unknown-model")
+    other["message"]["id"] = "m2"
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text(json.dumps(record()) + "\n" + json.dumps(other) + "\n")
+    row = session_costs(transcript)[0]
+    assert row["calls"] == 1 and row["unpriced"] == {"unknown-model": 1}
+    assert row["usd"] == pytest.approx((1000 * 2 + 2000 * 10) / 1e6)
+    assert row["peak_context"] == 1000  # the unpriced call's tokens are measured, not priced
+    transcript.write_text(json.dumps(other) + "\n")  # only unpriced calls: not an empty window
+    assert session_costs(transcript)[0]["unpriced"] == {"unknown-model": 1}
+
+
+def test_a_dated_id_is_priced_by_its_model_and_the_project_prices_rank_first(tmp_path):
+    dated = record("claude-sonnet-5-5-20261001")
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text(json.dumps(dated) + "\n")
+    assert session_costs(transcript)[0]["usd"] == pytest.approx((1000 * 2 + 2000 * 10) / 1e6)
+    mine = {"claude-sonnet-5-5": {"input": 1, "cache_write_5m": 1, "cache_write_1h": 1,
+                                  "cache_read": 1, "output": 1}}
+    assert session_costs(transcript, prices=mine)[0]["usd"] == pytest.approx(3000 / 1e6)
 
 
 def test_claude_cost_requires_main_transcript_even_if_subagents_exist(tmp_path):

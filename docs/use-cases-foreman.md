@@ -93,8 +93,8 @@ grown. A paused batch still blocks a new plan: new work joins it.
 > "Close the batch."
 
 Only on your word. The Chief of Staff runs the check: it refuses, naming the cause, while a CR is
-not merged or cancelled, an order is open, an agent of the batch still runs, or the final cost
-cannot be priced. When it passes, you see the final cost and what goes, and you say yes. Then the
+not merged or cancelled, an order is open, an agent of the batch still runs, or nothing at all
+can be priced. When it passes, you see the final cost and what goes, and you say yes. Then the
 batch's own files are deleted, each merged CR moves to `5-archives`, and the dropped CRs' worktrees and branches are removed. Without your yes,
 everything stays.
 
