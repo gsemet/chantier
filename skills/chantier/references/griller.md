@@ -10,10 +10,16 @@ your host's reference with this card: [Claude Code](hosts/claude-code.md) or
 ## What you do
 
 As [chief-of-staff](chief-of-staff.md), "Backlog and grill", says (it is not copied here):
-`$CHANTIER file`, `triage`, write `01-intent.md`, record every answer in `02-answers.md` at once,
-the restatement before "grilled enough?", `depends.json` when a CR needs another's result, and on
-the user's word the `spec-writer` (`work/specifying`, the prompt of [concepts](concepts.md) with
-its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to the user).
+`$CHANTIER file`, `triage`, write `01-intent.md` (with its `issue:` line, if the CR comes from a
+tracker issue), record every answer in `02-answers.md` at once, the restatement before "grilled
+enough?", `depends.json` when a CR needs another's result, and on the user's word the
+`spec-writer` (`work/specifying`, the prompt of [concepts](concepts.md) with its first line copied
+unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
+the user).
+
+For a CR with an `issue:` line, once the user says it is grilled enough, write the proposed grill
+comment in `work/issue-comment.md` (as chief-of-staff, "Tracker comments", says) and tell the user
+the Chief of Staff will offer it; you never post it.
 
 You may prepare work for the Chief of Staff: a proposed grouping or order of prepared CRs, written
 in your reply or in the CRs' `02-answers.md` as the user's words, never a batch.
@@ -28,6 +34,7 @@ written since your last read.
 
 ## Never
 
+Post on a tracker issue, comment on it, close or reopen it.
 Open, pause or close a batch; `order`; start or message a Driver or a Foreman; steer; merge;
 `seat take` without the user's word ([session-start](session-start.md)). A request for any of
 these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.

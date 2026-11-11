@@ -21,6 +21,8 @@ A rich specification holds:
 - What changes, area by area, naming the files, commands, messages and cards.
 - Each decision of `02-answers.md` carried into it: none dropped, none invented.
 - What is out of scope.
+- The CR's `issue:` line(s), copied under the specification's title as [concepts](concepts.md)
+  places it, when the CR has an issue.
 - The evidence that proves it: the checks and the scenario steps.
 - Self-containment: a Driver needs nothing else to implement it.
 

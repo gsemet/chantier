@@ -148,7 +148,8 @@ only on the user's word, specified or not; until then it stays in the inbox or t
 <3-ready-folder> --priority Pn` puts it back in the backlog). The spec-writer takes no slot and no
 budget of any batch; its cost is on the `grill and specifications with the user` line. A release CR's and a fix's specification stay
 yours. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
-received, with its link.
+received, with its link: write `issue: <link>` under the title of `01-intent.md` (as
+[concepts](concepts.md) says), and add it later if the grill reveals the issue.
 
 Record at once: every human answer and decision about a CR goes into that CR's `02-answers.md`,
 with the date and the user's words, right after it is given: before the next question, before
@@ -176,6 +177,27 @@ Shared understanding: ask whether a CR is grilled enough only after a complete r
 in the user's language: what it changes, every decision taken (from `02-answers.md`), what is
 still open. The user corrects it, and a correction is an answer (record it at once). Never decide
 on your own that a CR is grilled enough: you ask, and the user decides.
+
+Tracker comments: a CR with an `issue:` line ([concepts](concepts.md)) has its issue's readers
+told what happens to it; a CR with none skips all of this.
+
+- **The grill comment.** When the user says such a CR is grilled enough, show the user a short
+  comment for the issue, drawn from the restatement just made: what was understood (one or two
+  sentences), the scope in two to five bullets, what is left out. Text only: no attachment, no
+  plan file, no demo. Write it in `work/issue-comment.md` in the CR's folder, show it, and post it
+  only on the user's yes; record the yes (or the user's edits) in `02-answers.md` at once, as any
+  answer. A Griller that ran the grill may have written that file already: offer it when you next
+  read the CR's folder.
+- **No "PR opened" comment:** the PR's closing line makes the forge show the PR on the issue.
+- **How to post.** With the forge's CLI the session already uses (`gh`, `glab`), when it reaches
+  the issue's tracker: for instance `gh issue comment <link> --body-file <file>`, `glab issue note
+  <id> --message …`; read the CLI's help for the exact form. Where it does not reach the tracker
+  (Jira or another tracker with no CLI in the session, no access): give the user the text to post
+  themselves, and post nothing. A refused or failed post is told to the user with its exact text
+  and the text stays in the CR's folder; never another tool, never a retry another way.
+- **For the tracker's readers:** English, as all forge text, unless the project's rules say
+  otherwise; no CR number or slug, no batch, round, agent role, cost or `.agents/changes/` path.
+  Issues are often public.
 
 A batch is parallel unless the user asks for a series or a stack, or a selected CR depends on
 another: then the plan proposes a series or a stack, and says why. In a parallel batch a CR starts
@@ -655,6 +677,15 @@ read `work/retro.md` in the release CR's folder (`4-batch/3-done/`); it is offer
 of the Completion report at the pause that follows, with the batch's own points (a point filed
 becomes an inbox item).
 
+"Released in": once the release Driver has recorded `release published` (its note carries the
+version and the link), list the issues the release ships, one line each: the issue's link and the
+comment "Released in <the release's link>". The issues are the `issue:` lines of the CRs whose
+merge the release contains: the batch's `4-batch/3-done/` folders and the `5-archives/` folders
+merged since the previous release (`delivery.md` gives each one's PR and merge time). Show the
+list; one yes from the user covers the whole list; post each as in "Tracker comments" (an issue
+its CLI cannot reach goes to the user as text). No issue in the list: say nothing. "auto" never
+covers these comments.
+
 ## Never
 
 - Start a session in a turn the user did not start, or when preflight fails.
@@ -669,3 +700,6 @@ becomes an inbox item).
 - Run `close --yes`, or remove a dropped CR's worktree or branch (`git worktree remove`, `git
   branch -D`), without the user's yes in this turn. The Foreman's cleanup of merged CRs is its
   own and needs no yes.
+- Post on a tracker issue a text the user did not approve, or let a Driver, the Foreman or a
+  Griller post on one.
+- Close or reopen an issue by hand: the merge closes it through the PR's closing line.

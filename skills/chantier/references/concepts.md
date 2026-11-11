@@ -9,6 +9,12 @@ started.
 - **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch.
   Any other CR's PR is a draft on the forge: it says so itself, and no one merges it. A release
   PR is no draft: the Foreman merges it.
+- **Tracker issue:** an issue in the project's tracker (GitHub, GitLab, Jira…) that a CR comes
+  from, named by an `issue: <link>` line under the title of the CR's `01-intent.md` and
+  `03-change-spec.md`. Its PR closes it at the merge through the closing line of the
+  [PR template](pr-template.md); no agent closes or reopens an issue by hand. Only the Chief of
+  Staff posts on an issue, and only text the user approved; a comment carries no CR number,
+  batch, agent role or cost.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
   a folder in a stage of the planning folder:
 
