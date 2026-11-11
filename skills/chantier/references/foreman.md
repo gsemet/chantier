@@ -128,7 +128,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `asks` (it is not for the user).
   The Chief of Staff answers `[chief-of-staff→foreman] pushed <branch>` or `push failed
   <branch> <text>`; tell the Driver at once, `[foreman→driver <cr>] note push <branch>: <the
-  answer>`. A push the host refuses the Chief of Staff too is the user's, shown by it; the
+  answer>`. The Chief of Staff judges the push and may ask the user first: wait for its answer and pass
+  nothing else meanwhile. A push the host refuses the Chief of Staff too is the user's, shown by it; the
   Driver hears `push refused <branch>: <exact text>` and hands back.
 - A Driver's task that ends without a hand-back: `handoff`, then a new Driver with `--note
   "resume: …"`. A second silent end on one CR is `handback <cr> blocked driver ended twice`.

@@ -52,6 +52,8 @@ the user to merge it.
 
 When a CR is chained (queued after another by the Foreman's decision, with no real dependency), your next report has a line with the chain and its reason.
 
+When you ran a Driver's refused force push since the last report, your next report has one line: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
+
 On the Foreman's `ready` that is the last of a stack, when no CR of the batch is working, end
 the Progress report with the offer of a demo of what the stack delivers.
 
