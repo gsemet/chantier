@@ -1051,7 +1051,11 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         if c:
             c.setdefault("notes", []).append(note.strip())
             b.touch(c)
-        return [f"noted{' on ' + cr_id if c else ''}: the Foreman reads it in `status`"]
+        out = [f"noted{' on ' + cr_id if c else ''}: the Foreman reads it in `status`"]
+        if c and c["status"] in ("ready", "blocked"):
+            out.append(f"{c['id']} is {c['status']}: no Driver works on it until the Foreman "
+                       f"takes it back (take {c['id']} --note \"<why>\")")
+        return out
     if kind == "merged":
         if c["status"] == "merged":
             return [f"{cr_id} already merged"]
@@ -1673,6 +1677,11 @@ def handback(args) -> list[str]:
         with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
             c = b.cr(args.cr)
             if c["status"] not in LIVE:
+                if c["status"] in ("ready", "blocked"):
+                    raise ChantierError(
+                        f"{c['id']} is {c['status']}: no Driver holds it until the steering "
+                        f"session takes it back (take {c['id']} --note \"<why>\"), then hand "
+                        "back again")
                 raise ChantierError(f"{args.cr} is {c['status']}: no Driver to hand it back")
             line = f"[driver {args.cr}→foreman] hand-back {args.result} {note}"
             if args.result == "blocked":
@@ -1698,10 +1707,11 @@ def handback(args) -> list[str]:
             wt = _worktree(c)
             missing = []
             now_head = git("rev-parse", "HEAD", cwd=wt)
-            if not same_head(head, now_head):
-                missing.append(f"refused: the worktree is at {_short(now_head)}, not at "
-                               f"{_short(head) or 'any shipped head'} that `ship` recorded "
-                               "(a commit after `ship`: push, then `ship` again)")
+            if not same_head(head, now_head):  # alone: the gate and verdict are for another head
+                raise ChantierError(
+                    f"refused: the worktree's head {now_head[:7]} is not the head ship recorded "
+                    f"({head or 'none'}): ship {c['id']} {c['pr']} again, then the long gate and "
+                    "a verdict VERIFIED at the new head", EXIT_PRECONDITION)
             if _dirty(wt):
                 missing.append("refused: the worktree has uncommitted changes or untracked "
                                "files: commit them, push, then `ship` again")

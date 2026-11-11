@@ -56,7 +56,12 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   CR), another line those the CLI applied, which only await your `order done`; `pause` waits for
   both. Their effect on the state is applied; what needs your hands is yours (stop a Driver, tell one,
   cancel a dropped live CR with `$CHANTIER cancel`, send a ready or blocked CR back to a Driver
-  with `--note` saying why; its Driver turns the PR back to a draft).
+  with `--note` saying why; its Driver turns the PR back to a draft). Work on a ready or blocked
+  CR (an order note asking for a rebase or a fix, an answer, a red check, a dependency merged)
+  reaches a Driver only through `take <cr> --note "<why>"`: never send it as a message to the
+  Driver that handed the CR back before that `take`. The `take` reopens the CR to `working` and
+  counts no round; its Driver runs `ship` at the new head, then passes the long gate and a
+  `VERIFIED` verdict there before `handback ready`.
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Your git
@@ -129,13 +134,14 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   CR back to a Driver with `take <cr> --note`.
 - On an `order merged <dependency>` (the user's or your own), each CR handed back ready as a
   draft waiting for that dependency, whose dependencies are now all merged, goes back to a
-  Driver at once: `take <cr> --note "rebase: <dependency> merged"`, a new CR Driver (it takes a
-  slot, or waits like any queued CR when none is free). One still waiting for another open
+  Driver at once: `take <cr> --note "rebase: <dependency> merged"`, then the Driver that handed
+  it back resumed as below (it takes a slot, or waits like any queued CR when none is free). One still waiting for another open
   dependency is rebased onto that one and stays a draft: the note says which. This holds in every
   mode. Then, by mode:
   - **Parallel:** every CR with a PR still open goes back to a Driver: a `ready` or `blocked` one
-    with `take <cr> --note "rebase: <merged cr> merged"` (a new CR Driver, a slot, or it waits
-    like a queued CR when none is free); a `working` one gets `[foreman→driver <cr>] note rebase:
+    with `take <cr> --note "rebase: <merged cr> merged"` (a slot, or it waits like a queued CR
+    when none is free; a `ready` one resumes its Driver as below, a `blocked` one gets a new CR
+    Driver); a `working` one gets `[foreman→driver <cr>] note rebase:
     <merged cr> merged`. Conflict or not, its checks run again at the new head. A queued CR needs
     nothing.
   - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
@@ -144,6 +150,19 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
     that branch; each one moved this way moves the next.
   - **Stack:** unchanged: the stack driver restacks.
+- A CR taken back from `ready` (every `take <cr> --note` above, the Series one and the ready PR
+  that stopped merging included) is run by the Driver that handed it back:
+  - The `take` comes first: it holds the slot, or makes the CR wait for one like a queued CR when
+    none is free.
+  - Then resume that Driver (the agent id `agents set` recorded, still in the CR's record): send
+    it `[foreman→driver <cr>] note taken back: <the take's note>` by the host's means (your host's
+    reference), and record it again with `agents set <cr> <id> --epoch <n>`, so the log shows
+    the resume.
+  - It does not answer (the host refuses the message, or no `[driver <cr>→foreman]` line from it
+    by the next heartbeat wake): `agents set <cr> - --epoch <n>`, then a new CR Driver as for a
+    Driver that ended without its hand-back, with `take <cr> --note "resume: <the take's note>"`
+    (the CR is `working`: no new slot).
+  - A CR taken back from `blocked` keeps a new CR Driver.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
   push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
   `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through

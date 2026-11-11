@@ -98,8 +98,9 @@ The CLI keeps the CR's record and tells you what is off.
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit).
 - Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
-  at the PR's head, a passed long gate and a last verdict `VERIFIED`, and refused, one line per
-  cause, when the worktree's head is not the one `ship` recorded (a commit after `ship`), the
+  at the PR's head, a passed long gate and a last verdict `VERIFIED`, refused alone when the
+  worktree's head is not the one `ship` recorded (a commit or a rebase after `ship`), and
+  refused, one line per cause, when the
   tree is dirty, or the remote branch is not at that head (not pushed): fix the cause, `ship`
   again, run the missing gate or start a new `verifier`, then hand back again; `--no-gate "<the
   project's rule>"` replaces the long gate check only, never the head, clean, pushed and verdict
@@ -116,7 +117,13 @@ The CLI keeps the CR's record and tells you what is off.
   refused once the budget is spent, and the budget is checked before the round limit, so with
   both spent you hand back `budget:`, not `rounds:`); never skip a proof pass to save budget:
   `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it. Then end: ending frees
-  your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
+  your slot; a Driver that handed back ready may be resumed later by a `taken back:` note.
+  A hand-back refused with `<cr> is ready` or `<cr> is blocked` means the CR was not taken back
+  after its earlier hand-back. Keep the commits, the gate and the verdict, which bind to the
+  head. Pass the refused line, as printed, to the steering session (`[driver <cr>→foreman] …`,
+  by the host's means) and wait for its `taken back:` note, then hand back again. A hand-back
+  refused with `the worktree's head … is not the head ship recorded`: `ship` at this head, then
+  the long gate and a new `verifier` given the move, then hand back again. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
   decide: the CR shows 🟠, and the steering session takes it back when that thing lands. A
   Driver whose context is ending first records its state with `$CHANTIER note <cr> "…"`, then
@@ -134,7 +141,12 @@ The CLI keeps the CR's record and tells you what is off.
   the user. The exception is `push refused <branch>: no long gate passed at <sha>`: run the long
   gate and send the push line again, no hand-back. Any other refused action stays `blocked refused` as above.
 - `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
-  `note` the decision. `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked
+  `note` the decision. A `note taken back: <why>` received after your own `handback ready`
+  means the steering session took the CR back for you: the CR is yours again, `handoff <cr>`
+  for where it stands, then go on from `<why>` as from a prompt's `Note:` (a `rebase:` as the
+  "CR driver" section says). Any other note received after your hand-back, with no `taken
+  back:`, is not work to start: pass it to the steering session as the refused line above.
+  `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked
   stopped`.
 
 ## CR driver
