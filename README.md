@@ -111,6 +111,12 @@ This displays the major operations:
 
 ![cr-lifecycle](docs/cr-lifecycle.svg)
 
+## Releases
+
+A release is a CR like the others: a Release driver runs it by your project's own release procedure, from your "release" to the archive. You approve each irreversible action, or say "auto".
+
+![What a Release driver does](docs/release-driver.svg)
+
 ## What is Chantier?
 
 You only ever talk to the **Chief of Staff**, in your own session.
