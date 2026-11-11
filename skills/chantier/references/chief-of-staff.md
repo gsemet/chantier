@@ -492,7 +492,10 @@ these differences.
   for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
-  user at once, in the report's shape. A Driver's refused force push is judged and run by you, as above, without asking the user; the Driver hears the result as a note (`order note` or the host's message, as your other notes to it): `pushed <branch>`, `push failed <branch> <text>` or `push refused <branch>: <text>`.
+  user at once, in the report's shape. A Driver's refused force push is judged and run by you, as
+  above, without asking the user; the Driver hears the result as a note (`order note` or the
+  host's message, as your other notes to it): `pushed <branch>`, `push failed <branch> <text>` or
+  `push refused <branch>: <text>`.
 - **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
   refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
   --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch

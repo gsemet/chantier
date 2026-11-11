@@ -90,7 +90,8 @@ The CLI keeps the CR's record and tells you what is off.
   your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
   decide: the CR shows 🟠, and the steering session takes it back when that thing lands.
-- A force push the host refuses (any Driver that pushes): the Chief of Staff judges it and runs it for you, without the user's word in the normal case.
+- A force push the host refuses (any Driver that pushes): the Chief of Staff judges it and runs
+  it for you, without the user's word in the normal case.
   With your work committed, send `[driver <cr>→foreman] push <branch> <expected remote sha>
   <local sha>` (the remote head you expect, from `git ls-remote`, and your head), then wait: no
   other push, no other way. While the steering session asks the user (a push it judges not right),
@@ -98,7 +99,8 @@ The CLI keeps the CR's record and tells you what is off.
   lease (the remote moved): look at why (`git fetch`, what the remote gained), never the same
   push again. A `push refused` note, whether the branch is not this batch's or the Chief of
   Staff's own push was refused, ends with `handback blocked refused <exact text>`; it goes to
-  the user. Any other refused action stays `blocked refused` as above.
+  the user. The exception is `push refused <branch>: no long gate passed at <sha>`: run the long
+  gate and send the push line again, no hand-back. Any other refused action stays `blocked refused` as above.
 - `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
   `note` the decision. `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked
   stopped`.
