@@ -27,8 +27,7 @@ each active batch when there are several (`--batch <batch>`):
 
 Read each CR's icon and label from the batch's `STATUS.md` (the Status column; or `label` in its
 `STATUS.json`), just refreshed by step 1: the text output of `status` draws no icon.
-Write the Progress report from their output, in the user's language, in the shape `status-layout.md`
-gives.
+Write the Progress report from their output, in the user's language, by the Progress skeleton of `status-layout.md`, with the cost as its tables.
 
 With no active batch, say so in one line and give the backlog count from
 `.agents/changes/STATUS.md`.

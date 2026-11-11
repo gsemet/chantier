@@ -16,6 +16,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .playbook import PRICE_NAMES as PRICE_KEYS
 from .state import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
 SESSION_USAGE_SCRIPT = Path(__file__).resolve().parents[2] / "session_usage.py"
@@ -23,7 +24,9 @@ UV_INDEX_VARIABLES = ("UV_INDEX", "UV_DEFAULT_INDEX", "UV_INDEX_URL", "UV_EXTRA_
                       "UV_FIND_LINKS")
 
 # $/MTok: input, 5-min write, 1-h write, cache read, output, per exact model (a dated id of the
-# same model, `claude-sonnet-5-5-20261001`, has the same price). Any other model is refused.
+# same model, `claude-sonnet-5-5-20261001`, has the same price). Each price is the provider's
+# published one, never inferred. A model not here is not refused: its calls are counted and named
+# as not priced, and a project adds its price under `prices:` in `chantier.yaml`.
 CACHE_5M, CACHE_1H = 300, 3600  # seconds a cache write lives, by the write used
 PRICE = {
     "claude-opus-5-5": (4, 5, 8, 0.20, 20),
@@ -50,12 +53,26 @@ def transcript_path(repo_root: Path, session_uuid: str) -> Path:
     return path
 
 
-def _family(model: str, prompt: int) -> str:
-    for f in ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"):
-        if re.fullmatch(rf"{f}(-\d{{8}})?", model):
-            return f"{f}>100k" if f"{f}>100k" in PRICE and prompt > 100_000 else f
-    raise ChantierError(f"no Claude price for model {model!r}: add it to chantier's price table",
-                        EXIT_EXTERNAL)
+def _price(model: str, prompt: int, extra: dict | None = None) -> tuple | None:
+    """The $/MTok of a model: the project's entry (`extra`, from `chantier.yaml`) above the
+    built-in table, by the same id or by it without a trailing `-YYYYMMDD`. Nothing else matches:
+    no prefix, no family, no nearest model. None: no price, so the calls are not priced. The
+    long-context tier applies when the entry has one and the prompt is above its threshold."""
+    ids = [model]
+    dated = re.fullmatch(r"(.+)-\d{8}", model)
+    if dated:
+        ids.append(dated.group(1))
+    for i in ids:
+        entry = (extra or {}).get(i)
+        if entry:
+            tier = entry.get("long_context")
+            if tier and prompt > tier["above"]:
+                entry = tier
+            return tuple(entry[k] for k in PRICE_KEYS)
+        if i in PRICE:
+            tier = PRICE.get(f"{i}>100k")
+            return tier if tier and prompt > 100_000 else PRICE[i]
+    return None
 
 
 def _transcript_lines(path: Path):
@@ -103,21 +120,25 @@ def _new_row() -> dict:
     return {"calls": 0, "usd": 0.0, "model": "?", "models": set(), "w5m": 0, "w1h": 0, "read": 0,
             "out": 0, "wakes": 0, "wake_context": 0, "peak_context": 0, "last_context": 0,
             "usd_in": 0.0, "usd_write": 0.0, "usd_read": 0.0, "usd_out": 0.0,  # dollars by kind
-            "compactions": 0, "timed": 0, "expired": 0, "untimed": 0}
+            "compactions": 0, "timed": 0, "expired": 0, "untimed": 0,
+            "unpriced": {}}  # model id -> calls of a model with no price
 
 
 def _add(row: dict, c: dict) -> None:
     t = c["tokens"]
     row["model"] = c["model"]
-    row["calls"] += 1
-    for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
-        row[k] += v
     row["models"].add(c["model"])
-    row["usd"] += sum(c["parts"])
-    row["usd_in"] += c["parts"][0]
-    row["usd_write"] += c["parts"][1] + c["parts"][2]
-    row["usd_read"] += c["parts"][3]
-    row["usd_out"] += c["parts"][4]
+    if c["parts"] is None:  # no price: counted apart, never in the dollars or the priced calls
+        row["unpriced"][c["model"]] = row["unpriced"].get(c["model"], 0) + 1
+    else:
+        row["calls"] += 1
+        for k, v in zip(("w5m", "w1h", "read", "out"), t[1:]):
+            row[k] += v
+        row["usd"] += sum(c["parts"])
+        row["usd_in"] += c["parts"][0]
+        row["usd_write"] += c["parts"][1] + c["parts"][2]
+        row["usd_read"] += c["parts"][3]
+        row["usd_out"] += c["parts"][4]
     if c["expired"] is not None:  # measured: the gap since the agent's previous call
         row["timed"] += 1
         row["expired"] += c["expired"]
@@ -128,12 +149,14 @@ def _add(row: dict, c: dict) -> None:
         row["wake_context"] += sum(t[:4])
 
 
-def usage(path: Path, since: str = "", until: str = "", split: bool = False) -> dict:
+def usage(path: Path, since: str = "", until: str = "", split: bool = False,
+          prices: dict | None = None) -> dict:
     """A transcript's calls from `since` to `until`: a session can have run another batch.
 
     `split`: the calls of the turns that grill with the user or write specifications (a turn is
     from a wake to the next, attributed whole) go to `row["grill"]`, a row of the same shape; the
-    row itself keeps the others. A call with no time cannot be placed in a window: with `split`
+    row itself keeps the others. `prices`: the project's, above the built-in table; a call of a
+    model with none is counted in `row["unpriced"]`, by model. A call with no time cannot be placed in a window: with `split`
     and a window it is in neither, and `untimed` counts it."""
     row = _new_row()
     start, end = _when(since, path, 0), _when(until, path, 0)
@@ -192,8 +215,9 @@ def usage(path: Path, since: str = "", until: str = "", split: bool = False) -> 
         if not any(t):
             continue  # a record without tokens
         seen.add(message_id)
+        rate = _price(model, sum(t[:4]), prices)
         calls.append({"turn": turn, "when": when, "model": model, "tokens": t, "woke": woken,
-                      "parts": [a * b / 1e6 for a, b in zip(t, PRICE[_family(model, sum(t[:4]))])]})
+                      "parts": None if rate is None else [a * b / 1e6 for a, b in zip(t, rate)]})
         woken = False
     grill = _new_row() if split else None
     previous, lifetime = None, 0  # the last call's time, and how long its cache write lives
@@ -213,15 +237,21 @@ def usage(path: Path, since: str = "", until: str = "", split: bool = False) -> 
     return row
 
 
+def _held(row: dict) -> int:
+    """The calls of a row, priced or not."""
+    return row["calls"] + sum(row["unpriced"].values())
+
+
 def session_costs(main: Path, since: str = "", until: str = "", kind: str = "foreman",
-                  allow_empty: bool = False, split: bool = False) -> list[dict]:
+                  allow_empty: bool = False, split: bool = False,
+                  prices: dict | None = None) -> list[dict]:
     """One row for the main transcript (`kind`: the Foreman or the Chief of Staff) and one per
     subagent with calls in the window. A window without a call is an error unless allowed."""
     label = kind.replace("-", " ").capitalize()
     if not main.is_file():
         raise ChantierError(f"{label} transcript not found: {main}", EXIT_EXTERNAL)
-    foreman = usage(main, since, until, split)
-    if not foreman["calls"] + (foreman["grill"]["calls"] if split else 0) and not allow_empty:
+    foreman = usage(main, since, until, split, prices)
+    if not _held(foreman) + (_held(foreman["grill"]) if split else 0) and not allow_empty:
         raise ChantierError(f"no priced calls in {label} transcript: {main}", EXIT_EXTERNAL)
     rows = [{"agent": "main", "type": kind, "description": "", **foreman}]
     sub = main.with_suffix("") / "subagents"
@@ -229,8 +259,8 @@ def session_costs(main: Path, since: str = "", until: str = "", kind: str = "for
         for f in sorted(sub.glob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
             meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-            row = usage(f, since, until)
-            if row["calls"]:
+            row = usage(f, since, until, prices=prices)
+            if _held(row):
                 rows.append({"agent": f.stem.removeprefix("agent-"),
                              "type": meta.get("agentType", "?"),
                              "parent": meta.get("parentAgentId"),

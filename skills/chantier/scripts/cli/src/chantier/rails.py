@@ -139,13 +139,26 @@ def unmet(b: Batch, c: dict) -> list[str]:
 
 def over_budget(b: Batch) -> bool:
     budget = b.data.get("budget_usd")
-    return bool(budget) and (b.data.get("spent_usd") or 0) >= budget  # unpriced: no spend seen yet
+    return bool(budget) and (b.data.get("spent_usd") or 0) >= budget  # the priced part; no spend seen yet: 0
 
 
 def spent_text(data: dict) -> str:
-    """The spend as shown to a reader: `unknown` until a priced refresh, never a false $0.00."""
+    """The spend as shown to a reader: `unknown` until a priced refresh, never a false $0.00, and
+    `at least` while calls of a model with no price are left out of it."""
     spent = data.get("spent_usd")
-    return "unknown" if spent is None else f"${spent:.2f}"
+    if spent is None:
+        return "unknown"
+    return f"{'at least ' if data.get('unpriced') else ''}${spent:.2f}"
+
+
+def usd_text(amount: float, unpriced: dict | None, places: int = 2) -> str:
+    """A priced amount; `at least` while calls of a model with no price are left out of it."""
+    return f"{'at least ' if unpriced else ''}${amount:.{places}f}"
+
+
+def not_priced(unpriced: dict) -> str:
+    """`3 calls of <model> not priced`, one `N calls of <model>` per model."""
+    return ", ".join(f"{n} calls of {m}" for m, n in unpriced.items()) + " not priced"
 
 
 def all_merged(b: Batch) -> bool:

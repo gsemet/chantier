@@ -31,6 +31,7 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budg
                     check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
                     release_merged, series_predecessor, spent_text, waits_all, waits_for)
+from .rails import not_priced, usd_text
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -665,7 +666,8 @@ def open_batch(args) -> list[str]:
             "stack_agent": None, "heartbeat": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     if team:  # a running batch keeps the playbook it opened with
-        data["playbook"] = team
+        # the prices are read live at each pricing, not frozen with the roles
+        data["playbook"] = {k: v for k, v in team.items() if k != "prices"}
     with changes_lock(repo):
         check_no_open_batch(repo)
         with Batch(repo, None, actor="chief-of-staff", create=data) as b:
@@ -1163,17 +1165,23 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]
             b.data["summary"] = _cost_summary(
                 b.data, rows, _cost_groups(repo, b.id, rows, "cr"),
                 _cost_groups(repo, b.id, rows, "driver"), _chief_line(repo, b.data)) + [TO_DATE]
-    return lines + [f"spent ${total:.2f}"], 0
+    floor = _sum_unpriced(rows)
+    return lines + [f"spent {usd_text(total, floor)}" + (f"; {not_priced(floor)}" if floor else "")], 0
 
 
 def _record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
     """The spend the budget check reads, and each CR's share, shown in its STATUS.md."""
     total = sum(r["usd"] for r in rows)
-    b.data["spent_usd"] = round(total, 4)
+    b.data["spent_usd"] = round(total, 4)  # the priced part: the budget reads it as it is
+    b.data["unpriced"] = _sum_unpriced(rows)  # model -> calls left out of it: a floor, said so
     by_cr = _cost_groups(repo, b.id, rows, "cr")
     for c in b.data["crs"]:
         if c["id"] in by_cr:
             c["cost_usd"] = round(by_cr[c["id"]][1], 4)
+            if by_cr[c["id"]][2]:
+                c["cost_unpriced"] = by_cr[c["id"]][2]
+            else:
+                c.pop("cost_unpriced", None)
     b.log("cost", None, usd=total)
     return total
 
@@ -1965,8 +1973,9 @@ def close(args) -> tuple[list[str], int]:
     removes itself on the same word, and passes `--yes`. Without it, nothing is touched. It
     refuses while anything runs or `1-pending` or `2-actives` holds a CR, with or without `--yes`,
     and it prices the batch up to now: this is the final cost, printed either way. It refuses,
-    with or without `--yes`, when it cannot price it (no Foreman transcript recorded, no priced
-    call): a batch is never closed on an unknown cost."""
+    with or without `--yes`, when nothing can be priced (no Foreman transcript recorded, no priced
+    call in the whole batch). Calls of a model with no price do not refuse it: the final cost is a
+    floor, printed with the calls not priced."""
     repo = Repo.find()
     with changes_lock(repo):
         batch, folder, d = _close_target(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
@@ -2061,8 +2070,10 @@ def _archive_and_delete(repo: Repo, batch: str, folder: Path, d: dict, rows: lis
 
 
 def _final_rows(repo: Repo, batch: str, d: dict) -> list[dict]:
-    """The batch priced to now, once, before anything is touched. A pricing failure refuses the
-    close (exit 2) with its cause: the final cost is never unknown, never a false $0.00."""
+    """The batch priced to now, once, before anything is touched. Calls of a model with no price
+    do not refuse the close: they are counted apart and the cost is a floor. It is refused (exit 2)
+    with its cause when nothing can be priced (no Foreman transcript recorded, no priced call in
+    the whole batch), never closed on a false $0.00."""
     try:
         return _cost_rows(repo, d, d["host"], _foreman_uuid(d))
     except ChantierError as e:
@@ -2073,7 +2084,8 @@ def _final_rows(repo: Repo, batch: str, d: dict) -> list[dict]:
 def _final_pages(repo: Repo, batch: str, folder: Path, d: dict, rows: list[dict]) -> None:
     """The archived CR pages outlive the batch: priced to now, they alone say the cost is final."""
     by_cr = _cost_groups(repo, batch, rows, "cr")
-    crs = [{**c, "cost_usd": round(by_cr[c["id"]][1], 4)} if c["id"] in by_cr else c
+    crs = [{**c, "cost_usd": round(by_cr[c["id"]][1], 4), "cost_unpriced": by_cr[c["id"]][2]}
+           if c["id"] in by_cr else c
            for c in d["crs"]]
     write_final_pages(repo, {**d, "crs": crs}, folder)
 
@@ -2082,9 +2094,57 @@ def _final_pages(repo: Repo, batch: str, folder: Path, d: dict, rows: list[dict]
 TO_DATE = "To date: it grows if the batch runs again; `close` prices the final cost"
 
 
+def _prices(repo: Repo, host: str) -> dict | None:
+    """The project's prices (`prices:` of `chantier.yaml`), read at each pricing and not frozen
+    at `open`, so a price added mid-batch prices the next refresh. Not used on Copilot, whose
+    records carry the price. A file that is not valid refuses, never silently ignored."""
+    if host == "copilot":
+        return None
+    resolved, problems = read_playbook(repo, host)
+    if problems:
+        raise ChantierError("chantier.yaml is not valid, the prices cannot be read:\n"
+                            + "\n".join(problems) + "\nrun `$CHANTIER playbook`", EXIT_PRECONDITION)
+    return (resolved or {}).get("prices") or None
+
+
+def _unpriced(r: dict) -> dict:
+    return r.get("unpriced") or {}
+
+
+def _add_unpriced(into: dict, un: dict) -> dict:
+    for model, n in un.items():
+        into[model] = into.get(model, 0) + n
+    return into
+
+
+def _sum_unpriced(rows: list[dict]) -> dict:
+    """Calls of a model with no price, by model, summed over rows."""
+    out: dict[str, int] = {}
+    for r in rows:
+        _add_unpriced(out, _unpriced(r))
+    return out
+
+
+def _minus(a: dict, b: dict) -> dict:
+    return {m: n - b.get(m, 0) for m, n in a.items() if n - b.get(m, 0) > 0}
+
+
+def _spend(usd: float, calls: int, un: dict, places: int = 2) -> str:
+    """A priced amount, a floor (`at least`) when calls are not priced; no priced call at all
+    is `not priced`, never $0.00."""
+    return "not priced" if un and not calls else usd_text(usd, un, places)
+
+
+def _hints(models) -> list[str]:
+    return [f"{m} has no price: add it under prices: in chantier.yaml (exact id: {m})"
+            for m in models]
+
+
 def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
     """Every Foreman of the batch, summed, from its opening to now: `pause` ends no window, a
-    call made after it is spend."""
+    call made after it is spend. A call of a model with no price is counted in the row's
+    `unpriced`, not refused."""
+    prices = _prices(repo, host)
     rows: list[dict] = []
     chiefs = chief_sessions(d)
     # a Driver is an agent the log ties to a CR, the stack or a QA order; any other agent with no
@@ -2099,7 +2159,7 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
             since, until = _window(d, uuid)
             got = costs.session_costs(costs.transcript_path(repo.session_root, uuid), since, until,
                                       kind="chief-of-staff" if steering else "foreman",
-                                      allow_empty=len(uuids) > 1, split=steering)
+                                      allow_empty=len(uuids) > 1, split=steering, prices=prices)
         if steering:
             got[0]["type"] = "chief-of-staff"
             got = costs.without_spec_writers(got)  # grill and specifications: their own line
@@ -2161,19 +2221,20 @@ def _chief_line(repo: Repo, d: dict) -> list[str]:
         return _chief_unknown("not measured on this host")
     if not chiefs:
         return _chief_unknown("no Chief of Staff transcript recorded")
-    steer = [0, 0.0]  # calls, dollars since the batch opened, the steering row's own left out
-    grill = [0, 0.0]
+    prices = _prices(repo, d["host"])
+    steer = [0, 0.0, {}]  # calls, dollars, calls not priced, since the batch opened, the steering
+    grill = [0, 0.0, {}]  # row's own left out
     writers = untimed = compactions = 0
-    whole_usd, context, inside_calls = 0.0, 0, 0
+    whole_usd, context, inside_calls, whole_un = 0.0, 0, 0, {}
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
         path = costs.transcript_path(repo.session_root, uuid)
         try:
-            whole = costs.session_costs(path, kind="chief-of-staff")
+            whole = costs.session_costs(path, kind="chief-of-staff", prices=prices)
             since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
-                                        allow_empty=True, split=True)
+                                        allow_empty=True, split=True, prices=prices)
             steered = costs.without_spec_writers(costs.session_costs(
                 path, *_window(d, uuid), kind="chief-of-staff", allow_empty=True,
-                split=True)) if uuid in _claimed(d) else []
+                split=True, prices=prices)) if uuid in _claimed(d) else []
         except ChantierError as e:
             return _chief_unknown(str(e))
         main = since[0]
@@ -2182,32 +2243,42 @@ def _chief_line(repo: Repo, d: dict) -> list[str]:
                 writers += 1
                 grill[0] += r["calls"]
                 grill[1] += r["usd"]
+                _add_unpriced(grill[2], _unpriced(r))
             else:
                 steer[0] += r["calls"]
                 steer[1] += r["usd"]
+                _add_unpriced(steer[2], _unpriced(r))
         grill[0] += main["grill"]["calls"]
         grill[1] += main["grill"]["usd"]
+        _add_unpriced(grill[2], _unpriced(main["grill"]))
         compactions += main["compactions"]
         untimed += main["untimed"]
         inside = sum(r["usd"] for r in steered)  # the steering row: counted in the spend
+        inside_un = _sum_unpriced(steered)
         steer[0] -= sum(r["calls"] for r in steered)
         steer[1] -= inside
-        inside_calls += sum(r["calls"] for r in steered)
+        steer[2] = _minus(steer[2], inside_un)
+        inside_calls += sum(r["calls"] for r in steered) + sum(inside_un.values())
         whole_usd += sum(r["usd"] for r in whole) - inside
+        _add_unpriced(whole_un, _minus(_sum_unpriced(whole), inside_un))
         context = whole[0]["last_context"]  # the current session's, the last
     lines = []
-    if not steer[0] and untimed:  # the only calls of this part cannot be placed: unknown, not $0.00
+    steer_held = steer[0] + sum(steer[2].values())
+    why = lambda n, un: f"{n} calls" + (f"; {not_priced(un)}" if un else "")  # noqa: E731
+    if not steer_held and untimed:  # the only calls of this part cannot be placed: unknown, not $0.00
         lines.append(f"{STEER_OUT}: unknown ({untimed} calls without a time, not placed)")
-    elif steer[0] or not inside_calls:  # a direct batch's steering is its row, not a line
-        lines.append(f"{STEER_OUT}: ${steer[1]:.2f} since the batch opened ({steer[0]} calls)")
-    lines += [f"{GRILL_OUT}: ${grill[1]:.2f} since the batch opened ({grill[0]} calls, "
-              f"{writers} spec-writers)",
-              f"{WHOLE}: ${whole_usd:.2f}, context {context:,} tokens; not counted: "
-              f"{compactions} compactions since the batch opened, which leave no record "
-              f"(about ${COMPACTION_USD:.2f} each)"]
-    if untimed and steer[0]:
+    elif steer_held or not inside_calls:  # a direct batch's steering is its row, not a line
+        lines.append(f"{STEER_OUT}: {_spend(steer[1], steer[0], steer[2])} since the batch "
+                     f"opened ({why(steer[0], steer[2])})")
+    lines += [f"{GRILL_OUT}: {_spend(grill[1], grill[0], grill[2])} since the batch opened "
+              f"({why(grill[0], grill[2])}, {writers} spec-writers)",
+              f"{WHOLE}: {_spend(whole_usd, 1, whole_un)}, context {context:,} tokens; not "
+              f"counted: {compactions} compactions since the batch opened, which leave no record "
+              f"(about ${COMPACTION_USD:.2f} each)"
+              + (f"; {not_priced(whole_un)}" if whole_un else "")]
+    if untimed and steer_held:
         lines.append(f"Chief of Staff: {untimed} calls without a time, not placed")
-    return lines
+    return lines + _hints(sorted(_add_unpriced(_add_unpriced(dict(steer[2]), grill[2]), whole_un)))
 
 
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
@@ -2227,7 +2298,7 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
             return None
         return agent_cr.get(agent) or cr_of(parents.get(agent), hops + 1)
 
-    groups: dict[str, list] = defaultdict(lambda: [0, 0.0])
+    groups: dict[str, list] = defaultdict(lambda: [0, 0.0, {}])  # calls, dollars, not priced
     for r in rows:
         if by == "cr":
             named = CR_IN_NAME.search(r.get("description") or "")
@@ -2240,9 +2311,11 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
                 if root["agent"] == "main" or parent is None or parent["agent"] == "main":
                     break
                 root = parent
-            key = "foreman" if root.get("own") else root["type"]
+            # the steering session's main row, a Foreman's or a Chief of Staff's, is never a Driver
+            key = "foreman" if root.get("own") or root["agent"] == "main" else root["type"]
         groups[key][0] += r["calls"]
         groups[key][1] += r["usd"]
+        _add_unpriced(groups[key][2], _unpriced(r))
     return groups
 
 
@@ -2298,12 +2371,13 @@ def _breakdown(rows: list[dict]) -> list[dict]:
         kind = _kind(r)
         e = entries.setdefault((kind, _label(r) if kind == "Foreman" else r["type"]), {
             "kind": kind, "label": _label(r) if kind == "Foreman" else f"{kind} {r['type']}",
-            "rows": [], "calls": 0, "usd": 0.0})
+            "rows": [], "calls": 0, "usd": 0.0, "unpriced": {}})
         e["rows"].append(r)
         e["calls"] += r["calls"]
         e["usd"] += r["usd"]
+        _add_unpriced(e["unpriced"], _unpriced(r))
     order = ("Foreman", "Driver", "Worker", "Agent")
-    return sorted((e for e in entries.values() if e["calls"]),
+    return sorted((e for e in entries.values() if e["calls"] or e["unpriced"]),
                   key=lambda e: (order.index(e["kind"]), -e["usd"]))
 
 
@@ -2320,19 +2394,22 @@ def _restarted(repo: Repo, batch: str) -> set[str]:
 
 def _explain(entry: dict, restarted: set[str]) -> str:
     """What explains a line's figure, all measured; `not measured` where the host gives none."""
-    rows = [r for r in entry["rows"] if r["calls"]]
+    rows = [r for r in entry["rows"] if r["calls"] or _unpriced(r)]
     n = len(rows)
     parts = [f"{n} agent{'s' if n != 1 else ''}, {entry['calls']} calls"]
     if not all("models" in r for r in rows):  # Copilot: per-call records, no token detail
         parts.append("model, shares of cost and calls after the cache expired: not measured")
     else:
         models = sorted(set().union(*(r["models"] for r in rows)))
-        parts.append("model " + ", ".join(models))
+        unpriced = set(entry["unpriced"])
+        parts.append("model " + ", ".join(f"{m} (not priced)" if m in unpriced else m
+                                          for m in models))
         total = sum(r["usd"] for r in rows)
         kinds = [sum(r[k] for r in rows) for k in ("usd_read", "usd_write", "usd_out", "usd_in")]
         shares = _apportion(kinds, 100) if total else [0] * 4
-        parts.append("cost: " + ", ".join(f"{name} {s}%" for name, s in zip(
-            ("cache reads", "cache writes", "output", "input"), shares)))
+        parts.append("cost" + (" of the priced calls" if entry["unpriced"] else "") + ": "
+                     + ", ".join(f"{name} {s}%" for name, s in zip(
+                         ("cache reads", "cache writes", "output", "input"), shares)))
         timed, expired = sum(r["timed"] for r in rows), sum(r["expired"] for r in rows)
         parts.append(f"{expired} of {timed} timed calls after the cache expired" if timed
                      else "calls after the cache expired: not measured (no timestamps)")
@@ -2354,36 +2431,55 @@ def _cost_summary(d: dict, rows: list[dict], by_cr: dict[str, list],
     breakdown of `cost` summed by kind: the Foreman, the Drivers alone, the workers alone. The
     per-Driver figures say "with its workers". Amounts and shares add up as printed."""
     total = sum(r["usd"] for r in rows)
+    un = _sum_unpriced(rows)  # calls of a model with no price: every figure is then a floor
     budget = d.get("budget_usd")
     entries = _breakdown(rows)
     mains = [r for r in rows if r["agent"] == "main"]  # one per steering session of the batch
     steer = _steers(mains)
-    kinds = [(name, sum(e["usd"] for e in entries if e["kind"] == kind))
+    kinds = [(name, sum(e["usd"] for e in entries if e["kind"] == kind),
+              _sum_unpriced([r for e in entries if e["kind"] == kind for r in e["rows"]]))
              for name, kind in ((steer, "Foreman"), ("Drivers", "Driver"),
                                 ("workers", "Worker"), ("agents, Driver or worker not measured",
                                                          "Agent"))]
-    kinds = [k for k in kinds if k[1] or k[0] in (steer, "Drivers", "workers")]
-    parts = [usd for _, usd in kinds]
+    kinds = [k for k in kinds if k[1] or k[2] or k[0] in (steer, "Drivers", "workers")]
+    parts = [usd for _, usd, _ in kinds]
     cents = _apportion(parts, round(total * 100))
     shares = _apportion(parts, 100) if total else [0] * len(parts)
-    split = ", ".join(f"{name} ${c / 100:.2f} ({s}%)"
-                      for (name, _), c, s in zip(kinds, cents, shares))
+    split = ", ".join(f"{name} {usd_text(c / 100, kun)} ({'not measured' if un else f'{s}%'})"
+                      for (name, _, kun), c, s in zip(kinds, cents, shares))
     measured = all("parent" in r for r in rows if r["agent"] != "main")
-    top = sorted(((k, v[1]) for k, v in by_cr.items() if k != "foreman"), key=lambda kv: -kv[1])
+    top = sorted(((k, v[1], v[2]) for k, v in by_cr.items() if k != "foreman"),
+                 key=lambda kv: -kv[1])
     n = sum(r.get("wakes", 0) for r in mains)
     wakes = [f"{steer}: {n} wakes, context "
              f"{sum(r.get('wake_context', 0) for r in mains) // n:,} tokens on average, "
              f"{max(r.get('peak_context', 0) for r in mains):,} at its peak"] if n else []
-    return [f"Total: ${total:.2f}" + (f" of a ${budget:g} budget" if budget else ", no budget"),
-            split,
-            "Most: " + (", ".join(f"{k} ${usd:.2f}" for k, usd in top[:3]) or "-"),
-            *wakes,
-            *(f"Driver {k} with its workers: ${v[1]:.2f} ({v[0]} calls)" for k, v in
-              sorted(by_driver.items(), key=lambda kv: -kv[1][1])
-              if k != "foreman" and measured),
-            *chief,
-            f"Not counted: compaction calls, which leave no record (about ${COMPACTION_USD:.2f} "
-            "each)"]
+    lines = [f"Total: {usd_text(total, un)}" + (f" of a ${budget:g} budget" if budget else ", no budget")
+             + (f"; {not_priced(un)}" if un else ""),
+             split,
+             "Most: " + (", ".join(f"{k} {usd_text(usd, kun)}" for k, usd, kun in top[:3]) or "-"),
+             *wakes,
+             *(f"Driver {k} with its workers: {usd_text(v[1], v[2])} ({v[0]} calls"
+               + (f"; {not_priced(v[2])}" if v[2] else "") + ")" for k, v in
+               sorted(by_driver.items(), key=lambda kv: -kv[1][1])
+               if k != "foreman" and measured),
+             *_hints(sorted(un)),
+             *chief,
+             f"Not counted: compaction calls, which leave no record (about ${COMPACTION_USD:.2f} "
+             "each)"]
+    return list(dict.fromkeys(lines))  # a model the Chief of Staff shares gets one hint
+
+
+def _orchestration(d: dict, rows: list[dict], shares: list[int], un: dict) -> str:
+    """The ratio of orchestration: the steering session (its own subagents with it) and the
+    Drivers, from the shares printed on the lines, so the figures add up as printed."""
+    head = "Orchestration (steering + Drivers):"
+    if d.get("host") == "copilot":  # a Driver cannot be told from a worker there
+        return f"{head} not measured (no parent link on this host)"
+    if un:
+        return f"{head} not measured (calls not priced)"
+    kinds = [e["kind"] for e in _breakdown(rows)]
+    return f"{head} {sum(s for k, s in zip(kinds, shares) if k in ('Foreman', 'Driver'))}% of the batch's spend"
 
 
 def cost(args) -> list[str]:
@@ -2398,6 +2494,7 @@ def cost(args) -> list[str]:
                             f"`chantier foreman transcript {var}`")
     rows = _cost_rows(repo, d, d["host"], _foreman_uuid(d))
     total = sum(r["usd"] for r in rows)
+    un = _sum_unpriced(rows)
     chief = _chief_line(repo, d)
     if args.summary:
         return _cost_summary(d, rows, _cost_groups(repo, batch, rows, "cr"),
@@ -2405,19 +2502,29 @@ def cost(args) -> list[str]:
     if args.explain and args.by == "cr":
         raise ChantierError("`--explain` explains the breakdown by role, not `--by cr`")
     if args.by == "cr":  # a CR's Driver and its workers
-        lines = [(k, v[0], v[1], None) for k, v in
+        lines = [(k, v[0], v[1], None, v[2]) for k, v in
                  sorted(_cost_groups(repo, batch, rows, "cr").items(), key=lambda kv: -kv[1][1])]
     else:  # the Foreman, each Driver type, each worker type: their own calls and dollars
         restarted = _restarted(repo, batch) if args.explain else set()
-        lines = [(e["label"], e["calls"], e["usd"], _explain(e, restarted) if args.explain else None)
-                 for e in _breakdown(rows)]
-    mills = ([round(usd * 1000) for _, _, usd, _ in lines] if args.by == "cr"  # each CR's own
-             else _apportion([usd for _, _, usd, _ in lines], round(total * 1000)))  # add up
+        lines = [(e["label"], e["calls"], e["usd"], _explain(e, restarted) if args.explain else None,
+                  e["unpriced"]) for e in _breakdown(rows)]
+    mills = ([round(usd * 1000) for _, _, usd, _, _ in lines] if args.by == "cr"  # each CR's own
+             else _apportion([usd for _, _, usd, _, _ in lines], round(total * 1000)))  # add up
+    shares = None if args.by == "cr" else _apportion([usd for _, _, usd, _, _ in lines], 100)
     estimated = sum(r.get("estimated", 0) for r in rows)
-    out = [f"{batch}: ${total:.3f} over {sum(r['calls'] for r in rows)} model calls"
+    calls_all = sum(r["calls"] for r in rows)
+    out = [f"{batch}: at least ${total:.3f} over {calls_all} priced model calls; {not_priced(un)}"
+           if un else f"{batch}: ${total:.3f} over {calls_all} model calls"
            + (f" ({estimated} estimated, not billed)" if estimated else "")]
-    for (label, calls, _, why), m in zip(lines, mills):
-        out += [f"{label}: ${m / 1000:.3f} ({calls} calls)"] + ([why] if why else [])
+    for i, ((label, calls, _, why, lun), m) in enumerate(zip(lines, mills)):
+        share = None if shares is None else "share not measured" if un else f"{shares[i]}%"
+        detail = ([f"{calls} calls" + (f", {share}" if share else "")] if calls or not lun else []) \
+            + ([not_priced(lun)] if lun else [])
+        out += [f"{label}: {_spend(m / 1000, calls, lun, 3)} ({'; '.join(detail)})"] \
+            + ([why] if why else [])
+    if shares is not None:
+        out.append(_orchestration(d, rows, shares, un))
+    out += _hints(sorted(un))
     out += chief
     if args.explain:
         n = sum(r.get("compactions", 0) for r in rows)
@@ -2427,4 +2534,4 @@ def cost(args) -> list[str]:
                 f"${COMPACTION_USD:.2f} each, ${n * COMPACTION_USD:.2f})" if all(
                     "compactions" in r for r in rows) else
                 "Not counted: compaction calls are not measured on this host"]
-    return out
+    return list(dict.fromkeys(out))  # a model the Chief of Staff shares gets one hint

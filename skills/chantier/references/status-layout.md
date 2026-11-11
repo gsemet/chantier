@@ -29,89 +29,142 @@ leaves the Foreman's heartbeat alone.
 
 ## Progress
 
-On a CR ready or merged and on "status?":
+On a CR ready or merged and on "status?", written in this order, exactly this skeleton (angle
+brackets are yours to fill, from the CLI as printed; the icons and their words stay as written):
 
-- a header line (the batch's number and
-  name, who steers it and its shape, the slots in use, the CRs done, the spend and the budget):
-  who steers (`direct (the Chief of Staff)` or `Foreman`) and the shape (`parallel`, `series` or `stack`)
-  are copied from the first line of `$CHANTIER status`, never judged; `unknown` stays `unknown`;
-- a legend line of
-  the six icons, each with its word, which opens the table;
-- a table, one row per
-  CR: CR, subject (a few words, not the title), state, PR as a link, cost (from the row of `status --refresh`, a merged CR too); rows with one cause get the same words, whatever each
-  Driver wrote;
-- under the table, when a CR is 🟠 or 🔴, a short explanation: what it waits for,
-  and who unblocks it;
-- the cost table below (see Cost);
-- a last line, always there, **For you:** what the user has to review or decide, or "nothing"
-  (only a Tips line can follow it, see below).
+```markdown
+**<batch> <name>** · <who steers> · <shape> · slots <live>/<slots> · <done> CRs done · spent <spent> of <budget>
+
+⚪ not started · 🟡 working · 🟠 waiting · 🔵 to review · 🔴 blocked · ✅ merged
+
+| CR | Subject | State | PR | Cost |
+| --- | --- | --- | --- | ---: |
+| <CR-n slug> | <a few words> | <icon word> | [PR](https://<the PR's url>) | <cost> |
+
+**Notes**
+- <short line>
+
+| Who | Cost | Share | Calls |
+| --- | ---: | ---: | ---: |
+| <label as printed> | <amount as printed> | <share as printed> | <calls> |
+| Total | <total> | 100% | <calls> |
+
+<the ratio line, as printed>
+
+| Outside the batch's spend | Cost | Detail |
+| --- | ---: | --- |
+| <Chief of Staff line's label> | <amount> | <the rest of its line> |
+
+**Cost notes**
+- <short line>
+
+**For you:** <what to review or decide, or "nothing">
+💡 <tip>
+```
+
+- **Header line:** the batch's number and name, who steers it and its shape, the slots in use,
+  the CRs done, the spend and the budget. Who steers (`direct (the Chief of Staff)` or `Foreman`)
+  and the shape (`parallel`, `series` or `stack`) are copied from the first line of
+  `$CHANTIER status`, never judged; `unknown` stays `unknown`; the spend is copied as `status`
+  prints it (`at least $1.61` while calls are not priced).
+- **CR table:** one row per CR: CR, subject (a few words, not the title), state, PR as a link,
+  cost (from the row of `status --refresh`, a merged CR too, `at least` copied when its row says
+  so); rows with one cause get the same words, whatever each Driver wrote.
+- **Notes and Cost notes are the only places for extra messages:** short lines in the user's
+  language (explanations, warnings, tips on reading the figures). An empty place is left out, not
+  written "none". **Notes** holds what a 🟠 or 🔴 CR waits for and who unblocks it, a chain and its
+  reason, a force push run for a Driver (below). **Cost notes** holds the CLI's not-priced lines
+  (`<model> has no price: add it under prices: in chantier.yaml (exact id: <model>)`, said in the
+  user's language with the id kept) and, in the Completion report, the few plain lines of `cost
+  --explain`. Nothing but the Tip follows **For you**.
+- **For you:** always there: what the user has to review or decide, or "nothing" (only a Tips
+  line can follow it, see below).
 
 🔵 to review is a ready PR only (a PR whose CR was handed back `ready` and whose base is the
 default branch); a CR ready on another base says what it waits for, and **For you** does not ask
 the user to merge it.
 
-When a CR is chained (queued after another by the Foreman's decision, with no real dependency), your next report has a line with the chain and its reason.
+When a CR is chained (queued after another by the Foreman's decision, with no real dependency), your next report has a line with the chain and its reason, in **Notes**.
 
-When you ran a Driver's refused force push since the last report, your next report has one line: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
+When you ran a Driver's refused force push since the last report, your next report has one line in **Notes**: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
 
 When you named a trace in the main checkout since the last report (`chief-of-staff.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.
 
 On the Foreman's `ready` that is the last of a stack, when no CR of the batch is working, end
-the Progress report with the offer of a demo of what the stack delivers.
+the Progress report with the offer of a demo of what the stack delivers (in **For you**).
 
 ## Completion
 
-On the `final` message (Foreman mode) or right after your own `pause` (direct mode):
+On the `final` message (Foreman mode) or right after your own `pause` (direct mode): the same
+skeleton as a Progress report, with these differences, `cost` and `cost --explain` both run at
+the pause (the cost to date):
 
-- a header line (the batch, who steers it and its shape as in a Progress report, the CRs
-  merged out of how many, the spend and the budget);
-- a table, one row per CR: CR, subject, result, PR, rounds, cost;
-- the cost table (see Cost), then its explanation from `cost --explain`, both run at the pause:
-  the cost to date;
-- what the batch did not prove, with each CR handed back with `--no-gate` and its reason (the
-  CR's "Long gate" step shows `waived: <reason>`);
-- the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
-  `work/retro.md` if the batch had a release, each point once), one numbered line each,
-  `<n>. <problem>: <long-term fix>`; a point that matches an inbox or backlog item names that
-  item;
-- a last line, **For you:** the batch is paused, which Retro points to file as inbox items
-  (by their numbers), the inbox ideas ready for a grill (each by its slug), and, if it fits, an
-  invitation to add other CRs to this batch later or to close it ("close the batch"); the
-  Retro is offered before the close, which keeps `4-batch/retro.md` in the archive of the
-  batch's last merged CR (only a Tips line can follow it, see below).
+- the header line has the batch, who steers it and its shape as in a Progress report, the CRs
+  merged out of how many, the spend and the budget (no slots);
+- the CR table has the columns CR, subject, result, PR, rounds, cost;
+- after **Cost notes**, in this order:
+  - **What the batch did not prove:** each CR handed back with `--no-gate` and its reason (the
+    CR's "Long gate" step shows `waived: <reason>`);
+  - the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
+    `work/retro.md` if the batch had a release, each point once), one numbered line each,
+    `<n>. <problem>: <long-term fix>`; a point that matches an inbox or backlog item names that
+    item;
+  - **For you:** the batch is paused, which Retro points to file as inbox items (by their
+    numbers), the inbox ideas ready for a grill (each by its slug), and, if it fits, an
+    invitation to add other CRs to this batch later or to close it ("close the batch"); the
+    Retro is offered before the close, which keeps `4-batch/retro.md` in the archive of the batch's last merged CR (only a Tips line can
+    follow it, see below).
 
 ## Cost
 
-The cost table of a report: on a CR ready or merged, on "status?" and at the pause, the
-lines of `$CHANTIER cost`, as printed and in that order (a CR's own figure is the last field of
-its row in `status --refresh`, a merged CR's included, never looked up elsewhere): the Foreman
-(in direct mode, `Chief of Staff, steering the batch`), one line per Driver type, one per worker type, and your own session apart, the `Chief of Staff, ...` lines of that output:
-`steering the batch` (Foreman mode: what you spent relaying and reporting; in direct mode the
-line outside the budget appears too when you spent outside your claim window, before the claim
-or after a Foreman took over; when the only calls of that part carry no time, it says `unknown
-(<n> calls without a time, not placed)`), `grill and
-specifications with the user` (every call of a turn that names a CR's `01-intent.md`,
-`02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a spec-writer, and the
-spec-writers' own calls; a turn is attributed whole), each since the batch opened, and `whole
-session` with its context size and its compaction count. In a direct batch the grill and
-specifications are outside the batch's spend, as the spec-writer is. The CLI knows who is who from the record, not from a role name: the Foreman is
-the main agent (the steering session), a Driver has no parent, a worker has one, and a Driver of the user's own gets
-its line under the type the host gives it. You group, add and regroup nothing: no orchestration,
-implementation or review lines. Give no figure when it fails; `not measured` and `unknown` stay `not measured` and
-`unknown` (never `$0.00`; the compactions leave no record: they are counted, not priced, and
-the count is said with them; calls with no time are said as such; on Copilot, where the host gives no parent link, an agent's line says only its
-type, and the Chief of Staff's two lines say unknown). A Driver's line covers its own rebases, gates and file writes, besides the workers it
-starts, which have their own lines. Your session is in the batch's spend and budget only as the steering row of a direct
-batch.
+The cost of a report is two tables and one line, never raw output in a code block. The rows are
+the lines of `$CHANTIER cost`, in its order (a CR's own figure is the last field of its row in
+`status --refresh`, a merged CR's included, never looked up elsewhere):
+
+- **First table, the batch's spend:** the steering session (the Foreman; in direct mode `Chief of
+  Staff, steering the batch`), its own subagents, one row per Driver type, one per worker type,
+  then the Total row from `cost`'s first line. Each row has its cost, its share of the spend and
+  its calls, as printed. Below it, the ratio line `Orchestration (steering + Drivers): N% of the
+  batch's spend`, as printed.
+- **Second table, outside the batch's spend:** the `Chief of Staff, ...` lines of that output:
+  `steering the batch` (Foreman mode: what you spent relaying and reporting; in direct mode the
+  line outside the budget appears too when you spent outside your claim window, before the claim
+  or after a Foreman took over; when the only calls of that part carry no time, it says `unknown
+  (<n> calls without a time, not placed)`), `grill and specifications with the user` (every call
+  of a turn that names a CR's `01-intent.md`, `02-answers.md`, `03-change-spec.md` or
+  `work/specifying`, or starts a spec-writer, and the spec-writers' own calls; a turn is
+  attributed whole), each since the batch opened, and `whole session` with its context size and
+  its compaction count. These lines carry no share. In a direct batch the grill and
+  specifications are outside the batch's spend, as the spec-writer is.
+
+The CLI knows who is who from the record, not from a role name: the Foreman is the main agent
+(the steering session), a Driver has no parent, a worker has one, and a Driver of the user's own
+gets its line under the type the host gives it. No line that starts with "Driver" names the
+steering session or its own subagents. A Driver's line covers its own rebases, gates and file
+writes, besides the workers it starts, which have their own lines. Your session is in the
+batch's spend and budget only as the steering row of a direct batch.
+
+**You copy, you compute nothing.** Every amount, share, call count and the ratio come from `cost`
+as printed. You group, add and regroup nothing: the ratio line is the one grouping, and the CLI
+makes it. Give no figure when it fails; `unknown`, `not measured` and `share not measured` stay
+as printed (never `$0.00`; the compactions leave no record: they are counted, not priced, and
+the count is said with them; calls with no time are said as such; on Copilot, where the host
+gives no parent link, an agent's line says only its type, the ratio line says `not measured (no
+parent link on this host)`, and the Chief of Staff's two lines say unknown).
+
+**A floor.** A figure that leaves calls of a model with no price out of it is a floor: it is
+shown as `cost` prints it (`at least $1.61`, `3 calls of <model> not priced`, `not priced`),
+never as a plain total, and the shares and the ratio read `not measured` while any call is not
+priced.
 
 - **Explaining the figures:** in the Completion report, and when the user asks why it cost
-  that, run `$CHANTIER cost --explain` and say it in a few plain lines in the user's language:
+  that, run `$CHANTIER cost --explain` and say it in a few plain lines in the user's language
+  (in **Cost notes** of the Completion report):
   from the measures under each line (the agents, the calls, the model, the share of cost in
   cache reads, cache writes and output, the calls after the cache expired, the Drivers
   restarted on a CR that already had one) and its last lines (the cache's lifetime, what the
   figures do not count: compaction calls leave no record). Say only what the output says; no
   subagent is started for it, and nothing is guessed where it says `not measured`.
-
 ## Tips
 
 A tip comes only at four key moments: first use, after a status (a Progress report), the end of a
