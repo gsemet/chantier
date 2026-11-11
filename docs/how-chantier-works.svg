@@ -77,7 +77,7 @@
   <rect x="86" y="394" width="324" height="112" rx="12" fill="#ea580c"/>
   <text x="248" y="422" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">👷 Foreman mode</text>
   <g font-size="12.5" fill="#ffedd5" text-anchor="middle">
-    <text x="248" y="448">a nested session · Opus 5.5 · one per batch</text>
+    <text x="248" y="448">a nested session · one per batch</text>
     <text x="248" y="468">fully dynamic, natural talk with the Chief of Staff</text>
     <text x="248" y="488">not recommended in remote</text>
   </g>

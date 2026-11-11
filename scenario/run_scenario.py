@@ -1608,6 +1608,18 @@ def playbook_config(w: World) -> None:
     check("S1: `playbook` prints the spec-writer's first prompt line with the project's root resolved",
           any(ln.startswith("spec-writer prompt, first line: chantier spec-writer for the Chief of Staff, "
                             "in the project ") and "proj" in ln and ln.endswith(".") for ln in out), str(out))
+    want_escalate = "escalate: opus (claude-opus-5-5, Claude Opus 5.5)"
+    check("S1: `playbook` ends with the escalation model, and the stack and release drivers "
+          "show `model=(its file's)`",
+          out[-1] == want_escalate
+          and "stack-driver: agent=chantier:stack-driver model=(its file's)" in out
+          and "release-driver: agent=chantier:release-driver model=(its file's)" in out, str(out))
+    code, cout = w.chantier("playbook", "--host", "copilot")
+    check("S1: `playbook` on Copilot ends with `escalate: (none on this host)`",
+          code == 0 and cout[-1] == "escalate: (none on this host)", str(cout))
+    check("S1: the agents' files of the stack and release drivers name Sonnet 5.5",
+          all("model: claude-sonnet-5-5" in (HERE.parent / "agents" / f"{r}.md").read_text(encoding="utf-8")
+              for r in ("stack-driver", "release-driver")))
     _, out = w.chantier("preflight")
     check("S1: preflight P12 is ok with no chantier.yaml",
           any(ln.startswith("P12 ok") and "no chantier.yaml" in ln for ln in out), str(out))
@@ -1643,6 +1655,8 @@ def playbook_config(w: World) -> None:
           recorded.get("roles", {}).get("cr-driver") == {"agent": "my-driver"}
           and team(took) == [want, "team: cr-driver agent=my-driver"], str(took))
     code, out = w.chantier("playbook", "--batch", w.name)
+    check("S2: `playbook` and `playbook --batch` end with the escalation model, with a chantier.yaml",
+          now_lines[-1] == want_escalate and out[-1] == want_escalate, str(out))
     check("S2: `playbook --batch` prints the playbook the batch recorded",
           code == 0 and out[1:] == [l for l in now_lines[1:] if not l.startswith("spec-writer prompt")]
           and "opened it" in out[0], str(out))

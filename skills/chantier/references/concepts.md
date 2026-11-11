@@ -235,6 +235,32 @@ The Spec-writer is the subagent of the Chief of Staff or of a Griller, outside a
 [`spec-writer.md`](spec-writer.md) instead of a Driver or worker section, and its brief gives the
 CR folder. It writes `03-change-spec.md` there and takes no slot and no budget of a batch.
 
+## Escalation
+
+An agent's model is fixed when it starts. Escalation is a **new** agent for the same task,
+started with the escalation model that `$CHANTIER playbook` (or `playbook --batch <batch>`)
+printed on its `escalate:` line, passed as printed like any model. It is never a change of a
+running agent's model, never a retry of the same agent, and never a model typed from memory
+(rule 2). It happens only on one of five triggers, seen by the parent named for each:
+
+| Trigger | Who sees it | The new agent on the escalation model |
+| --- | --- | --- |
+| A CR blocked twice: two hand-backs `blocked` of the same CR that show trouble in the work (`refused`, `infra:` after its one re-run, `driver ended twice`, `stopped`). A hand-back that waits on the user or on another thing never counts (`question:`, `approval:`, `merge:`, `waits:`, `fix:`, `budget:`), nor does `rounds:`, which has its own trigger below | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next CR Driver, with `take <cr> --note "escalate: blocked twice: <reasons>"` |
+| The rounds used up with the Inspector still `FIX-REQUIRED` | the CR Driver hands back `blocked rounds:` as always; the round limit stays the user's (`order rounds`): escalation never grants a round | once the user grants more rounds, the CR's next Driver is told `escalate: rounds` and starts the Coder of each new round on the escalation model |
+| A red check the Debugger could not explain (its `diagnosis.md` names no cause with evidence) | the Driver that started it (CR or stack) | a new `debugger` on the same check, given the first `diagnosis.md` |
+| A conflict the resolver could not settle (it stopped with no resolution, other than "two product intents in conflict", which stays a question for the user) | the Driver that started it (CR or stack) | a new `conflict-resolver` on the same rebase, given the first `conflicts.md` |
+| A restack that failed (the stack driver's `anomaly` on rebasing or pushing the stack, not a red check that needs code) | the Foreman | the next stack driver, `take stack` started on the escalation model |
+
+- **Said, never silent.** Before it starts the escalated agent, the parent records
+  `$CHANTIER note <cr> "escalated: <trigger>; <role> on <model as printed>"` (for the stack, on
+  each CR concerned). The Foreman's retro (`4-batch/retro.md`) gives one line per escalation and
+  its outcome. `cost` already shows the model of each transcript.
+- **Once per trigger and per task.** If the escalated agent fails the same way, the existing
+  route applies (hand-back `blocked`, then the ask to the Chief of Staff): it never escalates
+  again and never swaps back. The parent knows from the CR's `escalated:` note.
+- **No escalation printed** (`escalate: (none on this host)`): the trigger takes the existing
+  route, and the note says `no escalation on this host`. It is not a stop and not a look-alike.
+
 ## Rules
 
 0. **The project's rules rank above this skill.** `$CHANTIER rules` lists the project's

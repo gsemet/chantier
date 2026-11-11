@@ -209,18 +209,20 @@ roles:
 writes), so your agent only brings its model, tools and know-how. A new role runs after the Inspector approves each round and answers with
 the same verdict. The next batch uses the new team; a running batch keeps its own.
 
-By default the Foreman, the spec-writer and the stack and release drivers run on Opus 5.5 (they
-judge: what goes next, what a red check means, what a specification must say), the CR and QA drivers and the workers on Sonnet 5.5; run your own
-session (the Chief of Staff) on Opus 5.5 too.
+By default the spec-writer runs on Opus 5.5 (what a specification must say), and the Foreman, every
+driver and the workers on Sonnet 5.5; run your own session (the Chief of Staff) on Opus 5.5. On a
+named trouble (a CR blocked twice, the rounds used up with the Inspector still asking for fixes, a
+red check nobody could explain, a conflict nobody could settle, a restack that failed) the task goes
+to a new agent on the escalation model (Opus 5.5 by default), and the report says so.
 
 None of them needs a 1M-token context. The plugin's agents compact at 200,000 tokens
 (`autoCompactWindow` in their files). The Foreman is a session of its own, which chantier cannot
 configure: to keep it lean too, set the window in your user settings, `~/.claude/settings.json`
-(400,000 leaves the Foreman room for a long batch). It applies to every session you run, yours
+(300,000 leaves the Foreman room for a long batch). It applies to every session you run, yours
 included.
 
 ```json
-{ "autoCompactWindow": 400000 }
+{ "autoCompactWindow": 300000 }
 ```
 
 ## If something goes wrong

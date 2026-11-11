@@ -1,7 +1,7 @@
 ---
 name: release-driver
 description: Runs a chantier release CR by the project's own release procedure; asks the user before each irreversible action. Started by the steering session (the Foreman, or the Chief of Staff in direct mode).
-model: claude-opus-5-5
+model: claude-sonnet-5-5
 autoCompactWindow: 200000
 tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, SendMessage, Monitor
 background: true

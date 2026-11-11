@@ -20,7 +20,8 @@ WORKERS = ("investigator", "coder", "inspector", "debugger", "verifier", "confli
            "demo-explorer")
 CHIEF_ROLES = ("spec-writer",)  # started by the Chief of Staff; its card is its own file
 ROLES = DRIVERS + WORKERS + CHIEF_ROLES
-OPUS_ROLES = {"stack-driver", "release-driver", "spec-writer"}  # judgement; the rest is work
+CLAUDE_OPUS_ROLES = {"spec-writer"}  # Sonnet by default; escalation starts Opus at need
+COPILOT_OPUS_ROLES = {"stack-driver", "release-driver", "spec-writer"}  # Copilot is untouched
 CARDS = {**{r: "driver" for r in DRIVERS}, **{r: "worker" for r in WORKERS}}
 
 
@@ -122,8 +123,8 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
     assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
     assert claude["description"] == copilot["description"]
     assert claude["model"] in CLAUDE_MODELS
-    assert (claude["model"] == "claude-opus-5-5") == (role in OPUS_ROLES)
-    assert ("Opus" in copilot["model"]) == (role in OPUS_ROLES)
+    assert (claude["model"] == "claude-opus-5-5") == (role in CLAUDE_OPUS_ROLES)
+    assert ("Opus" in copilot["model"]) == (role in COPILOT_OPUS_ROLES)
     assert copilot["model-policy"] == "required" and copilot["user-invocable"] == "false"
     assert copilot["strict-tools-list"] == "true"
     assert ("Agent" in claude["tools"]) == ('"agent"' in copilot["tools"]) \

@@ -75,6 +75,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `team:` line): its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended without its hand-back).
+- Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
+  failed, goes to a new Driver on the escalation model that `playbook --batch` prints
+  (`take <cr> --note "escalate: ..."`); you record it with `note` and give it one line in the
+  retro.
 - An `order qa`: `status` names its folder in the inbox. The order already holds its slot (it is
   refused when none is free), so start a `qa-driver` on it at once (`chantier qa-driver for
   <folder> of batch <batch>, in the project <root>`, the card, the CLI, the default branch and

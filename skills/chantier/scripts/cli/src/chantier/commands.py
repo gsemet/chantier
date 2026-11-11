@@ -1596,6 +1596,7 @@ def playbook(args) -> tuple[list[str], int]:
     if not args.batch:  # the Spec-writer's first line, to copy as printed
         lines.append("spec-writer prompt, first line: chantier spec-writer for the Chief of Staff, "
                      f"in the project {repo.root.as_posix()}.")
+    lines.append(pb.escalate_line(host))
     return lines, 0
 
 

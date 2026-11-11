@@ -87,7 +87,7 @@ same session
 ```md
 ## 👷 Foreman mode
 
-a nested session · Opus 5.5 · one per batch
+a nested session · one per batch
 fully dynamic, natural talk with the Chief of Staff
 not recommended in remote
 ```
