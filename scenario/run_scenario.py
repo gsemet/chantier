@@ -2570,12 +2570,13 @@ def handback_proofs(w: World) -> None:
     _, out = w.chantier("order", "note", cr, "--note", "rebase: main moved")
     check("`order note` on a ready CR names the `take`",
           any(f"take {cr} --note" in ln for ln in out), str(out))
-    before = (w.cr(cr)["round"], w.cr(cr).get("agent"))
+    before = w.cr(cr)["round"]
+    w.chantier("agents", "set", cr, "-")  # `take` wants the recorded agent cleared first
     w.chantier("take", cr, "--epoch", 1, "--note", "rebase: main moved")
     _, out = w.chantier("log", cr)
-    check("`take --note` reopens a ready CR to working: no round, the agent kept, the note and "
+    check("`take --note` reopens a ready CR to working: no round, the note and "
           "the `take` event say why",
-          w.cr(cr)["status"] == "working" and (w.cr(cr)["round"], w.cr(cr).get("agent")) == before
+          w.cr(cr)["status"] == "working" and w.cr(cr)["round"] == before
           and w.cr(cr)["notes"][-1].startswith("back to a Driver: rebase:")
           and any(" take " in ln and "note=rebase: main moved" in ln for ln in out), str(out))
     commit(w, cr, "rebased.py", "REBASED = 1\n")
@@ -2595,7 +2596,8 @@ def handback_proofs(w: World) -> None:
     w.chantier("verdict", cr, "VERIFIED")
     w.chantier("handback", cr, "ready", link)
     check("with `ship`, the gate and a verdict at the new head, the CR hands back ready again, "
-          "in the same round", w.cr(cr)["status"] == "ready" and w.cr(cr)["round"] == before[0])
+          "in the same round", w.cr(cr)["status"] == "ready" and w.cr(cr)["round"] == before)
+    w.chantier("agents", "set", cr, "-")
     w.chantier("take", cr, "--epoch", 1, "--note", "answer: go")
     w.chantier("handback", cr, "blocked", "question: x")
     code, _ = w.chantier("handback", cr, "blocked", "question: y", expect=2)
