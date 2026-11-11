@@ -42,14 +42,16 @@ have neither, add an `AGENTS.md` at the root of the repository with at least:
 # AGENTS.md
 
 - Default branch: `main`.
-- Quick check before handing back: `npm run lint && npm test -- --changed`.
-- Full suite: `npm test`.
+- Fast gate (after each change): `npm run lint`, `npm test -- --changed`.
+- Long gate (before a pull request): `npm test`.
 - Commits follow Conventional Commits.
 ```
 
-The quick check is the **fast gate** (the Coder runs it after every round), the full suite the
+The first line is the **fast gate** (the Coder runs it after every round), the second the
 **long gate** (the Driver runs it once before the PR, through `chantier gate`, alone in the
-repository). One command may serve as both. On Windows, the long gate runs in `cmd.exe`.
+repository). One command may serve as both; write one command per item, never chained with `&&`
+or `;`. On Windows, the long gate runs in `cmd.exe`. The README's
+[Your gates](../README.md#your-gates) says more: exemptions, and a project with no long gate.
 Everything else `AGENTS.md` says (how to commit, the PR template, the merge method, what a
 skipped job means, how to release) binds the team too: the Drivers commit, push and open the
 PRs themselves, and your rules rank above chantier's own.

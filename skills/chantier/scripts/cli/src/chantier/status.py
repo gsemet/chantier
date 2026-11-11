@@ -120,7 +120,8 @@ def _now_next(d: dict, c: dict, waiting: list[str]) -> tuple[str, str]:
         "Queued": (f"Waits for {', '.join(waiting)}." if waiting else _no_start(d),
                    "A Driver starts it."),
         "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
-        "CI": (f"{pr} is open: CI, then the verifier at the pushed head.", "The hand-back."),
+        "CI": (f"{pr} is open: CI, then the verifier at the pushed head (it records `verdict`).",
+               "The hand-back."),
         "Release": ("The Release driver follows the project's procedure.", "The next step of it."),
         "Notify": (f"Ready: {pr} waits for the user's merge.", "The merge, then the archive."),
         "Merged": (f"Merged: {pr}.", "Nothing."),
@@ -143,9 +144,13 @@ def _steps(c: dict, events: list[dict]) -> list[dict]:
             add("Note", at, note=note)
         elif kind == "gate":
             add("Long gate", at, e.get("result", ""), e.get("head", ""))
+        elif kind == "verdict":
+            add("Verdict", at, e.get("result", ""), e.get("head", ""))
         elif kind == "ship":
             add("Shipped", at, note=e.get("pr", ""))
         elif kind == "handback" and e.get("result") == "ready":
+            if e.get("no_gate"):  # handed back with no long gate: the reason is shown
+                add("Long gate", at, f"waived: {e['no_gate']}")
             add("Handed back", at)
         elif kind == "handback":
             add("Blocked", at, note=note)

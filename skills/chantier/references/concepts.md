@@ -67,8 +67,8 @@ started.
   takes the number, `4` or `batch-04`. One batch at a time, from `open` to the user's `close`; new
   work joins it through the steering session (`order add`, which on a paused batch leaves it paused, any number of times: the first
   `take` sets it running again, `pause` runs again at the end, and is refused on a batch already paused;
-  a running direct batch is strict: `order add` and `order qa` are
-  refused, except a release CR; `order qa` on a paused batch sets it running at once; see **Batch lifecycle**). `close` refuses while anything
+  on a running direct batch `order add` queues the CR too, taken when a slot frees, and `order qa`
+  is refused; `order qa` on a paused batch sets it running at once; see **Batch lifecycle**). `close` refuses while anything
   runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
   Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
   time; `not measured` refuses). A batch has one of three **modes**, set by
@@ -111,8 +111,8 @@ started.
      final cost from `close` without `--yes`, then `close --yes` on the user's yes in that turn).
      Until then, a paused batch stays paused, however long.
 
-  The same in both steerings. A *running* direct batch is strict (`order add` and `order qa`
-  refused, except a release CR); a *paused* batch, of either steering, takes any number of new CRs before its first `take`. "Pause"
+  The same in both steerings. On a *running* direct batch `order add` queues the CR (taken
+  when a slot frees) and `order qa` is refused; a *paused* batch, of either steering, takes any number of new CRs before its first `take`. "Pause"
   names only the batch state: the hold on new Drivers (`order slots --note 0`) is called **hold**.
 - **Slots, budget, rounds:** the batch's limits. A slot is a running Driver: a CR in `working`,
   or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused
@@ -165,7 +165,16 @@ started.
   that changes anything (it reads the head, the remote and the status to say what is off) and
   no forge command: the agents create the worktrees, commit, rebase, push, open, watch and
   merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
-  says which), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
+  says which; `handback ready` without a passed long gate and a `VERIFIED` verdict at the PR's
+  head is one), 3 stale Foreman epoch, 4 external (git, a gate), 5 the budget or the round limit.
+  A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are one CR.
+  The long gate is `gate <cr> "<cmd>" ["<cmd>"...]`: one command per argument, never a `;` or
+  `&&` chain; it stops at the first failure, and it has passed at a head when the last `gate`
+  there passed every command it was given. The Verifier records its verdict with `verdict <cr>
+  VERIFIED` or `verdict <cr> "NOT VERIFIED"` at the head it verified; the last verdict at a head
+  decides. `handback <cr> ready` needs both at the PR's head; `--no-gate "<the project's rule>"`
+  waives the long gate only, for a project whose rules declare none or exempt this CR, and the
+  steering session checks it.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
   `cost`, `asks`, `pause`, `close`, `playbook` and `preflight`.
 

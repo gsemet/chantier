@@ -9,8 +9,8 @@ The construction site for your Software Factory.
   backlog and asks the questions a change needs. Nothing starts without your go, and you merge
   the pull requests. Optional: a Griller session grills beside it.
 - **Direct or Foreman.** The Chief of Staff steers a batch itself (direct mode), or a nested
-  Foreman session steers it (Foreman mode). In Foreman mode a CR can join a running batch; in
-  direct mode, only once the batch is paused.
+  Foreman session steers it (Foreman mode). In both a CR added while the batch runs is queued
+  and taken when a slot frees.
 - **Zero configuration.** Your `AGENTS.md`, and an optional `chantier.yaml` at the project's root (the agent and model of each role, the skills it needs), are the only configuration. Everything chantier writes
   is Markdown and JSON in the planning folder: `.agents/changes/` in your project, or the
   project's folder of an [external planning surface](docs/planning-modes.md).
@@ -27,9 +27,9 @@ desktop; your Chief of Staff stays free for a natural, dynamic conversation whil
 
 ![How chantier works, in Foreman mode](docs/how-chantier-works-simple-foreman.svg)
 
-The difference that matters most: once a batch runs in direct mode, a new CR, specified or not,
-joins it only when all the other CRs are handled and the batch is paused; in Foreman mode a CR
-can join while the batch runs.
+The difference that matters most: in direct mode the Chief of Staff, busy steering, holds no
+grill while the batch runs; in Foreman mode it stays free to grill. In both, a new CR can join
+the running batch and waits for a free slot.
 
 The same, in detail:
 
@@ -130,8 +130,8 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
    host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
    Staff steers the batch from its own session, with the same limits, folders and reports, and a
-   strict batch (no CR joins it while it runs, but a paused batch takes several, and the first start sets it running); it may switch to Foreman mode on your word.
-   Direct mode is less dynamic than Foreman mode (a running batch takes no new CR, and the Chief
+   batch (a CR added while it runs is queued and taken when a slot frees, and a paused batch takes several, the first start setting it running); it may switch to Foreman mode on your word.
+   Direct mode is less dynamic than Foreman mode (the Chief
    of Staff, busy steering, holds no grill in that session) but has the same lifecycle: a batch is
    running, then paused, then closed on your word. See [direct mode](docs/use-cases-direct.md).
 4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
@@ -218,6 +218,7 @@ Talk to the Chief of Staff in plain language:
 | "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
+| "our long gate is `npm test`" | the Chief of Staff proposes the exact `AGENTS.md` lines and writes them on your yes (see [Your gates](#your-gates)) |
 | "which agents and models?" | the team: each role, its agent, its model (`chantier playbook`) |
 | "run the inspector on Opus" | a `model` for the role in `chantier.yaml`, which the CLI resolves to the exact model (or refuses an unknown or ambiguous name) |
 
@@ -232,6 +233,39 @@ nothing, and runs no process but `git rev-parse` to find the main checkout from 
 a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
 the session, not in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)).
+The same mod also refuses a worker's Write, Edit or NotebookEdit outside its CR's worktree and
+folder; a Driver's or a shell write is not guarded.
+
+### Your gates
+
+Two checks guard every change, in any project. You declare them in your `AGENTS.md`.
+
+- **The fast gate** (a short check): what the Coder runs after every round, and the Inspector may
+  run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
+  change.
+- **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
+  alone in the repository. `handback ready` requires it passed at the PR's head, and the
+  Verifier's `VERIFIED` there. One command may serve as both gates.
+
+Declare them with one line each, the exact commands, one command per item, never chained with
+`&&` or `;` (the Driver passes each as its own argument to `chantier gate`, so it runs the same
+way on every OS):
+
+```markdown
+- Fast gate (after each change): `npm run lint`, `npm test -- --changed`.
+- Long gate (before a pull request): `npm test`.
+- A change to the docs alone needs no long gate.
+```
+
+An exemption (the last line) and a project with no long gate at all (`This project has no long
+gate: <why>`) are written there too: the Driver quotes that rule with `handback ready
+--no-gate`, and the Foreman (or the Chief of Staff steering) checks it. A rule that is not
+written is a question for you, never a pass.
+
+To have chantier declare them, say "init" (the tour looks for both gates and proposes the exact
+lines), or tell the Chief of Staff "our long gate is `<command>`". Either writes them only on
+your yes.
+
 ### Your own agents
 
 Any role can run one of your agents, with a model of your choice and the skills it needs. Tell
@@ -420,7 +454,7 @@ it is never in the batch's spend nor in its budget.
 .claude-plugin/             ← Claude Code plugin manifest and marketplace
 .github/plugin/             ← GitHub Copilot plugin manifest and marketplace
 agents/                     ← Claude Code agents, one per role
-hooks/, types/              ← Claude Code only: the CR board mod and its contract, and the reload after a compaction
+hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of a worker's writes
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
 skills/griller/             ← the Griller's entry point (thin)

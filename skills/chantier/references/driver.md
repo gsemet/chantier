@@ -32,9 +32,10 @@ The CLI keeps the CR's record and tells you what is off.
   it removes at its end.
 - Rebase first, so the long gate passes on the head you push: `git fetch`, `git rebase <base>`;
   a conflict is a `conflict-resolver`.
-- The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"` runs
-  it in the worktree, alone in the repository (a second long gate waits), keeps the log and
-  records the pass at that head. The fast gates you run yourself.
+- The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"
+  ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
+  gate waits), stops at the first failure, keeps the log and records the pass at that head. One
+  command per argument, never a `;` or `&&` chain. The fast gates you run yourself.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
@@ -80,13 +81,20 @@ The CLI keeps the CR's record and tells you what is off.
   plain. Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit).
-- Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded; just before
+- Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
+  at the PR's head, a passed long gate and a last verdict `VERIFIED`: run the missing gate or
+  start a new `verifier`, then hand back again; `--no-gate "<the project's rule>"` replaces the
+  long gate only where the project's rules declare none or exempt this CR, and quotes that rule:
+  the steering session checks it, and sends the CR back with a note if it does not hold: run
+  the long gate, then hand back again without `--no-gate`; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
   branch; on another base it stays a draft and the text after the link says so and what it
   waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`): it writes the state and prints the line to send the
-  Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference). Then end: ending frees
+  Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
+  `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5); never skip a
+  proof pass to save budget. Then end: ending frees
   your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
   decide: the CR shows 🟠, and the steering session takes it back when that thing lands.
@@ -119,7 +127,7 @@ in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on 
 or with body items, is the next round. All approved: commit with nothing changed since the
 review and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
 the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
-head, given the plan (`NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
+head, given the plan (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
 boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
 narrowed in `pr-body.md` before the description pass), then, once the description is final, a short `verifier` pass on the posted description alone

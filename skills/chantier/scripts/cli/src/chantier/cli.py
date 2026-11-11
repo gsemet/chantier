@@ -134,6 +134,9 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("cr")
     s.add_argument("result", choices=["ready", "blocked"])
     s.add_argument("note", nargs="*")
+    s.add_argument("--no-gate", metavar="REASON",
+                   help="ready: the project's rule that declares no long gate or exempts this CR "
+                        "from it; the steering session checks it")
 
     s = cmd("note", commands.note, "a line in the CR's record, shown in its STATUS.md")
     s.add_argument("cr")
@@ -156,7 +159,13 @@ def _parser() -> argparse.ArgumentParser:
 
     s = cmd("gate", commands.gate, "run the long gate in the CR worktree, alone in the repository")
     s.add_argument("cr")
-    s.add_argument("command", help="the command, from the project's rules")
+    s.add_argument("command", nargs="+", help="the long gate's commands, from the project's rules: "
+                   "one per argument, never chained with ; or &&; they stop at the first failure")
+
+    s = cmd("verdict", commands.verdict, "the Verifier's verdict on the CR's worktree head: "
+            "VERIFIED or \"NOT VERIFIED\"")
+    s.add_argument("cr")
+    s.add_argument("result", nargs="+", help="VERIFIED, or NOT VERIFIED (one argument or two)")
 
     s = cmd("ship", commands.ship, "record the PR the Driver opened or updated; say what is off")
     s.add_argument("cr")
@@ -196,6 +205,11 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
     args = _parser().parse_args(argv)
+    for name in ("cr", "fix_for"):  # one spelling of a CR, whatever the command
+        if hasattr(args, name):
+            setattr(args, name, state.normalize_cr(getattr(args, name)))
+    if getattr(args, "crs", None):
+        args.crs = [state.normalize_cr(x) for x in args.crs]
     state.PROJECT = args.project
     try:
         result = args.fn(args)

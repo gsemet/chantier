@@ -36,7 +36,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 
 - **Never merge without the user's word.** An ordinary ready CR is the ask `ready <cr> <link>`;
   the user merges it and the Chief of Staff records it. A hand-back that says its PR stays a
-  draft keeps that text in the ask. You merge only a release's PR or fix,
+  draft keeps that text in the ask. A hand-back that says `no long gate: <reason>` (`handback
+  --no-gate`) is checked first: read `$CHANTIER rules` and find the rule the reason quotes. It
+  holds when the rules say the project has no long gate, or exempt this CR (for an exemption by
+  kind of change, such as docs only, read the PR's changed files on the forge: `gh pr diff
+  --name-only`, `glab mr diff`); the ask is then `ready <cr> <link> no long gate: <reason>`.
+  When the rules declare a long gate that covers this CR, send the CR back to a Driver with
+  `take <cr> --note "long gate: <why the exemption does not hold>"`, with no ask. When the rules
+  say nothing about a long gate, ask `question <cr> no long gate written down: <the Driver's
+  reason>`; an absent gate never means success. You merge only a release's PR or fix,
   after `$CHANTIER release go <cr> --note "merge <pr>"` says `go` (the release CR: an approval
   or the grant; a fix CR: the grant, else it is an ordinary ready CR), with the forge's CLI by
   the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
@@ -71,7 +79,12 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   refused when none is free), so start a `qa-driver` on it at once (`chantier qa-driver for
   <folder> of batch <batch>, in the project <root>`, the card, the CLI, the default branch and
   the user's note in its prompt). It holds no CR back, but its slot stays taken until `order
-  done`. On its `qa done`: `order done`, and the ask `qa <folder> <n> findings`.
+  done`. Record its agent id with `$CHANTIER agents set O-<k> <id> --epoch <n>` (the order's id,
+  as `order qa` printed it), so `cost` gives it its own Driver line. On its `qa done`: `order
+  done`, and the ask `qa <folder> <n> findings`.
+- A brief (any prompt or message to an agent) states a past fact only with its source: a CR note,
+  a file in the CR's folder, or an event in `events.jsonl`. A fact with no source is said as
+  unknown.
 - A queued CR that `status` shows `waits for …` is not yours to start: pick among the CRs `take`
   would accept, every one of them up to the free slots, and hold none in reserve. In a series
   batch `take` accepts only the next CR: that is the rule, not a reason to wait. A dependency that is cancelled never frees it: ask the Chief of Staff, once, for

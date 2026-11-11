@@ -688,3 +688,98 @@ test('the reload hook never vetoes a compaction', async ($, on) => {
     expect(out.messages.length).toBeGreaterThan(0)
   }
 })
+
+// ---- the worker write guard ----
+
+const WT = '/work/repo.worktrees/b-CR-5'
+const FOLDER = `${ROOT}/.agents/changes/4-batch/2-actives/5-x`
+const WORKER_PROMPT = `chantier coder for CR-5 of batch b.\nworktree: ${WT} branch chantier/b/cr-5\nfolder: ${FOLDER} (work/, evidence/)\nrounds: 1 of 3`
+
+function spawning(on: On, ids: Record<string, string> = {}) {
+  let n = 0
+  on('agent.spawn', (_, e: any) => ({ agentId: ids[e.prompt] ?? `agent-${++n}` }))
+  on('tool.call', () => ({ allowed: true }) as any)
+}
+const spawn = ($: Engine, prompt: string, extra = {}) => ($.agent.spawn as any)({ prompt, ...extra }) as Promise<{ agentId: string }>
+const write = ($: Engine, agentId: string | undefined, tool: string, file_path: string) =>
+  ($.tool.call as any)({ tool, input: { file_path }, agentId }) as Promise<any>
+
+test('a worker writes inside its worktree and its CR folder', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  for (const p of [`${WT}/src/a.py`, `${FOLDER}/work/coder/04-result.md`, `${FOLDER}/evidence/shot.png`]) {
+    expect((await write($, agentId, 'Write', p)).deny).toBeUndefined()
+  }
+})
+
+test('a worker writing in the main checkout is refused with the message, for Write, Edit and NotebookEdit', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  for (const tool of ['Write', 'Edit', 'NotebookEdit']) {
+    const out = await write($, agentId, tool, `${ROOT}/src/a.py`)
+    expect(out.deny).toBe(`refused: ${ROOT}/src/a.py is outside this CR's worktree ${WT} and its folder ${FOLDER}; write there`)
+  }
+})
+
+test('Bash is not guarded', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  const out = await ($.tool.call as any)({ tool: 'Bash', input: { command: `echo x > ${ROOT}/a` }, agentId })
+  expect(out.deny).toBeUndefined()
+})
+
+test('a Windows path in another drive case or with backslashes is judged the same', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const { agentId } = await spawn($, WORKER_PROMPT.replace(WT, 'C:/Work/repo.worktrees/b-CR-5'))
+  expect((await write($, agentId, 'Write', 'c:\\work\\repo.worktrees\\b-CR-5\\src\\a.py')).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', 'C:\\work\\repo\\a.py')).deny).toContain('refused:')
+})
+
+test('a relative path is read against the spawn\'s folder', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const { agentId } = await spawn($, WORKER_PROMPT, { cwd: WT })
+  expect((await write($, agentId, 'Write', 'src/a.py')).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', '../outside.py')).deny).toContain('refused:')
+})
+
+test('the main session, a Driver and an agent with no chantier prompt are not guarded', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const driver = await spawn($, `chantier driver for CR-5 of batch b.\nslots: 2`)
+  const other = await spawn($, 'Fix the bug.')
+  for (const id of [undefined, driver.agentId, other.agentId, 'unknown']) {
+    expect((await write($, id, 'Write', `${ROOT}/a.py`)).deny).toBeUndefined()
+  }
+})
+
+test('a denied spawn records nothing', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  on('agent.spawn', () => ({ deny: 'no' }) as any)
+  on('tool.call', () => ({ allowed: true }) as any)
+  await spawn($, WORKER_PROMPT)
+  expect((await write($, 'agent-1', 'Write', `${ROOT}/a.py`)).deny).toBeUndefined()
+})
+
+test('a failed guard stops a recorded worker', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  const input = { get file_path(): string { throw new Error('boom') } }
+  const out = await ($.tool.call as any)({ tool: 'Write', input, agentId })
+  expect(out.deny).toContain('the write guard failed')
+  expect((await write($, undefined, 'Write', '/x')).deny).toBeUndefined()
+})
+

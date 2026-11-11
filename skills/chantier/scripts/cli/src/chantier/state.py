@@ -494,6 +494,7 @@ class Batch:
         self._events.append({"t": now(), "actor": self.actor, "kind": kind, "cr": cr, **fields})
 
     def cr(self, cr_id: str) -> dict:
+        cr_id = normalize_cr(cr_id)
         for c in self.data["crs"]:
             if c["id"] == cr_id:
                 return c
@@ -521,6 +522,15 @@ def normalize_batch(batch: str) -> str:
     """`4`, `04` and `batch-04` all name `batch-04`; anything else is left as given."""
     match = re.fullmatch(r"(?:batch-)?(\d+)", batch.strip())
     return f"batch-{int(match.group(1)):02d}" if match else batch
+
+
+def normalize_cr(value):
+    """`165`, `CR-165` and `cr-165` all name `CR-165`; anything else (`stack`, `-`, an `O-k`
+    order, a QA folder) is left as given."""
+    if not isinstance(value, str):
+        return value
+    match = re.fullmatch(r"(?:cr-)?(\d+)", value.strip(), re.I)
+    return f"CR-{match.group(1)}" if match else value
 
 
 def resolve_batch(repo: Repo, batch: str | None) -> str:
@@ -554,6 +564,7 @@ def read_batch(repo: Repo, batch_id: str) -> dict:
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
     """The batch holding a CR: the one given, else the batch that has it (a paused batch
     can hold queued CRs)."""
+    cr_id = normalize_cr(cr_id)
     if batch:
         return normalize_batch(batch)
     for d in reversed(repo.batch_folders()):

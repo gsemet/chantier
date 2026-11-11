@@ -34,7 +34,7 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budg
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
-                    next_cr_number, normalize_batch, now, read_batch, read_events, resolve_batch,
+                    next_cr_number, normalize_batch, normalize_cr, now, read_batch, read_events, resolve_batch,
                     round_limit, stamp)
 from .status import shape_word, steering_word, write_dashboard, write_final_pages
 
@@ -403,6 +403,7 @@ def abandon(args) -> list[str]:
 
 
 def _batch_cr(repo: Repo, cr_id: str, batch: str | None) -> tuple[str, dict, dict]:
+    cr_id = normalize_cr(cr_id)
     batch = find_cr_batch(repo, cr_id, batch)
     data = read_batch(repo, batch)
     c = next((x for x in data["crs"] if x["id"] == cr_id), None)
@@ -427,6 +428,26 @@ def _worktree(c: dict) -> Path:
 
 def _cr_events(repo: Repo, batch: str, cr_id: str) -> list[dict]:
     return [e for e in read_events(repo.batch_dir(batch)) if e.get("cr") == cr_id]
+
+
+def gate_passed(events: list[dict], head: str | None) -> bool:
+    """A long gate passed at a head: the last `gate` invocation at that head passed every command
+    it was given. The events of one invocation share a `run`; it stops at its first failure, so
+    its last event says. An event with no `run` (an older record) is an invocation by itself."""
+    here = [e for e in events if e.get("kind") == "gate" and head and e.get("head") == head]
+    if not here:
+        return False
+    run = here[-1].get("run")
+    if run is None:
+        return here[-1].get("result") == "pass"
+    return all(e.get("result") == "pass" for e in here if e.get("run") == run)
+
+
+def last_verdict(events: list[dict], head: str | None) -> str | None:
+    """The last verdict recorded at a head: it decides; a verdict at another head never counts."""
+    seen = [e.get("result") for e in events
+            if e.get("kind") == "verdict" and head and e.get("head") == head]
+    return seen[-1] if seen else None
 
 
 # ---- batches ----------------------------------------------------------------------------------
@@ -809,9 +830,7 @@ def _refused(usage: str, value: str, wanted: str) -> ChantierError:
     return ChantierError(f"{usage}: {why}", EXIT_USAGE)
 
 
-def _cr_arg(value: str | None) -> str | None:
-    """`101` for `CR-101`, in `order` only."""
-    return f"CR-{value}" if value and value.isdigit() else value
+_cr_arg = normalize_cr  # `order after`'s list is split here; every other argument is read by `main`
 
 
 def _started(c: dict) -> bool:
@@ -1058,10 +1077,9 @@ def order(args) -> list[str]:
         with Batch(repo, resolve_batch(repo, args.batch),
                    actor="foreman" if own else "chief-of-staff") as b:
             check_epoch(b, args.epoch)
-            if (args.kind in {"add", "qa"} and b.data.get("steering") == "direct"
-                    and b.data["status"] != "paused"
-                    and not (args.kind == "add" and (new_release or args.fix_for))):
-                raise ChantierError("a running direct batch is strict: add the CR once the batch "
+            if (args.kind == "qa" and b.data.get("steering") == "direct"
+                    and b.data["status"] != "paused"):
+                raise ChantierError("a running direct batch takes no QA: order it once the batch "
                                     "is paused (`pause`)", EXIT_PRECONDITION)
             cr = args.cr
             reopened = []
@@ -1235,13 +1253,18 @@ def agents(args) -> list[str]:
     each start, so a restart and the cost know who ran what."""
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch) \
-        if args.cr != "stack" else resolve_batch(repo, args.batch)
+        if args.cr != "stack" and not args.cr.startswith("O-") else resolve_batch(repo, args.batch)
     with Batch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
         if args.agent == "-":  # the agent ended: the next one may start
             args.agent = None
         if args.cr == "stack":
             b.data["stack_agent"] = args.agent
+        elif args.cr.startswith("O-"):  # a QA order: its driver is a Driver of the batch for `cost`
+            o = next((x for x in b.data["orders"] if x["id"] == args.cr), None)
+            if o is None or o["kind"] != "qa":
+                raise ChantierError(f"agents set {args.cr}: not a QA order of {b.id}", EXIT_USAGE)
+            o["agent"] = args.agent
         else:
             b.touch(b.cr(args.cr), agent=args.agent)
         b.log("agent", args.cr, agent=args.agent)
@@ -1344,6 +1367,18 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
                                                     for o in pending))
     lines += ["notes:"] + [f"  {n}" for n in c["notes"][-10:]] if c.get("notes") \
         else ["notes: none"]
+    if c.get("kind") not in {"release"}:
+        events = _cr_events(repo, batch, c["id"])
+        head = c.get("head")
+        verdict = last_verdict(events, head)
+        lines += [
+            f"gates before handback ready, at the PR's head {head or 'not shipped yet'}:",
+            f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
+            f"{c['id']} \"<cmd>\" [\"<cmd>\"...]; none in the project's rules: handback "
+            f"{c['id']} ready --no-gate \"<rule>\")",
+            f"  [{'x' if verdict == 'VERIFIED' else ' '}] verdict "
+            f"{verdict if verdict == 'NOT VERIFIED' else 'VERIFIED'} (the Verifier: verdict "
+            f"{c['id']} VERIFIED|\"NOT VERIFIED\")"]
     gates = folder / "work" / "gates"
     logs = sorted(gates.glob("*.log")) if gates.is_dir() else []
     if logs:
@@ -1440,6 +1475,10 @@ def handback(args) -> list[str]:
         raise ChantierError("handback <cr> blocked <reason>: question: …, approval: …, merge: "
                             "<pr>, fix: …; <path>, infra: …, budget: …, rounds: …, refused …, "
                             "waits: <what it waits for>", EXIT_USAGE)
+    no_gate = args.no_gate.strip() if args.no_gate is not None else None
+    if no_gate is not None and (args.result != "ready" or not no_gate):
+        raise ChantierError('handback <cr> ready <pr link> --no-gate "<the project\'s rule that '
+                            'declares no long gate or exempts this CR>"', EXIT_USAGE)
     with changes_lock(repo):
         with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
             c = b.cr(args.cr)
@@ -1462,7 +1501,20 @@ def handback(args) -> list[str]:
                            if all_merged(b) else "")]
             if not c.get("pr"):
                 raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
-            b.log("handback", args.cr, result=args.result, note=note)
+            events, head = _cr_events(repo, b.id, c["id"]), c.get("head")
+            missing = []
+            if no_gate is None and not gate_passed(events, head):
+                missing.append(f"refused: no long gate passed at {head or 'any head'} (gate "
+                               f"{c['id']} \"<cmd>\"..., or --no-gate \"<the project's rule>\")")
+            if last_verdict(events, head) != "VERIFIED":
+                missing.append(f"refused: no verdict VERIFIED at {head or 'any head'} (the last "
+                               f"verdict there: {last_verdict(events, head) or 'none'})")
+            if missing:
+                raise ChantierError("\n".join(missing), EXIT_PRECONDITION)
+            if no_gate is not None:
+                line = f"[driver {args.cr}→foreman] hand-back ready, no long gate: {no_gate} {note}"
+            b.log("handback", args.cr, result=args.result, note=note,
+                  **({"no_gate": no_gate} if no_gate is not None else {}))
             b.touch(c, status="ready")
             return [line, f"{args.cr} ready"]
 
@@ -1540,7 +1592,11 @@ def playbook(args) -> tuple[list[str], int]:
         if problems:
             return [f"playbook: {pb.FILE} is not valid ({len(problems)} problems)"] + problems, \
                 EXIT_PRECONDITION
-    return pb.playbook_lines(made, host, plugin_roles(host), label), 0
+    lines = pb.playbook_lines(made, host, plugin_roles(host), label)
+    if not args.batch:  # the Spec-writer's first line, to copy as printed
+        lines.append("spec-writer prompt, first line: chantier spec-writer for the Chief of Staff, "
+                     f"in the project {repo.root.as_posix()}.")
+    return lines, 0
 
 
 def rules(args) -> list[str]:
@@ -1637,34 +1693,68 @@ def gate(args) -> tuple[list[str], int]:
     repo = Repo.find()
     batch, _, c = _batch_cr(repo, args.cr, args.batch)
     wt = _worktree(c)
-    cmd = args.command.strip()
-    if not cmd:
-        raise ChantierError("gate <cr> \"<the long gate's command, from the project's rules>\"",
-                            EXIT_USAGE)
+    cmds = [x.strip() for x in args.command]
+    if not cmds or not all(cmds):
+        raise ChantierError("gate <cr> \"<command>\" [\"<command>\"...]: the long gate's commands "
+                            "from the project's rules, one per argument", EXIT_USAGE)
     logdir = _work(repo, c) / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
-    log = logdir / f"{time.strftime('%Y%m%d-%H%M%S')}.log"
+    stamped = time.strftime('%Y%m%d-%H%M%S')
+    log = logdir / f"{stamped}.log"
+    run = f"{stamped}-{os.getpid()}"  # the events of this invocation share it
+    ran: list[tuple[str, int]] = []
     with _LongGateLock(repo, args.cr, log) as lock:
-        # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
-        with open(log, "a", encoding="utf-8") as f:
-            f.write(f"$ {cmd}\n")
-            f.flush()
-            group = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-                     if sys.platform == "win32" else {"start_new_session": True})
-            p = subprocess.Popen(cmd, shell=True, cwd=wt, stdout=f, stderr=subprocess.STDOUT,
-                                 **group)
-        lock.holding(f"{args.cr} pid {os.getpid()} pg{p.pid}")
-        rc = p.wait()
+        for cmd in cmds:
+            # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
+            with open(log, "a", encoding="utf-8") as f:
+                f.write(f"$ {cmd}\n")
+                f.flush()
+                group = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+                         if sys.platform == "win32" else {"start_new_session": True})
+                p = subprocess.Popen(cmd, shell=True, cwd=wt, stdout=f, stderr=subprocess.STDOUT,
+                                     **group)
+            lock.holding(f"{args.cr} pid {os.getpid()} pg{p.pid}")
+            ran.append((cmd, p.wait()))
+            if ran[-1][1]:
+                break  # the commands after a failure are not run
     head = git("rev-parse", "--short", "HEAD", cwd=wt)
-    result = "pass" if rc == 0 else "fail"
     with Batch(repo, batch, actor="driver") as b:
-        b.log("gate", args.cr, result=result, head=head, command=cmd)
-    if rc:
+        for cmd, rc in ran:
+            b.log("gate", args.cr, result="pass" if rc == 0 else "fail", head=head, command=cmd,
+                  run=run)
+    lines = [f"{'pass' if rc == 0 else 'FAIL'} {cmd}{'' if rc == 0 else f' (exit {rc})'} at {head}"
+             for cmd, rc in ran]
+    failed = ran[-1][1]
+    if failed:
         # gates write in the console's code page: never fail on their bytes
         tail = (log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
                 if log.exists() else [])
-        return [f"FAIL {cmd} (exit {rc}) at {head}; log {log}"] + tail, EXIT_EXTERNAL
-    return [f"pass {cmd} at {head}; log {log}"], 0
+        return lines + [f"log {log}"] + tail, EXIT_EXTERNAL
+    return lines + [f"log {log}"], 0
+
+
+VERDICTS = ("VERIFIED", "NOT VERIFIED")
+
+
+def verdict(args) -> list[str]:
+    """A verdict on the worktree's head, in the log: the last one at a head decides. It knows a
+    verdict, not a role; a card says who runs it."""
+    repo = Repo.find()
+    result = " ".join(" ".join(args.result).upper().split())
+    if result not in VERDICTS:
+        raise ChantierError('verdict <cr> VERIFIED | "NOT VERIFIED"', EXIT_USAGE)
+    try:
+        batch, _, c = _batch_cr(repo, args.cr, args.batch)
+    except ChantierError as e:
+        raise ChantierError(str(e), EXIT_PRECONDITION) from e
+    wt = _worktree(c)
+    if git("status", "--porcelain", "--untracked-files=normal", cwd=wt):
+        raise ChantierError(f"{c['id']}: the worktree has uncommitted work: a verdict binds to a "
+                            "head, commit first", EXIT_PRECONDITION)
+    head = git("rev-parse", "--short", "HEAD", cwd=wt)
+    with Batch(repo, batch, actor="driver") as b:
+        b.log("verdict", c["id"], result=result, head=head)
+    return [f"verdict {c['id']} {result} at {head}"]
 
 
 def ship(args) -> list[str]:
@@ -1697,8 +1787,7 @@ def ship(args) -> list[str]:
                         check=False))
         if not seen:
             off.append(f"archive missing from the PR at {where}")
-    if not any(e.get("kind") == "gate" and e.get("result") == "pass" and e.get("head") == short
-               for e in _cr_events(repo, batch, c["id"])):
+    if not gate_passed(_cr_events(repo, batch, c["id"]), short):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     base = _stack_base(d, c, repo)
     with Batch(repo, batch, actor="driver") as b:
@@ -1952,6 +2041,10 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
     call made after it is spend."""
     rows: list[dict] = []
     chiefs = chief_sessions(d)
+    # a Driver is an agent the log ties to a CR, the stack or a QA order; any other agent with no
+    # parent is the steering session's own subagent
+    drivers = {e["agent"] for e in read_events(repo.batch_dir(d["id"]))
+               if e.get("kind") == "agent" and e.get("agent")}
     for uuid in uuids:
         steering = uuid in chiefs  # a Chief of Staff's own steering window
         if host == "copilot":
@@ -1964,6 +2057,10 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
         if steering:
             got[0]["type"] = "chief-of-staff"
             got = costs.without_spec_writers(got)  # grill and specifications: their own line
+        for r in got:
+            if r["agent"] != "main" and "parent" in r and not r["parent"] \
+                    and r["agent"] not in drivers:
+                r["own"] = OWN_CHIEF if steering else OWN_FOREMAN
         rows += got
     if not any(r["calls"] for r in rows):
         raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)
@@ -1994,6 +2091,8 @@ def _foreman_uuid(d: dict) -> list[str]:
     return uuids
 
 
+OWN_CHIEF = "Chief of Staff's own subagents"
+OWN_FOREMAN = "Foreman's own subagents"
 STEER_OUT = "Chief of Staff, steering the batch (outside the budget)"
 GRILL_OUT = "Chief of Staff, grill and specifications with the user (outside the budget)"
 WHOLE = "Chief of Staff, whole session"
@@ -2068,9 +2167,11 @@ def _chief_line(repo: Repo, d: dict) -> list[str]:
 def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str, list]:
     """Calls and dollars, by CR (`cr`) or by the Driver type a chain of parents leads back to."""
     agent_cr = {}  # every Driver a CR ever had, from the log: a replaced one keeps its CR
+    qa_folder = {o["id"]: o["cr"] for o in read_batch(repo, batch).get("orders", [])
+                 if o["kind"] == "qa"}  # a QA driver counts under its QA folder
     for e in read_events(repo.batch_dir(batch)):
-        if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack":
-            agent_cr[e["agent"]] = e["cr"]
+        if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack" and e.get("agent"):
+            agent_cr[e["agent"]] = qa_folder.get(e["cr"], e["cr"])
     parents = {r["agent"]: r.get("parent") for r in rows}
     by_agent = {r["agent"]: r for r in rows if r["agent"] != "main"}
 
@@ -2084,7 +2185,7 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
     for r in rows:
         if by == "cr":
             named = CR_IN_NAME.search(r.get("description") or "")
-            key = ("foreman" if r["agent"] == "main"
+            key = ("foreman" if r["agent"] == "main" or r.get("own")
                    else cr_of(r["agent"]) or (named.group(0) if named else "other"))
         else:  # "driver": the type of the agent a chain of parents leads back to
             root = r
@@ -2093,7 +2194,7 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
                 if root["agent"] == "main" or parent is None or parent["agent"] == "main":
                     break
                 root = parent
-            key = root["type"]
+            key = "foreman" if root.get("own") else root["type"]
         groups[key][0] += r["calls"]
         groups[key][1] += r["usd"]
     return groups
@@ -2117,8 +2218,8 @@ def _kind(r: dict) -> str:
     """Who an agent is, from the record alone: the Foreman is the main agent, a Driver an agent
     with no parent, a worker one with a parent. No role name: the type is the host's own string.
     Where the host gives no parent link (Copilot), the agent is only an agent."""
-    if r["agent"] == "main":
-        return "Foreman"  # the steering session; `_label` says whose
+    if r["agent"] == "main" or r.get("own"):
+        return "Foreman"  # the steering session, and its own subagents; `_label` says whose
     if "parent" not in r:
         return "Agent"
     return "Worker" if r["parent"] else "Driver"
@@ -2129,7 +2230,10 @@ UNSPLIT = "Chief of Staff, steering the batch, grill included (not split on this
 
 
 def _label(r: dict) -> str:
-    """The steering row of a direct batch is the Chief of Staff's, a Foreman's is the Foreman's."""
+    """The steering row of a direct batch is the Chief of Staff's, a Foreman's is the Foreman's;
+    their own subagents have a line of their own."""
+    if r.get("own"):
+        return r["own"]
     if r["agent"] == "main" and r.get("type") == "chief-of-staff":
         return STEERING if "grill" in r else UNSPLIT  # Copilot rows are not split
     return _kind(r)
