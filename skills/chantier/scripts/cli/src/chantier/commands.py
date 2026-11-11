@@ -38,7 +38,7 @@ from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION
                     Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
                     next_cr_number, normalize_batch, normalize_cr, now, read_batch, read_events, resolve_batch,
-                    round_limit, stamp)
+                    round_limit, stamp, RESTORED_NUMBER_FILE)
 from .status import shape_word, steering_word, write_dashboard, write_final_pages
 
 HOSTS = ("claude", "copilot")
@@ -405,6 +405,73 @@ def abandon(args) -> list[str]:
     return [f"abandoned {_shown(repo, target)}"]
 
 
+def restore(args) -> list[str]:
+    """The reverse of `abandon`: a folder of `6-trash` comes back to `1-inbox`, whole, without its
+    date (and without its number when an open batch's record says it was that batch's CR). Only on
+    the user's word. A cancelled CR of an open batch stays cancelled there; its branch, worktree and
+    PR are not touched."""
+    repo = Repo.find()
+    paths = stage_layout(repo)
+    source = repo.planning_path(args.item, "CR folder")
+    if source.parent != paths["trash"] or not source.is_dir():
+        raise ChantierError("restore takes a folder directly under 6-trash: "
+                            f"{_shown(repo, source)} is not one", EXIT_PRECONDITION)
+    with changes_lock(repo):
+        known, batch_crs = None, []  # the open batch's CR that owned this folder; all its CRs
+        for batch_dir in repo.batch_folders():
+            record = read_batch_json(batch_dir / "batch.json")
+            for cr in record.get("crs", []):
+                if not cr.get("path"):
+                    continue
+                if repo.planning_path(cr["path"], "recorded CR path") == source:
+                    known = (record.get("id", "?"), cr)
+                else:
+                    batch_crs.append(cr_slug(Path(cr["path"]).name))
+        name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", source.name)
+        if known:  # a number is stripped only from a folder a batch record says is its CR's
+            name = re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
+        name = args.slug or name
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", name):
+            raise ChantierError(f"restore: {name!r} is not a CR slug (lowercase letters, digits "
+                                "and hyphens): restore again with --slug <name>", EXIT_USAGE)
+        taken = [paths["inbox"] / name, paths["ready"] / name,
+                 *(paths["backlog"] / p / name for p in PRIORITIES)]
+        clash = next((_shown(repo, t) for t in taken if t.exists()), None) \
+            or (f"a CR of the open batch ({name})" if name in batch_crs else None)
+        if clash:
+            raise ChantierError(f"restore: the name {name} is already used by {clash}; "
+                                f"restore again with --slug <other>", EXIT_PRECONDITION)
+        target = paths["inbox"] / name
+        formerly = None
+        if known:
+            formerly = f"formerly {known[1]['id']} of {known[0]}"
+            number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
+        move_directory(source, target)
+        if known:
+            number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
+            if number:  # the number is never given again, even once the batch is closed
+                path = repo.changes / RESTORED_NUMBER_FILE
+                try:
+                    kept = int(json.loads(path.read_text("utf-8"))["last_number"])
+                except (OSError, ValueError, KeyError, TypeError):
+                    kept = 0
+                path.write_text(json.dumps({"last_number": max(kept, int(number[1]))}) + "\n",
+                                encoding="utf-8")
+        if formerly:
+            intent = target / "01-intent.md"
+            with open(intent if intent.is_file() else target / "notes.md", "a",
+                      encoding="utf-8") as f:
+                f.write(f"\n{formerly}\n")
+        write_dashboard(repo, paths)
+    lines = [f"restored {_shown(repo, target)}"]
+    if known and known[1].get("status") == "cancelled":
+        cr = known[1]
+        lines.append(f"{cr['id']} stays cancelled in {known[0]}: its branch {cr.get('branch')}, "
+                     f"worktree {cr.get('worktree')} and PR {cr.get('pr') or 'none'} are not "
+                     "touched; `order add` brings it back in a batch")
+    return lines
+
+
 def _batch_cr(repo: Repo, cr_id: str, batch: str | None) -> tuple[str, dict, dict]:
     cr_id = normalize_cr(cr_id)
     batch = find_cr_batch(repo, cr_id, batch)
@@ -433,11 +500,28 @@ def _cr_events(repo: Repo, batch: str, cr_id: str) -> list[dict]:
     return [e for e in read_events(repo.batch_dir(batch)) if e.get("cr") == cr_id]
 
 
+def same_head(recorded: str | None, head: str | None) -> bool:
+    """Heads are recorded as the full SHA. One recorded short before (an open batch from an older
+    version) matches the full SHA it is a prefix of."""
+    return bool(recorded and head) and (recorded == head or head.startswith(recorded)
+                                        or recorded.startswith(head))
+
+
+def _short(head: str | None) -> str:
+    """A head for display only: 7 characters."""
+    return (head or "")[:7]
+
+
+def _dirty(wt: Path) -> str:
+    """The worktree's tracked changes and untracked files, as `git status --porcelain` says."""
+    return git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
+
+
 def gate_passed(events: list[dict], head: str | None) -> bool:
     """A long gate passed at a head: the last `gate` invocation at that head passed every command
     it was given. The events of one invocation share a `run`; it stops at its first failure, so
     its last event says. An event with no `run` (an older record) is an invocation by itself."""
-    here = [e for e in events if e.get("kind") == "gate" and head and e.get("head") == head]
+    here = [e for e in events if e.get("kind") == "gate" and same_head(e.get("head"), head)]
     if not here:
         return False
     run = here[-1].get("run")
@@ -449,7 +533,7 @@ def gate_passed(events: list[dict], head: str | None) -> bool:
 def last_verdict(events: list[dict], head: str | None) -> str | None:
     """The last verdict recorded at a head: it decides; a verdict at another head never counts."""
     seen = [e.get("result") for e in events
-            if e.get("kind") == "verdict" and head and e.get("head") == head]
+            if e.get("kind") == "verdict" and same_head(e.get("head"), head)]
     return seen[-1] if seen else None
 
 
@@ -1355,7 +1439,7 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
                if repo.external else []),
              *([f"archive: in the PR at {archive_path(repo, c)}" if archive_path(repo, c)
                 else "archive: not in the PR"] if repo.external else []),
-             f"PR: {c.get('pr') or 'none'}; head {c.get('head') or '-'}",
+             f"PR: {c.get('pr') or 'none'}; head {_short(c.get('head')) or '-'}",
              f"rounds: {c['round']} of {round_limit(d, c)}"]
     if c["status"] == "blocked":
         lines.append(f"blocked: {c.get('blocked_reason')}")
@@ -1382,7 +1466,8 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
         head = c.get("head")
         verdict = last_verdict(events, head)
         lines += [
-            f"gates before handback ready, at the PR's head {head or 'not shipped yet'}:",
+            f"gates before handback ready, at the PR's head {head or 'not shipped yet'} "
+            "(the full SHA; the gate log's first line names it):",
             f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
             f"{c['id']} \"<cmd>\" [\"<cmd>\"...]; none in the project's rules: handback "
             f"{c['id']} ready --no-gate \"<rule>\")",
@@ -1457,8 +1542,9 @@ def take(args) -> list[str]:
 
 
 def round_(args) -> list[str]:
-    """A Driver counts a round before it starts the round's Coder; past the batch's limit, or
-    the one the user granted the CR, it is refused (exit 5)."""
+    """A Driver counts a round before it starts the round's Coder; once the budget is spent, or
+    past the batch's limit or the one the user granted the CR, it is refused (exit 5), the
+    budget first (its own message), the round count unchanged and nothing logged."""
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch)
     with changes_lock(repo):
@@ -1466,7 +1552,7 @@ def round_(args) -> list[str]:
             c = b.cr(args.cr)
             if c["status"] not in LIVE:
                 raise ChantierError(f"{args.cr} is {c['status']}: no Driver to run a round")
-            limit = check_round(b, c)
+            limit = check_round(b, c)  # the budget first, then the limit
             b.touch(c, round=c.get("round", 0) + 1)
             b.log("round", c["id"], round=c["round"], note=args.note)
             _work(repo, c).mkdir(parents=True, exist_ok=True)
@@ -1512,7 +1598,22 @@ def handback(args) -> list[str]:
             if not c.get("pr"):
                 raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
             events, head = _cr_events(repo, b.id, c["id"]), c.get("head")
+            wt = _worktree(c)
             missing = []
+            now_head = git("rev-parse", "HEAD", cwd=wt)
+            if not same_head(head, now_head):
+                missing.append(f"refused: the worktree is at {_short(now_head)}, not at "
+                               f"{_short(head) or 'any shipped head'} that `ship` recorded "
+                               "(a commit after `ship`: push, then `ship` again)")
+            if _dirty(wt):
+                missing.append("refused: the worktree has uncommitted changes or untracked "
+                               "files: commit them, push, then `ship` again")
+            remote = f"{repo.config['remote']}/{c['branch']}"
+            pushed = git("rev-parse", "--verify", "--quiet", remote, cwd=wt, check=False)
+            if not same_head(head, pushed):
+                missing.append(f"refused: {remote} is "
+                               f"{'at ' + _short(pushed) if pushed else 'not pushed'}, not at "
+                               f"{_short(head) or 'the shipped head'}: push, then `ship` again")
             if no_gate is None and not gate_passed(events, head):
                 missing.append(f"refused: no long gate passed at {head or 'any head'} (gate "
                                f"{c['id']} \"<cmd>\"..., or --no-gate \"<the project's rule>\")")
@@ -1708,12 +1809,18 @@ def gate(args) -> tuple[list[str], int]:
     if not cmds or not all(cmds):
         raise ChantierError("gate <cr> \"<command>\" [\"<command>\"...]: the long gate's commands "
                             "from the project's rules, one per argument", EXIT_USAGE)
+    if _dirty(wt):  # a gate binds to a commit: nothing runs, nothing is logged
+        raise ChantierError(f"{c['id']}: the worktree has uncommitted changes or untracked files: "
+                            "a gate binds to a commit, commit first", EXIT_PRECONDITION)
+    start = git("rev-parse", "HEAD", cwd=wt)  # the full SHA, before the first command
     logdir = _work(repo, c) / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
     stamped = time.strftime('%Y%m%d-%H%M%S')
     log = logdir / f"{stamped}.log"
     run = f"{stamped}-{os.getpid()}"  # the events of this invocation share it
     ran: list[tuple[str, int]] = []
+    with open(log, "a", encoding="utf-8") as f:  # the first line, before any waiting note
+        f.write(f"gate {c['id']} branch {c['branch']} head {start}\n")
     with _LongGateLock(repo, args.cr, log) as lock:
         for cmd in cmds:
             # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
@@ -1728,15 +1835,32 @@ def gate(args) -> tuple[list[str], int]:
             ran.append((cmd, p.wait()))
             if ran[-1][1]:
                 break  # the commands after a failure are not run
-    head = git("rev-parse", "--short", "HEAD", cwd=wt)
-    with Batch(repo, batch, actor="driver") as b:
-        for cmd, rc in ran:
-            b.log("gate", args.cr, result="pass" if rc == 0 else "fail", head=head, command=cmd,
-                  run=run)
-    lines = [f"{'pass' if rc == 0 else 'FAIL'} {cmd}{'' if rc == 0 else f' (exit {rc})'} at {head}"
-             for cmd, rc in ran]
+    end = git("rev-parse", "HEAD", cwd=wt)
+    moved = end != start  # a gate command committed: the run is no pass at either head
     failed = ran[-1][1]
     if failed:
+        result = f"FAIL {ran[-1][0]} (exit {failed}) at {_short(start)}"
+    elif moved:
+        result = f"head moved during the run, from {start} to {end}: no pass at either head"
+    else:
+        result = f"pass at {start}"
+    if moved and failed:
+        result += f"; head moved from {start} to {end}"
+    if log.exists():  # a `cancel` moves the CR's folder, log and all, while the gate runs
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(f"result: {result}\n")  # the log's last line
+    with Batch(repo, batch, actor="driver") as b:
+        for cmd, rc in ran:
+            b.log("gate", args.cr, result=("fail" if rc else "moved" if moved else "pass"),
+                  head=start, command=cmd, run=run)
+        if moved:
+            b.log("gate", args.cr, result="moved", head=end, command=ran[-1][0], run=run)
+    lines = [f"{'pass' if rc == 0 and not moved else 'FAIL'} {cmd}"
+             f"{'' if rc == 0 else f' (exit {rc})'} at {_short(start)}" for cmd, rc in ran]
+    if moved:
+        lines.append(f"head moved during the gate, from {_short(start)} to {_short(end)}: "
+                     "no pass at either head")
+    if failed or moved:
         # gates write in the console's code page: never fail on their bytes
         tail = (log.read_text(encoding="utf-8", errors="replace").splitlines()[-8:]
                 if log.exists() else [])
@@ -1762,10 +1886,10 @@ def verdict(args) -> list[str]:
     if git("status", "--porcelain", "--untracked-files=normal", cwd=wt):
         raise ChantierError(f"{c['id']}: the worktree has uncommitted work: a verdict binds to a "
                             "head, commit first", EXIT_PRECONDITION)
-    head = git("rev-parse", "--short", "HEAD", cwd=wt)
+    head = git("rev-parse", "HEAD", cwd=wt)
     with Batch(repo, batch, actor="driver") as b:
         b.log("verdict", c["id"], result=result, head=head)
-    return [f"verdict {c['id']} {result} at {head}"]
+    return [f"verdict {c['id']} {result} at {_short(head)}"]
 
 
 def ship(args) -> list[str]:
@@ -1790,7 +1914,7 @@ def ship(args) -> list[str]:
     if pushed != head:
         off.append(f"{repo.config['remote']}/{c['branch']} is {'not pushed' if not pushed else 'at ' + pushed[:7]}, "
                    f"not this head: push with --force-with-lease, then ship again")
-    short = head[:7]
+    short = _short(head)  # display only: the CR and the event keep the full SHA
     where = archive_path(repo, c)
     seen = None
     if where:
@@ -1798,12 +1922,12 @@ def ship(args) -> list[str]:
                         check=False))
         if not seen:
             off.append(f"archive missing from the PR at {where}")
-    if not gate_passed(_cr_events(repo, batch, c["id"]), short):
+    if not gate_passed(_cr_events(repo, batch, c["id"]), head):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     base = _stack_base(d, c, repo)
     with Batch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(c["id"]), pr=args.pr, head=short, archive_seen=seen)
-        b.log("ship", c["id"], pr=args.pr, base=base, head=short, off=off)
+        b.touch(b.cr(c["id"]), pr=args.pr, head=head, archive_seen=seen)
+        b.log("ship", c["id"], pr=args.pr, base=base, head=head, off=off)
     return [f"recorded {args.pr} (base {base}, head {short})"] + [f"off: {x}" for x in off]
 
 
