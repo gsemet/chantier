@@ -479,6 +479,9 @@ lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `pause`, `c
 [Copilot](hosts/copilot.md)) and do what they say of the Foreman, until the batch completes, with
 these differences.
 
+- **Escalation.** The Foreman's escalation triggers ([concepts](concepts.md), "Escalation") are
+  yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`.
+
 - **Your title.** At `open --direct`, rename yourself `[env] Project [Chief of Staff - Batch
   <nn> - Direct]`; after `close --yes`, back to `[env] Project [Chief of Staff]`
   ([session-start](session-start.md), "Titles").

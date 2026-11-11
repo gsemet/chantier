@@ -69,7 +69,7 @@ grills and specifies the backlog ·
 ```md
 ## 👷 Foreman
 
-one session per batch of changes · Opus 5.5 · orchestrates
+one session per batch of changes · orchestrates
 Foreman mode
 ```
 

@@ -15,7 +15,7 @@ Each behaviour carries a mark:
 
 | Generic | Claude Code | Mark |
 | --- | --- | --- |
-| Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-opus-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | proved: every batch started from Claude Desktop (v0.3 on) |
+| Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-sonnet-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | the start: proved, every batch started from Claude Desktop (v0.3 on); with this model: **unproved** until seen. Trial: batch-11, where the Foreman was switched to Sonnet 5.5 after its `ready` (CR-174), then the first batch started with this row: the transcript shows `claude-sonnet-5-5`, and `effort: "medium"` is accepted with it. Record the date once seen |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
 | Set a session's own title (the Chief of Staff, a Griller, the Foreman) | `set_session_title` | proved for a Chief of Staff's own session, 2026-11-08 (Battlestation, a session renamed itself); the Foreman's case stays unproved: the trial is a Foreman that sets its title and `get_session("self")` shows it |
 | The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`): a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling is unproved until a reload runs; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
@@ -30,7 +30,7 @@ Each behaviour carries a mark:
 | A Driver messages its steering session (the Foreman; in direct mode the Chief of Staff, which is `main` there) | `SendMessage` to `main` | proved, same; in direct mode the same mechanism, unproved until a direct batch runs |
 | Stop a Driver | `TaskStop` | proved, same |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
-| Models | the Foreman, the stack and release drivers and the Spec-writer run Opus 5.5; the CR and QA drivers and the workers Sonnet 5.5, unless the project's `chantier.yaml` sets a model | proved, same, except the CR driver: unproved; the trial is the model a CR driver's transcript shows in the next batch |
+| Models | the Spec-writer runs Opus 5.5; the Foreman, every Driver and the workers run Sonnet 5.5, unless the project's `chantier.yaml` sets a model; a task under escalation (`concepts.md`, "Escalation") runs the escalation model that `$CHANTIER playbook` prints | proved, same, except the CR driver, the stack and release drivers and the Foreman: unproved; the trial is the model their transcripts show in the next batch (the Foreman: the trial in the row "Start the Foreman's session") |
 | Models at an agent's start (capability, start value) | capability: yes. Start value: an alias, which the CLI's table maps from the exact identifier: `claude-opus-5-5` (Claude Opus 5.5) is `opus`, `claude-sonnet-5-5` (Claude Sonnet 5.5) is `sonnet`, `claude-haiku-5-5` (Claude Haiku 5.5) is `haiku`. The full identifier is not recorded as accepted | proved 2026-11-10: a trial started a plugin agent through `Agent` with `model: haiku`, and its transcript showed `claude-haiku-5-5`; the other two aliases are the same mechanism, unproved one by one |
 | Skills and tools of a session (what the Chief of Staff compares a role's needs with) | not recorded: how a session lists its skills and its tools, and whether a subagent sees what the session sees | unproved; trial: a `chantier.yaml` naming one skill that is installed and one that is not; the Chief of Staff names only the second; and a subagent started with a need says whether it has it |
 | Preflight P2 | `mcp__ccd_session__start_session` loads | proved, same |
@@ -242,13 +242,15 @@ Documented (<https://code.claude.com/docs/en/settings-reference>,
 read back with `/autocompact`, the token count at the first compaction recorded here.
 
 **Recommendation**, not a proved fact: keep `idleCompaction` on (its default), and set
-`autoCompactWindow` to 400000 in `~/.claude/settings.json` for the Chief of Staff's and the
+`autoCompactWindow` to 300000 in `~/.claude/settings.json` for the Chief of Staff's and the
 Foreman's sessions (the plugin's agents carry 200,000 in their files). Why: long sessions with
-pauses past the cache's life. Whether 400000 holds, given the unexplained 165 to 170k compaction
-above, is unproved: the same trial settles it.
+pauses past the cache's life. The window is capped at the model's context window (documented,
+above): if Sonnet 5.5's window is below 300K, the cap applies. Whether 300000 holds, given the
+unexplained 165 to 170k compaction above (which concerns this very value), is unproved: the same
+trial settles the recommendation and records the cap.
 
 ```json
-{ "idleCompaction": true, "autoCompactWindow": 400000 }
+{ "idleCompaction": true, "autoCompactWindow": 300000 }
 ```
 
 ## Reload after a compaction

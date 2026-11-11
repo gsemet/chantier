@@ -46,6 +46,9 @@ MODELS = {
 # Whether a start of an agent takes a model on this host: only what the host's reference marks
 # proved (hosts/claude-code.md, hosts/copilot.md, row "Models").
 SETS_MODEL_AT_START = {"claude": True, "copilot": False}
+# The model an escalated task starts on (concepts.md, "Escalation"): one per host, the same for
+# every role, kept next to MODELS so a release changes both. None where a start sets no model.
+ESCALATION = {"claude": "claude-opus-5-5", "copilot": None}
 
 
 def normalise(name: str) -> str:
@@ -389,6 +392,14 @@ def playbook_lines(resolved: dict | None, host: str, roles: list[str], recorded:
                                               if rec.get(k))
               for role, rec in configured.items() if rec.get("skills") or rec.get("tools")]
     return lines
+
+
+def escalate_line(host: str) -> str:
+    """The escalation model of the host, one for every role, or that there is none."""
+    entry = ESCALATION.get(host)
+    found = next((m for m in MODELS[host] if m.id == entry), None) if entry else None
+    return f"escalate: {_model_text({'start': found.start, 'id': found.id, 'name': found.name})}" \
+        if found else "escalate: (none on this host)"
 
 
 def team_lines(resolved: dict | None) -> list[str]:

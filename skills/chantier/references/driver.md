@@ -22,6 +22,8 @@ The CLI keeps the CR's record and tells you what is off.
   printed (no model printed: none passed). A refused start, a model included, is `handback
   blocked refused <exact text>`, never retried without the model. A `Needs:` you cannot meet
   is a `$CHANTIER note`, and you do your part without it.
+- Escalation ([concepts](concepts.md), "Escalation"): only when one of its triggers arises, read
+  the `escalate:` line of `$CHANTIER playbook --batch <batch>`, as printed.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
   <path>` for a file the user reviews and edits in place.
 - The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree
@@ -134,6 +136,11 @@ narrowed in `pr-body.md` before the description pass), then, once the descriptio
 (`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`.
 
+Escalation applies to the CR driver as to any parent ([concepts](concepts.md), "Escalation"): a
+`debugger` that explains no red check, or a `conflict-resolver` that settles no conflict, gets a
+second one on the escalation model; a note `escalate: rounds` means each new round's `coder` starts
+on it.
+
 A move is any change of the head after a judgment: a new round, a rebase, a restack, a conflict
 resolution. Every `verifier` you start after the first is given the previous `verify.md`, the move
 (`<old head>..<new head>`, with the old and new base for a rebase) and its kind, so it judges
@@ -168,7 +175,8 @@ under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> 
 (a CR with none is an anomaly) and keep each PR you move true to [ready to merge](concepts.md):
 on the default branch with its CR ready, ready (`gh pr ready`, `glab mr update --ready`); on
 another base, a draft (`gh pr ready --undo`, `glab mr update --draft`). Each CR keeps its
-own evidence plan. A conflict that only needs resolving: a `conflict-resolver`; one that needs
+own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in
+[concepts](concepts.md), "Escalation". A conflict that only needs resolving: a `conflict-resolver`; one that needs
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
 touched a CR's proofs (its patch changed, or the base brought changes to what the proofs run),
 start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
