@@ -43,8 +43,10 @@ The CLI keeps the CR's record and tells you what is off.
   opens its PR ready. A CR Driver writes the title and `<work folder>/pr-body.md` from the
   project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
   and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update
-  --description`); `glab mr create --draft` takes the body with `--description`. The stack
-  driver's and a Release driver's PRs keep their form, by the project's rules. Then
+  --description`); `glab mr create --draft` takes the body with `--description`. The body carries
+  the closing line of each `issue:` of the specification ([pr-template](pr-template.md)); a
+  Driver never comments on, closes or reopens an issue. The stack driver's and a Release
+  driver's PRs keep their form, by the project's rules. Then
   `$CHANTIER ship <cr> <pr link>`: it records the PR at this head and says what is off
   (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver

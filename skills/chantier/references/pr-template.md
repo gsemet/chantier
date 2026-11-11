@@ -12,7 +12,9 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   GitLab: `.gitlab/merge_request_templates/`, `Default.md` when there are several and the rules
   name none), or a template or PR rule that the project's rules (`$CHANTIER rules`) give. Then
   the project's template is used as written, and this file only fills where the project is
-  silent.
+  silent. With a project template, the closing line of a tracker issue goes where that template
+  puts its issue link, else at the end of its first section; a project rule on closing keywords
+  ranks above this file.
 
 ## The rules
 
@@ -30,6 +32,16 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   round or order, no agent role (Driver, Coder, Inspector…), no path under `.agents/changes/`.
   The CR's name ("CR-142 grill-rules") and any other reference that helps maintainers go in the
   last section, "Internal references", and nowhere else.
+- When the CR's specification has an `issue:` line, the body's Summary ends with one closing line
+  per issue:
+  - the issue is on the PR's own forge (GitHub, GitLab): the forge's closing keyword and the
+    reference it reads, `Closes <reference>` (`#<n>` for an issue of the PR's own repository, the
+    issue's full link or `<namespace>/<project>#<n>` for another repository of the same forge);
+  - any other tracker (Jira…): the form the project's rules give; with no such rule, the plain
+    link (`Issue: <link>`), which closes nothing.
+
+  The issue's reference is not an internal reference: it is allowed in the body's text. It is the
+  only place the issue is named; the Driver never comments on the issue.
 - The title says what changes; where the project's rules give no style, a Conventional Commit
   subject (`feat: …`, `fix: …`).
 - Every section is kept and filled; "None" rather than a deleted section. One exception: Human
@@ -96,7 +108,8 @@ UNVERIFIED. -->
 
 ## Summary
 
-<!-- Why: the user problem or limitation this solves, in two or three sentences. -->
+<!-- Why: the user problem or limitation this solves, in two or three sentences. End with one
+`Closes <reference>` line per tracker issue, as the rules say; none when the CR has no issue. -->
 
 ## Deliverables
 
@@ -185,6 +198,8 @@ What the Inspector checks, one line each, so a defect names its section:
    or says "None".
 8. Human decisions matches the CR's `02-answers.md`: each decision that shapes the change is
    there, nothing dropped, nothing invented; absent only when there is no such decision.
+9. When the CR's specification has an `issue:` line, the body carries its closing line in the form
+   the rules give, and no other text about the issue; when it has none, no closing line.
 
 With a project template, the audit is: that template's sections, filled as it asks, and the
 project's PR rules.
