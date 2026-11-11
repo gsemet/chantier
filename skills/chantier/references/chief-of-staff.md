@@ -317,18 +317,45 @@ Only in the turn where the user gave the go:
   Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
   --note stack`.
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
-  <local sha>`, you run the push, the one exception to "do no Driver's work". From the main
-  checkout, without changing its branch or touching its files:
-  `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`.
-  First the check: the branch is `chantier/<batch>/<cr>-<slug>`, so read the CR from its name
-  (`cr-115` is `CR-115`) and run `$CHANTIER handoff <cr>`; its `worktree: … branch <branch>`
-  line must give exactly the branch on the line, and never the default branch. Else push
-  nothing and answer `push refused <branch>: not a branch of this batch`. A failed lease is
-  not retried (the remote moved; the Driver looks at why): answer `push failed <branch> <git's
-  text>`. Done: `pushed <branch>`. All go to the Foreman (`[chief-of-staff→foreman]`), never to
-  the Driver. If your own push is refused: show the user the exact text, as for any `refused`,
-  and answer the Foreman `push refused <branch>: <exact text>`; retry nothing, try no other way,
-  and never change the permission settings.
+  <local sha>` (in direct mode, the Driver's `push` line), the push is yours, the one exception
+  to "do no Driver's work". It is **not a question for the user**: you judge it and run it, with
+  no ask and no wait for a word. In order:
+  1. The check, a hard refusal: the branch is `chantier/<batch>/<cr>-<slug>`, so read the CR
+     from its name (`cr-115` is `CR-115`) and run `$CHANTIER handoff <cr>`; its `worktree: …
+     branch <branch>` line must give exactly the branch on the line, and never the default
+     branch. Else push nothing and answer `push refused <branch>: not a branch of this batch`.
+  2. The judgement, read-only (`git fetch <remote>`, then the main checkout or `git -C
+     <worktree>`), on what it looks at, not a fixed list: the local sha is the worktree's
+     committed head (`rev-parse HEAD`, a clean `git status`); the local head holds the remote
+     head's work rebased onto the CR's base (the `base` that `handoff` prints: the default
+     branch, or another CR's branch in a series or a stack): the base is an ancestor of the
+     local head and the remote head's commits are in it (`git range-diff`, or `git cherry`); a
+     patch changed by a resolved conflict is not by itself a doubt. The long gate passed at the
+     local head: a `gate` event with `result` `pass` and `head` the local short sha in the
+     batch's `events.jsonl`, or the Driver's notes and last gate log in `handoff`; the stack
+     driver's restack follows its own card. No gate pass at the local head is the Driver's slip,
+     not a doubt: push nothing and answer `push refused <branch>: no long gate passed at <local
+     sha>` (the Driver runs the gate and sends the line again). A push that would drop work the
+     remote has and the local head does not, or that you cannot tie to the CR, is not
+     legitimate.
+  3. Legitimate: from the main checkout, without changing its branch or touching its files:
+     `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`;
+     answer `pushed <branch>`. The user hears nothing at the time: your next report has a line
+     for it (`status-layout.md`, "Progress").
+  4. Not legitimate: push nothing and tell the user at once, in the report's shape (the question
+     is the **For you:** line, no tip): the CR (number and slug), the branch, the expected and
+     local shas, and what the judgement found (for instance, the remote has 2 commits the local
+     head does not hold). The Driver keeps waiting. On the user's go, push as in 3; on their no,
+     answer `push refused <branch>: <the user's reason>`.
+  5. A failed lease is not retried (the remote moved; the Driver looks at why): answer `push
+     failed <branch> <git's text>` and tell the user at once, with git's text and what it means
+     (the remote branch moved since the Driver read it); nobody waits for a word.
+  6. If the host refuses your own push: show the user the exact text, as for any `refused`, with
+     the CR, the branch and the exact push command, so they can run it themselves or allow it;
+     answer `push refused <branch>: <exact text>`; retry nothing, try no other way, and never
+     change the permission settings.
+
+  All answers go to the Foreman (`[chief-of-staff→foreman]`), never to the Driver.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
   `--read all` once the user has heard them. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
@@ -465,8 +492,7 @@ these differences.
   for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
-  user at once, in the report's shape. A Driver's refused force push is run by you, as above; the
-  Driver hears the result as a note.
+  user at once, in the report's shape. A Driver's refused force push is judged and run by you, as above, without asking the user; the Driver hears the result as a note (`order note` or the host's message, as your other notes to it): `pushed <branch>`, `push failed <branch> <text>` or `push refused <branch>: <text>`.
 - **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
   refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
   --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch
