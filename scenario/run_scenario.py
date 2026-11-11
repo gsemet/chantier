@@ -2560,6 +2560,49 @@ def handback_proofs(w: World) -> None:
     check("`ship`, `gate`, `handback` and `verdict` all resolve a bare number, or `cr-<n>`, to "
           f"{cr}", code == 0 and out[0].startswith("recorded "), str(out))
 
+    # a ready CR goes back to its Driver by `take --note`, and hands back again
+    handbacks = len(log_events("handback"))
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("`handback ready` on a ready CR is refused with the `take` that reopens it",
+          code == 2 and "is ready" in w.last_stderr and f"take {cr} --note" in w.last_stderr
+          and "then hand back again" in w.last_stderr and w.cr(cr)["status"] == "ready"
+          and len(log_events("handback")) == handbacks, w.last_stderr)
+    _, out = w.chantier("order", "note", cr, "--note", "rebase: main moved")
+    check("`order note` on a ready CR names the `take`",
+          any(f"take {cr} --note" in ln for ln in out), str(out))
+    before = (w.cr(cr)["round"], w.cr(cr).get("agent"))
+    w.chantier("take", cr, "--epoch", 1, "--note", "rebase: main moved")
+    _, out = w.chantier("log", cr)
+    check("`take --note` reopens a ready CR to working: no round, the agent kept, the note and "
+          "the `take` event say why",
+          w.cr(cr)["status"] == "working" and (w.cr(cr)["round"], w.cr(cr).get("agent")) == before
+          and w.cr(cr)["notes"][-1].startswith("back to a Driver: rebase:")
+          and any(" take " in ln and "note=rebase: main moved" in ln for ln in out), str(out))
+    commit(w, cr, "rebased.py", "REBASED = 1\n")
+    for extra in ([], ["--no-gate", rule]):
+        code, _ = w.chantier("handback", cr, "ready", link, *extra, expect=2)
+        check("after a commit with no `ship`, `handback ready` names the head `ship` recorded, "
+              "alone" + (", with `--no-gate`" if extra else ""),
+              code == 2 and "is not the head ship recorded" in w.last_stderr
+              and f"ship {cr}" in w.last_stderr and "no long gate passed" not in w.last_stderr
+              and "no verdict VERIFIED" not in w.last_stderr, w.last_stderr)
+    ship(w, cr, "feat: rebased")
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("after `ship`, the gate and the verdict are wanted at the new head",
+          code == 2 and "no long gate passed" in w.last_stderr
+          and "no verdict VERIFIED" in w.last_stderr, w.last_stderr)
+    w.chantier("gate", cr, GATE)
+    w.chantier("verdict", cr, "VERIFIED")
+    w.chantier("handback", cr, "ready", link)
+    check("with `ship`, the gate and a verdict at the new head, the CR hands back ready again, "
+          "in the same round", w.cr(cr)["status"] == "ready" and w.cr(cr)["round"] == before[0])
+    w.chantier("take", cr, "--epoch", 1, "--note", "answer: go")
+    w.chantier("handback", cr, "blocked", "question: x")
+    code, _ = w.chantier("handback", cr, "blocked", "question: y", expect=2)
+    check("a second hand-back on a blocked CR is refused with the `take` that reopens it",
+          code == 2 and "is blocked" in w.last_stderr and f"take {cr} --note" in w.last_stderr,
+          w.last_stderr)
+
 
 def gate_proof(w: World) -> None:
     note("\n## 12c. The gate binds to a commit; the budget bounds the rounds")
@@ -2629,13 +2672,13 @@ def gate_proof(w: World) -> None:
     refusals = []
     for extra in ([], ["--no-gate", "AGENTS.md declares no long gate"]):
         code, _ = w.chantier("handback", a, "ready", link, *extra, expect=2)
-        refusals.append(code == 2 and "the worktree is at" in w.last_stderr)
+        refusals.append(code == 2 and "is not the head ship recorded" in w.last_stderr)
     w.sh("git", "reset", "--hard", "--quiet", shipped, cwd=wt(a))
     (wt(a) / "junk.txt").write_text("loose\n")
     for extra in ([], ["--no-gate", "AGENTS.md declares no long gate"]):
         code, _ = w.chantier("handback", a, "ready", link, *extra, expect=2)
         refusals.append(code == 2 and "uncommitted" in w.last_stderr
-                        and "the worktree is at" not in w.last_stderr)
+                        and "is not the head ship recorded" not in w.last_stderr)
     (wt(a) / "junk.txt").unlink()
     w.sh("git", "update-ref", "-d", f"refs/remotes/origin/{w.cr(a)['branch']}", cwd=wt(a))
     for extra in ([], ["--no-gate", "AGENTS.md declares no long gate"]):
@@ -2651,7 +2694,8 @@ def gate_proof(w: World) -> None:
     code, _ = w.chantier("handback", a, "ready", link, expect=2)
     check("a gate passed only at an earlier head is refused, with that cause alone",
           code == 2 and "no long gate passed" in w.last_stderr
-          and "the worktree is at" not in w.last_stderr and "not pushed" not in w.last_stderr
+          and "is not the head ship recorded" not in w.last_stderr
+          and "not pushed" not in w.last_stderr
           and "uncommitted" not in w.last_stderr, w.last_stderr)
     w.chantier("gate", a, GATE)
     w.chantier("handback", a, "ready", link)
