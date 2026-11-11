@@ -1933,13 +1933,34 @@ def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
     return d["id"], pick[0], d
 
 
-def _batch_files(folder: Path) -> list[Path]:
-    """What `close` deletes: everything in `4-batch/` but the three state folders."""
-    return sorted(p for p in folder.iterdir() if p.name not in STATE_FOLDERS)
+def _retro_target(repo: Repo, batch: str, folder: Path,
+                  archived: list[tuple[dict, Path]]) -> Path | None:
+    """Where `close` keeps `4-batch/retro.md`: `retro.md` in the archive of the CR merged last
+    (the archive name that sorts last), or in `5-archives/<stamp>-<batch id>/` when no CR is
+    archived. None when there is no retro: missing, or empty (no bytes, or whitespace only)."""
+    retro = folder / "retro.md"
+    try:
+        if not retro.is_file() or not retro.read_bytes().strip():
+            return None
+    except OSError:
+        return None
+    archives = stage_layout(repo)["archives"]
+    if archived:
+        return archives / max(archive_name(c, source) for c, source in archived) / "retro.md"
+    return archives / f"{stamp()}-{batch}" / "retro.md"
+
+
+def _batch_files(folder: Path, kept: bool = False) -> list[Path]:
+    """What `close` deletes: everything in `4-batch/` but the three state folders, and but
+    `retro.md` when it is kept (`_retro_target`); an empty `retro.md` is deleted."""
+    return sorted(p for p in folder.iterdir()
+                  if p.name not in STATE_FOLDERS and not (kept and p.name == "retro.md"))
 
 
 def close(args) -> tuple[list[str], int]:
-    """The batch's own files go and its merged CRs move from `3-done` to `5-archives`: the Chief
+    """The batch's own files go, but its `retro.md`, kept in the archive of the CR merged last (or
+    in `5-archives/<date>-<batch>/` when none merged), and its merged CRs move from `3-done` to
+    `5-archives`: the Chief
     of Staff shows the user what would happen, with the dropped CRs' worktrees and branches it
     removes itself on the same word, and passes `--yes`. Without it, nothing is touched. It
     refuses while anything runs or `1-pending` or `2-actives` holds a CR, with or without `--yes`,
@@ -1961,11 +1982,15 @@ def close(args) -> tuple[list[str], int]:
                     if c.get("path") and cr_directory(repo, c).parent == paths["done"]]
         dropped = [f"{c['id']} worktree {c['worktree']} branch {c['branch']}"
                    for c in d["crs"] if c["status"] == "cancelled"]
-        own = _batch_files(folder)
+        retro = _retro_target(repo, batch, folder, archived)
+        own = _batch_files(folder, kept=retro is not None)
+        where = _shown(repo, retro) if retro else None
         lines = [f"close {batch} deletes its files in {_shown(repo, folder)}: "
                  f"{', '.join(p.name for p in own) or 'none'}",
                  f"{len(archived)} CRs move from 3-done to 5-archives: "
                  f"{', '.join(c['id'] for c, _ in archived) or 'none'}",
+                 (f"retro: {_shown(repo, folder / 'retro.md')} moves to {where}"
+                  + ("" if archived else " (no CR archived)")) if retro else "retro: no retro",
                  "the dropped CRs, to remove on the same word where they still exist "
                  f"(`git {'-C ' + repo.clone_dir.as_posix() + ' ' if repo.external else ''}"
                  f"worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}"]
@@ -1975,18 +2000,22 @@ def close(args) -> tuple[list[str], int]:
             _chief_line(repo, d))
         if not args.yes:
             return lines + ["ask the user, then `chantier close --yes`"], 0
-        _archive_and_delete(repo, batch, folder, d, rows, archived, own)
+        _archive_and_delete(repo, batch, folder, d, rows, archived, own, retro)
         write_dashboard(repo, paths)
+    lines[2] = f"retro: kept in {where}" if retro else "retro: no retro"
     return [f"closed {batch}: its files are deleted, {len(archived)} CRs archived"] + lines[1:], 0
 
 
 def _archive_and_delete(repo: Repo, batch: str, folder: Path, d: dict, rows: list[dict],
-                        archived: list[tuple[dict, Path]], own: list[Path]) -> None:
+                        archived: list[tuple[dict, Path]], own: list[Path],
+                        retro: Path | None = None) -> None:
     """All or nothing: each `3-done` CR is renamed into `5-archives` (named for its merge time),
-    the final pages are written where the CRs are now, and the batch's own files go by a rename
-    first. Any failure puts every rename back."""
+    the batch's `retro.md` is kept by a rename to `retro` (never an overwrite), the final pages
+    are written where the CRs are now, and the batch's own files go by a rename first. Any failure
+    puts every rename back and removes a created retro folder."""
     archives = stage_layout(repo)["archives"]
     done: list[tuple[Path, Path]] = []
+    made: Path | None = None
     try:
         record = {**d, "crs": [dict(c) for c in d["crs"]]}
         for c, source in archived:
@@ -1995,6 +2024,19 @@ def _archive_and_delete(repo: Repo, batch: str, folder: Path, d: dict, rows: lis
             done.append((source, target))
             next(x for x in record["crs"] if x["id"] == c["id"])["path"] = \
                 repo.rel(target)
+        if retro is not None:
+            if not retro.parent.exists():  # no CR archived: a folder named for the batch
+                retro.parent.mkdir(parents=True)
+                made = retro.parent
+            if retro.exists() or retro.is_symlink():
+                raise ChantierError(f"refusing to overwrite {_shown(repo, retro)}: the retro of "
+                                    f"{batch} stays in 4-batch, nothing was closed", EXIT_CONFLICT)
+            try:
+                _retry((folder / "retro.md").rename, retro)
+            except OSError as e:
+                raise ChantierError(f"retro.md of {_shown(repo, folder)} is in use, close what "
+                                    f"holds it and run this again: {e}", EXIT_EXTERNAL) from e
+            done.append((folder / "retro.md", retro))
         _final_pages(repo, batch, folder, record, rows)
         going = repo.changes / f".closing-{batch}"
         going.mkdir()
@@ -2011,6 +2053,9 @@ def _archive_and_delete(repo: Repo, batch: str, folder: Path, d: dict, rows: lis
                 _retry(target.rename, source)
         with contextlib.suppress(OSError):
             (repo.changes / f".closing-{batch}").rmdir()
+        if made is not None:
+            with contextlib.suppress(OSError):
+                made.rmdir()
         raise
     shutil.rmtree(going)
 

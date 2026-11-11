@@ -782,6 +782,7 @@ def scenario(w: World) -> None:
           created in calls and merged not in calls and "edit" not in calls and '"PUT"' not in calls,
           calls[-300:])
     close_batch(w)
+    retro_cases(w)
     copilot_missing_transcript(w)
     lifecycle_regressions(w)
     stack_batch(w)
@@ -1509,6 +1510,14 @@ def close_batch(w: World) -> None:
     folder, dropped = w.folder(), w.cr("CR-103")
     name = w.name
     close_refusals(w)
+    retro = folder / "retro.md"
+    retro_bytes = ("# Retro\n\n## Pause 1\n\n- problem one, long-term fix one\n\n"
+                   "## Pause 2\n\n- problem two, long-term fix two\n").encode()
+    retro.write_bytes(retro_bytes)
+    merged = [c for c in w.batch()["crs"] if c["status"] == "merged" and c.get("path")]
+    names = [datetime.strptime(c["merged_at"], "%Y-%m-%dT%H:%M:%SZ").strftime("%y%m%d-%H%M")
+             + "-" + Path(c["path"]).name for c in merged]
+    last_name = max(names)  # the archive that sorts last: the CR merged last
     code, out = w.chantier("close", "--batch", name)
     check("`close` alone says what would go, names the dropped CR's worktree and branch, and "
           "touches nothing",
@@ -1516,6 +1525,11 @@ def close_batch(w: World) -> None:
           and any(folder.name in ln for ln in out) and "--yes" in out[-1]
           and len(list((folder / "3-done").iterdir())) == 4
           and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out), str(out))
+    retro_lines = [ln for ln in out if ln.startswith("retro:")]
+    check("`close` alone prints one `retro:` line naming the archive of the CR merged last, and "
+          "the retro stays in 4-batch",
+          len(retro_lines) == 1 and f"5-archives/{last_name}/retro.md" in retro_lines[0]
+          and retro.read_bytes() == retro_bytes, str(out))
     shown = [float(m[1]) for m in (re.match(r"Total: \$(\d+\.\d\d)", ln) for ln in out) if m]
     check("`close` prints the final cost, with a call made after the last `pause` in it",
           shown and shown[0] > w.paused_total and "Not final" not in "\n".join(out)
@@ -1532,7 +1546,20 @@ def close_batch(w: World) -> None:
           and (folder / "batch.json").is_file() and (folder / "events.jsonl").is_file()
           and len(list((folder / "3-done").iterdir())) == 4
           and not (w.state / f".closing-{name}").exists(), w.last_stderr)
+    check("the archive collision leaves 4-batch/retro.md in place, byte for byte",
+          retro.read_bytes() == retro_bytes)
     shutil.rmtree(collision)
+    last_done = w.state / merged[names.index(last_name)]["path"]
+    (last_done / "retro.md").write_text("an older retro\n")
+    code, _ = w.chantier("close", "--batch", name, "--yes", expect=3)
+    check("a retro already in the last CR's folder refuses the close, everything put back and "
+          "both files unchanged",
+          code == 3 and retro.read_bytes() == retro_bytes
+          and (last_done / "retro.md").read_text() == "an older retro\n"
+          and (folder / "batch.json").is_file() and len(list((folder / "3-done").iterdir())) == 4
+          and not any((a / "retro.md").exists() for a in (w.state / "5-archives").iterdir())
+          and not (w.state / f".closing-{name}").exists(), w.last_stderr)
+    (last_done / "retro.md").unlink()
     _, out = w.chantier("close", "--batch", name, "--yes")
     check("`close --yes` deletes the batch's own files, keeps the empty state folders, and "
           "repeats what is left to remove",
@@ -1540,6 +1567,14 @@ def close_batch(w: World) -> None:
           and not any(list(p.iterdir()) for p in folder.iterdir())
           and Path(dropped["worktree"]).is_dir() and out[0].endswith("4 CRs archived")
           and any(dropped["worktree"] in ln for ln in out), str(out))
+    kept = w.state / "5-archives" / last_name / "retro.md"
+    others = [a for a in (w.state / "5-archives").glob("*/retro.md") if a != kept]
+    retro_lines = [ln for ln in out if ln.startswith("retro:")]
+    check("`close --yes` keeps the retro, whole, in the archive of the CR merged last only, and "
+          "says where",
+          kept.is_file() and kept.read_bytes() == retro_bytes and not others
+          and len(retro_lines) == 1 and f"5-archives/{last_name}/retro.md" in retro_lines[0],
+          f"{kept} {others} {out}")
     archived = next((w.state / "5-archives").glob("*-101-fix-login-timeout")) / "STATUS.md"
     check("the merged CRs are in 5-archives, named for their merge time, intact",
           re.fullmatch(rf"{stamp}-101-fix-login-timeout", archived.parent.name)
@@ -1559,6 +1594,64 @@ def close_batch(w: World) -> None:
     check("the archives and the trash stay, and the board forgets the batch",
           name not in board and "No batch." in board
           and (w.state / dropped["path"] / "STATUS.md").is_file(), board)
+
+
+def retro_cases(w: World) -> None:
+    note("\n## 11c. The batch's retro kept at `close`, with no CR archived, or no retro")
+    archives = w.state / "5-archives"
+    for label, text in (("a batch of cancelled CRs", "# Retro\n\n## Pause 1\n\n- one, fix one\n"),
+                        ("no retro.md", None), ("a whitespace-only retro.md", " \n\t\n")):
+        _, item = prepare_cr(w, f"Retro {label}")
+        w.reset()
+        w.start(str(item), *FROM_AGENTS_MD)
+        w.env["CHANTIER_BATCH"] = w.name
+        number = int(w.batch()["crs"][0]["id"].removeprefix("CR-"))
+        w.chantier("foreman", "set", "local_foreman_retro", "--epoch", 1)
+        w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1)
+        w.chantier("pause", "--epoch", 1)
+        priced_foreman(w)
+        age_sessions(w)
+        retro = w.folder() / "retro.md"
+        if text is not None:
+            retro.write_text(text, encoding="utf-8", newline="")
+        before = sorted(p.name for p in archives.iterdir()) if archives.is_dir() else []
+        merged_before = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8")).get(
+            "merged_total")
+        _, out = w.chantier("close", "--batch", w.name)
+        lines = [ln for ln in out if ln.startswith("retro:")]
+        if text is not None and text.strip():
+            check(f"{label}: `close` alone names the batch's retro folder, and touches nothing",
+                  len(lines) == 1 and "5-archives/" in lines[0] and w.name in lines[0]
+                  and retro.is_file() and len(list(archives.iterdir())) == len(before), str(out))
+        else:
+            check(f"{label}: `close` prints `retro: no retro`",
+                  lines == ["retro: no retro"], str(out))
+        _, out = w.chantier("close", "--batch", w.name, "--yes")
+        new = [p for p in archives.iterdir() if p.name not in before]
+        if text is not None and text.strip():
+            check(f"{label}: `close --yes` makes a folder for the batch, holding only retro.md",
+                  len(new) == 1 and re.fullmatch(rf"\d{{6}}-\d{{4}}-{w.name}", new[0].name)
+                  and [p.name for p in new[0].iterdir()] == ["retro.md"]
+                  and (new[0] / "retro.md").read_text(encoding="utf-8") == text
+                  and any(ln.startswith("retro: kept in") and new[0].name in ln for ln in out),
+                  f"{new} {out}")
+            board = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
+            check(f"{label}: the board neither counts nor lists the batch's retro folder",
+                  board.get("merged_total") == merged_before
+                  and not any(new[0].name in str(r.get("path")) for r in board.get("merged", [])),
+                  str(board.get("merged_total")))
+            w.env.pop("CHANTIER_BATCH", None)
+            w.reset()
+            _, item2 = prepare_cr(w, f"After {label}")
+            w.start(str(item2), *FROM_AGENTS_MD)
+            check(f"{label}: the next CR gets the next number",
+                  w.batch()["crs"][0]["id"] == f"CR-{number + 1}",
+                  f"{w.batch()['crs'][0]['id']} after CR-{number}")
+        else:
+            check(f"{label}: nothing is created in 5-archives, and the empty file is gone",
+                  not new and not retro.exists() and "retro: no retro" in out, f"{new} {out}")
+        w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
 
 
 def failed_opening(w: World) -> None:
@@ -3544,10 +3637,15 @@ def external_surface(tmp: Path) -> None:
     chief.write_text(json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
+    (w.folder() / "retro.md").write_text("# Retro\n\n## Pause 1\n\n- one, fix one\n", encoding="utf-8")
     w.chantier("close", "--batch", w.name, "--yes")
     archives = list((w.state / "5-archives").glob("*-101-*"))
     check("`close` puts the merged CR in 5-archives with its delivery.md, the gate log staying off the surface's git",
           len(archives) == 1 and (archives[0] / "delivery.md").is_file(), str(archives))
+    check("`close` keeps the retro in the surface's CR archive, and the CR's archive in its PR "
+          "holds no retro.md",
+          len(archives) == 1 and (archives[0] / "retro.md").is_file()
+          and not any(f.endswith("retro.md") for f in tree), str(archives))
     surface_publishes(w, "after the close")
     w.env.pop("CHANTIER_BATCH", None)
 

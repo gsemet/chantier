@@ -336,6 +336,7 @@ Everything lives in the planning folder, `.agents/changes/` in your project or
 ├── STATUS.md, STATUS.json                 the index: live batch, backlog table
 ├── 4-batch/                             the one batch, until `close`; n counts all batches
 │   ├── batch.json, events.jsonl, brief.md, .lock   the batch's own files, local
+│   ├── retro.md                           the pauses' retro; `close` keeps it in the last merged CR's archive
 │   ├── STATUS.md, STATUS.json             the batch; once paused, its exit report
 │   ├── 1-pending/<number>-<slug>/         in the batch, not started
 │   ├── 2-actives/<number>-<slug>/         taken by a Driver: working, ready or blocked; named
@@ -389,7 +390,7 @@ cause, while anything still runs (a CR not merged, an open order, a stack agent,
 written in the last 5 minutes); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
 what goes (the batch's own files, the dropped CRs' worktrees and branches) and what moves to `5-archives`; if it cannot price it (no
 priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
-reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, deletes the batch's own files and removes the rest with git;
+reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, keeps the batch's retro (`retro.md`) in the archive of the last merged CR (or in a `5-archives` folder named for the batch when none merged), deletes the batch's other files and removes the rest with git;
 without a yes, everything stays. Close last: those files hold the exit report and the event log.
 
 ## Supported hosts

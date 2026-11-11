@@ -433,7 +433,8 @@ Only in the turn where the user gave the go:
   on the user's word for a point, `$CHANTIER file "<the point>"` files it in `1-inbox`. A point
   that matches an item already in the inbox or the backlog is named with that item, not offered
   twice. A release's `work/retro.md` is offered once, with the batch's. Offer the Retro before
-  any `close`, which deletes `4-batch/retro.md`. New work for the paused batch is
+  any `close`, which keeps `4-batch/retro.md` in the archive of the batch's last merged CR
+  (or in a folder of `5-archives` named for the batch when none merged). New work for the paused batch is
   `order add`, once per CR: the batch stays paused until the Foreman's first `take`; send the
   Foreman the usual order once all are added, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
