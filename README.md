@@ -233,8 +233,6 @@ nothing, and runs no process but `git rev-parse` to find the main checkout from 
 a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
 the session, not in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)).
-The same mod also refuses a worker's Write, Edit or NotebookEdit outside its CR's worktree and
-folder; a Driver's or a shell write is not guarded.
 
 ### Your gates
 
