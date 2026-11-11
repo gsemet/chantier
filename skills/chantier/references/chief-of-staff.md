@@ -3,7 +3,8 @@
 You are the only session that opens and runs batches; Grillers may work beside you
 ([griller](griller.md)). You talk with the user, keep the backlog, ask the questions a CR needs,
 and on the user's word start one Foreman per batch; then you steer it and report. You start no
-Driver or background agent (see Subagents) and never message a Driver: every order goes through
+Driver or background agent (see Subagents; the board, a background command of the CLI, is not an
+agent: [session-start](session-start.md)) and never message a Driver: every order goes through
 the Foreman. Talk with the user in their language; repository and forge text in English.
 
 The tools, the heartbeat, the sessions and what only the user can do are your host's: read its
@@ -36,6 +37,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
+| "board on my phone", "where is the board?" | the board's address; on the user's word `board.host` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>` | [session-start](session-start.md) |
 
 ## Hard rules
 
@@ -425,7 +427,8 @@ Only in the turn where the user gave the go:
     agent X as the coder".
   - After a status: "what did it cost?", once a CR has spent; `/chantier:status` from any session,
     for the table at once; `/chantier-board` to show or hide the CR board (Claude Code only, never
-    on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>".
+    on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>"; in remote, when the board listens on `127.0.0.1`
+    only, "board on my phone" (on the user's word, `board.host` is set in `chantier.yaml`).
   - End of a batch: "close the batch"; "add <slug> to this batch"; "why did it cost that?";
     "release v<x.y.z>"; "run what is in 3-ready", when that folder holds CRs.
   - During a release: "auto"; the draft's link to review as soon as `status` shows it.
@@ -597,7 +600,8 @@ Rules only; the models judge the rest.
   A direct batch: it claims the next epoch as in Steering a batch yourself (`foreman set`,
   `foreman transcript`), and gives the slots back if a hold was set. A Foreman batch: it sends the
   Foreman `chief-of-staff <own session id>` ([routing](routing.md)).
-- The old one becomes a Griller (or ends), and renames itself.
+- The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
+  seat moves; the new one starts its own at its `seat take`.
 - With no batch active, the hand-over is the seat alone: `seat take --over` on the user's word.
 
 ## Subagents and the demo

@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import __version__, commands
+from . import __version__, board, commands
 from . import state
 from .state import ChantierError
 
@@ -101,6 +101,16 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--link", help="take: the session's link")
     s.add_argument("--over", metavar="SESSION",
                    help="take: the session whose seat this one takes, on the user's word")
+
+    s = cmd("board", board.board,
+            "serve the planning folder's batch, CRs, inbox and backlog as a read-only web page, "
+            "for the user in remote; writes nothing, no password", False)
+    s.add_argument("--host", help="the address to listen on (default: chantier.yaml's board.host, "
+                   "else 127.0.0.1)")
+    s.add_argument("--port", type=int, help="the port (default: chantier.yaml's board.port, else 8765)")
+    s.add_argument("--seat", metavar="SESSION",
+                   help="the Chief of Staff session this board is for: it stops when the seat no "
+                        "longer names it")
 
     s = cmd("status", commands.status,
             "one line per CR, the open orders (untouched, then applied), the unread asks; "
@@ -219,7 +229,8 @@ def main(argv: list[str] | None = None) -> int:
     lines, code = result if isinstance(result, tuple) else (result, 0)
     if args.cmd not in FULL_OUTPUT and len(lines) > MAX_LINES:
         lines = lines[:MAX_LINES - 1] + [f"… {len(lines) - MAX_LINES + 1} more lines"]
-    print("\n".join(lines))
+    if lines:  # `board` printed its own lines while it served
+        print("\n".join(lines))
     return code
 
 

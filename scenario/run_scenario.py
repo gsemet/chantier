@@ -15,15 +15,22 @@ Exit 0 when every check passes; the transcript is written to scenario/results/<f
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
+import queue
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -817,6 +824,226 @@ def scenario(w: World) -> None:
     foreman_in_a_worktree(w)
     direct_batch(w)
     seat_handover(w)
+    remote_board(w)
+
+
+class BoardProc:
+    """A `chantier board` run in the background: its printed lines are read as they come."""
+
+    def __init__(self, w: World, *args, cwd=None):
+        self.p = subprocess.Popen([sys.executable, "-m", "chantier", *map(str, args)],
+                                  cwd=cwd or w.work, env=w.env, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, text=True, encoding="utf-8")
+        self.lines: "queue.Queue[str]" = queue.Queue()
+        threading.Thread(target=self._read, daemon=True).start()
+
+    def _read(self) -> None:
+        for line in self.p.stdout:
+            self.lines.put(line.rstrip("\r\n"))
+
+    def line(self, timeout: float = 20) -> str | None:
+        try:
+            return self.lines.get(timeout=timeout)
+        except queue.Empty:
+            return None
+
+    def stop(self) -> None:
+        if self.p.poll() is None:
+            self.p.terminate()
+            try:
+                self.p.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.p.kill()
+        for stream in (self.p.stdout, self.p.stderr):
+            if stream:
+                stream.close()
+
+
+def free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def fetch(port: int, path: str, method: str = "GET", host: str = "127.0.0.1") -> tuple[int, dict, str]:
+    """One request to a board, with no proxy: the status, the headers and the body."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    req = urllib.request.Request(f"http://{host}:{port}{path}", method=method,
+                                 data=b"x" if method == "POST" else None)
+    try:
+        with opener.open(req, timeout=10) as r:
+            return r.status, dict(r.headers), r.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        return e.code, dict(e.headers), e.read().decode("utf-8", errors="replace")
+
+
+def folder_state(root: Path) -> dict:
+    """Every file of a folder with its size and modification time: what a read-only run must keep."""
+    return {p.relative_to(root).as_posix(): (p.stat().st_size, p.stat().st_mtime_ns)
+            for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+def without_time(value):
+    """A board's view with the minutes a working CR has been silent left out: they tick."""
+    if isinstance(value, dict):
+        return {k: without_time(v) for k, v in value.items() if k != "silent_minutes"}
+    if isinstance(value, list):
+        return [without_time(v) for v in value]
+    return value
+
+
+def remote_board(w: World) -> None:
+    note("\n## 16c. The remote board: a read-only web view of the planning folder")
+    w.reset()
+    (w.state / "seat.json").unlink(missing_ok=True)
+    titles = ("Board working", "Board blocked", "Board queued <b>bold</b> title", "Board last")
+    items = [prepare_cr(w, t)[1] for t in titles]
+    prepare_cr(w, "Board backlog item", "P2")
+    _, ready = prepare_cr(w, "Board ready item")
+    w.chantier("triage", ready, "--ready")
+    w.chantier("file", "Board inbox item")
+    w.start(*items, "--direct", "--slots", 2, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("seat", "take", "s-1", "--env", "remote", "--title", "[remote] proj [Chief of Staff]",
+               "--link", "link-s1")
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
+    w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
+    one, two, three, four = (c["id"] for c in w.batch()["crs"])
+    for cr in (one, two):
+        w.chantier("take", cr, "--epoch", 1)
+        w.chantier("agents", "set", cr, f"agent-{cr}", "--epoch", 1)
+        start_driver(w, cr)
+    driver_round(w, one, "board1.py", "N = 1\n")
+    w.chantier("handback", two, "blocked", "question: which colour?")
+    w.chantier("status", "--refresh", "--epoch", 1)
+    own = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
+    index = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
+    before = folder_state(w.state)
+    porcelain = w.sh("git", "status", "--porcelain", "--", ".agents/changes")
+    port = free_port()
+    procs: list[BoardProc] = []
+
+    def board(*args, cwd=None) -> BoardProc:
+        procs.append(BoardProc(w, *args, cwd=cwd))
+        return procs[-1]
+
+    try:
+        # 1. the start line, no second line on a loopback address
+        first = board("board", "--host", "127.0.0.1", "--port", port, "--seat", "s-1")
+        line = first.line()
+        check("`board` on a loopback address prints its start line and nothing else",
+              line == f"board on http://127.0.0.1:{port}/ over {w.state.resolve().as_posix()}"
+              and first.line(1.5) is None, str(line))
+        # 2. the page
+        code, headers, page = fetch(port, "/")
+        labels = [c["label"] for c in own["crs"]]
+        check("`GET /` is HTML in UTF-8 with each CR's number and label as STATUS.json says it",
+              code == 200 and headers["Content-Type"] == "text/html; charset=utf-8"
+              and all(c["cr"] in page and html.escape(c["label"]) in page for c in own["crs"])
+              and len(labels) == 4, f"{code} {headers.get('Content-Type')}")
+        slugs = [r["item"] for r in index["backlog"]]
+        check("it holds the inbox, backlog and 3-ready items and escapes a title's markup",
+              all(r["item"] in page for r in index["backlog"]) and slugs
+              and {"3-ready", "inbox", "P2"} <= {r["priority"] for r in index["backlog"]}
+              and "<b>bold</b>" not in page and "&lt;b&gt;bold&lt;/b&gt;" in page,
+              str(slugs))
+        check("every response is not cached, not sniffed, and its policy allows no script",
+              headers["Cache-Control"] == "no-store" and headers["X-Content-Type-Options"] == "nosniff"
+              and "script" not in headers["Content-Security-Policy"].replace("default-src 'none'", "")
+              and "default-src 'none'" in headers["Content-Security-Policy"], str(headers))
+        # 3. the JSON
+        code, headers, body = fetch(port, "/api/status")
+        view = json.loads(body)
+        check("`GET /api/status` gives the index's view, plus the folder, the seat and `board`",
+              code == 200 and headers["Content-Type"] == "application/json; charset=utf-8"
+              and all(without_time(view[k]) == without_time(index[k])
+                      for k in ("batches", "backlog", "merged", "trashed"))
+              and view["planning_folder"] == w.state.resolve().as_posix()
+              and view["seat"] == "s-1" and view["board"] is True, body[:300])
+        # 4. the files
+        spec = (w.at(w.cr(one)["path"]) / "03-change-spec.md")
+        rel = spec.relative_to(w.state).as_posix()
+        code, _, text = fetch(port, "/file?p=" + urllib.parse.quote(rel))
+        check("`/file` gives a CR's specification as text", code == 200 and "Board working" in text, str(code))
+        outside = [urllib.parse.quote(p) for p in
+                   ("../AGENTS.md", "../../AGENTS.md", str(w.work / "AGENTS.md"), "nothing/here.md")]
+        check("`/file` answers 404 for a path outside the planning folder, an absolute one, a missing one",
+              all(fetch(port, "/file?p=" + p)[0] == 404 for p in outside)
+              and fetch(port, "/elsewhere")[0] == 404, str(outside))
+        check("`POST` answers 405", fetch(port, "/", "POST")[0] == 405
+              and fetch(port, "/", "HEAD")[0] == 200)
+        # 5. nothing written, so far
+        check("nothing was written in the planning folder, its files, sizes and times, nor its git status",
+              folder_state(w.state) == before
+              and w.sh("git", "status", "--porcelain", "--", ".agents/changes") == porcelain,
+              str(set(folder_state(w.state).items()) ^ set(before.items())))
+        # 6. a second board, a port held
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+                            str(port), "--seat", "s-1"], cwd=w.work, env=w.env, capture_output=True,
+                           text=True, encoding="utf-8", timeout=30)
+        check("a second board with the same address and seat says it is running and exits 0",
+              p.returncode == 0
+              and p.stdout.strip() == f"board already running at http://127.0.0.1:{port}/", p.stdout + p.stderr)
+        with socket.socket() as held:
+            held.bind(("127.0.0.1", 0))
+            held.listen()
+            busy = held.getsockname()[1]
+            p = subprocess.run([sys.executable, "-m", "chantier", "board", "--port", str(busy)],
+                               cwd=w.work, env=w.env, capture_output=True, text=True,
+                               encoding="utf-8", timeout=30)
+        check("a port held by another program exits 4 with one `board not started` line",
+              p.returncode == 4 and len(p.stderr.strip().splitlines()) == 1
+              and p.stderr.startswith("error: board not started: ") and not p.stdout.strip(), p.stderr)
+        # 7. the seat moves: the board stops, a new one starts
+        w.chantier("seat", "take", "s-2", "--over", "s-1")
+        fetch(port, "/")
+        try:
+            stopped = first.p.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            stopped = None
+        check("when the seat moves the board stops by itself, exit 0", stopped == 0, str(stopped))
+        second = board("board", "--host", "127.0.0.1", "--port", port, "--seat", "s-2")
+        check("a board for the new seat starts on the same port",
+              second.line() == f"board on http://127.0.0.1:{port}/ over {w.state.resolve().as_posix()}"
+              and json.loads(fetch(port, "/api/status")[2])["seat"] == "s-2")
+        after = folder_state(w.state)
+        after.pop("seat.json"), before.pop("seat.json")
+        check("serving to the end wrote nothing in the planning folder", after == before,
+              str(set(after.items()) ^ set(before.items())))
+        # 8. a wider address says so
+        wide = board("board", "--host", "0.0.0.0", "--port", free_port(), "--seat", "s-2")
+        head, warning = wide.line(), wide.line()
+        check("an address beyond this machine prints the second line",
+              (head or "").startswith("board on http://0.0.0.0:")
+              and (warning or "").startswith("board: listens beyond this machine (0.0.0.0")
+              and "no password" in (warning or ""), f"{head} / {warning}")
+        wide.stop()
+        # 9. chantier.yaml
+        yaml = w.work / "chantier.yaml"
+        other = free_port()
+        yaml.write_text(f"board:\n  host: 127.0.0.1\n  port: {other}\n", encoding="utf-8")
+        configured = board("board", "--seat", "s-2")
+        line = configured.line()
+        check("`board.port` of chantier.yaml sets the port of a board with no option",
+              line is not None and line.startswith(f"board on http://127.0.0.1:{other}/"), str(line))
+        configured.stop()
+        for bad, wrong in (("port: abc", "port"), ("color: red", "color")):
+            yaml.write_text(f"board:\n  host: 127.0.0.1\n  {bad}\n", encoding="utf-8")
+            code, out = w.chantier("playbook", expect=None)
+            problem = f"chantier.yaml:3: board: " in "\n".join(out) and wrong in "\n".join(out)
+            code_board, _ = w.chantier("board", "--port", free_port(), expect=None)
+            check(f"an invalid `board` ({bad}) is reported by `playbook` with its line, and the board "
+                  "refuses to start with it",
+                  code == 2 and problem and code_board == 2 and "chantier.yaml:3: board: " in w.last_stderr,
+                  f"{out} / {w.last_stderr}")
+        yaml.unlink()
+    finally:
+        for proc in procs:
+            proc.stop()
+        (w.work / "chantier.yaml").unlink(missing_ok=True)
+        w.env.pop("CHANTIER_BATCH", None)
+        w.chantier("seat", "leave", "s-2", expect=None)
+        w.reset()
 
 
 def seat_handover(w: World) -> None:
@@ -3723,6 +3950,21 @@ def external_surface(tmp: Path) -> None:
           and text.index("/code/AGENTS.md") < text.index("surface:") < text.index("/surface/AGENTS.md"),
           text)
     surface_publishes(w, "after the take")
+    # the remote board of one project: its own folder only, never the other project or the clone
+    port = free_port()
+    bp = BoardProc(w, "board", "--project", "demo", "--port", port, cwd=w.surface)
+    try:
+        start = bp.line()
+        check("`board` at a surface starts on the project's folder", bool(start) and start.startswith("board on ")
+              and "projects/demo/changes" in start.replace("\\", "/"), str(start))
+        code, _, body = fetch(port, "/")
+        check("the surface's board lists the project's CR", code == 200 and "Surface work" in body, body[:200])
+        for label, rel in (("the other project's folder", "../../other/changes/1-inbox"),
+                           ("the code clone", "../../../../code/app.py")):
+            code, _, _ = fetch(port, "/file?p=" + urllib.parse.quote(rel))
+            check(f"the surface's board refuses {label}", code == 404, str(code))
+    finally:
+        bp.stop()
     # the Driver's round: a change, the long gate, a PR without the archive, then with it
     w.chantier("round", cr, "--note", "edit surface.py")
     commit(w, cr, "surface.py", "SURFACE = True\n")

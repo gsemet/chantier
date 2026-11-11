@@ -243,6 +243,27 @@ The same mod starts an agent whose prompt holds a `writes:` line in its first fo
 its Write, Edit or NotebookEdit outside the folders named; a shell write is not guarded: the
 steering session reports what changed in the main checkout.
 
+### The remote board
+
+In remote there is no pane, so the Chief of Staff also starts a small web page, `chantier board`,
+that shows the same view: the batch with its CRs (state, round, cost, PR), the inbox, `3-ready`
+and the backlog, the last merged and trashed CRs, and each CR's files as text. It reloads
+itself every 30 seconds, is **read only** (to act, you talk to the Chief of Staff), writes no file
+and stops when its session leaves the seat. It listens on `127.0.0.1:8765` by default, so only the
+machine itself reaches it. To open it from your phone, set the address once in `chantier.yaml`
+(on your word, the Chief of Staff writes it):
+
+```yaml
+board:
+  host: 0.0.0.0   # or the machine's Tailscale address; default 127.0.0.1
+  port: 8765      # default 8765
+```
+
+Reach it over your private network: Tailscale (the tailnet's address) or your LAN (`0.0.0.0`
+listens on every network of the machine). **There is no password**: the Chief of Staff tells you
+the address and that fact when the board listens beyond the machine. You can also run it by hand:
+`chantier board --host <address> --port <n>`.
+
 ### Your gates
 
 Two checks guard every change, in any project. You declare them in your `AGENTS.md`.
@@ -296,7 +317,8 @@ prices:                    # a model chantier has no price for yet, in $/MTok
     output: 15
 ```
 
-Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
+The file's other keys are `prices` and `board` (where [the remote board](#the-remote-board) listens: `host`
+and `port`). Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier
 (`chantier playbook` shows the result); the agents pass it as printed. A host that cannot set a
 model when it starts an agent refuses a

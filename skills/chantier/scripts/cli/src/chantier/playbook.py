@@ -5,7 +5,7 @@ scalars, lists of scalars, comments); anything outside it is refused with its li
 model is turned into an exact identifier by the table below, and an unknown or ambiguous name
 is refused: the parent that starts an agent passes the value as printed, never one it read or
 completed itself. The CLI knows no role: the roles are the plugin's agent files, which the
-caller lists.
+caller lists. The file's other key, `board`, says where `chantier board` listens (`host`, `port`).
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from pathlib import Path
 FILE = "chantier.yaml"
 ROLE_KEYS = ("agent", "model", "skills", "tools")
 PRICE_NAMES = ("input", "cache_write_5m", "cache_write_1h", "cache_read", "output")
+BOARD_KEYS = ("host", "port")
 HOST_NAMES = {"claude": "Claude Code", "copilot": "Copilot"}
 HOST_FILES = {"claude": "claude-code", "copilot": "copilot"}
 
@@ -312,8 +313,11 @@ def load(path: Path, host: str, roles: list[str]) -> tuple[dict | None, list[str
         if key == "prices":
             prices = _prices(node, kline, bad)
             continue
+        if key == "board":
+            _board(node, kline, bad)
+            continue
         if key != "roles":
-            bad(kline, f'unknown key "{key}": the top-level keys are "roles" and "prices"')
+            bad(kline, f'unknown key "{key}": the top-level keys are "roles", "prices" and "board"')
             continue
         if node.kind != "map" or not node.value:
             bad(kline, '"roles" holds one entry per role: `<role>:` then its keys')
@@ -392,6 +396,48 @@ def _prices(node: Node, kline: int, bad) -> dict[str, dict]:
         if found:
             out[model] = found
     return out
+
+
+def _board(node: Node, kline: int, bad) -> dict:
+    """The `board` key: where `chantier board` listens. Both keys are optional."""
+    rec: dict = {}
+    if node.kind != "map" or not node.value:
+        bad(kline, f'"board" holds its keys: `host:` and `port:` ({", ".join(BOARD_KEYS)})')
+        return rec
+    for key, (line, value) in node.value.items():
+        if key not in BOARD_KEYS:
+            bad(line, f'board: unknown key "{key}": one of {", ".join(BOARD_KEYS)}')
+        elif value.kind != "scalar" or not value.value.strip() or re.search(r"\s", value.value):
+            bad(line, f'board: "{key}" is one {"address" if key == "host" else "integer"} '
+                      "with no whitespace")
+        elif key == "host":
+            rec["host"] = value.value
+        elif not re.fullmatch(r"[0-9]+", value.value) or not 1 <= int(value.value) <= 65535:
+            bad(line, f'board: "port" is an integer from 1 to 65535, found "{value.value}"')
+        else:
+            rec["port"] = int(value.value)
+    return rec
+
+
+def load_board(path: Path) -> tuple[dict, list[str]]:
+    """The `board` key alone, for `chantier board`: `({}, [])` when there is none, else its keys
+    or the problems found in it (the roles are `playbook`'s to judge, not the board's)."""
+    if not path.is_file():
+        return {}, []
+    try:
+        tree = parse(path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError) as e:
+        return {}, [f"{FILE}:1: cannot read the file as UTF-8: {e}"]
+    except YamlError as e:
+        return {}, [f"{FILE}:{e.line}: {e.message}"]
+    if tree.kind != "map":
+        return {}, [f"{FILE}:{tree.line}: the file is a mapping: `roles:` then one entry per role"]
+    problems: list[tuple[int, str]] = []
+    rec: dict = {}
+    if "board" in tree.value:
+        line, node = tree.value["board"]
+        rec = _board(node, line, lambda n, m: problems.append((n, m)))
+    return rec, [f"{FILE}:{n}: {m}" for n, m in sorted(problems)]
 
 
 def _role(host: str, role: str, node: Node, bad) -> dict:
