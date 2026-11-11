@@ -350,11 +350,15 @@ function minutesSince(iso: string | null, now: number): number | null {
 
 type Worker = { worktree: string; folder: string; cwd: string }
 
+// An allowlist: any other role (the Drivers, the Spec-writer, the Griller) stays unguarded.
+const WORKER_ROLES = ['investigator', 'coder', 'inspector', 'debugger', 'verifier', 'conflict-resolver']
+
 /** The worktree and CR folder a chantier worker's prompt names; null for any other prompt (a Driver's, a spec-writer's). */
 function workerPlace(prompt: unknown): { worktree: string; folder: string } | null {
   if (typeof prompt !== 'string') return null
   const lines = prompt.split(/\r?\n/)
-  if (!(lines[0] ?? '').startsWith('chantier ')) return null
+  const role = /^chantier (\S+) for /.exec(lines[0] ?? '')?.[1]
+  if (role === undefined || !WORKER_ROLES.includes(role)) return null
   const wt = lines.map(l => /^\s*worktree:\s*(.+?)(?:\s+branch\b.*)?$/.exec(l)).find(m => m !== null)
   const fo = lines.map(l => /^\s*folder:\s*(.+?)\s*\(work\/, evidence\/\)/.exec(l)).find(m => m !== null)
   if (!wt || !fo) return null

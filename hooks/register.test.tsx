@@ -756,10 +756,24 @@ test('the main session, a Driver and an agent with no chantier prompt are not gu
   mock.clock(on)
   world(on)
   spawning(on)
-  const driver = await spawn($, `chantier driver for CR-5 of batch b.\nslots: 2`)
-  const other = await spawn($, 'Fix the bug.')
-  for (const id of [undefined, driver.agentId, other.agentId, 'unknown']) {
+  const body = WORKER_PROMPT.split('\n').slice(1).join('\n')
+  const ids: (string | undefined)[] = [undefined, 'unknown']
+  for (const role of ['cr-driver', 'stack-driver', 'qa-driver', 'release-driver', 'spec-writer', 'griller']) {
+    ids.push((await spawn($, `chantier ${role} for CR-5 "T" of batch b.\n${body}\nslots: 2`)).agentId)
+  }
+  ids.push((await spawn($, 'Fix the bug.')).agentId)
+  for (const id of ids) {
     expect((await write($, id, 'Write', `${ROOT}/a.py`)).deny).toBeUndefined()
+  }
+})
+
+test('every worker role is guarded', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  spawning(on)
+  for (const role of ['investigator', 'coder', 'inspector', 'debugger', 'verifier', 'conflict-resolver']) {
+    const { agentId } = await spawn($, WORKER_PROMPT.replace('coder', role))
+    expect((await write($, agentId, 'Write', `${ROOT}/a.py`)).deny).toContain('refused:')
   }
 })
 

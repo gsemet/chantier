@@ -272,7 +272,8 @@ reload`) works everywhere, and is what a session without the mod has.
 ## A worker's writes stay in its CR
 
 The plugin's mod also hooks `agent.spawn` and `tool.call`. A spawn whose prompt starts with
-`chantier ` and holds a `worktree:` line is a worker: the mod records its agent id with that
+`chantier <role> for `, the role being investigator, coder, inspector, debugger, verifier or
+conflict-resolver (an allowlist), and holds a `worktree:` line is a worker: the mod records its agent id with that
 worktree and the `folder:` line's CR folder. A worker's Write, Edit or NotebookEdit outside
 both is refused, with a message naming the path and the two places allowed (a relative path is
 read against the spawn's `cwd`). It leaves alone the main session (the Chief of Staff, the
