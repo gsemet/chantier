@@ -1,0 +1,225 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1720 1308" width="1720" height="1308" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+  <title>What a Release driver does</title>
+  <desc>A Release driver runs a release as a CR, by the project's release procedure, and the owner stays out of the way. The night before, the CR drivers open the stack's pull requests as drafts. At time zero the owner starts merging the stack, six pull requests over about three hours, and the project's heavy CI runs on the default branch's head, about 22 minutes. Once the stack is merged, the Foreman (or the Chief of Staff in direct mode) starts the Release driver, which creates the release CR folder. The Chief of Staff proposes the version from what was merged, a patch for seven user-visible fixes, writes its latest Progress report as a source for the notes' captures, and the owner answers whether a release is worth it, yes, now; the Chief of Staff confirms the version. The Release driver checks that the heavy run is green on that exact commit before any version commit exists, writes the release notes and the announcement thread from the changelog or the commits, makes the version commit and opens the version pull request, whose body shows the rendered notes and thread separated by rules. The owner reviews the notes and the thread there and says publish, or auto; from that review to the publication the owner asks nothing. After release go, the steering session merges the version pull request. The version push run fans out into parallel jobs: static, static on Windows, visual, integration and stress, the last taking 22 minutes; then the tag, the package and its publication, and the pages are built. The Release driver watches the CI, checks the deploys, the tag, the forge release with its images, the package registry's version and the pages, then records release published, writes retro.md and hands back ready, and the CR is archived. The owner posts the announcement thread; an agent never does. If a heavy job turns red, which did not happen in the example, the Release driver writes fix-n.md and hands back, the Foreman starts a fix CR (at most three per release, under the user's fix grant, else the user's go), a CR driver codes it, the Foreman merges it under the grant, else the owner, and the Release driver starts a new attempt on the fresh base, from the first step, the heavy run again. A loop arrow goes from the archive back to the intake: the retro and the owner's remarks become process CRs, in the example two process pull requests the same day. In the example the Chief of Staff did the Release driver's work itself, in direct mode; the target is that the steering session starts a Release driver once the other CRs are merged and the owner has confirmed the version. In numbers: the first stack merge to published, about 4 h 20; the heavy run to published, 1 h 16; the version pull request open to merge, 14 minutes; the version push to the registry, 23 minutes; the owner, 4 messages; no fix CR, no red job, no retry; notes of 13 changes with three highlights.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c2410c"/></marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+    <marker id="arrow-grey" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#f8fafc"/>
+  <text x="24" y="48" font-size="28" font-weight="700" fill="#0f172a">🚚 What a Release driver does</text>
+  <text x="24" y="76" font-size="16.5" fill="#475569">From the owner's “release” to the archive, on a real patch release.</text>
+  <g font-size="14" fill="#334155">
+  <rect x="24" y="98" width="22" height="16" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="56" y="111" font-size="14" fill="#0f172a">👤 owner</text>
+  <rect x="140" y="98" width="22" height="16" rx="4" fill="#1e3a8a"/>
+  <text x="172" y="111" font-size="14" fill="#0f172a">🤵 Chief of Staff</text>
+  <rect x="318" y="98" width="22" height="16" rx="4" fill="#ea580c"/>
+  <text x="350" y="111" font-size="14" fill="#0f172a">👷 Foreman</text>
+  <rect x="450" y="98" width="22" height="16" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2"/>
+  <text x="482" y="111" font-size="14" fill="#0f172a">🚚 Release driver · 🚜 CR driver</text>
+  <rect x="742" y="98" width="22" height="16" rx="4" fill="#e2e8f0" stroke="#64748b" stroke-width="1.5"/>
+  <text x="774" y="111" font-size="14" fill="#0f172a">CI · forge</text>
+  <polygon points="861,96 871,106 861,116 851,106" fill="#dcfce7" stroke="#16a34a" stroke-width="2.2"/>
+  <text x="882" y="111" font-size="14" fill="#0f172a">owner touchpoint</text>
+  <rect x="1012" y="100" width="28" height="12" rx="3" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1044" y="111" font-size="14" fill="#0f172a">CI run</text>
+  <rect x="1110" y="98" width="22" height="16" rx="4" fill="#ffffff" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="1142" y="111" font-size="14" fill="#0f172a">not needed in the example</text>
+  </g>
+  <text x="24" y="160" font-size="14" font-weight="700" fill="#334155">Time since the owner's first merge</text>
+  <text x="24" y="180" font-size="14" fill="#475569">of the stack (relative)</text>
+  <line x1="330" y1="190" x2="1690.0" y2="190" stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="330" y1="184" x2="330" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="330" y="178" font-size="14" fill="#334155" text-anchor="middle">0</text>
+  <line x1="480" y1="184" x2="480" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="480" y="178" font-size="14" fill="#334155" text-anchor="middle">+30 min</text>
+  <line x1="630" y1="184" x2="630" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="630" y="178" font-size="14" fill="#334155" text-anchor="middle">+1 h</text>
+  <line x1="780" y1="184" x2="780" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="780" y="178" font-size="14" fill="#334155" text-anchor="middle">+1 h 30</text>
+  <line x1="930" y1="184" x2="930" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="930" y="178" font-size="14" fill="#334155" text-anchor="middle">+2 h</text>
+  <line x1="1080" y1="184" x2="1080" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="1080" y="178" font-size="14" fill="#334155" text-anchor="middle">+2 h 30</text>
+  <line x1="1230" y1="184" x2="1230" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="1230" y="178" font-size="14" fill="#334155" text-anchor="middle">+3 h</text>
+  <line x1="1380" y1="184" x2="1380" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="1380" y="178" font-size="14" fill="#334155" text-anchor="middle">+3 h 30</text>
+  <line x1="1530" y1="184" x2="1530" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="1530" y="178" font-size="14" fill="#334155" text-anchor="middle">+4 h</text>
+  <line x1="1680" y1="184" x2="1680" y2="196" stroke="#64748b" stroke-width="1.6"/>
+  <text x="1680" y="178" font-size="14" fill="#334155" text-anchor="middle">+4 h 30</text>
+  <rect x="24" y="205" width="1672" height="135" rx="10" fill="#eef2f7" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="36" y="277.0" font-size="14" font-weight="700" fill="#0f172a">👤 Owner</text>
+  <rect x="24" y="348" width="1672" height="152" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="36" y="420.0" font-size="14" font-weight="700" fill="#0f172a">🤵 Chief of Staff</text>
+  <text x="36" y="437.0" font-size="14" fill="#475569">(👷 Foreman, with one)</text>
+  <rect x="24" y="508" width="1672" height="194" rx="10" fill="#eef2f7" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="36" y="609.5" font-size="14" font-weight="700" fill="#0f172a">🚚 Release driver</text>
+  <rect x="24" y="710" width="1672" height="95" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="36" y="753.5" font-size="14" font-weight="700" fill="#0f172a">🚜 CR drivers</text>
+  <text x="36" y="770.5" font-size="14" fill="#475569">(fix CRs)</text>
+  <rect x="24" y="813" width="1672" height="187" rx="10" fill="#eef2f7" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="36" y="902.5" font-size="14" font-weight="700" fill="#0f172a">CI</text>
+  <text x="36" y="919.5" font-size="14" fill="#475569">(the project's heavy CI)</text>
+  <rect x="24" y="1008" width="1672" height="92" rx="10" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="36" y="1041.5" font-size="14" font-weight="700" fill="#0f172a">Forge and registry</text>
+  <text x="36" y="1058.5" font-size="14" fill="#475569">(tag, release, package</text>
+  <text x="36" y="1075.5" font-size="14" fill="#475569">registry, pages)</text>
+  <line x1="330" y1="205" x2="330" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="480" y1="205" x2="480" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="630" y1="205" x2="630" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="780" y1="205" x2="780" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="930" y1="205" x2="930" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="1080" y1="205" x2="1080" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="1230" y1="205" x2="1230" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="1380" y1="205" x2="1380" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="1530" y1="205" x2="1530" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <line x1="1680" y1="205" x2="1680" y2="1100" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="2 5"/>
+  <path d="M222,205 l10,14 l-10,14 l10,14 l-10,14 l10,14 l-10,14" fill="none" stroke="#94a3b8" stroke-width="0"/>
+  <path d="M270,190 l8,-9 l8,18 l8,-18 l8,18 l8,-9" fill="none" stroke="#64748b" stroke-width="2"/>
+  <text x="294" y="178" font-size="14" fill="#475569" text-anchor="middle">break</text>
+  <line x1="330" y1="272" x2="1230" y2="272" stroke="#16a34a" stroke-width="3"/>
+  <line x1="1230" y1="264" x2="1230" y2="280" stroke="#16a34a" stroke-width="3"/>
+  <polygon points="330,260 342,272 330,284 318,272" fill="#dcfce7" stroke="#16a34a" stroke-width="2.2"/>
+  <text x="350" y="242" font-size="14" fill="#0f172a">merges the stack</text>
+  <text x="350" y="260" font-size="14" fill="#475569">six PRs, over about 3 h</text>
+  <polygon points="1290,260 1302,272 1290,284 1278,272" fill="#dcfce7" stroke="#16a34a" stroke-width="2.2"/>
+  <text x="1270" y="242" font-size="14" fill="#0f172a" text-anchor="end">“is a release worth it?” → “yes, now”</text>
+  <text x="1270" y="260" font-size="14" fill="#475569" text-anchor="end">7 user-visible fixes → a patch</text>
+  <polygon points="1470,260 1482,272 1470,284 1458,272" fill="#dcfce7" stroke="#16a34a" stroke-width="2.2"/>
+  <text x="1450" y="302" font-size="14" fill="#0f172a" text-anchor="end">reviews the notes and the thread</text>
+  <text x="1450" y="320" font-size="14" fill="#0f172a" text-anchor="end">in the version PR, says “publish”</text>
+  <polygon points="1650,260 1662,272 1650,284 1638,272" fill="#dcfce7" stroke="#16a34a" stroke-width="2.2"/>
+  <text x="1630" y="242" font-size="14" fill="#0f172a" text-anchor="end">posts the announcement thread</text>
+  <text x="1630" y="260" font-size="14" fill="#475569" text-anchor="end">never an agent</text>
+  <path d="M1476,304 V312 H1615 V304" fill="none" stroke="#16a34a" stroke-width="2"/>
+  <text x="1545.5" y="332" font-size="14" fill="#166534" text-anchor="middle" font-weight="700">owner asked nothing</text>
+  <rect x="1250" y="358" width="140" height="40" rx="9" fill="#ea580c"/>
+  <text x="1320.0" y="374.0" font-size="14" fill="#ffffff" text-anchor="middle">👷 starts the</text>
+  <text x="1320.0" y="391.0" font-size="14" fill="#ffffff" text-anchor="middle">Release driver</text>
+  <rect x="1250" y="404" width="190" height="40" rx="9" fill="#1e3a8a"/>
+  <text x="1345.0" y="420.0" font-size="14" fill="#ffffff" text-anchor="middle">🤵 proposes the version,</text>
+  <text x="1345.0" y="437.0" font-size="14" fill="#ffffff" text-anchor="middle">order confirm</text>
+  <rect x="1250" y="450" width="200" height="40" rx="9" fill="#1e3a8a"/>
+  <text x="1350.0" y="466.0" font-size="14" fill="#ffffff" text-anchor="middle">🤵 report.md: latest Progress</text>
+  <text x="1350.0" y="483.0" font-size="14" fill="#ffffff" text-anchor="middle">report, source of captures</text>
+  <rect x="1455" y="358" width="190" height="40" rx="9" fill="#ea580c"/>
+  <text x="1550.0" y="374.0" font-size="14" fill="#ffffff" text-anchor="middle">👷 merges the version PR</text>
+  <text x="1550.0" y="391.0" font-size="14" fill="#ffffff" text-anchor="middle">after release go</text>
+  <rect x="1482" y="402" width="212" height="94" rx="9" fill="#fef2f2" stroke="#dc2626" stroke-width="1.8"/>
+  <text x="1588.0" y="420" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">📨 intake</text>
+  <text x="1588.0" y="437" font-size="14" fill="#0f172a" text-anchor="middle">retro and owner remarks</text>
+  <text x="1588.0" y="454" font-size="14" fill="#0f172a" text-anchor="middle">become process CRs</text>
+  <text x="1588.0" y="471" font-size="14" fill="#475569" text-anchor="middle">(in the example: two</text>
+  <text x="1588.0" y="488" font-size="14" fill="#475569" text-anchor="middle">process PRs the same day)</text>
+  <rect x="1250" y="518" width="152" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1326.0" y="542.5" font-size="14" fill="#0f172a" text-anchor="middle">release CR folder</text>
+  <rect x="1296" y="564" width="218" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1405.0" y="580.0" font-size="14" fill="#0f172a" text-anchor="middle">notes + thread</text>
+  <text x="1405.0" y="597.0" font-size="14" fill="#0f172a" text-anchor="middle">from the changelog or commits</text>
+  <rect x="1330" y="610" width="128" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1394.0" y="634.5" font-size="14" fill="#0f172a" text-anchor="middle">version commit</text>
+  <rect x="1436" y="518" width="92" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1482.0" y="542.5" font-size="14" fill="#0f172a" text-anchor="middle">version PR</text>
+  <rect x="1546" y="518" width="108" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1600.0" y="542.5" font-size="14" fill="#0f172a" text-anchor="middle">watch CI</text>
+  <rect x="1580" y="564" width="114" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1637.0" y="588.5" font-size="14" fill="#0f172a" text-anchor="middle">check deploys</text>
+  <rect x="1544" y="610" width="150" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1619.0" y="634.5" font-size="14" fill="#0f172a" text-anchor="middle">release published</text>
+  <rect x="1330" y="656" width="100" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1380.0" y="680.5" font-size="14" fill="#0f172a" text-anchor="middle">retro.md</text>
+  <rect x="1450" y="656" width="130" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1515.0" y="680.5" font-size="14" fill="#0f172a" text-anchor="middle">handback ready</text>
+  <rect x="1618" y="656" width="76" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8"/>
+  <text x="1656.0" y="680.5" font-size="14" fill="#0f172a" text-anchor="middle">archive</text>
+  <path d="M1320,558 V564" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1350,604 V610" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1458,630.0 H1522 V558" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1528,538.0 H1546" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1620,558 V564" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1660,604 V610" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1580,650 V653 H1380 V656" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1430,676.0 H1450" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1580,676.0 H1618" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1465,398 V518" fill="none" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <path d="M1694,676.0 H1708 V448 H1696" fill="none" stroke="#dc2626" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <rect x="360" y="825" width="124" height="22" rx="5" fill="#fef2f2" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="422" y="841" font-size="14" fill="#0f172a" text-anchor="middle">red heavy job</text>
+  <rect x="512" y="518" width="154" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="589.0" y="534.0" font-size="14" fill="#0f172a" text-anchor="middle">writes fix-&lt;n&gt;.md,</text>
+  <text x="589.0" y="551.0" font-size="14" fill="#0f172a" text-anchor="middle">hands back</text>
+  <rect x="692" y="418" width="200" height="60" rx="9" fill="#ea580c" stroke-dasharray="6 4"/>
+  <text x="792.0" y="435.5" font-size="14" fill="#ffffff" text-anchor="middle">👷 starts a fix CR,</text>
+  <text x="792.0" y="452.5" font-size="14" fill="#ffffff" text-anchor="middle">≤ 3 per release, fix grant,</text>
+  <text x="792.0" y="469.5" font-size="14" fill="#ffffff" text-anchor="middle">else your go</text>
+  <rect x="918" y="735" width="104" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="970.0" y="751.0" font-size="14" fill="#0f172a" text-anchor="middle">🚜 codes</text>
+  <text x="970.0" y="768.0" font-size="14" fill="#0f172a" text-anchor="middle">the fix CR</text>
+  <rect x="1070" y="358" width="168" height="40" rx="9" fill="#ea580c" stroke-dasharray="6 4"/>
+  <text x="1154.0" y="374.0" font-size="14" fill="#ffffff" text-anchor="middle">👷 merges it under the</text>
+  <text x="1154.0" y="391.0" font-size="14" fill="#ffffff" text-anchor="middle">grant, else the owner</text>
+  <rect x="1056" y="656" width="176" height="40" rx="9" fill="#ffffff" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="1144.0" y="672.0" font-size="14" fill="#0f172a" text-anchor="middle">new attempt, from the</text>
+  <text x="1144.0" y="689.0" font-size="14" fill="#0f172a" text-anchor="middle">first step (heavy run)</text>
+  <text x="540" y="622" font-size="14" fill="#475569">fix path (dashed):</text>
+  <text x="540" y="640" font-size="14" fill="#475569">not needed in the example</text>
+  <path d="M484,836 H498 V538 H512" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+  <path d="M666,538 H679 V448 H692" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+  <path d="M892,448 H905 V755 H918" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+  <path d="M1022,755 H1048 V378 H1070" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+  <path d="M1154,398 V656" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+  <path d="M1232,676 H1242 V538 H1250" fill="none" stroke="#c2410c" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+  <text x="244" y="740" font-size="14" fill="#475569">← the night before: the</text>
+  <text x="244" y="757" font-size="14" fill="#475569">stack's PRs opened as drafts</text>
+  <text x="244" y="774" font-size="14" fill="#475569">(compressed break)</text>
+  <rect x="1240" y="825" width="115" height="22" rx="5" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1297" y="841" font-size="14" fill="#0f172a" text-anchor="middle">about 22 min</text>
+  <text x="1234" y="841" font-size="14" fill="#0f172a" text-anchor="end">heavy run on the default branch's head, green before the version commit</text>
+  <rect x="1505" y="853" width="15" height="18" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1497" y="867" font-size="14" fill="#0f172a" text-anchor="end">static (3 min)</text>
+  <line x1="1502" y1="862" x2="1505" y2="862" stroke="#64748b" stroke-width="1.5"/>
+  <rect x="1505" y="877" width="20" height="18" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1497" y="891" font-size="14" fill="#0f172a" text-anchor="end">static on Windows (4 min)</text>
+  <line x1="1502" y1="886" x2="1505" y2="886" stroke="#64748b" stroke-width="1.5"/>
+  <rect x="1505" y="901" width="65" height="18" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1497" y="915" font-size="14" fill="#0f172a" text-anchor="end">visual (13 min)</text>
+  <line x1="1502" y1="910" x2="1505" y2="910" stroke="#64748b" stroke-width="1.5"/>
+  <rect x="1505" y="925" width="60" height="18" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1497" y="939" font-size="14" fill="#0f172a" text-anchor="end">integration (12 min)</text>
+  <line x1="1502" y1="934" x2="1505" y2="934" stroke="#64748b" stroke-width="1.5"/>
+  <rect x="1505" y="949" width="110" height="18" rx="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1497" y="963" font-size="14" fill="#0f172a" text-anchor="end">stress (22 min)</text>
+  <line x1="1502" y1="958" x2="1505" y2="958" stroke="#64748b" stroke-width="1.5"/>
+  <path d="M1502,862 V958" stroke="#64748b" stroke-width="1.5" fill="none"/>
+  <rect x="1615" y="977" width="74" height="20" rx="4" fill="#94a3b8" stroke="#475569" stroke-width="1.5"/>
+  <text x="1607" y="992" font-size="14" fill="#0f172a" text-anchor="end">tag, package and publish, pages</text>
+  <rect x="1170" y="1030" width="70" height="44" rx="9" fill="#e2e8f0" stroke="#64748b" stroke-width="1.8"/>
+  <text x="1205.0" y="1057" font-size="14" fill="#0f172a" text-anchor="middle">tag</text>
+  <rect x="1260" y="1030" width="196" height="44" rx="9" fill="#e2e8f0" stroke="#64748b" stroke-width="1.8"/>
+  <text x="1358.0" y="1057" font-size="14" fill="#0f172a" text-anchor="middle">forge release + images</text>
+  <rect x="1476" y="1030" width="148" height="44" rx="9" fill="#e2e8f0" stroke="#64748b" stroke-width="1.8"/>
+  <text x="1550.0" y="1057" font-size="14" fill="#0f172a" text-anchor="middle">registry version</text>
+  <rect x="1644" y="1030" width="50" height="44" rx="9" fill="#e2e8f0" stroke="#64748b" stroke-width="1.8"/>
+  <text x="1669.0" y="1057" font-size="14" fill="#0f172a" text-anchor="middle">pages</text>
+  <line x1="1205.0" y1="1018" x2="1669.0" y2="1018" stroke="#64748b" stroke-width="1.6"/>
+  <line x1="1205.0" y1="1018" x2="1205.0" y2="1030" stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow-grey)"/>
+  <line x1="1358.0" y1="1018" x2="1358.0" y2="1030" stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow-grey)"/>
+  <line x1="1550.0" y1="1018" x2="1550.0" y2="1030" stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow-grey)"/>
+  <line x1="1669.0" y1="1018" x2="1669.0" y2="1030" stroke="#64748b" stroke-width="1.6" marker-end="url(#arrow-grey)"/>
+  <line x1="1652" y1="997" x2="1652" y2="1018" stroke="#64748b" stroke-width="1.6"/>
+  <rect x="24" y="1122" width="1672" height="118" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="44" y="1148" font-size="16" font-weight="700" fill="#0f172a">In numbers</text>
+  <text x="44" y="1172" font-size="14" fill="#334155">first stack merge to published: about 4 h 20</text>
+  <text x="44" y="1192" font-size="14" fill="#334155">heavy run on the default branch to published: 1 h 16</text>
+  <text x="44" y="1212" font-size="14" fill="#334155">version PR open to merge: 14 min</text>
+  <text x="44" y="1232" font-size="14" fill="#334155">version push to registry: 23 min</text>
+  <text x="700" y="1172" font-size="14" fill="#334155">owner: 4 messages</text>
+  <text x="700" y="1192" font-size="14" fill="#334155">fix CRs 0 · red jobs 0 · retries 0</text>
+  <text x="700" y="1212" font-size="14" fill="#334155">notes: 13 changes, three highlights</text>
+  <text x="24" y="1264" font-size="14" fill="#475569">In the example the Chief of Staff did the Release driver's work itself, in direct mode.</text>
+  <text x="24" y="1284" font-size="14" fill="#475569">The target: once the other CRs are merged and the owner has confirmed the version, the steering session (the Foreman, or the Chief of Staff in direct mode) starts a Release driver.</text>
+</svg>
