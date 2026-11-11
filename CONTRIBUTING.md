@@ -121,10 +121,11 @@ tests stand in for the file system, the process and the session's folder with th
 - Tests check the structure (versions, manifests, agents, references, and a smoke run in a fresh
   repository) in a few seconds. They do not evaluate the batch workflow: run `just scenario`
   ([scenario/](scenario/README.md)) when you change it; CI runs it too, on Linux.
-- With real agents, the [eval campaigns](evals/README.md): `real` before a release,
-  `claude-smoke` after a change to a role or the flow, `claude-full` after a change to how a
-  batch handles failures, `copilot` for a change to Copilot's mechanics. Each run commits its
-  report.
+- With real agents, the [eval campaigns](evals/README.md): one real campaign with
+  one small CR after a change to a role or the flow, in the mode it touched (`real-foreman` or
+  `real-direct`); both before a release; `claude-planted` after a change to how a batch handles
+  failures; `copilot` for a change to Copilot's mechanics. Each run commits its report, with the
+  [scorecard](evals/SCORECARD.md) for the Claude campaigns.
 - `main` is protected: every change goes through a pull request, merged by rebase once CI
   (`just check` on Linux, macOS and Windows, and `just scenario` on Linux) is green.
 

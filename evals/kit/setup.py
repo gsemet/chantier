@@ -26,12 +26,11 @@ REVIEWS = {
     "style-review": ("chantier-eval-strict-reviewer", "the house style of the command line"),
 }
 CAMPAIGNS = {
-    "claude-smoke": {"host": "claude", "crs": ["done-unknown-id"], "reviews": ["docs-review"]},
-    "claude-full": {"host": "claude",
-                    "crs": ["add-priority", "done-unknown-id", "list-json", "delete-command",
-                            "export-csv", "stats-command", "release-v0-2-0", "version-option"],
-                    "reviews": ["docs-review", "style-review"], "contracts": True,
-                    "release": "RELEASING.md"},
+    "claude-planted": {"host": "claude",
+                       "crs": ["add-priority", "done-unknown-id", "list-json", "delete-command",
+                               "export-csv", "stats-command", "release-v0-2-0", "version-option"],
+                       "reviews": ["docs-review", "style-review"], "contracts": True,
+                       "release": "RELEASING.md"},
     "copilot": {"host": "copilot", "crs": ["done-unknown-id"], "reviews": []},
 }
 
