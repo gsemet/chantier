@@ -37,7 +37,10 @@ The CLI keeps the CR's record and tells you what is off.
   <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
   it removes at its end.
 - Rebase first, so the long gate passes on the head you push: `git fetch`, `git rebase <base>`;
-  a conflict is a `conflict-resolver`.
+  a conflict is a `conflict-resolver`. Never `git stash`: the stash is shared by every worktree,
+  so set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
+  stop only one you started, by its id. A command the host may refuse runs alone, never chained
+  with routine steps.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
   gate waits), stops at the first failure, keeps the log and records the pass at that head. One
@@ -85,7 +88,8 @@ The CLI keeps the CR's record and tells you what is off.
   between. Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
-  failure gets one re-run; the rest is a round, with a `debugger` first when the cause is not
+  failure gets one re-run, and a failure the CR does not touch that passes on its re-run is a
+  flake: a `note` names the test, the run and the symptom, for the Chief of Staff to file; the rest is a round, with a `debugger` first when the cause is not
   plain. Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit).
