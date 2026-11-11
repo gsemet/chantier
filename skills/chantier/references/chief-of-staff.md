@@ -469,8 +469,9 @@ Only in the turn where the user gave the go:
   Foreman has stopped waking, as it should. After a break, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
   reporting progress. An app restart stops every session: tell the user, and on "resume" run
-  preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch the
-  Driver of each CR still working from its recorded state; stop orphan processes with
+  preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch each
+  CR still working by the restart path (`agents set <cr> -`, `handoff`, `take <cr> --note
+  "resume: <cause>"`, a new Driver, `agents set <cr> <id>`); stop orphan processes with
   `$CHANTIER cancel`."
 - **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.

@@ -177,7 +177,8 @@ started.
   merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
   says which; `handback ready` is one when the worktree's head is not the one `ship` recorded,
   the tree is dirty, the remote branch is not at that head, or there is no passed long gate or
-  `VERIFIED` verdict at it; `gate` on a dirty tree is another), 3 stale Foreman epoch, 4 external
+  `VERIFIED` verdict at it; `gate` on a dirty tree is another; so are a `take` of a working CR
+  without `--note` and a `take` of a CR whose agent id is still recorded, working or blocked), 3 stale Foreman epoch, 4 external
   (git, a gate; a gate whose head moved during the run), 5 the budget (`take`, `round`) or the
   round limit (`round`). A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are
   one CR. Heads are the full 40-character SHA in the state and the events (7 characters only for

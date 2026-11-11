@@ -68,13 +68,18 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 ## Your means
 
 - `$CHANTIER status` (with `--refresh --epoch <n>` on a wake: it records your heartbeat and the
-  spend, and names the longest silent Driver); `handoff <cr>` and `log <cr>` for a CR's story.
+  spend, and gives one `activity` line per working CR, the stack driver and each open QA order
+  with an agent id: the age of its last event or session record, `gate running`, or `not
+  measured`; a CR with no agent recorded shows `no Driver recorded` in its row); `handoff <cr>`
+  and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
-  for the prompt ([concepts](concepts.md), "Starting an agent"). `take stack` for the stack
+  for the prompt ([concepts](concepts.md), "Starting an agent"). It is refused (exit 2) on a
+  working CR without `--note`, and on any CR whose agent id is still recorded: `agents set <cr> -`
+  first. `take stack` for the stack
   driver. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
   `team:` line): its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
-  when it ended without its hand-back).
+  when it ended, with its hand-back or without, before the CR's next `take`).
 - Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
   failed, goes to a new Driver on the escalation model that `playbook --batch` prints
   (`take <cr> --note "escalate: ..."`); you record it with `note` and give it one line in the
@@ -148,11 +153,35 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   answer>`. The Chief of Staff judges the push and may ask the user first: wait for its answer
   and pass nothing else meanwhile. A push the host refuses the Chief of Staff too is the user's,
   shown by it; the Driver hears `push refused <branch>: <exact text>` and hands back.
-- A Driver's task that ends without a hand-back: `handoff`, then a new Driver with `--note
-  "resume: …"`. A second silent end on one CR is `handback <cr> blocked driver ended twice`.
-  A Driver silent for over 90 minutes: `[foreman→driver <cr>] ping`; no `pong`, stop it. A
-  `pong` proves a Driver is alive, not that it moves: one with no new round, head or note for 3
-  hours gets `stop`.
+- **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
+  kind, and holds in a direct batch, whose Chief of Staff reads this card).
+  - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
+    shows no activity and no `gate running` for one full heartbeat interval (30 minutes). A line
+    `not measured` or a row `no Driver recorded` is read for what it says, never as activity. A
+    project's `AGENTS.md` ranks above this threshold.
+  - **Proof of death**, one of two: the host refuses a message to the agent because it no
+    longer exists (dead at once); or a `[foreman→driver <cr>] ping` to a suspect gets no `pong` by
+    the next wake.
+  - **A `pong` proves a Driver alive, not that it moves:** one with no new round, head or note for
+    3 hours gets `stop`.
+  - **After an app restart, at a new epoch:** Drivers are background children of the steering
+    session and die with it. When a new Foreman epoch is claimed, every `working` CR, the recorded
+    stack driver and every open QA order with an agent id is restarted at once, with no ping
+    round.
+  - **The restart path**, for every restart (a proven death, a new epoch, a silent end, a
+    `context:` hand-back), always starting by clearing the id: `agents set <cr> - --epoch <n>`,
+    `handoff <cr>`, `take <cr> --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set
+    <cr> <id> --epoch <n>`. No round is counted and no second slot is taken; the budget applies (a
+    refusal with exit 5 is a `budget` ask).
+  - **A hand-back `blocked context: …`** (the Driver's context ran out): restart a fresh Driver on
+    that CR before any queued CR (a blocked CR holds no slot, so it takes the next free one):
+    `agents set <cr> - --epoch <n>`, then `take <cr> --note "resume: context" --epoch <n>`, no
+    round, no ask. A second `context:` on the same CR with no new head, round or note since the
+    first is an ask: `question <cr> driver out of context twice`.
+  - **A silent end** (a task that ends with no hand-back) takes the restart path. A second silent
+    end on one CR is `handback <cr> blocked driver ended twice`. Only silent ends of the Driver
+    itself count: a death by the host (a new epoch, all Drivers lost at one wake) and a `context:`
+    hand-back do not.
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
   host's reference says (every 30 minutes, and who arms it). No wake ever arriving is a stop.
 - End the heartbeat, never your session (an idle session still receives an order), right after

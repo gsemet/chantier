@@ -122,8 +122,9 @@ def _parser() -> argparse.ArgumentParser:
             epoch=True)
     s.add_argument("--notes", action="store_true", help="each CR's last note")
     s.add_argument("--refresh", action="store_true",
-                   help="the silent Drivers and the spend (recorded); with --epoch, the "
-                        "Foreman's wake")
+                   help="the activity of each working CR (age of its last event or session "
+                        "record, `gate running`, `not measured`) and the spend (recorded); "
+                        "with --epoch, the Foreman's wake")
 
     s = cmd("asks", commands.asks, "the Foreman's asks still unread; with text, record one")
     s.add_argument("text", nargs="*", help="the Foreman's own ask")
@@ -138,7 +139,8 @@ def _parser() -> argparse.ArgumentParser:
             "a Driver takes the CR (or `stack`): the slot, then its facts",
             epoch=True)
     s.add_argument("cr", help="the CR, or `stack` for the stack driver")
-    s.add_argument("--note", help="why a ready or blocked CR goes back to a Driver")
+    s.add_argument("--note", help="why a ready or blocked CR goes back to a Driver, or a working CR "
+                        "restarts (needs `agents set <cr> -` first)")
 
     s = cmd("round", commands.round_, "count a round of the CR (exit 5 past the budget or the limit); its facts")
     s.add_argument("cr")
