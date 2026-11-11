@@ -16,14 +16,17 @@ after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: it
 output); keeps a raw log in a `*.log` file or `work/gates/`, never in a file that is published with
 the CR (reports and evidence are); never commits, pushes, rebases or merges unless its section says so; runs the
 project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
-`sleep` and no background shell; stops when blocked and says why; replies in at most ten
+`sleep` and no background shell; never runs `git stash` (the stash is shared by every
+worktree) and never stops a process by name or pattern (`pkill`, `killall`); stops when blocked and says why; replies in at most ten
 lines, or in the format its section names.
 
 ## Investigator
 
 Before the first round, map the code the CR touches and name the smallest change that meets
 the specification. Read only. Output: `investigation.md`: files and entry points, the smallest
-change, risks, the questions only the user can answer, and to end an evidence plan: the kind of
+change, risks (when the change alters the size or a value of an element other code measures
+from, every value derived from it, found by searching for the old value), the questions only the
+user can answer, and to end an evidence plan: the kind of
 change, what shows it before and after (a screenshot, a command's output, a log, a generated
 file), the technique, reusing the project's e2e or test environment when it has one, and what
 cannot be shown. A change with nothing to see says so in one line. What the project's rules say
