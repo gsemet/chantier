@@ -191,6 +191,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   wakes you, and its asks are recorded, so send no further line. While any Driver runs, the
   heartbeat goes on. An order's line or a `ping` starts a turn; if it leaves a Driver running,
   arm the heartbeat again. The host's reference says how it ends, and when it is not yours to end.
+  When you end it, record the stop first: `chantier status --stop-heartbeat --batch <batch> --epoch
+  <n>` (`pause` records it itself); `status` then says "heartbeat stopped", and your next wake
+  clears it.
 - **Next, after the title and before you claim your epoch:** `git rev-parse --git-dir
   --git-common-dir`. If they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
   `$CHANTIER asks "blocked <batch> this session is in a worktree (<path>); start the Foreman on

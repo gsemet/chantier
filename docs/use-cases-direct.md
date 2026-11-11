@@ -86,7 +86,8 @@ Control session with no Foreman to reuse) and in a Copilot agent session. `chant
 missing project instructions or an unauthenticated forge are refused, as in Foreman mode.
 
 The batch's heartbeat runs in your own session, as the Foreman's does in Foreman mode: it
-refreshes the status on a timer and stops at the pause. On Claude Code that a Driver reaches the
+refreshes the status on a timer and stops at the pause. "Heartbeat N min" in `chantier status` is
+the minutes since its last wake, and "heartbeat stopped" is a loop it ended on purpose. On Claude Code that a Driver reaches the
 Chief of Staff the way it reaches a Foreman is not yet proved until a direct batch runs.
 
 ## What it costs

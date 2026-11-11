@@ -749,7 +749,7 @@ def open_batch(args) -> list[str]:
             "foreman_transcripts": [], "foreman_claims": [],
             "steering": "direct" if args.direct else "foreman",
             "chief_transcript": chief, "chief_transcripts": [chief] if chief else [],
-            "stack_agent": None, "heartbeat": None,
+            "stack_agent": None, "heartbeat": None, "heartbeat_stopped": None,
             "settings": settings, "orders": [], "asks": [], "crs": [], "release": release}
     if team:  # a running batch keeps the playbook it opened with
         # the prices are read live at each pricing, not frozen with the roles
@@ -1290,21 +1290,39 @@ def _activity(repo: Repo, d: dict) -> list[str]:
     return out
 
 
-def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]:
+def _stop_heartbeat(repo: Repo, batch: str, epoch: int | None) -> list[str]:
+    """The steering session records that it ended its loop: `status` says "heartbeat stopped"
+    until the next wake (`status --refresh --epoch`) clears it."""
+    with Batch(repo, batch, actor="foreman") as b:
+        check_epoch(b, epoch)
+        if epoch is None:
+            raise ChantierError("--stop-heartbeat carries --epoch <n>: the steering session's own",
+                                EXIT_USAGE)
+        b.data["heartbeat_stopped"] = now()
+        b.log("heartbeat_stopped", None)
+    return [f"heartbeat stopped recorded for {batch}; the next `status --refresh --epoch "
+            f"{epoch}` clears it"]
+
+
+def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int, str | None]:
     """The facts the state cannot keep by itself: the activity of each working CR and the spend
-    the budget reads. With `--epoch`, it is the Foreman's wake, and the batch records it."""
+    the budget reads. With `--epoch`, it is the Foreman's wake, and the batch records it. The
+    last value is the heartbeat the wake overwrote (None: no wake, or the first one)."""
+    prev = None
     with changes_lock(repo):
         with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
             check_epoch(b, epoch)
             if epoch is not None:
+                prev = b.data.get("heartbeat")
                 b.data["heartbeat"] = now()
+                b.data["heartbeat_stopped"] = None
                 b.log("heartbeat", None)
             data = dict(b.data)
     lines = _activity(repo, data)
     try:
         rows = _cost_rows(repo, data, data["host"], _foreman_uuid(data))
     except ChantierError as e:
-        return lines + [f"spend not updated: {e}"], e.code
+        return lines + [f"spend not updated: {e}"], e.code, prev
     with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
         total = _record_costs(repo, b, rows)
         if b.data["status"] == "paused":  # the header and the Cost section read one figure
@@ -1312,7 +1330,7 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]
                 b.data, rows, _cost_groups(repo, b.id, rows, "cr"),
                 _cost_groups(repo, b.id, rows, "driver"), _chief_line(repo, b.data)) + [TO_DATE]
     floor = _sum_unpriced(rows)
-    return lines + [f"spent {usd_text(total, floor)}" + (f"; {not_priced(floor)}" if floor else "")], 0
+    return lines + [f"spent {usd_text(total, floor)}" + (f"; {not_priced(floor)}" if floor else "")], 0, prev
 
 
 def _record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
@@ -1335,16 +1353,28 @@ def _record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
 def status(args) -> tuple[list[str], int]:
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
-    extra, code = _refresh(repo, batch, args.epoch) if args.refresh else ([], 0)
+    extra, code, prev = [], 0, None
+    if args.stop_heartbeat:
+        extra = _stop_heartbeat(repo, batch, args.epoch)
+    elif args.refresh:
+        extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
     hb = age_minutes(d.get("heartbeat"))
+    if d.get("heartbeat_stopped"):
+        hb_text = "stopped"
+    elif hb is None:
+        hb_text = "never"
+    else:
+        hb_text = f"{hb:.0f} min"
+        if prev:  # a wake's own line: the gap since the wake before
+            hb_text += f" ({age_minutes(prev) - hb:.0f} min since the last)"
     view = SimpleNamespace(data=d)  # the rails read only `.data`
     n_live = len(held(view))
     queued = sum(1 for c in d["crs"] if c["status"] == "queued")
     lines = [f"{d['id']} {d['status']} steering {steering_word(d.get('steering'))} "
              f"shape {shape_word(d.get('mode'))} live {n_live}/{d['slots']} queued {queued} "
              f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
-             f"heartbeat {'never' if hb is None else f'{hb:.0f} min'}"
+             f"heartbeat {hb_text}"
              f" spent {spent_text(d)}"
              + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")
              + (" (paused, cost to date)" if d["status"] == "paused" else "")]
@@ -2111,7 +2141,7 @@ def pause(args) -> list[str]:
                                     _chief_line(repo, b.data)) + [TO_DATE]
         except ChantierError as e:  # never a false $0.00
             summary = [f"Spent: unknown ({e})"]
-        b.data.update(status="paused", paused=paused, summary=summary)
+        b.data.update(status="paused", paused=paused, summary=summary, heartbeat_stopped=paused)
         b.log("pause", None)
     return [f"paused {batch}: cost to date below", f"report: {b.dir / 'STATUS.md'}", *summary]
 

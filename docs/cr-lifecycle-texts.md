@@ -200,7 +200,7 @@ processing queue · starts every driver
 ```
 
 ```md
-⏱ /loop · chantier status --refresh
+⏱ /loop · chantier status --refresh --epoch <n>
 chantier open
 chantier take
 ```
