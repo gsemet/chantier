@@ -2,9 +2,11 @@
 
 An eval campaign runs chantier for real, with real agents, on a small fictional project
 (`tasks-cli`, a to-do list in Python), and checks that every agent got its role and behaved as
-its role says. The `real` campaign instead runs on this repository, with the real forge and CI;
-its [runbook](real/RUNBOOK.md) replaces the steps below. Each run is reported in
-[`results/`](results/), in words anyone can follow.
+its role says. The two real campaigns instead run on this repository, with the real forge and
+CI; their runbooks replace the steps below. Each run is reported in [`results/`](results/), in
+words anyone can follow, with the same [scorecard](SCORECARD.md): every rail marked `seen,
+right`, `seen, wrong` or `not seen`, plus the cost and the steering share, so two runs compare
+line by line. The three Claude campaigns use it; Copilot's report stays as it is.
 
 The scripted scenario (`just scenario`, no model, free) is not an eval: it tests the CLI's
 mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
@@ -13,19 +15,29 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
-| [real](real/RUNBOOK.md) | Real CRs on this repository, in parallel, with real `gh` and CI, up to draft PRs nobody merges | ~$7 for 4 CRs, 30 min | 2026-11-05: passed with findings, $4.42 for 2 CRs and a QA, [report](results/real-2026-11-05-v0-5-0.md) |
-| [claude-smoke](claude-smoke/RUNBOOK.md) | One CR end to end on Claude: every role, the project's own review step, simulated CI | ~$1, 15 min | 2026-11-04: passed with findings, $1.34, [report](results/claude-smoke-2026-11-04.md) |
-| [claude-full](claude-full/RUNBOOK.md) | Six CRs on Claude: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04: passed with findings, $8.41, [report](results/claude-full-2026-11-04-ask-only.md) |
+| [real-foreman](real-foreman/RUNBOOK.md) | Real small items from the inbox on this repository, in parallel, with real `gh` and CI, up to PRs nobody merges; a Foreman steers | ~$7 for 4 CRs, 30 min | 2026-11-05: passed with findings, $4.42 for 2 CRs and a QA, [report](results/real-2026-11-05-v0-5-0.md) |
+| [real-direct](real-direct/RUNBOOK.md) | The same, steered in direct mode by the Chief of Staff alone, with no Foreman | ~$7 for 4 CRs, 30 min | not run yet |
+| [claude-planted](claude-planted/RUNBOOK.md) | The planted failures a real run does not produce, on `tasks-cli`: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04 (as `claude-full`): passed with findings, $8.41, [report](results/claude-full-2026-11-04-ask-only.md) |
 | [copilot](copilot/RUNBOOK.md) | One CR on Copilot: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
+
+Past reports keep their names: a report named `real-*` is a `real-foreman` run, and one named
+`claude-smoke-*` or `claude-full-*` is a `claude-planted` run, from before the campaigns merged.
+New ones are `results/<campaign>-<date>.md`.
+
+Which campaign, after a change: a role or flow change runs one real campaign with one small CR,
+in the mode the change touched (`real-foreman` or `real-direct`). Before a release, both real
+campaigns. `claude-planted` runs after a change to how a batch handles failures.
 
 ## Run a campaign
 
 A campaign starts from a prompt in a chat. On Claude: a Code session of the Claude Desktop app,
 opened on this repository, with the branch to test checked out. On Copilot: a chat of the
-Copilot app, on this repository.
+Copilot app, on this repository. The prompt is in the campaign's runbook; the real campaigns
+start a Chief of Staff session (the `/chantier:chief-of-staff` command) and the user plays
+themselves. The steps below are those of the staged campaigns, `claude-planted` and `copilot`:
 
 ```text
-Run the chantier eval campaign claude-smoke: follow evals/claude-smoke/RUNBOOK.md.
+Run the chantier eval campaign claude-planted: follow evals/claude-planted/RUNBOOK.md.
 ```
 
 The session that gets the prompt is the operator: it plays both the Chief of Staff (with the
@@ -56,7 +68,7 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
 - **Every campaign stays under it**, for the Foreman and for the operator: at most 10 messages
   from the Foreman in the whole run, nobody types in its session, and at most 10 orders from the
   operator between two lines the user types. Only a campaign made to test long exchanges goes
-  past it, and its report says so. `claude-full` can still reach it: a long batch has many
+  past it, and its report says so. `claude-planted` can still reach it: a long batch has many
   `ask` lines.
 - **Past the limit,** the Foreman's messages are lost, but the host still tells the operator of
   each of its turns: follow these notes and `status`, and merge from there. Never send through
@@ -85,7 +97,10 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
    uv run --no-project python evals/kit/audit.py <workspace>
    ```
 
-   and `$CHANTIER cost --explain`, `$CHANTIER cost --by cr` from the workspace.
+   and `$CHANTIER cost --explain`, `$CHANTIER cost --by cr` from the workspace. The audit prints
+   the scorecard filled for the rows it checks; it exits 1 on a failed check. The real
+   campaigns run `audit.py <this checkout> --real` instead, as their runbooks say. Copilot's
+   audit has no rail ids and no scorecard yet.
 5. **Read the transcripts** for what a script cannot judge: did each agent do its role well
    (the Inspector's findings, the verifier's proof, the QA's scenarios, how a question was
    handled)?
@@ -112,8 +127,13 @@ Per CR, in plain words: what it asked, how it went, how it ended.
 ## Findings
 Numbered. Each: what went wrong or could be better, why it matters, what to do.
 
+## Scorecard
+The table of SCORECARD.md, each rail marked seen and right, seen and wrong (with the evidence),
+or not seen (never a failure); then the cost and the steering share, `not measured` when the CLI
+could not price them, never $0.00.
+
 ## Numbers
-Duration, cost (total, the breakdown, by CR), agents started, audit checks passed.
+Duration, cost (total, the breakdown, by CR), agents started, audit checks passed, the steering share.
 
 ## For maintainers
 chantier version and commit, failed audit checks verbatim, anything to reproduce.
@@ -126,7 +146,8 @@ chantier version and commit, failed audit checks verbatim, anything to reproduce
 | [`kit/setup.py`](kit/setup.py) | Stages a campaign's workspace: the project, a bare origin, the local forge, the CRs |
 | [`kit/forge.py`](kit/forge.py) | The local forge, called as `gh`: PRs, CI in a fresh clone, CI-only contract tests |
 | [`kit/merge.py`](kit/merge.py) | The user's merge |
-| [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, and one PASS/FAIL line per check |
+| [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--real` for the real campaigns |
+| [`SCORECARD.md`](SCORECARD.md) | The single list of rails, one row each: id, rail, source, where seen, how marked |
 | [`kit/fixture/`](kit/fixture/) | `tasks-cli`, with its `AGENTS.md` and two review agents of its own |
 | [`kit/crs/`](kit/crs/) | The prepared CRs (request, intent, answers, specification) |
 | [`kit/contracts/`](kit/contracts/) | Tests only the simulated CI runs |
