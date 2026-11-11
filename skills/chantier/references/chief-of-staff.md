@@ -308,6 +308,10 @@ Only in the turn where the user gave the go:
   `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`status-layout.md`).
   A 🔴 CR is a question for the user. Never read the Foreman's transcript.
 - **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `status-layout.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
+  Before each report, in both modes, run `git status --porcelain` on the main checkout (with a
+  planning surface, the clone `take` names) and name every path outside the planning folder that
+  you have not named yet: a write the worker guard cannot see, a shell's included. Revert
+  nothing and hold no CR back: another Driver or the user may be its cause.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from

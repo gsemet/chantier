@@ -271,6 +271,35 @@ visible). The mod is Claude Code's only (`CONTRIBUTING.md`): the automatic reloa
 where the plugin's mod loads. The manual reload ("chantier reload", or `/chantier:chantier
 reload`) works everywhere, and is what a session without the mod has.
 
+## A worker's writes stay in its CR
+
+The plugin's mod also hooks `agent.spawn` and `tool.call`. It reads one line of a spawn's
+prompt, `writes: <absolute folder>; <absolute folder>` (a worker's prompt holds it, with the
+worktree first and the CR folder second: `concepts.md`, "Starting an agent"). It knows no role
+and no card wording. A spawn whose prompt holds the line starts in the first folder (the mod
+rewrites the spawn's `cwd`, except on a resume), and the mod records its agent id with the
+folders. That agent's Write, Edit or NotebookEdit outside every folder is refused, with the one
+message `refused: <path> is outside the folders this agent may write in (<folder>; <folder>);
+write there`; a relative path is read against the folder it runs in. The arguments of a
+`tool.call` sit flat beside `tool` (`file_path` for Write and Edit, `notebook_path` for
+NotebookEdit), and the mod reads nothing else.
+
+A guard that cannot judge lets the call pass and says so in the CR board's note, for instance
+`Write guard: could not read the Write call of agent <id> (no file_path); the call passed.`: a
+missing, empty or non-text path, a `writes:` line it cannot read (an entry that is not an
+absolute path leaves the agent unguarded and unmoved), or anything its own code throws. A guard
+at fault costs nothing.
+
+Not guarded: the main session (the Chief of Staff, the Foreman), the Drivers, the Spec-writer,
+the Griller, the Demo explorer, any agent with no `writes:` line, and every shell write (Bash,
+PowerShell): after a report's `git status` of the main checkout, the steering session names
+what changed there (`chief-of-staff.md`). The host's scratchpad is outside the worktree: a
+worker writes in its work folder instead. Copilot has no such guard, and the line is inert there.
+
+The refusals are proved by `hooks/register.test.tsx`, run with `just mod`. The passes are proved
+by the next real eval's normal use, and the audit checks each worker's prompt holds the line:
+**Unproved** until that eval reports. No refusal is planted.
+
 ## Classes of session
 
 | Class | How it is known | Can start a session | Fit for a Foreman |

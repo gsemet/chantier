@@ -688,3 +688,150 @@ test('the reload hook never vetoes a compaction', async ($, on) => {
     expect(out.messages.length).toBeGreaterThan(0)
   }
 })
+
+// ---- the worker write guard ----
+
+const WT = '/work/repo.worktrees/b-CR-5'
+const FOLDER = `${ROOT}/.agents/changes/4-batch/2-actives/5-x`
+const WRITES = `writes: ${WT}; ${FOLDER}`
+const WORKER_PROMPT = `chantier coder for CR-5 of batch b.\n${WRITES}\nrounds: 1 of 3`
+const refusal = (path: string, folders = `${WT}; ${FOLDER}`) =>
+  `refused: ${path} is outside the folders this agent may write in (${folders}); write there`
+
+/** The engine beneath the hooks: a spawn that answers an id, a tool that answers; `seen` holds the spawns it got. */
+function guardWorld(on: On, answer: 'ok' | 'deny' = 'ok', broken = false) {
+  const seen: any[] = []
+  let k = 0
+  world(on).put(INDEX, index())
+  on('agent.spawn', (_, e: any) => {
+    seen.push(e)
+    return (answer === 'ok' ? { model: 'm', agentId: `agent-${++k}` } : { deny: 'no' }) as any
+  })
+  on('tool.call', () => ({ result: 'ok' }) as any)
+  // A stored record the guard cannot use (its folders are not a list), so that its own code throws.
+  if (broken) {
+    on('state.get', { key: 'workers' } as any, async (_, e: any, next: any) => JSON.parse(JSON.stringify(await next(e)).replace(/"folders":\[[^\]]*\]/g, '"folders":"broken"')))
+  }
+  return seen
+}
+const spawn = ($: Engine, prompt: string, extra = {}) => ($.agent.spawn as any)({ prompt, ...extra }) as Promise<{ agentId: string }>
+/** A tool.call as the engine sends it: the arguments flat beside `tool`. */
+const write = ($: Engine, agentId: string | undefined, tool: string, file_path: unknown) =>
+  ($.tool.call as any)({ tool, [tool === 'NotebookEdit' ? 'notebook_path' : 'file_path']: file_path, agentId }) as Promise<any>
+/** What the pane says now (the board's note included). */
+const said = async ($: Engine) => {
+  await skill($)
+  return words(await board($))
+}
+
+test('a guarded agent writes inside each folder of its line, with each tool', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  for (const tool of ['Write', 'Edit', 'NotebookEdit']) {
+    for (const p of [`${WT}/src/a.py`, `${FOLDER}/work/coder/04-result.md`]) {
+      expect((await write($, agentId, tool, p)).deny).toBeUndefined()
+    }
+  }
+})
+
+test('outside its folders is refused with the one message, for Write, Edit and NotebookEdit', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  for (const tool of ['Write', 'Edit', 'NotebookEdit']) {
+    expect((await write($, agentId, tool, `${ROOT}/src/a.py`)).deny).toBe(refusal(`${ROOT}/src/a.py`))
+  }
+})
+
+test('Bash is not guarded', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  const out = await ($.tool.call as any)({ tool: 'Bash', command: `echo x > ${ROOT}/a`, agentId })
+  expect(out.deny).toBeUndefined()
+})
+
+test('a Windows path in another drive case or with backslashes is judged the same', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, `x\nwrites: C:/Work/repo.worktrees/b-CR-5; C:\\Work\\notes`)
+  expect((await write($, agentId, 'Write', 'c:\\work\\repo.worktrees\\b-CR-5\\src\\a.py')).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', 'D:/work/notes/a.md')).deny).toContain('refused:')
+  expect((await write($, agentId, 'Write', 'C:\\work\\repo\\a.py')).deny).toContain('refused:')
+})
+
+test('the spawn reaches the engine in the first folder, and a relative path is read against it', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on)
+  const { agentId } = await spawn($, WORKER_PROMPT, { cwd: ROOT })
+  expect(seen[0].cwd).toBe(WT)
+  expect(seen[0].prompt).toBe(WORKER_PROMPT)
+  expect((await write($, agentId, 'Write', 'src/a.py')).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', '../outside.py')).deny).toContain('refused:')
+})
+
+test('a prompt with no writes line is not guarded and its folder is not rewritten', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on)
+  const body = `worktree: ${WT} branch chantier/b/cr-5\nfolder: ${FOLDER} (work/, evidence/)\nslots: 2`
+  const ids: (string | undefined)[] = [undefined, 'unknown']
+  for (const role of ['cr-driver', 'stack-driver', 'qa-driver', 'release-driver', 'spec-writer', 'griller', 'coder']) {
+    ids.push((await spawn($, `chantier ${role} for CR-5 "T" of batch b.\n${body}`, { cwd: ROOT })).agentId)
+  }
+  ids.push((await spawn($, 'Fix the bug.')).agentId)
+  for (const e of seen) expect(e.cwd).not.toBe(WT)
+  expect(seen[0].cwd).toBe(ROOT)
+  for (const id of ids) {
+    expect((await write($, id, 'Write', `${ROOT}/a.py`)).deny).toBeUndefined()
+  }
+})
+
+test('a role the hook never heard of is guarded by its line alone', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, `chantier future-role for CR-5.\n${WRITES}`)
+  expect((await write($, agentId, 'Write', `${ROOT}/a.py`)).deny).toContain('refused:')
+})
+
+test('a denied spawn records nothing', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'deny')
+  await spawn($, WORKER_PROMPT)
+  expect((await write($, 'agent-1', 'Write', `${ROOT}/a.py`)).deny).toBeUndefined()
+})
+
+test('the batch-10 regression: a call with no flat path passes, and the board says so', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  const out = await ($.tool.call as any)({ tool: 'Write', input: { file_path: `${WT}/a.py` }, agentId })
+  expect(out.deny).toBeUndefined()
+  expect(await said($)).toContain(`Write guard: could not read the Write call of agent ${agentId} (no file_path); the call passed.`)
+})
+
+test('an empty path passes with the note', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  expect((await write($, agentId, 'Edit', '')).deny).toBeUndefined()
+  expect(await said($)).toContain('could not read the Edit call')
+})
+
+test('a writes line with a relative entry leaves the agent unguarded and unmoved, with the note', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on)
+  const { agentId } = await spawn($, `x\nwrites: ${WT}; src/relative`, { cwd: ROOT })
+  expect(seen[0].cwd).toBe(ROOT)
+  expect((await write($, agentId, 'Write', `${ROOT}/a.py`)).deny).toBeUndefined()
+  expect(await said($)).toContain('could not read the writes: line')
+})
+
+test('a guard that throws lets the call pass, with the note', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on, 'ok', true)
+  const { agentId } = await spawn($, WORKER_PROMPT)
+  const out = await write($, agentId, 'Write', `${ROOT}/a.py`)
+  expect(out.deny).toBeUndefined()
+  expect(await said($)).toContain(`could not judge the Write call of agent ${agentId}`)
+})

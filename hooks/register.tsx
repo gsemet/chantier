@@ -50,6 +50,8 @@ const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape:
 // The chantier role skills this session loaded: a compaction of such a session gets the reload line.
 const roles = atom({ plugin: 'chantier', key: 'roles' } as const, [], { shape: 'roles-1' })
 const checkedAt = atom({ plugin: 'chantier', key: 'checkedAt' } as const, null, { shape: 'checked-1' })
+// The agents this session started with a `writes:` line (agent id -> where it may write and runs); it survives a reload.
+const workers = atom({ plugin: 'chantier', key: 'workers' } as const, {}, { shape: 'workers-2' })
 
 // ---- paths: plain strings, `/` everywhere, no Node ----
 
@@ -344,7 +346,108 @@ function minutesSince(iso: string | null, now: number): number | null {
   return Number.isNaN(t) ? null : Math.round((now - t) / 60000)
 }
 
+// ---- the worker write guard ----
+
+// An agent whose prompt holds a `writes: <absolute folder>; <absolute folder>` line starts in the
+// first folder and may Write, Edit or NotebookEdit only inside the folders named. The hook knows no
+// role and no card wording: it reads that one line. Bash and PowerShell are not guarded (the
+// steering session looks at the main checkout with `git status`). A guard that cannot judge lets the
+// call pass and says so in the board's note: a guard at fault must cost nothing.
+
+type Worker = { folders: string[]; cwd: string }
+
+const isAbsolute = (p: string) => /^([A-Za-z]:)?[\\/]/.test(p)
+
+/** The path field of a guarded tool's call (the arguments sit flat beside `tool`); null for any other tool. */
+const pathField = (tool: unknown) =>
+  tool === 'Write' || tool === 'Edit' ? 'file_path' : tool === 'NotebookEdit' ? 'notebook_path' : null
+
+/** The folders of the first `writes:` line of a prompt: null for no line, a reason when it cannot be read. */
+function writesOf(prompt: unknown): { folders: string[] } | { why: string } | null {
+  if (typeof prompt !== 'string') return null
+  const m = /^writes:(.*)$/m.exec(prompt)
+  if (m === null) return null
+  const folders = (m[1] ?? '').split(';').map(s => s.trim()).filter(s => s !== '')
+  if (folders.length === 0) return { why: 'no folder named' }
+  const relative = folders.find(f => !isAbsolute(f))
+  if (relative !== undefined) return { why: `${relative} is not an absolute path` }
+  return { folders }
+}
+
+/** The board's note: the last one stands. It never throws. */
+async function say($: Engine, text: string): Promise<void> {
+  try {
+    await update($, feed, f => ({ ...f, note: text }))
+  } catch {
+    // the guard must cost nothing
+  }
+}
+
 export const register: Register = on => {
+  // The record is made once the spawn resolves (a denied spawn leaves none). A resume is left
+  // alone: the engine ignores a rewrite there, and the record made at the first start still holds.
+  on('agent.spawn', async ($, e, next) => {
+    let place: Worker | null = null
+    let input = e
+    let note: string | null = null
+    try {
+      if (e.resume === undefined) {
+        const found = writesOf(e.prompt)
+        if (found !== null && 'why' in found) note = `Write guard: could not read the writes: line of an agent's prompt (${found.why}); the agent started unguarded and unmoved.`
+        else if (found !== null) {
+          const first = found.folders[0] as string
+          place = { folders: found.folders, cwd: slash(first) }
+          input = { ...e, cwd: first }
+        }
+      }
+    } catch (err) {
+      place = null
+      input = e
+      note = `Write guard: could not read an agent's prompt (${message(err)}); the agent started unguarded and unmoved.`
+    }
+    if (note !== null) await say($, note)
+    const result = await next(input)
+    if (place !== null) {
+      try {
+        const id = (result as { agentId?: unknown } | null)?.agentId
+        const worker = place
+        if (typeof id === 'string') await update($, workers, (m: Record<string, Worker>) => ({ ...m, [id]: worker }))
+      } catch (err) {
+        await say($, `Write guard: could not record an agent (${message(err)}); it is unguarded.`)
+      }
+    }
+    return result
+  })
+
+  on('tool.call', async ($, e, next) => {
+    const id = e.agentId
+    const tool = String(e.tool)
+    let refusal: string | null = null
+    let note: string | null = null
+    try {
+      const field = pathField(e.tool)
+      const known = field !== null && typeof id === 'string' ? ((await read($, workers)) as Record<string, Worker>)[id] : undefined
+      if (field !== null && known !== undefined) {
+        const raw = (e as Record<string, unknown>)[field]
+        if (typeof raw !== 'string' || raw.trim() === '') {
+          note = `Write guard: could not read the ${tool} call of agent ${String(id)} (no ${field}); the call passed.`
+        } else {
+          const path = slash(raw)
+          const abs = isAbsolute(path) ? path : known.cwd + '/' + path
+          if (!known.folders.some(f => isInside(f, abs))) {
+            refusal = `refused: ${path} is outside the folders this agent may write in (${known.folders.join('; ')}); write there`
+          }
+        }
+      }
+    } catch (err) {
+      refusal = null
+      note = `Write guard: could not judge the ${tool} call of agent ${String(id)} (${message(err)}); the call passed.`
+    }
+    if (refusal !== null) return { deny: refusal }
+    if (note !== null) await say($, note)
+    return next(e)
+  })
+
   // A session that loads the chantier skill (the router) or the chief-of-staff skill gets the
   // pane, a griller does not; the prompt is returned unchanged.
   on('skill.prompt', async ($, e, next) => {

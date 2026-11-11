@@ -155,6 +155,9 @@ def claude_checks(data: dict, uuids: list, projects: Path, check) -> None:
                 (a.parent is not None and a.parent.role in DRIVERS)
             check(parent_ok, f"{a.id[:10]} ({a.role}) was started by "
                              f"{'the Foreman' if a.role in DRIVERS else 'a Driver'}")
+        if a.role in WORKERS:
+            check(re.search(r"^writes:", a.prompt, re.M) is not None,
+                  f"{a.id[:10]} ({a.role}) prompt holds a `writes:` line (the plugin guards its writes)")
         if a.role in WORKERS | reviews:
             commits = [c for c in a.bash() if GIT_WRITES.search(c)]
             check(not commits or a.role == "conflict-resolver",

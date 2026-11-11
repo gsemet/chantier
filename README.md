@@ -239,6 +239,9 @@ nothing, and runs no process but `git rev-parse` to find the main checkout from 
 a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
 the session, not in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)).
+The same mod starts an agent whose prompt holds a `writes:` line in its first folder and refuses
+its Write, Edit or NotebookEdit outside the folders named; a shell write is not guarded: the
+steering session reports what changed in the main checkout.
 
 ### Your gates
 

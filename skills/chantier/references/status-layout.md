@@ -54,6 +54,8 @@ When a CR is chained (queued after another by the Foreman's decision, with no re
 
 When you ran a Driver's refused force push since the last report, your next report has one line: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
 
+When you named a trace in the main checkout since the last report (`chief-of-staff.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.
+
 On the Foreman's `ready` that is the last of a stack, when no CR of the batch is working, end
 the Progress report with the offer of a demo of what the stack delivers.
 

@@ -138,6 +138,8 @@ declare module 'claude-code' {
       roles: Shaped<string[]>
       /** The time of the last check, drawn as the age of the read. */
       checkedAt: Shaped<number | null>
+      /** The agents started with a `writes:` line: agent id -> the folders it may write in and the folder it runs in. */
+      workers: Shaped<Record<string, { folders: string[]; cwd: string }>>
     }
   }
 }
