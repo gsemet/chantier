@@ -146,7 +146,7 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
    just release          # patch; or `just release minor`, `just release major`
    ```
 
-3. Push the branch and open the pull request. The user reviews the release folder in it. Merge it
+3. Push the branch and open the pull request. The user reviews the release folder in the PR's body and its files. Merge it
    by rebase once CI is green.
 4. Tag the merged commit on `main` and push the tag:
 
