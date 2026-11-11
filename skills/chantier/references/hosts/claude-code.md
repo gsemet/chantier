@@ -34,6 +34,8 @@ Each behaviour carries a mark:
 | Models at an agent's start (capability, start value) | capability: yes. Start value: an alias, which the CLI's table maps from the exact identifier: `claude-opus-5-5` (Claude Opus 5.5) is `opus`, `claude-sonnet-5-5` (Claude Sonnet 5.5) is `sonnet`, `claude-haiku-5-5` (Claude Haiku 5.5) is `haiku`. The full identifier is not recorded as accepted | proved 2026-11-10: a trial started a plugin agent through `Agent` with `model: haiku`, and its transcript showed `claude-haiku-5-5`; the other two aliases are the same mechanism, unproved one by one |
 | Skills and tools of a session (what the Chief of Staff compares a role's needs with) | not recorded: how a session lists its skills and its tools, and whether a subagent sees what the session sees | unproved; trial: a `chantier.yaml` naming one skill that is installed and one that is not; the Chief of Staff names only the second; and a subagent started with a need says whether it has it |
 | Preflight P2 | `mcp__ccd_session__start_session` loads | proved, same |
+| Run the board | `Bash` with `run_in_background: true` and the command `$CHANTIER board --seat <id>`; its first lines are read from the background task's output; stopped with the host's stop of a background shell | unproved; trial: a Chief of Staff starts it, `/api/status` answers from the machine, and the output shows the start line |
+| The board when the session ends | whether the host ends a background command when the session ends (closed, or stopped) | unproved; trial: start the board, end the session, ask `/api/status`. Until proved, the board stops when the seat moves (the CLI), which does not depend on it |
 
 "Proved, same" means seen in use in every batch since v0.3, with no dated trial kept: re-prove a
 line by a trial before relying on it for something new.
@@ -366,6 +368,7 @@ otherwise.
 | `/permissions`, `/config` | no: the app's own settings | no | yes | terminal dialogs; unproved |
 | Restart the app, `/reload-plugins`, open in an editor | yes (terminal: restart the CLI) | no | restart the CLI | the machine; unproved |
 | `/chantier-board` | yes | the pane does not show in a Remote Control view (`README.md`, the CR board) | yes | documented in the README |
+| The remote board (`chantier board`) | yes | yes, when `board.host` is an address the phone reaches (Tailscale or the LAN) | yes | unproved; trial: open the board from the phone over Tailscale during a batch |
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |
 | Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |

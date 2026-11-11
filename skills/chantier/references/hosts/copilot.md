@@ -26,6 +26,8 @@ fact.
 | Stop a Driver | `write_agent` `[foreman→driver <cr>] stop` |
 | Agent ids of the project | a file in `.github/agents/` or `~/.copilot/agents/` |
 | Preflight P2 | `create_session` and `send_message` load |
+| Run the board | the host's background shell with the command `$CHANTIER board --seat <id>`, its first lines read from the output, stopped with the host's stop of a background shell (unproved; trial: a Chief of Staff starts it, `/api/status` answers from the machine, the output shows the start line). If the host has no background command, the Chief of Staff gives the one line of `session-start.md` and goes on: no workaround |
+| The board when the session ends | whether the host ends a background command when the session ends (unproved; trial: start the board, end the session, ask `/api/status`). Until proved, the board stops when the seat moves (the CLI) |
 | The skills | the same four, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `direct`, or the argument `reload`, is not known (unproved) |
 | Set a session's own title (the Chief of Staff, a Griller) | when the host offers a way; else nothing (unproved) |
 | List the sessions; is the seat's session alive | not known: the seat's session always "looks stopped" to a new session, and the "looks stopped" line of `session-start.md` is asked (unproved) |

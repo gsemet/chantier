@@ -6,7 +6,9 @@ the user's word on an irreversible action), the means to synchronise (orders, as
 long gate's lock) and a few tools (the project's rules, the cost). The agents do the work, git
 and the forge included; the CLI names what they create (branches, worktrees), keeps the record,
 and runs no git command that changes anything: it reads the head, the remote and the status to
-say what is off, and no forge command at all.
+say what is off, and no forge command at all. One named exception, in `board.py`: `chantier
+board`, a read-only web view of this record for the user in remote; it writes no file, uses the
+standard library only and knows no role.
 """
 from __future__ import annotations
 

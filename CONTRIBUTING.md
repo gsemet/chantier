@@ -34,7 +34,9 @@ chantier is four things in one repository:
    (each with a `work/` folder while it runs), and the batch's own files at the root of
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
-   write the prompts. A new CLI tool comes only from measured token-costly behaviour of the
+   write the prompts. One named exception among the tools: `board`, a read-only web view of this
+   record for the user in remote (it writes no file, uses the standard library only and knows no
+   role; more is another CR). A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and
    [`.claude-plugin/`](.claude-plugin/) (Claude Code) ship the skill
@@ -53,7 +55,8 @@ chantier is four things in one repository:
    NotebookEdit outside the folders named; a shell write is not guarded); `types/index.d.ts`
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
-   `STATUS.json` (`schema` 3) as `status.py` writes it: change both together.
+   `STATUS.json` (`schema` 3) as `status.py` writes it: change both together. The CR board pane
+   and `chantier board` show the same view (`schema` 3) and change with `status.py`.
 
 The design rule that shapes everything: **no fallback.** When a tool, a host feature, a model
 or an agent is not exactly available, chantier stops and says so; it never picks a look-alike.

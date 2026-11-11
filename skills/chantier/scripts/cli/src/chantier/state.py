@@ -282,12 +282,13 @@ class Repo:
 
     @classmethod
     def find(cls, cwd: Path | None = None, convert: bool = True,
-             project: str | None = None) -> "Repo":
+             project: str | None = None, readonly: bool = False) -> "Repo":
         """`--project` names the project's folder in a planning surface (external mode); else a
         git root that is a surface, with one project, is taken as that. Otherwise in-project.
         `CHANTIER_ROOT` wins over the working folder, so agents elsewhere reach the same state.
         The first command run after an update converts a tree of the old layout, once, before
-        anything else (`convert_old_tree`); `init` converts after its own checks."""
+        anything else (`convert_old_tree`); `init` converts after its own checks.
+        `readonly` (used by `board` only) skips both writes: no `.gitignore`, no conversion."""
         cwd = Path(cwd or os.environ.get("CHANTIER_ROOT") or os.getcwd())
         project = project or PROJECT
         if project:
@@ -305,6 +306,8 @@ class Repo:
                 repo = cls._external(cwd, str(git_dir.parent / "projects" / names[0]))
             else:
                 repo = cls(git_dir.parent, git_dir, json.loads(json.dumps(DEFAULT_CONFIG)))
+        if readonly:
+            return repo
         repo.ensure_gitignore()
         if convert:
             from .lifecycle import convert_old_tree  # avoid an import cycle

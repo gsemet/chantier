@@ -41,7 +41,7 @@ title, link). Then, by the skill invoked:
 
 | Invoked | Seat | Role and message |
 | --- | --- | --- |
-| `chief-of-staff` | none, or this session's own | Chief of Staff: `seat take`, rename, the introduction; no question |
+| `chief-of-staff` | none, or this session's own | Chief of Staff: `seat take`, rename, **start the board**, the introduction; no question |
 | `chief-of-staff` | another session, alive (the host says so), **no batch active** | Griller: the introduction ending with the message below and its one option, "become chief of staff" |
 | `chief-of-staff` | another session, alive, **a batch active** | ask once: the hand-over to this session ([chief-of-staff](chief-of-staff.md), "Handing the seat over") or only grilling CRs |
 | `chief-of-staff` | another session the host cannot tell, or that looks stopped | one line: "the Chief of Staff at <link> looks stopped; shall I take its place?"; on yes `seat take --over <id>`; never alone |
@@ -57,6 +57,23 @@ over.
 "A batch active": a batch that is not closed, running or paused. "Alive": the host's reference
 says how to tell; where it cannot, the seat's session "looks stopped". No activity date is ever
 taken as proof of life.
+
+**The board.** Right after `seat take` (and after every later `seat take` of this session,
+including a take-over and a hand-over received), the Chief of Staff runs `$CHANTIER board --seat
+<own session id>` in the background, by its host's means (the host's reference, "Run the board"),
+and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
+never start it.
+
+- `board on ...` alone (a loopback address): nothing to say.
+- With `board: listens beyond this machine ...`: one line to the user, once in the session, in
+  their language: the board's address (with the port) and that it has no password.
+- `board already running at ...`: nothing to say, or the same line as above if it listens beyond
+  the machine and the user was not told yet in this session.
+- `error: board not started: ...`, or a host that cannot run a background command: one line with
+  the reason, then go on. The board never blocks the session, a preflight, a batch or a report.
+
+A reload starts nothing: the board survives a compaction, and at the next skill invocation the
+`board` run is a reuse.
 
 **The user's word changes the role at any time, both ways:**
 
