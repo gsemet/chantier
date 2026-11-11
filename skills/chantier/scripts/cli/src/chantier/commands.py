@@ -1225,22 +1225,82 @@ def _order_done(repo: Repo, args) -> list[str]:
 
 # ---- state for every role ---------------------------------------------------------------------
 
+def _activity(repo: Repo, d: dict) -> list[str]:
+    """One line per working CR (and the stack driver, and each open QA order with an agent id):
+    the age of its last activity, the most recent of its last event in the log and the last write
+    of the session records that are its own. The CLI states the age and never judges it.
+    A host with no per-agent record (Copilot) gives the session's age, said so. A record that
+    cannot be read is `not measured`. A long gate the lock names for the CR is `gate running`."""
+    events = read_events(repo.batch_dir(d["id"]))
+    last: dict[str, float] = {}  # key (a CR, `stack`, an order) -> minutes since its last event
+    owner: dict[str, str] = {}  # agent id -> key, from the `agent` events
+    for e in events:
+        age = age_minutes(e.get("t"))
+        if e.get("cr") and age is not None:
+            last[e["cr"]] = min(age, last.get(e["cr"], age))
+        if e.get("kind") == "agent" and e.get("cr") and e.get("agent"):
+            owner[e["agent"]] = e["cr"]
+    targets = [(c["id"], c["id"]) for c in d["crs"] if c["status"] in LIVE]
+    if d.get("stack_agent"):
+        targets.append(("stack", "stack"))
+    targets += [(o["id"], f"{o['id']} qa") for o in d.get("orders", [])
+                if o["kind"] == "qa" and not o["done"] and o.get("agent")]
+    if not targets:
+        return []
+    try:
+        sessions = _foreman_uuid(d)
+    except ChantierError:
+        sessions = []
+    copilot = d.get("host") == "copilot"
+    session_min: float | None = None
+    records: dict[str, tuple[str | None, float | None]] = {}
+    if copilot:
+        ages = [a for _, a in costs.idle_seconds(repo.session_root, "copilot", sessions)
+                if a is not None]
+        session_min = min(ages) / 60 if ages else None
+    else:
+        records = costs.agent_records(repo.session_root, sessions)
+
+    def key_of(agent: str | None, hops: int = 0) -> str | None:
+        if agent is None or hops > 5:
+            return None
+        return owner.get(agent) or key_of(records.get(agent, (None, None))[0], hops + 1)
+
+    holder = _lock_holder(repo).split()
+    out = []
+    for key, label in targets:
+        word = f"activity {label}"
+        if holder and holder[0] == key:
+            out.append(f"{word} gate running")
+            continue
+        ages = [last[key]] if key in last else []
+        if copilot:
+            if session_min is None:
+                out.append(f"{word} not measured")
+                continue
+            out.append(f"{word} {min(ages + [session_min]):.0f} min (session-level)")
+            continue
+        mine = [i for i in records if key_of(i) == key]
+        if any(v == key for v in owner.values()) and not any(records[i][1] is not None
+                                                             for i in mine):
+            out.append(f"{word} not measured")  # a Driver is recorded, its record cannot be read
+            continue
+        ages += [records[i][1] / 60 for i in mine if records[i][1] is not None]
+        out.append(f"{word} {min(ages):.0f} min" if ages else f"{word} not measured")
+    return out
+
+
 def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int]:
-    """The facts the state cannot keep by itself: the longest silent Driver and the spend the
-    budget reads. With `--epoch`, it is the Foreman's wake, and the batch records it."""
-    lines = []
+    """The facts the state cannot keep by itself: the activity of each working CR and the spend
+    the budget reads. With `--epoch`, it is the Foreman's wake, and the batch records it."""
     with changes_lock(repo):
         with Batch(repo, batch, actor="foreman" if epoch is not None else "chief-of-staff") as b:
             check_epoch(b, epoch)
             if epoch is not None:
                 b.data["heartbeat"] = now()
                 b.log("heartbeat", None)
-            silent = [(c["id"], a) for c in live(b)
-                      if (a := age_minutes(c.get("updated"))) is not None]
-            if silent:
-                cr, age = max(silent, key=lambda x: x[1])
-                lines.append(f"longest silent Driver {cr} {age:.0f} min")
             data = dict(b.data)
+    lines = _activity(repo, data)
     try:
         rows = _cost_rows(repo, data, data["host"], _foreman_uuid(data))
     except ChantierError as e:
@@ -1298,6 +1358,8 @@ def status(args) -> tuple[list[str], int]:
         waits = waits_all(d["crs"], c, d["mode"]) if c["status"] == "queued" else []
         if waits:
             row += f" | waits for {', '.join(waits)}"
+        if c["status"] == "working" and not c.get("agent"):
+            row += " | no Driver recorded"
         if c["status"] == "blocked" and c.get("blocked_reason"):
             row += f" | blocked: {c['blocked_reason'][:70]}"
         elif c.get("notes") and (args.notes or c["status"] == "queued"):
@@ -1529,10 +1591,11 @@ def take(args) -> list[str]:
             c = b.cr(args.cr)
             check_take(b, c, args.note)
             reopened = _reopen(b)
-            if c["status"] in {"ready", "blocked"}:
+            restart = c["status"] == "working"  # a new Driver on a CR already working
+            if c["status"] in {"ready", "blocked", "working"}:
                 c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
             b.touch(c, status="working", blocked_reason=None)
-            b.log("take", c["id"], note=args.note)
+            b.log("take", c["id"], note=args.note, **({"restart": True} if restart else {}))
             start_cr(b, c)  # `1-pending` to `2-actives`, before the Driver gets its facts
             if repo.external:
                 c.setdefault("archive_stamp", stamp())  # the archive's name, kept from the first take
@@ -1570,7 +1633,8 @@ def handback(args) -> list[str]:
     if args.result == "blocked" and not note:
         raise ChantierError("handback <cr> blocked <reason>: question: …, approval: …, merge: "
                             "<pr>, fix: …; <path>, infra: …, budget: …, rounds: …, refused …, "
-                            "waits: <what it waits for>", EXIT_USAGE)
+                            "waits: <what it waits for>, context: <where it stopped, what is "
+                            "next>", EXIT_USAGE)
     no_gate = args.no_gate.strip() if args.no_gate is not None else None
     if no_gate is not None and (args.result != "ready" or not no_gate):
         raise ChantierError('handback <cr> ready <pr link> --no-gate "<the project\'s rule that '
@@ -1586,6 +1650,9 @@ def handback(args) -> list[str]:
                 b.touch(c, status="blocked", blocked_reason=note)
                 if note.lower().startswith("waits:"):
                     return [line, f"{args.cr} waits; the Foreman takes it back when that lands"]
+                if note.lower().startswith("context:"):
+                    return [line, f"{args.cr} out of context; the Foreman restarts a fresh Driver "
+                                  "from this state, with no ask to the Chief of Staff"]
                 return [line, f"{args.cr} blocked; the Foreman asks the Chief of Staff"]
             if c.get("kind") == "release":  # released: nothing is left to merge
                 c["released"] = note.split()[0]

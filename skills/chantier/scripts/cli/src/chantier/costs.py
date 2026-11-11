@@ -316,6 +316,28 @@ def idle_seconds(root: Path, host: str, sessions: list[str],
     return found
 
 
+def agent_records(root: Path, sessions: list[str]) -> dict[str, tuple[str | None, float | None]]:
+    """Claude: agent id -> (parent agent id, seconds since its record was last written), for every
+    `subagents/agent-<id>.jsonl` beside each steering transcript. None: a record that cannot be
+    read, so its time is not measured."""
+    clock = datetime.now(timezone.utc).timestamp()
+    found: dict[str, tuple[str | None, float | None]] = {}
+    for session in sessions:
+        folder = transcript_path(root, session).with_suffix("") / "subagents"
+        for f in sorted(folder.glob("agent-*.jsonl")):
+            try:
+                age: float | None = max(0.0, clock - f.stat().st_mtime)
+            except OSError:
+                age = None
+            try:
+                meta = json.loads(f.with_suffix("").with_suffix(".meta.json")
+                                  .read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                meta = {}
+            found[f.stem.removeprefix("agent-")] = (meta.get("parentAgentId"), age)
+    return found
+
+
 def _copilot_agents(session: str) -> dict[str, dict]:
     """agentId → agentType and name, from the session's `subagent.started` events."""
     path = copilot_home() / "session-state" / session / "events.jsonl"

@@ -182,14 +182,21 @@ def pending_fixes(crs: list[dict], c: dict) -> list[str]:
 
 
 def check_take(b: Batch, c: dict, note: str | None) -> None:
-    """A Driver starts only in a free slot, within the budget. It takes a queued CR, resumes a
-    working one, or takes a ready or blocked one when the Foreman says why (`--note`): an answer,
+    """A Driver starts only in a free slot, within the budget, on a CR with no agent recorded. It
+    takes a queued CR, resumes a working one (`--note`: a restart keeps the slot and counts no
+    round), or takes a ready or blocked one when the Foreman says why (`--note`): an answer,
     a change, a merged fix, a rebase, a red check."""
+    if c["status"] not in {"queued", "working", "ready", "blocked"}:
+        raise ChantierError(f"{c['id']} is {c['status']}: nothing for a Driver to do")
     if c["status"] in {"ready", "blocked"} and not note:
         raise ChantierError(f"{c['id']} is {c['status']}: a Driver takes it back only with "
                             "`--note` saying why (an answer, a change, a rebase, a red check)")
-    if c["status"] not in {"queued", "working", "ready", "blocked"}:
-        raise ChantierError(f"{c['id']} is {c['status']}: nothing for a Driver to do")
+    if c["status"] == "working" and not note:
+        raise ChantierError(f"{c['id']} is working: a new Driver resumes it only with `--note` "
+                            "saying why (resume: <cause>)")
+    if c.get("agent"):  # one Driver per CR: the recorded one must have ended first
+        raise ChantierError(f"{c['id']} still has an agent recorded ({c['agent']}): "
+                            f"`agents set {c['id']} -` first, once it ended")
     check_budget(b)
     if c["status"] != "working":
         check_slot(b, c["id"])

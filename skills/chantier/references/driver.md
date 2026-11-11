@@ -110,7 +110,7 @@ The CLI keeps the CR's record and tells you what is off.
   branch; on another base it stays a draft and the text after the link says so and what it
   waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
-  `rounds:`, `refused`, `waits: <what>`): it writes the state and prints the line to send the
+  `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`): it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
   `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5: `round` is
   refused once the budget is spent, and the budget is checked before the round limit, so with
@@ -118,7 +118,10 @@ The CLI keeps the CR's record and tells you what is off.
   `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it. Then end: ending frees
   your slot. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
-  decide: the CR shows 🟠, and the steering session takes it back when that thing lands.
+  decide: the CR shows 🟠, and the steering session takes it back when that thing lands. A
+  Driver whose context is ending first records its state with `$CHANTIER note <cr> "…"`, then
+  `handback <cr> blocked context: <where it stopped, what is next>`: the steering session restarts
+  a fresh Driver from it.
 - A force push the host refuses (any Driver that pushes): the Chief of Staff judges it and runs
   it for you, without the user's word in the normal case.
   With your work committed, send `[driver <cr>→foreman] push <branch> <expected remote sha>

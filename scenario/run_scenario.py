@@ -245,7 +245,10 @@ class Foreman:
             self.ask(text)
 
     def take(self, target: str, note_: str | None = None) -> int:
-        """`take`, then the Driver (a scripted one) with the facts in its prompt."""
+        """`take`, then the Driver (a scripted one) with the facts in its prompt. The id of the
+        Driver that ended is cleared first, as the card says: `take` refuses a recorded one."""
+        if target != "stack" and self.w.cr(target).get("agent"):
+            self.w.chantier("agents", "set", target, "-", "--epoch", self.epoch)
         code, facts = self.w.chantier("take", target, "--epoch", self.epoch,
                                       *(["--note", note_] if note_ else []), expect=None)
         if code:
@@ -645,6 +648,7 @@ def scenario(w: World) -> None:
     _, out = w.chantier("status")
     check("status shows the pending order", any(ln.startswith("orders pending: O-") and "note CR-101"
                                                 in ln for ln in out), str(out))
+    w.chantier("agents", "set", "CR-101", "-")  # its Driver ended with the hand-back
     code, _ = w.chantier("take", "CR-101", "--note", "change", expect=2)
     check("it waits for a slot", code == 2 and "no free slot" in w.last_stderr)
     fm.turn()
@@ -823,6 +827,7 @@ def scenario(w: World) -> None:
     handback_proofs(w)
     gate_proof(w)
     restore_cr(w)
+    driver_liveness(w)
     foreman_in_a_worktree(w)
     direct_batch(w)
     seat_handover(w)
@@ -2286,6 +2291,7 @@ def rails(w: World) -> None:
     check("a ready CR goes back to a Driver only with a note saying why",
           code == 2 and "only with `--note`" in w.last_stderr, w.last_stderr)
     w.chantier("order", "slots", "--note", "2")
+    w.chantier("agents", "set", one, "-")
     code, _ = w.chantier("take", one, "--note", "rebase: main moved; the PR no longer merges")
     check("with the note, the Foreman's round on a ready CR starts",
           code == 0 and w.cr(one)["status"] == "working"
@@ -2317,6 +2323,95 @@ def rails(w: World) -> None:
     check("a long gate whose command died still holds the next one while its suite runs",
           code == 0 and waited >= 1 and "its command still runs" in log.read_text("utf-8"),
           f"{waited:.1f}s {out}")
+
+
+def driver_liveness(w: World) -> None:
+    note("\n## 12c. A Driver that dies: activity lines, the restart path, the `context:` hand-back")
+    items = [prepare_cr(w, t)[1] for t in ("Live one", "Live two", "Live three")]
+    w.reset()
+    w.start(*(str(p) for p in items), "--slots", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "uuid-live", "--epoch", 1)
+    w.chantier("foreman", "transcript", "uuid-live", "--epoch", 1)
+    one, two, three = (c["id"] for c in w.batch()["crs"])
+    for cr in (one, two, three):
+        w.chantier("take", cr, "--epoch", 1)
+        w.chantier("agents", "set", cr, f"agent-{cr}", "--epoch", 1)
+        start_driver(w, cr)
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    chief = w.root / "claude-projects" / slug / "uuid-live.jsonl"
+    chief.parent.mkdir(parents=True, exist_ok=True)
+    chief.write_text(json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "l1", "model": "claude-sonnet-5-5", "usage": {
+            "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
+    sub = chief.with_suffix("") / "subagents"  # a Driver of the first CR and its worker
+    sub.mkdir(parents=True, exist_ok=True)
+    (sub / f"agent-agent-{one}.jsonl").write_text("{}\n")
+    (sub / "agent-w1.jsonl").write_text("{}\n")
+    (sub / "agent-w1.meta.json").write_text(json.dumps({"parentAgentId": f"agent-{one}"}))
+    (w.state / ".long-gate.lock").write_bytes(b"\0" + f"{three} pid 1 pg1".encode())
+    code, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    lines = {ln.split()[1]: ln for ln in out if ln.startswith("activity ")}
+    check("`status --refresh` gives one activity age per working CR, and no longest silent Driver",
+          code == 0 and set(lines) == {one, two, three}
+          and re.fullmatch(rf"activity {one} \d+ min", lines[one])
+          and lines[two] == f"activity {two} not measured"
+          and lines[three] == f"activity {three} gate running"
+          and not any("longest silent" in ln for ln in out), str(out))
+    (w.state / ".long-gate.lock").unlink()
+    chief.unlink()
+    shutil.rmtree(sub)
+    code, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("with no readable session record the line says not measured, and the exit code is the "
+          "spend's own", code == 4 and f"activity {one} not measured" in out
+          and any(ln.startswith("spend not updated") for ln in out), str(out))
+    code, _ = w.chantier("take", one, expect=2)
+    check("`take` of a working CR without a note is refused (exit 2)", code == 2, w.last_stderr)
+    code, _ = w.chantier("take", one, "--note", "resume: x", expect=2)
+    check("`take` of a CR with an agent recorded is refused, naming `agents set <cr> -`",
+          code == 2 and f"agents set {one} -" in w.last_stderr, w.last_stderr)
+    rounds = w.cr(one)["round"]
+    w.chantier("agents", "set", one, "-")
+    _, out = w.chantier("status")
+    check("status flags a working CR with no Driver recorded",
+          any(ln.startswith(f"{one} working") and "no Driver recorded" in ln for ln in out), str(out))
+    code, out = w.chantier("take", one, "--note", "resume: x")
+    _, facts = w.chantier("handoff", one)
+    kinds = [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()]
+    check("after `agents set <cr> -` the restart is accepted: same slots held, no round counted, "
+          "the note in the facts, the take logged as a restart",
+          code == 0 and "(3 of 3 slots held)" in out[0] and w.cr(one)["round"] == rounds
+          and w.cr(one)["notes"][-1] == "back to a Driver: resume: x"
+          and any("resume: x" in ln for ln in facts)
+          and [e for e in kinds if e["kind"] == "take" and e["cr"] == one][-1].get("restart") is True,
+          str(out))
+    w.chantier("agents", "set", one, f"agent-{one}-2")
+    data = w.batch()
+    (w.folder() / "batch.json").write_text(json.dumps({**data, "budget_usd": 1, "spent_usd": 2}))
+    w.chantier("agents", "set", one, "-")
+    code, _ = w.chantier("take", one, "--note", "resume: x", expect=5)
+    check("a restart past the budget is refused (exit 5)", code == 5, w.last_stderr)
+    (w.folder() / "batch.json").write_text(json.dumps(data))
+    code, out = w.chantier("handback", two, "blocked", "context: stopped at the tests, run them next")
+    check("`handback blocked context:` leaves the CR blocked and prints the restart line, not the "
+          "ask line", code == 0 and w.cr(two)["status"] == "blocked"
+          and w.cr(two)["blocked_reason"].startswith("context:")
+          and any("restarts a fresh Driver" in ln for ln in out)
+          and not any("asks the Chief of Staff" in ln for ln in out), str(out))
+    rounds = w.cr(two)["round"]
+    w.chantier("agents", "set", two, "-")
+    code, _ = w.chantier("take", two, "--note", "resume: context")
+    check("a fresh Driver takes it back with the note, the round unchanged",
+          code == 0 and w.cr(two)["status"] == "working" and w.cr(two)["round"] == rounds,
+          w.last_stderr)
+    cards = HERE.parent / "skills" / "chantier" / "references"
+    foreman = (cards / "foreman.md").read_text(encoding="utf-8")
+    driver = (cards / "driver.md").read_text(encoding="utf-8")
+    check("foreman.md names the suspect rule, the two proofs of death, the new-epoch rule, the "
+          "`context:` case and what counts toward `ended twice`; driver.md lists `context:`",
+          all(s in foreman for s in ("**Suspect:**", "**Proof of death**", "new Foreman epoch",
+                                     "blocked context: …", "driver ended twice", "do not."))
+          and "`context: <where it stopped" in driver)
 
 
 def handback_proofs(w: World) -> None:
@@ -3734,8 +3829,9 @@ def lost_messages(w: World) -> None:
     check("a hand-back records what the Driver says; whether the PR still merges is the "
           "Foreman's to notice with the forge's CLI", w.cr(two)["status"] == "ready", str(out))
     _, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
-    check("a wake names the longest silent Driver and says what it knows of the spend",
-          any(ln.startswith("longest silent Driver") for ln in out)
+    check("a wake names the activity of each working CR and says what it knows of the spend",
+          any(ln.startswith(f"activity {three} ") for ln in out)
+          and not any("longest silent" in ln for ln in out)
           and any(ln.startswith(("spent $", "spend not updated")) for ln in out), str(out))
     driver_round(w, three, "other.py", "OTHER = True\n")
     w.ready(three, w.cr(three)["pr"])
