@@ -18,8 +18,10 @@ The CLI keeps the CR's record and tells you what is off.
 - Children: `$CHANTIER round <cr> --note "<brief>"` before each Coder (refused past the limit,
   exit 5: hand back `blocked rounds: <what is still wrong>`), then the agent and the prompt of
   [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
-  the role, and the worker's agent and model as the `team:` lines of `round` print them, passed as
-  printed (no model printed: none passed). A refused start, a model included, is `handback
+  the role, and the worker's agent and model as the `team:` lines print them, passed as
+  printed (no model printed: none passed). Read those lines with `$CHANTIER handoff <cr>`, which
+  prints them and counts nothing, or keep the ones `take` printed in your prompt; `round` is run
+  only to start a round, just before that round's Coder, never to read facts. A refused start, a model included, is `handback
   blocked refused <exact text>`, never retried without the model. A `Needs:` you cannot meet
   is a `$CHANTIER note`, and you do your part without it.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
@@ -223,7 +225,30 @@ inside the procedure and the grant, and ask for anything beyond them.
   CR's folder when the Chief of Staff wrote them; a docs diagram only when the release CR's
   specification names it. Their images are anonymised before they leave the machine, and the
   thread is never posted by an agent.
-- A release PR is the Foreman's to merge, so it is opened ready, not as a draft: green, `handback blocked merge: <pr link>`; a new
+- When the procedure opens a version PR, its body carries, under the PR's own description, a `---`
+  rule, the release notes, a `---` rule, then the announcement thread under a heading that says it
+  is a draft the user posts themselves (no agent posts it). Both are the draft files' text,
+  rendered by the forge as Markdown. This is the default: a project whose procedure says where its
+  notes are reviewed is followed as written; a release with no PR keeps the drafts alone. The PR's
+  own description stays the procedure's; the notes and thread are appended under it, never in its
+  place.
+- The files are the source and the body a copy. Write the body from the files with the forge's
+  own CLI (`gh pr edit --body-file`, `glab mr update --description`, or the equivalent for another
+  forge) when you open the PR, each time a draft changes, and once more just before `handback
+  blocked merge: <pr link>`. Never copy the body back into a file. A change the user asks for in
+  the PR is made in the file (by the user, or on the Chief of Staff's word), then the body is
+  refreshed.
+- Images in the body: one already on the forge (an asset uploaded under its `release go`, or a
+  file the procedure committed and pushed with the version PR's branch) is shown from there; one
+  not yet on the forge, or that the forge cannot take, is named in prose (`<file name>: <what it
+  shows>`). Every image is anonymised before it leaves the machine, as
+  [release-template](release-template.md) says. The body never links a local path.
+- When the whole does not fit the forge's body limit (the forge's own, read from its error or its
+  docs), the body keeps what fits in that order (description, notes, thread) and names each part
+  left out by its path in the PR's branch or the work folder, with a line saying the body is not
+  the whole text. Nothing is cut silently.
+- A release PR is the Foreman's to merge, so it is opened ready, not as a draft: green, its body
+  refreshed from the drafts first, as above, `handback blocked merge: <pr link>`; a new
   Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
   `handback blocked fix: <fix-cr> pending`.
 - A release PR the user has already merged needs no release go: you see the merge on the forge

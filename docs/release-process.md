@@ -4,7 +4,9 @@ The mechanics of a release (version, tag, publication) are in
 [CONTRIBUTING.md](../CONTRIBUTING.md) "Release". This file says what the user reviews in the
 version PR: the release notes, the announcement thread and their images, in
 `docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. The folder is named by the date of the version PR. That
-date may differ from the tag's, and nothing checks it.
+date may differ from the tag's, and nothing checks it. The version PR's body shows
+`release-notes.md`, then `tweet.md`, each after a `---` rule, under the PR's description; the
+release folder stays the source, and the body is refreshed from it before the merge.
 
 The model is Markdown OKF-Schema Studio's release process. The generic default that other projects
 get is [release-template](../skills/chantier/references/release-template.md); this file ranks above
@@ -84,7 +86,9 @@ Images sit directly in the release folder, and the notes and `tweet.md` link the
 name. An image at a URL or in a subfolder fails the check, because a release must depend on no
 branch. On publication, `--prepare` points the links to
 `https://github.com/gsemet/chantier/releases/download/vX.Y.Z/<file>` and the images are attached
-as release assets.
+as release assets. In the version PR's body, the images committed in the release folder are linked
+at the PR's head commit on GitHub (already pushed with the branch, anonymised and read first),
+since a bare file name does not render there.
 
 ## Anonymisation
 

@@ -43,7 +43,7 @@ invented image. A diagram of the project's docs is shown only on the user's word
 CR's grill.
 
 In the skeleton, name an image in `<img src="...">` form or in prose, never as a Markdown image
-link to a file that may not exist.
+link to a file that may not exist. The same goes for the version PR's body.
 
 ## The thread
 
@@ -61,7 +61,13 @@ no list of hashtags. No agent posts: the thread is a draft for the user.
 ## Where they go
 
 By default the Driver writes `release-notes.md`, `tweet.md` and the images in `<work folder>/release/`
-and runs `note --draft` on each text, as [driver](driver.md) says. Where the procedure publishes
+and runs `note --draft` on each text, as [driver](driver.md) says. When the release has a version PR, the Driver also shows
+`release-notes.md` and then `tweet.md` in the PR's body, under the PR's own description, rendered,
+each after a `---` rule, the thread headed as a draft the user posts. The files stay the source
+and the body is refreshed from them before the merge, as [driver](driver.md) says. An image shows
+in the body once it is on the forge (its upload is an irreversible action, `release go`), else it
+is named in prose. What the forge's size limit leaves out is named by its path. A release with no
+PR keeps the drafts only. Where the procedure publishes
 notes (a forge release, a changelog entry), the Driver uses the reviewed text there. The images
 are attached with the forge's own CLI, and that is an irreversible action (`release go`). Where
 the procedure publishes no notes, they stay a draft for the user.
