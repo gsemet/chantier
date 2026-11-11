@@ -29,6 +29,10 @@ scenario:
     uv run --no-project python scenario/run_scenario.py --forge github
     uv run --no-project python scenario/run_scenario.py --forge gitlab
 
+# The mod's checks: `claude plugin validate .` then `claude plugin test .` (not part of check: CI has no claude)
+mod:
+    uv run --no-project python scripts/mod.py
+
 # The reviewed release notes and thread of the current version (none needed before 0.8.0)
 release-notes:
     uv run --script scripts/release_notes.py --check

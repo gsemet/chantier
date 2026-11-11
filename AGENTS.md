@@ -3,6 +3,8 @@
 - Run `just check` before you hand back; it must pass on Linux, macOS and Windows.
 - The long gate is `just scenario`: a change to the CLI, the cards or the scenario passes it
   before its PR; a change to the docs or the eval kit alone needs none.
+- A change to `hooks/` or `types/` passes `just mod` before its PR; the agent runs it itself, and
+  one that cannot stops and says so, with no workaround.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
 - The plugin must work with no setup: the user's `AGENTS.md`, and an optional `chantier.yaml` at
   the project's root, are the only configuration (with no `chantier.yaml` chantier runs as if it

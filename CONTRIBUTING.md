@@ -48,7 +48,9 @@ chantier is four things in one repository:
 4. **A mod** ([`hooks/`](hooks/), Claude Code only): the CR board, a read-only pane over
    `.agents/changes/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
    hooks `skill.prompt`, `session.compact` (the automatic reload), the `/chantier-board` command
-   and the `cr-board` pane; `types/index.d.ts`
+   and the `cr-board` pane, and guards a worker's writes (`agent.spawn` and `tool.call`: it starts an
+   agent whose prompt holds a `writes:` line in its first folder and refuses its Write, Edit or
+   NotebookEdit outside the folders named; a shell write is not guarded); `types/index.d.ts`
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
    `STATUS.json` (`schema` 3) as `status.py` writes it: change both together.
@@ -86,16 +88,23 @@ just                # list the recipes
 just check          # structure tests: run before any PR
 just test -k agent  # structure tests, with pytest arguments
 just scenario       # one whole batch, end to end, through the real CLI and a fake gh, then glab
+just mod            # the mod: claude plugin validate, then claude plugin test (needs a claude binary)
 ```
 
-The mod is checked apart from `just check` and CI, which have no `claude` binary. With Claude Code
-installed (on Claude Desktop `claude` is not on the `PATH`: use the session's own binary, the
-process `CLAUDE_PID` names, `(Get-Process -Id $env:CLAUDE_PID).Path` on Windows):
+The mod is checked apart from `just check` and CI, which have no `claude` binary. `just mod` is
+the way to run `validate` and `test`: it finds `claude` on the `PATH`, else the executable of the
+process `CLAUDE_PID` names (on Claude Desktop `claude` is not on the `PATH`), and stops with one
+line when it finds none. It runs, from the repository's root:
 
 ```bash
 claude plugin validate .        # the manifest, hooks.json and what register.tsx hooks and calls
 claude plugin test .            # hooks/register.test.tsx, against the engine, no session
-tsc -p <folder>                 # the type-check, see below
+```
+
+The type-check is by hand:
+
+```bash
+tsc -p <folder>                 # see below
 ```
 
 `tsc` is not one of the project's tools: fetch it where you need it (`typescript` from npm).

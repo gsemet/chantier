@@ -7,8 +7,10 @@ and has no CR: its section says what it does differently.
 
 Every worker reads the project's rules first (`$CHANTIER rules`; what touches your task ranks
 above this card); works only in the CR's worktree (`cd` there first; the Driver made it, never
-create one, except the Verifier's detached worktree of the base, below; a write refused by the
-host is reported, never retried by another means, a shell write included); keeps its notes in
+create one, except the Verifier's detached worktree of the base, below; on Claude Code the
+plugin starts you in the worktree and refuses a Write or Edit outside the folders your prompt's
+`writes:` line names: the path is wrong, so fix it, never retry by another means, a shell write
+included; a write refused by the host is reported); keeps its notes in
 `<work folder>/<role>/` and proof in the CR folder's `evidence/` (the Verifier's before and
 after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: its reply is its
 output); keeps a raw log in a `*.log` file or `work/gates/`, never in a file that is published with
@@ -50,6 +52,9 @@ the uncommitted diff you reviewed. Given a move (`<old head>..<new head>` and it
 only what the move changed in the CR's own patch (`git range-diff <old base>..<old head> <new
 base>..<new head>` for a rebase or a restack; the diff for a resolved conflict), and say in
 `minor` what you carried unchanged.
+
+A diff that touches `hooks/` is checked for the CR's gate record holding `just mod` (CI does
+not run it): a missing one is `blocking`.
 
 `blocking` holds only defects worth another round: a project rule broken, wrong behavior, a
 missing test, a broken gate, a part of the specification missed. Style the project has no rule
