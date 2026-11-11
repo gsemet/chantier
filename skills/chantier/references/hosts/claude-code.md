@@ -269,6 +269,21 @@ visible). The mod is Claude Code's only (`CONTRIBUTING.md`): the automatic reloa
 where the plugin's mod loads. The manual reload ("chantier reload", or `/chantier:chantier
 reload`) works everywhere, and is what a session without the mod has.
 
+## A worker's writes stay in its CR
+
+The plugin's mod also hooks `agent.spawn` and `tool.call`. A spawn whose prompt starts with
+`chantier ` and holds a `worktree:` line is a worker: the mod records its agent id with that
+worktree and the `folder:` line's CR folder. A worker's Write, Edit or NotebookEdit outside
+both is refused, with a message naming the path and the two places allowed (a relative path is
+read against the spawn's `cwd`). It leaves alone the main session (the Chief of Staff, the
+Foreman), the Drivers, the Spec-writer and Griller agents, unknown agents, and every shell
+write (Bash, PowerShell). The host's scratchpad is outside the worktree: a worker writes in its
+work folder instead. Copilot has no such guard.
+
+**Unproved** until a real batch: the contract is the engine's own (`claude-code/index.d.ts`),
+tested only against the engine in `hooks/register.test.tsx`. Trial: a worker told to write a
+file in the main checkout sees the refusal and writes in its worktree.
+
 ## Classes of session
 
 | Class | How it is known | Can start a session | Fit for a Foreman |

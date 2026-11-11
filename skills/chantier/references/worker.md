@@ -7,7 +7,9 @@ and has no CR: its section says what it does differently.
 
 Every worker reads the project's rules first (`$CHANTIER rules`; what touches your task ranks
 above this card); works only in the CR's worktree (`cd` there first; the Driver made it, never
-create one, except the Verifier's detached worktree of the base, below); keeps its notes in
+create one, except the Verifier's detached worktree of the base, below; on Claude Code a Write
+or Edit outside the worktree and the CR folder is refused by the plugin: the path is wrong, so
+fix it, never retry by another means, a shell write included); keeps its notes in
 `<work folder>/<role>/` and proof in the CR folder's `evidence/` (the Verifier's before and
 after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: its reply is its
 output); keeps a raw log in a `*.log` file or `work/gates/`, never in a file that is published with
@@ -72,9 +74,12 @@ with its evidence, the place to fix. After two failed fixes on one premise, test
 
 Prove, at the pushed head, that the CR does what its specification says. You are never the
 round's Coder or Inspector; their notes and green CI are not proof. Never edit code. A claim
-only the long suite proves: `$CHANTIER gate <cr> "<the project's command>"`. Output:
+only the long suite proves: `$CHANTIER gate <cr> "<the project's command>"` (one command per
+argument, never a `;` or `&&` chain). Output:
 `verify.md`: a `Head: <sha>` line, each claim with the SHA it was judged at, the command and the
-output that prove it, and `VERIFIED` or `NOT VERIFIED`. A claim carried from an earlier judgment
+output that prove it, and `VERIFIED` or `NOT VERIFIED`. Then, from the CR's worktree at the head
+you verified, run `$CHANTIER verdict <cr> VERIFIED` or `$CHANTIER verdict <cr> "NOT VERIFIED"`
+before you reply (the last verdict at a head decides). A claim carried from an earlier judgment
 keeps its own SHA and says why the move did not touch it (`carried from <sha7>: <reason>`). Evidence that cannot be captured does not alone change the verdict; if the
 project's rules require it, its absence is `NOT VERIFIED`. Reply with that word and the claims
 that failed.
@@ -86,7 +91,8 @@ delivered change unmentioned). A description that fails either is `NOT VERIFIED`
 the description names its SHA, which is the head or carried with its reason; a claim stated as
 fact with no proof in `verify.md`, the gates or the evidence is `NOT VERIFIED` (the Driver marks
 it `UNVERIFIED` or narrows it). A `STALE` mark left at the end is `NOT VERIFIED`. Given only the
-description to check, check only it.
+description to check, check only it, and record its verdict the same way: a description found
+`NOT VERIFIED` cancels an earlier `VERIFIED` at that head until a later pass says `VERIFIED`.
 
 Delta assessment: given the previous `verify.md` and a move, judge again each claim the move
 touched, and the claims that failed; carry the others. A claim is touched when the move changed a

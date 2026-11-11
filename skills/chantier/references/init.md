@@ -42,8 +42,8 @@ getting started here, phrases to say, the glossary.
   its paths, branch name and gate commands are this project's.
 - **Steering.** A batch is steered either by the **Foreman**, a separate session, or by you in
   **direct mode**: no Foreman session, you start the Drivers and hold no grill
-  until the batch completes (filing, triage and the spec-writer stay open), and no CR joins the batch while it runs (once it is
-  paused, it takes the next grilled CRs). Direct mode is used where
+  until the batch completes (filing, triage and the spec-writer stay open), and a CR added while it runs is queued and taken when a slot frees (once it is
+  paused, it takes the next grilled CRs before its first `take`). Direct mode is used where
   the host cannot start a Foreman session or for a small batch; the plan names it and the
   user's go approves it. The story follows the Foreman; one or two sentences after step 4 give
   direct mode, and the first diagram notes it. Present it as how chantier works, never as new.
@@ -67,7 +67,13 @@ getting started here, phrases to say, the glossary.
 1. **Getting started here:** what you saw of the project's harness and what you propose to
    improve, each with its impact on the team when missing. A rule (a gate, the merge method, the
    commit convention) is proposed as the exact `AGENTS.md` text, written only on the user's yes,
-   section by section. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
+   section by section. Check the two gates in particular: whether the project's rules declare a
+   fast gate (run after every round) and a long gate (run once before the PR, which `handback
+   ready` requires), or no long gate, or exemptions. When one is missing, propose the exact lines,
+   for example "- Fast gate (after each change): `<cmd>`." and "- Long gate (before a pull
+   request): `<cmd>`.", one command per item, never chained with `&&` or `;`; the impact when
+   missing: a long gate the Driver cannot run is a `--no-gate` the steering session must
+   question. Point to the README's "Your gates". Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
    only on the user's yes. For an in-project planning folder, the `.gitignore` line is explained only: keep `.agents/changes/` out
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.

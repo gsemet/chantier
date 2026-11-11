@@ -142,6 +142,12 @@ class World:
                   f"exit {p.returncode}: {self.last_stderr[:200]}")
         return p.returncode, out
 
+    def ready(self, cr, link, expect=0):
+        """The Driver's end: the long gate and the Verifier's verdict at the head, then `handback ready`."""
+        self.chantier("gate", cr, GATE, expect=None)
+        self.chantier("verdict", cr, "VERIFIED", expect=None)
+        return self.chantier("handback", cr, "ready", link, expect=expect)
+
     def batch(self):
         return json.loads((self.folder() / "batch.json").read_text())
 
@@ -557,7 +563,7 @@ def scenario(w: World) -> None:
     commit(w, "CR-101", "login.py", "TIMEOUT_S = 30\n")
     code, out = w.chantier("gate", "CR-101", GATE)
     check("the long gate runs the project's command in the worktree and records the head",
-          code == 0 and out[0].startswith(f"pass {GATE} at ") and "log" in out[0], str(out))
+          code == 0 and out[0].startswith(f"pass {GATE} at ") and out[1].startswith("log "), str(out))
     ship(w, "CR-101", "feat: login")
     check("`ship` records the Driver's PR with its head, and nothing off",
           w.cr("CR-101")["pr"].startswith(PR_LINK[ARGS.forge]) and w.cr("CR-101")["head"]
@@ -570,7 +576,7 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("ship", "CR-101", "not a link", expect=1)
     check("the PR link is the forge's", code == 1)
     pr101 = w.cr("CR-101")["pr"]
-    _, out = w.chantier("handback", "CR-101", "ready", pr101)
+    _, out = w.ready("CR-101", pr101)
     check("a hand-back writes the state and prints the line to send",
           out[0] == f"[driver CR-101→foreman] hand-back ready {pr101}"
           and w.cr("CR-101")["status"] == "ready", str(out))
@@ -590,7 +596,7 @@ def scenario(w: World) -> None:
     driver_round(w, "CR-102", "export.py", "def export():\n    return 'csv'\n")
     w.chantier("note", "CR-102", "CI red: the product; export header missing")
     driver_round(w, "CR-102", "export.py", "def export():\n    return 'id,name\\n'\n")
-    w.chantier("handback", "CR-102", "ready", w.cr("CR-102")["pr"])
+    w.ready("CR-102", w.cr("CR-102")["pr"])
     fm.turn()
     check("a second ready CR goes to the Chief of Staff",
           fm.asked[-1].startswith(f"ready CR-102 {PR_LINK[ARGS.forge]}"))
@@ -654,14 +660,14 @@ def scenario(w: World) -> None:
           fm.started[-1].startswith("CR-104 resume: CR-104 \"Audit log\" (change) working"),
           fm.started[-1])
     driver_round(w, "CR-104", "audit.py", "AUDIT = []\n")
-    w.chantier("handback", "CR-104", "ready", w.cr("CR-104")["pr"])
+    w.ready("CR-104", w.cr("CR-104")["pr"])
     driver_round(w, "CR-105", "ratelimit.py", "LIMIT = 10\n")
-    w.chantier("handback", "CR-105", "ready", w.cr("CR-105")["pr"])
+    w.ready("CR-105", w.cr("CR-105")["pr"])
     fm.turn()
     check("the change on CR-101 reaches a new Driver, with the note, and the order is done",
           fm.started[-1] == "CR-101 note: change: also log the timeout"
           and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
-    w.chantier("handback", "CR-101", "ready", pr101)
+    w.ready("CR-101", pr101)
     fm.turn()
     _, out = w.chantier("status")
     check("status shows every CR", all(f"CR-10{i}" in "\n".join(out) for i in range(1, 6)))
@@ -794,6 +800,7 @@ def scenario(w: World) -> None:
     playbook_config(w)
     cancel_during_gate(w)
     rails(w)
+    handback_proofs(w)
     foreman_in_a_worktree(w)
     direct_batch(w)
     seat_handover(w)
@@ -940,6 +947,7 @@ def direct_batch(w: World) -> None:
           code == 0 and out[0].startswith("P1 ok") and "P2" not in "\n".join(out), str(out))
     _, item = prepare_cr(w, "Direct work")
     _, extra = prepare_cr(w, "Direct extra")
+    _, extra_after = prepare_cr(w, "Direct extra after the takeover")
     _, later = prepare_cr(w, "Direct after the pause")
     _, later2 = prepare_cr(w, "Direct after the pause, too")
     _, rel_item = prepare_cr(w, "Direct release")
@@ -979,12 +987,17 @@ def direct_batch(w: World) -> None:
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
     w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
     edit(created=t0, foreman_claims=[{"transcript": "uuid-chief", "since": t1}])
-    for kind, note_ in (("add", str(extra)), ("qa", "try it")):
-        code, _ = w.chantier("order", kind, "--note", note_, expect=2)
-        check(f"`order {kind}` is refused on a running direct batch",
-              "a running direct batch is strict" in w.last_stderr
-              and "Foreman mode" not in w.last_stderr
-              and len(w.batch()["crs"]) == 1, w.last_stderr)
+    code, _ = w.chantier("order", "qa", "--note", "try it", expect=2)
+    check("`order qa` is refused on a running direct batch",
+          "a running direct batch takes no QA" in w.last_stderr and len(w.batch()["crs"]) == 1,
+          w.last_stderr)
+    _, out = w.chantier("order", "add", "--note", str(extra))
+    check("`order add` queues a CR on a running direct batch",
+          any("queued" in ln for ln in out) and len(w.batch()["crs"]) == 2
+          and w.batch()["crs"][1]["status"] == "queued", str(out))
+    w.chantier("order", "drop", w.batch()["crs"][1]["id"])
+    check("the CR added to the running direct batch can be dropped again",
+          w.batch()["crs"][1]["status"] == "cancelled", str(w.batch()["crs"][1]["status"]))
     fm = Foreman(w, epoch=1)
     fm.turn()
     cr = w.batch()["crs"][0]["id"]
@@ -1022,7 +1035,7 @@ def direct_batch(w: World) -> None:
     driver.with_suffix("").with_suffix(".meta.json").write_text(
         json.dumps({"agentType": "cr-driver"}), encoding="utf-8")
     driver_round(w, cr, "direct.py", "DIRECT = True\n")
-    w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+    w.ready(cr, w.cr(cr)["pr"])
     fm.turn()
     w.chantier("order", "merged", cr)
     fm.turn()
@@ -1076,10 +1089,21 @@ def direct_batch(w: World) -> None:
           f"{out} (before: {grill_before})")
     writer.unlink()
     writer.with_suffix("").with_suffix(".meta.json").unlink()
+    # a subagent no Driver owns is the steering session's own: its own line, not a Driver's
+    own = sub / "agent-agent-own.jsonl"
+    own.write_text("".join(msg(f"o{i}", at(31)) for i in range(2)), encoding="utf-8")
+    own.with_suffix("").with_suffix(".meta.json").write_text(
+        json.dumps({"agentType": "Explore"}), encoding="utf-8")
+    _, out = w.chantier("cost")
+    check("`cost` puts a subagent the steering session ran itself on its own line, not on a Driver",
+          any(ln.startswith("Chief of Staff's own subagents") and "(2 calls)" in ln for ln in out)
+          and not any(ln.startswith("Driver") and "Explore" in ln for ln in out), str(out))
+    own.unlink()
+    own.with_suffix("").with_suffix(".meta.json").unlink()
     # a paused batch takes any number of new CRs and stays paused; the first `take` runs it again
     paused_at = w.batch()["paused"]
     summary = w.batch()["summary"]
-    for n, folder in enumerate((later, later2), start=2):
+    for n, folder in enumerate((later, later2), start=3):
         w.chantier("order", "add", "--note", str(folder))
         b = w.batch()
         check(f"`order add` {n - 1} on a paused direct batch leaves it paused, with the new CR queued",
@@ -1087,11 +1111,11 @@ def direct_batch(w: World) -> None:
               and len(b["crs"]) == n and b["crs"][-1]["status"] == "queued"
               and "stays paused: the first `take` sets it running again" in "\n".join(w.last_out),
               str(w.last_out))
-    cr2, cr3 = w.batch()["crs"][1]["id"], w.batch()["crs"][2]["id"]
+    cr2, cr3 = w.batch()["crs"][2]["id"], w.batch()["crs"][3]["id"]
     check("both new CRs are in the paused batch", {cr2, cr3} <= {c["id"] for c in w.batch()["crs"]})
     code, _ = w.chantier("order", "add", "--note", str(later), expect=None)
     check("a CR folder already in the paused batch is not added twice",
-          code != 0 and len(w.batch()["crs"]) == 3, w.last_stderr)
+          code != 0 and len(w.batch()["crs"]) == 4, w.last_stderr)
     fm.turn()
     b = w.batch()
     check("the first `take` sets the paused direct batch running again",
@@ -1109,7 +1133,7 @@ def direct_batch(w: World) -> None:
         check(f"the reopened direct batch starts {cr_n}", cr_n in fm.started
               and w.cr(cr_n)["status"] == "working", str(fm.started))
         driver_round(w, cr_n, name, f"DIRECT = {name!r}\n")
-        w.chantier("handback", cr_n, "ready", w.cr(cr_n)["pr"])
+        w.ready(cr_n, w.cr(cr_n)["pr"])
         fm.turn()
         w.chantier("order", "merged", cr_n)
         fm.turn()
@@ -1151,10 +1175,10 @@ def direct_batch(w: World) -> None:
                   (w.folder() / "events.jsonl").read_text(encoding="utf-8").splitlines()), str(d))
     _, out = w.chantier("status")
     check("`status` now says Foreman", " steering Foreman shape parallel " in out[0], str(out))
-    w.chantier("order", "add", "--note", str(extra))
+    w.chantier("order", "add", "--note", str(extra_after))
     check("a batch steered by a Foreman takes added work", len(w.batch()["crs"]) == 3)
     _, out = w.chantier("cost")
-    labels = [ln.split(":")[0] for ln in out if ln.startswith(("Foreman", "Chief of Staff, steering the batch:"))]
+    labels = [ln.split(":")[0] for ln in out if ln.startswith(("Foreman:", "Chief of Staff, steering the batch:"))]
     check("each steering session is priced under its own name", labels == [
         "Chief of Staff, steering the batch", "Foreman"] or labels == [
         "Foreman", "Chief of Staff, steering the batch"],
@@ -1581,6 +1605,9 @@ def playbook_config(w: World) -> None:
     check("S1: `playbook` with no chantier.yaml prints the plugin's agents and `(its file's)`",
           code == 0 and out[0].startswith("playbook: no chantier.yaml")
           and "coder: agent=chantier:coder model=(its file's)" in out, str(out))
+    check("S1: `playbook` prints the spec-writer's first prompt line with the project's root resolved",
+          any(ln.startswith("spec-writer prompt, first line: chantier spec-writer for the Chief of Staff, "
+                            "in the project ") and "proj" in ln and ln.endswith(".") for ln in out), str(out))
     _, out = w.chantier("preflight")
     check("S1: preflight P12 is ok with no chantier.yaml",
           any(ln.startswith("P12 ok") and "no chantier.yaml" in ln for ln in out), str(out))
@@ -1617,7 +1644,8 @@ def playbook_config(w: World) -> None:
           and team(took) == [want, "team: cr-driver agent=my-driver"], str(took))
     code, out = w.chantier("playbook", "--batch", w.name)
     check("S2: `playbook --batch` prints the playbook the batch recorded",
-          code == 0 and out[1:] == now_lines[1:] and "opened it" in out[0], str(out))
+          code == 0 and out[1:] == [l for l in now_lines[1:] if not l.startswith("spec-writer prompt")]
+          and "opened it" in out[0], str(out))
 
     # S3: a running batch keeps the playbook it opened with
     yaml.write_text("roles:\n  coder:\n    agent: other-coder\n", encoding="utf-8")
@@ -1626,7 +1654,7 @@ def playbook_config(w: World) -> None:
     check("S3: after chantier.yaml changed, `take` of another CR and `playbook --batch` still "
           "print the opening's",
           "other-coder" not in "".join(took + out) and "agent=my-driver" in "".join(team(took))
-          and out[1:] == now_lines[1:], str(out))
+          and out[1:] == [l for l in now_lines[1:] if not l.startswith("spec-writer prompt")], str(out))
 
     # S4: refusals, each exit 2 with its line, `open` moving nothing
     w.reset()
@@ -1754,7 +1782,7 @@ def rails(w: World) -> None:
           any("is not pushed" in ln for ln in out) and any("no long gate passed" in ln for ln in out),
           str(out))
     ship(w, one, "feat: rail")
-    _, out = w.chantier("handback", one, "ready", w.cr(one)["pr"])
+    _, out = w.ready(one, w.cr(one)["pr"])
     check("the hand-back stands: CI is the Driver's judgement, not the CLI's",
           w.cr(one)["status"] == "ready", str(out))
     code, _ = w.chantier("take", two, expect=2)
@@ -1820,6 +1848,104 @@ def rails(w: World) -> None:
           f"{waited:.1f}s {out}")
 
 
+def handback_proofs(w: World) -> None:
+    note("\n## 12b. Handback ready needs two proofs at the PR's head: a long gate and a verdict")
+    _, item = prepare_cr(w, "Proof one")
+    w.reset()
+    w.start(str(item), "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman8", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    fm.turn()
+    cr = w.batch()["crs"][0]["id"]
+    num = cr.removeprefix("CR-")
+    folder = w.at(w.cr(cr)["path"])
+
+    def log_events(kind):
+        return [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+                if json.loads(ln)["kind"] == kind and json.loads(ln)["cr"] == cr]
+
+    commit(w, cr, "proof.py", "PROOF = 1\n")
+    ship(w, cr, "feat: proof")
+    link = w.cr(cr)["pr"]
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("`handback ready` with no long gate passed is refused, naming the long gate",
+          code == 2 and "no long gate passed" in w.last_stderr, w.last_stderr)
+    gate_two = f"\"{sys.executable}\" -c \"print(1)\""
+    code, out = w.chantier("gate", num, GATE, gate_two)
+    runs = {e.get("run") for e in log_events("gate")}
+    check("a two-command gate passes: one pass line each, one run id, and `gate` takes a bare number",
+          code == 0 and out[0].startswith(f"pass {GATE} at ") and out[1].startswith("pass ")
+          and out[2].startswith("log ") and len(runs) == 1 and None not in runs, str(out))
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("`handback ready` with the gate but no verdict is refused, naming the verdict",
+          code == 2 and "no verdict VERIFIED" in w.last_stderr
+          and "no long gate passed" not in w.last_stderr, w.last_stderr)
+    w.chantier("verdict", num, "VERIFIED")
+    w.chantier("verdict", cr, "NOT VERIFIED")
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("a VERIFIED then a NOT VERIFIED at the same head refuses: the last verdict decides",
+          code == 2 and "NOT VERIFIED" in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("verdict", cr, "maybe", expect=1)
+    check("a verdict is VERIFIED or NOT VERIFIED, nothing else", code == 1, w.last_stderr)
+    w.chantier("verdict", cr, "VERIFIED")
+    check("a later VERIFIED at the head lets the last verdict through",
+          [e["result"] for e in log_events("verdict")][-1] == "VERIFIED"
+          and len(log_events("verdict")) == 3)
+    # a new commit, shipped: the gate and the verdict above are of the old head
+    commit(w, cr, "proof2.py", "PROOF = 2\n")
+    ship(w, cr, "feat: proof")
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("a verdict and a gate made before a new commit do not count at the new head",
+          code == 2 and "no long gate passed" in w.last_stderr
+          and "no verdict VERIFIED" in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("handback", cr, "ready", link, "--no-gate", "", expect=1)
+    check("`--no-gate` with an empty reason is a usage error", code == 1, w.last_stderr)
+    rule = "AGENTS.md declares no long gate for this change"
+    code, _ = w.chantier("handback", cr, "ready", link, "--no-gate", rule, expect=2)
+    check("`--no-gate` with no verdict at the head is refused", code == 2
+          and "no verdict VERIFIED" in w.last_stderr and "no long gate" not in w.last_stderr,
+          w.last_stderr)
+    # the gate that fails on its second command stops there and logs no pass for it
+    bad = f"\"{sys.executable}\" -c \"import sys; sys.exit(3)\""
+    never = f"\"{sys.executable}\" -c \"print(2)\""
+    code, out = w.chantier("gate", cr, GATE, bad, never, expect=4)
+    gates = log_events("gate")
+    check("a gate whose second command fails stops there and logs no pass for it (exit 4)",
+          code == 4 and out[1].startswith("FAIL ") and not any("print(2)" in ln for ln in out[:2])
+          and [e["result"] for e in gates[-2:]] == ["pass", "fail"]
+          and not any(e["command"] == never for e in gates), str(out))
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("a gate that failed leaves no gate passed at the head", code == 2
+          and "no long gate passed" in w.last_stderr, w.last_stderr)
+    w.chantier("verdict", cr, "VERIFIED")
+    _, out = w.chantier("handback", f"cr-{num}", "ready", link, "--no-gate", rule)
+    check("`--no-gate <rule>` with a verdict is accepted: the reason is on the printed line, in "
+          "the event and in STATUS.md",
+          w.cr(cr)["status"] == "ready" and rule in out[0]
+          and log_events("handback")[-1].get("no_gate") == rule
+          and any("Long gate" in ln and rule in ln for ln in (folder / "STATUS.md").read_text(
+              "utf-8").splitlines()), str(out))
+    w.chantier("order", "slots", "--note", "2")
+    fm.take(cr, "recheck the gates")
+    facts = fm.facts
+    check("`take` prints the two-gate checklist, marks following the events",
+          any(ln.startswith("gates before handback ready") for ln in facts)
+          and any(ln.startswith("  [ ] long gate") for ln in facts)
+          and any(ln.startswith("  [x] verdict") for ln in facts), str(facts))
+    w.chantier("gate", cr, GATE)
+    _, out = w.chantier("handoff", cr)
+    check("`handoff` prints the checklist too, with the gate now marked",
+          any(ln.startswith("  [x] long gate") for ln in out)
+          and any(ln.startswith("  [x] verdict") for ln in out), str(out))
+    _, out = w.chantier("handback", num, "ready", link)
+    check("after a passed gate and `verdict VERIFIED` at the head, `handback ready` is accepted",
+          w.cr(cr)["status"] == "ready" and out[0].startswith(f"[driver {cr}"), str(out))
+    code, out = w.chantier("ship", num, link)
+    check("`ship`, `gate`, `handback` and `verdict` all resolve a bare number, or `cr-<n>`, to "
+          f"{cr}", code == 0 and out[0].startswith("recorded "), str(out))
+
+
 def stack_batch(w: World) -> None:
     note("\n## 13. A stack on request, one open batch, a stack merged in part")
     w.reset()
@@ -1854,7 +1980,7 @@ def stack_batch(w: World) -> None:
           and f"base {w.cr(two)['branch']}" in stacked[3], str(base) + str(stacked))
     for i, cr in enumerate((one, two, three)):
         driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
-        w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+        w.ready(cr, w.cr(cr)["pr"])
 
     def ship_bases(cr: str) -> list[str]:
         events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
@@ -1885,7 +2011,7 @@ def stack_batch(w: World) -> None:
           and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]))
     fm.turn()
     driver_round(w, four, "stack3.py", "N = 3\n")
-    w.chantier("handback", four, "ready", w.cr(four)["pr"])
+    w.ready(four, w.cr(four)["pr"])
 
     _, out = w.chantier("order", "merged", one)
     d = w.batch()
@@ -1941,7 +2067,7 @@ def batch_modes(w: World) -> None:
         w.chantier("take", cr)
         start_driver(w, cr)
         driver_round(w, cr, name, "N = 1\n")
-        w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+        w.ready(cr, w.cr(cr)["pr"])
     w.chantier("order", "merged", one)
     code, out = w.chantier("take", two, "--note", f"rebase: {one} merged")
     check("parallel: after a merge, a ready CR goes back to a Driver for its rebase, on the "
@@ -1966,7 +2092,7 @@ def batch_modes(w: World) -> None:
     code, _ = w.chantier("take", b, expect=2)
     check("series: a working predecessor is not enough", code == 2 and f"{a} working" in w.last_stderr,
           w.last_stderr)
-    w.chantier("handback", a, "ready", w.cr(a)["pr"])
+    w.ready(a, w.cr(a)["pr"])
     _, out = w.chantier("take", b)
     start_driver(w, b)
     check("series: once the previous one is ready, the next starts on its branch, and the third "
@@ -1974,12 +2100,12 @@ def batch_modes(w: World) -> None:
           and w.chantier("take", c, expect=2)[0] == 2 and f"waits for {b} working" in w.last_stderr,
           str(out))
     driver_round(w, b, "series_b.py", "B = 1\n")
-    w.chantier("handback", b, "ready", w.cr(b)["pr"])
+    w.ready(b, w.cr(b)["pr"])
     w.chantier("order", "merged", a)
     _, out = w.chantier("take", b, "--note", f"rebase: {a} merged")
     check("series: once the previous one is merged, the next one is rebased on the default branch",
           any("base origin/main" in ln for ln in out), str(out))
-    w.chantier("handback", b, "ready", w.cr(b)["pr"])
+    w.ready(b, w.cr(b)["pr"])
     _, out = w.chantier("take", c)
     check("series: the third starts on the second's branch once that one is ready",
           any(f"base {w.cr(b)['branch']}" in ln for ln in out), str(out))
@@ -2048,7 +2174,7 @@ def release(w: World) -> None:
     check("the release CR is refused until the others are merged",
           code == 2 and "merged or cancelled" in w.last_stderr, w.last_stderr)
     driver_round(w, work, "last.py", "LAST = True\n")
-    w.chantier("handback", work, "ready", w.cr(work)["pr"])
+    w.ready(work, w.cr(work)["pr"])
     fm.turn()
     check("an ordinary ready CR goes to the user, never to a merge",
           fm.asked[-1].startswith(f"ready {work} "), str(fm.asked))
@@ -2114,7 +2240,7 @@ def release(w: World) -> None:
     check("a fix that is not ready does not merge", code == 2 and "ready" in w.last_stderr)
     driver_round(w, fix_id, "heavy.py", "FIXED = True\n")
     w.gh(merge_refused=True)
-    w.chantier("handback", fix_id, "ready", w.cr(fix_id)["pr"])
+    w.ready(fix_id, w.cr(fix_id)["pr"])
     w.chantier("order", "grant", rel, "--note", "fixes=off")
     code, out = w.chantier("release", "go", fix_id, "--note", "merge the fix", expect=2)
     check("without the grant, the user merges the fix",
@@ -2294,7 +2420,7 @@ def release_last(w: World) -> None:
 
     check("the first CR starts", fm.take(work) == 0)
     driver_round(w, work, "first.py", "FIRST = True\n")
-    w.chantier("handback", work, "ready", w.cr(work)["pr"])
+    w.ready(work, w.cr(work)["pr"])
     code, _ = w.chantier("take", rel, expect=2)
     check("a ready CR keeps the release waiting",
           code == 2 and f"{work} ready" in w.last_stderr, w.last_stderr)
@@ -2404,6 +2530,10 @@ def qa_on_head(w: World) -> None:
     check("the Foreman starts a QA driver on the folder, and the CR goes on without it",
           fm.qa == [shown] and fm.started == [cr] and w.cr(cr)["status"] == "working",
           str(fm.qa))
+    code, _ = w.chantier("agents", "set", "O-2", "agent-qa", "--epoch", 1)
+    check("`agents set O-<k>` maps a QA order to its agent", code == 0, w.last_stderr)
+    code, _ = w.chantier("agents", "set", "O-1", "agent-x", "--epoch", 1, expect=1)
+    check("`agents set` refuses an order that is not a QA", code == 1, w.last_stderr)
     _, out = w.chantier("status")
     check("`status` shows the QA order and its folder until it is done",
           any(ln.startswith(f"orders pending: O-2 qa {shown}") for ln in out), str(out))
@@ -2527,7 +2657,7 @@ def changes_tree(w: World) -> None:
           and any("intake/request.md" in ln for ln in fm.facts), str(fm.facts))
     fm.take(one["id"])
     driver_round(w, one["id"], "tree.py", "N = 1\n")
-    w.chantier("handback", one["id"], "ready", w.cr(one["id"])["pr"])
+    w.ready(one["id"], w.cr(one["id"])["pr"])
     w.chantier("handback", two["id"], "blocked", "question: which one")
     check("the folder stays in 2-actives after `handback`, ready or blocked",
           all("4-batch/2-actives/" in w.cr(c["id"])["path"] for c in (one, two))
@@ -2578,7 +2708,7 @@ def old_tree(w: World) -> None:
         queued, ready, working = (c["id"] for c in w.batch()["crs"])
         fm.take(ready)
         driver_round(w, ready, "old_tree.py", "N = 1\n")
-        w.chantier("handback", ready, "ready", w.cr(ready)["pr"])
+        w.ready(ready, w.cr(ready)["pr"])
         fm.take(working)
         # write the older layout by hand: every CR in the batch folder, 4-archives, 5-trash
         d = w.batch()
@@ -2635,7 +2765,7 @@ def old_tree(w: World) -> None:
         w.chantier("status")
         check("a second command converts nothing", "converted" not in w.last_stderr, w.last_stderr)
         driver_round(w, working, "old_tree2.py", "N = 2\n")
-        w.chantier("handback", working, "ready", w.cr(working)["pr"])
+        w.ready(working, w.cr(working)["pr"])
         w.chantier("order", "merged", working)
         check("the working CR moves to 3-done on `order merged`, and 3-requests/ is gone",
               "4-batch/3-done/" in w.cr(working)["path"]
@@ -2724,7 +2854,7 @@ def dependencies(w: World) -> None:
     check("a working dependency is not enough", code == 2 and f"{a} working" in w.last_stderr,
           w.last_stderr)
     driver_round(w, a, "dep_a.py", "A = 1\n")
-    w.chantier("handback", a, "ready", w.cr(a)["pr"])
+    w.ready(a, w.cr(a)["pr"])
     _, out = w.chantier("take", b)
     check("once it is ready, the dependent starts on its branch (even in a parallel batch)",
           any(f"base {w.cr(a)['branch']}" in ln for ln in out), str(out))
@@ -2824,7 +2954,7 @@ def dependencies(w: World) -> None:
     icon_is(w, c2, "🔴", "a CR blocked for any other reason")
     start_driver(w, c1)
     driver_round(w, c1, "icons_one.py", "ONE = 1\n")
-    w.chantier("handback", c1, "ready", w.cr(c1)["pr"])
+    w.ready(c1, w.cr(c1)["pr"])
     icon_is(w, c1, "🔵", "a ready CR")
     w.chantier("order", "merged", c1)
     icon_is(w, c1, "✅", "a merged CR")
@@ -2900,12 +3030,12 @@ def lost_messages(w: World) -> None:
           w.chantier("order", "done", order, "--epoch", 1)[1] == [f"{order} already done"])
 
     driver_round(w, one, "lost.py", f"WHO = '{one}'\n")
-    w.chantier("handback", one, "ready", w.cr(one)["pr"])
+    w.ready(one, w.cr(one)["pr"])
     fm.turn()
     check("a ready CR is told", fm.asked[-1].startswith(f"ready {one} "))
     driver_round(w, two, "lost.py", f"WHO = '{two}'\n")
     w.sh("git", "push", "--quiet", "origin", f"{w.cr(one)['branch']}:main")  # the user merges
-    _, out = w.chantier("handback", two, "ready", w.cr(two)["pr"])
+    _, out = w.ready(two, w.cr(two)["pr"])
     check("a hand-back records what the Driver says; whether the PR still merges is the "
           "Foreman's to notice with the forge's CLI", w.cr(two)["status"] == "ready", str(out))
     _, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
@@ -2913,7 +3043,7 @@ def lost_messages(w: World) -> None:
           any(ln.startswith("longest silent Driver") for ln in out)
           and any(ln.startswith(("spent $", "spend not updated")) for ln in out), str(out))
     driver_round(w, three, "other.py", "OTHER = True\n")
-    w.chantier("handback", three, "ready", w.cr(three)["pr"])
+    w.ready(three, w.cr(three)["pr"])
     fm.turn()
 
     _, out = w.chantier("status")
@@ -3114,7 +3244,9 @@ def cost_audit(w: World) -> None:
     events = w.folder() / "events.jsonl"
     original_events = events.read_text(encoding="utf-8")
     events.write_text(original_events + json.dumps(  # a Driver after another on CR-101
-        {"t": when[0], "actor": "foreman", "kind": "agent", "cr": "CR-101", "agent": "odd"}) + "\n",
+        {"t": when[0], "actor": "foreman", "kind": "agent", "cr": "CR-101", "agent": "odd"}) + "\n"
+        + json.dumps(  # a QA driver, recorded by `agents set O-<k>`: a Driver, not the Foreman's own
+            {"t": when[0], "actor": "foreman", "kind": "agent", "cr": "O-1", "agent": "lone"}) + "\n",
         encoding="utf-8")
     for name, kind, parent, n in (("odd", "my-own-driver", None, 2), ("odd-worker", "coder", "odd", 1),
                                   ("lone", "qa-driver", None, 3)):
@@ -3161,7 +3293,7 @@ def cost_audit(w: World) -> None:
     crs = [int(a.replace(".", "")) for l in out[1:-1] for a in re.findall(r"\$(\d+\.\d{3}) \(", l)]
     check("`cost --by cr` still adds up to the Drivers and workers, the Foreman first among them",
           code == 0 and abs(sum(crs) - 1722) <= 3 and "foreman: $0.391 (30 calls)" in out
-          and "CR-101: $0.361 (19 calls)" in out and "other: $0.057 (3 calls)" in out, str(out))
+          and "CR-101: $0.361 (19 calls)" in out and "O-1: $0.057 (3 calls)" in out, str(out))
     for name in ("odd", "odd-worker", "lone"):
         (sub / f"agent-{name}.jsonl").unlink()
         (sub / f"agent-{name}.meta.json").unlink()
@@ -3381,7 +3513,7 @@ def external_surface(tmp: Path) -> None:
     surface_publishes(w, "after the PR")
     check("the project's clone stays clean: its worktrees hold the Driver's commits",
           w.sh("git", "status", "--porcelain", cwd=w.work) == "", w.sh("git", "status", "--porcelain", cwd=w.work))
-    w.chantier("handback", cr, "ready", w.cr(cr)["pr"])
+    w.ready(cr, w.cr(cr)["pr"])
     fm.turn()
     merge_pr(w, w.cr(cr)["pr"])
     w.chantier("order", "merged", cr)

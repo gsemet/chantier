@@ -67,7 +67,13 @@ except `chantier.yaml` (below). Once per session, at your first turn, run `$CHAN
 are a batch's). For a P10 warn, give the "For you" block "Allow rules to add" of your host's
 reference with the missing rules; a missing tool is said with what to install. Nothing blocks
 the user's request there. A project with no long gate written down is a question for the user, with your
-recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success.
+recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success. Once the
+project's rules say there is no long gate, or exempt a kind of CR, a Driver's `handback --no-gate` carries
+that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
+When the user says "our long gate is `<command>`", propose the exact `AGENTS.md` lines
+(README, "Your gates") and write them on the user's yes.
+A brief (any prompt or message to an agent) states a past fact only with its source: a CR note,
+a file in the CR's folder, or an event in `events.jsonl`; a fact with no source is said as unknown.
 
 The team: every role runs the plugin's agent with its file's model unless the project's optional
 `chantier.yaml` (at its root) says otherwise. Only the CLI reads, validates and resolves it, and
@@ -130,7 +136,10 @@ Only the user sets priorities and picks what runs.
 The Change Specification is the `spec-writer`'s ([`spec-writer.md`](spec-writer.md)), not yours.
 On the user's word that a CR is grilled enough, write `work/specifying` in its folder (one line:
 the time and the agent id) and start the `spec-writer` in the background (you or a Griller
-starts it), at any time, a batch running or not; its prompt names the card and the CR folder. When it ends, whatever the result,
+starts it), at any time, a batch running or not; its prompt names the card and the CR folder, and
+its first line is the one `$CHANTIER playbook` prints (`spec-writer prompt, first line: …`), copied
+unchanged. Start no second spec-writer for a CR while one runs; a refused start is fixed by copying
+that line, not by retrying variants. When it ends, whatever the result,
 remove `work/specifying`. Review `03-change-spec.md` against `02-answers.md` before you show it:
 nothing dropped, nothing invented. Its open questions go to the user; record the answers in
 `02-answers.md`, then run the writer again. A CR moves to `3-ready` (`triage --ready`)
@@ -331,8 +340,8 @@ Only in the turn where the user gave the go:
      branch, or another CR's branch in a series or a stack): the base is an ancestor of the
      local head and the remote head's commits are in it (`git range-diff`, or `git cherry`); a
      patch changed by a resolved conflict is not by itself a doubt. The long gate passed at the
-     local head: a `gate` event with `result` `pass` and `head` the local short sha in the
-     batch's `events.jsonl`, or the Driver's notes and last gate log in `handoff`; the stack
+     local head: the last `gate` invocation at the local short sha in the batch's `events.jsonl`
+     passed every command it was given (its events share a `run`), or the Driver's notes and last gate log in `handoff`; the stack
      driver's restack follows its own card. No gate pass at the local head is the Driver's slip,
      not a doubt: push nothing and answer `push refused <branch>: no long gate passed at <local
      sha>` (the Driver runs the gate and sends the line again). A push that would drop work the
@@ -486,8 +495,10 @@ these differences.
   batch opened outside your claim window (before the claim, after a Foreman took over); the `Chief of Staff, whole session` line leaves the steering window out and counts the
   compactions since the batch opened.
 - **The Drivers.** You start them, several in parallel on the free slots, in the background, and
-  hear their hand-backs, as the Foreman's card says. "Never message a Driver" does not hold for the
-  Drivers of a batch you steer.
+  hear their hand-backs, as the Foreman's card says, including its check of a `no long gate`
+  hand-back. "Never message a Driver" does not hold for the Drivers of a batch you steer. Start a
+  QA driver as the Foreman's card says and record its agent id with `agents set O-<k> <id> --epoch
+  <n>`.
 - **A dependent draft PR.** The Foreman's rule after an `order merged` (a ready draft waiting
   for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
@@ -496,10 +507,10 @@ these differences.
   above, without asking the user; the Driver hears the result as a note (`order note` or the
   host's message, as your other notes to it): `pushed <branch>`, `push failed <branch> <text>` or
   `push refused <branch>: <text>`.
-- **The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
-  refused by the CLI (exit 2). The exception is the release: `order add --release` and `order add
-  --fix-for <release-cr>` are accepted, a release CR needing no real grill. Once the batch
-  is paused it takes any number of CRs before its first `take` (below).
+- **A CR added while the batch runs is queued.** `order add` queues it, with no pause needed, and
+  you take it when a slot frees; `order qa` is refused by the CLI (exit 2). `order add --release`
+  and `order add --fix-for <release-cr>` are accepted as ever, a release CR needing no real grill.
+  Once the batch is paused it takes any number of CRs before its first `take` (below).
 - **What you accept while you steer:**
   - "status?" and "what did it cost?"; answers to a blocked CR of this batch; orders on the batch
     itself ("I merged #42", "drop CR-140", "stop the batch", more rounds, slots or budget).
@@ -511,8 +522,8 @@ these differences.
   - **The spec-writer.** On the user's word that a CR already grilled (by a Griller, or before the
     batch) is grilled enough, start it as "Backlog and grill" says.
   - **Not while the batch runs:** grill a CR (ask its questions, write its `01-intent.md` from a
-    discussion with the user); touch the running batch from backlog work (no CR joins it, the CLI
-    refuses `order add` and `order qa`; nothing starts that the user did not order on the batch);
+    discussion with the user); touch the running batch from backlog work (`triage --ready` joins no CR to it, the CLI
+    refuses `order qa`; nothing starts that the user did not order on the batch);
     the demo.
   - Any other request is noted word for word and handed back when the batch completes; an idea
     that arrives while the batch runs is filed in the inbox at once (`file`, no grill). A request

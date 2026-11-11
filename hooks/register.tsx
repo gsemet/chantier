@@ -50,6 +50,8 @@ const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape:
 // The chantier role skills this session loaded: a compaction of such a session gets the reload line.
 const roles = atom({ plugin: 'chantier', key: 'roles' } as const, [], { shape: 'roles-1' })
 const checkedAt = atom({ plugin: 'chantier', key: 'checkedAt' } as const, null, { shape: 'checked-1' })
+// The workers this session spawned for a CR (agent id -> where it may write); it survives a reload.
+const workers = atom({ plugin: 'chantier', key: 'workers' } as const, {}, { shape: 'workers-1' })
 
 // ---- paths: plain strings, `/` everywhere, no Node ----
 
@@ -344,7 +346,55 @@ function minutesSince(iso: string | null, now: number): number | null {
   return Number.isNaN(t) ? null : Math.round((now - t) / 60000)
 }
 
+// ---- the worker write guard ----
+
+type Worker = { worktree: string; folder: string; cwd: string }
+
+/** The worktree and CR folder a chantier worker's prompt names; null for any other prompt (a Driver's, a spec-writer's). */
+function workerPlace(prompt: unknown): { worktree: string; folder: string } | null {
+  if (typeof prompt !== 'string') return null
+  const lines = prompt.split(/\r?\n/)
+  if (!(lines[0] ?? '').startsWith('chantier ')) return null
+  const wt = lines.map(l => /^\s*worktree:\s*(.+?)(?:\s+branch\b.*)?$/.exec(l)).find(m => m !== null)
+  const fo = lines.map(l => /^\s*folder:\s*(.+?)\s*\(work\/, evidence\/\)/.exec(l)).find(m => m !== null)
+  if (!wt || !fo) return null
+  return { worktree: (wt[1] ?? '').trim(), folder: (fo[1] ?? '').trim() }
+}
+
+const WRITE_TOOLS = ['Write', 'Edit', 'NotebookEdit']
+
 export const register: Register = on => {
+  // A worker writes in its CR's worktree and folder only. The record is made once the spawn
+  // resolves (a denied spawn leaves none); Bash and PowerShell are not guarded.
+  on('agent.spawn', async ($, e, next) => {
+    const result: any = await next(e)
+    const place = workerPlace((e as any).prompt)
+    const id = result?.agentId
+    if (place !== null && typeof id === 'string') {
+      const cwd = slash(String((e as any).cwd ?? (await $.session.cwd())))
+      await update($, workers, (m: Record<string, Worker>) => ({ ...m, [id]: { ...place, cwd } }))
+    }
+    return result
+  })
+
+  on('tool.call', async ($, e, next) => {
+    const id = (e as any).agentId
+    let known: Worker | undefined
+    try {
+      if (typeof id === 'string') known = (await read($, workers) as Record<string, Worker>)[id]
+      if (known === undefined || !WRITE_TOOLS.includes(String((e as any).tool))) return next(e)
+      const input = (e as any).input ?? {}
+      const raw = slash(String(input.file_path ?? input.notebook_path ?? input.path ?? ''))
+      const abs = /^([A-Za-z]:)?\//.test(raw) ? raw : known.cwd + '/' + raw
+      if (isInside(known.worktree, abs) || isInside(known.folder, abs)) return next(e)
+      return { deny: `refused: ${raw} is outside this CR's worktree ${known.worktree} and its folder ${known.folder}; write there` }
+    } catch (err) {
+      // A failed guard stops a recorded worker and lets anyone else through.
+      if (known !== undefined) return { deny: `refused: the write guard failed (${message(err)})` }
+      return next(e)
+    }
+  })
+
   // A session that loads the chantier skill (the router) or the chief-of-staff skill gets the
   // pane, a griller does not; the prompt is returned unchanged.
   on('skill.prompt', async ($, e, next) => {

@@ -292,7 +292,7 @@ def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clea
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo) == ""
 
 
-def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch):
+def test_a_direct_batch_is_recorded_shown_and_queues_added_work(repo, chantier, monkeypatch):
     monkeypatch.setenv("CHANTIER_HOST", "claude")
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-chief")
     first, second = _prepared(repo, chantier), _prepared(repo, chantier, "Fix logout")
@@ -309,13 +309,11 @@ def test_a_direct_batch_is_recorded_shown_and_strict(repo, chantier, monkeypatch
     assert " steering direct " in chantier("status")[1][0]
     assert "steered by the Chief of Staff (direct mode) · independent PRs (parallel)" in (
         batch.parent / "STATUS.md").read_text(encoding="utf-8")
-    for kind, note in (("add", str(second)), ("qa", "test it")):
-        code, _, err = chantier("order", kind, "--note", note)
-        assert code == 2 and "a running direct batch is strict" in err
-        assert "Foreman mode" not in err and "once the batch is paused" in err
-    code, out, err = chantier("order", "add", "--release", "--note", str(second))
-    assert code == 0, err  # the release exception
-    assert chantier("order", "note", "CR-101", "--note", "hello")[0] == 0  # the rest still works
+    code, _, err = chantier("order", "qa", "--note", "test it")
+    assert code == 2 and "a running direct batch takes no QA" in err
+    code, out, err = chantier("order", "add", "--note", str(second))
+    assert code == 0 and any("added CR-102, queued" in ln for ln in out), err  # taken at a free slot
+    assert chantier("order", "note", "101", "--note", "hello")[0] == 0  # a bare number is a CR
 
 
 def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(
@@ -382,3 +380,31 @@ def test_init_creates_the_eight_folders_once_and_refuses_outside_a_main_checkout
     monkeypatch.chdir(tmp_path.parent)
     code, _, err = chantier("init")
     assert code == 2 and "git" in err
+
+
+def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_head():
+    from chantier.commands import gate_passed, last_verdict
+    from chantier.state import normalize_cr
+    assert [normalize_cr(x) for x in ("165", "CR-165", "cr-165", "stack", "O-2", "-")] == [
+        "CR-165", "CR-165", "CR-165", "stack", "O-2", "-"]
+    g = lambda result, run, head="abc1234": {"kind": "gate", "result": result, "head": head, "run": run}  # noqa: E731
+    assert gate_passed([g("pass", "1"), g("pass", "1")], "abc1234")
+    assert not gate_passed([g("pass", "1"), g("fail", "1")], "abc1234")  # the second command failed
+    assert not gate_passed([g("fail", "1"), g("pass", "2"), g("fail", "3")], "abc1234")  # the last run
+    assert gate_passed([g("fail", "1"), g("pass", "2")], "abc1234")
+    assert not gate_passed([g("pass", "1")], "other")
+    v = lambda result, head="abc1234": {"kind": "verdict", "result": result, "head": head}  # noqa: E731
+    assert last_verdict([v("VERIFIED"), v("NOT VERIFIED")], "abc1234") == "NOT VERIFIED"
+    assert last_verdict([v("NOT VERIFIED"), v("VERIFIED")], "abc1234") == "VERIFIED"
+    assert last_verdict([v("VERIFIED", "old")], "abc1234") is None
+
+
+def test_cost_puts_the_steering_sessions_own_subagents_on_their_own_line_and_qa_on_a_driver():
+    from chantier.commands import OWN_CHIEF, _breakdown, _kind, _label
+    row = lambda agent, parent, **more: {"agent": agent, "type": "Explore", "parent": parent,  # noqa: E731
+                                         "calls": 1, "usd": 1.0, **more}
+    assert _kind(row("a", None)) == "Driver"  # tied to a CR, the stack or a QA order by the log
+    own = row("b", None, own=OWN_CHIEF)  # `_cost_rows` marks the others
+    assert (_kind(own), _label(own)) == ("Foreman", OWN_CHIEF)
+    labels = [e["label"] for e in _breakdown([row("a", None), own, row("c", "a")])]
+    assert labels == [OWN_CHIEF, "Driver Explore", "Worker Explore"]

@@ -66,7 +66,8 @@ On the `final` message (Foreman mode) or right after your own `pause` (direct mo
 - a table, one row per CR: CR, subject, result, PR, rounds, cost;
 - the cost table (see Cost), then its explanation from `cost --explain`, both run at the pause:
   the cost to date;
-- what the batch did not prove;
+- what the batch did not prove, with each CR handed back with `--no-gate` and its reason (the
+  CR's "Long gate" step shows `waived: <reason>`);
 - the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
   `work/retro.md` if the batch had a release, each point once), one numbered line each,
   `<n>. <problem>: <long-term fix>`; a point that matches an inbox or backlog item names that
