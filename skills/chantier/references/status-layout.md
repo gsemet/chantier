@@ -9,7 +9,7 @@ card is read whole before every report, by the Chief of Staff and by `/chantier:
 ## Before a report
 
 Run `$CHANTIER status --refresh` with no epoch: it records the current spend and `STATUS.md` and
-leaves the Foreman's heartbeat alone.
+leaves the Foreman's heartbeat alone (only the loop's wake, `--refresh --epoch <n>`, moves it).
 
 ## The rules of every report
 

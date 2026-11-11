@@ -43,7 +43,9 @@ Otherwise the Chief of Staff arms it: on the Foreman's `ready <batch>`, it sends
 the pause the Chief of Staff tells the user to delete the `/every` in the Foreman chat. The Foreman
 also ends its heartbeat when every Driver has ended for 30 minutes (nothing can move): the Chief
 of Staff then tells the user to delete the `/every`, and arms it again with the next order it
-sends the Foreman.
+sends the Foreman. Whoever ends the heartbeat (the Foreman, or in direct mode the Chief of Staff)
+first records it with `chantier status --stop-heartbeat --batch <batch> --epoch <n>` (`pause`
+already does); while an `/every` still fires, its next wake clears the mark, which is true.
 
 ## Configuration
 

@@ -118,13 +118,18 @@ def _parser() -> argparse.ArgumentParser:
 
     s = cmd("status", commands.status,
             "one line per CR, the open orders (untouched, then applied), the unread asks; "
-            "--refresh: the live facts",
+            "--refresh: the live facts; its line says `heartbeat N min` (since the last "
+            "`--refresh --epoch`), `never` or `stopped`",
             epoch=True)
     s.add_argument("--notes", action="store_true", help="each CR's last note")
     s.add_argument("--refresh", action="store_true",
                    help="the activity of each working CR (age of its last event or session "
                         "record, `gate running`, `not measured`) and the spend (recorded); "
-                        "with --epoch, the Foreman's wake")
+                        "with --epoch, the steering session's wake: it records the heartbeat "
+                        "and prints the gap since the wake before; without, it moves nothing")
+    s.add_argument("--stop-heartbeat", action="store_true",
+                   help="with --epoch: record that the steering session ended its loop "
+                        "(`heartbeat stopped`, until the next wake)")
 
     s = cmd("asks", commands.asks, "the Foreman's asks still unread; with text, record one")
     s.add_argument("text", nargs="*", help="the Foreman's own ask")

@@ -284,7 +284,9 @@ def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
             "unpriced": d.get("unpriced") or {},  # model -> calls left out of spent_usd (a floor)
             "priced": _priced(d), "asks_unread": sum(1 for a in d.get("asks", []) if not a["read"]),
             "orders_pending": sum(1 for o in d.get("orders", []) if not o["done"]),
-            "heartbeat": d.get("heartbeat"), "paused": d.get("paused"),
+            "heartbeat": d.get("heartbeat"),
+            "heartbeat_stopped": d.get("heartbeat_stopped"),  # the loop ended on purpose, when
+            "paused": d.get("paused"),
             "summary": d.get("summary", []),
             "crs": [_row(repo, d, c, folder)
                     for c in sorted(d["crs"], key=lambda x: x["order"])]}
@@ -413,6 +415,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
                         "spent_usd": v["spent_usd"], "budget_usd": v["budget_usd"],
                         "unpriced": v["unpriced"],
                         "asks_unread": v["asks_unread"], "heartbeat": v["heartbeat"],
+                        "heartbeat_stopped": v["heartbeat_stopped"],
                         "orders_pending": v["orders_pending"],
                         "slots": {"taken": len(held(SimpleNamespace(data=d))), "total": d["slots"]},
                         "crs": [_row(repo, d, c, start) for c in active]})

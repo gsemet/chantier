@@ -49,9 +49,10 @@ Chief of Staff, and to a hand-over's.
 
 The Foreman (in direct mode the Chief of Staff, in its own session) runs the `/loop` skill in dynamic mode with `chantier status --refresh --batch
 <batch> --epoch <n>`, every `30m`, each wake scheduled with `ScheduleWakeup`. It ends the
-heartbeat, never its session, with `ScheduleWakeup` `stop: true`: right after `pause`, and on a
-wake where no Driver of any kind (CR, stack, QA, release) has run since the last wake and no
-order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
+heartbeat, never its session, with `ScheduleWakeup` `stop: true` (after `chantier status
+--stop-heartbeat --batch <batch> --epoch <n>`, which `pause` already does): right after `pause`,
+and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the last wake
+and no order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
 Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
 
 ## Configuration

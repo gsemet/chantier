@@ -466,7 +466,7 @@ Only in the turn where the user gave the go:
   yourself, from the main checkout (`git -C <clone>` with a planning surface; `git worktree remove
   --force <path>`, `git branch -D <branch>`, as listed).
 - **Recovery:** a stale heartbeat says something only while a CR is `working`; with none, the
-  Foreman has stopped waking, as it should. After a break, a restart or a stale heartbeat, prove the Foreman is alive
+  Foreman has stopped waking, as it should. "Heartbeat stopped" is a loop ended on purpose. After a break, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
   reporting progress. An app restart stops every session: tell the user, and on "resume" run
   preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch each
@@ -521,9 +521,12 @@ these differences.
   ([session-start](session-start.md), "Titles").
 - **Your epoch.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
-  <n>`; carry `--epoch <n>` on every steering command (`take`, `agents set`, `status
-  --refresh`, `order done`, `order merged`, `cancel`, `pause`) and arm the same heartbeat, as
-  your host's reference says. The CLI prices your transcript from that claim, as one `Chief of
+  <n>`; carry `--epoch <n>` on the loop's wakes (`status --refresh --epoch <n>`) and on every
+  other steering command (`take`, `agents set`, `order done`, `order merged`, `cancel`, `pause`),
+  never on the refresh before a report, which stays `status --refresh` with no epoch; arm the
+  same heartbeat, as your host's reference says. Your own "heartbeat N min" is the minutes since
+  your loop's last wake, and "heartbeat stopped" is a loop you ended on purpose (the host's
+  reference says how it is recorded). The CLI prices your transcript from that claim, as one `Chief of
   Staff, steering the batch` row, which counts in the spend and the budget as a Foreman's does;
   the turns that grill with the user or write specifications (a turn that names a CR's
   `01-intent.md`, `02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a

@@ -442,7 +442,8 @@ fallback.
 Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a
 Remote Control session with no Foreman to reuse) and in a Copilot agent session, checked by
 `chantier preflight --direct`. The heartbeat is the same, run in the Chief of Staff's own
-session.
+session: `chantier status` prints "heartbeat N min" (since its last wake) or "heartbeat stopped"
+(a loop ended on purpose).
 
 **Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
 settings, so the Foreman's session can be reached from your phone. A host classifier may refuse

@@ -1244,6 +1244,55 @@ def direct_batch(w: World) -> None:
     check("`order qa` is refused on a running direct batch",
           "a running direct batch takes no QA" in w.last_stderr and len(w.batch()["crs"]) == 1,
           w.last_stderr)
+
+    # The heartbeat says something true: the minutes since the last `status --refresh --epoch`.
+    def hb_line(out: list[str]) -> str:
+        return re.search(r"heartbeat (.*?) spent ", out[0])[1]
+
+    def hb_minutes(text: str) -> int:
+        return int(re.match(r"(\d+) min", text)[1])
+
+    def events(kind: str) -> int:
+        return sum(1 for ln in (w.folder() / "events.jsonl").read_text(encoding="utf-8").splitlines()
+                   if json.loads(ln).get("kind") == kind)
+
+    check("a batch that never woke prints `heartbeat never`", w.batch()["heartbeat"] is None
+          and hb_line(w.chantier("status")[1]) == "never")
+    _, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("a batch's first wake prints `heartbeat 0 min` with no gap, and logs its event",
+          hb_line(out) == "0 min" and w.batch()["heartbeat"] and events("heartbeat") == 1, str(out))
+    old = (datetime.now(timezone.utc) - timedelta(minutes=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    edit(heartbeat=old)
+    _, out = w.chantier("status")
+    check("`status` prints the minutes since the last wake", abs(hb_minutes(hb_line(out)) - 45) <= 1,
+          str(out))
+    _, out = w.chantier("status", "--refresh", expect=None)
+    check("`status --refresh` with no epoch moves no heartbeat and still prints the true age",
+          w.batch()["heartbeat"] == old and abs(hb_minutes(hb_line(out)) - 45) <= 1
+          and events("heartbeat") == 1, str(out))
+    _, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("a wake records the heartbeat and prints the gap since the wake before",
+          w.batch()["heartbeat"] != old and events("heartbeat") == 2
+          and re.fullmatch(r"0 min \((44|45|46) min since the last\)", hb_line(out)) is not None,
+          str(out))
+    _, out = w.chantier("status")
+    check("the status after a wake prints `heartbeat 0 min`", hb_line(out) == "0 min", str(out))
+    before = (w.folder() / "batch.json").read_bytes()
+    code, _ = w.chantier("status", "--stop-heartbeat", "--epoch", 2, expect=3)
+    check("recording the stop with a stale epoch is refused and changes nothing",
+          code == 3 and (w.folder() / "batch.json").read_bytes() == before, w.last_stderr)
+    code, out = w.chantier("status", "--stop-heartbeat", "--epoch", 1)
+    _, out = w.chantier("status")
+    check("recording the stop makes `status` print `heartbeat stopped`, logs one event, and shows "
+          "the mark in STATUS.json",
+          hb_line(out) == "stopped" and events("heartbeat_stopped") == 1
+          and json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
+          ["heartbeat_stopped"], str(out))
+    _, out = w.chantier("status", "--refresh", expect=None)
+    check("a refresh with no epoch leaves the stop in place", hb_line(out) == "stopped", str(out))
+    _, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    check("the next wake clears the stop and prints its gap", w.batch()["heartbeat_stopped"] is None
+          and re.fullmatch(r"0 min \(\d+ min since the last\)", hb_line(out)) is not None, str(out))
     _, out = w.chantier("order", "add", "--note", str(extra))
     check("`order add` queues a CR on a running direct batch",
           any("queued" in ln for ln in out) and len(w.batch()["crs"]) == 2

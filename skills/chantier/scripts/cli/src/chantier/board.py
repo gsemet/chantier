@@ -131,7 +131,8 @@ def _batch_section(batch: dict, slots: dict | None, events: list[dict]) -> str:
     facts = [f"spent {figures}"]
     if slots:
         facts.append(f"slots {slots['taken']} taken, {slots['total'] - slots['taken']} free")
-    facts.append(f"heartbeat {_ago(batch['heartbeat'])}")
+    facts.append("heartbeat stopped" if batch.get("heartbeat_stopped")
+                 else f"heartbeat {_ago(batch['heartbeat'])}")
     if batch["orders_pending"]:
         facts.append(f"{batch['orders_pending']} order(s) pending")
     ask = f' · <b>{asks} question(s) waiting</b>' if asks else ""
