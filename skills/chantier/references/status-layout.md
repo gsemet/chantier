@@ -77,8 +77,8 @@ On the `final` message (Foreman mode) or right after your own `pause` (direct mo
 - a last line, **For you:** the batch is paused, which Retro points to file as inbox items
   (by their numbers), the inbox ideas ready for a grill (each by its slug), and, if it fits, an
   invitation to add other CRs to this batch later or to close it ("close the batch"); the
-  Retro is offered before the close, which deletes `4-batch/retro.md`
-  (only a Tips line can follow it, see below).
+  Retro is offered before the close, which keeps `4-batch/retro.md` in the archive of the
+  batch's last merged CR (only a Tips line can follow it, see below).
 
 ## Cost
 

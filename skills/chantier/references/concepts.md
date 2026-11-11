@@ -107,7 +107,8 @@ started.
   3. **Paused:** nothing runs. The cost to date has been computed and shown, and the steering
      session has written the batch's retro for this pause (`4-batch/retro.md`: each problem met
      with its long-term fix, one line each), which the Chief of Staff offers to the user as inbox
-     items before any close (`close` deletes it with the batch's files); each later pause adds
+     items before any close (`close` keeps it, in the archive of the batch's last merged CR, or in
+     `5-archives/<date>-<batch>/` when none merged); each later pause adds
      its own section. The batch is not
      closed (one batch at a time, so `open` still refuses a new batch). It takes new CRs:
      `order add` adds them, any number, and the batch stays paused; the first `take` (or an
