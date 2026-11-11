@@ -152,9 +152,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   - **Stack:** unchanged: the stack driver restacks.
 - A CR taken back from `ready` (every `take <cr> --note` above, the Series one and the ready PR
   that stopped merging included) is run by the Driver that handed it back:
-  - The `take` comes first: it holds the slot, or makes the CR wait for one like a queued CR when
+  - Note the Driver's agent id first (`status`), then `agents set <cr> - --epoch <n>`: `take` refuses a CR
+    with an agent recorded.
+  - The `take` comes next: it holds the slot, or makes the CR wait for one like a queued CR when
     none is free.
-  - Then resume that Driver (the agent id `agents set` recorded, still in the CR's record): send
+  - Then resume that Driver (the agent id you noted): send
     it `[foreman→driver <cr>] note taken back: <the take's note>` by the host's means (your host's
     reference), and record it again with `agents set <cr> <id> --epoch <n>`, so the log shows
     the resume.
