@@ -58,6 +58,23 @@ def test_a_dated_id_is_priced_by_its_model_and_the_project_prices_rank_first(tmp
     assert session_costs(transcript, prices=mine)[0]["usd"] == pytest.approx(3000 / 1e6)
 
 
+def test_claude_fable_5_2_is_priced_from_the_built_in_table(tmp_path):
+    call = record("claude-fable-5-2")
+    call["message"]["usage"] = {
+        "input_tokens": 1_000,
+        "cache_creation": {"ephemeral_5m_input_tokens": 2_000,
+                           "ephemeral_1h_input_tokens": 3_000},
+        "cache_read_input_tokens": 4_000,
+        "output_tokens": 5_000,
+    }
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text(json.dumps(call) + "\n")
+    row = session_costs(transcript)[0]
+    assert row["calls"] == 1 and row["unpriced"] == {}
+    assert row["usd"] == pytest.approx(
+        (1000 * 8 + 2000 * 10 + 3000 * 16 + 4000 * 0.20 + 5000 * 40) / 1e6)
+
+
 def test_claude_cost_requires_main_transcript_even_if_subagents_exist(tmp_path):
     transcript = tmp_path / "session.jsonl"
     subagents = tmp_path / "session" / "subagents"
