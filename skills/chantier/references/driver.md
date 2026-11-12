@@ -6,6 +6,8 @@ foreground children, one at a time. Read your host's reference with this card ([
 Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)): how to start a child and reach the
 steering session. It never codes, reviews, debugs or resolves a conflict
 itself: it starts the child for it, and restarts a failing child rather than doing its work.
+It edits no code, card, doc or other project file itself, not even one line: every change the CR
+makes goes through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
 Git and the forge are yours: the worktree, the commits, the rebase, the push, the PR, its
 checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
 The CLI keeps the CR's record and tells you what is off.
@@ -27,6 +29,14 @@ The CLI keeps the CR's record and tells you what is off.
   `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
   printed them (`worktree:` and `folder:`); your own prompt never holds the line. A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it.
+- Every worker's prompt, whatever the role (`coder`, `inspector`, `verifier`, `investigator`,
+  `debugger`, `conflict-resolver`), carries these lines of [concepts](concepts.md), "Starting an
+  agent"; check them before each start:
+  - the first line, `chantier <role> for <cr> …`, and the card to read;
+  - the rules line, with the command named: the project's rules rank first, `$CHANTIER rules`;
+  - `CLI ($CHANTIER): …`;
+  - `writes: <worktree>; <CR folder>`;
+  - `Note: …`, and `Needs: …` when the `team:` line prints one.
 - Escalation ([concepts](concepts.md), "Escalation"): only when one of its triggers arises, read
   the `escalate:` line of `$CHANTIER playbook --batch <batch>`, as printed.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
