@@ -24,6 +24,10 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   `tool_use` id that started it. Only what the batch did counts: the agents whose first record is
   at or after the batch's `created`, and the steering session's commands from then on (a reused
   Foreman session holds the agents of its earlier batches: they are counted apart, not audited).
+  A command is read as the shell runs it: the CLI through a variable (`$c rules`), git past its
+  global options (`git -C <dir> add -A;`), a file written with the shell in a CR's worktree (a
+  cmdlet, .NET or a redirection) as a write; a throwaway repository the agent `git init`-ed is
+  not the CR's.
 - Copilot: not written yet. It is to be filled in from a real Copilot run, with the host's own
   log analysis tool; until then the audit says so and checks only what every host shares, with no
   rail ids and no scorecard.
@@ -49,18 +53,77 @@ PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|th
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
-EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(status --refresh|cancel|pause|take)\b|agents set"
+# the CLI, however it is called: its script, or a variable holding the call (`$c rules`, also inside
+# `Invoke-Expression "..."` or after `&`)
+CLI_CALL = r"(?:chantier\.py[\"']?|\$\{?\w+\}?[\"']?)\s+"
+EPOCH_COMMANDS = re.compile(CLI_CALL + r"(status --refresh|cancel|pause|take)\b|agents set"
                             r"|order (done|merged)")
-DIRECT_EPOCH_COMMANDS = re.compile(r"chantier\.py\"?\s+(status --refresh|cancel|pause|take)\b"
+DIRECT_EPOCH_COMMANDS = re.compile(CLI_CALL + r"(status --refresh|cancel|pause|take)\b"
                                    r"|agents set|order done")  # its own `order merged` is the user's
+RULES_COMMAND = re.compile(CLI_CALL + r"rules\b")
 PLUGIN_AGENT = "chantier:{role}"  # the Claude plugin's agent for a role; a project names its own
 WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
 FORGE_ALLOWED = (["pr", "create"], ["pr", "edit"], ["pr", "checks"], ["pr", "view"],
                  ["pr", "ready"], ["run", "list"], ["run", "view"], ["run", "rerun"], ["auth", "status"])
-GIT_WRITES = re.compile(r"git\s+(commit|push|rebase|merge)\b(?!-)")
+ARG = r"(?:\"[^\"]*\"|'[^']*'|\(\s*Resolve-Path\s+[^)]*\)|[^\s;&|,)]+)"  # one shell argument
+
+
+def git(verbs: str) -> str:
+    """`git <verb>`, past the global options before the verb (`-C <dir>`, `-c k=v`, `--no-pager`);
+    the group `dir` holds the last `-C` folder."""
+    return (rf"\bgit(?:\s+-C\s+(?P<dir>{ARG})|\s+-c\s+{ARG}|\s+--[\w-]+(?:=\S+)?)*\s+"
+            rf"(?:{verbs})")
+
+
+GIT_WRITES = re.compile(git("commit|push|rebase|merge") + r"\b(?!-)")
+GIT_PUSH = re.compile(git("push") + r"\b")
+GIT_ADD_ALL = re.compile(git("add") + r"\s+(?:-A|--all|\.)(?=[\s;&|)]|$)")
+GIT_WORKTREE_ADD = re.compile(git("worktree") + r"\s+add\b")
+GIT_WORKTREE_REMOVE = re.compile(git("worktree") + r"\s+remove\b")
 OWN_FILES = ("/work/", "/evidence/")  # a worker's notes and proof, in the CR's folder
-CD = re.compile(r"(?:^|[;&|\n(])\s*(?:cd|Set-Location|sl|pushd)\s+(\"[^\"]+\"|'[^']+'|[^\s;&|)]+)",
-                re.I)
+CD = re.compile(rf"(?:^|[;&|\n(])\s*(?:cd|Set-Location|sl|pushd)\s+({ARG})", re.I)
+ASSIGN = re.compile(rf"\$(\w+)\s*=\s*({ARG})")
+# a shell write to a file: a cmdlet, .NET, or a redirection (not of a stream to another, nor to $null)
+SHELL_WRITES = (
+    re.compile(r"\b(?:Set-Content|Add-Content|Out-File)\b", re.I),  # its path: `cmdlet_path`
+    re.compile(rf"\[(?:System\.)?IO\.File\]::(?:Write|Append)All\w*\(\s*({ARG})", re.I),
+    re.compile(rf"(?<![\d&>=-])>>?\s*(?![&>]|\$null\b)({ARG})"),
+)
+HERE_STRING = re.compile(r"@'.*?'@|@\".*?\"@", re.S)  # a here-string's text is data, not commands
+
+
+def path_of(token: str, names: dict[str, str]) -> str:
+    """A shell argument as a path, `/`-separated and lowered: quotes, `(Resolve-Path ...)` and a
+    variable assigned in the same command are undone."""
+    token = token.strip()
+    m = re.fullmatch(r"\(\s*Resolve-Path\s+(.*?)\s*\)", token, re.I)
+    token = (m[1] if m else token).strip("\"'")
+    if re.fullmatch(r"\$\{?\w+\}?", token):
+        token = names.get(token.strip("${}"), token)
+    return token.replace("\\", "/").rstrip("/").lower()
+
+
+SWITCHES = {"-nonewline", "-force", "-append", "-noclobber", "-passthru", "-whatif", "-confirm"}
+
+
+def cmdlet_path(text: str) -> str:
+    """The path `Set-Content`, `Add-Content` or `Out-File` writes: its `-Path`, else its first
+    argument that is not a parameter ('' when none)."""
+    words = re.findall(ARG, re.split(r"[;|\n]", text, maxsplit=1)[0])[1:]
+    i = 0
+    while i < len(words):
+        w = words[i].lower()
+        if w in ("-path", "-filepath", "-literalpath"):
+            return words[i + 1] if i + 1 < len(words) else ""
+        if w.startswith("-"):
+            i += 1 if w in SWITCHES or w.endswith(":") else 2
+            continue
+        return words[i]
+    return ""
+
+
+def absolute(p: str) -> bool:
+    return bool(re.match(r"[a-z]:/|/", p))
 
 
 def records(path: Path):
@@ -147,22 +210,79 @@ class Agent:
         return [i.get("command", "") for (n, i), t in zip(self.tools, self.when)
                 if n in ("Bash", "PowerShell") and (not since or not t or t[:19] >= since[:19])]
 
-    def git_writes(self) -> list[str]:
-        """The commands that commit, push, rebase or merge, but not in a throwaway repository: a
-        folder the agent itself moved into (`cd`, `Set-Location`, `pushd`) and ran `git init` in,
-        to reproduce a behaviour away from the CR."""
+    def commands(self, since: str = ""):
+        """Each shell command (here-strings taken out), with its variables: `names(at)` gives
+        each `$x = <path>` as it stands at a position of the command."""
+        for c in self.bash(since):
+            c, sets = HERE_STRING.sub("''", c), []
+            for m in ASSIGN.finditer(c):
+                sets.append((m.start(), m[1], path_of(m[2], {n: v for _, n, v in sets})))
+
+            def names(at: int, sets=sets) -> dict[str, str]:
+                return {n: v for s, n, v in sets if s < at}
+            yield c, names
+
+    @staticmethod
+    def folder(c: str, names, match: re.Match) -> str:
+        """Where a git call runs: its `-C` folder, else the last `cd` before it ('' unknown)."""
+        if match.groupdict().get("dir"):
+            return path_of(match["dir"], names(match.start()))
+        moves = [path_of(m[1], names(m.start())) for m in CD.finditer(c) if m.start() < match.start()]
+        return moves[-1] if moves else ""
+
+    def git_calls(self, pattern: re.Pattern) -> list[str]:
+        """The commands that run `pattern`, but not in a throwaway repository: a folder the agent
+        itself ran `git init` in (after a `cd` or with `-C`), to reproduce a behaviour away from
+        the CR."""
         own, found = set(), []
-        for c in self.bash():
-            moves = [(m.start(), m[1].strip("\"'")) for m in CD.finditer(c)]
-            for init in re.finditer(r"git\s+init\b", c):
-                before = [t for at, t in moves if at < init.start()]
-                if before:
-                    own.add(before[-1])
-            write = GIT_WRITES.search(c)
-            if write:
-                before = [t for at, t in moves if at < write.start()]
-                if not before or before[-1] not in own:
-                    found.append(c)
+        for c, names in self.commands():
+            for init in re.finditer(git("init") + r"\b", c):
+                where = self.folder(c, names, init)
+                if where:
+                    own.add(where)
+            if any(self.folder(c, names, m) not in own for m in pattern.finditer(c)):
+                found.append(c)
+        return found
+
+    def git_writes(self) -> list[str]:
+        return self.git_calls(GIT_WRITES)
+
+    def worktrees(self) -> set[str]:
+        """The CR's worktree, as its prompt names it, and for a Driver the ones it created."""
+        found = {path_of(p, {}) for p in re.findall(r"worktree:?\s+([A-Za-z]:[\\/][^\s;|,]+|/[^\s;|,]+)",
+                                                    self.prompt)}
+        if self.role in DRIVERS:
+            for c, names in self.commands():
+                for m in GIT_WORKTREE_ADD.finditer(c):
+                    segment = re.split(r"[;&|\n]", c[m.end():], maxsplit=1)[0]
+                    found |= {p for p in (path_of(t, names(m.start()))
+                                          for t in re.findall(ARG, segment)) if absolute(p)}
+        return found
+
+    def shell_writes(self) -> list[str]:
+        """The files it wrote inside a CR worktree with the shell (cmdlets, .NET, a redirection),
+        which the Write and Edit tools do not show; a throwaway folder is not a worktree."""
+        trees, found = self.worktrees(), []
+        if not trees:
+            return found
+        for c, names in self.commands():
+            targets = []
+            for m in SHELL_WRITES[0].finditer(c):
+                target = cmdlet_path(c[m.start():])
+                targets += [(m.start(), target)] if target else []
+            targets += [(m.start(), m[1]) for r in SHELL_WRITES[1:] for m in r.finditer(c)]
+            for at, token in targets:
+                p = path_of(token, names(at))
+                if not re.fullmatch(r"[\w.~:/-]*\w[\w.~:/-]*", p) or not re.search(r"[./]", p):
+                    continue  # not resolved, or not a file (text in a string, a comparison)
+                if not absolute(p):
+                    moves = [path_of(m[1], names(m.start())) for m in CD.finditer(c)
+                             if m.start() < at]
+                    if not moves or not absolute(moves[-1]):
+                        continue
+                    p = f"{moves[-1]}/{p.removeprefix('./')}"
+                if any(p.startswith(t + "/") for t in trees) and not any(o in p for o in OWN_FILES):
+                    found.append(p)
         return found
 
     def writes(self) -> list[str]:
@@ -302,22 +422,24 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
             check(not commits or a.role == "conflict-resolver",
                   f"{a.id[:10]} ({a.role}) never commits, pushes or merges", "J3")
         if a.role in DRIVERS:
-            pushes = [c for c in a.bash() if re.search(r"git\s+push\b", c)]
-            check(all("--force-with-lease" in c or "-u" in c or "--set-upstream" in c
-                      for c in pushes),
+            pushes = [re.split(r"[;&|\n]", c[m.end():], maxsplit=1)[0]
+                      for c in a.git_calls(GIT_PUSH) for m in GIT_PUSH.finditer(c)]
+            check(all(re.search(r"--force-with-lease|(^|\s)(-u|--set-upstream)\b", p)
+                      for p in pushes),
                   f"{a.id[:10]} ({a.role}) pushes with a lease or a first upstream, never --force",
                   "J4", seen=bool(pushes))
-            adds = [c for c in a.bash() if re.search(r"git\s+add\s+(-A|--all|\.)(\s|$)", c)]
+            adds = a.git_calls(GIT_ADD_ALL)
             check(not adds, f"{a.id[:10]} ({a.role}) stages explicit paths only", "J4")
             merges = [c for c in a.bash() if re.search(r"\bgh pr merge\b|\bglab mr merge\b", c)]
             check(not merges, f"{a.id[:10]} ({a.role}) merges nothing: only the steering session "
                               "merges, and only a release and its granted fixes", "C12")
         if a.role in WORKERS | {"qa-driver"} | reviews:
-            trees = [c for c in a.bash() if re.search(r"git\s+(-C\s+\S+\s+)?worktree\s+add\b", c)]
+            trees = [c for c in a.bash() if GIT_WORKTREE_ADD.search(c)]
             check(not trees, f"{a.id[:10]} ({a.role}) creates no worktree: the Driver did", "J3")
         if a.role in READ_ONLY | reviews:
             outside_files = [w for w in a.writes()
-                             if not any(own in w.replace("\\", "/") for own in OWN_FILES)]
+                             if not any(own in w.replace("\\", "/") for own in OWN_FILES)] \
+                + a.shell_writes()
             check(not outside_files, f"{a.id[:10]} ({a.role}) edits nothing but its notes and proof"
                   + (f": {outside_files[:2]}" if outside_files else ""), "J3")
         if a.type.startswith("chantier:"):
@@ -325,11 +447,12 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
                                     f"window (peak {a.peak:,})", "J17")
         if a.role in DRIVERS:
             # the Release driver writes what the procedure says (a changelog), never the code
-            code = [w for w in a.writes()
+            code = [w for w in a.writes() + a.shell_writes()
                     if not any(own in w.replace("\\", "/") for own in OWN_FILES)
                     and (a.role != "release-driver" or re.search(r"[/\\](src|tests)[/\\]", w))]
+            code = sorted({path_of(w, {}) for w in code})  # one path written by a tool and the shell
             check(not code, f"{a.id[:10]} ({a.role}) writes no code itself"
-                            + (f": {code[:2]}" if code else ""), "J3")
+                            + (f": {code[:4]}" if code else ""), "J3")
     for who_ in [*steering, *agents]:
         hand = [w for w in who_.writes() if w.endswith(("batch.json", "events.jsonl"))]
         check(not hand, f"{who_.id[:10]} never edits batch.json or events.jsonl by hand", "J21")
@@ -340,9 +463,9 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
                         f"{'' if direct else ' or merged'}, cancel and pause carries its epoch"
                         f"{': ' + no_epoch[0][:80] if no_epoch else ''}", "C9")
     steer_git = [c for c in sum((f.bash(f.since) for f in steering), []) if GIT_WRITES.search(c)
-                 or re.search(r"git\s+(-C\s+\S+\s+)?worktree\s+add\b", c)]
+                 or GIT_WORKTREE_ADD.search(c)]
     if direct:  # a force push it runs on a Driver's `push` line is the force-push route (J11)
-        pushed = [c for c in steer_git if re.search(r"git\s+push\b.*--force-with-lease", c)]
+        pushed = [c for c in steer_git if re.search(GIT_PUSH.pattern + r".*--force-with-lease", c)]
         if pushed:
             print(f"The Chief of Staff ran {len(pushed)} force push(es) on a Driver's `push` line "
                   "(the route of J11, not audited as a breach).\n")
@@ -351,17 +474,17 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
                          + (f": {steer_git[0][:80]}" if steer_git else ""), "J22")
     if not real:
         made = {a.what for a in agents if a.role in ("cr-driver", "release-driver")
-                and any(re.search(r"git\s+(-C\s+\S+\s+)?worktree\s+add\b", c) for c in a.bash())}
+                and any(GIT_WORKTREE_ADD.search(c) for c in a.bash())}
         merged = [c["id"] for c in data["crs"] if c["status"] == "merged"]
         check(all(i in made for i in merged),
               f"each merged CR's worktree was created by one of its Drivers ({sorted(made)})", "J4",
               seen=bool(merged))
         removed = [c for c in sum((f.bash() for f in steering), [])
-                   if re.search(r"git\s+(-C\s+\S+\s+)?worktree\s+remove\b", c)]
+                   if GIT_WORKTREE_REMOVE.search(c)]
         check(removed, "the steering session removed the merged CRs' worktrees before the pause",
               "J14")
     rules = [c for c in sum((f.bash(f.since) for f in steering), [])
-             if re.search(r"chantier\.py\"?\s+rules\b", c)]
+             if RULES_COMMAND.search(c)]
     check(rules, "the steering session read the project's rules (`chantier rules`)", "J14")
     for a in agents:
         if a.role in ("cr-driver", "release-driver"):
