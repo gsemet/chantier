@@ -21,7 +21,9 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   on; the agents it started outside the batch are listed apart and not audited.
 - Claude: the steering session's transcript and every subagent under it
   (`subagents/agent-*.jsonl` and `.meta.json`); each agent's parent is found through the
-  `tool_use` id that started it.
+  `tool_use` id that started it. Only what the batch did counts: the agents whose first record is
+  at or after the batch's `created`, and the steering session's commands from then on (a reused
+  Foreman session holds the agents of its earlier batches: they are counted apart, not audited).
 - Copilot: not written yet. It is to be filled in from a real Copilot run, with the host's own
   log analysis tool; until then the audit says so and checks only what every host shares, with no
   rail ids and no scorecard.
@@ -117,7 +119,9 @@ class Agent:
         self.prompt, self.tools, self.spawned = "", [], {}
         self.when: list[str] = []  # the time of each tool call, as the transcript wrote it
         self.peak = 0  # the largest context one call sent, in tokens
+        self.start = ""  # the time of its first record: when it was started
         for r in records(path):
+            self.start = self.start or str(r.get("timestamp") or "")
             m = r.get("message") or {}
             if r.get("type") == "user" and not self.prompt:
                 self.prompt = text_of(m.get("content")).strip()
@@ -203,24 +207,31 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
     direct = data.get("steering") == "direct"
     crids = {c["id"] for c in data["crs"]}
     since = {c["transcript"]: c["since"] for c in data.get("foreman_claims") or []}
-    steering, agents = [], []
+    opened = str(data.get("created") or "")  # a reused session holds earlier batches' agents too
+    steering, agents, earlier = [], [], []
     for uuid in uuids:
         main_path = next(projects.glob(f"*/{uuid}.jsonl"), None) if uuid else None
         check(main_path is not None, f"the steering session's transcript {uuid} is found")
         if not main_path:
             continue
         a = Agent(main_path, {"agentType": "chief-of-staff" if direct else "foreman"})
-        a.since = since.get(uuid, "") if direct else ""  # the Chief of Staff's own: from its claim
+        # the Chief of Staff's own: from its claim; a Foreman's: from the batch's open
+        a.since = since.get(uuid, "") if direct else opened
         steering.append(a)
         for f in sorted(main_path.with_suffix("").rglob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
             meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-            agents.append(Agent(f, meta))
+            agent = Agent(f, meta)
+            (earlier if opened and agent.start and agent.start[:19] < opened[:19]
+             else agents).append(agent)
     if not steering:
         return
-    by_tool = {tid: a for a in [*steering, *agents] for tid in a.spawned}
+    by_tool = {tid: a for a in [*steering, *agents, *earlier] for tid in a.spawned}
     for a in agents:
         a.parent = by_tool.get(a.meta.get("toolUseId"))
+    if earlier:
+        print(f"Started before the batch opened ({opened}), in a reused session: {len(earlier)} "
+              "agents of earlier batches, not audited.\n")
 
     who = "the Chief of Staff" if direct else "the Foreman"
     if direct:
@@ -329,7 +340,7 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
                    if re.search(r"git\s+(-C\s+\S+\s+)?worktree\s+remove\b", c)]
         check(removed, "the steering session removed the merged CRs' worktrees before the pause",
               "J14")
-    rules = [c for c in sum((f.bash() for f in steering), [])
+    rules = [c for c in sum((f.bash(f.since) for f in steering), [])
              if re.search(r"chantier\.py\"?\s+rules\b", c)]
     check(rules, "the steering session read the project's rules (`chantier rules`)", "J14")
     for a in agents:
