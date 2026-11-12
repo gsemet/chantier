@@ -378,7 +378,7 @@ chantier take
 
 ```md
 👷 Foreman
-merges release PR on release go
+merges release PR only under auto
 ```
 
 ```md

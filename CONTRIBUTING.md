@@ -128,7 +128,9 @@ tests stand in for the file system, the process and the session's folder with th
   (`evals/kit/`) runs `just eval-dry-run`, as [Changing the kit](evals/README.md#changing-the-kit) says.
 - With real agents, the [eval campaigns](evals/README.md): one quick campaign (`real-foreman`
   or `real-direct`, five frozen CRs on the sandbox) after a change to a role or the flow, in the
-  mode it touched; `full` and both quick campaigns before a release; `claude-planted` after a
+  mode it touched; `full` and both quick campaigns before a release (they read the main checkout: run them before
+  the batch, or after the merge of everything under the version PR and before the user merges
+  it); `claude-planted` after a
   change to how a batch handles
   failures; `copilot` for a change to Copilot's mechanics. Each run commits its report, with the
   [scorecard](evals/SCORECARD.md) for the Claude campaigns.
@@ -151,8 +153,9 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
 
 ## Release
 
-1. From an up-to-date `main` with green CI, agree on the version. Then, on a new branch, write the
-   release folder `docs/release-notes/<today>-vX.Y.Z/` as
+1. From an up-to-date `main` with green CI, or, for a release CR on top of a stack or a series,
+   from the top CR's branch, take the version: the release CR's, else the Driver's choice, with
+   its reason in the PR. Then, on a new branch, write the release folder `docs/release-notes/<today>-vX.Y.Z/` as
    [docs/release-process.md](docs/release-process.md) says.
 2. Prepare the release. This bumps the version and runs `just check`, which refuses missing or
    invalid notes. It then stages `docs/release-notes/` and commits `release: vX.Y.Z`; it pushes
@@ -162,8 +165,9 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
    just release          # patch; or `just release minor`, `just release major`
    ```
 
-3. Push the branch and open the pull request. The user reviews the release folder in the PR's body and its files. Merge it
-   by rebase once CI is green.
+3. Push the branch and open the pull request. The user reviews the release folder in the PR's body
+   and its files, and merges it by rebase once CI is green, last (in a stack, from the bottom
+   up). That merge starts the next steps.
 4. Tag the merged commit on `main` and push the tag:
 
    ```bash

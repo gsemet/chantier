@@ -75,12 +75,18 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   ules lists the project's instructions then the surface's; close archives the CR;
 - prepared-CR filing, lifecycle moves, collisions and rollback;
 - a release: added to a running batch (`order add --release`) it waits for each other CR, a
-  later one too, then for the user's `order confirm` (voided by a CR added after, refused once
-  it has started), and alone in its batch it needs none; an irreversible action refused then approved
-  (a `go` that dies with its Driver), a fix CR that stops every `go` until it merges and a new
-  attempt, a grant (the Foreman merging the fix and the release PR with the forge's CLI after
+  later one too, with no confirmation of the version; in a stack or a series it starts on the top
+  CR's branch once every other CR is ready and stacked (refused before, naming the CR and its
+  head), its PR the top of the stack, `ready` and not blocked while it waits for its merge; in a
+  parallel batch it starts once the others are merged; `order add` refused once it has started,
+  `--fix-for` accepted; `order merged` and `order confirm` refused while another CR is open;
+  an irreversible action refused until the release PR is merged (an approval never covers it), then
+  `go` because of the merge, with no approval; a procedure with no release PR, whose go is the
+  user's word (`order confirm`); a change of content under a prepared release; an older batch's
+  `confirmed` giving no go; a fix CR that stops every `go` until it merges and a new
+  attempt, and a grant (the Foreman merging the fix and the release PR with the forge's CLI after
   `release go`, recorded with `order merged --epoch`; a merge the forge refuses; the budget;
-  the number of releases), and a release PR merged on the user's approval;
+  the number of releases);
 - the event log, and the forge's call log: only the agents called it;
 - a paused batch: `pause` printing the cost to date (the whole summary, not cut), recorded with a
   to-date line and one total in `STATUS.md`, a second `pause` refused, `order add` leaving it paused, `take` setting it

@@ -8,7 +8,8 @@ started.
 - **Pull request (PR):** a merge request on GitLab.
 - **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch.
   Any other CR's PR is a draft on the forge: it says so itself, and no one merges it. A release
-  PR is no draft: the Foreman merges it.
+  PR follows the same rule: the user merges it, last of the batch (in a stack or a series, with
+  the rest, from the bottom up); the steering session merges it only under the grant.
 - **Tracker issue:** an issue in the project's tracker (GitHub, GitLab, Jira…) that a CR comes
   from, named by an `issue: <link>` line under the title of the CR's `01-intent.md` and
   `03-change-spec.md`. Its PR closes it at the merge through the closing line of the
@@ -92,8 +93,9 @@ started.
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
   and the start base for any other); the user merges from the bottom up. A CR stands on another
   only by a dependency: a real one (`depends.json`) or a chain the Foreman decided (`order
-  after`). A release CR and a fix CR sit outside a series and a stack, on the default branch. When
-  a stack merges only in part, what remains forms another stack in the same batch, restacked on
+  after`). A fix CR sits outside a series and a stack, on the default branch. A release CR is
+  their top: it starts on the top CR's branch once every other CR is ready and the top branch
+  holds them all, and its PR is the top PR. When a stack merges only in part, what remains forms another stack in the same batch, restacked on
   the default branch. Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
   external mode): its Driver
@@ -134,7 +136,9 @@ started.
   and `order add` record `after` as CR ids (a slug already merged, in `3-done` or
   `5-archives`, is met, not recorded; an unknown slug, a malformed file or a cycle exits 2). `take` refuses a queued CR until
   each CR of its `after` is `ready` or `merged`, and, in a series, its predecessor too (a cancelled one stays unmet: an ask for the user,
-  who drops the CR or changes it). The CR starts on the branch of its last dependency still open,
+  who drops the CR or changes it). A release's `after` is met by `ready` or `merged` in an
+  ordered batch (stack, series), by `merged` in a parallel one; a cancelled CR never holds it
+  back. The CR starts on the branch of its last dependency still open,
   in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
   place in the stack are two things. A chain is an `after` with no real dependency, which the
   Foreman decided for a queued CR; it ends with `order after <cr> --note -` while the CR is
@@ -142,12 +146,18 @@ started.
   `after`. `order after <cr> --note "<ids|->"` replaces the `after` of a queued CR (exit 2 on a CR
   not queued, an unknown CR or a cycle). `depends.json` is written only when a CR needs the
   result of another: CRs that touch the same file do not depend on each other.
-- **Release CR:** releases what is merged, by the project's own procedure; a Release driver runs
-  it once every other CR of the batch is merged or cancelled (its `after`, which the CLI writes),
-  and, when it shares the batch, on the user's `order confirm`. A **fix CR** is a CR the release
-  found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows a
-  release without asking (releases, up to three fixes the Foreman starts and merges), always
-  within a budget.
+- **Release CR:** a CR of its batch that releases the batch's work by the project's own
+  procedure. It waits for every other CR (its `after`, which the CLI writes, the CRs added later
+  too). In an ordered batch a Release driver prepares it on top, once the others are ready and
+  stacked, and its PR is the top PR; in a parallel batch, after the merges. There is no version
+  confirmation: the version is the specification's, else the Driver's choice, with its reason.
+  In every mode the merge of the release PR is the go for the rest of the procedure (with no
+  release PR, the user's word, `order confirm`, once the others are merged); every irreversible
+  step waits for that merge. chantier names no step of the procedure. A **fix CR** is a CR the
+  release found it needs, its `fix-<n>.md` as specification. A **grant** is what the user allows
+  without asking: the steering session merges the release PR, once every other CR is merged or
+  cancelled, and goes on the steps the procedure asks a go for (up to three fixes the Foreman
+  starts and merges), always within a budget.
 - **Griller:** a session that keeps the inbox and the backlog with the user (file, triage, grill,
   answers, specification) and may prepare work for the Chief of Staff. It opens no batch, sends
   no order, steers nothing, closes nothing, merges nothing. Usually short: started for a few

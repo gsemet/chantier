@@ -110,8 +110,9 @@ direct mode.
 
 A release works as in [Foreman mode](use-cases-foreman.md#make-a-release), with two differences.
 A release CR joins a running direct batch, as does a fix of it, since the running batch is strict
-about everything else. The release's own PR is merged by the steering session, the Chief of Staff
-here, on your approval or under your grant; every other PR is yours to merge.
+about everything else. The release's own PR is yours to merge, last; the steering session, the
+Chief of Staff here, merges it only under your grant, once every other CR of the batch is merged
+or cancelled. An approval never lets it.
 
 ## On GitHub Copilot
 

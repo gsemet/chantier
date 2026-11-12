@@ -46,10 +46,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   When the rules declare a long gate that covers this CR, send the CR back to a Driver with
   `take <cr> --note "long gate: <why the exemption does not hold>"`, with no ask. When the rules
   say nothing about a long gate, ask `question <cr> no long gate written down: <the Driver's
-  reason>`; an absent gate never means success. You merge only a release's PR or fix,
-  after `$CHANTIER release go <cr> --note "merge <pr>"` says `go` (the release CR: an approval
-  or the grant; a fix CR: the grant, else it is an ordinary ready CR), with the forge's CLI by
-  the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
+  reason>`; an absent gate never means success. A release PR is never yours to merge,
+  except under the grant, once every other CR is merged or cancelled and its base is the default
+  branch, after `$CHANTIER release go <cr> --note "merge <pr>"` says `go`; an approval never
+  covers it. You merge a fix only under the grant (else it is an ordinary ready CR), with the
+  forge's CLI by the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit or the budget; a refusal is a fact, not an argument. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
@@ -113,17 +114,24 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   queued: the Chief of Staff records it with `order after` and `order note`, and the user may
   turn it off while the CR is queued. Once the CR has started, the chain stands until the stack
   driver restacks (in a series or a parallel batch, until its rebase note).
-- A Release driver takes the release CR once the others are merged or cancelled and, when it
-  shares the batch, the user has confirmed it: `status` shows the release waiting for
-  confirmation once the others have ended, so ask the Chief of Staff for it (`[foreman→chief-of-staff]
-  release <cr>: the others have ended, confirm the version`), then start the Release driver when
-  `order confirm` is in. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
+- A Release driver takes the release CR once the others are ready (ordered batch; in a stack,
+  once the stack driver has stacked them: `take stack` first, then `take <release>`) or merged
+  (parallel batch); there is no confirmation to ask. On the merge of the release PR (`order
+  merged`), start the Release driver again at once. A release handed back `blocked waits: …,
+  then the user's word…`: once the others are merged, ask the Chief of Staff (`[foreman→chief-of-staff]
+  release <cr>: the batch is merged; run the release procedure?`) and take it back on `order
+  confirm`. When a CR under a prepared release changes, read `log <cr>`: a move with no change
+  of content (a restack, a rebase) is the stack driver's, the release PR restacked like any PR
+  above; a change of content (a new round, a drop), or doubt, makes the release stale: `note` it,
+  then `take <release> --note "redo: <cr> <why>"` once the stack under it is ready again. A
+  defect the release finds goes back to the CR that owns it (`note`, `take <cr> --note`), the
+  release redone after; one that belongs to no CR is a fix CR. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
   (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
   (`--mode stack`, or a series switched by `order mode`): a stack driver takes the stack when its open CRs are all
   ready or blocked, and again after a merge. `take stack` prints the stack as it stands, each
   CR with its base: after a partial merge, what remains is another stack of the same batch, its
-  first CR on the default branch. A release CR and a fix CR are outside it. A CR added by `order
+  first CR on the default branch. A fix CR is outside it; the release CR is its top. A CR added by `order
   add` goes on top. The stack driver ends with each hand-back: `agents set stack - --epoch <n>`
   before the next `take stack`. A ready PR that stopped merging is yours to notice (`gh pr
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.

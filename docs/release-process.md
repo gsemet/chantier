@@ -35,7 +35,8 @@ Foreman, Driver) are product vocabulary and may be used. The structure, in order
    - `<h1 align="center">chantier X.Y</h1>`;
    - one bold line naming the two or three headline changes, as verbs;
    - one `<sub>` line: `N changes since X.Y'.Z' · Claude Code and GitHub Copilot · MIT`, where N
-     is `git rev-list --no-merges --count vPREVIOUS..HEAD` on `main` before the version commit.
+     is `git rev-list --no-merges --count vPREVIOUS..HEAD` on the release branch before the version
+     commit (the same number once merged by rebase).
 2. **Links**, centred, on one line: Install (`https://github.com/gsemet/chantier#install`) · the
    tutorial (`blob/vX.Y.Z/docs/tutorial-claude-code.md`) · the use cases
    (`blob/vX.Y.Z/docs/use-cases.md`) · Full changes (`compare/vPREVIOUS...vX.Y.Z`). Then a `---`
@@ -63,7 +64,8 @@ All of them come from the release's real batch: the release CR joins the batch w
 - the board and the batch's `STATUS.md` (`.agents/changes/4-batch/STATUS.md`);
 - the Chief of Staff's latest Progress report, `report.md` in the release CR's folder;
 - excerpts of a conversation with the Chief of Staff, `conversation.md` in the release CR's
-  folder (the Chief of Staff writes both at `order confirm`);
+  folder (the Chief of Staff writes both when the release joins the batch and refreshes them
+  until the version PR is prepared);
 - CLI output (`$CHANTIER status`, `cost`, ...).
 
 The docs SVG diagrams are not used by default: one is shown only on the user's word in the release
@@ -133,7 +135,9 @@ emoji in the whole thread, and no list of hashtags. Only the user posts: no agen
 ## Which batch
 
 A chantier release joins the batch whose work it ships (`order add --release --note <folder>`),
-rather than running alone with `--release 1`: that batch's board and `STATUS.md` then show the
-work the captures explain. At `order confirm` the Chief of Staff writes `report.md` (its latest
-Progress report) and `conversation.md` (the excerpts it chooses) into the release CR's folder. A
+rather than running alone with `--release 1`, best a stack batch, its version PR on top: that
+batch's board and `STATUS.md` then show the work the captures explain. When the release joins,
+the Chief of Staff writes `report.md` (its latest Progress report) and `conversation.md` (the
+excerpts it chooses) into the release CR's folder, and refreshes them until the version PR is
+prepared. A
 docs SVG diagram goes into the notes only on the user's word in the release CR's grill.

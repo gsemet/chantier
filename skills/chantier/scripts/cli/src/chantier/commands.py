@@ -669,8 +669,8 @@ def check_series_order(b: Batch) -> None:
 def _release_tag(b: Batch, c: dict) -> str:
     if alone(b.data["crs"], c):
         return " (release, alone in its batch: it starts when taken)"
-    return (" (release: starts once every other CR is merged or cancelled, then on the user's "
-            "confirmation)")
+    return (" (release: starts once every other CR is ready (stack, series) or merged "
+            "(parallel); its PR is the user's to merge)")
 
 
 def release_waits_for_all(b: Batch) -> None:
@@ -940,20 +940,23 @@ def _add_release(b: Batch, note: str) -> list[str]:
     declare_dependencies(b, [c])
     release_waits_for_all(b)
     waits = f", after {', '.join(c['after'])}" if c.get("after") else ""
-    word = "" if alone(b.data["crs"], c) else "; it starts on `order confirm`, once the others end"
+    word = "" if alone(b.data["crs"], c) else (
+        "; it starts once every other CR is ready (stack, series) or merged (parallel), and its "
+        "PR is the user's to merge")
     return [f"added {c['id']} (release), queued{waits}; each irreversible action waits for the "
-            f"user (`order grant` changes it){word}"]
+            f"merge of the release PR (`order grant` changes it){word}"]
 
 
 def _join_release(b: Batch, added: dict) -> None:
-    """A CR joined the batch: the release waits for it, and a confirmation given before no
-    longer holds, since what ships changed. A release that started takes no new CR."""
+    """A CR joined the batch: the release waits for it, and the user's word to run the procedure
+    given before no longer holds, since what ships changed. A release that started takes no new
+    CR."""
     rel = next((x for x in b.data["crs"] if is_release(x) and x["status"] not in ENDED), None)
     if rel is None:
         return
     release_waits_for_all(b)
-    if rel.pop("confirmed", None):
-        rel.setdefault("notes", []).append(f"confirmation voided: {added['id']} was added")
+    if rel.pop("procedure", None):
+        rel.setdefault("notes", []).append(f"procedure word voided: {added['id']} was added")
         b.touch(rel)
         b.log("confirm-void", rel["id"], added=added["id"])
 
@@ -962,7 +965,7 @@ def _check_release_open(b: Batch) -> None:
     rel = next((x for x in b.data["crs"] if is_release(x) and x["status"] not in ENDED), None)
     if rel and _started(rel):
         raise ChantierError(f"order add: {rel['id']} has started ({rel['status']}, attempts "
-                            f"{rel.get('attempts', 0)}) and ships what was merged before it. Add "
+                            f"{rel.get('attempts', 0)}) and ships the work under it. Add "
                             f"a fix with `order add --fix-for {rel['id']}`, or put the new work "
                             "in the next batch")
 
@@ -1062,6 +1065,11 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
         if c["status"] == "cancelled":
             raise ChantierError(f"cannot mark cancelled {cr_id} merged")
         if c.get("kind") == "release":
+            open_ = [x["id"] for x in b.data["crs"] if x["id"] != cr_id
+                     and x.get("kind") != "fix" and x["status"] not in ENDED]
+            if open_:
+                raise ChantierError(f"order merged: {', '.join(open_)} not merged or cancelled: "
+                                    "the release PR merges last")
             release_merged(b, c)
             return [f"merged {cr_id}: the procedure goes on with a new Release driver"]
         return merge_done(b, c)
@@ -1103,22 +1111,24 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
     if kind == "confirm":
         _release_cr(b, kind, cr_id)
         if not note.strip():
-            raise ChantierError("order confirm <release-cr> --note \"<the version and what else "
-                                "was settled>\"", EXIT_USAGE)
-        if alone(b.data["crs"], c):
-            raise ChantierError(f"order confirm: {cr_id} is alone in its batch, it needs no "
-                                "confirmation")
-        if _started(c) or c["status"] in ENDED:
-            raise ChantierError(f"order confirm: {cr_id} has started or ended ({c['status']}, "
-                                f"attempts {c.get('attempts', 0)}): the word comes before the start")
-        waiting = waits_for(b.data["crs"], c, b.data["mode"])
-        if waiting:
-            raise ChantierError(f"order confirm: {cr_id} still waits for {', '.join(waiting)}: "
-                                "give the word once the others have ended")
-        c["confirmed"] = note.strip()
-        c.setdefault("notes", []).append(f"confirmed: {note.strip()}")
+            raise ChantierError("order confirm <release-cr> --note \"<the user's word to run the "
+                                "release procedure>\"", EXIT_USAGE)
+        if c["status"] in ENDED:
+            raise ChantierError(f"order confirm: {cr_id} is {c['status']}")
+        open_ = [x["id"] for x in b.data["crs"] if x["id"] != cr_id and x.get("kind") != "fix"
+                 and x["status"] not in ENDED]
+        if open_:
+            raise ChantierError(f"order confirm: {', '.join(open_)} not merged yet: the word to "
+                                "run the release procedure comes once they are merged")
+        if c.get("pr"):
+            raise ChantierError(f"order confirm: the release PR {c['pr']} is not merged: the "
+                                "word comes once it is merged (`order merged`), or for a "
+                                "procedure with no release PR")
+        c["procedure"] = note.strip()
+        c.setdefault("notes", []).append(f"procedure: {note.strip()}")
         b.touch(c)
-        return [f"confirmed {cr_id}: {note.strip()}; the Foreman may start the Release driver"]
+        return [f"{cr_id}: the user's word to run the release procedure is recorded: "
+                f"{note.strip()}"]
     if kind == "mode":
         if b.data["mode"] != "series" or note.strip() != "stack":
             raise ChantierError("order mode: only a series batch switches, to a stack "
@@ -1462,19 +1472,36 @@ def agents(args) -> list[str]:
 
 
 def _chain(b_data: dict) -> list[dict]:
-    """The stack as it stands: the CRs not ended, in order. A release CR and a fix CR sit
-    outside it, on the default branch. What a partial merge leaves forms the next stack, so the
-    first CR left stands on the default branch; a CR added by `order add` goes on top."""
+    """The stack as it stands: the CRs not ended, in order, the release CR last whatever its
+    `order` (it is the top piece). A fix CR sits outside it, on the default branch. What a
+    partial merge leaves forms the next stack, so the first CR left stands on the default
+    branch; a CR added by `order add` goes on top (under the release)."""
     if b_data["mode"] != "stack":
         return []
-    return [x for x in sorted(b_data["crs"], key=lambda x: x["order"])
-            if x["status"] not in {"cancelled", "merged"} and x.get("kind") not in {"release", "fix"}]
+    return sorted([x for x in b_data["crs"] if x["status"] not in {"cancelled", "merged"}
+                   and x.get("kind") != "fix"],
+                  key=lambda x: (x.get("kind") == "release", x["order"]))
+
+
+def _top_cr(b_data: dict) -> dict | None:
+    """In an ordered batch (stack, series), the last open CR under the release, in order: the
+    branch the release starts on and its PR sits on. A fix CR and the release are not in it."""
+    if b_data["mode"] not in {"stack", "series"}:
+        return None
+    open_ = [x for x in b_data["crs"] if x["status"] not in ENDED
+             and x.get("kind") not in {"release", "fix"}]
+    return max(open_, key=lambda x: x["order"], default=None)
 
 
 def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
     """The branch a CR starts on: that of its last dependency still open, in the order of
-    `after`; with none open, the default branch, whatever its place in a stack."""
+    `after`; with none open, the default branch, whatever its place in a stack. A release in an
+    ordered batch starts on the top CR's branch, with none open under it on the default branch;
+    in a parallel batch, or alone, on the default branch."""
     default = repo.config["default_branch"]
+    if c.get("kind") == "release":
+        top = _top_cr(b_data)
+        return top["branch"] if top else default
     if b_data["mode"] == "series":
         pred = series_predecessor(b_data["crs"], c)
         return pred["branch"] if pred and pred["status"] != "merged" else default
@@ -1490,7 +1517,9 @@ def _stack_base(b_data: dict, c: dict, repo: Repo, planned: bool = False) -> str
     place it will take); otherwise where it started. A CR sits on the one below it in the chain
     (the first on the default branch); a CR with an open dependency, on that dependency's branch."""
     default = repo.config["default_branch"]
-    if c.get("after") and c.get("kind") not in {"release", "fix"}:
+    if c.get("kind") == "release":  # the top of the stack: on the top CR's branch
+        return _start_base(b_data, c, repo)
+    if c.get("after") and c.get("kind") != "fix":
         return _start_base(b_data, c, repo)
     if not (planned or c.get("stacked")):
         return _start_base(b_data, c, repo)
@@ -1543,7 +1572,9 @@ def _facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
         lines.append(f"grant: {grant_line(d['release'])}; attempts {c.get('attempts', 0)}; "
                      f"approvals unused: {'; '.join(c.get('approvals', [])) or 'none'}")
     if c.get("after"):
-        lines.append(f"after: {', '.join(c['after'])} (a release starts from the default branch)"
+        lines.append(f"after: {', '.join(c['after'])} (a release starts on the top CR's branch "
+                     "in an ordered batch, on the default branch once the others are merged in a "
+                     "parallel one)"
                      if c.get("kind") == "release" else
                      f"after: {', '.join(c['after'])} (the base is the branch of the last one "
                      "still open)")
@@ -1596,6 +1627,33 @@ def _reopen(b: Batch) -> list[str]:
     return [f"{b.id} was paused: running again; `pause` runs again at the end"]
 
 
+def _check_release_branch(repo: Repo, d: dict, c: dict) -> None:
+    """A release in an ordered batch with CRs open under it starts only once one branch holds all
+    the work it ships: the top CR's branch holds the recorded head of every other open CR under
+    it. Read only (`git merge-base --is-ancestor`); the CLI changes nothing."""
+    top = _top_cr(d)
+    if c.get("kind") != "release" or top is None:
+        return
+    ref = top["branch"]
+    if not git("rev-parse", "--verify", "--quiet", f"refs/heads/{ref}", cwd=repo.root, check=False):
+        remote = f"{repo.config['remote']}/{ref}"
+        if git("rev-parse", "--verify", "--quiet", remote, cwd=repo.root, check=False):
+            ref = remote
+    for x in sorted(d["crs"], key=lambda x: x["order"]):
+        if (x["id"] in {c["id"], top["id"]} or x["status"] in ENDED
+                or x.get("kind") in {"release", "fix"}):
+            continue
+        if not x.get("head"):
+            raise ChantierError(f"{c['id']}: {x['id']} has no recorded head (`ship`): the stack "
+                                f"driver stacks the CRs first (`take stack`)", EXIT_PRECONDITION)
+        held_ = subprocess.run(["git", "merge-base", "--is-ancestor", x["head"], ref],
+                               cwd=repo.root, capture_output=True).returncode == 0
+        if not held_:
+            raise ChantierError(f"{c['id']}: {top['branch']} does not hold {x['id']}'s head "
+                                f"{_short(x['head'])}: the stack driver stacks the CRs first "
+                                "(`take stack`)", EXIT_PRECONDITION)
+
+
 def take(args) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
@@ -1624,6 +1682,8 @@ def take(args) -> list[str]:
                     f"base {_stack_ref(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
             c = b.cr(args.cr)
             check_take(b, c, args.note)
+            if c["status"] != "working":
+                _check_release_branch(repo, d, c)
             reopened = _reopen(b)
             restart = c["status"] == "working"  # a new Driver on a CR already working
             if c["status"] in {"ready", "blocked", "working"}:
@@ -1693,7 +1753,10 @@ def handback(args) -> list[str]:
                     return [line, f"{args.cr} out of context; the Foreman restarts a fresh Driver "
                                   "from this state, with no ask to the Chief of Staff"]
                 return [line, f"{args.cr} blocked; the Foreman asks the Chief of Staff"]
-            if c.get("kind") == "release":  # released: nothing is left to merge
+            # a release with an unmerged PR recorded: the release PR is prepared and waits for
+            # its merge (the checks of a CR, no verdict); with none, it is released
+            prepared = c.get("kind") == "release" and bool(c.get("pr"))
+            if c.get("kind") == "release" and not prepared:  # released: nothing is left to merge
                 c["released"] = note.split()[0]
                 b.log("handback", args.cr, result=args.result, note=note)
                 done_cr(b, c)
@@ -1724,7 +1787,7 @@ def handback(args) -> list[str]:
             if no_gate is None and not gate_passed(events, head):
                 missing.append(f"refused: no long gate passed at {head or 'any head'} (gate "
                                f"{c['id']} \"<cmd>\"..., or --no-gate \"<the project's rule>\")")
-            if last_verdict(events, head) != "VERIFIED":
+            if not prepared and last_verdict(events, head) != "VERIFIED":
                 missing.append(f"refused: no verdict VERIFIED at {head or 'any head'} (the last "
                                f"verdict there: {last_verdict(events, head) or 'none'})")
             if missing:
@@ -1734,6 +1797,8 @@ def handback(args) -> list[str]:
             b.log("handback", args.cr, result=args.result, note=note,
                   **({"no_gate": no_gate} if no_gate is not None else {}))
             b.touch(c, status="ready")
+            if prepared:
+                return [line, f"{args.cr} ready: the release PR {c['pr']} waits for its merge"]
             return [line, f"{args.cr} ready"]
 
 
@@ -2058,8 +2123,10 @@ def stack(args) -> list[str]:
 
 
 def release(args) -> tuple[list[str], int]:
-    """The release CR's attempts and its irreversible actions: each one is approved by the user,
-    or allowed by the grant the user gave, within the budget. A fix's merge is an action too:
+    """The release CR's attempts and its irreversible actions: none before every other CR is
+    merged and the release PR is merged (the user's, or the steering session's under the grant);
+    then the merge is the go, else each one is approved by the user, or allowed by the grant the
+    user gave, within the budget. A fix's merge is an action too:
     `go` on the fix CR, under the grant alone."""
     repo = Repo.find()
     with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
@@ -2070,7 +2137,9 @@ def release(args) -> tuple[list[str], int]:
         grant = b.data["release"]
         if args.action == "start":  # a new attempt, on the branch the Driver set on the base
             # a merged PR of an earlier attempt is not this one's
-            b.touch(c, attempts=c.get("attempts", 0) + 1, pr=None, head=None)
+            # (a merged PR is already cleared by `release_merged`; an attempt refreshes the
+            # recorded release PR, and a Driver that opens another records it with `ship`)
+            b.touch(c, attempts=c.get("attempts", 0) + 1, head=None)
             b.log("release-start", args.cr)
             return [f"attempt {c['attempts']}: the procedure starts from its first step"], 0
         if not (args.note or "").strip():
@@ -2089,6 +2158,8 @@ def release(args) -> tuple[list[str], int]:
                     f"${b.data['budget_usd']}); only the user raises it"], EXIT_BUDGET
         if result == "fix":
             return [f"no: fix {why} is not merged"], EXIT_PRECONDITION
+        if result == "merge":
+            return [f"no: {why}"], EXIT_PRECONDITION
         if result == "ask":
             return [f"no approval for: {args.note}; the user's word comes as `order approve`"], \
                 EXIT_PRECONDITION

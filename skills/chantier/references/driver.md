@@ -61,7 +61,7 @@ The CLI keeps the CR's record and tells you what is off.
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
   --body-file <work folder>/pr-body.md`, `glab mr create --draft`), a Release driver
-  opens its PR ready. A CR Driver writes the title and `<work folder>/pr-body.md` from the
+  opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
   project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
   and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update
   --description`); `glab mr create --draft` takes the body with `--description`. The body carries
@@ -88,7 +88,8 @@ The CLI keeps the CR's record and tells you what is off.
 - A CR's PR says on the forge when it is not [ready to merge](concepts.md). When a CR is sent
   back to a CR Driver (ready or blocked, with a PR, whatever the note), it turns the PR back to
   a draft first (`gh pr ready --undo`, `glab mr update --draft`): the Foreman never edits a PR.
-  A release PR is left as it is (it is no draft). A project that shows it otherwise (a label, a
+  A release PR is a draft while its base is not the default branch, and turns ready when the
+  stack driver retargets it and it is green. A project that shows it otherwise (a label, a
   title prefix, no draft at all) is followed as written, on the opening and on turning ready. A forge or plan that refuses a draft stops that step:
   `handback blocked refused <exact text>` (the stack driver: its `anomaly` line); no look-alike.
 - The evidence: once the Verifier has left it, you put it in the PR's description, in its
@@ -256,8 +257,11 @@ while the stack lives. After a partial merge what remains is a new stack of the 
 with `--force-with-lease` (a refused one goes up as above), and `ship` each one you moved:
 `ship` records the new base. The new first PR turns ready once retargeted and green. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
 last one still open, as `take stack` prints, and `stack` refuses an order that puts it below one
-of them; a dependency sent back to a Driver is yours to restack. A release CR and a fix CR are
-not in the stack. The batch stays running until its last CR ends.
+of them; a dependency sent back to a Driver is yours to restack. The release CR is the top piece:
+`take stack` lists it last. Restack it like any PR above (rebase onto the CR under it, push with
+`--force-with-lease`, `ship`); its checks run again, and no `verifier` and no `inspector` is
+started for it (it has no verdict). A release with no PR yet is no anomaly: leave it. Keep its PR
+a draft until it is the first PR on the default branch. A fix CR is not in the stack. The batch stays running until its last CR ends.
 
 ## QA driver
 
@@ -276,15 +280,22 @@ Run one release CR by the project's own procedure, and add nothing from habit. Y
 code and start no children: a defect becomes a fix CR a CR Driver codes. Take the initiative
 inside the procedure and the grant, and ask for anything beyond them.
 
-- An **irreversible action** is anything that cannot be taken back or that others see: a pushed
-  tag, a release commit on the default branch, a merged release PR, a published package, an
-  announcement. Before each: `$CHANTIER release go <cr> --note "<the action>"`; `go` is for
-  that action, in this Driver. Exit 2 or 5: hand back as it prints, with the drafts' paths.
-  Under a grant ("auto"), `release go` answers `go` for the merge, the tag and the publication;
-  the announcement thread stays a draft, never posted.
-- A new attempt (no attempt yet, or a `fix merged:` note) starts on the fresh base: the
-  worktree as above, or `git fetch` and `git reset --hard <base>`, then `$CHANTIER release start
-  <cr>`, and the procedure from its first step whatever had passed before.
+- An **irreversible action** is any step of the project's procedure that cannot be taken back or
+  that others see (the procedure names them; the merge of a release PR is one). Before each:
+  `$CHANTIER release go <cr> --note "<the action>"`; `go` is for that action, in this Driver.
+  Exit 2 or 5: hand back as it prints, with the drafts' paths. `release go` answers `merge`
+  until the release PR is merged, whatever the approvals say. Under a grant ("auto"), it answers
+  `go` for the steering session's merge of the release PR and for the steps the procedure asks a
+  go for; the announcement thread stays a draft, never posted.
+- The base is the one `take` printed (the top CR's branch in an ordered batch, the default
+  branch otherwise). A new attempt (no attempt yet, a `fix merged:` note, or `redo: <cr> <why>`)
+  starts on that base: the worktree as above, or `git fetch` and `git reset --hard <base>`, then
+  `$CHANTIER release start <cr>`, and the procedure from its first step whatever had passed
+  before. On a `redo:`, rebuild on the new base and refresh the same PR (version commit, count,
+  notes, captures); read the drafts again, never rewrite them.
+- The version is the specification's. None there: pick the best one from what the release ships
+  and the project's versioning rules, and say why in the release PR's description (with no
+  release PR, in the draft notes) and in a `note`. Never ask for it.
 - What a person reviews or edits (release notes, an announcement) goes early in the work
   folder, or where the project's procedure keeps it (a folder committed with the version), then
   `note --draft <path>`; read it again each time you use it, never rewrite it.
@@ -304,7 +315,7 @@ inside the procedure and the grant, and ask for anything beyond them.
 - The files are the source and the body a copy. Write the body from the files with the forge's
   own CLI (`gh pr edit --body-file`, `glab mr update --description`, or the equivalent for another
   forge) when you open the PR, each time a draft changes, and once more just before `handback
-  blocked merge: <pr link>`. Never copy the body back into a file. A change the user asks for in
+  ready <pr link>`. Never copy the body back into a file. A change the user asks for in
   the PR is made in the file (by the user, or on the Chief of Staff's word), then the body is
   refreshed.
 - Images in the body: one already on the forge (an asset uploaded under its `release go`, or a
@@ -316,14 +327,20 @@ inside the procedure and the grant, and ask for anything beyond them.
   docs), the body keeps what fits in that order (description, notes, thread) and names each part
   left out by its path in the PR's branch or the work folder, with a line saying the body is not
   the whole text. Nothing is cut silently.
-- A release PR is the Foreman's to merge, so it is opened ready, not as a draft: green, its body
-  refreshed from the drafts first, as above, `handback blocked merge: <pr link>`; a new
-  Driver goes on from a new attempt once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
+- In every mode, prepare the release PR (in an ordered batch on top of the stack, its notes
+  covering the previous release up to its own head), pass what the procedure names at the pushed
+  head, CI green, the body refreshed from the drafts first, as above, then `handback ready <pr
+  link>[ draft on <base>]: waits for the merge`. No `blocked merge:`, no verifier. The release PR
+  is the user's to merge; the steering session merges it only under the grant. A new Driver goes
+  on from the procedure's next step once it is merged. `[foreman→driver <cr>] fix <fix-cr>`:
   `handback blocked fix: <fix-cr> pending`.
-- A release PR the user has already merged needs no release go: you see the merge on the forge
-  (`gh pr view <pr>`, or the forge's equivalent the host card names) and go on to the
-  procedure's next step without asking; the user's merge is the go. Only the merge: every other
-  irreversible action keeps its `release go`.
+- A procedure with no release PR: prepare the drafts (`note --draft`), then `handback blocked
+  waits: the other CRs' merge, then the user's word to run the release procedure` (alone: the
+  user's word only).
+- A release PR merged (you see it on the forge, `gh pr view <pr>` or the forge's equivalent the
+  host card names, and `release go` answers `go` because of the merge) needs no further go from
+  chantier: go on through the procedure to its end. Where the procedure itself asks for a go,
+  `handback blocked approval: <step>`.
 - A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
   checks and any watch of the deploys it names (a package registry, pages), then `<work
   folder>/retro.md` (what went wrong or slowly, the long-term fix for each,

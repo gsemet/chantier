@@ -65,7 +65,7 @@ def _parser() -> argparse.ArgumentParser:
                         "one after the other, in the order given, each on the previous one's "
                         "branch; stack: independent CRs, then a stack driver stacks the PRs")
     s.add_argument("--release", type=int, metavar="N",
-                   help="the item number of the release CR; it starts once the others have ended, on the user's word if it has company")
+                   help="the item number of the release CR; it waits for every other CR: prepared on top of a stack or a series once they are ready, after the merges in a parallel batch; its PR is the user's to merge")
     s.add_argument("--autonomous-releases", type=int, default=0, metavar="N",
                    help="releases the user allows without asking (needs --budget)")
     s.add_argument("--grant-fixes", action="store_true",
@@ -85,11 +85,11 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("--note", help="add: <folder>, or a release's fix file; after: the CR ids it waits "
                    "for, comma separated, or - for none; note: the line; rounds, "
                    "slots, budget: the number; qa: what to test; approve: the action; grant: "
-                   "releases=N fixes=on|off budget=N; confirm: the version and what else was "
-                   "settled")
+                   "releases=N fixes=on|off budget=N; confirm: the user's word to run the "
+                   "release procedure, once the other CRs are merged")
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
     s.add_argument("--release", action="store_true",
-                   help="add: the folder is the batch's release CR, which waits for every other CR")
+                   help="add: the folder is the batch's release CR, which waits for every other CR (refused once it has started)")
 
     s = cmd("foreman", commands.foreman,
             "the Foreman claims its epoch (set) and records its transcript", epoch=True)
