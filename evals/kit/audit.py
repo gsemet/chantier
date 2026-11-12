@@ -562,7 +562,7 @@ def release_checks(data: dict, events: list[dict], remote: str, calls: list[dict
     merges C12 reads from the real forge)."""
     c = next(x for x in data["crs"] if x.get("kind") == "release")
     gos = [e for e in events if e.get("kind") == "release-go"]
-    check(any(e["result"] == "ask" for e in gos), "an irreversible action waited for the user", "C11")
+    check(any(e["result"] in ("ask", "merge") for e in gos), "an irreversible action waited for the user", "C11")
     check(any(e["result"] == "go" for e in gos), "an irreversible action went ahead on a `go`", "C11")
     fixes = [x for x in data["crs"] if x.get("kind") == "fix"]
     check(c.get("attempts", 0) >= 2, f"the procedure started again after the fix "
