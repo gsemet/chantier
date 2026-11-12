@@ -174,7 +174,8 @@ the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (w
 in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
 or with body items, is the next round. Any blocking item from any review, the second or a later
 one included, goes to a `coder` in a round, then a new review: never a Driver edit. All approved: commit with nothing changed since the
-review and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
+review (stage the files the round changed by name, `git add -- <paths>`, never `git add -A` or
+`.`) and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
 the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
 head, given the plan (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
 boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
