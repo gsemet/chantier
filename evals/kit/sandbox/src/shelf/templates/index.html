@@ -1,0 +1,11 @@
+    <h1>Reading list</h1>
+    <ul class="items">
+$rows
+    </ul>
+    <h2>Add an item</h2>
+$error
+    <form method="post" action="/items">
+      <label>Title <input name="title" value="$title_value" maxlength="400" required></label>
+      <label>Link <input name="url" value="$url_value" placeholder="https://"></label>
+      <button type="submit">Add</button>
+    </form>
