@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .state import (EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LOCK_TIMEOUT_S, Batch,
-                    ChantierError, Repo, read_batch_json, _retry, _try_lock, _unlock, move_directory,
+                    ChantierError, Repo, read_batch_json, read_text, _retry, _try_lock, _unlock, move_directory,
                     now, stamp, write_file)
 PRIORITIES = ("P1", "P2", "P3", "P4")
 STATE_FOLDERS = ("1-pending", "2-actives", "3-done")  # the batch's, in `4-batch/`
@@ -90,7 +90,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
         raise ChantierError(f"missing Change Specification: {specification}; grill the CR first",
                             EXIT_PRECONDITION)
     try:
-        text = specification.read_text(encoding="utf-8")
+        text = read_text(specification)
     except UnicodeDecodeError as e:
         raise ChantierError(f"{specification} is not UTF-8: save it as UTF-8 ({e})",
                             EXIT_PRECONDITION) from e
@@ -392,7 +392,7 @@ def _undo(renames: list[tuple[Path, Path]], batch: Path | None, original: bytes 
         except OSError:
             stuck.append(f"{dst} -> {src}")
     if batch is not None and original is not None and (batch / "batch.json").is_file() and not stuck:
-        write_file(batch / "batch.json", original.decode("utf-8"))
+        write_file(batch / "batch.json", original.decode("utf-8-sig"))
     if lock is not None:
         with contextlib.suppress(Exception):
             _unlock(lock)

@@ -331,6 +331,22 @@ def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(
     assert chantier("order", "qa", "--note", "test it")[0] == 0
 
 
+def test_a_byte_order_mark_from_windows_powershell_is_read_through(repo, chantier, monkeypatch):
+    """PowerShell 5.1's `Set-Content -Encoding utf8` and `Out-File` start a file with U+FEFF."""
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    folder = _prepared(repo, chantier)
+    spec = folder / "03-change-spec.md"
+    spec.write_bytes(b"\xef\xbb\xbf" + spec.read_bytes())
+    assert chantier("open", str(folder), *FROM_AGENTS_MD)[0] == 0
+    batch = repo / ".agents" / "changes" / "4-batch" / "batch.json"
+    batch.write_bytes(b"\xef\xbb\xbf" + batch.read_bytes())
+    code, out, err = chantier("status")
+    assert code == 0 and out[-1].startswith("CR-101 queued"), err
+    assert chantier("take", "CR-101")[0] == 0
+    assert not batch.read_bytes().startswith(b"\xef\xbb\xbf")  # written back without the mark
+
+
 def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks():
     text = (SKILL / "references" / "hosts" / "claude-code.md").read_text(encoding="utf-8")
     section = text.split("### Allow rules\n", 1)[1]
