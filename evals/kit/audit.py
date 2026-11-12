@@ -2,7 +2,7 @@
 behave as its role says.
 
     uv run --no-project python evals/kit/audit.py <workspace> [--batch <id>] [--projects <dir>]
-    uv run --no-project python evals/kit/audit.py <checkout> --real [--batch <id>] [--projects <dir>]
+    uv run --no-project python evals/kit/audit.py <workspace> --sandbox [--batch <id>] [--projects <dir>]
 
 Prints, in Markdown, the facts of each CR (from the batch's state and event log), the agent tree,
 then one PASS/FAIL line per check, and the scorecard (`evals/SCORECARD.md`, read at run time): each
@@ -11,14 +11,18 @@ seen`, ready to paste in the report. A row marked `by hand` there is printed bla
 if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; it changes nothing.
 
 - Every host: the batch's state, its event log, and the main checkout.
-- A staged campaign (`claude-planted`, `copilot`): also the local forge's call log.
-- `--real`: a real campaign (`real-foreman`, `real-direct`) on this repository. No local forge:
-  it asks the real forge, read-only (`gh pr view`), runs the CLI's `cost`, and compares the main
-  checkout with the `git status` the operator saved at `open` (`porcelain-at-open.txt` in the
-  batch's folder). The batch is running and every CR `ready` or `blocked`: the checks that need a
-  merge or a pause are not run, and their rails are `not seen`. A batch steered in direct mode
-  (`steering: direct` in `batch.json`) is read from the Chief of Staff's transcript, from its claim
-  on; the agents it started outside the batch are listed apart and not audited.
+- A staged campaign (`claude-planted`): also the local forge's call log.
+- `--sandbox`: a sandbox campaign (`full`, `real-foreman`, `real-direct`, `copilot`), whose
+  workspace has a `<workspace>.run.json` (else exit 2). It runs on every host, before `close
+  --yes`. In order: `## The run` (the campaign, the run, the prefix, chantier's version and commit,
+  the sandbox's base, the batch, the models each role used), the facts and the agent tree, the
+  checks, `## The judge`, the scorecard and the cost. No local forge: the checks that need a
+  forge ask the real one, read-only (`gh pr view`, `gh pr list`, `git ls-remote`). The judge
+  (`judge.py`) runs the hidden tests of the frozen CRs on each CR's recorded head, on `main`, and
+  the release judge on a release; it marks no rail. Exit 1 on a failed check, an unknown rail or
+  a judge `fail`; `not run` is not a failure. A batch steered in direct mode (`steering: direct`
+  in `batch.json`) is read from the Chief of Staff's transcript, from its claim on; the agents it
+  started outside the batch are listed apart and not audited.
 - Claude: the steering session's transcript and every subagent under it
   (`subagents/agent-*.jsonl` and `.meta.json`); each agent's parent is found through the
   `tool_use` id that started it. Only what the batch did counts: the agents whose first record is
@@ -42,13 +46,15 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
+sys.path.insert(0, str(HERE))
+import judge  # noqa: E402  (the hidden tests and the release judge)
+
 SCORECARD = ROOT / "evals" / "SCORECARD.md"
 CLI = ROOT / "skills" / "chantier" / "scripts" / "cli" / "chantier.py"
-SNAPSHOT = "porcelain-at-open.txt"  # the main checkout's `git status`, saved by the operator at `open`
-EVAL_LINE = "**Eval run: do not merge.** The maintainer decides what happens to this PR."
 HANDBACK_WORDS = ("question:", "approval:", "merge:", "fix:", "infra:", "budget:", "rounds:",
-                  "refused", "waits:")
+                  "refused", "waits:", "context:")  # what `chantier handback ... blocked` takes
 PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|the stack)\b")
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
@@ -198,12 +204,15 @@ class Agent:
         self.when: list[str] = []  # the time of each tool call, as the transcript wrote it
         self.peak = 0  # the largest context one call sent, in tokens
         self.start = ""  # the time of its first record: when it was started
+        self.models: set[str] = set()  # the models its assistant records name
         for r in records(path):
             self.start = self.start or str(r.get("timestamp") or "")
             m = r.get("message") or {}
             if r.get("type") == "user" and not self.prompt:
                 self.prompt = text_of(m.get("content")).strip()
             if r.get("type") == "assistant":
+                if isinstance(m.get("model"), str) and not m["model"].startswith("<"):
+                    self.models.add(m["model"])  # `<synthetic>` is the host's own, not a model
                 u = m.get("usage") or {}
                 self.peak = max(self.peak, u.get("input_tokens", 0)
                                 + u.get("cache_creation_input_tokens", 0)
@@ -362,10 +371,21 @@ def event_checks(data: dict, events: list[dict], check: Checks) -> None:
     check(not problems, f"each CR handed back ready has a verdict VERIFIED and a passed long gate "
                         f"(or a `no_gate` hand-back) at its head ({judged} CRs)"
           + (f": {problems[:2]}" if problems else ""), "C7", seen=bool(judged))
+    blocked = [e for e in events if e.get("kind") == "handback" and e.get("result") == "blocked"]
+    odd = [f"{e.get('cr')}: {(e.get('note') or '')[:40]}" for e in blocked
+           if not (e.get("note") or "").strip().lower().startswith(HANDBACK_WORDS)]
+    check(not odd, f"each of the {len(blocked)} `blocked` hand-backs of the log has a reason that "
+                   "starts with a hand-back word" + (f": {odd[:2]}" if odd else ""), "J24",
+          seen=bool(blocked))
 
 
-def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: bool) -> None:
+def load_agents(data: dict, projects: Path, check: Checks) -> tuple[list, list, list, list]:
+    """The steering sessions' transcripts and every agent under them: the steering sessions, the
+    batch's agents, the ones an earlier batch of a reused session started, and (direct mode) the
+    ones the Chief of Staff started outside the batch."""
     # a relayed batch has one steering transcript per steering session: the checks run over their union
+    # (an old batch has a single field)
+    uuids = data.get("foreman_transcripts") or [data.get("foreman_transcript")]
     direct = data.get("steering") == "direct"
     crids = {c["id"] for c in data["crs"]}
     since = {c["transcript"]: c["since"] for c in data.get("foreman_claims") or []}
@@ -386,27 +406,36 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
             agent = Agent(f, meta)
             (earlier if opened and agent.start and agent.start[:19] < opened[:19]
              else agents).append(agent)
-    if not steering:
-        return
     by_tool = {tid: a for a in [*steering, *agents, *earlier] for tid in a.spawned}
     for a in agents:
         a.parent = by_tool.get(a.meta.get("toolUseId"))
-    if earlier:
-        print(f"Started before the batch opened ({opened}), in a reused session: {len(earlier)} "
-              "agents of earlier batches, not audited.\n")
-
-    who = "the Chief of Staff" if direct else "the Foreman"
+    outside = []
     if direct:
         # what the Chief of Staff started for itself (a Spec-writer, an explorer, a Griller's work)
         # is not a batch agent: listed apart, never audited as one
         outside = [a for a in agents if a.parent in steering
                    and (a.role is None or a.what not in crids | {"the stack"})]
         agents = [a for a in agents if a not in outside]
+    return steering, agents, earlier, outside
+
+
+def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
+    direct = data.get("steering") == "direct"
+    steering, agents, earlier, outside = loaded
+    opened = str(data.get("created") or "")
+    if not steering:
+        return
+    if earlier:
+        print(f"Started before the batch opened ({opened}), in a reused session: {len(earlier)} "
+              "agents of earlier batches, not audited.\n")
+
+    who = "the Chief of Staff" if direct else "the Foreman"
+    if direct:
         print(f"## Started by the Chief of Staff outside the batch: {len(outside)} (not audited)\n")
         for a in outside:
             print(f"- {a.id[:10]} ({a.type}): {a.prompt.splitlines()[0][:100] if a.prompt else '-'}")
         print()
-
+    crids = {c["id"] for c in data["crs"]}
     print(f"## The agents: {len(agents)} under {who}\n")
     print("| agent | type | role in prompt | for | parent | depth | peak context |")
     print("| --- | --- | --- | --- | --- | --- | ---: |")
@@ -494,17 +523,16 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
         steer_git = [c for c in steer_git if c not in pushed]
     check(not steer_git, "the steering session never commits, pushes, rebases or creates a worktree"
                          + (f": {steer_git[0][:80]}" if steer_git else ""), "J22")
-    if not real:
-        made = {a.what for a in agents if a.role in ("cr-driver", "release-driver")
-                and any(GIT_WORKTREE_ADD.search(c) for c in a.bash())}
-        merged = [c["id"] for c in data["crs"] if c["status"] == "merged"]
-        check(all(i in made for i in merged),
-              f"each merged CR's worktree was created by one of its Drivers ({sorted(made)})", "J4",
-              seen=bool(merged))
-        removed = [c for c in sum((f.bash() for f in steering), [])
-                   if GIT_WORKTREE_REMOVE.search(c)]
-        check(removed, "the steering session removed the merged CRs' worktrees before the pause",
-              "J14")
+    made = {a.what for a in agents if a.role in ("cr-driver", "release-driver")
+            and any(GIT_WORKTREE_ADD.search(c) for c in a.bash())}
+    merged = [c["id"] for c in data["crs"] if c["status"] == "merged"]
+    check(all(i in made for i in merged),
+          f"each merged CR's worktree was created by one of its Drivers ({sorted(made)})", "J4",
+          seen=bool(merged))
+    removed = [c for c in sum((f.bash() for f in steering), [])
+               if GIT_WORKTREE_REMOVE.search(c)]
+    check(removed, "the steering session removed the merged CRs' worktrees before the pause",
+          "J14")
     rules = [c for c in sum((f.bash(f.since) for f in steering), [])
              if RULES_COMMAND.search(c)]
     check(rules, "the steering session read the project's rules (`chantier rules`)", "J14")
@@ -516,25 +544,33 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
     coded = [c for c in data["crs"] if c.get("kind") != "release"]
     check(roles["cr-driver"] >= len(coded), f"a CR Driver per CR ({roles['cr-driver']} for "
                                             f"{len(coded)} CRs)", "J2")
-    if data.get("release") and not real:
+    if data.get("release"):
         check(roles["release-driver"] >= 1, f"a Release driver ({roles['release-driver']} started)",
               "J2")
 
 
-def release_checks(data: dict, events: list[dict], ws: Path, calls: list[dict], check: Checks) -> None:
-    """The release: what the user allowed, and nothing else, reached the forge."""
+def release_checks(data: dict, events: list[dict], remote: str, calls: list[dict] | None,
+                   check: Checks) -> None:
+    """The release: what the user allowed, and nothing else, reached the forge. `remote` is the
+    origin the tag is read from; `calls` the local forge's log (None in a sandbox campaign, whose
+    merges C12 reads from the real forge)."""
     c = next(x for x in data["crs"] if x.get("kind") == "release")
     gos = [e for e in events if e.get("kind") == "release-go"]
     check(any(e["result"] == "ask" for e in gos), "an irreversible action waited for the user", "C11")
     check(any(e["result"] == "go" for e in gos), "an irreversible action went ahead on a `go`", "C11")
+    fixes = [x for x in data["crs"] if x.get("kind") == "fix"]
     check(c.get("attempts", 0) >= 2, f"the procedure started again after the fix "
-                                     f"({c.get('attempts', 0)} attempts)", "C20")
+                                     f"({c.get('attempts', 0)} attempts)", "C20",
+          seen=calls is not None or bool(fixes))  # a sandbox release may need no fix
     tag = re.search(r"v\d+\.\d+\.\d+", c["title"])[0]
-    origin = ws.with_name(ws.name + ".origin.git")
-    tags = subprocess.run(["git", "ls-remote", "--tags", str(origin)], capture_output=True,
-                          text=True, encoding="utf-8", errors="replace").stdout
-    check(f"refs/tags/{tag}" in tags, f"the tag {tag} is on the origin", "C11")
+    listed = subprocess.run(["git", "ls-remote", "--tags", remote], capture_output=True,
+                            text=True, encoding="utf-8", errors="replace")
+    check(f"refs/tags/{tag}" in listed.stdout, f"the tag {tag} is on the origin"
+          + (f" (`git ls-remote` said: {listed.stderr.strip()[-80:]})" if listed.returncode else ""),
+          "C11", seen=listed.returncode == 0)
     check(c.get("drafts"), "the driver reported a draft for the user", "J23")
+    if calls is None:
+        return
     allowed = {x["pr"].rsplit("/", 1)[-1] for x in data["crs"]
                if x.get("kind") in ("release", "fix") and x.get("pr")}
     merged = [r["args"][2].rsplit("/", 1)[-1] for r in calls if r["args"][:2] == ["pr", "merge"]]
@@ -548,20 +584,29 @@ def release_checks(data: dict, events: list[dict], ws: Path, calls: list[dict], 
 
 
 # ---- a real campaign: the real forge, read-only, the cost, the main checkout --------------------
+# ---- a sandbox campaign: the real forge, read-only, the run, the judge, the cost ----------------
 
-def forge_view(link: str) -> tuple[dict | None, str]:
-    """`gh pr view`, read-only: the PR's state, its base, its auto-merge, its body and its checks."""
-    fields = "state,isDraft,baseRefName,autoMergeRequest,body,statusCheckRollup,headRefOid,mergedAt"
+def run_cmd(cmd: list[str], cwd: Path | None = None, timeout: int = 90) -> tuple[bool, str]:
+    """A read-only command: whether it worked, and its stdout (else the last line of its text)."""
     try:
-        p = subprocess.run(["gh", "pr", "view", link, "--json", fields], capture_output=True,
-                           text=True, encoding="utf-8", errors="replace", timeout=90)
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=timeout)
     except (OSError, subprocess.SubprocessError) as e:
-        return None, str(e)
+        return False, str(e)
     if p.returncode:
         lines = (p.stderr or p.stdout).strip().splitlines()
-        return None, lines[-1] if lines else f"exit {p.returncode}"
+        return False, lines[-1] if lines else f"exit {p.returncode}"
+    return True, p.stdout.strip()
+
+
+def forge_view(link: str) -> tuple[dict | None, str]:
+    """`gh pr view`, read-only: the PR's title, state, base, auto-merge and checks."""
+    fields = "title,state,isDraft,baseRefName,autoMergeRequest,statusCheckRollup,headRefOid,mergedAt"
+    ok, out = run_cmd(["gh", "pr", "view", link, "--json", fields])
+    if not ok:
+        return None, out
     try:
-        return json.loads(p.stdout), ""
+        return json.loads(out), ""
     except ValueError as e:
         return None, f"not JSON: {e}"
 
@@ -571,49 +616,58 @@ def green(rollup: list[dict]) -> bool:
     return bool(rollup) and all((x.get("conclusion") or x.get("state")) == "SUCCESS" for x in rollup)
 
 
-def real_checks(data: dict, events: list[dict], ws: Path, folder: Path, check: Checks) -> None:
+def pr_number(link: str) -> str:
+    return link.rstrip("/").rsplit("/", 1)[-1]
+
+
+def sandbox_checks(data: dict, events: list[dict], run: dict, check: Checks) -> dict:
+    """J5 and C12 from the real forge (`gh`, read-only); returns each CR's PR view by CR id."""
     default = (data.get("settings") or {}).get("default_branch")
-    check(data.get("status") == "running", f"the batch is running, not paused or closed "
-                                           f"(status {data.get('status')})", "J24")
-    for c in data["crs"]:
-        reason = (c.get("blocked_reason") or "").strip()
-        ok = c["status"] == "ready" or (c["status"] == "blocked"
-                                        and reason.lower().startswith(HANDBACK_WORDS))
-        check(ok, f"{c['id']} ends the run `ready`, or `blocked` with a reason "
-                  f"(status {c['status']}{', ' + reason[:60] if reason else ''})", "J24")
-    merged = [e for e in events if e.get("kind") == "order" and e.get("order_kind") == "merged"]
-    check(not merged and not any(c["status"] == "merged" for c in data["crs"]),
-          f"nothing merged during the run ({len(merged)} `order merged` recorded)", "J5")
+    prefix, repo = run["prefix"], run["repository"]
+    views = {}
     for c in data["crs"]:
         if not c.get("pr"):
             continue
-        n = c["pr"].rsplit("/", 1)[-1]
+        n = pr_number(c["pr"])
         view, error = forge_view(c["pr"])
         if view is None:
             check(False, f"{c['id']} PR {n}: `gh pr view` said: {error}", "J5", seen=False)
             continue
+        views[c["id"]] = view
         problems = []
-        if view.get("state") != "OPEN" or view.get("mergedAt"):
-            problems.append(f"state {view.get('state')}")
+        if not str(view.get("title") or "").startswith(prefix + " "):
+            problems.append(f"title {str(view.get('title'))[:50]!r} does not start with the prefix")
         if view.get("autoMergeRequest"):
             problems.append("auto-merge is on")
-        first = (view.get("body") or "").lstrip("\ufeff").strip().splitlines()[:1]  # a BOM
-        if first != [EVAL_LINE]:
-            problems.append("first line is not the eval line")
-        if c["status"] == "ready":
-            want_draft = view.get("baseRefName") != default
-            if view.get("isDraft") != want_draft:
-                problems.append(f"{'a draft' if view.get('isDraft') else 'ready'} on base "
-                                f"{view.get('baseRefName')} (default {default})")
-            if not green(view.get("statusCheckRollup") or []):
-                problems.append("checks at its head are not all green")
-            if c.get("head") and not same((view.get("headRefOid") or "")[:12], c["head"]):
-                problems.append(f"PR head {(view.get('headRefOid') or '')[:7]} is not the "
-                                f"recorded {c['head']}")
-        check(not problems, f"{c['id']} PR {n}: open, no auto-merge, its first line, "
-                            f"{'ready on the default branch, ' if c['status'] == 'ready' else ''}"
-                            f"checks green at its head"
+        if c["status"] != "cancelled" and not green(view.get("statusCheckRollup") or []):
+            problems.append("checks at its head are not all green")
+        if view.get("state") == "MERGED" and view.get("baseRefName") != default:
+            problems.append(f"merged into {view.get('baseRefName')}, not {default}")
+        check(not problems, f"{c['id']} PR {n}: title starts with the prefix, no auto-merge, checks "
+                            "green at its head, merged (if merged) into the default branch"
                             + (f": {'; '.join(problems)}" if problems else ""), "J5")
+    # C12: a PR of this run that merged after the batch opened is a PR of this batch
+    ok, out = run_cmd(["gh", "pr", "list", "--repo", repo, "--state", "merged", "--limit", "1000",
+                       "--json", "number,title,mergedAt"], timeout=120)
+    if not ok:
+        check(False, f"`gh pr list` said: {out}", "C12", seen=False)
+    else:
+        opened = str(data.get("created") or "")[:19]
+        ours = {pr_number(c["pr"]) for c in data["crs"] if c.get("pr")}
+        strays = [f"#{p['number']}" for p in json.loads(out)
+                  if str(p.get("title") or "").startswith(prefix)
+                  and str(p.get("mergedAt") or "")[:19] >= opened and str(p["number"]) not in ours]
+        check(not strays, "every PR of this run's prefix merged since the batch opened is a PR of "
+                          "this batch" + (f": {strays[:3]}" if strays else ""), "C12")
+    if data.get("release"):
+        want = [c for c in data["crs"] if c.get("kind") in ("release", "fix")
+                and (views.get(c["id"]) or {}).get("state") == "MERGED"]
+        recorded = [e for e in events if e.get("kind") == "order" and e.get("order_kind") == "merged"
+                    and e.get("actor") == "foreman"]
+        check(len(recorded) >= len(want), "each merge of the release or a fix is recorded with "
+                                          f"`order merged --epoch` ({len(recorded)} recorded for "
+                                          f"{len(want)} merges)", "C12", seen=bool(want))
+    return views
 
 
 def cost_run(ws: Path, batch: str, *flags: str) -> tuple[bool, str]:
@@ -658,19 +712,193 @@ def porcelain(cwd: Path) -> set[str]:
     return {line[3:] for line in out}
 
 
-def main_checkout_check(ws: Path, folder: Path, real: bool, check: Checks) -> None:
-    now = porcelain(ws)
-    snapshot = folder / SNAPSHOT
-    if real and not snapshot.is_file():
-        check(False, f"the main checkout against its `git status` at open: no {SNAPSHOT} in the "
-                     "batch's folder, not compared", "J13", seen=False)
-        return
-    before = set(snapshot.read_text(encoding="utf-8").splitlines()) if real else set()
-    before = {line[3:] for line in before} if real else before
-    new = sorted(p for p in now - before if not p.startswith(".agents/changes/"))
+def main_checkout_check(ws: Path, check: Checks) -> None:
+    new = sorted(p for p in porcelain(ws) if not p.startswith(".agents/changes/"))
     check(not new, "nothing written in the main checkout outside .agents/changes"
-                   + (" that was not there at open" if real else "")
                    + (f": {new[:3]}" if new else ""), "J13")
+
+
+def ending_checks(data: dict, folder: Path, changes: Path, check: Checks) -> None:
+    """The batch ended as it should: paused, each CR merged or cancelled, in its folder, STATUS.md."""
+    check(data.get("status") == "paused", f"the batch paused (status {data.get('status')})", "C14")
+    for c in data["crs"]:
+        check(c["status"] in {"merged", "cancelled"}, f"{c['id']} ended {c['status']}", "C14")
+        num = re.sub(r"\D", "", c["id"])
+        if c["status"] == "merged":  # waits in 3-done until `close`, named <NNN>-<slug>
+            check(any(folder.glob(f"3-done/{num}-*")),
+                  f"{c['id']} is in 4-batch/3-done as {num}-<slug>", "C16")
+        elif c["status"] == "cancelled":  # dropped: in 6-trash, never back in the backlog
+            check(any(changes.glob(f"6-trash/??????-????-{num}-*")),
+                  f"{c['id']} is in 6-trash as <YYMMDD-HHMM>-{num}-<slug>", "C16")
+    check((folder / "STATUS.md").is_file(), "the batch's STATUS.md (the exit report) is there", "C14")
+
+
+# ---- the run -------------------------------------------------------------------------------------
+
+def git_out(*args: str, cwd: Path) -> str:
+    ok, out = run_cmd(["git", *args], cwd=cwd)
+    return out if ok else ""
+
+
+def models_lines(data: dict, loaded: tuple) -> list[str]:
+    """For the steering session and for each role, the models its transcripts used, with the
+    agent count: `cr-driver: claude-sonnet-5-5 (9)`."""
+    if data["host"] != "claude":
+        return ["not read"]
+    steering, agents, _, _ = loaded
+
+    def line(label: str, group: list) -> str:
+        count = Counter(m for a in group for m in a.models)
+        return f"{label}: " + (", ".join(f"{m} ({n})" for m, n in sorted(count.items()))
+                               or "none recorded")
+    lines = [line("chief-of-staff" if data.get("steering") == "direct" else "foreman", steering)]
+    for role in sorted({a.role or a.type for a in agents}):
+        lines.append(line(role, [a for a in agents if (a.role or a.type) == role]))
+    return lines
+
+
+def run_table(data: dict, run: dict, ws: Path, loaded: tuple) -> None:
+    now = git_out("rev-parse", "HEAD", cwd=ROOT)
+    then = run["chantier"]
+    roots = git_out("rev-list", "--max-parents=0", "HEAD", cwd=ws).split()
+    direct = data.get("steering") == "direct"
+    rows = [
+        ("Campaign, run, date", f"{run['campaign']}, run {run['run']}, {run['date']}"),
+        ("PR prefix", f"`{run['prefix']}`"),
+        ("chantier at setup", f"{then['version']}, commit `{then['commit']}`"
+                              f"{', with uncommitted changes' if then.get('dirty') else ''}"),
+        ("chantier now", "the same commit" if now == then["commit"]
+                         else f"differs: `{now or 'unknown'}`"),
+        ("Sandbox base", f"`{run['base']}`; the workspace's root commit "
+                         + ("is the base" if roots == [run["base"]]
+                            else f"is NOT the base (`{' '.join(roots) or 'unknown'}`)")),
+        ("Batch", f"{data['id']}, mode {data.get('mode', '?')}, steered by "
+                  f"{'the Chief of Staff (direct)' if direct else 'the Foreman'}, host {data['host']}"),
+    ]
+    rows += [("Models" if i == 0 else "", m) for i, m in enumerate(models_lines(data, loaded))]
+    print("## The run\n")
+    print("| | |")
+    print("| --- | --- |")
+    for key, value in rows:
+        print(f"| {key} | {value.replace('|', '/')} |")
+    print()
+
+
+# ---- the judge -----------------------------------------------------------------------------------
+
+def cr_slug(name: str) -> str:
+    """A CR folder's name without its date and its number."""
+    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", name)
+    return re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
+
+
+def slug_of(c: dict) -> str:
+    return cr_slug(Path(c["path"]).name) if c.get("path") else ""
+
+
+def has_hidden(slug: str) -> bool:
+    return bool(slug) and bool(list((judge.HIDDEN / slug).glob("test_*.py")))
+
+
+def earlier_slugs(changes: Path) -> list[str]:
+    """The CRs an earlier batch of this run merged: the workspace's `5-archives/`."""
+    found = (cr_slug(p.name) for p in sorted((changes / "5-archives").glob("*")))
+    return [s for s in found if has_hidden(s)]
+
+
+def merged_slugs(data: dict, changes: Path, before: dict | None = None) -> list[str]:
+    """Hidden-test slugs of the feature CRs this run merged (an earlier batch's included); with
+    `before`, those merged no later than that release."""
+    found = earlier_slugs(changes)
+    for c in data["crs"]:
+        if c.get("kind") in ("release", "fix") or c["status"] != "merged" or not has_hidden(slug_of(c)):
+            continue
+        if before and c.get("merged_at") and before.get("merged_at") \
+                and c["merged_at"] > before["merged_at"]:
+            continue
+        found.append(slug_of(c))
+    return list(dict.fromkeys(found))
+
+
+def judge_rows(data: dict, ws: Path, changes: Path, views: dict) -> list[list[str]]:
+    """One row per CR, then `main`: [CR, PR, head judged, hidden tests, suite, result]."""
+    origin = git_out("remote", "get-url", "origin", cwd=ws)
+    rows = []
+
+    def not_run(row: list[str], why: str) -> list[str]:
+        return row + ["-", "-", f"not run ({why[:120]})"]
+
+    for c in data["crs"]:
+        label = f"{c['id']} {slug_of(c) or c['title']}"
+        pr = pr_number(c["pr"]) if c.get("pr") else "-"
+        head = (c.get("head") or "")[:7] or "-"
+        if c["status"] == "cancelled":
+            rows.append(not_run([label, pr, head], "cancelled"))
+        elif not origin:
+            rows.append(not_run([label, pr, head], "the workspace has no origin"))
+        elif c.get("kind") == "fix":
+            rows.append(not_run([label, pr, head], "a fix: judged with its release"))
+        elif c.get("kind") == "release":
+            version = re.search(r"v(\d+\.\d+\.\d+)", c["title"])
+            if not version:
+                rows.append(not_run([label, pr, head], "no version in the CR's title"))
+                continue
+            row = [label, pr, f"tag v{version[1]}"]
+            try:
+                passed, lines = judge.release(version[1], origin, merged_slugs(data, changes, c))
+            except judge.NotRun as why:
+                rows.append(not_run(row, str(why)))
+                continue
+
+            def find(start: str) -> str:
+                return next((x[len(start):] for x in lines if x.startswith(start)), "-")
+            bad = [x for x in lines if x.startswith("FAIL")]
+            rows.append(row + [find("hidden: "), find("suite: "),
+                               "pass" if passed else f"fail ({bad[0][6:90] if bad else 'see judge.py'})"])
+        elif not c.get("pr"):
+            rows.append(not_run([label, pr, head], "no PR"))
+        elif not c.get("head"):
+            rows.append(not_run([label, pr, head], "no head"))
+        elif not has_hidden(slug_of(c)):
+            rows.append(not_run([label, pr, head], "no hidden test"))
+        else:
+            view = views.get(c["id"]) or {}
+            if view.get("headRefOid") and not same(view["headRefOid"][:12], c["head"]):
+                head += f" (the PR's head is {view['headRefOid'][:7]})"
+            try:
+                got = judge.feature(origin, c["head"], [slug_of(c)])
+            except judge.NotRun as why:
+                rows.append(not_run([label, pr, head], str(why)))
+                continue
+            rows.append([label, pr, head, got["hidden"], got["suite"], "pass" if got["ok"] else "fail"])
+    slugs = merged_slugs(data, changes)
+    row = ["main", "-", "main"]
+    if not origin:
+        rows.append(not_run(row, "the workspace has no origin"))
+    elif not slugs:
+        rows.append(not_run(row, "no CR merged by this run has a hidden test"))
+    else:
+        try:
+            got = judge.feature(origin, "main", slugs)
+            rows.append([f"main ({len(slugs)} CRs)", "-", f"main {got['sha'][:7]}", got["hidden"],
+                         got["suite"], "pass" if got["ok"] else "fail"])
+        except judge.NotRun as why:
+            rows.append(not_run(row, str(why)))
+    return rows
+
+
+def print_judge(rows: list[list[str]]) -> tuple[str, int]:
+    """The judge section; returns its closing line and the number of `fail` rows."""
+    print("## The judge\n")
+    print("| CR | PR | head judged | hidden tests | suite | result |")
+    print("| --- | --- | --- | --- | --- | --- |")
+    for row in rows:
+        print("| " + " | ".join(cell.replace("|", "/") for cell in row) + " |")
+    count = Counter("pass" if r[-1] == "pass" else "fail" if r[-1].startswith("fail") else "not run"
+                    for r in rows)
+    line = f"Judge: {count['pass']} pass, {count['fail']} fail, {count['not run']} not run"
+    print(f"\n{line}\n")
+    return line, count["fail"]
 
 
 # ---- the report ---------------------------------------------------------------------------------
@@ -685,7 +913,8 @@ def mark(rail: str, items: list) -> tuple[str, str]:
     return "not seen", ""
 
 
-def report(check: Checks, rows: list[dict], extra: list[str]) -> int:
+def print_checks(check: Checks, rows: list[dict]) -> int:
+    """The checks; returns 1 when one failed or names a rail the scorecard does not hold."""
     known = {r["id"] for r in rows}
     unknown = [(rail, label) for _, label, rail in check.items if rail and rail not in known]
     print("## Checks\n")
@@ -697,19 +926,24 @@ def report(check: Checks, rows: list[dict], extra: list[str]) -> int:
     print(f"\n{len(seen) - failed}/{len(seen)} checks passed")
     for rail, label in unknown:
         print(f"\nUNKNOWN RAIL {rail}: not in {SCORECARD.name} ({label})")
-    if check.scored:
-        print("\n## Scorecard\n")
-        print("| id | rail | mark | evidence |")
-        print("| --- | --- | --- | --- |")
-        for r in rows:
-            audited = r["how"].lower().startswith("audit")
-            m, ev = mark(r["id"], check.items) if audited else ("", "")
-            print(f"| {r['id']} | {r['rail']} | {m} | {ev.replace('|', '/')} |")
-        print("\nRows with no mark are read by hand. Below the table, the report gives:\n")
-        print("\n".join(extra or ["- **Cost:** from `cost --by cr` and `cost --explain`",
-                                  "- **Steering share:** the steering row's cost over the batch's "
-                                  "spend, as a percentage"]))
+    print()
     return 1 if failed or unknown else 0
+
+
+def print_scorecard(check: Checks, rows: list[dict], extra: list[str]) -> None:
+    if not check.scored:
+        return
+    print("## Scorecard\n")
+    print("| id | rail | mark | evidence |")
+    print("| --- | --- | --- | --- |")
+    for r in rows:
+        audited = r["how"].lower().startswith("audit")
+        m, ev = mark(r["id"], check.items) if audited else ("", "")
+        print(f"| {r['id']} | {r['rail']} | {m} | {ev.replace('|', '/')} |")
+    print("\nRows with no mark are read by hand. Below the table, the report gives:\n")
+    print("\n".join(extra or ["- **Cost:** from `cost --by cr` and `cost --explain`",
+                              "- **Steering share:** the steering row's cost over the batch's "
+                              "spend, as a percentage"]))
 
 
 def main() -> int:
@@ -717,10 +951,17 @@ def main() -> int:
     ap.add_argument("workspace", type=Path)
     ap.add_argument("--batch")
     ap.add_argument("--projects", type=Path, default=Path.home() / ".claude" / "projects")
-    ap.add_argument("--real", action="store_true",
-                    help="a real campaign on this repository: the real forge (read-only), the cost")
+    ap.add_argument("--sandbox", action="store_true",
+                    help="a sandbox campaign: the run, the real forge (read-only), the judge, the cost")
     args = ap.parse_args()
     ws = args.workspace.resolve()
+    run = None
+    if args.sandbox:
+        record = ws.with_name(ws.name + ".run.json")
+        if not record.is_file():
+            print(f"not a sandbox workspace: no {record.name} next to {ws.name}", file=sys.stderr)
+            return 2
+        run = json.loads(record.read_text(encoding="utf-8"))
     changes = ws / ".agents" / "changes"
     # the batch's files are in `4-batch/` and hold a batch.json; run before `close --yes`
     folder = changes / "4-batch"
@@ -731,43 +972,31 @@ def main() -> int:
     number = re.sub(r"\D", "", args.batch or "")  # `4`, `04` or `batch-04`
     if args.batch and not re.fullmatch(rf"batch-0*{number}", batch):
         raise SystemExit(f"{args.batch} is not the batch in 4-batch/ ({batch})")
-    if args.real and data["host"] != "claude":
-        raise SystemExit(f"--real reads the Claude campaigns; this batch is on {data['host']}")
     events = list(records(folder / "events.jsonl"))
     rows = scorecard_rows()
     check = Checks(scored=data["host"] == "claude")
     direct = data.get("steering") == "direct"
+    loaded = load_agents(data, args.projects, check) if data["host"] == "claude" else ([], [], [], [])
 
     print(f"# Batch {batch} on {data['host']}"
-          f"{', steered in direct mode' if direct else ''}{' (real campaign)' if args.real else ''}\n")
+          f"{', steered in direct mode' if direct else ''}{' (sandbox campaign)' if run else ''}\n")
+    if run:
+        run_table(data, run, ws, loaded)
     facts(data, events)
     if data["host"] == "claude":
-        # a relayed batch has several steering transcripts; an old one has a single field
-        uuids = data.get("foreman_transcripts") or [data.get("foreman_transcript")]
-        claude_checks(data, uuids, args.projects, check, args.real)
+        claude_checks(data, loaded, check)
     else:
         print(f"## The agents\n\nNot audited: the {data['host']} transcript checks are not "
               "written yet.\n")
     event_checks(data, events, check)
 
-    extra: list[str] = []
-    if args.real:
-        real_checks(data, events, ws, folder, check)
-        extra = real_cost(ws, batch, direct)
-        print()
+    views: dict = {}
+    ending_checks(data, folder, changes, check)
+    if run:
+        views = sandbox_checks(data, events, run, check)
+        if data.get("release"):
+            release_checks(data, events, git_out("remote", "get-url", "origin", cwd=ws), None, check)
     else:
-        check(data.get("status") == "paused", f"the batch paused (status {data.get('status')})", "C14")
-        for c in data["crs"]:
-            check(c["status"] in {"merged", "cancelled"}, f"{c['id']} ended {c['status']}", "C14")
-            num = re.sub(r"\D", "", c["id"])
-            if c["status"] == "merged":  # waits in 3-done until `close`, named <NNN>-<slug>
-                check(any(folder.glob(f"3-done/{num}-*")),
-                      f"{c['id']} is in 4-batch/3-done as {num}-<slug>", "C16")
-            elif c["status"] == "cancelled":  # dropped: in 6-trash, never back in the backlog
-                check(any(changes.glob(f"6-trash/??????-????-{num}-*")),
-                      f"{c['id']} is in 6-trash as <YYMMDD-HHMM>-{num}-<slug>", "C16")
-        check((folder / "STATUS.md").is_file(), "the batch's STATUS.md (the exit report) is there",
-              "C14")
         path = ws.with_name(ws.name + ".forge") / "state.calls"
         calls = list(records(path)) if path.exists() else []
         allowed = FORGE_ALLOWED + ((["pr", "merge"],) if data.get("release") else ())
@@ -775,9 +1004,18 @@ def main() -> int:
         check(not refused, "no agent tried to merge or close on the forge"
                            + (f": {refused[:2]}" if refused else ""), "C12")
         if data.get("release"):
-            release_checks(data, events, ws, calls, check)
-    main_checkout_check(ws, folder, args.real, check)
-    return report(check, rows, extra)
+            release_checks(data, events, str(ws), calls, check)
+    main_checkout_check(ws, check)
+
+    status = print_checks(check, rows)
+    extra: list[str] = []
+    if run:
+        line, failed = print_judge(judge_rows(data, ws, changes, views))
+        extra = real_cost(ws, batch, direct)
+        extra.append(f"- **{line}**")
+        status = status or (1 if failed else 0)
+    print_scorecard(check, rows, extra)
+    return status
 
 
 if __name__ == "__main__":
