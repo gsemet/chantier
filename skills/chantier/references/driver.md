@@ -251,6 +251,20 @@ resolved conflict), an `inspector` reviews that change alone, with no `$CHANTIER
 `coder`, as for a body-only re-inspection; `FIX-REQUIRED` on the code is a round. Before
 `handback ready`, no proof in the PR is stale.
 
+Every `APPROVE` is recorded at once, as soon as you read the JSON and before any other step (the
+next review step, the commit, any write of `pr-body.md` or of the posted description): the round's
+`inspector`, a body-only re-inspection, each review step of your `Team:`, the `inspector` after a
+move. The note holds the verdict, the `head` copied from the JSON and what was reviewed:
+`r<n> inspector approved at <head>`, `r<n> body re-inspection approved at <head>`, `r<n> <review
+step> approved at <head>`, `move <old7>..<new7> (<kind>) inspector approved at <head>`. The note
+after the round's commit stays: the Inspector's `head` predates the commit, and that note ties the
+pass to `committed as <sha>`; a move's pass needs no second note, its `head` is the moved head. A
+`FIX-REQUIRED` needs none: the next round's brief carries it. Note first, then the box: the Review
+box of `pr-body.md` and of the posted description is filled or updated only from a recorded note,
+citing the SHA it holds for the reviewed state at the PR's head (the round's `committed as <sha>`,
+or the move's head). A box whose pass is not recorded stays unchecked; a pass carried over a clean
+rebase is `carried from <sha7>`, the `<sha7>` of the note.
+
 A CR taken with the note `rebase: <cr> merged` and no open dependency or predecessor left (also
 a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin/<default
 branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
@@ -285,8 +299,10 @@ own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
 touched a CR's proofs (its patch changed, or the base brought changes to what the proofs run),
 start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
-CR's patch changed; update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
---body-file` / `glab mr update --description`. A touched proof you cannot judge again stays
+CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$CHANTIER note <cr>
+"move <old7>..<new7> (restack) inspector approved at <head>"`); then update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
+--body-file` / `glab mr update --description`, the Review box citing only a recorded note, as for
+the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`. Green: `[stack→foreman] hand-back
 ready <cr>=<link>…`.
 

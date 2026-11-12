@@ -106,6 +106,14 @@ it `UNVERIFIED` or narrows it). A `STALE` mark left at the end is `NOT VERIFIED`
 description to check, check only it, and record its verdict the same way: a description found
 `NOT VERIFIED` cancels an earlier `VERIFIED` at that head until a later pass says `VERIFIED`.
 
+One exception to "their notes are not proof": the Review box (`Review: approved at <sha7>`) is
+judged against the Driver's note of the pass, read with `$CHANTIER log <cr>` (complete; `handoff`
+shows only the last ten notes). A note of an approved pass whose SHA is the one the box cites (the
+reviewed `head`, the round's `committed as <sha>`, the move's head; for `carried from <sha7>`, that
+`<sha7>`) proves the claim; no such note, or another SHA, is `NOT VERIFIED`. That note proves that
+a review happened and where, not the code: you still prove every other claim yourself. This holds
+for the description-only pass too.
+
 Delta assessment: given the previous `verify.md` and a move, judge again each claim the move
 touched, and the claims that failed; carry the others. A claim is touched when the move changed a
 file, a behaviour or a dependency its proof exercises: the CR's patch changed (the diff or the
