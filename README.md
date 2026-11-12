@@ -524,5 +524,5 @@ just check                  # structure tests (a few seconds)
 just scenario               # one whole batch, end to end, no model
 ```
 
-See [`evals/README.md`](evals/README.md) for the eval campaigns with real agents (real-foreman,
-real-direct, claude-planted, copilot), how to run one, and their last results.
+See [`evals/README.md`](evals/README.md) for the eval campaigns with real agents (full,
+real-foreman, real-direct, claude-planted, copilot), how to run one, and their last results.

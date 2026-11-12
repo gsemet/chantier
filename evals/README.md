@@ -1,12 +1,15 @@
 # chantier evals
 
-An eval campaign runs chantier for real, with real agents, on a small fictional project
-(`tasks-cli`, a to-do list in Python), and checks that every agent got its role and behaved as
-its role says. The two real campaigns instead run on this repository, with the real forge and
-CI; their runbooks replace the steps below. Each run is reported in [`results/`](results/), in
-words anyone can follow, with the same [scorecard](SCORECARD.md): every rail marked `seen,
-right`, `seen, wrong` or `not seen`, plus the cost and the steering share, so two runs compare
-line by line. The three Claude campaigns use it; Copilot's report stays as it is.
+An eval campaign runs chantier for real, with real agents, and checks that every agent got its
+role and behaved as its role says. The staged campaign (`claude-planted`) runs on a small
+fictional project (`tasks-cli`, a to-do list in Python) with a local forge. The real campaigns
+(`full`, `real-foreman`, `real-direct`, `copilot`) run on the [sandbox](#the-sandbox) (`shelf`),
+reset to its recorded base before each run, with the real forge and CI, frozen CRs and a judge
+that runs hidden tests on each PR: only the plugin changes from one run to the next. Each run is
+reported in [`results/`](results/), in words anyone can follow, with the same
+[scorecard](SCORECARD.md): every rail marked `seen, right`, `seen, wrong` or `not seen`, plus the
+cost and the steering share, so two runs compare line by line. The Claude campaigns use it;
+Copilot's report stays as it is.
 
 The scripted scenario (`just scenario`, no model, free) is not an eval: it tests the CLI's
 mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
@@ -15,26 +18,98 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
-| [real-foreman](real-foreman/RUNBOOK.md) | Real small items from the inbox on this repository, in parallel, with real `gh` and CI, up to PRs nobody merges; a Foreman steers | ~$2.50 per CR; ~30 min + 16 min per CR (long gates queue) | 2026-11-12: passed with findings, $5.03 for 2 CRs, a reused Foreman, [report](results/real-foreman-2026-11-12.md) |
-| [real-direct](real-direct/RUNBOOK.md) | The same, steered in direct mode by the Chief of Staff alone, with no Foreman | ~$2.50 per CR; ~30 min + 16 min per CR (long gates queue) | not run yet |
+| [full](full/RUNBOOK.md) | Two batches end to end on the sandbox, with real `gh` and CI: 9 feature CRs plus a release, a 10th injected while they run, then 2 feature CRs plus a release; four slots, a Foreman steers, the operator plays the user, the judge on every CR and both releases | the budgets, $40 and $15; measured by the first run | not run yet |
+| [real-foreman](real-foreman/RUNBOOK.md) | 5 frozen CRs on the sandbox, no release, in the mode chosen at launch, with real `gh` and CI; a Foreman steers, the operator plays the user, merges included | budget $20; measured by the first run | not run yet. The campaign moved to the sandbox; the last run, on this repository before the sandbox: 2026-11-12, passed with findings, $5.03 for 2 CRs, [report](results/real-foreman-2026-11-12.md) |
+| [real-direct](real-direct/RUNBOOK.md) | The same 5 frozen CRs, steered in direct mode by the Chief of Staff alone, with no Foreman | budget $20; measured by the first run | not run yet |
 | [claude-planted](claude-planted/RUNBOOK.md) | The planted failures a real run does not produce, on `tasks-cli`: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04 (as `claude-full`): passed with findings, $8.41, [report](results/claude-full-2026-11-04-ask-only.md) |
-| [copilot](copilot/RUNBOOK.md) | One CR on Copilot: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
+| [copilot](copilot/RUNBOOK.md) | One frozen CR on the sandbox, on Copilot, with the real `gh`: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
 
-Past reports keep their names: a report named `real-*` is a `real-foreman` run, and one named
-`claude-smoke-*` or `claude-full-*` is a `claude-planted` run, from before the campaigns merged.
-New ones are `results/<campaign>-<date>.md`.
+Past reports keep their names: a report named `real-*` is a `real-foreman` run on this repository
+(before the sandbox), and one named `claude-smoke-*` or `claude-full-*` is a `claude-planted` run,
+from before the campaigns merged. New ones are `results/<campaign>-<date>.md`, and
+`results/<campaign>-<date>-run<n>.md` for a sandbox campaign.
 
-Which campaign, after a change: a role or flow change runs one real campaign with one small CR,
-in the mode the change touched (`real-foreman` or `real-direct`). Before a release, both real
-campaigns. `claude-planted` runs after a change to how a batch handles failures.
+Which campaign, after a change: a role or flow change runs one quick campaign (`real-foreman` or
+`real-direct`, five frozen CRs on the sandbox), in the mode the change touched. Before a release,
+`full` with both quick campaigns. `claude-planted` runs after a change to how a batch handles
+failures.
 
 ## Run a campaign
 
-A campaign starts from a prompt in a chat. On Claude: a Code session of the Claude Desktop app,
-opened on this repository, with the branch to test checked out. On Copilot: a chat of the
-Copilot app, on this repository. The prompt is in the campaign's runbook; the real campaigns
-start a Chief of Staff session (the `/chantier:chief-of-staff` command) and the user plays
-themselves. The steps below are those of the staged campaigns, `claude-planted` and `copilot`:
+A campaign starts from a prompt in a chat. On Claude: a Code session of the Claude Desktop app.
+On Copilot: a chat of the Copilot app. The prompt is in the campaign's runbook. The sandbox
+campaigns (`full`, `real-foreman`, `real-direct`, `copilot`) are described first, then the steps
+of the staged campaign, `claude-planted`.
+
+### A sandbox campaign
+
+The text common to the four sandbox campaigns; each runbook refers to it. All the commands run
+from this checkout, with `uv`, `git` and `gh` (logged in to an account that can push to the
+sandbox).
+
+- **Preparation, before the run.** The user does it in a terminal; these commands prepare the run
+  and are not steps of it.
+  1. `uv run --no-project python evals/kit/sandbox.py reset`: read the plan, then the same with
+     `--yes`. This puts the sandbox back at its recorded base; it is the only force push on the
+     sandbox, and no runbook gives another. One run at a time on the sandbox: a reset ends any
+     other run.
+  2. `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`, with `<workspace>`
+     outside this repository, for example `../chantier-eval/<campaign>-<date>`. Setup refuses
+     when the sandbox is not at its base, never resets and never pushes. It clones the sandbox
+     into the workspace, runs `chantier init` and `uv sync --locked` there, places the campaign's
+     frozen CRs in `.agents/changes/3-ready/`, writes `<workspace>.run.json` (the run's record)
+     and prints the campaign, the run, the prefix, the CRs placed and each batch's `open` line,
+     ready to paste (`--mode <stack|parallel|series>` is left to fill in for the quick
+     campaigns). The agents use the real `gh`.
+- **The run's number and prefix.** The number is 1 plus the highest `<n>` among the sandbox's PR
+  titles that start with `[eval <n> `. A run that opened no PR leaves its number free for the next
+  one. The prefix is `[eval <run> <date> <campaign>]`, for example `[eval 4 2026-11-14 full]`.
+  Every PR a run opens has a title that starts with it, followed by the title it would have
+  anyway: each frozen CR copied into the workspace says so in its "Eval run" section. The audit
+  and the judge read the run's record, so the prefix is how a run's PRs are told apart from older
+  ones left on the sandbox.
+- **The operator** is a new Code session of the Claude Desktop app opened on the workspace (not
+  under Remote Control: it starts the Foreman's sessions), started with the runbook's prompt, which
+  names the runbook by its absolute path in this checkout. It is the Chief of Staff and plays the
+  user in full: the go after the plan, every merge, every answer, every approval, the release's
+  confirmation, the injected CR, `pause` coming and the "close the batch". Nothing waits on the
+  real user. `$CHANTIER` is `uv run --script "<this checkout>/skills/chantier/scripts/cli/chantier.py"`,
+  run from the workspace. The plugin must be installed from this checkout (see "Before you
+  start").
+- **A merge** is the user's: `gh pr merge <n> --repo gsemet/chantier-eval-sandbox --rebase`,
+  alone, never chained; a refused merge (a conflict, a red check) merges nothing, and the steering
+  session sees it as usual. Then `$CHANTIER order merged CR-<n>` and its line to the steering
+  session. In parallel mode the operator merges in the order the CRs become ready; in series, in
+  the series' order; in a stack, from the bottom up, as `chief-of-staff.md` says for the mode.
+- **A question** (`blocked question:`): the frozen CRs leave none open, so a question is a
+  finding. The operator answers `Follow the specification as written; where it is silent, choose
+  the simplest behaviour and say so in the PR.`, records it in the CR's `02-answers.md`, and sends
+  `$CHANTIER order note CR-<n> --note "answer: …"`.
+- **A CR stuck** (the round limit, or blocked twice): the operator drops it (`order drop`), so the
+  batch can pause; the report says why.
+- **The audit** runs when the steering session reports `final` (the batch paused), before
+  `close --yes`:
+
+  ```bash
+  uv run --no-project python evals/kit/audit.py <workspace> --sandbox
+  ```
+
+  then `$CHANTIER cost --explain` and `$CHANTIER cost --by cr` from the workspace. Then the
+  operator runs the `close` flow and `close --yes`. The audit prints the run's table, the facts,
+  the checks, the judge (the hidden tests on each CR's head, on `main`, and the release judge),
+  the scorecard and the cost. It exits 1 on a failed check, an unknown rail or a judge `fail`;
+  `not run` is not a failure.
+- **The report** goes in `results/<campaign>-<date>-run<n>.md`, written in a worktree of this
+  repository on its own branch, with its PR (the main checkout does not change during an eval).
+  The sandbox is left as the run ends: its PRs and releases stay for inspection until the next
+  reset.
+- **The 10-message limit:** `full` goes past it and says how it lives with it; a quick campaign
+  stays under it (the Foreman's start and at most one send per merge wave).
+
+### The staged campaign
+
+`claude-planted` runs on `tasks-cli` with a local forge, from this repository. Its steps follow;
+the prompt:
 
 ```text
 Run the chantier eval campaign claude-planted: follow evals/claude-planted/RUNBOOK.md.
@@ -42,7 +117,6 @@ Run the chantier eval campaign claude-planted: follow evals/claude-planted/RUNBO
 
 The session that gets the prompt is the operator: it plays both the Chief of Staff (with the
 chantier skill) and the user (it answers, merges and gives orders as the runbook says).
-
 ### Before you start
 
 - The chantier plugin installed from this checkout, and the session restarted:
@@ -50,10 +124,11 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
   The plugin is read live from the checkout: during a run, change neither its files nor its
   branch; other work goes in a worktree. This install is what reaches the workspace: the
   workspace is outside this repository and does not read its `.claude/settings.json`.
-- `uv` and `git`. The forge is local (`evals/kit/forge.py`, a fake `gh` whose CI runs the long
-  gate in a fresh clone): nothing reaches GitHub. `setup.py` puts it first on the `PATH` of
-  every session in the workspace, so the Drivers' own `gh pr create` and the Foreman's
-  `gh pr merge` reach it too.
+- `uv` and `git`. In the staged campaign the forge is local (`evals/kit/forge.py`, a fake `gh`
+  whose CI runs the long gate in a fresh clone): nothing reaches GitHub. `setup.py` puts it first
+  on the `PATH` of every session in the workspace, so the Drivers' own `gh pr create` and the
+  Foreman's `gh pr merge` reach it too. A sandbox campaign has no local forge: it needs `gh`
+  logged in.
 - On Claude Desktop, the go must be typed in the desktop app: under Remote Control, starting
   the Foreman's session is refused.
 
@@ -68,8 +143,9 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
 - **Every campaign stays under it**, for the Foreman and for the operator: at most 10 messages
   from the Foreman in the whole run, nobody types in its session, and at most 10 orders from the
   operator between two lines the user types. Only a campaign made to test long exchanges goes
-  past it, and its report says so. `claude-planted` can still reach it: a long batch has many
-  `ask` lines.
+  past it, and its report says so. `full` does: see its
+  [runbook](full/RUNBOOK.md#living-with-the-10-message-limit) for how the operator lives with it.
+  `claude-planted` can still reach it: a long batch has many `ask` lines.
 - **Past the limit,** the Foreman's messages are lost, but the host still tells the operator of
   each of its turns: follow these notes and `status`, and merge from there. Never send through
   another tool: the limit is the host's, and a refusal is reported.
@@ -77,6 +153,8 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
   user starts the session and pastes the Foreman's prompt; the Foreman claims its epoch itself.
 
 ### The steps
+
+These steps are for `claude-planted`.
 
 1. **Stage** the workspace next to this checkout, for example
    `../chantier-eval/<campaign>-<date>`: `uv run --no-project python evals/kit/setup.py
@@ -98,9 +176,8 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
    ```
 
    and `$CHANTIER cost --explain`, `$CHANTIER cost --by cr` from the workspace. The audit prints
-   the scorecard filled for the rows it checks; it exits 1 on a failed check. The real
-   campaigns run `audit.py <this checkout> --real` instead, as their runbooks say. Copilot's
-   audit has no rail ids and no scorecard yet.
+   the scorecard filled for the rows it checks; it exits 1 on a failed check. Copilot's audit
+   has no rail ids and no scorecard yet.
 5. **Read the transcripts** for what a script cannot judge: did each agent do its role well
    (the Inspector's findings, the verifier's proof, the QA's scenarios, how a question was
    handled)?
@@ -118,6 +195,12 @@ For someone who does not know chantier's insides. Short sentences, no jargon lef
 
 **Verdict:** passed / passed with findings / failed — one sentence why.
 
+## The run
+A sandbox campaign only: paste the audit's `## The run` table: the campaign, the run and the
+date, the PR prefix, chantier's version and commit, the sandbox's base SHA-1, the batch's mode and
+steering, the host and the models each role used. Two reports with the same base compare line by
+line.
+
 ## What was tested
 Two or three sentences: the project, the CRs, what the user did during the run.
 
@@ -133,24 +216,31 @@ or not seen (never a failure); then the cost and the steering share, `not measur
 could not price them, never $0.00.
 
 ## Numbers
-Duration, cost (total, the breakdown, by CR), agents started, audit checks passed, the steering share.
+Duration, cost (total, the breakdown, by CR), agents started, audit checks passed, the steering
+share, and for a sandbox campaign the judge's line (`Judge: <n> pass, <n> fail, <n> not run`).
 
 ## For maintainers
 chantier version and commit, failed audit checks verbatim, anything to reproduce.
 ```
 
+`full` has one report for both batches: one scorecard, where a row is `seen, wrong` if it was
+wrong in either batch, and the cost per batch and in total.
+
 ## The kit
 
 | File | Role |
 | --- | --- |
-| [`kit/setup.py`](kit/setup.py) | Stages a campaign's workspace: the project, a bare origin, the local forge, the CRs |
+| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json` |
 | [`kit/forge.py`](kit/forge.py) | The local forge, called as `gh`: PRs, CI in a fresh clone, CI-only contract tests |
 | [`kit/merge.py`](kit/merge.py) | The user's merge |
-| [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--real` for the real campaigns |
+| [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--sandbox` for the sandbox campaigns: also the run table, the real forge read-only and the judge |
+| [`kit/judge.py`](kit/judge.py) | The judge: the hidden tests on a PR's head in a clean clone of the sandbox, and a release judged by the tag, the version, the notes and the GitHub release |
 | [`SCORECARD.md`](SCORECARD.md) | The single list of rails, one row each: id, rail, source, where seen, how marked |
 | [`kit/fixture/`](kit/fixture/) | `tasks-cli`, with its `AGENTS.md` and two review agents of its own |
 | [`kit/crs/`](kit/crs/) | The prepared CRs (request, intent, answers, specification) |
 | [`kit/contracts/`](kit/contracts/) | Tests only the simulated CI runs |
+| [`kit/sandbox-crs/`](kit/sandbox-crs/) | The frozen CRs of the sandbox campaigns (request, intent, answers, specification): 11 features and 2 releases |
+| [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
 | [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) and `reset` (the sandbox back at that commit; the only force push) |
 

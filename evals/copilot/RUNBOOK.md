@@ -1,7 +1,7 @@
 # Campaign copilot
 
-One CR on a Copilot SDK host (the Copilot app): the mechanics that differ from Claude, as cheaply
-as possible. About $1.
+One frozen CR on a Copilot SDK host (the Copilot app), on the eval sandbox with the real `gh`: the
+mechanics that differ from Claude, as cheaply as possible. About $1.
 
 **What it proves:**
 
@@ -12,21 +12,24 @@ as possible. About $1.
   hand-back.
 - **The cost:** `chantier cost` measures the batch through copilot-session-usage, as a breakdown (`Agent <type>` lines).
 
-Follow the common steps in [the evals README](../README.md#run-a-campaign), on Copilot, with:
+Follow the sandbox campaign text in [the evals README](../README.md#a-sandbox-campaign) (the
+preparation, the run's number and prefix, a merge, the audit), on Copilot, with:
 
 | Step | Value |
 | --- | --- |
 | Setup | `uv run --no-project python evals/kit/setup.py copilot <workspace>` |
 | Batch | `copilot` |
-| CRs | `done-unknown-id` |
-| Open | `$CHANTIER open .agents/changes/2-backlog/P1/done-unknown-id --slots 1 --budget 3 --default-branch main` |
+| CRs | `delete-item` |
+| Open | `$CHANTIER open .agents/changes/3-ready/delete-item --slots 1 --budget 3 --default-branch main` |
 
 ## The user's turns
 
 1. Give the go once the plan is shown.
-2. When `ask ready CR-101 <link>` arrives: merge the PR (`evals/kit/merge.py <workspace> 1`),
-   then `$CHANTIER order merged CR-101` and send the line it prints.
-3. Wait for `final <report>`, then "what did it cost?", run the audit, then `$CHANTIER close --yes`, and delete the `/every` heartbeat.
+2. When `ask ready CR-<n> <link>` arrives: merge the PR (`gh pr merge <pr> --repo
+   gsemet/chantier-eval-sandbox --rebase`), then `$CHANTIER order merged CR-<n>` and send the line
+   it prints.
+3. Wait for `final <report>`, then "what did it cost?", run the audit (`audit.py <workspace>
+   --sandbox`), then `$CHANTIER close --yes`, and delete the `/every` heartbeat.
 
 ## Expected
 
@@ -34,11 +37,10 @@ Follow the common steps in [the evals README](../README.md#run-a-campaign), on C
 - One Driver; one coder, one Inspector, one verifier.
 - The audit runs before `close --yes` (it needs the batch folder).
 - The CR ends `merged` (in `4-batch/3-done/`, waiting for `close`), the batch `paused`; `chantier cost` prints the breakdown, an `Agent <type>` line per agent type.
+- The judge: the hidden tests of `delete-item` on the PR's head.
 
 ## Still to fill in from a real run
 
-- How the Copilot sessions of the batch get the local forge's environment (`setup.py` prints
-  it, `PATH` included so the agents' own `gh` is the fake): Claude reads it from
-  `.claude/settings.local.json`.
 - The Copilot part of `evals/kit/audit.py` (roles, prompts and tools from the host's logs): until
-  then the audit checks only what every host shares.
+  then the audit checks only what every host shares, the run, the judge and the cost, with no rail
+  ids and no scorecard.
