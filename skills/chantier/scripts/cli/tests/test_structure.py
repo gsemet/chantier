@@ -5,6 +5,8 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 import tomllib
 
@@ -425,3 +427,16 @@ def test_cost_puts_the_steering_sessions_own_subagents_on_their_own_line_and_qa_
     assert (_kind(own), _label(own)) == ("Foreman", OWN_CHIEF)
     labels = [e["label"] for e in _breakdown([row("a", None), own, row("c", "a")])]
     assert labels == [OWN_CHIEF, "Driver Explore", "Worker Explore"]
+
+
+def test_the_eval_sandbox_builds_its_recorded_base():
+    script = PLUGIN_ROOT / "evals" / "kit" / "sandbox.py"
+    done = subprocess.run([sys.executable, str(script), "build"], capture_output=True, text=True,
+                          encoding="utf-8")
+    assert done.returncode == 0, done.stdout + done.stderr
+    found = re.search(r"^base ([0-9a-f]+)$", done.stdout, re.MULTILINE)
+    assert found, done.stdout + done.stderr
+    built = found.group(1)
+    recorded = json.loads((PLUGIN_ROOT / "evals" / "kit" / "sandbox.json").read_text(encoding="utf-8"))["base"]
+    assert built == recorded
+    assert re.fullmatch(r"[0-9a-f]{40}", recorded)

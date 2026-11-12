@@ -151,3 +151,24 @@ chantier version and commit, failed audit checks verbatim, anything to reproduce
 | [`kit/fixture/`](kit/fixture/) | `tasks-cli`, with its `AGENTS.md` and two review agents of its own |
 | [`kit/crs/`](kit/crs/) | The prepared CRs (request, intent, answers, specification) |
 | [`kit/contracts/`](kit/contracts/) | Tests only the simulated CI runs |
+| [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
+| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) and `reset` (the sandbox back at that commit; the only force push) |
+
+## The sandbox
+
+The eval campaigns run on a frozen project: `shelf`, a small reading list in Python, kept in
+[`kit/sandbox/`](kit/sandbox/) and published at
+[gsemet/chantier-eval-sandbox](https://github.com/gsemet/chantier-eval-sandbox) (public, `main`
+not protected). Its initial commit is the same everywhere, down to the SHA-1, and that SHA-1 is
+the recorded base in [`kit/sandbox.json`](kit/sandbox.json).
+
+- `uv run --no-project python evals/kit/sandbox.py build [<dest>]` builds that commit, and exits 2
+  when its SHA-1 is not the recorded one. `just check` runs it as a structure test.
+- To change the project: edit `kit/sandbox/`, run `build --record`, and commit `sandbox.json` in
+  the same PR, or `just check` is red. Once that PR is reviewed, run `reset --yes`.
+- `uv run --no-project python evals/kit/sandbox.py reset` prints what it would do and changes
+  nothing; `reset --yes` closes the open PRs, deletes the releases, tags and other branches, and
+  force-pushes the base to `main`.
+
+Nothing else changes the sandbox: the repository is a constant of the script, and `reset` is
+the only force push.

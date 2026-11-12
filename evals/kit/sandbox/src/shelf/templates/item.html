@@ -1,0 +1,10 @@
+    <h1>$title</h1>
+$link
+    <p>Status: <span class="status">$status</span>. Added $added.</p>
+    <form method="post" action="/items/$id/status">
+      <label>Status <select name="status">
+$options
+      </select></label>
+      <button type="submit">Save</button>
+    </form>
+    <p><a href="/">Back to the list</a></p>
