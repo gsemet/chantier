@@ -6,8 +6,9 @@ Claude Desktop app. It takes about twenty minutes, most of it waiting for the te
 You need:
 
 - the **Claude Desktop app**, with its Code tab. Foreman mode starts the Foreman as a nested
-  session, which only the Desktop app can do. In a terminal or in VS Code the plan proposes
-  [direct mode](use-cases-direct.md) instead, where the Chief of Staff steers the batch itself;
+  session, which only the Desktop app can do. In a terminal or in VS Code, or under Remote Control,
+  the batches are in [direct mode](use-cases-direct.md) with no argument, where the Chief of Staff
+  steers the batch itself;
 - [`uv`](https://docs.astral.sh/uv/), `git`, and your forge's CLI logged in to its host: the
   [GitHub CLI](https://cli.github.com/) `gh` (`gh auth status`) or the
   [GitLab CLI](https://gitlab.com/gitlab-org/cli) `glab` (`glab auth status`), self-hosted
@@ -65,8 +66,9 @@ type:
 /chantier:chief-of-staff prepare yourself to work on this project
 ```
 
-`/chantier:chief-of-staff` is the session that opens and runs batches (`direct` after it makes it
-steer batches itself). `/chantier:griller` is a session that refines the inbox and the backlog
+`/chantier:chief-of-staff` is the session that opens and runs batches. With no argument its mode
+follows where you are (Foreman at the desktop, direct under Remote Control, in a terminal or VS
+Code); `foreman` or `direct` after it forces one. `/chantier:griller` is a session that refines the inbox and the backlog
 while the Chief of Staff runs batches. One Chief of Staff holds the seat per repository; a
 second session that asks for it becomes a Griller and offers "become chief of staff", which you
 say to take over. `/chantier:status` shows the progress report of the running batch at once, from any session, and changes nothing.
@@ -120,7 +122,7 @@ The Chief of Staff:
    instructions, the forge's CLI logged in, and the allow rules it recommends, a warning only)
    and stops with the reason if anything is missing;
 2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch
-   (a Foreman, by default);
+   (a Foreman or the Chief of Staff itself, and why: the surface, or your `foreman` / `direct`);
 3. waits for your **go**.
 
 For fewer auto-mode interruptions, the Chief of Staff gives you the allow rules to add to your
@@ -131,8 +133,8 @@ section "Configuration" ([claude-code.md](../skills/chantier/references/hosts/cl
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
 next to your repository, which its Driver creates when it starts), then starts the **Foreman**
 in its own session. You will see that session in the sidebar; you never need to talk to it. In
-direct mode, which the plan proposes when a Foreman session cannot start or the batch is small, no
-Foreman starts: the Chief of Staff steers the batch itself and, while it does, answers only
+direct mode, which the plan names, with the reason, when the session is under Remote Control, when
+a Foreman session cannot start, or when you forced it, no Foreman starts: the Chief of Staff steers the batch itself and, while it does, answers only
 "status?", "what did it cost?", your answers to a blocked CR and orders on the batch. Direct mode
 is less dynamic (no CR joins a running batch, and that session holds no grill) but has the same
 lifecycle: running, paused, closed on your word.
@@ -148,6 +150,12 @@ While the team works, keep talking to the Chief of Staff:
 | "CR-103 first" | a note on the CR; the Foreman gives it the next free slot |
 | "for CR-101, also handle the remember-me checkbox" | a note on the CR; the Driver takes it into its next round |
 | "what did it cost?" | the measured cost so far: the Foreman, each Driver type, each worker type |
+
+What "status?" or `/chantier:status` gives once a batch is done: the CR table with its result, PR,
+rounds and cost, the notes, the cost by role with the orchestration share, the spend outside the
+batch and the cost notes.
+
+![A status report of a done batch](status-report-done.png)
 
 When a CR needs a decision only you can take, the Chief of Staff brings you the question. Your
 answer is recorded in the CR's `02-answers.md` and the work resumes.
@@ -228,8 +236,9 @@ included.
 ## If something goes wrong
 
 - **"chantier cannot run here: nothing was started."** The preflight names the failed condition
-  and what to do. The usual one: you are in the terminal or VS Code, where Foreman mode is
-  refused; the plan then offers direct mode there, or you can open the Desktop app.
+  and what to do. The usual one: you are in the terminal or VS Code, where no Foreman can start.
+  With no argument, direct mode is used there; a forced `foreman` is refused with the reason, and
+  you can say "direct" or open the Desktop app.
 - **The app restarted during a batch.** Say "resume". The Chief of Staff checks the Foreman, and
   on your word starts a new one that picks up every CR where it was.
 - **A CR is blocked.** "status?" shows why; answer the question or drop the CR.

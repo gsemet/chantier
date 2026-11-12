@@ -28,7 +28,7 @@ Control), with the plugin installed from this checkout, the user types, with `<m
 `stack`, `parallel`, `series` and `<this checkout>` its absolute path:
 
 ```text
-/chantier:chief-of-staff Run the chantier eval campaign real-foreman in <mode> mode: follow <this checkout>/evals/real-foreman/RUNBOOK.md.
+/chantier:chief-of-staff foreman Run the chantier eval campaign real-foreman in <mode> mode: follow <this checkout>/evals/real-foreman/RUNBOOK.md.
 ```
 
 That session is the operator: a Chief of Staff in Foreman mode, playing the user in full (Q7):

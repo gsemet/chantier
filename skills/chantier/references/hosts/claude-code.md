@@ -18,7 +18,7 @@ Each behaviour carries a mark:
 | Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-sonnet-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | the start: proved, every batch started from Claude Desktop (v0.3 on); with this model: **unproved** until seen. Trial: batch-11, where the Foreman was switched to Sonnet 5.5 after its `ready` (CR-174), then the first batch started with this row: the transcript shows `claude-sonnet-5-5`, and `effort: "medium"` is accepted with it. Record the date once seen |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
 | Set a session's own title (the Chief of Staff, a Griller, the Foreman) | `set_session_title` | proved for a Chief of Staff's own session, 2026-11-08 (Battlestation, a session renamed itself); the Foreman's case stays unproved: the trial is a Foreman that sets its title and `get_session("self")` shows it |
-| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`): a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling is unproved until a reload runs; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
+| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [foreman|direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`): a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling (only the first word of `chief-of-staff` counts) is unproved until a session shows it, and the reload's until a reload runs; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
 | Load another skill (the router) | the host's Skill tool | unproved until the router runs; trial: `/chantier:chantier` in a session with no Chief of Staff, answer a role, see the skill load |
 | List the sessions and their state; is the seat's session alive | the session tools found in the `mcp__ccd_session__` set: the exact tool and its states are not recorded | unproved; trial: two sessions on one repository, one stopped, list both and record the states |
 | Message another session of the user (hand-over, a Griller's line) | `SendMessage` to its session id | proved for the Chief of Staff's session (the row above); between two sessions of the user, unproved; trial: a Griller's `ready` line to the Chief of Staff's session |
@@ -322,6 +322,10 @@ by the next real eval's normal use, and the audit checks each worker's prompt ho
 | Cloud | the host's environment | n/a | no: no main checkout |
 | Session in a planning surface | its folder is the surface's root | n/a | yes, if the host lets it write in the project's clone and worktrees, which are outside its folder (`checkout.yml`); **unproved** |
 
+With no argument the Chief of Staff's batches are direct in the Remote Control row and on any
+entry where the Foreman-mode P1 fails (terminal, VS Code), and Foreman in the "Desktop, typed" row
+(`chief-of-staff.md`, "Starting a batch").
+
 Proved: the worktree row, batch-06, 2026-11 (the user picked the `chantier` entry under "Remote
 Control": it names the main checkout, shows no worktree option, the session landed in a
 worktree, and Write refused `.agents/changes/`, so Drivers were blocked). The refusal on a
@@ -339,7 +343,7 @@ below).
 trial.** A remote session cannot be started outside a worktree, which blocks chantier's planning
 on the default branch; nested sessions are a problem in remote too. So the Chief of Staff is
 started locally (desktop, no worktree), then put in remote (Remote Control). In remote the setup
-is: reuse the Chief of Staff's session (direct mode), plus, optionally, Griller sessions in
+is: reuse the Chief of Staff's session (its next batch is direct by itself), plus, optionally, Griller sessions in
 worktrees that are never merged (their files go to the Chief of Staff, which places them).
 
 Documented, not proved here: the desktop docs say Worktree is off by default and is set per
@@ -365,7 +369,12 @@ end that day). A terminal gives no signal, and no signal is said when the user i
 app's keyboard: the absence of the notice does not prove the user is at the machine. The class row
 "no Remote Control notice" ("Desktop, typed") above is qualified by this. Where there is no
 notice, the host says nothing: offer every option that fits, each with its condition ("Offering
-options", `chief-of-staff.md`). The rest of this section is **unproved** except where a mark says
+options", `chief-of-staff.md`). The notice also sets the mode of a batch planned with no argument:
+direct (`chief-of-staff.md`, "Starting a batch"). Whether the notice appears on a turn typed at the
+desktop in a session connected to Remote Control (the setting "Connect new sessions to Remote
+Control") is **unproved**; trial: in such a session, type one turn at the desktop and one from the
+phone, and record which carries the notice. Until then the rule holds as written and a forced
+`foreman` is the user's way. The rest of this section is **unproved** except where a mark says
 otherwise.
 
 | Option | Desktop, typed | Remote Control | Terminal | Why and mark |
@@ -506,7 +515,7 @@ does them. The path is **unproved** until followed once by hand.
 
 1. Start the Chief of Staff locally, in the desktop app, with no worktree and the tools allowed in
    auto mode (your own steps), then run `/chantier:chief-of-staff` (or `/chantier:chantier`).
-2. Put that session in remote (Remote Control). In remote, reuse this session, in direct mode.
+2. Put that session in remote (Remote Control). In remote, reuse this session; with no argument its next batch is direct by itself.
 3. Optionally, start Griller sessions in worktrees that are never merged: they send their files
    to the Chief of Staff, which places them.
 4. Each session renames itself.

@@ -33,7 +33,7 @@ your rules, your gates
 ```md
 ## 🤵 Chief of Staff
 
-/chantier:chief-of-staff direct
+/chantier:chief-of-staff · remote or direct
 your session · plays the Foreman's role
 direct mode
 ```

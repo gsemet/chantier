@@ -28,7 +28,7 @@ In a new Code session of the Claude Desktop app opened on the workspace (not und
 Control), with the plugin installed from this checkout, the user types:
 
 ```text
-/chantier:chief-of-staff Run the chantier eval campaign full: follow <this checkout>/evals/full/RUNBOOK.md.
+/chantier:chief-of-staff foreman Run the chantier eval campaign full: follow <this checkout>/evals/full/RUNBOOK.md.
 ```
 
 with `<this checkout>` as its absolute path. That session is the operator: the Chief of Staff in

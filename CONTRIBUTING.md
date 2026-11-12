@@ -5,6 +5,53 @@ This guide is for the people who work on chantier itself. To use it, read the
 
 ## How the project is built
 
+### What is chantier?
+
+You only ever talk to the **Chief of Staff**, in your own session.
+It keeps the backlog, asks you the questions a change needs, and starts work only on your go.
+
+1. **It learns your project.** It reads your `AGENTS.md` (or `CLAUDE.md`) for how you build,
+   test, ship, merge and release, your default branch and your team, and asks you what it does
+   not say. There is nothing else to configure: every agent reads the same file.
+2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
+   (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
+   self-contained **Change Specification** (`03-change-spec.md`), and, when it needs another CR
+   first, a `depends.json` (`{"after": ["<slug>"]}`). After the grill, the Chief of Staff
+   restates the CR and asks whether it is grilled enough; on your word a **spec-writer** agent
+   writes `03-change-spec.md` in the background, and the Chief of Staff reviews it against your
+   answers before showing it to you.
+3. **You start a batch** ("run the P1s"; four slots; the CRs run in parallel unless you ask for a [series or a stack](README.md#batch-modes)). After a preflight and your go, the
+   Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (used under Remote
+   Control, where the host cannot start a Foreman session, or when you force it) no Foreman starts: the Chief of
+   Staff steers the batch from its own session, with the same limits, folders and reports, and a
+   batch (a CR added while it runs is queued and taken when a slot frees, and a paused batch takes several, the first start setting it running); it may switch to Foreman mode on your word.
+   Direct mode is less dynamic than Foreman mode (the Chief
+   of Staff, busy steering, holds no grill in that session) but has the same lifecycle: a batch is
+   running, then paused, then closed on your word. See [direct mode](docs/use-cases-direct.md).
+4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
+   running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
+5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
+   in it: Investigator, Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review
+   step you added. Then it commits, rebases, pushes, opens the PR and watches its CI itself,
+   with `git` and `gh` or `glab`, as your project says. The Driver writes the PR description from
+   the default template shipped in the skill
+   (`skills/chantier/references/pr-template.md`), unless your project has its own template,
+   which ranks above it.
+6. **The Foreman reports back** (the Chief of Staff, in direct mode). You steer through the Chief
+   of Staff (add, drop, a note on a CR; "I merged #42"); it forwards one `order` line to the
+   Foreman. You merge; the Foreman merges only a release's PR or fix, on your word.
+7. **A Release driver releases, when you ask.** It follows your project's own procedure, and
+   stops for your approval before each irreversible action.
+
+The agents do the work, git and the forge included. The `chantier` Python CLI (`uv run`) is
+the frame beside them, in the planning folder (`.agents/changes/`, or an external surface), as plain JSON and Markdown: the CR lifecycle
+(inbox, backlog, batch, archives, trash), the batch's limits (slots, budget, rounds, your word
+on an irreversible action), the record (each CR's branch and worktree names, its PR, the long
+gate's log, the cost, the `STATUS` files) and the lines that synchronise the team (orders, asks,
+hand-backs, notes). It refuses what the batch does not allow and tells an agent what is off (an
+unpushed head, a worktree not yet created); it decides nothing: the Foreman and the Drivers do,
+under your project's own rules (`AGENTS.md` and what it links rank above chantier's cards).
+
 chantier is four things in one repository:
 
 1. **Four skills.** [`skills/chantier/`](skills/chantier/) holds the router (`SKILL.md` asks
@@ -62,6 +109,31 @@ The design rule that shapes everything: **no fallback.** When a tool, a host fea
 or an agent is not exactly available, chantier stops and says so; it never picks a look-alike.
 Within what they have, the Foreman and the Drivers judge freely: the cards state
 goals and boundaries, not procedures. Keep both true in any change.
+
+### Repository layout
+
+```text
+.claude-plugin/             ← Claude Code plugin manifest and marketplace
+.github/plugin/             ← GitHub Copilot plugin manifest and marketplace
+agents/                     ← Claude Code agents, one per role
+hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of a worker's writes
+com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
+skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
+skills/griller/             ← the Griller's entry point (thin)
+skills/status/              ← `/chantier:status`, the progress report (thin: it loads status-layout.md)
+skills/chantier/
+├── SKILL.md                ← the router: asks which role this session takes
+├── references/             ← one file per running context: concepts, session-start,
+│                             chief-of-staff, griller, report, foreman, driver, worker, routing,
+│                             spec-writer, init,
+│                             pr-template, release-template, and hosts/ (one
+│                             reference per host: Claude Code, Copilot)
+└── scripts/cli/            ← the `chantier` CLI and its tests
+scenario/                   ← one whole batch, scripted, no model
+evals/                      ← eval campaigns with real agents, and their reports
+scripts/                    ← version tooling, run by `just`
+docs/                       ← diagrams, screenshots, the user docs (tutorial, use cases, reference pages), release notes
+```
 
 ## Set up
 

@@ -23,7 +23,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](init.md) |
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
-| a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode comes from the session | Starting a batch |
+| a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](#starting-a-batch)) | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
@@ -231,20 +231,49 @@ Only in the turn where the user gave the go:
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. On a failure start nothing, offer no other way, and say which condition failed and
-   what the user can do. In direct mode (step 2) run `$CHANTIER preflight --direct`: P1 then
+   what the user can do. The mode is settled before the preflight (step 2). Forced `direct`, or no
+   argument under the host's Remote Control notice: run `$CHANTIER preflight --direct`: P1 then
    passes on any Claude Code entry point or a Copilot agent session, and you leave P2 out, since
-   no session is started.
+   no session is started. Otherwise the Foreman-mode preflight runs; with no forced mode, a
+   failure of P1 or P2 alone makes the mode direct, and `preflight --direct` then runs and is the
+   batch's preflight; with `foreman` forced, that failure is the refusal of step 2. Any other
+   failure stops as above.
 2. **Show the plan:** the CRs (the `3-ready` ones first) and what each one waits for, with the reason of any queue that is
    no real dependency; how many CRs start at once, on how many slots (4 unless you say
    otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. Re-read the seat first ([session-start](session-start.md)). The steering mode is
-   the session's: **direct mode** (you steer the batch yourself, no Foreman session) when the
-   skill was invoked with `direct` or the user said so, else **Foreman mode** (a separate Foreman
-   session). In Foreman mode on a host that cannot start a Foreman session (a terminal or IDE
-   host, a Remote Control session with no Foreman to reuse), propose direct mode in the plan, say
-   why, and say clearly what changes: no Foreman session; you steer the Drivers yourself; no
-   grill while the batch runs (backlog work and the spec-writer stay open); new ideas go to the inbox. Wait for the
-   user's yes. The limits are the same in both modes; there is no CR threshold of its own. Then
+   **direct mode** (you steer the batch yourself, no Foreman session) or **Foreman mode** (a
+   separate Foreman session), by these rules:
+   - **The argument.** Only the invocation's first word counts, and only when it is exactly
+     `foreman` or `direct`. Anything else (`init`, a request) is the user's request and forces
+     nothing; `direct Run the campaign …` is `direct` plus a request.
+   - **Forced holds for the session.** `foreman` or `direct` holds for every batch of the session
+     until the user's word changes it. The user's word ("you are in direct mode", "use a
+     Foreman") works with or without an argument, and also holds for the session.
+   - **No argument: the mode this surface can run,** read at the plan of each batch, never frozen
+     at the invocation (a session started at the desk and later driven from the phone plans its
+     next batch as direct). **Direct** when the conversation carries the host's Remote Control
+     notice ([claude-code](hosts/claude-code.md), "Surfaces and options"), even if a Foreman could
+     be reused; **direct** on a host that cannot start a Foreman (a terminal, VS Code, a Copilot
+     session whose session tools do not load): the test is the Foreman-mode preflight's P1 and P2
+     (step 1); **Foreman** otherwise. No notice means local: a missing notice fails safe to
+     Foreman.
+   - **The plan says it, no question.** One line states the mode and why ("direct: this session is
+     under Remote Control", "Foreman: at the desktop", "direct: forced by the argument") and, when
+     direct, what changes: no Foreman session; you steer the Drivers yourself; no grill while the
+     batch runs (backlog work and the spec-writer stay open); new ideas go to the inbox. There is
+     no separate yes for the mode: the go is the yes. The user may change the mode before the go
+     by saying so.
+   - **A forced `foreman` where no Foreman can start** (Remote Control with no Foreman to reuse, a
+     terminal, VS Code) is refused at the plan, with the reason and what the user can do (say
+     "direct", or start from the desktop app). Under Remote Control with a Foreman to reuse, you
+     reuse it ([claude-code](hosts/claude-code.md), "Reusing the last Foreman"). A forced mode is
+     never swapped silently.
+   - **A batch keeps the steering it was opened with.** Going to the phone or coming back changes
+     no running or paused batch; a Foreman batch never becomes direct (see Switching to Foreman
+     mode).
+
+   The limits are the same in both modes; there is no CR threshold of its own. Then
    the go. While a batch is not closed, whatever its state
    (running or paused), there is no new plan: new work joins it with `order add`.
 3. **Open:**

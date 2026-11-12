@@ -21,10 +21,11 @@ joins only once every other CR is handled and the batch is paused.
 GitHub Copilot is not a third configuration: each document ends with its own "On GitHub Copilot"
 section.
 
-The plan the Chief of Staff shows before a batch says who steers it. It proposes direct mode when
-the host cannot start a Foreman session (a terminal or IDE host, a Remote Control session with no
-Foreman to reuse), and says why. You can also choose it with `/chantier:chief-of-staff direct` or
-by saying so. Your go decides: nothing starts without it.
+The plan the Chief of Staff shows before a batch says who steers it, and why. With no argument the
+mode follows the surface: Foreman at the desktop, direct under Remote Control or where the host
+cannot start a Foreman session (a terminal or IDE host). `/chantier:chief-of-staff foreman` or
+`/chantier:chief-of-staff direct` (or saying so) forces one for the session. Your go decides:
+nothing starts without it.
 
 ## The life of a batch
 
@@ -102,7 +103,7 @@ In a remote session, the steps are yours (chantier explains them and never does 
 1. Start the Chief of Staff locally (desktop, no worktree, tools allowed in auto mode): a remote
    session cannot start outside a worktree (the author's own finding, not a proved trial).
 2. Run `/chantier:chief-of-staff`, then put the session in remote (Remote Control). In remote,
-   reuse that session, in direct mode.
+   reuse that session: with no argument, its next batch is direct.
 3. Optionally, start Griller sessions in worktrees that are never merged: their files go to the
    Chief of Staff.
 4. Each session renames itself.
@@ -191,6 +192,6 @@ Drivers and workers, the costliest CRs).
 
 chantier stops instead of improvising: in a linked worktree, unattended, without project
 instructions, with a missing agent, a refused tool or an unknown model. Foreman mode also needs
-the Desktop app or a Copilot agent session; where the host cannot start a Foreman session, the
-plan proposes direct mode instead. It tells you which condition failed and what you can do; it
+the Desktop app or a Copilot agent session; with no argument, direct mode is used where the host
+cannot start a Foreman session, and a forced `foreman` there is refused with the reason. It tells you which condition failed and what you can do; it
 never offers a workaround.
