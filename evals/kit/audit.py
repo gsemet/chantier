@@ -59,6 +59,8 @@ FORGE_ALLOWED = (["pr", "create"], ["pr", "edit"], ["pr", "checks"], ["pr", "vie
                  ["pr", "ready"], ["run", "list"], ["run", "view"], ["run", "rerun"], ["auth", "status"])
 GIT_WRITES = re.compile(r"git\s+(commit|push|rebase|merge)\b(?!-)")
 OWN_FILES = ("/work/", "/evidence/")  # a worker's notes and proof, in the CR's folder
+CD = re.compile(r"(?:^|[;&|\n(])\s*(?:cd|Set-Location|sl|pushd)\s+(\"[^\"]+\"|'[^']+'|[^\s;&|)]+)",
+                re.I)
 
 
 def records(path: Path):
@@ -144,6 +146,24 @@ class Agent:
         """The shell commands, from `since` on (an ISO time) when it is given."""
         return [i.get("command", "") for (n, i), t in zip(self.tools, self.when)
                 if n in ("Bash", "PowerShell") and (not since or not t or t[:19] >= since[:19])]
+
+    def git_writes(self) -> list[str]:
+        """The commands that commit, push, rebase or merge, but not in a throwaway repository: a
+        folder the agent itself moved into (`cd`, `Set-Location`, `pushd`) and ran `git init` in,
+        to reproduce a behaviour away from the CR."""
+        own, found = set(), []
+        for c in self.bash():
+            moves = [(m.start(), m[1].strip("\"'")) for m in CD.finditer(c)]
+            for init in re.finditer(r"git\s+init\b", c):
+                before = [t for at, t in moves if at < init.start()]
+                if before:
+                    own.add(before[-1])
+            write = GIT_WRITES.search(c)
+            if write:
+                before = [t for at, t in moves if at < write.start()]
+                if not before or before[-1] not in own:
+                    found.append(c)
+        return found
 
     def writes(self) -> list[str]:
         return [i.get("file_path", "") for n, i in self.tools if n in ("Write", "Edit")]
@@ -278,7 +298,7 @@ def claude_checks(data: dict, uuids: list, projects: Path, check: Checks, real: 
                   f"{a.id[:10]} ({a.role}) prompt holds a `writes:` line (the plugin guards its writes)",
                   "J12")
         if a.role in WORKERS | reviews:
-            commits = [c for c in a.bash() if GIT_WRITES.search(c)]
+            commits = a.git_writes()
             check(not commits or a.role == "conflict-resolver",
                   f"{a.id[:10]} ({a.role}) never commits, pushes or merges", "J3")
         if a.role in DRIVERS:
@@ -432,7 +452,7 @@ def real_checks(data: dict, events: list[dict], ws: Path, folder: Path, check: C
             problems.append(f"state {view.get('state')}")
         if view.get("autoMergeRequest"):
             problems.append("auto-merge is on")
-        first = (view.get("body") or "").strip().splitlines()[:1]
+        first = (view.get("body") or "").lstrip("﻿").strip().splitlines()[:1]  # a BOM
         if first != [EVAL_LINE]:
             problems.append("first line is not the eval line")
         if c["status"] == "ready":
