@@ -532,10 +532,12 @@ these differences.
   your loop's last wake, and "heartbeat stopped" is a loop you ended on purpose (the host's
   reference says how it is recorded). The CLI prices your transcript from that claim, as one `Chief of
   Staff, steering the batch` row, which counts in the spend and the budget as a Foreman's does;
-  the turns that grill with the user or write specifications (a turn that names a CR's
+  the turns that grill with the user or write specifications (a turn that writes a CR's
   `01-intent.md`, `02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a
-  spec-writer) leave that row for the `grill and specifications with the user` line, outside the
-  budget; a `steering the batch (outside the budget)` line also shows what you spent since the
+  spec-writer; a turn that only names or reads them, in a Driver's prompt or a command, stays on
+  the row; a turn is attributed whole) leave that row for the `grill and specifications with the
+  user` line, outside the budget. Write those four files with the host's Write (or Edit) tool,
+  never with a shell command: the CLI recognises grill work only by that write. A `steering the batch (outside the budget)` line also shows what you spent since the
   batch opened outside your claim window (before the claim, after a Foreman took over); the `Chief of Staff, whole session` line leaves the steering window out and counts the
   compactions since the batch opened.
 - **The Drivers.** You start them, several in parallel on the free slots, in the background, and

@@ -131,8 +131,9 @@ the lines of `$CHANTIER cost`, in its order (a CR's own figure is the last field
   line outside the budget appears too when you spent outside your claim window, before the claim
   or after a Foreman took over; when the only calls of that part carry no time, it says `unknown
   (<n> calls without a time, not placed)`), `grill and specifications with the user` (every call
-  of a turn that names a CR's `01-intent.md`, `02-answers.md`, `03-change-spec.md` or
-  `work/specifying`, or starts a spec-writer, and the spec-writers' own calls; a turn is
+  of a turn that writes a CR's `01-intent.md`, `02-answers.md`, `03-change-spec.md` or
+  `work/specifying`, or starts a spec-writer, in your claim window, and, in the rest of the time
+  since the batch opened, of a turn that names one; and the spec-writers' own calls; a turn is
   attributed whole), each since the batch opened, and `whole session` with its context size and
   its compaction count. These lines carry no share. In a direct batch the grill and
   specifications are outside the batch's spend, as the spec-writer is.

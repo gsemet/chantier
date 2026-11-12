@@ -105,14 +105,27 @@ def _when(text, path: Path, number: int) -> datetime | None:
 GRILL_NAMES = ("01-intent.md", "02-answers.md", "03-change-spec.md", "work/specifying")
 
 
-def _grill_use(block) -> bool:
-    """Whether a tool use belongs to the grill and the specifications: its input names a CR's
-    intent, answers, specification or `work/specifying` marker, or it starts a spec-writer."""
+WRITE_PATHS = {"Write": "file_path", "Edit": "file_path", "MultiEdit": "file_path",
+               "NotebookEdit": "notebook_path"}  # the host's write tools, and their target
+
+
+def _grill_use(block, strict: bool = False) -> bool:
+    """Whether a tool use belongs to the grill and the specifications.
+
+    Loose (outside a steering window): its input names a CR's intent, answers, specification or
+    `work/specifying` marker anywhere, or it starts a spec-writer. Strict (inside a steering
+    window, where a turn that only names or reads a specification is steering): it starts a
+    spec-writer, or it is a host write tool whose target path ends in one of those names; a shell
+    command, a read, or a write to another file whose content names one is not."""
     if not isinstance(block, dict) or block.get("type") != "tool_use":
         return False
     given = block.get("input")
     if isinstance(given, dict) and str(given.get("subagent_type", "")).endswith("spec-writer"):
         return True
+    if strict:
+        key = WRITE_PATHS.get(block.get("name"))
+        target = given.get(key) if key and isinstance(given, dict) else None
+        return isinstance(target, str) and target.replace("\\", "/").endswith(GRILL_NAMES)
     text = json.dumps(given).replace("\\\\", "/")  # a Windows path, escaped by JSON
     return any(name in text for name in GRILL_NAMES)
 
@@ -151,19 +164,35 @@ def _add(row: dict, c: dict) -> None:
 
 
 def usage(path: Path, since: str = "", until: str = "", split: bool = False,
-          prices: dict | None = None) -> dict:
+          prices: dict | None = None, steering: tuple[str, str] | None = None) -> dict:
     """A transcript's calls from `since` to `until`: a session can have run another batch.
 
     `split`: the calls of the turns that grill with the user or write specifications (a turn is
     from a wake to the next, attributed whole) go to `row["grill"]`, a row of the same shape; the
     row itself keeps the others. `prices`: the project's, above the built-in table; a call of a
-    model with none is counted in `row["unpriced"]`, by model. A call with no time cannot be placed in a window: with `split`
-    and a window it is in neither, and `untimed` counts it."""
+    model with none is counted in `row["unpriced"]`, by model. A call with no time cannot be
+    placed in a window: with `split` and a window it is in neither, and `untimed` counts it.
+
+    `steering`: the (since, until) of the steering window, when the transcript has one. A tool use
+    is judged by the rule of the window its record's `timestamp` falls in: the strict one inside
+    it (see `_grill_use`), the loose one elsewhere, a record with no time included. Each call is
+    classified by its own window: a call inside the steering window goes to the grill only if its
+    turn has a strict grill use inside that window (a loose use outside it, in the same turn, does
+    not move it); any other call uses the turns that have a grill use by that use's own window.
+    So the calls of the steering window are the same whichever `since`/`until` prices them. With
+    no `steering`, every use is loose."""
     row = _new_row()
     start, end = _when(since, path, 0), _when(until, path, 0)
+    steer_from, steer_to = ((_when(steering[0], path, 0), _when(steering[1], path, 0))
+                            if steering else (None, None))
+
+    def in_steering(when) -> bool:
+        return bool(steering and when and not (steer_from and when < steer_from)
+                    and not (steer_to and when > steer_to))
     seen = set()
     calls: list[dict] = []
-    grill_turns: set[int] = set()
+    grill_turns: set[int] = set()  # turns with a grill use, by the rule of that use's window
+    window_turns: set[int] = set()  # turns with a strict grill use inside the steering window
     turn = 0
     woken = False  # a prompt, a message or a notification came in; a tool result is the same turn
     for number, line in enumerate(_transcript_lines(path), 1):
@@ -183,8 +212,11 @@ def usage(path: Path, since: str = "", until: str = "", split: bool = False,
             turn += 1
         if d.get("type") == "assistant" and isinstance(d.get("message"), dict):
             content = d["message"].get("content")  # one record per block, the same message id
-            if isinstance(content, list) and any(_grill_use(b) for b in content):
+            strict = in_steering(when)
+            if isinstance(content, list) and any(_grill_use(b, strict) for b in content):
                 grill_turns.add(turn)
+                if strict:
+                    window_turns.add(turn)
         if not inside:
             continue  # outside the window: neither a call nor a wake
         if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
@@ -232,7 +264,8 @@ def usage(path: Path, since: str = "", until: str = "", split: bool = False,
         row["untimed"] += c["when"] is None
         if split and c["when"] is None and (start or end):
             continue  # not placed in the window: counted, in neither share
-        _add(grill if split and c["turn"] in grill_turns else row, c)
+        marked = c["turn"] in (window_turns if in_steering(c["when"]) else grill_turns)
+        _add(grill if split and marked else row, c)
     if split:
         row["grill"] = grill
     return row
@@ -245,13 +278,15 @@ def _held(row: dict) -> int:
 
 def session_costs(main: Path, since: str = "", until: str = "", kind: str = "foreman",
                   allow_empty: bool = False, split: bool = False,
-                  prices: dict | None = None) -> list[dict]:
+                  prices: dict | None = None,
+                  steering: tuple[str, str] | None = None) -> list[dict]:
     """One row for the main transcript (`kind`: the Foreman or the Chief of Staff) and one per
-    subagent with calls in the window. A window without a call is an error unless allowed."""
+    subagent with calls in the window. A window without a call is an error unless allowed.
+    `steering`: the main transcript's steering window, see `usage`."""
     label = kind.replace("-", " ").capitalize()
     if not main.is_file():
         raise ChantierError(f"{label} transcript not found: {main}", EXIT_EXTERNAL)
-    foreman = usage(main, since, until, split, prices)
+    foreman = usage(main, since, until, split, prices, steering)
     if not _held(foreman) + (_held(foreman["grill"]) if split else 0) and not allow_empty:
         raise ChantierError(f"no priced calls in {label} transcript: {main}", EXIT_EXTERNAL)
     rows = [{"agent": "main", "type": kind, "description": "", **foreman}]

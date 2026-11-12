@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from chantier.costs import session_costs
+from chantier.costs import session_costs, usage
 from chantier.state import ChantierError, EXIT_EXTERNAL
 
 
@@ -103,3 +103,45 @@ def test_a_turn_naming_the_answers_is_grill_and_a_turn_without_is_not(tmp_path):
         + wake + call("c", [{"type": "tool_use", "name": "Bash", "input": {"command": "status"}}]))
     row = session_costs(transcript, "2026-01-01T00:00:00Z", split=True)[0]
     assert (row["grill"]["calls"], row["calls"], row["compactions"]) == (2, 1, 1)
+
+
+@pytest.mark.parametrize("name, given, grill", [
+    ("Edit", {"file_path": "x/02-answers.md"}, True),
+    ("Edit", {"file_path": "x\\02-answers.md"}, True),
+    ("Agent", {"subagent_type": "chantier:spec-writer", "prompt": "x"}, True),
+    ("Agent", {"subagent_type": "chantier:cr-driver", "prompt": "read x/03-change-spec.md"}, False),
+    ("Write", {"file_path": "x/retro.md", "content": "see 03-change-spec.md"}, False),
+    ("PowerShell", {"command": "echo hi > x/02-answers.md; cat x/03-change-spec.md"}, False),
+    ("Read", {"file_path": "x/03-change-spec.md"}, False)])
+def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(tmp_path, name, given,
+                                                                       grill):
+    record = json.dumps({"type": "assistant", "timestamp": "2026-03-01T00:00:00Z", "message": {
+        "id": "a", "model": "claude-sonnet-5-5", "usage": {"input_tokens": 1_000},
+        "content": [{"type": "tool_use", "name": name, "input": given}]}}) + "\n"
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text(json.dumps({"type": "user", "message": {"content": "go"}}) + "\n" + record)
+    window = ("2026-01-01T00:00:00Z", "")
+    row = usage(transcript, window[0], split=True, steering=window)
+    assert (row["grill"]["calls"], row["calls"]) == ((1, 0) if grill else (0, 1))
+    if name == "Read":  # outside the steering window, the loose rule: naming is enough
+        row = usage(transcript, window[0], split=True, steering=("2026-06-01T00:00:00Z", ""))
+        assert (row["grill"]["calls"], row["calls"]) == (1, 0)
+
+
+def test_a_loose_use_after_the_window_does_not_move_the_calls_inside_it(tmp_path):
+    def call(mid, stamp, name, given):
+        return json.dumps({"type": "assistant", "timestamp": stamp, "message": {
+            "id": mid, "model": "claude-sonnet-5-5", "usage": {"input_tokens": 1_000},
+            "content": [{"type": "tool_use", "name": name, "input": given}]}}) + "\n"
+
+    transcript = tmp_path / "session.jsonl"  # one turn that straddles the window's end
+    transcript.write_text(
+        json.dumps({"type": "user", "message": {"content": "go"}}) + "\n"
+        + call("a", "2026-03-01T00:00:00Z", "Read", {"file_path": "x/03-change-spec.md"})
+        + call("b", "2026-03-03T00:00:00Z", "Write",
+               {"file_path": "x/report.md", "content": "03-change-spec.md"}))
+    window = ("2026-02-01T00:00:00Z", "2026-03-02T00:00:00Z")
+    inside = usage(transcript, *window, split=True, steering=window)
+    since = usage(transcript, window[0], split=True, steering=window)
+    assert (inside["calls"], inside["grill"]["calls"]) == (1, 0)
+    assert since["grill"]["calls"] == 1 and since["calls"] == 1  # the later call: loose, grill
