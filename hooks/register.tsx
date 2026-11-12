@@ -182,8 +182,8 @@ async function readJson($: Engine, path: string): Promise<unknown> {
 const setView = ($: Engine, dir: string, patch: Partial<View>) =>
   update($, feed, f => ({ ...f, views: f.views.map((v: View) => (v.dir === dir ? { ...v, ...patch } : v)) }))
 
-/** Reads a planning folder's index again only if its modification time changed. */
-async function checkIndex($: Engine, dir: string): Promise<void> {
+/** Reads a planning folder's index again only if its modification time changed, or always when `force`. */
+async function checkIndex($: Engine, dir: string, force: boolean): Promise<void> {
   const path = dir + '/' + INDEX
   let mtime: number
   try {
@@ -197,7 +197,7 @@ async function checkIndex($: Engine, dir: string): Promise<void> {
     return
   }
   const before = (await read($, feed)).views.find((v: View) => v.dir === dir)
-  if (before && mtime === before.mtime && before.missing === null) return
+  if (!force && before && mtime === before.mtime && before.missing === null) return
   const now = await $.clock.now()
   let data: unknown
   try {
@@ -253,8 +253,8 @@ async function loadPage($: Engine, kind: ChantierPage['kind'], path: string): Pr
   return page
 }
 
-/** The top page, read again only if its modification time changed. */
-async function checkPage($: Engine): Promise<void> {
+/** The top page, read again only if its modification time changed, or always when `force`. */
+async function checkPage($: Engine, force: boolean): Promise<void> {
   const all = await read($, pages)
   const top = all[all.length - 1]
   if (!top) return
@@ -265,19 +265,20 @@ async function checkPage($: Engine): Promise<void> {
     await update($, pages, list => list.map((p, i) => (i === list.length - 1 ? { ...p, note: `${top.path}: ${message(err)}` } : p)))
     return
   }
-  if (mtime === top.mtime) return
+  if (!force && mtime === top.mtime) return
   const fresh = await loadPage($, top.kind, top.path)
   await update($, pages, list => list.map((p, i) => (i === list.length - 1 && p.path === top.path ? fresh : p)))
 }
 
 let timer: { cancel: () => void } | null = null
 
-async function check($: Engine): Promise<void> {
+async function check($: Engine, opts: { force?: boolean } = {}): Promise<void> {
+  const force = opts.force === true
   try {
     const where = await read($, site)
     if (where.root === null) return
-    for (const b of where.bases) await checkIndex($, b.dir)
-    await checkPage($)
+    for (const b of where.bases) await checkIndex($, b.dir, force)
+    await checkPage($, force)
   } catch (err) {
     await update($, feed, f => ({ ...f, note: `Could not check the files: ${message(err)}` }))
   }
@@ -292,6 +293,17 @@ async function begin($: Engine): Promise<void> {
   await update($, pages, () => [])
   if (timer === null) timer = $.clock.every(EVERY_MS, () => void check($))
   await check($)
+}
+
+/** A press of Refresh: looks for the planning folders again (a view still found keeps its state, a new folder gets one, a lost one drops), then checks at once, reading every file again. The pages, the folds and the timer stay. */
+async function refresh($: Engine): Promise<void> {
+  const where = await findRoot($)
+  await update($, site, () => where)
+  await update($, feed, f => ({
+    ...f,
+    views: where.bases.map((b: Base) => f.views.find((v: View) => v.dir === b.dir) ?? newView(b)),
+  }))
+  await check($, { force: true })
 }
 
 function end(): void {
@@ -512,7 +524,7 @@ export const register: Register = on => {
     const f = await read($, feed)
     const stack = await read($, pages)
     const open_ = await read($, turned)
-    await read($, checkedAt)
+    const checked = await read($, checkedAt)
     const now: number = await $.clock.now()
 
     const isOpen = (key: string, byDefault: boolean) => byDefault !== open_.includes(key)
@@ -526,13 +538,28 @@ export const register: Register = on => {
       />
     )
 
-    if (where.error !== null) return <Text>{where.error}</Text>
-    if (where.root === null) return <Text dimColor>Looking for the chantier files...</Text>
+    // The Refresh button, at the top right of the pane: a row pushed to the right, `left` (the Back button) at its left.
+    const Bar = (left: unknown = null) => (
+      <Box key="bar" flexDirection="row" justifyContent={left === null ? 'flex-end' : 'space-between'}>
+        {left}
+        <Button key="refresh" label="Refresh" onPress={() => void guarded($, () => refresh($))} />
+      </Box>
+    )
+    /** A view of one line of text, the button above it. */
+    const Alone = (text: unknown) => (
+      <Box flexDirection="column">
+        {Bar()}
+        {text}
+      </Box>
+    )
+
+    if (where.error !== null) return Alone(<Text>{where.error}</Text>)
+    if (where.root === null) return Alone(<Text dimColor>Looking for the chantier files...</Text>)
     const views: View[] = f.views
     if (views.length === 1) {
       const only = views[0] as View
-      if (only.fatal !== null) return <Text>{only.fatal}</Text>
-      if (only.missing !== null) return <Text>{`No chantier status here: ${only.missing} not found.`}</Text>
+      if (only.fatal !== null) return Alone(<Text>{only.fatal}</Text>)
+      if (only.missing !== null) return Alone(<Text>{`No chantier status here: ${only.missing} not found.`}</Text>)
     }
 
     const root = where.root
@@ -641,9 +668,7 @@ export const register: Register = on => {
       ))
     }
 
-    const back_ = (
-      <Button key="back" label="< Back" onPress={() => void back($)} />
-    )
+    const back_ = Bar(<Button key="back" label="< Back" onPress={() => void back($)} />)
 
     // ---- a page above the board ----
     const top = stack[stack.length - 1]
@@ -737,14 +762,14 @@ export const register: Register = on => {
       (n, b) => n + b.crs.filter(isWaiting).length + b.asks_unread,
       0,
     )
-    const age = v.readAt === null ? null : Math.max(0, Math.round((now - v.readAt) / 1000))
+    const age = checked === null ? null : Math.max(0, Math.round((now - checked) / 1000))
     const backlog = PRIORITIES.flatMap(pr => index.backlog.filter(r => r.priority === pr))
     const viewNote = v.note === null ? note : <Text italic>{v.note}</Text>
     return (
       <Box key={'view-' + v.dir} flexDirection="column" rowGap={1}>
         {v.name !== null && <Text bold>{v.name}</Text>}
         <Text bold>
-          {`${index.active_crs} live · ${waitingCount} waiting for you${age === null ? '' : ` · read ${age}s ago`}`}
+          {`${index.active_crs} live · ${waitingCount} waiting for you · ${age === null ? '' : `checked ${age}s ago, `}every ${EVERY_MS / 1000} s`}
         </Text>
         {viewNote}
         {index.batches.map(Batch)}
@@ -767,11 +792,15 @@ export const register: Register = on => {
     )
     }
 
-    if (views.length === 0) return <Text dimColor>Reading the status...</Text>
-    if (views.length === 1) return Board(views[0] as View)
+    if (views.length === 0) return Alone(<Text dimColor>Reading the status...</Text>)
     return (
-      <Box flexDirection="column" rowGap={2}>
-        {views.map(Board)}
+      <Box flexDirection="column" rowGap={1}>
+        {Bar()}
+        {views.length === 1 ? Board(views[0] as View) : (
+          <Box flexDirection="column" rowGap={2}>
+            {views.map(Board)}
+          </Box>
+        )}
       </Box>
     )
   })
