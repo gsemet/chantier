@@ -1152,9 +1152,11 @@ def foreman_chief_lines(w: World) -> None:
 
     answers = {"type": "tool_use", "name": "Edit", "input": {"file_path": "x/02-answers.md"}}
     writer = {"type": "tool_use", "name": "Agent", "input": {"subagent_type": "chantier:spec-writer"}}
+    reads = {"type": "tool_use", "name": "Read", "input": {"file_path": "x/03-change-spec.md"}}
     try:
         chief.write_text(wake(at(1)) + call("f-steer", at(2)) + wake(at(3)) + call("f-g1", at(4), answers)
-                         + wake(at(5)) + call("f-g2", at(6), writer), encoding="utf-8")
+                         + wake(at(5)) + call("f-g2", at(6), writer)
+                         + wake(at(7)) + call("f-g3", at(8), reads), encoding="utf-8")
         _, out = w.chantier("cost", "--batch", w.name)
         steer = next((ln for ln in out if ln.startswith("Chief of Staff, steering the batch (outside")), "")
         grill = next((ln for ln in out if ln.startswith("Chief of Staff, grill and")), "")
@@ -1163,8 +1165,8 @@ def foreman_chief_lines(w: World) -> None:
         a, b, total = money(steer), money(grill), money(whole)
         check("Foreman mode: the Chief of Staff's two lines add up to everything priced since the "
               "batch opened, each with its call count, and nothing of it is in the spend",
-              "(1 calls)" in steer and "(2 calls, 0 spec-writers)" in grill
-              and abs(a + b - total) <= 0.02 and abs(a * 2 - b) <= 0.02 and a > 0
+              "(1 calls)" in steer and "(3 calls, 0 spec-writers)" in grill
+              and abs(a + b - total) <= 0.02 and abs(a * 3 - b) <= 0.02 and a > 0
               and abs(w.batch()["spent_usd"] - spent) < 0.001, str(out))
     finally:
         chief.write_text(kept, encoding="utf-8")
@@ -1329,8 +1331,13 @@ def direct_batch(w: World) -> None:
 
     answers = {"type": "tool_use", "name": "Edit", "input": {"file_path": "x/02-answers.md"}}
     writer_use = {"type": "tool_use", "name": "Agent", "input": {"subagent_type": "chantier:spec-writer"}}
+    # a steering turn that only names a specification (a Driver's prompt) and reads one: it stays
+    # on the steering row, not on the grill line
+    names_spec = {"type": "tool_use", "name": "Agent", "input": {
+        "subagent_type": "chantier:cr-driver", "prompt": "work from x/03-change-spec.md"}}
+    reads_spec = {"type": "tool_use", "name": "Read", "input": {"file_path": "x/03-change-spec.md"}}
     # before the opening: a compaction and a grill turn of an earlier batch (in the whole session
-    # only); in the window: two steering calls, a grill turn, a spec-writer turn, two compactions,
+    # only); in the window: two steering calls, a turn that only names a specification, a grill turn, a spec-writer turn, two compactions,
     # and a call repeated after the first of them (same message id: priced once)
     chief.write_text(
         msg("c-old", "2000-01-01T00:00:00.000Z") + boundary("2000-01-01T00:00:01.000Z")
@@ -1338,7 +1345,8 @@ def direct_batch(w: World) -> None:
         + wake("2026-03-01T00:09:00.000Z") + msg("c-pre", "2026-03-01T00:10:00.000Z") + wake(at(5)) + msg("c-in1", at(10))
         + msg("c-in2", at(20)) + wake(at(21)) + uses("c-g1", at(22), answers)
         + wake(at(23)) + uses("c-g2", at(24), writer_use) + boundary(at(25)) + boundary(at(26))
-        + msg("c-g2", at(27)), encoding="utf-8")
+        + msg("c-g2", at(27))
+        + wake(at(28)) + uses("c-nm", at(29), names_spec, reads_spec), encoding="utf-8")
     driver = sub / "agent-agent-1.jsonl"
     driver.write_text("".join(msg(f"d{i}", at(15)) for i in range(3)), encoding="utf-8")
     driver.with_suffix("").with_suffix(".meta.json").write_text(
@@ -1361,20 +1369,20 @@ def direct_batch(w: World) -> None:
     check("`cost` shows one 'Chief of Staff, steering the batch' row without the grill turns, no "
           "'Foreman' row, and the lines add up",
           [ln.split(":")[0] for ln in lines] == ["Chief of Staff, steering the batch", "Driver cr-driver"]
-          and "(2 calls," in lines[0] and "(3 calls," in lines[1]
+          and "(3 calls," in lines[0] and "(3 calls," in lines[1]
           and out[0].split()[1] == f"${sum(printed) / 1000:.3f}"
           and not any("Chief of Staff (steering)" in ln for ln in out), str(out))
     steering = money(out, ROW)
-    one = steering / 2  # a call of the Chief of Staff's transcript
+    one = steering / 3  # a call of the Chief of Staff's transcript
     a, b, whole = money(out, STEER), money(out, GRILL), money(out, WHOLE)
-    check("the Chief of Staff's lines add up: the steering row's two calls, one steering call "
+    check("the Chief of Staff's lines add up: the steering row's three calls (one of them names and reads a specification: steering), one steering call "
           "before the claim, the two grill and specification turns (the repeated call priced once), "
           "and the whole session leaves the steering row out",
           abs(a - one) <= 0.02 and abs(b - 2 * one) <= 0.02 and abs(whole - 5 * one) <= 0.03
           and "(1 calls)" in next(ln for ln in out if ln.startswith(STEER))
           and "(2 calls, 0 spec-writers)" in next(ln for ln in out if ln.startswith(GRILL))
           and abs(w.batch()["spent_usd"] - float(out[0].split()[1][1:])) <= 0.01
-          and abs(float(out[0].split()[1][1:]) - 2.5 * steering) <= 0.02,
+          and abs(float(out[0].split()[1][1:]) - 2 * steering) <= 0.02,
           f"{out} (steering ${steering})")
     check("the whole-session line counts the compactions of the window, not the one before it",
           "2 compactions since the batch opened" in next(ln for ln in out if ln.startswith(WHOLE)),

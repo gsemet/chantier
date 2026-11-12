@@ -2573,7 +2573,9 @@ def _cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
             since, until = _window(d, uuid)
             got = costs.session_costs(costs.transcript_path(repo.session_root, uuid), since, until,
                                       kind="chief-of-staff" if steering else "foreman",
-                                      allow_empty=len(uuids) > 1, split=steering, prices=prices)
+                                      allow_empty=len(uuids) > 1, split=steering, prices=prices,
+                                      steering=(since, until) if steering and uuid in _claimed(d)
+                                      else None)
         if steering:
             got[0]["type"] = "chief-of-staff"
             got = costs.without_spec_writers(got)  # grill and specifications: their own line
@@ -2643,12 +2645,14 @@ def _chief_line(repo: Repo, d: dict) -> list[str]:
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
         path = costs.transcript_path(repo.session_root, uuid)
         try:
+            window = _window(d, uuid) if uuid in _claimed(d) else None  # strict rule inside it
             whole = costs.session_costs(path, kind="chief-of-staff", prices=prices)
             since = costs.session_costs(path, d.get("created", ""), kind="chief-of-staff",
-                                        allow_empty=True, split=True, prices=prices)
+                                        allow_empty=True, split=True, prices=prices,
+                                        steering=window)
             steered = costs.without_spec_writers(costs.session_costs(
-                path, *_window(d, uuid), kind="chief-of-staff", allow_empty=True,
-                split=True, prices=prices)) if uuid in _claimed(d) else []
+                path, *window, kind="chief-of-staff", allow_empty=True, split=True,
+                prices=prices, steering=window)) if window else []
         except ChantierError as e:
             return _chief_unknown(str(e))
         main = since[0]
