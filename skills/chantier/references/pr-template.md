@@ -80,7 +80,8 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   yet judged again, is marked `STALE (judged at <sha7>, head now <sha7>)`. A claim in Summary,
   Deliverables, Changes or Impacts with no proof (no test, no gate, no Verifier claim, no
   evidence) starts with `**UNVERIFIED:**`, or is narrowed to what is proven; it is never left as a
-  plain fact.
+  plain fact. The Review item cites the SHA of a pass the Driver recorded with `$CHANTIER note`,
+  and stays unchecked while none is recorded.
 - Human decisions, inside the fold: the impactful decisions the user took during the grill,
   extracted from the CR's `02-answers.md` (in the CR's folder, the parent of the work folder):
   only the decisions that shape the change, not every answer; one bullet each. No internal
@@ -159,7 +160,7 @@ say here in one line what they show. With nothing visible, one line, e.g. "No vi
 - [ ] New or changed tests (they fail on the previous code) <!-- or "No behaviour change" -->
 - [ ] Local gates at `<sha7>`: <!-- the commands run and their results -->
 - [ ] Evidence: before at `<sha7>`, after at `<sha7>` <!-- or why there is none -->
-- [ ] Review: approved at `<sha7>`
+- [ ] Review: approved at `<sha7>` <!-- the SHA of the pass recorded in the CR's notes; unchecked until it is -->
 - [ ] Verified at `<sha7>` <!-- claims carried from an earlier SHA say so -->
 - [ ] CI green at `<sha7>` <!-- or, checked, "No CI: no check listed at <sha7>" when the forge lists no check at the head after two looks; never deleted, never "CI green" then -->
 
