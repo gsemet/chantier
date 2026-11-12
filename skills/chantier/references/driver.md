@@ -48,7 +48,8 @@ The CLI keeps the CR's record and tells you what is off.
 - Rebase first, so the long gate passes on the head you push: `git fetch`, `git rebase <base>`;
   a conflict is a `conflict-resolver`. Never `git stash`: the stash is shared by every worktree,
   so set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
-  stop only one you started, by its id. A command the host may refuse runs alone, never chained
+  stop only one you started, by its id (a running long gate is stopped with `gate <cr> --stop`,
+  never by ending the `gate` command, which leaves its suite running). A command the host may refuse runs alone, never chained
   with routine steps.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
@@ -57,6 +58,16 @@ The CLI keeps the CR's record and tells you what is off.
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
   One command per argument, never a `;` or `&&` chain. The fast gates you run yourself.
+  Stop only your own CR's running long gate, only with `$CHANTIER gate <cr> --stop`, never
+  another CR's. Do it only when the run's result can no longer count (the head is about to
+  move: a `rebase:` note, or a change that needs a round) or on the steering session's `stop`;
+  never because the gate is slow, since a run that would still be a valid pass is worth more
+  finished than restarted. A stopped run is recorded `stopped`: not a failure, so not a round;
+  no pass, and it voids an earlier pass at that head, so run the long gate again at the head you
+  push. A gate of yours still waiting for the lock (its log says `waiting for the long gate of
+  …`) has started no suite, and `--stop` refuses it because the lock names another CR: end it
+  by ending the `gate` command you started, by its id. `cancel` is the steering session's
+  command for a CR the user dropped, never a Driver's, whatever the reason.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
@@ -196,8 +207,8 @@ The CLI keeps the CR's record and tells you what is off.
   for where it stands, then go on from `<why>` as from a prompt's `Note:` (a `rebase:` as the
   "CR driver" section says). Any other note received after your hand-back, with no `taken
   back:`, is not work to start: pass it to the steering session as the refused line above.
-  `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: `handback blocked
-  stopped`.
+  `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: stop a long gate of yours that
+  is running (`gate <cr> --stop`), then `handback blocked stopped`.
 
 ## CR driver
 
@@ -250,8 +261,9 @@ green CI start no new `coder` round. If the note names another open dependency i
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
-`note rebase: …` received while working: rebase before the next push; the gate and CI run at the
-new head. A series CR's PR opens, as a draft, on the base `take` printed: a Driver still retargets
+`note rebase: …` received while working: with a long gate of the CR running, stop it
+(`gate <cr> --stop`), rebase before the next push, then run the long gate at the new head; CI
+runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a Driver still retargets
 nothing but on a `rebase:` note.
 
 ## Stack driver

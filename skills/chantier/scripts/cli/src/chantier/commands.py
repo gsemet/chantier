@@ -1971,13 +1971,70 @@ class _LongGateLock:
             self.f.close()
 
 
+# The run file `.long-gate.run` (planning folder, ignored like the lock) tells a `gate <cr> --stop`
+# what the running gate is (run id, head, command, log, suite group) and tells the running gate it
+# was stopped: the stopper sets `stopped`, the gate then records `stopped`, never `fail`.
+def _run_file(repo: Repo) -> Path:
+    return repo.changes / ".long-gate.run"
+
+
+def _run_read(repo: Repo) -> dict:
+    for _ in range(5):  # the other side may be writing it
+        try:
+            return json.loads(_run_file(repo).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError):
+            time.sleep(0.05)
+    return {}
+
+
+def _run_write(repo: Repo, data: dict) -> None:
+    _run_file(repo).write_text(json.dumps(data), encoding="utf-8")
+
+
+def _gate_stop(args, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
+    """`gate <cr> --stop`: stop this CR's running long gate (its suite, the lock) and record the
+    run `stopped`: no pass, no failure. Nothing else of the CR changes."""
+    holder = _lock_holder(repo)
+    m = re.fullmatch(r"(\S+) pid (\d+)(?: pg(\d+))?", holder)
+    if not m:
+        return [f"no long gate running for {args.cr}: nothing to stop"], 0
+    if m[1] != args.cr:
+        return [f"the long gate running is {m[1]}'s: not stopped"], EXIT_PRECONDITION
+    run = _run_read(repo)
+    head = run.get("head") or git("rev-parse", "HEAD", cwd=wt)
+    pg = int(m[3]) if m[3] else None
+    gate_alive = procs.alive(int(m[2]))
+    if gate_alive:
+        _run_write(repo, {**run, "stopped": True})  # the running gate records it
+    if pg is not None:
+        procs.stop_group(pg)
+    if not gate_alive:  # the gate is gone: the stopper records the run
+        if run.get("log") and Path(run["log"]).exists():
+            with open(run["log"], "a", encoding="utf-8") as f:
+                f.write(f"result: stopped at {head}: no pass\n")
+        with Batch(repo, batch, actor="driver") as b:
+            b.log("gate", args.cr, result="stopped", head=head,
+                  command=run.get("command", ""), run=run.get("run", ""))
+        _run_file(repo).unlink(missing_ok=True)
+    where = f" (pg{pg})" if pg is not None else ""
+    return [f"stopped the long gate of {args.cr} at {_short(head)}{where}"], 0
+
+
 def gate(args) -> tuple[list[str], int]:
     """The long gate: the command the project's rules name, run in the CR's worktree, alone in
-    the repository (a second one waits), logged in the work folder, recorded with its head."""
+    the repository (a second one waits), logged in the work folder, recorded with its head.
+    `--stop` stops this CR's running gate (its suite and the lock): recorded `stopped`, no pass,
+    no failure; the stopped gate exits 4; nothing else of the CR changes."""
     repo = Repo.find()
     batch, _, c = _batch_cr(repo, args.cr, args.batch)
     wt = _worktree(c)
     cmds = [x.strip() for x in args.command]
+    if args.stop:
+        if cmds:
+            raise ChantierError(f"gate {args.cr} --stop takes no command", EXIT_USAGE)
+        return _gate_stop(args, repo, batch, wt)
     if not cmds or not all(cmds):
         raise ChantierError("gate <cr> \"<command>\" [\"<command>\"...]: the long gate's commands "
                             "from the project's rules, one per argument", EXIT_USAGE)
@@ -1993,8 +2050,14 @@ def gate(args) -> tuple[list[str], int]:
     ran: list[tuple[str, int]] = []
     with open(log, "a", encoding="utf-8") as f:  # the first line, before any waiting note
         f.write(f"gate {c['id']} branch {c['branch']} head {start}\n")
+    stopped = ""  # the command that was running when a `--stop` came
     with _LongGateLock(repo, args.cr, log) as lock:
+        _run_write(repo, {"cr": args.cr, "run": run, "head": start, "log": str(log),
+                          "command": "", "stopped": False})
         for cmd in cmds:
+            if _run_read(repo).get("stopped"):  # stopped between two commands: none starts
+                stopped = ran[-1][0] if ran else cmd
+                break
             # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
             with open(log, "a", encoding="utf-8") as f:
                 f.write(f"$ {cmd}\n")
@@ -2004,9 +2067,26 @@ def gate(args) -> tuple[list[str], int]:
                 p = subprocess.Popen(cmd, shell=True, cwd=wt, stdout=f, stderr=subprocess.STDOUT,
                                      **group)
             lock.holding(f"{args.cr} pid {os.getpid()} pg{p.pid}")
-            ran.append((cmd, p.wait()))
-            if ran[-1][1]:
+            _run_write(repo, {"cr": args.cr, "run": run, "head": start, "log": str(log),
+                              "command": cmd, "pg": p.pid, "stopped": False})
+            rc = p.wait()
+            if _run_read(repo).get("stopped"):  # stopped: no pass, and no failure of the code
+                stopped = cmd
+                break
+            ran.append((cmd, rc))
+            if rc:
                 break  # the commands after a failure are not run
+        _run_file(repo).unlink(missing_ok=True)
+    if stopped:
+        if log.exists():
+            with open(log, "a", encoding="utf-8") as f:
+                f.write(f"result: stopped at {start}: no pass\n")
+        with Batch(repo, batch, actor="driver") as b:
+            for cmd, rc in ran:
+                b.log("gate", args.cr, result=("fail" if rc else "pass"), head=start,
+                      command=cmd, run=run)
+            b.log("gate", args.cr, result="stopped", head=start, command=stopped, run=run)
+        return [f"STOPPED {stopped} at {_short(start)}: no pass", f"log {log}"], EXIT_EXTERNAL
     end = git("rev-parse", "HEAD", cwd=wt)
     moved = end != start  # a gate command committed: the run is no pass at either head
     failed = ran[-1][1]
@@ -2169,6 +2249,10 @@ def release(args) -> tuple[list[str], int]:
 def cancel(args) -> list[str]:
     """A dropped CR, on the user's word: its gate and its stray processes stopped, its folder
     in the trash with its work."""
+    if args.epoch is None:
+        raise ChantierError("cancel <cr> --epoch <n>: the steering session's command for a CR the "
+                            "user dropped; a Driver stops its own long gate with "
+                            f"`gate {args.cr} --stop`", EXIT_PRECONDITION)
     repo = Repo.find()
     with changes_lock(repo):
         with Batch(repo, find_cr_batch(repo, args.cr, args.batch), actor="foreman") as b:

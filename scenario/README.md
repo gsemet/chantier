@@ -62,7 +62,8 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   taken, one ask;
 - `pause` refused while PRs are open, then the pause after the user's merges and the Foreman's
   cleanup; `land` no longer a command; the long gate serialized, and held while the suite of a gate whose command died
-  still runs;
+  still runs; a Driver's stop of its own running gate (`gate <cr> --stop`: recorded `stopped`, no
+  pass, another CR's gate refused) and a bare `cancel` refused without `--epoch`;
 - Claude cost by CR; Copilot cost breakdown (`Agent <type>` lines) and by CR, estimated calls, updates and failures;
 - a planning surface (its own git repository, two projects, each clone and worktrees outside it,
   run on both forges after the in-project batch): a command at the surface exits 2 naming the

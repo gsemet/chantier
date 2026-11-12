@@ -24,7 +24,7 @@ chantier is four things in one repository:
    the agents work in: the CR lifecycle (`file`, `triage`, `abandon`, `open`, the stages,
    `cancel`, `pause`, `close`), the batch's limits and record (`take`, `round`, `handback`,
    `ship`, `release go`; `rails.py` says what is refused), the means to synchronise (`order`,
-   `asks`, `note`, `gate` and its lock) and a few tools (`rules`, `cost`). It runs no git
+   `asks`, `note`, `gate`, its lock and its stop) and a few tools (`rules`, `cost`). It runs no git
    command that changes anything (it reads the head, the remote and the status to say what is
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the planning folder (the target repository's `.agents/changes/`, or the project's
