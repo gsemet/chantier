@@ -370,8 +370,12 @@ class Batch:
         wt = self.worktree(driver, c)
         self.cli(driver, "round", cr_id, "--note", "delete-item")
         coder = self.coder(driver, cr_id)
-        self.tool(coder, ["git", "-C", wt, "apply", "--whitespace=nowarn", PATCH])
-        files = re.findall(r"^diff --git a/(\S+) ", PATCH.read_text(encoding="utf-8"), re.M)
+        # a CRLF checkout (core.autocrlf) must not break the apply: apply an LF copy
+        raw = PATCH.read_bytes().replace(b"\r\n", b"\n")
+        patch = self.w.root / "delete-item.lf.patch"
+        patch.write_bytes(raw)
+        self.tool(coder, ["git", "-C", wt, "apply", "--whitespace=nowarn", patch])
+        files = re.findall(r"^diff --git a/(\S+) ", raw.decode("utf-8"), re.M)
         self.tool(driver, ["git", "-C", wt, "add", "--", *files])
         self.tool(driver, ["git", "-C", wt, "commit", "--quiet", "-m", "feat: delete an item"])
         self.tool(driver, ["git", "-C", wt, "push", "--quiet", "-u", "origin", c["branch"]])
