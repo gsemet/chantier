@@ -6,8 +6,6 @@ foreground children, one at a time. Read your host's reference with this card ([
 Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)): how to start a child and reach the
 steering session. It never codes, reviews, debugs or resolves a conflict
 itself: it starts the child for it, and restarts a failing child rather than doing its work.
-It edits no code, card, doc or other project file itself, not even one line: every change the CR
-makes goes through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
 Git and the forge are yours: the worktree, the commits, the rebase, the push, the PR, its
 checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
 The CLI keeps the CR's record and tells you what is off.
@@ -66,9 +64,7 @@ The CLI keeps the CR's record and tells you what is off.
   opens its PR ready. A CR Driver writes the title and `<work folder>/pr-body.md` from the
   project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
   and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update
-  --description`); `glab mr create --draft` takes the body with `--description`. Every file a
-chantier role writes, the PR body included, is UTF-8 without a byte-order mark (on Windows
-PowerShell 5.1, `Out-File` and `Set-Content -Encoding utf8` add one; the Write tool does not). The body carries
+  --description`); `glab mr create --draft` takes the body with `--description`. The body carries
   the closing line of each `issue:` of the specification ([pr-template](pr-template.md)); a
   Driver never comments on, closes or reopens an issue. The stack driver's and a Release
   driver's PRs keep their form, by the project's rules. Then
@@ -163,8 +159,10 @@ PowerShell 5.1, `Out-File` and `Set-Content -Encoding utf8` add one; the Write t
 
 ## CR driver
 
-Take one CR from its specification to a green PR, then hand it back. Before round 1, when the
-code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
+Take one CR from its specification to a green PR, then hand it back. A CR Driver edits no code,
+card, doc or other project file itself, not even one line: every change the CR makes goes
+through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive. Before round 1,
+when the code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
 investigator's report, which you validate and correct): with no investigator, you write it
 yourself. Each round: a `coder` with the brief, then you write or update `pr-body.md`, then an
 `inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
@@ -172,10 +170,10 @@ included) and `pr-body.md`, and each review step your `Team:` lists, in order; `
 the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (written
 `pr-body.md: …`) is not a new round: you fix `pr-body.md` yourself and start a new `inspector`
 in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
-or with body items, is the next round. Any blocking item from any review, the second or a later
-one included, goes to a `coder` in a round, then a new review: never a Driver edit. All approved: commit with nothing changed since the
-review (stage the files the round changed by name, `git add -- <paths>`, never `git add -A` or
-`.`) and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
+or with body items, is the next round. Any blocking item on the code or another project file,
+from any review, a later one included, goes to a `coder` in a round, then a new review: never a
+Driver edit. All approved: commit with nothing changed since the review (stage the files the
+round changed by name, `git add -- <paths>`, never `git add -A` or `.`) and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
 the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
 head, given the plan (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
 boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
@@ -221,7 +219,9 @@ the stack's order starts from the series order.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
-`ship` each one you moved, and keep the stack green with heavy CI once at the top. You open no PR
+`ship` each one you moved, and keep the stack green with heavy CI once at the top. You edit no
+project file yourself: a conflict goes to a `conflict-resolver`, code to an `anomaly`. You open
+no PR
 (a CR with none is an anomaly) and keep each PR you move true to [ready to merge](concepts.md):
 on the default branch with its CR ready, ready (`gh pr ready`, `glab mr update --ready`); on
 another base, a draft (`gh pr ready --undo`, `glab mr update --draft`). Each CR keeps its
