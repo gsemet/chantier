@@ -108,6 +108,19 @@ def test_copilot_cost_helper_declares_pypi():
     assert indexes[0]["url"] == "https://pypi.org/simple" and indexes[0]["default"]
 
 
+def test_no_tracked_file_starts_with_a_utf8_byte_order_mark():
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=PLUGIN_ROOT, capture_output=True, check=True)
+    marked = []
+    for name in listed.stdout.decode("utf-8").split("\0"):
+        path = PLUGIN_ROOT / name
+        if name and path.is_file():  # a tracked path deleted from the working tree has no bytes
+            with path.open("rb") as handle:
+                if handle.read(3) == b"\xef\xbb\xbf":
+                    marked.append(name)
+    assert not marked, ("files with a UTF-8 byte-order mark (write them as UTF-8 without one): "
+                        + ", ".join(marked))
+
+
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_each_host_ships_one_agent_per_role_and_nothing_else(host):
     folder = agent_file("coder", host).parent
