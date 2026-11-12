@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from .rails import held, not_priced as _not_priced, over_budget, slot_free, usd_text as _usd, waits_all
-from .state import LIVE, Repo, read_batch_json, age_minutes, now, read_events, round_limit, write_file
+from .state import LIVE, Repo, read_batch_json, age_minutes, now, read_events, read_text, round_limit, write_file
 
 SCHEMA = 3
 PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
@@ -184,7 +184,7 @@ def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
     docs = [{"kind": kind, "path": _link(p, folder)} for kind, p in named if p.exists()]
     spec = folder / c.get("specification", "03-change-spec.md")
     if spec.is_file():
-        text = spec.read_text(encoding="utf-8", errors="replace")
+        text = read_text(spec, "replace")
         for name in sorted(set(SPEC_LINK.findall(text))):
             target = repo.root / name
             # a URL's tail reads as a network path on Windows: this must never leave the disk
@@ -330,7 +330,7 @@ def _title(folder: Path) -> str:
     for name in TITLE_FILES:
         path = folder / name
         if path.is_file():
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = read_text(path, "replace")
             line = next((ln for ln in text.splitlines() if ln.strip()), "")
             if line:
                 return line.lstrip("# ").strip()
@@ -377,7 +377,7 @@ def _past(stage: Path, start: Path) -> tuple[list[dict], int]:
     out = []
     for folder in folders[:PAST_LIMIT]:
         try:
-            s = json.loads((folder / "STATUS.json").read_text(encoding="utf-8"))
+            s = json.loads(read_text(folder / "STATUS.json"))
         except (OSError, ValueError):
             s = {}
         pr = s.get("pr")

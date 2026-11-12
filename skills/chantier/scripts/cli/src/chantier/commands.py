@@ -35,7 +35,7 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budg
                     release_merged, series_predecessor, spent_text, waits_all, waits_for)
 from .rails import not_priced, usd_text
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
-                    Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, _retry, _try_lock, _unlock,
+                    Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, read_text, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
                     next_cr_number, normalize_batch, normalize_cr, now, read_batch, read_events, resolve_batch,
                     round_limit, stamp, RESTORED_NUMBER_FILE)
@@ -202,7 +202,7 @@ def _allowed_rules(repo: Repo | None) -> tuple[set[str], list[str]]:
         if not path.is_file():
             continue
         try:
-            allow = json.loads(path.read_text(encoding="utf-8")).get("permissions", {}).get("allow", [])
+            allow = json.loads(read_text(path)).get("permissions", {}).get("allow", [])
             rules.update(r for r in allow if isinstance(r, str))
         except (OSError, ValueError, AttributeError):
             unreadable.append(str(path))
@@ -268,7 +268,7 @@ def preflight(args) -> tuple[list[str], int]:
         found = project_instructions(repo)
         if repo.external and not repo.clone_dir.is_dir():
             text = (repo.project_dir / "project.md")
-            remote = re.search(r"^\W*remote\W*:?\s*(\S+)", text.read_text(encoding="utf-8"),
+            remote = re.search(r"^\W*remote\W*:?\s*(\S+)", read_text(text),
                                re.I | re.M) if text.is_file() else None
             check("P8", False, "", f"no clone of the project at {repo.clone_dir.as_posix()} "
                   f"(remote {remote[1] if remote else 'see project.md'}): clone it there")
@@ -361,7 +361,7 @@ def file_cr(args) -> list[str]:
             source = (Path.cwd() if repo.external else repo.root) / source
         try:
             raw = source.read_bytes()
-            text = raw.decode("utf-8")
+            text = raw.decode("utf-8-sig")
         except (OSError, UnicodeError) as e:
             raise ChantierError(f"cannot read the request {source}: {e}", EXIT_USAGE) from e
     else:
@@ -452,7 +452,7 @@ def restore(args) -> list[str]:
             if number:  # the number is never given again, even once the batch is closed
                 path = repo.changes / RESTORED_NUMBER_FILE
                 try:
-                    kept = int(json.loads(path.read_text("utf-8"))["last_number"])
+                    kept = int(json.loads(read_text(path))["last_number"])
                 except (OSError, ValueError, KeyError, TypeError):
                     kept = 0
                 path.write_text(json.dumps({"last_number": max(kept, int(number[1]))}) + "\n",
@@ -601,7 +601,7 @@ def read_depends(folder: Path) -> list[str]:
     if not path.is_file():
         return []
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(read_text(path))
     except (OSError, ValueError) as e:
         raise ChantierError(f"{path}: not valid UTF-8 JSON ({e}); expected "
                             '{"after": ["<slug>", …]}') from e
@@ -619,7 +619,7 @@ def archived_merged(repo: Repo, slug: str) -> bool:
     for folder in folders:
         if folder.is_dir() and cr_slug(folder.name) == slug:
             try:
-                state = json.loads((folder / "STATUS.json").read_text(encoding="utf-8")).get("state")
+                state = json.loads(read_text(folder / "STATUS.json")).get("state")
             except (OSError, ValueError):
                 state = "merged"  # an archive holds only merged CRs
             if state == "merged":
@@ -849,7 +849,7 @@ def _read_seat(repo: Repo) -> dict | None:
     if not path.is_file():
         return None
     try:
-        data = json.loads(_retry(path.read_text, "utf-8"))
+        data = json.loads(read_text(path))
     except ValueError as e:
         raise ChantierError(f"{path} is not valid JSON: {e}", EXIT_PRECONDITION) from e
     return data if data.get("session") else None
