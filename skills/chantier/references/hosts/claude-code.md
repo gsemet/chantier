@@ -85,6 +85,13 @@ page (`https://code.claude.com/docs/en/<page>`).
 The last three rows are not checked: a default the Driver of this change chose to keep, and may
 change on its judgment.
 
+### Windows PowerShell 5.1
+
+On Windows PowerShell 5.1 (the PowerShell tool), a `gh` or `glab` argument that holds spaces or
+double quotes, such as a `--jq` or `--template` expression, can reach the program split or
+stripped of its quotes (`accepts 1 arg(s), received 3`): print `--json <fields>` alone and read
+the JSON, or write the expression with no space and no double quote.
+
 ### Allow rules
 
 How rules match (each line **documented**, <https://code.claude.com/docs/en/permissions>):

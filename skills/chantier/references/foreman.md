@@ -235,8 +235,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - On `[chief-of-staff→foreman] chief-of-staff <session id>` (a hand-over of the seat), check that
   `$CHANTIER seat` names that session; then send your lines to it from then on. Otherwise ignore
   the line and ask (`asks`) the Chief of Staff of your prompt.
-- Every `status --refresh`, `take`, `agents set`, `order done`, `order merged`, `cancel` and
-  `pause` carries `--epoch <n>`; exit 3 means another Foreman owns the batch: stop at once.
+- Exactly these commands carry `--epoch <n>`, and no other: `foreman set`, `foreman
+  transcript`, `status --refresh` on a wake, `status --stop-heartbeat`, `take`, `agents set`,
+  `order done`, `order merged`, `order add --fix-for`, `cancel` and `pause`. Any other command,
+  or any other `order` kind, refuses it (exit 2); exit 3 means another Foreman owns the batch:
+  stop at once.
 
 How you start, message and stop a Driver, and message the Chief of Staff, is your host's
 reference. Keep each turn short: never wait inside a call, never run a long command; a turn ends when

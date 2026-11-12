@@ -522,9 +522,12 @@ these differences.
   ([session-start](session-start.md), "Titles").
 - **Your epoch.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
-  <n>`; carry `--epoch <n>` on the loop's wakes (`status --refresh --epoch <n>`) and on every
-  other steering command (`take`, `agents set`, `order done`, `order merged`, `cancel`, `pause`),
-  never on the refresh before a report, which stays `status --refresh` with no epoch; arm the
+  <n>`. Carry `--epoch <n>` on exactly these commands and on no other: the claim (`foreman set`,
+  `foreman transcript`), the loop's wakes (`status --refresh --epoch <n>`) and the recorded stop
+  of your loop (`status --stop-heartbeat`), `take`, `agents set`, `order done`, `order merged`,
+  `order add --fix-for`, `cancel` and `pause`. Any other command, or any other `order` kind
+  (`order add` without `--fix-for`, `order note`, `order after`...), refuses it (exit 2). Never
+  on the refresh before a report, which stays `status --refresh` with no epoch; arm the
   same heartbeat, as your host's reference says. Your own "heartbeat N min" is the minutes since
   your loop's last wake, and "heartbeat stopped" is a loop you ended on purpose (the host's
   reference says how it is recorded). The CLI prices your transcript from that claim, as one `Chief of
