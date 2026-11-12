@@ -31,6 +31,7 @@ CACHE_5M, CACHE_1H = 300, 3600  # seconds a cache write lives, by the write used
 PRICE = {
     "claude-opus-5-5": (4, 5, 8, 0.20, 20),
     "claude-sonnet-5-5": (2, 2.5, 4, 0.10, 10),
+    "claude-fable-5-2": (8, 10, 16, 0.20, 40),
     "claude-haiku-5-5": (0.10, 0.125, 0.20, 0.01, 0.50),
     "claude-haiku-5-5>100k": (0.50, 0.625, 1, 0.05, 2.50),
 }
