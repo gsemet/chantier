@@ -82,9 +82,6 @@ def check_slot(b: Batch, what: str) -> None:
                             f"({', '.join(held(b)) or 'slots 0'})")
 
 
-WORD = "the user's confirmation (`order confirm`)"
-
-
 def is_release(c: dict) -> bool:
     return c.get("kind") == "release"
 
@@ -106,10 +103,14 @@ def series_predecessor(crs: list[dict], c: dict) -> dict | None:
 
 def waits_for(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
     """The CRs not yet met: those of `after`, then, in a series, the predecessor. For a CR, met
-    is ready or merged (a cancelled one stays unmet); for a release, merged or cancelled, since
-    it ships what is merged."""
+    is ready or merged (a cancelled one stays unmet); for a release, ready, merged or cancelled
+    in an ordered batch (stack or series: it is prepared on top of the others), merged or
+    cancelled in a parallel one (no branch holds all the work until the others are merged)."""
     found = {x["id"]: x for x in crs}
-    met = ENDED if is_release(c) else {"ready", "merged"}
+    if is_release(c):
+        met = ENDED | {"ready"} if mode in {"stack", "series"} else ENDED
+    else:
+        met = {"ready", "merged"}
     ids = list(c.get("after", []))
     pred = series_predecessor(crs, c) if mode == "series" else None
     if pred and pred["id"] not in ids:
@@ -118,19 +119,11 @@ def waits_for(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
             if i in found and found[i]["status"] not in met]
 
 
-def needs_word(crs: list[dict], c: dict) -> bool:
-    """A release that shares its batch starts only on the user's confirmation."""
-    return is_release(c) and not alone(crs, c) and not c.get("confirmed")
-
-
 def waits_all(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
-    """What a queued CR waits for, as `status` shows it: its `after`, then, once that is met,
-    a release's fixes not ended, then, once those are met, its confirmation."""
+    """What a queued CR waits for, as `status` shows it: its `after`, then a release's fixes
+    not ended."""
     status = {x["id"]: x["status"] for x in crs}
-    found = waits_for(crs, c, mode) + [f"{i} {status[i]}" for i in pending_fixes(crs, c)]
-    if not found and needs_word(crs, c):
-        return [WORD]
-    return found
+    return waits_for(crs, c, mode) + [f"{i} {status[i]}" for i in pending_fixes(crs, c)]
 
 
 def unmet(b: Batch, c: dict) -> list[str]:
@@ -200,8 +193,13 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
     check_budget(b)
     if c["status"] != "working":
         check_slot(b, c["id"])
-    if c["status"] == "queued" and unmet(b, c):
-        ends = "merged or cancelled" if is_release(c) else "ready or merged"
+    # a release taken back (ready, blocked) waits again for the stack under it, e.g. after a
+    # change of content
+    if unmet(b, c) and (c["status"] == "queued" or
+                        (is_release(c) and c["status"] in {"ready", "blocked"})):
+        ordered = b.data["mode"] in {"stack", "series"}
+        ends = ("ready or merged" if ordered else "merged or cancelled") if is_release(c) \
+            else "ready or merged"
         raise ChantierError(f"{c['id']} waits for {', '.join(unmet(b, c))}: it starts once each "
                             f"is {ends}")
     if is_release(c):
@@ -209,9 +207,6 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
         if fixes:
             raise ChantierError(f"{c['id']} waits for {', '.join(fixes)}: a fix of the release "
                                 "must be merged or cancelled first")
-        if needs_word(b.data["crs"], c):
-            raise ChantierError(f"{c['id']} needs {WORD}: the Chief of Staff grills the version "
-                                "with the user once the others have ended, then gives it")
 
 
 def check_round(b: Batch, c: dict) -> int:
@@ -238,17 +233,21 @@ def merge_done(b: Batch, c: dict) -> list[str]:
 
 
 def release_merged(b: Batch, c: dict) -> None:
-    """The release PR is merged: the procedure goes on with a new Driver, and the next attempt
-    opens a PR of its own."""
+    """The release PR is merged: that merge is the go for the rest of the procedure (the field
+    `merged_pr`), which goes on with a new Driver; the next attempt opens a PR of its own."""
     c.setdefault("notes", []).append(f"merged: {c.get('pr')}")
-    b.touch(c, status="queued", pr=None, head=None)
+    b.touch(c, status="queued", pr=None, head=None, merged_pr=c.get("pr") or "the release PR")
 
 
 def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
     """Spend what allows one irreversible action: `go` and why, `budget`, `fix` (a fix of this
-    release is not merged), or `ask`. A `go` is for that action, in that Driver: the log keeps
-    it, the CR does not."""
+    release is not merged), `merge` (the other CRs of the batch are not all merged or cancelled,
+    which nothing lifts, or the release PR is recorded and not merged, which only the grant
+    lifts: the steering session's merge), or `ask`. After the merge, the release PR's merge (or
+    the user's word to run a procedure with no release PR) is the go; a `go` is for that
+    action, in that Driver: the log keeps it, the CR does not."""
     grant = b.data["release"]
+    granted = grant.get("autonomous", 0) > grant.get("published", 0)
     if over_budget(b):
         b.log("release-go", c["id"], action=action, result="budget")
         return "budget", ""
@@ -256,9 +255,21 @@ def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
     if fixes:
         b.log("release-go", c["id"], action=action, result="fix", fixes=fixes)
         return "fix", " ".join(fixes)
-    if c.get("approvals"):
+    open_ = [x["id"] for x in b.data["crs"] if x["id"] != c["id"] and x.get("kind") != "fix"
+             and x["status"] not in ENDED]
+    if open_:
+        b.log("release-go", c["id"], action=action, result="merge", open=open_)
+        return "merge", f"{' '.join(open_)} not merged: every irreversible step waits for their merge"
+    if c.get("pr") and not granted:
+        b.log("release-go", c["id"], action=action, result="merge", pr=c["pr"])
+        return "merge", f"the release PR {c['pr']} is the user's to merge"
+    if c.get("merged_pr"):
+        why = f"the release PR {c['merged_pr']} was merged"
+    elif c.get("procedure"):
+        why = f"the user's word to run the release procedure: {c['procedure']}"
+    elif c.get("approvals"):
         why = f"the user approved: {c['approvals'].pop(0)}"
-    elif grant.get("autonomous", 0) > grant.get("published", 0):
+    elif granted:
         why = (f"the user allowed {grant['autonomous']} releases without asking; "
                f"{grant.get('published', 0)} published")
     else:

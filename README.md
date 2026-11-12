@@ -83,8 +83,8 @@ what, when. You never merge through chantier: you merge, and the steering sessio
   PRs go each on the previous one, and the stack driver keeps the stack up to date; you merge from
   the bottom up.
 
-A CR that depends on another (`depends.json`) waits for it in every mode. A release CR and a fix CR
-sit outside a series and a stack. The lifecycle of a batch (running, paused, closed) is the same in
+A CR that depends on another (`depends.json`) waits for it in every mode. A fix CR
+sits outside a series and a stack; a release CR is their top. The lifecycle of a batch (running, paused, closed) is the same in
 all three.
 
 ## Change Requests Lifecycle

@@ -108,16 +108,25 @@ in the inbox: an ordinary item you triage, which holds no CR back. It takes a sl
 
 ## Make a release
 
-Say "release v1.4.0" once the work is merged and validated. Your project describes how it
-releases, in `AGENTS.md` or a document it links: a tag, a release commit, heavy checks, notes
+Say "release v1.4.0" along with the work, best in a stack batch. The release is a CR of the batch:
+it waits for every other CR, starts once they are all ready, and its PR is the top of the stack.
+You review the work and the release together, and merge from the bottom up; the release PR is
+last, and your merge of it starts your release procedure. In a parallel batch no branch holds all
+the work before the merges, so the release is prepared after them, and your merge of its PR is the
+go there too. The version is the one you settled when you filed the release; if you left it open,
+the Release driver picks the best one and says why in the release PR. It never asks you.
+
+Your project describes how it releases, in `AGENTS.md` or a document it links: a tag, a release commit, heavy checks, notes
 edited by hand. chantier adds no procedure of its own; if yours is missing or unclear, the Chief
 of Staff asks you and offers to write the answer in the project. If it has no long check on the
 default branch's exact head before the version commit, the Chief of Staff asks whether to plan
 one; your answer rules, chantier imposes no gate.
 
-A Release driver follows that procedure and stops before each irreversible action, such as a
-pushed tag or a published package, until you approve it. Release notes wait in the CR's folder
-from the start: you get a link and can edit them while the release runs.
+A Release driver follows that procedure and stops before each irreversible action, as your
+procedure names them, until the release PR is merged and, where the procedure asks for a go, you
+approve it. If your procedure has no release PR, the Chief of Staff asks you, once the other CRs
+are merged, whether to run it. Release notes wait in the CR's folder from the start: you get a
+link and can edit them while the release runs.
 
 When a step finds a defect, the driver does not fix it: a fix CR goes to a CR Driver and, once it
 is merged, the procedure starts again from its first step. For a release that may take several
@@ -125,11 +134,11 @@ attempts, you can allow more up front, always within a budget:
 
 | You say | What it allows |
 | --- | --- |
-| "up to 3 releases without asking, budget $20" | irreversible actions go ahead, up to that number of releases |
+| "up to 3 releases without asking, budget $20" | the Foreman merges the release PR for you, and the steps your procedure asks a go for go ahead, up to that number of releases |
 | "merge the fixes yourself" | the Foreman merges a release's ready fixes with `gh` or `glab`, by your project's method, if the forge gives it the rights |
 
-The release's own PR is merged by the Foreman too, on your approval or under that grant; every
-other PR is yours to merge.
+The release's own PR is yours to merge, last. The Foreman merges it only under that grant, once
+every other CR of the batch is merged or cancelled; an approval never lets it.
 
 At each pause of the batch, and once a release is out, a retrospective lists each problem met with
 its long-term fix, one line each; each point becomes an inbox item only on your word.

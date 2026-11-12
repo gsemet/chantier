@@ -181,17 +181,17 @@ class World:
         return self.state / str(path).removeprefix(".agents/changes/")
 
 
-def open_pr(w: World, cr_id: str, title: str) -> str:
+def open_pr(w: World, cr_id: str, title: str, base: str = "main") -> str:
     """The Driver opens the PR with the forge's CLI, from the body it wrote."""
     c = w.cr(cr_id)
     body = w.at(c["path"]) / "work" / "pr-body.md"
     if ARGS.forge == "github":
-        _, out, _ = w.forge("pr", "create", "--base", "main", "--head", c["branch"], "--title",
+        _, out, _ = w.forge("pr", "create", "--base", base, "--head", c["branch"], "--title",
                             title, "--body-file", str(body))
         return out.splitlines()[-1]
     _, out, _ = w.forge("api", "projects/local/merge_requests", "--method", "POST",
                         "--raw-field", f"source_branch={c['branch']}", "--raw-field",
-                        "target_branch=main", "--raw-field", f"title={title}")
+                        f"target_branch={base}", "--raw-field", f"title={title}")
     return json.loads(out)["web_url"]
 
 
@@ -357,6 +357,11 @@ class Foreman:
                     continue
                 self.ask_once((c["id"], "blocked", reason), f"blocked {c['id']} {reason}")
             elif c["status"] == "ready":
+                grant = d.get("release") or {}
+                if (c.get("kind") == "release" and c.get("pr")
+                        and grant.get("autonomous", 0) > grant.get("published", 0)):
+                    self.merge(c)  # the release PR's merge, only under the grant
+                    continue
                 if (c["id"], "ready", c.get("pr")) in self.told:
                     continue
                 self.told.add((c["id"], "ready", c.get("pr")))
@@ -813,6 +818,7 @@ def scenario(w: World) -> None:
     release(w)
     granted_fixes(w)
     release_last(w)
+    release_on_stack(w)
     qa_on_head(w)
     old_words(w)
     changes_tree(w)
@@ -3065,14 +3071,11 @@ def release(w: World) -> None:
           fm.asked[-1].startswith(f"ready {work} "), str(fm.asked))
     w.chantier("order", "merged", work)
     fm.turn()
-    check("once it is merged, the release shares its batch: it waits for the user's word",
-          fm.started[-1] != rel and any(ln.startswith(rel) and "confirmation" in ln
-                                        for ln in w.chantier("status")[1]), str(fm.started))
-    w.chantier("order", "confirm", rel, "--note", "v1.1.0, nothing else to settle")
-    fm.turn()
-    check("once confirmed, the release CR is taken, with the grant in its facts",
-          fm.started[-1] == rel and any(ln.startswith("grant: every irreversible action waits")
-                                        for ln in fm.facts), str(fm.facts))
+    check("once the other CR is merged, the release is taken at once (no confirmation), with "
+          "the grant in its facts",
+          fm.started[-1] == rel and "confirmation" not in " ".join(w.chantier("status")[1])
+          and any(ln.startswith("grant: every irreversible action waits") for ln in fm.facts),
+          str(fm.facts))
 
     tag = "push tag v1.1.0"
     _, out = w.chantier("release", "start", rel)
@@ -3166,14 +3169,33 @@ def release(w: World) -> None:
     commit(w, rel, "VERSION", "1.1.0\n", "release: v1.1.0")
     w.chantier("gate", rel, GATE)
     ship(w, rel, "release: v1.1.0")
+    # the grant is lifted for a moment: the user's approval never covers the release PR's merge
+    w.chantier("order", "grant", rel, "--note", "releases=0 fixes=on budget=20")
+    w.chantier("handback", rel, "ready", w.cr(rel)["pr"])
+    check("the release PR is prepared: `ready`, no verdict asked, and not red",
+          w.cr(rel)["status"] == "ready" and "waits for its merge" in w.last_out[-1]
+          and not any("🔴" in lb for lb in drawn(w, rel)[0]), str(w.last_out))
+    events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
+    check("the release PR, in a parallel batch, sits on the default branch",
+          [e["base"] for e in events if e["kind"] == "ship" and e["cr"] == rel][-1] == "main")
+    w.chantier("order", "approve", rel, "--note", f"merge the release PR {w.cr(rel)['pr']}")
+    code, out = w.chantier("release", "go", rel, "--note", f"merge the release PR {w.cr(rel)['pr']}",
+                           expect=2)
+    check("an approval never covers the release PR's merge: `release go` answers `merge`",
+          code == 2 and out[0].startswith("no: the release PR") and "user's to merge" in out[0],
+          str(out))
+    for o in w.batch()["orders"]:
+        if not o["done"]:
+            w.chantier("order", "done", o["id"], "--epoch", 1)
+    w.chantier("order", "grant", rel, "--note", "releases=1 fixes=on budget=20")
+    w.chantier("order", "done", w.batch()["orders"][-1]["id"], "--epoch", 1)
     w.gh(merge_refused=True)
-    w.chantier("handback", rel, "blocked", f"merge: {w.cr(rel)['pr']}")
     fm.turn()
-    check("the Foreman merges the release PR under the grant; refused by the forge, it asks",
-          fm.asked[-1].startswith(f"refused {rel}") and w.cr(rel)["status"] == "blocked",
+    check("under the grant the Foreman merges the release PR; refused by the forge, it asks",
+          fm.asked[-1].startswith(f"refused {rel}") and w.cr(rel)["status"] == "ready",
           fm.asked[-1])
-    check("a blocked CR shows red", "🔴 blocked" in (w.folder() / "STATUS.md").read_text("utf-8"))
     w.gh(merge_refused=False)
+    fm.told.discard((rel, "refused", fm.asked[-1].removeprefix(f"refused {rel} ")))
     drivers = len(fm.started)
     fm.turn()
     check("merged with the forge's CLI, `order merged --epoch` sends the release on with a new "
@@ -3182,9 +3204,13 @@ def release(w: World) -> None:
           and "5-archives/" not in w.cr(rel)["path"]
           and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
     check("the merged PR is not the next attempt's", w.cr(rel).get("pr") is None)
+    merged_pr = w.cr(rel)["merged_pr"]
+    for step in ("push tag v1.1.0", "publish v1.1.0"):
+        code, out = w.chantier("release", "go", rel, "--note", step)
+        check(f"the merge is the go for `{step}`, with no approval",
+              code == 0 and out[0].startswith("go:") and merged_pr in out[0]
+              and "approved" not in out[0], str(out))
     w.chantier("release", "published", rel, "--note", "v1.1.0 https://forge.example/v1.1.0")
-    code, _ = w.chantier("release", "go", rel, "--note", "publish v1.1.1", expect=2)
-    check("the grant ends with its number of releases", code == 2)
     _, out = w.chantier("handback", rel, "ready", "https://forge.example/v1.1.0")
     check("a released CR moves to 3-done, and the batch can pause",
           "/3-done/" in w.cr(rel)["path"] and "chantier pause" in out[1], str(out))
@@ -3300,8 +3326,9 @@ def release_last(w: World) -> None:
     w.chantier("order", "confirm", work, "--note", "v1.5.0", expect=1)
     check("only a release is confirmed", rel in w.last_stderr, w.last_stderr)
     w.chantier("order", "confirm", rel, "--note", "v1.5.0", expect=2)
-    check("a confirmation is refused while the release waits for a CR",
-          "still waits" in w.last_stderr, w.last_stderr)
+    check("the user's word is refused while CRs are open: they are named",
+          "not merged yet" in w.last_stderr and work in w.last_stderr and late in w.last_stderr,
+          w.last_stderr)
 
     check("the first CR starts", fm.take(work) == 0)
     driver_round(w, work, "first.py", "FIRST = True\n")
@@ -3313,40 +3340,36 @@ def release_last(w: World) -> None:
     w.chantier("order", "drop", late)
     check("a merged CR and a dropped one are met",
           w.cr(work)["status"] == "merged" and w.cr(late)["status"] == "cancelled")
-    code, _ = w.chantier("take", rel, expect=2)
-    check("with the others ended, a take is refused until the user's word",
-          code == 2 and "confirmation" in w.last_stderr, w.last_stderr)
     _, out = w.chantier("status")
-    check("status says the release waits for the word",
-          any(ln.startswith(rel) and "waits for the user's confirmation" in ln for ln in out),
-          str(out))
-    icon_is(w, rel, "🟠", "a queued release waiting for the user's confirmation")
+    check("status shows no confirmation for the release: the others ended, it waits for nothing",
+          not any("confirmation" in ln for ln in out)
+          and not any(ln.startswith(rel) and "waits for" in ln for ln in out), str(out))
+    icon_is(w, rel, "⚪", "a queued release with the others ended: no confirmation to wait for")
     w.chantier("order", "confirm", rel, "--note", "v1.5.0, the notes settled")
-    check("the word is kept on the CR and in its notes",
-          w.cr(rel)["confirmed"] == "v1.5.0, the notes settled"
-          and any(n.startswith("confirmed:") for n in w.cr(rel)["notes"]))
+    check("the user's word to run the procedure is kept on the CR and in its notes, never as "
+          "`confirmed`",
+          w.cr(rel)["procedure"] == "v1.5.0, the notes settled" and "confirmed" not in w.cr(rel)
+          and any(n.startswith("procedure:") for n in w.cr(rel)["notes"]))
     w.chantier("order", "add", "--note", str(third))
     added = w.batch()["crs"][-1]["id"]
-    check("a CR added then voids the confirmation, which the log and a note explain",
-          "confirmed" not in w.cr(rel) and w.cr(rel)["after"][-1] == added
+    check("a CR added then voids the word, which the log and a note explain",
+          "procedure" not in w.cr(rel) and w.cr(rel)["after"][-1] == added
           and any("voided" in n for n in w.cr(rel)["notes"])
           and any(e["kind"] == "confirm-void" for e in map(json.loads, (w.folder() / "events.jsonl").read_text().splitlines())))
     w.chantier("order", "drop", added)
-    code, _ = w.chantier("take", rel, expect=2)
-    check("the release waits for the word again", code == 2 and "confirmation" in w.last_stderr,
-          w.last_stderr)
     w.chantier("order", "confirm", rel, "--note", "v1.5.0, with the third change dropped")
-    check("the release starts once confirmed", fm.take(rel) == 0)
+    check("the release starts with no confirmation asked", fm.take(rel) == 0)
 
     w.chantier("order", "add", "--note", str(second), expect=2)
     check("order add is refused once the release has started, with its two ways out",
-          "--fix-for" in w.last_stderr and "next batch" in w.last_stderr, w.last_stderr)
-    w.chantier("order", "confirm", rel, "--note", "again", expect=2)
-    check("a confirmation is refused once the release has started", "started" in w.last_stderr,
-          w.last_stderr)
+          "--fix-for" in w.last_stderr and "next batch" in w.last_stderr
+          and "ships the work under it" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "confirm", rel, "--note", "again")
+    check("the user's word is accepted once the release has started, the others being merged",
+          w.cr(rel)["procedure"] == "again", str(w.cr(rel)))
     w.chantier("order", "add", "--note", str(fix_one), "--fix-for", rel)
     check("a fix of the release is still added",
-          w.batch()["crs"][-1]["kind"] == "fix" and "confirmed" in w.cr(rel))
+          w.batch()["crs"][-1]["kind"] == "fix" and "procedure" in w.cr(rel))
     w.chantier("release", "start", rel)
     w.chantier("order", "merged", rel)
     check("a merged release PR puts the release back to queued, attempts kept",
@@ -3371,11 +3394,267 @@ def release_last(w: World) -> None:
     w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman7", "--epoch", 1)
     only = w.batch()["crs"][0]["id"]
-    w.chantier("order", "confirm", only, "--note", "v1.7.0", expect=2)
-    check("a release alone in its batch needs no confirmation", "alone" in w.last_stderr,
-          w.last_stderr)
-    check("a release alone starts with no confirmation", Foreman(w, epoch=1).take(only) == 0)
+    w.chantier("order", "confirm", only, "--note", "v1.7.0")
+    check("the user's word is accepted for a release alone, before a release PR is recorded",
+          w.cr(only)["procedure"] == "v1.7.0", str(w.cr(only)))
+    solo = Foreman(w, epoch=1)
+    check("a release alone starts when taken, with no confirmation asked, on the default branch",
+          solo.take(only) == 0 and any("base origin/main" in ln for ln in solo.facts),
+          str(solo.facts))
+    w.chantier("release", "start", only)
+    commit(w, only, "VERSION", "1.7.0\n", "release: v1.7.0")
+    w.chantier("gate", only, GATE)
+    ship(w, only, "release: v1.7.0")
+    code, out = w.chantier("release", "go", only, "--note", "tag v1.7.0", expect=2)
+    check("once its PR is recorded, `release go` answers `merge` until `order merged`",
+          code == 2 and out[0].startswith("no: the release PR") and "user's to merge" in out[0],
+          str(out))
+    w.chantier("order", "confirm", only, "--note", "again", expect=2)
+    check("the user's word is refused while the release PR is not merged",
+          "is not merged" in w.last_stderr, w.last_stderr)
+    w.chantier("handback", only, "ready", w.cr(only)["pr"])
+    w.chantier("order", "merged", only)
+    code, out = w.chantier("release", "go", only, "--note", "tag v1.7.0")
+    check("after `order merged`, `release go` answers `go`, naming the merged PR",
+          code == 0 and out[0].startswith("go:") and "was merged" in out[0], str(out))
     w.reset()
+
+
+def on_branch(w: World, cr_id: str, base: str) -> None:
+    """A Driver's first step for a CR that starts on another CR's branch: the worktree its
+    prompt names, on the pushed branch of the CR under it."""
+    c = w.cr(cr_id)
+    Path(c["worktree"]).parent.mkdir(exist_ok=True)
+    w.sh("git", "fetch", "--quiet", "origin")
+    w.sh("git", "worktree", "add", "--quiet", "-b", c["branch"], c["worktree"], f"origin/{base}")
+
+
+def restack(w: World, cr_id: str, under: str) -> None:
+    """The stack driver restacks a PR: rebase onto the CR under it, push with a lease, `ship`."""
+    c = w.cr(cr_id)
+    wt = Path(c["worktree"])
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
+    w.sh("git", "rebase", "--quiet", f"origin/{w.cr(under)['branch']}", cwd=wt)
+    w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", c["branch"], cwd=wt)
+    w.chantier("ship", cr_id, c["pr"])
+
+
+def settle(w: World) -> None:
+    """The Foreman marks each order the CLI applied as done."""
+    for o in w.batch()["orders"]:
+        if not o["done"]:
+            w.chantier("order", "done", o["id"], "--epoch", 1)
+
+
+def release_on_stack(w: World) -> None:
+    note("\n## 14d. A release on top of a stack: prepared on the top CR's branch, merged last")
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Stack piece a", "Stack piece b", "Release v1.8.0")]
+    w.start(*map(str, items), "--mode", "stack", "--release", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman9", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    a, b, r = (c["id"] for c in w.batch()["crs"])
+    fm.turn()
+    code, out = w.chantier("take", r, expect=2)
+    refusal = w.last_stderr
+    _, status = w.chantier("status")
+    check("1. a stack's release is refused while the CRs under it are queued or working, "
+          "each named; status shows no confirmation",
+          fm.started == [a, b] and code == 2 and a in refusal and b in refusal
+          and "ready or merged" in refusal and not any("confirmation" in ln for ln in status),
+          refusal)
+    for i, cr in enumerate((a, b)):
+        driver_round(w, cr, f"piece{i}.py", f"N = {i}\n")
+        w.ready(cr, w.cr(cr)["pr"])
+    head = w.cr(a)["head"]
+    code, _ = w.chantier("take", r, expect=2)
+    check("2. both CRs ready but not stacked: the release is refused, naming the head of the "
+          "CR the top branch does not hold, and `take stack`",
+          code == 2 and head[:7] in w.last_stderr and "take stack" in w.last_stderr
+          and a in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("stack", r, a, b, expect=None)
+    check("4. `stack` refuses an order that puts a CR above the release",
+          code != 0 and "cannot sit below" in w.last_stderr and r in w.last_stderr, w.last_stderr)
+    w.chantier("stack", a, b, r)
+    restack(w, b, a)
+    _, listed = w.chantier("take", "stack", "--epoch", 1)
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    top = w.cr(b)["branch"]
+    check("3. once stacked, `take stack` lists the release last, with the top CR's branch "
+          "as its base",
+          listed[0].endswith(f"{a} → {b} → {r}") and listed[-1].startswith(f"{r} queued")
+          and f"base {top}" in listed[-1], str(listed))
+    on_branch(w, r, top)
+    code = fm.take(r)
+    check("3. the release is taken, and its facts print `base` = the top CR's branch",
+          code == 0 and any(f"base {top}" in ln for ln in fm.facts), str(fm.facts))
+
+    tag = "tag v1.8.0"
+    w.chantier("order", "approve", r, "--note", tag)
+    w.chantier("order", "grant", r, "--note", "releases=1 budget=5")
+    code, out = w.chantier("release", "go", r, "--note", tag, expect=2)
+    check("5. `release go` is refused while CRs are open, with an approval and a grant: the "
+          "`merge` text names them",
+          code == 2 and out[0].startswith("no: ") and a in out[0] and b in out[0]
+          and "not merged" in out[0], str(out))
+    w.chantier("order", "grant", r, "--note", "releases=0 fixes=off budget=5")
+    settle(w)
+
+    w.chantier("release", "start", r)
+    commit(w, r, "VERSION", "1.8.0\n", "release: v1.8.0")
+    w.chantier("gate", r, GATE)
+    wt = Path(w.cr(r)["worktree"])
+    w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", w.cr(r)["branch"], cwd=wt)
+    (w.at(w.cr(r)["path"]) / "work").mkdir(exist_ok=True)
+    (w.at(w.cr(r)["path"]) / "work" / "pr-body.md").write_text(BODY.format(title=w.cr(r)["title"], cr=r))
+    pr = open_pr(w, r, "release: v1.8.0", base=top)
+    OPENED[r] = pr
+    _, out = w.chantier("ship", r, pr)
+    code, out = w.chantier("handback", r, "ready", f"{pr} draft on {top}: waits for the merge")
+    events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
+    check("6. the release PR is shipped on the top CR's branch and handed back `ready`, with "
+          "no verdict; its STATUS icon is not red",
+          code == 0 and [e["base"] for e in events if e["kind"] == "ship" and e["cr"] == r][-1] == top
+          and w.cr(r)["status"] == "ready" and "waits for its merge" in out[-1]
+          and not any(e["kind"] == "verdict" and e["cr"] == r for e in events)
+          and not any("🔴" in lb for lb in drawn(w, r)[0]), str(out))
+    extra = prepare_cr(w, "Late piece")[1]
+    fixed = prepare_cr(w, "Urgent fix")[1]
+    w.chantier("order", "add", "--note", str(extra), expect=2)
+    check("7. `order add` is refused once the release has started",
+          "has started" in w.last_stderr and "--fix-for" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "add", "--note", str(fixed), "--fix-for", r)
+    fix = w.batch()["crs"][-1]["id"]
+    check("7. `order add --fix-for` is accepted", w.cr(fix)["kind"] == "fix" and w.cr(fix)["fix_for"] == r)
+    w.chantier("order", "drop", fix)
+    w.chantier("order", "merged", r, expect=2)
+    check("8. `order merged` on the release is refused while a CR is open: it merges last",
+          a in w.last_stderr and "merges last" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "confirm", r, "--note", "go", expect=2)
+    check("8. the user's word is refused while the CRs are open",
+          a in w.last_stderr and "not merged yet" in w.last_stderr, w.last_stderr)
+
+    # a change of content: CR a gets a new round after the release PR is prepared
+    settle(w)
+    check("11. CR a goes back for a round", fm.take(a, "round: a change of content") == 0)
+    w.chantier("agents", "set", r, "-", "--epoch", 1)
+    code, _ = w.chantier("take", r, "--note", "redo: a changed", expect=2)
+    check("11. the release is refused while CR a is not ready", code == 2 and a in w.last_stderr,
+          w.last_stderr)
+    driver_round(w, a, "piece0.py", "N = 10\n")
+    w.ready(a, w.cr(a)["pr"])
+    code, _ = w.chantier("take", r, "--note", "redo: a changed", expect=2)
+    check("11. ready again but not restacked, it is refused still",
+          code == 2 and "take stack" in w.last_stderr, w.last_stderr)
+    restack(w, b, a)
+    check("11. once restacked, the release is taken back with the `redo` note",
+          fm.take(r, "redo: a changed") == 0 and w.cr(r)["status"] == "working")
+    w.chantier("release", "start", r)
+    check("11. `release start` keeps the PR recorded and counts an attempt",
+          w.cr(r)["pr"] == pr and w.cr(r)["attempts"] == 2 and w.cr(r).get("head") is None,
+          str(w.cr(r)))
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
+    w.sh("git", "rebase", "--quiet", f"origin/{top}", cwd=wt)
+    w.chantier("gate", r, GATE)
+    w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", w.cr(r)["branch"], cwd=wt)
+    w.chantier("ship", r, pr)
+    w.chantier("handback", r, "ready", f"{pr} draft on {top}: waits for the merge")
+    settle(w)
+
+    w.chantier("order", "merged", a)
+    w.chantier("order", "merged", b)
+    w.chantier("order", "approve", r, "--note", tag)
+    code, out = w.chantier("release", "go", r, "--note", tag, expect=2)
+    check("9. the stack merged, the release PR still is the user's to merge: `release go` "
+          "is refused with an approval", code == 2 and "user's to merge" in out[0], str(out))
+    w.chantier("order", "grant", r, "--note", "releases=1 budget=5")
+    code, out = w.chantier("release", "go", r, "--note", tag)
+    check("9. under a grant (`releases=1 budget=5`) it answers `go`",
+          code == 0 and out[0].startswith("go:"), str(out))
+    w.chantier("order", "grant", r, "--note", "releases=0 fixes=off budget=5")
+    settle(w)
+
+    w.chantier("order", "merged", r)
+    fm.turn()
+    steps = [w.chantier("release", "go", r, "--note", s)[1][0] for s in ("push the tag", "publish")]
+    check("10. `order merged` puts the release back to `queued`, taken by a new Driver; "
+          "`release go` answers `go` naming the merged PR for two steps, with no grant",
+          fm.started[-1].startswith(f"{r} merged:") and w.cr(r)["status"] == "working"
+          and all(s.startswith("go:") and pr in s for s in steps), str(steps))
+    w.chantier("release", "published", r, "--note", "v1.8.0 https://forge.example/v1.8.0")
+    w.chantier("handback", r, "ready", "https://forge.example/v1.8.0")
+    fm.turn()
+    check("10. the release `3-done`, the batch pauses",
+          "/3-done/" in w.cr(r)["path"] and fm.paused, str(w.cr(r)))
+    priced_foreman(w)
+    w.chantier("close", "--batch", w.name, "--yes")
+
+    # 12. a procedure with no release PR
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Piece c", "Release v1.9.0")]
+    w.start(*map(str, items), "--mode", "stack", "--release", 2, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman10", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    c, r = (x["id"] for x in w.batch()["crs"])
+    fm.turn()
+    driver_round(w, c, "piece_c.py", "N = 0\n")
+    w.ready(c, w.cr(c)["pr"])
+    on_branch(w, r, w.cr(c)["branch"])
+    check("12. the release starts on the only CR's branch once it is ready", fm.take(r) == 0
+          and any(f"base {w.cr(c)['branch']}" in ln for ln in fm.facts), str(fm.facts))
+    w.chantier("handback", r, "blocked", "waits: the other CRs' merge, then the user's word "
+               "to run the release procedure")
+    w.chantier("order", "confirm", r, "--note", "yes, run it", expect=2)
+    check("12. the user's word is refused before the other CRs' merge", c in w.last_stderr,
+          w.last_stderr)
+    w.chantier("order", "merged", c)
+    w.chantier("order", "confirm", r, "--note", "yes, run it")
+    code, out = w.chantier("release", "go", r, "--note", "tag v1.9.0")
+    check("12. accepted after: `release go` answers `go` naming the word, and no `confirmed` "
+          "field is written", code == 0 and "the user's word" in out[0] and "yes, run it" in out[0]
+          and "confirmed" not in w.cr(r) and w.cr(r)["procedure"] == "yes, run it", str(out))
+
+    # 15. a batch opened by the older CLI
+    w.reset()
+    _, old = prepare_cr(w, "Release v1.0.1")
+    w.start(str(old), "--release", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman11", "--epoch", 1)
+    only = w.batch()["crs"][0]["id"]
+    state = w.folder() / "batch.json"
+    data = w.batch()
+    data["crs"][0]["confirmed"] = "v1.0.1"
+    data["crs"][0]["notes"] = ["merged: https://forge.example/pull/1"]
+    state.write_text(json.dumps(data))
+    code, out = w.chantier("release", "go", only, "--note", "tag v1.0.1", expect=2)
+    check("15. a record with the older CLI's `confirmed` and `merged:` note gives no go: `ask`",
+          code == 2 and out[0].startswith("no approval"), str(out))
+    w.reset()
+
+    # 13. a series
+    items = [prepare_cr(w, t)[1] for t in ("Series one", "Series two", "Release v2.0.0")]
+    w.start(*map(str, items), "--mode", "series", "--release", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman12", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    one, two, r = (x["id"] for x in w.batch()["crs"])
+    fm.turn()
+    driver_round(w, one, "series1.py", "S = 1\n")
+    w.ready(one, w.cr(one)["pr"])
+    on_branch(w, two, w.cr(one)["branch"])
+    fm.turn()
+    code, _ = w.chantier("take", r, expect=2)
+    refused = code == 2 and two in w.last_stderr
+    driver_round(w, two, "series2.py", "S = 2\n")
+    w.ready(two, w.cr(two)["pr"])
+    on_branch(w, r, w.cr(two)["branch"])
+    check("13. in a series, the release waits for the CRs, then starts on the second CR's branch",
+          refused and fm.take(r) == 0
+          and any(f"base {w.cr(two)['branch']}" in ln for ln in fm.facts), str(fm.facts))
+    w.reset()
+    w.env.pop("CHANTIER_BATCH", None)
 
 
 def qa_on_head(w: World) -> None:
@@ -3847,7 +4126,7 @@ def dependencies(w: World) -> None:
 
 
 def release_merge_on_approval(w: World) -> None:
-    note("\n## 15. A release PR merges on the user's approval")
+    note("\n## 15. A release PR is the user's to merge: no approval covers it")
     _, version = prepare_cr(w, "Release v1.2.0")
     w.reset()
     w.start(str(version), "--release", 1, *FROM_AGENTS_MD)
@@ -3861,16 +4140,23 @@ def release_merge_on_approval(w: World) -> None:
     w.chantier("gate", rel, GATE)
     ship(w, rel, "release: v1.2.0")
     pr = w.cr(rel)["pr"]
-    w.chantier("handback", rel, "blocked", f"merge: {pr}")
+    w.chantier("handback", rel, "ready", pr)
     fm.turn()
-    check("without a grant, the merge is an approval to ask",
-          fm.asked[-1] == f"blocked {rel} approval: merge the release PR {pr}", str(fm.asked))
+    check("without a grant, the prepared release PR goes to the user, never to a merge",
+          fm.asked[-1] == f"ready {rel} {pr}" and w.cr(rel)["status"] == "ready", str(fm.asked))
     drivers = len(fm.started)
     w.chantier("order", "approve", rel, "--note", f"merge the release PR {pr}")
+    for o in w.batch()["orders"]:
+        if not o["done"]:
+            w.chantier("order", "done", o["id"], "--epoch", 1)
+    code, out = w.chantier("release", "go", rel, "--note", f"merge the release PR {pr}", expect=2)
+    check("an approval never lets the Foreman merge a release PR",
+          code == 2 and out[0].startswith("no: the release PR") and len(fm.started) == drivers
+          and not any(a.startswith(f"merged {rel} ") for a in fm.asked), str(out))
+    w.chantier("order", "merged", rel)
     fm.turn()
-    check("the approval lets the Foreman merge; the next Driver goes on",
-          any(a.startswith(f"merged {rel} ") for a in fm.asked) and len(fm.started) == drivers + 1
-          and w.cr(rel)["status"] == "working", str(fm.asked))
+    check("the user's merge starts the next Driver, which goes on",
+          len(fm.started) == drivers + 1 and w.cr(rel)["status"] == "working", str(fm.started))
     w.chantier("handback", rel, "ready", "v1.2.0")
     fm.turn()
     check("the batch pauses", fm.paused)

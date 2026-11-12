@@ -297,7 +297,7 @@
   <rect x="480.0" y="646" width="120" height="36" rx="10" fill="#b91c1c"/><text x="540" y="661">🚜 CR driver</text><text x="540" y="676" font-size="12" font-weight="500" fill="#fee2e2">asks Foreman</text>
   <rect x="250.0" y="498" width="140" height="36" rx="10" fill="#b91c1c"/><text x="320" y="513">👷 Foreman</text><text x="320" y="528" font-size="12" font-weight="500" fill="#fee2e2">files bugs as findings</text>
   <rect x="1548.0" y="1114" width="140" height="40" rx="10" fill="#b91c1c"/><text x="1618" y="1131" font-size="12">📝 recommendations</text><text x="1618" y="1147" font-size="12" font-weight="500" fill="#fee2e2">process improvement</text>
-  <rect x="1362.0" y="634" width="216" height="36" rx="10" fill="#c2410c"/><text x="1470" y="649">👷 Foreman</text><text x="1470" y="664" font-size="12" font-weight="500" fill="#ffedd5">merges release PR on release go</text>
+  <rect x="1362.0" y="634" width="216" height="36" rx="10" fill="#c2410c"/><text x="1470" y="649">👷 Foreman</text><text x="1470" y="664" font-size="12" font-weight="500" fill="#ffedd5">merges release PR only under auto</text>
   <rect x="1272.0" y="848" width="116" height="24" rx="12" fill="#b91c1c"/><text x="1330" y="864.5">📝 fix-&lt;n&gt;.md</text>
   <rect x="1442.0" y="938" width="56" height="24" rx="12" fill="#2563eb"/><text x="1470" y="954.5">✅ yes</text>
   <rect x="1170.0" y="884" width="120" height="36" rx="10" fill="#16a34a"/><text x="1230" y="899">👤 your go</text><text x="1230" y="914" font-size="12" font-weight="500" fill="#dcfce7">unless granted</text>

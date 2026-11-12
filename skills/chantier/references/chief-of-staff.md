@@ -335,7 +335,7 @@ Only in the turn where the user gave the go:
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
-  $CHANTIER order confirm <release-cr> --note "<the version and what else was settled>"
+  $CHANTIER order confirm <release-cr> --note "<the user's word to run the release procedure>"   # once the other CRs are merged
   ```
 
   A Driver's question (`ask … blocked <cr> question: …`): record the user's answer in the CR's
@@ -648,30 +648,38 @@ If the procedure has no long check on the exact head of the default branch befor
 commit, ask whether to plan one and say why: per-CR gates miss what CRs break together, and any
 check skipped on a PR goes unseen. Offer to write the answer in the project. The user's answer
 rules; chantier imposes no gate.
-Prepare it as any CR (`$CHANTIER file "Release v1.4.0"`, grilled: the version, the scope, where
-the procedure is, what the user reviews), open it preferably alone with `--release 1`. A release
-may also join a running batch: `$CHANTIER order add --release --note <folder>` (one per batch,
-default grant; `order grant` after). It then waits for every other CR of the batch, the ones
-added later too (the CLI keeps its `after`; `order after` is refused on it), and once they have
-ended it starts only on the user's word. (chantier's own release joins the batch whose work it
-ships, as `docs/release-process.md` says; that file ranks above this card as a project rule.)
-File it early with what is known; settle the rest at the end. When the Foreman asks for the
-confirmation, grill the version from what was merged, complete the specification and, before the
-confirmation, write your latest Progress report and the conversation excerpts you choose into the release CR's folder, as `report.md` and
-`conversation.md` (the release Driver renders them from there, anonymised). In the same grill,
-ask whether a docs diagram should be shown in the notes; only the user's yes puts one in, named in
-the release CR's specification. Then `$CHANTIER order confirm <release-cr> --note "<the version
-and what was settled>"`. A CR added after that voids the word; none is added once the release has
-started (a fix, `--fix-for`, or the next batch). A release alone in its batch needs no word. The
-grant is the user's: by default each irreversible action waits for their approval (`order
-approve`); ask whether they allow more and pass only what they said (`--autonomous-releases
+Prepare it as any CR (`$CHANTIER file "Release v1.4.0"`, grilled: the version when the user can
+settle it, the scope, where the procedure is, what the user reviews). A release joins the batch of
+the work it ships, best a stack batch: `--release N` at `open`, or `$CHANTIER order add --release
+--note <folder>` in a running batch (one per batch, default grant; `order grant` after). It waits
+for every other CR of the batch, the ones added later too (the CLI keeps its `after`; `order after`
+is refused on it); in an ordered batch it is prepared on top of the stack once the others are
+ready, in a parallel batch after the merges. When the user asks for a release in a parallel
+batch, explain why it cannot be prepared before the merges (no branch holds all the work until
+then) and recommend a stack batch instead; a parallel batch cannot be switched to a stack, so the
+recommendation is for the batch being opened or the next one. The version is grilled at filing
+when the user can; otherwise the Release driver picks it and says why: there is no version
+confirmation. (chantier's own release joins the batch whose work it ships, as
+`docs/release-process.md` says; that file ranks above this card as a project rule.) Write your
+latest Progress report and the conversation excerpts you choose into the release CR's folder, as
+`report.md` and `conversation.md` (the release Driver renders them from there, anonymised), when
+the release joins the batch, and refresh them at each Progress report until the Release driver has
+prepared the release PR. In the filing grill, ask whether a docs diagram should be shown in the
+notes; only the user's yes puts one in, named in the release CR's specification. The user merges
+the release PR (with the whole stack in an ordered batch, from the bottom up); record each merge
+with `order merged`; that merge starts the release procedure. With no release PR in the
+procedure: once the other CRs are merged, ask the user whether to run the release procedure; the
+yes is `$CHANTIER order confirm <release-cr> --note "<the user's word>"`. `order add` stays
+refused once the release has started (a fix, `--fix-for`, accepted for urgent fixes, or the next
+batch). The grant is the user's: by default each irreversible action waits for their approval (`order
+approve`; an approval never lets the steering session merge a release PR); ask whether they allow more and pass only what they said (`--autonomous-releases
 <n>`, `--grant-fixes`: the Foreman starts and merges up to three fixes, both with `--budget`;
 later `order grant`).
 
 While the release runs (from the start of its Release driver until `release published` or the
 CR's end), offer "auto" as the "during a release" tip: one line with the exact word, e.g. "💡 Say
-"auto" to let this release merge its version PR, tag and publish without asking; the
-announcement stays a draft for you." On an approval ask (`ask ... blocked <release-cr> approval:
+"auto" to let this release merge its release PR and run the irreversible steps of the procedure
+without asking; the announcement stays a draft for you." On an approval ask (`ask ... blocked <release-cr> approval:
 <action>`), the question to the user lists "auto" among its answers, beside approving that one
 action (`order approve`): part of the question, not a tip, so it holds when tips are off. On
 "auto" (the user's own word, in any language):
@@ -683,13 +691,13 @@ action (`order approve`): part of the question, not a tip, so it holds when tips
    user's word with the date in the release CR's `02-answers.md`.
 4. Send the order's line to the Foreman (direct mode: act on it yourself; a release CR blocked on
    an approval goes back to a Driver with `--note "auto: <the grant line>"`).
-5. Tell the user in one line what auto now does (merge the version PR, tag, and every publication
-   step of the procedure, this release only) and what stays theirs (the announcement, posted by
-   them; a fix, unless they grant it).
+5. Tell the user in one line what auto now does (the steering session merges the release PR once
+   every other CR is merged or cancelled, and the steps the procedure asks a go for, this release
+   only) and what stays theirs (the announcement, posted by them; a fix, unless they grant it).
 
 "auto" covers this release only: the next release asks again. It never covers posting an
-announcement, starting or merging a fix (`fixes=` unchanged), the `order confirm` word or a
-raise of the budget.
+announcement, starting or merging a fix (`fixes=` unchanged), the procedure's word
+(`order confirm`) or a raise of the budget.
 
 `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
