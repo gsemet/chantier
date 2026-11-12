@@ -64,7 +64,14 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   reaches a Driver only through `take <cr> --note "<why>"`: never send it as a message to the
   Driver that handed the CR back before that `take`. The `take` reopens the CR to `working` and
   counts no round; its Driver runs `ship` at the new head, then passes the long gate and a
-  `VERIFIED` verdict there before `handback ready`.
+  `VERIFIED` verdict there before `handback ready`. Just before you send a Driver a note that
+  carries work (a `rebase:` first of all, an order note, an answer), read the CR's state with a
+  plain `$CHANTIER status` (no `--refresh`, no `--epoch`: it is a check before an action, not a
+  wake, and records no heartbeat), and choose the path from the state it shows now, never from
+  the one read at your last wake: `ready` or `blocked`, no message, `take <cr> --note "<the
+  note>"` and the take-back path below; `working`, the `[foreman→driver <cr>] note <text>`
+  message. A hand-back that lands between that read and the message is caught by the Driver, who
+  passes the note back: then take the CR back as for `ready`.
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Your git
@@ -148,21 +155,24 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   it back resumed as below (it takes a slot, or waits like any queued CR when none is free). One still waiting for another open
   dependency is rebased onto that one and stays a draft: the note says which. This holds in every
   mode. Then, by mode:
-  - **Parallel:** every CR with a PR still open goes back to a Driver: a `ready` or `blocked` one
+  - **Parallel:** every CR with a PR still open goes back to a Driver (its state is the one from
+    the `status` read just before sending, as above): a `ready` or `blocked` one
     with `take <cr> --note "rebase: <merged cr> merged"` (a slot, or it waits like a queued CR
     when none is free; a `ready` one resumes its Driver as below, a `blocked` one gets a new CR
     Driver); a `working` one gets `[foreman→driver <cr>] note rebase:
     <merged cr> merged`. Conflict or not, its checks run again at the new head. A queued CR needs
     nothing.
   - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
-    "rebase: <cr> merged"` and turns ready on the default branch. Whenever a CR's branch moves (a
+    "rebase: <cr> merged"` (or the `note` line, by the state from the `status` read just before
+    sending, as above) and turns ready on the default branch. Whenever a CR's branch moves (a
     rebase, a new round after review), the started CR above it goes back to a Driver with
     `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
     that branch; each one moved this way moves the next.
   - **Stack:** unchanged: the stack driver restacks.
 - A CR taken back from `ready` (every `take <cr> --note` above, the Series one and the ready PR
   that stopped merging included) is run by the Driver that handed it back:
-  - Note the Driver's agent id first (`status`), then `agents set <cr> - --epoch <n>`: `take` refuses a CR
+  - Note the Driver's agent id first (`status`; it may be the same read as the one before the
+    note, so do not run it twice), then `agents set <cr> - --epoch <n>`: `take` refuses a CR
     with an agent recorded.
   - The `take` comes next: it holds the slot, or makes the CR wait for one like a queued CR when
     none is free.

@@ -576,6 +576,10 @@ these differences.
   <n>`.
 - **A dependent draft PR.** The Foreman's rule after an `order merged` (a ready draft waiting
   for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
+- **A note that carries work to a Driver.** The Foreman's rule applies to you: just before you
+  send one (a `rebase:` first of all), read a plain `$CHANTIER status` and choose from the state
+  it shows now: `ready` or `blocked`, `take <cr> --note` and the take-back path; `working`, the
+  message.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused force push is judged and run by you, as
