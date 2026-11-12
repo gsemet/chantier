@@ -10,7 +10,7 @@ the Chief of Staff alone is [real-direct](../real-direct/RUNBOOK.md).
 | CRs | 1 to 5 real, small items from the inbox (`.agents/changes/1-inbox/`), picked by the Chief of Staff with the user's go. Each goes through the usual grill and Spec-writer before `open`, like any CR: they are not invented defects. An item already specified (in the backlog or `3-ready`) skips the grill |
 | Open | `$CHANTIER open <A> <B> … --mode parallel --default-branch main --slots 3 --budget 20` |
 | Team | the plugin's agents |
-| Cost and time | about $7 for 4 CRs, 30 min |
+| Cost and time | about $2.50 per CR (2026-11-12: $5.03 for 2 CRs). Time grows with the CR count: the long gate takes about 16 min on this repository and runs one at a time, so the gates queue. Plan about 30 min plus 16 min per CR, and 16 min more for each long gate that fails (2026-11-12: 2 CRs, one failed gate, 64 min); 4 CRs take about 1 h 35 min or more |
 
 The two `3-ready` CRs prepared for `real` (`handback-after-rebase`, `heartbeat-odd-values`) run here, in
 real-foreman; [real-direct](../real-direct/RUNBOOK.md) takes fresh items. After this CR merges and before
