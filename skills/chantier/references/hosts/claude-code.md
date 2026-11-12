@@ -375,7 +375,7 @@ otherwise.
 | Open `localhost` or a file path | yes | no: send the file or a forge link | yes | unproved |
 | `/permissions`, `/config` | no: the app's own settings | no | yes | terminal dialogs; unproved |
 | Restart the app, `/reload-plugins`, open in an editor | yes (terminal: restart the CLI) | no | restart the CLI | the machine; unproved |
-| `/chantier-board` | yes | the pane does not show in a Remote Control view (`README.md`, the CR board) | yes | documented in the README |
+| `/chantier-board` | yes | the pane does not show in a Remote Control view (`docs/boards.md`) | yes | documented in `docs/boards.md` |
 | The remote board (`chantier board`) | yes | yes, when `board.host` is an address the phone reaches (Tailscale or the LAN) | yes | unproved; trial: open the board from the phone over Tailscale during a batch |
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |

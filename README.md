@@ -4,36 +4,44 @@ The construction site for your Software Factory.
 
 - **Change Requests beside your tracker.** A Change Request (CR) is one more level over your
   tracker's issues: small requests are accepted and prioritised here, without entering the
-  tracker ([more](#change-requests-lifecycle)).
+  tracker ([more](#change-requests-lifecycle)). A CR is a folder whose content varies, from one
+  line of text to several HTML prototypes; the agents read it and find the request's intent.
+
+  CRs are fungible in the plan: they can be handled, split, and so on.
+- **Working in batches.** chantier is not continuous delivery (1 intent = 1 PR = 1 release). It is
+  n CRs → m PRs (normally close to n) → p batches (1, 2, 3...) → 1 release.
 - **One person to talk to.** You talk to the Chief of Staff, in your own session. It keeps the
   backlog and asks the questions a change needs. Nothing starts without your go, and you merge
   the pull requests. Optional: a Griller session grills beside it.
 - **Direct or Foreman.** The Chief of Staff steers a batch itself (direct mode), or a nested
   Foreman session steers it (Foreman mode). In both a CR added while the batch runs is queued
-  and taken when a slot frees.
-- **Zero configuration.** Your `AGENTS.md`, and an optional `chantier.yaml` at the project's root (the agent and model of each role, the skills it needs), are the only configuration. Everything chantier writes
-  is Markdown and JSON in the planning folder: `.agents/changes/` in your project, or the
-  project's folder of an [external planning surface](docs/planning-modes.md).
+  and taken when a slot frees. Direct mode is simpler to use remotely, from a phone; Foreman mode
+  lets you grill future topics with the Chief of Staff naturally while the Foreman runs the batch.
+- **Respect the project's rules.** Your changes must be able to land without chantier: chantier is
+  there to industrialise. Your `AGENTS.md`, and an optional `chantier.yaml` at the project's root
+  (the agent and model of each role, the skills it needs), are the only configuration. Everything
+  chantier writes is Markdown and JSON in the planning folder: `.agents/changes/` in your project,
+  or the project's folder of an [external planning surface](docs/planning-modes.md).
 
 ## How Chantier works
 
-**Direct mode** (`/chantier:chief-of-staff direct`): the Chief of Staff steers the batch itself;
-it works in a remote session; to grill while a batch runs, open a Griller session.
+The detailed view first, then two simpler views, one per mode.
 
-![How chantier works, in direct mode](docs/how-chantier-works-simple-direct.svg)
+![How chantier works](docs/how-chantier-works.svg)
 
 **Foreman mode** (`/chantier:chief-of-staff`): a nested Foreman session steers each batch, at the
 desktop; your Chief of Staff stays free for a natural, dynamic conversation while it runs.
 
 ![How chantier works, in Foreman mode](docs/how-chantier-works-simple-foreman.svg)
 
+**Direct mode** (`/chantier:chief-of-staff direct`): the Chief of Staff steers the batch itself;
+it works in a remote session; to grill while a batch runs, open a Griller session.
+
+![How chantier works, in direct mode](docs/how-chantier-works-simple-direct.svg)
+
 The difference that matters most: in direct mode the Chief of Staff, busy steering, holds no
 grill while the batch runs; in Foreman mode it stays free to grill. In both, a new CR can join
 the running batch and waits for a free slot.
-
-The same, in detail:
-
-![How chantier works](docs/how-chantier-works.svg)
 
 ## Planning modes
 
@@ -224,271 +232,18 @@ Talk to the Chief of Staff in plain language:
 | "what did it cost?" | measured cost: the Foreman, each Driver type, each worker type, and why |
 | "use my `rust-coder` agent as the coder" | that role runs your agent from the next batch |
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
-| "our long gate is `npm test`" | the Chief of Staff proposes the exact `AGENTS.md` lines and writes them on your yes (see [Your gates](#your-gates)) |
+| "our long gate is `npm test`" | the Chief of Staff proposes the exact `AGENTS.md` lines and writes them on your yes (see [Your gates](docs/gates.md)) |
 | "which agents and models?" | the team: each role, its agent, its model (`chantier playbook`) |
 | "run the inspector on Opus" | a `model` for the role in `chantier.yaml`, which the CLI resolves to the exact model (or refuses an unknown or ambiguous name) |
 
-### The CR board (Claude Code)
+## More
 
-`/chantier-board` shows or hides the **CR board**, a read-only pane over
-the planning folder's `STATUS.json` (one section per project in a surface): the live batches with what waits for you and what is in
-progress, the backlog (and `3-ready`), and the merged and trashed CRs. Each live batch shows its slots
-(`Slots 2/4, 2 free`). Press a CR for its sheet and its documents.
-Loading the `chantier` or `chief-of-staff` skill opens it too (not `griller`). It refreshes every 15 seconds while open, writes
-nothing, and runs no process but `git rev-parse` to find the main checkout from a worktree. It is
-a Claude Code mod (early access): nothing of it on Copilot. The pane shows on the machine running
-the session, not in a Remote Control view
-([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)).
-The same mod starts an agent whose prompt holds a `writes:` line in its first folder and refuses
-its Write, Edit or NotebookEdit outside the folders named; a shell write is not guarded: the
-steering session reports what changed in the main checkout.
-
-### The remote board
-
-In remote there is no pane, so the Chief of Staff also starts a small web page, `chantier board`,
-that shows the same view: the batch with its CRs (state, round, cost, PR), the inbox, `3-ready`
-and the backlog, the last merged and trashed CRs, and each CR's files as text. It reloads
-itself every 30 seconds, is **read only** (to act, you talk to the Chief of Staff), writes no file
-and stops when its session leaves the seat. It listens on `127.0.0.1:8765` by default, so only the
-machine itself reaches it. To open it from your phone, set the address once in `chantier.yaml`
-(on your word, the Chief of Staff writes it):
-
-```yaml
-board:
-  host: 0.0.0.0   # or the machine's Tailscale address; default 127.0.0.1
-  port: 8765      # default 8765
-```
-
-Reach it over your private network: Tailscale (the tailnet's address) or your LAN (`0.0.0.0`
-listens on every network of the machine). **There is no password**: the Chief of Staff tells you
-the address and that fact when the board listens beyond the machine. You can also run it by hand:
-`chantier board --host <address> --port <n>`.
-
-### Your gates
-
-Two checks guard every change, in any project. You declare them in your `AGENTS.md`.
-
-- **The fast gate** (a short check): what the Coder runs after every round, and the Inspector may
-  run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
-  change.
-- **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
-  alone in the repository. `handback ready` requires it passed at the PR's head, and the
-  Verifier's `VERIFIED` there. One command may serve as both gates.
-
-Declare them with one line each, the exact commands, one command per item, never chained with
-`&&` or `;` (the Driver passes each as its own argument to `chantier gate`, so it runs the same
-way on every OS):
-
-```markdown
-- Fast gate (after each change): `npm run lint`, `npm test -- --changed`.
-- Long gate (before a pull request): `npm test`.
-- A change to the docs alone needs no long gate.
-```
-
-An exemption (the last line) and a project with no long gate at all (`This project has no long
-gate: <why>`) are written there too: the Driver quotes that rule with `handback ready
---no-gate`, and the Foreman (or the Chief of Staff steering) checks it. A rule that is not
-written is a question for you, never a pass.
-
-To have chantier declare them, say "init" (the tour looks for both gates and proposes the exact
-lines), or tell the Chief of Staff "our long gate is `<command>`". Either writes them only on
-your yes.
-
-### Your own agents
-
-Any role can run one of your agents, with a model of your choice and the skills it needs. Tell
-the Chief of Staff, and it writes them in an optional `chantier.yaml` at your project's root,
-shared with your team (with none, every role runs the plugin's agent):
-
-```yaml
-roles:
-  coder:
-    agent: rust-coder
-    model: opus
-    skills: [jira]
-  cr-driver:
-    agent: my-driver
-prices:                    # a model chantier has no price for yet, in $/MTok
-  claude-example-6-0:
-    input: 3
-    cache_write_5m: 3.75
-    cache_write_1h: 6
-    cache_read: 0.30
-    output: 15
-```
-
-The file's other keys are `prices` and `board` (where [the remote board](#the-remote-board) listens: `host`
-and `port`). Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
-incomplete price entry, with the line, and turns a model name into an exact identifier
-(`chantier playbook` shows the result); the agents pass it as printed. A host that cannot set a
-model when it starts an agent refuses a
-`model`. A required skill the Chief of Staff's session lacks is warned about, and the role works
-without it. The role's contract is its card in the skill, so your agent only needs the tools the
-role uses. Extra review steps stay in a `chantier` section of your `AGENTS.md`:
-
-```markdown
-## chantier
-
-- security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
-```
-
-A name that is not a built-in role becomes an extra review step: it runs after the Inspector
-approves and answers with the same verdict. A running batch keeps the team it started with.
-
-### Models
-
-| Role | Claude | Copilot |
-| --- | --- | --- |
-| Chief of Staff | your session (Opus 5.5 recommended) | your session |
-| Foreman | Sonnet 5.5, effort medium | Claude Opus 5.5 |
-| Stack and release drivers | Sonnet 5.5 | Claude Opus 5.5 |
-| CR driver | Sonnet 5.5 | Claude Sonnet 5.5 |
-| QA driver | Sonnet 5.5 | Claude Sonnet 5.5 |
-| Coder, Investigator, Debugger, Conflict resolver, Demo explorer | Sonnet 5.5 | GPT-5.6 Luna |
-| Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
-| Spec-writer | Opus 5.5 | Claude Opus 5.5 |
-
-By default every role but the Spec-writer runs Sonnet 5.5 on Claude Code. The roles that judge
-keep cards with goals and boundaries, not procedures. On a named trouble a task goes to a new
-agent on the escalation model (Opus 5.5 by default), and the report says so. On Copilot the models
-are its agent files' models.
-
-**No fallback:** if a host refuses a model, a tool or an agent, chantier stops and says so; it
-never picks a look-alike or a workaround.
-
-### Change Request lifecycle
-
-Everything lives in the planning folder, `.agents/changes/` in your project or
-`<surface>/projects/<name>/changes/` in an external surface:
-
-```text
-<planning folder>/
-├── 1-inbox/<slug>/                        filed, not prioritized
-├── 2-backlog/P1…P4/<slug>/                prioritized by you
-├── 3-ready/<slug>/                        waiting for the next batch, specified or automatable
-├── STATUS.md, STATUS.json                 the index: live batch, backlog table
-├── 4-batch/                             the one batch, until `close`; n counts all batches
-│   ├── batch.json, events.jsonl, brief.md, .lock   the batch's own files, local
-│   ├── retro.md                           the pauses' retro; `close` keeps it in the last merged CR's archive
-│   ├── STATUS.md, STATUS.json             the batch; once paused, its exit report
-│   ├── 1-pending/<number>-<slug>/         in the batch, not started
-│   ├── 2-actives/<number>-<slug>/         taken by a Driver: working, ready or blocked; named
-│   │                                      branch chantier/batch-<n>/… and worktree next to the repo
-│   └── 3-done/<number>-<slug>/            merged, until `close`
-├── 5-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged, after `close` (time of the merge, UTC)
-└── 6-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
-```
-
-The folder moves, it is never copied; collisions are errors rather than overwrites. `3-ready`
-holds what you say waits for the next batch (`chantier triage --ready`), with a specification or
-without one (then its Driver works from the request alone). A CR moves to `3-done` alone and at
-once when it merges, a stack's too, and to `5-archives` at `close`. A dropped CR goes to
-`6-trash/` and does not return to the backlog. A batch has no name, only a
-number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
-through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](#batch-modes), `open --mode parallel|series|stack`
-(parallel unless you ask otherwise). While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
-`work/` folder.
-
-External layout, beside it:
-
-```text
-<surface>/
-├── AGENTS.md                the surface's own rules (its sync, among others)
-└── projects/<name>/
-    ├── project.md           the project: remote, default branch, `- Archive in the PR: yes|no`
-    ├── checkout.yml         `repo:` and `worktrees:`, relative to this folder
-    └── changes/             the planning folder, as above
-```
-
-What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
-`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`) and the detailed logs
-(`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
-folder. A running CR's documents, reports and evidence are pushed with the surface. The archive
-has two places: the surface's `5-archives/` (with a `delivery.md`: the PR, the merge time) and,
-by the project's setting (default yes), a cleaned copy in the CR's PR, in external mode.
-
-`STATUS.md` and `STATUS.json` exist at three levels (the planning folder, `4-batch/`, the CR), each
-linking to the others. The CLI rewrites them at every state change, from the state alone; a
-status cell reads like `🔴 blocked Question 1/3`.
-
-The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
-(named by chantier, next to the repository), the steering session (the Foreman, or the Chief of
-Staff in direct mode) removes a merged CR's before the batch is paused, and the Chief of Staff
-removes a dropped CR's only on your word. When every CR is merged or cancelled, the batch is
-**paused** (`chantier pause`), not closed: its cost to date is computed and shown, and the
-steering session stays idle. Several CRs can be added to a paused batch, which stays paused until the first one starts, then runs
-again; it pauses again at the end, with the cost to date grown. A batch is closed only on your
-word ("close the batch"): `chantier close` refuses, naming the
-cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
-written in the last 5 minutes); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
-what goes (the batch's own files, the dropped CRs' worktrees and branches) and what moves to `5-archives`; if it cannot price it (no
-priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
-reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, keeps the batch's retro (`retro.md`) in the archive of the last merged CR (or in a `5-archives` folder named for the batch when none merged), deletes the batch's other files and removes the rest with git;
-without a yes, everything stays. Close last: those files hold the exit report and the event log.
-
-## Supported hosts
-
-For Foreman mode:
-
-| Host | Nested session | Foreman heartbeat |
-| --- | --- | --- |
-| Claude Desktop | `start_session`, left linked | 30 minutes |
-| Copilot SDK host | `create_session` + `send_message` | 4 minutes (`/every`) |
-
-Foreman mode refuses every other host (a VS Code tab, the terminal, ...), and the plan proposes
-direct mode there. An unattended run and a linked worktree are refused in both modes, with no
-fallback.
-
-Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a
-Remote Control session with no Foreman to reuse) and in a Copilot agent session, checked by
-`chantier preflight --direct`. The heartbeat is the same, run in the Chief of Staff's own
-session: `chantier status` prints "heartbeat N min" (since its last wake) or "heartbeat stopped"
-(a loop ended on purpose).
-
-**Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
-settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
-the Foreman an action (starting a Release driver, say) until you allow it in that session: type
-one line there saying so, from your phone if you are away, and it does that action once.
-
-| Forge | CLI | Where |
-| --- | --- | --- |
-| GitHub | `gh` | github.com, or GitHub Enterprise when `gh` is logged in to its host |
-| GitLab | `glab` | gitlab.com, or a self-managed server when `glab` is logged in to its host |
-
-The agents use the forge's CLI as it is logged in (`gh auth login`, `glab auth login --hostname
-<host>`), on the batch's git remote (`origin`, or `--remote`). Nothing is configured in chantier.
-
-On Windows, the CLI runs natively (no WSL). `chantier gate` runs the long gate in `cmd.exe`, so
-write it for it. `chantier cancel` ends a CR's processes at once, with no grace period, and
-finds stray ones by their command line only, since Windows does not expose another process's
-current directory.
-
-## Costs and budgets
-
-`chantier cost` reports what the Foreman's session and its subagents cost, in total and in one
-line for the Foreman, one per Driver type and one per worker type (or by CR), and the lines add up
-to the total. `chantier cost --explain` adds what explains each figure: the agents, the calls, the
-model, the shares of cost in cache reads, cache writes and output, the calls made after the cache
-expired and the Drivers restarted. The reports show them as a table with the ratio of orchestration
-(steering + Drivers over the batch's spend), the figures as printed. On Claude, chantier
-prices the transcripts with its own rates for the models the host offers; on Copilot, it reads
-per-call costs from
-[copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
-PyPI, and flags calls that were estimated rather than billed. In direct mode the steering is one
-`Chief of Staff, steering the batch` line, counted in the batch's spend and budget as a Foreman's is; the
-Chief of Staff's grill and specifications with you, and the rest of its session, stay apart on their own lines (a part that
-cannot be measured says `unknown`, and the compactions are counted, not priced). A missing
-transcript is an error, never a guess. The calls of a model with no price are counted and
-named, the figure is a floor (`at least`), and you add the price under `prices:` in
-`chantier.yaml`. The Foreman records the spend at each
-heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
-
-You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
-ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget,
-the split between Foreman, Drivers alone and workers alone, the costliest CRs and the Foreman's
-wakes and context (`chantier cost --summary`). The Chief of Staff's own session is priced apart:
-its line shows two figures (since the batch opened, the whole session) and its context size, and
-it is never in the batch's spend nor in its budget.
+- [Boards](docs/boards.md): the CR board and the remote board.
+- [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`.
+- [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
+- [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.
+- [Supported hosts](docs/hosts.md): hosts, forges and Windows.
+- [Costs and budgets](docs/costs.md): what a batch costs and how it is capped.
 
 ## Repository layout
 
@@ -512,7 +267,7 @@ skills/chantier/
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
-docs/                       ← diagrams, the user docs (tutorial, use cases), release notes
+docs/                       ← diagrams, the user docs (tutorial, use cases, reference pages), release notes
 ```
 
 ## Develop
