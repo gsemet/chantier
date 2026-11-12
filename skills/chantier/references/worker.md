@@ -37,7 +37,9 @@ are silent the plan decides, never a question to the user.
 
 Implement one round of the CR, with the fast gates green. Read the specification, the round's
 note and the previous notes; open the files the change needs, not whole folders. Never silence
-a failing gate. Output: changes in the worktree, not committed; `r<n>.md`: what changed, the
+a failing gate. Never add a byte-order mark to a file: on Windows PowerShell 5.1, `Out-File` and
+`Set-Content -Encoding utf8` add one ([concepts](concepts.md), rule 9). A file that already has
+one keeps it: add none, strip none. Output: changes in the worktree, not committed; `r<n>.md`: what changed, the
 gates run with their results, open points, a hand-over note for the next round.
 
 ## Inspector
@@ -127,8 +129,10 @@ pass, check that the images attached are the ones captured at the SHA they name.
 
 Rebase the CR's branch on its base and resolve the conflicts so both sides' intent survives. You
 may stage and continue the rebase; you never push. Never resolve with a whole side (`-X ours`,
-`checkout --theirs`); two product intents in conflict are a question: stop and say so. Run the
-fast gate after. Output: `conflicts.md`: each conflicted hunk and the choice made.
+`checkout --theirs`); two product intents in conflict are a question: stop and say so. Add no
+byte-order mark ([concepts](concepts.md), rule 9): before `git rebase --continue`, check that each
+resolved file starts as it did before the conflict (no new mark; one it already had is kept). Run
+the fast gate after. Output: `conflicts.md`: each conflicted hunk and the choice made.
 
 ## Demo explorer
 
