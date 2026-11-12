@@ -458,6 +458,10 @@ def test_the_sandbox_campaigns_name_only_frozen_crs_with_hidden_tests():
             if not slug.startswith("release-"):
                 assert list((kit / "sandbox-judge" / slug).glob("test_judge_*.py")), \
                     f"{name}: {slug} has no hidden test"
+            else:  # a release bumps the version: its lock moves with it (the judge checks `uv.lock`)
+                spec_text = (folder / "03-change-spec.md").read_text(encoding="utf-8")
+                files = spec_text.split("## Files", 1)[-1].split("\n## ", 1)[0]
+                assert "uv.lock" in files, f"{name}: {slug} does not name uv.lock in its Files"
     assert not list((kit / "sandbox-crs").rglob("test_*.py")), "a hidden test sits in a frozen CR"
     full = setup.sandbox_crs(sandbox["full"])
     assert len(full) == 13

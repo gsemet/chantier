@@ -56,6 +56,7 @@ def project_env() -> dict:
 
 
 def run(cmd, cwd=None, env=None, timeout=300) -> subprocess.CompletedProcess:
+    cmd = sandbox.resolve(cmd)  # `gh` by its full path: a `gh.cmd` launcher is found on Windows
     try:
         return subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=timeout)
@@ -127,6 +128,13 @@ def pytest(repo: Path, *targets: str) -> tuple[bool, str]:
     return False, line
 
 
+def lock_is_current(repo: Path) -> bool:
+    """`uv lock --check` in the clone: a stale `uv.lock` is a verdict on the work, not a run that
+    could not happen (`uv run --locked` would fail with no pytest summary)."""
+    done = run(["uv", "lock", "--check"], cwd=repo, env=project_env(), timeout=TIMEOUT)
+    return done.returncode == 0
+
+
 def run_hidden(repo: Path, files: list[Path]) -> tuple[bool, str, bool, str]:
     tests = repo / "tests"
     tests.mkdir(exist_ok=True)
@@ -147,6 +155,9 @@ def feature(repository: str, ref: str, slugs: list[str]) -> dict:
     try:
         repo = clone(repository, holder)
         sha = checkout(repo, ref)
+        if not lock_is_current(repo):
+            stale = f"FAIL: uv.lock is not up to date at {sha[:7]}"
+            return {"ok": False, "sha": sha, "hidden": stale, "suite": stale}
         ok_hidden, hidden, ok_suite, suite = run_hidden(repo, files)
         return {"ok": ok_hidden and ok_suite, "sha": sha, "hidden": hidden, "suite": suite}
     finally:
@@ -203,6 +214,8 @@ def release(version: str, repository: str, slugs: list[str]) -> tuple[bool, list
                              ("shelf.__version__", found and found[1]),
                              ("the first heading of CHANGELOG.md", heading and heading[1])):
             item(value == version, f"{where} is {value} at {tag} (want {version})")
+        if not lock_is_current(repo):
+            item(False, f"uv.lock is not up to date at {tag}")
         done = run(["uv", "run", "python", "scripts/release_check.py"], cwd=repo,
                    env=project_env(), timeout=TIMEOUT)
         last = tail(done.stdout)

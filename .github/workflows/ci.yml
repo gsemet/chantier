@@ -43,3 +43,16 @@ jobs:
           git config --global user.name "chantier CI"
           git config --global user.email "ci@example.com"
       - run: just scenario
+
+  eval-dry-run:
+    name: just eval-dry-run (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: extractions/setup-just@v3
+      - name: Git identity for the test repositories
+        run: |
+          git config --global user.name "chantier CI"
+          git config --global user.email "ci@example.com"
+      - run: just eval-dry-run

@@ -261,6 +261,18 @@ wrong in either batch, and the cost per batch and in total.
 | [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
 | [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or not all green) |
+| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`); no model, no GitHub |
+| [`kit/sandbox_forge.py`](kit/sandbox_forge.py) | The sandbox's GitHub played locally, called as `gh`, for the dry run only |
+| [`kit/dry-run/`](kit/dry-run/) | The reference solution of the staged CR, `delete-item` (`delete-item.patch`) |
+
+### Changing the kit
+
+- A change to `evals/kit/` passes `just eval-dry-run` at its pushed head. Its output is the
+  Verifier's evidence (`work/verifier/evidence/`), quoted in the PR body.
+- A new campaign behaviour, or a fault a run found, gets its case in the dry run in the same PR.
+- An eval-kit change gets an independent review of the whole campaign path (setup, a run, the
+  audit, the judge) before its merge, by a reviewer that did not write it. The dry run does not
+  replace it.
 
 ## The sandbox
 

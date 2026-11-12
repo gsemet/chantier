@@ -73,8 +73,17 @@ def remote_env() -> dict:
     return env
 
 
+def resolve(cmd: list) -> list:
+    """`gh` by its full path (`shutil.which` honours PATHEXT, so a `gh.cmd` launcher is found on
+    Windows); None from `which` leaves the name, and the call says it is not on the PATH."""
+    if cmd and cmd[0] == "gh":
+        return [shutil.which("gh") or "gh", *cmd[1:]]
+    return list(cmd)
+
+
 def run(cmd, cwd=None, data=None, env=None, code=EXTERNAL):
     """Run a command; on failure raise Stop with the tool's own error text."""
+    cmd = resolve(cmd)
     try:
         done = subprocess.run(cmd, cwd=cwd, input=data, capture_output=True, env=env)
     except FileNotFoundError:
@@ -205,7 +214,7 @@ def gh(*args, code=EXTERNAL) -> str:
 
 def check_preconditions() -> None:
     try:
-        done = subprocess.run(["gh", "auth", "status"], capture_output=True)
+        done = subprocess.run(resolve(["gh", "auth", "status"]), capture_output=True)
     except FileNotFoundError:
         raise Stop(PRECONDITION, "`gh` is not installed or not on the PATH") from None
     shown = (done.stdout + done.stderr).decode("utf-8", "replace")  # gh prints on either stream
@@ -236,9 +245,10 @@ def parse_refs(text: str) -> dict[str, str]:
     return refs
 
 
-def remote_refs(url: str = URL) -> dict[str, str]:
-    """The refs of the sandbox (the parameter is for the evidence; no option sets it)."""
-    return parse_refs(run(["git", "ls-remote", url], env=remote_env()))
+def remote_refs(url: str | None = None) -> dict[str, str]:
+    """The refs of the sandbox (the parameter is for the evidence; no option sets it). `URL` is
+    read at the call, so a dry run that rebinds it is followed."""
+    return parse_refs(run(["git", "ls-remote", url or URL], env=remote_env()))
 
 
 def ref_problems(refs: dict, base: str) -> list[str]:
