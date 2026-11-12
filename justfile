@@ -29,6 +29,10 @@ scenario:
     uv run --no-project python scenario/run_scenario.py --forge github
     uv run --no-project python scenario/run_scenario.py --forge gitlab
 
+# The eval kit's dry run: reset, setup, a staged run, the audit and the judge, on a local sandbox; no model, no GitHub
+eval-dry-run:
+    uv run --no-project python evals/kit/dry_run.py
+
 # The mod's checks: `claude plugin validate .` then `claude plugin test .` (not part of check: CI has no claude)
 mod:
     uv run --no-project python scripts/mod.py

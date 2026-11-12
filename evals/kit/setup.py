@@ -247,7 +247,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
         raise sandbox.Stop(PRECONDITION, f"{dest} is inside this repository ({ROOT}): an eval's "
                                          "workspace is outside it")
     try:
-        shown = subprocess.run(["gh", "auth", "status"], capture_output=True)
+        shown = subprocess.run(sandbox.resolve(["gh", "auth", "status"]), capture_output=True)
     except FileNotFoundError:
         raise sandbox.Stop(PRECONDITION, "`gh` is not installed or not on the PATH") from None
     if shown.returncode != 0:

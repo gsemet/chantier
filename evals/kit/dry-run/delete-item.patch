@@ -1,0 +1,157 @@
+diff --git a/README.md b/README.md
+index 123dda7..e701024 100644
+--- a/README.md
++++ b/README.md
+@@ -28,6 +28,7 @@ uv run --locked pytest -q           # the CI's command
+ | POST | `/items` | Adds an item from the form (`title`, `url`). On success: 303 to `/`. On invalid input: 400, the list page again with the error message and the values entered |
+ | GET | `/items/<id>` | The item's page; 404 page if unknown |
+ | POST | `/items/<id>/status` | Sets `status` from the form. 303 to the item's page; 400 on an unknown status; 404 on an unknown item |
++| POST | `/items/<id>/delete` | Deletes the item. 303 to `/`; 404 on an unknown item. An id is never given twice |
+ | GET | `/static/style.css` | The stylesheet |
+ | GET | `/healthz` | `{"status": "ok", "version": "<version>"}` as JSON |
+ 
+diff --git a/src/shelf/app.py b/src/shelf/app.py
+index 4f29bfa..253a1c8 100644
+--- a/src/shelf/app.py
++++ b/src/shelf/app.py
+@@ -13,6 +13,7 @@ from shelf.models import STATUSES, validate_new
+ STATIC = Path(__file__).parent / "static"
+ ITEM = re.compile(r"^/items/(\d+)$")
+ ITEM_STATUS = re.compile(r"^/items/(\d+)/status$")
++ITEM_DELETE = re.compile(r"^/items/(\d+)/delete$")
+ HTML = "text/html; charset=utf-8"
+ 
+ 
+@@ -84,6 +85,14 @@ def app(environ, start_response):
+         store.set_status(item_id, status)
+         return _redirect(start_response, f"/items/{item_id}")
+ 
++    match = ITEM_DELETE.match(path)
++    if match:
++        if method != "POST":
++            return _error(start_response, 405, [("Allow", "POST")])
++        if not store.remove(int(match.group(1))):
++            return _error(start_response, 404)
++        return _redirect(start_response, "/")
++
+     if path == "/static/style.css":
+         if method != "GET":
+             return _error(start_response, 405, [("Allow", "GET")])
+diff --git a/src/shelf/store.py b/src/shelf/store.py
+index 486a631..8a55f55 100644
+--- a/src/shelf/store.py
++++ b/src/shelf/store.py
+@@ -13,13 +13,19 @@ def data_path() -> Path:
+     return Path(os.environ.get("SHELF_DATA") or "shelf.json")
+ 
+ 
+-def load() -> list[dict]:
++def _read() -> list[dict]:
++    """Every record of the file: the items, and a `{"id": n, "deleted": true}` mark for each deleted
++    item, which keeps its id from being given twice."""
+     path = data_path()
+     if not path.exists():
+         return []
+     return json.loads(path.read_text(encoding="utf-8"))
+ 
+ 
++def load() -> list[dict]:
++    return [i for i in _read() if not i.get("deleted")]
++
++
+ def save(items: list[dict]) -> None:
+     path = data_path()
+     temporary = path.with_name(path.name + ".tmp")
+@@ -28,7 +34,7 @@ def save(items: list[dict]) -> None:
+ 
+ 
+ def add(title: str, url: str = "") -> dict:
+-    items = load()
++    items = _read()
+     item = {
+         "id": max((i["id"] for i in items), default=0) + 1,
+         "title": title,
+@@ -44,9 +50,20 @@ def get(item_id: int) -> dict | None:
+     return next((i for i in load() if i["id"] == item_id), None)
+ 
+ 
++def remove(item_id: int) -> bool:
++    """Delete an item; False when there is none. Its id stays taken."""
++    items = _read()
++    for position, item in enumerate(items):
++        if item["id"] == item_id and not item.get("deleted"):
++            items[position] = {"id": item_id, "deleted": True}
++            save(items)
++            return True
++    return False
++
++
+ def set_status(item_id: int, status: str) -> dict | None:
+-    items = load()
+-    item = next((i for i in items if i["id"] == item_id), None)
++    items = _read()
++    item = next((i for i in items if i["id"] == item_id and not i.get("deleted")), None)
+     if item is None:
+         return None
+     item["status"] = status
+diff --git a/src/shelf/templates/item.html b/src/shelf/templates/item.html
+index 0fe6ec2..a1a168b 100644
+--- a/src/shelf/templates/item.html
++++ b/src/shelf/templates/item.html
+@@ -7,4 +7,7 @@ $options
+       </select></label>
+       <button type="submit">Save</button>
+     </form>
++    <form method="post" action="/items/$id/delete">
++      <button type="submit">Delete</button>
++    </form>
+     <p><a href="/">Back to the list</a></p>
+diff --git a/tests/test_items.py b/tests/test_items.py
+index e6d4477..ac799c9 100644
+--- a/tests/test_items.py
++++ b/tests/test_items.py
+@@ -26,3 +26,44 @@ def test_the_title_has_at_most_200_characters():
+ @pytest.mark.parametrize("url", ["example.com", "ftp://example.com", "javascript:alert(1)"])
+ def test_the_link_starts_with_http_or_https(url):
+     assert "http" in validate_new("A book", url)[1]
++
++
++def _add(client, title):
++    assert client.post("/items", {"title": title, "url": ""}).status == 303
++
++
++def test_the_item_page_has_a_delete_form(client):
++    _add(client, "A book")
++    page = client.get("/items/1").text
++    assert '<form method="post" action="/items/1/delete">' in page
++    assert "Delete" in page
++
++
++def test_a_delete_removes_the_item_and_redirects_to_the_list(client):
++    _add(client, "First")
++    _add(client, "Second")
++    response = client.post("/items/1/delete", {})
++    assert response.status == 303
++    assert response.headers["location"] == "/"
++    assert "First" not in client.get("/").text
++    assert client.get("/items/1").status == 404
++    assert client.get("/items/2").status == 200
++
++
++def test_deleting_an_unknown_item_is_404(client):
++    assert client.post("/items/9/delete", {}).status == 404
++
++
++def test_get_on_the_delete_path_is_405(client):
++    _add(client, "A book")
++    assert client.get("/items/1/delete").status == 405
++    assert client.get("/items/1").status == 200
++
++
++def test_an_id_is_never_given_twice(client):
++    _add(client, "First")
++    _add(client, "Second")
++    client.post("/items/2/delete", {})
++    _add(client, "Third")
++    assert "Third" in client.get("/items/3").text
++    assert client.get("/items/2").status == 404

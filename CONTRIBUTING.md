@@ -91,6 +91,7 @@ just                # list the recipes
 just check          # structure tests: run before any PR
 just test -k agent  # structure tests, with pytest arguments
 just scenario       # one whole batch, end to end, through the real CLI and a fake gh, then glab
+just eval-dry-run   # the eval kit, end to end on a local sandbox: reset, setup, a staged run, audit, judge
 just mod            # the mod: claude plugin validate, then claude plugin test (needs a claude binary)
 ```
 
@@ -123,7 +124,8 @@ tests stand in for the file system, the process and the session's folder with th
 - Write code and docs in the style of the surrounding files: short sentences, exact terms.
 - Tests check the structure (versions, manifests, agents, references, and a smoke run in a fresh
   repository) in a few seconds. They do not evaluate the batch workflow: run `just scenario`
-  ([scenario/](scenario/README.md)) when you change it; CI runs it too, on Linux.
+  ([scenario/](scenario/README.md)) when you change it; CI runs it too, on Linux. A change to the eval kit
+  (`evals/kit/`) runs `just eval-dry-run`, as [Changing the kit](evals/README.md#changing-the-kit) says.
 - With real agents, the [eval campaigns](evals/README.md): one quick campaign (`real-foreman`
   or `real-direct`, five frozen CRs on the sandbox) after a change to a role or the flow, in the
   mode it touched; `full` and both quick campaigns before a release; `claude-planted` after a
@@ -131,7 +133,7 @@ tests stand in for the file system, the process and the session's folder with th
   failures; `copilot` for a change to Copilot's mechanics. Each run commits its report, with the
   [scorecard](evals/SCORECARD.md) for the Claude campaigns.
 - `main` is protected: every change goes through a pull request, merged by rebase once CI
-  (`just check` on Linux, macOS and Windows, and `just scenario` on Linux) is green.
+  (`just check` on Linux, macOS and Windows, and `just scenario` and `just eval-dry-run` on Linux) is green.
 
 ## Versions
 

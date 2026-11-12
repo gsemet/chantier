@@ -476,8 +476,13 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
         if a.role in DRIVERS:
             pushes = [re.split(r"[;&|\n]", c[m.end():], maxsplit=1)[0]
                       for c, m in a.git_matches(GIT_PUSH)]
-            check(all(re.search(r"--force-with-lease|(^|\s)(-u|--set-upstream)\b", p)
-                      for p in pushes),
+            # a release tag is pushed by name, once (RELEASING.md step 6): not a branch push
+            def lawful(p: str) -> bool:
+                if re.search(r"--force-with-lease|(^|\s)(-u|--set-upstream)\b", p):
+                    return True
+                forced = re.search(r"(^|\s)(-[a-zA-Z]*f[a-zA-Z]*|--force)(\s|$)", p)
+                return not forced and re.search(r"\sorigin\s+v\d+\.\d+\.\d+\s*$", p) is not None
+            check(all(lawful(p) for p in pushes),
                   f"{a.id[:10]} ({a.role}) pushes with a lease or a first upstream, never --force",
                   "J4", seen=bool(pushes))
             adds = a.git_calls(GIT_ADD_ALL)
@@ -589,6 +594,7 @@ def release_checks(data: dict, events: list[dict], remote: str, calls: list[dict
 
 def run_cmd(cmd: list[str], cwd: Path | None = None, timeout: int = 90) -> tuple[bool, str]:
     """A read-only command: whether it worked, and its stdout (else the last line of its text)."""
+    cmd = sandbox.resolve(cmd)  # `gh` by its full path: a `gh.cmd` launcher is found on Windows
     try:
         p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=timeout)
