@@ -20,6 +20,11 @@ named, the figure is a floor (`at least`), and you add the price under `prices:`
 `chantier.yaml`. The Foreman records the spend at each
 heartbeat (`chantier status --refresh`); past the batch budget it starts nothing new.
 
+An example of the report's cost tables, for a batch that is done: the cost by role with the
+orchestration share, the spend outside the batch and the cost notes.
+
+![A status report of a done batch, with its cost tables](status-report-done.png)
+
 You get the cost without asking: the Chief of Staff adds a CR's line when it tells you the CR is
 ready or merged, and the batch's `STATUS.md` (its exit report) ends with the total, the budget,
 the split between Foreman, Drivers alone and workers alone, the costliest CRs and the Foreman's

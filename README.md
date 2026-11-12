@@ -14,9 +14,11 @@ The construction site for your Software Factory.
   backlog and asks the questions a change needs. Nothing starts without your go, and you merge
   the pull requests. Optional: a Griller session grills beside it.
 - **Direct or Foreman.** The Chief of Staff steers a batch itself (direct mode), or a nested
-  Foreman session steers it (Foreman mode). In both a CR added while the batch runs is queued
-  and taken when a slot frees. Direct mode is simpler to use remotely, from a phone; Foreman mode
-  lets you grill future topics with the Chief of Staff naturally while the Foreman runs the batch.
+  Foreman session steers it (Foreman mode). The mode follows where you are: Foreman at the
+  desktop, direct from the phone under Remote Control, or in a terminal or VS Code; `foreman` or
+  `direct` forces one. In both a CR added while the batch runs is queued and taken when a slot
+  frees. Direct mode is simpler to use remotely, from a phone; Foreman mode lets you grill future
+  topics with the Chief of Staff naturally while the Foreman runs the batch.
 - **Respect the project's rules.** Your changes must be able to land without chantier: chantier is
   there to industrialise. Your `AGENTS.md`, and an optional `chantier.yaml` at the project's root
   (the agent and model of each role, the skills it needs), are the only configuration. Everything
@@ -25,25 +27,41 @@ The construction site for your Software Factory.
 
 ## How Chantier works
 
+Everything starts with a new session and one boot skill, `/chantier:chief-of-staff`, with or
+without an argument. With none, the mode follows the surface; `foreman` or `direct` forces one.
+
 The detailed view first, then two simpler views, one per mode.
 
 ![How chantier works](docs/how-chantier-works.svg)
 
-**Foreman mode** (`/chantier:chief-of-staff`): a nested Foreman session steers each batch, at the
-desktop; your Chief of Staff stays free for a natural, dynamic conversation while it runs.
+**Foreman mode** (`/chantier:chief-of-staff` at the desktop, or `/chantier:chief-of-staff foreman`):
+a nested Foreman session steers each batch; your Chief of Staff stays free for a natural, dynamic
+conversation while it runs.
 
 ![How chantier works, in Foreman mode](docs/how-chantier-works-simple-foreman.svg)
 
-**Direct mode** (`/chantier:chief-of-staff direct`): the Chief of Staff steers the batch itself;
-it works in a remote session; to grill while a batch runs, open a Griller session.
+**Direct mode** (`/chantier:chief-of-staff` under Remote Control, in a terminal or VS Code, or
+`/chantier:chief-of-staff direct`): the Chief of Staff steers the batch itself; it works in a
+remote session; to grill while a batch runs, open a Griller session.
 
 ![How chantier works, in direct mode](docs/how-chantier-works-simple-direct.svg)
+
+![A direct batch: the Chief of Staff's transcript, its Drivers and a Verifier in the Background tasks, and the CR board](docs/direct-mode-session.png)
+
+A direct batch: the Drivers run straight from the current session.
+
+While the batch runs, the Chief of Staff in direct mode declines to grill new requests and points
+you to a separate Griller session (`/chantier:griller`).
 
 The difference that matters most: in direct mode the Chief of Staff, busy steering, holds no
 grill while the batch runs; in Foreman mode it stays free to grill. In both, a new CR can join
 the running batch and waits for a free slot.
 
 ## Planning modes
+
+Chantier works on Change Requests, a folder of Markdown files describing what you want. It starts
+from an intent, written by hand or taken from a Jira, GitHub or GitLab issue, and the Chief of
+Staff helps you turn it into a Change Specification.
 
 Chantier plans in one of two places, the **planning folder**:
 
@@ -64,6 +82,10 @@ The full account (the surface, what stays local, archives, outside contributors,
 one up) is in [planning modes](docs/planning-modes.md).
 
 ## Batch modes
+
+Chantier is meant to work a set of changes and deliver them in coordination. Most of the time you
+plan a set of CRs ahead and build a batch: for instance you grill during the day and chantier
+implements the whole batch on its own overnight, up to a ready-to-merge PR/MR stack.
 
 A batch has one of three modes. They say how the pull requests of the batch relate, and who merges
 what, when. You never merge through chantier: you merge, and the steering session guides you.
@@ -125,52 +147,24 @@ A release is a CR like the others: a Release driver runs it by your project's ow
 
 ![What a Release driver does](docs/release-driver.svg)
 
-## What is Chantier?
+A release procedure ranges from a simple package publish (PyPI, npm) to a long one, and the
+Release Driver and the Chief of Staff follow your project's own. For example, one project's
+procedure, which the Release Driver follows with the tools its session has, each irreversible step
+on your approval: the project publishes to GitHub Pages and to a marketplace, so the Release Driver
+creates the release and its notes and puts them up for review, follows the release pipeline, waits
+for the marketplace to publish (about ten minutes on the VS Code marketplace, an order of size),
+publishes the release notes and the announcement thread on X/Twitter, then holds a retro that
+improves the procedure, which stays written and maintained in the project.
 
-You only ever talk to the **Chief of Staff**, in your own session.
-It keeps the backlog, asks you the questions a change needs, and starts work only on your go.
+## The CR board
 
-1. **It learns your project.** It reads your `AGENTS.md` (or `CLAUDE.md`) for how you build,
-   test, ship, merge and release, your default branch and your team, and asks you what it does
-   not say. There is nothing else to configure: every agent reads the same file.
-2. **You file work.** Each item becomes a **Change Request**: a folder that keeps the raw request
-   (`intake/`), its analysis (`01-intent.md`), every answer you give (`02-answers.md`) and the
-   self-contained **Change Specification** (`03-change-spec.md`), and, when it needs another CR
-   first, a `depends.json` (`{"after": ["<slug>"]}`). After the grill, the Chief of Staff
-   restates the CR and asks whether it is grilled enough; on your word a **spec-writer** agent
-   writes `03-change-spec.md` in the background, and the Chief of Staff reviews it against your
-   answers before showing it to you.
-3. **You start a batch** ("run the P1s"; four slots; the CRs run in parallel unless you ask for a [series or a stack](#batch-modes)). After a preflight and your go, the
-   Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (proposed when the
-   host cannot start a Foreman session, or the batch is small) no Foreman starts: the Chief of
-   Staff steers the batch from its own session, with the same limits, folders and reports, and a
-   batch (a CR added while it runs is queued and taken when a slot frees, and a paused batch takes several, the first start setting it running); it may switch to Foreman mode on your word.
-   Direct mode is less dynamic than Foreman mode (the Chief
-   of Staff, busy steering, holds no grill in that session) but has the same lifecycle: a batch is
-   running, then paused, then closed on your word. See [direct mode](docs/use-cases-direct.md).
-4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
-   running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
-5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
-   in it: Investigator, Coder, Inspector, Debugger, Verifier, Conflict resolver, and any review
-   step you added. Then it commits, rebases, pushes, opens the PR and watches its CI itself,
-   with `git` and `gh` or `glab`, as your project says. The Driver writes the PR description from
-   the default template shipped in the skill
-   (`skills/chantier/references/pr-template.md`), unless your project has its own template,
-   which ranks above it.
-6. **The Foreman reports back** (the Chief of Staff, in direct mode). You steer through the Chief
-   of Staff (add, drop, a note on a CR; "I merged #42"); it forwards one `order` line to the
-   Foreman. You merge; the Foreman merges only a release's PR or fix, on your word.
-7. **A Release driver releases, when you ask.** It follows your project's own procedure, and
-   stops for your approval before each irreversible action.
+On Claude Code, the CR board is a read-only pane over the planning folder: the live batches, what
+waits for you, the backlog and the merged CRs. Open it with `/chantier-board`, or by loading the
+Chief of Staff.
 
-The agents do the work, git and the forge included. The `chantier` Python CLI (`uv run`) is
-the frame beside them, in the planning folder (`.agents/changes/`, or an external surface), as plain JSON and Markdown: the CR lifecycle
-(inbox, backlog, batch, archives, trash), the batch's limits (slots, budget, rounds, your word
-on an irreversible action), the record (each CR's branch and worktree names, its PR, the long
-gate's log, the cost, the `STATUS` files) and the lines that synchronise the team (orders, asks,
-hand-backs, notes). It refuses what the batch does not allow and tells an agent what is off (an
-unpushed head, a worktree not yet created); it decides nothing: the Foreman and the Drivers do,
-under your project's own rules (`AGENTS.md` and what it links rank above chantier's cards).
+![The CR board, a batch just opened](docs/board-mod-batch.png)
+
+See [boards](docs/boards.md) for how to open it and how to read it.
 
 ## Install
 
@@ -204,8 +198,9 @@ then browse the [use cases](docs/use-cases.md), with one page per configuration:
 outside your project's repository, see [planning modes](docs/planning-modes.md).
 
 Then restart the session and type one of the entries (on Claude Code, `/chantier:<name>`):
-`/chantier` asks which role this session takes, `/chief-of-staff` makes it the Chief of Staff
-(`/chief-of-staff direct` to steer batches itself), `/griller` makes it a Griller, a session that
+`/chantier` asks Chief of Staff or Griller, `/chief-of-staff` makes it the Chief of Staff, its
+mode following the surface (`/chief-of-staff foreman` or `/chief-of-staff direct` to force one),
+`/griller` makes it a Griller, a session that
 refines the inbox and the backlog while the Chief of Staff runs batches, and `/chantier:status` gives the progress report of the running batch at once, in the same shape as the Chief of Staff's. Besides
 the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); working on a
 repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab.
@@ -224,7 +219,7 @@ Talk to the Chief of Staff in plain language:
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background |
-| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode |
+| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`) |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
 | "close the batch" | the check and the final cost, then closing on your yes |
@@ -244,31 +239,6 @@ Talk to the Chief of Staff in plain language:
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.
 - [Supported hosts](docs/hosts.md): hosts, forges and Windows.
 - [Costs and budgets](docs/costs.md): what a batch costs and how it is capped.
-
-## Repository layout
-
-```text
-.claude-plugin/             ← Claude Code plugin manifest and marketplace
-.github/plugin/             ← GitHub Copilot plugin manifest and marketplace
-agents/                     ← Claude Code agents, one per role
-hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of a worker's writes
-com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
-skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
-skills/griller/             ← the Griller's entry point (thin)
-skills/status/              ← `/chantier:status`, the progress report (thin: it loads status-layout.md)
-skills/chantier/
-├── SKILL.md                ← the router: asks which role this session takes
-├── references/             ← one file per running context: concepts, session-start,
-│                             chief-of-staff, griller, report, foreman, driver, worker, routing,
-│                             spec-writer, init,
-│                             pr-template, release-template, and hosts/ (one
-│                             reference per host: Claude Code, Copilot)
-└── scripts/cli/            ← the `chantier` CLI and its tests
-scenario/                   ← one whole batch, scripted, no model
-evals/                      ← eval campaigns with real agents, and their reports
-scripts/                    ← version tooling, run by `just`
-docs/                       ← diagrams, the user docs (tutorial, use cases, reference pages), release notes
-```
 
 ## Develop
 

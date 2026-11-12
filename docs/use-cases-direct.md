@@ -7,9 +7,10 @@ slots and steers the batch from your own session. The limits (slots, budget, rou
 project, ready work, PR descriptions, your own agents, cost) are on the
 [common page](use-cases.md).
 
-The plan proposes direct mode when the host cannot start a Foreman session (a terminal or IDE
-host, a Remote Control session with no Foreman to reuse), and says why. Your go approves it. You
-can also start the session in this mode (`/chantier:chief-of-staff direct`) or say so.
+With no argument (`/chantier:chief-of-staff`), the plan names direct mode, and why, when the
+session is under Remote Control or the host cannot start a Foreman session (a terminal or IDE
+host). Your go approves it. You can also force it for the session
+(`/chantier:chief-of-staff direct`) or say so.
 
 ## Same lifecycle, less dynamic
 

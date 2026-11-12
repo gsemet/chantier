@@ -9,13 +9,14 @@ For Foreman mode:
 | Claude Desktop | `start_session`, left linked | 30 minutes |
 | Copilot SDK host | `create_session` + `send_message` | 4 minutes (`/every`) |
 
-Foreman mode refuses every other host (a VS Code tab, the terminal, ...), and the plan proposes
-direct mode there. An unattended run and a linked worktree are refused in both modes, with no
+Foreman mode refuses every other host (a VS Code tab, the terminal, ...): with no argument the
+batches are direct mode there, and a forced `foreman` is refused with the reason. An unattended run and a linked worktree are refused in both modes, with no
 fallback.
 
 Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a
-Remote Control session with no Foreman to reuse) and in a Copilot agent session, checked by
-`chantier preflight --direct`. The heartbeat is the same, run in the Chief of Staff's own
+Remote Control session) and in a Copilot agent session, checked by `chantier preflight --direct`.
+With no argument it is the mode under Remote Control and on a host that cannot start a Foreman;
+`direct` forces it anywhere. The heartbeat is the same, run in the Chief of Staff's own
 session: `chantier status` prints "heartbeat N min" (since its last wake) or "heartbeat stopped"
 (a loop ended on purpose).
 

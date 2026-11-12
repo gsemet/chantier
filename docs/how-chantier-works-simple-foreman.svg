@@ -39,7 +39,7 @@
   <!-- Chief of Staff -->
   <rect x="390" y="132" width="440" height="96" rx="12" fill="#1e3a8a"/>
   <text x="610" y="165" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
-  <text x="610" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff</text>
+  <text x="610" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff · desk or foreman</text>
   <text x="610" y="212" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · stays free to talk while the batch runs</text>
 
   <!-- Spec-writer: the Chief of Staff's agent -->

@@ -36,7 +36,7 @@
   <!-- Chief of Staff -->
   <rect x="390" y="132" width="440" height="96" rx="12" fill="#1e3a8a"/>
   <text x="610" y="165" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
-  <text x="610" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff direct</text>
+  <text x="610" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff · remote or direct</text>
   <text x="610" y="212" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · plays the Foreman's role</text>
   <rect x="714" y="139" width="108" height="22" rx="11" fill="#ffffff"/>
   <text x="768" y="154.5" font-size="12.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">direct mode</text>

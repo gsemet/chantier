@@ -33,7 +33,7 @@ your rules, your gates
 ```md
 ## 🤵 Chief of Staff
 
-/chantier:chief-of-staff
+/chantier:chief-of-staff · desk or foreman
 your session · stays free to talk while the batch runs
 ```
 

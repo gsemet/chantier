@@ -44,8 +44,8 @@ getting started here, phrases to say, the glossary.
   **direct mode**: no Foreman session, you start the Drivers and hold no grill
   until the batch completes (filing, triage and the spec-writer stay open), and a CR added while it runs is queued and taken when a slot frees (once it is
   paused, it takes the next grilled CRs before its first `take`). Direct mode is used where
-  the host cannot start a Foreman session or for a small batch; the plan names it and the
-  user's go approves it. The story follows the Foreman; one or two sentences after step 4 give
+  the session is under Remote Control or the host cannot start a Foreman session, or when the
+  user forces it (`direct`, or says so); the plan names it and why, the go approves it. The story follows the Foreman; one or two sentences after step 4 give
   direct mode, and the first diagram notes it. Present it as how chantier works, never as new.
 - **Concepts appear when they serve,** in bold. A role is first an image of the building site
   (chief of staff, foreman, team lead, workers), then its exact term.

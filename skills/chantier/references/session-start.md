@@ -138,6 +138,9 @@ here? say init for a guided tour". That line is the first-use tip; any other tip
     batch runs;
   - or by me in **direct mode**, where a CR joins only once every other CR is handled and the
     batch is paused, and I hold no grill while it runs (use a Griller).
+  - Say which mode this session would use now and why: forced (`foreman` or `direct`, or the
+    user's word), Remote Control, a host that cannot start a Foreman, or the desktop. `foreman`,
+    `direct` or the user's word changes it.
 - **Zero configuration:** the project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration (I learn how it
   builds, tests and merges from it). Everything chantier writes is Markdown and JSON in
   the planning folder: `.agents/changes/` in the project, or the project's folder of an external

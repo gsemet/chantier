@@ -3,8 +3,8 @@ name: chantier
 icon: 🏗️
 color: yellow
 description: >-
-  The entry that asks which role you want in this session: the Chief of Staff (with a Foreman,
-  or in direct mode) or a Griller, then loads that skill. Use when the user addresses chantier
+  The entry that asks which role you want in this session: the Chief of Staff or a Griller,
+  then loads that skill. Use when the user addresses chantier
   without a role, and when the user says "chantier reload" (the session reads chantier's rules
   again, typically after a compaction). `/chantier:chief-of-staff` and `/chantier:griller` start a role directly; `/chantier:status` gives the progress report.
 ---
@@ -27,8 +27,8 @@ With the argument `reload`, or on the words "chantier reload", follow `session-s
 "5. Reload", and do nothing else of this file: ask no role.
 
 - With **no live Chief of Staff in the seat** (none, or a session that looks stopped): ask the
-  user, in one question, which role they want in this session: the Chief of Staff (Foreman mode),
-  the Chief of Staff in direct mode, or a Griller. Then load that skill by the host's means and
-  follow it: `chief-of-staff` (with the argument `direct` for the second) or `griller`.
+  user, in one question, which role they want in this session: the Chief of Staff or a Griller.
+  Then load that skill by the host's means and follow it: `chief-of-staff` with no argument (its
+  mode follows the surface) or `griller`.
 - With a **live Chief of Staff in the seat**: ask nothing; behave as `/chantier:chief-of-staff`
   does (its table in `session-start.md`).
