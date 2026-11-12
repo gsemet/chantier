@@ -50,6 +50,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 import judge  # noqa: E402  (the hidden tests and the release judge)
+import sandbox  # noqa: E402  (the merge's rule of a green PR, shared with J5)
 
 SCORECARD = ROOT / "evals" / "SCORECARD.md"
 CLI = ROOT / "skills" / "chantier" / "scripts" / "cli" / "chantier.py"
@@ -613,39 +614,65 @@ def forge_view(link: str) -> tuple[dict | None, str]:
 
 def green(rollup: list[dict]) -> bool:
     """Every check passed: a skipped or neutral job is never a green one."""
-    return bool(rollup) and all((x.get("conclusion") or x.get("state")) == "SUCCESS" for x in rollup)
+    return sandbox.checks_green(rollup)
 
 
 def pr_number(link: str) -> str:
     return link.rstrip("/").rsplit("/", 1)[-1]
 
 
+def batch_prs(data: dict, events: list[dict]) -> dict[str, list[str]]:
+    """Every PR link the batch recorded for each CR: its `ship` events' `pr`, in log order; its
+    `merged: <link>` notes (the CLI clears a release's `pr` when it is merged); its current `pr`.
+    One PR number appears once."""
+    found: dict[str, list[str]] = {}
+    for c in data["crs"]:
+        links = [e["pr"] for e in events if e.get("kind") == "ship" and e.get("cr") == c["id"]
+                 and e.get("pr")]
+        for note in c.get("notes") or []:
+            text = note if isinstance(note, str) else str((note or {}).get("text") or "")
+            if text.startswith("merged: ") and "://" in text[8:]:
+                links.append(text[8:].strip())
+        if c.get("pr"):
+            links.append(c["pr"])
+        seen, kept = set(), []
+        for link in links:
+            if pr_number(link) not in seen:
+                seen.add(pr_number(link))
+                kept.append(link)
+        found[c["id"]] = kept
+    return found
+
+
 def sandbox_checks(data: dict, events: list[dict], run: dict, check: Checks) -> dict:
-    """J5 and C12 from the real forge (`gh`, read-only); returns each CR's PR view by CR id."""
+    """J5 and C12 from the real forge (`gh`, read-only); returns the view of each CR's last PR by
+    CR id."""
     default = (data.get("settings") or {}).get("default_branch")
     prefix, repo = run["prefix"], run["repository"]
-    views = {}
+    prs = batch_prs(data, events)
+    views, merged_links = {}, {}
     for c in data["crs"]:
-        if not c.get("pr"):
-            continue
-        n = pr_number(c["pr"])
-        view, error = forge_view(c["pr"])
-        if view is None:
-            check(False, f"{c['id']} PR {n}: `gh pr view` said: {error}", "J5", seen=False)
-            continue
-        views[c["id"]] = view
-        problems = []
-        if not str(view.get("title") or "").startswith(prefix + " "):
-            problems.append(f"title {str(view.get('title'))[:50]!r} does not start with the prefix")
-        if view.get("autoMergeRequest"):
-            problems.append("auto-merge is on")
-        if c["status"] != "cancelled" and not green(view.get("statusCheckRollup") or []):
-            problems.append("checks at its head are not all green")
-        if view.get("state") == "MERGED" and view.get("baseRefName") != default:
-            problems.append(f"merged into {view.get('baseRefName')}, not {default}")
-        check(not problems, f"{c['id']} PR {n}: title starts with the prefix, no auto-merge, checks "
-                            "green at its head, merged (if merged) into the default branch"
-                            + (f": {'; '.join(problems)}" if problems else ""), "J5")
+        for link in prs[c["id"]]:
+            n = pr_number(link)
+            view, error = forge_view(link)
+            if view is None:
+                check(False, f"{c['id']} PR {n}: `gh pr view` said: {error}", "J5", seen=False)
+                continue
+            views[c["id"]] = view
+            merged_links[link] = view.get("state") == "MERGED"
+            problems = []
+            if not str(view.get("title") or "").startswith(prefix + " "):
+                problems.append(f"title {str(view.get('title'))[:50]!r} does not start with the prefix")
+            if view.get("autoMergeRequest"):
+                problems.append("auto-merge is on")
+            if c["status"] != "cancelled" and view.get("state") != "CLOSED" \
+                    and not green(view.get("statusCheckRollup") or []):
+                problems.append("checks at its head are not all green")
+            if view.get("state") == "MERGED" and view.get("baseRefName") != default:
+                problems.append(f"merged into {view.get('baseRefName')}, not {default}")
+            check(not problems, f"{c['id']} PR {n}: title starts with the prefix, no auto-merge, checks "
+                                "green at its head, merged (if merged) into the default branch"
+                                + (f": {'; '.join(problems)}" if problems else ""), "J5")
     # C12: a PR of this run that merged after the batch opened is a PR of this batch
     ok, out = run_cmd(["gh", "pr", "list", "--repo", repo, "--state", "merged", "--limit", "1000",
                        "--json", "number,title,mergedAt"], timeout=120)
@@ -653,15 +680,15 @@ def sandbox_checks(data: dict, events: list[dict], run: dict, check: Checks) -> 
         check(False, f"`gh pr list` said: {out}", "C12", seen=False)
     else:
         opened = str(data.get("created") or "")[:19]
-        ours = {pr_number(c["pr"]) for c in data["crs"] if c.get("pr")}
+        ours = {pr_number(link) for links in prs.values() for link in links}
         strays = [f"#{p['number']}" for p in json.loads(out)
                   if str(p.get("title") or "").startswith(prefix)
                   and str(p.get("mergedAt") or "")[:19] >= opened and str(p["number"]) not in ours]
         check(not strays, "every PR of this run's prefix merged since the batch opened is a PR of "
                           "this batch" + (f": {strays[:3]}" if strays else ""), "C12")
     if data.get("release"):
-        want = [c for c in data["crs"] if c.get("kind") in ("release", "fix")
-                and (views.get(c["id"]) or {}).get("state") == "MERGED"]
+        want = [link for c in data["crs"] if c.get("kind") in ("release", "fix")
+                for link in prs[c["id"]] if merged_links.get(link)]
         recorded = [e for e in events if e.get("kind") == "order" and e.get("order_kind") == "merged"
                     and e.get("actor") == "foreman"]
         check(len(recorded) >= len(want), "each merge of the release or a fix is recorded with "
@@ -820,8 +847,11 @@ def merged_slugs(data: dict, changes: Path, before: dict | None = None) -> list[
     return list(dict.fromkeys(found))
 
 
-def judge_rows(data: dict, ws: Path, changes: Path, views: dict) -> list[list[str]]:
-    """One row per CR, then `main`: [CR, PR, head judged, hidden tests, suite, result]."""
+def judge_rows(data: dict, ws: Path, changes: Path, views: dict,
+               prs: dict | None = None) -> list[list[str]]:
+    """One row per CR, then `main`: [CR, PR, head judged, hidden tests, suite, result]. A release's
+    PR column holds the numbers of all its PRs (`prs`, from `batch_prs`)."""
+    prs = prs or {}
     origin = git_out("remote", "get-url", "origin", cwd=ws)
     rows = []
 
@@ -831,6 +861,8 @@ def judge_rows(data: dict, ws: Path, changes: Path, views: dict) -> list[list[st
     for c in data["crs"]:
         label = f"{c['id']} {slug_of(c) or c['title']}"
         pr = pr_number(c["pr"]) if c.get("pr") else "-"
+        if c.get("kind") == "release":
+            pr = ", ".join(pr_number(link) for link in prs.get(c["id"], [])) or "-"
         head = (c.get("head") or "")[:7] or "-"
         if c["status"] == "cancelled":
             rows.append(not_run([label, pr, head], "cancelled"))
@@ -1010,7 +1042,7 @@ def main() -> int:
     status = print_checks(check, rows)
     extra: list[str] = []
     if run:
-        line, failed = print_judge(judge_rows(data, ws, changes, views))
+        line, failed = print_judge(judge_rows(data, ws, changes, views, batch_prs(data, events)))
         extra = real_cost(ws, batch, direct)
         extra.append(f"- **{line}**")
         status = status or (1 if failed else 0)

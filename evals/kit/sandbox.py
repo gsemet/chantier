@@ -2,10 +2,13 @@
 
     uv run --no-project python evals/kit/sandbox.py build [<dest>] [--record]
     uv run --no-project python evals/kit/sandbox.py reset [--yes]
+    uv run --no-project python evals/kit/sandbox.py merge <pr> [--workspace <dir>]
 
 `build` turns `kit/sandbox/` into one root commit that is the same, down to its SHA-1, on every
 machine, and compares that SHA-1 with `kit/sandbox.json`. `reset` puts the sandbox repository back
-at the recorded commit: the only force push on the sandbox, and it does nothing without --yes.
+at the recorded commit: the only force push on the sandbox, and it does nothing without --yes; it
+compares branches and tags only (GitHub keeps `refs/pull/*`). `merge` is how the operator, who
+plays the user, merges a run's PR: it is the kit's only merge, and `reset` stays the only force push.
 The repository is a constant: no argument or variable changes it.
 
 Exit codes: 0 ok, 1 usage, 2 precondition, 4 external (git or gh failed).
@@ -17,6 +20,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -221,13 +225,36 @@ def check_preconditions() -> None:
                                  "`gh auth setup-git` yourself (this script does not)")
 
 
-def remote_refs() -> dict[str, str]:
+def parse_refs(text: str) -> dict[str, str]:
+    """`git ls-remote` output as {ref: sha}, branches and tags only: no HEAD, no peeled tag, and
+    nothing under refs/pull/ (GitHub keeps those forever and no push can delete them)."""
     refs = {}
-    for line in run(["git", "ls-remote", URL], env=remote_env()).splitlines():
+    for line in text.splitlines():
         sha, _, ref = line.partition("\t")
-        if ref != "HEAD" and not ref.endswith("^{}"):
+        if ref.startswith(("refs/heads/", "refs/tags/")) and not ref.endswith("^{}"):
             refs[ref] = sha
     return refs
+
+
+def remote_refs(url: str = URL) -> dict[str, str]:
+    """The refs of the sandbox (the parameter is for the evidence; no option sets it)."""
+    return parse_refs(run(["git", "ls-remote", url], env=remote_env()))
+
+
+def ref_problems(refs: dict, base: str) -> list[str]:
+    """What keeps the refs from being only `main` at the base."""
+    problems = []
+    current = refs.get(f"refs/heads/{BRANCH}")
+    if current != base:
+        problems.append(f"main is at {current}, not {base}")
+    others = sorted(r.removeprefix("refs/heads/") for r in refs
+                    if r.startswith("refs/heads/") and r != f"refs/heads/{BRANCH}")
+    tags = sorted(r.removeprefix("refs/tags/") for r in refs if r.startswith("refs/tags/"))
+    if others:
+        problems.append(f"branches other than main: {', '.join(others)}")
+    if tags:
+        problems.append(f"tags: {', '.join(tags)}")
+    return problems
 
 
 def open_prs() -> list[dict]:
@@ -291,16 +318,81 @@ def cmd_reset(args) -> int:
 
 
 def verify(base: str) -> None:
-    problems = []
-    refs = remote_refs()
-    if refs != {f"refs/heads/{BRANCH}": base}:
-        problems.append(f"refs are {refs}, expected only refs/heads/{BRANCH} at {base}")
+    problems = ref_problems(remote_refs(), base)
     if open_prs():
         problems.append("a PR is still open")
     if releases():
         problems.append("a release is still there")
     if problems:
         raise Stop(EXTERNAL, "verification failed: " + "; ".join(problems))
+
+
+# merge -------------------------------------------------------------------------------------------
+
+
+def checks_green(rollup: list[dict]) -> bool:
+    """Every check passed: there is one, and each is `SUCCESS` (a skipped, neutral, pending or
+    failed one is not green). The audit's J5 and `merge` share this rule."""
+    return bool(rollup) and all((x.get("conclusion") or x.get("state")) == "SUCCESS" for x in rollup)
+
+
+def merge_refusal(view: dict, prefix: str) -> str | None:
+    """Why the PR is not merged (the first reason that holds), else None."""
+    n, state = view.get("number"), str(view.get("state") or "")
+    sha = str(view.get("headRefOid") or "")[:7]
+    if state != "OPEN":
+        return f"PR #{n} is {state.lower()}, not open"
+    if not str(view.get("title") or "").startswith(prefix + " "):
+        return f"PR #{n}'s title does not start with the run's prefix {prefix}"
+    rollup = view.get("statusCheckRollup") or []
+    if not checks_green(rollup):
+        if not rollup:
+            return f"PR #{n} has no check at its head {sha}"
+        bad = [f"{x.get('name') or x.get('context')}={x.get('conclusion') or x.get('state') or 'pending'}"
+               for x in rollup if (x.get("conclusion") or x.get("state")) != "SUCCESS"]
+        return f"PR #{n}'s checks are not all green at its head {sha}: {', '.join(bad)}"
+    return None
+
+
+def pr_argument(text: str) -> str:
+    """The PR number of `<n>` or of the sandbox's PR link."""
+    if re.fullmatch(r"\d+", text):
+        return text
+    link = re.fullmatch(r"https://github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)/?", text)
+    if not link:
+        raise Stop(USAGE, f"merge takes a PR number or the sandbox's PR link, not {text!r}")
+    if link[1] != REPO:
+        raise Stop(PRECONDITION, f"merge works on {REPO} only: {text}")
+    return link[2]
+
+
+def cmd_merge(args) -> int:
+    n = pr_argument(args.pr)
+    workspace = Path(args.workspace).resolve() if args.workspace else Path.cwd().resolve()
+    record = workspace.with_name(workspace.name + ".run.json")
+    not_workspace = Stop(PRECONDITION, f"not a sandbox workspace: no {record.name} next to "
+                                       f"{workspace.name}")
+    try:
+        run_record = json.loads(record.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise not_workspace from None
+    if not isinstance(run_record, dict) or not run_record.get("prefix"):
+        raise not_workspace
+    if run_record.get("repository") != REPO:
+        raise Stop(PRECONDITION, f"the run record names {run_record.get('repository')}, not {REPO}")
+    view = json.loads(gh("pr", "view", n, "--repo", REPO, "--json",
+                         "number,state,title,headRefOid,statusCheckRollup"))
+    refusal = merge_refusal(view, run_record["prefix"])
+    if refusal:
+        print(f"sandbox.py: refused: {refusal}; nothing merged", file=sys.stderr)
+        return PRECONDITION
+    sha = view["headRefOid"]
+    try:
+        gh("pr", "merge", n, "--repo", REPO, "--rebase", "--match-head-commit", sha)
+    except Stop as stop:
+        raise Stop(stop.code, f"{stop}; nothing merged") from None
+    print(f"merged PR #{n} at {sha[:7]} into {BRANCH} by rebase")
+    return OK
 
 
 def main(argv=None) -> int:
@@ -311,9 +403,13 @@ def main(argv=None) -> int:
     one.add_argument("--record", action="store_true", help="write the SHA-1 in sandbox.json")
     two = sub.add_parser("reset", help="put the sandbox back at the recorded commit")
     two.add_argument("--yes", action="store_true", help="run the plan (else print it only)")
+    three = sub.add_parser("merge", help="merge a run's PR by rebase, if it is open, prefixed and green")
+    three.add_argument("pr", help="a PR number, or the sandbox's PR link")
+    three.add_argument("--workspace", help="the sandbox workspace (default: the current folder)")
     args = parser.parse_args(argv)
+    commands = {"build": cmd_build, "reset": cmd_reset, "merge": cmd_merge}
     try:
-        return cmd_build(args) if args.command == "build" else cmd_reset(args)
+        return commands[args.command](args)
     except Stop as stop:
         print(f"sandbox.py: {stop}", file=sys.stderr)
         return stop.code

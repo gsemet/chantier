@@ -43,12 +43,23 @@ the session's context still costs each turn.
 ## The user's turns
 
 1. The go once the plan is shown.
-2. Each `ask ready`: merge the PR with `gh pr merge <n> --repo gsemet/chantier-eval-sandbox
-   --rebase`, alone, then `$CHANTIER order merged CR-<n>` and send its line. In the chosen mode:
-   parallel in the order the CRs become ready, series in the series' order, a stack from the
-   bottom up.
-3. A question or a stuck CR: as the README says.
+2. Each `ask ready`: merge the PR with `uv run --no-project python <this
+   checkout>/evals/kit/sandbox.py merge <n>` (from the workspace, alone, as the README says), then
+   `$CHANTIER order merged CR-<n>` and send its line. In the chosen mode: parallel in the order
+   the CRs become ready, series in the series' order, a stack from the bottom up.
+3. A question, a stuck CR or a `budget:` ask: as the README says (the raise on a `budget:` ask is
+   to `$30`: `$CHANTIER order budget --note 30`).
 4. `final`: the audit, the cost, `close --yes`.
+
+## If the 10-message limit is reached
+
+The quick campaign aims to stay under it. Past it, the operator follows the host's notes of each
+of the Foreman's turns and `$CHANTIER status` / `$CHANTIER asks`, records every order with
+`$CHANTIER` before sending, and sends at most one message per wave. A refused send is reported
+(J15) and never sent another way; the Foreman reads the recorded order at its next heartbeat wake.
+If its heartbeat has ended while an order waits (`status` says `heartbeat stopped`), the user types
+`ping` in the Foreman's session, as many times as needed, and the report counts each as a human
+step.
 
 ## Expected
 

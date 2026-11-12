@@ -37,8 +37,13 @@ batch yourself" in `chief-of-staff.md`): it runs `$CHANTIER preflight --direct`,
 claims its epoch, renames itself `[env] Project [Chief of Staff - Batch <nn> - Direct]`, starts
 the Drivers itself and arms the heartbeat. It also plays the user in full, as in real-foreman.
 
+The merge (`sandbox.py merge <n>`, from the workspace, alone), the question, the stuck CR and the
+`budget:` ask (the raise is to `$30`: `$CHANTIER order budget --note 30`) are real-foreman's, as
+the README says.
+
 **The host's limits:** there is no Foreman session, so no message goes between Desktop sessions
-and the 10-message limit does not apply to this batch.
+and the 10-message limit does not apply to this batch. Should a send between sessions be refused
+anyway, report it as `full` and real-foreman say (J15), and never send another way.
 
 ## What it proves on top of real-foreman
 

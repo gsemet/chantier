@@ -13,7 +13,10 @@ the workspace (the Foreman, its Drivers and workers): their `gh` is the local fo
 the sandbox is at its base (it never resets and never pushes), takes the run's number, clones the
 sandbox into `<workspace>`, runs `chantier init` and `uv sync --locked` there, places the frozen
 CRs (`kit/sandbox-crs/`) in `.agents/changes/3-ready/` with the run's PR-title convention, writes
-`<workspace>.run.json` and prints the `open` line of each batch. The agents use the real `gh`.
+`<workspace>.run.json` and prints the `open` line of each batch. The agents use the real `gh`. On
+Claude, it also writes the workspace's `.claude/settings.local.json` (ignored by the sandbox's git)
+with the rules the user's settings may lack: the operator's merge (`sandbox.py merge`) and, for a
+release, its tag push and its GitHub release; nothing else.
 
 Exit codes: 0 ok, 1 usage, 2 precondition, 4 external (git, gh or uv failed). Standard library only.
 """
@@ -139,18 +142,10 @@ def main(campaign: str, dest: Path) -> None:
 def survey() -> list[str]:
     """What keeps the sandbox from being at its base, by the survey `sandbox.py reset` makes: `main`
     at the recorded base, no other branch, no tag, no open PR, no release. Empty: it is at its base."""
-    base = sandbox.recorded_base()
-    refs = sandbox.remote_refs()
-    problems = []
-    if refs.get(f"refs/heads/{sandbox.BRANCH}") != base:
-        problems.append(f"main is at {refs.get(f'refs/heads/{sandbox.BRANCH}')}, not {base}")
-    others = sorted(r.removeprefix("refs/heads/") for r in refs
-                    if r.startswith("refs/heads/") and r != f"refs/heads/{sandbox.BRANCH}")
-    tags = sorted(r.removeprefix("refs/tags/") for r in refs if r.startswith("refs/tags/"))
+    problems = sandbox.ref_problems(sandbox.remote_refs(), sandbox.recorded_base())
     prs = sandbox.open_prs()
     published = sandbox.releases()
-    for what, found in (("branches other than main", others), ("tags", tags),
-                        ("open PRs", [f"#{p['number']}" for p in prs]), ("releases", published)):
+    for what, found in (("open PRs", [f"#{p['number']}" for p in prs]), ("releases", published)):
         if found:
             problems.append(f"{what}: {', '.join(found)}")
     return problems
@@ -192,6 +187,39 @@ def place_crs(spec: dict, ws: Path, campaign: str, run: int, date: str, prefix: 
         body = path.read_bytes().decode("utf-8").replace("\r\n", "\n").rstrip("\n") + "\n"
         extra = eval_section(campaign, run, date, prefix, slug.startswith("release-"))
         path.write_bytes((body + extra).encode("utf-8"))
+
+
+def merge_command() -> str:
+    """The operator's merge, as a command line without its PR: the quoted script only if needed."""
+    script = (HERE / "sandbox.py").as_posix()
+    if " " in script:
+        script = f'"{script}"'
+    return f"uv run --no-project python {script} merge"
+
+
+def allow_rules(spec: dict) -> list[str]:
+    """The permission rules a sandbox run needs and the user's settings may lack: the merge, and
+    for each release CR the tag push and the GitHub release of RELEASING.md (steps 6 and 7)."""
+    both = lambda rule: [f"Bash({rule})", f"PowerShell({rule})"]  # noqa: E731
+    rules = both(f"{merge_command()} *")
+    for slug in sandbox_crs(spec):
+        m = re.fullmatch(r"release-v(\d+)-(\d+)-(\d+)", slug)
+        if m:
+            tag = "v" + ".".join(m.groups())
+            rules += both(f"git push origin {tag}") + both(f"git -C * push origin {tag}")
+            rules += both(f"gh release create {tag} *")
+    return rules
+
+
+def write_settings(ws: Path, spec: dict) -> int:
+    """The workspace's ignored `.claude/settings.local.json`: the allow rules, nothing else."""
+    path = ws / ".claude" / "settings.local.json"
+    if path.exists():
+        raise sandbox.Stop(PRECONDITION, f"{path} already exists")
+    rules = allow_rules(spec)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes((json.dumps({"permissions": {"allow": rules}}, indent=2) + "\n").encode("utf-8"))
+    return len(rules)
 
 
 def open_lines(spec: dict, campaign: str) -> list[str]:
@@ -243,6 +271,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
             raise sandbox.Stop(PRECONDITION, f"the clone's HEAD is {head}, not the base {base}")
         sandbox.run(["uv", "run", "--script", str(CLI), "init"], cwd=dest)
         sandbox.run(["uv", "sync", "--locked"], cwd=dest)
+        allowed = write_settings(dest, spec) if spec["host"] == "claude" else 0
         # 4. the frozen CRs with the run's PR-title convention
         place_crs(spec, dest, campaign, run, date, prefix)
     except BaseException:
@@ -262,6 +291,9 @@ def sandbox_main(campaign: str, dest: Path) -> int:
     print(f"CRs placed in .agents/changes/3-ready/ ({len(record['crs'])}):")
     print("".join(f"  {slug}\n" for slug in record["crs"]), end="")
     print(f"\nCHANTIER = uv run --script \"{CLI}\"   (run from the workspace)")
+    print(f"merge     {merge_command()} <pr>   (run from the workspace)")
+    if allowed:
+        print(f"allowed   {allowed} rules in .claude/settings.local.json")
     for number, line in enumerate(open_lines(spec, campaign), 1):
         added = spec["batches"][number - 1]["added"]
         print(f"batch {number}: {line}" + (f"   (added during it: {', '.join(added)})" if added else ""))
