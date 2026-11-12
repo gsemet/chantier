@@ -83,7 +83,8 @@ refused, and no escalation happened.
    turns were reclassified after the fact. The likely cause: the output of `take` and the Drivers'
    prompts name each CR's `03-change-spec.md`, which the attribution reads as a grill turn. This
    matters because the steering share of the scorecard reads that row, so in direct mode it is
-   understated. The fix: in the steering window, do not count a path that only appears in a
+   understated: corrected, the batch cost $11.84 at the close, not $9.41, and orchestration is
+   61% of it, not 50% (Numbers). The fix: in the steering window, do not count a path that only appears in a
    `take` output or an `Agent` prompt.
 4. **The audit counts the Verifier's detached worktree as a breach (3 FAILs).** J3's rail allows
    "the Verifier's detached one". `audit.py` checks `creates no worktree` for every worker,
@@ -216,16 +217,30 @@ refused, and no escalation happened.
 | J23 | release drafts | not seen | |
 | J24 | blocked hand-back words | not seen | no `blocked` |
 
-**Cost:** $9.22 at the audit, $9.41 at the close (the close turns added steering). The steering
-share at the audit is 10.7% (the Chief of Staff steering the batch, $0.99 of $9.22). Finding 3
-says why that share is understated.
+**Cost:** `cost` said $9.22 at the audit and $9.41 at the close, with a steering share of 10.7%
+at the audit ($0.99 of $9.22). Finding 3 makes both figures too low. Corrected, the batch cost
+**$11.55 at the audit and $11.84 at the close**, and the steering share is **29% at the audit**
+($3.32 of $11.55) and 30% at the close: see "Cost, corrected" under Numbers.
 
 ## Numbers
 
 - **Duration:** about 23 minutes, from `open` (about 19:41 UTC) to the last merge (20:03:52
   UTC).
-- **Cost at the close:** $9.41 of a $20 budget. The steering session took $1.18 (13%), the
-  Drivers $3.61 (38%) and the workers $4.62 (49%).
+- **Cost at the close, as `cost` gave it:** $9.41 of a $20 budget. The steering session took
+  $1.18 (13%), the Drivers $3.61 (38%) and the workers $4.62 (49%). Finding 3 makes these
+  figures wrong; the corrected ones follow.
+- **Cost, corrected (finding 3):** no grill ran during the batch, so the $2.43 that `cost` put on
+  "grill and specifications" is steering. At the close the batch cost **$11.84** ($9.41 +
+  $2.43) of the $20 budget: the steering session $3.61 (30%), the Drivers $3.61 (30%) and the
+  workers $4.62 (39%). Orchestration (steering + Drivers) is **61%** of the batch's spend, not
+  50%. At the audit: $11.55, steering $3.32 (29%).
+- **How the correction was checked:** every call of the run was priced again from the raw
+  transcripts (the main session and its 56 subagents' `.jsonl`, one call per message id), at
+  the prices of platform.claude.com on 2026-11-12, which `costs.py` matches (Opus 5.5: 4, 5, 8,
+  0.20, 20 $/MTok; Sonnet 5.5: 2, 2.5, 4, 0.10, 10). The subagents gave $8.234, the same to the
+  cent as `cost` for each role and as the sum of `cost --by cr`. The steering session's calls
+  from `open` to the audit gave $3.35 over 58 calls, against `cost`'s $0.99 + $2.33 = $3.32 over
+  56: the split between the two rows is the error, not the pricing.
 - **Cost by CR (`cost --by cr` at the audit):**
   - CR-101 delete-item: $3.32
   - CR-105 stats-page: $1.40
@@ -239,9 +254,11 @@ says why that share is understated.
   - Inspectors: $1.04 (55 calls)
   - Coders: $0.85 (59 calls)
   - conflict resolvers: $0.24 (23 calls)
-  - Orchestration (steering + Drivers): 50% of the batch's spend.
+  - Orchestration (steering + Drivers): 50% of the batch's spend as `cost` gave it; 61% once
+    corrected (above).
 - **Cache:** 0 timed calls after the cache expired, and 0 Drivers restarted.
-- **Outside the budget:** "grill and specifications" $2.43 (39 calls; misattributed, finding 3);
+- **Outside the budget, as `cost` gave it:** "grill and specifications" $2.43 (39 calls; in fact
+  steering, finding 3, so inside the batch's spend above);
   the Chief of Staff's whole session $3.93 (context 244k tokens at its peak, 0 compactions).
 - **Agents started:** 56. They were 5 CR Drivers, 9 Coders, 14 Inspectors, 23 Verifiers and 5
   conflict resolvers.
