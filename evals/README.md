@@ -15,7 +15,7 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
-| [real-foreman](real-foreman/RUNBOOK.md) | Real small items from the inbox on this repository, in parallel, with real `gh` and CI, up to PRs nobody merges; a Foreman steers | ~$7 for 4 CRs, 30 min | 2026-11-05: passed with findings, $4.42 for 2 CRs and a QA, [report](results/real-2026-11-05-v0-5-0.md) |
+| [real-foreman](real-foreman/RUNBOOK.md) | Real small items from the inbox on this repository, in parallel, with real `gh` and CI, up to PRs nobody merges; a Foreman steers | ~$7 for 4 CRs, 30 min | 2026-11-12: passed with findings, $5.03 for 2 CRs, a reused Foreman, [report](results/real-foreman-2026-11-12.md) |
 | [real-direct](real-direct/RUNBOOK.md) | The same, steered in direct mode by the Chief of Staff alone, with no Foreman | ~$7 for 4 CRs, 30 min | not run yet |
 | [claude-planted](claude-planted/RUNBOOK.md) | The planted failures a real run does not produce, on `tasks-cli`: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04 (as `claude-full`): passed with findings, $8.41, [report](results/claude-full-2026-11-04-ask-only.md) |
 | [copilot](copilot/RUNBOOK.md) | One CR on Copilot: the Foreman's session and heartbeat, background Driver and workers, cost | ~$1 | not run yet |
