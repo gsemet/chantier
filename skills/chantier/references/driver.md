@@ -226,13 +226,14 @@ in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on 
 or with body items, is the next round. Any blocking item on the code or another project file,
 from any review, a later one included, goes to a `coder` in a round, then a new review: never a
 Driver edit. All approved: commit with nothing changed since the review (stage the files the
-round changed by name, `git add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above) and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
-the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
-head, given the plan (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
-boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
+round changed by name, `git add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above) and record
+`note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase, the long gate (a
+failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed head, given the plan
+(it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence
+in Deliverables and the Test plan boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
-narrowed in `pr-body.md` before the description pass), then, once the description is final, a short `verifier` pass on the posted description alone
-(`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
+narrowed in `pr-body.md` before the description pass), then, once the description is final, a
+short `verifier` pass on the posted description alone (`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`. The last edit of the
 PR body comes before that description pass; any later edit runs the pass again before the PR
 turns ready, never in the same command as the edit.
@@ -255,16 +256,16 @@ a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin
 branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
 a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
-above), `ship`, run the long gate at the new head, read CI (red is a round). The `verifier`, given the move, judges again what it touched before `handback ready`. Green and mergeable,
-ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
+above), `ship`, run the long gate at the new head, read CI (red is a round). The `verifier`, given the move, judges again what it touched before
+`handback ready`. Green and mergeable, ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round. If the note names another open dependency instead, or is
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
 `note rebase: …` received while working: with a long gate of the CR running, stop it
 (`gate <cr> --stop`), rebase before the next push, then run the long gate at the new head; CI
-runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a Driver still retargets
-nothing but on a `rebase:` note.
+runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a Driver
+still retargets nothing but on a `rebase:` note.
 
 ## Stack driver
 
