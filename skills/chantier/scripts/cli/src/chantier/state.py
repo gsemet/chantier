@@ -68,8 +68,15 @@ def _retry(op, *args):
     return op(*args)
 
 
+def read_text(path: Path, errors: str = "strict") -> str:
+    """A planning folder's file. Windows PowerShell 5.1 (`Set-Content -Encoding utf8`,
+    `Out-File`) starts what an agent writes with a byte-order mark: read through it. Writes
+    stay plain UTF-8."""
+    return _retry(path.read_text, "utf-8-sig", errors)
+
+
 def _read_json(path: Path):
-    return json.loads(_retry(path.read_text, "utf-8"))
+    return json.loads(read_text(path))
 
 
 def read_batch_json(path: Path) -> dict:
@@ -147,7 +154,7 @@ def read_events(folder: Path) -> list[dict]:
     """The batch's `events.jsonl`, in order; a half-written last line is skipped."""
     path = folder / "events.jsonl"
     out = []
-    for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
+    for line in read_text(path).splitlines() if path.exists() else []:
         try:
             out.append(json.loads(line))
         except ValueError:  # the last line of a process killed while appending
@@ -203,7 +210,7 @@ def ensure_gitignore(changes: Path) -> None:
     if key in _ignored_done or not changes.is_dir():
         return
     path = changes / ".gitignore"
-    have = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    have = read_text(path).splitlines() if path.is_file() else []
     missing = [e for e in IGNORED if e not in have]
     if missing:
         add = ([] if _IGNORE_HEAD in have else [_IGNORE_HEAD]) + missing
@@ -214,7 +221,7 @@ def ensure_gitignore(changes: Path) -> None:
 def read_keyed(path: Path) -> dict[str, str]:
     """A tiny `key: value` reader for `checkout.yml`: `#` comments, optional quotes."""
     out: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines() if path.is_file() else []:
+    for line in read_text(path).splitlines() if path.is_file() else []:
         line = re.sub(r"(^|\s)#.*$", "", line).strip()
         if ":" in line:
             key, value = line.split(":", 1)
@@ -337,7 +344,7 @@ class Repo:
         clone = resolve(spec.get("repo") or ".repo")
         work = resolve(spec.get("worktrees") or ".worktrees")
         mine = re.search(r"^\W*Archive in the PR:\s*(yes|no)\b",
-                         (folder / "project.md").read_text(encoding="utf-8")
+                         read_text(folder / "project.md")
                          if (folder / "project.md").is_file() else "", re.M | re.I)
         return cls(clone, Path(common).resolve(), json.loads(json.dumps(DEFAULT_CONFIG)),
                    folder, Path(top).resolve(), clone, work,
@@ -400,7 +407,7 @@ class Repo:
     def next_batch_number(self) -> int:
         """Numbers keep rising after a batch's folder is deleted: the last one is on file."""
         last = self.changes / ".batch-number"
-        kept = int(last.read_text(encoding="utf-8")) if last.is_file() else 0
+        kept = int(read_text(last)) if last.is_file() else 0
         return max([kept, *(int(m.group()) for i in self.batch_ids()
                           if (m := re.search(r"\d+", i)))]) + 1
 
@@ -585,8 +592,7 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
     previous = repo.config["first_cr_number"] - 1
     try:  # a number `restore` took off a folder: once given, a number is never given again
         previous = max(previous,
-                       int(json.loads((repo.changes / RESTORED_NUMBER_FILE)
-                                      .read_text("utf-8"))["last_number"]))
+                       int(_read_json(repo.changes / RESTORED_NUMBER_FILE)["last_number"]))
     except (OSError, ValueError, KeyError, TypeError):
         pass
     for root in roots:
