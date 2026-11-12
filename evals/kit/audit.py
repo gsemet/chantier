@@ -1004,7 +1004,7 @@ def main() -> int:
         check(not refused, "no agent tried to merge or close on the forge"
                            + (f": {refused[:2]}" if refused else ""), "C12")
         if data.get("release"):
-            release_checks(data, events, str(ws), calls, check)
+            release_checks(data, events, str(ws.with_name(ws.name + ".origin.git")), calls, check)
     main_checkout_check(ws, check)
 
     status = print_checks(check, rows)

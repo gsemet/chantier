@@ -52,9 +52,8 @@ Then follow the common steps in [the evals README](../README.md#run-a-campaign),
 | CRs | A `add-priority`, B `done-unknown-id`, C `list-json`, D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
 | Open | `$CHANTIER open <A> <B> <C> <R> --mode parallel --release 4 --slots 3 --budget 25 --default-branch main`, each `<X>` its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 
-`open` numbers the batch (`batch-<n>`): a batch has no name. After `open`, the operator saves
-the main checkout's `git status --porcelain -uall` in
-`<workspace>/.agents/changes/4-batch/porcelain-at-open.txt`. The staged audit does not need it.
+`open` numbers the batch (`batch-<n>`): a batch has no name. The staged audit
+needs no snapshot of the workspace's state after `open`.
 
 ## The user's turns
 
@@ -85,7 +84,7 @@ the main checkout's `git status --porcelain -uall` in
     --note "<action>"`, and send its line. Expect two: the merge of the release PR (the Foreman
     merges it itself, then `ask merged`), then the tag.
 12. Wait for `final <report>`, read R's `work/retro.md` (in its `4-batch/3-done/` folder), then
-    "what did it cost?". Run the audit (`audit.py <workspace>`, no `--real`), then
+    "what did it cost?". Run the audit (`audit.py <workspace>`), then
     `$CHANTIER close --yes`.
 
 ## Expected
