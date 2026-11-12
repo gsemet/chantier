@@ -10,8 +10,8 @@ yourself (your host's reference says how; where it offers no way, the title stay
 [Copilot](hosts/copilot.md): the tools, the heartbeat, the sessions) and the project's rules (`$CHANTIER rules`), then the brief and
 `$CHANTIER status`. Do it at the start of every batch you steer, in a reused session too, and
 again after a compaction: read the cards and the rule files `$CHANTIER rules` lists again, not
-only the command's output. An earlier reading is not this batch's. Then decide: which CR a Driver takes next, what a Driver must
-hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
+only the command's output. An earlier reading is not this batch's. Then decide: which CR a
+Driver takes next, what a Driver must hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
 steers the batch itself, with the differences of [chief-of-staff](chief-of-staff.md#steering-a-batch-yourself).
 
 ## Your goal
@@ -216,8 +216,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   arm the heartbeat again. The host's reference says how it ends, and when it is not yours to end.
   When you end it, record the stop first: `chantier status --stop-heartbeat --batch <batch> --epoch
   <n>` (`pause` records it itself); `status` then says "heartbeat stopped", and your next wake
-  clears it. Ending it means cancelling the armed wake; say the heartbeat stopped only once you
-  have cancelled it.
+  clears it. Where ending it is yours, it means cancelling the armed wake: say the heartbeat
+  stopped only once you have cancelled it; where it is not, say who ends it, as the host's
+  reference says.
 - **Next, after the title and before you claim your epoch:** `git rev-parse --git-dir
   --git-common-dir`. If they differ, this session is in a worktree: take no CR, claim no epoch, and send the ask
   `$CHANTIER asks "blocked <batch> this session is in a worktree (<path>); start the Foreman on
