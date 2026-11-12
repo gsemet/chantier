@@ -172,7 +172,8 @@ included) and `pr-body.md`, and each review step your `Team:` lists, in order; `
 the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (written
 `pr-body.md: …`) is not a new round: you fix `pr-body.md` yourself and start a new `inspector`
 in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
-or with body items, is the next round. All approved: commit with nothing changed since the
+or with body items, is the next round. Any blocking item from any review, the second or a later
+one included, goes to a `coder` in a round, then a new review: never a Driver edit. All approved: commit with nothing changed since the
 review and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
 the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
 head, given the plan (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
@@ -180,7 +181,9 @@ boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry 
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
 narrowed in `pr-body.md` before the description pass), then, once the description is final, a short `verifier` pass on the posted description alone
 (`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
-ready when its base is the default branch, then `handback ready <pr link>`.
+ready when its base is the default branch, then `handback ready <pr link>`. The last edit of the
+PR body comes before that description pass; any later edit runs the pass again before the PR
+turns ready, never in the same command as the edit.
 
 Escalation applies to the CR driver as to any parent ([concepts](concepts.md), "Escalation"): a
 `debugger` that explains no red check, or a `conflict-resolver` that settles no conflict, gets a
