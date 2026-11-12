@@ -325,7 +325,8 @@ running agent's model, never a retry of the same agent, and never a model typed 
 8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a push is plain when
    the remote branch is an ancestor of the local one, and a rewrite (a rebase) is pushed with
    `--force-with-lease`; the user's uncommitted changes are never touched. No `sleep`, no polling
-   loop: a wait is the forge's own watch, in a background shell. `git -C <worktree>` is accepted
+   loop: a wait is the forge's own watch, in a background shell (except the one bounded wait
+   before a second CI look that [driver](driver.md), `CI:`, names). `git -C <worktree>` is accepted
    for any git command; the push rule is unchanged (plain when the remote branch is an ancestor,
    `--force-with-lease` after a rewrite).
 9. **Commands and files.** One command per call when you can: a chain (`a; b`, `a && b`, a

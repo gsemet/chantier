@@ -111,14 +111,42 @@ The CLI keeps the CR's record and tells you what is off.
   description as far as they can go, the archive's `delivery.md`, your notes. Then one long wait:
   the forge's watch in a background shell (`gh pr checks <pr> --watch`, `glab ci status
   --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
-  between. Read the result yourself (`gh pr
+  between (the two looks of the "no CI" rule below come before the long wait starts, or instead of
+  it when no check is listed). Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
   failure gets one re-run, and a failure the CR does not touch that passes on its re-run is a
   flake: a `note` names the test, the run and the symptom, for the Chief of Staff to file; the rest is a round, with a `debugger` first when the cause is not
   plain. Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
-  project's rules gives its own limit).
+  project's rules gives its own limit). What you say about CI follows these rules, for every
+  Driver that pushes (a stack driver opens no PR: "the PR" is the one whose branch it pushed, the
+  top of the stack):
+  - The only source: any claim about CI (running, green, red or none) comes from the forge's list
+    of checks for the PR at the pushed head: `gh pr checks <pr>`, `glab ci list`, or the forge's
+    equivalent. The project's files (a workflow folder or its absence), its rules, an earlier
+    Driver's note and a guess are not a source.
+  - The rules do not replace the look: even when the project's rules say it has no CI, the claim
+    comes from the forge's list; the rules only say how to judge what the list shows. A list that
+    contradicts the rules (a check where they say none, none where they say some) is said in a
+    `note`.
+  - The head first: before you read the checks, confirm the PR's head on the forge is the head you
+    pushed (`gh pr view <pr> --json headRefOid`, or the forge's equivalent). Checks listed for an
+    older commit prove nothing about the pushed one.
+  - "No CI" needs two looks: an empty first look, or a watch that ends at once because no check is
+    reported yet, is not a conclusion; a forge registers its checks a few seconds after the push.
+    Say "No CI" only when a second look, a minute or more after the push, still lists no check at
+    the same head. Fill that minute with the work that needs no CI result, which comes first. A
+    second look that lists checks leads to the normal long wait.
+  - The one bounded wait: when that work ends before a minute has passed since the push, run one
+    bounded wait, once (for instance a single `sleep` of the seconds that remain), then take the
+    second look. It is the one exception to rule 8 of [concepts](concepts.md) ("No `sleep`, no
+    polling loop"): at most once per pushed head, never a loop.
+  - What the note says: the `note` that says what CI showed names the command you ran and the head
+    (seven characters) you read at, e.g. `CI: gh pr checks 12 at abc1234: test pass` or `CI: no
+    check listed at abc1234 (gh pr checks 12, two looks, the second a minute after the push)`. The
+    PR body's CI box says the same in the template's words
+    ([pr-template](pr-template.md)).
 - Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
   at the PR's head, a passed long gate and a last verdict `VERIFIED`, refused alone when the
   worktree's head is not the one `ship` recorded (a commit or a rebase after `ship`), and

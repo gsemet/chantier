@@ -68,6 +68,7 @@ or the transcripts).
 | J22 | the steering session never codes, commits, pushes, rebases or creates a worktree (its cleanup of merged CRs' worktrees and a force push it runs on a Driver's `push` line, J11, excepted) | foreman.md, chief-of-staff.md | full, real-foreman, real-direct, claude-planted | audit: the steering transcript holds no such command |
 | J23 | a release's notes and announcement are drafts the user reviews (`note --draft`), and the Release driver reports one | driver.md | full, claude-planted | audit: the release CR recorded a draft |
 | J24 | a `blocked` hand-back's reason starts with one of the hand-back words (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`, `rounds:`, `refused`, `waits:`, `context:`) | driver.md, `commands.handback` | every Claude campaign | audit: every `blocked` hand-back of the log |
+| J25 | a Driver's claim about CI comes from the forge's list of checks at the pushed head: a "no CI" follows a checks call made after the push, at the PR's head, with a second look a minute after the push still empty (one bounded wait at most, never a loop); the note and the PR body's CI box name that head | driver.md, pr-template.md, concepts.md rule 8 | full, real-foreman, real-direct, claude-planted | by hand |
 
 ## Below the table
 
