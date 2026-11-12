@@ -1,7 +1,7 @@
 # full
 
-Two batches end to end on the eval sandbox (`shelf`), releases included, with no human step: the
-operator plays the user. The text common to the sandbox campaigns (preparation, the operator, a
+Two batches end to end on the eval sandbox (`shelf`), releases included, with no human step but a
+`ping` when the host's limit calls for one: the operator plays the user. The text common to the sandbox campaigns (preparation, the operator, a
 merge, a question, a stuck CR, the audit, the report) is in
 [the evals README](../README.md#a-sandbox-campaign); this runbook adds what is specific to `full`.
 
@@ -53,8 +53,9 @@ A new Foreman session starts. The user's turns, played by the operator:
 2. At the first `ask ready` (the first CR handed back ready), before or with its merge:
    `$CHANTIER order add --note ".agents/changes/3-ready/item-rating"`, and its line to the
    Foreman. The release waits for this CR too.
-3. Each `ask ready`: the merge (`gh pr merge <n> --repo gsemet/chantier-eval-sandbox --rebase`,
-   alone), `$CHANTIER order merged CR-<n>`, its line.
+3. Each `ask ready`: the merge (`uv run --no-project python <this checkout>/evals/kit/sandbox.py
+   merge <n>`, from the workspace, alone, as the README says), `$CHANTIER order merged CR-<n>`,
+   its line.
 4. Once every other CR has ended, the release waits for the user's confirmation (`status` says
    so): `$CHANTIER order confirm CR-<release> --note "v0.2.0, nothing else"`, its line.
 5. A `draft` on the release's line in `status` (the notes): the operator reads it, checks that it
@@ -65,11 +66,13 @@ A new Foreman session starts. The user's turns, played by the operator:
 6. If the release needs a fix (`ask blocked CR-<release> fix: …`): `$CHANTIER order grant
    CR-<release> --note "fixes=on budget=40"`, then `$CHANTIER order add --note "<fix file>"
    --fix-for CR-<release>`, and their lines.
-7. `final`: the audit, the cost, `close --yes` (the README's "The audit").
+7. A `budget:` ask (`ask blocked CR-<n> budget: …`, or `status` says the budget is spent), as the
+   README says: the first in the batch, `$CHANTIER order budget --note 60` and its line (a finding
+   in the report); any later one in the batch, `$CHANTIER order drop CR-<n>` for the CR that asked.
+8. `final`: the audit, the cost, `close --yes` (the README's "The audit").
 
-The release is made on the sandbox by its own `RELEASING.md`. A release commit must include
-`uv.lock` when the version bump changes it: the sandbox's `RELEASING.md` does not say so, and a
-release PR without it fails the locked gate.
+The release is made on the sandbox by its own `RELEASING.md`; its step 3 does not name `uv.lock`,
+so the frozen release CRs do.
 
 ## Batch 2
 
@@ -81,7 +84,8 @@ $CHANTIER open .agents/changes/3-ready/sort-list .agents/changes/3-ready/duplica
   --default-branch main
 ```
 
-A new Foreman session; the same turns, with `v0.3.0` and no added CR. Run the audit again,
+A new Foreman session; the same turns, with `v0.3.0` and no added CR (the raise on a `budget:`
+ask is to `$23`: `$CHANTIER order budget --note 23`). Run the audit again,
 `audit.py <workspace> --sandbox`, before this batch's `close --yes`: its judge covers the CRs of
 both batches. The sandbox is left as the run ends; the next reset cleans up the two releases.
 
@@ -108,14 +112,15 @@ confirmation, the approvals) and 6 to 8 in batch 2. Past the limit, a refused se
 next heartbeat wake.
 
 If the Foreman's heartbeat has already ended (`status` says `heartbeat stopped`) while an order
-waits, the user types one line, `ping`, in the Foreman's session. The report counts it as the
-run's one human step. It is the only possible human step during a `full` run.
+waits, the user types one line, `ping`, in the Foreman's session. This may be needed more than
+once; each `ping` is a human step, and the report counts them. They are the only human steps a
+`full` run may have.
 
 ## Report
 
 `results/full-<date>-run<n>.md`: one report for both batches, with one scorecard where a row is
-`seen, wrong` if it was wrong in either batch, and the cost per batch and in total. It names the
-human step, if there was one.
+`seen, wrong` if it was wrong in either batch, and the cost per batch and in total. It names each
+human step and gives their count.
 
 ## Cost and time
 

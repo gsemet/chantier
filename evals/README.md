@@ -18,7 +18,7 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
 | Campaign | What it covers | Cost | Last run |
 | --- | --- | --- | --- |
-| [full](full/RUNBOOK.md) | Two batches end to end on the sandbox, with real `gh` and CI: 9 feature CRs plus a release, a 10th injected while they run, then 2 feature CRs plus a release; four slots, a Foreman steers, the operator plays the user, the judge on every CR and both releases | the budgets, $40 and $15; measured by the first run | not run yet |
+| [full](full/RUNBOOK.md) | Two batches end to end on the sandbox, with real `gh` and CI: 8 feature CRs plus a release, a 9th feature CR injected while they run (the batch's 10th CR), then 2 feature CRs plus a release; four slots, a Foreman steers, the operator plays the user, the judge on every CR and both releases | the budgets, $40 and $15; measured by the first run | not run yet |
 | [real-foreman](real-foreman/RUNBOOK.md) | 5 frozen CRs on the sandbox, no release, in the mode chosen at launch, with real `gh` and CI; a Foreman steers, the operator plays the user, merges included | budget $20; measured by the first run | not run yet. The campaign moved to the sandbox; the last run, on this repository before the sandbox: 2026-11-12, passed with findings, $5.03 for 2 CRs, [report](results/real-foreman-2026-11-12.md) |
 | [real-direct](real-direct/RUNBOOK.md) | The same 5 frozen CRs, steered in direct mode by the Chief of Staff alone, with no Foreman | budget $20; measured by the first run | not run yet |
 | [claude-planted](claude-planted/RUNBOOK.md) | The planted failures a real run does not produce, on `tasks-cli`: parallel and added work, a change order, a question, QA, rebases, a red CI from the product, the round limit; then a release with a fix, approvals and a grant | ~$15, 3 h | 2026-11-04 (as `claude-full`): passed with findings, $8.41, [report](results/claude-full-2026-11-04-ask-only.md) |
@@ -76,17 +76,30 @@ sandbox).
   real user. `$CHANTIER` is `uv run --script "<this checkout>/skills/chantier/scripts/cli/chantier.py"`,
   run from the workspace. The plugin must be installed from this checkout (see "Before you
   start").
-- **A merge** is the user's: `gh pr merge <n> --repo gsemet/chantier-eval-sandbox --rebase`,
-  alone, never chained; a refused merge (a conflict, a red check) merges nothing, and the steering
-  session sees it as usual. Then `$CHANTIER order merged CR-<n>` and its line to the steering
-  session. In parallel mode the operator merges in the order the CRs become ready; in series, in
-  the series' order; in a stack, from the bottom up, as `chief-of-staff.md` says for the mode.
+- **A merge** is the user's, and the operator plays the user: `chief-of-staff.md`'s "Never merge"
+  is about the real user's PRs, which an eval has none of. (The Foreman still merges the release
+  PR itself, as the card says.) The operator merges with `uv run --no-project python <this
+  checkout>/evals/kit/sandbox.py merge <n>` (the `merge` line `setup.py` prints), from the
+  workspace, alone, never chained; it never uses a raw `gh pr merge`. The sandbox's `main` is not
+  protected, so the forge refuses only a conflict; the merge command refuses a PR that is not
+  open, whose title lacks the run's prefix, or whose checks are not all green at its head (a
+  pending check included), and merges nothing then. A refused merge is reported as it is, and the
+  steering session sees the PR not merged, as usual. Then `$CHANTIER order merged CR-<n>` and its
+  line to the steering session. In parallel mode the operator merges in the order the CRs become
+  ready; in series, in the series' order; in a stack, from the bottom up, as `chief-of-staff.md`
+  says for the mode.
 - **A question** (`blocked question:`): the frozen CRs leave none open, so a question is a
   finding. The operator answers `Follow the specification as written; where it is silent, choose
   the simplest behaviour and say so in the PR.`, records it in the CR's `02-answers.md`, and sends
   `$CHANTIER order note CR-<n> --note "answer: …"`.
 - **A CR stuck** (the round limit, or blocked twice): the operator drops it (`order drop`), so the
   batch can pause; the report says why.
+- **A `budget:` ask** (`ask blocked CR-<n> budget: …`, or `status` says the budget is spent): the
+  first in a batch, the operator raises the budget once, `$CHANTIER order budget --note <the
+  opening budget × 1.5, rounded up to whole dollars>`, sends its line, and the report records it
+  as a finding (the cost of the kit's CRs is part of what a run measures). Any later `budget:` ask
+  in the same batch: `$CHANTIER order drop CR-<n>` for the CR that asked, and its line; the report
+  says why. No other raise.
 - **The audit** runs when the steering session reports `final` (the batch paused), before
   `close --yes`:
 
@@ -104,7 +117,8 @@ sandbox).
   The sandbox is left as the run ends: its PRs and releases stay for inspection until the next
   reset.
 - **The 10-message limit:** `full` goes past it and says how it lives with it; a quick campaign
-  stays under it (the Foreman's start and at most one send per merge wave).
+  aims to stay under it (the Foreman's start and at most one send per merge wave); if a send is
+  refused anyway, the campaign's runbook says how to go on (`full`'s way).
 
 ### The staged campaign
 
@@ -131,6 +145,10 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
   logged in.
 - On Claude Desktop, the go must be typed in the desktop app: under Remote Control, starting
   the Foreman's session is refused.
+- On Claude, for a sandbox campaign, `setup.py` writes the workspace's
+  `.claude/settings.local.json` (ignored by the sandbox's git) with the merge command's rule and,
+  for `full`, the release's tag push and `gh release create` for its versions: rules the user's
+  own settings may lack. Nothing else is allowed there.
 
 ### The host's limits
 
@@ -230,9 +248,9 @@ wrong in either batch, and the cost per batch and in total.
 
 | File | Role |
 | --- | --- |
-| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json` |
+| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the release's tag push and GitHub release) |
 | [`kit/forge.py`](kit/forge.py) | The local forge, called as `gh`: PRs, CI in a fresh clone, CI-only contract tests |
-| [`kit/merge.py`](kit/merge.py) | The user's merge |
+| [`kit/merge.py`](kit/merge.py) | `claude-planted`'s merge, on the local forge |
 | [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--sandbox` for the sandbox campaigns: also the run table, the real forge read-only and the judge |
 | [`kit/judge.py`](kit/judge.py) | The judge: the hidden tests on a PR's head in a clean clone of the sandbox, and a release judged by the tag, the version, the notes and the GitHub release |
 | [`SCORECARD.md`](SCORECARD.md) | The single list of rails, one row each: id, rail, source, where seen, how marked |
@@ -242,7 +260,7 @@ wrong in either batch, and the cost per batch and in total.
 | [`kit/sandbox-crs/`](kit/sandbox-crs/) | The frozen CRs of the sandbox campaigns (request, intent, answers, specification): 11 features and 2 releases |
 | [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
-| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) and `reset` (the sandbox back at that commit; the only force push) |
+| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or not all green) |
 
 ## The sandbox
 
@@ -258,7 +276,10 @@ the recorded base in [`kit/sandbox.json`](kit/sandbox.json).
   the same PR, or `just check` is red. Once that PR is reviewed, run `reset --yes`.
 - `uv run --no-project python evals/kit/sandbox.py reset` prints what it would do and changes
   nothing; `reset --yes` closes the open PRs, deletes the releases, tags and other branches, and
-  force-pushes the base to `main`.
+  force-pushes the base to `main`. It compares branches and tags only: GitHub keeps
+  `refs/pull/*` and no push can delete them.
+- `uv run --no-project python evals/kit/sandbox.py merge <pr>` merges a run's PR by rebase, for the
+  operator who plays the user, and refuses what the user would not merge (see "A merge" above).
 
-Nothing else changes the sandbox: the repository is a constant of the script, and `reset` is
+Nothing else resets the sandbox: the repository is a constant of the script, and `reset` is
 the only force push.

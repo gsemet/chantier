@@ -25,10 +25,11 @@ preparation, the run's number and prefix, a merge, the audit), on Copilot, with:
 ## The user's turns
 
 1. Give the go once the plan is shown.
-2. When `ask ready CR-<n> <link>` arrives: merge the PR (`gh pr merge <pr> --repo
-   gsemet/chantier-eval-sandbox --rebase`), then `$CHANTIER order merged CR-<n>` and send the line
-   it prints.
-3. Wait for `final <report>`, then "what did it cost?", run the audit (`audit.py <workspace>
+2. When `ask ready CR-<n> <link>` arrives: merge the PR (`uv run --no-project python <this
+   checkout>/evals/kit/sandbox.py merge <pr>`, from the workspace, alone), then `$CHANTIER order
+   merged CR-<n>` and send the line it prints.
+3. A `budget:` ask, as the README says (the raise is to `$5`: `$CHANTIER order budget --note 5`).
+4. Wait for `final <report>`, then "what did it cost?", run the audit (`audit.py <workspace>
    --sandbox`), then `$CHANTIER close --yes`, and delete the `/every` heartbeat.
 
 ## Expected
