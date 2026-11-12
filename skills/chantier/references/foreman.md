@@ -8,7 +8,8 @@ you arm a new heartbeat. As your first act, set the session title your prompt gi
 yourself (your host's reference says how; where it offers no way, the title stays). Read
 [concepts](concepts.md), your host's reference ([Claude Code](hosts/claude-code.md) or
 [Copilot](hosts/copilot.md): the tools, the heartbeat, the sessions) and the project's rules (`$CHANTIER rules`), then the brief and
-`$CHANTIER status`, and decide from there: which CR a Driver takes next, what a Driver must
+`$CHANTIER status`, at the start of every batch you steer, in a reused session too: an earlier
+batch's reading of the cards and of `$CHANTIER rules` is not this batch's. Then decide: which CR a Driver takes next, what a Driver must
 hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
 steers the batch itself, with the differences of [chief-of-staff](chief-of-staff.md#steering-a-batch-yourself).
 
