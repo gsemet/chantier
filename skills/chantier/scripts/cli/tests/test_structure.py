@@ -440,3 +440,26 @@ def test_the_eval_sandbox_builds_its_recorded_base():
     recorded = json.loads((PLUGIN_ROOT / "evals" / "kit" / "sandbox.json").read_text(encoding="utf-8"))["base"]
     assert built == recorded
     assert re.fullmatch(r"[0-9a-f]{40}", recorded)
+
+def test_the_sandbox_campaigns_name_only_frozen_crs_with_hidden_tests():
+    kit = Path(__file__).resolve().parents[5] / "evals" / "kit"
+    if not (kit / "setup.py").is_file():
+        pytest.skip("the eval kit is not part of this install")
+    spec = importlib.util.spec_from_file_location("eval_setup", kit / "setup.py")
+    setup = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(setup)
+    sandbox = {name: c for name, c in setup.CAMPAIGNS.items() if "batches" in c}
+    assert set(sandbox) == {"full", "real-foreman", "real-direct", "copilot"}
+    for name, campaign in sandbox.items():
+        for slug in setup.sandbox_crs(campaign):
+            folder = kit / "sandbox-crs" / slug
+            for part in ("intake/request.md", "01-intent.md", "02-answers.md", "03-change-spec.md"):
+                assert (folder / part).is_file(), f"{name}: {slug} lacks {part}"
+            if not slug.startswith("release-"):
+                assert list((kit / "sandbox-judge" / slug).glob("test_judge_*.py")), \
+                    f"{name}: {slug} has no hidden test"
+    assert not list((kit / "sandbox-crs").rglob("test_*.py")), "a hidden test sits in a frozen CR"
+    full = setup.sandbox_crs(sandbox["full"])
+    assert len(full) == 13
+    for quick in ("real-foreman", "real-direct"):
+        assert setup.sandbox_crs(sandbox[quick]) == setup.QUICK and set(setup.QUICK) <= set(full)
