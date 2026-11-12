@@ -551,7 +551,11 @@ these differences.
   ([session-start](session-start.md), "Titles").
 - **Your epoch.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
-  <n>`. Carry `--epoch <n>` on exactly these commands and on no other: the claim (`foreman set`,
+  <n>`. Right after each claim, every batch you steer, a resumed or taken-over one too: run
+  `$CHANTIER rules` and read the rule files it lists, as a Foreman does at its start. A reading
+  before this batch's `open` is not this batch's; skip only the re-read of a file this session
+  has read since this batch's `open` and since its last compaction. The command runs every time,
+  after the claim, whatever ran before it. Carry `--epoch <n>` on exactly these commands and on no other: the claim (`foreman set`,
   `foreman transcript`), the loop's wakes (`status --refresh --epoch <n>`) and the recorded stop
   of your loop (`status --stop-heartbeat`), `take`, `agents set`, `order done`, `order merged`,
   `order add --fix-for`, `cancel` and `pause`. Any other command, or any other `order` kind
