@@ -317,7 +317,151 @@ test('without an index the pane says so in one line', async ($, on) => {
 
   await skill($)
   const ui = await board($)
-  expect(await words(ui)).toBe(`No chantier status here: ${INDEX} not found.`)
+  expect(await words(ui)).toBe(`No chantier status here: ${INDEX} not found.\nRefresh`)
+  await ui.unmount()
+})
+
+// ---- the Refresh button and the header's note of the period ----
+
+const REFRESH = { key: 'refresh' }
+const reads = (w: ReturnType<typeof world>, path: string) => w.calls.read.filter(p => p === path).length
+const stats = (w: ReturnType<typeof world>, path: string) => w.calls.stat.filter(p => p === path).length
+
+test('the header says when the last check ran and the period, not the age of the last change', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  await skill($)
+  const ui = await board($)
+
+  await clock.advance(45000)
+  const shown = await words(ui)
+  expect(shown).toContain('every 15 s')
+  expect(shown).toContain('checked 0s ago')
+  expect(shown).not.toMatch(/read \d+s ago/)
+  await ui.unmount()
+})
+
+test('a press reads an unchanged file again and the age returns to 0', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  await skill($)
+  const ui = await board($)
+  expect(reads(w, INDEX)).toBe(1)
+
+  await clock.advance(5000)
+  await ui.press(REFRESH)
+  expect(reads(w, INDEX)).toBe(2)
+  expect(await words(ui)).toContain('checked 0s ago')
+  await ui.unmount()
+})
+
+test('a press keeps the page shown and the folds, and reads the page again', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  w.put(`${CR_DIR}/STATUS.json`, sheet())
+  await skill($)
+  const ui = await board($)
+  await ui.press({ key: 'fold-backlog' })
+  await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
+  expect(reads(w, `${CR_DIR}/STATUS.json`)).toBe(1)
+
+  await ui.press(REFRESH)
+  expect(await words(ui)).toContain('| Step | Done | Verdict |')
+  expect(reads(w, `${CR_DIR}/STATUS.json`)).toBe(2)
+
+  await ui.press({ key: 'back' })
+  expect(await words(ui)).toContain('Waiting for you')
+  expect(await label(ui, 'fold-backlog')).toContain('▾')
+  await ui.unmount()
+})
+
+test('a press keeps a fold turned before it', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  await skill($)
+  const ui = await board($)
+  await ui.press({ key: 'fold-backlog' })
+  expect(await label(ui, 'fold-backlog')).toContain('▾')
+
+  await ui.press(REFRESH)
+  expect(await label(ui, 'fold-backlog')).toContain('▾')
+  await ui.unmount()
+})
+
+test('a press finds a planning folder created after opening, without waiting for the timer', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  await skill($)
+  const ui = await board($)
+  expect(await words(ui)).toContain('No chantier status here')
+
+  w.put(INDEX, index())
+  await ui.press(REFRESH)
+  expect(await words(ui)).toContain('1 live')
+  await ui.unmount()
+})
+
+test('a press finds a project added to a surface after opening', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  await skill($)
+  const ui = await board($)
+  expect(await words(ui)).toContain('No chantier status here')
+
+  w.dirs.set(`${ROOT}/projects`, ['demo'])
+  w.dirs.set(`${ROOT}/projects/demo`, ['changes'])
+  w.dirs.set(`${ROOT}/projects/demo/changes`, [])
+  w.put(`${ROOT}/projects/demo/changes/STATUS.json`, index({ active_crs: 6 }))
+  await ui.press(REFRESH)
+  const shown = await words(ui)
+  expect(shown).toContain('demo')
+  expect(shown).toContain('6 live')
+  await ui.unmount()
+})
+
+test('the Refresh button is on every view', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  w.put(`${CR_DIR}/STATUS.json`, sheet({ documents: [{ kind: 'intent', path: '01-intent.md' }] }))
+  w.put(`${CR_DIR}/01-intent.md`, '# Intent')
+  const has = async (ui: any) => (await ui.findAll({ type: 'Button' })).filter((b: any) => b.props.label === 'Refresh').length
+
+  await skill($)
+  const ui = await board($)
+  expect(await has(ui)).toBe(1)
+  await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
+  expect(await has(ui)).toBe(1)
+  await ui.press({ key: 'documents', link: { href: `file://${CR_DIR}/01-intent.md` } })
+  expect(await has(ui)).toBe(1)
+  await ui.unmount()
+})
+
+test('the Refresh button is on the one-line view', async ($, on) => {
+  mock.clock(on)
+  world(on)
+  await skill($)
+  const ui = await board($)
+  expect(await words(ui)).toContain('No chantier status here')
+  expect(await ui.find({ key: 'refresh' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('presses start no second timer', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+  await skill($)
+  const ui = await board($)
+  for (let i = 0; i < 4; i++) await ui.press(REFRESH)
+
+  const before = stats(w, INDEX)
+  await clock.advance(15000)
+  expect(stats(w, INDEX)).toBe(before + 1)
   await ui.unmount()
 })
 
