@@ -178,10 +178,14 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("handoff", commands.handoff, "the CR's facts, for any agent; changes nothing")
     s.add_argument("cr")
 
-    s = cmd("gate", commands.gate, "run the long gate in the CR worktree, alone in the repository")
+    s = cmd("gate", commands.gate, "run the long gate in the CR worktree, alone in the repository; "
+            "--stop stops this CR's running one")
     s.add_argument("cr")
-    s.add_argument("command", nargs="+", help="the long gate's commands, from the project's rules: "
+    s.add_argument("command", nargs="*", help="the long gate's commands, from the project's rules: "
                    "one per argument, never chained with ; or &&; they stop at the first failure")
+    s.add_argument("--stop", action="store_true",
+                   help="stop this CR's running long gate: its suite, the gate lock; recorded "
+                   "`stopped`, no pass; nothing else changes")
 
     s = cmd("verdict", commands.verdict, "the Verifier's verdict on the CR's worktree head: "
             "VERIFIED or \"NOT VERIFIED\"")

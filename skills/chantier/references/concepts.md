@@ -188,7 +188,8 @@ started.
   says which; `handback ready` is one when the worktree's head is not the one `ship` recorded,
   the tree is dirty, the remote branch is not at that head, or there is no passed long gate or
   `VERIFIED` verdict at it; `gate` on a dirty tree is another; so are a `take` of a working CR
-  without `--note` and a `take` of a CR whose agent id is still recorded, working or blocked), 3 stale Foreman epoch, 4 external
+  without `--note`, a `take` of a CR whose agent id is still recorded, working or blocked, and a
+  `cancel` without `--epoch`), 3 stale Foreman epoch, 4 external
   (git, a gate; a gate whose head moved during the run), 5 the budget (`take`, `round`) or the
   round limit (`round`). A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are
   one CR. Heads are the full 40-character SHA in the state and the events (7 characters only for
@@ -197,6 +198,9 @@ started.
   `&&` chain; it stops at the first failure, and it has passed at a head when the last `gate`
   there passed every command it was given and the head did not move during the run. The log's
   first line names the CR, the branch and the full SHA it ran at; its last line, the result.
+  `gate <cr> --stop` stops that CR's running long gate (its suite and the lock), records the run
+  `stopped` (no pass, and the last run at a head decides) and changes nothing else; it refuses
+  when the lock names another CR (exit 2) and says so when no gate runs (exit 0).
   The Verifier records its verdict with `verdict <cr>
   VERIFIED` or `verdict <cr> "NOT VERIFIED"` at the head it verified; the last verdict at a head
   decides. `handback <cr> ready` needs both at the PR's head, committed, clean and pushed;

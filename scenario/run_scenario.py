@@ -829,6 +829,7 @@ def scenario(w: World) -> None:
     failed_opening(w)
     playbook_config(w)
     cancel_during_gate(w)
+    stop_own_gate(w)
     rails(w)
     handback_proofs(w)
     gate_proof(w)
@@ -2276,6 +2277,94 @@ def cancel_during_gate(w: World) -> None:
     check("a cancel stops the suite and moves the CR while its gate runs; the gate ends cleanly",
           "6-trash/" in w.cr(cr)["path"] and out.startswith("FAIL") and "Traceback" not in err
           and "pg" in w.last_out[0], f"{out} {err} {w.last_out}")
+
+
+def stop_own_gate(w: World) -> None:
+    note("\n## 18b. A Driver stops its own long gate; `cancel` needs the epoch")
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    from chantier import procs
+    from chantier.commands import gate_passed
+    items = [prepare_cr(w, t)[1] for t in ("Stop own gate", "Stop other gate")]
+    slow = w.root / "slow_stop.py"
+    pidfile = w.root / "slow_stop.pid"
+    slow.write_text(f"import os, time\nopen({pidfile.as_posix()!r}, 'w').write(str(os.getpid()))\n"
+                    "time.sleep(60)\n")
+    slow_gate = f'"{sys.executable}" "{slow}"'
+    w.reset()
+    w.start(*map(str, items), "--slots", 2, "--default-branch", "main")
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman18b", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    one, two = (c["id"] for c in w.batch()["crs"])
+    wt = Path(w.cr(one)["worktree"])
+
+    def events(cr):
+        return [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+                if json.loads(ln)["kind"] == "gate" and json.loads(ln)["cr"] == cr]
+
+    def logs(cr):
+        return sorted((w.at(w.cr(cr)["path"]) / "work" / "gates").glob("*.log"))
+
+    def background(cr):
+        p = subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, slow_gate], cwd=w.work,
+                             env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                             encoding="utf-8")
+        lock_names(w, f"{cr} pid")
+        lock_names(w, " pg")
+        return p
+
+    head = w.sh("git", "rev-parse", "HEAD", cwd=wt)
+    notes_before = len(w.cr(one).get("notes", []))
+    running = background(one)
+    code, _ = w.chantier("gate", one, "--stop", expect=None)
+    stop_out = w.last_out
+    out, err = running.communicate(timeout=30)
+    time.sleep(0.5)
+    gone = not procs.alive(int(pidfile.read_text()))
+    check("`gate <cr> --stop` exits 0 and names the group; the stopped gate says STOPPED, exits 4, "
+          "with no traceback; the slow suite is gone",
+          code == 0 and any("(pg" in ln for ln in stop_out) and out.startswith("STOPPED")
+          and running.returncode == 4 and "Traceback" not in err and gone,
+          f"{stop_out} {out} {err} {running.returncode}")
+    last = events(one)[-1]
+    check("the stop changes nothing else: the CR still works in its folder with its worktree and "
+          "no new note; its last gate event is `stopped` at the run's head; the log ends `result: "
+          "stopped`",
+          w.cr(one)["status"] == "working" and "4-batch/2-actives/" in w.cr(one)["path"].replace(
+              "\\", "/") and wt.is_dir() and len(w.cr(one).get("notes", [])) == notes_before
+          and last["result"] == "stopped" and last["head"] == head
+          and logs(one)[-1].read_text("utf-8").splitlines()[-1].startswith("result: stopped"),
+          f"{w.cr(one)} {last}")
+    w.chantier("gate", one, GATE)
+    check("the lock is free: a second gate runs at once, with no waiting line, and passes",
+          "waiting for the long gate" not in logs(one)[-1].read_text("utf-8")
+          and gate_passed(events(one), head))
+    running = background(one)
+    w.chantier("gate", one, "--stop")
+    running.communicate(timeout=30)
+    _, out = w.chantier("ship", one, "https://example.invalid/pr/0")
+    check("a stopped run voids an earlier pass at the same head: `ship` says no long gate passed",
+          not gate_passed(events(one), head) and any("no long gate passed" in ln for ln in out),
+          str(out))
+    code, out = w.chantier("gate", one, "--stop")
+    check("`gate <cr> --stop` with no gate running exits 0 and says there is nothing to stop",
+          code == 0 and any("nothing to stop" in ln for ln in out), str(out))
+    other = background(two)
+    code, _ = w.chantier("gate", one, "--stop", expect=2)
+    check("with another CR's gate holding the lock, `--stop` exits 2, names it and stops nothing",
+          code == 2 and two in w.last_stderr + "".join(w.last_out) and other.poll() is None,
+          f"{w.last_out} {w.last_stderr}")
+    w.chantier("gate", two, "--stop")
+    other.communicate(timeout=30)
+    code, _ = w.chantier("gate", one, "--stop", GATE, expect=1)
+    code2, _ = w.chantier("gate", one, expect=1)
+    check("`--stop` with a command, and `gate` with neither command nor `--stop`, exit 1",
+          code == 1 and code2 == 1)
+    before = (w.cr(one)["status"], w.cr(one)["path"])
+    code, _ = w.chantier("cancel", one, expect=2)
+    check("`cancel` with no `--epoch` exits 2, names `gate <cr> --stop`, and changes nothing",
+          code == 2 and f"gate {one} --stop" in w.last_stderr
+          and (w.cr(one)["status"], w.cr(one)["path"]) == before, w.last_stderr)
 
 
 def rails(w: World) -> None:
