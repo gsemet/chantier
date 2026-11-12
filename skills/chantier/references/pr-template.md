@@ -161,7 +161,7 @@ say here in one line what they show. With nothing visible, one line, e.g. "No vi
 - [ ] Evidence: before at `<sha7>`, after at `<sha7>` <!-- or why there is none -->
 - [ ] Review: approved at `<sha7>`
 - [ ] Verified at `<sha7>` <!-- claims carried from an earlier SHA say so -->
-- [ ] CI green at `<sha7>`
+- [ ] CI green at `<sha7>` <!-- or, checked, "No CI: no check listed at <sha7>" when the forge lists no check at the head after two looks; never deleted, never "CI green" then -->
 
 ## Internal references
 
