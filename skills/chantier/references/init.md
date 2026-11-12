@@ -73,7 +73,7 @@ getting started here, phrases to say, the glossary.
    for example "- Fast gate (after each change): `<cmd>`." and "- Long gate (before a pull
    request): `<cmd>`.", one command per item, never chained with `&&` or `;`; the impact when
    missing: a long gate the Driver cannot run is a `--no-gate` the steering session must
-   question. Point to the README's "Your gates". Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
+   question. Point to `docs/gates.md`. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
    only on the user's yes. For an in-project planning folder, the `.gitignore` line is explained only: keep `.agents/changes/` out
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.

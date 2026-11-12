@@ -73,7 +73,7 @@ recommended answer and an offer to write it in `AGENTS.md`; an absent gate never
 project's rules say there is no long gate, or exempt a kind of CR, a Driver's `handback --no-gate` carries
 that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
 When the user says "our long gate is `<command>`", propose the exact `AGENTS.md` lines
-(README, "Your gates") and write them on the user's yes.
+(`docs/gates.md`) and write them on the user's yes.
 A brief (any prompt or message to an agent) states a past fact only with its source: a CR note,
 a file in the CR's folder, or an event in `events.jsonl`; a fact with no source is said as unknown.
 
