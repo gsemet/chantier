@@ -1973,9 +1973,20 @@ class _LongGateLock:
 
 # The run file `.long-gate.run` (planning folder, ignored like the lock) tells a `gate <cr> --stop`
 # what the running gate is (run id, head, command, log, suite group) and tells the running gate it
-# was stopped: the stopper sets `stopped`, the gate then records `stopped`, never `fail`.
+# was stopped. The ask is a separate marker, `.long-gate.stop`, that the stopper creates and the gate
+# never rewrites (the gate removes it when it starts and ends), so no write of the run file can
+# lose it: the gate checks it before and right after each start, and after each wait, and then
+# records `stopped`, never `fail`.
 def _run_file(repo: Repo) -> Path:
     return repo.changes / ".long-gate.run"
+
+
+def _stop_file(repo: Repo) -> Path:
+    return repo.changes / ".long-gate.stop"
+
+
+def _stop_asked(repo: Repo) -> bool:
+    return _stop_file(repo).exists()
 
 
 def _run_read(repo: Repo) -> dict:
@@ -1990,7 +2001,16 @@ def _run_read(repo: Repo) -> dict:
 
 
 def _run_write(repo: Repo, data: dict) -> None:
-    _run_file(repo).write_text(json.dumps(data), encoding="utf-8")
+    tmp = _run_file(repo).with_name(".long-gate.run.tmp")
+    tmp.write_text(json.dumps(data), encoding="utf-8")
+    for i in range(5):  # atomic: the stopper never reads half a file
+        try:
+            os.replace(tmp, _run_file(repo))
+            return
+        except PermissionError:  # Windows: a reader holds the file
+            if i == 4:
+                raise
+            time.sleep(0.05)
 
 
 def _gate_stop(args, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
@@ -2007,16 +2027,17 @@ def _gate_stop(args, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
     pg = int(m[3]) if m[3] else None
     gate_alive = procs.alive(int(m[2]))
     if gate_alive:
-        _run_write(repo, {**run, "stopped": True})  # the running gate records it
+        _stop_file(repo).write_text("stop", encoding="utf-8")  # the running gate records it
     if pg is not None:
         procs.stop_group(pg)
     if not gate_alive:  # the gate is gone: the stopper records the run
         if run.get("log") and Path(run["log"]).exists():
             with open(run["log"], "a", encoding="utf-8") as f:
                 f.write(f"result: stopped at {head}: no pass\n")
-        with Batch(repo, batch, actor="driver") as b:
-            b.log("gate", args.cr, result="stopped", head=head,
-                  command=run.get("command", ""), run=run.get("run", ""))
+        if run:  # with no run record there is no run to record: the lock was stale
+            with Batch(repo, batch, actor="driver") as b:
+                b.log("gate", args.cr, result="stopped", head=head,
+                      command=run.get("command", ""), run=run.get("run", ""))
         _run_file(repo).unlink(missing_ok=True)
     where = f" (pg{pg})" if pg is not None else ""
     return [f"stopped the long gate of {args.cr} at {_short(head)}{where}"], 0
@@ -2052,10 +2073,12 @@ def gate(args) -> tuple[list[str], int]:
         f.write(f"gate {c['id']} branch {c['branch']} head {start}\n")
     stopped = ""  # the command that was running when a `--stop` came
     with _LongGateLock(repo, args.cr, log) as lock:
+        _stop_file(repo).unlink(missing_ok=True)  # a stale ask is not this gate's
         _run_write(repo, {"cr": args.cr, "run": run, "head": start, "log": str(log),
-                          "command": "", "stopped": False})
+                          "command": ""})
         for cmd in cmds:
-            if _run_read(repo).get("stopped"):  # stopped between two commands: none starts
+            if _stop_asked(repo):  # stopped between two commands: none starts
+                # the record names the previous command (the one that last ran), or the first
                 stopped = ran[-1][0] if ran else cmd
                 break
             # closed while the gate runs: a `cancel` must be able to move the CR's folder on Windows
@@ -2068,15 +2091,18 @@ def gate(args) -> tuple[list[str], int]:
                                      **group)
             lock.holding(f"{args.cr} pid {os.getpid()} pg{p.pid}")
             _run_write(repo, {"cr": args.cr, "run": run, "head": start, "log": str(log),
-                              "command": cmd, "pg": p.pid, "stopped": False})
+                              "command": cmd, "pg": p.pid})
+            if _stop_asked(repo):  # asked before the stopper could see this group: stop it here
+                procs.stop_group(p.pid)
             rc = p.wait()
-            if _run_read(repo).get("stopped"):  # stopped: no pass, and no failure of the code
+            if _stop_asked(repo):  # stopped: no pass, and no failure of the code
                 stopped = cmd
                 break
             ran.append((cmd, rc))
             if rc:
                 break  # the commands after a failure are not run
         _run_file(repo).unlink(missing_ok=True)
+        _stop_file(repo).unlink(missing_ok=True)
     if stopped:
         if log.exists():
             with open(log, "a", encoding="utf-8") as f:

@@ -2335,6 +2335,21 @@ def stop_own_gate(w: World) -> None:
           and last["result"] == "stopped" and last["head"] == head
           and logs(one)[-1].read_text("utf-8").splitlines()[-1].startswith("result: stopped"),
           f"{w.cr(one)} {last}")
+    marker = w.root / "second_ran"
+    second = f'"{sys.executable}" -c "open({marker.as_posix()!r}, \'w\').close()"'
+    n_before = len(events(one))
+    p = subprocess.Popen([sys.executable, "-m", "chantier", "gate", one, slow_gate, second],
+                         cwd=w.work, env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True, encoding="utf-8")
+    lock_names(w, " pg")
+    w.chantier("gate", one, "--stop")
+    out, err = p.communicate(timeout=30)
+    new = events(one)[n_before:]
+    check("a stop while the first of two commands runs: the second never starts, the gate exits 4 "
+          "and records `stopped` with no `fail` event",
+          p.returncode == 4 and out.startswith("STOPPED") and not marker.exists()
+          and [e["result"] for e in new] == ["stopped"] and "Traceback" not in err,
+          f"{out} {err} {p.returncode} {new}")
     w.chantier("gate", one, GATE)
     check("the lock is free: a second gate runs at once, with no waiting line, and passes",
           "waiting for the long gate" not in logs(one)[-1].read_text("utf-8")
