@@ -72,6 +72,19 @@ The CLI keeps the CR's record and tells you what is off.
   is off (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
   does.
+- Commits: a PR merges by rebase with every commit of its branch, so each commit you make is a
+  commit of the default branch. Every commit you make, a round's commit or a checkpoint (work set
+  aside before a rebase, a commit before a gate, a commit after a `FIX-REQUIRED` round), has a
+  message in the project's commit style (its rules; where they give none, a Conventional Commit
+  subject, as for the PR title in [pr-template](pr-template.md)) that says what the commit holds.
+  Never a `wip` type, never "pending", "checkpoint", a round or a review state, never a CR
+  number, a batch or a role. Before the branch's first push, a checkpoint that is your head may
+  be folded into the next round's commit: stage that round's files by name, then `git commit
+  --amend -m "<a message for both>"`, and note it (`note <cr> "r<n> folded into <sha>"`). Once
+  the branch is pushed, or when the checkpoint is not your head, it stays as it is, with its
+  real message: never a rewrite for a message alone (a rebase onto the base is still the
+  ordinary rule). A commit a procedure names (a release's `release: vX.Y.Z`) keeps the
+  procedure's message.
 - A CR's PR says on the forge when it is not [ready to merge](concepts.md). When a CR is sent
   back to a CR Driver (ready or blocked, with a PR, whatever the note), it turns the PR back to
   a draft first (`gh pr ready --undo`, `glab mr update --draft`): the Foreman never edits a PR.
@@ -173,7 +186,7 @@ in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on 
 or with body items, is the next round. Any blocking item on the code or another project file,
 from any review, a later one included, goes to a `coder` in a round, then a new review: never a
 Driver edit. All approved: commit with nothing changed since the review (stage the files the
-round changed by name, `git add -- <paths>`, never `git add -A` or `.`) and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
+round changed by name, `git add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above) and record `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase,
 the long gate (a failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed
 head, given the plan (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence in Deliverables and the Test plan
 boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
