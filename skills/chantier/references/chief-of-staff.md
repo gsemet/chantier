@@ -294,12 +294,11 @@ Only in the turn where the user gave the go:
    stopped, you may reuse it instead of starting a session, with the new batch and its epoch 1.
    It claims the batch's epoch, which starts at 0 for a new batch, so 1; it does not continue the
    old Foreman's. Its title names the old batch: the prompt's title makes it rename itself. The
-prompt is the full one above, so it reads the cards and the rule files `$CHANTIER rules` lists
-again for this batch. A
-   new session stays the default where the host lets you start one: a reused
-   Foreman carries its old context, and the batch pays for it. The host's reference says how the
-   prompt reaches an idle session and a closed one, what is proved, and what the user types
-   first.
+   prompt is the full one above, so it reads the cards and the rule files `$CHANTIER rules`
+   lists again for this batch. A new session stays the default where the host lets you start
+   one: a reused Foreman carries its old context, and the batch pays for it. The host's
+   reference says how the prompt reaches an idle session and a closed one, what is proved, and
+   what the user types first.
 
    **An ask from a Foreman in a worktree.** Tell the user the impact (Write is refused in
    the planning folder, so no Driver can leave its work and evidence there) and give the "For

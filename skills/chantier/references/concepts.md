@@ -324,3 +324,5 @@ running agent's model, never a retry of the same agent, and never a model typed 
    into the command itself, because an allow rule does not see past it. Read a file before you
    overwrite it; to change part of a file, edit it rather than rewrite it. The host's side of
    this is in your host's reference, section "Configuration" (the workers do not need it).
+   Every file you write, a PR body included, is UTF-8 without a byte-order mark (on Windows
+   PowerShell 5.1, `Out-File` and `Set-Content -Encoding utf8` add one).
