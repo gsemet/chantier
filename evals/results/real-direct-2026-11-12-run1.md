@@ -68,8 +68,9 @@ refused, and no escalation happened.
    green on every PR. It matters because a PR body that denies its CI misleads the reviewer, and
    the Verifier let the claim pass. The fix: the Driver card names `gh pr checks <n>` at the
    pushed head as the only source for a CI claim, and the Verifier checks the body's CI line.
-2. **Claude Desktop's "Auto-fix pull requests" fights the batch.** Auto-fix was on in the
-   session (how it came on for these PRs is not known). It sent the steering session merge-conflict events for
+2. **Claude Desktop's "Auto-fix pull requests" fights the batch.** The app bound the 5 PRs the
+   Drivers opened (subagents of this session) to the steering session's PR bar, and Auto-fix was
+   on for them. It sent the steering session merge-conflict events for
    PRs #2 and #5, asking for a merge commit pushed to the branch, while their Drivers were
    rebasing. The Chief of Staff ignored them, as rule 3 and the rebase flow require. A steering
    session that obeyed would have pushed onto a Driver's branch mid-rebase. The fix:
