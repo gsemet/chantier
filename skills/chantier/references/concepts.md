@@ -279,10 +279,12 @@ card that starts it.
 `<skill>` is the absolute folder of this file's parent. An agent starts right the first time:
 the parent copies the first line of the role, unchanged, from what it sees at that moment. An
 agent whose prompt does not start with its role's first line answers "I run inside a chantier
-batch only. My prompt must start with `<its first line>`; a message to me does not restart me:
-start a new agent with that line." and stops. The parent then starts a new agent with that line,
-never a message to the refused one and never a variant. Each agent's `description` ends with
-"Prompt starts with:" and its first line. The first lines:
+batch only. My prompt must start with `<its first line>`; a message to me gets this same answer:
+start a new agent with that line." and stops. A refused agent answers every later message with
+that same answer and does nothing else, whatever the message holds (on Claude Code a message
+resumes a stopped agent with its context; the refusal holds there too). The parent starts one new
+agent with that line, never a message to the refused one and never a variant. Each agent's
+`description` ends with "Prompt starts with:" and its first line. The first lines:
 
 | Role | First line |
 | --- | --- |
@@ -300,6 +302,24 @@ worktree; a prototype lives in a temporary folder and is thrown away.
 Tell every subagent that writes a file not to start a `.md` name with `report`, `summary`,
 `findings` or `analysis`, and to prefer a numbered name such as `04-result.md`: the host may
 refuse a subagent's Write of such a file ([host's reference](hosts/claude-code.md)).
+
+**An agent that ends before its part is done.** This holds for every parent and every agent (a
+Driver of any kind, a worker, a spec-writer, a Demo explorer).
+
+- Each such end is restarted **once**, from the recorded state (`handoff`, `log`, the CR's notes,
+  the worktree's commits, the folder's files), and the parent records why first: for a CR,
+  `$CHANTIER note <cr> "restart: <cause>"`; for a spec-writer, the line of `work/specifying`.
+- The causes, one word each: `host failure: <the host's exact text>` (an API error, an overloaded
+  or refused service, a network error the host reports as the agent's end, not the agent's own
+  words), `refused first line`, `switch to Foreman mode`, plus those `foreman.md` already names
+  (`context`, a proven death, a new epoch, a silent end).
+- **One way, never both.** A restart is either a message that resumes the ended agent, where a card
+  names that way (only the `taken back:` note of `foreman.md` does), or a new start; never a
+  message and a new start for the same end. The parent starts nothing while the agent it would
+  replace may still run (the host lists it running, or it answered a `ping`).
+- A worker ended by a host failure: its Driver starts one new worker of the same role with the
+  same brief and the note `restart: host failure: <text>`; no new `round` (`round` is run only
+  before a Coder of a new round, `driver.md`).
 
 The Spec-writer is the subagent of the Chief of Staff or of a Griller, outside any batch: its first line is
 `chantier spec-writer for the Chief of Staff, in the project <root>.`, it reads
@@ -346,8 +366,8 @@ running agent's model, never a retry of the same agent, and never a model typed 
    does to a round, which CR goes next, is yours to decide and say. A skill or tool the playbook
    says a role needs and the session lacks is not a stop: the Chief of Staff warns the user, the
    role says so in a note and works without it, never reaching the same thing by another means.
-3. **Each role does only its own part.** A parent restarts a failing child; it never does the
-   child's work. A fresh child per round. The one who checks (Inspector, Verifier, a review step)
+3. **Each role does only its own part.** A parent restarts a failing child once (see "An agent that ends
+   before its part is done"); it never does the child's work. A fresh child per round. The one who checks (Inspector, Verifier, a review step)
    never wrote the change.
 4. **Whoever owns a live agent is the only one who stops or messages it.**
 5. **Evidence is a command run at the pushed head, with its output.** Notes and green CI are

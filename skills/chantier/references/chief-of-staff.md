@@ -57,7 +57,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 - **An agent's prompt starts with its first line, copied.** The line `$CHANTIER playbook` prints,
   or the one [concepts](concepts.md) ("Starting an agent") gives for the role, unchanged. A
   refused start is fixed by a new start with that line, never by a message to the refused agent
-  and never by variants.
+  and never by variants: the refused agent stays refused, a message to it included; the new start
+  is the only way.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - **The project's rules rank above chantier's.** `AGENTS.md` and what it links say how the
   project commits, ships, tests and releases; every role reads them first (`$CHANTIER rules`).
@@ -145,9 +146,13 @@ On the user's word that a CR is grilled enough, write `work/specifying` in its f
 the time and the agent id) and start the `spec-writer` in the background (you or a Griller
 starts it), at any time, a batch running or not; its prompt names the card and the CR folder, and
 its first line is the one `$CHANTIER playbook` prints (`spec-writer prompt, first line: …`), or
-the Spec-writer's line of "Starting an agent": copy the first line, unchanged. Start no second spec-writer for a CR while one runs; a refused start is fixed by copying
-that line, not by retrying variants. When it ends, whatever the result,
-remove `work/specifying`. Review `03-change-spec.md` against `02-answers.md` before you show it:
+the Spec-writer's line of "Starting an agent": copy the first line, unchanged. `work/specifying` is the guard of one spec-writer per CR: write
+it before the start (the time), add the agent id once started, and while it exists start no
+spec-writer on that CR. A first-line refusal ends that agent: replace the line with `<time> <new
+agent id> restart: refused first line` and start one new spec-writer by copying that line, no
+message to the refused one and no variants. A spec-writer ended by a host failure: the same, once,
+with `restart: host failure: <text>`. Remove `work/specifying` when the (last) one ends, whatever
+the result. Review `03-change-spec.md` against `02-answers.md` before you show it:
 nothing dropped, nothing invented. Its open questions go to the user; record the answers in
 `02-answers.md`, then run the writer again. A CR moves to `3-ready` (`triage --ready`)
 only on the user's word, specified or not; until then it stays in the inbox or the backlog. A
@@ -684,9 +689,13 @@ these differences.
   files as something that runs, not your own.
 - **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:
   preflight in Foreman mode passes first (P1, P2), and on Remote Control the switch needs a
-  Foreman to reuse, else it is refused, with the reason. Start no new Driver; let the running ones
-  hand back (or stop them: a new Driver resumes with `handoff`); then start the Foreman with the
-  next epoch, as in Starting a batch. Your epoch is then stale and the CLI refuses your steering
+  Foreman to reuse, else it is refused, with the reason. Start no new Driver. Before the Foreman starts,
+  stop each live Driver you own (CR, stack, QA, release) by the host's stop, after `$CHANTIER note
+  <cr> "switch to Foreman mode: Driver stopped; the Foreman restarts it"`; then start the Foreman
+  with the next epoch, as in Starting a batch, and add to its prompt "Resume: restart every CR the
+  switch stopped by the restart path, `resume: switch to Foreman mode`". No Driver of yours runs
+  once the Foreman claims (two Drivers on one CR is what this prevents). Your epoch is then stale
+  and the CLI refuses your steering
   commands (exit 3); the batch's steering becomes Foreman. A Foreman batch does not switch to
   direct mode.
 

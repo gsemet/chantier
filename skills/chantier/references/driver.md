@@ -22,8 +22,10 @@ The CLI keeps the CR's record and tells you what is off.
   the role, and the worker's agent and model as the `team:` lines print them, passed as
   printed (no model printed: none passed). Read those lines with `$CHANTIER handoff <cr>`, which
   prints them and counts nothing, or keep the ones `take` printed in your prompt; `round` is run
-  only to start a round, just before that round's Coder, never to read facts. A refused start, a model included, is `handback
-  blocked refused <exact text>`, never retried without the model. Every worker's prompt holds
+  only to start a round, just before that round's Coder, never to read facts. A worker refused for its first line, or ended by a host failure, gets
+  one new start of the same role with the same brief, `$CHANTIER note <cr> "restart: <cause>"`
+  first, no `round`; a second refusal of the same start, a model included, is `handback blocked
+  refused <exact text>`, never retried without the model. Every worker's prompt holds
   `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
   printed them (`worktree:` and `folder:`); your own prompt never holds the line. A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it.
@@ -213,7 +215,8 @@ The CLI keeps the CR's record and tells you what is off.
   "CR driver" section says). Any other note received after your hand-back, with no `taken
   back:`, is not work to start: pass it to the steering session as the refused line above.
   `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: stop a long gate of yours that
-  is running (`gate <cr> --stop`), then `handback blocked stopped`.
+  is running (`gate <cr> --stop`), then `handback blocked stopped`; when the steering session's
+  stop comes with a switch to Foreman mode, the note says so.
 
 ## CR driver
 

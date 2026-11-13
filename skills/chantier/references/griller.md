@@ -13,8 +13,9 @@ As [chief-of-staff](chief-of-staff.md), "Backlog and grill", says (it is not cop
 `$CHANTIER file`, `triage`, write `01-intent.md` (with its `issue:` line, if the CR comes from a
 tracker issue), record every answer in `02-answers.md` at once, the restatement before "grilled
 enough?", `depends.json` when a CR needs another's result, and on the user's word the
-`spec-writer` (`work/specifying`, the prompt of [concepts](concepts.md) with its first line copied
-unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
+`spec-writer` (one per CR, `work/specifying` as the guard, and a refused start restarted by a new
+start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
+[concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
 the user).
 
 For a CR with an `issue:` line, once the user says it is grilled enough, write the proposed grill
