@@ -551,7 +551,7 @@ def scenario(w: World) -> None:
           "still passes", p10.startswith("P10 warn")
           and "git push --force-with-lease -u origin chantier/*" in p10, p10)
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
-    from chantier.commands import RECOMMENDED_ALLOW
+    from chantier.commands.permissions import RECOMMENDED_ALLOW
     (home / ".claude").mkdir(parents=True)
     user = ["git push --force-with-lease -u origin chantier/*",
             "git push --force-with-lease=chantier/* origin *chantier/*"]
@@ -2437,7 +2437,7 @@ def failed_opening(w: World) -> None:
 def playbook_config(w: World) -> None:
     """chantier.yaml: absent, valid, kept by a running batch, refused with its line, and a host
     that cannot set a model at a start."""
-    from chantier.playbook import SETS_MODEL_AT_START
+    from chantier.playbook.models import SETS_MODEL_AT_START
     note("\n## 17b. The playbook: an optional chantier.yaml")
     yaml = w.work / "chantier.yaml"
     earlier = w.env.pop("CHANTIER_BATCH", None)
@@ -2628,7 +2628,7 @@ def stop_own_gate(w: World) -> None:
     note("\n## 18b. A Driver stops its own long gate; `cancel` needs the epoch")
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     from chantier import procs
-    from chantier.commands import gate_passed
+    from chantier.commands.crs import gate_passed
     items = [prepare_cr(w, t)[1] for t in ("Stop own gate", "Stop other gate")]
     slow = w.root / "slow_stop.py"
     pidfile = w.root / "slow_stop.pid"
@@ -3160,7 +3160,7 @@ def handback_proofs(w: World) -> None:
 def gate_proof(w: World) -> None:
     note("\n## 12c. The gate binds to a commit; the budget bounds the rounds")
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
-    from chantier.commands import gate_passed
+    from chantier.commands.crs import gate_passed
     items = [prepare_cr(w, t)[1] for t in ("Gate head", "Gate abbrev", "Gate short", "Gate budget",
                                            "Gate rounds", "Gate free")]
     w.reset()
@@ -5141,7 +5141,7 @@ def copilot_missing_transcript(w: World) -> None:
 def copilot_uv(w: World) -> None:
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     try:
-        from chantier import costs
+        from chantier.costs import copilot as costs
     finally:
         sys.path.pop(0)
     index_variables = ("UV_INDEX", "UV_DEFAULT_INDEX", "UV_INDEX_URL", "UV_EXTRA_INDEX_URL",

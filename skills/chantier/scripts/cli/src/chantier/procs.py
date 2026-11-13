@@ -1,97 +1,87 @@
-"""Find and stop the processes a cancelled CR leaves behind in its worktree."""
+"""Finding and stopping the processes of a worktree, through psutil (loaded on first use: only
+`cancel` and `gate` need it)."""
+
 from __future__ import annotations
 
-import json
 import os
 import signal
-import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 WINDOWS = sys.platform == "win32"
+POLL_S = 0.1
 
 
-def _cwds() -> dict[int, str]:
-    """pid → current directory, for every process we can see.
+def _snapshot() -> list[tuple[int, str, str]]:
+    """(pid, current directory, command line) of every process we can see.
 
-    Windows offers no supported way to read another process's directory: there, a process is
-    found by its command line only.
+    Windows offers no supported way to read another process's directory, and the rule stays: there,
+    a process is found by its command line only.
     """
-    out: dict[int, str] = {}
-    if WINDOWS:
-        return out
-    if sys.platform.startswith("linux"):
-        for p in Path("/proc").iterdir():
-            if p.name.isdigit():
-                try:
-                    out[int(p.name)] = os.readlink(p / "cwd")
-                except OSError:
-                    pass
-        return out
-    try:
-        res = subprocess.run(["lsof", "-a", "-d", "cwd", "-Fpn", "-u", str(os.getuid())],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace",
-                             timeout=30)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return out
-    pid = None
-    for line in res.stdout.splitlines():
-        if line.startswith("p"):
-            pid = int(line[1:])
-        elif line.startswith("n") and pid is not None:
-            out[pid] = line[1:]
-    return out
+    import psutil
 
-
-def _cmdlines() -> dict[int, str]:
-    if WINDOWS:
-        res = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-             "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
-             "Get-CimInstance Win32_Process | Select-Object ProcessId,CommandLine"
-             " | ConvertTo-Json -Compress"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
-        rows = json.loads(res.stdout or "[]")
-        return {r["ProcessId"]: r["CommandLine"] for r in rows if r.get("CommandLine")}
-    res = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True, text=True,
-                         encoding="utf-8", errors="replace")
-    out = {}
-    for line in res.stdout.splitlines():
-        parts = line.strip().split(None, 1)
-        if len(parts) == 2 and parts[0].isdigit():
-            out[int(parts[0])] = parts[1]
-    return out
+    rows = []
+    for p in psutil.process_iter(["pid", "cwd", "cmdline"]):
+        info = p.info
+        cwd = "" if WINDOWS else (info["cwd"] or "")
+        rows.append((int(info["pid"]), cwd, " ".join(info["cmdline"] or [])))
+    return rows
 
 
 def find(worktree: Path) -> list[int]:
     """Processes running in the worktree, or naming it on their command line."""
     root = str(worktree.resolve())
     me = {os.getpid(), os.getppid()}
-    pids = {pid for pid, cwd in _cwds().items()
-            if cwd == root or cwd.startswith(root + os.sep)}
-    if WINDOWS:  # paths are case-insensitive, and may be written with either slash
-        roots = {root.lower(), root.lower().replace("\\", "/")}
-        pids |= {pid for pid, cmd in _cmdlines().items() if any(r in cmd.lower() for r in roots)}
-    else:
-        pids |= {pid for pid, cmd in _cmdlines().items() if root in cmd}
+    # paths are case-insensitive on Windows, and may be written with either slash
+    roots = {root.lower(), root.lower().replace("\\", "/")} if WINDOWS else {root}
+    pids = set()
+    for pid, cwd, cmd in _snapshot():
+        named = cmd.lower() if WINDOWS else cmd
+        if cwd == root or cwd.startswith(root + os.sep) or any(r in named for r in roots):
+            pids.add(pid)
     return sorted(pids - me)
 
 
-def _taskkill(pid: int, tree: bool) -> bool:
-    """Windows has no SIGTERM for console programs: end the process (and its tree) at once."""
-    res = subprocess.run(["taskkill", "/F", *(["/T"] if tree else []), "/PID", str(pid)],
-                         capture_output=True, text=True, encoding="utf-8", errors="replace")
-    return res.returncode == 0
+def _end_tree(pid: int) -> bool:
+    """Windows has no SIGTERM for console programs: end the process and its children at once."""
+    import psutil
+
+    try:
+        proc = psutil.Process(pid)
+        for child in proc.children(recursive=True):
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                continue
+        proc.kill()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False
+    return True
 
 
 def stop_group(pgid: int) -> bool:
     """Stop the process group of a running `chantier gate`; False if it is already gone."""
     if WINDOWS:  # the group leader's tree stands for the group
-        return _taskkill(pgid, tree=True)
+        return _end_tree(pgid)
     try:
         os.killpg(pgid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError):
+        return False
+    return True
+
+
+def _signal(pid: int, kill: bool) -> bool:
+    import psutil
+
+    try:
+        proc: Any = psutil.Process(pid)
+        if kill:
+            proc.kill()
+        else:
+            proc.terminate()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False
     return True
 
@@ -102,54 +92,26 @@ def stop(pids: list[int], grace_s: float = 3.0) -> list[int]:
     On Windows each process and its children are ended at once, with no grace period.
     """
     if WINDOWS:
-        return [pid for pid in pids if _taskkill(pid, tree=True)]
-    hit = []
-    for pid in pids:
-        try:
-            os.kill(pid, signal.SIGTERM)
-            hit.append(pid)
-        except (ProcessLookupError, PermissionError):
-            pass
+        return [pid for pid in pids if _end_tree(pid)]
+    hit = [pid for pid in pids if _signal(pid, kill=False)]
     deadline = time.monotonic() + grace_s
-    alive_ = list(hit)
-    while alive_ and time.monotonic() < deadline:
-        time.sleep(0.1)
-        alive_ = [p for p in alive_ if _alive(p)]
-    for pid in alive_:
-        try:
-            os.kill(pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+    left = list(hit)
+    while left and time.monotonic() < deadline:
+        time.sleep(POLL_S)
+        left = [p for p in left if alive(p)]
+    for pid in left:
+        _signal(pid, kill=True)
     return hit
 
 
 def alive(pid: int) -> bool:
-    """Whether a process still runs, on either platform (`os.kill(pid, 0)` ends it on Windows)."""
-    if not WINDOWS:
-        return _alive(pid)
-    import ctypes
-    kernel32 = ctypes.windll.kernel32
-    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
-    if not handle:
-        return False
-    try:
-        code = ctypes.c_ulong()
-        if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
-            return False
-        return code.value == 259  # STILL_ACTIVE
-    finally:
-        kernel32.CloseHandle(handle)
+    """Whether a process still runs; a zombie counts as gone."""
+    import psutil
 
-
-def _alive(pid: int) -> bool:
     try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
+        proc = psutil.Process(pid)
+        return bool(proc.is_running()) and proc.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
         return False
-    except PermissionError:
-        return True
-    try:  # a zombie child counts as gone
-        done, _ = os.waitpid(pid, os.WNOHANG)
-        return done == 0
-    except ChildProcessError:
+    except psutil.AccessDenied:
         return True

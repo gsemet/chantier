@@ -21,11 +21,15 @@
   to synchronise, and a few tools. The agents do the work, git and the forge included; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. One named
   exception: `chantier board`, a read-only web view of the record the CLI already keeps, for the
-  user in remote: it writes no file, uses the standard library only and knows no role; anything
+  user in remote: it writes no file, takes its dependencies through the CLI's PEP 723 inline metadata like the
+  rest of the CLI, and knows no role; anything
   more (answering an ask, filing an item) is another CR.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
-- The CLI has no dependencies and must stay portable (POSIX and Windows, UTF-8 everywhere).
-- Tests check the structure only (`tests/test_structure.py`): keep them few and fast; the batch
+- The CLI's dependencies are Python packages declared in its scripts' PEP 723 inline metadata and
+  locked beside them; uv installs them at the first run, with no install by the user. A dependency
+  ships wheels for Linux, macOS and Windows and replaces hand-written code. The CLI stays portable
+  (POSIX and Windows, UTF-8 everywhere).
+- Tests check the structure only (`tests/`): keep them few and fast; the batch
   workflow belongs to `just scenario`.
 - A session here runs chantier itself, read live from the main checkout: use it to debug it. An
   edit loads at the next session or with `/reload-plugins`, with no reinstall; a worktree's edit

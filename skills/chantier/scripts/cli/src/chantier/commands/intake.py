@@ -1,0 +1,226 @@
+"""The inbox: `init`, `file`, `triage`, `abandon` and `restore`."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from chantier.commands.crs import new_request, shown, slugify
+from chantier.commands.opening import cr_slug
+from chantier.commands.registry import NO_BATCH, Subparsers, add_command
+from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
+from chantier.core.clock import stamp
+from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.git import git
+from chantier.core.records import read_batch_json, read_restored_number, write_restored_number
+from chantier.lifecycle.convert import convert_old_tree, open_repo
+from chantier.lifecycle.stages import (
+    PRIORITIES,
+    changes_lock,
+    ensure_unclaimed,
+    move_backlog_item,
+    stage_layout,
+)
+from chantier.status.write import write_dashboard
+
+
+def init(args) -> list[str]:
+    """Create the eight stage folders, empty; leave the ones that exist; write nothing else."""
+    try:
+        repo = open_repo()
+    except ChantierError as e:
+        raise ChantierError(
+            f"no git repository found ({e}): chantier needs one; run `git init` first",
+            EXIT_PRECONDITION,
+        ) from e
+    gitdir = Path(
+        git("rev-parse", "--path-format=absolute", "--git-dir", check=False) or "."
+    ).resolve()
+    if gitdir != repo.git_dir:  # preflight's P7
+        raise ChantierError(
+            f"this is a linked worktree: init runs in the main checkout ({repo.session_root})",
+            EXIT_PRECONDITION,
+        )
+    convert_old_tree(repo)  # an older tree first, so that its folders are not made twice
+    repo.changes.mkdir(parents=True, exist_ok=True)
+    repo.ensure_gitignore()
+    lines = []
+    for key, folder in stage_layout(repo).items():
+        if key == "batches":  # the parent of the three state folders, made with them
+            continue
+        existed = folder.is_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        lines.append(f"{'exists ' if existed else 'created'} {shown(repo, folder)}")
+    return lines
+
+
+def file_cr(args) -> list[str]:
+    repo = open_repo()
+    paths = stage_layout(repo)
+    if args.item.startswith("@"):
+        source = Path(args.item[1:]).expanduser()
+        if not source.is_absolute():
+            source = (Path.cwd() if repo.external else repo.root) / source
+        try:
+            raw = source.read_bytes()
+            text = raw.decode("utf-8-sig")
+        except (OSError, UnicodeError) as e:
+            raise ChantierError(f"cannot read the request {source}: {e}", EXIT_USAGE) from e
+    else:
+        text = args.item
+        raw = text.encode("utf-8")
+    if not text.strip():
+        raise ChantierError("the request is empty", EXIT_USAGE)
+    title = next(line.lstrip("# ").strip() for line in text.splitlines() if line.strip())
+    slug = args.slug or slugify(title)
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", slug):
+        raise ChantierError("CR slug: lowercase letters, digits and hyphens", EXIT_USAGE)
+    with changes_lock(repo):
+        folder = new_request(repo, slug, raw)
+        write_dashboard(repo, paths)
+    return [f"filed {shown(repo, folder)}; write the intent and grill the CR here"]
+
+
+def triage(args) -> list[str]:
+    repo = open_repo()
+    with changes_lock(repo):
+        target = move_backlog_item(
+            repo, args.item, args.priority, stage_layout(repo), ready=args.ready
+        )
+        write_dashboard(repo, stage_layout(repo))
+    return [f"triaged {shown(repo, target)}" + (f" ({args.priority})" if args.priority else "")]
+
+
+def abandon(args) -> list[str]:
+    repo = open_repo()
+    paths = stage_layout(repo)
+    source = repo.planning_path(args.item, "CR folder")
+    in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
+    in_batch = source.parent in (paths["pending"], paths["actives"])
+    if source.parent not in (paths["inbox"], paths["ready"]) and not in_batch and not in_backlog:
+        raise ChantierError(
+            "only an inbox, backlog, 3-ready or unclaimed batch CR can be abandoned", EXIT_USAGE
+        )
+    with changes_lock(repo):
+        ensure_unclaimed(repo, source)
+        target = paths["trash"] / f"{stamp()}-{source.name}"
+        move_directory(source, target)
+        write_dashboard(repo, paths)
+    return [f"abandoned {shown(repo, target)}"]
+
+
+def restore(args) -> list[str]:
+    """The reverse of `abandon`: a folder of `6-trash` comes back to `1-inbox`, whole, without its
+    date (and without its number when an open batch's record says it was that batch's CR). Only on
+    the user's word. A cancelled CR of an open batch stays cancelled there; its branch, worktree and
+    PR are not touched."""
+    repo = open_repo()
+    paths = stage_layout(repo)
+    source = repo.planning_path(args.item, "CR folder")
+    if source.parent != paths["trash"] or not source.is_dir():
+        raise ChantierError(
+            f"restore takes a folder directly under 6-trash: {shown(repo, source)} is not one",
+            EXIT_PRECONDITION,
+        )
+    with changes_lock(repo):
+        known, batch_crs = None, []  # the open batch's CR that owned this folder; all its CRs
+        for batch_dir in repo.batch_folders():
+            record = read_batch_json(batch_dir / "batch.json")
+            for cr in record.get("crs", []):
+                if not cr.get("path"):
+                    continue
+                if repo.planning_path(cr["path"], "recorded CR path") == source:
+                    known = (record.get("id", "?"), cr)
+                else:
+                    batch_crs.append(cr_slug(Path(cr["path"]).name))
+        name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", source.name)
+        if known:  # a number is stripped only from a folder a batch record says is its CR's
+            name = re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
+        name = args.slug or name
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", name):
+            raise ChantierError(
+                f"restore: {name!r} is not a CR slug (lowercase letters, digits "
+                "and hyphens): restore again with --slug <name>",
+                EXIT_USAGE,
+            )
+        taken = [
+            paths["inbox"] / name,
+            paths["ready"] / name,
+            *(paths["backlog"] / p / name for p in PRIORITIES),
+        ]
+        clash = next((shown(repo, t) for t in taken if t.exists()), None) or (
+            f"a CR of the open batch ({name})" if name in batch_crs else None
+        )
+        if clash:
+            raise ChantierError(
+                f"restore: the name {name} is already used by {clash}; "
+                f"restore again with --slug <other>",
+                EXIT_PRECONDITION,
+            )
+        target = paths["inbox"] / name
+        formerly = None
+        if known:
+            formerly = f"formerly {known[1]['id']} of {known[0]}"
+            number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
+        move_directory(source, target)
+        if known:
+            number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
+            if number:  # the number is never given again, even once the batch is closed
+                path = repo.changes / RESTORED_NUMBER_FILE
+                write_restored_number(path, max(read_restored_number(path), int(number[1])))
+        if formerly:
+            intent = target / "01-intent.md"
+            with open(
+                intent if intent.is_file() else target / "notes.md", "a", encoding="utf-8"
+            ) as f:
+                f.write(f"\n{formerly}\n")
+        write_dashboard(repo, paths)
+    lines = [f"restored {shown(repo, target)}"]
+    if known and known[1].get("status") == "cancelled":
+        cr = known[1]
+        lines.append(
+            f"{cr['id']} stays cancelled in {known[0]}: its branch {cr.get('branch')}, "
+            f"worktree {cr.get('worktree')} and PR {cr.get('pr') or 'none'} are not "
+            "touched; `order add` brings it back in a batch"
+        )
+    return lines
+
+
+def register(sub: Subparsers) -> None:
+    """Declare this module's commands."""
+    add_command(
+        sub,
+        "init",
+        init,
+        "create the empty stage folders of the planning folder and its .gitignore; changes "
+        "nothing else",
+        NO_BATCH,
+    )
+
+    s = add_command(sub, "file", file_cr, "file a request in the inbox", NO_BATCH)
+    s.add_argument("item", help="request text, or @path to the raw request")
+    s.add_argument("--slug", help="folder name when the inferred slug is already used")
+
+    s = add_command(
+        sub,
+        "triage",
+        triage,
+        "move an inbox, backlog or 3-ready CR to a priority of the backlog, or to 3-ready",
+        NO_BATCH,
+    )
+    s.add_argument(
+        "item",
+        help="path to the CR folder: 1-inbox/<item>, 2-backlog/P<n>/<item> or 3-ready/<item>",
+    )
+    g = s.add_mutually_exclusive_group(required=True)
+    g.add_argument("--priority", choices=["P1", "P2", "P3", "P4"])
+    g.add_argument(
+        "--ready", action="store_true", help="the CR waits in 3-ready for the next batch"
+    )
+
+    s = add_command(sub, "abandon", abandon, "move an explicitly abandoned CR to trash", NO_BATCH)
+    s.add_argument("item", help="path to the unclaimed CR folder")
+
+    s = add_command(sub, "restore", restore, "bring a trashed CR back to the inbox", NO_BATCH)
+    s.add_argument("item", help="path to the folder directly under 6-trash")
+    s.add_argument("--slug", help="the inbox name, when the old one is taken or to rename")

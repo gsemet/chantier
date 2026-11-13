@@ -3,7 +3,11 @@ name = "chantier"
 version = "0.9.0"
 description = "CLI of the chantier skill: the CR lifecycle, the batch's limits and record, orders and asks, the long gate, cost."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pydantic>=2.11",
+    "ruamel.yaml>=0.18",
+    "psutil>=7",
+]
 
 [project.scripts]
 chantier = "chantier.cli:main"
@@ -20,3 +24,39 @@ packages = ["src/chantier"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "C90", "PL", "RUF", "PGH004"]
+preview = true
+explicit-preview-rules = true
+extend-select = ["PLR1702", "TID253"]
+allowed-confusables = ["\u2192", "\u2026", "\u2013"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-positional-args = 5
+max-branches = 12
+max-returns = 6
+max-statements = 50
+max-nested-blocks = 3
+
+[tool.ruff.lint.flake8-tidy-imports]
+banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+files = ["src", "tests", "session_usage.py"]  # chantier.py names the package `chantier`: it is run by uv, not typed here
+
+[[tool.mypy.overrides]]
+module = ["copilot_session_usage", "copilot_session_usage.*"]
+ignore_missing_imports = true

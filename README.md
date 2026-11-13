@@ -205,7 +205,9 @@ Then restart the session and type one of the entries (on Claude Code, `/chantier
 mode following the surface (`/chief-of-staff foreman` or `/chief-of-staff direct` to force one),
 `/griller` makes it a Griller, a session that
 refines the inbox and the backlog while the Chief of Staff runs batches, and `/chantier:status` gives the progress report of the running batch at once, in the same shape as the Chief of Staff's. Besides
-the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); working on a
+the plugin, the only thing to install is [`uv`](https://docs.astral.sh/uv/); its first run
+fetches the CLI's Python packages, so it needs the network once, and uv's cache is enough after
+that; working on a
 repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab.
 
 ## Use

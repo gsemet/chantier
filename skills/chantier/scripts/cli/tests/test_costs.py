@@ -1,18 +1,30 @@
 """Cost totals refuse missing or unreadable Claude usage and count the calls with no price."""
+
 import json
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-from chantier.costs import session_costs, usage
-from chantier.state import ChantierError, EXIT_EXTERNAL
+from chantier.core.errors import EXIT_EXTERNAL, ChantierError
+from chantier.costs.sessions import session_costs
+from chantier.costs.transcripts import usage
+
+UNPRICED_TOKENS = 1000
 
 
-def record(model="claude-sonnet-5-5"):
-    return {"type": "assistant", "message": {"id": "m1", "model": model,
-            "usage": {"input_tokens": 1_000, "output_tokens": 2_000}}}
+def record(model: str = "claude-sonnet-5-5") -> dict[str, Any]:
+    return {
+        "type": "assistant",
+        "message": {
+            "id": "m1",
+            "model": model,
+            "usage": {"input_tokens": 1_000, "output_tokens": 2_000},
+        },
+    }
 
 
-def test_claude_cost_deduplicates_and_prices_known_usage(tmp_path):
+def test_claude_cost_deduplicates_and_prices_known_usage(tmp_path: Path) -> None:
     transcript = tmp_path / "session.jsonl"
     line = json.dumps(record()) + "\n"
     transcript.write_text(line * 2)
@@ -21,13 +33,24 @@ def test_claude_cost_deduplicates_and_prices_known_usage(tmp_path):
     assert rows[0]["usd"] == pytest.approx((1000 * 2 + 2000 * 10) / 1e6)
 
 
-@pytest.mark.parametrize(("contents", "message"), [
-    ("", "no priced calls"),
-    ("not JSON\n", "unreadable Claude transcript"),
-    (json.dumps({"type": "assistant", "message": {"model": "claude-sonnet-5-5",
-                "usage": {"output_tokens": 1}}}) + "\n", "no message id"),
-])
-def test_claude_cost_refuses_unreadable_usage(tmp_path, contents, message):
+@pytest.mark.parametrize(
+    ("contents", "message"),
+    [
+        ("", "no priced calls"),
+        ("not JSON\n", "unreadable Claude transcript"),
+        (
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {"model": "claude-sonnet-5-5", "usage": {"output_tokens": 1}},
+                }
+            )
+            + "\n",
+            "no message id",
+        ),
+    ],
+)
+def test_claude_cost_refuses_unreadable_usage(tmp_path: Path, contents: str, message: str) -> None:
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(contents)
     with pytest.raises(ChantierError, match=message) as error:
@@ -35,7 +58,7 @@ def test_claude_cost_refuses_unreadable_usage(tmp_path, contents, message):
     assert error.value.code == EXIT_EXTERNAL
 
 
-def test_a_model_with_no_price_is_counted_and_named_and_never_priced(tmp_path):
+def test_a_model_with_no_price_is_counted_and_named_and_never_priced(tmp_path: Path) -> None:
     other = record("unknown-model")
     other["message"]["id"] = "m2"
     transcript = tmp_path / "session.jsonl"
@@ -43,27 +66,37 @@ def test_a_model_with_no_price_is_counted_and_named_and_never_priced(tmp_path):
     row = session_costs(transcript)[0]
     assert row["calls"] == 1 and row["unpriced"] == {"unknown-model": 1}
     assert row["usd"] == pytest.approx((1000 * 2 + 2000 * 10) / 1e6)
-    assert row["peak_context"] == 1000  # the unpriced call's tokens are measured, not priced
+    assert (
+        row["peak_context"] == UNPRICED_TOKENS
+    )  # the unpriced call's tokens are measured, not priced
     transcript.write_text(json.dumps(other) + "\n")  # only unpriced calls: not an empty window
     assert session_costs(transcript)[0]["unpriced"] == {"unknown-model": 1}
 
 
-def test_a_dated_id_is_priced_by_its_model_and_the_project_prices_rank_first(tmp_path):
+def test_a_dated_id_is_priced_by_its_model_and_the_project_prices_rank_first(
+    tmp_path: Path,
+) -> None:
     dated = record("claude-sonnet-5-5-20261001")
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(json.dumps(dated) + "\n")
     assert session_costs(transcript)[0]["usd"] == pytest.approx((1000 * 2 + 2000 * 10) / 1e6)
-    mine = {"claude-sonnet-5-5": {"input": 1, "cache_write_5m": 1, "cache_write_1h": 1,
-                                  "cache_read": 1, "output": 1}}
+    mine = {
+        "claude-sonnet-5-5": {
+            "input": 1,
+            "cache_write_5m": 1,
+            "cache_write_1h": 1,
+            "cache_read": 1,
+            "output": 1,
+        }
+    }
     assert session_costs(transcript, prices=mine)[0]["usd"] == pytest.approx(3000 / 1e6)
 
 
-def test_claude_fable_5_2_is_priced_from_the_built_in_table(tmp_path):
+def test_claude_fable_5_2_is_priced_from_the_built_in_table(tmp_path: Path) -> None:
     call = record("claude-fable-5-2")
     call["message"]["usage"] = {
         "input_tokens": 1_000,
-        "cache_creation": {"ephemeral_5m_input_tokens": 2_000,
-                           "ephemeral_1h_input_tokens": 3_000},
+        "cache_creation": {"ephemeral_5m_input_tokens": 2_000, "ephemeral_1h_input_tokens": 3_000},
         "cache_read_input_tokens": 4_000,
         "output_tokens": 5_000,
     }
@@ -72,10 +105,11 @@ def test_claude_fable_5_2_is_priced_from_the_built_in_table(tmp_path):
     row = session_costs(transcript)[0]
     assert row["calls"] == 1 and row["unpriced"] == {}
     assert row["usd"] == pytest.approx(
-        (1000 * 8 + 2000 * 10 + 3000 * 16 + 4000 * 0.20 + 5000 * 40) / 1e6)
+        (1000 * 8 + 2000 * 10 + 3000 * 16 + 4000 * 0.20 + 5000 * 40) / 1e6
+    )
 
 
-def test_claude_cost_requires_main_transcript_even_if_subagents_exist(tmp_path):
+def test_claude_cost_requires_main_transcript_even_if_subagents_exist(tmp_path: Path) -> None:
     transcript = tmp_path / "session.jsonl"
     subagents = tmp_path / "session" / "subagents"
     subagents.mkdir(parents=True)
@@ -84,42 +118,94 @@ def test_claude_cost_requires_main_transcript_even_if_subagents_exist(tmp_path):
         session_costs(transcript)
 
 
-def test_a_turn_naming_the_answers_is_grill_and_a_turn_without_is_not(tmp_path):
-    def call(mid, blocks):  # one record per content block, as Claude writes them
-        return json.dumps({"type": "assistant", "timestamp": "2026-03-01T00:00:00Z", "message": {
-            "id": mid, "model": "claude-sonnet-5-5", "content": blocks,
-            "usage": {"input_tokens": 1_000, "output_tokens": 10}}}) + "\n"
+def test_a_turn_naming_the_answers_is_grill_and_a_turn_without_is_not(tmp_path: Path) -> None:
+    def call(
+        mid: str, blocks: list[dict[str, Any]]
+    ) -> str:  # one record per content block, as Claude writes them
+        return (
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "timestamp": "2026-03-01T00:00:00Z",
+                    "message": {
+                        "id": mid,
+                        "model": "claude-sonnet-5-5",
+                        "content": blocks,
+                        "usage": {"input_tokens": 1_000, "output_tokens": 10},
+                    },
+                }
+            )
+            + "\n"
+        )
 
     wake = json.dumps({"type": "user", "message": {"content": "go"}}) + "\n"
-    result = json.dumps({"type": "user", "message": {"content": [
-        {"type": "tool_result", "content": "ok"}]}}) + "\n"
+    result = (
+        json.dumps(
+            {"type": "user", "message": {"content": [{"type": "tool_result", "content": "ok"}]}}
+        )
+        + "\n"
+    )
     use = {"type": "tool_use", "name": "Edit", "input": {"file_path": "x/02-answers.md"}}
-    boundary = json.dumps({"type": "system", "subtype": "compact_boundary",
-                           "timestamp": "2026-03-01T00:00:00Z"}) + "\n"
+    boundary = (
+        json.dumps(
+            {"type": "system", "subtype": "compact_boundary", "timestamp": "2026-03-01T00:00:00Z"}
+        )
+        + "\n"
+    )
     transcript = tmp_path / "session.jsonl"
     transcript.write_text(
-        wake + call("a", [{"type": "text", "text": "I record it"}]) + call("a", [use]) + result
-        + call("b", [{"type": "text", "text": "done"}]) + boundary + call("b", [use])  # a repeat
-        + wake + call("c", [{"type": "tool_use", "name": "Bash", "input": {"command": "status"}}]))
+        wake
+        + call("a", [{"type": "text", "text": "I record it"}])
+        + call("a", [use])
+        + result
+        + call("b", [{"type": "text", "text": "done"}])
+        + boundary
+        + call("b", [use])  # a repeat
+        + wake
+        + call("c", [{"type": "tool_use", "name": "Bash", "input": {"command": "status"}}])
+    )
     row = session_costs(transcript, "2026-01-01T00:00:00Z", split=True)[0]
     assert (row["grill"]["calls"], row["calls"], row["compactions"]) == (2, 1, 1)
 
 
-@pytest.mark.parametrize("name, given, grill", [
-    ("Edit", {"file_path": "x/02-answers.md"}, True),
-    ("Edit", {"file_path": "x\\02-answers.md"}, True),
-    ("Agent", {"subagent_type": "chantier:spec-writer", "prompt": "x"}, True),
-    ("Agent", {"subagent_type": "chantier:cr-driver", "prompt": "read x/03-change-spec.md"}, False),
-    ("Write", {"file_path": "x/retro.md", "content": "see 03-change-spec.md"}, False),
-    ("PowerShell", {"command": "echo hi > x/02-answers.md; cat x/03-change-spec.md"}, False),
-    ("Read", {"file_path": "x/03-change-spec.md"}, False)])
-def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(tmp_path, name, given,
-                                                                       grill):
-    record = json.dumps({"type": "assistant", "timestamp": "2026-03-01T00:00:00Z", "message": {
-        "id": "a", "model": "claude-sonnet-5-5", "usage": {"input_tokens": 1_000},
-        "content": [{"type": "tool_use", "name": name, "input": given}]}}) + "\n"
+@pytest.mark.parametrize(
+    "name, given, grill",
+    [
+        ("Edit", {"file_path": "x/02-answers.md"}, True),
+        ("Edit", {"file_path": "x\\02-answers.md"}, True),
+        ("Agent", {"subagent_type": "chantier:spec-writer", "prompt": "x"}, True),
+        (
+            "Agent",
+            {"subagent_type": "chantier:cr-driver", "prompt": "read x/03-change-spec.md"},
+            False,
+        ),
+        ("Write", {"file_path": "x/retro.md", "content": "see 03-change-spec.md"}, False),
+        ("PowerShell", {"command": "echo hi > x/02-answers.md; cat x/03-change-spec.md"}, False),
+        ("Read", {"file_path": "x/03-change-spec.md"}, False),
+    ],
+)
+def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(
+    tmp_path: Path, name, given, grill
+) -> None:
+    record = (
+        json.dumps(
+            {
+                "type": "assistant",
+                "timestamp": "2026-03-01T00:00:00Z",
+                "message": {
+                    "id": "a",
+                    "model": "claude-sonnet-5-5",
+                    "usage": {"input_tokens": 1_000},
+                    "content": [{"type": "tool_use", "name": name, "input": given}],
+                },
+            }
+        )
+        + "\n"
+    )
     transcript = tmp_path / "session.jsonl"
-    transcript.write_text(json.dumps({"type": "user", "message": {"content": "go"}}) + "\n" + record)
+    transcript.write_text(
+        json.dumps({"type": "user", "message": {"content": "go"}}) + "\n" + record
+    )
     window = ("2026-01-01T00:00:00Z", "")
     row = usage(transcript, window[0], split=True, steering=window)
     assert (row["grill"]["calls"], row["calls"]) == ((1, 0) if grill else (0, 1))
@@ -128,18 +214,36 @@ def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(tmp_path,
         assert (row["grill"]["calls"], row["calls"]) == (1, 0)
 
 
-def test_a_loose_use_after_the_window_does_not_move_the_calls_inside_it(tmp_path):
-    def call(mid, stamp, name, given):
-        return json.dumps({"type": "assistant", "timestamp": stamp, "message": {
-            "id": mid, "model": "claude-sonnet-5-5", "usage": {"input_tokens": 1_000},
-            "content": [{"type": "tool_use", "name": name, "input": given}]}}) + "\n"
+def test_a_loose_use_after_the_window_does_not_move_the_calls_inside_it(tmp_path: Path) -> None:
+    def call(mid: str, stamp: str, name: str, given: dict[str, Any]) -> str:
+        return (
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "timestamp": stamp,
+                    "message": {
+                        "id": mid,
+                        "model": "claude-sonnet-5-5",
+                        "usage": {"input_tokens": 1_000},
+                        "content": [{"type": "tool_use", "name": name, "input": given}],
+                    },
+                }
+            )
+            + "\n"
+        )
 
     transcript = tmp_path / "session.jsonl"  # one turn that straddles the window's end
     transcript.write_text(
-        json.dumps({"type": "user", "message": {"content": "go"}}) + "\n"
+        json.dumps({"type": "user", "message": {"content": "go"}})
+        + "\n"
         + call("a", "2026-03-01T00:00:00Z", "Read", {"file_path": "x/03-change-spec.md"})
-        + call("b", "2026-03-03T00:00:00Z", "Write",
-               {"file_path": "x/report.md", "content": "03-change-spec.md"}))
+        + call(
+            "b",
+            "2026-03-03T00:00:00Z",
+            "Write",
+            {"file_path": "x/report.md", "content": "03-change-spec.md"},
+        )
+    )
     window = ("2026-02-01T00:00:00Z", "2026-03-02T00:00:00Z")
     inside = usage(transcript, *window, split=True, steering=window)
     since = usage(transcript, window[0], split=True, steering=window)
