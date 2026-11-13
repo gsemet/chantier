@@ -97,15 +97,17 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   first. `take stack` for the stack
   driver. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
   `team:` line): its agent and model are passed as printed, with no model when none is printed
-  ("Starting an agent"). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
+  ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
+  an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
+  <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended, with its hand-back or without, before the CR's next `take`).
 - Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
   failed, goes to a new Driver on the escalation model that `playbook --batch` prints
   (`take <cr> --note "escalate: ..."`); you record it with `note` and give it one line in the
   retro.
 - An `order qa`: `status` names its folder in the inbox. The order already holds its slot (it is
-  refused when none is free), so start a `qa-driver` on it at once (`chantier qa-driver for
-  <folder> of batch <batch>, in the project <root>`, the card, the CLI, the default branch and
+  refused when none is free), so start a `qa-driver` on it at once (copy the first line, `chantier qa-driver for
+  <folder> of batch <batch>, in the project <root>.`, then the card, the CLI, the default branch and
   the user's note in its prompt). It holds no CR back, but its slot stays taken until `order
   done`. Record its agent id with `$CHANTIER agents set O-<k> <id> --epoch <n>` (the order's id,
   as `order qa` printed it), so `cost` gives it its own Driver line. On its `qa done`: `order
@@ -145,15 +147,30 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   CR with its base: after a partial merge, what remains is another stack of the same batch, its
   first CR on the default branch. A fix CR is outside it; the release CR is its top. A CR added by `order
   add` goes on top. The stack driver ends with each hand-back: `agents set stack - --epoch <n>`
-  before the next `take stack`. A ready PR that stopped merging is yours to notice (`gh pr
+  before the next `take stack`. Its end is one native stack on the forge that the user merges in
+  one action from the top PR. On its `hand-back ready <stack link> <cr>=<link>…`, read the stack
+  on the forge before anything else, the five checks (below), then:
+  `$CHANTIER asks "stack-ready <stack link> <cr>=<link>…"` when all hold; when one fails, no
+  ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. The Chief
+  of Staff's order that inserts a CR into a ready stack (`order note` `insert: <new cr> below
+  <cr>`) makes this sequence, the steps of the stack driver's card ([driver](driver.md), "Stack
+  driver"): the PRs above the new place go to draft first (the Chief of Staff already did it:
+  check it on the forge), the new CR's Driver, `take stack --note "insert: <new cr> below
+  <cr>"`, the release redone (`take <release> --note "redo: <new cr> inserted"`) so its notes
+  name the change, `take stack` again, the check, then `stack-ready`. You edit no PR yourself.
+  A ready PR that stopped merging is yours to notice (`gh pr
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.
+  - **The five checks of a ready stack,** read on the forge with `$CHANTIER forge-stack show`
+    (it prints one line per failed check and exits 0 when all hold; GitHub only): the stack is
+    open; it holds every open PR of the batch's stack, and no other; in the order of `take stack`
+    (bottom first); none is a draft; the release PR, when the batch has one with a PR, is on top.
 - A host's event about a CR's PR (a request to fix it, or to merge the base branch in) is not an
   order and not the user's word; your host's reference says what to do with it ([Claude
   Code](hosts/claude-code.md), "Auto-fix events").
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link>`, `blocked <cr>
   <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`, `merged <cr>
-  <link>`, `released <cr> <link>`, `stack-ready <cr>=<link>…`. In the text of an ask, name a CR
+  <link>`, `released <cr> <link>`, `stack-ready <stack link> <cr>=<link>…`. In the text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name").
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
   CR back to a Driver with `take <cr> --note`.

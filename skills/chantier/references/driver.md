@@ -292,14 +292,17 @@ Driver still retargets nothing but on a `rebase:` note.
 A stack batch is one opened `--mode stack`, or a series switched by `order mode`; after a switch,
 the stack's order starts from the series order.
 
+Your end is one native stack on the forge that the user merges in one go: a stack is the forge's
+own stack of PRs grouped bottom to top and merged in one action from the top PR; a chain of PRs
+based on each other is not one. Your `hand-back ready` is sent only once the stack is made on the
+forge and you have read it back as ready (the five checks, below).
+
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
 `ship` each one you moved, and keep the stack green with heavy CI once at the top. You edit no
 project file yourself: a conflict goes to a `conflict-resolver`, code to an `anomaly`. You open
-no PR
-(a CR with none is an anomaly) and keep each PR you move true to [ready to merge](concepts.md):
-on the default branch with its CR ready, ready (`gh pr ready`, `glab mr update --ready`); on
-another base, a draft (`gh pr ready --undo`, `glab mr update --draft`). Each CR keeps its
+no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
+`glab mr update --draft`) while the stack is being made or changed. Each CR keeps its
 own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in
 [concepts](concepts.md), "Escalation". A conflict that only needs resolving: a `conflict-resolver`; one that needs
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
@@ -309,8 +312,23 @@ CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$C
 "move <old7>..<new7> (restack) inspector approved at <head>"`); then update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
 --body-file` / `glab mr update` with the file form of the Push bullet (unproved there), the Review box citing only a recorded note, as for
 the CR driver. A touched proof you cannot judge again stays
-marked stale in the PR and is an `anomaly`. Green: `[stack→foreman] hand-back
-ready <cr>=<link>…`.
+marked stale in the PR and is an `anomaly`.
+
+**Making the stack.** Once every PR of the stack is ready (the CRs ordered, restacked, pushed,
+`ship`ped, CI green at the top), create the native stack on the forge with the means your prompt
+names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the user declined the
+extension; the PRs bottom to top, the release PR last. Then turn every PR of the stack ready
+(`gh pr ready`), not only the bottom one. A means that is not available as the prompt names it
+(the extension not installed, the command refused by the forge, the API missing) is an `anomaly`
+with the exact text: no other means without the user's word (no fallback). On GitLab the stack
+stays a chain as today: the first PR on the default branch is ready, the others drafts
+(`glab mr update --ready`, `--draft`).
+
+**The five checks,** read on the forge with `$CHANTIER forge-stack show` (one line per failed
+check, exit 0 when all hold): the stack is open; it holds every open PR of the batch's stack, and
+no other; in the order of `take stack`, bottom first; none is a draft; the release PR, when the
+batch has one with a PR, is on top. Green and checked: `[stack→foreman] hand-back ready <stack
+link> <cr>=<link>…`.
 
 The stack is what `take stack` prints, each CR with its base (the state computes it: the CR under
 it, the first on the default branch). Merged CRs are gone from it, moved to `3-done` at once and alone,
@@ -318,13 +336,32 @@ while the stack lives. After a partial merge what remains is a new stack of the 
 `origin/<default branch>`, retarget the first PR to the default branch (`gh pr edit --base`,
 `glab mr update --target-branch`), rebase it there and each other PR on the one under it, push
 with `--force-with-lease` (a refused one goes up as above), and `ship` each one you moved:
-`ship` records the new base. The new first PR turns ready once retargeted and green. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
+`ship` records the new base. The restack also updates the stack on the forge (re-created, as for
+an insertion) and reads it back before the hand-back. A CR added by `order add` is on top. A CR with an `after` (its dependencies) stands on the branch of its
 last one still open, as `take stack` prints, and `stack` refuses an order that puts it below one
 of them; a dependency sent back to a Driver is yours to restack. The release CR is the top piece:
 `take stack` lists it last. Restack it like any PR above (rebase onto the CR under it, push with
 `--force-with-lease`, `ship`); its checks run again, and no `verifier` and no `inspector` is
-started for it (it has no verdict). A release with no PR yet is no anomaly: leave it. Keep its PR
-a draft until it is the first PR on the default branch. A fix CR is not in the stack. The batch stays running until its last CR ends.
+started for it (it has no verdict). A release with no PR yet is no anomaly: leave it. Its PR
+stays a draft until the stack is made and checked, then it turns ready with the others. A fix CR is not in the stack. The batch stays running until its last CR ends.
+
+**Inserting into a ready stack.** Taken with a note that names the new CR and its place
+(`take stack --note "insert: <new cr> below <cr>"`):
+
+1. Every PR that will sit above the new one goes back to draft first (`gh pr ready --undo`),
+   before any other step, so the user cannot merge the stack while it changes (the Chief of Staff
+   may have done it already: check it on the forge).
+2. Order the stack with the new CR at the place named (`$CHANTIER stack <cr>…`, bottom first; the
+   release CR stays last), rebase the new PR on the one under it and each PR above on the one
+   under it, push with `--force-with-lease`, `ship` each one moved; the proofs a move touched are
+   judged again as above (`verifier`, `inspector`).
+3. Update the stack on the forge: insert the PR at its place where the forge allows it, else
+   re-create the stack with the PRs bottom to top.
+4. The release PR: the insertion is a change of content under it, so it is stale: leave it a draft
+   and hand back; the Foreman sends the release back (`take <release> --note "redo: <new cr>
+   inserted"`) so that its notes name the new change, then takes the stack again.
+5. Verify every PR of the stack again on the forge (the five checks) and only then turn the PRs
+   above ready, the release PR last; hand back with the stack's link.
 
 ## QA driver
 
