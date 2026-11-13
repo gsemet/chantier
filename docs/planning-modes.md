@@ -18,7 +18,7 @@ the same in both.
 | --- | --- | --- |
 | Chief of Staff | the project's main checkout, default branch | the surface's checkout, its default branch; one session per project |
 | Griller | the main checkout; or a never-merged worktree, files sent to the Chief of Staff | the surface's checkout; or a never-merged surface worktree, files sent to the Chief of Staff |
-| Foreman | the project's main checkout | the surface's checkout; it removes merged CRs' worktrees with `git -C <clone>` |
+| Foreman | the project's main checkout; it fast-forwards it after each merge | the surface's checkout; it removes merged CRs' worktrees with `git -C <clone>` and fast-forwards the clone after each merge |
 | Driver, workers | the CR's worktree of the project | the CR's worktree of the project, under `checkout.yml`'s `worktrees` |
 
 Only the project's code gets worktrees. The surface is never worked in a worktree by the Chief of

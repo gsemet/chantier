@@ -61,7 +61,8 @@ The Chief of Staff reads `AGENTS.md` (or `CLAUDE.md`, or `.github/copilot-instru
 tells you how it will build, test, ship, merge and release here, and on which branch. It asks
 about what the instructions leave open (a long gate, say), with a recommended answer, and offers
 to write that answer in `AGENTS.md`. There is no other configuration: every agent reads
-`AGENTS.md`, at every session, and chantier writes only in `.agents/changes/`.
+`AGENTS.md`, at every session, and chantier writes only in `.agents/changes/`, and fast-forwards a
+clean main checkout after a merge it records. A rule in `AGENTS.md` turns that off.
 
 ## Turn ideas into ready work
 

@@ -87,6 +87,19 @@ def git(verbs: str) -> str:
 
 GIT_WRITES = re.compile(git("commit|push|rebase|merge") + r"\b(?!-)")
 GIT_PUSH = re.compile(git("push") + r"\b")
+# what the steering session never runs on the main checkout: it moves only by the fast-forward
+GIT_MOVES = re.compile(git("pull|reset|stash|clean|checkout|switch") + r"\b")
+
+
+def fast_forward_route(c: str) -> bool:
+    """A steering command whose every git write is `merge --ff-only --no-overwrite-ignore` (with or
+    without `-C`): the fast-forward of the main checkout after a recorded merge (J26)."""
+    writes = list(GIT_WRITES.finditer(c))
+    return bool(writes) and all(
+        m[0].rstrip().endswith("merge")
+        and all(flag in re.split(r"[;&|\n]", c[m.end():], maxsplit=1)[0]
+                for flag in ("--ff-only", "--no-overwrite-ignore"))
+        for m in writes)
 GIT_ADD_ALL = re.compile(git("add") + r"\s+(?:-A|--all|\.)(?=[\s;&|)]|$)")
 GIT_WORKTREE_ADD = re.compile(git("worktree") + r"\s+add\b")
 GIT_WORKTREE_REMOVE = re.compile(git("worktree") + r"\s+remove\b")
@@ -542,6 +555,11 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
             print(f"The Chief of Staff ran {len(pushed)} force push(es) on a Driver's `push` line "
                   "(the route of J11, not audited as a breach).\n")
         steer_git = [c for c in steer_git if c not in pushed]
+    forwarded = [c for c in steer_git if fast_forward_route(c)]
+    if forwarded:  # the route of J26: not audited as a breach of J22
+        print(f"The steering session ran {len(forwarded)} fast-forward(s) of the main checkout "
+              "after a recorded merge (the route of J26, not audited as a breach).\n")
+    steer_git = [c for c in steer_git if c not in forwarded]
     check(not steer_git, "the steering session never commits, pushes, rebases or creates a worktree"
                          + (f": {steer_git[0][:80]}" if steer_git else ""), "J22")
     made = {a.what for a in agents if a.role in ("cr-driver", "release-driver")
@@ -568,6 +586,35 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
     if data.get("release"):
         check(roles["release-driver"] >= 1, f"a Release driver ({roles['release-driver']} started)",
               "J2")
+
+
+def note_text(note) -> str:
+    return note if isinstance(note, str) else str((note or {}).get("text") or "")
+
+
+def fast_forward_checks(data: dict, loaded: tuple, ws: Path, check: Checks) -> None:
+    """J26: after a merge it records, the steering session fast-forwards a clean main checkout on
+    the default branch with `merge --ff-only --no-overwrite-ignore` only, and records one
+    `main checkout:` note. Read-only: `git rev-parse` here, `git ls-remote` on the remote."""
+    steering = loaded[0]
+    merged = [c for c in data["crs"] if c["status"] == "merged"]
+    if not steering:
+        return
+    settings = data.get("settings") or {}
+    remote, default = settings.get("remote", "origin"), settings.get("default_branch", "main")
+    head = git_out("rev-parse", "HEAD", cwd=ws)
+    theirs = git_out("ls-remote", remote, f"refs/heads/{default}", cwd=ws).split()[:1]
+    theirs = theirs[0] if theirs else ""
+    last = next((n for c in reversed(merged) for n in reversed(c.get("notes") or [])
+                 if note_text(n).startswith("main checkout:")), None)
+    skipped = last is not None and "not fast-forwarded:" in note_text(last)
+    moves = [c for c in sum((f.bash(f.since) for f in steering), []) if GIT_MOVES.search(c)]
+    ok = (bool(head) and head == theirs or skipped) and not moves
+    why = (f"the workspace is at {head[:7] or '?'}, the remote's {default} at {theirs[:7] or '?'}"
+           + (f", and the steering session ran `{moves[0][:80]}`" if moves else ""))
+    check(ok, "after a merge it records, the steering session fast-forwarded the clean main checkout "
+              "with `merge --ff-only --no-overwrite-ignore` only, or said why it did not, in a "
+              f"`main checkout:` note ({why})", "J26", seen=bool(merged) and bool(theirs))
 
 
 def release_checks(data: dict, events: list[dict], remote: str, calls: list[dict] | None,
@@ -1038,6 +1085,7 @@ def main() -> int:
     facts(data, events)
     if data["host"] == "claude":
         claude_checks(data, loaded, check)
+        fast_forward_checks(data, loaded, ws, check)
     else:
         print(f"## The agents\n\nNot audited: the {data['host']} transcript checks are not "
               "written yet.\n")

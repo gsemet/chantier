@@ -39,7 +39,9 @@ the Drivers itself and arms the heartbeat. It also plays the user in full, as in
 
 The merge (`sandbox.py merge <n>`, from the workspace, alone), the question, the stuck CR and the
 `budget:` ask (the raise is to `$30`: `$CHANTIER order budget --note 30`) are real-foreman's, as
-the README says.
+the README says. In direct mode the Chief of Staff is the steering session: after its own `order
+merged <cr> --epoch <n>` it fast-forwards the workspace's main checkout, which no longer stays at
+the base (the audit's J26 reads it).
 
 **The host's limits:** there is no Foreman session, so no message goes between Desktop sessions
 and the 10-message limit does not apply to this batch. Should a send between sessions be refused

@@ -154,7 +154,9 @@ The plugin is then read live from that checkout, and [`.claude/settings.json`](.
 keeps it on in every session of this repository: a session here runs chantier itself, which is
 how you debug it. An edit loads at the next session or with `/reload-plugins`, with no reinstall.
 The main checkout is what runs: a branch switched there changes the plugin, and a worktree's work
-counts once merged.
+counts once merged. After each merge it records, the steering session fast-forwards a clean main
+checkout on `main`, so a merged fix to the CLI runs at once; the cards load at the next session or
+with `/reload-plugins`.
 
 ## Daily work
 

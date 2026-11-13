@@ -73,7 +73,7 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
 - **Notes and Cost notes are the only places for extra messages:** short lines in the user's
   language (explanations, warnings, tips on reading the figures). An empty place is left out, not
   written "none". **Notes** holds what a 🟠 or 🔴 CR waits for and who unblocks it, a chain and its
-  reason, a force push run for a Driver (below). **Cost notes** holds the CLI's not-priced lines
+  reason, a force push run for a Driver, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
   (`<model> has no price: add it under prices: in chantier.yaml (exact id: <model>)`, said in the
   user's language with the id kept) and, in the Completion report, the few plain lines of `cost
   --explain`. Nothing but the Tip follows **For you**.
@@ -87,6 +87,8 @@ the user to merge it.
 When a CR is chained (queued after another by the Foreman's decision, with no real dependency), your next report has a line with the chain and its reason, in **Notes**.
 
 When you ran a Driver's refused force push since the last report, your next report has one line in **Notes**: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
+
+When a CR merged since the last report carries a `main checkout:` note, your next report has one line in **Notes**: `main checkout: fast-forwarded to <sha7>` (or `already at <sha7>`), or `main checkout not fast-forwarded: <why>`, the latest one only. The Completion report has it too, by the same skeleton. It is not a **For you** item: nothing waits on the user (a `tracked changes` or `on <branch>` line may leave the user something to do, which they judge).
 
 When you named a trace in the main checkout since the last report (`chief-of-staff.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.
 
