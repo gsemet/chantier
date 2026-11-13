@@ -29,9 +29,16 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   they will notice. Name features by what they do, not by internal ids. Define a project term on
   first use.
 - No internal reference in the title or the body text: no CR name, number or slug, no batch,
-  round or order, no agent role (Driver, Coder, Inspector…), no path under `.agents/changes/`.
-  The CR's name ("CR-142 grill-rules") and any other reference that helps maintainers go in the
-  last section, "Internal references", and nowhere else.
+  round or order, no path under `.agents/changes/`, and no agent role of chantier (Chief of
+  Staff, Foreman, Griller, Driver, Coder, Inspector, Verifier, Investigator, Debugger, Conflict
+  resolver, Spec-writer, Demo explorer) as the one who did the work or made the PR ("the Verifier
+  checked…", "the Driver chose…"). The CR's name ("CR-142 grill-rules") and any other reference
+  that helps maintainers go in the last section, "Internal references", and nowhere else.
+- A role name may appear in any section when it is a term of the project's own product: the diff
+  changes that role's behaviour, card or agent file (as in chantier's own repository, where the
+  roles are what the cards define). It is then a project term, defined on first use. In a project
+  whose product defines no such role, this never applies. A file path the diff changes (for
+  instance `skills/chantier/references/driver.md`) may be named in Changes whatever its name.
 - When the CR's specification has an `issue:` line, the body's Summary ends with one closing line
   per issue:
   - the issue is on the PR's own forge (GitHub, GitLab): the forge's closing keyword and the
@@ -48,8 +55,9 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   decisions is omitted, never written "None", when the CR has no decision to show: it had no grill
   (for instance a quick fix, or a fix CR, whose specification is a `fix-<n>.md` and which has no
   `02-answers.md`), or it was grilled but its answers hold no decision that shapes the change.
-- The layout: Summary, Deliverables, Blast radius and Autonomous decisions are visible, in that
-  order; the rest goes in one `<details><summary>Details</summary>` block, in this order: Changes,
+- The layout: Summary, Deliverables, Blast radius, Autonomous decisions and Known gaps are
+  visible, in that order; the rest goes in one `<details><summary>Details</summary>` block, in
+  this order: Changes,
   Human decisions, Impacts, Test plan, Internal references. A blank line after `</summary>` and
   before `</details>`, or the forge does not render the Markdown inside; nothing follows
   `</details>`. The before/after screenshots of a visible change stay in Deliverables, outside the
@@ -92,6 +100,14 @@ The default description of a CR's PR, written by the CR Driver and checked by th
 - Autonomous decisions, visible right after Blast radius: each decision an agent took without the
   user (in the investigation, a round, a conflict resolution), one bullet each, with its reason;
   "None" when there is none.
+- Known gaps, visible right after Autonomous decisions: each gap the PR leaves on purpose, one
+  bullet each, saying what is missing and why it was left (and, when known, what would close it).
+  A gap is anything not done or not proven that the PR knowingly ships that way: a part of the
+  specification not delivered; a claim marked `**UNVERIFIED:**` (each such mark has its bullet
+  here); evidence the plan named and the Verifier could not capture (`before-after.md` says why);
+  a defect a review or the Verifier reported that the Driver accepted rather than fixed, a
+  cosmetic defect included. A `STALE` proof is never a gap: it is fixed before the hand-back.
+  "None" when there is none; the section is never deleted. No internal reference in it.
 - The body describes the PR as it is now, not its history: it is updated whenever the scope
   changes (a new round, a dropped item, a rebase that changes what the PR holds).
 
@@ -101,7 +117,8 @@ To copy into `pr-body.md`:
 
 ```markdown
 <!-- Title and body in English, for a reader outside the team: no internal ids (CR, batch,
-round, agent roles, .agents/changes/ paths). Put such references, the CR's name first, in the
+round, .agents/changes/ paths), no agent role as the doer of the work; a role name only as a
+product term of a change to that role. Put such references, the CR's name first, in the
 last section "Internal references". Fill every section; write "None" rather than delete one,
 except Human decisions, omitted when the CR has no decision from the grill to show. Keep the fold
 as written. Name the SHA of each proof; mark a stale one STALE and an unproven claim
@@ -136,6 +153,11 @@ Grade: <!-- 1 | 2 | 3 -->
 ## Autonomous decisions
 
 <!-- Each decision taken without the user, one bullet with its reason; or "None". -->
+
+## Known gaps
+
+<!-- Each thing this PR leaves on purpose: not done, not proven, or a known defect accepted,
+one bullet with why; every UNVERIFIED claim has its bullet. Or "None". -->
 
 <details>
 <summary>Details</summary>
@@ -180,16 +202,20 @@ before/after.
 
 What the Inspector checks, one line each, so a defect names its section:
 
-1. Every section of the template present, in order, each filled or "None", except Human
+1. Every section of the template present (Known gaps included), in order, each filled or "None",
+   except Human
    decisions, present when the CR's `02-answers.md` records a decision that shapes the change and
    absent otherwise; Internal references last.
 2. The fold in place: one `<details><summary>Details</summary>` block, after Autonomous
    decisions, holding Changes, Human decisions (when present), Impacts, Test plan and Internal
    references, with a blank line after `</summary>` and before `</details>`, nothing after it;
-   Summary, Deliverables, Blast radius and Autonomous decisions outside it; the before/after
+   Summary, Deliverables, Blast radius, Autonomous decisions and Known gaps outside it; the
+   before/after
    screenshots of a visible change in Deliverables.
 3. No internal reference, the CR's name included, in the title or outside Internal references
-   (Human decisions included).
+   (Human decisions included): no CR name, batch, round or `.agents/changes/` path outside it; no
+   role name as the doer of the work outside it; a role name elsewhere only as a product term of a
+   change to that role.
 4. Deliverables has at least one visual, unless the change is a one-line fix; the names in it
    exist in the diff or the code; it shows the impactful choices the change made.
 5. Changes and Impacts match the diff and the specification (nothing claimed that the diff does
@@ -201,6 +227,8 @@ What the Inspector checks, one line each, so a defect names its section:
    there, nothing dropped, nothing invented; absent only when there is no such decision.
 9. When the CR's specification has an `issue:` line, the body carries its closing line in the form
    the rules give, and no other text about the issue; when it has none, no closing line.
+10. Known gaps present, visible, right after Autonomous decisions; one bullet per `**UNVERIFIED:**`
+    claim of the body and per gap the CR's notes record as left; "None" only when there is none.
 
 With a project template, the audit is: that template's sections, filled as it asks, and the
 project's PR rules.

@@ -48,7 +48,8 @@ GATE = "uv run --no-project python -m compileall -q ."  # what the project's AGE
 FROM_AGENTS_MD = ("--default-branch", "main")
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 BODY = ("## Summary\n\n{title}.\n\n## Deliverables\n\nNone.\n\n## Blast radius\n\nGrade: 1\n\n"
-        "## Autonomous decisions\n\nNone.\n\n<details>\n<summary>Details</summary>\n\n"
+        "## Autonomous decisions\n\nNone.\n\n## Known gaps\n\nNone.\n\n"
+        "<details>\n<summary>Details</summary>\n\n"
         "## Changes\n\nNone.\n\n## Impacts\n\nNone.\n\n## Test plan\n\nNone.\n\n"
         "## Internal references\n\n{cr}\n\n</details>\n")
 LIVE = {"working"}

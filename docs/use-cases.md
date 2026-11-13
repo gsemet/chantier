@@ -133,10 +133,10 @@ See [planning modes](planning-modes.md).
 
 Each CR's pull request (a merge request on GitLab) is described from a default template shipped in
 the skill, for a reader outside your team: Summary, Deliverables (small visuals, the
-before/after of a visible change, and the impactful choices), Blast radius and Autonomous decisions,
-visible; then Changes, Human decisions (what you decided during the grill), Impacts, Test plan and
-Internal references, folded in one collapsed "Details" block. The title and the
-body are in English, and name no CR, batch, round or agent: the CR's name goes in the last
+before/after of a visible change, and the impactful choices), Blast radius, Autonomous decisions
+and Known gaps (what the PR leaves on purpose), visible; then Changes, Human decisions (what you
+decided during the grill), Impacts, Test plan and Internal references, folded in one collapsed
+"Details" block. The title and the body are in English, and name no CR, batch, round or agent: the CR's name goes in the last
 section, "Internal references", and nowhere else. The Inspector checks it.
 
 Your project ranks above the default: a pull request template the forge reads, or a PR rule in

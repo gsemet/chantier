@@ -192,7 +192,14 @@ engine's `claude-code/index.d.ts`, and that d.ts under `<folder>/types/claude-co
 
 `validate` warns about the marketplace description and the missing icon; those are known. The
 tests stand in for the file system, the process and the session's folder with the engine's own
-`on` hooks; they do not draw a real pane, so open the board in a session once after a change.
+`on` hooks; they do not draw a real pane. A change to the pane therefore carries one screenshot
+of it from a real session running the PR's head (the rule is in [AGENTS.md](AGENTS.md)). To run
+the head: start a session with `claude --plugin-dir <worktree of the PR's branch>` (the flag is
+in `claude --help` of the build seen, 2.1.321; other builds may differ). Unproved: that it
+replaces the installed copy of the same name, that the board pane draws from it, that Claude
+Desktop accepts it, and that `/reload-plugins` cannot point at a worktree (it reloads what is
+already registered, the main checkout). Check the first two in the screenshot itself (a change
+visible in the PR's head, absent on main).
 
 - Repository text is in English.
 - Write code and docs in the style of the surrounding files: short sentences, exact terms.

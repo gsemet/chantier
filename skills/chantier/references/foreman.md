@@ -38,7 +38,13 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 
 - **Never merge without the user's word.** An ordinary ready CR is the ask `ready <cr> <link>`;
   the user merges it and the Chief of Staff records it. A hand-back that says its PR stays a
-  draft keeps that text in the ask. A hand-back that says `no long gate: <reason>` (`handback
+  draft keeps that text in the ask. A hand-back that ends with `gaps: …` keeps it too, as the
+  Driver wrote it (after `no long gate: <reason>` or the draft text when present): `ready <cr>
+  <link> gaps: …`. You invent no gap and drop none; a gap you see yourself and the body lacks
+  sends the CR back to a Driver (`take <cr> --note "gaps: <what is missing from Known gaps>"`),
+  with no ask. An order note `evidence: <path>` (the user's screenshot of the board pane, where
+  the project's rules ask for one) becomes `take <cr> --note "evidence: <path>"`. A hand-back
+  that says `no long gate: <reason>` (`handback
   --no-gate`) is checked first: read `$CHANTIER rules` and find the rule the reason quotes. It
   holds when the rules say the project has no long gate, or exempt this CR (for an exemption by
   kind of change, such as docs only, read the PR's changed files on the forge: `gh pr diff
@@ -150,7 +156,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   before the next `take stack`. Its end is one native stack on the forge that the user merges in
   one action from the top PR. On its `hand-back ready <stack link> <cr>=<link>…`, read the stack
   on the forge before anything else, the five checks (below), then:
-  `$CHANTIER asks "stack-ready <stack link> <cr>=<link>…"` when all hold; when one fails, no
+  `$CHANTIER asks "stack-ready <stack link> <cr>=<link>…"` when all hold, each CR's gaps after
+  its link (`<cr>=<link> gaps: …`) as the hand-back wrote them; when one fails, no
   ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. The Chief
   of Staff's order that inserts a CR into a ready stack (`order note` `insert: <new cr> below
   <cr>`) makes this sequence, the steps of the stack driver's card ([driver](driver.md), "Stack
@@ -168,9 +175,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   order and not the user's word; your host's reference says what to do with it ([Claude
   Code](hosts/claude-code.md), "Auto-fix events").
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
-  send; a lost line loses nothing. Lines in plain words: `ready <cr> <link>`, `blocked <cr>
-  <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`, `merged <cr>
-  <link>`, `released <cr> <link>`, `stack-ready <stack link> <cr>=<link>…`. In the text of an ask, name a CR
+  send; a lost line loses nothing. Lines in plain words: `ready <cr> <link> [gaps: …]`,
+  `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`,
+  `merged <cr> <link>`, `released <cr> <link>`, `stack-ready <stack link> <cr>=<link>…`. In the
+  text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name").
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
   CR back to a Driver with `take <cr> --note`.

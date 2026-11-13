@@ -102,7 +102,13 @@ Summary, Deliverables and Changes match the diff at the pushed head: no claimed 
 delivered change unmentioned). A description that fails either is `NOT VERIFIED`. Each proof in
 the description names its SHA, which is the head or carried with its reason; a claim stated as
 fact with no proof in `verify.md`, the gates or the evidence is `NOT VERIFIED` (the Driver marks
-it `UNVERIFIED` or narrows it). A `STALE` mark left at the end is `NOT VERIFIED`. Given only the
+it `UNVERIFIED` or narrows it). A `STALE` mark left at the end is `NOT VERIFIED`. The description's
+Known gaps is one of the claims: each `**UNVERIFIED:**` claim, each evidence pair
+`before-after.md` says was not captured, and each claim of `verify.md` that failed and was
+accepted rather than fixed has its bullet there; a missing one, or a Known gaps that says "None"
+while one exists, is `NOT VERIFIED`. A role name in the description is judged by the rule of
+[pr-template](pr-template.md): a product term of a change to that role is not a failure, the
+doer of the work outside Internal references is. Given only the
 description to check, check only it, and record its verdict the same way: a description found
 `NOT VERIFIED` cancels an earlier `VERIFIED` at that head until a later pass says `VERIFIED`.
 

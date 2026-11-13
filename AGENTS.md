@@ -33,6 +33,12 @@
 - During an eval the main checkout does not change, neither its files nor its branch: any other
   work goes in a worktree. An eval's workspace is outside this repository: it does not read
   `.claude/settings.json` and gets the plugin from the user's own install.
+- A change to what the CR board pane draws (`hooks/register.tsx`'s pane, or the `STATUS.json`
+  fields of `status.py` that the pane shows) carries, in its PR's Deliverables, one screenshot of
+  the pane from a real Claude Code session running the PR's head, captioned with the head's SHA
+  (seven characters). Until it is there, the PR's Known gaps names it ("no screenshot of the pane
+  from a real session"), so the ready line quotes it; the Chief of Staff then asks the user for
+  one. See [CONTRIBUTING.md](CONTRIBUTING.md).
 - No fallback: no look-alike model, tool or agent and no workaround in the skill or the CLI; an
   agent judges freely within what it has.
 - Repository text in English. See [CONTRIBUTING.md](CONTRIBUTING.md).
