@@ -34,6 +34,34 @@ The CLI keeps the CR's record and tells you what is off.
   (and `; <archive path>` when `take` prints one): you write your notes, `pr-body.md`, your large
   outputs and the archive, nothing else. A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it.
+- A reply out of format is a failed worker. Each worker's reply has the format its section of
+  [worker](worker.md) names; before acting on a reply, check it against that format:
+  - Inspector, and each extra review step: the reply is the JSON object alone, parseable, with
+    `verdict` exactly `APPROVE` or `FIX-REQUIRED` and `head` a commit SHA. Prose, prose around the
+    JSON, or a verdict word outside the JSON fails.
+  - Verifier: the reply is `VERIFIED` or `NOT VERIFIED` and the claims that failed. `verify.md`
+    exists with its `Head: <sha>` line. Each claim in it names the SHA it was judged at (or
+    `carried from <sha7>: <reason>`), the command it ran and that command's output. A claim
+    without its command, output and SHA is a proof out of format, and so is a claim given as
+    prose ("refused", "passes") with no command. The verdict is recorded at that head
+    (`$CHANTIER handoff <cr>` shows the last verdict).
+  - Conflict resolver: `conflicts.md` exists, with each conflicted hunk and the choice made, and
+    the fast gate's command and result.
+  - Coder, Investigator and Debugger: their output file exists (`r<n>.md`, `investigation.md`,
+    `diagnosis.md`), and every gate it claims names its command and result.
+
+  You never read a verdict, a pass or a choice into a reply out of format, never fix it, and never
+  ask the worker by message to fix it. Record `$CHANTIER note <cr> "restart: reply out of format:
+  <what is missing>"` and start one new worker of the same role with the same brief, as for a
+  refused first line (no `round`); its brief also says what the failed reply lacked. For a Coder,
+  this new start is the restart of a failing coder of "CR driver": it counts as that round's one
+  restart. A second reply out of format from the restarted worker: a Coder's is the next round
+  (`$CHANTIER round`), as "CR driver" says of a second failed coder; any other role's is
+  `handback <cr> blocked question: <role> replied out of format twice: <what is missing>`, and the
+  stack driver sends `[stack→foreman] anomaly <cr> <role> replied out of format twice: <what is
+  missing>`. A worker is never resumed by a message to its
+  agent: only a new start continues its task, and a new round is always a new child, never the
+  previous round's Coder resumed.
 - Context: `round` and `note` print `context: <n> tokens (agent <id>)`; read it after each. At
   150,000 tokens or more, record your state with `note`, then `handback <cr> blocked context:
   <where it stopped, what is next>`, before the host compacts or ends you (150,000 is three
@@ -91,6 +119,20 @@ The CLI keeps the CR's record and tells you what is off.
   at that moment: report it to the steering session as it is, do not read it as a stale lock,
   and never stop another CR's gate. `cancel` is the steering session's
   command for a CR the user dropped, never a Driver's, whatever the reason.
+- A remote command (`git fetch`, `git push`, `gh`, `glab`) that fails with a forge server error
+  (an HTTP 5xx) or a network failure (no route, a reset or timed-out connection, a name that does
+  not resolve) runs the same command once more, at once and with no `sleep`. Before re-running a
+  command that creates or moves something (`git push`, `gh pr create`, `glab mr create`, `gh pr
+  edit`), first check whether the first attempt took effect (`git ls-remote <remote> <branch>`,
+  `gh pr list --head <branch>`, or the forge's equivalent) and do not run it again if it did.
+  Note it: `$CHANTIER note <cr> "infra re-run: <command>: <exact error>"`. If the second attempt
+  fails the same way, the CR Driver and the Release driver end with `handback <cr> blocked infra:
+  <command>: <exact error>`; the stack driver sends `[stack→foreman] anomaly <cr> infra:
+  <command>: <exact error>`. A refusal (an HTTP 4xx, a denied permission, a protected branch, a
+  failed lease) is not an infrastructure failure: it keeps its own routes (`blocked refused`, the
+  force-push route, a failed lease examined), with no re-run. The CI rule (an infrastructure
+  failure gets one re-run) is about a CI job, and the Release driver's "On the infrastructure"
+  is about a step of the procedure; both stay. This is the same rule for a single command.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
@@ -305,9 +347,13 @@ on it.
 A move is any change of the head after a judgment: a new round, a rebase, a restack, a conflict
 resolution. Every `verifier` you start after the first is given the previous `verify.md`, the move
 (`<old head>..<new head>`, with the old and new base for a rebase) and its kind, so it judges
-again only what the move touched. After a rebase whose range-diff shows the CR's patch changed (a
-resolved conflict), an `inspector` reviews that change alone, with no `$CHANTIER round` and no
-`coder`, as for a body-only re-inspection; `FIX-REQUIRED` on the code is a round. Before
+again only what the move touched. A rebase during which a `conflict-resolver` ran is always a
+change of the CR's patch: the `inspector` on that change is due without reading a range-diff to
+decide it. It reviews that change alone, with no `$CHANTIER round` and no `coder`, as for a
+body-only re-inspection; `FIX-REQUIRED` on the code is a round. Each such rebase gets its own
+`inspector` before the next push, and its pass is recorded as `move <old7>..<new7> (conflict)
+inspector approved at <head>`. Several rebases since the last push are inspected once, on the
+patch as it stands after the last of them, against the head of the last pass. Before
 `handback ready`, no proof in the PR is stale.
 
 Every `APPROVE` is recorded at once, as soon as you read the JSON and before any other step (the

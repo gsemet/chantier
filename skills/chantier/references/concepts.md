@@ -319,7 +319,7 @@ Driver of any kind, a worker, a spec-writer, a Demo explorer).
   `$CHANTIER note <cr> "restart: <cause>"`; for a spec-writer, the line of `work/specifying`.
 - The causes, one word each: `host failure: <the host's exact text>` (an API error, an overloaded
   or refused service, a network error the host reports as the agent's end, not the agent's own
-  words), `refused first line`, `switch to Foreman mode`, plus those `foreman.md` already names
+  words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, plus those `foreman.md` already names
   (`context`, a proven death, a new epoch, a silent end).
 - **One way, never both.** A restart is either a message that resumes the ended agent, where a card
   names that way (only the `taken back:` note of `foreman.md` does), or a new start; never a

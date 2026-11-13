@@ -18,7 +18,9 @@ the CR (reports and evidence are); never commits, pushes, rebases or merges unle
 project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
 `sleep` and no background shell; never runs `git stash` (the stash is shared by every
 worktree) and never stops a process by name or pattern (`pkill`, `killall`); stops when blocked and says why; replies in at most ten
-lines, or in the format its section names.
+lines, or in the format its section names. That reply is the whole of its output to its Driver; a
+reply out of that format is a failed worker, which the Driver starts again rather than reads
+([driver](driver.md)).
 
 ## Investigator
 
@@ -89,7 +91,9 @@ you verified. You run `$CHANTIER gate <cr> "<the project's command>"` (one comma
 never a `;` or `&&` chain; refused on a dirty tree) yourself only when no pass exists at that
 head and a claim only the long suite proves. Output:
 `verify.md`: a `Head: <sha>` line, each claim with the SHA it was judged at, the command and the
-output that prove it, and `VERIFIED` or `NOT VERIFIED`. Then, from the CR's worktree at the head
+output that prove it, and `VERIFIED` or `NOT VERIFIED`. This holds for a claim that something is
+refused, absent or unchanged too: its proof is the command that shows it and that command's
+output, and a claim without them is out of format. Then, from the CR's worktree at the head
 you verified, run `$CHANTIER verdict <cr> VERIFIED` or `$CHANTIER verdict <cr> "NOT VERIFIED"`
 before you reply (the last verdict at a head decides). A claim carried from an earlier judgment
 keeps its own SHA and says why the move did not touch it (`carried from <sha7>: <reason>`). Evidence that cannot be captured does not alone change the verdict; if the
@@ -146,7 +150,9 @@ may stage and continue the rebase; you never push. Never resolve with a whole si
 `checkout --theirs`); two product intents in conflict are a question: stop and say so. Add no
 byte-order mark ([concepts](concepts.md), rule 9): before `git rebase --continue`, check that each
 resolved file starts as it did before the conflict (no new mark; one it already had is kept). Run
-the fast gate after. Output: `conflicts.md`: each conflicted hunk and the choice made.
+the fast gate after. Output: `conflicts.md`: each conflicted hunk and the choice made, and the
+fast gate's command, as run, and its result (the pass or the failing lines); with no fast gate in
+the project's rules, one line says so. A `conflicts.md` without this line is a reply out of format.
 
 ## Demo explorer
 
