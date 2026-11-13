@@ -79,6 +79,11 @@ whether the CR is grilled enough, and you decide, never the Chief of Staff.
 
 > "It is grilled enough."
 
+When the CR comes from a ticket (GitHub, GitLab or Jira), the Chief of Staff drafts a short
+comment, a plan and, when the change can be imitated, a demo page for the ticket's reporter, and
+shows them to you. It posts them on the ticket only after your yes for that ticket, and proposes a
+one-line link to the pull request when it opens.
+
 A **spec-writer** agent writes the Change Specification (`03-change-spec.md`) in the background,
 while you go on talking. The Chief of Staff reviews it against your answers, nothing dropped and
 nothing invented, before it shows it to you; open questions come to you, and the writer runs again
@@ -132,11 +137,12 @@ See [planning modes](planning-modes.md).
 ## Your pull requests' description
 
 Each CR's pull request (a merge request on GitLab) is described from a default template shipped in
-the skill, for a reader outside your team: Summary, Deliverables (small visuals, the
-before/after of a visible change, and the impactful choices), Blast radius, Autonomous decisions
-and Known gaps (what the PR leaves on purpose), visible; then Changes, Human decisions (what you
-decided during the grill), Impacts, Test plan and Internal references, folded in one collapsed
-"Details" block. The title and the body are in English, and name no CR, batch, round or agent: the CR's name goes in the last
+the skill, for a reader outside your team: Summary, Issues References (only with a source
+ticket), Deliverables (small visuals, the before/after of a visible change, and the impactful
+choices), Blast radius, Autonomous decisions and Known gaps (what the PR leaves on purpose),
+visible; then Changes, Human decisions (what you decided during the grill), Impacts, Test plan and
+Internal references, folded in one collapsed "Details" block. The title and the body are in English,
+and name no CR, batch, round or agent: the CR's name goes in the last
 section, "Internal references", and nowhere else. The Inspector checks it.
 
 Your project ranks above the default: a pull request template the forge reads, or a PR rule in

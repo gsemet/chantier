@@ -104,7 +104,7 @@ The CLI keeps the CR's record and tells you what is off.
   --help`), with no text in the command and no shell substitution such as `"$(cat file)"`;
   unproved; trial: a GitLab MR opened and edited from `pr-body.md` whose body holds backticks,
   `$` and quotes, and whose description on the forge matches the file byte for byte. The body carries
-  the closing line of each `issue:` of the specification ([pr-template](pr-template.md)); a
+  the `## Issues References` section for the specification's `issue:` lines ([pr-template](pr-template.md)), left out when there is none; a
   Driver never comments on, closes or reopens an issue. The stack driver's and a Release
   driver's PRs keep their form, by the project's rules. Before each post of the body
   (`gh pr create` or `gh pr edit` with `--body-file`, the `glab` form), a CR Driver reads

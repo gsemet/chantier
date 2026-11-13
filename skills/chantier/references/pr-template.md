@@ -12,9 +12,9 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   GitLab: `.gitlab/merge_request_templates/`, `Default.md` when there are several and the rules
   name none), or a template or PR rule that the project's rules (`$CHANTIER rules`) give. Then
   the project's template is used as written, and this file only fills where the project is
-  silent. With a project template, the closing line of a tracker issue goes where that template
-  puts its issue link, else at the end of its first section; a project rule on closing keywords
-  ranks above this file.
+  silent. With a project template, the Issues References lines go where that template puts its
+  issue links; with no such place, the `## Issues References` section is added after its first
+  section. A project rule on the reference ranks above this file.
 
 ## The rules
 
@@ -39,25 +39,28 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   roles are what the cards define). It is then a project term, defined on first use. In a project
   whose product defines no such role, this never applies. A file path the diff changes (for
   instance `skills/chantier/references/driver.md`) may be named in Changes whatever its name.
-- When the CR's specification has an `issue:` line, the body's Summary ends with one closing line
-  per issue:
-  - the issue is on the PR's own forge (GitHub, GitLab): the forge's closing keyword and the
-    reference it reads, `Closes <reference>` (`#<n>` for an issue of the PR's own repository, the
-    issue's full link or `<namespace>/<project>#<n>` for another repository of the same forge);
-  - any other tracker (Jira…): the form the project's rules give; with no such rule, the plain
-    link (`Issue: <link>`), which closes nothing.
+- When the CR's specification has an `issue:` line, the body has a section `## Issues References`,
+  one line per ticket; when it has none, the section is left out entirely (no heading, no "None").
+  The form of each line, the project's rules first (form, keyword, title or body, for instance
+  `Closes JIRAJPT-1245`); where they say nothing, chantier's default:
+  - Jira: `Closes <KEY>-<n>` (for instance `Closes JIRAJPT-1245`);
+  - GitHub and GitLab: `Closes #<n>` for an issue of the PR's own repository;
+    `Closes owner/repo#<n>` (GitHub) or `Closes group/project#<n>` (GitLab) for another one;
+  - any other tracker: the ticket's link.
 
-  The issue's reference is not an internal reference: it is allowed in the body's text. It is the
-  only place the issue is named; the Driver never comments on the issue.
+  The verb is what closes the issue at the merge (a bare `#<n>` only links it); a project that
+  wants a link only says so in its rules. The ticket's reference is not an internal reference: it
+  is allowed there, and it is the only place the PR names the ticket; the Driver never comments on
+  the issue.
 - The title says what changes; where the project's rules give no style, a Conventional Commit
   subject (`feat: …`, `fix: …`).
 - Every section is kept and filled; "None" rather than a deleted section. One exception: Human
   decisions is omitted, never written "None", when the CR has no decision to show: it had no grill
   (for instance a quick fix, or a fix CR, whose specification is a `fix-<n>.md` and which has no
   `02-answers.md`), or it was grilled but its answers hold no decision that shapes the change.
-- The layout: Summary, Deliverables, Blast radius, Autonomous decisions and Known gaps are
-  visible, in that order; the rest goes in one `<details><summary>Details</summary>` block, in
-  this order: Changes,
+- The layout: Summary, Issues References (when present), Deliverables, Blast radius, Autonomous
+  decisions and Known gaps are visible, in that order; the rest goes in one
+  `<details><summary>Details</summary>` block, in this order: Changes,
   Human decisions, Impacts, Test plan, Internal references. A blank line after `</summary>` and
   before `</details>`, or the forge does not render the Markdown inside; nothing follows
   `</details>`. The before/after screenshots of a visible change stay in Deliverables, outside the
@@ -120,14 +123,21 @@ To copy into `pr-body.md`:
 round, .agents/changes/ paths), no agent role as the doer of the work; a role name only as a
 product term of a change to that role. Put such references, the CR's name first, in the
 last section "Internal references". Fill every section; write "None" rather than delete one,
-except Human decisions, omitted when the CR has no decision from the grill to show. Keep the fold
+except Human decisions, omitted when the CR has no decision from the grill to show, and Issues
+References, omitted when the CR has no source ticket. Keep the fold
 as written. Name the SHA of each proof; mark a stale one STALE and an unproven claim
 UNVERIFIED. -->
 
 ## Summary
 
-<!-- Why: the user problem or limitation this solves, in two or three sentences. End with one
-`Closes <reference>` line per tracker issue, as the rules say; none when the CR has no issue. -->
+<!-- Why: the user problem or limitation this solves, in two or three sentences. -->
+
+## Issues References
+
+<!-- One line per source ticket, in the form the project's rules give, else: Jira
+`Closes <KEY>-<n>`; GitHub and GitLab `Closes #<n>` (another repository:
+`Closes owner/repo#<n>`, `Closes group/project#<n>`). Delete this section when the CR has no
+source ticket; never write "None". -->
 
 ## Deliverables
 
@@ -205,12 +215,13 @@ What the Inspector checks, one line each, so a defect names its section:
 1. Every section of the template present (Known gaps included), in order, each filled or "None",
    except Human
    decisions, present when the CR's `02-answers.md` records a decision that shapes the change and
-   absent otherwise; Internal references last.
+   absent otherwise, and Issues References, present when the specification has an `issue:` line
+   and absent otherwise; Internal references last.
 2. The fold in place: one `<details><summary>Details</summary>` block, after Autonomous
    decisions, holding Changes, Human decisions (when present), Impacts, Test plan and Internal
    references, with a blank line after `</summary>` and before `</details>`, nothing after it;
-   Summary, Deliverables, Blast radius, Autonomous decisions and Known gaps outside it; the
-   before/after
+   Summary, Issues References (when present), Deliverables, Blast radius, Autonomous decisions and
+   Known gaps outside it; the before/after
    screenshots of a visible change in Deliverables.
 3. No internal reference, the CR's name included, in the title or outside Internal references
    (Human decisions included): no CR name, batch, round or `.agents/changes/` path outside it; no
@@ -225,8 +236,9 @@ What the Inspector checks, one line each, so a defect names its section:
    or says "None".
 8. Human decisions matches the CR's `02-answers.md`: each decision that shapes the change is
    there, nothing dropped, nothing invented; absent only when there is no such decision.
-9. When the CR's specification has an `issue:` line, the body carries its closing line in the form
-   the rules give, and no other text about the issue; when it has none, no closing line.
+9. When the CR's specification has an `issue:` line, Issues References holds one line per ticket in
+   the form the rules give (else the default), and the body names the ticket nowhere else; when it
+   has none, no Issues References section.
 10. Known gaps present, visible, right after Autonomous decisions; one bullet per `**UNVERIFIED:**`
     claim of the body and per gap the CR's notes record as left; "None" only when there is none.
 
