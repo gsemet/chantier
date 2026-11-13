@@ -98,8 +98,8 @@ The CLI keeps the CR's record and tells you what is off.
   driver opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
   project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
   and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update`
-  with the form below). The body is always written with the Write tool and posted from that file,
-  as in [concepts](concepts.md), rule 9, never as text in the command. For GitLab, use `glab`'s
+  with the form below). The body is a file, written with the Write tool and changed with the Edit tool,
+  and posted from that file, as in [concepts](concepts.md), rule 9, never as text in the command. For GitLab, use `glab`'s
   option that reads the description from a file (settle the exact form from `glab mr create
   --help`), with no text in the command and no shell substitution such as `"$(cat file)"`;
   unproved; trial: a GitLab MR opened and edited from `pr-body.md` whose body holds backticks,
