@@ -3,7 +3,7 @@ name: cr-driver
 description: 'Drives one chantier change request through rounds, ship, CI and hand-back. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier cr-driver for <cr> "<title>" of batch <batch>, in the project <root>.`'
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
-tools: Agent, Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor
+tools: Agent, Bash, PowerShell, Read, Edit, Write, Grep, Glob, SendMessage, Monitor
 background: true
 ---
 # chantier-agent: 0.9.0
