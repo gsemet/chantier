@@ -84,9 +84,9 @@ def cr_events(repo: Repo, batch: str, cr_id: str) -> list[dict[str, Any]]:
 def same_head(recorded: str | None, head: str | None) -> bool:
     """Heads are recorded as the full SHA. One recorded short before (an open batch from an older
     version) matches the full SHA it is a prefix of."""
-    return bool(recorded and head) and (
-        recorded == head or head.startswith(recorded) or recorded.startswith(head)
-    )
+    if not recorded or not head:
+        return False
+    return recorded == head or head.startswith(recorded) or recorded.startswith(head)
 
 
 def short_head(head: str | None) -> str:

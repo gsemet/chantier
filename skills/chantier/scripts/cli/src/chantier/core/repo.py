@@ -147,7 +147,7 @@ class Repo:
             raise ChantierError(f"{folder} is not inside a git repository (the surface)")
         spec = read_keyed(folder / "checkout.yml")
 
-        def resolve(v):
+        def resolve(v: str) -> Path:
             return (folder / v.replace("\\", "/")).resolve()
 
         clone = resolve(spec.get("repo") or ".repo")
@@ -171,6 +171,26 @@ class Repo:
     @property
     def external(self) -> bool:
         return self.project_dir is not None
+
+    def _external_dir(self, folder: Path | None, what: str) -> Path:
+        if folder is None:
+            raise ChantierError(f"no {what}: the project is not in a planning surface")
+        return folder
+
+    @property
+    def project_folder(self) -> Path:
+        """External: `<surface>/projects/<name>`."""
+        return self._external_dir(self.project_dir, "project folder")
+
+    @property
+    def surface_root(self) -> Path:
+        """External: the surface's root."""
+        return self._external_dir(self.surface, "planning surface")
+
+    @property
+    def clone(self) -> Path:
+        """External: the project's clone."""
+        return self._external_dir(self.clone_dir, "clone")
 
     @property
     def session_root(self) -> Path:

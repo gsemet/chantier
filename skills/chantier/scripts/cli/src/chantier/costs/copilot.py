@@ -107,7 +107,7 @@ def copilot_session_costs(session: str) -> list[dict[str, Any]]:
 
 def _call(line: str) -> dict[str, Any]:
     try:
-        c = json.loads(line)
+        c: dict[str, Any] = json.loads(line)
     except ValueError as e:
         raise ChantierError(
             f"copilot-session-usage: unreadable record: {line[:80]}", EXIT_EXTERNAL

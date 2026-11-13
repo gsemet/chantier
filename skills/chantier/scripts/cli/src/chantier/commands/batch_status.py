@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from types import SimpleNamespace
 from typing import Any
 
@@ -77,7 +78,7 @@ def _record_line(
     owner: dict[str, str],
 ) -> str:
     mine = _mine(records, owner, key)
-    readable = [records[i][1] for i in mine if records[i][1] is not None]
+    readable = [v for i in mine if (v := records[i][1]) is not None]
     if any(v == key for v in owner.values()) and not readable:
         return f"{word} not measured"  # a Driver is recorded, its record cannot be read
     ages = [*ages, *(a / 60 for a in readable)]
@@ -185,7 +186,7 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int,
 
 def record_costs(repo: Repo, b: Batch, rows: list[dict[str, Any]]) -> float:
     """The spend the budget check reads, and each CR's share, shown in its STATUS.md."""
-    total = sum(r["usd"] for r in rows)
+    total: float = sum(r["usd"] for r in rows)
     b.data["spent_usd"] = round(total, 4)  # the priced part: the budget reads it as it is
     b.data["unpriced"] = sum_unpriced(rows)  # model -> calls left out of it: a floor, said so
     by_cr = cost_groups(repo, b.id, rows, "cr")
@@ -207,8 +208,9 @@ def _heartbeat_text(d: dict[str, Any], prev: str | None) -> str:
     if hb is None:
         return "never"
     text = f"{hb:.0f} min"
-    if prev:  # a wake's own line: the gap since the wake before
-        text += f" ({age_minutes(prev) - hb:.0f} min since the last)"
+    since = age_minutes(prev) if prev else None
+    if since is not None:  # a wake's own line: the gap since the wake before
+        text += f" ({since - hb:.0f} min since the last)"
     return text
 
 
@@ -266,7 +268,7 @@ def _batch_line(d: dict[str, Any], hb_text: str) -> str:
     )
 
 
-def status(args) -> tuple[list[str], int]:
+def status(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = open_repo()
     batch = resolve_batch(repo, args.batch)
     extra, code, prev = [], 0, None
@@ -284,7 +286,7 @@ def status(args) -> tuple[list[str], int]:
     return lines + extra, code
 
 
-def asks(args) -> list[str]:
+def asks(args: argparse.Namespace) -> list[str]:
     """The Chief of Staff reads what the Foreman had to tell it, sent or not, and marks what it
     heard. With `text`, the Foreman records an ask of its own and gets the line to send."""
     repo = open_repo()
@@ -312,7 +314,7 @@ def asks(args) -> list[str]:
     return [f"{a['id']}: {a['text']}" for a in unread] or ["no unread ask"]
 
 
-def agents(args) -> list[str]:
+def agents(args: argparse.Namespace) -> list[str]:
     """The agent id a CR's Driver or the stack driver runs under: the Foreman records it after
     each start, so a restart and the cost know who ran what."""
     repo = open_repo()

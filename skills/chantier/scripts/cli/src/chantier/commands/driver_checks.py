@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 from typing import Any
 
@@ -66,7 +67,7 @@ def check_release_branch(repo: Repo, d: dict[str, Any], c: dict[str, Any]) -> No
             )
 
 
-def handback_args(args, note: str) -> str | None:
+def handback_args(args: argparse.Namespace, note: str) -> str | None:
     """The refusals that need no record; the `--no-gate` reason, if any."""
     if args.result == "ready" and not note:
         raise ChantierError("handback <cr> ready <pr link, release link or tag>", EXIT_USAGE)

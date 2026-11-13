@@ -76,7 +76,7 @@ class _Part:
         add_unpriced(self.unpriced, unpriced_of(r))
 
     def held(self) -> int:
-        return self.calls + sum(self.unpriced.values())
+        return int(self.calls + sum(self.unpriced.values()))
 
 
 @dataclass
@@ -93,7 +93,7 @@ class _Chief:
 
 
 def _chief_session(
-    repo: Repo, d: dict[str, Any], uuid: str, prices: dict[str, Any]
+    repo: Repo, d: dict[str, Any], uuid: str, prices: dict[str, Any] | None
 ) -> tuple[list[Any], list[Any], list[Any]]:
     """The session whole, since the batch opened, and the steering row inside the window."""
     path = transcript_path(repo.session_root, uuid)

@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import PLUGIN_ROOT, load_script
@@ -29,7 +30,7 @@ def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_hea
         "-",
     ]
 
-    def g(result, run, head="abc1234"):
+    def g(result: str, run: str, head: str = "abc1234") -> dict[str, Any]:
         return {
             "kind": "gate",
             "result": result,
@@ -45,7 +46,7 @@ def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_hea
     assert gate_passed([g("fail", "1"), g("pass", "2")], "abc1234")
     assert not gate_passed([g("pass", "1")], "other")
 
-    def v(result, head="abc1234"):
+    def v(result: str, head: str = "abc1234") -> dict[str, Any]:
         return {"kind": "verdict", "result": result, "head": head}
 
     assert last_verdict([v("VERIFIED"), v("NOT VERIFIED")], "abc1234") == "NOT VERIFIED"
@@ -56,7 +57,7 @@ def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_hea
 def test_cost_puts_the_steering_sessions_own_subagents_on_their_own_line_and_qa_on_a_driver() -> (
     None
 ):
-    def row(agent, parent, **more):
+    def row(agent: str, parent: str | None, **more: Any) -> dict[str, Any]:
         return {
             "agent": agent,
             "type": "Explore",

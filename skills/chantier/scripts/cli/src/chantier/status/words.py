@@ -29,12 +29,12 @@ def step(c: dict[str, Any]) -> str:
     return "CI" if c.get("pr") else "Round"
 
 
-def forge_word(links) -> str:
+def forge_word(links: list[str | None]) -> str:
     """ "MR" for a GitLab merge request link, "PR" for any other, "PR/MR" with no link yet."""
-    links = [x for x in links if x]
-    if not links:
+    shown = [x for x in links if x]
+    if not shown:
         return "PR/MR"
-    return "MR" if any("/merge_requests/" in x for x in links) else "PR"
+    return "MR" if any("/merge_requests/" in x for x in shown) else "PR"
 
 
 def severity(c: dict[str, Any]) -> str:
@@ -47,7 +47,7 @@ def severity(c: dict[str, Any]) -> str:
 
 def _round(c: dict[str, Any]) -> int:
     """The round under way, or the last one done: `chantier round` counts it."""
-    return max(c.get("round", 0), 1)
+    return int(max(c.get("round", 0), 1))
 
 
 def waits(d: dict[str, Any], c: dict[str, Any]) -> list[str]:
@@ -95,10 +95,12 @@ def no_start(d: dict[str, Any]) -> str:
     return "Waiting for the budget." if spent else "Waiting for a free slot."
 
 
-def steering_word(steering) -> str:
+def steering_word(steering: str | None) -> str:
     """Who steers the batch, in the words the user reads; a batch that says nothing is unknown."""
-    return {"direct": "direct (the Chief of Staff)", "foreman": "Foreman"}.get(steering, "unknown")
+    return {"direct": "direct (the Chief of Staff)", "foreman": "Foreman"}.get(
+        steering or "", "unknown"
+    )
 
 
-def shape_word(mode) -> str:
+def shape_word(mode: str | None) -> str:
     return mode if mode in ("stack", "series", "parallel") else "unknown"

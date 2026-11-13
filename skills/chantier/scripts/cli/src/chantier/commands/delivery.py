@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
@@ -22,7 +24,7 @@ VERDICTS = ("VERIFIED", "NOT VERIFIED")
 HISTORY_CHARS = 120
 
 
-def verdict(args) -> list[str]:
+def verdict(args: argparse.Namespace) -> list[str]:
     """A verdict on the worktree's head, in the log: the last one at a head decides. It knows a
     verdict, not a role; a card says who runs it."""
     repo = open_repo()
@@ -46,7 +48,7 @@ def verdict(args) -> list[str]:
     return [f"verdict {c['id']} {result} at {short_head(head)}"]
 
 
-def _stale_body_shas(repo: Repo, c: dict[str, Any], wt: str, head: str) -> list[str]:
+def _stale_body_shas(repo: Repo, c: dict[str, Any], wt: Path, head: str) -> list[str]:
     """The lines of the posted PR body (`work/pr-body.md`) that name a commit of the worktree
     which is not in the new head's history (a restack made it stale). A line marked `STALE` or
     `carried from` is the template's own mark and is left out. Read-only git."""
@@ -68,7 +70,7 @@ def _stale_body_shas(repo: Repo, c: dict[str, Any], wt: str, head: str) -> list[
     return found
 
 
-def _stale_token(line: str, wt: str, head: str) -> str | None:
+def _stale_token(line: str, wt: Path, head: str) -> str | None:
     """The first commit the line names that exists in the worktree and is not in the head."""
     for tok in dict.fromkeys(re.findall(r"\b[0-9a-f]{7,40}\b", line)):
         if not git("rev-parse", "--verify", "--quiet", f"{tok}^{{commit}}", cwd=wt, check=False):
@@ -80,11 +82,11 @@ def _stale_token(line: str, wt: str, head: str) -> str | None:
             check=False,
         )
         if ancestor.returncode != 0:
-            return tok
+            return str(tok)
     return None
 
 
-def _off_worktree(repo: Repo, c: dict[str, Any], wt: str, head: str) -> list[str]:
+def _off_worktree(repo: Repo, c: dict[str, Any], wt: Path, head: str) -> list[str]:
     """What is off in the worktree: uncommitted changes, a head not pushed."""
     off = []
     dirty = git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
@@ -108,7 +110,7 @@ def _off_worktree(repo: Repo, c: dict[str, Any], wt: str, head: str) -> list[str
     return off
 
 
-def ship(args) -> list[str]:
+def ship(args: argparse.Namespace) -> list[str]:
     """The Driver pushed and opened or updated the PR itself; this records the link at the
     worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
     passed at this head."""
@@ -138,7 +140,7 @@ def ship(args) -> list[str]:
     return [f"recorded {args.pr} (base {base}, head {short})"] + [f"off: {x}" for x in off]
 
 
-def stack(args) -> list[str]:
+def stack(args: argparse.Namespace) -> list[str]:
     """The stack's order, as its driver set it; each PR's base follows from it."""
     repo = open_repo()
     batch = resolve_batch(repo, args.batch)

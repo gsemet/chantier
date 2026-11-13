@@ -48,7 +48,7 @@ release-notes:
 lint:
     cd {{cli}}; uvx {{ruff}} format --check .
     cd {{cli}}; uvx {{ruff}} check .
-    cd {{cli}}; uvx --with-requirements chantier.py --with pytest --from {{mypy}} mypy
+    cd {{cli}}; uvx --with-requirements chantier.py --with pytest --with types-psutil --from {{mypy}} mypy
     cd {{cli}}; uv lock --script chantier.py --check
 
 # Everything a change must pass

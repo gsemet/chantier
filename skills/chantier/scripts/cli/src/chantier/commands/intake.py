@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 from pathlib import Path
 from typing import Any
@@ -26,7 +27,7 @@ from chantier.lifecycle.stages import (
 from chantier.status.write import write_dashboard
 
 
-def init(args) -> list[str]:
+def init(args: argparse.Namespace) -> list[str]:
     """Create the eight stage folders, empty; leave the ones that exist; write nothing else."""
     try:
         repo = open_repo()
@@ -56,7 +57,7 @@ def init(args) -> list[str]:
     return lines
 
 
-def file_cr(args) -> list[str]:
+def file_cr(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     paths = stage_layout(repo)
     if args.item.startswith("@"):
@@ -83,7 +84,7 @@ def file_cr(args) -> list[str]:
     return [f"filed {shown(repo, folder)}; write the intent and grill the CR here"]
 
 
-def triage(args) -> list[str]:
+def triage(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     with changes_lock(repo):
         target = move_backlog_item(
@@ -93,7 +94,7 @@ def triage(args) -> list[str]:
     return [f"triaged {shown(repo, target)}" + (f" ({args.priority})" if args.priority else "")]
 
 
-def abandon(args) -> list[str]:
+def abandon(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     paths = stage_layout(repo)
     source = repo.planning_path(args.item, "CR folder")
@@ -166,7 +167,7 @@ def _remember(repo: Repo, target: Path, known: tuple[str, dict[str, Any]]) -> No
         f.write(f"\nformerly {known[1]['id']} of {known[0]}\n")
 
 
-def restore(args) -> list[str]:
+def restore(args: argparse.Namespace) -> list[str]:
     """The reverse of `abandon`: a folder of `6-trash` comes back to `1-inbox`, whole, without its
     date (and without its number when an open batch's record says it was that batch's CR). Only on
     the user's word. A cancelled CR of an open batch stays cancelled there; its branch, worktree and

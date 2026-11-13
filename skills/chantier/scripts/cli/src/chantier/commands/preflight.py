@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import shutil
@@ -124,8 +125,8 @@ def _check_checkout(r: _Report, repo: Repo) -> None:
 
 def _check_instructions(r: _Report, repo: Repo) -> None:
     found = project_instructions(repo)
-    if repo.external and not repo.clone_dir.is_dir():
-        text = repo.project_dir / "project.md"
+    if repo.external and not repo.clone.is_dir():
+        text = repo.project_folder / "project.md"
         remote = (
             re.search(r"^\W*remote\W*:?\s*(\S+)", read_text(text), re.I | re.M)
             if text.is_file()
@@ -135,7 +136,7 @@ def _check_instructions(r: _Report, repo: Repo) -> None:
             "P8",
             False,
             "",
-            f"no clone of the project at {repo.clone_dir.as_posix()} "
+            f"no clone of the project at {repo.clone.as_posix()} "
             f"(remote {remote[1] if remote else 'see project.md'}): clone it there",
         )
     else:
@@ -163,7 +164,7 @@ def _check_playbook(r: _Report, repo: Repo, host: str) -> None:
 
 def _check_surface(r: _Report, repo: Repo) -> None:
     here = git("branch", "--show-current", check=False)
-    main = default_branch(repo.surface)
+    main = default_branch(repo.surface_root)
     r.check(
         "P11",
         not main or here == main,
@@ -198,7 +199,7 @@ def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
         _check_surface(r, repo)
 
 
-def preflight(args) -> tuple[list[str], int]:
+def preflight(args: argparse.Namespace) -> tuple[list[str], int]:
     r = _Report()
     direct = getattr(args, "direct", False)
     try:

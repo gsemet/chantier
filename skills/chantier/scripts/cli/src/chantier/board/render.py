@@ -15,7 +15,7 @@ from chantier.status.words import forge_word, shape_word, steering_word
 REFRESH_S = 30
 
 
-def esc(text) -> str:
+def esc(text: object) -> str:
     return html.escape(str(text), quote=True)
 
 
@@ -34,7 +34,7 @@ def subject(title: str) -> str:
     return re.sub(r"^﻿?[#\s]*(?:Change Specification:\s*)?", "", title or "").strip()
 
 
-def _money(usd) -> str:
+def _money(usd: float | None) -> str:
     return "-" if usd is None else f"${usd:.2f}"
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
@@ -58,7 +59,7 @@ def spend(usd: float, calls: int, un: dict[str, Any], places: int = 2) -> str:
     return "not priced" if un and not calls else usd_text(usd, un, places)
 
 
-def hints(models) -> list[str]:
+def hints(models: Iterable[str]) -> list[str]:
     return [
         f"{m} has no price: add it under prices: in chantier.yaml (exact id: {m})" for m in models
     ]

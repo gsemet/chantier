@@ -16,7 +16,7 @@ from chantier.costs.transcripts import Reading, transcript_path, usage
 
 def _held(row: dict[str, Any]) -> int:
     """The calls of a row, priced or not."""
-    return row["calls"] + sum(row["unpriced"].values())
+    return int(row["calls"] + sum(row["unpriced"].values()))
 
 
 @dataclass(frozen=True)
@@ -142,7 +142,12 @@ def _line_context(raw: bytes) -> int | None:
         return None
     m = d.get("message") if isinstance(d, dict) else None
     u = m.get("usage") if isinstance(m, dict) else None
-    if d.get("type") != "assistant" or not isinstance(u, dict) or m.get("model") == "<synthetic>":
+    if (
+        d.get("type") != "assistant"
+        or not isinstance(u, dict)
+        or not isinstance(m, dict)
+        or m.get("model") == "<synthetic>"
+    ):
         return None
     cc = u.get("cache_creation") or {}
     t = (

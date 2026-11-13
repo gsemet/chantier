@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from chantier.lifecycle.stages import changes_lock
 from chantier.plugin_files import detect_host
 
 
-def foreman(args) -> list[str]:
+def foreman(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     batch = resolve_batch(repo, args.batch)
     if args.action == "get":
@@ -122,7 +123,7 @@ def _set_chief(b: RenderedBatch, transcript: str) -> None:
     b.log("chief", None, transcript=transcript)
 
 
-def _take(repo: Repo, path: Path, args) -> list[str]:
+def _take(repo: Repo, path: Path, args: argparse.Namespace) -> list[str]:
     held = read_seat(repo)
     if held and held.session not in (args.session, args.over):
         raise ChantierError(
@@ -143,7 +144,7 @@ def _take(repo: Repo, path: Path, args) -> list[str]:
     return [f"seat {args.session}", *(_record_transcript(repo, transcript) if transcript else [])]
 
 
-def seat(args) -> list[str]:
+def seat(args: argparse.Namespace) -> list[str]:
     """The repository's Chief of Staff session: it records a session and refuses a silent
     take-over; who may take it is the cards' to say."""
     repo = open_repo()

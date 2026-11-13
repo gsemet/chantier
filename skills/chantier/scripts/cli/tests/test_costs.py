@@ -187,7 +187,7 @@ def test_a_turn_naming_the_answers_is_grill_and_a_turn_without_is_not(tmp_path: 
     ],
 )
 def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(
-    tmp_path: Path, name, given, grill
+    tmp_path: Path, name: str, given: dict[str, Any], grill: bool
 ) -> None:
     record = (
         json.dumps(

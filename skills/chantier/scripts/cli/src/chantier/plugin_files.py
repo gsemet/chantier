@@ -56,7 +56,7 @@ def plugin_root() -> Path | None:
 
 def cli_command(repo: Repo | None = None) -> str:
     """How every agent runs this CLI: the exact command, with the absolute path."""
-    option = f' --project "{repo.project_dir.as_posix()}"' if repo and repo.external else ""
+    option = f' --project "{repo.project_folder.as_posix()}"' if repo and repo.external else ""
     return (
         f'uv run --script "{(skill_dir() / "scripts" / "cli" / "chantier.py").as_posix()}"{option}'
     )
@@ -88,7 +88,9 @@ def surface_instructions(repo: Repo) -> Path | None:
     """The surface's own rules (its sync, among others); none in-project."""
     if not repo.external:
         return None
-    return next((repo.surface / n for n in INSTRUCTIONS if (repo.surface / n).is_file()), None)
+    return next(
+        (repo.surface_root / n for n in INSTRUCTIONS if (repo.surface_root / n).is_file()), None
+    )
 
 
 def archive_path(repo: Repo, c: dict[str, Any]) -> str | None:

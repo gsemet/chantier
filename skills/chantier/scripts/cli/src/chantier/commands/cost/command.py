@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from typing import Any
 
 from chantier.commands.cost.breakdown import (
@@ -32,7 +33,7 @@ Line = tuple[
 def _by_cr(repo: Repo, batch: str, rows: list[dict[str, Any]]) -> tuple[list[Line], dict[str, str]]:
     """A CR's Driver and its workers, and the Drivers' context notes."""
     groups = cost_groups(repo, batch, rows, "cr")
-    lines = [
+    lines: list[Line] = [
         (k, v[0], v[1], None, v[2]) for k, v in sorted(groups.items(), key=lambda kv: -kv[1][1])
     ]
     context = {
@@ -96,7 +97,7 @@ def _explain_notes(rows: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def cost(args) -> list[str]:
+def cost(args: argparse.Namespace) -> list[str]:
     """The batch's spend, read from the Foreman's transcript on the batch's host; `status
     --refresh` and `pause` record it."""
     repo = open_repo()

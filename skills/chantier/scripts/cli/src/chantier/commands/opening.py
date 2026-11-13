@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from pathlib import Path
@@ -53,7 +54,7 @@ def add_cr(b: Batch, item: str, kind: str = "change") -> dict[str, Any]:
     branch = f"chantier/{b.id}/{cr_id.lower()}-{slugify(title)}"
     worktree = repo.worktrees / f"{b.id}-{cr_id}"
     order = max((c["order"] for c in b.data["crs"]), default=0) + 1
-    c = {
+    c: dict[str, Any] = {
         "id": cr_id,
         "title": title,
         "kind": kind,
@@ -223,12 +224,14 @@ def _cr_line(b: Batch, c: dict[str, Any]) -> str:
     return f"  - {c['id']}: {c['title']} ({c['path']}){tag}{after}\n"
 
 
-def _brief_text(b: Batch, args, host: str, release: dict[str, Any] | None) -> str:
+def _brief_text(
+    b: Batch, args: argparse.Namespace, host: str, release: dict[str, Any] | None
+) -> str:
     repo = b.repo
     data = b.data
     instructions = f"- Project instructions: {instruction_files(repo.root)}"
     if repo.external:
-        instructions += f"; the surface's: {instruction_files(repo.surface)}"
+        instructions += f"; the surface's: {instruction_files(repo.surface_root)}"
     return (
         f"# {b.id}\n\n- Mode: {data['mode']}. Slots: {args.slots}. "
         f"Budget: {args.budget or 'none'}. Host: {host}. "
@@ -243,7 +246,7 @@ def _brief_text(b: Batch, args, host: str, release: dict[str, Any] | None) -> st
     )
 
 
-def _open_crs(b: Batch, args, release: dict[str, Any] | None) -> None:
+def _open_crs(b: Batch, args: argparse.Namespace, release: dict[str, Any] | None) -> None:
     for i, item in enumerate(args.items, 1):
         c = add_cr(b, item, kind="release" if i == args.release else "change")
         if release and c["kind"] == "release":
@@ -258,7 +261,7 @@ def _short(p: Path | str) -> str:
     return str(p).replace("\\", "/").split("changes/")[-1]
 
 
-def open_batch(args) -> list[str]:
+def open_batch(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     host = detect_host()
     team, problems = read_playbook(repo, host)  # before any folder moves

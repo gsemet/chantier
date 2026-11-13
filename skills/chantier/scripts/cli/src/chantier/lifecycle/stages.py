@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -41,7 +42,7 @@ def stage_layout(repo: Repo) -> dict[str, Path]:
 
 
 @contextlib.contextmanager
-def changes_lock(repo: Repo):
+def changes_lock(repo: Repo) -> Iterator[None]:
     repo.changes.mkdir(parents=True, exist_ok=True)
     repo.ensure_gitignore()
     with open(repo.changes / ".lifecycle.lock", "a+") as lock:
@@ -222,7 +223,7 @@ def archive_name(cr: dict[str, Any], folder: Path) -> str:
     order; a CR with no recorded merge time takes the time of the close."""
     when = cr.get("merged_at")
     try:
-        day = datetime.strptime(when, "%Y-%m-%dT%H:%M:%SZ").strftime("%y%m%d-%H%M")
+        day = datetime.strptime(str(when), "%Y-%m-%dT%H:%M:%SZ").strftime("%y%m%d-%H%M")
     except (TypeError, ValueError):
         day = stamp()
     return f"{day}-{folder.name}"
@@ -252,6 +253,7 @@ def move_backlog_item(
         target = paths["ready"] / source.name
         where = "3-ready"
     else:
+        assert priority is not None  # the check above: no priority only with `ready`
         if held and source.parent.name == priority:
             raise ChantierError(f"{source.name} is already {priority}", EXIT_PRECONDITION)
         target = paths["backlog"] / priority / source.name

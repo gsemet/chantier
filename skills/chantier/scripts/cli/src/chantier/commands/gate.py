@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -69,7 +70,7 @@ def _run_write(repo: Repo, record: RunRecord) -> None:
             time.sleep(0.05)
 
 
-def _gate_stop(args, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
+def _gate_stop(args: argparse.Namespace, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
     """`gate <cr> --stop`: stop this CR's running long gate (its suite, the lock) and record the
     run `stopped`: no pass, no failure. Nothing else of the CR changes."""
     holder = lock_holder(repo)
@@ -125,7 +126,7 @@ class _Gate:
         return RunRecord(cr=self.cr, run=self.run, head=self.start, log=str(self.log), **fields)
 
 
-def _spawn(cmd: str, g: _Gate) -> subprocess.Popen:
+def _spawn(cmd: str, g: _Gate) -> subprocess.Popen[bytes]:
     """Start one command in its own process group, its output in the log. The log is closed
     while the gate runs: a `cancel` must be able to move the CR's folder on Windows."""
     with open(g.log, "a", encoding="utf-8") as f:
@@ -234,7 +235,7 @@ def _finish(g: _Gate, ran: list[tuple[str, int]]) -> tuple[list[str], int]:
     return [*lines, f"log {g.log}"], 0
 
 
-def _commands(args) -> list[str]:
+def _commands(args: argparse.Namespace) -> list[str]:
     cmds = [x.strip() for x in args.command]
     if args.stop and cmds:
         raise ChantierError(f"gate {args.cr} --stop takes no command", EXIT_USAGE)
@@ -247,7 +248,7 @@ def _commands(args) -> list[str]:
     return cmds
 
 
-def gate(args) -> tuple[list[str], int]:
+def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     """The long gate: the command the project's rules name, run in the CR's worktree, alone in
     the repository (a second one waits), logged in the work folder, recorded with its head.
     `--stop` stops this CR's running gate (its suite and the lock): recorded `stopped`, no pass,
