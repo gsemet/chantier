@@ -361,7 +361,13 @@ running agent's model, never a retry of the same agent, and never a model typed 
    parent with its exact text.
 8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a push is plain when
    the remote branch is an ancestor of the local one, and a rewrite (a rebase) is pushed with
-   `--force-with-lease`; the user's uncommitted changes are never touched. The main checkout moves
+   `--force-with-lease`; **a CR's branches must be force-pushable at all times**: the host and the
+   forge must let a rebase through (the Chief of Staff checks both at its start). The push forms,
+   one command per branch, never a loop, a script or a chain: plain `git push -u <remote>
+   <branch>` (or `git -C <worktree> push -u <remote> <branch>`); after a rewrite `git push
+   --force-with-lease -u <remote> <branch>` (or the same with `git -C <worktree>`); the steering
+   session's route `git push --force-with-lease=<branch>:<expected> <remote> <local
+   sha>:refs/heads/<branch>`. The user's uncommitted changes are never touched. The main checkout moves
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell

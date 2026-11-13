@@ -119,8 +119,10 @@ run the P1s, two at a time
 The Chief of Staff:
 
 1. runs the **preflight** (Desktop app, plugin agents, `uv` and `git`, main checkout, project
-   instructions, the forge's CLI logged in, and the allow rules it recommends, a warning only)
-   and stops with the reason if anything is missing;
+   instructions, the forge's CLI logged in) and stops with the reason if anything is missing. It
+   also checks, as warnings only, the forge's rights and branch rules (can you push, force-push
+   a `chantier/` branch, edit PRs), and whether your allow rules let through the commands the
+   agents run, judged by what they match and not by their text;
 2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch
    (a Foreman or the Chief of Staff itself, and why: the surface, or your `foreman` / `direct`);
 3. waits for your **go**.

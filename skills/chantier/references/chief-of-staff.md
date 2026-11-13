@@ -71,8 +71,9 @@ merges and releases, on which branch, and the extra review steps. Nothing else i
 except `chantier.yaml` (below). Once per session, at your first turn, run `$CHANTIER preflight` and P9's check
 (step 1 of "Starting a batch"); tell the user only what P5, P9 and P10 say (the other conditions
 are a batch's). For a P10 warn, give the "For you" block "Allow rules to add" of your host's
-reference with the missing rules; a missing tool is said with what to install. Nothing blocks
-the user's request there. A project with no long gate written down is a question for the user, with your
+reference with exactly the rules P10 named; a missing tool is said with what to install. P9's
+forge side ("Forge permissions" below) is told in the same message, after the P5/P10 lines.
+Nothing blocks the user's request there. A project with no long gate written down is a question for the user, with your
 recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success. Once the
 project's rules say there is no long gate, or exempt a kind of CR, a Driver's `handback --no-gate` carries
 that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
@@ -231,6 +232,52 @@ short specification they do not review; needing a specification they review unti
 it; or needing clarification: grill, then triage again. Automatable is their call, never yours:
 such a CR may go to `3-ready` with no specification, and its Driver works from the request alone.
 
+## Forge permissions (P9)
+
+At your first turn of a session and again at step 1 of "Starting a batch", check that the batch's
+forge operations will go through. Read-only, each command alone (rule 9); on Windows PowerShell
+5.1, print `--json` and read the JSON, with no `--jq` or `--template` expression that holds
+spaces. A CLI not logged in still fails P9 for a batch. Everything below only **warns**, and the
+batch starts whatever it says.
+
+**GitHub:**
+
+1. `gh auth status`, and its `Token scopes:` line: `repo` (a fine-grained token prints none: say
+   "unknown: a fine-grained token, see its permissions") and `workflow`. A missing `workflow` is
+   said only as "needed by a CR that touches `.github/workflows/`"; at step 1 name the CRs of the
+   plan that do.
+2. `gh repo view --json viewerPermission,defaultBranchRef`: `WRITE`, `MAINTAIN` and `ADMIN` can
+   push, edit PRs and publish a release; `READ` and `TRIAGE` cannot: say so.
+3. The rules over `chantier/` branches: `gh api repos/<owner>/<repo>/rules/branches/<a chantier/
+   branch name>` (the name need not exist). A `non_fast_forward` rule refuses the force push,
+   `update` refuses the push, `creation` refuses a new branch: name each with its ruleset. The
+   legacy branch protection is read only for an `ADMIN` account, else say "not readable with your
+   rights". Write the branch name's `/` raw (`rules/branches/chantier/x/y`): the endpoint answered
+   to it and to `%2F` alike (tried 2026-11-13).
+
+**GitLab** (the remote's host is GitLab), all **unproved**; trial: one run on a GitLab project.
+
+1. `glab auth status`, and the token's scopes if printed (`api` is needed).
+2. `glab api projects/<url-encoded path>`: `permissions.project_access` or `group_access`
+   `access_level` 30 (Developer) or more to push, open MRs and create a release.
+3. `glab api projects/<url-encoded path>/protected_branches`: a name or wildcard that matches a
+   `chantier/` branch with `allow_force_push: false` refuses the force push; `push_access_levels`
+   above the account's level refuses the push.
+
+**What the user hears:** one short block in the first message, after the P5/P10 lines, in the same
+message:
+
+- what may stop the batch from running unattended, each line with what to change, a forge right in
+  the forge's own words (for instance: a ruleset `protect-all` refuses force pushes on
+  `chantier/*`: allow them for `chantier/**`, or exclude that pattern); the missing host rules are
+  exactly the ones P10 named ("Allow rules to add");
+- on Claude Code, the alert sentence of [claude-code](hosts/claude-code.md), "Auto mode";
+- the release's publication, when the project's release procedure runs it: either allowed (the
+  rule is there and the account can publish: the Release driver publishes) or "the publication is
+  yours: you will be asked to run `<the command>`" (the user is told now, not at the end).
+
+At step 1 the same check runs again; the plan's message repeats only what is still missing.
+
 ## Starting a batch
 
 Only in the turn where the user gave the go:
@@ -238,12 +285,13 @@ Only in the turn where the user gave the go:
 1. **Preflight, all or nothing.** `$CHANTIER preflight` checks P1 (Claude Desktop or a Copilot
    agent session), P4 (the plugin's agents at this version), P5 (`uv` and `git`, versions), P6 (the
    repository's root), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
-   Code: the recommended allow rules), which warns and never fails: give the user the block
-   for the missing rules, then go on; and P12 (`chantier.yaml`, absent or valid). You warn the
+   Code: whether the commands the agents run are allowed), which warns and never fails: give the
+   user the block for the rules it names, then go on; and P12 (`chantier.yaml`, absent or valid). You warn the
    user of each skill or tool the playbook names and your session lacks. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
-   keyboard. On a failure start nothing, offer no other way, and say which condition failed and
+   keyboard. P9 also covers the forge's rights ([Forge permissions](#forge-permissions-p9)): they
+   only warn. On a failure start nothing, offer no other way, and say which condition failed and
    what the user can do. The mode is settled before the preflight (step 2). Forced `direct`, or no
    argument under the host's Remote Control notice: run `$CHANTIER preflight --direct`: P1 then
    passes on any Claude Code entry point or a Copilot agent session, and you leave P2 out, since
@@ -453,8 +501,9 @@ Only in the turn where the user gave the go:
      remote has and the local head does not, or that you cannot tie to the CR, is not
      legitimate.
   3. Legitimate: from the main checkout, without changing its branch or touching its files:
-     `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`;
-     answer `pushed <branch>`. The user hears nothing at the time: your next report has a line
+     `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`,
+     one command per branch, never a loop or a script, even for a whole restack; answer `pushed
+     <branch>`. The user hears nothing at the time: your next report has a line
      for it (`status-layout.md`, "Progress").
   4. Not legitimate: push nothing and tell the user at once, in the report's shape (the question
      is the **For you:** line, no tip): the CR (number and slug), the branch, the expected and
