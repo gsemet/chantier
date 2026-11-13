@@ -8,7 +8,7 @@ from typing import Any
 
 from chantier.commands.cost.pricing import add_unpriced, hints, sum_unpriced, unpriced_of
 from chantier.core.batch import read_batch
-from chantier.core.records import read_events
+from chantier.core.records import BatchRecord, read_events
 from chantier.core.repo import Repo
 from chantier.rails import not_priced, usd_text
 
@@ -29,12 +29,12 @@ def _driver_root(r: dict[str, Any], by_agent: dict[str, dict[str, Any]]) -> dict
 def _cr_agents(repo: Repo, batch: str) -> dict[str, str]:
     """Every Driver a CR ever had, from the log: a replaced one keeps its CR."""
     qa_folder = {
-        o["id"]: o["cr"] for o in read_batch(repo, batch).get("orders", []) if o["kind"] == "qa"
+        o.id: o.cr for o in read_batch(repo, batch).orders if o.kind == "qa"
     }  # a QA driver counts under its QA folder
-    found = {}
+    found: dict[str, str] = {}
     for e in read_events(repo.batch_dir(batch)):
-        if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack" and e.get("agent"):
-            found[e["agent"]] = qa_folder.get(e["cr"], e["cr"])
+        if e.kind == "agent" and e.cr and e.cr != "stack" and e.agent:
+            found[e.agent] = qa_folder.get(e.cr, e.cr)
     return found
 
 
@@ -153,10 +153,10 @@ def restarted_drivers(repo: Repo, batch: str) -> set[str]:
     """The Drivers that came after another on the same CR, from the log's `agent` events."""
     seen: dict[str, list[str]] = {}
     for e in read_events(repo.batch_dir(batch)):
-        if e.get("kind") == "agent" and e.get("cr") and e["cr"] != "stack" and e.get("agent"):
-            ids = seen.setdefault(e["cr"], [])
-            if e["agent"] not in ids:
-                ids.append(e["agent"])
+        if e.kind == "agent" and e.cr and e.cr != "stack" and e.agent:
+            ids = seen.setdefault(e.cr, [])
+            if e.agent not in ids:
+                ids.append(e.agent)
     return {a for ids in seen.values() for a in ids[1:]}
 
 
@@ -209,7 +209,7 @@ EXPIRY_NOTE = (
 
 
 def cost_summary(
-    d: dict[str, Any],
+    d: BatchRecord,
     rows: list[dict[str, Any]],
     by_cr: dict[str, list[Any]],
     by_driver: dict[str, list[Any]],
@@ -220,7 +220,7 @@ def cost_summary(
     per-Driver figures say "with its workers". Amounts and shares add up as printed."""
     total = sum(r["usd"] for r in rows)
     un = sum_unpriced(rows)  # calls of a model with no price: every figure is then a floor
-    budget = d.get("budget_usd")
+    budget = d.budget_usd
     mains = [r for r in rows if r["agent"] == "main"]  # one per steering session of the batch
     steer = _steers(mains)
     measured = all("parent" in r for r in rows if r["agent"] != "main")
@@ -292,12 +292,12 @@ def _split(rows: list[dict[str, Any]], steer: str, total: float, un: dict[str, A
 
 
 def orchestration(
-    d: dict[str, Any], rows: list[dict[str, Any]], shares: list[int], un: dict[str, Any]
+    d: BatchRecord, rows: list[dict[str, Any]], shares: list[int], un: dict[str, Any]
 ) -> str:
     """The ratio of orchestration: the steering session (its own subagents with it) and the
     Drivers, from the shares printed on the lines, so the figures add up as printed."""
     head = "Orchestration (steering + Drivers):"
-    if d.get("host") == "copilot":  # a Driver cannot be told from a worker there
+    if d.host == "copilot":  # a Driver cannot be told from a worker there
         return f"{head} not measured (no parent link on this host)"
     if un:
         return f"{head} not measured (calls not priced)"

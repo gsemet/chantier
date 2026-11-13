@@ -16,6 +16,7 @@ from typing import Any
 
 from chantier.core.errors import EXIT_CONFLICT, ChantierError
 from chantier.core.files import read_text, write_file
+from chantier.core.records import BatchRecord
 from chantier.core.repo import RECORDS, Repo
 
 Rec = dict[str, Any]  # a record, as its JSON reads
@@ -78,27 +79,27 @@ def blank_record(number: int) -> Rec:
     }
 
 
-def open_record(data: Rec) -> Rec:
+def open_record(data: BatchRecord) -> Rec:
     """The record of a running batch, from its `batch.json`: no CR is listed before `close`."""
     return {
-        **blank_record(number_of(data["id"])),
+        **blank_record(number_of(data.id)),
         "state": "running",
-        "opened": data.get("created"),
-        "mode": data.get("mode"),
-        "steering": data.get("steering"),
-        "host": data.get("host"),
-        "budget_usd": data.get("budget_usd"),
+        "opened": data.created,
+        "mode": data.mode,
+        "steering": data.steering,
+        "host": data.host,
+        "budget_usd": data.budget_usd,
     }
 
 
-def reserve_record(repo: Repo, data: Rec) -> Path:
+def reserve_record(repo: Repo, data: BatchRecord) -> Path:
     """`open` writes the record before the batch's state; one that exists is another machine's
     batch, whose planning folder was not pulled: refused, nothing written."""
-    number = number_of(data["id"])
+    number = number_of(data.id)
     path = record_path(repo, number)
     if path.exists():
         raise ChantierError(
-            f"{data['id']} is already recorded in {repo.rel(path)}; pull the "
+            f"{data.id} is already recorded in {repo.rel(path)}; pull the "
             "planning folder and open again",
             EXIT_CONFLICT,
         )

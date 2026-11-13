@@ -56,45 +56,41 @@ def _plan(args: argparse.Namespace) -> tuple[list[dict[str, Any]], str, str, str
     host, owner and repository, read from the PR links."""
     repo = open_repo()
     data = read_batch(repo, resolve_batch(repo, args.batch))
-    if data["mode"] != "stack":
-        raise ChantierError(f"batch {data['id']} is not a stack", EXIT_PRECONDITION)
+    if data.mode != "stack":
+        raise ChantierError(f"batch {data.id} is not a stack", EXIT_PRECONDITION)
     links = chain(data)
     if not links:
-        raise ChantierError(f"batch {data['id']} has no open CR in its stack", EXIT_PRECONDITION)
+        raise ChantierError(f"batch {data.id} has no open CR in its stack", EXIT_PRECONDITION)
     for c in links:
-        if c.get("pr"):
-            _pr_parts(c["pr"])
-    missing = [c["id"] for c in links if not c.get("pr")]
+        if c.pr:
+            _pr_parts(c.pr)
+    missing = [c.id for c in links if not c.pr]
     if missing and args.action in {"create", "rebuild"}:
         raise ChantierError(
             f"{', '.join(missing)} {'has' if len(missing) == 1 else 'have'} no PR "
             "recorded (`ship`): the stack is made once every PR is recorded",
             EXIT_PRECONDITION,
         )
-    rows, where = [], None
+    rows: list[dict[str, Any]] = []
+    where = None
     for c in links:
-        if not c.get("pr"):
+        release = c.kind == "release"
+        if not c.pr:
             rows.append(
-                {
-                    "cr": c["id"],
-                    "number": None,
-                    "link": None,
-                    "base": None,
-                    "release": c.get("kind") == "release",
-                }
+                {"cr": c.id, "number": None, "link": None, "base": None, "release": release}
             )
             continue
-        host, owner, name, number = _pr_parts(c["pr"])
+        host, owner, name, number = _pr_parts(c.pr)
         if where not in (None, (host, owner, name)):
             raise ChantierError("the stack's PRs are not all in one repository", EXIT_PRECONDITION)
         where = (host, owner, name)
         rows.append(
             {
-                "cr": c["id"],
+                "cr": c.id,
                 "number": int(number),
-                "link": c["pr"],
+                "link": c.pr,
                 "base": stack_base(data, c, repo, planned=True),
-                "release": c.get("kind") == "release",
+                "release": release,
             }
         )
     if where is None:

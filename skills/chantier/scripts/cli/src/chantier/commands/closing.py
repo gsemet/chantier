@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from typing import Any
 
 from chantier.commands.batch_status import record_costs
 from chantier.commands.close_archive import Closing, archive_and_delete, batch_files, final_rows
@@ -17,7 +16,7 @@ from chantier.core.batch import check_epoch, resolve_batch
 from chantier.core.batch_records import check_closable, number_of, read_retro
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, normalize_batch, read_batch_json
+from chantier.core.records import LIVE, BatchRecord, normalize_batch, read_batch_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
@@ -34,68 +33,70 @@ def pause(args: argparse.Namespace) -> list[str]:
     batch = resolve_batch(repo, args.batch)
     with RenderedBatch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
-        if b.data["status"] == "paused":
+        if b.record.status == "paused":
             raise ChantierError(
-                f"{batch} is already paused (at {b.data.get('paused')}): "
+                f"{batch} is already paused (at {b.record.paused}): "
                 "`order add` adds work, the first `take` sets it running again, "
                 "then `pause` runs again"
             )
         paused = now()
-        live_ids = [c["id"] for c in b.data["crs"] if c["status"] in LIVE]
-        pending = [o["id"] for o in b.data["orders"] if not o["done"]]
-        queued = [c["id"] for c in b.data["crs"] if c["status"] == "queued"]
-        open_ = [c["id"] for c in b.data["crs"] if c["status"] in {"ready", "blocked"}]
-        if live_ids or pending or queued or open_ or b.data.get("stack_agent"):
+        live_ids = [c.id for c in b.record.crs if c.status in LIVE]
+        pending = [o.id for o in b.record.orders if not o.done]
+        queued = [c.id for c in b.record.crs if c.status == "queued"]
+        open_ = [c.id for c in b.record.crs if c.status in {"ready", "blocked"}]
+        if live_ids or pending or queued or open_ or b.record.stack_agent:
             raise ChantierError(
                 f"cannot pause {batch}: live {', '.join(live_ids) or '-'}, "
                 f"queued {', '.join(queued) or '-'}, "
                 f"not merged {', '.join(open_) or '-'}, orders pending "
                 f"{', '.join(pending) or '-'} (the Foreman ends each with "
                 "`order done <O-k>`), "
-                f"stack driver {b.data.get('stack_agent') or 'none'}"
+                f"stack driver {b.record.stack_agent or 'none'}"
             )
         try:
-            rows = cost_rows(repo, b.data, b.data["host"], foreman_uuid(b.data))
+            rows = cost_rows(repo, b.record, b.record.host, foreman_uuid(b.record))
             record_costs(repo, b, rows)
             summary = [
                 *cost_summary(
-                    b.data,
+                    b.record,
                     rows,
                     cost_groups(repo, batch, rows, "cr"),
                     cost_groups(repo, batch, rows, "driver"),
-                    chief_line(repo, b.data),
+                    chief_line(repo, b.record),
                 ),
                 TO_DATE,
             ]
         except ChantierError as e:  # never a false $0.00
             summary = [f"Spent: unknown ({e})"]
-        b.data.update(status="paused", paused=paused, summary=summary, heartbeat_stopped=paused)
+        b.record.status = "paused"
+        b.record.paused = paused
+        b.record.summary = summary
+        b.record.heartbeat_stopped = paused
         b.log("pause", None)
     return [f"paused {batch}: cost to date below", f"report: {b.dir / 'STATUS.md'}", *summary]
 
 
-def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict[str, Any]]:
+def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, BatchRecord]:
     """The batch `close` acts on: the project's one batch, named or not. One that is not paused is
     refused with what runs in it, or with "`pause` first"."""
     folders = repo.batch_folders()
     batch = normalize_batch(batch) if batch else batch
     datas = {d: read_batch_json(d / "batch.json") for d in folders}
-    pick = [d for d in folders if not batch or datas[d]["id"] == batch]
+    pick = [d for d in folders if not batch or datas[d].id == batch]
     if len(pick) != 1:
         raise ChantierError(
-            f"close names one batch; batches: "
-            f"{', '.join(d['id'] for d in datas.values()) or 'none'}",
+            f"close names one batch; batches: {', '.join(d.id for d in datas.values()) or 'none'}",
             EXIT_USAGE,
         )
     d = datas[pick[0]]
-    if d.get("status") != "paused":
+    if d.status != "paused":
         check_idle(repo, d)
         raise ChantierError(
-            f"cannot close {d['id']}: it is {d.get('status')}, not paused; "
+            f"cannot close {d.id}: it is {d.status}, not paused; "
             "`pause` comes first. Nothing was deleted.",
             EXIT_PRECONDITION,
         )
-    return d["id"], pick[0], d
+    return d.id, pick[0], d
 
 
 def _held(batch: str, folder: Path) -> None:
@@ -111,18 +112,14 @@ def _held(batch: str, folder: Path) -> None:
         )
 
 
-def _closing(repo: Repo, batch: str, folder: Path, d: dict[str, Any]) -> tuple[Closing, list[str]]:
+def _closing(repo: Repo, batch: str, folder: Path, d: BatchRecord) -> tuple[Closing, list[str]]:
     """What `close` acts on, and the lines it prints after those of the `Closing`."""
     done = stage_layout(repo)["done"]
     archived = [
-        (c, cr_directory(repo, c))
-        for c in d["crs"]
-        if c.get("path") and cr_directory(repo, c).parent == done
+        (c, cr_directory(repo, c)) for c in d.crs if c.path and cr_directory(repo, c).parent == done
     ]
     dropped = [
-        f"{c['id']} worktree {c['worktree']} branch {c['branch']}"
-        for c in d["crs"]
-        if c["status"] == "cancelled"
+        f"{c.id} worktree {c.worktree} branch {c.branch}" for c in d.crs if c.status == "cancelled"
     ]
     check_closable(repo, number_of(batch))
     rows = final_rows(repo, batch, d)

@@ -7,11 +7,11 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import IO, Any
+from typing import IO
 
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.files import LOCK_TIMEOUT_S, retry, try_lock, unlock, write_file
-from chantier.core.records import read_batch_json
+from chantier.core.records import BatchRecord, CrEntry, read_batch_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.backfill import backfill_history
 from chantier.lifecycle.session import RenderedBatch
@@ -100,14 +100,14 @@ def _lock_batch(batch: Path) -> tuple[IO[str], bytes]:
 NEW_STATE = {"queued": "1-pending", "ready": "2-actives", "blocked": "2-actives"}
 
 
-def _where(repo: Repo, batch: Path, data: dict[str, Any], target: Path) -> dict[Path, Path]:
+def _where(repo: Repo, batch: Path, data: BatchRecord, target: Path) -> dict[Path, Path]:
     """A CR folder of the batch -> the state folder its status gives."""
     where: dict[Path, Path] = {}
-    for cr in data["crs"]:
-        if not cr.get("path"):
+    for cr in data.crs:
+        if not cr.path:
             continue
-        folder = repo.planning_path(cr["path"], "recorded CR path")
-        state = NEW_STATE.get(cr["status"])
+        folder = repo.planning_path(cr.path, "recorded CR path")
+        state = NEW_STATE.get(cr.status)
         if state and folder.parent == batch.resolve() and folder.is_dir():
             where[folder] = target / state / folder.name
     return where
@@ -133,16 +133,16 @@ def _move_files(
     return moves
 
 
-def _new_path(repo: Repo, cr: dict[str, Any], where: dict[Path, Path]) -> str:
+def _new_path(repo: Repo, cr: CrEntry, where: dict[Path, Path]) -> str:
     """A CR's recorded path after the move: its new folder, or the renamed archive stage."""
-    path: str = cr["path"]
+    path = cr.path or ""
     moved = where.get(repo.planning_path(path, "recorded CR path"))
     if moved is None:
         return path.replace(".agents/changes/4-archives/", ".agents/changes/5-archives/").replace(
             ".agents/changes/5-trash/", ".agents/changes/6-trash/"
         )
     if not moved.is_dir():
-        raise ChantierError(f"{cr['id']}: {repo.rel(moved)} does not exist")
+        raise ChantierError(f"{cr.id}: {repo.rel(moved)} does not exist")
     return repo.rel(moved)
 
 
@@ -159,10 +159,10 @@ def _move_batch(
     moves = _move_files(repo, batch, target, where, renames)
     for state in STATE_FOLDERS:
         (target / state).mkdir(parents=True, exist_ok=True)
-    with RenderedBatch(repo, data["id"], actor="cli") as b:
-        for cr in b.data["crs"]:
-            if cr.get("path"):
-                cr["path"] = _new_path(repo, cr, where)
+    with RenderedBatch(repo, data.id, actor="cli") as b:
+        for cr in b.record.crs:
+            if cr.path:
+                cr.path = _new_path(repo, cr, where)
         b.log(
             "tree",
             None,

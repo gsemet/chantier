@@ -22,7 +22,7 @@ EVENTS_SHOWN = 12
 
 
 def _tail_events(folder: Path) -> list[dict[str, Any]]:
-    events = [e for e in retry(read_events, folder) if e.get("kind") not in EVENTS_HIDDEN]
+    events = [e.to_data() for e in retry(read_events, folder) if e.kind not in EVENTS_HIDDEN]
     return events[-EVENTS_SHOWN:]
 
 

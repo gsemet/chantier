@@ -12,5 +12,5 @@ class RenderedBatch(Batch):
     """A `Batch` that rewrites its STATUS files and the dashboard after each saved change."""
 
     def after_save(self) -> None:
-        write_batch(self.repo, self.data, self.dir)
+        write_batch(self.repo, self.record, self.dir)
         write_dashboard(self.repo, stage_layout(self.repo))

@@ -15,7 +15,7 @@ from conftest import PLUGIN_ROOT, load_script
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
 from chantier.commands.crs import gate_passed, last_verdict
-from chantier.core.records import normalize_cr
+from chantier.core.records import EventRecord, normalize_cr
 
 FULL_ROWS = 13
 
@@ -30,13 +30,8 @@ def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_hea
         "-",
     ]
 
-    def g(result: str, run: str, head: str = "abc1234") -> dict[str, Any]:
-        return {
-            "kind": "gate",
-            "result": result,
-            "head": head,
-            "run": run,
-        }
+    def g(result: str, run: str, head: str = "abc1234") -> EventRecord:
+        return EventRecord(t="t", actor="driver", kind="gate", result=result, head=head, run=run)
 
     assert gate_passed([g("pass", "1"), g("pass", "1")], "abc1234")
     assert not gate_passed([g("pass", "1"), g("fail", "1")], "abc1234")  # the second command failed
@@ -46,8 +41,8 @@ def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_hea
     assert gate_passed([g("fail", "1"), g("pass", "2")], "abc1234")
     assert not gate_passed([g("pass", "1")], "other")
 
-    def v(result: str, head: str = "abc1234") -> dict[str, Any]:
-        return {"kind": "verdict", "result": result, "head": head}
+    def v(result: str, head: str = "abc1234") -> EventRecord:
+        return EventRecord(t="t", actor="driver", kind="verdict", result=result, head=head)
 
     assert last_verdict([v("VERIFIED"), v("NOT VERIFIED")], "abc1234") == "NOT VERIFIED"
     assert last_verdict([v("NOT VERIFIED"), v("VERIFIED")], "abc1234") == "VERIFIED"

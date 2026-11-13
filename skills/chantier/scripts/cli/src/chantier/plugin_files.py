@@ -10,6 +10,7 @@ from typing import Any
 from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.records import CrEntry
 from chantier.core.repo import Repo
 from chantier.playbook.config import FILE, load
 
@@ -93,13 +94,13 @@ def surface_instructions(repo: Repo) -> Path | None:
     )
 
 
-def archive_path(repo: Repo, c: dict[str, Any]) -> str | None:
+def archive_path(repo: Repo, c: CrEntry) -> str | None:
     """Where the CR's cleaned archive goes in its PR, in the project's repository; None when the
     mode is in-project or the project's setting says no."""
     if not (repo.external and repo.archive_in_pr):
         return None
-    name = Path(c["path"]).name if c.get("path") else c["id"]
-    return f".agents/changes/5-archives/{c.get('archive_stamp') or stamp()}-{name}/"
+    name = Path(c.path).name if c.path else c.id
+    return f".agents/changes/5-archives/{c.archive_stamp or stamp()}-{name}/"
 
 
 def skill_version() -> str | None:

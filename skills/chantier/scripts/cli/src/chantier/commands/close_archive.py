@@ -24,6 +24,7 @@ from chantier.core.batch_records import (
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.files import retry
+from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.history import close_markdown, close_record, release_retro_line
 from chantier.lifecycle.stages import STATE_FOLDERS, archive_name, stage_layout
@@ -38,9 +39,9 @@ class Closing:
     repo: Repo
     batch: str
     folder: Path
-    d: Rec
+    d: BatchRecord
     rows: list[Rec]
-    archived: list[tuple[Rec, Path]]
+    archived: list[tuple[CrEntry, Path]]
     own: list[Path]
     retro: str | None
     summary: list[str]
@@ -59,7 +60,7 @@ class Closing:
             f"close {self.batch} deletes its files in {shown(r, self.folder)}: "
             f"{', '.join(p.name for p in self.own) or 'none'}",
             f"{len(self.archived)} CRs move from 3-done to 5-archives: "
-            f"{', '.join(c['id'] for c, _ in self.archived) or 'none'}",
+            f"{', '.join(c.id for c, _ in self.archived) or 'none'}",
             retro,
             f"record: {shown(r, record)} and {report.name}",
         ]
@@ -80,13 +81,13 @@ def batch_files(folder: Path) -> list[Path]:
     return sorted(p for p in folder.iterdir() if p.name not in STATE_FOLDERS)
 
 
-def final_rows(repo: Repo, batch: str, d: Rec) -> list[Rec]:
+def final_rows(repo: Repo, batch: str, d: BatchRecord) -> list[Rec]:
     """The batch priced to now, once, before anything is touched. Calls of a model with no price
     do not refuse the close: they are counted apart and the cost is a floor. It is refused (exit 2)
     with its cause when nothing can be priced (no Foreman transcript recorded, no priced call in
     the whole batch), never closed on a false $0.00."""
     try:
-        return cost_rows(repo, d, d["host"], foreman_uuid(d))
+        return cost_rows(repo, d, d.host, foreman_uuid(d))
     except ChantierError as e:
         raise ChantierError(
             f"cannot close {batch}: its final cost cannot be priced ({e}). Nothing was deleted.",
@@ -94,19 +95,19 @@ def final_rows(repo: Repo, batch: str, d: Rec) -> list[Rec]:
         ) from e
 
 
-def _final_pages(k: Closing, d: Rec) -> None:
+def _final_pages(k: Closing, d: BatchRecord) -> None:
     """The archived CR pages outlive the batch: priced to now, they alone say the cost is final."""
     by_cr = cost_groups(k.repo, k.batch, k.rows, "cr")
     crs = [
-        {**c, "cost_usd": round(by_cr[c["id"]][1], 4), "cost_unpriced": by_cr[c["id"]][2]}
-        if c["id"] in by_cr
+        c.model_copy(update={"cost_usd": round(by_cr[c.id][1], 4), "cost_unpriced": by_cr[c.id][2]})
+        if c.id in by_cr
         else c
-        for c in d["crs"]
+        for c in d.crs
     ]
-    write_final_pages(k.repo, {**d, "crs": crs}, k.folder)
+    write_final_pages(k.repo, d.model_copy(update={"crs": crs}), k.folder)
 
 
-def _close_files(k: Closing, record: Rec) -> tuple[Rec, str]:
+def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
     """`batch-NN.json` and `batch-NN.md` as `close` writes them, the CRs at their archives."""
     by_cr = cost_groups(k.repo, k.batch, k.rows, "cr")
     final = close_record(record, now(), sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr)
@@ -152,12 +153,12 @@ def archive_and_delete(k: Closing) -> None:
     old = path.read_bytes() if path.is_file() else None
     wrote = False
     try:
-        record = {**k.d, "crs": [dict(c) for c in k.d["crs"]]}
+        record = k.d.model_copy(deep=True)
         for c, source in k.archived:
             target = archives / archive_name(c, source)
             move_directory(source, target)
             done.append((source, target))
-            next(x for x in record["crs"] if x["id"] == c["id"])["path"] = repo.rel(target)
+            next(x for x in record.crs if x.id == c.id).path = repo.rel(target)
         check_closable(repo, number)
         wrote = True
         write_close(repo, *_close_files(k, record))

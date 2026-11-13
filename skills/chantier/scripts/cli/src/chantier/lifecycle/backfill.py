@@ -25,7 +25,7 @@ from chantier.core.batch_records import (
 )
 from chantier.core.clock import now
 from chantier.core.files import read_text, retry, write_file
-from chantier.core.records import read_batch_json
+from chantier.core.records import BatchRecord, read_batch_json
 from chantier.core.repo import RECORDS, Repo
 from chantier.history import table_lines
 from chantier.lifecycle.stages import changes_lock
@@ -173,14 +173,14 @@ def _markdown(record: Rec) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _write_all(repo: Repo, found: dict[int, Found], live: Rec | None, highest: int) -> None:
+def _write_all(repo: Repo, found: dict[int, Found], live: BatchRecord | None, highest: int) -> None:
     final = repo.changes / RECORDS
     tmp = repo.changes / "5-archives" / ".batches.tmp"
     if tmp.exists():
         shutil.rmtree(tmp)  # a killed run's leftover
     written = now()
     for n in range(1, highest + 1):
-        if live and number_of(live["id"]) == n:
+        if live and number_of(live.id) == n:
             write_record(tmp / f"{name_of(n)}.json", open_record(live))
             continue
         record = _record(n, found.get(n), written)
@@ -203,12 +203,12 @@ def backfill_history(repo: Repo) -> None:
             if (repo.batches / "batch.json").is_file()
             else None
         )
-        top = [_batch_number_file(repo), *found, *([number_of(live["id"])] if live else [])]
+        top = [_batch_number_file(repo), *found, *([number_of(live.id)] if live else [])]
         highest = max(top)
         if highest < 1:
             return
         _write_all(repo, found, live, highest)
-    known = {*found, *([number_of(live["id"])] if live else [])}
+    known = {*found, *([number_of(live.id)] if live else [])}
     bare = sum(1 for n in range(1, highest + 1) if n not in known)
     print(
         f"backfilled 5-archives/batches: {name_of(1)} to {name_of(highest)} ({bare} with no trace)",
