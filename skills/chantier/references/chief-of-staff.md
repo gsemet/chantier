@@ -409,16 +409,26 @@ Only in the turn where the user gave the go:
   `open`. Your next report says the chain and its reason (`status-layout.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
+- **A plain `ready <cr> <link> gaps: …` ask:** when you tell the user the PR is ready, quote each
+  gap of the ask next to the PR's link, in the user's language; with none, say nothing about
+  gaps. Where the project's rules ask for a screenshot of the board pane for a change to it and
+  the gaps name it as missing, ask the user for one screenshot of the pane from a session
+  running the PR's branch. On the user's file, `order note <cr> --note "evidence: <path of the
+  image>"`: the Foreman turns it into `take <cr> --note "evidence: <path>"`, and a Driver
+  attaches the image in Deliverables, removes the gap, runs the description pass and hands back
+  ready again.
 - **A series batch:** the CRs merge one by one, in order. On each `ready` ask, tell the user which
   PR is next to merge (the bottom one, ready on the default branch) and that the others are drafts
-  waiting on it; when the user says it is merged, `order merged <cr>`, then say what comes next.
+  waiting on it; quote each gap of the ask as above; when the user says it is merged,
+  `order merged <cr>`, then say what comes next.
   Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
   --note stack`.
 - **A stack batch:** on a `stack-ready <stack link> <cr>=<link>…` ask, read the stack on the forge
   yourself before you tell the user: the five checks of the stack ([foreman](foreman.md), "The
   five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold). All
   hold: tell the user the stack is ready to merge in one action from its top PR (the link), with
-  the release commit last. After the user's merge, record `order merged` for each CR of the
+  the release commit last, quoting each CR's gaps of the ask in the user's language (none: say
+  nothing about gaps). After the user's merge, record `order merged` for each CR of the
   stack, bottom first (the release CR's merge starts the release procedure, as today). A check
   that fails: no "ready" to the user; send it back through the Foreman. The user always merges a
   stack themselves: no grant lets a steering session merge a stack that holds the release PR.

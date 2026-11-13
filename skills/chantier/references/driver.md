@@ -83,7 +83,12 @@ The CLI keeps the CR's record and tells you what is off.
   `$` and quotes, and whose description on the forge matches the file byte for byte. The body carries
   the closing line of each `issue:` of the specification ([pr-template](pr-template.md)); a
   Driver never comments on, closes or reopens an issue. The stack driver's and a Release
-  driver's PRs keep their form, by the project's rules. Then
+  driver's PRs keep their form, by the project's rules. Before each post of the body
+  (`gh pr create` or `gh pr edit` with `--body-file`, the `glab` form), a CR Driver reads
+  `pr-body.md` once against the audit list of the template in use, the items on internal
+  references (role names included) and on Known gaps first, and fixes `pr-body.md` itself before
+  posting. This is not a round and not a review: it replaces neither the Inspector's audit nor
+  the Verifier's description pass. Then
   `$CHANTIER ship <cr> <pr link>`: it records the PR at this head (the full SHA) and says what
   is off (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
@@ -112,7 +117,8 @@ The CLI keeps the CR's record and tells you what is off.
   Deliverables section, before and after side by side, as the forge's own CLI uploads images and
   videos (`gh pr edit --attach` on GitHub, `gh` 2.103 and later); read the CLI's help for any
   other forge. A file its CLI cannot upload stays in `work/`, and the description names it in
-  its Internal references section.
+  its Internal references section. A taken-back note `evidence: <path>` is an image to attach the
+  same way: remove the matching bullet from Known gaps, run the description pass, hand back ready.
 - The archive in the PR: when `take` or `handoff` prints `archive: in the PR at <path>`, before
   each `handback <cr> ready` write the cleaned archive in your worktree at that path and commit
   it with the change: `intake/`, `evidence/`, `01-intent.md`, `02-answers.md`,
@@ -175,7 +181,12 @@ The CLI keeps the CR's record and tells you what is off.
   the long gate, then hand back again without `--no-gate`; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
   branch; on another base it stays a draft and the text after the link says so and what it
-  waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`) or `handback
+  waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`; when the body's
+  Known gaps is not "None", the text ends with `gaps: <gap>; <gap>`, each gap the first sentence
+  of its bullet as written in the posted body, in the body's order, none the body does not name
+  and none missing: `handback <cr> ready <link> gaps: …`, or `… draft on <base>: waits for
+  <what>; gaps: …`; with `--no-gate`: `handback <cr> ready <link> gaps: <gap> --no-gate "<rule>"`,
+  which prints `no long gate: <rule> gaps: <gap>`) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`): it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
@@ -242,6 +253,10 @@ short `verifier` pass on the posted description alone (`NOT VERIFIED` is fixed i
 ready when its base is the default branch, then `handback ready <pr link>`. The last edit of the
 PR body comes before that description pass; any later edit runs the pass again before the PR
 turns ready, never in the same command as the edit.
+
+A gap you judge left, whether in a note, a hand-back or a reply to the steering session, is
+written in Known gaps of `pr-body.md` first; a gap said anywhere else and absent from the body is
+a defect of the body. The ready line quotes the body's gaps, as "Your end" says.
 
 Escalation applies to the CR driver as to any parent ([concepts](concepts.md), "Escalation"): a
 `debugger` that explains no red check, or a `conflict-resolver` that settles no conflict, gets a
