@@ -2659,6 +2659,62 @@ def rails(w: World) -> None:
           code == 0 and waited >= 1 and "its command still runs" in log.read_text("utf-8"),
           f"{waited:.1f}s {out}")
 
+    # the queue: first come, first served
+    slow3 = w.root / "slow_queue.py"
+    slow3.write_text("import time\ntime.sleep(3)\n")
+    queue_gate = f'"{sys.executable}" "{slow3}"'
+    queue = w.state / ".long-gate.queue"
+
+    def tickets():
+        return sorted(p for p in queue.glob("[0-9]*")) if queue.is_dir() else []
+
+    def wait_tickets(n):
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and len(tickets()) < n:
+            time.sleep(0.05)
+
+    def queued_gate(cr):
+        return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, queue_gate],
+                                cwd=w.work, env=w.env, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, encoding="utf-8")
+
+    def gate_events():
+        return [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+                if json.loads(ln)["kind"] == "gate"]
+
+    before = len(gate_events())
+    first = queued_gate(one)
+    lock_names(w, f"{one} pid")
+    time.sleep(1.1)  # the logs are named by the second: three gates, three names
+    second = queued_gate(two)
+    wait_tickets(1)
+    time.sleep(1.1)
+    third = queued_gate(one)
+    wait_tickets(2)
+    outs = [p.communicate(timeout=60) for p in (first, second, third)]
+    order = [e["cr"] for e in gate_events()[before:]]
+    third_log = max((w.state / w.cr(one)["path"] / "work" / "gates").glob("*.log")).read_text("utf-8")
+    check("long gates take the lock in arrival order; the later waiter's log names the earlier one "
+          "(`queued ahead:`); the queue is empty at the end",
+          [p.returncode for p in (first, second, third)] == [0, 0, 0] and order == [one, two, one]
+          and f"queued ahead: {two}" in third_log and not tickets(), f"{order} {outs} {third_log}")
+
+    first = queued_gate(one)
+    lock_names(w, f"{one} pid")
+    time.sleep(1.1)
+    dead = queued_gate(two)
+    wait_tickets(1)
+    dead.kill()  # a waiter whose `gate` command ended leaves its ticket behind
+    dead.communicate(timeout=30)
+    left = len(tickets())
+    time.sleep(1.1)
+    code, out = w.chantier("gate", two, queue_gate)
+    first.communicate(timeout=60)
+    log = max((w.state / w.cr(two)["path"] / "work" / "gates").glob("*.log")).read_text("utf-8")
+    check("a waiter killed in the queue leaves a ticket that the next gate skips",
+          left == 1 and code == 0 and "queued ahead" not in log and not tickets(),
+          f"{left} {out} {log} {tickets()}")
+
 
 def driver_liveness(w: World) -> None:
     note("\n## 12c. A Driver that dies: activity lines, the restart path, the `context:` hand-back")

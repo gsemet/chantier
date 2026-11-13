@@ -8,7 +8,7 @@ Two checks guard every change, in any project. You declare them in your `AGENTS.
   run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
   change.
 - **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
-  alone in the repository. `handback ready` requires it passed at the PR's head, and the
+  alone in the repository, in arrival order when several wait. `handback ready` requires it passed at the PR's head, and the
   Verifier's `VERIFIED` there. One command may serve as both gates.
 
 Declare them with one line each, the exact commands, one command per item, never chained with

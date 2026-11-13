@@ -178,8 +178,8 @@ def _parser() -> argparse.ArgumentParser:
     s = cmd("handoff", commands.handoff, "the CR's facts, for any agent; changes nothing")
     s.add_argument("cr")
 
-    s = cmd("gate", commands.gate, "run the long gate in the CR worktree, alone in the repository; "
-            "--stop stops this CR's running one")
+    s = cmd("gate", commands.gate, "run the long gate in the CR worktree, alone in the repository, "
+            "a second one waits its turn, first come first served; --stop stops this CR's running one")
     s.add_argument("cr")
     s.add_argument("command", nargs="*", help="the long gate's commands, from the project's rules: "
                    "one per argument, never chained with ; or &&; they stop at the first failure")
