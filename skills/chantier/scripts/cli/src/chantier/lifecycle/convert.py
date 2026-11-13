@@ -135,7 +135,7 @@ def _move_files(
 
 def _new_path(repo: Repo, cr: dict[str, Any], where: dict[Path, Path]) -> str:
     """A CR's recorded path after the move: its new folder, or the renamed archive stage."""
-    path = cr["path"]
+    path: str = cr["path"]
     moved = where.get(repo.planning_path(path, "recorded CR path"))
     if moved is None:
         return path.replace(".agents/changes/4-archives/", ".agents/changes/5-archives/").replace(
@@ -205,8 +205,8 @@ def _old_batch(old: Path) -> Path | None:
 def _convert(repo: Repo) -> list[str]:
     base, old = repo.changes, repo.changes / "3-requests"
     batch = _old_batch(old)
-    plain = [("4-archives", "5-archives"), ("5-trash", "6-trash")]
-    plain = [(base / a, base / b) for a, b in plain if (base / a).is_dir()]
+    stages = [("4-archives", "5-archives"), ("5-trash", "6-trash")]
+    plain = [(base / a, base / b) for a, b in stages if (base / a).is_dir()]
     clear = [_free_target(a, b) for a, b in plain]
     target = base / "4-batch"
     clear_batch = _free_target(batch, target) if batch else False
@@ -248,7 +248,10 @@ def _rel(repo: Repo, path: Path) -> str:
 
 
 def _undo(
-    renames: list[tuple[Path, Path]], batch: Path | None, original: bytes | None, lock
+    renames: list[tuple[Path, Path]],
+    batch: Path | None,
+    original: bytes | None,
+    lock: IO[str] | None,
 ) -> None:
     """Put every rename back, last first, and the batch's record as it was."""
     stuck = []

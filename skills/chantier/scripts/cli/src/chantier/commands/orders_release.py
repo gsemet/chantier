@@ -27,7 +27,7 @@ def refused(usage: str, value: str, wanted: str) -> ChantierError:
 def _started(c: dict[str, Any]) -> bool:
     """A release has started when it ran an attempt or a Driver holds it or it is handed back; a
     merged release PR puts it back to `queued`, which `attempts` still tells."""
-    return c.get("attempts", 0) > 0 or c["status"] != "queued"
+    return bool(c.get("attempts", 0) > 0 or c["status"] != "queued")
 
 
 def add_release(b: Batch, note: str) -> list[str]:

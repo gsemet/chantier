@@ -111,7 +111,7 @@ GRANT = "releases=<n> fixes=<on|off> budget=<usd>"
 def parse_grant(text: str) -> dict[str, Any]:
     """What the user allows without asking: a number of releases, the release's fixes started
     and merged by the Foreman, and the budget they run within. Any of the three."""
-    grant = {}
+    grant: dict[str, Any] = {}
     for word in text.split():
         key, _, value = word.partition("=")
         if key == "releases" and value.isdigit():

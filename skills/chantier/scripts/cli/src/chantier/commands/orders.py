@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 
 from chantier.commands.crs import new_request, shown
@@ -22,7 +23,7 @@ ORDER_KINDS = {*HANDLERS, "done"}
 _cr_arg = normalize_cr  # `order after`'s list is split here; every other argument is read by `main`
 
 
-def _check_args(args, note: str, new_release: bool) -> None:
+def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
     """The refusals that need no record: a missing word or CR, a flag on the wrong kind."""
     kind = args.kind
     if kind not in ORDER_KINDS:
@@ -92,7 +93,7 @@ class _Req:
     new_release: bool
 
 
-def _word(b: Batch, args, req: _Req) -> Word:
+def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
     cr = req.cr
     if args.kind == "after" and not any(x["id"] == cr for x in b.data["crs"]):
         raise ChantierError(f"order after: unknown CR {cr} in batch {b.id}")
@@ -101,7 +102,7 @@ def _word(b: Batch, args, req: _Req) -> Word:
     return Word(b, args.kind, cr, c, req.note, args.fix_for, req.own, req.new_release)
 
 
-def _record_order(b: Batch, args, req: _Req) -> str:
+def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
     cr, note, own, new_release = req.cr, req.note, req.own, req.new_release
     oid = f"O-{len(b.data['orders']) + 1}"
     # The CLI did its whole part, the Foreman only has to end the order: not a note (the
@@ -126,7 +127,7 @@ def _record_order(b: Batch, args, req: _Req) -> str:
     return oid
 
 
-def order(args) -> list[str]:
+def order(args: argparse.Namespace) -> list[str]:
     """The Chief of Staff's word, in the state at once; the Foreman sees it in `status` and
     marks it `order done` once its own part is done. `order merged --epoch <n>` is the Foreman
     recording a merge it made itself, `order add --fix-for --epoch <n>` a fix it starts under
@@ -178,7 +179,7 @@ def order(args) -> list[str]:
     return [f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}", *effect]
 
 
-def _order_done(repo: Repo, args) -> list[str]:
+def _order_done(repo: Repo, args: argparse.Namespace) -> list[str]:
     if not args.cr or not args.cr.startswith("O-"):
         raise ChantierError("order done <O-k>", EXIT_USAGE)
     with RenderedBatch(repo, resolve_batch(repo, args.batch), actor="foreman") as b:

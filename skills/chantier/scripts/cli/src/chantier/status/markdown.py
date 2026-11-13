@@ -65,9 +65,9 @@ def cr_markdown(v: dict[str, Any]) -> str:
 
 def _rows_markdown(rows: list[dict[str, Any]]) -> list[str]:
     def number(r: dict[str, Any]) -> str:
-        return r["cr"].removeprefix("CR-")
+        return str(r["cr"].removeprefix("CR-"))
 
-    word = forge_word(r["pr"] for r in rows)
+    word = forge_word([r["pr"] for r in rows])
     return [
         f"| CR | Subject | Status | Branch | {word} | Cost |",
         "| --- | --- | --- | --- | --- | ---: |",
@@ -92,12 +92,12 @@ def batch_markdown(v: dict[str, Any]) -> str:
     who = {
         "direct": "steered by the Chief of Staff (direct mode)",
         "foreman": "steered by a Foreman",
-    }.get(v.get("steering"), "steering unknown")
+    }.get(v.get("steering") or "", "steering unknown")
     shape = {
         "stack": "a stack of PRs",
         "series": "a series of PRs, one after the other",
         "parallel": "independent PRs (parallel)",
-    }.get(v.get("mode"), "shape unknown")
+    }.get(v.get("mode") or "", "shape unknown")
     lines = [
         f"# {v['batch']}: {v['state']}",
         "",

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,7 +48,7 @@ def transcript_path(repo_root: Path, session_uuid: str) -> Path:
     return path
 
 
-def _price(model: str, prompt: int, extra: dict[str, Any] | None = None) -> tuple | None:
+def _price(model: str, prompt: int, extra: dict[str, Any] | None = None) -> tuple[Any, ...] | None:
     """The $/MTok of a model: the project's entry (`extra`, from `chantier.yaml`) above the
     built-in table, by the same id or by it without a trailing `-YYYYMMDD`. Nothing else matches:
     no prefix, no family, no nearest model. None: no price, so the calls are not priced. The
@@ -70,7 +70,7 @@ def _price(model: str, prompt: int, extra: dict[str, Any] | None = None) -> tupl
     return None
 
 
-def _transcript_lines(path: Path):
+def _transcript_lines(path: Path) -> Iterator[str]:
     try:
         with path.open(encoding="utf-8") as transcript:
             yield from transcript
@@ -88,7 +88,7 @@ def _wakes(record: dict[str, Any]) -> bool:
     )
 
 
-def _when(text, path: Path, number: int) -> datetime | None:
+def _when(text: Any, path: Path, number: int) -> datetime | None:
     """A record's time, to compare as a time and not as text; none when it has none."""
     if not text:
         return None
@@ -110,7 +110,7 @@ WRITE_PATHS = {
 }  # the host's write tools, and their target
 
 
-def _grill_use(block, strict: bool = False) -> bool:
+def _grill_use(block: Any, strict: bool = False) -> bool:
     """Whether a tool use belongs to the grill and the specifications.
 
     Loose (outside a steering window): its input names a CR's intent, answers, specification or
@@ -124,7 +124,7 @@ def _grill_use(block, strict: bool = False) -> bool:
     if isinstance(given, dict) and str(given.get("subagent_type", "")).endswith("spec-writer"):
         return True
     if strict:
-        key = WRITE_PATHS.get(block.get("name"))
+        key = WRITE_PATHS.get(str(block.get("name")))
         target = given.get(key) if key and isinstance(given, dict) else None
         return isinstance(target, str) and target.replace("\\", "/").endswith(GRILL_NAMES)
     text = json.dumps(given).replace("\\\\", "/")  # a Windows path, escaped by JSON
@@ -197,7 +197,7 @@ def _record(line: str, path: Path, number: int) -> dict[str, Any] | None:
     return d
 
 
-def _tokens(u: dict[str, Any], path: Path, number: int) -> tuple:
+def _tokens(u: dict[str, Any], path: Path, number: int) -> tuple[Any, ...]:
     """The five token counts of a usage record, checked: input, 5m and 1h writes, read, out."""
     cc = u.get("cache_creation") or {}
     if not isinstance(cc, dict):
@@ -308,7 +308,7 @@ def _place(scan: _Scan, split: bool, window: tuple[Any, Any]) -> dict[str, Any]:
         if split and c["when"] is None and any(window):
             continue  # not placed in the window: counted, in neither share
         turns = scan.window_turns if scan.in_steering(c["when"]) else scan.grill_turns
-        _add(grill if split and c["turn"] in turns else row, c)
+        _add(grill if grill is not None and c["turn"] in turns else row, c)
     if split:
         row["grill"] = grill
     return row

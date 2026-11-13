@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import shutil
@@ -20,7 +21,7 @@ PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
 GITHUB_ONLY = "forge-stack is GitHub only: {what} is not a GitHub pull request link"
 
 
-def _gh(args: list[str], host: str) -> object:
+def _gh(args: list[str], host: str) -> Any:
     exe = shutil.which("gh")
     if not exe:
         raise ChantierError(
@@ -42,7 +43,15 @@ def _gh(args: list[str], host: str) -> object:
         ) from e
 
 
-def _plan(args) -> tuple[list[dict[str, Any]], str, str, str]:
+def _pr_parts(pr: str) -> tuple[str, ...]:
+    """The host, owner, repository and number of a GitHub PR link; anything else is refused."""
+    link = PR_LINK.match(pr)
+    if link is None:
+        raise ChantierError(GITHUB_ONLY.format(what=pr), EXIT_PRECONDITION)
+    return link.groups()
+
+
+def _plan(args: argparse.Namespace) -> tuple[list[dict[str, Any]], str, str, str]:
     """The open stack of the record, bottom first: {cr, pr number, link, release}; and the forge's
     host, owner and repository, read from the PR links."""
     repo = open_repo()
@@ -53,8 +62,8 @@ def _plan(args) -> tuple[list[dict[str, Any]], str, str, str]:
     if not links:
         raise ChantierError(f"batch {data['id']} has no open CR in its stack", EXIT_PRECONDITION)
     for c in links:
-        if c.get("pr") and not PR_LINK.match(c["pr"]):
-            raise ChantierError(GITHUB_ONLY.format(what=c["pr"]), EXIT_PRECONDITION)
+        if c.get("pr"):
+            _pr_parts(c["pr"])
     missing = [c["id"] for c in links if not c.get("pr")]
     if missing and args.action in {"create", "rebuild"}:
         raise ChantierError(
@@ -75,7 +84,7 @@ def _plan(args) -> tuple[list[dict[str, Any]], str, str, str]:
                 }
             )
             continue
-        host, owner, name, number = PR_LINK.match(c["pr"]).groups()
+        host, owner, name, number = _pr_parts(c["pr"])
         if where not in (None, (host, owner, name)):
             raise ChantierError("the stack's PRs are not all in one repository", EXIT_PRECONDITION)
         where = (host, owner, name)
@@ -94,7 +103,7 @@ def _plan(args) -> tuple[list[dict[str, Any]], str, str, str]:
     return rows, host, owner, name
 
 
-def forge_stack(args) -> tuple[list[str], int]:
+def forge_stack(args: argparse.Namespace) -> tuple[list[str], int]:
     if args.action == "create":
         try:
             return _create(args)
@@ -124,10 +133,13 @@ def _make(rows: list[dict[str, Any]], host: str, owner: str, name: str) -> tuple
 
 
 def _stacks(host: str, owner: str, name: str) -> list[dict[str, Any]]:
-    return _gh(["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host)
+    stacks: list[dict[str, Any]] = _gh(
+        ["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host
+    )
+    return stacks
 
 
-def _unstack(s: dict[str, Any], planned: set, where: tuple[str, str, str]) -> str:
+def _unstack(s: dict[str, Any], planned: set[int], where: tuple[str, str, str]) -> str:
     """Unstack one open stack that holds a planned PR, until the forge reads it back as gone."""
     host, owner, name = where
     held = [p["number"] for p in s.get("pull_requests", [])]
@@ -164,7 +176,7 @@ def _retarget(rows: list[dict[str, Any]], where: tuple[str, str, str], done: lis
             done.append(f"#{r['number']} base {old} -> {r['base']}")
 
 
-def _rebuild(args) -> tuple[list[str], int]:
+def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     rows, host, owner, name = _plan(args)
     where = (host, owner, name)
     done: list[str] = []
@@ -189,7 +201,7 @@ def _rebuild(args) -> tuple[list[str], int]:
     return out, (code if rest else 0)
 
 
-def _create(args) -> tuple[list[str], int]:
+def _create(args: argparse.Namespace) -> tuple[list[str], int]:
     rows, host, owner, name = _plan(args)
     return [_make(rows, host, owner, name)[1]], 0
 
@@ -231,7 +243,7 @@ def _checks(
     return lines, release
 
 
-def _show(args) -> tuple[list[str], int]:
+def _show(args: argparse.Namespace) -> tuple[list[str], int]:
     rows, host, owner, name = _plan(args)
     want = [r for r in rows if r["number"] is not None]
     if getattr(args, "stack", None):

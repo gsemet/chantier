@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import ipaddress
 import json
 import re
@@ -14,6 +15,7 @@ import urllib.request
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from chantier.board.collect import collect, settings
@@ -113,7 +115,14 @@ def _handler(repo: Repo, seat: str | None, stop: Callable[[], None]) -> type:
         server_version = "chantier-board"
         sys_version = ""
 
-        def _send(self, code: int, body: str, ctype: str, head: bool = False, extra=None) -> None:
+        def _send(
+            self,
+            code: int,
+            body: str,
+            ctype: str,
+            head: bool = False,
+            extra: dict[str, str] | None = None,
+        ) -> None:
             raw = body.encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", f"{ctype}; charset=utf-8")
@@ -141,7 +150,7 @@ def _handler(repo: Repo, seat: str | None, stop: Callable[[], None]) -> type:
 
         do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = _refuse
 
-        def log_message(self, *args) -> None:
+        def log_message(self, *args: Any) -> None:
             pass
 
     return Handler
@@ -170,7 +179,7 @@ def _probe_url(host: str, port: int) -> str:
     return f"http://{'[' + where + ']' if ':' in where else where}:{port}/api/status"
 
 
-def _probe(host: str, port: int):
+def _probe(host: str, port: int) -> dict[str, Any] | str | None:
     """None: nothing answers. A dict: a chantier board's status. "other": something else holds
     it."""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -192,7 +201,7 @@ class _Server(ThreadingHTTPServer):
     allow_reuse_address = sys.platform != "win32"
 
 
-def _not_started(reason) -> ChantierError:
+def _not_started(reason: object) -> ChantierError:
     return ChantierError(f"board not started: {' '.join(str(reason).split())}", EXIT_EXTERNAL)
 
 
@@ -223,7 +232,7 @@ def _bind(repo: Repo, host: str, port: int, seat: str | None) -> ThreadingHTTPSe
         threading.Thread(target=holder[0].shutdown, daemon=True).start()
 
     try:
-        server = cls((host, port), _handler(repo, seat, stop))
+        server: ThreadingHTTPServer = cls((host, port), _handler(repo, seat, stop))
     except (OSError, OverflowError) as e:
         raise _not_started(e) from e
     holder.append(server)
@@ -262,7 +271,7 @@ def serve(repo: Repo, host: str, port: int, seat: str | None) -> list[str]:
     return []
 
 
-def board(args) -> list[str]:
+def board(args: argparse.Namespace) -> list[str]:
     repo = Repo.find(readonly=True)
     host, port = settings(repo, args.host, args.port)
     return serve(repo, host, port, args.seat)

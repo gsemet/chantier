@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from chantier.playbook.models import HOST_NAMES, SETS_MODEL_AT_START, resolve
 from chantier.playbook.yaml_subset import Node, YamlError, parse
 
 FILE = "chantier.yaml"
+Bad = Callable[[int, str], None]
 
 
 ROLE_KEYS = ("agent", "model", "skills", "tools")
@@ -47,7 +49,7 @@ def _read_tree(path: Path) -> tuple[Node | None, list[str]]:
 
 
 def _roles(
-    node: Node, kline: int, host: str, roles: list[str], bad
+    node: Node, kline: int, host: str, roles: list[str], bad: Bad
 ) -> dict[str, dict[str, Any]] | None:
     """The `roles` key resolved, or None when it is wrong as a whole."""
     if node.kind != "map" or not node.value:
@@ -77,7 +79,7 @@ def load(path: Path, host: str, roles: list[str]) -> tuple[dict[str, Any] | None
         return None, stop
     problems: list[tuple[int, str]] = []
 
-    def bad(line: int, message: str):
+    def bad(line: int, message: str) -> None:
         problems.append((line, message))
 
     resolved: dict[str, dict[str, Any]] = {}
@@ -109,7 +111,7 @@ def _number(node: Node) -> float | None:
     return value if math.isfinite(value) and value >= 0 else None
 
 
-def _five(node: Node, line: int, where: str, bad, tier: bool) -> dict[str, Any] | None:
+def _five(node: Node, line: int, where: str, bad: Bad, tier: bool) -> dict[str, Any] | None:
     """The five prices of an entry (or of its `long_context`, which also has `above`), or None
     when a value is wrong or one is missing: none is derived from another."""
     need = PRICE_NAMES + (("above",) if tier else ())
@@ -141,14 +143,14 @@ def _five(node: Node, line: int, where: str, bad, tier: bool) -> dict[str, Any] 
     return rec if ok and not absent else None
 
 
-def _long_context(value: Node, kline: int, where: str, bad) -> dict[str, Any] | None:
+def _long_context(value: Node, kline: int, where: str, bad: Bad) -> dict[str, Any] | None:
     if value.kind != "map" or not value.value:
         bad(kline, f"{where}: long_context holds `above` and the five prices")
         return None
     return _five(value, kline, f"{where}: long_context", bad, True)
 
 
-def _prices(node: Node, kline: int, bad) -> dict[str, dict[str, Any]]:
+def _prices(node: Node, kline: int, bad: Bad) -> dict[str, dict[str, Any]]:
     """`prices:` one entry per exact model id, in $/MTok."""
     if node.kind != "map" or not node.value:
         bad(kline, '"prices" holds one entry per model id: `<id>:` then its five prices')
@@ -164,7 +166,7 @@ def _prices(node: Node, kline: int, bad) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _board(node: Node, kline: int, bad) -> dict[str, Any]:
+def _board(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
     """The `board` key: where `chantier board` listens. Both keys are optional."""
     rec: dict[str, Any] = {}
     if node.kind != "map" or not node.value:
@@ -212,17 +214,17 @@ def load_board(path: Path) -> tuple[dict[str, Any], list[str]]:
     return rec, [f"{FILE}:{n}: {m}" for n, m in sorted(problems)]
 
 
-def _role_agent(role: str, kline: int, value: Node, bad) -> str | None:
+def _role_agent(role: str, kline: int, value: Node, bad: Bad) -> str | None:
     if value.kind != "scalar" or not value.value.strip():
         bad(kline, f'role "{role}": "agent" is one string')
     elif re.search(r"\s", value.value):
         bad(kline, f'role "{role}": agent "{value.value}" holds whitespace')
     else:
-        return value.value
+        return str(value.value)
     return None
 
 
-def _role_model(host: str, role: str, kline: int, value: Node, bad) -> dict[str, Any] | None:
+def _role_model(host: str, role: str, kline: int, value: Node, bad: Bad) -> dict[str, Any] | None:
     if value.kind != "scalar" or not value.value.strip():
         bad(kline, f'role "{role}": "model" is one string')
         return None
@@ -236,12 +238,12 @@ def _role_model(host: str, role: str, kline: int, value: Node, bad) -> dict[str,
             f'(hosts/{HOST_FILES[host]}.md, "Models"): remove "model" for {role}, or '
             "run the role with your own agent that names it",
         )
-    else:
+    elif found is not None:
         return {"id": found.id, "name": found.name, "start": found.start}
     return None
 
 
-def _role_list(role: str, key: str, kline: int, value: Node, bad) -> list[str] | None:
+def _role_list(role: str, key: str, kline: int, value: Node, bad: Bad) -> list[str] | None:
     if value.kind != "list" or not value.value:
         bad(kline, f'role "{role}": "{key}" is a list of names: `[a, b]` or `- a` lines')
     elif any(not n.value.strip() or re.search(r"\s", n.value) for n in value.value):
@@ -251,8 +253,9 @@ def _role_list(role: str, key: str, kline: int, value: Node, bad) -> list[str] |
     return None
 
 
-def _role(host: str, role: str, node: Node, bad) -> dict[str, Any]:
+def _role(host: str, role: str, node: Node, bad: Bad) -> dict[str, Any]:
     rec: dict[str, Any] = {}
+    got: Any
     for key, (kline, value) in node.value.items():
         if key not in ROLE_KEYS:
             bad(kline, f'role "{role}": unknown key "{key}": one of {", ".join(ROLE_KEYS)}')

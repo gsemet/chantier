@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
@@ -168,7 +168,11 @@ def normalize_batch(batch: str) -> str:
     return f"batch-{int(match.group(1)):02d}" if match else batch
 
 
-def normalize_cr(value):
+@overload
+def normalize_cr(value: str) -> str: ...
+@overload
+def normalize_cr(value: None) -> None: ...
+def normalize_cr(value: str | None) -> str | None:
     """`165`, `CR-165` and `cr-165` all name `CR-165`; anything else (`stack`, `-`, an `O-k`
     order, a QA folder) is left as given."""
     if not isinstance(value, str):

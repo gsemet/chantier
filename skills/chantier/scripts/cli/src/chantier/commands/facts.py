@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -58,17 +59,17 @@ def _start_base(b_data: dict[str, Any], c: dict[str, Any], repo: Repo) -> str:
     `after`; with none open, the default branch, whatever its place in a stack. A release in an
     ordered batch starts on the top CR's branch, with none open under it on the default branch;
     in a parallel batch, or alone, on the default branch."""
-    default = repo.config["default_branch"]
+    default: str = repo.config["default_branch"]
     if c.get("kind") == "release":
         top = top_cr(b_data)
-        return top["branch"] if top else default
+        return str(top["branch"]) if top else default
     if b_data["mode"] == "series":
         pred = series_predecessor(b_data["crs"], c)
-        return pred["branch"] if pred and pred["status"] != "merged" else default
+        return str(pred["branch"]) if pred and pred["status"] != "merged" else default
     if c.get("after") and c.get("kind") not in {"release", "fix"}:
         found = {x["id"]: x for x in b_data["crs"]}
         open_ = [found[i] for i in c["after"] if i in found and found[i]["status"] not in ENDED]
-        return open_[-1]["branch"] if open_ else default
+        return str(open_[-1]["branch"]) if open_ else default
     return default
 
 
@@ -77,7 +78,7 @@ def stack_base(b_data: dict[str, Any], c: dict[str, Any], repo: Repo, planned: b
     place it will take); otherwise where it started. A CR sits on the one below it in the chain
     (the first on the default branch), whatever its `after`; a CR with an open dependency that
     `stack` has not placed yet, on that dependency's branch."""
-    default = repo.config["default_branch"]
+    default: str = repo.config["default_branch"]
     if c.get("kind") == "release":  # the top of the stack: on the top CR's branch
         return _start_base(b_data, c, repo)
     if not c.get("stacked") and ((c.get("after") and c.get("kind") != "fix") or not planned):
@@ -85,7 +86,7 @@ def stack_base(b_data: dict[str, Any], c: dict[str, Any], repo: Repo, planned: b
     order = chain(b_data)
     ids = [x["id"] for x in order]
     i = ids.index(c["id"]) if c["id"] in ids else 0
-    return order[i - 1]["branch"] if i > 0 else default
+    return str(order[i - 1]["branch"]) if i > 0 else default
 
 
 def _ref(repo: Repo, branch: str) -> str:
@@ -123,7 +124,7 @@ def cr_facts(repo: Repo, batch: str, d: dict[str, Any], c: dict[str, Any]) -> li
         f"worktree: {c['worktree']} branch {c['branch']} base {_base_of(d, c, repo)}"
         + ("" if made else "; not created yet: a Driver creates it first"),
         *(
-            [f"clone: {repo.clone_dir.as_posix()} (`git -C` it to create the worktree)"]
+            [f"clone: {repo.clone.as_posix()} (`git -C` it to create the worktree)"]
             if repo.external
             else []
         ),
@@ -206,7 +207,7 @@ def _gate_log(folder: Path) -> list[str]:
     return [f"last gate log {logs[-1].name}:"] + [f"  {ln}" for ln in tail]
 
 
-def handoff(args) -> list[str]:
+def handoff(args: argparse.Namespace) -> list[str]:
     """The CR's facts, for any agent; changes nothing."""
     repo = open_repo()
     batch, d, c = batch_cr(repo, args.cr, args.batch)

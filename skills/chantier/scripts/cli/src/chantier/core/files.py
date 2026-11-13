@@ -8,7 +8,7 @@ import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TextIO, TypeVar
+from typing import IO, Any, TypeVar
 
 if sys.platform == "win32":
     import msvcrt
@@ -20,7 +20,7 @@ _T = TypeVar("_T")
 LOCK_TIMEOUT_S = 30
 
 
-def try_lock(f: TextIO) -> bool:
+def try_lock(f: IO[str]) -> bool:
     """Take the exclusive lock on an open lock file without waiting; False if another holds it."""
     if sys.platform == "win32":
         f.seek(0)
@@ -29,14 +29,15 @@ def try_lock(f: TextIO) -> bool:
         except OSError:
             return False
         return True
-    try:
-        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        return False
-    return True
+    else:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        return True
 
 
-def unlock(f: TextIO) -> None:
+def unlock(f: IO[str]) -> None:
     if sys.platform == "win32":
         f.seek(0)
         msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)

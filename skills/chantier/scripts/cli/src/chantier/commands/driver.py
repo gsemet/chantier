@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -51,7 +52,7 @@ def _reopen(b: Batch) -> list[str]:
     return [f"{b.id} was paused: running again; `pause` runs again at the end"]
 
 
-def take(args) -> list[str]:
+def take(args: argparse.Namespace) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
     it, and the CR's facts are printed for the prompt. The Foreman chooses the agent."""
@@ -95,7 +96,7 @@ def take(args) -> list[str]:
     return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)", *reopened, *facts]
 
 
-def round_(args) -> list[str]:
+def round_(args: argparse.Namespace) -> list[str]:
     """A Driver counts a round before it starts the round's Coder; once the budget is spent, or
     past the batch's limit or the one the user granted the CR, it is refused (exit 5), the
     budget first (its own message), the round count unchanged and nothing logged. A round on
@@ -137,7 +138,7 @@ def _context_line(repo: Repo, d: dict[str, Any], c: dict[str, Any]) -> str:
     return f"context: {n} tokens (agent {agent})"
 
 
-def handback(args) -> list[str]:
+def handback(args: argparse.Namespace) -> list[str]:
     """A Driver's end, in the state first: `ready <link>` or `blocked <reason>`. Prints the line
     to send the Foreman, and what the state did with it."""
     repo = open_repo()
@@ -182,7 +183,7 @@ def handback(args) -> list[str]:
         return [line, f"{args.cr} ready"]
 
 
-def note(args) -> list[str]:
+def note(args: argparse.Namespace) -> list[str]:
     """A Driver's or worker's line in the CR's state: what was done or found, shown in its
     STATUS.md. `--draft <path>` names a file the user reviews and edits in place."""
     repo = open_repo()
@@ -208,7 +209,7 @@ def note(args) -> list[str]:
     return ["ok", context]
 
 
-def log(args) -> list[str]:
+def log(args: argparse.Namespace) -> list[str]:
     """The CR's events, readable: what happened and when."""
     repo = open_repo()
     batch, _, c = batch_cr(repo, args.cr, args.batch)

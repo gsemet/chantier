@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
 from chantier.commands.registry import BATCH, Subparsers, add_command
@@ -23,7 +25,7 @@ from chantier.plugin_files import (
 MD_LINK = re.compile(r"\]\(([^)\s#]+\.md)(?:#[^)]*)?\)|^\[[^\]]+\]:\s*(\S+\.md)\s*$", re.M)
 
 
-def _candidates(path: Path, root: Path, target: str, seen: list[Path]):
+def _candidates(path: Path, root: Path, target: str, seen: list[Path]) -> Iterator[Path]:
     """The files a link may name, the first one that is in the project and not seen yet."""
     for raw in (path.parent / target, root / target):
         try:
@@ -47,7 +49,7 @@ def linked(path: Path, root: Path, seen: list[Path], depth: int) -> None:
                 linked(found, root, seen, depth - 1)
 
 
-def playbook(args) -> tuple[list[str], int]:
+def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
     """The project's playbook: which agent and model each role of the plugin runs. Without
     `--batch` it reads `chantier.yaml` now, for the host; with it, the playbook the batch opened
     with (a batch with none recorded runs the plugin's agents and models)."""
@@ -75,7 +77,7 @@ def playbook(args) -> tuple[list[str], int]:
     return lines, 0
 
 
-def rules(args) -> list[str]:
+def rules(args: argparse.Namespace) -> list[str]:
     """The project's rules: its instruction file and the local Markdown files it links, two
     levels deep. Every role reads them before its own card; they rank above it."""
     repo = open_repo()
@@ -95,7 +97,7 @@ def rules(args) -> list[str]:
 
     if not repo.external:
         return listed(found, repo.root)
-    return ["project:", *listed(found, repo.root), "surface:", *listed(outer, repo.surface)]
+    return ["project:", *listed(found, repo.root), "surface:", *listed(outer, repo.surface_root)]
 
 
 def register(sub: Subparsers) -> None:

@@ -245,7 +245,7 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
     for d in reversed(repo.batch_folders()):
         b = read_batch_json(d / "batch.json")
         if any(c["id"] == cr_id for c in b["crs"]):
-            return b["id"]
+            return str(b["id"])
     raise ChantierError(f"no batch holds {cr_id}", EXIT_USAGE)
 
 
@@ -254,7 +254,7 @@ RESTORED_NUMBER_FILE = "restored.json"
 
 def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
     """Choose a number under the lifecycle lock, without reserving it on a failed move."""
-    previous = repo.config["first_cr_number"] - 1
+    previous: int = repo.config["first_cr_number"] - 1
     # a number `restore` took off a folder: once given, a number is never given again
     previous = max(previous, read_restored_number(repo.changes / RESTORED_NUMBER_FILE))
     children = [c for root in roots if root.is_dir() for c in root.iterdir() if c.is_dir()]

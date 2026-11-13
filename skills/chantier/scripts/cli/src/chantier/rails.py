@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, ChantierError
@@ -68,23 +68,29 @@ def check_idle(repo: Repo, d: dict[str, Any]) -> None:
         )
 
 
-def live(b: Batch) -> list[dict[str, Any]]:
+class HasData(Protocol):
+    """A Batch, or anything that holds a batch record as .data."""
+
+    data: dict[str, Any]
+
+
+def live(b: HasData) -> list[dict[str, Any]]:
     return [c for c in b.data["crs"] if c["status"] in LIVE]
 
 
-def qa_open(b: Batch) -> list[dict[str, Any]]:
+def qa_open(b: HasData) -> list[dict[str, Any]]:
     """The QA orders not done: each is a QA driver, and holds a slot from the order on."""
     return [o for o in b.data.get("orders", []) if o["kind"] == "qa" and not o["done"]]
 
 
-def held(b: Batch) -> list[str]:
+def held(b: HasData) -> list[str]:
     """What holds a slot: a CR in `working` and an open QA order, never a ready or blocked CR."""
     return [x["id"] + " working" for x in live(b)] + [f"{o['id']} qa" for o in qa_open(b)]
 
 
-def slot_free(b) -> bool:
+def slot_free(b: HasData) -> bool:
     """A slot is free by the rule `take` applies. `b` is a Batch or anything with a `.data`."""
-    return len(held(b)) < b.data["slots"]
+    return len(held(b)) < int(b.data["slots"])
 
 
 def check_slot(b: Batch, what: str) -> None:
@@ -149,11 +155,11 @@ def unmet(b: Batch, c: dict[str, Any]) -> list[str]:
     return waits_for(b.data["crs"], c, b.data["mode"])
 
 
-def over_budget(b: Batch) -> bool:
+def over_budget(b: HasData) -> bool:
     budget = b.data.get("budget_usd")
-    return (
-        bool(budget) and (b.data.get("spent_usd") or 0) >= budget
-    )  # the priced part; no spend seen yet: 0
+    if not budget:
+        return False
+    return bool((b.data.get("spent_usd") or 0) >= budget)  # the priced part; no spend seen yet: 0
 
 
 def spent_text(data: dict[str, Any]) -> str:

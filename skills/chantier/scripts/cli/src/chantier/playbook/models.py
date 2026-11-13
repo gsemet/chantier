@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 
@@ -46,7 +47,7 @@ def normalise(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
-def _shown(models) -> str:
+def _shown(models: Iterable[Model]) -> str:
     return ", ".join(f"{m.id} ({m.name})" for m in models)
 
 

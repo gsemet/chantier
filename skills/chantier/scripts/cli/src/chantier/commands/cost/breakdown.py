@@ -19,7 +19,7 @@ CR_IN_NAME = re.compile(r"\bCR-\d+\b")
 def _driver_root(r: dict[str, Any], by_agent: dict[str, dict[str, Any]]) -> dict[str, Any]:
     root = r
     for _ in range(5):
-        parent = by_agent.get(root.get("parent"))
+        parent = by_agent.get(root.get("parent") or "")
         if root["agent"] == "main" or parent is None or parent["agent"] == "main":
             break
         root = parent
@@ -110,7 +110,7 @@ def cost_label(r: dict[str, Any]) -> str:
     """The steering row of a direct batch is the Chief of Staff's, a Foreman's is the Foreman's;
     their own subagents have a line of their own."""
     if r.get("own"):
-        return r["own"]
+        return str(r["own"])
     if r["agent"] == "main" and r.get("type") == "chief-of-staff":
         return STEERING if "grill" in r else UNSPLIT  # Copilot rows are not split
     return cost_kind(r)

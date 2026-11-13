@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ from chantier.rails import check_idle
 from chantier.status.write import write_dashboard
 
 
-def pause(args) -> list[str]:
+def pause(args: argparse.Namespace) -> list[str]:
     """The batch's end of work: it is paused, and the cost to date is computed and printed;
     `close` prices the final one. A paused batch is not paused again: `order add` adds work,
     the first `take` sets it running, then `pause` runs again."""
@@ -137,7 +138,7 @@ def _closing(repo: Repo, batch: str, folder: Path, d: dict[str, Any]) -> tuple[C
     )
     tail = [
         "the dropped CRs, to remove on the same word where they still exist "
-        f"(`git {'-C ' + repo.clone_dir.as_posix() + ' ' if repo.external else ''}"
+        f"(`git {'-C ' + repo.clone.as_posix() + ' ' if repo.external else ''}"
         f"worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}",
         "final cost, up to now (nothing runs):",
         *summary,
@@ -145,7 +146,7 @@ def _closing(repo: Repo, batch: str, folder: Path, d: dict[str, Any]) -> tuple[C
     return k, tail
 
 
-def close(args) -> tuple[list[str], int]:
+def close(args: argparse.Namespace) -> tuple[list[str], int]:
     """The batch's own files go, its `retro.md` after it is kept in the batch's record
     (`5-archives/batches/batch-NN.md`, with the Completion table and the final cost, beside
     `batch-NN.json`), and its merged CRs move from `3-done` to `5-archives`: the Chief

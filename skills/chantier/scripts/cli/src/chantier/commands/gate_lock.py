@@ -76,7 +76,7 @@ class LongGateLock:
         """The holder without its suite's `pg<m>`: a gate starting a command is not a new holder."""
         return re.sub(r"\s+pg\d+\b", "", text)
 
-    def __enter__(self):
+    def __enter__(self) -> LongGateLock:
         self.f = open(self.path, "a+", encoding="utf-8")
         self.queue = self.repo.changes / ".long-gate.queue"
         self.queue.mkdir(exist_ok=True)
@@ -146,7 +146,7 @@ class LongGateLock:
         self.f.write(f" {text}")
         self.f.flush()
 
-    def __exit__(self, *exc):
+    def __exit__(self, *exc: object) -> None:
         try:
             self.holding("")
         finally:

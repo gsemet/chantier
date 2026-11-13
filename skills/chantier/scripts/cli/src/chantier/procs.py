@@ -63,7 +63,7 @@ def _end_tree(pid: int) -> bool:
 
 def stop_group(pgid: int) -> bool:
     """Stop the process group of a running `chantier gate`; False if it is already gone."""
-    if WINDOWS:  # the group leader's tree stands for the group
+    if sys.platform == "win32":  # the group leader's tree stands for the group
         return _end_tree(pgid)
     try:
         os.killpg(pgid, signal.SIGTERM)

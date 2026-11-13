@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from chantier.rails import all_merged, spent_text
 from chantier.rails_release import fix_go, release_go
 
 
-def release(args) -> tuple[list[str], int]:
+def release(args: argparse.Namespace) -> tuple[list[str], int]:
     """The release CR's attempts and its irreversible actions: none before every other CR is
     merged and the release PR is merged (the user's, or the steering session's under the grant);
     then the merge is the go, else each one is approved by the user, or allowed by the grant the
@@ -76,7 +77,7 @@ def _answer(
     return [f"go: {note} ({why})"], 0
 
 
-def cancel(args) -> list[str]:
+def cancel(args: argparse.Namespace) -> list[str]:
     """A dropped CR, on the user's word: its gate and its stray processes stopped, its folder
     in the trash with its work."""
     if args.epoch is None:

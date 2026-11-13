@@ -172,7 +172,7 @@ def _sample_groups(repo: Repo | None, remote: str) -> set[str]:
         seen: list[Path] = []
         for first, root in (
             (project_instructions(repo), repo.root),
-            (surface_instructions(repo), repo.surface),
+            (surface_instructions(repo), repo.surface or repo.root),
         ):
             if first:
                 seen.append(first.resolve())
