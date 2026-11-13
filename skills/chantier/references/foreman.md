@@ -272,9 +272,16 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     session and die with it. When a new Foreman epoch is claimed, every `working` CR, the recorded
     stack driver and every open QA order with an agent id is restarted at once, with no ping
     round.
+  - **After a switch to Foreman mode** (with the bullet above): when you claim the batch from a
+    direct batch, every CR whose Driver the switch stopped, the recorded stack driver and every
+    open QA order with an agent id are restarted at once by the restart path, with `resume: switch
+    to Foreman mode`; this is a death by the host in the sense of "A silent end" (it does not
+    count). A CR the Chief of Staff's Driver handed back `blocked stopped` with the switch's note
+    is taken back the same way and counts toward nothing.
   - **The restart path**, for every restart (a proven death, a new epoch, a silent end, a
-    `context:` hand-back), always starting by clearing the id: `agents set <cr> - --epoch <n>`,
-    `handoff <cr>`, `take <cr> --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set
+    `context:` hand-back, a host failure), always starting by clearing the id: `agents set <cr> -
+    --epoch <n>`, `handoff <cr>`, `take <cr> --note "resume: <cause>" --epoch <n>` (for a host
+    failure, `--note "resume: host failure: <exact text>"`), a new Driver, `agents set
     <cr> <id> --epoch <n>`. No round is counted and no second slot is taken; the budget applies (a
     refusal with exit 5 is a `budget` ask).
   - **A hand-back `blocked context: …`** (the Driver's context ran out): restart a fresh Driver on
@@ -282,6 +289,14 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     `agents set <cr> - --epoch <n>`, then `take <cr> --note "resume: context" --epoch <n>`, no
     round, no ask. A second `context:` on the same CR with no new head, round or note since the
     first is an ask: `question <cr> driver out of context twice`.
+  - **A host failure:** a Driver (CR, stack, release, QA) whose end carries the host's error
+    rather than a hand-back takes the restart path at once, with no ping round (the host's error is
+    the proof it ended). It is not a silent
+    end: it does not count toward `driver ended twice`, nor toward "blocked twice" in Escalation.
+    The new Driver reads from `handoff` what the record kept (a gate passed at the shipped head,
+    verdicts, the PR) and does not redo it when the worktree's head is that head and the tree is
+    clean. A second host failure on the same CR with no new head, round or note since the first is
+    an ask: `question <cr> host failure twice: <text>`.
   - **A silent end** (a task that ends with no hand-back) takes the restart path. A second silent
     end on one CR is `handback <cr> blocked driver ended twice`. Only silent ends of the Driver
     itself count: a death by the host (a new epoch, all Drivers lost at one wake) and a `context:`

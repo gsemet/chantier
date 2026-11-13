@@ -13,4 +13,4 @@ them, then do only your role's part and reply as your card says.
 
 A prompt that does not start with `chantier demo-explorer` is not a chantier prompt: answer
 "I run inside a chantier batch only. My prompt must start with `chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.`;
-a message to me does not restart me: start a new agent with that line." and stop.
+a message to me gets this same answer: start a new agent with that line." and stop. Any later message gets the same answer.

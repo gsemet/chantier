@@ -138,12 +138,13 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role):
     assert claude["name"] == role and copilot["name"] == f"chantier-{role}"
     assert claude["description"] == copilot["description"]
     # the description ends with the first line the prompt must start with; the refusal names it
-    # and says a new start is needed
+    # and says a new start is needed; a later message gets the same answer
     described = claude["description"].strip("'").replace("''", "'")
     assert described.endswith("`") and f" Prompt starts with: `chantier {role} for " in described
     first = described.rsplit("Prompt starts with: `", 1)[1][:-1]
     assert f"My prompt must start with `{first}`" in claude_body
-    assert "does not restart me: start a new agent with that line" in claude_body
+    assert "a message to me gets this same answer: start a new agent with that line" in claude_body
+    assert "Any later message gets the same answer." in claude_body
     assert claude["model"] in CLAUDE_MODELS
     assert (claude["model"] == "claude-opus-5-5") == (role in CLAUDE_OPUS_ROLES)
     assert ("Opus" in copilot["model"]) == (role in COPILOT_OPUS_ROLES)

@@ -485,6 +485,7 @@ otherwise.
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |
 | Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |
+| Resume a stopped subagent | `SendMessage` to its agent id resumes it with its context | same | same | proved, batch-15 (a refused spec-writer resumed by a message); chantier uses it only for the `taken back:` note of `foreman.md`: a refused agent answers it with its refusal |
 
 ## A Foreman in a worktree asks
 
