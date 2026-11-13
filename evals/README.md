@@ -269,6 +269,10 @@ wrong in either batch, and the cost per batch and in total.
 
 - A change to `evals/kit/` passes `just eval-dry-run` at its pushed head. Its output is the
   Verifier's evidence (`work/verifier/evidence/`), quoted in the PR body.
+- A kit change that adds a CI job or changes the steps of one also runs that job's work steps once
+  with `UV_CACHE_DIR` set to a new empty folder, before the push: its output is kept as the
+  Verifier's evidence and quoted in the PR body. [CONTRIBUTING.md](../CONTRIBUTING.md) ("Daily
+  work") has the full rule.
 - A new campaign behaviour, or a fault a run found, gets its case in the dry run in the same PR.
 - An eval-kit change gets an independent review of the whole campaign path (setup, a run, the
   audit, the judge) before its merge, by a reviewer that did not write it. The dry run does not

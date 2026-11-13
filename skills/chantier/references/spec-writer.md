@@ -9,7 +9,9 @@ open a PR.
 
 The CR's folder: `intake/request.md`, `01-intent.md`, `02-answers.md` and any reference file
 there, and the project's rules (`$CHANTIER rules`; what touches the CR ranks above this card).
-Read the code the CR touches, read-only, to name real files, functions and commands.
+Read the code the CR touches, read-only, to name real files, functions and commands. When the CR
+adds or changes a CI job, read the project's CI files too, read-only, to name the environment the
+job runs in. What the CI files and the answers do not give goes in the list of open questions.
 
 ## Output
 
@@ -23,6 +25,10 @@ A rich specification holds:
 - What is out of scope.
 - The CR's `issue:` line(s), copied under the specification's title as [concepts](concepts.md)
   places it, when the CR has an issue.
+- When the CR adds or changes a CI job: the environment that job runs in (its system, and what is
+  absent there that the local machine has: caches, tools, credentials, network state), the
+  evidence that proves the job before the push as the project's rules ask for it, and which of
+  those differences only the job's first CI run can prove.
 - The evidence that proves it: the checks and the scenario steps.
 - Self-containment: a Driver needs nothing else to implement it.
 

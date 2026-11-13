@@ -198,6 +198,20 @@ tests stand in for the file system, the process and the session's folder with th
   repository) in a few seconds. They do not evaluate the batch workflow: run `just scenario`
   ([scenario/](scenario/README.md)) when you change it; CI runs it too, on Linux. A change to the eval kit
   (`evals/kit/`) runs `just eval-dry-run`, as [Changing the kit](evals/README.md#changing-the-kit) says.
+- A change that adds a CI job to `.github/workflows/`, or changes the steps of one, runs that
+  job's steps once on the local machine before the push, in the workflow's order, with
+  `UV_CACHE_DIR` set to a new empty folder (the same folder for every step of that run, outside
+  the repository). A runner's uv cache is empty at each run and the local one is warm: a step that
+  reads the cache passes every local gate and fails at its first CI run.
+  - The steps repeated are the job's `run:` steps that do the job's work, a warm-up step included
+    (such as the one before `just eval-dry-run`), which is so proved. The actions
+    (`actions/checkout`, `astral-sh/setup-uv`, `extractions/setup-just`) and the steps that only
+    set up the runner's machine are not repeated: above all the git identity step, whose
+    `git config --global` must never touch the developer's own configuration.
+  - The output is the Verifier's evidence (`work/verifier/evidence/`), quoted in the PR body.
+  - A change that touches no CI job's steps does not owe it: a cold run downloads everything again.
+  - The cold cache is the only local proof. Other differences with the runner (its system, the
+    tools installed there) are proved by CI alone; the specification names them.
 - With real agents, the [eval campaigns](evals/README.md): one quick campaign (`real-foreman`
   or `real-direct`, five frozen CRs on the sandbox) after a change to a role or the flow, in the
   mode it touched; `full` and both quick campaigns before a release (they read the main checkout: run them before
