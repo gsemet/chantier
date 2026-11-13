@@ -17,7 +17,10 @@ The CLI keeps the CR's record and tells you what is off.
   a `rebase:`, a `resume:`. Go on from there; a round only for what the notes ask.
 - Children: `$CHANTIER round <cr> --note "<brief>"` before each Coder (refused past the limit,
   exit 5: hand back `blocked rounds: <what is still wrong>`; refused once the budget is spent,
-  exit 5 with a budget message: hand back `blocked budget: <what is still wrong>`), then the agent and the prompt of
+  exit 5 with a budget message: hand back `blocked budget: <what is still wrong>`; refused too,
+  exit 2, when nothing happened since the last round: no note, the worktree unchanged. Read the
+  facts with `handoff`, start that round's coder, or `note` why a new round is needed first),
+  then the agent and the prompt of
   [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
   the role, and the worker's agent and model as the `team:` lines print them, passed as
   printed (no model printed: none passed). Read those lines with `$CHANTIER handoff <cr>`, which
@@ -27,8 +30,23 @@ The CLI keeps the CR's record and tells you what is off.
   first, no `round`; a second refusal of the same start, a model included, is `handback blocked
   refused <exact text>`, never retried without the model. Every worker's prompt holds
   `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
-  printed them (`worktree:` and `folder:`); your own prompt never holds the line. A `Needs:`
+  printed them (`worktree:` and `folder:`); a CR Driver's own prompt holds `writes: <CR folder>`
+  (and `; <archive path>` when `take` prints one): you write your notes, `pr-body.md`, your large
+  outputs and the archive, nothing else. A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it.
+- Context: `round` and `note` print `context: <n> tokens (agent <id>)`; read it after each. At
+  150,000 tokens or more, record your state with `note`, then `handback <cr> blocked context:
+  <where it stopped, what is next>`, before the host compacts or ends you (150,000 is three
+  quarters of the 200,000 `autoCompactWindow` your agent carries, which leaves room for the note
+  and the hand-back). `context: not measured`: go on, and keep to these rules. Never take a
+  large output whole into your context:
+  - a gate log: its result from `handoff` (the last five lines it prints) or from the log's last
+    lines, never the whole log;
+  - a diff: `git diff --stat` or `--name-only`; the Inspector reads the diff itself;
+  - a CI failure: `gh run view <run> --log-failed > <work folder>/ci-<run>.log` (a shell write
+    inside the CR folder, which the guard allows), then read it with Grep or Read's offset and
+    limit, or give it to a `debugger`;
+  - anything over about 200 lines: a file under `work/` first, then read in parts.
 - Every worker's prompt, whatever the role (`coder`, `inspector`, `verifier`, `investigator`,
   `debugger`, `conflict-resolver`), carries these lines of [concepts](concepts.md), "Starting an
   agent"; check them before each start:
@@ -232,8 +250,23 @@ The CLI keeps the CR's record and tells you what is off.
 ## CR driver
 
 Take one CR from its specification to a green PR, then hand it back. A CR Driver edits no code,
-card, doc or other project file itself, not even one line: every change the CR makes goes
-through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive. Before round 1,
+card, doc or other project file itself, not even one line, and not through the shell either (a
+redirection, `Set-Content`, `sed -i`, an interpreter's inline code): the guard refuses what it
+sees, and the rule holds for what it does not. Every change the CR makes goes
+through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
+
+Your worktree's work is never discarded by you: no `git reset --hard`, `git checkout -- <path>`,
+`git restore`, `git clean`, and no deletion of a file in the worktree. `git rebase --abort` is
+allowed: it returns to the head before the rebase, and no work is lost. After a coder that
+failed, a dirty worktree goes to a new `coder` in the same round, with no `$CHANTIER round`; its
+brief names what the failed attempt left and what to do with it: keep it, fix it, or discard it
+back to the round's starting head (then the coder's own git). That is a restart of a failing
+child, not a new round. The coder is restarted at most once per round: a second failed coder in
+the same round is the next round (`$CHANTIER round`), whose brief carries both failures. A
+worktree left dirty by a failed rebase goes to a `conflict-resolver`. Before round 1 and between
+rounds, your own reading of the code is an `investigator` or a `debugger`, not you.
+
+Before round 1,
 when the code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
 investigator's report, which you validate and correct): with no investigator, you write it
 yourself. Each round: a `coder` with the brief, then you write or update `pr-body.md`, then an
@@ -319,7 +352,8 @@ Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push
 under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
 or a script), in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
 `ship` each one you moved, and keep the stack green with heavy CI once at the top. You edit no
-project file yourself: a conflict goes to a `conflict-resolver`, code to an `anomaly`. You open
+project file yourself, through the shell either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and
+you never discard a CR worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
 no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
 `glab mr update --draft`) while the stack is being made or changed. Each CR keeps its
 own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in

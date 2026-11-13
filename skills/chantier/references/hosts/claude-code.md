@@ -377,11 +377,12 @@ visible). The mod is Claude Code's only (`CONTRIBUTING.md`): the automatic reloa
 where the plugin's mod loads. The manual reload ("chantier reload", or `/chantier:chantier
 reload`) works everywhere, and is what a session without the mod has.
 
-## A worker's writes stay in its CR
+## The write guard
 
 The plugin's mod also hooks `agent.spawn` and `tool.call`. It reads one line of a spawn's
 prompt, `writes: <absolute folder>; <absolute folder>` (a worker's prompt holds it, with the
-worktree first and the CR folder second: `concepts.md`, "Starting an agent"). It knows no role
+worktree first and the CR folder second; a CR Driver's holds its CR folder, then the archive path
+when `take` prints one: `concepts.md`, "Starting an agent"). It knows no role
 and no card wording. A spawn whose prompt holds the line starts in the first folder (the mod
 rewrites the spawn's `cwd`, except on a resume), and the mod records its agent id with the
 folders. That agent's Write, Edit or NotebookEdit outside every folder is refused, with the one
@@ -390,16 +391,30 @@ write there`; a relative path is read against the folder it runs in. The argumen
 `tool.call` sit flat beside `tool` (`file_path` for Write and Edit, `notebook_path` for
 NotebookEdit), and the mod reads nothing else.
 
+The same agent's Bash or PowerShell call is judged by the same rule, on the write forms the mod
+can see with a target path: a redirection `>` or `>>`, `tee`, `sed -i`, `perl -i`, `cp`, `mv`,
+`rm`, `touch`, `truncate`, `Set-Content`, `Add-Content`, `Out-File`, `Clear-Content`, `New-Item`,
+`Copy-Item`, `Move-Item`, `Remove-Item`, `Rename-Item` and `[IO.File]::Write*`. A target outside
+every folder, read against the agent's folder like a relative path of Write, is refused with
+`refused: a shell write to <path> is outside the folders this agent may write in (<folder>;
+<folder>); the shell follows the same rule as Write and Edit`. Passed: a write to a null device
+(`$null`, `/dev/null`, `NUL`) or `2>&1`, and a command that is `git`, `gh`, `glab` or the
+chantier CLI, which write by their nature. The guard is role-free: a worker's shell writes in its
+worktree and CR folder pass, as its Write does.
+
 A guard that cannot judge lets the call pass and says so in the CR board's note, for instance
 `Write guard: could not read the Write call of agent <id> (no file_path); the call passed.`: a
 missing, empty or non-text path, a `writes:` line it cannot read (an entry that is not an
-absolute path leaves the agent unguarded and unmoved), or anything its own code throws. A guard
-at fault costs nothing.
+absolute path leaves the agent unguarded and unmoved), a shell target that holds a variable or
+`~`, follows a `cd`, `Set-Location` or `pushd`, or a call the mod cannot parse, or anything its
+own code throws. A guard at fault costs nothing.
 
-Not guarded: the main session (the Chief of Staff, the Foreman), the Drivers, the Spec-writer,
-the Griller, the Demo explorer, any agent with no `writes:` line, and every shell write (Bash,
-PowerShell): after a report's `git status` of the main checkout, the steering session names
-what changed there (`chief-of-staff.md`). The host's scratchpad is outside the worktree: a
+Not guarded: the main session (the Chief of Staff, the Foreman), the Release driver, the stack
+driver, the QA driver, the Spec-writer, the Griller, the Demo explorer, any agent with no
+`writes:` line, and the shell writes the mod cannot see (an interpreter's inline code such as
+`python -c` or `node -e`, a script's own writes): the card's rule covers those, and after a
+report's `git status` of the main checkout, the steering session names what changed there
+(`chief-of-staff.md`). The host's scratchpad is outside the worktree: a
 worker writes in its work folder instead. Copilot has no such guard, and the line is inert there.
 
 The refusals are proved by `hooks/register.test.tsx`, run with `just mod`. The passes are proved

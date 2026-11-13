@@ -97,9 +97,11 @@ chantier is four things in one repository:
 4. **A mod** ([`hooks/`](hooks/), Claude Code only): the CR board, a read-only pane over
    `.agents/changes/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
    hooks `skill.prompt`, `session.compact` (the automatic reload), the `/chantier-board` command
-   and the `cr-board` pane, and guards a worker's writes (`agent.spawn` and `tool.call`: it starts an
-   agent whose prompt holds a `writes:` line in its first folder and refuses its Write, Edit or
-   NotebookEdit outside the folders named; a shell write is not guarded); `types/index.d.ts`
+   and the `cr-board` pane, and guards the writes of a worker and a CR Driver (`agent.spawn` and
+   `tool.call`: it starts an agent whose prompt holds a `writes:` line in its first folder and
+   refuses its Write, Edit or NotebookEdit outside the folders named, and the Bash or PowerShell
+   writes it can see; what it cannot see, such as an interpreter's inline code, is left to the
+   cards); `types/index.d.ts`
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
    `STATUS.json` (`schema` 3) as `status.py` writes it: change both together. The CR board pane
@@ -116,7 +118,7 @@ goals and boundaries, not procedures. Keep both true in any change.
 .claude-plugin/             ← Claude Code plugin manifest and marketplace
 .github/plugin/             ← GitHub Copilot plugin manifest and marketplace
 agents/                     ← Claude Code agents, one per role
-hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of a worker's writes
+hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of the writes of a worker and a CR Driver
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
 skills/griller/             ← the Griller's entry point (thin)

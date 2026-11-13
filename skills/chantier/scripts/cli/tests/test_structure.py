@@ -270,10 +270,17 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     _, out, _ = chantier("round", "CR-101", "--note", "round 1")
     assert out[0] == "round 1 of 3 for CR-101"
     assert chantier("status")[1][-1].startswith("CR-101 working r1/3")
-    for _ in range(2):
-        chantier("round", "CR-101")
+    code, _, err = chantier("round", "CR-101")  # nothing happened since round 1: refused
+    assert code == 2 and "nothing happened since" in err
+    assert chantier("status")[1][-1].startswith("CR-101 working r1/3")
+    for i in range(2):
+        chantier("note", "CR-101", f"note {i}")
+        assert chantier("round", "CR-101")[0] == 0
     assert chantier("round", "CR-101")[0] == 5  # the round limit is a rail
     assert chantier("order", "rounds", "CR-101", "--note", "4")[0] == 0
+    chantier("note", "CR-101", "another round")
+    _, out, _ = chantier("note", "CR-101", "context")
+    assert out == ["ok", "context: not measured (no agent recorded)"]
     assert chantier("round", "CR-101")[0] == 0
     _, out, _ = chantier("rules", "--batch", "1")  # every prompt passes --batch
     assert out[0].startswith(str(repo / "AGENTS.md").replace("\\", "/"))

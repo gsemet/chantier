@@ -33,7 +33,7 @@ from .rails import (ENDED, MAX_GRANTED_FIXES, all_merged, merge_done, check_budg
                     check_granted_fix, check_idle, check_no_open_batch, check_round, check_slot, check_take,
                     alone, fix_go, held, is_release, live, parse_grant, record_ask, release_go,
                     release_merged, series_predecessor, spent_text, waits_all, waits_for)
-from .rails import not_priced, usd_text
+from .rails import check_stray_round, not_priced, usd_text, worktree_print
 from .state import (EXIT_BUDGET, EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, LIVE,
                     Batch, ChantierError, Repo, SurfaceChoice, chief_sessions, read_batch_json, read_text, _retry, _try_lock, _unlock,
                     write_json, age_minutes, check_epoch, default_branch, find_cr_batch, git, move_directory,
@@ -1840,7 +1840,9 @@ def take(args) -> list[str]:
 def round_(args) -> list[str]:
     """A Driver counts a round before it starts the round's Coder; once the budget is spent, or
     past the batch's limit or the one the user granted the CR, it is refused (exit 5), the
-    budget first (its own message), the round count unchanged and nothing logged."""
+    budget first (its own message), the round count unchanged and nothing logged. A round on
+    which nothing happened since the last one is refused too (exit 2). Prints the Driver's
+    context size. The round event keeps the worktree's head and a fingerprint of its content."""
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch)
     with changes_lock(repo):
@@ -1849,11 +1851,33 @@ def round_(args) -> list[str]:
             if c["status"] not in LIVE:
                 raise ChantierError(f"{args.cr} is {c['status']}: no Driver to run a round")
             limit = check_round(b, c)  # the budget first, then the limit
+            wt = Path(c["worktree"]) if c.get("worktree") else None
+            seen = worktree_print(wt)
+            check_stray_round(_cr_events(repo, batch, c["id"]), c, seen)  # then a stray round
             b.touch(c, round=c.get("round", 0) + 1)
-            b.log("round", c["id"], round=c["round"], note=args.note)
+            b.log("round", c["id"], round=c["round"], note=args.note, **seen)
             _work(repo, c).mkdir(parents=True, exist_ok=True)
             facts = _facts(repo, batch, b.data, c)
-    return [f"round {c['round']} of {limit} for {c['id']}"] + facts
+            context = _context_line(repo, b.data, c)
+    return [f"round {c['round']} of {limit} for {c['id']}"] + facts + [context]
+
+
+def _context_line(repo: Repo, d: dict, c: dict) -> str:
+    """The context size of the agent recorded on the CR, its Driver: the last call's prompt, read
+    from the end of its transcript. Not an error when it cannot be measured."""
+    agent = c.get("agent")
+    if not agent:
+        return "context: not measured (no agent recorded)"
+    if d.get("host") == "copilot":
+        return "context: not measured (Copilot gives no per-agent record)"
+    try:
+        sessions = _foreman_uuid(d)
+    except ChantierError:
+        return "context: not measured (no steering transcript recorded)"
+    n = costs.agent_context(repo.session_root, sessions, agent)
+    if n is None:
+        return f"context: not measured (no transcript found for agent {agent})"
+    return f"context: {n} tokens (agent {agent})"
 
 
 def handback(args) -> list[str]:
@@ -1962,7 +1986,8 @@ def note(args) -> list[str]:
         c.setdefault("notes", []).append(text)
         b.touch(c)
         b.log("note", args.cr, note=text)
-    return ["ok"]
+        context = _context_line(repo, b.data, c)
+    return ["ok", context]
 
 
 def log(args) -> list[str]:
@@ -2855,7 +2880,8 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
             return None
         return agent_cr.get(agent) or cr_of(parents.get(agent), hops + 1)
 
-    groups: dict[str, list] = defaultdict(lambda: [0, 0.0, {}])  # calls, dollars, not priced
+    # calls, dollars, not priced, the Drivers' peak context, the Drivers' compactions
+    groups: dict[str, list] = defaultdict(lambda: [0, 0.0, {}, 0, 0])
     for r in rows:
         if by == "cr":
             named = CR_IN_NAME.search(r.get("description") or "")
@@ -2873,6 +2899,9 @@ def _cost_groups(repo: Repo, batch: str, rows: list[dict], by: str) -> dict[str,
         groups[key][0] += r["calls"]
         groups[key][1] += r["usd"]
         _add_unpriced(groups[key][2], _unpriced(r))
+        if by == "cr" and _kind(r) == "Driver":
+            groups[key][3] = max(groups[key][3], r.get("peak_context", 0))
+            groups[key][4] += r.get("compactions", 0)
     return groups
 
 
@@ -3058,9 +3087,14 @@ def cost(args) -> list[str]:
                              _cost_groups(repo, batch, rows, "driver"), chief)
     if args.explain and args.by == "cr":
         raise ChantierError("`--explain` explains the breakdown by role, not `--by cr`")
+    driver_context: dict[str, str] = {}
     if args.by == "cr":  # a CR's Driver and its workers
+        groups = _cost_groups(repo, batch, rows, "cr")
         lines = [(k, v[0], v[1], None, v[2]) for k, v in
-                 sorted(_cost_groups(repo, batch, rows, "cr").items(), key=lambda kv: -kv[1][1])]
+                 sorted(groups.items(), key=lambda kv: -kv[1][1])]
+        driver_context = {k: f"Driver peak context {v[3]:,} tokens, {v[4]} "
+                             f"compaction{'s' if v[4] != 1 else ''}"
+                          for k, v in groups.items() if v[3]}
     else:  # the Foreman, each Driver type, each worker type: their own calls and dollars
         restarted = _restarted(repo, batch) if args.explain else set()
         lines = [(e["label"], e["calls"], e["usd"], _explain(e, restarted) if args.explain else None,
@@ -3076,7 +3110,8 @@ def cost(args) -> list[str]:
     for i, ((label, calls, _, why, lun), m) in enumerate(zip(lines, mills)):
         share = None if shares is None else "share not measured" if un else f"{shares[i]}%"
         detail = ([f"{calls} calls" + (f", {share}" if share else "")] if calls or not lun else []) \
-            + ([not_priced(lun)] if lun else [])
+            + ([not_priced(lun)] if lun else []) + ([driver_context[label]]
+                                                   if label in driver_context else [])
         out += [f"{label}: {_spend(m / 1000, calls, lun, 3)} ({'; '.join(detail)})"] \
             + ([why] if why else [])
     if shares is not None:

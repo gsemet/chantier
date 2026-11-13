@@ -374,6 +374,49 @@ def agent_records(root: Path, sessions: list[str]) -> dict[str, tuple[str | None
     return found
 
 
+def agent_context(root: Path, sessions: list[str], agent: str) -> int | None:
+    """Claude: the prompt size of an agent's last call (input, cache writes and cache reads), read
+    from the end of its `subagents/agent-<id>.jsonl` beside a steering transcript, never from the
+    whole file. None: no record found, or no call in it."""
+    for session in sessions:
+        path = transcript_path(root, session).with_suffix("") / "subagents" / f"agent-{agent}.jsonl"
+        if not path.is_file():
+            continue
+        try:
+            with path.open("rb") as f:
+                size = f.seek(0, os.SEEK_END)
+                chunk = 1 << 18
+                while True:
+                    start = max(0, size - chunk)
+                    f.seek(start)
+                    data = f.read(size - start)
+                    lines = data.split(b"\n")
+                    if start:
+                        lines = lines[1:]  # the first line may be cut
+                    for raw in reversed(lines):
+                        try:
+                            d = json.loads(raw)
+                        except ValueError:
+                            continue
+                        m = d.get("message") if isinstance(d, dict) else None
+                        u = m.get("usage") if isinstance(m, dict) else None
+                        if d.get("type") != "assistant" or not isinstance(u, dict) \
+                                or m.get("model") == "<synthetic>":
+                            continue
+                        cc = u.get("cache_creation") or {}
+                        t = (u.get("input_tokens", 0), cc.get("ephemeral_5m_input_tokens", 0),
+                             cc.get("ephemeral_1h_input_tokens", 0),
+                             u.get("cache_read_input_tokens", 0))
+                        if any(isinstance(v, int) and v for v in t):
+                            return sum(v for v in t if isinstance(v, int))
+                    if not start:
+                        break
+                    chunk *= 2
+        except OSError:
+            continue
+    return None
+
+
 def _copilot_agents(session: str) -> dict[str, dict]:
     """agentId → agentType and name, from the session's `subagent.started` events."""
     path = copilot_home() / "session-state" / session / "events.jsonl"

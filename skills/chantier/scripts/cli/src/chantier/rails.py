@@ -6,12 +6,14 @@ without the user's word), and a fact is a record two runs must agree on (an arch
 """
 from __future__ import annotations
 
+import hashlib
 import re
+from pathlib import Path
 
 from . import costs
 from .lifecycle import done_cr
 from .state import (EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, LIVE, Batch, ChantierError, Repo, chief_sessions,
-                    now, round_limit)
+                    git, now, round_limit)
 
 ENDED = {"merged", "cancelled"}
 MAX_GRANTED_FIXES = 3
@@ -219,6 +221,45 @@ def check_round(b: Batch, c: dict) -> int:
         raise ChantierError(f"{c['id']}: round limit {limit} reached; hand back blocked, only the "
                             "user grants more (`order rounds`)", EXIT_BUDGET)
     return limit
+
+
+def worktree_print(wt: Path | None) -> dict:
+    """The worktree's head and a fingerprint of its uncommitted and untracked content, by read-only
+    git commands and file reads. Empty when the worktree is not there."""
+    if wt is None or not wt.is_dir():
+        return {}
+    head = git("rev-parse", "HEAD", cwd=wt, check=False)
+    h = hashlib.sha1()
+    h.update(git("status", "--porcelain", "--untracked-files=normal", cwd=wt, check=False).encode())
+    h.update(git("diff", "HEAD", cwd=wt, check=False).encode())
+    for name in sorted(git("ls-files", "--others", "--exclude-standard", "-z", cwd=wt,
+                           check=False).split("\0")):
+        if not name:
+            continue
+        h.update(name.encode())
+        try:
+            h.update((wt / name).read_bytes())
+        except OSError:
+            pass
+    return {"wt_head": head, "wt_state": h.hexdigest()[:16]}
+
+
+def check_stray_round(events: list[dict], c: dict, now_print: dict) -> None:
+    """A round on which nothing happened is refused (exit 2): the CR has a round, no event but a
+    round was logged since the last one, and the worktree is the same as when it was counted."""
+    last = next((i for i in range(len(events) - 1, -1, -1) if events[i].get("kind") == "round"),
+                None)
+    if not c.get("round", 0) or last is None:
+        return
+    if any(e.get("kind") != "round" for e in events[last + 1:]):
+        return
+    before = {k: events[last].get(k) for k in ("wt_head", "wt_state")}
+    if before["wt_head"] and now_print and before != {k: now_print.get(k) for k in before}:
+        return
+    raise ChantierError(
+        f"{c['id']}: round {c['round']} was counted and nothing happened since (no note, the "
+        f"worktree unchanged): start that round's coder; to read the facts, `handoff {c['id']}`; "
+        "if a new round is really needed, note why first", EXIT_PRECONDITION)
 
 
 def merge_done(b: Batch, c: dict) -> list[str]:

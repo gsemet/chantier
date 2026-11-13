@@ -105,7 +105,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `team:` line): its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
-  <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
+  <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended, with its hand-back or without, before the CR's next `take`).
 - Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
   failed, goes to a new Driver on the escalation model that `playbook --batch` prints
