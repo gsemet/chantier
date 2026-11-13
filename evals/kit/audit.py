@@ -66,8 +66,10 @@ CLI_CALL = (r"(?:chantier\.py[\"']?|(?:&\s*|(?:Invoke-Expression|iex)\s+[\"']?|(
             r"\$(?:\{(?:env:)?\w+\}|(?:env:)?\w+)[\"']?)\s+")
 EPOCH_COMMANDS = re.compile(CLI_CALL + r"(status --refresh|cancel|pause|take)\b|agents set"
                             r"|order (done|merged)", re.I | re.M)
-DIRECT_EPOCH_COMMANDS = re.compile(CLI_CALL + r"(status --refresh|cancel|pause|take)\b"
-                                   r"|agents set|order done", re.I | re.M)  # its `order merged` is the user's
+DIRECT_EPOCH_COMMANDS = re.compile(CLI_CALL + r"(cancel|pause|take)\b"
+                                   r"|agents set|order done", re.I | re.M)
+# in direct mode: no `order merged` (the user's), and no `status --refresh`: the report refresh
+# carries no epoch (status-layout.md), and the command alone cannot tell it from a wake (C10 reads that)
 RULES_COMMAND = re.compile(CLI_CALL + r"rules\b", re.I | re.M)
 PLUGIN_AGENT = "chantier:{role}"  # the Claude plugin's agent for a role; a project names its own
 WINDOW = 200_000  # the plugin agents' `autoCompactWindow`: past it, the agent compacts
@@ -88,6 +90,16 @@ GIT_PUSH = re.compile(git("push") + r"\b")
 GIT_ADD_ALL = re.compile(git("add") + r"\s+(?:-A|--all|\.)(?=[\s;&|)]|$)")
 GIT_WORKTREE_ADD = re.compile(git("worktree") + r"\s+add\b")
 GIT_WORKTREE_REMOVE = re.compile(git("worktree") + r"\s+remove\b")
+DETACHED = re.compile(r"(^|\s)(--detach|-d)(\s|$)")
+
+
+def lawful_worktree(role: str, command: str, match: re.Match) -> bool:
+    """A `git worktree add` the cards allow: the Verifier's detached one (worker.md), judged on its
+    own arguments, from the end of the match to the next command separator."""
+    own = re.split(r"[;&|\n]", command[match.end():], maxsplit=1)[0]
+    return role == "verifier" and DETACHED.search(own) is not None
+
+
 OWN_FILES = ("/work/", "/evidence/")  # a worker's notes and proof, in the CR's folder
 CD = re.compile(rf"(?:^|[;&|\n(])\s*(?:cd|Set-Location|sl|pushd)\s+({ARG})", re.I)
 ASSIGN = re.compile(rf"\$(\w+)\s*=\s*({ARG})")
@@ -491,8 +503,11 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
             check(not merges, f"{a.id[:10]} ({a.role}) merges nothing: only the steering session "
                               "merges, and only a release and its granted fixes", "C12")
         if a.role in WORKERS | {"qa-driver"} | reviews:
-            trees = [c for c in a.bash() if GIT_WORKTREE_ADD.search(c)]
-            check(not trees, f"{a.id[:10]} ({a.role}) creates no worktree: the Driver did", "J3")
+            trees = [c for c in a.bash() if any(not lawful_worktree(a.role, c, m)
+                                                for m in GIT_WORKTREE_ADD.finditer(c))]
+            check(not trees, f"{a.id[:10]} ({a.role}) creates no worktree"
+                  + (" but its detached one of the base" if a.role == "verifier"
+                     else ": the Driver did"), "J3")
         if a.role in READ_ONLY | reviews:
             outside_files = [w for w in a.writes()
                              if not any(own in w.replace("\\", "/") for own in OWN_FILES)] \
@@ -516,7 +531,7 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
     epoch_re = DIRECT_EPOCH_COMMANDS if direct else EPOCH_COMMANDS
     no_epoch = [c for c in sum((f.bash(f.since) for f in steering), [])
                 if epoch_re.search(c) and "--epoch" not in c]
-    check(not no_epoch, f"every steering refresh, take, agents set, order done"
+    check(not no_epoch, f"every steering {'' if direct else 'refresh, '}take, agents set, order done"
                         f"{'' if direct else ' or merged'}, cancel and pause carries its epoch"
                         f"{': ' + no_epoch[0][:80] if no_epoch else ''}", "C9")
     steer_git = [c for c in sum((f.bash(f.since) for f in steering), []) if GIT_WRITES.search(c)
