@@ -71,11 +71,16 @@ The CLI keeps the CR's record and tells you what is off.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
-  --body-file <work folder>/pr-body.md`, `glab mr create --draft`), a Release driver
-  opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
+  --body-file <work folder>/pr-body.md`, `glab mr create --draft` with the form below), a Release
+  driver opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
   project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
-  and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update
-  --description`); `glab mr create --draft` takes the body with `--description`. The body carries
+  and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update`
+  with the form below). The body is always written with the Write tool and posted from that file,
+  as in [concepts](concepts.md), rule 9, never as text in the command. For GitLab, use `glab`'s
+  option that reads the description from a file (settle the exact form from `glab mr create
+  --help`), with no text in the command and no shell substitution such as `"$(cat file)"`;
+  unproved; trial: a GitLab MR opened and edited from `pr-body.md` whose body holds backticks,
+  `$` and quotes, and whose description on the forge matches the file byte for byte. The body carries
   the closing line of each `issue:` of the specification ([pr-template](pr-template.md)); a
   Driver never comments on, closes or reopens an issue. The stack driver's and a Release
   driver's PRs keep their form, by the project's rules. Then
@@ -301,7 +306,7 @@ touched a CR's proofs (its patch changed, or the base brought changes to what th
 start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
 CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$CHANTIER note <cr>
 "move <old7>..<new7> (restack) inspector approved at <head>"`); then update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
---body-file` / `glab mr update --description`, the Review box citing only a recorded note, as for
+--body-file` / `glab mr update` with the file form of the Push bullet (unproved there), the Review box citing only a recorded note, as for
 the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`. Green: `[stack→foreman] hand-back
 ready <cr>=<link>…`.
@@ -370,8 +375,8 @@ inside the procedure and the grant, and ask for anything beyond them.
   own description stays the procedure's; the notes and thread are appended under it, never in its
   place.
 - The files are the source and the body a copy. Write the body from the files with the forge's
-  own CLI (`gh pr edit --body-file`, `glab mr update --description`, or the equivalent for another
-  forge) when you open the PR, each time a draft changes, and once more just before `handback
+  own CLI (`gh pr edit --body-file`, `glab mr update` with the file form of the Push bullet (unproved there), or the equivalent for
+  another forge; from the file, [concepts](concepts.md) rule 9) when you open the PR, each time a draft changes, and once more just before `handback
   ready <pr link>`. Never copy the body back into a file. A change the user asks for in
   the PR is made in the file (by the user, or on the Chief of Staff's word), then the body is
   refreshed.
