@@ -184,7 +184,8 @@ started.
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and
   no forge command: the agents create the worktrees, commit, rebase, push, open, watch and
-  merge PRs and clean up, with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
+  merge PRs, clean up and fast-forward the main checkout after a recorded merge
+  ([foreman](foreman.md)), with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
   says which; `handback ready` is one when the worktree's head is not the one `ship` recorded,
   the tree is dirty, the remote branch is not at that head, or there is no passed long gate or
   `VERIFIED` verdict at it; `gate` on a dirty tree is another; so are a `take` of a working CR
@@ -328,9 +329,12 @@ running agent's model, never a retry of the same agent, and never a model typed 
    parent with its exact text.
 8. **Git:** explicit paths (`git add -- <path>`, never `-A`); a push is plain when
    the remote branch is an ancestor of the local one, and a rewrite (a rebase) is pushed with
-   `--force-with-lease`; the user's uncommitted changes are never touched. No `sleep`, no polling
-   loop: a wait is the forge's own watch, in a background shell (except the one bounded wait
-   before a second CI look that [driver](driver.md), `CI:`, names). `git -C <worktree>` is accepted
+   `--force-with-lease`; the user's uncommitted changes are never touched. The main checkout moves
+   only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
+   records, and only when clean: the user's uncommitted changes and untracked files are never
+   touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell
+   (except the one bounded wait before a second CI look that [driver](driver.md), `CI:`, names).
+   `git -C <worktree>` is accepted
    for any git command; the push rule is unchanged (plain when the remote branch is an ancestor,
    `--force-with-lease` after a rewrite).
 9. **Commands and files.** One command per call when you can: a chain (`a; b`, `a && b`, a

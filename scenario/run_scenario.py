@@ -205,6 +205,28 @@ def merge_pr(w: World, pr: str) -> tuple[int, str]:
     return code, err
 
 
+def land(w: World, branch: str, extra: tuple[str, str] | None = None) -> str:
+    """The user's merge reaches the bare origin: the CR's commits land on `main` by rebase (the
+    project's method), with git from a scratch clone outside the project, never through the fake
+    forge. With `extra` (a path and its content), a commit adding that file lands instead."""
+    scratch = w.root / "landing"
+    if not scratch.is_dir():
+        w.sh("git", "clone", "--quiet", str(w.root / "origin.git"), str(scratch), cwd=w.root)
+        w.sh("git", "config", "user.name", "scenario", cwd=scratch)
+        w.sh("git", "config", "user.email", "scenario@example.com", cwd=scratch)
+    w.sh("git", "fetch", "--quiet", "origin", cwd=scratch)
+    if extra:
+        w.sh("git", "checkout", "--quiet", "--detach", "origin/main", cwd=scratch)
+        (scratch / extra[0]).write_text(extra[1])
+        w.sh("git", "add", "-f", "--", extra[0], cwd=scratch)
+        w.sh("git", "commit", "--quiet", "-m", f"add {extra[0]}", "-m", TRAILER, cwd=scratch)
+    else:
+        w.sh("git", "checkout", "--quiet", "--detach", f"origin/{branch}", cwd=scratch)
+        w.sh("git", "rebase", "--quiet", "origin/main", cwd=scratch)
+    w.sh("git", "push", "--quiet", "origin", "HEAD:main", cwd=scratch)
+    return w.sh("git", "rev-parse", "HEAD", cwd=scratch)
+
+
 class Foreman:
     """Does what foreman.md leaves it, from `batch.json` (a real one reads `chantier status`):
     the pending orders, the asks, the merges the user allowed, the free slots, the QA drivers,
@@ -220,6 +242,51 @@ class Foreman:
         self.told: set = set()
         self.facts: list[str] = []
         self.paused = False
+        self.git_main: list[tuple[str, ...]] = []  # every git command it ran in the main checkout
+
+    def git(self, *args: str) -> subprocess.CompletedProcess:
+        """The Foreman's git in the main checkout; the commands are kept for a check."""
+        self.git_main.append(args)
+        return subprocess.run(["git", *args], cwd=self.w.work, capture_output=True, text=True,
+                              encoding="utf-8")
+
+    def fast_forward(self, cr: str) -> str:
+        """foreman.md, "The main checkout after a merge": steps 2 to 5 (step 1 reads the rules,
+        which say nothing against it here), then the `main checkout:` note on the CR."""
+        remote, default = "origin", "main"
+        why = None
+        branch = self.git("symbolic-ref", "--quiet", "--short", "HEAD").stdout.strip()
+        if branch != default:
+            why = f"on {branch}, not {default}" if branch else "detached HEAD"
+        if why is None:
+            dirty = [ln[3:] for ln in self.git("status", "--porcelain",
+                                               "--untracked-files=no").stdout.splitlines()]
+            if dirty:
+                why = f"tracked changes: {', '.join(dirty[:3])}"
+        if why is None:
+            p = self.git("fetch", remote, default)
+            if p.returncode:
+                why = f"fetch failed: {p.stderr.strip()}"
+        line = None
+        if why is None:
+            p = self.git("merge", "--ff-only", "--no-overwrite-ignore", f"{remote}/{default}")
+            sha7 = self.git("rev-parse", "--short=7", "HEAD").stdout.strip()
+            text = p.stdout + p.stderr
+            if p.returncode == 0:
+                line = (f"already at {sha7}" if "Already up to date" in text
+                        else f"fast-forwarded to {sha7}")
+            elif "Not possible to fast-forward" in text or "diverging" in text:
+                why = f"diverged from {remote}/{default}"
+            elif "untracked working tree files would be overwritten" in text:
+                paths = [ln.strip() for ln in text.splitlines() if ln.startswith(("\t", " "))
+                         and ln.strip() and not ln.strip().startswith(("Please", "Aborting"))]
+                why = f"untracked file in the way: {paths[0] if paths else '?'}"
+            else:
+                why = text.strip().splitlines()[0] if text.strip() else "git refused"
+        if line is None:
+            line = f"not fast-forwarded: {why}"
+        self.w.chantier("note", cr, f"main checkout: {line}")
+        return line
 
     def worktree_check(self, session: str, cwd: Path | None = None) -> bool:
         """foreman.md's worktree check, before the epoch is claimed: in a linked worktree (`--git-dir`
@@ -267,12 +334,10 @@ class Foreman:
             if c["status"] != "merged":
                 continue
             if Path(c["worktree"]).is_dir():
-                subprocess.run(["git", "worktree", "remove", c["worktree"]], cwd=self.w.work,
-                               capture_output=True)
+                self.git("worktree", "remove", c["worktree"])
             # the PR is merged (status above), the check the card asks for; -d would refuse
             # after a rebase or squash merge
-            subprocess.run(["git", "branch", "-D", c["branch"]], cwd=self.w.work,
-                           capture_output=True)
+            self.git("branch", "-D", c["branch"])
 
     def merge(self, c: dict) -> None:
         """What the user allowed the Foreman to merge: a release's fix under the grant, the
@@ -292,6 +357,7 @@ class Foreman:
             self.ask_once((cr, "refused", err), f"refused {cr} {err}")
             return
         self.w.chantier("order", "merged", cr, "--epoch", self.epoch)
+        self.fast_forward(cr)
         self.ask(f"merged {cr} {c['pr']}")
 
     def do_order(self, d: dict, o: dict) -> bool:
@@ -328,7 +394,8 @@ class Foreman:
         for c in sorted(d["crs"], key=lambda c: c["order"]):
             reason = c.get("blocked_reason") or ""
             if c["status"] == "queued":
-                last = c["notes"][-1] if c.get("notes") else ""
+                last = next((n for n in reversed(c.get("notes") or [])
+                             if not n.startswith("main checkout:")), "")
                 out.append((c, last if last.startswith(BACK_NOTES) else None, None))
             elif c["status"] == "blocked" and reason.startswith("fix:"):
                 fixes = [x for x in d["crs"] if x.get("fix_for") == c["id"]]
@@ -345,6 +412,9 @@ class Foreman:
 
     def turn(self) -> None:
         d = self.w.batch()
+        merged = [o for o in d["orders"] if not o["done"] and o["kind"] == "merged"]
+        if merged:  # the user's merges: one attempt after the last, before any `order done`
+            self.fast_forward(merged[-1]["cr"])
         for o in d["orders"]:
             if not o["done"]:
                 self.do_order(d, o)
@@ -701,6 +771,17 @@ def scenario(w: World) -> None:
     check("pause is refused while PRs are not merged", code == 2 and w.batch()["status"] == "running")
     fake_transcripts(w, w.batch())
     orders = len(w.batch()["orders"])
+    local = w.work / "local-notes.txt"  # the user's own untracked file
+    local.write_text("mine\n")
+    planning = sorted(p.relative_to(w.work).as_posix() for p in (w.work / ".agents").rglob("*")
+                      if p.is_file() and "4-batch" not in p.parts)
+    head0 = w.sh("git", "rev-parse", "HEAD")
+    land(w, w.cr("CR-101")["branch"])  # the user's merge reaches origin; nothing is moved yet
+    check("the user's merge landed on origin by rebase, through no forge call, and the main "
+          "checkout has not moved by itself",
+          w.sh("git", "rev-parse", "origin/main") == head0
+          and w.sh("git", "rev-parse", "HEAD") == head0
+          and w.sh("git", "ls-remote", "origin", "refs/heads/main").split()[0] != head0)
     _, out = w.chantier("order", "merged", "CR-101")
     check("`order merged` moves the CR to 3-done at once and records the time",
           w.cr("CR-101")["status"] == "merged" and "4-batch/3-done/" in w.cr("CR-101")["path"]
@@ -708,9 +789,84 @@ def scenario(w: World) -> None:
           and re.fullmatch(r"20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ", w.cr("CR-101")["merged_at"]),
           str(out))
     fm.turn()
-    for cr_id in ("CR-102", "CR-104", "CR-105"):
-        w.chantier("order", "merged", cr_id)
-        fm.turn()
+    remote = w.sh("git", "ls-remote", "origin", "refs/heads/main").split()[0]
+    check("fast-forward done: the main checkout is at origin/main, with the file CR-101 added, "
+          "the user's untracked file and the untracked planning folder intact, and the note says so",
+          w.sh("git", "rev-parse", "HEAD") == remote == w.sh("git", "rev-parse", "origin/main")
+          and (w.work / "login.py").read_text() == "TIMEOUT_S = 30\n"
+          and local.read_text() == "mine\n"
+          and planning == sorted(p.relative_to(w.work).as_posix()
+                                 for p in (w.work / ".agents").rglob("*")
+                                 if p.is_file() and "4-batch" not in p.parts)
+          and w.cr("CR-101")["notes"][-1] == f"main checkout: fast-forwarded to {remote[:7]}",
+          str(w.cr("CR-101")["notes"][-3:]))
+
+    # CR-102: a tracked file of the main checkout is changed, the fast-forward is refused
+    land(w, w.cr("CR-102")["branch"])
+    head1 = w.sh("git", "rev-parse", "HEAD")
+    (w.work / "app.py").write_text("def login():\n    return False  # the user's edit\n")
+    w.chantier("order", "merged", "CR-102")
+    fm.turn()
+    check("refused on a tracked change: HEAD has not moved, the change is kept, the note says why",
+          w.sh("git", "rev-parse", "HEAD") == head1
+          and "the user's edit" in (w.work / "app.py").read_text()
+          and not (w.work / "export.py").exists()
+          and w.cr("CR-102")["notes"][-1] == "main checkout: not fast-forwarded: tracked changes: app.py",
+          str(w.cr("CR-102")["notes"][-2:]))
+    w.sh("git", "checkout", "--quiet", "--", "app.py")  # the user undoes the change
+
+    # CR-104: it tries again at the next merge and catches up
+    land(w, w.cr("CR-104")["branch"])
+    w.chantier("order", "merged", "CR-104")
+    fm.turn()
+    remote = w.sh("git", "ls-remote", "origin", "refs/heads/main").split()[0]
+    check("the next merge tries again: the checkout catches up with origin/main, CR-102's file included",
+          w.sh("git", "rev-parse", "HEAD") == remote and (w.work / "export.py").is_file()
+          and (w.work / "audit.py").is_file()
+          and w.cr("CR-104")["notes"][-1] == f"main checkout: fast-forwarded to {remote[:7]}",
+          str(w.cr("CR-104")["notes"][-2:]))
+
+    # CR-105: an untracked file is in the way, the fast-forward is refused and the file kept
+    (w.work / "ratelimit.py").write_text("MINE = True\n")
+    land(w, w.cr("CR-105")["branch"])
+    head2 = w.sh("git", "rev-parse", "HEAD")
+    w.chantier("order", "merged", "CR-105")
+    fm.turn()
+    check("refused with an untracked file in the way: HEAD has not moved, the file is intact, "
+          "the note names it",
+          w.sh("git", "rev-parse", "HEAD") == head2
+          and (w.work / "ratelimit.py").read_text() == "MINE = True\n"
+          and w.cr("CR-105")["notes"][-1]
+          == "main checkout: not fast-forwarded: untracked file in the way: ratelimit.py",
+          str(w.cr("CR-105")["notes"][-2:]))
+    (w.work / "ratelimit.py").unlink()
+    fm.fast_forward("CR-105")
+    check("with the file gone, the next attempt fast-forwards",
+          w.sh("git", "rev-parse", "HEAD") == w.sh("git", "ls-remote", "origin",
+                                                  "refs/heads/main").split()[0]
+          and (w.work / "ratelimit.py").is_file(), str(w.cr("CR-105")["notes"][-2:]))
+    # the same, with a file ignored by the project's own exclude list
+    (w.work / ".git" / "info" / "exclude").write_text("kept.cache\n")
+    (w.work / "kept.cache").write_text("mine too\n")
+    land(w, "", extra=("kept.cache", "theirs\n"))
+    head3 = w.sh("git", "rev-parse", "HEAD")
+    fm.fast_forward("CR-105")
+    check("refused with an ignored file in the way (`--no-overwrite-ignore`): HEAD has not moved, "
+          "the file is intact, the note names it",
+          w.sh("git", "rev-parse", "HEAD") == head3
+          and (w.work / "kept.cache").read_text() == "mine too\n"
+          and w.cr("CR-105")["notes"][-1]
+          == "main checkout: not fast-forwarded: untracked file in the way: kept.cache",
+          str(w.cr("CR-105")["notes"][-2:]))
+    (w.work / "kept.cache").unlink()
+    (w.work / ".git" / "info" / "exclude").write_text("")
+    fm.fast_forward("CR-105")
+    check("the Foreman's git in the main checkout is only symbolic-ref, status, fetch, "
+          "`merge --ff-only --no-overwrite-ignore`, rev-parse, worktree remove and branch -D",
+          all(g[0] in {"symbolic-ref", "status", "fetch", "rev-parse", "worktree", "branch"}
+              or g[:3] == ("merge", "--ff-only", "--no-overwrite-ignore") for g in fm.git_main)
+          and any(g[0] == "merge" for g in fm.git_main), str(sorted({g[0] for g in fm.git_main})))
+    local.unlink()
     check("the last merge makes the Foreman pause the batch", fm.paused)
     d = w.batch()
     check("the Foreman removed the merged worktrees and branches; the cancelled one stays",

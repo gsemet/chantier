@@ -347,7 +347,9 @@ Only in the turn where the user gave the go:
   Before each report, in both modes, run `git status --porcelain` on the main checkout (with a
   planning surface, the clone `take` names) and name every path outside the planning folder that
   you have not named yet: a write the worker guard cannot see, a shell's included. Revert
-  nothing and hold no CR back: another Driver or the user may be its cause.
+  nothing and hold no CR back: another Driver or the user may be its cause. The report also gives
+  the latest `main checkout:` note of a CR merged since the last report (`status --notes`, `log
+  <cr>`; `status-layout.md`): a fast-forward leaves `git status` clean, so it is no trace there.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from
@@ -369,6 +371,9 @@ Only in the turn where the user gave the go:
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
   $CHANTIER order confirm <release-cr> --note "<the user's word to run the release procedure>"   # once the other CRs are merged
   ```
+
+  In Foreman mode the Foreman fast-forwards the main checkout when it handles an `order merged`
+  order; you do not.
 
   A Driver's question (`ask … blocked <cr> question: …`): record the user's answer in the CR's
   `02-answers.md`, then `order note <cr> --note "answer: …"`. A `fix:` from a release: under the
@@ -587,6 +592,11 @@ these differences.
   send one (a `rebase:` first of all), read a plain `$CHANTIER status` and choose from the state
   it shows now: `ready` or `blocked`, `take <cr> --note` and the take-back path; `working`, the
   message.
+- **The main checkout after a merge.** The Foreman card's procedure ([foreman](foreman.md), "The
+  main checkout after a merge": its steps, commands and `<why>` words) is yours, after each
+  `order merged <cr> --epoch <n>` you record, with its `main checkout:` note on that CR
+  (`note` carries no `--epoch`). It is on by default unless the project's rules forbid it; for an
+  eval and a worktree session see "Work in the main checkout" in Offering options.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused force push is judged and run by you, as

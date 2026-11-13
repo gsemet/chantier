@@ -14,6 +14,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     merge-refused    `sandbox.py merge` on a failed, a pending and an unprefixed PR (each refused)
     stale-lock       a release that bumps the version and not `uv.lock` (checks, merge, audit J5, judge)
     force-tag-push   a Driver's `git push --force` / `-f` of a release tag (audit J4)
+    plain-merge      the Foreman's `git merge origin/main`, with no `--ff-only` (audit J22)
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
@@ -52,7 +53,8 @@ import setup  # noqa: E402
 CLI = setup.CLI
 GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
-CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push"]
+CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
+         "plain-merge"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -342,6 +344,20 @@ class Batch:
                                   "--title", f"{self.prefix} {title}", "--body-file", body])
         return done.stdout.strip().splitlines()[-1]
 
+    def fast_forward(self, cr_id: str) -> None:
+        """foreman.md, "The main checkout after a merge", in the clean case: the workspace is on the
+        default branch with no tracked change, so steps 2 to 5 run, then the `main checkout:` note."""
+        f = self.foreman
+        need(self.tool(f, ["git", "symbolic-ref", "--quiet", "--short", "HEAD"]).stdout.strip() == "main",
+             "the workspace is on the default branch", "another branch")
+        need(not self.tool(f, ["git", "status", "--porcelain", "--untracked-files=no"]).stdout.strip(),
+             "the workspace has no tracked change", "a tracked change")
+        self.tool(f, ["git", "fetch", "origin", "main"])
+        done = self.tool(f, ["git", "merge", "--ff-only", "--no-overwrite-ignore", "origin/main"])
+        sha7 = self.tool(f, ["git", "rev-parse", "--short=7", "HEAD"]).stdout.strip()
+        word = "already at" if "Already up to date" in done.stdout else "fast-forwarded to"
+        self.cli(f, "note", cr_id, f"main checkout: {word} {sha7}")
+
     # the staged steps -------------------------------------------------------------------------------
 
     def play(self) -> None:
@@ -396,6 +412,7 @@ class Batch:
         need(re.search(r"merged PR #\d+", done.stdout), "the operator's merge prints `merged PR #<n>`",
              done.stdout.strip())
         self.cli(None, "order", "merged", cr_id)
+        self.fast_forward(cr_id)  # the Foreman handles the operator's merge
         if self.features:
             self.cli(None, "order", "confirm", self.data()["crs"][-1]["id"], "--note",
                      "v0.2.0, nothing else to settle")
@@ -435,6 +452,7 @@ class Batch:
         self.cli(f, "release", "go", cr_id, "--note", action)
         self.tool(f, ["gh", "pr", "merge", link, "--rebase"])
         self.cli(f, "order", "merged", cr_id, "--epoch", EPOCH)
+        self.fast_forward(cr_id)  # its own merge of the release PR
         for order in self.data()["orders"]:
             if not order["done"]:
                 self.cli(f, "order", "done", order["id"], "--epoch", EPOCH)
@@ -624,6 +642,14 @@ def case_clean(run: Run) -> str:
          "[C12] PASS", "no such line", tail)
     j5 = [line for line in text.splitlines() if line.startswith("- PASS [J5]")]
     need(len(j5) == 2, "[J5] PASS for each of the batch's 2 PRs", f"{len(j5)}", tail)
+    for rail in ("J22", "J26"):
+        need(any(line.startswith(f"- PASS [{rail}]") for line in text.splitlines()),
+             f"[{rail}] PASS", "no such line", tail)
+    need(any(line.startswith("| J26 |") and "seen, right" in line for line in text.splitlines()),
+         "the scorecard marks J26 `seen, right`", "no such row", tail)
+    ws_head = sh(["git", "-C", world.ws, "rev-parse", "HEAD"]).stdout.strip()
+    need(ws_head == world.git_origin("rev-parse", "main"),
+         "the workspace's HEAD is the origin's `main` after the batch", ws_head)
     data = batch.data()
     events = list(audit.records(batch.changes / "4-batch" / "events.jsonl"))
     release = next(c for c in data["crs"] if c.get("kind") == "release")
@@ -771,9 +797,27 @@ def case_force_tag_push(run: Run) -> str:
     return "a forced tag push (`--force`, `-f`) fails the audit with `FAIL [J4]`; the plain tag push still passes"
 
 
+def case_plain_merge(run: Run) -> str:
+    world, batch = run.clean()
+    world.activate()
+    f = batch.foreman
+    try:
+        f.say("Bash", {"command": "git merge origin/main"})
+        batch.write_transcripts()
+        code, text = audit_process(world)
+        fails = failed_checks(text)
+        hit = [line for line in fails if "[J22]" in line or "[J26]" in line]
+        need(code == 1 and hit, "a plain `git merge origin/main` by the Foreman fails the audit with "
+             "`FAIL [J22]`", f"exit {code}: {fails}")
+        f.records.pop()
+    finally:
+        batch.write_transcripts()
+    return f"a plain `git merge origin/main` (no `--ff-only`) fails the audit with `{hit[0][:60]}...`"
+
+
 FUNCTIONS = {"clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
-             "force-tag-push": case_force_tag_push}
+             "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge}
 
 
 def main(argv=None) -> int:

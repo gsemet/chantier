@@ -50,7 +50,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   except under the grant, once every other CR is merged or cancelled and its base is the default
   branch, after `$CHANTIER release go <cr> --note "merge <pr>"` says `go`; an approval never
   covers it. You merge a fix only under the grant (else it is an ordinary ready CR), with the
-  forge's CLI by the project's method, then `$CHANTIER order merged <cr> --epoch <n>`.
+  forge's CLI by the project's method, then `$CHANTIER order merged <cr> --epoch <n>`, then the
+  fast-forward (Your means).
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit or the budget; a refusal is a fact, not an argument. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
@@ -79,6 +80,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   run in the surface's checkout and use `git -C <clone>`, the clone `take` names): confirm on the
   forge that the CR's PR is merged, then `git worktree remove <path>` and `git branch -D <branch>`
   (`-d` refuses after a rebase or squash merge). A dropped CR's stays for the user's word at `close`.
+  Your git in the main checkout has a second duty: the fast-forward after each merge you handle
+  (with a planning surface, `git -C <clone>`), by the bullet "The main checkout after a merge"
+  in Your means, and by no other command.
 
 ## Your means
 
@@ -172,6 +176,44 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
     that branch; each one moved this way moves the next.
   - **Stack:** unchanged: the stack driver restacks.
+- **The main checkout after a merge.** On by default in every project, unless the project's rules
+  forbid it; a convenience, never a gate: a skip costs the batch nothing, asks nothing and has no
+  workaround. It is yours alone (a Driver, a worker and, in Foreman mode, the Chief of Staff never
+  do it), by git (the CLI runs none).
+  - **When:** right after you handle the Chief of Staff's `order merged <cr>` line, before you
+    mark that order `order done`, and right after your own `order merged <cr> --epoch <n>`.
+    Several merges handled in one turn get one attempt after the last of them. The order of the
+    other steps after a merge (rebase notes, `take`, the cleanup before `pause`) is unchanged.
+  - **Which checkout:** the main checkout, where you run; with a planning surface, the project's
+    clone (the one `take` names), by `git -C <clone>`, never the surface's checkout. Below, `git`
+    means that, `<remote>` and `<default>` are the project's (the `--default-branch` given to
+    `open`).
+  - **The steps,** stopping at the first that says no; each "no" is one line, its `<why>`:
+    1. The project's rules (`$CHANTIER rules`) forbid changing the main checkout now: do nothing.
+       `<why>` = `the project's rules forbid it: <the rule, quoted short>`.
+    2. `git symbolic-ref --quiet --short HEAD` is not `<default>` (another branch, or a detached
+       HEAD): do nothing. `<why>` = `on <branch>, not <default>` (or `detached HEAD`).
+    3. `git status --porcelain --untracked-files=no` is not empty: do nothing. `<why>` =
+       `tracked changes: <up to three paths>`. Untracked files are never listed, read, moved or
+       deleted.
+    4. `git fetch <remote> <default>`. A failure: do nothing. `<why>` = `fetch failed: <git's
+       text>`.
+    5. `git merge --ff-only --no-overwrite-ignore <remote>/<default>`, only this form: never `git
+       pull`, `reset`, `rebase`, `stash`, `clean`, `checkout`, `switch` or a merge without both
+       flags. It succeeds: done, `fast-forwarded to <sha7>` (the new `HEAD`), or `already at
+       <sha7>` when there was nothing to bring. Git refuses it: do nothing more, retry nothing;
+       `<why>` = git's reason in a few words (`diverged from <remote>/<default>`, `untracked
+       file in the way: <path>`, or git's text). The host refuses the command: do nothing more,
+       try no other way; `<why>` = `refused by the host: <exact text>`. `--no-overwrite-ignore`
+       is load-bearing: without it git overwrites an ignored file the incoming commits add.
+  - **The line:** record the outcome on the CR whose merge you just handled (the last one when
+    several): `$CHANTIER note <cr> "main checkout: fast-forwarded to <sha7>"`, `"main checkout:
+    already at <sha7>"` or `"main checkout: not fast-forwarded: <why>"`, with no `--epoch`. No ask,
+    no message: the Chief of Staff reads the note for its next report. The CR's state is
+    unchanged.
+  - **After:** no reload of the plugin, no new reading of the cards (the CLI is read live; the
+    cards load at the next session or with `/reload-plugins`). The next merge recorded tries
+    again from step 1.
 - A CR taken back from `ready` (every `take <cr> --note` above, the Series one and the ready PR
   that stopped merging included) is run by the Driver that handed it back:
   - Note the Driver's agent id first (`status`; it may be the same read as the one before the

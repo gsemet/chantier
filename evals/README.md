@@ -85,7 +85,10 @@ sandbox).
   open, whose title lacks the run's prefix, or whose checks are not all green at its head (a
   pending check included), and merges nothing then. A refused merge is reported as it is, and the
   steering session sees the PR not merged, as usual. Then `$CHANTIER order merged CR-<n>` and its
-  line to the steering session. In parallel mode the operator merges in the order the CRs become
+  line to the steering session. The workspace's main checkout does not stay at the base during a
+  run: after each merge it records, the steering session fast-forwards it to the sandbox's `main`
+  (a clean checkout on `main`, `merge --ff-only --no-overwrite-ignore` only, J26); the operator
+  leaves the workspace's tracked files alone, so it does. In parallel mode the operator merges in the order the CRs become
   ready; in series, in the series' order; in a stack, from the bottom up, as `chief-of-staff.md`
   says for the mode.
 - **A question** (`blocked question:`): the frozen CRs leave none open, so a question is a
