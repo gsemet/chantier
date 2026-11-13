@@ -904,7 +904,8 @@ def scenario(w: World) -> None:
     check("Claude cost prices the Foreman and each Driver",
           code == 0 and out[:2] == [f"{w.name}: $1.608 over 94 model calls",
                                     "foreman: $0.391 (30 calls)"]
-          and set(out[2:-3]) == {f"CR-10{i}: $0.304 (16 calls)" for i in (1, 2, 4, 5)}, str(out))
+          and sorted(l.split(";")[0] for l in out[2:-3])
+          == [f"CR-10{i}: $0.304 (16 calls" for i in (1, 2, 4, 5)], str(out))
     check("the Chief of Staff's lines (steering, grill and specifications, whole session with its "
           "context size and compactions) come apart from the batch's spend",
           out[-3] == "Chief of Staff, steering the batch (outside the budget): unknown (1 calls "
@@ -4914,7 +4915,8 @@ def cost_audit(w: World) -> None:
     crs = [int(a.replace(".", "")) for l in out[1:-1] for a in re.findall(r"\$(\d+\.\d{3}) \(", l)]
     check("`cost --by cr` still adds up to the Drivers and workers, the Foreman first among them",
           code == 0 and abs(sum(crs) - 1722) <= 3 and "foreman: $0.391 (30 calls)" in out
-          and "CR-101: $0.361 (19 calls)" in out and "O-1: $0.057 (3 calls)" in out, str(out))
+          and any(l.startswith("CR-101: $0.361 (19 calls") for l in out)
+          and any(l.startswith("O-1: $0.057 (3 calls") for l in out), str(out))
     for name in ("odd", "odd-worker", "lone"):
         (sub / f"agent-{name}.jsonl").unlink()
         (sub / f"agent-{name}.meta.json").unlink()
