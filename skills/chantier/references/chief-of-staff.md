@@ -162,7 +162,8 @@ only on the user's word, specified or not; until then it stays in the inbox or t
 budget of any batch; its cost is on the `grill and specifications with the user` line. A release CR's and a fix's specification stay
 yours. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link: write `issue: <link>` under the title of `01-intent.md` (as
-[concepts](concepts.md) says), and add it later if the grill reveals the issue.
+[concepts](concepts.md) says), and add it later if the grill reveals the issue. A Jira ticket's link is its browse URL
+(`https://<site>/browse/<KEY>-<n>`).
 
 Record at once: every human answer and decision about a CR goes into that CR's `02-answers.md`,
 with the date and the user's words, right after it is given: before the next question, before
@@ -191,29 +192,101 @@ in the user's language: what it changes, every decision taken (from `02-answers.
 still open. The user corrects it, and a correction is an answer (record it at once). Never decide
 on your own that a CR is grilled enough: you ask, and the user decides.
 
-Tracker comments: a CR with an `issue:` line ([concepts](concepts.md)) has its issue's readers
-told what happens to it; a CR with none skips all of this.
+Ticket summary: a CR with an `issue:` line ([concepts](concepts.md)) has its ticket's reporter told
+what was accepted, before any code. A CR with none skips the whole block; say so in one line only
+when the user asked about the ticket. A reference built on this shape:
+[ticket-summary-example](ticket-summary-example.md). Steps, in this order:
 
-- **The grill comment.** When the user says such a CR is grilled enough, show the user a short
-  comment for the issue, drawn from the restatement just made: what was understood (one or two
-  sentences), the scope in two to five bullets, what is left out. Text only: no attachment, no
-  plan file, no demo. Write it in `work/issue-comment.md` in the CR's folder, show it, and post it
-  only on the user's yes; record the yes (or the user's edits) in `02-answers.md` at once, as any
-  answer. A Griller that ran the grill may have written that file already: offer it when you next
-  read the CR's folder.
-- **No "PR opened" comment:** the PR's closing line makes the forge show the PR on the issue.
-- **How to post.** With the forge's CLI the session already uses (`gh`, `glab`), when it reaches
-  the issue's tracker: for instance `gh issue comment <link> --body-file <file>`, `glab issue note
-  <id>` with `glab`'s option that reads the message from a file, `work/issue-comment.md`, and no
-  text in the command (unproved; trial: an issue note posted from a file whose text holds
-  backticks, `$` and quotes, and that matches the file on the forge); read the CLI's help for the
-  exact form. Where it does not reach the tracker
-  (Jira or another tracker with no CLI in the session, no access): give the user the text to post
-  themselves, and post nothing. A refused or failed post is told to the user with its exact text
-  and the text stays in the CR's folder; never another tool, never a retry another way.
-- **For the tracker's readers:** English, as all forge text, unless the project's rules say
-  otherwise; no CR number or slug, no batch, round, agent role, cost or `.agents/changes/` path.
-  Issues are often public.
+1. **When.** When the user says such a CR is grilled enough, in the same turn as the spec-writer's
+   start. A Griller that ran the grill may have written the drafts already
+   ([griller](griller.md)): offer them when you next read the CR's folder.
+2. **Can chantier write to that tracker?** Decided before any draft, from what the session has:
+   - GitHub: `gh`, already used by the session, reaching the issue (`gh issue view <link>`).
+   - GitLab: `glab`, reaching the issue (`glab issue view <id>`).
+   - Jira, and any other tracker: the access method is not fixed (an MCP server, a CLI or another
+     tool). The project's rules say which, when they do. Otherwise look for the capability the
+     session has (its MCP tools for that tracker, an installed CLI) and use the one found,
+     provided it reads the ticket. This card names no Jira CLI and no MCP server.
+   - No capability found, or no access: **skip** the step and tell the user in one line, naming
+     what is missing (for example "no way to write to Jira found in this session (no MCP tool, no
+     CLI): nothing drafted for <KEY>"). Nothing is drafted, nothing is posted.
+3. **The project's rules first.** Read what `$CHANTIER rules` lists for any rule on tickets: the
+   tracker, its access method and project key, the reference form and closing keyword (for
+   instance "tickets in this project use `Closes JIRAJPT-1245`"), the comment's language, a
+   comment template. Where a rule speaks, it is followed; the defaults of this block apply only
+   where the project says nothing.
+4. **Draft, in the CR's `work/` folder** (UTF-8, no BOM, written with the host's Write tool):
+   - `work/issue-comment.md`, **the comment**: accepted or not; the scope in two to five bullets;
+     what is left out; the line "No date yet; the pull request will be linked here." When the
+     plan and the demo go as separate artifacts or attachments, one line links them (filled after
+     they are posted, step 7). Written for the reporter: no CR number or slug, batch, round,
+     agent role, cost, requirement ID or `.agents/changes/` path.
+   - `work/issue-plan.md`, **the plan**: the grill's decisions rewritten for an outside reader:
+     what changes for the user, the limits, safety, what the docs will say.
+   - `work/issue-demo.html`, **the demo**, only when the change is visible and can be imitated
+     without the product (judge, and say why in one line; no demo otherwise): one self-contained
+     file, no external resource (no `http(s)` `src`, no `href` to a stylesheet, font or CDN), no
+     script unless the imitation needs one, the product's real colours and wording. Its first
+     line is an HTML comment saying it imitates the planned result and is not the product; the
+     page's first visible line says the same. It is not the batch's "demo" (section "Subagents
+     and the demo"), which runs the real code.
+   - **Language:** the ticket's language (read from its title and body), English by default,
+     whatever the chat's language; a project rule on it ranks above.
+5. **Check before showing.** The ticket named in the draft is the one of the CR's `issue:` line
+   (its title, read from the tracker, is shown with the ask); the three texts hold no private
+   path (a home folder, a drive letter, `.agents/changes/`), no internal link (the planning
+   surface, a CR or batch reference) and no other person's data.
+6. **Show and ask, in one step.** The comment and the plan as text in the chat, the demo as a file
+   (its absolute path, or the host's means to send a file when it has one); the route each part
+   will take (step 7) and the tool that will post it; the ticket's link and title; and, for each
+   project rule followed, the rule quoted ("Followed: `<the rule's text>`, from `<file>`"). Ask
+   for a yes **for that ticket**. The user may edit any part, drop the demo (or the plan), or
+   decline. Record the answer at once in the CR's `02-answers.md` (yes, edits, drop or no), with
+   the date and the user's words. No yes, nothing is posted; a "no" ends the step for that CR.
+7. **Publish, on the yes only, by the Chief of Staff only.** Every text goes from its file, never
+   typed in a shell command (concepts rule 9). The route for the plan and the demo is chosen
+   before the ask (step 6) from what the tracker and the capability offer, in this order: the
+   tracker's issue artifacts, else its attachments, else a collapsed section (`<details>`) of the
+   comment. Per tracker:
+   - **GitHub** (unproved; trial: the eval `ticket-summary`): when `gh issue artifact --help`
+     lists `create` (it does in gh 2.103.3, in preview, so its flags may change: read the help
+     again), the artifacts: `gh issue artifact create <link> work/issue-plan.md --type plan`,
+     then `gh issue artifact create <link> work/issue-demo.html --type embedded_html`; read them
+     back with `gh issue artifact list <link> --json number,name,url`; put their links in the
+     comment's link line (Edit), then `gh issue comment <link> --body-file work/issue-comment.md`.
+     With a `gh` without `gh issue artifact`: collapsed sections of the comment (the plan as
+     Markdown; the demo as a fenced `html` block). GitHub's comment `--attach` takes only images
+     and video, so there is no attachment tier on GitHub.
+   - **GitLab** (unproved; trial: a note posted from a file holding backticks, `$` and quotes,
+     matching the file on the tracker): `glab issue note` with `glab`'s option that reads the
+     message from a file. The plan and the demo as uploads when the installed `glab` offers a
+     command that uploads a file to the issue's project (read its help), else collapsed sections
+     of the note.
+   - **Jira and other trackers** (unproved; same trial): the capability found in step 2 (MCP
+     tool, CLI or other): its comment action, taking the text from the file (for a CLI, its file
+     option; for an MCP tool, the file's content passed as is, never retyped), and its
+     attachment action for the plan and the demo when it has one (read its help or its tool
+     description). With no attachment action: a collapsed section where the tracker's markup has
+     one; else the plan goes in the comment's text and the demo is left out of the post, said to
+     the user in the ask.
+
+   A refused or failed post is told to the user with its exact text and stops the step: the
+   texts stay in `work/`, nothing is retried another way and no lower route is tried after a
+   failure (concepts rule 2). When an artifact or attachment fails, the comment is not posted.
+8. **Verify after publishing.** Read back the comment's URL (the post prints it, or the tracker's
+   "view" lists it) and the artifact or attachment list. Tell the user, in a few lines, what is
+   visible and to whom: for instance GitHub issue artifacts are a preview feature and may be
+   hidden from the reporter.
+9. **Record** in the CR's `02-answers.md`, under the yes: `Posted on <ticket link>, <date>:
+   comment <url>; plan <artifact number or url, or "in the comment">; demo <idem, or "none">`.
+
+**PR follow-up.** The first time you see the PR link of a CR with an `issue:` line and a recorded
+post (a `status`, a hand-back, an ask, a report), propose a one-line comment for that ticket, in
+the ticket's language: "The pull request is open: <PR link>." Same rule as step 6 (a yes for that
+ticket, the answer recorded at once), steps 7 to 9 for the post (`work/issue-followup.md`). A CR
+whose summary was declined or skipped gets no follow-up proposal. In a series or a stack the PR
+opens as a draft: the follow-up is still proposed then. "Released in" (end of this card) is the
+closing comment of the request's "Land" row, unchanged.
 
 A batch is parallel unless the user asks for a series or a stack, or a selected CR depends on
 another: then the plan proposes a series or a stack, and says why. In a parallel batch a CR starts
@@ -874,8 +947,8 @@ version and the link), list the issues the release ships, one line each: the iss
 comment "Released in <the release's link>". The issues are the `issue:` lines of the CRs whose
 merge the release contains: the batch's `4-batch/3-done/` folders and the `5-archives/` folders
 merged since the previous release (`delivery.md` gives each one's PR and merge time). Show the
-list; one yes from the user covers the whole list; post each as in "Tracker comments" (an issue
-its CLI cannot reach goes to the user as text). No issue in the list: say nothing. "auto" never
+list; one yes from the user covers the whole list; post each as in "Ticket summary" step 7 (an
+issue chantier cannot reach is skipped and said in one line). No issue in the list: say nothing. "auto" never
 covers these comments.
 
 ## Never
@@ -892,6 +965,7 @@ covers these comments.
 - Run `close --yes`, or remove a dropped CR's worktree or branch (`git worktree remove`, `git
   branch -D`), without the user's yes in this turn. The Foreman's cleanup of merged CRs is its
   own and needs no yes.
-- Post on a tracker issue a text the user did not approve, or let a Driver, the Foreman or a
-  Griller post on one.
-- Close or reopen an issue by hand: the merge closes it through the PR's closing line.
+- Post on a tracker issue a text, a plan or a demo the user did not approve for that ticket, or
+  let a Driver, the Foreman, a Griller or a subagent post on one.
+- Close or reopen an issue by hand: only a reference that closes, in the PR's Issues References
+  (a project rule's keyword, or Jira's default `Closes`), closes it at the merge.

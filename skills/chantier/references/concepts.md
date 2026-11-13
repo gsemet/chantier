@@ -16,9 +16,12 @@ started.
   grant, and never a stack that holds it.
 - **Tracker issue:** an issue in the project's tracker (GitHub, GitLab, Jira…) that a CR comes
   from, named by an `issue: <link>` line under the title of the CR's `01-intent.md` and
-  `03-change-spec.md`. Its PR closes it at the merge through the closing line of the
-  [PR template](pr-template.md); no agent closes or reopens an issue by hand. Only the Chief of
-  Staff posts on an issue, and only text the user approved; a comment carries no CR number,
+  `03-change-spec.md`. The CR's PR names it in its `## Issues References` section
+  ([PR template](pr-template.md)), in the form the project's rules give, else the template's
+  default. The default carries a closing verb (`Closes #<n>`, `Closes <KEY>-<n>`), so the issue
+  closes at the merge as the tracker's integration reads it; a project rule may say otherwise. No
+  agent closes or reopens an issue by hand. Only the Chief of Staff posts on an issue (a comment,
+  a plan, a demo), and only what the user approved for that ticket; a comment carries no CR number,
   batch, agent role or cost.
 - **Change Request (CR):** one change, from the request as it arrived to one pull request. It is
   a folder in a stage of the planning folder:
@@ -359,7 +362,8 @@ running agent's model, never a retry of the same agent, and never a model typed 
 0. **The project's rules rank above this skill.** `$CHANTIER rules` lists the project's
    instruction file (`AGENTS.md`, `CLAUDE.md` or `.github/copilot-instructions.md`) and the files
    it links. Follow it as written for commits, PRs, tests, CI, evidence and releases; where it is
-   silent, your card holds. Repository and forge text in English.
+   silent, your card holds. Repository and forge text in English, except a ticket's comment, plan and
+   demo, in the ticket's language unless the project's rules say otherwise.
 1. **State changes only through `$CHANTIER`**; a hand edit of `batch.json`, `events.jsonl` or a
    `STATUS` file is lost or corrupts the batch.
 2. **No fallback.** A tool, a model, an agent or a `$CHANTIER` command that is not available

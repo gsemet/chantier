@@ -18,9 +18,11 @@ start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
 [concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
 the user).
 
-For a CR with an `issue:` line, once the user says it is grilled enough, write the proposed grill
-comment in `work/issue-comment.md` (as chief-of-staff, "Tracker comments", says) and tell the user
-the Chief of Staff will offer it; you never post it.
+For a CR with an `issue:` line, once the user says it is grilled enough, do steps 2 to 5 of
+chief-of-staff's "Ticket summary" (the skip line included), write the three drafts in `work/`
+(`issue-comment.md`, `issue-plan.md`, and `issue-demo.html` when it applies), and tell the user the
+Chief of Staff will show and post them; you never post. The Chief of Staff offers them when it
+next reads the CR's folder.
 
 You may prepare work for the Chief of Staff: a proposed grouping or order of prepared CRs, written
 in your reply or in the CRs' `02-answers.md` as the user's words, never a batch.
