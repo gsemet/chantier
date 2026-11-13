@@ -63,10 +63,20 @@ The CLI keeps the CR's record and tells you what is off.
   agent: only a new start continues its task, and a new round is always a new child, never the
   previous round's Coder resumed.
 - Context: `round` and `note` print `context: <n> tokens (agent <id>)`; read it after each. At
-  150,000 tokens or more, record your state with `note`, then `handback <cr> blocked context:
-  <where it stopped, what is next>`, before the host compacts or ends you (150,000 is three
-  quarters of the 200,000 `autoCompactWindow` your agent carries, which leaves room for the note
-  and the hand-back). `context: not measured`: go on, and keep to these rules. Never take a
+  130,000 tokens or more, record your state with `note`, then `handback <cr> blocked context:
+  <where it stopped, what is next>`, before the host compacts or ends you (the host compacted
+  agents carrying 200,000 from about 162,000 tokens, see the host's reference, "Compacting", and
+  130,000 leaves room for several steps, the note and the hand-back). Hand back `blocked context:`
+  only when the last `context:` line read 130,000 or more; a Driver that stops for any other reason
+  names that reason, never `context:`. Never end your turn to wait for a child: a child runs in the
+  foreground, and its reply is the result of the call that started it. The one turn end that waits
+  is the long CI wait, with the forge's watch running in a background shell (the "CI" bullet). On
+  Claude Code, a turn that ends with nothing running in the background ends your run: the host asks
+  for your hand-back at once. When the host asks for your hand-back while the CR's work remains,
+  record your state with `$CHANTIER note <cr> "…"`, then `handback <cr> blocked context: host asked
+  the hand-back at <n> tokens: <where it stopped, what is next>` (`<n>` is the last `context:`
+  figure), then the host's hand-back. Never call the host's hand-back with no `$CHANTIER handback`
+  first. `context: not measured`: go on, and keep to these rules. Never take a
   large output whole into your context:
   - a gate log: its result from `handoff` (the last five lines it prints) or from the log's last
     lines, never the whole log;
