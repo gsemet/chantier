@@ -92,8 +92,9 @@ started.
   the default branch or on its last open dependency, and the stack driver puts the PRs each on the
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
   and the start base for any other); the user merges from the bottom up. A CR stands on another
-  only by a dependency: a real one (`depends.json`) or a chain the Foreman decided (`order
-  after`). A fix CR sits outside a series and a stack, on the default branch. A release CR is
+  only by a dependency: a real one (`depends.json`) or a chain the Foreman decided, or the plan
+  proposed and the user's go approved (`order after`). A fix CR sits outside a series and a stack,
+  on the default branch. A release CR is
   their top: it starts on the top CR's branch once every other CR is ready and the top branch
   holds them all, and its PR is the top PR. When a stack merges only in part, what remains forms another stack in the same batch, restacked on
   the default branch. Each CR is named a branch
@@ -141,7 +142,7 @@ started.
   back. The CR starts on the branch of its last dependency still open,
   in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
   place in the stack are two things. A chain is an `after` with no real dependency, which the
-  Foreman decided for a queued CR; it ends with `order after <cr> --note -` while the CR is
+  Foreman decided, or the plan proposed and the user's go approved, for a queued CR; it ends with `order after <cr> --note -` while the CR is
   queued. `stack` refuses an order that puts a CR below one of its
   `after`. `order after <cr> --note "<ids|->"` replaces the `after` of a queued CR (exit 2 on a CR
   not queued, an unknown CR or a cycle). `depends.json` is written only when a CR needs the

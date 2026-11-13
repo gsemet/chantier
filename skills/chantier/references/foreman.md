@@ -120,7 +120,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   started is restacked by the stack driver in a stack batch; in a series or a parallel batch it gets the
   rebase note below instead.
 - You may chain a queued CR on another when that costs less than rebasing, for instance small
-  work on the same lines; a shared file alone is no reason, and a CR that has started is never
+  work, or two CRs whose specifications edit the same lines (one table, one template block),
+  whose rebase would conflict anyway; a shared file alone is no reason, and a CR that has started is never
   chained. Send `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>` and leave the CR
   queued: the Chief of Staff records it with `order after` and `order note`, and the user may
   turn it off while the CR is queued. Once the CR has started, the chain stands until the stack
@@ -167,7 +168,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     with `take <cr> --note "rebase: <merged cr> merged"` (a slot, or it waits like a queued CR
     when none is free; a `ready` one resumes its Driver as below, a `blocked` one gets a new CR
     Driver); a `working` one gets `[foreman→driver <cr>] note rebase:
-    <merged cr> merged`. Conflict or not, its checks run again at the new head. A queued CR needs
+    <merged cr> merged`; it rebases once, before its next push. Conflict or not, its checks run again at the new head. A queued CR needs
     nothing.
   - **Series:** the CR whose predecessor merged goes back to a Driver with `take <cr> --note
     "rebase: <cr> merged"` (or the `note` line, by the state from the `status` read just before

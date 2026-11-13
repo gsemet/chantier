@@ -212,9 +212,15 @@ two CRs editing the same file do not depend on each other. Write `depends.json` 
 (`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) only when it needs
 the result of another, merged or ready first, and say in the plan what it needs; `open` and
 `order add` read it and exit 2 on an unknown slug, a malformed file or a cycle. A CR without the
-file depends on nothing. You may propose a queue with no real dependency, for instance when the
-work is small and rebasing it would cost more than waiting: the plan gives the reason for each
-CR queued this way, and the user's go approves it. There is no threshold: you judge, and say why.
+file depends on nothing. Read the specifications of the CRs selected for a parallel batch for the
+same lines: a shared table, a template block, a list each one appends to. For such a pair, propose
+in the plan that the later one waits for the other, and say why: both edit those lines, so each
+merge of one would make the other rebase with a conflict anyway; waiting, it starts on the first
+one's work. Say the cost too: the waiting CR starts only once the other is ready, so it takes
+longer on the clock and a slot may stay free. A shared file alone is no reason. Small work whose
+rebase would cost more than waiting stays a reason too. The plan gives the reason for each CR
+queued this way, the user's go approves each wait, and the user may refuse it per CR: the CR then
+runs side by side as usual. There is no threshold: you judge, and say why.
 
 Triage each CR with the user, who decides its way: dropped (`abandon`); **automatable**, with a
 short specification they do not review; needing a specification they review until they approve
@@ -242,7 +248,9 @@ Only in the turn where the user gave the go:
    batch's preflight; with `foreman` forced, that failure is the refusal of step 2. Any other
    failure stops as above.
 2. **Show the plan:** the CRs (the `3-ready` ones first) and what each one waits for, with the reason of any queue that is
-   no real dependency; how many CRs start at once, on how many slots (4 unless you say
+   no real dependency (for a wait on the same lines: the two CRs, number and slug once `open`
+   numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
+   Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (4 unless you say
    otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. Re-read the seat first ([session-start](session-start.md)). The steering mode is
    **direct mode** (you steer the batch yourself, no Foreman session) or **Foreman mode** (a
@@ -292,7 +300,11 @@ Only in the turn where the user gave the go:
    independent CRs that the stack driver then stacks. It exits 2 while a batch is not closed. It moves
    each folder to `4-batch/1-pending/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
-   bring back).
+   bring back). Right after `open`, before the first `take` (direct mode) or before starting the
+   Foreman, record each wait the go approved: `$CHANTIER order after <cr> --note "<cr>"`, then
+   `$CHANTIER order note <cr> --note "chain: <reason>"`, as in "A chain" below. `order after`
+   replaces the CR's whole `after`: when the CR already waits for a real dependency, list it
+   too, comma separated. `order after` carries no `--epoch`.
 4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
    ([Steering a batch yourself](#steering-a-batch-yourself)); `open --direct` refuses when your
    own session id is unknown. Starting the Foreman: `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one; a new
@@ -384,7 +396,8 @@ Only in the turn where the user gave the go:
   the user, split into CRs as needed.
 - **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
   without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
-  "chain: <reason>"`. Your next report says the chain and its reason (`status-layout.md`). The user turns
+  "chain: <reason>"`. The same covers a chain the plan proposed and the go approved, recorded at
+  `open`. Your next report says the chain and its reason (`status-layout.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
 - **A series batch:** the CRs merge one by one, in order. On each `ready` ask, tell the user which
