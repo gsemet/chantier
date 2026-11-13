@@ -25,7 +25,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
 | a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](#starting-a-batch)) | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
-| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered) | While it runs |
+| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
@@ -653,18 +653,65 @@ Only in the turn where the user gave the go:
 - **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report with the cost to date: the Foreman has removed the merged CRs' worktrees and branches,
   paused the batch, and stays idle. The Foreman wrote the retro of the batch in `4-batch/retro.md`
-  before its `final` (a section for this pause: one line per problem met, `<problem>: <long-term
-  fix>`); read it. Give the Completion report, with its Retro offered: each point numbered, and
-  on the user's word for a point, `$CHANTIER file "<the point>"` files it in `1-inbox`. A point
-  that matches an item already in the inbox or the backlog is named with that item, not offered
-  twice. A release's `work/retro.md` is offered once, with the batch's. Offer the Retro before
-  any `close`, which writes `4-batch/retro.md` into the batch's record,
-  `5-archives/batches/batch-NN.md`. New work for the paused batch is
-  `order add`, once per CR: the batch stays paused until the Foreman's first `take`; send the
-  Foreman the usual order once all are added, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
+  before its `final` (a section for this pause: one line per problem met, `- [<tag>] <problem>:
+  <long-term fix>`, the tag `project` or `chantier`); read it. Give the Completion report, with
+  its Retro offered by route, each point numbered:
+  - A `project` point: on the user's word for it, `$CHANTIER file "<the point>"` files it in
+    `1-inbox`. A point that matches an item already in the inbox or the backlog is named with that
+    item, not offered twice.
+  - A `chantier` point: never filed with `$CHANTIER file` (except in chantier's own repository,
+    see "When the project is chantier itself" below). On the user's word for one point or a group
+    of points, it goes the chantier route below.
+  - The user may move a point to the other route ("13 is a project point"): follow that word and
+    say the route it now takes.
+  - A release's `work/retro.md` is offered once, with the batch's, each point by its own tag.
+
+  Offer the Retro before any `close`, which writes `4-batch/retro.md` into the batch's record,
+  `5-archives/batches/batch-NN.md`.
+  New work for the paused batch is `order add`, once per CR: the batch stays paused until the
+  Foreman's first `take`; send the Foreman the usual order once all are added, and it pauses again
+  at the end. Where the heartbeat is yours (the host's reference says),
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
   because every Driver has ended for 30 minutes (nothing can move); arm it again with the next
   order you send the Foreman.
+- **The chantier route** (a `chantier` point, on the user's word; nothing is drafted unless the
+  user named the point for this route; all of it at the pause, before any `close`), in this order:
+  1. The repository is the `repository` field of the plugin manifest
+     (`<plugin root>/.claude-plugin/plugin.json` on Claude Code,
+     `<plugin root>/.github/plugin/plugin.json` on Copilot), so a fork's manifest points to the
+     fork.
+  2. Already reported? When `gh` reaches it (`gh issue list --repo <owner/name> --state open
+     --search "<key words>"`), a point that matches an open issue is named with that issue's link
+     and not drafted again. When `gh` is absent or does not reach it, skip this check and say so
+     in one line.
+  3. Draft one file per issue with the host's Write tool (UTF-8, no BOM, concepts rule 9):
+     `4-batch/chantier-issue-<n>.md`, `<n>` the number of the first point it carries. Its first
+     line is the title (`Bug: ...` when chantier did something wrong, `Feature: ...` when it
+     lacks a means); then the body: what happened (the problem), the long-term fix proposed,
+     chantier's version (`$CHANTIER --version`) and the host and its version when known, one line
+     saying it came from a batch retro, and, for a point caused by the host, that it may belong
+     upstream. One point per issue, or a few points with one cause grouped, as the user chose. In
+     English; no label is set.
+  4. Check before showing. chantier's repository is public: the draft holds no project name, no
+     private path (a home folder, a drive letter, the planning folder's path), no code or text of
+     the target project, no CR number, slug or batch id, no person's name or data. A point that
+     cannot be said without them is said in general terms; if it still cannot, say so and offer it
+     as an inbox item instead.
+  5. Show and ask, per issue: the title and body as text in the chat, the repository's link, and
+     the tool that will post it. Ask for a yes for that issue. The user may edit, regroup,
+     decline, or post it themselves (give the file's absolute path for that).
+  6. Post on the yes only, and only you: `gh issue create --repo <owner/name> --title "<title
+     line>" --body-file <path>`, the body (the draft without its title line) in its own file,
+     `4-batch/chantier-issue-<n>-body.md`, so no text is typed in the command. Give the user the
+     issue's link. When `gh` is absent, not logged in, or refused, nothing is posted: give the
+     user the file's path and the repository's "new issue" link, and say what is missing.
+  7. No record: the drafts stay in `4-batch/` until `close` deletes them with the batch's other
+     files; the retro is not rewritten; the link of a posted issue is said in the chat only.
+- **When the project is chantier itself:** its forge remote (`git remote get-url origin`) is the
+  manifest's `repository` (compared without a trailing `.git` or `/`, ignoring case). Then both
+  routes meet, and the Completion report's "For you" says, in one line: "This project is
+  chantier: its `chantier` points are filed here as inbox items, like the project's; say 'as an
+  issue' for a point to go to GitHub instead." The default is the inbox.
 - **Closing:** only on the user's word ("close the batch"). `$CHANTIER close --batch <batch>`
   without `--yes` is the check and prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
   an order is open, a stack agent is recorded, or a session file of the Foreman or of any of its
@@ -815,12 +862,13 @@ these differences.
 - **The pause.** Once every CR is merged or cancelled, remove the merged CRs' worktrees and
   branches (your Foreman's work in direct mode), write the batch's retro in `4-batch/retro.md`
   (a section headed with the date and the CRs it covers: one line per problem met with its
-  long-term fix, `- <problem>: <long-term fix>`; what went wrong or slowly, from `status
-  --notes`, `events.jsonl`, the CRs' `work/` notes and `cost --explain`; one line saying so when
-  there was none; never rewrite an earlier section; a release's retro is named by reference, not
-  copied), then run `$CHANTIER pause --epoch <n>`: the batch is paused. Give the Completion
-  report, with its Retro offered as the Foreman-mode pause says (each point numbered, filed with
-  `$CHANTIER file` on the user's word, before any `close`). Grill the inbox ideas with the user and, on their word,
+  long-term fix, `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as
+  `foreman.md` defines it, a cause on both sides being two lines; what went wrong or slowly, from
+  `status --notes`, `events.jsonl`, the CRs' `work/` notes and `cost --explain`; one untagged line
+  saying so when there was none; never rewrite an earlier section; a release's retro is named by
+  reference, not copied), then run `$CHANTIER pause --epoch <n>`: the batch is paused. Give the
+  Completion report, with its Retro offered as the Foreman-mode pause says (each point numbered,
+  by route, on the user's word, before any `close`). Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
   running again, and `pause` runs again at the end. `close` stays the
   user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session
@@ -945,8 +993,8 @@ announcement, starting or merging a fix (`fixes=` unchanged), the procedure's wo
 `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
 read `work/retro.md` in the release CR's folder (`4-batch/3-done/`); it is offered once, in the Retro
-of the Completion report at the pause that follows, with the batch's own points (a point filed
-becomes an inbox item).
+of the Completion report at the pause that follows, with the batch's own points, each by its own
+tag and route (a `project` point filed becomes an inbox item).
 
 "Released in": once the release Driver has recorded `release published` (its note carries the
 version and the link), list the issues the release ships, one line each: the issue's link and the
