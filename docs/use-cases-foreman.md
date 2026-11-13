@@ -31,7 +31,9 @@ others go on. Past the budget, nothing new starts until you answer. In the morni
 Parallel is the default: no flag, no word. Every CR starts from the default branch at once and its
 PR is on the default branch. The first one ready wins: you merge in the order things become ready,
 unless you say otherwise. After each merge you report, every PR still open is rebased onto the
-default branch and its checks run again, conflict or not.
+default branch and its checks run again, conflict or not. When two CRs edit the same lines, the
+plan may propose that one waits for the other, with its reason; you approve or refuse it at the
+go.
 
 ## Build a stack of pull requests
 

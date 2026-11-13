@@ -281,10 +281,11 @@ green CI start no new `coder` round. If the note names another open dependency i
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
-`note rebase: …` received while working: with a long gate of the CR running, stop it
-(`gate <cr> --stop`), rebase before the next push, then run the long gate at the new head; CI
-runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a Driver
-still retargets nothing but on a `rebase:` note.
+`note rebase: …` received while working: rebase before the next push, however many `rebase:`
+notes came since your last push: one rebase, onto the latest default branch. With a long gate of
+the CR running, stop it (`gate <cr> --stop`) before that rebase, then run the long gate at the new
+head; CI runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a
+Driver still retargets nothing but on a `rebase:` note.
 
 ## Stack driver
 

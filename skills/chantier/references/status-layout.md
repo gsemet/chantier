@@ -84,7 +84,7 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
 default branch); a CR ready on another base says what it waits for, and **For you** does not ask
 the user to merge it.
 
-When a CR is chained (queued after another by the Foreman's decision, with no real dependency), your next report has a line with the chain and its reason, in **Notes**.
+When a CR is chained (queued after another by the Foreman's decision or the plan's, with no real dependency), your next report has a line with the chain and its reason, in **Notes**.
 
 When you ran a Driver's refused force push since the last report, your next report has one line in **Notes**: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
 
