@@ -24,13 +24,18 @@ idle: no Driver, no worker, no tool call of yours runs, so that a later `close` 
 running; the cost at the pause is the cost to date. The retro is yours: before `pause` and before your `final`
 (after it you stay idle and cannot write it), append to `4-batch/retro.md` a section headed with
 the date and the CRs this pause covers, one line per problem met with its long-term fix
-(`- <problem>: <long-term fix>`). What went wrong or slowly: an ask, a block, a refusal of the
+(`- [<tag>] <problem>: <long-term fix>`). The tag is `project` when the cause or the fix is in the
+target project (its code, tests, CI, rules, `AGENTS.md`, `chantier.yaml`, its forge or
+infrastructure), `chantier` when it is in chantier's own way of working (its cards, CLI, agent
+files, skills, or how it drives the host and the forge); you judge it. A cause on both sides is two
+lines, one per tag, each with its own fix. What went wrong or slowly: an ask, a block, a refusal of the
 CLI, a Driver restarted, a red gate or CI, a round past the first, cache expiries or a cost far
 over the others, an infrastructure failure; read `status --notes`, `events.jsonl`, the CRs'
-`work/` notes and `cost --explain`, and judge what is a problem. A batch with no problem gets one
-line saying so. Never rewrite an earlier section; a release's own `work/retro.md` is named by
-reference ("see the release retro"), not copied. The Chief of Staff offers each point to the
-user as an inbox item. An
+`work/` notes and `cost --explain`, and judge what is a problem; an escalation line takes the tag
+of its cause. A batch with no problem gets one untagged line saying so. Never rewrite an earlier section (an
+untagged line of an earlier pause reads as `project`); a release's own `work/retro.md` is named by
+reference ("see the release retro"), not copied. The Chief of Staff offers each `project` point as
+an inbox item and each `chantier` point as a GitHub issue on chantier's repository. An
 order that adds work leaves the paused batch paused: your first `take` sets it running again,
 and `pause` again at the end (`pause` on a paused batch is refused).
 

@@ -134,11 +134,12 @@ started.
      checkout, then runs `pause`: the batch is **paused**.
   3. **Paused:** nothing runs. The cost to date has been computed and shown, and the steering
      session has written the batch's retro for this pause (`4-batch/retro.md`: each problem met
-     with its long-term fix, one line each), which the Chief of Staff offers to the user as inbox
-     items before any close (`close` writes it into the batch's `5-archives/batches/batch-NN.md`,
-     and deletes `4-batch/retro.md` with the batch's files); each later pause adds
-     its own section. The batch is not
-     closed (one batch at a time, so `open` still refuses a new batch). It takes new CRs:
+     with its long-term fix, one line each, tagged `project` or `chantier`), which the Chief of
+     Staff offers to the user before any close: the `project` points as inbox items, the `chantier`
+     ones as an issue on chantier's repository (`close` writes it into the batch's
+     `5-archives/batches/batch-NN.md` and deletes `4-batch/retro.md` with the batch's files);
+     each later pause adds its own section. The batch is not closed (one batch at a time, so `open` still refuses a new
+     batch). It takes new CRs:
      `order add` adds them, any number, and the batch stays paused; the first `take` (or an
      `order qa`) sets it running again, and it pauses again at the end with the cost to date,
      which has grown.

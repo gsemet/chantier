@@ -109,10 +109,13 @@ the pause (the cost to date):
     CR's "Long gate" step shows `waived: <reason>`);
   - the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
     `work/retro.md` if the batch had a release, each point once), one numbered line each,
-    `<n>. <problem>: <long-term fix>`; a point that matches an inbox or backlog item names that
-    item;
-  - **For you:** the batch is paused, which Retro points to file as inbox items (by their
-    numbers), the inbox ideas ready for a grill (each by its slug), and, if it fits, an
+    `<n>. [<tag>] <problem>: <long-term fix>`, one numbering across both tags so the user answers
+    by number; a `project` point that matches an inbox or backlog item names that item, a
+    `chantier` point that matches an open issue on chantier's repository names that issue's link;
+  - **For you:** the batch is paused, which `project` points to file as inbox items (by their
+    numbers), which `chantier` points to draft as an issue (by their numbers; several may go in
+    one issue; when the project is chantier itself, the one line the Chief of Staff card gives),
+    the inbox ideas ready for a grill (each by its slug), and, if it fits, an
     invitation to add other CRs to this batch later or to close it ("close the batch"); the
     Retro is offered before the close, which writes `4-batch/retro.md` into `5-archives/batches/batch-NN.md` (only a Tips line can
     follow it, see below).

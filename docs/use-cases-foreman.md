@@ -157,7 +157,9 @@ The release's own PR is yours to merge, last. The Foreman merges it only under t
 every other CR of the batch is merged or cancelled; an approval never lets it.
 
 At each pause of the batch, and once a release is out, a retrospective lists each problem met with
-its long-term fix, one line each; each point becomes an inbox item only on your word.
+its long-term fix, one line each. Each point is tagged for the project or for chantier: a project
+point becomes an inbox item, a chantier point a draft issue on chantier's GitHub repository, each
+only on your word.
 
 ## Recover after a restart
 
