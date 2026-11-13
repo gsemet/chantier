@@ -41,10 +41,22 @@ go.
 
 Asked for, `open --mode stack`. The CRs run in parallel, each PR based on the default branch. The
 stack comes after: when every CR is ready, a stack driver orders the stack, rebases and pushes each
-PR on the one below it, and heavy CI runs once at the top; you merge from the bottom up. A CR
+PR on the one below it, and heavy CI runs once at the top. It then makes one native stack on the
+forge (GitHub: the `gh stack` extension, which chantier recommends, else a chantier command over the
+REST API), reads it back, and you merge it in one action from the top PR. A CR
 stands on another before that only by a dependency or a chain the Foreman decided, which you can
-turn off while the CR is queued. After each merge you report, it restacks the rest on the default
+turn off while the CR is queued. After a partial merge you report, it restacks the rest on the default
 branch.
+
+## Insert a change into a ready stack
+
+> "Add this change to the stack, below the release."
+
+The Chief of Staff first puts back to draft every PR that will sit above the new one, so the stack
+cannot be merged while it changes, then adds the CR. Its PR is inserted at the place you named, the
+PRs above are restacked on it, the stack is updated on the forge and read back, and only then do the
+PRs above turn ready again. The release PR stays on top and its notes are redone to name the change.
+The stack is not mergeable until the Foreman reports it ready again.
 
 ## Build a series of pull requests
 
@@ -72,6 +84,7 @@ to date.
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Hold." · "Resume." | slots 0: no new CR starts (a hold); a number resumes |
 | "Switch to a stack." | a series becomes a stack at once (`order mode --note stack`): every CR left starts, each on the previous one |
+| "Insert this change into the stack, below the release." | the PRs above it go back to draft at once, the CR joins and is ordered there; the stack is not mergeable until the Foreman reports it ready again, and the release notes name the change |
 | "I merged #42." | the CR moves to `3-done`; a ready PR that stops merging goes back to a Driver, which rebases it |
 
 Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read
@@ -113,8 +126,8 @@ in the inbox: an ordinary item you triage, which holds no CR back. It takes a sl
 
 Say "release v1.4.0" along with the work, best in a stack batch. The release is a CR of the batch:
 it waits for every other CR, starts once they are all ready, and its PR is the top of the stack.
-You review the work and the release together, and merge from the bottom up; the release PR is
-last, and your merge of it starts your release procedure. In a parallel batch no branch holds all
+You review the work and the release together, and merge the whole stack in one action from the top PR; the release PR is
+last, and your merge starts your release procedure. In a parallel batch no branch holds all
 the work before the merges, so the release is prepared after them, and your merge of its PR is the
 go there too. The version is the one you settled when you filed the release; if you left it open,
 the Release driver picks the best one and says why in the release PR. It never asks you.

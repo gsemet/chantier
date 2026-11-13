@@ -108,7 +108,7 @@ OPTIONAL
 ```md
 ## 🧱 Stack driver
 
-orders, restacks, ships PRs
+orders, ships, one forge stack
 ```
 
 ```md

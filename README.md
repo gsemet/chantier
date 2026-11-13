@@ -102,8 +102,11 @@ what, when. You never merge through chantier: you merge, and the steering sessio
   turns ready. The Chief of Staff guides you merge by merge. On request ("switch to a stack"), a
   series becomes a stack at once.
 - **Stack** ("build a stack of these"): parallel, with a stack driver. Every CR starts at once, the
-  PRs go each on the previous one, and the stack driver keeps the stack up to date; you merge from
-  the bottom up.
+  PRs go each on the previous one, and once every PR is ready the stack driver makes one native
+  stack on the forge (GitHub; install the `gh stack` extension, which chantier recommends). You merge
+  it in one action from the top PR, the release commit last. A change inserted into a ready stack
+  sends the PRs above it back to draft first, then restacks and verifies the stack before they turn
+  ready again.
 
 A CR that depends on another (`depends.json`) waits for it in every mode. A fix CR
 sits outside a series and a stack; a release CR is their top. The lifecycle of a batch (running, paused, closed) is the same in
@@ -219,7 +222,7 @@ Talk to the Chief of Staff in plain language:
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background |
-| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`) |
+| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
 | "close the batch" | the check and the final cost, then closing on your yes |

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Batch modes: parallel, series and stack</title>
-  <desc>A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready wins and the user merges in the order things become ready; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is ready, from the previous CR&#x27;s pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the stack driver puts the PRs each on the previous one and keeps the stack up to date; the user merges from the bottom up.</desc>
+  <desc>A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready wins and the user merges in the order things become ready; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is ready, from the previous CR&#x27;s pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR, the release last. A change inserted into a ready stack: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -105,11 +105,11 @@
   <text x="116.5" y="666" font-size="14" fill="#475569">(on request)</text>
   <text x="44" y="694" font-size="12.5" fill="#0f172a" font-weight="700">Ask: &quot;build a stack of these&quot;.</text>
   <text x="44" y="716" font-size="12.5" fill="#334155">Parallel, with a stack driver:</text>
-  <text x="44" y="733" font-size="12.5" fill="#334155">every CR starts at once, then</text>
-  <text x="44" y="750" font-size="12.5" fill="#334155">the PRs go each on the</text>
-  <text x="44" y="767" font-size="12.5" fill="#334155">previous one, kept up to date</text>
-  <text x="44" y="784" font-size="12.5" fill="#334155">by the stack driver. You</text>
-  <text x="44" y="801" font-size="12.5" fill="#334155">merge from the bottom up.</text>
+  <text x="44" y="733" font-size="12.5" fill="#334155">every CR starts at once, the</text>
+  <text x="44" y="750" font-size="12.5" fill="#334155">PRs go each on the previous</text>
+  <text x="44" y="767" font-size="12.5" fill="#334155">one, then one native stack on</text>
+  <text x="44" y="784" font-size="12.5" fill="#334155">the forge. You merge it in one</text>
+  <text x="44" y="801" font-size="12.5" fill="#334155">action from the top PR.</text>
   <line x1="296" y1="676" x2="1150" y2="676" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
   <text x="1150" y="670" font-size="11.5" fill="#475569" text-anchor="end">time</text>
   <text x="284" y="726" font-size="12" fill="#0f172a" font-weight="700" text-anchor="end">CR A</text>
@@ -127,18 +127,14 @@
   <text x="665" y="790" font-size="11.5" fill="#4c1d95" text-anchor="middle">stacks</text>
   <rect x="730" y="706" width="120" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
   <text x="790.0" y="726" font-size="12" fill="#0f172a" text-anchor="middle">ready on main</text>
-  <rect x="730" y="748" width="120" height="30" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 3"/>
-  <text x="790.0" y="768" font-size="12" fill="#0f172a" text-anchor="middle">draft on A</text>
-  <rect x="730" y="790" width="120" height="30" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 3"/>
-  <text x="790.0" y="810" font-size="12" fill="#0f172a" text-anchor="middle">draft on B</text>
-  <path d="M900,703 L911,718 L900,733 L889,718 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
-  <text x="916" y="722" font-size="11.5" fill="#c2410c" font-weight="700">you merge A</text>
-  <path d="M980,745 L991,760 L980,775 L969,760 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
-  <text x="996" y="764" font-size="11.5" fill="#c2410c" font-weight="700">you merge B</text>
-  <path d="M1060,787 L1071,802 L1060,817 L1049,802 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
-  <text x="1076" y="806" font-size="11.5" fill="#c2410c" font-weight="700">you merge C</text>
-  <text x="730" y="842" font-size="11.5" fill="#4c1d95">you merge from the bottom up;</text>
-  <text x="730" y="856" font-size="11.5" fill="#4c1d95">the stack driver restacks after each merge</text>
+  <rect x="730" y="748" width="120" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <text x="790.0" y="768" font-size="12" fill="#0f172a" text-anchor="middle">ready on A</text>
+  <rect x="730" y="790" width="120" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+  <text x="790.0" y="810" font-size="12" fill="#0f172a" text-anchor="middle">ready on B</text>
+  <path d="M900,748 L911,763 L900,778 L889,763 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+  <text x="916" y="767" font-size="11.5" fill="#c2410c" font-weight="700">you merge the stack, once</text>
+  <text x="730" y="840" font-size="11.5" fill="#4c1d95">one stack on the forge, merged from the top PR, release last</text>
+  <text x="730" y="854" font-size="11.5" fill="#4c1d95">insert: drafts above, insert, restack, stack, verify, ready</text>
   <rect x="300" y="872" width="22" height="14" rx="4" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
   <text x="328" y="883" font-size="11.5" fill="#475569">CR driver works</text>
   <rect x="450" y="872" width="22" height="14" rx="4" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>

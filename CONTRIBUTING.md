@@ -254,8 +254,9 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
    ```
 
 3. Push the branch and open the pull request. The user reviews the release folder in the PR's body
-   and its files, and merges it by rebase once CI is green, last (in a stack, from the bottom
-   up). That merge starts the next steps.
+   and its files, and merges it by rebase once CI is green, last (in a stack, the whole stack in one action from
+   the top PR, the release commit last; a change inserted into the stack makes the release PR update its
+   release notes). That merge starts the next steps.
 4. Tag the merged commit on `main` and push the tag:
 
    ```bash

@@ -80,7 +80,7 @@
   <text x="335" y="744" font-size="13" font-weight="700" fill="#64748b" text-anchor="end" letter-spacing="1">OPTIONAL</text>
   <rect x="349" y="696" width="240" height="86" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4"/>
   <text x="469" y="726" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">🧱 Stack driver</text>
-  <text x="469" y="750" font-size="13.5" fill="#475569" text-anchor="middle">orders, restacks, ships PRs</text>
+  <text x="469" y="750" font-size="13.5" fill="#475569" text-anchor="middle">orders, ships, one forge stack</text>
   <line x1="469" y1="636" x2="469" y2="694" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-grey)"/>
   <rect x="632" y="696" width="166" height="86" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4"/>
   <text x="715" y="726" font-size="17" font-weight="700" fill="#0f172a" text-anchor="middle">🦺 QA driver</text>
