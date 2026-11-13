@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 
 from chantier.rails import over_budget, slot_free, waits_all
 
@@ -12,7 +13,7 @@ ASKING = {"question", "approval", "merge", "fix", "infra", "budget", "refused", 
 ENDED = {"merged", "cancelled"}
 
 
-def step(c: dict) -> str:
+def step(c: dict[str, Any]) -> str:
     status = c["status"]
     if status == "queued":
         return "Queued"
@@ -36,7 +37,7 @@ def forge_word(links) -> str:
     return "MR" if any("/merge_requests/" in x for x in links) else "PR"
 
 
-def severity(c: dict) -> str:
+def severity(c: dict[str, Any]) -> str:
     if c["status"] == "blocked":
         return "red"
     if c["status"] in {"ready", "merged"}:
@@ -44,28 +45,28 @@ def severity(c: dict) -> str:
     return "grey" if c["status"] == "cancelled" else "yellow"
 
 
-def _round(c: dict) -> int:
+def _round(c: dict[str, Any]) -> int:
     """The round under way, or the last one done: `chantier round` counts it."""
     return max(c.get("round", 0), 1)
 
 
-def waits(d: dict, c: dict) -> list[str]:
+def waits(d: dict[str, Any], c: dict[str, Any]) -> list[str]:
     """What a queued CR waits for: the rule of `take`, read from the batch's record."""
     return waits_all(d["crs"], c, d["mode"]) if c["status"] == "queued" else []
 
 
-def waits_on(c: dict) -> bool:
+def waits_on(c: dict[str, Any]) -> bool:
     """A blocked CR that waits for a thing already on its way: nobody has to decide."""
     return c["status"] == "blocked" and (c.get("blocked_reason") or "").lower().startswith("waits:")
 
 
-def can_start(d: dict) -> bool:
+def can_start(d: dict[str, Any]) -> bool:
     """A queued CR could start now: `take` refuses on no free slot and on a spent budget."""
     b = SimpleNamespace(data=d)
     return slot_free(b) and not over_budget(b)
 
 
-def icon(c: dict, waiting: list[str], free: bool) -> str:
+def icon(c: dict[str, Any], waiting: list[str], free: bool) -> str:
     """The icon of a state, the one the report copies; `severity` is another reading."""
     status = c["status"]
     if status == "queued":
@@ -75,7 +76,9 @@ def icon(c: dict, waiting: list[str], free: bool) -> str:
     return {"working": "🟡", "ready": "🔵", "merged": "✅", "cancelled": "⚪"}[status]
 
 
-def label(c: dict, max_rounds: int, waiting: list[str] | None = None, free: bool = True) -> str:
+def label(
+    c: dict[str, Any], max_rounds: int, waiting: list[str] | None = None, free: bool = True
+) -> str:
     """`🔴 blocked CI 1/3`: how a CR's state reads in every table."""
     state = "dropped" if c["status"] == "cancelled" else c["status"]
     mark = icon(c, waiting or [], free)
@@ -86,7 +89,7 @@ def label(c: dict, max_rounds: int, waiting: list[str] | None = None, free: bool
     return f"{mark} {state} {step(c)} {_round(c)}/{max_rounds}"
 
 
-def no_start(d: dict) -> str:
+def no_start(d: dict[str, Any]) -> str:
     """Why a queued CR with nothing to wait for does not start: the budget, else the slots."""
     spent = over_budget(SimpleNamespace(data=d))
     return "Waiting for the budget." if spent else "Waiting for a free slot."

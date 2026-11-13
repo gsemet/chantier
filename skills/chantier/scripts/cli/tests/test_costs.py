@@ -7,8 +7,8 @@ from typing import Any
 import pytest
 
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
-from chantier.costs.sessions import session_costs
-from chantier.costs.transcripts import usage
+from chantier.costs.sessions import Scope, session_costs
+from chantier.costs.transcripts import Reading, usage
 
 UNPRICED_TOKENS = 1000
 
@@ -89,7 +89,9 @@ def test_a_dated_id_is_priced_by_its_model_and_the_project_prices_rank_first(
             "output": 1,
         }
     }
-    assert session_costs(transcript, prices=mine)[0]["usd"] == pytest.approx(3000 / 1e6)
+    assert session_costs(transcript, scope=Scope(prices=mine))[0]["usd"] == pytest.approx(
+        3000 / 1e6
+    )
 
 
 def test_claude_fable_5_2_is_priced_from_the_built_in_table(tmp_path: Path) -> None:
@@ -164,7 +166,7 @@ def test_a_turn_naming_the_answers_is_grill_and_a_turn_without_is_not(tmp_path: 
         + wake
         + call("c", [{"type": "tool_use", "name": "Bash", "input": {"command": "status"}}])
     )
-    row = session_costs(transcript, "2026-01-01T00:00:00Z", split=True)[0]
+    row = session_costs(transcript, "2026-01-01T00:00:00Z", scope=Scope(split=True))[0]
     assert (row["grill"]["calls"], row["calls"], row["compactions"]) == (2, 1, 1)
 
 
@@ -207,10 +209,14 @@ def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(
         json.dumps({"type": "user", "message": {"content": "go"}}) + "\n" + record
     )
     window = ("2026-01-01T00:00:00Z", "")
-    row = usage(transcript, window[0], split=True, steering=window)
+    row = usage(transcript, window[0], reading=Reading(split=True, steering=window))
     assert (row["grill"]["calls"], row["calls"]) == ((1, 0) if grill else (0, 1))
     if name == "Read":  # outside the steering window, the loose rule: naming is enough
-        row = usage(transcript, window[0], split=True, steering=("2026-06-01T00:00:00Z", ""))
+        row = usage(
+            transcript,
+            window[0],
+            reading=Reading(split=True, steering=("2026-06-01T00:00:00Z", "")),
+        )
         assert (row["grill"]["calls"], row["calls"]) == (1, 0)
 
 
@@ -245,7 +251,7 @@ def test_a_loose_use_after_the_window_does_not_move_the_calls_inside_it(tmp_path
         )
     )
     window = ("2026-02-01T00:00:00Z", "2026-03-02T00:00:00Z")
-    inside = usage(transcript, *window, split=True, steering=window)
-    since = usage(transcript, window[0], split=True, steering=window)
+    inside = usage(transcript, *window, Reading(split=True, steering=window))
+    since = usage(transcript, window[0], reading=Reading(split=True, steering=window))
     assert (inside["calls"], inside["grill"]["calls"]) == (1, 0)
     assert since["grill"]["calls"] == 1 and since["calls"] == 1  # the later call: loose, grill

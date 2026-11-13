@@ -7,6 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.rules import linked
 from chantier.core.files import read_text
@@ -193,6 +194,19 @@ def _sample_groups(repo: Repo | None, remote: str) -> set[str]:
     return groups
 
 
+def _caught(rules: dict[str, Any], tool: str, command: str) -> tuple[str, str] | None:
+    """The deny or ask rule that catches the command, as (kind, rule)."""
+    return next(
+        (
+            (kind, r)
+            for kind in ("deny", "ask")
+            for r in rules[kind]
+            if rule_matches(r, tool, command)
+        ),
+        None,
+    )
+
+
 def commands_not_allowed(repo: Repo | None) -> tuple[int, int, list[str], list[str], list[str]]:
     """The applicable sample commands that the settings do not let through: how many of how many;
     what to add; what a deny or ask rule catches; the unreadable files."""
@@ -215,24 +229,15 @@ def commands_not_allowed(repo: Repo | None) -> tuple[int, int, list[str], list[s
         command = raw_command.replace(" origin ", f" {remote} ")
         rule = raw_rule.replace(" origin ", f" {remote} ")
         short = command if len(command) < SHORT_CHARS else command[: SHORT_CHARS - 3] + "..."
-        lacking, held_back = [], False
+        lacking, held = [], []
         for tool in tools:
-            hit = next(
-                (
-                    (kind, r)
-                    for kind in ("deny", "ask")
-                    for r in rules[kind]
-                    if rule_matches(r, tool, command)
-                ),
-                None,
-            )
+            hit = _caught(rules, tool, command)
             if hit:
-                held_back = True
-                note = f"{short} by {hit[1]}" + (" (asks)" if hit[0] == "ask" else "")
-                if note not in blocked:
-                    blocked.append(note)
+                held.append(f"{short} by {hit[1]}" + (" (asks)" if hit[0] == "ask" else ""))
             elif not any(rule_matches(r, tool, command) for r in allow):
                 lacking.append(f"{tool}({rule})")
+        held_back = bool(held)
+        blocked += [n for n in dict.fromkeys(held) if n not in blocked]
         if lacking:
             adds.setdefault(", ".join(lacking), []).append(short)
         missing += bool(lacking) or held_back

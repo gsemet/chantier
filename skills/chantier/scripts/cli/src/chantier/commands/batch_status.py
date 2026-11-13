@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import Any
 
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
@@ -27,7 +28,7 @@ from chantier.status.words import shape_word, steering_word
 MAX_HOPS = 5  # parent links followed from a worker to its Driver
 
 
-def _event_ages(events: list[dict]) -> tuple[dict[str, float], dict[str, str]]:
+def _event_ages(events: list[dict[str, Any]]) -> tuple[dict[str, float], dict[str, str]]:
     """Per key (a CR, `stack`, an order), the minutes since its last event; and, from the `agent`
     events, agent id -> key."""
     last: dict[str, float] = {}
@@ -41,7 +42,7 @@ def _event_ages(events: list[dict]) -> tuple[dict[str, float], dict[str, str]]:
     return last, owner
 
 
-def _targets(d: dict) -> list[tuple[str, str]]:
+def _targets(d: dict[str, Any]) -> list[tuple[str, str]]:
     """(key, label) of what works: each live CR, the stack driver, each open QA order with an
     agent."""
     targets = [(c["id"], c["id"]) for c in d["crs"] if c["status"] in LIVE]
@@ -83,7 +84,7 @@ def _record_line(
     return f"{word} {min(ages):.0f} min" if ages else f"{word} not measured"
 
 
-def _activity(repo: Repo, d: dict) -> list[str]:
+def _activity(repo: Repo, d: dict[str, Any]) -> list[str]:
     """One line per working CR (and the stack driver, and each open QA order with an agent id):
     the age of its last activity, the most recent of its last event in the log and the last write
     of the session records that are its own. The CLI states the age and never judges it.
@@ -182,7 +183,7 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int,
     )
 
 
-def record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
+def record_costs(repo: Repo, b: Batch, rows: list[dict[str, Any]]) -> float:
     """The spend the budget check reads, and each CR's share, shown in its STATUS.md."""
     total = sum(r["usd"] for r in rows)
     b.data["spent_usd"] = round(total, 4)  # the priced part: the budget reads it as it is
@@ -199,7 +200,7 @@ def record_costs(repo: Repo, b: Batch, rows: list[dict]) -> float:
     return total
 
 
-def _heartbeat_text(d: dict, prev: str | None) -> str:
+def _heartbeat_text(d: dict[str, Any], prev: str | None) -> str:
     hb = age_minutes(d.get("heartbeat"))
     if d.get("heartbeat_stopped"):
         return "stopped"
@@ -211,7 +212,7 @@ def _heartbeat_text(d: dict, prev: str | None) -> str:
     return text
 
 
-def _cr_row(d: dict, c: dict, notes: bool) -> str:
+def _cr_row(d: dict[str, Any], c: dict[str, Any], notes: bool) -> str:
     row = f"{c['id']} {c['status']} r{c['round']}/{round_limit(d, c)} {c.get('pr') or '-'}"
     if c.get("kind") == "release":
         row += f" release{' ' + c['released'] if c.get('released') else ''}"
@@ -231,7 +232,7 @@ def _cr_row(d: dict, c: dict, notes: bool) -> str:
     return f"{row} | {'-' if usd is None else f'${usd:.2f}'}"
 
 
-def _order_lines(d: dict) -> list[str]:
+def _order_lines(d: dict[str, Any]) -> list[str]:
     open_orders = [o for o in d.get("orders", []) if not o["done"]]
     lines = []
     for applied, head in (
@@ -251,7 +252,7 @@ def _order_lines(d: dict) -> list[str]:
     return lines
 
 
-def _batch_line(d: dict, hb_text: str) -> str:
+def _batch_line(d: dict[str, Any], hb_text: str) -> str:
     n_live = len(held(SimpleNamespace(data=d)))  # the rails read only `.data`
     queued = sum(1 for c in d["crs"] if c["status"] == "queued")
     return (

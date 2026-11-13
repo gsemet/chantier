@@ -7,7 +7,7 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.files import LOCK_TIMEOUT_S, retry, try_lock, unlock, write_file
@@ -100,7 +100,7 @@ def _lock_batch(batch: Path) -> tuple[IO[str], bytes]:
 NEW_STATE = {"queued": "1-pending", "ready": "2-actives", "blocked": "2-actives"}
 
 
-def _where(repo: Repo, batch: Path, data: dict, target: Path) -> dict[Path, Path]:
+def _where(repo: Repo, batch: Path, data: dict[str, Any], target: Path) -> dict[Path, Path]:
     """A CR folder of the batch -> the state folder its status gives."""
     where: dict[Path, Path] = {}
     for cr in data["crs"]:
@@ -133,7 +133,7 @@ def _move_files(
     return moves
 
 
-def _new_path(repo: Repo, cr: dict, where: dict[Path, Path]) -> str:
+def _new_path(repo: Repo, cr: dict[str, Any], where: dict[Path, Path]) -> str:
     """A CR's recorded path after the move: its new folder, or the renamed archive stage."""
     path = cr["path"]
     moved = where.get(repo.planning_path(path, "recorded CR path"))

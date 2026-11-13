@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from typing import Any
 
 from chantier.commands.crs import (
     cr_events,
@@ -22,7 +23,7 @@ from chantier.core.repo import Repo
 from chantier.rails import ENDED
 
 
-def check_release_branch(repo: Repo, d: dict, c: dict) -> None:
+def check_release_branch(repo: Repo, d: dict[str, Any], c: dict[str, Any]) -> None:
     """A release in an ordered batch with CRs open under it starts only once one branch holds all
     the work it ships: the top CR's branch holds the recorded head of every other open CR under
     it. Read only (`git merge-base --is-ancestor`); the CLI changes nothing."""
@@ -87,7 +88,7 @@ def handback_args(args, note: str) -> str | None:
     return no_gate
 
 
-def handback_blocked(b: Batch, c: dict, note: str, line: str) -> list[str]:
+def handback_blocked(b: Batch, c: dict[str, Any], note: str, line: str) -> list[str]:
     cr = c["id"]
     b.log("handback", cr, result="blocked", note=note)
     b.touch(c, status="blocked", blocked_reason=note)
@@ -102,7 +103,9 @@ def handback_blocked(b: Batch, c: dict, note: str, line: str) -> list[str]:
     return [line, f"{cr} blocked; the Foreman asks the Chief of Staff"]
 
 
-def handback_refusals(repo: Repo, b: Batch, c: dict, no_gate: str | None, prepared: bool) -> None:
+def handback_refusals(
+    repo: Repo, b: Batch, c: dict[str, Any], no_gate: str | None, prepared: bool
+) -> None:
     """A ready CR is shipped at the worktree's head, clean, pushed, gated and verified."""
     events, head = cr_events(repo, b.id, c["id"]), c.get("head")
     wt = cr_worktree(c)
@@ -142,7 +145,7 @@ def handback_refusals(repo: Repo, b: Batch, c: dict, no_gate: str | None, prepar
         raise ChantierError("\n".join(missing), EXIT_PRECONDITION)
 
 
-def live_cr(b: Batch, cr: str) -> dict:
+def live_cr(b: Batch, cr: str) -> dict[str, Any]:
     """The CR a Driver holds, or the refusal that says why none does."""
     c = b.cr(cr)
     if c["status"] in LIVE:

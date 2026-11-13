@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.batch_status import record_costs
 from chantier.commands.close_archive import Closing, archive_and_delete, batch_files, final_rows
@@ -72,7 +73,7 @@ def pause(args) -> list[str]:
     return [f"paused {batch}: cost to date below", f"report: {b.dir / 'STATUS.md'}", *summary]
 
 
-def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict]:
+def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, dict[str, Any]]:
     """The batch `close` acts on: the project's one batch, named or not. One that is not paused is
     refused with what runs in it, or with "`pause` first"."""
     folders = repo.batch_folders()
@@ -109,7 +110,7 @@ def _held(batch: str, folder: Path) -> None:
         )
 
 
-def _closing(repo: Repo, batch: str, folder: Path, d: dict) -> tuple[Closing, list[str]]:
+def _closing(repo: Repo, batch: str, folder: Path, d: dict[str, Any]) -> tuple[Closing, list[str]]:
     """What `close` acts on, and the lines it prints after those of the `Closing`."""
     done = stage_layout(repo)["done"]
     archived = [

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Any
+
 from chantier.commands.cost.breakdown import COMPACTION_USD
 from chantier.commands.cost.pricing import (
     add_unpriced,
@@ -17,16 +20,16 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import chief_sessions, read_events
 from chantier.core.repo import Repo
 from chantier.costs.copilot import copilot_session_costs
-from chantier.costs.sessions import is_spec_writer, session_costs, without_spec_writers
+from chantier.costs.sessions import Scope, is_spec_writer, session_costs, without_spec_writers
 from chantier.costs.transcripts import transcript_path
 from chantier.rails import not_priced
 
 
-def claimed_transcripts(d: dict) -> list[str]:
+def claimed_transcripts(d: dict[str, Any]) -> list[str]:
     return [c["transcript"] for c in d.get("foreman_claims") or []]
 
 
-def foreman_uuid(d: dict) -> list[str]:
+def foreman_uuid(d: dict[str, Any]) -> list[str]:
     uuids = d.get("foreman_transcripts") or [d.get("foreman_transcript")]
     if not uuids[0]:
         raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
@@ -59,7 +62,101 @@ def _chief_unknown(cause: str) -> list[str]:
     ]
 
 
-def chief_line(repo: Repo, d: dict) -> list[str]:
+@dataclass
+class _Part:
+    """Calls, dollars and calls not priced of one part of the Chief of Staff's session."""
+
+    calls: int = 0
+    usd: float = 0.0
+    unpriced: dict[str, Any] = field(default_factory=dict[str, Any])
+
+    def add(self, r: dict[str, Any]) -> None:
+        self.calls += r["calls"]
+        self.usd += r["usd"]
+        add_unpriced(self.unpriced, unpriced_of(r))
+
+    def held(self) -> int:
+        return self.calls + sum(self.unpriced.values())
+
+
+@dataclass
+class _Chief:
+    steer: _Part = field(default_factory=_Part)
+    grill: _Part = field(default_factory=_Part)
+    writers: int = 0
+    untimed: int = 0
+    compactions: int = 0
+    whole_usd: float = 0.0
+    context: int = 0
+    inside_calls: int = 0
+    whole_un: dict[str, Any] = field(default_factory=dict[str, Any])
+
+
+def _chief_session(
+    repo: Repo, d: dict[str, Any], uuid: str, prices: dict[str, Any]
+) -> tuple[list[Any], list[Any], list[Any]]:
+    """The session whole, since the batch opened, and the steering row inside the window."""
+    path = transcript_path(repo.session_root, uuid)
+    window = steering_window(d, uuid) if uuid in claimed_transcripts(d) else None
+    whole = session_costs(path, scope=Scope("chief-of-staff", prices=prices))
+    scope = Scope("chief-of-staff", True, True, prices, window)
+    since = session_costs(path, d.get("created", ""), scope=scope)
+    steered = without_spec_writers(session_costs(path, *window, scope=scope)) if window else []
+    return whole, since, steered
+
+
+def _absorb(c: _Chief, whole: list[Any], since: list[Any], steered: list[Any]) -> None:
+    main = since[0]
+    for r in since:
+        if is_spec_writer(r):
+            c.writers += 1
+            c.grill.add(r)
+        else:
+            c.steer.add(r)
+    c.grill.add(main["grill"])
+    c.compactions += main["compactions"]
+    c.untimed += main["untimed"]
+    inside = sum(r["usd"] for r in steered)  # the steering row: counted in the spend
+    inside_un = sum_unpriced(steered)
+    inside_n = sum(r["calls"] for r in steered)
+    c.steer.calls -= inside_n
+    c.steer.usd -= inside
+    c.steer.unpriced = minus(c.steer.unpriced, inside_un)
+    c.inside_calls += inside_n + sum(inside_un.values())
+    c.whole_usd += sum(r["usd"] for r in whole) - inside
+    add_unpriced(c.whole_un, minus(sum_unpriced(whole), inside_un))
+    c.context = whole[0]["last_context"]  # the current session's, the last
+
+
+def _why(n: int, un: dict[str, Any]) -> str:
+    return f"{n} calls" + (f"; {not_priced(un)}" if un else "")
+
+
+def _chief_lines(c: _Chief) -> list[str]:
+    lines = []
+    steer = c.steer
+    if not steer.held() and c.untimed:  # the only calls of this part cannot be placed
+        lines.append(f"{STEER_OUT}: unknown ({c.untimed} calls without a time, not placed)")
+    elif steer.held() or not c.inside_calls:  # a direct batch's steering is its row, not a line
+        lines.append(
+            f"{STEER_OUT}: {spend(steer.usd, steer.calls, steer.unpriced)} since the batch "
+            f"opened ({_why(steer.calls, steer.unpriced)})"
+        )
+    grill = c.grill
+    lines += [
+        f"{GRILL_OUT}: {spend(grill.usd, grill.calls, grill.unpriced)} since the batch opened "
+        f"({_why(grill.calls, grill.unpriced)}, {c.writers} spec-writers)",
+        f"{WHOLE}: {spend(c.whole_usd, 1, c.whole_un)}, context {c.context:,} tokens; not "
+        f"counted: {c.compactions} compactions since the batch opened, which leave no record "
+        f"(about ${COMPACTION_USD:.2f} each)"
+        + (f"; {not_priced(c.whole_un)}" if c.whole_un else ""),
+    ]
+    if c.untimed and steer.held():
+        lines.append(f"Chief of Staff: {c.untimed} calls without a time, not placed")
+    return lines
+
+
+def chief_line(repo: Repo, d: dict[str, Any]) -> list[str]:
     """The Chief of Staff's session, priced apart from the spend and the budget, in the lines
     that add up: what it spent since the batch opened, steering and grilling apart, and the whole
     session. What a direct batch's steering row holds is that row's, never counted twice."""
@@ -69,101 +166,23 @@ def chief_line(repo: Repo, d: dict) -> list[str]:
     if not chiefs:
         return _chief_unknown("no Chief of Staff transcript recorded")
     prices = price_table(repo, d["host"])
-    steer = [0, 0.0, {}]  # calls, dollars, calls not priced, since the batch opened, the steering
-    grill = [0, 0.0, {}]  # row's own left out
-    writers = untimed = compactions = 0
-    whole_usd, context, inside_calls, whole_un = 0.0, 0, 0, {}
+    c = _Chief()
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
-        path = transcript_path(repo.session_root, uuid)
         try:
-            window = (
-                steering_window(d, uuid) if uuid in claimed_transcripts(d) else None
-            )  # strict rule inside it
-            whole = session_costs(path, kind="chief-of-staff", prices=prices)
-            since = session_costs(
-                path,
-                d.get("created", ""),
-                kind="chief-of-staff",
-                allow_empty=True,
-                split=True,
-                prices=prices,
-                steering=window,
-            )
-            steered = (
-                without_spec_writers(
-                    session_costs(
-                        path,
-                        *window,
-                        kind="chief-of-staff",
-                        allow_empty=True,
-                        split=True,
-                        prices=prices,
-                        steering=window,
-                    )
-                )
-                if window
-                else []
-            )
+            parts = _chief_session(repo, d, uuid, prices)
         except ChantierError as e:
             return _chief_unknown(str(e))
-        main = since[0]
-        for r in since:
-            if is_spec_writer(r):
-                writers += 1
-                grill[0] += r["calls"]
-                grill[1] += r["usd"]
-                add_unpriced(grill[2], unpriced_of(r))
-            else:
-                steer[0] += r["calls"]
-                steer[1] += r["usd"]
-                add_unpriced(steer[2], unpriced_of(r))
-        grill[0] += main["grill"]["calls"]
-        grill[1] += main["grill"]["usd"]
-        add_unpriced(grill[2], unpriced_of(main["grill"]))
-        compactions += main["compactions"]
-        untimed += main["untimed"]
-        inside = sum(r["usd"] for r in steered)  # the steering row: counted in the spend
-        inside_un = sum_unpriced(steered)
-        steer[0] -= sum(r["calls"] for r in steered)
-        steer[1] -= inside
-        steer[2] = minus(steer[2], inside_un)
-        inside_calls += sum(r["calls"] for r in steered) + sum(inside_un.values())
-        whole_usd += sum(r["usd"] for r in whole) - inside
-        add_unpriced(whole_un, minus(sum_unpriced(whole), inside_un))
-        context = whole[0]["last_context"]  # the current session's, the last
-    lines = []
-    steer_held = steer[0] + sum(steer[2].values())
-
-    def why(n, un):
-        return f"{n} calls" + (f"; {not_priced(un)}" if un else "")
-
-    if (
-        not steer_held and untimed
-    ):  # the only calls of this part cannot be placed: unknown, not $0.00
-        lines.append(f"{STEER_OUT}: unknown ({untimed} calls without a time, not placed)")
-    elif steer_held or not inside_calls:  # a direct batch's steering is its row, not a line
-        lines.append(
-            f"{STEER_OUT}: {spend(steer[1], steer[0], steer[2])} since the batch "
-            f"opened ({why(steer[0], steer[2])})"
-        )
-    lines += [
-        f"{GRILL_OUT}: {spend(grill[1], grill[0], grill[2])} since the batch opened "
-        f"({why(grill[0], grill[2])}, {writers} spec-writers)",
-        f"{WHOLE}: {spend(whole_usd, 1, whole_un)}, context {context:,} tokens; not "
-        f"counted: {compactions} compactions since the batch opened, which leave no record "
-        f"(about ${COMPACTION_USD:.2f} each)" + (f"; {not_priced(whole_un)}" if whole_un else ""),
-    ]
-    if untimed and steer_held:
-        lines.append(f"Chief of Staff: {untimed} calls without a time, not placed")
-    return lines + hints(sorted(add_unpriced(add_unpriced(dict(steer[2]), grill[2]), whole_un)))
+        _absorb(c, *parts)
+    unpriced = add_unpriced(add_unpriced(dict(c.steer.unpriced), c.grill.unpriced), c.whole_un)
+    return _chief_lines(c) + hints(sorted(unpriced))
 
 
-def cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
+def cost_rows(repo: Repo, d: dict[str, Any], host: str, uuids: list[str]) -> list[dict[str, Any]]:
     """Every Foreman of the batch, summed, from its opening to now: `pause` ends no window, a
     call made after it is spend. A call of a model with no price is counted in the row's
     `unpriced`, not refused."""
     prices = price_table(repo, host)
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     chiefs = chief_sessions(d)
     # a Driver is an agent the log ties to a CR, the stack or a QA order; any other agent with no
     # parent is the steering session's own subagent
@@ -182,11 +201,15 @@ def cost_rows(repo: Repo, d: dict, host: str, uuids: list[str]) -> list[dict]:
                 transcript_path(repo.session_root, uuid),
                 since,
                 until,
-                kind="chief-of-staff" if steering else "foreman",
-                allow_empty=len(uuids) > 1,
-                split=steering,
-                prices=prices,
-                steering=(since, until) if steering and uuid in claimed_transcripts(d) else None,
+                scope=Scope(
+                    "chief-of-staff" if steering else "foreman",
+                    allow_empty=len(uuids) > 1,
+                    split=steering,
+                    prices=prices,
+                    steering=(since, until)
+                    if steering and uuid in claimed_transcripts(d)
+                    else None,
+                ),
             )
         if steering:
             got[0]["type"] = "chief-of-staff"

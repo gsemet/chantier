@@ -50,7 +50,7 @@ def move_directory(source: Path, destination: Path) -> None:
         ) from e
 
 
-def apply_batch_settings(repo: Repo, data: dict) -> None:
+def apply_batch_settings(repo: Repo, data: dict[str, Any]) -> None:
     """A batch runs on the settings it was opened with, whatever changed since."""
     settings = data.get("settings")
     if settings is None:
@@ -163,13 +163,16 @@ class Batch:
             # a failed `open` leaves none of the batch's own files, and touches no CR folder:
             # the state folders stay; the record it wrote goes too
             if self._number and not saved:
-                for path in (
-                    self.dir / ".lock",
-                    self.dir / "brief.md",
-                    *([self._record] if self._record else []),
-                ):
-                    with contextlib.suppress(OSError):
-                        path.unlink()
+                self._remove_own_files()
+
+    def _remove_own_files(self) -> None:
+        for path in (
+            self.dir / ".lock",
+            self.dir / "brief.md",
+            *([self._record] if self._record else []),
+        ):
+            with contextlib.suppress(OSError):
+                path.unlink()
 
     def log(self, kind: str, cr: str | None = None, **fields: Any) -> None:
         self._events.append(EventRecord(t=now(), actor=self.actor, kind=kind, cr=cr, **fields))
@@ -227,7 +230,7 @@ def check_epoch(b: Batch, epoch: int | None) -> None:
         )
 
 
-def read_batch(repo: Repo, batch_id: str) -> dict:
+def read_batch(repo: Repo, batch_id: str) -> dict[str, Any]:
     data = read_batch_json(repo.batch_dir(batch_id) / "batch.json")
     apply_batch_settings(repo, data)
     return data
@@ -254,17 +257,19 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
     previous = repo.config["first_cr_number"] - 1
     # a number `restore` took off a folder: once given, a number is never given again
     previous = max(previous, read_restored_number(repo.changes / RESTORED_NUMBER_FILE))
-    for root in roots:
-        if root.is_dir():
-            for child in root.iterdir():
-                if child.is_dir():
-                    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", child.name)  # the date is no number
-                    match = re.match(r"^(?:CR-)?(\d+)(?:-|$)", name, re.I)
-                    if match:
-                        previous = max(previous, int(match.group(1)))
-    for batch in repo.batch_folders():
-        for cr in read_batch_json(batch / "batch.json").get("crs", []):
-            match = re.fullmatch(r"CR-(\d+)", cr.get("id", ""))
-            if match:
-                previous = max(previous, int(match.group(1)))
+    children = [c for root in roots if root.is_dir() for c in root.iterdir() if c.is_dir()]
+    for child in children:
+        name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", child.name)  # the date is no number
+        match = re.match(r"^(?:CR-)?(\d+)(?:-|$)", name, re.I)
+        if match:
+            previous = max(previous, int(match.group(1)))
+    recorded = [
+        cr.get("id", "")
+        for batch in repo.batch_folders()
+        for cr in read_batch_json(batch / "batch.json").get("crs", [])
+    ]
+    for cr_id in recorded:
+        match = re.fullmatch(r"CR-(\d+)", cr_id)
+        if match:
+            previous = max(previous, int(match.group(1)))
     return previous + 1

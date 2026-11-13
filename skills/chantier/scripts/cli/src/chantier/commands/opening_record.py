@@ -4,6 +4,7 @@ batch's record and the project's instruction files."""
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from chantier import __version__
 from chantier.core.clock import now
@@ -14,7 +15,7 @@ from chantier.plugin_files import INSTRUCTIONS
 from chantier.rails_release import check_grant
 
 
-def open_settings(repo: Repo, args) -> dict:
+def open_settings(repo: Repo, args) -> dict[str, Any]:
     """The remote and default branch the batch opens with, checked against git."""
     if args.slots < 1 or (args.budget is not None and args.budget <= 0):
         raise ChantierError("slots and budget must be positive", EXIT_USAGE)
@@ -33,7 +34,7 @@ def open_settings(repo: Repo, args) -> dict:
     }
 
 
-def release_grant(args) -> dict | None:
+def release_grant(args) -> dict[str, Any] | None:
     """The grant of the release CR, when `--release` names one."""
     if args.release is None:
         if args.autonomous_releases or args.grant_fixes:
@@ -52,7 +53,9 @@ def release_grant(args) -> dict | None:
     return release
 
 
-def new_record(args, host: str, settings: dict, release: dict | None, chief: str | None) -> dict:
+def new_record(
+    args, host: str, settings: dict[str, Any], release: dict[str, Any] | None, chief: str | None
+) -> dict[str, Any]:
     """The record of a batch that has no CR yet."""
     return {
         "id": None,

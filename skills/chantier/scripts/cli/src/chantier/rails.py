@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 from pathlib import Path
+from typing import Any
 
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, ChantierError
@@ -30,7 +31,7 @@ def check_no_open_batch(repo: Repo) -> None:
 QUIET_SECONDS = 300  # a session record written more recently than this: something still runs
 
 
-def running(repo: Repo, d: dict) -> list[str]:
+def running(repo: Repo, d: dict[str, Any]) -> list[str]:
     """What shows a batch still runs, from its record and from its sessions' files; empty when
     nothing does. A long tool call writes nothing, so the recorded state is the first proof and
     the files only the second. The Foreman's session tree is all the CLI knows: a Driver run
@@ -56,7 +57,7 @@ def running(repo: Repo, d: dict) -> list[str]:
     return causes
 
 
-def check_idle(repo: Repo, d: dict) -> None:
+def check_idle(repo: Repo, d: dict[str, Any]) -> None:
     causes = running(repo, d)
     if causes:
         raise ChantierError(
@@ -67,11 +68,11 @@ def check_idle(repo: Repo, d: dict) -> None:
         )
 
 
-def live(b: Batch) -> list[dict]:
+def live(b: Batch) -> list[dict[str, Any]]:
     return [c for c in b.data["crs"] if c["status"] in LIVE]
 
 
-def qa_open(b: Batch) -> list[dict]:
+def qa_open(b: Batch) -> list[dict[str, Any]]:
     """The QA orders not done: each is a QA driver, and holds a slot from the order on."""
     return [o for o in b.data.get("orders", []) if o["kind"] == "qa" and not o["done"]]
 
@@ -94,16 +95,16 @@ def check_slot(b: Batch, what: str) -> None:
         )
 
 
-def is_release(c: dict) -> bool:
+def is_release(c: dict[str, Any]) -> bool:
     return c.get("kind") == "release"
 
 
-def alone(crs: list[dict], c: dict) -> bool:
+def alone(crs: list[dict[str, Any]], c: dict[str, Any]) -> bool:
     """A release alone in its batch: no other CR but fixes was ever in it, whatever its state."""
     return not any(x["id"] != c["id"] and x.get("kind") != "fix" for x in crs)
 
 
-def series_predecessor(crs: list[dict], c: dict) -> dict | None:
+def series_predecessor(crs: list[dict[str, Any]], c: dict[str, Any]) -> dict[str, Any] | None:
     """In a series, the nearest CR before `c` in the order that is neither a release nor a fix
     CR and not cancelled; a merged one counts, it is met."""
     if c.get("kind") in {"release", "fix"}:
@@ -118,7 +119,7 @@ def series_predecessor(crs: list[dict], c: dict) -> dict | None:
     return max(before, key=lambda x: x["order"], default=None)
 
 
-def waits_for(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
+def waits_for(crs: list[dict[str, Any]], c: dict[str, Any], mode: str = "parallel") -> list[str]:
     """The CRs not yet met: those of `after`, then, in a series, the predecessor. For a CR, met
     is ready or merged (a cancelled one stays unmet); for a release, ready, merged or cancelled
     in an ordered batch (stack or series: it is prepared on top of the others), merged or
@@ -137,14 +138,14 @@ def waits_for(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
     ]
 
 
-def waits_all(crs: list[dict], c: dict, mode: str = "parallel") -> list[str]:
+def waits_all(crs: list[dict[str, Any]], c: dict[str, Any], mode: str = "parallel") -> list[str]:
     """What a queued CR waits for, as `status` shows it: its `after`, then a release's fixes
     not ended."""
     status = {x["id"]: x["status"] for x in crs}
     return waits_for(crs, c, mode) + [f"{i} {status[i]}" for i in pending_fixes(crs, c)]
 
 
-def unmet(b: Batch, c: dict) -> list[str]:
+def unmet(b: Batch, c: dict[str, Any]) -> list[str]:
     return waits_for(b.data["crs"], c, b.data["mode"])
 
 
@@ -155,7 +156,7 @@ def over_budget(b: Batch) -> bool:
     )  # the priced part; no spend seen yet: 0
 
 
-def spent_text(data: dict) -> str:
+def spent_text(data: dict[str, Any]) -> str:
     """The spend as shown to a reader: `unknown` until a priced refresh, never a false $0.00, and
     `at least` while calls of a model with no price are left out of it."""
     spent = data.get("spent_usd")
@@ -164,12 +165,12 @@ def spent_text(data: dict) -> str:
     return f"{'at least ' if data.get('unpriced') else ''}${spent:.2f}"
 
 
-def usd_text(amount: float, unpriced: dict | None, places: int = 2) -> str:
+def usd_text(amount: float, unpriced: dict[str, Any] | None, places: int = 2) -> str:
     """A priced amount; `at least` while calls of a model with no price are left out of it."""
     return f"{'at least ' if unpriced else ''}${amount:.{places}f}"
 
 
-def not_priced(unpriced: dict) -> str:
+def not_priced(unpriced: dict[str, Any]) -> str:
     """`3 calls of <model> not priced`, one `N calls of <model>` per model."""
     return ", ".join(f"{n} calls of {m}" for m, n in unpriced.items()) + " not priced"
 
@@ -190,12 +191,12 @@ def check_budget(b: Batch) -> None:
         )
 
 
-def pending_fixes(crs: list[dict], c: dict) -> list[str]:
+def pending_fixes(crs: list[dict[str, Any]], c: dict[str, Any]) -> list[str]:
     """The fix CRs of a release that have not ended: the release waits for them."""
     return [x["id"] for x in crs if x.get("fix_for") == c["id"] and x["status"] not in ENDED]
 
 
-def check_take(b: Batch, c: dict, note: str | None) -> None:
+def check_take(b: Batch, c: dict[str, Any], note: str | None) -> None:
     """A Driver starts only in a free slot, within the budget, on a CR with no agent recorded. It
     takes a queued CR, resumes a working one (`--note`: a restart keeps the slot and counts no
     round), or takes a ready or blocked one when the Foreman says why (`--note`): an answer,
@@ -243,7 +244,7 @@ def check_take(b: Batch, c: dict, note: str | None) -> None:
             )
 
 
-def check_round(b: Batch, c: dict) -> int:
+def check_round(b: Batch, c: dict[str, Any]) -> int:
     """A round is counted before its Coder starts; past the budget, or past the limit, only the
     user grants more. The budget is checked first: when both are spent, more rounds alone would
     not let the Driver go on."""
@@ -258,7 +259,7 @@ def check_round(b: Batch, c: dict) -> int:
     return limit
 
 
-def worktree_print(wt: Path | None) -> dict:
+def worktree_print(wt: Path | None) -> dict[str, Any]:
     """The worktree's head and a fingerprint of its uncommitted and untracked content, by read-only
     git commands and file reads. Empty when the worktree is not there."""
     if wt is None or not wt.is_dir():
@@ -278,7 +279,9 @@ def worktree_print(wt: Path | None) -> dict:
     return {"wt_head": head, "wt_state": h.hexdigest()[:16]}
 
 
-def check_stray_round(events: list[dict], c: dict, now_print: dict) -> None:
+def check_stray_round(
+    events: list[dict[str, Any]], c: dict[str, Any], now_print: dict[str, Any]
+) -> None:
     """A round on which nothing happened is refused (exit 2): the CR has a round, no event but a
     round was logged since the last one, and the worktree is the same as when it was counted."""
     last = next(

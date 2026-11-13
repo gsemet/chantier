@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from chantier.rails import not_priced as _not_priced
 from chantier.rails import usd_text as _usd
 from chantier.status.words import forge_word
 
 
-def _step_line(s: dict) -> str:
+def _step_line(s: dict[str, Any]) -> str:
     text = s["name"] + (f" {s['verdict']}" if s["verdict"] else "")
     return f"- [{'x' if s['done'] else ' '}] {text}{': ' + s['note'] if s['note'] else ''}"
 
 
-def cr_markdown(v: dict) -> str:
+def cr_markdown(v: dict[str, Any]) -> str:
     batch = f"[{v['batch']}](../../STATUS.md)" if v["in_batch"] else f"{v['batch']}"
     pr = v["pr"]
     head = f"{v['label']} · {batch}" + (
@@ -61,8 +63,8 @@ def cr_markdown(v: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _rows_markdown(rows: list[dict]) -> list[str]:
-    def number(r: dict) -> str:
+def _rows_markdown(rows: list[dict[str, Any]]) -> list[str]:
+    def number(r: dict[str, Any]) -> str:
         return r["cr"].removeprefix("CR-")
 
     word = forge_word(r["pr"] for r in rows)
@@ -79,14 +81,14 @@ def _rows_markdown(rows: list[dict]) -> list[str]:
     ]
 
 
-def _budget(v: dict) -> str:
+def _budget(v: dict[str, Any]) -> str:
     spent, budget = v["spent_usd"], v["budget_usd"]
     return ("unknown" if spent is None else _usd(spent, v.get("unpriced"))) + (
         f" of ${budget:g}" if budget else ""
     )
 
 
-def batch_markdown(v: dict) -> str:
+def batch_markdown(v: dict[str, Any]) -> str:
     who = {
         "direct": "steered by the Chief of Staff (direct mode)",
         "foreman": "steered by a Foreman",
@@ -116,7 +118,7 @@ def batch_markdown(v: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def dashboard_markdown(v: dict) -> str:
+def dashboard_markdown(v: dict[str, Any]) -> str:
     lines = [
         "# Change requests",
         "",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from typing import Any
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
 from chantier.commands.facts import stack_base, stack_lines
@@ -45,7 +46,7 @@ def verdict(args) -> list[str]:
     return [f"verdict {c['id']} {result} at {short_head(head)}"]
 
 
-def _stale_body_shas(repo: Repo, c: dict, wt: str, head: str) -> list[str]:
+def _stale_body_shas(repo: Repo, c: dict[str, Any], wt: str, head: str) -> list[str]:
     """The lines of the posted PR body (`work/pr-body.md`) that name a commit of the worktree
     which is not in the new head's history (a restack made it stale). A line marked `STALE` or
     `carried from` is the template's own mark and is left out. Read-only git."""
@@ -56,38 +57,35 @@ def _stale_body_shas(repo: Repo, c: dict, wt: str, head: str) -> list[str]:
     for n, line in enumerate(read_text(body).splitlines(), 1):
         if "STALE" in line or "carried from" in line:
             continue
-        for tok in dict.fromkeys(re.findall(r"\b[0-9a-f]{7,40}\b", line)):
-            if not git(
-                "rev-parse", "--verify", "--quiet", f"{tok}^{{commit}}", cwd=wt, check=False
-            ):
-                continue
-            if (
-                subprocess.run(
-                    ["git", "merge-base", "--is-ancestor", tok, head],
-                    cwd=wt,
-                    capture_output=True,
-                    check=False,
-                ).returncode
-                != 0
-            ):
-                text = line.strip()
-                found.append(
-                    f"pr-body.md line {n} names {tok[:7]}, not in {short_head(head)}'s "
-                    f"history: {text if len(text) <= HISTORY_CHARS else text[: HISTORY_CHARS - 3] + '...'}"
-                )
-                break
+        tok = _stale_token(line, wt, head)
+        if tok:
+            text = line.strip()
+            if len(text) > HISTORY_CHARS:
+                text = text[: HISTORY_CHARS - 3] + "..."
+            found.append(
+                f"pr-body.md line {n} names {tok[:7]}, not in {short_head(head)}'s history: {text}"
+            )
     return found
 
 
-def ship(args) -> list[str]:
-    """The Driver pushed and opened or updated the PR itself; this records the link at the
-    worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
-    passed at this head."""
-    repo = open_repo()
-    batch, d, c = batch_cr(repo, args.cr, args.batch)
-    wt = cr_worktree(c)
-    if "://" not in args.pr:
-        raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
+def _stale_token(line: str, wt: str, head: str) -> str | None:
+    """The first commit the line names that exists in the worktree and is not in the head."""
+    for tok in dict.fromkeys(re.findall(r"\b[0-9a-f]{7,40}\b", line)):
+        if not git("rev-parse", "--verify", "--quiet", f"{tok}^{{commit}}", cwd=wt, check=False):
+            continue
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", tok, head],
+            cwd=wt,
+            capture_output=True,
+            check=False,
+        )
+        if ancestor.returncode != 0:
+            return tok
+    return None
+
+
+def _off_worktree(repo: Repo, c: dict[str, Any], wt: str, head: str) -> list[str]:
+    """What is off in the worktree: uncommitted changes, a head not pushed."""
     off = []
     dirty = git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
     if dirty:
@@ -100,21 +98,27 @@ def ship(args) -> list[str]:
             f"{what} in the worktree, not in the PR: "
             f"{' '.join(ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()[:5])}"
         )
-    head = git("rev-parse", "HEAD", cwd=wt)
-    pushed = git(
-        "rev-parse",
-        "--verify",
-        "--quiet",
-        f"{repo.config['remote']}/{c['branch']}",
-        cwd=wt,
-        check=False,
-    )
+    ref = f"{repo.config['remote']}/{c['branch']}"
+    pushed = git("rev-parse", "--verify", "--quiet", ref, cwd=wt, check=False)
     if pushed != head:
         where_ = "not pushed" if not pushed else "at " + pushed[:7]
         off.append(
-            f"{repo.config['remote']}/{c['branch']} is {where_}, "
-            f"not this head: push with --force-with-lease, then ship again"
+            f"{ref} is {where_}, not this head: push with --force-with-lease, then ship again"
         )
+    return off
+
+
+def ship(args) -> list[str]:
+    """The Driver pushed and opened or updated the PR itself; this records the link at the
+    worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
+    passed at this head."""
+    repo = open_repo()
+    batch, d, c = batch_cr(repo, args.cr, args.batch)
+    wt = cr_worktree(c)
+    if "://" not in args.pr:
+        raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
+    head = git("rev-parse", "HEAD", cwd=wt)
+    off = _off_worktree(repo, c, wt, head)
     short = short_head(head)  # display only: the CR and the event keep the full SHA
     where = archive_path(repo, c)
     seen = None

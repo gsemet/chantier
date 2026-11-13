@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from chantier.commands.registry import BATCH_EPOCH, NO_BATCH, Subparsers, add_command
 from chantier.core.batch import check_epoch, read_batch, resolve_batch
@@ -10,6 +11,7 @@ from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import write_json
 from chantier.core.records import SeatRecord, chief_sessions
+from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
@@ -79,62 +81,81 @@ def own_transcript(host: str) -> str | None:
     )
 
 
+def _get(repo: Repo) -> list[str]:
+    held = read_seat(repo)
+    if not held:
+        return ["seat none"]
+    return [
+        f"seat {held.session} env {held.env or 'unknown'} "
+        f'title "{held.title or ""}" link {held.link or "unknown"}',
+        f"transcript {held.transcript or 'unknown'}",
+    ]
+
+
+def _leave(repo: Repo, path: Path, session: str) -> list[str]:
+    held = read_seat(repo)
+    if not held:
+        return ["seat none"]
+    if held.session != session:
+        raise ChantierError(f"the seat is held by {held.session}", EXIT_PRECONDITION)
+    path.unlink()
+    return ["seat none"]
+
+
+def _record_transcript(repo: Repo, transcript: str) -> list[str]:
+    """The batch's files exist until `close`: it is the (single) non-closed batch."""
+    lines = []
+    for batch_id in repo.batch_ids():
+        with RenderedBatch(repo, batch_id, actor="chief-of-staff") as b:
+            if transcript != b.data.get("chief_transcript"):
+                _set_chief(b, transcript)
+                lines.append(f"{b.id}: Chief of Staff transcript {transcript}")
+    return lines
+
+
+def _set_chief(b: RenderedBatch, transcript: str) -> None:
+    seen = chief_sessions(b.data)  # before the old one is replaced
+    if transcript not in seen:
+        seen.append(transcript)
+    b.data["chief_transcript"] = transcript
+    b.data["chief_transcripts"] = seen
+    b.log("chief", None, transcript=transcript)
+
+
+def _take(repo: Repo, path: Path, args) -> list[str]:
+    held = read_seat(repo)
+    if held and held.session not in (args.session, args.over):
+        raise ChantierError(
+            f"the seat is held by {held.session} "
+            f"({held.link or 'unknown'}): take it over only on the "
+            f"user's word, with --over {held.session}",
+            EXIT_PRECONDITION,
+        )
+    transcript = own_transcript(detect_host())
+    record = SeatRecord(
+        session=args.session,
+        transcript=transcript,
+        env=args.env,
+        title=args.title,
+        link=args.link,
+    )
+    write_json(path, record.to_data())
+    return [f"seat {args.session}", *(_record_transcript(repo, transcript) if transcript else [])]
+
+
 def seat(args) -> list[str]:
     """The repository's Chief of Staff session: it records a session and refuses a silent
     take-over; who may take it is the cards' to say."""
     repo = open_repo()
     path = repo.changes / "seat.json"
     if args.action == "get":
-        held = read_seat(repo)
-        if not held:
-            return ["seat none"]
-        return [
-            f"seat {held.session} env {held.env or 'unknown'} "
-            f'title "{held.title or ""}" link {held.link or "unknown"}',
-            f"transcript {held.transcript or 'unknown'}",
-        ]
+        return _get(repo)
     if not args.session:
         raise ChantierError(f"seat {args.action} <session-id>", EXIT_USAGE)
     with changes_lock(repo):
-        held = read_seat(repo)
         if args.action == "leave":
-            if not held:
-                return ["seat none"]
-            if held.session != args.session:
-                raise ChantierError(f"the seat is held by {held.session}", EXIT_PRECONDITION)
-            path.unlink()
-            return ["seat none"]
-        if held and held.session not in (args.session, args.over):
-            raise ChantierError(
-                f"the seat is held by {held.session} "
-                f"({held.link or 'unknown'}): take it over only on the "
-                f"user's word, with --over {held.session}",
-                EXIT_PRECONDITION,
-            )
-        transcript = own_transcript(detect_host())
-        write_json(
-            path,
-            SeatRecord(
-                session=args.session,
-                transcript=transcript,
-                env=args.env,
-                title=args.title,
-                link=args.link,
-            ).to_data(),
-        )
-        lines = [f"seat {args.session}"]
-        # the batch's files exist until `close`: it is the (single) non-closed batch
-        for batch_id in repo.batch_ids() if transcript else []:
-            with RenderedBatch(repo, batch_id, actor="chief-of-staff") as b:
-                if transcript != b.data.get("chief_transcript"):
-                    seen = chief_sessions(b.data)  # before the old one is replaced
-                    if transcript not in seen:
-                        seen.append(transcript)
-                    b.data["chief_transcript"] = transcript
-                    b.data["chief_transcripts"] = seen
-                    b.log("chief", None, transcript=transcript)
-                    lines.append(f"{b.id}: Chief of Staff transcript {transcript}")
-    return lines
+            return _leave(repo, path, args.session)
+        return _take(repo, path, args)
 
 
 def register(sub: Subparsers) -> None:

@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from chantier.playbook.config import FILE, default_agent
 from chantier.playbook.models import ESCALATION, MODELS
 
 
-def _model_text(model: dict) -> str:
+def _model_text(model: dict[str, Any]) -> str:
     return f"{model['start']} ({model['id']}, {model['name']})"
 
 
-def _fields(rec: dict, agent: str | None, unset_model: bool) -> str:
+def _fields(rec: dict[str, Any], agent: str | None, unset_model: bool) -> str:
     parts = [f"agent={agent}"] if agent else []
     if rec.get("model"):
         parts.append(f"model={_model_text(rec['model'])}")
@@ -20,7 +22,7 @@ def _fields(rec: dict, agent: str | None, unset_model: bool) -> str:
 
 
 def playbook_lines(
-    resolved: dict | None, host: str, roles: list[str], recorded: str | None = None
+    resolved: dict[str, Any] | None, host: str, roles: list[str], recorded: str | None = None
 ) -> list[str]:
     """The playbook, one line per role of the plugin, then one per need."""
     if resolved is None:
@@ -60,7 +62,7 @@ def escalate_line(host: str) -> str:
     )
 
 
-def team_lines(resolved: dict | None) -> list[str]:
+def team_lines(resolved: dict[str, Any] | None) -> list[str]:
     """One `team:` line per configured role, with the keys set only."""
     if not resolved:
         return []

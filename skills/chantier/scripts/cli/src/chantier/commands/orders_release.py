@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from chantier.commands.opening import add_cr, declare_dependencies, release_waits_for_all
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.rails import ENDED, alone, is_release
 
 
-def release_cr(b: Batch, kind: str, cr_id: str) -> dict:
+def release_cr(b: Batch, kind: str, cr_id: str) -> dict[str, Any]:
     release = b.data.get("release") or {}
     if release.get("cr") != cr_id:
         raise ChantierError(
@@ -22,7 +24,7 @@ def refused(usage: str, value: str, wanted: str) -> ChantierError:
     return ChantierError(f"{usage}: {why}", EXIT_USAGE)
 
 
-def _started(c: dict) -> bool:
+def _started(c: dict[str, Any]) -> bool:
     """A release has started when it ran an attempt or a Driver holds it or it is handed back; a
     merged release PR puts it back to `queued`, which `attempts` still tells."""
     return c.get("attempts", 0) > 0 or c["status"] != "queued"
@@ -57,7 +59,7 @@ def add_release(b: Batch, note: str) -> list[str]:
     ]
 
 
-def join_release(b: Batch, added: dict) -> None:
+def join_release(b: Batch, added: dict[str, Any]) -> None:
     """A CR joined the batch: the release waits for it, and the user's word to run the procedure
     given before no longer holds, since what ships changed. A release that started takes no new
     CR."""

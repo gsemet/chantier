@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 from chantier.core.clock import age_minutes, now
 from chantier.core.files import read_text
@@ -43,7 +44,7 @@ SPEC_LINK = re.compile(r"[\w./-]+\.md\b")
 TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
 
 
-def _now_next(d: dict, c: dict, waiting: list[str]) -> tuple[str, str]:
+def _now_next(d: dict[str, Any], c: dict[str, Any], waiting: list[str]) -> tuple[str, str]:
     pr = c.get("pr") or f"its {forge_word([])}"
     if waits_on(c):
         what = c["blocked_reason"].split(":", 1)[1].strip() or "something on its way"
@@ -73,37 +74,42 @@ def _now_next(d: dict, c: dict, waiting: list[str]) -> tuple[str, str]:
     }[step(c)]
 
 
-def _steps(c: dict, events: list[dict]) -> list[dict]:
+def _step_entries(
+    e: dict[str, Any], c: dict[str, Any], out: list[dict[str, Any]]
+) -> list[tuple[str, str, str]]:
+    """The steps (name, verdict, note) one event of the log makes."""
+    kind, note = e.get("kind"), e.get("note") or ""
+    head = (e.get("head") or "")[:7]  # display only
+    result = e.get("result", "")
+    plain = {
+        "round": (f"Round {e.get('round')}", "", note),
+        "note": ("Note", "", note),
+        "gate": ("Long gate", result, head),
+        "verdict": ("Verdict", result, head),
+        "ship": ("Shipped", "", e.get("pr", "")),
+    }
+    if kind in plain:
+        return [plain[kind]]
+    if kind == "handback":
+        if result != "ready":
+            return [("Blocked", "", note)]
+        # handed back with no long gate: the reason is shown
+        waived = [("Long gate", f"waived: {e['no_gate']}", "")] if e.get("no_gate") else []
+        return [*waived, ("Handed back", "", "")]
+    merged = kind == "order" and e.get("order_kind") == "merged"
+    if merged and not any(s["name"] == "Merged" for s in out):
+        return [("Merged", "", c.get("pr") or "")]
+    return []
+
+
+def _steps(c: dict[str, Any], events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """What the CR went through, from its log, then what is still ahead of it."""
-    out = []
-
-    def add(name: str, at: str, verdict: str = "", note: str = "") -> None:
-        out.append({"name": name, "done": True, "verdict": verdict, "note": note, "at": at})
-
+    out: list[dict[str, Any]] = []
     for e in events:
-        kind, at, note = e.get("kind"), e.get("t", ""), e.get("note") or ""
-        if kind == "round":
-            add(f"Round {e.get('round')}", at, note=note)
-        elif kind == "note":
-            add("Note", at, note=note)
-        elif kind == "gate":
-            add("Long gate", at, e.get("result", ""), (e.get("head") or "")[:7])  # display only
-        elif kind == "verdict":
-            add("Verdict", at, e.get("result", ""), (e.get("head") or "")[:7])
-        elif kind == "ship":
-            add("Shipped", at, note=e.get("pr", ""))
-        elif kind == "handback" and e.get("result") == "ready":
-            if e.get("no_gate"):  # handed back with no long gate: the reason is shown
-                add("Long gate", at, f"waived: {e['no_gate']}")
-            add("Handed back", at)
-        elif kind == "handback":
-            add("Blocked", at, note=note)
-        elif (
-            kind == "order"
-            and e.get("order_kind") == "merged"
-            and not any(s["name"] == "Merged" for s in out)
-        ):
-            add("Merged", at, note=c.get("pr") or "")
+        for name, verdict, note in _step_entries(e, c, out):
+            out.append(
+                {"name": name, "done": True, "verdict": verdict, "note": note, "at": e.get("t", "")}
+            )
     if c["status"] not in ENDED and c.get("kind") != "release":
         seen = {s["name"] for s in out}
         out += [
@@ -118,24 +124,21 @@ def _link(path: Path, start: Path) -> str:
     return Path(os.path.relpath(path, start)).as_posix()
 
 
-def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
+def _documents(repo: Repo, c: dict[str, Any], folder: Path) -> list[dict[str, Any]]:
     """The CR's documents that exist, then the project's that its specification cites."""
+    spec = folder / c.get("specification", "03-change-spec.md")
     named = [
         ("request", folder / "intake" / "request.md"),
         ("intent", folder / "01-intent.md"),
         ("answers", folder / "02-answers.md"),
-        ("specification", folder / c.get("specification", "03-change-spec.md")),
+        ("specification", spec),
     ]
     work = folder / "work"
-    if work.is_dir():
-        named += [(p.stem, p) for p in sorted(work.glob("*.md"))]
-        gates = sorted((work / "gates").glob("*.log"))
-        if gates:
-            named.append(("long gate log", gates[-1]))
-    if (folder / "evidence").is_dir():
-        named.append(("evidence", folder / "evidence"))
+    named += [(p.stem, p) for p in sorted(work.glob("*.md"))]
+    gates = sorted((work / "gates").glob("*.log"))
+    named += [("long gate log", gates[-1])] if gates else []
+    named.append(("evidence", folder / "evidence"))
     docs = [{"kind": kind, "path": _link(p, folder)} for kind, p in named if p.exists()]
-    spec = folder / c.get("specification", "03-change-spec.md")
     if spec.is_file():
         text = read_text(spec, "replace")
         for name in sorted(set(SPEC_LINK.findall(text))):
@@ -146,12 +149,16 @@ def _documents(repo: Repo, c: dict, folder: Path) -> list[dict]:
     return docs
 
 
-def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict], in_batch: bool) -> dict:
+def cr_view(
+    repo: Repo, d: dict[str, Any], c: dict[str, Any], where: tuple[Path, list[dict[str, Any]], bool]
+) -> dict[str, Any]:
+    """The CR's page; `where`: its folder, its events, and whether the folder is in the batch."""
+    folder, events, in_batch = where
     waiting = waits(d, c)
     now_line, next_line = _now_next(d, c, waiting)
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     pr = c.get("pr")
-    number = re.search(r"(\d+)/?$", pr) if pr else None
+    number = re.search(r"(\d+)/?$", pr or "")
     return {
         "schema": SCHEMA,
         "updated": now(),
@@ -183,13 +190,12 @@ def cr_view(repo: Repo, d: dict, c: dict, folder: Path, events: list[dict], in_b
     }
 
 
-def _priced(d: dict) -> bool:
-    return d.get("spent_usd") is not None and not any(
-        line.startswith("Spent: unknown") for line in d.get("summary", [])
-    )
+def _priced(d: dict[str, Any]) -> bool:
+    unknown = any(line.startswith("Spent: unknown") for line in d.get("summary", []))
+    return d.get("spent_usd") is not None and not unknown
 
 
-def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
+def _row(repo: Repo, d: dict[str, Any], c: dict[str, Any], start: Path) -> dict[str, Any]:
     folder = repo.planning_path(c["path"]) if c.get("path") else None
     silent = age_minutes(c.get("updated")) if c["status"] in LIVE else None
     waiting = waits(d, c)
@@ -217,7 +223,7 @@ def _row(repo: Repo, d: dict, c: dict, start: Path) -> dict:
     }
 
 
-def batch_view(repo: Repo, d: dict, folder: Path) -> dict:
+def batch_view(repo: Repo, d: dict[str, Any], folder: Path) -> dict[str, Any]:
     return {
         "schema": SCHEMA,
         "updated": now(),
@@ -259,7 +265,7 @@ def spec_state(folder: Path) -> str | None:
     return "specified" if (folder / "03-change-spec.md").is_file() else None
 
 
-def _backlog(paths: dict[str, Path], start: Path) -> list[dict]:
+def _backlog(paths: dict[str, Path], start: Path) -> list[dict[str, Any]]:
     found = [("3-ready", paths["ready"])]
     found += [("P" + p.name[1:], p) for p in sorted(paths["backlog"].glob("P[1-4]"))]
     found.append(("inbox", paths["inbox"]))
@@ -286,7 +292,7 @@ def when_of(name: str) -> str | None:
     return f"20{m[1]}-{m[2]}-{m[3]}T{m[4]}:{m[5]}:00Z" if m else None
 
 
-def _past(stage: Path, start: Path) -> tuple[list[dict], int]:
+def _past(stage: Path, start: Path) -> tuple[list[dict[str, Any]], int]:
     """The last `PAST_LIMIT` CRs of an archive or trash stage, newest first, and the stage's count.
 
     At most `PAST_LIMIT` STATUS.json files are read; a folder without one gives its title only.
@@ -329,7 +335,7 @@ def _past(stage: Path, start: Path) -> tuple[list[dict], int]:
     return out, len(folders)
 
 
-def _done_rows(repo: Repo, start: Path) -> list[dict]:
+def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
     """The batch's CRs waiting in `3-done`, newest merge first: they head the merged list."""
     out = []
     for folder in repo.batch_folders():
@@ -353,7 +359,7 @@ def _done_rows(repo: Repo, start: Path) -> list[dict]:
     return sorted(out, key=lambda r: r["when"] or "", reverse=True)
 
 
-def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict:
+def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
     start = repo.changes
     batches = []
     for folder in repo.batch_folders():
