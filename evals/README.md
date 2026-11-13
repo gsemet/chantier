@@ -145,6 +145,11 @@ chantier skill) and the user (it answers, merges and gives orders as the runbook
   logged in.
 - On Claude Desktop, the go must be typed in the desktop app: under Remote Control, starting
   the Foreman's session is refused.
+- On Claude Desktop, before a real campaign on the sandbox (`full`, `real-foreman`,
+  `real-direct`), turn Auto-fix off for the operator's session, as
+  [`skills/chantier/references/hosts/claude-code.md`](../skills/chantier/references/hosts/claude-code.md),
+  "Auto-fix events", says: its events skew the measured cost and the run's record. That section
+  marks the way to turn it off **unproved**, so this guide gives no path either.
 - On Claude, for a sandbox campaign, `setup.py` writes the workspace's
   `.claude/settings.local.json` (ignored by the sandbox's git) with the merge command's rule and,
   for `full`, the release's tag push and `gh release create` for its versions: rules the user's
