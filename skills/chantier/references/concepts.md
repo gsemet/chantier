@@ -341,3 +341,11 @@ running agent's model, never a retry of the same agent, and never a model typed 
    this is in your host's reference, section "Configuration" (the workers do not need it).
    Every file you write, a PR body included, is UTF-8 without a byte-order mark (on Windows
    PowerShell 5.1, `Out-File` and `Set-Content -Encoding utf8` add one).
+   A multi-line text sent to the forge (a PR or MR body, a PR, MR or issue comment, release notes)
+   is a file written with the host's Write tool (Edit to change it), in the work folder or where
+   your card or the project's procedure keeps it, and the forge command takes it from that file
+   (`--body-file`, `--notes-file`, or the forge CLI's equivalent). Its text is never typed, built
+   or escaped in a shell command, in any shell, and the file is never written by the shell (a
+   redirection, a here-string, `Out-File`, `Set-Content`): PowerShell reads a backtick as an escape
+   (`` `f `` is a form feed), Bash expands `$` and backticks, and Markdown is full of both. A
+   one-line text with no Markdown (a PR title, a `--note`) and a commit message are not covered.

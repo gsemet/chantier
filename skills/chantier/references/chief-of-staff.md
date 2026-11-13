@@ -194,7 +194,10 @@ told what happens to it; a CR with none skips all of this.
 - **No "PR opened" comment:** the PR's closing line makes the forge show the PR on the issue.
 - **How to post.** With the forge's CLI the session already uses (`gh`, `glab`), when it reaches
   the issue's tracker: for instance `gh issue comment <link> --body-file <file>`, `glab issue note
-  <id> --message …`; read the CLI's help for the exact form. Where it does not reach the tracker
+  <id>` with `glab`'s option that reads the message from a file, `work/issue-comment.md`, and no
+  text in the command (unproved; trial: an issue note posted from a file whose text holds
+  backticks, `$` and quotes, and that matches the file on the forge); read the CLI's help for the
+  exact form. Where it does not reach the tracker
   (Jira or another tracker with no CLI in the session, no access): give the user the text to post
   themselves, and post nothing. A refused or failed post is told to the user with its exact text
   and the text stays in the CR's folder; never another tool, never a retry another way.
