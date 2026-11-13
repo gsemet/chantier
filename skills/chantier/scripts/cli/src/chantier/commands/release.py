@@ -27,25 +27,27 @@ def release(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = open_repo()
     with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
         c = b.cr(args.cr)
-        is_fix = c.get("kind") == "fix" and args.action == "go"
-        if c.get("kind") != "release" and not is_fix:
+        is_fix = c.kind == "fix" and args.action == "go"
+        if c.kind != "release" and not is_fix:
             raise ChantierError(f"{args.cr} is not the batch's release CR", EXIT_USAGE)
         if args.action == "start":  # a new attempt, on the branch the Driver set on the base
             # a merged PR of an earlier attempt is not this one's
             # (a merged PR is already cleared by `release_merged`; an attempt refreshes the
             # recorded release PR, and a Driver that opens another records it with `ship`)
-            b.touch(c, attempts=c.get("attempts", 0) + 1, head=None)
+            b.touch(c, attempts=c.attempts + 1, head=None)
             b.log("release-start", args.cr)
-            return [f"attempt {c['attempts']}: the procedure starts from its first step"], 0
+            return [f"attempt {c.attempts}: the procedure starts from its first step"], 0
         if not (args.note or "").strip():
             raise ChantierError(f'release {args.action} {args.cr} --note "<…>"', EXIT_USAGE)
         if args.action == "published":
-            grant = b.data["release"]
-            grant["published"] = grant.get("published", 0) + 1
-            c.setdefault("notes", []).append(f"published: {args.note}")
+            grant = b.record.release
+            if grant is None:
+                raise ChantierError("no release grant recorded: `order release` first")
+            grant.published += 1
+            c.append("notes", f"published: {args.note}")
             b.touch(c)
             b.log("release-published", args.cr, note=args.note)
-            return [f"release {grant['published']} published: {args.note}"], 0
+            return [f"release {grant.published} published: {args.note}"], 0
         result, why = fix_go(b, c, args.note) if is_fix else release_go(b, c, args.note)
         return _answer(b, result, why, args.note, is_fix)
 
@@ -56,8 +58,8 @@ def _answer(
     """The words and the exit code for what `fix_go` or `release_go` decided."""
     refused = {
         "budget": (
-            f"no: the budget is spent ({spent_text(b.data)} of "
-            f"${b.data['budget_usd']}); only the user raises it",
+            f"no: the budget is spent ({spent_text(b.record)} of "
+            f"${b.record.budget_usd}); only the user raises it",
             EXIT_BUDGET,
         ),
         "fix": (f"no: fix {why} is not merged", EXIT_PRECONDITION),
@@ -94,18 +96,18 @@ def cancel(args: argparse.Namespace) -> list[str]:
     ):
         check_epoch(b, args.epoch)
         c = b.cr(args.cr)
-        if c["status"] == "merged":
+        if c.status == "merged":
             raise ChantierError(f"{args.cr} is merged: nothing to cancel")
         killed = []
         m = re.fullmatch(rf"{re.escape(args.cr)} pid \d+ pg(\d+)", lock_holder(repo))
         if m and procs.stop_group(int(m[1])):
             killed.append(f"pg{m[1]}")
-        if c.get("worktree") and Path(c["worktree"]).exists():
-            killed += [str(p) for p in procs.stop(procs.find(Path(c["worktree"])))]
+        if c.worktree and Path(c.worktree).exists():
+            killed += [str(p) for p in procs.stop(procs.find(Path(c.worktree)))]
         trash_cr(b, c)
         b.touch(c, status="cancelled", agent=None)
-        b.log("cancel", args.cr, killed=killed, path=c.get("path"))
-        done = all_merged(b)
+        b.log("cancel", args.cr, killed=killed, path=c.path)
+        done = all_merged(b.record)
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + (
         ["every CR is merged or cancelled: `chantier pause`"] if done else []
     )

@@ -2624,11 +2624,18 @@ def cancel_during_gate(w: World) -> None:
           and "pg" in w.last_out[0], f"{out} {err} {w.last_out}")
 
 
+def gate_passed(evs, head):
+    """The CLI's own reading of the gate events, which it takes as records."""
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    from chantier.commands.crs import gate_passed as passed
+    from chantier.core.records import EventRecord
+    return passed([EventRecord(**e) for e in evs], head)
+
+
 def stop_own_gate(w: World) -> None:
     note("\n## 18b. A Driver stops its own long gate; `cancel` needs the epoch")
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     from chantier import procs
-    from chantier.commands.crs import gate_passed
     items = [prepare_cr(w, t)[1] for t in ("Stop own gate", "Stop other gate")]
     slow = w.root / "slow_stop.py"
     pidfile = w.root / "slow_stop.pid"
@@ -3160,7 +3167,6 @@ def handback_proofs(w: World) -> None:
 def gate_proof(w: World) -> None:
     note("\n## 12c. The gate binds to a commit; the budget bounds the rounds")
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
-    from chantier.commands.crs import gate_passed
     items = [prepare_cr(w, t)[1] for t in ("Gate head", "Gate abbrev", "Gate short", "Gate budget",
                                            "Gate rounds", "Gate free")]
     w.reset()

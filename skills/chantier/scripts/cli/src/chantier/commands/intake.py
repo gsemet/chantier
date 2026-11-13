@@ -14,7 +14,12 @@ from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
-from chantier.core.records import read_batch_json, read_restored_number, write_restored_number
+from chantier.core.records import (
+    CrEntry,
+    read_batch_json,
+    read_restored_number,
+    write_restored_number,
+)
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import convert_old_tree, open_repo
 from chantier.lifecycle.stages import (
@@ -112,16 +117,17 @@ def abandon(args: argparse.Namespace) -> list[str]:
     return [f"abandoned {shown(repo, target)}"]
 
 
-def _owners(repo: Repo, source: Path) -> tuple[tuple[str, dict[str, Any]] | None, list[str]]:
+def _owners(repo: Repo, source: Path) -> tuple[tuple[str, CrEntry] | None, list[str]]:
     """The open batch's CR that owned this folder (batch id, CR), and the slugs of its other CRs."""
     known, batch_crs = None, []
     for batch_dir in repo.batch_folders():
         record = read_batch_json(batch_dir / "batch.json")
-        for cr in (c for c in record.get("crs", []) if c.get("path")):
-            if repo.planning_path(cr["path"], "recorded CR path") == source:
-                known = (record.get("id", "?"), cr)
+        for cr in (c for c in record.crs if c.path):
+            path = cr.path or ""
+            if repo.planning_path(path, "recorded CR path") == source:
+                known = (record.id or "?", cr)
             else:
-                batch_crs.append(cr_slug(Path(cr["path"]).name))
+                batch_crs.append(cr_slug(Path(path).name))
     return known, batch_crs
 
 
@@ -156,15 +162,15 @@ def _check_free(repo: Repo, paths: dict[str, Any], name: str, batch_crs: list[st
         )
 
 
-def _remember(repo: Repo, target: Path, known: tuple[str, dict[str, Any]]) -> None:
+def _remember(repo: Repo, target: Path, known: tuple[str, CrEntry]) -> None:
     """Note on the folder what it was, and never give its number again."""
-    number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
+    number = re.fullmatch(r"CR-(\d+)", known[1].id)
     if number:  # the number is never given again, even once the batch is closed
         path = repo.changes / RESTORED_NUMBER_FILE
         write_restored_number(path, max(read_restored_number(path), int(number[1])))
     intent = target / "01-intent.md"
     with open(intent if intent.is_file() else target / "notes.md", "a", encoding="utf-8") as f:
-        f.write(f"\nformerly {known[1]['id']} of {known[0]}\n")
+        f.write(f"\nformerly {known[1].id} of {known[0]}\n")
 
 
 def restore(args: argparse.Namespace) -> list[str]:
@@ -190,11 +196,11 @@ def restore(args: argparse.Namespace) -> list[str]:
             _remember(repo, target, known)
         write_dashboard(repo, paths)
     lines = [f"restored {shown(repo, target)}"]
-    if known and known[1].get("status") == "cancelled":
+    if known and known[1].status == "cancelled":
         cr = known[1]
         lines.append(
-            f"{cr['id']} stays cancelled in {known[0]}: its branch {cr.get('branch')}, "
-            f"worktree {cr.get('worktree')} and PR {cr.get('pr') or 'none'} are not "
+            f"{cr.id} stays cancelled in {known[0]}: its branch {cr.branch}, "
+            f"worktree {cr.worktree} and PR {cr.pr or 'none'} are not "
             "touched; `order add` brings it back in a batch"
         )
     return lines

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from types import SimpleNamespace
 from typing import Any
 
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
@@ -15,7 +14,7 @@ from chantier.core.batch import Batch, check_epoch, find_cr_batch, read_batch, r
 from chantier.core.batch_records import last_closed
 from chantier.core.clock import age_minutes, now
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, read_events, round_limit
+from chantier.core.records import LIVE, BatchRecord, CrEntry, EventRecord, read_events, round_limit
 from chantier.core.repo import Repo
 from chantier.costs.sessions import agent_records, idle_seconds
 from chantier.history import last_closed_text
@@ -29,31 +28,27 @@ from chantier.status.words import shape_word, steering_word
 MAX_HOPS = 5  # parent links followed from a worker to its Driver
 
 
-def _event_ages(events: list[dict[str, Any]]) -> tuple[dict[str, float], dict[str, str]]:
+def _event_ages(events: list[EventRecord]) -> tuple[dict[str, float], dict[str, str]]:
     """Per key (a CR, `stack`, an order), the minutes since its last event; and, from the `agent`
     events, agent id -> key."""
     last: dict[str, float] = {}
     owner: dict[str, str] = {}
     for e in events:
-        age = age_minutes(e.get("t"))
-        if e.get("cr") and age is not None:
-            last[e["cr"]] = min(age, last.get(e["cr"], age))
-        if e.get("kind") == "agent" and e.get("cr") and e.get("agent"):
-            owner[e["agent"]] = e["cr"]
+        age = age_minutes(e.t)
+        if e.cr and age is not None:
+            last[e.cr] = min(age, last.get(e.cr, age))
+        if e.kind == "agent" and e.cr and e.agent:
+            owner[e.agent] = e.cr
     return last, owner
 
 
-def _targets(d: dict[str, Any]) -> list[tuple[str, str]]:
+def _targets(d: BatchRecord) -> list[tuple[str, str]]:
     """(key, label) of what works: each live CR, the stack driver, each open QA order with an
     agent."""
-    targets = [(c["id"], c["id"]) for c in d["crs"] if c["status"] in LIVE]
-    if d.get("stack_agent"):
+    targets = [(c.id, c.id) for c in d.crs if c.status in LIVE]
+    if d.stack_agent:
         targets.append(("stack", "stack"))
-    targets += [
-        (o["id"], f"{o['id']} qa")
-        for o in d.get("orders", [])
-        if o["kind"] == "qa" and not o["done"] and o.get("agent")
-    ]
+    targets += [(o.id, f"{o.id} qa") for o in d.orders if o.kind == "qa" and not o.done and o.agent]
     return targets
 
 
@@ -85,13 +80,13 @@ def _record_line(
     return f"{word} {min(ages):.0f} min" if ages else f"{word} not measured"
 
 
-def _activity(repo: Repo, d: dict[str, Any]) -> list[str]:
+def _activity(repo: Repo, d: BatchRecord) -> list[str]:
     """One line per working CR (and the stack driver, and each open QA order with an agent id):
     the age of its last activity, the most recent of its last event in the log and the last write
     of the session records that are its own. The CLI states the age and never judges it.
     A host with no per-agent record (Copilot) gives the session's age, said so. A record that
     cannot be read is `not measured`. A long gate the lock names for the CR is `gate running`."""
-    last, owner = _event_ages(read_events(repo.batch_dir(d["id"])))
+    last, owner = _event_ages(read_events(repo.batch_dir(d.id)))
     targets = _targets(d)
     if not targets:
         return []
@@ -99,7 +94,7 @@ def _activity(repo: Repo, d: dict[str, Any]) -> list[str]:
         sessions = foreman_uuid(d)
     except ChantierError:
         sessions = []
-    copilot = d.get("host") == "copilot"
+    copilot = d.host == "copilot"
     session_min: float | None = None
     records: dict[str, tuple[str | None, float | None]] = {}
     if copilot:
@@ -132,7 +127,7 @@ def _stop_heartbeat(repo: Repo, batch: str, epoch: int | None) -> list[str]:
             raise ChantierError(
                 "--stop-heartbeat carries --epoch <n>: the steering session's own", EXIT_USAGE
             )
-        b.data["heartbeat_stopped"] = now()
+        b.record.heartbeat_stopped = now()
         b.log("heartbeat_stopped", None)
     return [
         f"heartbeat stopped recorded for {batch}; the next `status --refresh --epoch "
@@ -151,28 +146,28 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int,
     ):
         check_epoch(b, epoch)
         if epoch is not None:
-            prev = b.data.get("heartbeat")
-            b.data["heartbeat"] = now()
-            b.data["heartbeat_stopped"] = None
+            prev = b.record.heartbeat
+            b.record.heartbeat = now()
+            b.record.heartbeat_stopped = None
             b.log("heartbeat", None)
-        data = dict(b.data)
+        data = b.record.model_copy(deep=True)
     lines = _activity(repo, data)
     try:
-        rows = cost_rows(repo, data, data["host"], foreman_uuid(data))
+        rows = cost_rows(repo, data, data.host, foreman_uuid(data))
     except ChantierError as e:
         return [*lines, f"spend not updated: {e}"], e.code, prev
     with RenderedBatch(
         repo, batch, actor="foreman" if epoch is not None else "chief-of-staff"
     ) as b:
         total = record_costs(repo, b, rows)
-        if b.data["status"] == "paused":  # the header and the Cost section read one figure
-            b.data["summary"] = [
+        if b.record.status == "paused":  # the header and the Cost section read one figure
+            b.record.summary = [
                 *cost_summary(
-                    b.data,
+                    b.record,
                     rows,
                     cost_groups(repo, b.id, rows, "cr"),
                     cost_groups(repo, b.id, rows, "driver"),
-                    chief_line(repo, b.data),
+                    chief_line(repo, b.record),
                 ),
                 TO_DATE,
             ]
@@ -187,23 +182,23 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int,
 def record_costs(repo: Repo, b: Batch, rows: list[dict[str, Any]]) -> float:
     """The spend the budget check reads, and each CR's share, shown in its STATUS.md."""
     total: float = sum(r["usd"] for r in rows)
-    b.data["spent_usd"] = round(total, 4)  # the priced part: the budget reads it as it is
-    b.data["unpriced"] = sum_unpriced(rows)  # model -> calls left out of it: a floor, said so
+    b.record.spent_usd = round(total, 4)  # the priced part: the budget reads it as it is
+    b.record.unpriced = sum_unpriced(rows)  # model -> calls left out of it: a floor, said so
     by_cr = cost_groups(repo, b.id, rows, "cr")
-    for c in b.data["crs"]:
-        if c["id"] in by_cr:
-            c["cost_usd"] = round(by_cr[c["id"]][1], 4)
-            if by_cr[c["id"]][2]:
-                c["cost_unpriced"] = by_cr[c["id"]][2]
+    for c in b.record.crs:
+        if c.id in by_cr:
+            c.cost_usd = round(by_cr[c.id][1], 4)
+            if by_cr[c.id][2]:
+                c.cost_unpriced = by_cr[c.id][2]
             else:
-                c.pop("cost_unpriced", None)
+                c.unset("cost_unpriced")
     b.log("cost", None, usd=total)
     return total
 
 
-def _heartbeat_text(d: dict[str, Any], prev: str | None) -> str:
-    hb = age_minutes(d.get("heartbeat"))
-    if d.get("heartbeat_stopped"):
+def _heartbeat_text(d: BatchRecord, prev: str | None) -> str:
+    hb = age_minutes(d.heartbeat)
+    if d.heartbeat_stopped:
         return "stopped"
     if hb is None:
         return "never"
@@ -214,57 +209,56 @@ def _heartbeat_text(d: dict[str, Any], prev: str | None) -> str:
     return text
 
 
-def _cr_row(d: dict[str, Any], c: dict[str, Any], notes: bool) -> str:
-    row = f"{c['id']} {c['status']} r{c['round']}/{round_limit(d, c)} {c.get('pr') or '-'}"
-    if c.get("kind") == "release":
-        row += f" release{' ' + c['released'] if c.get('released') else ''}"
-        row += "".join(f" | draft {p}" for p in c.get("drafts", [])[-2:])
-    elif c.get("kind") == "fix":
-        row += f" fix for {c['fix_for']}"
-    waits = waits_all(d["crs"], c, d["mode"]) if c["status"] == "queued" else []
+def _cr_row(d: BatchRecord, c: CrEntry, notes: bool) -> str:
+    row = f"{c.id} {c.status} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
+    if c.kind == "release":
+        row += f" release{' ' + c.released if c.released else ''}"
+        row += "".join(f" | draft {p}" for p in c.drafts[-2:])
+    elif c.kind == "fix":
+        row += f" fix for {c.fix_for}"
+    waits = waits_all(d.crs, c, d.mode) if c.status == "queued" else []
     if waits:
         row += f" | waits for {', '.join(waits)}"
-    if c["status"] == "working" and not c.get("agent"):
+    if c.status == "working" and not c.agent:
         row += " | no Driver recorded"
-    if c["status"] == "blocked" and c.get("blocked_reason"):
-        row += f" | blocked: {c['blocked_reason'][:70]}"
-    elif c.get("notes") and (notes or c["status"] == "queued"):
-        row += f" | {c['notes'][-1][:60]}"
-    usd = c.get("cost_usd")
+    if c.status == "blocked" and c.blocked_reason:
+        row += f" | blocked: {c.blocked_reason[:70]}"
+    elif c.notes and (notes or c.status == "queued"):
+        row += f" | {c.notes[-1][:60]}"
+    usd = c.cost_usd
     return f"{row} | {'-' if usd is None else f'${usd:.2f}'}"
 
 
-def _order_lines(d: dict[str, Any]) -> list[str]:
-    open_orders = [o for o in d.get("orders", []) if not o["done"]]
+def _order_lines(d: BatchRecord) -> list[str]:
+    open_orders = [o for o in d.orders if not o.done]
     lines = []
     for applied, head in (
         (False, "orders pending: "),
         (True, "orders the CLI applied, the Foreman marks each `order done <O-k>`: "),
     ):
-        group = [o for o in open_orders if bool(o.get("applied")) is applied]
+        group = [o for o in open_orders if bool(o.applied) is applied]
         if group:
             lines.append(
                 head
                 + "; ".join(
-                    f"{o['id']} {o['kind']}{' ' + o['cr'] if o['cr'] != '-' else ''}"
-                    f"{' ' + o['note'][:40] if o['note'] else ''}"
+                    f"{o.id} {o.kind}{' ' + o.cr if o.cr != '-' else ''}"
+                    f"{' ' + o.note[:40] if o.note else ''}"
                     for o in group
                 )
             )
     return lines
 
 
-def _batch_line(d: dict[str, Any], hb_text: str) -> str:
-    n_live = len(held(SimpleNamespace(data=d)))  # the rails read only `.data`
-    queued = sum(1 for c in d["crs"] if c["status"] == "queued")
+def _batch_line(d: BatchRecord, hb_text: str) -> str:
+    queued = sum(1 for c in d.crs if c.status == "queued")
     return (
-        f"{d['id']} {d['status']} steering {steering_word(d.get('steering'))} "
-        f"shape {shape_word(d.get('mode'))} live {n_live}/{d['slots']} queued {queued} "
-        f"foreman {d.get('foreman') or 'none'} e{d.get('foreman_epoch', 0)} "
+        f"{d.id} {d.status} steering {steering_word(d.steering)} "
+        f"shape {shape_word(d.mode)} live {len(held(d))}/{d.slots} queued {queued} "
+        f"foreman {d.foreman or 'none'} e{d.foreman_epoch} "
         f"heartbeat {hb_text}"
         f" spent {spent_text(d)}"
-        + (f" of ${d['budget_usd']:g}" if d.get("budget_usd") else "")
-        + (" (paused, cost to date)" if d["status"] == "paused" else "")
+        + (f" of ${d.budget_usd:g}" if d.budget_usd else "")
+        + (" (paused, cost to date)" if d.status == "paused" else "")
     )
 
 
@@ -278,9 +272,9 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
     lines = [_batch_line(d, _heartbeat_text(d, prev)), last_closed_text(last_closed(repo))]
-    lines += [_cr_row(d, c, args.notes) for c in sorted(d["crs"], key=lambda c: c["order"])]
+    lines += [_cr_row(d, c, args.notes) for c in sorted(d.crs, key=lambda c: c.order)]
     lines += _order_lines(d)
-    unread = sum(1 for a in d.get("asks", []) if not a["read"])
+    unread = sum(1 for a in d.asks if not a.read)
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")
     return lines + extra, code
@@ -298,20 +292,16 @@ def asks(args: argparse.Namespace) -> list[str]:
             aid = record_ask(b, text)
             return [f"[foreman→chief-of-staff] ask {aid}: {text}"]
         if args.read:
-            hit = [
-                a
-                for a in b.data.get("asks", [])
-                if not a["read"] and (args.read == "all" or a["id"] == args.read)
-            ]
+            hit = [a for a in b.record.asks if not a.read and (args.read in ("all", a.id))]
             if not hit and args.read != "all":
                 raise ChantierError(f"no unread ask {args.read}", EXIT_USAGE)
             for a in hit:
-                a["read"] = now()
+                a.read = now()
             if hit:
-                b.log("asks-read", None, asks=[a["id"] for a in hit])
+                b.log("asks-read", None, asks=[a.id for a in hit])
             return [f"read {len(hit)}"]
-        unread = [a for a in b.data.get("asks", []) if not a["read"]]
-    return [f"{a['id']}: {a['text']}" for a in unread] or ["no unread ask"]
+        unread = [a for a in b.record.asks if not a.read]
+    return [f"{a.id}: {a.text}" for a in unread] or ["no unread ask"]
 
 
 def agents(args: argparse.Namespace) -> list[str]:
@@ -328,12 +318,12 @@ def agents(args: argparse.Namespace) -> list[str]:
         if args.agent == "-":  # the agent ended: the next one may start
             args.agent = None
         if args.cr == "stack":
-            b.data["stack_agent"] = args.agent
+            b.record.stack_agent = args.agent
         elif args.cr.startswith("O-"):  # a QA order: its driver is a Driver of the batch for `cost`
-            o = next((x for x in b.data["orders"] if x["id"] == args.cr), None)
-            if o is None or o["kind"] != "qa":
+            o = next((x for x in b.record.orders if x.id == args.cr), None)
+            if o is None or o.kind != "qa":
                 raise ChantierError(f"agents set {args.cr}: not a QA order of {b.id}", EXIT_USAGE)
-            o["agent"] = args.agent
+            o.agent = args.agent
         else:
             b.touch(b.cr(args.cr), agent=args.agent)
         b.log("agent", args.cr, agent=args.agent)

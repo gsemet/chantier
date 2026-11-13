@@ -6,6 +6,7 @@ they are read and written is in `chantier.core.batch_records`.
 from __future__ import annotations
 
 from chantier.core.batch_records import Rec, open_record
+from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.rails import usd_text
 from chantier.status.words import forge_word, shape_word, steering_word
@@ -32,29 +33,29 @@ def last_closed_text(record: Rec | None) -> str:
     return f"last closed: {record['batch']}{when}, {counts}{price}"
 
 
-def archive_of(c: Rec) -> str | None:
+def archive_of(c: CrEntry) -> str | None:
     """A CR's folder after `close`, relative to the planning folder, in `/` form."""
-    path = c.get("path")
+    path = c.path
     return str(path).replace("\\", "/").removeprefix(".agents/changes/") if path else None
 
 
-def cr_entry(c: Rec, by_cr: Rec) -> Rec:
-    cost = by_cr.get(c["id"])
+def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
+    cost = by_cr.get(c.id)
     return {
-        "cr": c["id"],
-        "title": c.get("title"),
-        "result": "merged" if c["status"] == "merged" else "dropped",
+        "cr": c.id,
+        "title": c.title,
+        "result": "merged" if c.status == "merged" else "dropped",
         "archive": archive_of(c),
-        "pr": c.get("pr"),
-        "rounds": c.get("round"),
+        "pr": c.pr,
+        "rounds": c.round,
         "cost_usd": round(cost[1], 4) if cost else None,
         "cost_unpriced": cost[2] if cost else {},
     }
 
 
-def close_record(d: Rec, closed: str, total: float, unpriced: Rec, by_cr: Rec) -> Rec:
+def close_record(d: BatchRecord, closed: str, total: float, unpriced: Rec, by_cr: Rec) -> Rec:
     """`d` is the batch as it is at `close`, its CRs' `path` already the archives'."""
-    crs = sorted(d["crs"], key=lambda c: c.get("order", 0))
+    crs = sorted(d.crs, key=lambda c: c.order)
     return {
         **open_record(d),
         "state": "closed",
@@ -62,7 +63,7 @@ def close_record(d: Rec, closed: str, total: float, unpriced: Rec, by_cr: Rec) -
         "cost_usd": round(total, 4),
         "cost_unpriced": unpriced,
         "crs": [cr_entry(c, by_cr) for c in crs],
-        "report": f"{d['id']}.md",
+        "report": f"{d.id}.md",
     }
 
 
@@ -106,12 +107,12 @@ def head_line(record: Rec) -> str:
     )
 
 
-def release_retro_line(repo: Repo, d: Rec) -> str | None:
+def release_retro_line(repo: Repo, d: BatchRecord) -> str | None:
     """A release CR's own `work/retro.md`, linked where it is archived, never copied."""
-    for c in d["crs"]:
+    for c in d.crs:
         archive = archive_of(c)
         if (
-            c.get("kind") == "release"
+            c.kind == "release"
             and archive
             and (repo.changes / archive / "work" / "retro.md").is_file()
         ):

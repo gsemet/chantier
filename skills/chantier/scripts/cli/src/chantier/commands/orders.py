@@ -11,7 +11,7 @@ from chantier.commands.registry import BATCH_EPOCH, Subparsers, add_command
 from chantier.core.batch import Batch, check_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, normalize_cr
+from chantier.core.records import LIVE, OrderRecord, normalize_cr
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
@@ -51,7 +51,7 @@ def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
 
 def _reopen(b: Batch, kind: str) -> list[str]:
     """A paused batch: `add` leaves it paused, `qa` runs it again."""
-    if b.data["status"] != "paused":
+    if b.record.status != "paused":
         return []
     if kind == "add":
         # the batch stays paused: the first `take` sets it running again
@@ -59,9 +59,9 @@ def _reopen(b: Batch, kind: str) -> list[str]:
     if kind == "qa":
         # a QA driver holds a slot from the order on: the batch runs again, its pause and
         # cost to date are void
-        b.data["status"] = "running"
-        b.data.pop("paused", None)
-        b.data.pop("summary", None)
+        b.record.status = "running"
+        b.record.unset("paused")
+        b.record.unset("summary")
         b.log("reopen", None)
         return [f"{b.id} was paused: running again; `pause` runs again at the end"]
     return []
@@ -70,8 +70,8 @@ def _reopen(b: Batch, kind: str) -> list[str]:
 def _qa_folder(repo: Repo, b: Batch, note: str) -> str:
     """A work folder the QA driver fills, in the inbox: a QA driver is a Driver, so refused
     before anything is created, and the open order holds the slot until `order done`."""
-    check_budget(b)
-    check_slot(b, "a QA driver")
+    check_budget(b.record)
+    check_slot(b.record, "a QA driver")
     return shown(
         repo,
         new_request(
@@ -95,7 +95,7 @@ class _Req:
 
 def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
     cr = req.cr
-    if args.kind == "after" and not any(x["id"] == cr for x in b.data["crs"]):
+    if args.kind == "after" and not any(x.id == cr for x in b.record.crs):
         raise ChantierError(f"order after: unknown CR {cr} in batch {b.id}")
     has_cr = args.kind in CR_ORDERS or (args.kind == "note" and cr != "-")
     c = b.cr(cr) if has_cr else None
@@ -104,24 +104,25 @@ def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
 
 def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
     cr, note, own, new_release = req.cr, req.note, req.own, req.new_release
-    oid = f"O-{len(b.data['orders']) + 1}"
+    oid = f"O-{len(b.record.orders) + 1}"
     # The CLI did its whole part, the Foreman only has to end the order: not a note (the
     # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
     applied = args.kind not in {"note", "qa"} and not (
-        args.kind == "drop" and b.cr(cr)["status"] in LIVE
+        args.kind == "drop" and b.cr(cr).status in LIVE
     )
-    b.data["orders"].append(
-        {
-            "id": oid,
-            "kind": args.kind,
-            "cr": cr or "-",
-            "note": note,
-            "sent": now(),
-            "done": now() if own else None,
+    b.record.append(
+        "orders",
+        OrderRecord(
+            id=oid,
+            kind=args.kind,
+            cr=cr or "-",
+            note=note,
+            sent=now(),
+            done=now() if own else None,
             **({} if own else {"applied": applied}),
             **({"fix_for": args.fix_for} if args.fix_for else {}),
             **({"release": True} if new_release else {}),
-        }
+        ),
     )
     b.log("order", None if cr in (None, "-") else cr, order=oid, order_kind=args.kind, note=note)
     return oid
@@ -156,11 +157,7 @@ def order(args: argparse.Namespace) -> list[str]:
         RenderedBatch(repo, resolve_batch(repo, args.batch), actor=actor) as b,
     ):
         check_epoch(b, args.epoch)
-        if (
-            args.kind == "qa"
-            and b.data.get("steering") == "direct"
-            and b.data["status"] != "paused"
-        ):
+        if args.kind == "qa" and b.record.steering == "direct" and b.record.status != "paused":
             raise ChantierError(
                 "a running direct batch takes no QA: order it once the batch is paused (`pause`)",
                 EXIT_PRECONDITION,
@@ -184,12 +181,12 @@ def _order_done(repo: Repo, args: argparse.Namespace) -> list[str]:
         raise ChantierError("order done <O-k>", EXIT_USAGE)
     with RenderedBatch(repo, resolve_batch(repo, args.batch), actor="foreman") as b:
         check_epoch(b, args.epoch)
-        o = next((x for x in b.data["orders"] if x["id"] == args.cr), None)
+        o = next((x for x in b.record.orders if x.id == args.cr), None)
         if o is None:
             raise ChantierError(f"unknown order {args.cr}", EXIT_USAGE)
-        if o["done"]:
+        if o.done:
             return [f"{args.cr} already done"]
-        o["done"] = now()
+        o.done = now()
         b.log("order-done", None, order=args.cr)
     return [f"{args.cr} done"]
 

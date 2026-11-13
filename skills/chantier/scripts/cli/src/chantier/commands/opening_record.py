@@ -11,6 +11,7 @@ from chantier import __version__
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 from chantier.core.git import default_branch, git
+from chantier.core.records import BatchRecord, BatchSettings, ReleaseGrant
 from chantier.core.repo import Repo
 from chantier.plugin_files import INSTRUCTIONS
 from chantier.rails_release import check_grant
@@ -35,7 +36,7 @@ def open_settings(repo: Repo, args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def release_grant(args: argparse.Namespace) -> dict[str, Any] | None:
+def release_grant(args: argparse.Namespace) -> ReleaseGrant | None:
     """The grant of the release CR, when `--release` names one."""
     if args.release is None:
         if args.autonomous_releases or args.grant_fixes:
@@ -45,11 +46,7 @@ def release_grant(args: argparse.Namespace) -> dict[str, Any] | None:
         return None
     if not 1 <= args.release <= len(args.items):
         raise ChantierError("--release: the item number of the release CR", EXIT_USAGE)
-    release = {
-        "autonomous": args.autonomous_releases,
-        "fixes": args.grant_fixes,
-        "published": 0,
-    }
+    release = ReleaseGrant(autonomous=args.autonomous_releases, fixes=args.grant_fixes, published=0)
     check_grant(release, args.budget)
     return release
 
@@ -58,37 +55,36 @@ def new_record(
     args: argparse.Namespace,
     host: str,
     settings: dict[str, Any],
-    release: dict[str, Any] | None,
+    release: ReleaseGrant | None,
     chief: str | None,
-) -> dict[str, Any]:
+) -> BatchRecord:
     """The record of a batch that has no CR yet."""
-    return {
-        "id": None,
-        "version": __version__,
-        "created": now(),
-        "status": "running",
-        "host": host,
-        "mode": args.mode,
-        "slots": args.slots,
-        "budget_usd": args.budget,
-        "spent_usd": None,
-        "foreman": None,
-        "foreman_epoch": 0,
-        "foreman_transcript": None,
-        "foreman_transcripts": [],
-        "foreman_claims": [],
-        "steering": "direct" if args.direct else "foreman",
-        "chief_transcript": chief,
-        "chief_transcripts": [chief] if chief else [],
-        "stack_agent": None,
-        "heartbeat": None,
-        "heartbeat_stopped": None,
-        "settings": settings,
-        "orders": [],
-        "asks": [],
-        "crs": [],
-        "release": release,
-    }
+    return BatchRecord(
+        version=__version__,
+        created=now(),
+        status="running",
+        host=host,
+        mode=args.mode,
+        slots=args.slots,
+        budget_usd=args.budget,
+        spent_usd=None,
+        foreman=None,
+        foreman_epoch=0,
+        foreman_transcript=None,
+        foreman_transcripts=[],
+        foreman_claims=[],
+        steering="direct" if args.direct else "foreman",
+        chief_transcript=chief,
+        chief_transcripts=[chief] if chief else [],
+        stack_agent=None,
+        heartbeat=None,
+        heartbeat_stopped=None,
+        settings=BatchSettings(**settings),
+        orders=[],
+        asks=[],
+        crs=[],
+        release=release,
+    )
 
 
 def instruction_files(root: Path) -> str:

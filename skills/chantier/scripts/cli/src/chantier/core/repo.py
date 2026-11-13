@@ -233,7 +233,7 @@ class Repo:
 
     def batch_ids(self) -> list[str]:
         """The id of the current batch, read from its `batch.json`, never from a folder name."""
-        return [read_batch_json(d / "batch.json")["id"] for d in self.batch_folders()]
+        return [read_batch_json(d / "batch.json").id for d in self.batch_folders()]
 
     def batch_dir(self, batch: str) -> Path:
         """`--batch` is a batch's number, `4` or `batch-04`: it must be the current batch's, whose
@@ -258,4 +258,4 @@ class Repo:
 
     def open_batches(self) -> list[str]:
         states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
-        return sorted(s["id"] for s in states if s.get("status") != "paused")
+        return sorted(s.id for s in states if s.status != "paused")

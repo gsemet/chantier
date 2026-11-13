@@ -17,7 +17,7 @@ from chantier.commands.cost.pricing import (
     unpriced_of,
 )
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
-from chantier.core.records import chief_sessions, read_events
+from chantier.core.records import BatchRecord, chief_sessions, read_events
 from chantier.core.repo import Repo
 from chantier.costs.copilot import copilot_session_costs
 from chantier.costs.sessions import Scope, is_spec_writer, session_costs, without_spec_writers
@@ -25,13 +25,13 @@ from chantier.costs.transcripts import transcript_path
 from chantier.rails import not_priced
 
 
-def claimed_transcripts(d: dict[str, Any]) -> list[str]:
-    return [c["transcript"] for c in d.get("foreman_claims") or []]
+def claimed_transcripts(d: BatchRecord) -> list[str]:
+    return [c.transcript for c in d.foreman_claims]
 
 
-def foreman_uuid(d: dict[str, Any]) -> list[str]:
-    uuids = d.get("foreman_transcripts") or [d.get("foreman_transcript")]
-    if not uuids[0]:
+def foreman_uuid(d: BatchRecord) -> list[str]:
+    uuids = d.foreman_transcripts or ([d.foreman_transcript] if d.foreman_transcript else [])
+    if not uuids or not uuids[0]:
         raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
     return uuids
 
@@ -93,14 +93,14 @@ class _Chief:
 
 
 def _chief_session(
-    repo: Repo, d: dict[str, Any], uuid: str, prices: dict[str, Any] | None
+    repo: Repo, d: BatchRecord, uuid: str, prices: dict[str, Any] | None
 ) -> tuple[list[Any], list[Any], list[Any]]:
     """The session whole, since the batch opened, and the steering row inside the window."""
     path = transcript_path(repo.session_root, uuid)
     window = steering_window(d, uuid) if uuid in claimed_transcripts(d) else None
     whole = session_costs(path, scope=Scope("chief-of-staff", prices=prices))
     scope = Scope("chief-of-staff", True, True, prices, window)
-    since = session_costs(path, d.get("created", ""), scope=scope)
+    since = session_costs(path, d.created or "", scope=scope)
     steered = without_spec_writers(session_costs(path, *window, scope=scope)) if window else []
     return whole, since, steered
 
@@ -156,16 +156,16 @@ def _chief_lines(c: _Chief) -> list[str]:
     return lines
 
 
-def chief_line(repo: Repo, d: dict[str, Any]) -> list[str]:
+def chief_line(repo: Repo, d: BatchRecord) -> list[str]:
     """The Chief of Staff's session, priced apart from the spend and the budget, in the lines
     that add up: what it spent since the batch opened, steering and grilling apart, and the whole
     session. What a direct batch's steering row holds is that row's, never counted twice."""
     chiefs = chief_sessions(d)
-    if d.get("host") == "copilot":
+    if d.host == "copilot":
         return _chief_unknown("not measured on this host")
     if not chiefs:
         return _chief_unknown("no Chief of Staff transcript recorded")
-    prices = price_table(repo, d["host"])
+    prices = price_table(repo, d.host)
     c = _Chief()
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
         try:
@@ -177,7 +177,7 @@ def chief_line(repo: Repo, d: dict[str, Any]) -> list[str]:
     return _chief_lines(c) + hints(sorted(unpriced))
 
 
-def cost_rows(repo: Repo, d: dict[str, Any], host: str, uuids: list[str]) -> list[dict[str, Any]]:
+def cost_rows(repo: Repo, d: BatchRecord, host: str, uuids: list[str]) -> list[dict[str, Any]]:
     """Every Foreman of the batch, summed, from its opening to now: `pause` ends no window, a
     call made after it is spend. A call of a model with no price is counted in the row's
     `unpriced`, not refused."""
@@ -186,11 +186,7 @@ def cost_rows(repo: Repo, d: dict[str, Any], host: str, uuids: list[str]) -> lis
     chiefs = chief_sessions(d)
     # a Driver is an agent the log ties to a CR, the stack or a QA order; any other agent with no
     # parent is the steering session's own subagent
-    drivers = {
-        e["agent"]
-        for e in read_events(repo.batch_dir(d["id"]))
-        if e.get("kind") == "agent" and e.get("agent")
-    }
+    drivers = {e.agent for e in read_events(repo.batch_dir(d.id)) if e.kind == "agent" and e.agent}
     for uuid in uuids:
         steering = uuid in chiefs  # a Chief of Staff's own steering window
         if host == "copilot":

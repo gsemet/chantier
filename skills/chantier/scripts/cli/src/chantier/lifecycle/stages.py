@@ -8,13 +8,12 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from chantier.core.batch import Batch, move_directory
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text, try_lock, unlock, write_file
-from chantier.core.records import read_batch_json
+from chantier.core.records import CrEntry, read_batch_json
 from chantier.core.repo import Repo
 
 PRIORITIES = ("P1", "P2", "P3", "P4")
@@ -141,24 +140,24 @@ def _spec_text(specification: Path) -> str:
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
     for batch_dir in repo.batch_folders():
         batch = read_batch_json(batch_dir / "batch.json")
-        for cr in batch.get("crs", []):
-            if cr.get("status") in {"cancelled", "merged"} or not cr.get("path"):
+        for cr in batch.crs:
+            if cr.status in {"cancelled", "merged"} or not cr.path:
                 continue
-            claimed = repo.planning_path(cr["path"], "recorded CR path")
+            claimed = repo.planning_path(cr.path, "recorded CR path")
             if claimed == directory:
-                raise ChantierError(f"{directory} is already in batch {batch['id']}", EXIT_CONFLICT)
+                raise ChantierError(f"{directory} is already in batch {batch.id}", EXIT_CONFLICT)
 
 
-def cr_directory(repo: Repo, cr: dict[str, Any]) -> Path:
-    if not cr.get("path"):
-        raise ChantierError(f"{cr['id']} has no recorded CR folder", EXIT_PRECONDITION)
-    return repo.planning_path(cr["path"], "recorded CR path")
+def cr_directory(repo: Repo, cr: CrEntry) -> Path:
+    if not cr.path:
+        raise ChantierError(f"{cr.id} has no recorded CR folder", EXIT_PRECONDITION)
+    return repo.planning_path(cr.path, "recorded CR path")
 
 
-def _relocate(batch: Batch, cr: dict[str, Any], target: Path) -> None:
+def _relocate(batch: Batch, cr: CrEntry, target: Path) -> None:
     source = cr_directory(batch.repo, cr)
     batch.move(source, target)
-    cr["path"] = batch.repo.rel(target)
+    cr.path = batch.repo.rel(target)
     old = batch.repo.changes / "3-requests"  # a working CR of a converted tree was its last tenant
     for folder in (source.parent, source.parent.parent):
         if old in (folder, *folder.parents) and folder.is_dir() and not any(folder.iterdir()):
@@ -166,10 +165,10 @@ def _relocate(batch: Batch, cr: dict[str, Any], target: Path) -> None:
                 folder.rmdir()
 
 
-def start_cr(batch: Batch, cr: dict[str, Any]) -> None:
+def start_cr(batch: Batch, cr: CrEntry) -> None:
     """`take`: the CR's folder goes from `1-pending` to `2-actives`, before its Driver gets the
     facts. A CR already elsewhere (taken before, or still at the path of an older tree) stays."""
-    if not cr.get("path"):
+    if not cr.path:
         return
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
@@ -177,40 +176,40 @@ def start_cr(batch: Batch, cr: dict[str, Any]) -> None:
         _relocate(batch, cr, paths["actives"] / source.name)
 
 
-def done_cr(batch: Batch, cr: dict[str, Any]) -> None:
+def done_cr(batch: Batch, cr: CrEntry) -> None:
     """The CR is merged (a release CR: released): its folder goes to `3-done` and stays until
     `close`, with the merge time, which names its archive. A folder that already left stays."""
-    if not cr.get("path"):
+    if not cr.path:
         return
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
     if source.parent not in (paths["done"], paths["archives"], paths["trash"]):
         _relocate(batch, cr, paths["done"] / source.name)
-    cr["merged_at"] = cr.get("merged_at") or now()
+    cr.merged_at = cr.merged_at or now()
     if batch.repo.external and cr_directory(batch.repo, cr).is_dir():
         _delivery(batch.repo, cr, cr_directory(batch.repo, cr))
 
 
-def _delivery(repo: Repo, cr: dict[str, Any], folder: Path) -> None:
+def _delivery(repo: Repo, cr: CrEntry, folder: Path) -> None:
     """`delivery.md`, written in the surface when the merge is recorded: it travels into the
     archive and says where the CR was delivered."""
     if not repo.archive_in_pr:
         mine = "no (project setting)"
-    elif cr.get("archive_seen"):
-        name = Path(cr["path"]).name
-        mine = f"yes, at .agents/changes/5-archives/{cr.get('archive_stamp') or '?'}-{name}/"
+    elif cr.archive_seen:
+        name = Path(cr.path or "").name
+        mine = f"yes, at .agents/changes/5-archives/{cr.archive_stamp or '?'}-{name}/"
     else:
         mine = "no (missing from the PR)"
     write_file(
         folder / "delivery.md",
-        f"# Delivery\n\n- PR: {cr.get('pr') or 'none'}\n"
-        f"- Merged: {cr['merged_at']}\n- Archive in the PR: {mine}\n",
+        f"# Delivery\n\n- PR: {cr.pr or 'none'}\n"
+        f"- Merged: {cr.merged_at}\n- Archive in the PR: {mine}\n",
     )
 
 
-def trash_cr(batch: Batch, cr: dict[str, Any]) -> None:
+def trash_cr(batch: Batch, cr: CrEntry) -> None:
     """The CR is dropped: its folder goes to `6-trash` at once, the name starting with the date."""
-    if not cr.get("path"):
+    if not cr.path:
         return
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
@@ -218,10 +217,10 @@ def trash_cr(batch: Batch, cr: dict[str, Any]) -> None:
         _relocate(batch, cr, paths["trash"] / f"{stamp()}-{source.name}")
 
 
-def archive_name(cr: dict[str, Any], folder: Path) -> str:
+def archive_name(cr: CrEntry, folder: Path) -> str:
     """`<YYMMDD-HHMM>-<number>-<slug>`: the merge time (UTC), so the archives keep the merge
     order; a CR with no recorded merge time takes the time of the close."""
-    when = cr.get("merged_at")
+    when = cr.merged_at
     try:
         day = datetime.strptime(str(when), "%Y-%m-%dT%H:%M:%SZ").strftime("%y%m%d-%H%M")
     except (TypeError, ValueError):

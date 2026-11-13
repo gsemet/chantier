@@ -261,7 +261,7 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
         return _gate_stop(args, repo, batch, wt)
     if dirty_files(wt):  # a gate binds to a commit: nothing runs, nothing is logged
         raise ChantierError(
-            f"{c['id']}: the worktree has uncommitted changes or untracked files: "
+            f"{c.id}: the worktree has uncommitted changes or untracked files: "
             "a gate binds to a commit, commit first",
             EXIT_PRECONDITION,
         )
@@ -272,7 +272,7 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     log = logdir / f"{stamped}.log"
     # the events of this invocation share the run id
     g = _Gate(repo, args.cr, batch, wt, log, f"{stamped}-{os.getpid()}", start)
-    g.note(f"gate {c['id']} branch {c['branch']} head {start}\n")  # before any waiting note
+    g.note(f"gate {c.id} branch {c.branch} head {start}\n")  # before any waiting note
     with LongGateLock(repo, args.cr, log) as lock:
         _stop_file(repo).unlink(missing_ok=True)  # a stale ask is not this gate's
         _run_write(repo, g.record(command=""))

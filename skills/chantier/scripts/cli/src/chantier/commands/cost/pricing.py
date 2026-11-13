@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.core.records import chief_sessions
+from chantier.core.records import BatchRecord, chief_sessions
 from chantier.core.repo import Repo
 from chantier.plugin_files import read_playbook
 from chantier.rails import usd_text
@@ -65,14 +65,15 @@ def hints(models: Iterable[str]) -> list[str]:
     ]
 
 
-def steering_window(d: dict[str, Any], uuid: str) -> tuple[str, str]:
+def steering_window(d: BatchRecord, uuid: str) -> tuple[str, str]:
     """The part of a steering transcript that belongs to the batch's steering: a Foreman's from
     the batch's opening (its startup is the batch's), the Chief of Staff's from its claim; each
     ends where the next claim begins. A batch with no recorded claims has no end."""
-    claims = d.get("foreman_claims") or []
-    names = [c["transcript"] for c in claims]
+    claims = d.foreman_claims
+    names = [c.transcript for c in claims]
+    created = d.created or ""
     if uuid not in names:
-        return d.get("created", ""), ""
+        return created, ""
     i = names.index(uuid)
-    since = claims[i]["since"] if uuid in chief_sessions(d) else d.get("created", "")
-    return since, claims[i + 1]["since"] if i + 1 < len(claims) else ""
+    since = (claims[i].since or "") if uuid in chief_sessions(d) else created
+    return since, (claims[i + 1].since or "") if i + 1 < len(claims) else ""

@@ -6,7 +6,6 @@ import argparse
 import re
 import subprocess
 from pathlib import Path
-from typing import Any
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
 from chantier.commands.facts import stack_base, stack_lines
@@ -15,6 +14,7 @@ from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import git
+from chantier.core.records import CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
@@ -38,17 +38,16 @@ def verdict(args: argparse.Namespace) -> list[str]:
     wt = cr_worktree(c)
     if git("status", "--porcelain", "--untracked-files=normal", cwd=wt):
         raise ChantierError(
-            f"{c['id']}: the worktree has uncommitted work: a verdict binds to a "
-            "head, commit first",
+            f"{c.id}: the worktree has uncommitted work: a verdict binds to a head, commit first",
             EXIT_PRECONDITION,
         )
     head = git("rev-parse", "HEAD", cwd=wt)
     with RenderedBatch(repo, batch, actor="driver") as b:
-        b.log("verdict", c["id"], result=result, head=head)
-    return [f"verdict {c['id']} {result} at {short_head(head)}"]
+        b.log("verdict", c.id, result=result, head=head)
+    return [f"verdict {c.id} {result} at {short_head(head)}"]
 
 
-def _stale_body_shas(repo: Repo, c: dict[str, Any], wt: Path, head: str) -> list[str]:
+def _stale_body_shas(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
     """The lines of the posted PR body (`work/pr-body.md`) that name a commit of the worktree
     which is not in the new head's history (a restack made it stale). A line marked `STALE` or
     `carried from` is the template's own mark and is left out. Read-only git."""
@@ -86,7 +85,7 @@ def _stale_token(line: str, wt: Path, head: str) -> str | None:
     return None
 
 
-def _off_worktree(repo: Repo, c: dict[str, Any], wt: Path, head: str) -> list[str]:
+def _off_worktree(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
     """What is off in the worktree: uncommitted changes, a head not pushed."""
     off = []
     dirty = git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
@@ -100,7 +99,7 @@ def _off_worktree(repo: Repo, c: dict[str, Any], wt: Path, head: str) -> list[st
             f"{what} in the worktree, not in the PR: "
             f"{' '.join(ln.split(maxsplit=1)[-1] for ln in dirty.splitlines()[:5])}"
         )
-    ref = f"{repo.config['remote']}/{c['branch']}"
+    ref = f"{repo.config['remote']}/{c.branch}"
     pushed = git("rev-parse", "--verify", "--quiet", ref, cwd=wt, check=False)
     if pushed != head:
         where_ = "not pushed" if not pushed else "at " + pushed[:7]
@@ -130,13 +129,13 @@ def ship(args: argparse.Namespace) -> list[str]:
         )
         if not seen:
             off.append(f"archive missing from the PR at {where}")
-    if not gate_passed(cr_events(repo, batch, c["id"]), head):
+    if not gate_passed(cr_events(repo, batch, c.id), head):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     off += _stale_body_shas(repo, c, wt, head)
     base = stack_base(d, c, repo)
     with RenderedBatch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(c["id"]), pr=args.pr, head=head, archive_seen=seen)
-        b.log("ship", c["id"], pr=args.pr, base=base, head=head, off=off)
+        b.touch(b.cr(c.id), pr=args.pr, head=head, archive_seen=seen)
+        b.log("ship", c.id, pr=args.pr, base=base, head=head, off=off)
     return [f"recorded {args.pr} (base {base}, head {short})"] + [f"off: {x}" for x in off]
 
 
@@ -146,15 +145,15 @@ def stack(args: argparse.Namespace) -> list[str]:
     batch = resolve_batch(repo, args.batch)
     if not args.crs:  # read only: no lock, no event, no epoch
         d = read_batch(repo, batch)
-        if d["mode"] != "stack":
+        if d.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
         return stack_lines(repo, batch, d)
     with RenderedBatch(repo, batch, actor="stack") as b:
-        if b.data["mode"] != "stack":
+        if b.record.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
         place = {cr: i for i, cr in enumerate(args.crs, 1)}
         for cr in args.crs:
-            below = [a for a in b.cr(cr).get("after", []) if place.get(a, 0) > place[cr]]
+            below = [a for a in b.cr(cr).after if place.get(a, 0) > place[cr]]
             if below:
                 raise ChantierError(
                     f"{cr} depends on {', '.join(below)}: it cannot sit below "

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from chantier.commands.crs import filed_fix, grant_line
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
@@ -18,7 +17,7 @@ from chantier.commands.orders_release import (
 )
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE
+from chantier.core.records import LIVE, CrEntry
 from chantier.lifecycle.stages import trash_cr
 from chantier.rails import ENDED, is_release
 from chantier.rails_release import (
@@ -39,11 +38,18 @@ class Word:
     b: Batch
     kind: str
     cr_id: str
-    c: Any
+    c: CrEntry | None
     note: str
     fix_for: str | None = None
     own: bool = False
     release: bool = False
+
+
+def target(w: Word) -> CrEntry:
+    """The CR the order is about: every kind that reaches for it names one."""
+    if w.c is None:
+        raise ChantierError(f"order {w.kind} names a CR", EXIT_USAGE)
+    return w.c
 
 
 def _need_note(w: Word, usage: str) -> str:
@@ -55,9 +61,7 @@ def _need_note(w: Word, usage: str) -> str:
 def _open_ids(b: Batch, cr_id: str) -> list[str]:
     """The CRs, other than this one and its fixes, neither merged nor cancelled."""
     return [
-        x["id"]
-        for x in b.data["crs"]
-        if x["id"] != cr_id and x.get("kind") != "fix" and x["status"] not in ENDED
+        x.id for x in b.record.crs if x.id != cr_id and x.kind != "fix" and x.status not in ENDED
     ]
 
 
@@ -69,21 +73,21 @@ def _add(w: Word) -> list[str]:
         if w.own:
             check_granted_fix(b, rel)
         fix = add_cr(b, filed_fix(b, rel, w.note), kind="fix")
-        fix["fix_for"] = w.fix_for
-        rel.setdefault("notes", []).append(
-            f"fix: {fix['id']} must merge first; then the procedure starts again from its first "
-            "step"
+        fix.fix_for = w.fix_for
+        rel.append(
+            "notes",
+            f"fix: {fix.id} must merge first; then the procedure starts again from its first step",
         )
         b.touch(rel)
-        return [f"added {fix['id']} (fix for {w.fix_for}), queued"]
+        return [f"added {fix.id} (fix for {w.fix_for}), queued"]
     if w.release:
         return add_release(b, w.note)
     check_release_open(b)
     added = add_cr(b, w.note)
     declare_dependencies(b, [added])
     join_release(b, added)
-    waits = f", after {', '.join(added['after'])}" if added.get("after") else ""
-    return [f"added {added['id']}, queued{waits}"]
+    waits = f", after {', '.join(added.after)}" if added.after else ""
+    return [f"added {added.id}, queued{waits}"]
 
 
 def _after_ids(w: Word) -> list[str]:
@@ -91,7 +95,7 @@ def _after_ids(w: Word) -> list[str]:
     b, cr_id, note = w.b, w.cr_id, w.note
     ids: list[str] = []
     for dep in [] if note.strip() == "-" else [s.strip() for s in note.split(",")]:
-        if not any(x["id"] == dep for x in b.data["crs"]):
+        if not any(x.id == dep for x in b.record.crs):
             raise ChantierError(f"order after: unknown CR {dep!r} in batch {b.id}")
         if is_release(b.cr(dep)):
             raise ChantierError(
@@ -100,27 +104,27 @@ def _after_ids(w: Word) -> list[str]:
             )
         if dep == cr_id:
             raise ChantierError(f"order after: {cr_id} cannot wait for itself")
-        if b.cr(dep)["status"] != "merged" and dep not in ids:  # merged: met, not recorded
+        if b.cr(dep).status != "merged" and dep not in ids:  # merged: met, not recorded
             ids.append(dep)
     return ids
 
 
 def _after(w: Word) -> list[str]:
-    b, c, cr_id = w.b, w.c, w.cr_id
+    b, c, cr_id = w.b, target(w), w.cr_id
     _need_note(w, 'order after <cr> --note "<CR ids, comma separated, or - for none>"')
     if is_release(c):
         raise ChantierError(
             f"order after: {cr_id} is the release CR: the CLI keeps what it "
             "waits for (every other CR of the batch)"
         )
-    if c["status"] != "queued":
+    if c.status != "queued":
         stack = "; in a stack, its place and base are set by `stack`"
         raise ChantierError(
-            f"cannot change what {cr_id} waits for: it is {c['status']}, not queued"
-            + (stack if b.data["mode"] == "stack" else "")
+            f"cannot change what {cr_id} waits for: it is {c.status}, not queued"
+            + (stack if b.record.mode == "stack" else "")
         )
     ids = _after_ids(w)
-    previous = c.get("after", [])
+    previous = c.after
     _set_after(c, ids)
     try:
         check_cycles(b)
@@ -132,50 +136,50 @@ def _after(w: Word) -> list[str]:
     return [f"{cr_id} now waits for {', '.join(ids)}" if ids else f"{cr_id} waits for nothing"]
 
 
-def _set_after(c: dict[str, Any], ids: list[str]) -> None:
+def _set_after(c: CrEntry, ids: list[str]) -> None:
     if ids:
-        c["after"] = ids
+        c.after = ids
     else:
-        c.pop("after", None)
+        c.unset("after")
 
 
 def _drop(w: Word) -> list[str]:
-    b, c, cr_id = w.b, w.c, w.cr_id
-    if c["status"] == "merged":
+    b, c, cr_id = w.b, target(w), w.cr_id
+    if c.status == "merged":
         raise ChantierError(f"cannot drop {cr_id}: it is already merged")
-    if c["status"] in LIVE:
+    if c.status in LIVE:
         return [f"{cr_id} is live: the Foreman stops its Driver, then `chantier cancel {cr_id}`"]
-    if c["status"] == "cancelled":
-        raise ChantierError(f"{cr_id} is already dropped: {c['path']}", EXIT_PRECONDITION)
+    if c.status == "cancelled":
+        raise ChantierError(f"{cr_id} is already dropped: {c.path}", EXIT_PRECONDITION)
     trash_cr(b, c)
     b.touch(c, status="cancelled")
-    return [f"dropped {cr_id}: {c['path']}"]
+    return [f"dropped {cr_id}: {c.path}"]
 
 
 def _note(w: Word) -> list[str]:
     b, c, cr_id = w.b, w.c, w.cr_id
     _need_note(w, 'order note [<cr>] --note "<the user\'s word, in one line>"')
-    if c and c["status"] == "cancelled":
+    if c and c.status == "cancelled":
         raise ChantierError(f"cannot note {cr_id}: it is cancelled", EXIT_PRECONDITION)
     if c:
-        c.setdefault("notes", []).append(w.note.strip())
+        c.append("notes", w.note.strip())
         b.touch(c)
     out = [f"noted{' on ' + cr_id if c else ''}: the Foreman reads it in `status`"]
-    if c and c["status"] in ("ready", "blocked"):
+    if c and c.status in ("ready", "blocked"):
         out.append(
-            f"{c['id']} is {c['status']}: no Driver works on it until the Foreman "
-            f'takes it back (take {c["id"]} --note "<why>")'
+            f"{c.id} is {c.status}: no Driver works on it until the Foreman "
+            f'takes it back (take {c.id} --note "<why>")'
         )
     return out
 
 
 def _merged(w: Word) -> list[str]:
-    b, c, cr_id = w.b, w.c, w.cr_id
-    if c["status"] == "merged":
+    b, c, cr_id = w.b, target(w), w.cr_id
+    if c.status == "merged":
         return [f"{cr_id} already merged"]
-    if c["status"] == "cancelled":
+    if c.status == "cancelled":
         raise ChantierError(f"cannot mark cancelled {cr_id} merged")
-    if c.get("kind") != "release":
+    if c.kind != "release":
         return merge_done(b, c)
     open_ = _open_ids(b, cr_id)
     if open_:
@@ -189,30 +193,31 @@ def _merged(w: Word) -> list[str]:
 def _rounds(w: Word) -> list[str]:
     if not w.note.isdigit() or int(w.note) < 1:
         raise refused("order rounds <cr> --note <n>", w.note, "a whole number of rounds, 1 or more")
-    w.b.touch(w.c, rounds=int(w.note))
+    w.b.touch(target(w), rounds=int(w.note))
     return [f"{w.cr_id}: up to {w.note} rounds"]
 
 
 def _slots(w: Word) -> list[str]:
     if not w.note.isdigit():
         raise ChantierError("order slots --note <n> (0 holds: no new Driver starts)", EXIT_USAGE)
-    w.b.data["slots"] = int(w.note)
+    w.b.record.slots = int(w.note)
     return [f"slots {w.note}"]
 
 
 def _budget(w: Word) -> list[str]:
     if not re.fullmatch(r"\d+(\.\d+)?", w.note) or float(w.note) <= 0:
         raise refused("order budget --note <usd>", w.note, "a positive amount in dollars")
-    w.b.data["budget_usd"] = float(w.note)
+    w.b.record.budget_usd = float(w.note)
     return [f"budget ${float(w.note):g}"]
 
 
 def _approve(w: Word) -> list[str]:
     release_cr(w.b, w.kind, w.cr_id)
     note = _need_note(w, 'order approve <release-cr> --note "<the action the user approved>"')
-    w.c.setdefault("approvals", []).append(note)
-    w.c.setdefault("notes", []).append(f"approved: {note}")
-    w.b.touch(w.c)
+    c = target(w)
+    c.append("approvals", note)
+    c.append("notes", f"approved: {note}")
+    w.b.touch(c)
     return [f"approved: {note}"]
 
 
@@ -221,48 +226,50 @@ def _grant(w: Word) -> list[str]:
     release = release_cr(b, w.kind, w.cr_id)
     grant = parse_grant(w.note)
     if "budget_usd" in grant:
-        b.data["budget_usd"] = grant.pop("budget_usd")
-    release.update(grant)
-    check_grant(release, b.data.get("budget_usd"))
-    w.c.setdefault("notes", []).append(f"grant: {w.note.strip()}")
-    b.touch(w.c)
+        b.record.budget_usd = grant.pop("budget_usd")
+    for key, value in grant.items():
+        setattr(release, key, value)
+    check_grant(release, b.record.budget_usd)
+    c = target(w)
+    c.append("notes", f"grant: {w.note.strip()}")
+    b.touch(c)
     return [f"granted: {grant_line(release)}"]
 
 
 def _confirm(w: Word) -> list[str]:
-    b, c, cr_id = w.b, w.c, w.cr_id
+    b, c, cr_id = w.b, target(w), w.cr_id
     release_cr(b, w.kind, cr_id)
     note = _need_note(
         w,
         'order confirm <release-cr> --note "<the user\'s word to run the release procedure>"',
     )
-    if c["status"] in ENDED:
-        raise ChantierError(f"order confirm: {cr_id} is {c['status']}")
+    if c.status in ENDED:
+        raise ChantierError(f"order confirm: {cr_id} is {c.status}")
     open_ = _open_ids(b, cr_id)
     if open_:
         raise ChantierError(
             f"order confirm: {', '.join(open_)} not merged yet: the word to "
             "run the release procedure comes once they are merged"
         )
-    if c.get("pr"):
+    if c.pr:
         raise ChantierError(
-            f"order confirm: the release PR {c['pr']} is not merged: the "
+            f"order confirm: the release PR {c.pr} is not merged: the "
             "word comes once it is merged (`order merged`), or for a "
             "procedure with no release PR"
         )
-    c["procedure"] = note
-    c.setdefault("notes", []).append(f"procedure: {note}")
+    c.procedure = note
+    c.append("notes", f"procedure: {note}")
     b.touch(c)
     return [f"{cr_id}: the user's word to run the release procedure is recorded: {note}"]
 
 
 def _mode(w: Word) -> list[str]:
     b = w.b
-    if b.data["mode"] != "series" or w.note.strip() != "stack":
+    if b.record.mode != "series" or w.note.strip() != "stack":
         raise ChantierError(
             "order mode: only a series batch switches, to a stack (`order mode --note stack`)"
         )
-    b.data["mode"] = "stack"
+    b.record.mode = "stack"
     b.log("mode", None, mode="stack")
     return [
         f"{b.id} is a stack now: a queued CR waits only for its `after`; the stack "

@@ -56,8 +56,8 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = open_repo()
     if args.batch:
         d = read_batch(repo, resolve_batch(repo, args.batch))
-        made, host = d.get("playbook"), d["host"]
-        label = d.get("id") or args.batch
+        made, host = d.playbook, d.host
+        label = d.id or args.batch
     else:
         host = detect_host(args.host)
         made, problems = read_playbook(repo, host)

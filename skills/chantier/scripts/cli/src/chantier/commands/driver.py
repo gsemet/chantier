@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Any
 
 from chantier.commands.cost.sessions import foreman_uuid
 from chantier.commands.crs import (
@@ -24,7 +23,7 @@ from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_comma
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE
+from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.costs.sessions import agent_context
 from chantier.lifecycle.convert import open_repo
@@ -43,11 +42,11 @@ from chantier.rails import (
 
 def _reopen(b: Batch) -> list[str]:
     """A take on a paused batch sets it running again: its pause and cost to date are void."""
-    if b.data["status"] != "paused":
+    if b.record.status != "paused":
         return []
-    b.data["status"] = "running"
-    b.data.pop("paused", None)
-    b.data.pop("summary", None)
+    b.record.status = "running"
+    b.record.unset("paused")
+    b.record.unset("summary")
     b.log("reopen", None)
     return [f"{b.id} was paused: running again; `pause` runs again at the end"]
 
@@ -63,37 +62,39 @@ def take(args: argparse.Namespace) -> list[str]:
         batch = find_cr_batch(repo, args.cr, args.batch)
     with changes_lock(repo), RenderedBatch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
-        d = b.data
+        d = b.record
         if args.cr == "stack":
-            if d["mode"] != "stack":
+            if d.mode != "stack":
                 raise ChantierError(f"batch {batch} is not a stack")
-            if d.get("stack_agent"):
+            if d.stack_agent:
                 raise ChantierError(
-                    f"a stack driver is recorded ({d['stack_agent']}); one "
+                    f"a stack driver is recorded ({d.stack_agent}); one "
                     "that ended: `agents set stack -` first (a stack driver "
                     "reads the stack with `stack`, which changes nothing)"
                 )
-            check_budget(b)
+            check_budget(d)
             reopened = _reopen(b)
             b.log("take", None, note=args.note)
             head, *rows = stack_lines(repo, batch, d)
             return [head, *reopened, *rows]
         c = b.cr(args.cr)
-        check_take(b, c, args.note)
-        if c["status"] != "working":
+        check_take(d, c, args.note)
+        if c.status != "working":
             check_release_branch(repo, d, c)
         reopened = _reopen(b)
-        restart = c["status"] == "working"  # a new Driver on a CR already working
-        if c["status"] in {"ready", "blocked", "working"}:
-            c.setdefault("notes", []).append(f"back to a Driver: {args.note}")
+        restart = c.status == "working"  # a new Driver on a CR already working
+        if c.status in {"ready", "blocked", "working"}:
+            c.append("notes", f"back to a Driver: {args.note}")
         b.touch(c, status="working", blocked_reason=None)
-        b.log("take", c["id"], note=args.note, **({"restart": True} if restart else {}))
+        b.log("take", c.id, note=args.note, **({"restart": True} if restart else {}))
         start_cr(b, c)  # `1-pending` to `2-actives`, before the Driver gets its facts
         if repo.external:
-            c.setdefault("archive_stamp", stamp())  # the archive's name, kept from the first take
+            c.archive_stamp = (
+                c.archive_stamp or stamp()
+            )  # the archive's name, kept from the first take
         work(repo, c).mkdir(parents=True, exist_ok=True)
         facts = cr_facts(repo, batch, d, c)
-    return [f"took {c['id']} ({len(held(b))} of {d['slots']} slots held)", *reopened, *facts]
+    return [f"took {c.id} ({len(held(d))} of {d.slots} slots held)", *reopened, *facts]
 
 
 def round_(args: argparse.Namespace) -> list[str]:
@@ -106,27 +107,27 @@ def round_(args: argparse.Namespace) -> list[str]:
     batch = find_cr_batch(repo, args.cr, args.batch)
     with changes_lock(repo), RenderedBatch(repo, batch, actor="driver") as b:
         c = b.cr(args.cr)
-        if c["status"] not in LIVE:
-            raise ChantierError(f"{args.cr} is {c['status']}: no Driver to run a round")
-        limit = check_round(b, c)  # the budget first, then the limit
-        wt = Path(c["worktree"]) if c.get("worktree") else None
+        if c.status not in LIVE:
+            raise ChantierError(f"{args.cr} is {c.status}: no Driver to run a round")
+        limit = check_round(b.record, c)  # the budget first, then the limit
+        wt = Path(c.worktree) if c.worktree else None
         seen = worktree_print(wt)
-        check_stray_round(cr_events(repo, batch, c["id"]), c, seen)  # then a stray round
-        b.touch(c, round=c.get("round", 0) + 1)
-        b.log("round", c["id"], round=c["round"], note=args.note, **seen)
+        check_stray_round(cr_events(repo, batch, c.id), c, seen)  # then a stray round
+        b.touch(c, round=c.round + 1)
+        b.log("round", c.id, round=c.round, note=args.note, **seen)
         work(repo, c).mkdir(parents=True, exist_ok=True)
-        facts = cr_facts(repo, batch, b.data, c)
-        context = _context_line(repo, b.data, c)
-    return [f"round {c['round']} of {limit} for {c['id']}", *facts, context]
+        facts = cr_facts(repo, batch, b.record, c)
+        context = _context_line(repo, b.record, c)
+    return [f"round {c.round} of {limit} for {c.id}", *facts, context]
 
 
-def _context_line(repo: Repo, d: dict[str, Any], c: dict[str, Any]) -> str:
+def _context_line(repo: Repo, d: BatchRecord, c: CrEntry) -> str:
     """The context size of the agent recorded on the CR, its Driver: the last call's prompt, read
     from the end of its transcript. Not an error when it cannot be measured."""
-    agent = c.get("agent")
+    agent = c.agent
     if not agent:
         return "context: not measured (no agent recorded)"
-    if d.get("host") == "copilot":
+    if d.host == "copilot":
         return "context: not measured (Copilot gives no per-agent record)"
     try:
         sessions = foreman_uuid(d)
@@ -154,18 +155,22 @@ def handback(args: argparse.Namespace) -> list[str]:
             return handback_blocked(b, c, note, line)
         # a release with an unmerged PR recorded: the release PR is prepared and waits for
         # its merge (the checks of a CR, no verdict); with none, it is released
-        prepared = c.get("kind") == "release" and bool(c.get("pr"))
-        if c.get("kind") == "release" and not prepared:  # released: nothing is left to merge
-            c["released"] = note.split()[0]
+        prepared = c.kind == "release" and bool(c.pr)
+        if c.kind == "release" and not prepared:  # released: nothing is left to merge
+            c.released = note.split()[0]
             b.log("handback", args.cr, result=args.result, note=note)
             done_cr(b, c)
             b.touch(c, status="merged")
             return [
                 line,
                 f"{args.cr} released, in 3-done"
-                + ("; every CR is merged or cancelled: `chantier pause`" if all_merged(b) else ""),
+                + (
+                    "; every CR is merged or cancelled: `chantier pause`"
+                    if all_merged(b.record)
+                    else ""
+                ),
             ]
-        if not c.get("pr"):
+        if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
         handback_refusals(repo, b, c, no_gate, prepared)
         if no_gate is not None:
@@ -179,7 +184,7 @@ def handback(args: argparse.Namespace) -> list[str]:
         )
         b.touch(c, status="ready")
         if prepared:
-            return [line, f"{args.cr} ready: the release PR {c['pr']} waits for its merge"]
+            return [line, f"{args.cr} ready: the release PR {c.pr} waits for its merge"]
         return [line, f"{args.cr} ready"]
 
 
@@ -199,13 +204,13 @@ def note(args: argparse.Namespace) -> list[str]:
                     f"note --draft <path of an existing file>, not {args.draft!r}", EXIT_USAGE
                 )
             draft = path.resolve().as_posix()
-            if draft not in c.setdefault("drafts", []):
-                c["drafts"].append(draft)
+            if draft not in c.drafts:
+                c.append("drafts", draft)
             text = text or f"draft: {draft}"
-        c.setdefault("notes", []).append(text)
+        c.append("notes", text)
         b.touch(c)
         b.log("note", args.cr, note=text)
-        context = _context_line(repo, b.data, c)
+        context = _context_line(repo, b.record, c)
     return ["ok", context]
 
 
@@ -214,17 +219,17 @@ def log(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     batch, _, c = batch_cr(repo, args.cr, args.batch)
     lines = []
-    for e in cr_events(repo, batch, c["id"]):
+    for e in cr_events(repo, batch, c.id):
         rest = {
             k: v
-            for k, v in e.items()
+            for k, v in e.to_data().items()
             if k not in {"t", "actor", "kind", "cr"} and v not in (None, "", [])
         }
         lines.append(
-            f"{e['t']} {e['actor']} {e['kind']}"
+            f"{e.t} {e.actor} {e.kind}"
             + (" " + " ".join(f"{k}={v}" for k, v in rest.items()) if rest else "")
         )
-    return lines or [f"no event for {c['id']}"]
+    return lines or [f"no event for {c.id}"]
 
 
 def register(sub: Subparsers) -> None:

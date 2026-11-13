@@ -25,6 +25,7 @@ from chantier.core.files import (
 )
 from chantier.core.records import (
     BatchRecord,
+    CrEntry,
     EventRecord,
     normalize_batch,
     normalize_cr,
@@ -50,14 +51,14 @@ def move_directory(source: Path, destination: Path) -> None:
         ) from e
 
 
-def apply_batch_settings(repo: Repo, data: dict[str, Any]) -> None:
+def apply_batch_settings(repo: Repo, record: BatchRecord) -> None:
     """A batch runs on the settings it was opened with, whatever changed since."""
-    settings = data.get("settings")
+    settings = record.settings
     if settings is None:
         return
     for key in SETTINGS:
-        if key in settings:
-            repo.config[key] = settings[key]
+        if key in settings.model_fields_set:
+            repo.config[key] = getattr(settings, key)
 
 
 class Batch:
@@ -68,7 +69,7 @@ class Batch:
         repo: Repo,
         batch_id: str | None,
         actor: str = "cli",
-        create: dict[str, Any] | None = None,
+        create: BatchRecord | None = None,
     ):
         """`create` opens a new batch: its number is the next, its id `batch-<n>` on two digits."""
         self._create = create
@@ -77,13 +78,13 @@ class Batch:
         if create is not None:
             self._number = repo.next_batch_number()
             batch_id = f"batch-{self._number:02d}"
-            create["id"] = batch_id
+            create.id = batch_id
         else:
             batch_id = normalize_batch(batch_id or "")
         self.repo, self.id, self.actor = repo, batch_id, actor
         self.dir = repo.batches
         self._lock: TextIO
-        self.data: dict[str, Any] = {}
+        self.record = BatchRecord()
         self._events: list[EventRecord] = []
         self._moves: list[tuple[Path, Path]] = []
 
@@ -117,10 +118,10 @@ class Batch:
         if path.exists():
             if self._create is not None:
                 raise ChantierError(f"batch {self.id} already exists")
-            self.data = read_batch_json(path)
+            self.record = read_batch_json(path)
         else:
-            self.data = self._create or {}
-        apply_batch_settings(self.repo, self.data)
+            self.record = self._create or BatchRecord()
+        apply_batch_settings(self.repo, self.record)
 
     def after_save(self) -> None:
         """What follows a saved change: nothing here; a layer above renders the STATUS files."""
@@ -135,8 +136,8 @@ class Batch:
         try:
             if exc_type is None and self._events:
                 if self._number:  # the number is reserved by the record, before the state
-                    self._record = reserve_record(self.repo, self.data)
-                write_json(self.dir / "batch.json", BatchRecord.model_validate(self.data).to_data())
+                    self._record = reserve_record(self.repo, self.record)
+                write_json(self.dir / "batch.json", self.record.to_data())
                 saved = True
                 self._append_events()
                 try:
@@ -177,17 +178,17 @@ class Batch:
     def log(self, kind: str, cr: str | None = None, **fields: Any) -> None:
         self._events.append(EventRecord(t=now(), actor=self.actor, kind=kind, cr=cr, **fields))
 
-    def cr(self, cr_id: str) -> dict[str, Any]:
+    def cr(self, cr_id: str) -> CrEntry:
         cr_id = normalize_cr(cr_id)
-        for c in self.data["crs"]:
-            if c["id"] == cr_id:
-                found: dict[str, Any] = c
-                return found
+        for c in self.record.crs:
+            if c.id == cr_id:
+                return c
         raise ChantierError(f"unknown CR {cr_id} in batch {self.id}", EXIT_USAGE)
 
-    def touch(self, c: dict[str, Any], **fields: Any) -> None:
-        c.update(fields)
-        c["updated"] = now()
+    def touch(self, c: CrEntry, **fields: Any) -> None:
+        for key, value in fields.items():
+            setattr(c, key, value)
+        c.updated = now()
 
     def move(self, source: Path, destination: Path) -> None:
         move_directory(source, destination)
@@ -222,7 +223,7 @@ def check_epoch(b: Batch, epoch: int | None) -> None:
     """A Foreman command carries the epoch it was started with; a stale Foreman is refused."""
     if epoch is None:
         return
-    current = b.data.get("foreman_epoch", 0)
+    current = b.record.foreman_epoch
     if epoch != current:
         raise ChantierError(
             f"stale Foreman: epoch {epoch}, batch {b.id} is at epoch {current}; stop now",
@@ -230,10 +231,10 @@ def check_epoch(b: Batch, epoch: int | None) -> None:
         )
 
 
-def read_batch(repo: Repo, batch_id: str) -> dict[str, Any]:
-    data = read_batch_json(repo.batch_dir(batch_id) / "batch.json")
-    apply_batch_settings(repo, data)
-    return data
+def read_batch(repo: Repo, batch_id: str) -> BatchRecord:
+    record = read_batch_json(repo.batch_dir(batch_id) / "batch.json")
+    apply_batch_settings(repo, record)
+    return record
 
 
 def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
@@ -244,8 +245,8 @@ def find_cr_batch(repo: Repo, cr_id: str, batch: str | None) -> str:
         return normalize_batch(batch)
     for d in reversed(repo.batch_folders()):
         b = read_batch_json(d / "batch.json")
-        if any(c["id"] == cr_id for c in b["crs"]):
-            return str(b["id"])
+        if any(c.id == cr_id for c in b.crs):
+            return b.id
     raise ChantierError(f"no batch holds {cr_id}", EXIT_USAGE)
 
 
@@ -264,9 +265,7 @@ def next_cr_number(repo: Repo, roots: tuple[Path, ...] = ()) -> int:
         if match:
             previous = max(previous, int(match.group(1)))
     recorded = [
-        cr.get("id", "")
-        for batch in repo.batch_folders()
-        for cr in read_batch_json(batch / "batch.json").get("crs", [])
+        cr.id for batch in repo.batch_folders() for cr in read_batch_json(batch / "batch.json").crs
     ]
     for cr_id in recorded:
         match = re.fullmatch(r"CR-(\d+)", cr_id)

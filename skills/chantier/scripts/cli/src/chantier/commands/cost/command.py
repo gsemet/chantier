@@ -103,12 +103,12 @@ def cost(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
     batch = resolve_batch(repo, args.batch)
     d = read_batch(repo, batch)
-    if not (d.get("foreman_transcripts") or d.get("foreman_transcript")):
-        var = "$COPILOT_AGENT_SESSION_ID" if d["host"] == "copilot" else "$CLAUDE_CODE_SESSION_ID"
+    if not (d.foreman_transcripts or d.foreman_transcript):
+        var = "$COPILOT_AGENT_SESSION_ID" if d.host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
         raise ChantierError(
             f"no Foreman transcript recorded: the Foreman runs `chantier foreman transcript {var}`"
         )
-    rows = cost_rows(repo, d, d["host"], foreman_uuid(d))
+    rows = cost_rows(repo, d, d.host, foreman_uuid(d))
     total = sum(r["usd"] for r in rows)
     un = sum_unpriced(rows)
     chief = chief_line(repo, d)
