@@ -7,6 +7,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.files import ensure_gitignore, read_text
@@ -84,7 +85,7 @@ class Repo:
 
     root: Path  # the project's code repository (in external mode: its clone)
     git_dir: Path  # of the session's repository: the project's, or the surface's
-    config: dict
+    config: dict[str, Any]
     project_dir: Path | None = None  # external: `<surface>/projects/<name>`
     surface: Path | None = None  # external: the surface's root
     clone_dir: Path | None = None

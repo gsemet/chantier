@@ -29,7 +29,6 @@ def release(args) -> tuple[list[str], int]:
         is_fix = c.get("kind") == "fix" and args.action == "go"
         if c.get("kind") != "release" and not is_fix:
             raise ChantierError(f"{args.cr} is not the batch's release CR", EXIT_USAGE)
-        grant = b.data["release"]
         if args.action == "start":  # a new attempt, on the branch the Driver set on the base
             # a merged PR of an earlier attempt is not this one's
             # (a merged PR is already cleared by `release_merged`; an attempt refreshes the
@@ -40,28 +39,41 @@ def release(args) -> tuple[list[str], int]:
         if not (args.note or "").strip():
             raise ChantierError(f'release {args.action} {args.cr} --note "<…>"', EXIT_USAGE)
         if args.action == "published":
+            grant = b.data["release"]
             grant["published"] = grant.get("published", 0) + 1
             c.setdefault("notes", []).append(f"published: {args.note}")
             b.touch(c)
             b.log("release-published", args.cr, note=args.note)
             return [f"release {grant['published']} published: {args.note}"], 0
         result, why = fix_go(b, c, args.note) if is_fix else release_go(b, c, args.note)
-        if is_fix and result == "ask":
-            return [f"no grant for: {args.note}; the user merges it"], EXIT_PRECONDITION
-        if result == "budget":
-            return [
-                f"no: the budget is spent ({spent_text(b.data)} of "
-                f"${b.data['budget_usd']}); only the user raises it"
-            ], EXIT_BUDGET
-        if result == "fix":
-            return [f"no: fix {why} is not merged"], EXIT_PRECONDITION
-        if result == "merge":
-            return [f"no: {why}"], EXIT_PRECONDITION
-        if result == "ask":
-            return [
-                f"no approval for: {args.note}; the user's word comes as `order approve`"
-            ], EXIT_PRECONDITION
-        return [f"go: {args.note} ({why})"], 0
+        return _answer(b, result, why, args.note, is_fix)
+
+
+def _answer(
+    b: RenderedBatch, result: str, why: str, note: str, is_fix: bool
+) -> tuple[list[str], int]:
+    """The words and the exit code for what `fix_go` or `release_go` decided."""
+    refused = {
+        "budget": (
+            f"no: the budget is spent ({spent_text(b.data)} of "
+            f"${b.data['budget_usd']}); only the user raises it",
+            EXIT_BUDGET,
+        ),
+        "fix": (f"no: fix {why} is not merged", EXIT_PRECONDITION),
+        "merge": (f"no: {why}", EXIT_PRECONDITION),
+        "ask": (
+            (f"no grant for: {note}; the user merges it", EXIT_PRECONDITION)
+            if is_fix
+            else (
+                f"no approval for: {note}; the user's word comes as `order approve`",
+                EXIT_PRECONDITION,
+            )
+        ),
+    }
+    if result in refused:
+        text, code = refused[result]
+        return [text], code
+    return [f"go: {note} ({why})"], 0
 
 
 def cancel(args) -> list[str]:

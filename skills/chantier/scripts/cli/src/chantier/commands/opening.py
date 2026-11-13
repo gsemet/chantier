@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.crs import grant_line, shown, slugify
 from chantier.commands.opening_record import (
@@ -33,7 +34,7 @@ from chantier.plugin_files import detect_host, read_playbook
 from chantier.rails import ENDED, alone, check_no_open_batch, is_release
 
 
-def add_cr(b: Batch, item: str, kind: str = "change") -> dict:
+def add_cr(b: Batch, item: str, kind: str = "change") -> dict[str, Any]:
     """Move a prepared CR into `1-pending` and name its branch and worktree: the Driver creates
     them, on the fresh default branch, as its first step."""
     repo = b.repo
@@ -118,35 +119,41 @@ def archived_merged(repo: Repo, slug: str) -> bool:
     return False
 
 
-def declare_dependencies(b: Batch, added: list[dict]) -> None:
+def declare_dependencies(b: Batch, added: list[dict[str, Any]]) -> None:
     """Record the `after` of each CR just added, as CR ids, once all of them are in the batch.
     A slug archived as merged is met and not recorded; the rest is refused, naming the slug."""
     for c in added:
-        ids = []
-        for slug in read_depends(cr_directory(b.repo, c)):
-            key = slugify(slug)
-            dep = next((x for x in b.data["crs"] if cr_slug(Path(x["path"]).name) == key), None)
-            if dep is None:
-                if archived_merged(b.repo, key):
-                    continue
-                raise ChantierError(
-                    f"{c['id']}: depends.json names {slug!r}, which is in "
-                    "neither the batch nor the archives as merged"
-                )
-            if is_release(dep) and dep["id"] != c["id"]:
-                raise ChantierError(
-                    f"{c['id']}: depends.json names {slug!r}, the batch's release "
-                    f"CR {dep['id']}, which waits for every other CR: a cycle. "
-                    "Remove it from depends.json"
-                )
-            if dep["status"] == "merged":  # archived: met, so not recorded
-                continue
-            if dep["id"] not in ids:
-                ids.append(dep["id"])
+        ids = list(
+            dict.fromkeys(
+                dep
+                for slug in read_depends(cr_directory(b.repo, c))
+                if (dep := _dependency(b, c, slug))
+            )
+        )
         if ids:
             c["after"] = ids
             b.log("depends", c["id"], after=ids)
     check_cycles(b)
+
+
+def _dependency(b: Batch, c: dict[str, Any], slug: str) -> str | None:
+    """The id of the CR a `depends.json` slug names; None when it is met (archived as merged)."""
+    key = slugify(slug)
+    dep = next((x for x in b.data["crs"] if cr_slug(Path(x["path"]).name) == key), None)
+    if dep is None:
+        if archived_merged(b.repo, key):
+            return None
+        raise ChantierError(
+            f"{c['id']}: depends.json names {slug!r}, which is in "
+            "neither the batch nor the archives as merged"
+        )
+    if is_release(dep) and dep["id"] != c["id"]:
+        raise ChantierError(
+            f"{c['id']}: depends.json names {slug!r}, the batch's release "
+            f"CR {dep['id']}, which waits for every other CR: a cycle. "
+            "Remove it from depends.json"
+        )
+    return None if dep["status"] == "merged" else dep["id"]  # archived: met, so not recorded
 
 
 def check_series_order(b: Batch) -> None:
@@ -162,7 +169,7 @@ def check_series_order(b: Batch) -> None:
                 )
 
 
-def _release_tag(b: Batch, c: dict) -> str:
+def _release_tag(b: Batch, c: dict[str, Any]) -> str:
     if alone(b.data["crs"], c):
         return " (release, alone in its batch: it starts when taken)"
     return (
@@ -210,13 +217,13 @@ def check_cycles(b: Batch) -> None:
         visit(node, [])
 
 
-def _cr_line(b: Batch, c: dict) -> str:
+def _cr_line(b: Batch, c: dict[str, Any]) -> str:
     tag = _release_tag(b, c) if c["kind"] == "release" else ""
     after = f" (after {', '.join(c['after'])})" if c.get("after") and c["kind"] != "release" else ""
     return f"  - {c['id']}: {c['title']} ({c['path']}){tag}{after}\n"
 
 
-def _brief_text(b: Batch, args, host: str, release: dict | None) -> str:
+def _brief_text(b: Batch, args, host: str, release: dict[str, Any] | None) -> str:
     repo = b.repo
     data = b.data
     instructions = f"- Project instructions: {instruction_files(repo.root)}"
@@ -236,7 +243,7 @@ def _brief_text(b: Batch, args, host: str, release: dict | None) -> str:
     )
 
 
-def _open_crs(b: Batch, args, release: dict | None) -> None:
+def _open_crs(b: Batch, args, release: dict[str, Any] | None) -> None:
     for i, item in enumerate(args.items, 1):
         c = add_cr(b, item, kind="release" if i == args.release else "change")
         if release and c["kind"] == "release":

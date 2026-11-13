@@ -6,6 +6,7 @@ import json
 import os
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -47,7 +48,7 @@ def transcript_path(repo_root: Path, session_uuid: str) -> Path:
     return path
 
 
-def _price(model: str, prompt: int, extra: dict | None = None) -> tuple | None:
+def _price(model: str, prompt: int, extra: dict[str, Any] | None = None) -> tuple | None:
     """The $/MTok of a model: the project's entry (`extra`, from `chantier.yaml`) above the
     built-in table, by the same id or by it without a trailing `-YYYYMMDD`. Nothing else matches:
     no prefix, no family, no nearest model. None: no price, so the calls are not priced. The
@@ -77,7 +78,7 @@ def _transcript_lines(path: Path):
         raise ChantierError(f"cannot read Claude transcript {path}: {e}", EXIT_EXTERNAL) from e
 
 
-def _wakes(record: dict) -> bool:
+def _wakes(record: dict[str, Any]) -> bool:
     """Whether a user record starts a turn, rather than carrying a tool's result."""
     content = (record.get("message") or {}).get("content")
     return not (
@@ -130,7 +131,7 @@ def _grill_use(block, strict: bool = False) -> bool:
     return any(name in text for name in GRILL_NAMES)
 
 
-def _new_row() -> dict:
+def _new_row() -> dict[str, Any]:
     return {
         "calls": 0,
         "usd": 0.0,
@@ -156,7 +157,7 @@ def _new_row() -> dict:
     }  # model id -> calls of a model with no price
 
 
-def _add(row: dict, c: dict) -> None:
+def _add(row: dict[str, Any], c: dict[str, Any]) -> None:
     t = c["tokens"]
     row["model"] = c["model"]
     row["models"].add(c["model"])
@@ -181,7 +182,7 @@ def _add(row: dict, c: dict) -> None:
         row["wake_context"] += sum(t[:4])
 
 
-def _record(line: str, path: Path, number: int) -> dict | None:
+def _record(line: str, path: Path, number: int) -> dict[str, Any] | None:
     """One transcript line as a record; none for a blank line."""
     if not line.strip():
         return None
@@ -196,7 +197,7 @@ def _record(line: str, path: Path, number: int) -> dict | None:
     return d
 
 
-def _tokens(u: dict, path: Path, number: int) -> tuple:
+def _tokens(u: dict[str, Any], path: Path, number: int) -> tuple:
     """The five token counts of a usage record, checked: input, 5m and 1h writes, read, out."""
     cc = u.get("cache_creation") or {}
     if not isinstance(cc, dict):
@@ -216,19 +217,21 @@ def _tokens(u: dict, path: Path, number: int) -> tuple:
 class _Scan:
     """What one pass over a transcript collects: the priced calls, the turns that grill."""
 
-    def __init__(self, path: Path, prices: dict | None, in_steering: Callable[[Any], bool]):
+    def __init__(
+        self, path: Path, prices: dict[str, Any] | None, in_steering: Callable[[Any], bool]
+    ):
         self.path = path
         self.prices = prices
         self.in_steering = in_steering
         self.row = _new_row()
         self.seen: set[str] = set()
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
         self.grill_turns: set[int] = set()  # turns with a grill use, by that use's window rule
         self.window_turns: set[int] = set()  # turns with a strict grill use in the steering window
         self.turn = 0
         self.woken = False  # a prompt, a message or a notification came in; a tool result is not
 
-    def _note_grill(self, d: dict, when: Any) -> None:
+    def _note_grill(self, d: dict[str, Any], when: Any) -> None:
         """An assistant record: a grill use puts its turn among the grill turns."""
         content = d["message"].get("content")  # one record per block, the same message id
         strict = self.in_steering(when)
@@ -237,7 +240,7 @@ class _Scan:
             if strict:
                 self.window_turns.add(self.turn)
 
-    def _call(self, d: dict, when: Any, number: int) -> None:
+    def _call(self, d: dict[str, Any], when: Any, number: int) -> None:
         """An assistant record inside the window: a priced call, unless it carries no tokens."""
         path = self.path
         m = d.get("message")
@@ -271,7 +274,7 @@ class _Scan:
         )
         self.woken = False
 
-    def feed(self, d: dict, when: Any, number: int, inside: bool) -> None:
+    def feed(self, d: dict[str, Any], when: Any, number: int, inside: bool) -> None:
         """One record: it moves the turn, may mark a grill turn, and, inside the window, may be
         a call, a compaction or a wake."""
         kind = d.get("type")
@@ -289,7 +292,7 @@ class _Scan:
             self._call(d, when, number)
 
 
-def _place(scan: _Scan, split: bool, window: tuple[Any, Any]) -> dict:
+def _place(scan: _Scan, split: bool, window: tuple[Any, Any]) -> dict[str, Any]:
     """Give each call its expiry and its row: the grill's or the rest's."""
     row = scan.row
     grill = _new_row() if split else None
@@ -311,15 +314,18 @@ def _place(scan: _Scan, split: bool, window: tuple[Any, Any]) -> dict:
     return row
 
 
+@dataclass(frozen=True)
+class Reading:
+    """How `usage` reads a transcript: `split`, `prices` and `steering`, described there."""
+
+    split: bool = False
+    prices: dict[str, Any] | None = None
+    steering: tuple[str, str] | None = None
+
+
 def usage(
-    path: Path,
-    since: str = "",
-    until: str = "",
-    *,
-    split: bool = False,
-    prices: dict | None = None,
-    steering: tuple[str, str] | None = None,
-) -> dict:
+    path: Path, since: str = "", until: str = "", reading: Reading | None = None
+) -> dict[str, Any]:
     """A transcript's calls from `since` to `until`: a session can have run another batch.
 
     `split`: the calls of the turns that grill with the user or write specifications (a turn is
@@ -336,6 +342,8 @@ def usage(
     not move it); any other call uses the turns that have a grill use by that use's own window.
     So the calls of the steering window are the same whichever `since`/`until` prices them. With
     no `steering`, every use is loose."""
+    reading = reading or Reading()
+    split, prices, steering = reading.split, reading.prices, reading.steering
     start, end = _when(since, path, 0), _when(until, path, 0)
     steer_from, steer_to = (
         (_when(steering[0], path, 0), _when(steering[1], path, 0)) if steering else (None, None)

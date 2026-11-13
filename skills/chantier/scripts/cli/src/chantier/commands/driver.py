@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.cost.sessions import foreman_uuid
 from chantier.commands.crs import (
@@ -118,7 +119,7 @@ def round_(args) -> list[str]:
     return [f"round {c['round']} of {limit} for {c['id']}", *facts, context]
 
 
-def _context_line(repo: Repo, d: dict, c: dict) -> str:
+def _context_line(repo: Repo, d: dict[str, Any], c: dict[str, Any]) -> str:
     """The context size of the agent recorded on the CR, its Driver: the last call's prompt, read
     from the end of its transcript. Not an error when it cannot be measured."""
     agent = c.get("agent")

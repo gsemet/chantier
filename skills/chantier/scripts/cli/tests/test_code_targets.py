@@ -57,17 +57,25 @@ def _cycle(graph: dict[str, set[str]]) -> list[str] | None:
     return None
 
 
-def test_files_and_functions_are_small_and_the_imports_have_no_cycle() -> None:
+def _size_problems(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
     problems = []
-    for path in SCOPE:
-        text = path.read_text(encoding="utf-8")
-        if len(text.splitlines()) > MAX_FILE_LINES:
-            problems.append(f"{path.relative_to(CLI)}: over {MAX_FILE_LINES} lines")
-        for node in ast.walk(ast.parse(text)):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                size = (node.end_lineno or node.lineno) - node.lineno + 1
-                if size > MAX_FUNCTION_LINES:
-                    problems.append(f"{path.relative_to(CLI)}: {node.name} has {size} lines")
+    if len(text.splitlines()) > MAX_FILE_LINES:
+        problems.append(f"{path.relative_to(CLI)}: over {MAX_FILE_LINES} lines")
+    functions = [
+        n
+        for n in ast.walk(ast.parse(text))
+        if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+    ]
+    for node in functions:
+        size = (node.end_lineno or node.lineno) - node.lineno + 1
+        if size > MAX_FUNCTION_LINES:
+            problems.append(f"{path.relative_to(CLI)}: {node.name} has {size} lines")
+    return problems
+
+
+def test_files_and_functions_are_small_and_the_imports_have_no_cycle() -> None:
+    problems = [p for path in SCOPE for p in _size_problems(path)]
     graph = {_module(p): _imports(p) for p in SCOPE if (CLI / "src") in p.parents}
     cycle = _cycle({name: {m for m in deps if m in graph} for name, deps in graph.items()})
     if cycle:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.crs import new_request, shown, slugify
 from chantier.commands.opening import cr_slug
@@ -13,6 +14,7 @@ from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
 from chantier.core.records import read_batch_json, read_restored_number, write_restored_number
+from chantier.core.repo import Repo
 from chantier.lifecycle.convert import convert_old_tree, open_repo
 from chantier.lifecycle.stages import (
     PRIORITIES,
@@ -109,6 +111,61 @@ def abandon(args) -> list[str]:
     return [f"abandoned {shown(repo, target)}"]
 
 
+def _owners(repo: Repo, source: Path) -> tuple[tuple[str, dict[str, Any]] | None, list[str]]:
+    """The open batch's CR that owned this folder (batch id, CR), and the slugs of its other CRs."""
+    known, batch_crs = None, []
+    for batch_dir in repo.batch_folders():
+        record = read_batch_json(batch_dir / "batch.json")
+        for cr in (c for c in record.get("crs", []) if c.get("path")):
+            if repo.planning_path(cr["path"], "recorded CR path") == source:
+                known = (record.get("id", "?"), cr)
+            else:
+                batch_crs.append(cr_slug(Path(cr["path"]).name))
+    return known, batch_crs
+
+
+def _restored_name(source: Path, known: object, slug: str | None) -> str:
+    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", source.name)
+    if known:  # a number is stripped only from a folder a batch record says is its CR's
+        name = re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
+    name = slug or name
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", name):
+        raise ChantierError(
+            f"restore: {name!r} is not a CR slug (lowercase letters, digits "
+            "and hyphens): restore again with --slug <name>",
+            EXIT_USAGE,
+        )
+    return name
+
+
+def _check_free(repo: Repo, paths: dict[str, Any], name: str, batch_crs: list[str]) -> None:
+    taken = [
+        paths["inbox"] / name,
+        paths["ready"] / name,
+        *(paths["backlog"] / p / name for p in PRIORITIES),
+    ]
+    clash = next((shown(repo, t) for t in taken if t.exists()), None) or (
+        f"a CR of the open batch ({name})" if name in batch_crs else None
+    )
+    if clash:
+        raise ChantierError(
+            f"restore: the name {name} is already used by {clash}; "
+            f"restore again with --slug <other>",
+            EXIT_PRECONDITION,
+        )
+
+
+def _remember(repo: Repo, target: Path, known: tuple[str, dict[str, Any]]) -> None:
+    """Note on the folder what it was, and never give its number again."""
+    number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
+    if number:  # the number is never given again, even once the batch is closed
+        path = repo.changes / RESTORED_NUMBER_FILE
+        write_restored_number(path, max(read_restored_number(path), int(number[1])))
+    intent = target / "01-intent.md"
+    with open(intent if intent.is_file() else target / "notes.md", "a", encoding="utf-8") as f:
+        f.write(f"\nformerly {known[1]['id']} of {known[0]}\n")
+
+
 def restore(args) -> list[str]:
     """The reverse of `abandon`: a folder of `6-trash` comes back to `1-inbox`, whole, without its
     date (and without its number when an open batch's record says it was that batch's CR). Only on
@@ -123,57 +180,13 @@ def restore(args) -> list[str]:
             EXIT_PRECONDITION,
         )
     with changes_lock(repo):
-        known, batch_crs = None, []  # the open batch's CR that owned this folder; all its CRs
-        for batch_dir in repo.batch_folders():
-            record = read_batch_json(batch_dir / "batch.json")
-            for cr in record.get("crs", []):
-                if not cr.get("path"):
-                    continue
-                if repo.planning_path(cr["path"], "recorded CR path") == source:
-                    known = (record.get("id", "?"), cr)
-                else:
-                    batch_crs.append(cr_slug(Path(cr["path"]).name))
-        name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", source.name)
-        if known:  # a number is stripped only from a folder a batch record says is its CR's
-            name = re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
-        name = args.slug or name
-        if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", name):
-            raise ChantierError(
-                f"restore: {name!r} is not a CR slug (lowercase letters, digits "
-                "and hyphens): restore again with --slug <name>",
-                EXIT_USAGE,
-            )
-        taken = [
-            paths["inbox"] / name,
-            paths["ready"] / name,
-            *(paths["backlog"] / p / name for p in PRIORITIES),
-        ]
-        clash = next((shown(repo, t) for t in taken if t.exists()), None) or (
-            f"a CR of the open batch ({name})" if name in batch_crs else None
-        )
-        if clash:
-            raise ChantierError(
-                f"restore: the name {name} is already used by {clash}; "
-                f"restore again with --slug <other>",
-                EXIT_PRECONDITION,
-            )
+        known, batch_crs = _owners(repo, source)
+        name = _restored_name(source, known, args.slug)
+        _check_free(repo, paths, name, batch_crs)
         target = paths["inbox"] / name
-        formerly = None
-        if known:
-            formerly = f"formerly {known[1]['id']} of {known[0]}"
-            number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
         move_directory(source, target)
         if known:
-            number = re.fullmatch(r"CR-(\d+)", known[1]["id"])
-            if number:  # the number is never given again, even once the batch is closed
-                path = repo.changes / RESTORED_NUMBER_FILE
-                write_restored_number(path, max(read_restored_number(path), int(number[1])))
-        if formerly:
-            intent = target / "01-intent.md"
-            with open(
-                intent if intent.is_file() else target / "notes.md", "a", encoding="utf-8"
-            ) as f:
-                f.write(f"\n{formerly}\n")
+            _remember(repo, target, known)
         write_dashboard(repo, paths)
     lines = [f"restored {shown(repo, target)}"]
     if known and known[1].get("status") == "cancelled":

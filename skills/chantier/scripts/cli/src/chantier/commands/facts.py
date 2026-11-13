@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.crs import (
     batch_cr,
@@ -22,7 +23,7 @@ from chantier.plugin_files import archive_path, cli_command, project_instruction
 from chantier.rails import ENDED, series_predecessor
 
 
-def chain(b_data: dict) -> list[dict]:
+def chain(b_data: dict[str, Any]) -> list[dict[str, Any]]:
     """The stack as it stands: the CRs not ended, in order, the release CR last whatever its
     `order` (it is the top piece). A fix CR sits outside it, on the default branch. What a
     partial merge leaves forms the next stack, so the first CR left stands on the default
@@ -39,7 +40,7 @@ def chain(b_data: dict) -> list[dict]:
     )
 
 
-def top_cr(b_data: dict) -> dict | None:
+def top_cr(b_data: dict[str, Any]) -> dict[str, Any] | None:
     """In an ordered batch (stack, series), the last open CR under the release, in order: the
     branch the release starts on and its PR sits on. A fix CR and the release are not in it."""
     if b_data["mode"] not in {"stack", "series"}:
@@ -52,7 +53,7 @@ def top_cr(b_data: dict) -> dict | None:
     return max(open_, key=lambda x: x["order"], default=None)
 
 
-def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
+def _start_base(b_data: dict[str, Any], c: dict[str, Any], repo: Repo) -> str:
     """The branch a CR starts on: that of its last dependency still open, in the order of
     `after`; with none open, the default branch, whatever its place in a stack. A release in an
     ordered batch starts on the top CR's branch, with none open under it on the default branch;
@@ -71,7 +72,7 @@ def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
     return default
 
 
-def stack_base(b_data: dict, c: dict, repo: Repo, planned: bool = False) -> str:
+def stack_base(b_data: dict[str, Any], c: dict[str, Any], repo: Repo, planned: bool = False) -> str:
     """The base its PR has: its place in the stack once `stack` marked the CR (`planned`: the
     place it will take); otherwise where it started. A CR sits on the one below it in the chain
     (the first on the default branch), whatever its `after`; a CR with an open dependency that
@@ -93,18 +94,18 @@ def _ref(repo: Repo, branch: str) -> str:
     )
 
 
-def _base_of(d: dict, c: dict, repo: Repo) -> str:
+def _base_of(d: dict[str, Any], c: dict[str, Any], repo: Repo) -> str:
     """The ref the CR's branch starts on: the remote's default branch, or the branch of its
     last open dependency."""
     return _ref(repo, _start_base(d, c, repo))
 
 
-def _stack_ref(d: dict, c: dict, repo: Repo) -> str:
+def _stack_ref(d: dict[str, Any], c: dict[str, Any], repo: Repo) -> str:
     """The ref under the CR's PR in the stack, which the stack driver sets."""
     return _ref(repo, stack_base(d, c, repo, planned=True))
 
 
-def cr_facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
+def cr_facts(repo: Repo, batch: str, d: dict[str, Any], c: dict[str, Any]) -> list[str]:
     """Everything an agent needs to work on a CR, on one screen: the parent writes its prompt
     from these lines and the role's card."""
     folder = cr_directory(repo, c)
@@ -138,6 +139,16 @@ def cr_facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
         f"PR: {c.get('pr') or 'none'}; head {short_head(c.get('head')) or '-'}",
         f"rounds: {c['round']} of {round_limit(d, c)}",
     ]
+    lines += _status_lines(d, c)
+    if c.get("kind") not in {"release"}:
+        lines += _gate_lines(repo, batch, c)
+    lines += _gate_log(folder)
+    return lines + team_lines(d.get("playbook"))
+
+
+def _status_lines(d: dict[str, Any], c: dict[str, Any]) -> list[str]:
+    """What sets the CR apart: blocked, release grant, dependencies, fix, drafts, orders, notes."""
+    lines = []
     if c["status"] == "blocked":
         lines.append(f"blocked: {c.get('blocked_reason')}")
     if c.get("kind") == "release":
@@ -167,26 +178,32 @@ def cr_facts(repo: Repo, batch: str, d: dict, c: dict) -> list[str]:
     lines += (
         ["notes:"] + [f"  {n}" for n in c["notes"][-10:]] if c.get("notes") else ["notes: none"]
     )
-    if c.get("kind") not in {"release"}:
-        events = cr_events(repo, batch, c["id"])
-        head = c.get("head")
-        verdict = last_verdict(events, head)
-        lines += [
-            f"gates before handback ready, at the PR's head {head or 'not shipped yet'} "
-            "(the full SHA; the gate log's first line names it):",
-            f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
-            f'{c["id"]} "<cmd>" ["<cmd>"...]; none in the project\'s rules: handback '
-            f'{c["id"]} ready --no-gate "<rule>")',
-            f"  [{'x' if verdict == 'VERIFIED' else ' '}] verdict "
-            f"{verdict if verdict == 'NOT VERIFIED' else 'VERIFIED'} (the Verifier: verdict "
-            f'{c["id"]} VERIFIED|"NOT VERIFIED")',
-        ]
+    return lines
+
+
+def _gate_lines(repo: Repo, batch: str, c: dict[str, Any]) -> list[str]:
+    events = cr_events(repo, batch, c["id"])
+    head = c.get("head")
+    verdict = last_verdict(events, head)
+    return [
+        f"gates before handback ready, at the PR's head {head or 'not shipped yet'} "
+        "(the full SHA; the gate log's first line names it):",
+        f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
+        f'{c["id"]} "<cmd>" ["<cmd>"...]; none in the project\'s rules: handback '
+        f'{c["id"]} ready --no-gate "<rule>")',
+        f"  [{'x' if verdict == 'VERIFIED' else ' '}] verdict "
+        f"{verdict if verdict == 'NOT VERIFIED' else 'VERIFIED'} (the Verifier: verdict "
+        f'{c["id"]} VERIFIED|"NOT VERIFIED")',
+    ]
+
+
+def _gate_log(folder: Path) -> list[str]:
     gates = folder / "work" / "gates"
     logs = sorted(gates.glob("*.log")) if gates.is_dir() else []
-    if logs:
-        tail = logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-5:]
-        lines += [f"last gate log {logs[-1].name}:"] + [f"  {ln}" for ln in tail]
-    return lines + team_lines(d.get("playbook"))
+    if not logs:
+        return []
+    tail = logs[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-5:]
+    return [f"last gate log {logs[-1].name}:"] + [f"  {ln}" for ln in tail]
 
 
 def handoff(args) -> list[str]:
@@ -196,7 +213,7 @@ def handoff(args) -> list[str]:
     return cr_facts(repo, batch, d, c)
 
 
-def stack_lines(repo: Repo, batch: str, d: dict) -> list[str]:
+def stack_lines(repo: Repo, batch: str, d: dict[str, Any]) -> list[str]:
     """The stack as it stands: the chain line, then one line per CR (what `take stack` and
     `stack` with no CR print)."""
     crs = chain(d)

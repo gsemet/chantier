@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import chief_sessions
 from chantier.core.repo import Repo
@@ -11,7 +13,7 @@ from chantier.rails import usd_text
 TO_DATE = "To date: it grows if the batch runs again; `close` prices the final cost"
 
 
-def price_table(repo: Repo, host: str) -> dict | None:
+def price_table(repo: Repo, host: str) -> dict[str, Any] | None:
     """The project's prices (`prices:` of `chantier.yaml`), read at each pricing and not frozen
     at `open`, so a price added mid-batch prices the next refresh. Not used on Copilot, whose
     records carry the price. A file that is not valid refuses, never silently ignored."""
@@ -28,17 +30,17 @@ def price_table(repo: Repo, host: str) -> dict | None:
     return (resolved or {}).get("prices") or None
 
 
-def unpriced_of(r: dict) -> dict:
+def unpriced_of(r: dict[str, Any]) -> dict[str, Any]:
     return r.get("unpriced") or {}
 
 
-def add_unpriced(into: dict, un: dict) -> dict:
+def add_unpriced(into: dict[str, Any], un: dict[str, Any]) -> dict[str, Any]:
     for model, n in un.items():
         into[model] = into.get(model, 0) + n
     return into
 
 
-def sum_unpriced(rows: list[dict]) -> dict:
+def sum_unpriced(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Calls of a model with no price, by model, summed over rows."""
     out: dict[str, int] = {}
     for r in rows:
@@ -46,11 +48,11 @@ def sum_unpriced(rows: list[dict]) -> dict:
     return out
 
 
-def minus(a: dict, b: dict) -> dict:
+def minus(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     return {m: n - b.get(m, 0) for m, n in a.items() if n - b.get(m, 0) > 0}
 
 
-def spend(usd: float, calls: int, un: dict, places: int = 2) -> str:
+def spend(usd: float, calls: int, un: dict[str, Any], places: int = 2) -> str:
     """A priced amount, a floor (`at least`) when calls are not priced; no priced call at all
     is `not priced`, never $0.00."""
     return "not priced" if un and not calls else usd_text(usd, un, places)
@@ -62,7 +64,7 @@ def hints(models) -> list[str]:
     ]
 
 
-def steering_window(d: dict, uuid: str) -> tuple[str, str]:
+def steering_window(d: dict[str, Any], uuid: str) -> tuple[str, str]:
     """The part of a steering transcript that belongs to the batch's steering: a Foreman's from
     the batch's opening (its startup is the batch's), the Chief of Staff's from its claim; each
     ends where the next claim begins. A batch with no recorded claims has no end."""

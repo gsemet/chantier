@@ -144,17 +144,19 @@ def test_copilot_cost_helper_declares_pypi() -> None:
     assert indexes[0]["url"] == "https://pypi.org/simple" and indexes[0]["default"]
 
 
+def _has_bom(path: Path) -> bool:
+    if not path.is_file():  # a tracked path deleted from the working tree has no bytes
+        return False
+    with path.open("rb") as handle:
+        return handle.read(3) == b"\xef\xbb\xbf"
+
+
 def test_no_tracked_file_starts_with_a_utf8_byte_order_mark() -> None:
     listed = subprocess.run(
         ["git", "ls-files", "-z"], cwd=PLUGIN_ROOT, capture_output=True, check=True
     )
-    marked = []
-    for name in listed.stdout.decode("utf-8").split("\0"):
-        path = PLUGIN_ROOT / name
-        if name and path.is_file():  # a tracked path deleted from the working tree has no bytes
-            with path.open("rb") as handle:
-                if handle.read(3) == b"\xef\xbb\xbf":
-                    marked.append(name)
+    names = listed.stdout.decode("utf-8").split("\0")
+    marked = [name for name in names if name and _has_bom(PLUGIN_ROOT / name)]
     assert not marked, (
         "files with a UTF-8 byte-order mark (write them as UTF-8 without one): " + ", ".join(marked)
     )

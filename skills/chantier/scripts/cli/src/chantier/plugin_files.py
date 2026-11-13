@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 from chantier import __version__
 from chantier.core.clock import stamp
@@ -90,7 +91,7 @@ def surface_instructions(repo: Repo) -> Path | None:
     return next((repo.surface / n for n in INSTRUCTIONS if (repo.surface / n).is_file()), None)
 
 
-def archive_path(repo: Repo, c: dict) -> str | None:
+def archive_path(repo: Repo, c: dict[str, Any]) -> str | None:
     """Where the CR's cleaned archive goes in its PR, in the project's repository; None when the
     mode is in-project or the project's setting says no."""
     if not (repo.external and repo.archive_in_pr):
@@ -126,7 +127,7 @@ def plugin_roles(host: str) -> list[str]:
     ]
 
 
-def read_playbook(repo: Repo, host: str) -> tuple[dict | None, list[str]]:
+def read_playbook(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[str]]:
     """The project's `chantier.yaml`, resolved for this host: `(None, [])` when absent, else the
     playbook, or the problems found."""
     return load(repo.root / FILE, host, plugin_roles(host))

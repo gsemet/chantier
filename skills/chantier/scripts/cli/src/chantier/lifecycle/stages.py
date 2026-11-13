@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from chantier.core.batch import Batch, move_directory
 from chantier.core.clock import now, stamp
@@ -78,6 +79,18 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
         directory, specification = supplied, supplied / "03-change-spec.md"
     else:
         raise ChantierError(f"prepared CR not found: {supplied}", EXIT_USAGE)
+    in_ready = _check_place(directory, paths)
+    specification = _specification(specification, directory, supplied, in_ready)
+    text = _spec_text(specification)
+    title = next(
+        (line.lstrip("# ").strip() for line in text.splitlines() if line.strip()), directory.name
+    )
+    return PreparedCR(directory, specification, title)
+
+
+def _check_place(directory: Path, paths: dict[str, Path]) -> bool:
+    """Refuse a folder that is not in the inbox, the priority backlog or `3-ready`; say if it is
+    in `3-ready`."""
     in_backlog = directory.parent.parent == paths["backlog"] and directory.parent.name in PRIORITIES
     in_ready = directory.parent == paths["ready"]
     if paths["batches"] in directory.parents:
@@ -89,6 +102,10 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
             f"{directory} is not a CR in the configured inbox, priority backlog or 3-ready",
             EXIT_USAGE,
         )
+    return in_ready
+
+
+def _specification(specification: Path, directory: Path, supplied: Path, in_ready: bool) -> Path:
     if not specification.is_file() and directory.name.startswith("qa-"):
         raise ChantierError(
             f"{directory} is a QA report: an item to triage and split into CRs, not to open",
@@ -105,6 +122,10 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
         raise ChantierError(
             f"missing Change Specification: {specification}; grill the CR first", EXIT_PRECONDITION
         )
+    return specification
+
+
+def _spec_text(specification: Path) -> str:
     try:
         text = read_text(specification)
     except UnicodeDecodeError as e:
@@ -113,10 +134,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
         ) from e
     if not text.strip():
         raise ChantierError(f"empty Change Specification: {specification}", EXIT_PRECONDITION)
-    title = next(
-        (line.lstrip("# ").strip() for line in text.splitlines() if line.strip()), directory.name
-    )
-    return PreparedCR(directory, specification, title)
+    return text
 
 
 def ensure_unclaimed(repo: Repo, directory: Path) -> None:
@@ -130,13 +148,13 @@ def ensure_unclaimed(repo: Repo, directory: Path) -> None:
                 raise ChantierError(f"{directory} is already in batch {batch['id']}", EXIT_CONFLICT)
 
 
-def cr_directory(repo: Repo, cr: dict) -> Path:
+def cr_directory(repo: Repo, cr: dict[str, Any]) -> Path:
     if not cr.get("path"):
         raise ChantierError(f"{cr['id']} has no recorded CR folder", EXIT_PRECONDITION)
     return repo.planning_path(cr["path"], "recorded CR path")
 
 
-def _relocate(batch: Batch, cr: dict, target: Path) -> None:
+def _relocate(batch: Batch, cr: dict[str, Any], target: Path) -> None:
     source = cr_directory(batch.repo, cr)
     batch.move(source, target)
     cr["path"] = batch.repo.rel(target)
@@ -147,7 +165,7 @@ def _relocate(batch: Batch, cr: dict, target: Path) -> None:
                 folder.rmdir()
 
 
-def start_cr(batch: Batch, cr: dict) -> None:
+def start_cr(batch: Batch, cr: dict[str, Any]) -> None:
     """`take`: the CR's folder goes from `1-pending` to `2-actives`, before its Driver gets the
     facts. A CR already elsewhere (taken before, or still at the path of an older tree) stays."""
     if not cr.get("path"):
@@ -158,7 +176,7 @@ def start_cr(batch: Batch, cr: dict) -> None:
         _relocate(batch, cr, paths["actives"] / source.name)
 
 
-def done_cr(batch: Batch, cr: dict) -> None:
+def done_cr(batch: Batch, cr: dict[str, Any]) -> None:
     """The CR is merged (a release CR: released): its folder goes to `3-done` and stays until
     `close`, with the merge time, which names its archive. A folder that already left stays."""
     if not cr.get("path"):
@@ -172,7 +190,7 @@ def done_cr(batch: Batch, cr: dict) -> None:
         _delivery(batch.repo, cr, cr_directory(batch.repo, cr))
 
 
-def _delivery(repo: Repo, cr: dict, folder: Path) -> None:
+def _delivery(repo: Repo, cr: dict[str, Any], folder: Path) -> None:
     """`delivery.md`, written in the surface when the merge is recorded: it travels into the
     archive and says where the CR was delivered."""
     if not repo.archive_in_pr:
@@ -189,7 +207,7 @@ def _delivery(repo: Repo, cr: dict, folder: Path) -> None:
     )
 
 
-def trash_cr(batch: Batch, cr: dict) -> None:
+def trash_cr(batch: Batch, cr: dict[str, Any]) -> None:
     """The CR is dropped: its folder goes to `6-trash` at once, the name starting with the date."""
     if not cr.get("path"):
         return
@@ -199,7 +217,7 @@ def trash_cr(batch: Batch, cr: dict) -> None:
         _relocate(batch, cr, paths["trash"] / f"{stamp()}-{source.name}")
 
 
-def archive_name(cr: dict, folder: Path) -> str:
+def archive_name(cr: dict[str, Any], folder: Path) -> str:
     """`<YYMMDD-HHMM>-<number>-<slug>`: the merge time (UTC), so the archives keep the merge
     order; a CR with no recorded merge time takes the time of the close."""
     when = cr.get("merged_at")

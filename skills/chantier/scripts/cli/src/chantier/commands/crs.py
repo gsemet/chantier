@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
+from typing import Any
 
 from chantier.core.batch import Batch, find_cr_batch, read_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -48,7 +49,9 @@ def new_request(
     return folder
 
 
-def batch_cr(repo: Repo, cr_id: str, batch: str | None) -> tuple[str, dict, dict]:
+def batch_cr(
+    repo: Repo, cr_id: str, batch: str | None
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
     cr_id = normalize_cr(cr_id)
     batch = find_cr_batch(repo, cr_id, batch)
     data = read_batch(repo, batch)
@@ -58,12 +61,12 @@ def batch_cr(repo: Repo, cr_id: str, batch: str | None) -> tuple[str, dict, dict
     return batch, data, c
 
 
-def work(repo: Repo, c: dict) -> Path:
+def work(repo: Repo, c: dict[str, Any]) -> Path:
     """The CR's work folder, inside its own folder: notes, gate logs, the PR body."""
     return cr_directory(repo, c) / "work"
 
 
-def cr_worktree(c: dict) -> Path:
+def cr_worktree(c: dict[str, Any]) -> Path:
     """The CR's worktree, once its Driver has created it; the CLI never does."""
     if not Path(c["worktree"]).is_dir():
         raise ChantierError(
@@ -74,7 +77,7 @@ def cr_worktree(c: dict) -> Path:
     return Path(c["worktree"])
 
 
-def cr_events(repo: Repo, batch: str, cr_id: str) -> list[dict]:
+def cr_events(repo: Repo, batch: str, cr_id: str) -> list[dict[str, Any]]:
     return [e for e in read_events(repo.batch_dir(batch)) if e.get("cr") == cr_id]
 
 
@@ -96,7 +99,7 @@ def dirty_files(wt: Path) -> str:
     return git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
 
 
-def gate_passed(events: list[dict], head: str | None) -> bool:
+def gate_passed(events: list[dict[str, Any]], head: str | None) -> bool:
     """A long gate passed at a head: the last `gate` invocation at that head passed every command
     it was given. The events of one invocation share a `run`; it stops at its first failure, so
     its last event says. An event with no `run` (an older record) is an invocation by itself."""
@@ -109,7 +112,7 @@ def gate_passed(events: list[dict], head: str | None) -> bool:
     return all(e.get("result") == "pass" for e in here if e.get("run") == run)
 
 
-def last_verdict(events: list[dict], head: str | None) -> str | None:
+def last_verdict(events: list[dict[str, Any]], head: str | None) -> str | None:
     """The last verdict recorded at a head: it decides; a verdict at another head never counts."""
     seen = [
         e.get("result")
@@ -119,7 +122,7 @@ def last_verdict(events: list[dict], head: str | None) -> str | None:
     return seen[-1] if seen else None
 
 
-def grant_line(release: dict) -> str:
+def grant_line(release: dict[str, Any]) -> str:
     """What the user allowed the release to do without asking, in one line."""
     n, done = release.get("autonomous", 0), release.get("published", 0)
     return "; ".join(
@@ -134,7 +137,7 @@ def grant_line(release: dict) -> str:
     )
 
 
-def filed_fix(b: Batch, rel: dict, item: str) -> str:
+def filed_fix(b: Batch, rel: dict[str, Any], item: str) -> str:
     """A release's fix file is the fix's specification: it becomes a prepared CR in the inbox.
     Anything else is already a prepared CR."""
     repo = b.repo

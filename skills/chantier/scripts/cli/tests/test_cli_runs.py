@@ -272,7 +272,15 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
         }
     )
     assert line.startswith("P10 warn") and "denied: git push --force-with-lease" in line
-    local.unlink()
+
+
+def test_preflight_reads_the_settings_files_for_allow_rules(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    settings = repo / ".claude"
+    settings.mkdir()
     (settings / "settings.local.json").write_text(
         json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
     )
@@ -287,6 +295,11 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
         json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
     )
     assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])
+
+
+def test_preflight_has_no_allow_rule_check_on_copilot(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CHANTIER_HOST", "copilot")
     monkeypatch.setenv("COPILOT_AGENT_SESSION_ID", "s-1")
     code, out, _ = chantier("preflight")

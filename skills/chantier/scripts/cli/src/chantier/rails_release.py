@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from chantier.core.batch import Batch
 from chantier.core.clock import now
@@ -13,7 +14,7 @@ from chantier.rails import ENDED, all_merged, check_budget, over_budget, pending
 MAX_GRANTED_FIXES = 3
 
 
-def merge_done(b: Batch, c: dict) -> list[str]:
+def merge_done(b: Batch, c: dict[str, Any]) -> list[str]:
     """The PR is merged: the folder goes to `3-done`, where it stays until `close` archives it.
     Returns what the Foreman should hear."""
     done_cr(b, c)
@@ -24,14 +25,14 @@ def merge_done(b: Batch, c: dict) -> list[str]:
     return lines
 
 
-def release_merged(b: Batch, c: dict) -> None:
+def release_merged(b: Batch, c: dict[str, Any]) -> None:
     """The release PR is merged: that merge is the go for the rest of the procedure (the field
     `merged_pr`), which goes on with a new Driver; the next attempt opens a PR of its own."""
     c.setdefault("notes", []).append(f"merged: {c.get('pr')}")
     b.touch(c, status="queued", pr=None, head=None, merged_pr=c.get("pr") or "the release PR")
 
 
-def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
+def release_go(b: Batch, c: dict[str, Any], action: str) -> tuple[str, str]:
     """Spend what allows one irreversible action: `go` and why, `budget`, `fix` (a fix of this
     release is not merged), `merge` (the other CRs of the batch are not all merged or cancelled,
     which nothing lifts, or the release PR is recorded and not merged, which only the grant
@@ -80,7 +81,7 @@ def release_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
     return "go", why
 
 
-def fix_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
+def fix_go(b: Batch, c: dict[str, Any], action: str) -> tuple[str, str]:
     """The Foreman merges a ready fix of the release under the user's grant, within the budget:
     `go`, `budget`, or `ask` (the user merges it)."""
     if c["status"] != "ready":
@@ -90,7 +91,7 @@ def fix_go(b: Batch, c: dict, action: str) -> tuple[str, str]:
     return result, "the user granted the release's fixes"
 
 
-def check_granted_fix(b: Batch, c: dict) -> None:
+def check_granted_fix(b: Batch, c: dict[str, Any]) -> None:
     """The Foreman starts a fix of release `c` only under the user's grant, within the budget,
     and up to MAX_GRANTED_FIXES; past that, a fix is the user's go."""
     if not b.data["release"].get("fixes"):
@@ -107,7 +108,7 @@ def check_granted_fix(b: Batch, c: dict) -> None:
 GRANT = "releases=<n> fixes=<on|off> budget=<usd>"
 
 
-def parse_grant(text: str) -> dict:
+def parse_grant(text: str) -> dict[str, Any]:
     """What the user allows without asking: a number of releases, the release's fixes started
     and merged by the Foreman, and the budget they run within. Any of the three."""
     grant = {}
@@ -126,7 +127,7 @@ def parse_grant(text: str) -> dict:
     return grant
 
 
-def check_grant(release: dict, budget: float | None) -> None:
+def check_grant(release: dict[str, Any], budget: float | None) -> None:
     """Autonomy is always bounded by a budget."""
     if (release.get("autonomous") or release.get("fixes")) and not budget:
         raise ChantierError(

@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
@@ -29,10 +30,10 @@ def copilot_home() -> Path:
     return Path(os.environ.get("COPILOT_HOME") or Path.home() / ".copilot").expanduser()
 
 
-def _copilot_agents(session: str) -> dict[str, dict]:
+def _copilot_agents(session: str) -> dict[str, dict[str, Any]]:
     """agentId → agentType and name, from the session's `subagent.started` events."""
     path = copilot_home() / "session-state" / session / "events.jsonl"
-    agents: dict[str, dict] = {}
+    agents: dict[str, dict[str, Any]] = {}
     if not path.exists():
         return agents
     for line in path.open(encoding="utf-8"):
@@ -59,7 +60,7 @@ def _split(command: str) -> list[str]:
     ]
 
 
-def copilot_session_costs(session: str) -> list[dict]:
+def copilot_session_costs(session: str) -> list[dict[str, Any]]:
     """One row per agent of a Copilot session, from `copilot-session-usage calls`.
 
     uv resolves copilot-session-usage from the inline metadata of `session_usage.py`; nothing to
@@ -101,22 +102,30 @@ def copilot_session_costs(session: str) -> list[dict]:
     if p.returncode != 0:
         last = (p.stderr.strip().splitlines() or ["no output"])[-1]
         raise ChantierError(f"copilot-session-usage failed ({p.returncode}): {last}", EXIT_EXTERNAL)
+    return _rows(session, p.stdout)
+
+
+def _call(line: str) -> dict[str, Any]:
+    try:
+        c = json.loads(line)
+    except ValueError as e:
+        raise ChantierError(
+            f"copilot-session-usage: unreadable record: {line[:80]}", EXIT_EXTERNAL
+        ) from e
+    if c.get("estimated_usd") is None:
+        raise ChantierError(
+            f"copilot-session-usage: a call has no price (model {c.get('model')})",
+            EXIT_EXTERNAL,
+        )
+    return c
+
+
+def _rows(session: str, output: str) -> list[dict[str, Any]]:
+    """One row per agent, from the calls `copilot-session-usage` printed."""
     agents = _copilot_agents(session)
-    rows: dict[str, dict] = {}
-    for line in p.stdout.splitlines():
-        if not line.strip():
-            continue
-        try:
-            c = json.loads(line)
-        except ValueError as e:
-            raise ChantierError(
-                f"copilot-session-usage: unreadable record: {line[:80]}", EXIT_EXTERNAL
-            ) from e
-        if c.get("estimated_usd") is None:
-            raise ChantierError(
-                f"copilot-session-usage: a call has no price (model {c.get('model')})",
-                EXIT_EXTERNAL,
-            )
+    rows: dict[str, dict[str, Any]] = {}
+    for line in (x for x in output.splitlines() if x.strip()):
+        c = _call(line)
         aid = c.get("agent_id") or "main"
         meta = agents.get(aid, {})
         row = rows.setdefault(

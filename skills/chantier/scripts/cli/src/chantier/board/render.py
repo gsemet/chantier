@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import posixpath
 import re
+from typing import Any
 from urllib.parse import quote
 
 from chantier.core.clock import age_minutes
@@ -56,7 +57,7 @@ def _details(summary: str, body: str, open_: bool = False) -> str:
     return f'<details class="sec"{opened}><summary>{summary}</summary>{body}</details>'
 
 
-def _cr_row(c: dict, batch_folder: str) -> str:
+def _cr_row(c: dict[str, Any], batch_folder: str) -> str:
     spec = (
         posixpath.normpath(f"{batch_folder}/{c['specification']}")
         if c.get("specification")
@@ -79,7 +80,9 @@ def _cr_row(c: dict, batch_folder: str) -> str:
     )
 
 
-def _batch_section(batch: dict, slots: dict | None, events: list[dict]) -> str:
+def _batch_section(
+    batch: dict[str, Any], slots: dict[str, Any] | None, events: list[dict[str, Any]]
+) -> str:
     priced = batch["priced"]
     spent, budget = batch["spent_usd"], batch["budget_usd"]
     figures = ("unknown" if not priced else f"${spent:.2f}") + (
@@ -116,7 +119,7 @@ def _batch_section(batch: dict, slots: dict | None, events: list[dict]) -> str:
     )
 
 
-def _item_rows(items: list[dict]) -> str:
+def _item_rows(items: list[dict[str, Any]]) -> str:
     return (
         "<ul>"
         + "".join(
@@ -129,7 +132,7 @@ def _item_rows(items: list[dict]) -> str:
     )
 
 
-def _past_rows(rows: list[dict]) -> str:
+def _past_rows(rows: list[dict[str, Any]]) -> str:
     out = []
     for r in rows:
         pr = f" · {_url_link(r['pr'], forge_word([r['pr']]))}" if r.get("pr") else ""
@@ -141,7 +144,7 @@ def _past_rows(rows: list[dict]) -> str:
     return "<ul>" + "".join(out) + "</ul>"
 
 
-def render_body(data: dict) -> str:
+def render_body(data: dict[str, Any]) -> str:
     parts = []
     batch = data["batch"]
     if batch:
@@ -149,7 +152,7 @@ def render_body(data: dict) -> str:
         parts.append(_batch_section(batch, slots, data["events"]))
     else:
         parts.append('<section><p class="muted">No batch.</p></section>')
-    groups: dict[str, list[dict]] = {}
+    groups: dict[str, list[dict[str, Any]]] = {}
     for item in data["backlog"]:
         groups.setdefault(item["priority"], []).append(item)
     for name in ("3-ready", "inbox"):

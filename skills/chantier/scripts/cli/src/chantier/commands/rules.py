@@ -23,22 +23,28 @@ from chantier.plugin_files import (
 MD_LINK = re.compile(r"\]\(([^)\s#]+\.md)(?:#[^)]*)?\)|^\[[^\]]+\]:\s*(\S+\.md)\s*$", re.M)
 
 
+def _candidates(path: Path, root: Path, target: str, seen: list[Path]):
+    """The files a link may name, the first one that is in the project and not seen yet."""
+    for raw in (path.parent / target, root / target):
+        try:
+            candidate = raw.resolve()
+        except OSError:
+            continue
+        if candidate.is_file() and candidate.is_relative_to(root) and candidate not in seen:
+            yield candidate
+
+
 def linked(path: Path, root: Path, seen: list[Path], depth: int) -> None:
     text = path.read_text(encoding="utf-8", errors="replace")
     for m in MD_LINK.finditer(text):
         target = m.group(1) or m.group(2)
         if target.startswith(("http://", "https://", "/")) or ".." in target.split("/"):
             continue
-        for raw in (path.parent / target, root / target):
-            try:
-                candidate = raw.resolve()
-            except OSError:
-                continue
-            if candidate.is_file() and candidate.is_relative_to(root) and candidate not in seen:
-                seen.append(candidate)
-                if depth > 1:
-                    linked(candidate, root, seen, depth - 1)
-                break
+        found = next((c for c in _candidates(path, root, target, seen) if c), None)
+        if found:
+            seen.append(found)
+            if depth > 1:
+                linked(found, root, seen, depth - 1)
 
 
 def playbook(args) -> tuple[list[str], int]:

@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+from typing import Any
 
 from chantier.commands.facts import chain, stack_base
 from chantier.commands.registry import BATCH, Subparsers, add_command
@@ -41,7 +42,7 @@ def _gh(args: list[str], host: str) -> object:
         ) from e
 
 
-def _plan(args) -> tuple[list[dict], str, str, str]:
+def _plan(args) -> tuple[list[dict[str, Any]], str, str, str]:
     """The open stack of the record, bottom first: {cr, pr number, link, release}; and the forge's
     host, owner and repository, read from the PR links."""
     repo = open_repo()
@@ -106,7 +107,7 @@ def forge_stack(args) -> tuple[list[str], int]:
     return _show(args)
 
 
-def _make(rows: list[dict], host: str, owner: str, name: str) -> tuple[int, str]:
+def _make(rows: list[dict[str, Any]], host: str, owner: str, name: str) -> tuple[int, str]:
     fields: list[str] = []
     for r in rows:
         fields += ["-F", f"pull_requests[]={r['number']}"]
@@ -122,59 +123,58 @@ def _make(rows: list[dict], host: str, owner: str, name: str) -> tuple[int, str]
     )
 
 
+def _stacks(host: str, owner: str, name: str) -> list[dict[str, Any]]:
+    return _gh(["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host)
+
+
+def _unstack(s: dict[str, Any], planned: set, where: tuple[str, str, str]) -> str:
+    """Unstack one open stack that holds a planned PR, until the forge reads it back as gone."""
+    host, owner, name = where
+    held = [p["number"] for p in s.get("pull_requests", [])]
+    outside = [n for n in held if n not in planned]
+    for _ in range(5):  # until the forge reads it back as gone or not open
+        fields = [x for n in held for x in ("-F", f"pull_requests[]={n}")]
+        _gh(["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack", *fields], host)
+        now = [
+            t
+            for t in _stacks(host, owner, name)
+            if t.get("number") == s["number"] and t.get("open")
+        ]
+        if not now:
+            break
+        held = [p["number"] for p in now[0].get("pull_requests", [])]
+    else:
+        raise ChantierError(f"stack #{s['number']} is still open after unstack")
+    return f"unstacked #{s['number']}" + (
+        f" (it also held {' '.join('#' + str(n) for n in outside)}, not in the batch's "
+        "stack: a plain PR now)"
+        if outside
+        else ""
+    )
+
+
+def _retarget(rows: list[dict[str, Any]], where: tuple[str, str, str], done: list[str]) -> None:
+    host, owner, name = where
+    for r in rows:
+        pull = _gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{r['number']}"], host)
+        old = (pull.get("base") or {}).get("ref") if isinstance(pull, dict) else None
+        if old != r["base"]:
+            patch = ["-X", "PATCH", f"repos/{owner}/{name}/pulls/{r['number']}"]
+            _gh([*patch, "-f", f"base={r['base']}"], host)
+            done.append(f"#{r['number']} base {old} -> {r['base']}")
+
+
 def _rebuild(args) -> tuple[list[str], int]:
     rows, host, owner, name = _plan(args)
+    where = (host, owner, name)
     done: list[str] = []
     try:
         planned = {r["number"] for r in rows}
-        listing = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host)
-        for s in listing:
-            held = [p["number"] for p in s.get("pull_requests", [])]
-            if not s.get("open") or not planned & set(held):
-                continue
-            outside = [n for n in held if n not in planned]
-            for _ in range(5):  # until the forge reads it back as gone or not open
-                fields = [x for n in held for x in ("-F", f"pull_requests[]={n}")]
-                _gh(
-                    ["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack", *fields],
-                    host,
-                )
-                now = [
-                    t
-                    for t in _gh(
-                        ["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host
-                    )
-                    if t.get("number") == s["number"] and t.get("open")
-                ]
-                if not now:
-                    break
-                held = [p["number"] for p in now[0].get("pull_requests", [])]
-            else:
-                raise ChantierError(f"stack #{s['number']} is still open after unstack")
-            done.append(
-                f"unstacked #{s['number']}"
-                + (
-                    f" (it also held {' '.join('#' + str(n) for n in outside)}, not in the batch's "
-                    "stack: a plain PR now)"
-                    if outside
-                    else ""
-                )
-            )
-        for r in rows:
-            pull = _gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{r['number']}"], host)
-            old = (pull.get("base") or {}).get("ref") if isinstance(pull, dict) else None
-            if old != r["base"]:
-                _gh(
-                    [
-                        "-X",
-                        "PATCH",
-                        f"repos/{owner}/{name}/pulls/{r['number']}",
-                        "-f",
-                        f"base={r['base']}",
-                    ],
-                    host,
-                )
-                done.append(f"#{r['number']} base {old} -> {r['base']}")
+        for s in _stacks(host, owner, name):
+            held = {p["number"] for p in s.get("pull_requests", [])}
+            if s.get("open") and planned & held:
+                done.append(_unstack(s, planned, where))
+        _retarget(rows, where, done)
         number, line = _make(rows, host, owner, name)
         done.append(line)
     except ChantierError as e:
@@ -194,23 +194,10 @@ def _create(args) -> tuple[list[str], int]:
     return [_make(rows, host, owner, name)[1]], 0
 
 
-def _show(args) -> tuple[list[str], int]:
-    rows, host, owner, name = _plan(args)
-    want = [r for r in rows if r["number"] is not None]
-    if getattr(args, "stack", None):
-        stack = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks/{args.stack}"], host)
-    else:
-        found = [
-            s
-            for s in _gh(["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host)
-            if {p["number"] for p in s.get("pull_requests", [])} & {r["number"] for r in want}
-        ]
-        if not found:
-            return [
-                f"check 1: no stack on the forge holds the batch's PRs "
-                f"{' '.join('#' + str(r['number']) for r in want)}"
-            ], EXIT_PRECONDITION
-        stack = next((s for s in found if s.get("open")), found[0])
+def _checks(
+    stack: dict[str, Any], rows: list[dict[str, Any]], want: list[dict[str, Any]]
+) -> tuple[list[str], dict[str, Any] | None]:
+    """One line per failed check of a stack read back; and the release row, if any."""
     prs = stack.get("pull_requests", [])
     have = [p["number"] for p in prs]
     expected = [r["number"] for r in want]
@@ -219,21 +206,13 @@ def _show(args) -> tuple[list[str], int]:
         lines.append(f"check 1: stack #{stack.get('number')} is not open")
     absent = [f"#{n}" for n in expected if n not in have]
     extra = [f"#{n}" for n in have if n not in expected]
-    for r in rows:
-        if r["number"] is None:
-            absent.append(f"{r['cr']} (no PR recorded)")
+    absent += [f"{r['cr']} (no PR recorded)" for r in rows if r["number"] is None]
     if absent or extra:
-        lines.append(
-            "check 2: "
-            + "; ".join(
-                x
-                for x in (
-                    f"missing {' '.join(absent)}" if absent else "",
-                    f"not in the batch's stack {' '.join(extra)}" if extra else "",
-                )
-                if x
-            )
+        said = (
+            f"missing {' '.join(absent)}" if absent else "",
+            f"not in the batch's stack {' '.join(extra)}" if extra else "",
         )
+        lines.append("check 2: " + "; ".join(x for x in said if x))
     common = [n for n in expected if n in have]
     if [n for n in have if n in common] != common:
         lines.append(
@@ -249,11 +228,33 @@ def _show(args) -> tuple[list[str], int]:
             f"check 5: the release PR #{release['number']} is not on top "
             f"(top is {'#' + str(have[-1]) if have else 'empty'})"
         )
+    return lines, release
+
+
+def _show(args) -> tuple[list[str], int]:
+    rows, host, owner, name = _plan(args)
+    want = [r for r in rows if r["number"] is not None]
+    if getattr(args, "stack", None):
+        stack = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks/{args.stack}"], host)
+    else:
+        wanted = {r["number"] for r in want}
+        found = [
+            s
+            for s in _stacks(host, owner, name)
+            if {p["number"] for p in s.get("pull_requests", [])} & wanted
+        ]
+        if not found:
+            return [
+                f"check 1: no stack on the forge holds the batch's PRs "
+                f"{' '.join('#' + str(r['number']) for r in want)}"
+            ], EXIT_PRECONDITION
+        stack = next((s for s in found if s.get("open")), found[0])
+    lines, release = _checks(stack, rows, want)
     if lines:
         return lines, EXIT_PRECONDITION
     return [
-        f"stack #{stack.get('number')} ready: open, {len(have)} PRs in order, none a draft"
-        + (", the release on top" if release else "")
+        f"stack #{stack.get('number')} ready: open, {len(stack.get('pull_requests', []))} PRs "
+        "in order, none a draft" + (", the release on top" if release else "")
     ], 0
 
 

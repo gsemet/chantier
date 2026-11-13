@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-Subparsers = argparse._SubParsersAction  # type: ignore[type-arg]
+if TYPE_CHECKING:
+    Subparsers = argparse._SubParsersAction[argparse.ArgumentParser]
+else:
+    Subparsers = argparse._SubParsersAction
 Handler = Callable[[argparse.Namespace], Any]
 
 NO_BATCH = "no-batch"  # the command reads no batch

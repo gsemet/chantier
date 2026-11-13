@@ -132,7 +132,7 @@ def _after(w: Word) -> list[str]:
     return [f"{cr_id} now waits for {', '.join(ids)}" if ids else f"{cr_id} waits for nothing"]
 
 
-def _set_after(c: dict, ids: list[str]) -> None:
+def _set_after(c: dict[str, Any], ids: list[str]) -> None:
     if ids:
         c["after"] = ids
     else:

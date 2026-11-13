@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
 
 from chantier.core.errors import ChantierError
 from chantier.core.files import retry
@@ -20,12 +21,12 @@ EVENTS_HIDDEN = ("heartbeat", "cost")
 EVENTS_SHOWN = 12
 
 
-def _tail_events(folder: Path) -> list[dict]:
+def _tail_events(folder: Path) -> list[dict[str, Any]]:
     events = [e for e in retry(read_events, folder) if e.get("kind") not in EVENTS_HIDDEN]
     return events[-EVENTS_SHOWN:]
 
 
-def collect(repo: Repo, seat: str | None) -> dict:
+def collect(repo: Repo, seat: str | None) -> dict[str, Any]:
     """What the next `STATUS.json` of the index would say, the batch's own view, its recent
     events, and the board's three own fields. Nothing is written."""
     view = dashboard_view(repo, stage_layout(repo))

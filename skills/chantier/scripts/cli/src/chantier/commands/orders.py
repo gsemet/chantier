@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from chantier.commands.crs import new_request, shown
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
 from chantier.commands.registry import BATCH_EPOCH, Subparsers, add_command
@@ -80,15 +82,27 @@ def _qa_folder(repo: Repo, b: Batch, note: str) -> str:
     )
 
 
-def _word(b: Batch, args, cr: str, note: str, own: bool, new_release: bool) -> Word:
+@dataclass
+class _Req:
+    """What an order asks: its CR, its note, whether the Foreman's own, whether a new release."""
+
+    cr: str
+    note: str
+    own: bool
+    new_release: bool
+
+
+def _word(b: Batch, args, req: _Req) -> Word:
+    cr = req.cr
     if args.kind == "after" and not any(x["id"] == cr for x in b.data["crs"]):
         raise ChantierError(f"order after: unknown CR {cr} in batch {b.id}")
     has_cr = args.kind in CR_ORDERS or (args.kind == "note" and cr != "-")
     c = b.cr(cr) if has_cr else None
-    return Word(b, args.kind, cr, c, note, args.fix_for, own, new_release)
+    return Word(b, args.kind, cr, c, req.note, args.fix_for, req.own, req.new_release)
 
 
-def _record_order(b: Batch, args, cr: str, note: str, own: bool, new_release: bool) -> str:
+def _record_order(b: Batch, args, req: _Req) -> str:
+    cr, note, own, new_release = req.cr, req.note, req.own, req.new_release
     oid = f"O-{len(b.data['orders']) + 1}"
     # The CLI did its whole part, the Foreman only has to end the order: not a note (the
     # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
@@ -154,8 +168,9 @@ def order(args) -> list[str]:
         reopened = _reopen(b, args.kind)
         if args.kind == "qa":
             cr = _qa_folder(repo, b, note)
-        effect = reopened + apply_order(_word(b, args, cr, note, own, new_release))
-        oid = _record_order(b, args, cr, note, own, new_release)
+        req = _Req(cr, note, own, new_release)
+        effect = reopened + apply_order(_word(b, args, req))
+        oid = _record_order(b, args, req)
     if own:
         return effect
     target = f" {cr}" if cr and cr != "-" else ""

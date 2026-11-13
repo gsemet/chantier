@@ -11,6 +11,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -53,19 +54,26 @@ def _inside(root: Path, rel: str) -> Path | None:
     return target if target.is_relative_to(root) and target.exists() else None
 
 
-def _file_page(root: Path, rel: str, target: Path, name: str) -> str:
+def _visible(root: Path, child: Path) -> bool:
+    try:
+        return child.resolve().is_relative_to(root)
+    except OSError:
+        return False
+
+
+def _listing(root: Path, target: Path) -> str:
+    entries = []
+    for child in sorted(retry(lambda: list(target.iterdir()))):
+        if _visible(root, child):
+            label = child.name + ("/" if child.is_dir() else "")
+            entries.append(f"<li>{file_link(child.relative_to(root).as_posix(), label)}</li>")
+    return "".join(entries)
+
+
+def _file_page(root: Path, target: Path, name: str) -> str:
     shown = target.relative_to(root).as_posix() if target != root else "."
     if target.is_dir():
-        entries = []
-        for child in sorted(retry(lambda: list(target.iterdir()))):
-            try:
-                if not child.resolve().is_relative_to(root):
-                    continue
-            except OSError:
-                continue
-            name = child.name + ("/" if child.is_dir() else "")
-            entries.append(f"<li>{file_link(child.relative_to(root).as_posix(), name)}</li>")
-        body = f"<section><h2>{esc(shown)}</h2><ul>{''.join(entries)}</ul></section>"
+        body = f"<section><h2>{esc(shown)}</h2><ul>{_listing(root, target)}</ul></section>"
     else:
         raw = retry(target.read_bytes)
         text = raw[:FILE_LIMIT].decode("utf-8", errors="replace")
@@ -74,8 +82,31 @@ def _file_page(root: Path, rel: str, target: Path, name: str) -> str:
     return page(body, name, title=f"{name}: {shown}")
 
 
-def _handler(repo: Repo, seat: str | None, stop):
+NOT_FOUND = (404, "not found\n", "text/plain")
+
+
+def _route(repo: Repo, seat: str | None, name: str, raw_path: str) -> tuple[int, str, str]:
+    """The answer to a GET: status, body, content type."""
+    url = urlparse(raw_path)
     root = repo.changes.resolve()
+    try:
+        if url.path == "/":
+            data = collect(repo, seat)
+            return 200, page(render_body(data), name, data["updated"]), "text/html"
+        if url.path == "/api/status":
+            body = json.dumps(collect(repo, seat), indent=2, ensure_ascii=False) + "\n"
+            return 200, body, "application/json"
+        if url.path == "/file":
+            target = _inside(root, parse_qs(url.query).get("p", [""])[0])
+            if target is None:
+                return NOT_FOUND
+            return 200, _file_page(root, target, name), "text/html"
+    except (OSError, ValueError, KeyError, ChantierError):
+        return 500, "the record could not be read just now\n", "text/plain"
+    return NOT_FOUND
+
+
+def _handler(repo: Repo, seat: str | None, stop: Callable[[], None]) -> type:
     name = project_name(repo)
 
     class Handler(BaseHTTPRequestHandler):
@@ -94,32 +125,8 @@ def _handler(repo: Repo, seat: str | None, stop):
                 self.wfile.write(raw)
 
         def _serve(self, head: bool) -> None:
-            url = urlparse(self.path)
-            try:
-                if url.path == "/":
-                    data = collect(repo, seat)
-                    self._send(
-                        200, page(render_body(data), name, data["updated"]), "text/html", head
-                    )
-                elif url.path == "/api/status":
-                    data = collect(repo, seat)
-                    self._send(
-                        200,
-                        json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-                        "application/json",
-                        head,
-                    )
-                elif url.path == "/file":
-                    rel = parse_qs(url.query).get("p", [""])[0]
-                    target = _inside(root, rel)
-                    if target is None:
-                        self._send(404, "not found\n", "text/plain", head)
-                    else:
-                        self._send(200, _file_page(root, rel, target, name), "text/html", head)
-                else:
-                    self._send(404, "not found\n", "text/plain", head)
-            except (OSError, ValueError, KeyError, ChantierError):
-                self._send(500, "the record could not be read just now\n", "text/plain", head)
+            code, body, ctype = _route(repo, seat, name, self.path)
+            self._send(code, body, ctype, head)
             if seat and _seat_gone(repo, seat):
                 stop()
 
@@ -189,46 +196,63 @@ def _not_started(reason) -> ChantierError:
     return ChantierError(f"board not started: {' '.join(str(reason).split())}", EXIT_EXTERNAL)
 
 
+def _wait_for_takeover(repo: Repo, host: str, port: int, seat: str | None) -> str | None:
+    """A board of this folder already answers: its message when it is this seat's, else wait
+    for it to leave."""
+    found = _probe(host, port)
+    if (
+        not isinstance(found, dict)
+        or found.get("planning_folder") != repo.changes.resolve().as_posix()
+    ):
+        return None
+    if found.get("seat") == seat:
+        return f"board already running at http://{host}:{port}/"
+    for _ in range(SEAT_CHECK_S * 2 * 2):  # at most twice the seat check's period
+        time.sleep(0.5)
+        if _probe(host, port) is None:
+            break
+    return None
+
+
+def _bind(repo: Repo, host: str, port: int, seat: str | None) -> ThreadingHTTPServer:
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    cls = type("Server", (_Server,), {"address_family": family})
+    holder: list[ThreadingHTTPServer] = []
+
+    def stop() -> None:
+        threading.Thread(target=holder[0].shutdown, daemon=True).start()
+
+    try:
+        server = cls((host, port), _handler(repo, seat, stop))
+    except (OSError, OverflowError) as e:
+        raise _not_started(e) from e
+    holder.append(server)
+    return server
+
+
+def _watch(repo: Repo, seat: str, server: ThreadingHTTPServer) -> None:
+    def watch() -> None:
+        while not threading.Event().wait(SEAT_CHECK_S):
+            if _seat_gone(repo, seat):
+                server.shutdown()
+                return
+
+    threading.Thread(target=watch, daemon=True).start()
+
+
 def serve(repo: Repo, host: str, port: int, seat: str | None) -> list[str]:
     if not repo.changes.is_dir():
         raise _not_started(f"no planning folder at {repo.changes}")
-    where = f"http://{host}:{port}/"
-    found = _probe(host, port)
-    if (
-        isinstance(found, dict)
-        and found.get("planning_folder") == repo.changes.resolve().as_posix()
-    ):
-        if found.get("seat") == seat:
-            return [f"board already running at {where}"]
-        for _ in range(SEAT_CHECK_S * 2 * 2):  # at most twice the seat check's period
-            time.sleep(0.5)
-            if _probe(host, port) is None:
-                break
-    family = socket.AF_INET6 if ":" in host else socket.AF_INET
-    try:
-        server = type("Server", (_Server,), {"address_family": family})(
-            (host, port),
-            _handler(
-                repo,
-                seat,
-                lambda: threading.Thread(target=server.shutdown, daemon=True).start(),
-            ),
-        )
-    except (OSError, OverflowError) as e:
-        raise _not_started(e) from e
-    print(f"board on {where} over {repo.changes.resolve().as_posix()}", flush=True)
+    running = _wait_for_takeover(repo, host, port, seat)
+    if running:
+        return [running]
+    server = _bind(repo, host, port, seat)
+    print(f"board on http://{host}:{port}/ over {repo.changes.resolve().as_posix()}", flush=True)
     if not is_loopback(host):
         every = ", on every network of this machine" if host in ("0.0.0.0", "::") else ""
         print(f"board: listens beyond this machine ({host}{every}), no password", flush=True)
     if seat:
-
-        def watch() -> None:
-            while not threading.Event().wait(SEAT_CHECK_S):
-                if _seat_gone(repo, seat):
-                    server.shutdown()
-                    return
-
-        threading.Thread(target=watch, daemon=True).start()
+        _watch(repo, seat, server)
     try:
         server.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:
