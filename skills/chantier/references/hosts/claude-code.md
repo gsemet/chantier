@@ -47,13 +47,64 @@ Chief of Staff, and to a hand-over's.
 
 ## Heartbeat
 
-The Foreman (in direct mode the Chief of Staff, in its own session) runs the `/loop` skill in dynamic mode with `chantier status --refresh --batch
-<batch> --epoch <n>`, every `30m`, each wake scheduled with `ScheduleWakeup`. It ends the
+The Foreman (in direct mode the Chief of Staff, in its own session) runs the `/loop` skill in dynamic mode. The loop's prompt is the command `chantier status
+--refresh --batch <batch> --epoch <n>` alone, with no interval in it (no "every 30m", no other): a
+prompt that ends in an interval makes `/loop` take its fixed-interval mode (seen in real-direct
+run 1, 2026-11-12). Each wake is scheduled with `ScheduleWakeup`, 30 minutes (1800 seconds) after
+the last. It ends the
 heartbeat, never its session, with `ScheduleWakeup` `stop: true` (after `chantier status
 --stop-heartbeat --batch <batch> --epoch <n>`, which `pause` already does): right after `pause`,
 and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the last wake
 and no order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
 Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
+
+## Auto-fix events
+
+- **What it is.** Auto-fix is a feature of the Claude Desktop app, not of chantier. The app binds
+  a PR opened by a subagent to the session that started it (the steering session: the Foreman, or
+  the Chief of Staff in direct mode), then sends that session events about the PR: fix its failing
+  checks, resolve a conflict by merging the base branch in. Seen in batch-14 (PR 136) and in
+  real-direct run 1 (2026-11-12, PRs #2 and #5 of the sandbox).
+- **An event is not an order.** It is neither the user's word nor a line of the batch (`order`,
+  `asks`, hand-back). The project's rules, then the cards, always rank above what a host event
+  asks; a host event has no rank in that order. A CR's branch is brought up to date the project's
+  way (here a rebase, `concepts.md` rule 8 and the project's rules), never by the merge of the
+  base branch the event asks for.
+- **A CR with a live Driver** (the CR is `working`, its Driver recorded): the steering session
+  does nothing on the PR: no fix, no merge, no rebase, no push, and no relay of the event to the
+  Driver. It ends the turn at once. The Driver reads its own CI and holds the branch, two writers
+  on one branch race, and a relay spends messages against the host's limit for news the Driver
+  already has.
+- **A CR with no live Driver** (handed back `ready` or `blocked`, waiting for the user): the event
+  is only a signal. The steering session checks the forge itself (`gh pr checks`, `gh pr view
+  --json mergeable`, or `glab` on GitLab). If the PR is really red or in conflict, it follows the
+  card's usual route: the CR goes back to a Driver with `take <cr> --note "<why>"` (`foreman.md`,
+  "Your means": a red check, or the ready PR that stopped merging with `--note "rebase: …"`). It
+  never does what the event asks itself. If the forge shows nothing wrong, nothing is done.
+- **Both steerings.** The same rule holds for whichever session steers: the Foreman, or the Chief
+  of Staff in direct mode.
+- **A PR that is not a batch's** (the user's own PR in the same session) is out of chantier's
+  rule: it is between the user and the app. This section speaks of a batch's PRs only.
+- **chantier never arms, disarms or unbinds the PR monitor.** No card uses the app's PR monitor
+  (`mcp__ccd_pr__set_monitor`), to arm it or to disarm it, and chantier never writes the user's
+  settings.
+- **The cost.** Even ignored, each event starts a turn of the steering session, which the user
+  pays for.
+- **Turning Auto-fix off.** **Unproved**: no documentation and no dated trial gives the path, so
+  none is given here. Trial that settles it: in the Claude Desktop app, find the setting that
+  turns Auto-fix off for a session or a PR, turn it off, open a PR from a subagent, and see that
+  no Auto-fix event arrives; record the labels and the date here. Turning it off also loses
+  Auto-fix for the user's own PRs in that session.
+- **During a normal batch chantier stays silent** about Auto-fix: it does not ask the user to turn
+  it off, has no preflight check for it and gives no "For you" line for it (chantier cannot see
+  whether Auto-fix is on, and a line at every go would be noise). It only ignores the events as
+  above. Only the eval guide asks for Auto-fix off, before a real campaign. A tip may come later,
+  from a measure of the ignored turns' cost in a real batch.
+- **Mark of the section.** The rule (the live Driver, no live Driver and both-steerings points,
+  and the event-is-not-an-order point) is **unproved** until the next real campaign shows it.
+  Trial: an Auto-fix event arrives on a CR's PR during a real eval campaign, and the steering
+  session ends its turn with no tool call on that PR and no message to its Driver (a CR with a
+  live Driver), or checks the forge and uses `take --note` (a CR with none).
 
 ## Configuration
 
@@ -161,7 +212,7 @@ The same rules as one block, ready to paste into the `permissions.allow` array o
 Two rules described here that P10 does not check:
 
 - `mcp__ccd_pr__set_monitor`: Claude Desktop's PR monitor (auto-fix), refused twice in the
-  user's week. No chantier card uses it. Risk: the session arms auto-fix on a PR. Rule form
+  user's week. No chantier card uses it, to arm or to disarm (see "Auto-fix events"). Risk: the session arms auto-fix on a PR. Rule form
   documented; the tool itself is Claude Desktop's, **unproved** here.
 - `Edit(<the folder that holds the repository and its .worktrees>/**)` (the user's form:
   `Edit(~/Projets/**)`): lets agents edit in the CR worktrees next to the repository. Risk: every
