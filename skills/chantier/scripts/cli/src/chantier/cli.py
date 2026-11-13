@@ -197,12 +197,14 @@ def _parser() -> argparse.ArgumentParser:
     s.add_argument("pr", help="the PR link")
 
     s = cmd("stack", commands.stack, "the stack's order, as its driver set it")
-    s.add_argument("crs", nargs="+", help="the CRs, bottom first")
+    s.add_argument("crs", nargs="*", help="the stack's order, as its driver set it, bottom first; "
+                   "with no CR, print the stack as it stands (writes nothing)")
 
     s = cmd("forge-stack", forge_stack.forge_stack,
             "create: the stack batch's native stack on GitHub, PRs bottom to top, the release last; "
-            "show: read it back, one line per failed check (exit 2); GitHub only")
-    s.add_argument("action", choices=["create", "show"])
+            "show: read it back, one line per failed check (exit 2); rebuild: make the forge's "
+            "stack match the record (unstack, retarget, create again); GitHub only")
+    s.add_argument("action", choices=["create", "show", "rebuild"])
     s.add_argument("--stack", type=int, metavar="N", help="show: the stack's number (default: the one that holds the batch's PRs)")
 
     s = cmd("release", commands.release,

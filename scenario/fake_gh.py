@@ -22,6 +22,36 @@ elif args[:2] == ["pr", "merge"]:
         print("fake gh: not allowed to merge", file=sys.stderr)
         sys.exit(1)
     print(f"merged {args[2]}")
+elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a) for a in args):
+    # a PR's base: read (GET) and changed (PATCH, `-f base=<branch>`); the forge refuses the
+    # change while the PR is in an open stack. `bases` holds the changed ones (default: main)
+    path = next(a for a in args if re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a))
+    number = int(path.rsplit("/", 1)[1])
+    bases = state.setdefault("bases", {})
+    if "PATCH" in args:
+        new = next(a.split("=", 1)[1] for a in args if a.startswith("base="))
+        if any(s["open"] and number in s["pull_requests"] for s in state.get("stacks", [])):
+            print("fake gh: HTTP 422: the base of a pull request in a stack cannot change",
+                  file=sys.stderr)
+            sys.exit(1)
+        if state.get("patch_refused"):
+            print("fake gh: HTTP 403: cannot edit the pull request", file=sys.stderr)
+            sys.exit(1)
+        bases[str(number)] = new
+        json.dump(state, open(state_path, "w"))
+    print(json.dumps({"number": number, "base": {"ref": bases.get(str(number), "main")}}))
+elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks/\d+/unstack", a) for a in args):
+    path = next(a for a in args if a.endswith("/unstack"))
+    found = [s for s in state.setdefault("stacks", []) if s["number"] == int(path.split("/")[-2])]
+    if not found:
+        print("fake gh: HTTP 404: Not Found", file=sys.stderr)
+        sys.exit(1)
+    gone = {int(a.split("=", 1)[1]) for a in args if a.startswith("pull_requests[]=")}
+    found[0]["pull_requests"] = [n for n in found[0]["pull_requests"] if n not in gone]
+    if not found[0]["pull_requests"]:
+        found[0]["open"] = False  # dissolved when none is left
+    json.dump(state, open(state_path, "w"))
+    print(json.dumps(found[0]))
 elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks(/\d+)?", a) for a in args):
     # the stacks endpoint: create (POST, pull_requests[] bottom to top), list and read; the stacks
     # live in the state file, `drafts` names the PRs the forge holds as drafts

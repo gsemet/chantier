@@ -1146,7 +1146,8 @@ def _apply_order(b: Batch, kind: str, cr_id: str, note: str, fix_for: str | None
                                 "waits for (every other CR of the batch)")
         if c["status"] != "queued":
             raise ChantierError(f"cannot change what {cr_id} waits for: it is {c['status']}, "
-                                "not queued")
+                                "not queued" + ("; in a stack, its place and base are set by `stack`"
+                                                if b.data["mode"] == "stack" else ""))
         ids: list[str] = []
         for dep in ([] if note.strip() == "-" else [s.strip() for s in note.split(",")]):
             if not any(x["id"] == dep for x in b.data["crs"]):
@@ -1654,14 +1655,13 @@ def _start_base(b_data: dict, c: dict, repo: Repo) -> str:
 def _stack_base(b_data: dict, c: dict, repo: Repo, planned: bool = False) -> str:
     """The base its PR has: its place in the stack once `stack` marked the CR (`planned`: the
     place it will take); otherwise where it started. A CR sits on the one below it in the chain
-    (the first on the default branch); a CR with an open dependency, on that dependency's branch."""
+    (the first on the default branch), whatever its `after`; a CR with an open dependency that
+    `stack` has not placed yet, on that dependency's branch."""
     default = repo.config["default_branch"]
     if c.get("kind") == "release":  # the top of the stack: on the top CR's branch
         return _start_base(b_data, c, repo)
-    if c.get("after") and c.get("kind") != "fix":
-        return _start_base(b_data, c, repo)
-    if not (planned or c.get("stacked")):
-        return _start_base(b_data, c, repo)
+    if not c.get("stacked") and (c.get("after") and c.get("kind") != "fix" or not planned):
+        return _start_base(b_data, c, repo)  # not placed by `stack` yet: where it started
     order = _chain(b_data)
     ids = [x["id"] for x in order]
     i = ids.index(c["id"]) if c["id"] in ids else 0
@@ -1793,6 +1793,15 @@ def _check_release_branch(repo: Repo, d: dict, c: dict) -> None:
                                 "(`take stack`)", EXIT_PRECONDITION)
 
 
+def _stack_lines(repo: Repo, batch: str, d: dict) -> list[str]:
+    """The stack as it stands: the chain line, then one line per CR (what `take stack` and
+    `stack` with no CR print)."""
+    crs = _chain(d)
+    return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + [
+        f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
+        f"base {_stack_ref(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
+
+
 def take(args) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
@@ -1811,14 +1820,13 @@ def take(args) -> list[str]:
                     raise ChantierError(f"batch {batch} is not a stack")
                 if d.get("stack_agent"):
                     raise ChantierError(f"a stack driver is recorded ({d['stack_agent']}); one "
-                                        "that ended: `agents set stack -` first")
+                                        "that ended: `agents set stack -` first (a stack driver "
+                                        "reads the stack with `stack`, which changes nothing)")
                 check_budget(b)
                 reopened = _reopen(b)
                 b.log("take", None, note=args.note)
-                crs = _chain(d)
-                return [f"the stack of batch {batch}: {' → '.join(x['id'] for x in crs)}"] + reopened + [
-                    f"{x['id']} {x['status']} worktree {x['worktree']} branch {x['branch']} "
-                    f"base {_stack_ref(d, x, repo)} PR {x.get('pr') or 'none'}" for x in crs]
+                head, *rows = _stack_lines(repo, batch, d)
+                return [head] + reopened + rows
             c = b.cr(args.cr)
             check_take(b, c, args.note)
             if c["status"] != "working":
@@ -2403,6 +2411,29 @@ def verdict(args) -> list[str]:
     return [f"verdict {c['id']} {result} at {_short(head)}"]
 
 
+def _stale_body_shas(repo: Repo, c: dict, wt: str, head: str) -> list[str]:
+    """The lines of the posted PR body (`work/pr-body.md`) that name a commit of the worktree
+    which is not in the new head's history (a restack made it stale). A line marked `STALE` or
+    `carried from` is the template's own mark and is left out. Read-only git."""
+    body = _work(repo, c) / "pr-body.md"
+    if not body.is_file():
+        return []
+    found = []
+    for n, line in enumerate(read_text(body).splitlines(), 1):
+        if "STALE" in line or "carried from" in line:
+            continue
+        for tok in dict.fromkeys(re.findall(r"\b[0-9a-f]{7,40}\b", line)):
+            if not git("rev-parse", "--verify", "--quiet", f"{tok}^{{commit}}", cwd=wt, check=False):
+                continue
+            if subprocess.run(["git", "merge-base", "--is-ancestor", tok, head], cwd=wt,
+                              capture_output=True).returncode != 0:
+                text = line.strip()
+                found.append(f"pr-body.md line {n} names {tok[:7]}, not in {_short(head)}'s "
+                             f"history: {text if len(text) <= 120 else text[:117] + '...'}")
+                break
+    return found
+
+
 def ship(args) -> list[str]:
     """The Driver pushed and opened or updated the PR itself; this records the link at the
     worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
@@ -2435,6 +2466,7 @@ def ship(args) -> list[str]:
             off.append(f"archive missing from the PR at {where}")
     if not gate_passed(_cr_events(repo, batch, c["id"]), head):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
+    off += _stale_body_shas(repo, c, wt, head)
     base = _stack_base(d, c, repo)
     with Batch(repo, batch, actor="driver") as b:
         b.touch(b.cr(c["id"]), pr=args.pr, head=head, archive_seen=seen)
@@ -2446,6 +2478,11 @@ def stack(args) -> list[str]:
     """The stack's order, as its driver set it; each PR's base follows from it."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
+    if not args.crs:  # read only: no lock, no event, no epoch
+        d = read_batch(repo, batch)
+        if d["mode"] != "stack":
+            raise ChantierError(f"batch {batch} is not a stack")
+        return _stack_lines(repo, batch, d)
     with Batch(repo, batch, actor="stack") as b:
         if b.data["mode"] != "stack":
             raise ChantierError(f"batch {batch} is not a stack")

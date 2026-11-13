@@ -3295,9 +3295,47 @@ def stack_batch(w: World) -> None:
           "queued CR back on the default branch",
           chained and w.cr(four)["status"] == "queued" and "after" not in w.cr(four)
           and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]))
+    # a stacked CR with an `after` takes its place in the stack as base, not its dependency's branch
+    w.chantier("order", "after", four, "--note", one)
+    w.chantier("stack", one, two, four, three)
+    _, placed = w.chantier("stack")
+    check("a stacked CR with an `after` sits on the CR under it in the stack (`stack` with no CR "
+          "and `take stack` print the same base), and the CR above it sits on it",
+          f"base {w.cr(two)['branch']}" in next(ln for ln in placed if ln.startswith(four))
+          and f"base {w.cr(four)['branch']}" in next(ln for ln in placed if ln.startswith(three)),
+          str(placed))
+    w.chantier("stack", one, two, three, four)
+    w.chantier("order", "after", four, "--note", "-")
     fm.turn()
     driver_round(w, four, "stack3.py", "N = 3\n")
     w.ready(four, w.cr(four)["pr"])
+
+    def edit_batch(cr: str, **fields) -> None:
+        d = w.batch()
+        next(c for c in d["crs"] if c["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+    edit_batch(four, after=[two])
+    w.chantier("ship", four, w.cr(four)["pr"])
+    check("`ship` records the stack place as base for a stacked CR that has an `after`",
+          ship_bases(four)[-1] == w.cr(three)["branch"], str(ship_bases(four)))
+    edit_batch(four, after=[])
+    # `ship` names the PR body lines whose SHA a restack made stale
+    wt = Path(w.cr(four)["worktree"])
+    body = w.at(w.cr(four)["path"]) / "work" / "pr-body.md"
+    old = w.sh("git", "rev-parse", "HEAD", cwd=wt)
+    body.write_text(f"## Test plan\n\nTested at {old[:7]} on the gate\ncarried from {old[:7]}\n"
+                    f"STALE {old[:7]}\nNo hash here: deadbeefdeadbeef0000\n")
+    w.sh("git", "commit", "--quiet", "--amend", "-m", "feat: stack3, amended", cwd=wt)
+    new_head = w.sh("git", "rev-parse", "HEAD", cwd=wt)
+    _, out = w.chantier("ship", four, w.cr(four)["pr"])
+    named = [ln for ln in out if "pr-body.md" in ln]
+    check("`ship` names the PR body line whose SHA left the head's history; `carried from`, `STALE` "
+          "and a token that is no commit are not named",
+          len(named) == 1 and named[0].startswith("off: pr-body.md line 3 names " + old[:7])
+          and f"not in {new_head[:7]}'s history" in named[0], str(out))
+    body.write_text(f"## Test plan\n\nTested at {new_head[:7]} on the gate\n")
+    _, out = w.chantier("ship", four, w.cr(four)["pr"])
+    check("with the body fixed, `ship` names no line", not any("pr-body.md" in ln for ln in out), str(out))
 
     _, out = w.chantier("order", "merged", one)
     d = w.batch()
@@ -3312,9 +3350,21 @@ def stack_batch(w: World) -> None:
           and f"base {w.cr(two)['branch']}" in out[2], str(out))
     w.chantier("agents", "set", "stack", "agent-stack", "--epoch", 1)
     code, _ = w.chantier("take", "stack", "--epoch", 1, expect=2)
+    refused = w.last_stderr
     check("one stack driver at a time, and the batch does not pause under it",
           code == 2 and w.chantier("pause", "--epoch", 1, expect=2)[0] == 2
           and w.batch()["status"] == "running")
+    check("`take stack` refused because a stack driver is recorded names `stack`, which changes nothing",
+          "`stack`" in refused, refused)
+    kept = {n: (w.folder() / n).read_bytes() for n in ("batch.json", "events.jsonl")}
+    _, again = w.chantier("stack")
+    check("`stack` with no CR prints the lines `take stack` printed, with a stack driver recorded, "
+          "and writes nothing (`batch.json`, `events.jsonl`)",
+          again == out and all((w.folder() / n).read_bytes() == v for n, v in kept.items()),
+          str(again))
+    code, _ = w.chantier("order", "after", four, "--note", two, expect=2)
+    check("`order after` on a ready CR in a stack batch is refused, and the message names `stack`",
+          code == 2 and "not queued" in w.last_stderr and "`stack`" in w.last_stderr, w.last_stderr)
     w.chantier("ship", two, w.cr(two)["pr"])
     ships = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
     last = [e for e in ships if e["kind"] == "ship" and e["cr"] == two][-1]
@@ -3370,6 +3420,9 @@ def forge_stack_cli(w: World) -> None:
         code, _ = w.chantier("forge-stack", "show", env=on_path, expect=2)
         check("on a GitLab remote `forge-stack show` is refused: GitHub only",
               code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
+        code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
+        check("on a GitLab remote `forge-stack rebuild` is refused: GitHub only",
+              code == 2 and "GitHub only" in w.last_stderr and not stack_calls(), w.last_stderr)
     else:
         code, out = w.chantier("forge-stack", "create", env=on_path)
         posts = stack_calls()
@@ -3429,12 +3482,80 @@ def forge_stack_cli(w: World) -> None:
         code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
         check("after the insertion, `forge-stack show` names the new CR, which has no PR yet",
               code == 2 and any(x.startswith("check 2") and new in x for x in out), str(out))
+        code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
+        check("`forge-stack rebuild` is refused (exit 2) with a CR with no PR recorded, naming it",
+              code == 2 and new in w.last_stderr and "no PR recorded" in w.last_stderr, w.last_stderr)
+        record(**{new: PR_LINK["github"] + "204"})
+        branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
+        gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
+        check("the release's base is the CR just under it after an insertion below it, and the CR "
+              "above the new one sits on it (`take stack`)",
+              any(ln.startswith(r) and f"base {branch(b)}" in ln for ln in listed)
+              and any(ln.startswith(b) and f"base {branch(new)}" in ln for ln in listed), str(listed))
+        # 1. an insertion: the old stack dissolved, the bases moved, one new stack bottom to top
+        before = len(stack_calls())
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        posts = stack_calls()[before:]
+        bases = gh_state()["bases"]
+        check("`forge-stack rebuild` after an insertion: unstacks the old stack, retargets the PRs "
+              "that sit on another base, creates one stack bottom to top (the release on top) and "
+              "reads it back",
+              code == 0 and out[0] == "unstacked #100" and f"#202 base main -> {branch(new)}" in out
+              and f"#203 base main -> {branch(b)}" in out and len(posts) == 1
+              and [x for x in posts[0] if x.startswith("pull_requests[]")]
+              == [f"pull_requests[]={n}" for n in (201, 204, 202, 203)]
+              and bases["204"] == branch(a) and bases["202"] == branch(new)
+              and bases["203"] == branch(b) and any(ln.startswith("stack #101 ") for ln in out)
+              and any("stack #101 ready" in ln for ln in out), str(out))
+        w.gh(drafts=[202])
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        check("`rebuild` is idempotent, and prints a draft as a line to act on, with exit 0",
+              code == 0 and any(ln.startswith("check 4") and "#202" in ln for ln in out)
+              and not any("base" in ln and "->" in ln for ln in out), str(out))
+        w.gh(drafts=[])
+        # 2. a partial merge: the first PR left goes to the default branch, one stack made
+        edit = w.batch()
+        edit["crs"][0]["status"] = "merged"
+        (w.folder() / "batch.json").write_text(json.dumps(edit, indent=2))
+        before = len(stack_calls())
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        posts = stack_calls()[before:]
+        check("`forge-stack rebuild` after a partial merge: the first PR left is retargeted to the "
+              "default branch, the merged PR is left out, one stack is created",
+              code == 0 and any(ln.startswith("#204 base ") and ln.endswith("-> main") for ln in out)
+              and any("also held #201" in ln for ln in out) and len(posts) == 1
+              and [x for x in posts[0] if x.startswith("pull_requests[]")]
+              == [f"pull_requests[]={n}" for n in (204, 202, 203)]
+              and gh_state()["bases"]["204"] == "main", str(out))
+        # 3. a forge refusal mid-way: what was done and the forge's text, then a second run completes
+        w.gh(stacks=[{"number": 105, "open": True, "pull_requests": [204, 202, 203]}],
+             bases={"204": "main", "202": "elsewhere", "203": branch(b)}, patch_refused=True)
+        w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
+        check("a `rebuild` stopped by the forge prints what was done and the forge's exact text (exit 4)",
+              "unstacked #105" in w.last_stderr and "HTTP 403" in w.last_stderr
+              and gh_state()["bases"]["202"] == "elsewhere", w.last_stderr)
+        w.gh(patch_refused=False)
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        check("run again, `rebuild` finds no stack, retargets what is still off and completes",
+              code == 0 and f"#202 base elsewhere -> {branch(new)}" in out
+              and not any(ln.startswith("unstacked") for ln in out)
+              and gh_state()["bases"]["202"] == branch(new)
+              and any(ln.startswith("stack #") for ln in out), str(out))
+        # 4. refused on a GitLab link
+        record(**{b: PR_LINK["gitlab"] + "202"})
+        code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
+        check("on a GitLab link `forge-stack rebuild` is refused: GitHub only",
+              code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
+        record(**{b: links[b]})
     w.reset()
     _, par = prepare_cr(w, "Forge parallel")
     w.start(str(par), *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
     check("`forge-stack create` is refused (exit 2) on a parallel batch",
+          code == 2 and "not a stack" in w.last_stderr, w.last_stderr)
+    code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
+    check("`forge-stack rebuild` is refused (exit 2) on a parallel batch",
           code == 2 and "not a stack" in w.last_stderr, w.last_stderr)
     w.reset()
     w.env.pop("CHANTIER_BATCH", None)

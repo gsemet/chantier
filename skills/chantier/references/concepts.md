@@ -108,7 +108,7 @@ started.
   bottom first; none is a draft; the release PR, when the batch has one with a PR, is on top.
   **Inserting a change into a ready stack:** before anything else every PR that will sit above the
   new one goes back to draft; then the new CR's PR is inserted at its place, the PRs above are
-  restacked on it, the stack is updated on the forge (re-created if the forge cannot insert) and
+  restacked on it, the stack is rebuilt on the forge (`$CHANTIER forge-stack rebuild`) and
   verified, and only then the PRs above turn ready again; the release PR stays on top and its
   notes name the new change (the steps are the stack driver's, in [driver](driver.md)). A CR in
   the middle of a ready stack that goes back for a new round puts the PRs above it to draft first,
@@ -118,7 +118,7 @@ started.
   on the default branch. A release CR is
   their top: it starts on the top CR's branch once every other CR is ready and the top branch
   holds them all, and its PR is the top PR. When a stack merges only in part, what remains forms another stack in the same batch, restacked on
-  the default branch. Each CR is named a branch
+  the default branch (one restack for one merge action of the user, none when the whole stack merged). Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
   external mode): its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the

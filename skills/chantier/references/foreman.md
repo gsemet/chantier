@@ -101,7 +101,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   for the prompt ([concepts](concepts.md), "Starting an agent"). It is refused (exit 2) on a
   working CR without `--note`, and on any CR whose agent id is still recorded: `agents set <cr> -`
   first. `take stack` for the stack
-  driver. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
+  driver, in this order: `take stack`, its output in the stack driver's prompt, the start, then
+  `agents set stack <id>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
   `team:` line): its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
@@ -149,7 +150,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
   (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
   (`--mode stack`, or a series switched by `order mode`): a stack driver takes the stack when its open CRs are all
-  ready or blocked, and again after a merge. `take stack` prints the stack as it stands, each
+  ready or blocked, and again, once every CR merged by one action of the user is recorded, one
+  `take stack` for what remains; none when nothing of the stack remains open. You run `take
+  stack`, never the stack driver: its output goes in the stack driver's prompt, you start it, then
+  `agents set stack <id>`; the stack driver reads the stack again with `$CHANTIER stack` (no CR,
+  it changes nothing). `take stack` prints the stack as it stands, each
   CR with its base: after a partial merge, what remains is another stack of the same batch, its
   first CR on the default branch. A fix CR is outside it; the release CR is its top. A CR added by `order
   add` goes on top. The stack driver ends with each hand-back: `agents set stack - --epoch <n>`
@@ -163,7 +168,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   <cr>`) makes this sequence, the steps of the stack driver's card ([driver](driver.md), "Stack
   driver"): the PRs above the new place go to draft first (the Chief of Staff already did it:
   check it on the forge), the new CR's Driver, `take stack --note "insert: <new cr> below
-  <cr>"`, the release redone (`take <release> --note "redo: <new cr> inserted"`) so its notes
+  <cr>"` (the stack driver's rebuild of the stack on the forge is `$CHANTIER forge-stack
+  rebuild`), the release redone (`take <release> --note "redo: <new cr> inserted"`) so its notes
   name the change, `take stack` again, the check, then `stack-ready`. You edit no PR yourself.
   A ready PR that stopped merging is yours to notice (`gh pr
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.
@@ -201,7 +207,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     rebase, a new round after review), the started CR above it goes back to a Driver with
     `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
     that branch; each one moved this way moves the next.
-  - **Stack:** unchanged: the stack driver restacks.
+  - **Stack:** once every CR that one action of the user merged is recorded, one `take stack`
+    for what remains and one restack by the stack driver; none when nothing of the stack remains
+    open.
 - **The main checkout after a merge.** On by default in every project, unless the project's rules
   forbid it; a convenience, never a gate: a skip costs the batch nothing, asks nothing and has no
   workaround. It is yours alone (a Driver, a worker and, in Foreman mode, the Chief of Staff never
