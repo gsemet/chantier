@@ -42,7 +42,10 @@ started.
   STATUS files and the seat are in it. Its `.gitignore`, written by the CLI, keeps the batch's own
   files (`batch.json`, `events.jsonl`, `brief.md`, STATUS, locks, `.batch-number`, `seat.json`) and
   the detailed logs (`work/gates/`, `*.log`) out of git: a raw log goes in such a file, never in a
-  published one. The rest of a CR's folder is pushed with the surface.
+  published one. The rest of a CR's folder is pushed with the surface. So are the batches' records:
+  each batch leaves `5-archives/batches/batch-NN.json` (for a UI; written by `open` as `running`,
+  completed by `close`) and `batch-NN.md` (for a person: the Completion table, the cost, the retro).
+  The next batch number is read from these records.
 - **Planning surface:** a git repository of its own, one folder per project, always worked on
   its default branch (never in a worktree; only the project's code gets worktrees):
   `projects/<name>/` holds `project.md` (the project, its remote, `- Archive in the PR: yes|no`,
@@ -132,8 +135,8 @@ started.
   3. **Paused:** nothing runs. The cost to date has been computed and shown, and the steering
      session has written the batch's retro for this pause (`4-batch/retro.md`: each problem met
      with its long-term fix, one line each), which the Chief of Staff offers to the user as inbox
-     items before any close (`close` keeps it, in the archive of the batch's last merged CR, or in
-     `5-archives/<date>-<batch>/` when none merged); each later pause adds
+     items before any close (`close` writes it into the batch's `5-archives/batches/batch-NN.md`,
+     and deletes `4-batch/retro.md` with the batch's files); each later pause adds
      its own section. The batch is not
      closed (one batch at a time, so `open` still refuses a new batch). It takes new CRs:
      `order add` adds them, any number, and the batch stays paused; the first `take` (or an

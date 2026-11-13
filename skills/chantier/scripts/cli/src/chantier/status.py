@@ -370,8 +370,9 @@ def _past(stage: Path, start: Path) -> tuple[list[dict], int]:
 
     At most `PAST_LIMIT` STATUS.json files are read; a folder without one gives its title only.
     """
-    # a batch's retro-only folder (`<YYMMDD-HHMM>-<batch id>`) holds no CR: not listed, not counted
-    folders = sorted((p for p in stage.iterdir() if p.is_dir()
+    # `batches` (the batches' records) and a retro-only folder (`<YYMMDD-HHMM>-<batch id>`, from
+    # before the records) hold no CR: not listed, not counted
+    folders = sorted((p for p in stage.iterdir() if p.is_dir() and p.name != "batches"
                       and not re.fullmatch(r"\d{6}-\d{4}-batch-\d+", p.name)), reverse=True) \
         if stage.is_dir() else []
     out = []

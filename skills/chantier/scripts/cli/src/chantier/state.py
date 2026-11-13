@@ -18,9 +18,11 @@ import re
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 if sys.platform == "win32":
     import msvcrt
@@ -55,7 +57,7 @@ def _unlock(f) -> None:
         fcntl.flock(f, fcntl.LOCK_UN)
 
 
-def _retry(op, *args):
+def _retry(op: Callable[..., Any], *args: Any) -> Any:
     """Windows refuses to open a file while another process renames over it, and to rename over
     one another process has open: both are brief, so try again for up to a second."""
     for _ in range(100):
@@ -97,7 +99,8 @@ def write_file(path: Path, text: str) -> None:
     """Write by atomic rename, so a reader never sees half a file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(text, encoding="utf-8")
+    with tmp.open("w", encoding="utf-8", newline="\n") as f:  # `\n` on Windows too
+        f.write(text)
     _retry(os.replace, tmp, path)
 
 
@@ -106,6 +109,7 @@ def write_json(path: Path, data) -> None:
 
 
 CHANGES = Path(".agents") / "changes"
+RECORDS = Path("5-archives") / "batches"  # each batch's `batch-NN.json` and `batch-NN.md`
 # What `chantier open` records in batch.json (SETTINGS: the branch and the remote the Chief of
 # Staff read in the project's AGENTS.md), and the fixed rules every batch runs on.
 DEFAULT_CONFIG = {
@@ -319,6 +323,8 @@ class Repo:
         if convert:
             from .lifecycle import convert_old_tree  # avoid an import cycle
             convert_old_tree(repo)
+            from .backfill import backfill_history  # avoid an import cycle
+            backfill_history(repo)
         return repo
 
     @classmethod
@@ -405,11 +411,15 @@ class Repo:
         return self.batches
 
     def next_batch_number(self) -> int:
-        """Numbers keep rising after a batch's folder is deleted: the last one is on file."""
+        """The highest of the records in `5-archives/batches/`, the live batch and `.batch-number`,
+        plus one: numbers keep rising after a batch's folder is deleted, on every machine that
+        has the records."""
         last = self.changes / ".batch-number"
         kept = int(read_text(last)) if last.is_file() else 0
-        return max([kept, *(int(m.group()) for i in self.batch_ids()
-                          if (m := re.search(r"\d+", i)))]) + 1
+        recorded = (int(m[1]) for p in (self.changes / RECORDS).glob("batch-*.json")
+                    if (m := re.fullmatch(r"batch-(\d+)\.json", p.name)))
+        live = (int(m.group()) for i in self.batch_ids() if (m := re.search(r"\d+", i)))
+        return max([kept, *recorded, *live]) + 1
 
     def open_batches(self) -> list[str]:
         states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
@@ -424,6 +434,7 @@ class Batch:
         """`create` opens a new batch: its number is the next, its id `batch-<n>` on two digits."""
         self._create = create
         self._number = None
+        self._record: Path | None = None  # the record `open` wrote, removed if the open fails
         if create is not None:
             self._number = repo.next_batch_number()
             batch_id = f"batch-{self._number:02d}"
@@ -471,6 +482,9 @@ class Batch:
         state_written = False
         try:
             if exc_type is None and self._events:
+                if self._number:  # the number is reserved by the record, before the state
+                    from .history import reserve_record  # avoid an import cycle
+                    self._record = reserve_record(self.repo, self.data)
                 write_json(self.dir / "batch.json", self.data)
                 state_written = True
                 with open(self.dir / "events.jsonl", "a", encoding="utf-8") as f:
@@ -494,11 +508,12 @@ class Batch:
                     _unlock(self._lock)
                 self._lock.close()
                 # a failed `open` leaves none of the batch's own files, and touches no CR folder:
-                # the state folders stay
+                # the state folders stay; the record it wrote goes too
                 if self._number and not state_written:
-                    for name in (".lock", "brief.md"):
+                    for path in (self.dir / ".lock", self.dir / "brief.md",
+                                 *([self._record] if self._record else [])):
                         with contextlib.suppress(OSError):
-                            (self.dir / name).unlink()
+                            path.unlink()
 
     def log(self, kind: str, cr: str | None = None, **fields) -> None:
         self._events.append({"t": now(), "actor": self.actor, "kind": kind, "cr": cr, **fields})
@@ -551,7 +566,9 @@ def resolve_batch(repo: Repo, batch: str | None) -> str:
     if len(names) == 1:
         return names[0]
     if not names:
-        raise ChantierError("no running batch: run `chantier open` first")
+        from .history import last_closed_note  # avoid an import cycle
+        raise ChantierError("no running batch: run `chantier open` first"
+                            + last_closed_note(repo))
     raise ChantierError(f"several running batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
 
 

@@ -286,7 +286,8 @@
   <path d="M1380,1374 H1406" stroke="#334155" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
   <rect x="1410.0" y="1361" width="140" height="26" rx="7" fill="#0f172a"/><text x="1480" y="1378.5" font-size="13" text-anchor="middle" font-family="ui-monospace, Menlo, monospace"><tspan fill="#cbd5e1">chantier </tspan><tspan fill="#fb923c" font-weight="700">close</tspan></text>
   <text x="1600" y="1420" font-size="12.5" fill="#475569" text-anchor="end">then <tspan font-family="ui-monospace, Menlo, monospace">close --yes</tspan>: each CR of <tspan font-family="ui-monospace, Menlo, monospace">3-done/</tspan> → <tspan font-family="ui-monospace, Menlo, monospace">5-archives/</tspan>,</text>
-  <text x="1600" y="1436" font-size="12.5" fill="#475569" text-anchor="end">the batch's own files are deleted</text>
+  <text x="1600" y="1436" font-size="12.5" fill="#475569" text-anchor="end">the batch's record and retro kept in <tspan font-family="ui-monospace, Menlo, monospace">5-archives/batches/</tspan>,</text>
+  <text x="1600" y="1452" font-size="12.5" fill="#475569" text-anchor="end">the batch's own files are deleted</text>
   <text x="965" y="1419" font-size="12.5" font-weight="700" fill="#334155" text-anchor="middle">⏸️ the batch is paused; new CRs join it, and the first take sets it running again</text>
   <g font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">
   <rect x="46.0" y="846" width="100" height="24" rx="12" fill="#b91c1c"/><text x="96" y="862.5" font-size="12.5">📝 findings</text>
