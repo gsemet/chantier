@@ -73,7 +73,7 @@ The CLI keeps the CR's record and tells you what is off.
   with routine steps.
 - The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
-  gate waits), stops at the first failure, keeps the log and records the pass at that head. It
+  gate waits its turn, in arrival order), stops at the first failure, keeps the log and records the pass at that head. It
   is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
@@ -86,7 +86,10 @@ The CLI keeps the CR's record and tells you what is off.
   no pass, and it voids an earlier pass at that head, so run the long gate again at the head you
   push. A gate of yours still waiting for the lock (its log says `waiting for the long gate of
   …`) has started no suite, and `--stop` refuses it because the lock names another CR: end it
-  by ending the `gate` command you started, by its id. `cancel` is the steering session's
+  by ending the `gate` command you started, by its id. A wait in the queue is never refused for
+  its length; a refusal for the hour names the gate that holds the lock (or whose suite runs on)
+  at that moment: report it to the steering session as it is, do not read it as a stale lock,
+  and never stop another CR's gate. `cancel` is the steering session's
   command for a CR the user dropped, never a Driver's, whatever the reason.
 - Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
   head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).

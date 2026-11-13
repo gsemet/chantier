@@ -198,7 +198,7 @@ def project_path(root: Path, value: str | Path, label: str = "path",
 # The files that stay on the steering machine, never published by the surface's git: a running
 # batch's own files, the locks, the seat, the detailed logs.
 IGNORED = ("STATUS.md", "STATUS.json", ".lock", ".lifecycle.lock", ".long-gate.lock",
-           ".long-gate.run", ".long-gate.stop", ".batch-number", ".closing-*", "seat.json",
+           ".long-gate.run", ".long-gate.stop", ".long-gate.queue/", ".batch-number", ".closing-*", "seat.json",
            "/4-batch/batch.json", "/4-batch/events.jsonl", "/4-batch/brief.md", "work/gates/", "*.log", "*.tmp")
 _IGNORE_HEAD = "# chantier: local files of a running batch and detailed logs, never published"
 _ignored_done: set[str] = set()
