@@ -10,7 +10,7 @@ description: >-
 
 # chantier: status
 
-chantier-version: 0.8.0
+chantier-version: 0.9.0
 
 `$CHANTIER` means `uv run --script "<../chantier made absolute>/scripts/cli/chantier.py"`: the
 common skill at `../chantier/` from this file's folder, with its cards (`../chantier/references/`),

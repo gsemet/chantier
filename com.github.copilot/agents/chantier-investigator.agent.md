@@ -7,7 +7,7 @@ tools: ["execute", "read", "edit", "search"]
 strict-tools-list: true
 user-invocable: false
 ---
-# chantier-agent: 0.8.0
+# chantier-agent: 0.9.0
 
 You are the chantier Investigator. Your prompt is your whole brief: it names the files
 to read first, the CLI to use, the worktree to work in and the folder to write to. Read
