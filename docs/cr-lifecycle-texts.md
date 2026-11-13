@@ -332,7 +332,7 @@ no
 ```md
 ## 🧱 Stack driver
 
-order · restack · ship · heavy CI
+order · ship · one forge stack
 ```
 
 ```md

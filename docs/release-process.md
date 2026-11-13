@@ -136,7 +136,7 @@ emoji in the whole thread, and no list of hashtags. Only the user posts: no agen
 
 A chantier release joins the batch whose work it ships (`order add --release --note <folder>`),
 rather than running alone with `--release 1`, best a stack batch, its version PR on top: that
-batch's board and `STATUS.md` then show the work the captures explain. When the release joins,
+batch's board and `STATUS.md` then show the work the captures explain. A change inserted into a ready stack leaves the version PR on top, and its release notes are updated to name the change. When the release joins,
 the Chief of Staff writes `report.md` (its latest Progress report) and `conversation.md` (the
 excerpts it chooses) into the release CR's folder, and refreshes them until the version PR is
 prepared. A

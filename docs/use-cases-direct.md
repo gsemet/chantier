@@ -54,7 +54,7 @@ as blocked with its question, and the Chief of Staff tells you at once, in the s
 progress report; the others go on. Past the budget, nothing new starts until you answer. Parallel
 (the default), series and stacked pull requests work as in Foreman mode: parallel CRs are all based
 on the default branch and rebased after each merge, a series goes one CR after the other, each on
-the previous one's branch, and a stack driver orders a stack afterwards.
+the previous one's branch, and a stack driver makes one native stack afterwards, which you merge in one action from the top PR; a change inserted into a ready stack sends the PRs above it back to draft until the stack is verified again.
 
 The orders of Foreman mode that act on the batch itself work the same: drop a CR, a note on a CR,
 "I merged #42", more rounds, slots or budget, and a hold ("Hold" sets the slots to 0, "Resume"
