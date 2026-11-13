@@ -3,6 +3,9 @@
 set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 
 cli := "skills/chantier/scripts/cli"
+ruff := "ruff@0.17.5"
+mypy := "mypy==1.20.0"
+run-cli := "uv run --no-project --with-requirements skills/chantier/scripts/cli/chantier.py python"
 
 # List the recipes
 default:
@@ -26,12 +29,12 @@ test *args:
 
 # Optional: one whole batch, end to end through the real CLI and a fake gh, then glab, no model
 scenario:
-    uv run --no-project python scenario/run_scenario.py --forge github
-    uv run --no-project python scenario/run_scenario.py --forge gitlab
+    {{run-cli}} scenario/run_scenario.py --forge github
+    {{run-cli}} scenario/run_scenario.py --forge gitlab
 
 # The eval kit's dry run: reset, setup, a staged run, the audit and the judge, on a local sandbox; no model, no GitHub
 eval-dry-run:
-    uv run --no-project python evals/kit/dry_run.py
+    {{run-cli}} evals/kit/dry_run.py
 
 # The mod's checks: `claude plugin validate .` then `claude plugin test .` (not part of check: CI has no claude)
 mod:
@@ -41,8 +44,15 @@ mod:
 release-notes:
     uv run --script scripts/release_notes.py --check
 
+# The code standards: format, lint, types and the lock (tools through uvx, versions pinned above)
+lint:
+    cd {{cli}}; uvx {{ruff}} format --check .
+    cd {{cli}}; uvx {{ruff}} check .
+    cd {{cli}}; uvx --with-requirements chantier.py --with pytest --from {{mypy}} mypy
+    cd {{cli}}; uv lock --script chantier.py --check
+
 # Everything a change must pass
-check: test release-notes
+check: lint test release-notes
 
 # Prepare a release on a new branch: bump, check and commit (pushes nothing)
 release part="patch": (bump-version part) check

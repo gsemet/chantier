@@ -66,8 +66,9 @@ chantier is four things in one repository:
    `hosts/copilot.md` hold what is proper to a host (tools, heartbeat, sessions), each behaviour
    marked proved, documented or unproved, and the cards only point to them. They are written for agents: short, exact, one meaning per word. A card
    says what a role judges and how; the project's own rules (`chantier rules`) rank above it.
-2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): plain Python with
-   no dependency, run by `uv run --script`, on Linux, macOS and Windows. Its scope is the frame
+2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): Python whose
+   dependencies are declared in `chantier.py`'s PEP 723 block and locked in `chantier.py.lock`,
+   run by `uv run --script`, on Linux, macOS and Windows. Its scope is the frame
    the agents work in: the CR lifecycle (`file`, `triage`, `abandon`, `open`, the stages,
    `cancel`, `pause`, `close`), the batch's limits and record (`take`, `round`, `handback`,
    `ship`, `release go`; `rails.py` says what is refused), the means to synchronise (`order`,
@@ -82,8 +83,8 @@ chantier is four things in one repository:
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. One named exception among the tools: `board`, a read-only web view of this
-   record for the user in remote (it writes no file, uses the standard library only and knows no
-   role; more is another CR). A new CLI tool comes only from measured token-costly behaviour of the
+   record for the user in remote (it writes no file, takes its dependencies through the CLI's PEP 723
+   inline metadata like the rest of the CLI, and knows no role; more is another CR). A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and
    [`.claude-plugin/`](.claude-plugin/) (Claude Code) ship the skill
@@ -130,7 +131,7 @@ skills/chantier/
 │                             spec-writer, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
-└── scripts/cli/            ← the `chantier` CLI and its tests
+└── scripts/cli/            ← the `chantier` CLI, its tests, and `chantier.py.lock` (its locked dependencies)
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
@@ -140,7 +141,7 @@ docs/                       ← diagrams, screenshots, the user docs (tutorial, 
 ## Set up
 
 Install [`uv`](https://docs.astral.sh/uv/), [`just`](https://just.systems/) and `git`.
-Nothing else: `uv` fetches Python and the test dependencies.
+Nothing else: `uv` fetches Python, the CLI's dependencies and the check tools (ruff, mypy).
 
 To run your working copy in Claude Code, install the plugin from your checkout, once:
 
@@ -164,7 +165,7 @@ with `/reload-plugins`.
 
 ```bash
 just                # list the recipes
-just check          # structure tests: run before any PR
+just check          # lint (ruff, mypy, the lock) and structure tests: run before any PR
 just test -k agent  # structure tests, with pytest arguments
 just scenario       # one whole batch, end to end, through the real CLI and a fake gh, then glab
 just eval-dry-run   # the eval kit, end to end on a local sandbox: reset, setup, a staged run, audit, judge
@@ -233,6 +234,31 @@ visible in the PR's head, absent on main).
   [scorecard](evals/SCORECARD.md) for the Claude campaigns.
 - `main` is protected: every change goes through a pull request, merged by rebase once CI
   (`just check` on Linux, macOS and Windows, and `just scenario` and `just eval-dry-run` on Linux) is green.
+
+## Code standards
+
+The plugin's Python (every `.py` file under `skills/`, tests included) meets these targets, and
+`just check` enforces them on Linux, macOS and Windows through `just lint` and two tests
+(`tests/test_code_targets.py`):
+
+- **File:** at most 400 lines, one responsibility per module, no import cycle.
+- **Function:** at most 50 lines, complexity at most 10, at most 5 arguments, 12 branches, 6
+  returns, 50 statements, nesting at most 3 levels.
+- **Style:** `ruff format` and `ruff check` clean (`E`, `W`, `F`, `I`, `B`, `UP`, `SIM`, `C90`,
+  `PL`, `RUF`), lines of 100 at most; a `# noqa: <code>` names its code and says why.
+- **Types:** every function annotated, `mypy --strict` clean.
+
+The code of `src/chantier/` is in layers, and a module imports only from its own layer or the ones
+below: `core/` (errors, files, clock, git, the JSON records as pydantic models, the repository,
+the batch, the seat), then the domain modules (`lifecycle/`, `playbook/`, `costs/`, `status/`,
+`rails.py`, `procs.py`, `plugin_files.py`), then `commands/` (one module per family of commands,
+each with its `register(sub)`) and `board/`, then `cli.py`.
+
+A dependency must replace hand-written code and ship wheels for Linux, macOS (x86_64 and arm64)
+and Windows: the block sets `no-build = true`, so nothing is built from source. After a change to
+the block of `chantier.py`, run `uv lock --script chantier.py` (from `scripts/cli/`) and keep the
+dependency list of `pyproject.toml` the same; `just lint` refuses a stale lock. The board CRs add
+the JS and CSS targets with their linter.
 
 ## Versions
 

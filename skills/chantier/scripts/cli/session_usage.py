@@ -11,8 +11,9 @@
 """`copilot-session-usage` is resolved by uv from this script's inline metadata.
 
 `chantier cost` runs this on Copilot with uv configuration files and index variables ignored;
-the rest of the CLI has no dependency.
+the rest of the CLI takes its dependencies from `chantier.py`'s own block.
 """
+
 from copilot_session_usage.cli import cli
 
 cli()
