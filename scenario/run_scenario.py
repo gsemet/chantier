@@ -970,6 +970,7 @@ def scenario(w: World) -> None:
     copilot_missing_transcript(w)
     lifecycle_regressions(w)
     stack_batch(w)
+    forge_stack_cli(w)
     batch_modes(w)
     release(w)
     granted_fixes(w)
@@ -3202,6 +3203,114 @@ def stack_batch(w: World) -> None:
           fm.paused and w.batch()["status"] == "paused"
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
           and not (w.folder() / "batch.json").exists())
+    w.env.pop("CHANTIER_BATCH", None)
+
+
+def forge_stack_cli(w: World) -> None:
+    note("\n## 13a. `forge-stack`: the native stack made and read back on the forge")
+    w.reset()
+    a_item, b_item, r_item = (prepare_cr(w, t)[1] for t in ("Forge piece a", "Forge piece b", "Forge release"))
+    w.start(str(a_item), str(b_item), str(r_item), "--mode", "stack", "--release", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b, r = (c["id"] for c in w.batch()["crs"])
+    w.chantier("stack", a, b, r)
+    path_key = next(k for k in w.env if k.upper() == "PATH")
+    on_path = {path_key: f"{w.fake.parent}{os.pathsep}{w.env[path_key]}"}
+    links = {a: PR_LINK[ARGS.forge] + "201", b: PR_LINK[ARGS.forge] + "202", r: PR_LINK[ARGS.forge] + "203"}
+
+    def record(**prs: str) -> None:
+        d = w.batch()
+        for c in d["crs"]:
+            if c["id"] in prs:
+                c["pr"] = prs[c["id"]]
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    def stack_calls() -> list[list[str]]:
+        log = w.root / "gh-state.json.calls"
+        rows = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
+        return [x for x in rows if x[:1] == ["api"] and "POST" in x and any(a.endswith("/stacks") for a in x)]
+
+    record(**{a: links[a], b: links[b]})
+    code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
+    check("`forge-stack create` is refused (exit 2) when a stacked CR has no PR recorded, naming it"
+          if ARGS.forge == "github" else "`forge-stack create` is refused (exit 2) on GitLab links",
+          code == 2 and (r in w.last_stderr and "no PR recorded" in w.last_stderr
+                         if ARGS.forge == "github" else "GitHub only" in w.last_stderr), w.last_stderr)
+    record(**{r: links[r]})
+    if ARGS.forge == "gitlab":
+        code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
+        check("on a GitLab remote `forge-stack create` is refused: GitHub only",
+              code == 2 and "GitHub only" in w.last_stderr and not stack_calls(), w.last_stderr)
+        code, _ = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("on a GitLab remote `forge-stack show` is refused: GitHub only",
+              code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
+    else:
+        code, out = w.chantier("forge-stack", "create", env=on_path)
+        posts = stack_calls()
+        check("`forge-stack create` calls the stacks endpoint once, the PRs bottom to top and the "
+              "release PR last, and prints the stack's link",
+              code == 0 and len(posts) == 1 and [x for x in posts[0] if x.startswith("pull_requests[]")]
+              == [f"pull_requests[]={n}" for n in (201, 202, 203)] and "--hostname" not in posts[0]
+              and "repos/acme/demo/stacks" in posts[0] and out and out[0].startswith("stack #100 ")
+              and links[r] in out[0], f"{out} {posts}")
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("`forge-stack show` exits 0 on a stack that matches the record; it writes nothing",
+              code == 0 and "ready" in out[0] and len(stack_calls()) == 1, str(out))
+        w.chantier("forge-stack", "create", env=on_path, expect=4)
+        check("a second `create` over PRs already stacked comes back with the forge's exact text (exit 4)",
+              "already in a stack" in w.last_stderr, w.last_stderr)
+
+        def stack_on_forge(order: list[int], drafts: list[int] = (), is_open: bool = True) -> None:
+            w.gh(stacks=[{"number": 100, "open": is_open, "pull_requests": order}], drafts=list(drafts))
+        cases = [("a draft", dict(order=[201, 202, 203], drafts=[202]), "check 4", "#202"),
+                 ("a wrong order", dict(order=[202, 201, 203]), "check 3", "#202"),
+                 ("the release not on top", dict(order=[201, 203, 202]), "check 5", "#203"),
+                 ("a closed stack", dict(order=[201, 202, 203], is_open=False), "check 1", "not open"),
+                 ("a missing PR", dict(order=[201, 203]), "check 2", "#202"),
+                 ("a foreign PR", dict(order=[201, 202, 203, 999]), "check 2", "#999")]
+        for what, kw, line, word in cases:
+            stack_on_forge(**kw)
+            code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+            check(f"`forge-stack show` on {what}: a `{line}` line naming the cause, exit 2",
+                  code == 2 and any(x.startswith(line) and word in x for x in out), str(out))
+        stack_on_forge([201, 202, 203], drafts=[202, 203])
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("`forge-stack show` prints one line per failed check", len(out) == 1 and "#202 #203" in out[0], str(out))
+        w.gh(stacks=[{"number": 99, "open": False, "pull_requests": [201, 202]},
+                     {"number": 100, "open": True, "pull_requests": [201, 202, 203]}], drafts=[])
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("`forge-stack show` without --stack prefers the open stack over a closed one that "
+              "overlaps the batch's PRs", code == 0 and "stack #100 ready" in out[0], str(out))
+        record(**{b: PR_LINK["gitlab"] + "202"})
+        for action in ("create", "show"):
+            code, _ = w.chantier("forge-stack", action, env=on_path, expect=2)
+            check(f"on a GitLab link `forge-stack {action}` is refused: GitHub only",
+                  code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
+        record(**{b: links[b]})
+
+    w.chantier("foreman", "set", "local_foreman_fs", "--epoch", 1)
+    _, joined = prepare_cr(w, "Forge inserted")
+    w.chantier("order", "add", "--note", str(joined))
+    new = w.batch()["crs"][-1]["id"]
+    w.chantier("stack", a, new, b, r)
+    _, listed = w.chantier("take", "stack", "--epoch", 1)
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    check("insertion: a CR added to the stack batch and ordered below the release CR sits there in "
+          "`take stack`, the release CR still last",
+          listed and listed[0].endswith(f"{a} → {new} → {b} → {r}") and listed[-1].startswith(f"{r} "),
+          str(listed))
+    if ARGS.forge == "github":
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("after the insertion, `forge-stack show` names the new CR, which has no PR yet",
+              code == 2 and any(x.startswith("check 2") and new in x for x in out), str(out))
+    w.reset()
+    _, par = prepare_cr(w, "Forge parallel")
+    w.start(str(par), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
+    check("`forge-stack create` is refused (exit 2) on a parallel batch",
+          code == 2 and "not a stack" in w.last_stderr, w.last_stderr)
+    w.reset()
     w.env.pop("CHANTIER_BATCH", None)
 
 
