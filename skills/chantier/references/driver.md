@@ -298,7 +298,8 @@ based on each other is not one. Your `hand-back ready` is sent only once the sta
 forge and you have read it back as ready (the five checks, below).
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
-under it, in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
+under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
+or a script), in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
 `ship` each one you moved, and keep the stack green with heavy CI once at the top. You edit no
 project file yourself: a conflict goes to a `conflict-resolver`, code to an `anomaly`. You open
 no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
@@ -440,7 +441,13 @@ inside the procedure and the grant, and ask for anything beyond them.
 - A release PR merged (you see it on the forge, `gh pr view <pr>` or the forge's equivalent the
   host card names, and `release go` answers `go` because of the merge) needs no further go from
   chantier: go on through the procedure to its end. Where the procedure itself asks for a go,
-  `handback blocked approval: <step>`.
+  `handback blocked approval: <step>`. The publication step (for this project, `CONTRIBUTING.md`
+  "Release" step 5, `gh release create … --verify-tag --notes-file …`) is yours once `release go`
+  answers `go`, when the host allows it by its named rule ([claude-code](hosts/claude-code.md),
+  "Allow rules"). When the host refuses it, report the refusal with its exact text (rule 7) as
+  `handback blocked approval: publish: <the exact command>` and try nothing else: the steering
+  session gives the user the command ("the publication is yours") and never runs it without their
+  word.
 - A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
   checks and any watch of the deploys it names (a package registry, pages), then `<work
   folder>/retro.md` (what went wrong or slowly, the long-term fix for each,

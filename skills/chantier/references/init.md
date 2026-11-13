@@ -78,7 +78,7 @@ getting started here, phrases to say, the glossary.
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.
    The example CR is offered for the inbox. The host's configuration comes from preflight's P5
-   and P10 and from P9: the missing tools, and your host's "Allow rules to add" block for the
+   and P10 and from P9 (which gives the missing forge rights too): the missing tools, and your host's "Allow rules to add" block for the
    missing rules, explained only; the user adds them themself, like the `.gitignore` line. The
    tour writes nothing in the user's settings.
 2. **Phrases to say:** "file this: …", "make it a P1", "run the P1s", "status?", "drop CR-<n>",

@@ -117,6 +117,7 @@ page (`https://code.claude.com/docs/en/<page>`).
 
 - The Chief of Staff, at its first turn of a session and at each batch's preflight: it runs the
   check (P5, P9, P10) and gives the user the block of "Allow rules to add" for what is missing.
+  P10 checks the commands the agents run, not the rules' text; P9 checks the forge's rights.
 - The Foreman and the Drivers read this file with their card (their prompts already name it):
   "Auto mode" tells them what a refusal means and that it is reported, never worked around.
 - The workers do not read this file; what they need (one command per call, read before you
@@ -162,21 +163,37 @@ How rules match (each line **documented**, <https://code.claude.com/docs/en/perm
 - Settings precedence: managed > command line > local > project > user; deny > ask > allow; a
   user deny blocks a project allow (<https://code.claude.com/docs/en/settings>, permissions).
 
-The recommended rules, in the order P10 checks them. Each has a `Bash(…)` and a `PowerShell(…)`
-form (P10 compares only the Bash forms on POSIX):
+The recommended rules, in the order P10 lists them. Each has a `Bash(…)` and a `PowerShell(…)`
+form (P10 checks the Bash forms on POSIX, both on Windows). P10 does not compare these strings: it
+holds the commands the cards make the agents write, and asks whether some allow rule of your
+settings lets each one through. A narrower or different rule of yours counts when it matches the
+same commands, for instance `PowerShell(git push --force-with-lease=chantier/* origin *chantier/*)`.
+In the rules below, `origin` is the project's remote name.
 
 | Rule | chantier's use | Risk accepted | Mark |
 | --- | --- | --- | --- |
-| `Bash(git push --force-with-lease*)` and `PowerShell(…)` | a Driver's push after a rebase (`driver.md`, Push) | any `--force-with-lease` push, to any branch, and any flag after it | documented (rule form) |
-| `Bash(git -C * push --force-with-lease*)` and `PowerShell(…)` | the same from outside the worktree, the form refused 4 times as "Git Destructive" | as above, in any repository the `-C` path names | documented (rule form) |
 | `Bash(git push -u origin chantier/*)` and `PowerShell(…)` | a Driver's plain push (`driver.md`: `git push -u <remote> <branch>`, branches `chantier/<batch>/…`) | `*` matches any further text, so a flag added after the branch passes too; a remote not named `origin` is not covered | documented (rule form) |
 | `Bash(git -C * push -u origin chantier/*)` and `PowerShell(…)` | the same with `git -C <worktree>` | as above | documented (rule form) |
+| `Bash(git push --force-with-lease -u origin chantier/*)` and `PowerShell(…)` | a Driver's push after a rebase, and the stack driver's restack, one command per branch (`driver.md`, Push) | a lease-protected force push of any `chantier/` branch | documented (rule form) |
+| `Bash(git -C * push --force-with-lease -u origin chantier/*)` and `PowerShell(…)` | the same from outside the worktree, the form refused 4 times as "Git Destructive" | as above, in any repository the `-C` path names | documented (rule form) |
+| `Bash(git push --force-with-lease=chantier/* origin *chantier/*)` and `PowerShell(…)` | the steering session's route for a refused force push: `git push --force-with-lease=<branch>:<expected> <remote> <sha>:refs/heads/<branch>` | as above | documented (rule form) |
 | `Bash(uv run --script *chantier.py *)` and `PowerShell(…)` | every `$CHANTIER` command (`merge`, `ship`, `spawn`… were refused 5 times) | any script whose path ends in `chantier.py` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
 | `Bash(gh pr create*)` and `PowerShell(…)` | a Driver opens its PR (refused once as "Git Destructive") | any PR on any repository `gh` can reach | documented (rule form) |
+| `Bash(gh pr edit*)` and `PowerShell(…)` | a Driver's body (`--body-file`) and the stack driver's retarget (`--base`); refused in batch-15 | any edit of any PR `gh` can reach | documented (rule form) |
+| `Bash(gh pr ready*)` and `PowerShell(…)` | a PR turned ready, or back to draft (`--undo`) | a PR turned ready, or back to draft | documented (rule form) |
 | `Bash(gh pr checks*)` and `PowerShell(…)` | a Driver reads its CI | read-only | documented (rule form) |
+| `Bash(gh pr view*)` and `PowerShell(…)` | a Driver or the steering session reads a PR | read-only | documented (rule form) |
+| `Bash(gh stack*)` and `PowerShell(…)` | the stack on the forge, only with the `gh stack` extension installed | any operation of the extension | **unproved**: the rule form for an extension command is not documented; trial: set it, run `gh stack view` in auto mode |
+| `Bash(gh release create*)` and `PowerShell(…)` | the release's publication, only when the project's release procedure runs it (`driver.md`, Release driver); `release go` still gates the step | a release published on any repository `gh` can reach | documented (rule form) |
 | `Bash(glab mr create*)` and `PowerShell(…)` | a Driver opens its MR on GitLab (`driver.md`: `glab mr create --draft`) | any MR on any project `glab` can reach | documented (rule form) |
+| `Bash(glab mr update*)` and `PowerShell(…)` | a Driver's description or the stack's retarget on GitLab | any MR edit on any project `glab` can reach | documented (rule form) |
+| `Bash(glab mr view*)` and `PowerShell(…)` | a Driver reads its MR | read-only | documented (rule form) |
 | `Bash(glab ci status*)` and `PowerShell(…)` | a Driver reads its CI on GitLab (`glab ci status --live`) | read-only | documented (rule form) |
+| `Bash(glab release create*)` and `PowerShell(…)` | the release's publication on GitLab, only when the project's release procedure runs it | a release published on any project `glab` can reach | documented (rule form) |
 | `SendMessage` | the Foreman and the Drivers message each other (refused twice) | any message between this session's agents and sessions | **unproved**: `SendMessage` as a rule is not documented (absent from tools-reference, checked 2026-11-09); trial: set it, enter auto mode, have the Foreman message a Driver |
+
+There is no `gh api` rule: it would allow any API write. The stack on the forge is changed only
+by `$CHANTIER forge-stack` (covered by the `chantier.py` rule) or the `gh stack` extension.
 
 The same rules as one block, ready to paste into the `permissions.allow` array of
 `~/.claude/settings.json` (a test compares it with the CLI's list):
@@ -185,24 +202,42 @@ The same rules as one block, ready to paste into the `permissions.allow` array o
 {
   "permissions": {
     "allow": [
-      "Bash(git push --force-with-lease*)",
-      "PowerShell(git push --force-with-lease*)",
-      "Bash(git -C * push --force-with-lease*)",
-      "PowerShell(git -C * push --force-with-lease*)",
       "Bash(git push -u origin chantier/*)",
       "PowerShell(git push -u origin chantier/*)",
       "Bash(git -C * push -u origin chantier/*)",
       "PowerShell(git -C * push -u origin chantier/*)",
+      "Bash(git push --force-with-lease -u origin chantier/*)",
+      "PowerShell(git push --force-with-lease -u origin chantier/*)",
+      "Bash(git -C * push --force-with-lease -u origin chantier/*)",
+      "PowerShell(git -C * push --force-with-lease -u origin chantier/*)",
+      "Bash(git push --force-with-lease=chantier/* origin *chantier/*)",
+      "PowerShell(git push --force-with-lease=chantier/* origin *chantier/*)",
       "Bash(uv run --script *chantier.py *)",
       "PowerShell(uv run --script *chantier.py *)",
       "Bash(gh pr create*)",
       "PowerShell(gh pr create*)",
+      "Bash(gh pr edit*)",
+      "PowerShell(gh pr edit*)",
+      "Bash(gh pr ready*)",
+      "PowerShell(gh pr ready*)",
       "Bash(gh pr checks*)",
       "PowerShell(gh pr checks*)",
+      "Bash(gh pr view*)",
+      "PowerShell(gh pr view*)",
+      "Bash(gh stack*)",
+      "PowerShell(gh stack*)",
+      "Bash(gh release create*)",
+      "PowerShell(gh release create*)",
       "Bash(glab mr create*)",
       "PowerShell(glab mr create*)",
+      "Bash(glab mr update*)",
+      "PowerShell(glab mr update*)",
+      "Bash(glab mr view*)",
+      "PowerShell(glab mr view*)",
       "Bash(glab ci status*)",
       "PowerShell(glab ci status*)",
+      "Bash(glab release create*)",
+      "PowerShell(glab release create*)",
       "SendMessage"
     ]
   }
@@ -262,8 +297,18 @@ and chantier does not do them unasked. Each with why:
   route already written (`driver.md`, `foreman.md`: Driver → Foreman → Chief of Staff). Cause:
   the classifier blocks destructive git in subagents ("Git Destructive"); the steering session's
   own `git -C <worktree> push --force-with-lease=...` went through (**proved by use**,
-  2026-11-11, batch-09). So the route ends in the steering session, which judges and runs the
-  push without asking the user (`chief-of-staff.md`).
+  2026-11-11, batch-09; not always: refused on 2026-11-13 as a loop). So the route ends in the
+  steering session, which judges and runs the push without asking the user
+  (`chief-of-staff.md`).
+- Batch-15 (night of 2026-11-12 to 13): the classifier refused lease-protected force pushes of
+  `chantier/` branches to the stack driver, then to the steering session itself (a PowerShell
+  loop), and it refused `gh pr edit --base`, a stack update through `gh api`, and `gh release
+  create`. An allow rule resolves a matching command before the classifier; a loop, a script or a
+  chain matches no prefix rule, so the classifier judges it alone: one command per branch.
+- The alert the Chief of Staff gives, once, at its first turn: "Auto mode's classifier refuses
+  some force pushes. They come with every rebase: a Driver's push after a rebase, and the stack
+  driver's restack of every PR above a change. Without the rules below, an unattended batch
+  waits for you at the first one."
 
 ### What the docs do not say
 
@@ -594,6 +639,6 @@ every block above.
 - **Do:** open the file; add the lines below to `permissions.allow` (create the key if absent);
   save; then start a new session. Whether a running session picks up a settings change is
   **unproved** (see "What the docs do not say").
-- **Paste:** only the missing rules P10 named, as JSON strings, in their table order, copied
-  from "Allow rules"; complete, no placeholder.
-- **You should see:** at the next preflight, `P10 ok`.
+- **Paste:** only the rules P10 named (with the project's remote name in place of `origin`), as
+  JSON strings, in their table order, copied from "Allow rules"; complete, no placeholder.
+- **You should see:** at the next preflight, `P10 ok`, or a P10 line that no longer names them.

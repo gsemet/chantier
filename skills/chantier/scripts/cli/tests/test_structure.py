@@ -13,7 +13,7 @@ import tomllib
 import pytest
 
 from chantier import __version__
-from chantier.commands import RECOMMENDED_ALLOW
+from chantier.commands import _SAMPLES, RECOMMENDED_ALLOW, rule_matches
 from conftest import PLUGIN_ROOT, SKILL, sh
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
@@ -374,6 +374,10 @@ def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks():
     section = text.split("### Allow rules\n", 1)[1]
     block = re.search(r"```json\n(.*?)\n```", section, re.S)[1]
     assert tuple(json.loads(block)["permissions"]["allow"]) == RECOMMENDED_ALLOW
+    for _, command, rule in _SAMPLES:  # each sample is covered by its own rule, in both forms
+        assert all(rule_matches(f"{tool}({rule})", tool, command)
+                   for tool in ("Bash", "PowerShell")), command
+    assert rule_matches("SendMessage", "SendMessage")
 
 
 def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
@@ -382,10 +386,29 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
     code, out, _ = chantier("preflight")
     assert code == 0, out
-    assert any(ln.startswith("P10 warn") and "SendMessage" in ln for ln in out)
+    assert any(ln.startswith("P10 warn") and "SendMessage" in ln
+               and "git push --force-with-lease -u origin chantier/*" in ln for ln in out)
     assert len(out) <= 10
     settings = repo / ".claude"
     settings.mkdir()
+    local = settings / "settings.local.json"
+
+    def p10(permissions):
+        local.write_text(json.dumps({"permissions": permissions}), encoding="utf-8")
+        code, out, _ = chantier("preflight")
+        assert code == 0
+        return next(ln for ln in out if ln.startswith("P10"))
+
+    user = ["git push --force-with-lease -u origin chantier/*",
+            "git push --force-with-lease=chantier/* origin *chantier/*"]
+    line = p10({"allow": [f"{tool}({r})" for r in user for tool in ("Bash", "PowerShell")]})
+    assert "add Bash(git push --force-with-lease -u origin" not in line  # equivalence is judged
+    assert "add Bash(git -C * push --force-with-lease -u origin chantier/*)" in line
+    assert p10({"allow": ["Bash(*)", "PowerShell(*)"]}).startswith("P10 warn")
+    line = p10({"allow": list(RECOMMENDED_ALLOW),
+                "deny": ["Bash(git push --force-with-lease*)", "PowerShell(git push --force*)"]})
+    assert line.startswith("P10 warn") and "denied: git push --force-with-lease" in line
+    local.unlink()
     (settings / "settings.local.json").write_text(
         json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
     assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])

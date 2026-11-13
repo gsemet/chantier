@@ -28,7 +28,8 @@ anything else:
   surface at <url>; start the session there", and plans nothing in the project.
 
 The other preflight lines are a batch's and are not reported here, except what the configuration
-checks add to the first message (P5, P9, P10), which goes in the same message.
+checks add to the first message (P5, P9, P10), which goes in the same message. P9 now holds the
+forge's rights and branch rules too ([chief-of-staff](chief-of-staff.md), "Forge permissions").
 
 ## 2. The seat and the role
 

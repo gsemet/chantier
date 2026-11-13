@@ -547,11 +547,22 @@ def scenario(w: World) -> None:
           and out[-1] == "preflight passed")
     p10 = next((ln for ln in out if ln.startswith("P10")), "")
     check("preflight warns (P10) on the allow rules missing from the settings, names one, and "
-          "still passes", p10.startswith("P10 warn") and "Bash(git push --force-with-lease*)" in p10,
-          p10)
+          "still passes", p10.startswith("P10 warn")
+          and "git push --force-with-lease -u origin chantier/*" in p10, p10)
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     from chantier.commands import RECOMMENDED_ALLOW
     (home / ".claude").mkdir(parents=True)
+    user = ["git push --force-with-lease -u origin chantier/*",
+            "git push --force-with-lease=chantier/* origin *chantier/*"]
+    (home / ".claude" / "settings.json").write_text(
+        json.dumps({"permissions": {"allow": [f"{t}({r})" for r in user
+                                              for t in ("Bash", "PowerShell")]}}), encoding="utf-8")
+    code, out = w.chantier("preflight", env=homes)
+    p10 = next((ln for ln in out if ln.startswith("P10")), "")
+    check("preflight (P10) judges equivalence: the user's own force-push forms are not named, the "
+          "`-C` form still is", code == 0 and p10.startswith("P10 warn")
+          and "add Bash(git push --force-with-lease" not in p10
+          and "add Bash(git -C * push --force-with-lease -u origin chantier/*)" in p10, p10)
     (home / ".claude" / "settings.json").write_text(
         json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
     code, out = w.chantier("preflight", env=homes)

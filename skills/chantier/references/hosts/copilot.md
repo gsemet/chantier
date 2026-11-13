@@ -50,7 +50,10 @@ already does); while an `/every` still fires, its next wake clears the mark, whi
 ## Configuration
 
 - Prerequisites, the same as Claude Code's for a batch: `git` and `uv` (P5), `gh` or `glab`
-  logged in (P9). P10 does not run on Copilot.
+  logged in (P9). P9's forge side (rights and branch rules) runs on Copilot as on Claude Code: it
+  is the card's check. P10 does not run on Copilot, and no host rule is recorded. A refusal of a
+  force push on Copilot is reported like any refusal (rule 7), and the general rule of
+  [concepts](../concepts.md) holds: a CR's branches must be force-pushable at all times.
 - No permission configuration is recorded for Copilot: **unproved**; nothing is recommended
   until a Copilot trial records one.
 - The command hygiene of `concepts.md` rule 9 applies on both hosts.
