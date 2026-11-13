@@ -118,12 +118,13 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   Foreman transcript refused the same way; a reopened batch named as such; then the final cost
   printed (with a call made after the last `pause`) and the folder deleted by `close --yes`, the dropped CR's worktree and branch by the Chief of Staff's
   git;
-- the batch's retro kept at `close`: a `retro:` line naming the last merged CR's archive, nothing
-  touched without `--yes` or on an archive collision, then the retro (both sections) in that
-  archive only; a retro collision refused with everything put back; a batch of cancelled CRs
-  keeping it in `5-archives/<date>-<batch>/`, neither listed nor counted on the board; no retro
-  or a whitespace-only one printing `retro: no retro`; and in external mode the retro in the
-  surface's archive, never in the CR's PR archive.
+- the batch's record: `open` writes `5-archives/batches/batch-NN.json` as running; `close` names the
+  record and the retro's destination, touching nothing without `--yes`, on an archive collision or on
+  a planted `batch-NN.md` (exit 3, all put back); then the closed JSON (cost, CRs, archives) and the
+  Markdown (table, cost, the retro byte for byte), no `retro.md` in any CR archive, the records
+  neither listed nor counted on the board; no retro printing `retro: no retro`; `status`'s `last closed`
+  line and the no-batch refusal's tail; the next number read from the records; the backfill of the
+  earlier batches, once; and in external mode the records in the surface, never in the CR's PR archive.
 
 The transcript goes to `scenario/results/<forge>-<time>.md` (not committed); exit 1 if any check
 fails. Windows runs one check more than Linux: `close` on a folder in use, since elsewhere a file

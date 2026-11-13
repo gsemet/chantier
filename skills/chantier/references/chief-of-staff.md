@@ -658,8 +658,8 @@ Only in the turn where the user gave the go:
   on the user's word for a point, `$CHANTIER file "<the point>"` files it in `1-inbox`. A point
   that matches an item already in the inbox or the backlog is named with that item, not offered
   twice. A release's `work/retro.md` is offered once, with the batch's. Offer the Retro before
-  any `close`, which keeps `4-batch/retro.md` in the archive of the batch's last merged CR
-  (or in a folder of `5-archives` named for the batch when none merged). New work for the paused batch is
+  any `close`, which writes `4-batch/retro.md` into the batch's record,
+  `5-archives/batches/batch-NN.md`. New work for the paused batch is
   `order add`, once per CR: the batch stays paused until the Foreman's first `take`; send the
   Foreman the usual order once all are added, and it pauses again at the end. Where the heartbeat is yours (the host's reference says),
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
@@ -677,7 +677,9 @@ Only in the turn where the user gave the go:
   runs (or says `pause` comes first). Report a refusal to the user with its cause, do not retry in
   a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
   it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to
-  `5-archives`), and touches nothing. Show the user the bilan, the final Cost section and that
+  `5-archives`), where the retro and the record go (`5-archives/batches/batch-NN.md` and
+  `.json`), and touches nothing. To know which batch the project is at, run `status`: its second
+  line names the last closed batch. Show the user the bilan, the final Cost section and that
   list, and ask. Only on their yes,
   in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
   yourself, from the main checkout (`git -C <clone>` with a planning surface; `git worktree remove

@@ -509,7 +509,7 @@ chantier close
 
 ```md
 then close --yes: each CR of 3-done/ → 5-archives/,
-the retro kept in the last CR's archive,
+the retro written into 5-archives/batches/batch-NN.md,
 the batch's own files are deleted
 ```
 
