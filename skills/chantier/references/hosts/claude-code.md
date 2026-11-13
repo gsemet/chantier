@@ -343,16 +343,19 @@ Documented (<https://code.claude.com/docs/en/settings-reference>,
   provider; `promptCacheTtl` sets it. Why it matters: Chief of Staff and Foreman sessions last
   days (393 messages and 50 compactions in 45 h for one), with pauses past the cache's life.
 
-**Unproved**, not explained by the docs (checked 2026-11-09): sessions with `autoCompactWindow:
-300000` compacting around 165 to 170k tokens (the user's week). Trial: one session, the setting
-read back with `/autocompact`, the token count at the first compaction recorded here.
+**Measured** (batch-16 and batch-17, 2026-11-13): agents set to `autoCompactWindow: 200000` on
+`claude-sonnet-5-5` compacted after a last prompt of 161,951 to 166,684 tokens (three Coders).
+Sessions set to 300000 compacted around 165 to 170k (the user's week). This matches a window capped
+at the model's 200,000 with a reserve of about 35k, but the cap's value stays unproved until the
+trial reads it back: one session, the setting read with `/autocompact`, the token count at the
+first compaction recorded here.
 
 **Recommendation**, not a proved fact: keep `idleCompaction` on (its default), and set
 `autoCompactWindow` to 300000 in `~/.claude/settings.json` for the Chief of Staff's and the
 Foreman's sessions (the plugin's agents carry 200,000 in their files). Why: long sessions with
 pauses past the cache's life. The window is capped at the model's context window (documented,
 above): if Sonnet 5.5's window is below 300K, the cap applies. Whether 300000 holds, given the
-unexplained 165 to 170k compaction above (which concerns this very value), is unproved: the same
+measured 165 to 170k compaction above (which concerns this very value), is unproved: the same
 trial settles the recommendation and records the cap.
 
 ```json
@@ -501,6 +504,7 @@ otherwise.
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |
 | Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |
 | Resume a stopped subagent | `SendMessage` to its agent id resumes it with its context | same | same | proved, batch-15 (a refused spec-writer resumed by a message); chantier uses it only for the `taken back:` note of `foreman.md`: a refused agent answers it with its refusal |
+| End a subagent's turn with nothing running in the background | the host asks for its hand-back at once (`[handback-send-enforce] Your report has not been delivered. Call SubagentHandback…`), before a resumed worker's reply arrives; a background shell's end wakes it (the CI wait of `driver.md`) | same | same | proved, batch-16 (the CR-216 Driver, agent `ac87782157e90d829`; the CR-215 Driver's Inspector reply came after its hand-back) |
 
 ## A Foreman in a worktree asks
 

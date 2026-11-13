@@ -60,6 +60,17 @@ only what the move changed in the CR's own patch (`git range-diff <old base>..<o
 base>..<new head>` for a rebase or a restack; the diff for a resolved conflict), and say in
 `minor` what you carried unchanged.
 
+The reply is capped:
+
+- Each item in `blocking` and `minor` is one sentence of at most 300 characters, starting with
+  `file:line:` or `pr-body.md: <section>:` when it has a place.
+- `minor` holds at most five items. When there are more, the fifth says `and <n> more of the same
+  kind` and names the kind.
+- An item states a defect. What was checked and found right does not go in the reply.
+- The whole reply stays under 3,000 characters.
+- `blocking` is not limited in number: each item there is worth a round, and keeps the
+  300-character limit.
+
 A diff that touches `hooks/` is checked for the CR's gate record holding `just mod` (CI does
 not run it): a missing one is `blocking`.
 
