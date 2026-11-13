@@ -53,7 +53,17 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the default branch, then
   stacked afterwards by `stack` (`ship` records the default branch before, the CR under it
   after); a dependency changed with `order after` (refused on a CR not queued, an unknown CR or
-  a cycle), a chain started on the ready CR's branch and undone by `--note -`;
+  a cycle; the message names `stack` in a stack batch), a chain started on the ready CR's branch
+  and undone by `--note -`; a stacked CR with an `after` taking its place in the stack as base
+  (`stack` and `ship`), `stack` with no CR printing what `take stack` printed and writing nothing
+  with a stack driver recorded, and `ship` naming the `work/pr-body.md` lines whose SHA left the
+  head's history after a rebase (`carried from` and `STALE` lines left out);
+- `forge-stack` (GitHub, against `fake_gh.py`, which also unstacks and reads and changes a PR's
+  base, refusing the change while the PR is in an open stack): `create` and `show`; `rebuild`
+  after an insertion (unstack, retarget, one new stack bottom to top, the release on top), after
+  a partial merge (the first PR left to the default branch), stopped by a forge refusal and run
+  again, idempotent with drafts as a line to act on, and refused on a GitLab link, on a parallel
+  batch and with a CR that has no PR;
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch, which stays paused until the first `take`, then paused again, and `close` (priced with one `Chief of
   Staff, steering the batch` row that keeps a turn which only names or reads a specification, a grill and specifications

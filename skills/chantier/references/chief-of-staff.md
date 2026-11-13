@@ -554,8 +554,12 @@ Only in the turn where the user gave the go:
   five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold). All
   hold: tell the user the stack is ready to merge in one action from its top PR (the link), with
   the release commit last, quoting each CR's gaps of the ask in the user's language (none: say
-  nothing about gaps). After the user's merge, record `order merged` for each CR of the
-  stack, bottom first (the release CR's merge starts the release procedure, as today). A check
+  nothing about gaps). After one merge action of the user, record `order merged` for every
+  CR it merged, bottom first, all before telling the Foreman, in one message (one action leads to
+  one restack at most, and none when the whole stack merged; the release CR's merge starts the
+  release procedure, as today). An `anomaly` of the stack driver or the Foreman on a refused
+  `$CHANTIER forge-stack rebuild` reaches the user as an ask with the exact text; on the user's
+  yes, run `$CHANTIER forge-stack rebuild` yourself (no raw `gh api`). A check
   that fails: no "ready" to the user; send it back through the Foreman. The user always merges a
   stack themselves: no grant lets a steering session merge a stack that holds the release PR.
 - **Inserting a CR into a ready stack:** on the user's word, first and at once put to draft every

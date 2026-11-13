@@ -1,11 +1,19 @@
-"""`chantier forge-stack create|show`: the batch's native stack on GitHub, made and read back with
-the user's own `gh` login. It knows no role; a card says who runs it and when. GitHub only.
+"""`chantier forge-stack create|show|rebuild`: the batch's native stack on GitHub, made and read
+back with the user's own `gh` login. It knows no role; a card says who runs it and when. GitHub only.
 
 `create` makes the stack from the record (each open CR's recorded PR, in `take stack` order, the
 release PR last). `show` reads the stack on the forge and prints one line per failed check; it
-writes nothing. The API (`POST /repos/{o}/{r}/stacks`, `GET /repos/{o}/{r}/stacks[/{n}]`) offers
-no way to add a PR to a stack or to dissolve one: when the forge refuses a second stack over PRs
-already stacked, its exact text comes back (exit 4)."""
+writes nothing. `rebuild` makes the forge's stack match the record, whatever changed (an insertion,
+a reorder, a partial merge): it dissolves every open stack that holds a PR of the plan, retargets
+each PR whose base is not the one the record gives, creates one new stack and reads it back. It
+writes no file, changes no branch and pushes nothing.
+
+The endpoints: `POST /repos/{o}/{r}/stacks` (`pull_requests[]`, bottom to top) creates a stack;
+`GET /repos/{o}/{r}/stacks[/{n}]` reads them; `POST /repos/{o}/{r}/stacks/{n}/unstack` removes PRs
+from a stack (it is dissolved when none is left); `PATCH /repos/{o}/{r}/pulls/{n}` (`base`) changes
+a PR's base. (`POST .../stacks/{n}/add` appends on top only; it is not used: an insertion in the
+middle has no API.) A PR's base cannot change while it is in a stack, which is why `rebuild`
+dissolves the stack first. When the forge refuses, its exact text comes back (exit 4)."""
 from __future__ import annotations
 
 import json
@@ -13,7 +21,7 @@ import re
 import shutil
 import subprocess
 
-from .commands import _chain
+from .commands import _chain, _stack_base
 from .state import (EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError, Repo, read_batch, resolve_batch)
 
 PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
@@ -50,14 +58,14 @@ def _plan(args) -> tuple[list[dict], str, str, str]:
         if c.get("pr") and not PR_LINK.match(c["pr"]):
             raise ChantierError(GITHUB_ONLY.format(what=c["pr"]), EXIT_PRECONDITION)
     missing = [c["id"] for c in chain if not c.get("pr")]
-    if missing and args.action == "create":
+    if missing and args.action in {"create", "rebuild"}:
         raise ChantierError(f"{', '.join(missing)} {'has' if len(missing) == 1 else 'have'} no PR "
                             "recorded (`ship`): the stack is made once every PR is recorded",
                             EXIT_PRECONDITION)
     rows, where = [], None
     for c in chain:
         if not c.get("pr"):
-            rows.append({"cr": c["id"], "number": None, "link": None,
+            rows.append({"cr": c["id"], "number": None, "link": None, "base": None,
                          "release": c.get("kind") == "release"})
             continue
         host, owner, name, number = PR_LINK.match(c["pr"]).groups()
@@ -65,7 +73,7 @@ def _plan(args) -> tuple[list[dict], str, str, str]:
             raise ChantierError("the stack's PRs are not all in one repository", EXIT_PRECONDITION)
         where = (host, owner, name)
         rows.append({"cr": c["id"], "number": int(number), "link": c["pr"],
-                     "release": c.get("kind") == "release"})
+                     "base": _stack_base(data, c, repo, planned=True), "release": c.get("kind") == "release"})
     if where is None:
         raise ChantierError("no PR recorded in the stack", EXIT_PRECONDITION)
     host, owner, name = where
@@ -74,12 +82,18 @@ def _plan(args) -> tuple[list[dict], str, str, str]:
 
 def forge_stack(args) -> tuple[list[str], int]:
     if args.action == "create":
-        return _create(args)
+        try:
+            return _create(args)
+        except ChantierError as e:
+            if e.code != EXIT_EXTERNAL:
+                raise
+            raise ChantierError(f"{e} (`forge-stack rebuild` replaces a stack)", e.code) from e
+    if args.action == "rebuild":
+        return _rebuild(args)
     return _show(args)
 
 
-def _create(args) -> tuple[list[str], int]:
-    rows, host, owner, name = _plan(args)
+def _make(rows: list[dict], host: str, owner: str, name: str) -> tuple[int, str]:
     fields: list[str] = []
     for r in rows:
         fields += ["-F", f"pull_requests[]={r['number']}"]
@@ -88,9 +102,59 @@ def _create(args) -> tuple[list[str], int]:
     if number is None:
         raise ChantierError(f"gh api: the forge answered no stack number: {json.dumps(made)[:200]}",
                             EXIT_EXTERNAL)
-    top = rows[-1]["link"]
-    return [f"stack #{number} {top} (PRs bottom to top: "
-            f"{' '.join('#' + str(r['number']) for r in rows)})"], 0
+    return number, (f"stack #{number} {rows[-1]['link']} (PRs bottom to top: "
+                    f"{' '.join('#' + str(r['number']) for r in rows)})")
+
+
+def _rebuild(args) -> tuple[list[str], int]:
+    rows, host, owner, name = _plan(args)
+    done: list[str] = []
+    try:
+        planned = {r["number"] for r in rows}
+        listing = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host)
+        for s in listing:
+            held = [p["number"] for p in s.get("pull_requests", [])]
+            if not s.get("open") or not planned & set(held):
+                continue
+            outside = [n for n in held if n not in planned]
+            for _ in range(5):  # until the forge reads it back as gone or not open
+                fields = [x for n in held for x in ("-F", f"pull_requests[]={n}")]
+                _gh(["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack"] + fields, host)
+                now = [t for t in _gh(["-X", "GET", f"repos/{owner}/{name}/stacks", "-F",
+                                       "per_page=100"], host)
+                       if t.get("number") == s["number"] and t.get("open")]
+                if not now:
+                    break
+                held = [p["number"] for p in now[0].get("pull_requests", [])]
+            else:
+                raise ChantierError(f"stack #{s['number']} is still open after unstack")
+            done.append(f"unstacked #{s['number']}" + (
+                f" (it also held {' '.join('#' + str(n) for n in outside)}, not in the batch's "
+                "stack: a plain PR now)" if outside else ""))
+        for r in rows:
+            pull = _gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{r['number']}"], host)
+            old = (pull.get("base") or {}).get("ref") if isinstance(pull, dict) else None
+            if old != r["base"]:
+                _gh(["-X", "PATCH", f"repos/{owner}/{name}/pulls/{r['number']}", "-f",
+                     f"base={r['base']}"], host)
+                done.append(f"#{r['number']} base {old} -> {r['base']}")
+        number, line = _make(rows, host, owner, name)
+        done.append(line)
+    except ChantierError as e:
+        if e.code != EXIT_EXTERNAL:
+            raise
+        raise ChantierError("\n".join(done + [str(e)]), e.code) from e
+    args.stack = number
+    lines, code = _show(args)
+    acts = [x for x in lines if x.startswith("check 4:")]
+    rest = [x for x in lines if not x.startswith("check 4:")]
+    out = done + rest + [f"{x} (the stack driver turns the PRs ready)" for x in acts]
+    return out, (code if rest else 0)
+
+
+def _create(args) -> tuple[list[str], int]:
+    rows, host, owner, name = _plan(args)
+    return [_make(rows, host, owner, name)[1]], 0
 
 
 def _show(args) -> tuple[list[str], int]:
