@@ -54,6 +54,10 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
   Your own subagents explore, prototype or study; none implements. **In direct mode you steer
   the batch yourself**: you start the Drivers, hear their hand-backs and do the Foreman's work
   ([steering a batch yourself](#steering-a-batch-yourself)).
+- **An agent's prompt starts with its first line, copied.** The line `$CHANTIER playbook` prints,
+  or the one [concepts](concepts.md) ("Starting an agent") gives for the role, unchanged. A
+  refused start is fixed by a new start with that line, never by a message to the refused agent
+  and never by variants.
 - **Batch state only through `$CHANTIER`**; never edit `batch.json`, `events.jsonl` or a `STATUS` file by hand.
 - **The project's rules rank above chantier's.** `AGENTS.md` and what it links say how the
   project commits, ships, tests and releases; every role reads them first (`$CHANTIER rules`).
@@ -140,8 +144,8 @@ The Change Specification is the `spec-writer`'s ([`spec-writer.md`](spec-writer.
 On the user's word that a CR is grilled enough, write `work/specifying` in its folder (one line:
 the time and the agent id) and start the `spec-writer` in the background (you or a Griller
 starts it), at any time, a batch running or not; its prompt names the card and the CR folder, and
-its first line is the one `$CHANTIER playbook` prints (`spec-writer prompt, first line: …`), copied
-unchanged. Start no second spec-writer for a CR while one runs; a refused start is fixed by copying
+its first line is the one `$CHANTIER playbook` prints (`spec-writer prompt, first line: …`), or
+the Spec-writer's line of "Starting an agent": copy the first line, unchanged. Start no second spec-writer for a CR while one runs; a refused start is fixed by copying
 that line, not by retrying variants. When it ends, whatever the result,
 remove `work/specifying`. Review `03-change-spec.md` against `02-answers.md` before you show it:
 nothing dropped, nothing invented. Its open questions go to the user; record the answers in
@@ -252,7 +256,12 @@ Only in the turn where the user gave the go:
    numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
    Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (4 unless you say
    otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
-   the batch. Re-read the seat first ([session-start](session-start.md)). The steering mode is
+   the batch. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
+   installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
+   one native stack the user merges in one action from its top PR. On a no, say that the stack
+   will be made by `$CHANTIER forge-stack create` over the REST API, and record the choice in
+   `brief.md` (step 3) so the Foreman passes it to the stack driver. GitHub only: on GitLab the
+   stack stays as it was. Re-read the seat first ([session-start](session-start.md)). The steering mode is
    **direct mode** (you steer the batch yourself, no Foreman session) or **Foreman mode** (a
    separate Foreman session), by these rules:
    - **The argument.** Only the invocation's first word counts, and only when it is exactly
@@ -405,6 +414,22 @@ Only in the turn where the user gave the go:
   waiting on it; when the user says it is merged, `order merged <cr>`, then say what comes next.
   Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
   --note stack`.
+- **A stack batch:** on a `stack-ready <stack link> <cr>=<link>…` ask, read the stack on the forge
+  yourself before you tell the user: the five checks of the stack ([foreman](foreman.md), "The
+  five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold). All
+  hold: tell the user the stack is ready to merge in one action from its top PR (the link), with
+  the release commit last. After the user's merge, record `order merged` for each CR of the
+  stack, bottom first (the release CR's merge starts the release procedure, as today). A check
+  that fails: no "ready" to the user; send it back through the Foreman. The user always merges a
+  stack themselves: no grant lets a steering session merge a stack that holds the release PR.
+- **Inserting a CR into a ready stack:** on the user's word, first and at once put to draft every
+  PR that will sit above the new one (`gh pr ready --undo`, `glab mr update --draft`): the stack
+  is changing under them. A CR in the middle of a ready stack that goes back to its Driver for a
+  new round gets the same: every PR above it goes to draft first. Then `order add --note
+  <folder>` and an `order note` naming the place (`insert: <new cr> below <cr>`). Tell the user
+  that the stack is not mergeable until the Foreman's next `stack-ready`, and that the release
+  notes will name the change (the release CR, once started, goes back to `redo:` and updates its
+  notes). The steps are the stack driver's ([driver](driver.md), "Stack driver").
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
   <local sha>` (in direct mode, the Driver's `push` line), the push is yours, the one exception
   to "do no Driver's work". It is **not a question for the user**: you judge it and run it, with
@@ -599,6 +624,11 @@ these differences.
   hand-back. "Never message a Driver" does not hold for the Drivers of a batch you steer. Start a
   QA driver as the Foreman's card says and record its agent id with `agents set O-<k> <id> --epoch
   <n>`.
+- **A stack batch.** The Foreman's check of the five checks of a ready stack
+  ([foreman](foreman.md), "The five checks") is yours; one check, read on the forge
+  (`$CHANTIER forge-stack show`), is enough before you tell the user the stack is ready. Inserting
+  a CR into a ready stack is as in "Inserting a CR into a ready stack", the stack driver and the
+  release redone by you.
 - **A dependent draft PR.** The Foreman's rule after an `order merged` (a ready draft waiting
   for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
 - **A note that carries work to a Driver.** The Foreman's rule applies to you: just before you
@@ -690,8 +720,9 @@ thrown away. Implementation goes through a CR and the Foreman. Its cost is on th
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
 - **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";
-  prompt as in `concepts.md`, with `4-batch/` as its folder and the user's language, and the
-  agent and model `$CHANTIER playbook` prints for it). It writes
+  prompt as in `concepts.md`, copy the first line, `chantier demo-explorer for the Chief of Staff
+  of batch <batch>, in the project <root>.`, with `4-batch/` as its folder and the user's
+  language, and the agent and model `$CHANTIER playbook` prints for it). It writes
   `demo/demo.md` in `4-batch/`.
 - **The demo.** Show the summary, then guide one change at a time and wait for the user's
   result: they try each change themselves. Prepare the fixture or the environment outside the

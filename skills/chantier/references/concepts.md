@@ -6,10 +6,14 @@ started.
 ## Words
 
 - **Pull request (PR):** a merge request on GitLab.
-- **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch.
-  Any other CR's PR is a draft on the forge: it says so itself, and no one merges it. A release
-  PR follows the same rule: the user merges it, last of the batch (in a stack or a series, with
-  the rest, from the bottom up); the steering session merges it only under the grant.
+- **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch,
+  or, in a stack batch, a PR that belongs to a stack verified on the forge (the five checks of
+  **Stack**, below): the user merges the whole stack in one action from its top PR. Any other CR's
+  PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
+  changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
+  merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
+  in a series, after the rest, from the bottom up); the steering session merges it only under the
+  grant, and never a stack that holds it.
 - **Tracker issue:** an issue in the project's tracker (GitHub, GitLab, Jira…) that a CR comes
   from, named by an `issue: <link>` line under the title of the CR's `01-intent.md` and
   `03-change-spec.md`. Its PR closes it at the merge through the closing line of the
@@ -91,7 +95,21 @@ started.
   stack, on the user's word. **Stack**: parallel, with a stack driver: every CR starts at once, on
   the default branch or on its last open dependency, and the stack driver puts the PRs each on the
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
-  and the start base for any other); the user merges from the bottom up. A CR stands on another
+  and the start base for any other). Once every PR is ready, the stack driver makes one native
+  stack on the forge (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
+  declined the extension); the user merges it in one action from the top PR, the release commit
+  last. A chain of PRs based on each other is not a stack. On GitHub a stack is the forge's native
+  stacked-PR stack; on GitLab the stack stays a chain, as it was. **Stack ready** means five
+  checks hold on the forge (`$CHANTIER forge-stack show` prints the failing ones): the stack is
+  open; it holds every open PR of the batch's stack, and no other; in the order of `take stack`,
+  bottom first; none is a draft; the release PR, when the batch has one with a PR, is on top.
+  **Inserting a change into a ready stack:** before anything else every PR that will sit above the
+  new one goes back to draft; then the new CR's PR is inserted at its place, the PRs above are
+  restacked on it, the stack is updated on the forge (re-created if the forge cannot insert) and
+  verified, and only then the PRs above turn ready again; the release PR stays on top and its
+  notes name the new change (the steps are the stack driver's, in [driver](driver.md)). A CR in
+  the middle of a ready stack that goes back for a new round puts the PRs above it to draft first,
+  the same way. A CR stands on another
   only by a dependency: a real one (`depends.json`) or a chain the Foreman decided, or the plan
   proposed and the user's go approved (`order after`). A fix CR sits outside a series and a stack,
   on the default branch. A release CR is
@@ -184,7 +202,8 @@ started.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (`uv run --script "<…>/chantier.py"`; with a planning surface, plus `--project <folder>` before the command).
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and
-  no forge command: the agents create the worktrees, commit, rebase, push, open, watch and
+  no forge command beyond `forge-stack` (it calls the user's own `gh`, GitHub only): the agents
+  create the worktrees, commit, rebase, push, open, watch and
   merge PRs, clean up and fast-forward the main checkout after a recorded merge
   ([foreman](foreman.md)), with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message
   says which; `handback ready` is one when the worktree's head is not the one `ship` recorded,
@@ -257,12 +276,24 @@ folder and refuses its Write, Edit or NotebookEdit outside the folders named; a 
 the line is not guarded; a role that needs other folders, or fewer, gets its own line from the
 card that starts it.
 
-`<skill>` is the absolute folder of this file's parent. An agent whose prompt does not start
-with `chantier <its role>` answers "I run inside a chantier batch only." and stops.
+`<skill>` is the absolute folder of this file's parent. An agent starts right the first time:
+the parent copies the first line of the role, unchanged, from what it sees at that moment. An
+agent whose prompt does not start with its role's first line answers "I run inside a chantier
+batch only. My prompt must start with `<its first line>`; a message to me does not restart me:
+start a new agent with that line." and stops. The parent then starts a new agent with that line,
+never a message to the refused one and never a variant. Each agent's `description` ends with
+"Prompt starts with:" and its first line. The first lines:
+
+| Role | First line |
+| --- | --- |
+| Drivers and workers (CR driver, coder, verifier, inspector, debugger, conflict-resolver, release-driver, investigator) | `chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.` |
+| QA driver | `chantier qa-driver for <folder> of batch <batch>, in the project <root>.` |
+| Stack driver | `chantier stack-driver for the stack of batch <batch>, in the project <root>.` |
+| Demo explorer, and the Chief of Staff's other subagents | `chantier <role> for the Chief of Staff of batch <batch>, in the project <root>.` |
+| Spec-writer | `chantier spec-writer for the Chief of Staff, in the project <root>.` |
 
 A subagent of the Chief of Staff (the Demo explorer, or an exploration, a prototype or a study)
-is started the same way, with no CR: its first line is `chantier <role> for the Chief of Staff
-of batch <batch>, in the project <root>.` and its brief gives the folder it writes to. Its
+is started the same way, with no CR: its first line is the one of the table above and its brief gives the folder it writes to. Its
 result is a report or a study. It never implements: no commit, no push, no PR, nothing in a CR's
 worktree; a prototype lives in a temporary folder and is thrown away.
 
