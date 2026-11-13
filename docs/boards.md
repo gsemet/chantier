@@ -57,11 +57,14 @@ They are not bugs.
 - The batch's cost is priced when the steering session refreshes the status, not live: $0.57 over
   three pictures while the CRs moved on, then $9.22 once the batch was done.
 
-### The guard of a worker's writes
+### The guard of a worker's and a CR Driver's writes
 
-The same mod starts an agent whose prompt holds a `writes:` line in its first folder and refuses
-its Write, Edit or NotebookEdit outside the folders named; a shell write is not guarded: the
-steering session reports what changed in the main checkout.
+The same mod starts an agent whose prompt holds a `writes:` line in its first folder (a worker's:
+its worktree; a CR Driver's: its CR folder) and refuses its Write, Edit or NotebookEdit outside the
+folders named. It judges the agent's Bash or PowerShell writes the same way when it can see them (a
+redirection, `Set-Content`, `sed -i`, `rm`...); what it cannot see, such as an interpreter's inline
+code, is covered by the cards, and the steering session reports what changed in the main checkout.
+
 ## The remote board
 
 In remote there is no pane, so the Chief of Staff also starts a small web page, `chantier board`,

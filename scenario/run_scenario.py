@@ -2574,8 +2574,19 @@ def rails(w: World) -> None:
     fm.turn()
     one, two = (c["id"] for c in w.batch()["crs"])
     check("one slot: one Driver", fm.started == [one])
-    for _ in range(3):
+    w.chantier("round", one)
+    logged = lambda cr: [e for e in (json.loads(ln) for ln in (w.folder() / "events.jsonl")  # noqa: E731
+                                     .read_text("utf-8").splitlines())
+                         if e["kind"] == "round" and e["cr"] == cr]
+    code, _ = w.chantier("round", one, expect=2)
+    check("a second `round` with nothing since is refused (exit 2): the count unchanged, no "
+          "`round` event, the message names what to do",
+          code == 2 and "nothing happened since" in w.last_stderr and "handoff" in w.last_stderr
+          and w.cr(one)["round"] == 1 and len(logged(one)) == 1, w.last_stderr)
+    for i in range(2):
+        w.chantier("note", one, f"round {i + 1} done")
         w.chantier("round", one)
+    check("after a `note` the next `round` passes", w.cr(one)["round"] == 3 and len(logged(one)) == 3)
     code, _ = w.chantier("round", one, expect=5)
     check("the fourth round is refused: the round limit is a rail (exit 5)",
           code == 5 and "round limit" in w.last_stderr and w.cr(one)["round"] == 3, w.last_stderr)
@@ -2584,6 +2595,7 @@ def rails(w: World) -> None:
           any(ln.startswith(f"{one} working r3/3") for ln in out), str(out))
     w.chantier("order", "rounds", one, "--note", "4")
     fm.turn()  # the Driver is live: the Foreman tells it, the order is done
+    w.chantier("note", one, "the limit was raised")
     code, _ = w.chantier("round", one)
     check("more rounds granted by the user open the next one", code == 0
           and w.cr(one)["round"] == 4 and w.cr(one)["rounds"] == 4)
@@ -2694,6 +2706,34 @@ def driver_liveness(w: World) -> None:
           and lines[two] == f"activity {two} not measured"
           and lines[three] == f"activity {three} gate running"
           and not any("longest silent" in ln for ln in out), str(out))
+    w.chantier("agents", "set", one, "-", "--epoch", 1)
+    _, out = w.chantier("note", one, "no Driver recorded")
+    check("`note` prints `context: not measured (no agent recorded)` with no agent recorded",
+          out == ["ok", "context: not measured (no agent recorded)"], str(out))
+    w.chantier("agents", "set", one, f"agent-{one}", "--epoch", 1)
+    _, out = w.chantier("note", one, "agent without a record")
+    check("`note` says so when the recorded agent's transcript is missing",
+          out[1].startswith("context: not measured (no transcript found"), str(out))
+
+    def usage_line(mid, inp, write, read):
+        return json.dumps({"type": "assistant", "message": {"id": mid, "model": "claude-sonnet-5-5",
+                           "usage": {"input_tokens": inp, "output_tokens": 5,
+                                     "cache_creation": {"ephemeral_5m_input_tokens": write,
+                                                        "ephemeral_1h_input_tokens": 30},
+                                     "cache_read_input_tokens": read}}})
+    (sub / f"agent-agent-{one}.jsonl").write_text(
+        usage_line("d1", 100, 0, 8870) + "\n"
+        + json.dumps({"type": "system", "subtype": "compact_boundary"}) + "\n"
+        + usage_line("d2", 10, 200, 4000) + "\n" + json.dumps({"type": "user"}) + "\n",
+        encoding="utf-8")
+    _, out = w.chantier("note", one, "context measured")
+    check("`note` prints the last call's prompt size: input, cache writes and cache reads of "
+          "the recorded agent's transcript",
+          out == ["ok", f"context: 4240 tokens (agent agent-{one})"], str(out))
+    _, out = w.chantier("cost", "--by", "cr", expect=None)
+    line = next((ln for ln in out if ln.startswith(f"{one}:")), "")
+    check("`cost --by cr` shows the Driver's peak context and compactions on the CR's line",
+          "Driver peak context 9,000 tokens, 1 compaction)" in line, str(out))
     (w.state / ".long-gate.lock").unlink()
     chief.unlink()
     shutil.rmtree(sub)
@@ -3019,7 +3059,8 @@ def gate_proof(w: World) -> None:
 
     # the budget bounds the rounds
     state = w.folder() / "batch.json"
-    for _ in range(3):
+    for i in range(3):
+        w.chantier("note", d, f"round {i}")
         w.chantier("round", d)
     state.write_text(json.dumps({**w.batch(), "spent_usd": 2}), encoding="utf-8")
     code, _ = w.chantier("round", e, expect=5)
@@ -3039,7 +3080,8 @@ def gate_proof(w: World) -> None:
     check("`gate`, `ship`, `note`, `verdict` and `handback` are never refused for the budget",
           w.cr(d)["status"] == "ready")
     state.write_text(json.dumps({**w.batch(), "spent_usd": 0}), encoding="utf-8")
-    for _ in range(3):
+    for i in range(3):
+        w.chantier("note", e, f"round {i}")
         w.chantier("round", e)
     code, _ = w.chantier("round", e, expect=5)
     check("within the budget, the round-limit refusal keeps its own message",
@@ -3047,8 +3089,23 @@ def gate_proof(w: World) -> None:
           w.last_stderr)
     state.write_text(json.dumps({**w.batch(), "budget_usd": None, "spent_usd": 2}),
                      encoding="utf-8")
+    start_driver(w, f)  # the Driver's first step: the worktree exists when the round is counted
     w.chantier("round", f)
     check("with no budget, `round` is unchanged whatever the spend", w.cr(f)["round"] == 1)
+    ring = events("round", f)[-1]
+    code, _ = w.chantier("round", f, expect=2)
+    check("the `round` event keeps the worktree's head and a fingerprint; a stray round on a "
+          "worktree that did not change is refused",
+          code == 2 and ring.get("wt_head") == head(f) and ring.get("wt_state")
+          and w.cr(f)["round"] == 1 and len(events("round", f)) == 1, w.last_stderr)
+    commit(w, f, "g8.py", "G = 8\n")
+    w.chantier("round", f)
+    check("a `round` passes with no note when the worktree's head changed since the last one",
+          w.cr(f)["round"] == 2)
+    (wt(f) / "dirty.py").write_text("D = 1\n")
+    w.chantier("round", f)
+    check("a `round` passes with no note when an untracked file appeared since the last one",
+          w.cr(f)["round"] == 3)
 
 
 def restore_cr(w: World) -> None:

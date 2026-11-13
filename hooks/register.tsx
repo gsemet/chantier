@@ -362,13 +362,225 @@ function minutesSince(iso: string | null, now: number): number | null {
 
 // An agent whose prompt holds a `writes: <absolute folder>; <absolute folder>` line starts in the
 // first folder and may Write, Edit or NotebookEdit only inside the folders named. The hook knows no
-// role and no card wording: it reads that one line. Bash and PowerShell are not guarded (the
-// steering session looks at the main checkout with `git status`). A guard that cannot judge lets the
-// call pass and says so in the board's note: a guard at fault must cost nothing.
+// role and no card wording: it reads that one line. A Bash or PowerShell call of such an agent is
+// judged too, when it holds a write form the guard can see with a target path (a redirection, tee,
+// sed -i, cp, mv, rm, Set-Content...); git, gh, glab and the chantier CLI write by their nature and
+// pass. A guard that cannot judge lets the call pass and says so in the board's note: a guard at
+// fault must cost nothing. What it cannot see (an interpreter's inline code, a script) is left alone.
 
 type Worker = { folders: string[]; cwd: string }
 
 const isAbsolute = (p: string) => /^([A-Za-z]:)?[\\/]/.test(p)
+
+// ---- the shell forms ----
+
+type Seg = { words: string[]; redirs: string[]; raw: string }
+
+/** A shell call cut into segments (at `;`, `|`, `&&`, `&`, a new line), each with its words and its redirection targets. Throws for a call it cannot cut. */
+function splitShell(cmd: string): Seg[] {
+  const segs: Seg[] = []
+  let words: string[] = []
+  let redirs: string[] = []
+  let cur: string | null = null
+  let start = 0
+  let heredoc: string | null = null
+  let i = 0
+  const pushWord = () => {
+    if (cur !== null) words.push(cur)
+    cur = null
+  }
+  const endSeg = (at: number) => {
+    pushWord()
+    if (words.length > 0 || redirs.length > 0) segs.push({ words, redirs, raw: cmd.slice(start, at) })
+    words = []
+    redirs = []
+    start = at + 1
+  }
+  const quoted = (q: string): string => {
+    // cmd[i] is the opening quote; leaves i on the closing one
+    let out = ''
+    for (i++; i < cmd.length; i++) {
+      const ch = cmd[i] as string
+      if (ch === q) return out
+      if (q === '"' && (ch === '`' || (ch === '\\' && cmd[i + 1] === '"')) && i + 1 < cmd.length) {
+        out += cmd[i + 1] as string
+        i++
+        continue
+      }
+      out += ch
+    }
+    throw new Error('an unterminated quote')
+  }
+  while (i < cmd.length) {
+    const ch = cmd[i] as string
+    if (ch === "'" || ch === '"') {
+      const hereString = cur === '@' && /^\r?\n/.test(cmd.slice(i + 1, i + 3))
+      if (hereString) {
+        const end = cmd.indexOf('\n' + ch + '@', i)
+        if (end < 0) throw new Error('an unterminated here-string')
+        i = end + 2
+        cur = '(here-string)'
+      } else {
+        cur = (cur ?? '') + quoted(ch)
+      }
+    } else if (ch === '`' && i + 1 < cmd.length) {
+      cur = (cur ?? '') + (cmd[i + 1] as string)
+      i++
+    } else if (ch === ' ' || ch === '\t') {
+      pushWord()
+    } else if (ch === '\n' || ch === '\r') {
+      endSeg(i)
+      if (ch === '\n' && heredoc !== null) {
+        const delim: string = heredoc
+        heredoc = null
+        let at = i + 1
+        for (;;) {
+          if (at >= cmd.length) break
+          const nl = cmd.indexOf('\n', at)
+          const line = cmd.slice(at, nl < 0 ? cmd.length : nl).trim()
+          at = nl < 0 ? cmd.length : nl + 1
+          if (line === delim) break
+        }
+        i = at - 1
+        start = at
+      }
+    } else if (ch === ';' || ch === '|') {
+      endSeg(i)
+    } else if (ch === '&' && cmd[i + 1] === '&') {
+      endSeg(i)
+      i++
+      start = i + 1
+    } else if (ch === '&' && cmd[i + 1] !== '>') {
+      if (cur === null && words.length === 0) start = i + 1 // the call operator
+      else endSeg(i)
+    } else if (ch === '>' || ch === '&') {
+      if (ch === '&') i++ // `&>`
+      if (cur !== null && /^\d$/.test(cur)) cur = null // the file descriptor
+      pushWord()
+      i++
+      if (cmd[i] === '>') i++
+      if (cmd[i] === '&') {
+        // `2>&1`: a duplicated descriptor, no file
+        i++
+        while (i < cmd.length && /[\d-]/.test(cmd[i] as string)) i++
+        continue
+      }
+      if (cmd[i] === '|') i++
+      while (cmd[i] === ' ' || cmd[i] === '\t') i++
+      let target = ''
+      while (i < cmd.length && !/[\s;|&<>]/.test(cmd[i] as string)) {
+        const c = cmd[i] as string
+        if (c === "'" || c === '"') {
+          target += quoted(c)
+          i++
+        } else {
+          target += c
+          i++
+        }
+      }
+      if (target === '') throw new Error('a redirection with no target')
+      redirs.push(target)
+      continue
+    } else if (ch === '<') {
+      pushWord()
+      if (cmd[i + 1] === '<' && cmd[i + 2] === '<') {
+        i += 2
+      } else if (cmd[i + 1] === '<') {
+        const m = /^<<-?\s*(['"]?)([A-Za-z0-9_.-]+)\1/.exec(cmd.slice(i))
+        if (m !== null) {
+          heredoc = m[2] as string
+          i += m[0].length - 1
+        }
+      }
+    } else {
+      cur = (cur ?? '') + ch
+    }
+    i++
+  }
+  endSeg(cmd.length)
+  return segs
+}
+
+const NULLS = /^(\$null|\/dev\/null|nul)$/i
+const MOVERS = new Set(['cd', 'chdir', 'set-location', 'sl', 'pushd', 'popd'])
+const EXEMPT = new Set(['git', 'gh', 'glab'])
+const ALL_PATHS = new Set(['rm', 'del', 'erase', 'ri', 'remove-item', 'touch', 'mv', 'move', 'mi', 'move-item', 'truncate'])
+const FIRST_PATH = new Set(['set-content', 'sc', 'add-content', 'ac', 'out-file', 'clear-content', 'new-item', 'ni', 'rename-item', 'rni', 'ren'])
+const LAST_PATH = new Set(['cp', 'copy', 'cpi', 'copy-item'])
+const VALUED = new Set(['-value', '-encoding', '-stream', '-filter', '-include', '-exclude', '-credential', '-itemtype', '-newname', '-name', '-width'])
+
+/** The paths a segment writes, by the forms the guard knows; each is as written. */
+function writtenBy(seg: Seg): string[] {
+  const out = [...seg.redirs]
+  let w = seg.words.slice()
+  while (w.length > 0 && /^[A-Za-z_]\w*=/.test(w[0] as string)) w = w.slice(1)
+  const name = (w[0] ?? '').replace(/\\/g, '/').split('/').pop()!.toLowerCase().replace(/\.exe$/, '')
+  const args = w.slice(1)
+  const plain = (xs: string[]) => {
+    const found: string[] = []
+    for (let k = 0; k < xs.length; k++) {
+      const x = xs[k] as string
+      if (x.startsWith('-') && x.length > 1) {
+        if (VALUED.has(x.toLowerCase())) k++
+        continue
+      }
+      found.push(...x.split(',').filter(p => p !== ''))
+    }
+    return found
+  }
+  if (name === 'tee') out.push(...plain(args))
+  else if (name === 'sed' || name === 'perl') {
+    if (args.some(a => /^-[a-z]*i/.test(a) || a.startsWith('--in-place'))) {
+      const hasScript = args.some(a => a === '-e' || a === '-f')
+      const rest: string[] = []
+      for (let k = 0; k < args.length; k++) {
+        const a = args[k] as string
+        if (a === '-e' || a === '-f') k++
+        else if (!a.startsWith('-')) rest.push(a)
+      }
+      out.push(...(hasScript ? rest : rest.slice(1)))
+    }
+  } else if (ALL_PATHS.has(name)) out.push(...plain(args).filter(p => name !== 'truncate' || !/^[+<>/%-]?\d+$/.test(p)))
+  else if (FIRST_PATH.has(name)) {
+    const named = args.findIndex(a => /^-(literal)?path$|^-filepath$/i.test(a))
+    const found = plain(args)
+    const first = named >= 0 ? (args[named + 1] ?? '') : (found[0] ?? '')
+    if (first !== '') out.push(first)
+  } else if (LAST_PATH.has(name)) {
+    const found = plain(args)
+    const dest = args.findIndex(a => /^-destination$/i.test(a))
+    const last = dest >= 0 ? (args[dest + 1] ?? '') : (found[found.length - 1] ?? '')
+    if (last !== '') out.push(last)
+  }
+  return out
+}
+
+/** The one write the call makes outside the folders (a refusal), and the targets the guard could not read. */
+function judgeShell(command: string, cwd: string, folders: string[]): { outside: string | null; unjudged: string[] } {
+  let outside: string | null = null
+  const unjudged: string[] = []
+  let moved = false
+  for (const seg of splitShell(command)) {
+    let w = seg.words.slice()
+    while (w.length > 0 && /^[A-Za-z_]\w*=/.test(w[0] as string)) w = w.slice(1)
+    const name = (w[0] ?? '').replace(/\\/g, '/').split('/').pop()!.toLowerCase().replace(/\.exe$/, '')
+    if (MOVERS.has(name)) moved = true
+    if (EXEMPT.has(name) || /^\$(env:)?chantier$/i.test(w[0] ?? '') || (name === 'uv' && /chantier\.py/.test(seg.raw))) continue
+    const targets = writtenBy(seg)
+    for (const m of seg.raw.matchAll(/\[(?:System\.)?IO\.File\]::(?:Write|AppendAll)\w*\s*\(\s*(?:(['"])([^'"]*)\1)?/gi)) {
+      if (m[2] === undefined) unjudged.push('a [IO.File] write with a path it cannot read')
+      else targets.push(m[2])
+    }
+    for (const raw of targets) {
+      if (NULLS.test(raw)) continue
+      const path = slash(raw)
+      if (/[$%]/.test(path) || path.startsWith('~')) unjudged.push(`${raw} holds a variable or ~`)
+      else if (moved && !isAbsolute(path)) unjudged.push(`${raw} follows a change of folder`)
+      else if (outside === null && !folders.some(f => isInside(f, isAbsolute(path) ? path : cwd + '/' + path))) outside = path
+    }
+  }
+  return { outside, unjudged }
+}
 
 /** The path field of a guarded tool's call (the arguments sit flat beside `tool`); null for any other tool. */
 const pathField = (tool: unknown) =>
@@ -438,8 +650,26 @@ export const register: Register = on => {
     let note: string | null = null
     try {
       const field = pathField(e.tool)
-      const known = field !== null && typeof id === 'string' ? ((await read($, workers)) as Record<string, Worker>)[id] : undefined
-      if (field !== null && known !== undefined) {
+      const shell = e.tool === 'Bash' || e.tool === 'PowerShell'
+      const known = (field !== null || shell) && typeof id === 'string' ? ((await read($, workers)) as Record<string, Worker>)[id] : undefined
+      if (shell && known !== undefined) {
+        const command = (e as Record<string, unknown>).command
+        if (typeof command !== 'string' || command.trim() === '') {
+          note = `Write guard: could not read the ${tool} call of agent ${String(id)} (no command); the call passed.`
+        } else {
+          let judged: ReturnType<typeof judgeShell> | null = null
+          try {
+            judged = judgeShell(command, known.cwd, known.folders)
+          } catch (err) {
+            note = `Write guard: could not read the ${tool} call of agent ${String(id)} (${message(err)}); the call passed.`
+          }
+          if (judged !== null && judged.outside !== null) {
+            refusal = `refused: a shell write to ${judged.outside} is outside the folders this agent may write in (${known.folders.join('; ')}); the shell follows the same rule as Write and Edit`
+          } else if (judged !== null && judged.unjudged.length > 0) {
+            note = `Write guard: could not judge the ${tool} call of agent ${String(id)} (${judged.unjudged.join('; ')}); the call passed.`
+          }
+        }
+      } else if (field !== null && known !== undefined) {
         const raw = (e as Record<string, unknown>)[field]
         if (typeof raw !== 'string' || raw.trim() === '') {
           note = `Write guard: could not read the ${tool} call of agent ${String(id)} (no ${field}); the call passed.`

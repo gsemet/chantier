@@ -888,12 +888,73 @@ test('outside its folders is refused with the one message, for Write, Edit and N
   }
 })
 
-test('Bash is not guarded', async ($, on) => {
+const DRIVER_PROMPT = `chantier cr-driver for CR-5 of batch b.\nwrites: ${FOLDER}\nrounds: 1 of 3`
+const shellRefusal = (path: string, folders = FOLDER) =>
+  `refused: a shell write to ${path} is outside the folders this agent may write in (${folders}); the shell follows the same rule as Write and Edit`
+const shell = ($: Engine, agentId: string | undefined, command: string, tool = 'PowerShell') =>
+  ($.tool.call as any)({ tool, command, agentId }) as Promise<any>
+
+test('a CR driver\'s shell write outside its folder is refused, with the one message', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, DRIVER_PROMPT)
+  expect((await shell($, agentId, `Set-Content -Path ${WT}/src/a.py -Value x`)).deny).toBe(shellRefusal(`${WT}/src/a.py`))
+  expect((await shell($, agentId, `echo x > ${ROOT}/a`, 'Bash')).deny).toBe(shellRefusal(`${ROOT}/a`))
+  expect((await shell($, agentId, `ls; sed -i 's/a/b/' ${WT}/f.py`, 'Bash')).deny).toBe(shellRefusal(`${WT}/f.py`))
+  expect((await shell($, agentId, `echo hi | tee ${WT}/log`, 'Bash')).deny).toContain('refused: a shell write to')
+  expect((await shell($, agentId, `rm -rf ${WT}/build`, 'Bash')).deny).toContain('refused: a shell write to')
+  expect((await shell($, agentId, `[IO.File]::WriteAllText('${WT}/x', 'y')`)).deny).toContain('refused: a shell write to')
+})
+
+test('a CR driver\'s shell writes inside its folder, to a null device, or by git, gh and the CLI pass', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, DRIVER_PROMPT)
+  const pass = [
+    `gh run view 12 --log-failed > ${FOLDER}/work/ci-12.log`,
+    `git -C ${WT} commit -m "fix > this"`,
+    `git -C ${WT} diff > ${WT}/x.diff`,
+    `Get-ChildItem ${WT} 2>$null`,
+    `ls ${WT} 2> /dev/null`,
+    `make 2>&1 | tail -5`,
+    `uv run --script "C:/x/skills/chantier/scripts/cli/chantier.py" note CR-5 "a > b" --batch b`,
+    `$CHANTIER round CR-5 --batch b`,
+    `Set-Content -Path work/pr-body.md -Value "x"`,
+    `cat <<'EOF' > work/note.md\n> quoted\nEOF`,
+  ]
+  for (const c of pass) expect((await shell($, agentId, c)).deny, c).toBeUndefined()
+  expect(await said($)).not.toContain('could not')
+})
+
+for (const [what, command, tool, part] of [
+  ['a variable', '"x" > $env:TEMP\\x', 'PowerShell', 'holds a variable or ~'],
+  ['a change of folder', `cd ${WT}; echo x > a.txt`, 'Bash', 'follows a change of folder'],
+  ['an unterminated quote', 'echo "unterminated > a', 'Bash', 'an unterminated quote'],
+] as const) {
+  test('a shell write the guard cannot judge passes, with the note: ' + what, async ($, on) => {
+    mock.clock(on)
+    guardWorld(on)
+    const { agentId } = await spawn($, DRIVER_PROMPT)
+    expect((await shell($, agentId, command, tool)).deny).toBeUndefined()
+    const text = await said($)
+    expect(text).toContain('could not')
+    expect(text).toContain(part)
+  })
+}
+
+test('a worker\'s shell write inside its worktree passes, and outside is refused', async ($, on) => {
   mock.clock(on)
   guardWorld(on)
   const { agentId } = await spawn($, WORKER_PROMPT)
-  const out = await ($.tool.call as any)({ tool: 'Bash', command: `echo x > ${ROOT}/a`, agentId })
-  expect(out.deny).toBeUndefined()
+  expect((await shell($, agentId, `Set-Content -Path ${WT}/src/a.py -Value "x"`)).deny).toBeUndefined()
+  expect((await shell($, agentId, `Set-Content ${ROOT}/src/a.py "x"`)).deny).toBe(shellRefusal(`${ROOT}/src/a.py`, `${WT}; ${FOLDER}`))
+})
+
+test('an agent with no writes line has its shell left alone', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, 'chantier release-driver for CR-5.')
+  expect((await shell($, agentId, `echo x > ${ROOT}/a`, 'Bash')).deny).toBeUndefined()
 })
 
 test('a Windows path in another drive case or with backslashes is judged the same', async ($, on) => {

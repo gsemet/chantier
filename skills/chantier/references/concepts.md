@@ -265,14 +265,14 @@ the project's rules rank above them: run `$CHANTIER rules` first and read what t
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
-writes: <worktree>; <CR folder>   (a worker's prompt only: where it may write, the worktree first)
+writes: <worktree>; <CR folder>   (a worker's prompt: worktree first; a CR Driver's: its CR folder, then the archive path when `take` prints one)
 Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt: who runs which worker)
 Needs: skills <…>; tools <…>            (only when the playbook gives the role some, as printed)
 Note: <why the CR is with it, or the round's brief>
 ```
 
 On Claude Code the plugin starts an agent whose prompt holds the `writes:` line in its first
-folder and refuses its Write, Edit or NotebookEdit outside the folders named; a prompt without
+folder and refuses its Write, Edit or NotebookEdit outside the folders named, and judges a Bash or PowerShell write it can see the same way; a prompt without
 the line is not guarded; a role that needs other folders, or fewer, gets its own line from the
 card that starts it.
 

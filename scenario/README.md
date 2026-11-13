@@ -28,6 +28,11 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - the batch opened with the branch from `AGENTS.md`, each CR named a branch and a worktree that
   the Driver creates; `take` refused past the slots and the budget, `round` past the limit;
   nothing written outside the planning folder;
+- a stray second `round` refused (exit 2, the count unchanged, no `round` event) and passing after
+  a `note`; a `round` passing with no note when the worktree's head, or its untracked files,
+  changed since the last one; `note` printing `context: not measured (no agent recorded)`, then
+  `context: <n> tokens (agent <id>)` from the end of a fake agent transcript, and `cost --by cr`
+  showing the Driver's peak context and compactions on the CR's line;
 - the optional `chantier.yaml`: none (the plugin's agents, no `team:` line), a valid one (the
   resolved model, recorded at `open`, printed by `take` and `playbook --batch`), kept by a running
   batch when the file changes, refused with its line and nothing moved (an unknown role or key, a
