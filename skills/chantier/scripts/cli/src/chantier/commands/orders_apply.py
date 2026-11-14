@@ -7,6 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from chantier.commands.crs import filed_fix, grant_line
+from chantier.commands.gate_lock import lock_holder, parse_holder
+from chantier.commands.gate_run import stop_gate
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
 from chantier.commands.orders_release import (
     add_release,
@@ -179,15 +181,29 @@ def _merged(w: Word) -> list[str]:
         return [f"{cr_id} already merged"]
     if c.status == "cancelled":
         raise ChantierError(f"cannot mark cancelled {cr_id} merged")
-    if c.kind != "release":
-        return merge_done(b, c)
-    open_ = _open_ids(b, cr_id)
+    open_ = _open_ids(b, cr_id) if c.kind == "release" else []
     if open_:
         raise ChantierError(
             f"order merged: {', '.join(open_)} not merged or cancelled: the release PR merges last"
         )
+    # a merged head needs no gate: stop it first, while the CR's folder and its log are in place
+    stopped = _stop_gate(b, cr_id)
+    if c.kind != "release":
+        lines = merge_done(b, c)
+        return [lines[0], *stopped, *lines[1:]]
     release_merged(b, c)
-    return [f"merged {cr_id}: the procedure goes on with a new Release driver"]
+    return [f"merged {cr_id}: the procedure goes on with a new Release driver", *stopped]
+
+
+def _stop_gate(b: Batch, cr_id: str) -> list[str]:
+    """Stop the long gate the lock names for this CR, as `gate <cr> --stop` does; its line."""
+    h = parse_holder(lock_holder(b.repo))
+    if h is None or h.cr != cr_id:
+        return []
+    s = stop_gate(b.repo, h, b, "")
+    if not s.acted:
+        return []
+    return [f"stopped the long gate of {cr_id}" + (f" (pg{s.pg})" if s.pg is not None else "")]
 
 
 def _rounds(w: Word) -> list[str]:

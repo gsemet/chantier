@@ -7,6 +7,7 @@ import os
 import re
 import time
 from pathlib import Path
+from typing import NamedTuple
 
 from chantier import procs
 from chantier.core.errors import ChantierError
@@ -24,6 +25,79 @@ def lock_holder(repo: Repo) -> str:
             return f.read().strip()
     except OSError:
         return ""
+
+
+class Holder(NamedTuple):
+    cr: str
+    pid: int  # the `gate` command
+    pg: int | None  # its suite's process group, once started
+
+
+def parse_holder(text: str) -> Holder | None:
+    """The one reading of the lock's text, `<cr> pid <n>[ pg<m>]`; None for any other text."""
+    m = re.fullmatch(r"(\S+) pid (\d+)(?: pg(\d+))?", text)
+    return Holder(m[1], int(m[2]), int(m[3]) if m[3] else None) if m else None
+
+
+def mtime(path: Path) -> float:
+    """When the file was last written; 0 if it is gone, which no live process predates."""
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def lock_mtime(repo: Repo) -> float:
+    return mtime(repo.changes / ".long-gate.lock")
+
+
+def holder_alive(repo: Repo, h: Holder, unreadable: bool) -> bool:
+    """Whether the gate command or its suite named in the lock is still that process: the lock's
+    text was written after both existed."""
+    recorded = lock_mtime(repo)
+    return any(procs.alive_since(p, recorded, unreadable) for p in (h.pid, h.pg) if p is not None)
+
+
+def read_ticket(p: Path) -> tuple[str, int] | None:
+    """The CR and pid a queue ticket names; None if it is gone or stays unreadable. It deletes
+    nothing."""
+    for _ in range(5):  # the other side may be writing it
+        try:
+            m = re.fullmatch(r"(\S+) pid (\d+)", p.read_text(encoding="utf-8").strip())
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError):
+            m = None
+        if m:
+            return m[1], int(m[2])
+        time.sleep(0.05)
+    return None
+
+
+def queued_crs(repo: Repo) -> list[str]:
+    """The CRs of the live tickets, in arrival order. It only reads: `status` must not change the
+    queue."""
+    out = []
+    for p in sorted((repo.changes / ".long-gate.queue").glob("[0-9]*")):
+        t = read_ticket(p)
+        if t and procs.alive_since(t[1], mtime(p), True):
+            out.append(t[0])
+    return out
+
+
+def gate_state(repo: Repo, cr: str) -> str | None:
+    """`gate running` when the lock names the CR and its command or suite still lives;
+    `gate queued behind <cr>` (bare `gate queued` when it is next) for a live ticket; else None."""
+    h = parse_holder(lock_holder(repo))
+    live = h if h and holder_alive(repo, h, True) else None
+    if live and live.cr == cr:
+        return "gate running"
+    queue = queued_crs(repo)
+    if cr not in queue:
+        return None
+    if live:
+        return f"gate queued behind {live.cr}"
+    return f"gate queued behind {queue[0]}" if queue.index(cr) else "gate queued"
 
 
 class LongGateLock:
@@ -44,20 +118,13 @@ class LongGateLock:
     # `<cr> pid <pid>`. A gate tries the OS lock only when its ticket is the first live one; a
     # ticket whose pid is gone (a waiting `gate` command that ended) is deleted by whoever reads it.
     def _ticket_cr(self, p: Path) -> str | None:
-        for _ in range(5):  # the other side may be writing it
-            try:
-                m = re.fullmatch(r"(\S+) pid (\d+)", p.read_text(encoding="utf-8").strip())
-            except FileNotFoundError:
-                return None
-            except (OSError, ValueError):
-                m = None
-            if m:
-                if procs.alive(int(m[2])):
-                    return m[1]
-                with contextlib.suppress(OSError):
-                    p.unlink()
-                return None
-            time.sleep(0.05)
+        t = read_ticket(p)
+        if t is None:
+            return None
+        if procs.alive_since(t[1], mtime(p), True):
+            return t[0]
+        with contextlib.suppress(OSError):
+            p.unlink()
         return None
 
     def _ahead(self) -> list[str]:
@@ -125,20 +192,25 @@ class LongGateLock:
                     "process that names no CR: check it"
                 )
             time.sleep(1)
-        left = lock_holder(self.repo)  # a gate that died without cleaning up: its suite may run on
-        m = re.search(r"\bpg(\d+)\b", left)
-        if m and procs.alive(int(m[1])):
-            self._wait_note(f"{left} (its command still runs)")
-            since = time.monotonic()
-            while procs.alive(int(m[1])):
-                if time.monotonic() - since > LONG_GATE_WAIT_S:
-                    cr = lock_holder(self.repo).split()[0:1] or ["another CR"]
-                    raise ChantierError(
-                        f"the long gate of {cr[0]} has ended but its suite "
-                        f"(pg{m[1]}) still runs after an hour: check it"
-                    )
-                time.sleep(1)
+        self._wait_suite()
         self.holding(f"{self.cr} pid {os.getpid()}")
+
+    def _wait_suite(self) -> None:
+        """A gate that died without cleaning up: its suite may run on, if it is still the process
+        the lock named."""
+        left = lock_holder(self.repo)
+        h, recorded = parse_holder(left), lock_mtime(self.repo)
+        if h is None or h.pg is None or not procs.alive_since(h.pg, recorded, True):
+            return
+        self._wait_note(f"{left} (its command still runs)")
+        since = time.monotonic()
+        while procs.alive_since(h.pg, recorded, True):
+            if time.monotonic() - since > LONG_GATE_WAIT_S:
+                raise ChantierError(
+                    f"the long gate of {h.cr} has ended but its suite "
+                    f"(pg{h.pg}) still runs after an hour: check it"
+                )
+            time.sleep(1)
 
     def holding(self, text: str) -> None:
         self.f.seek(0)

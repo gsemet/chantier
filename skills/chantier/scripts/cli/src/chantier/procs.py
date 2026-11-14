@@ -104,6 +104,27 @@ def stop(pids: list[int], grace_s: float = 3.0) -> list[int]:
     return hit
 
 
+CLOCK_MARGIN_S = 1.0  # file times and creation times are rounded differently
+
+
+def alive_since(pid: int, recorded: float, unreadable: bool) -> bool:
+    """Whether the process a file named is still that one: a process with this pid runs and was
+    created no later than the file's last write (`recorded`, epoch seconds), give or take a
+    second. A pid that a later process reuses is not the recorded one. `unreadable` is the answer
+    when the creation time cannot be read (a process of another user)."""
+    import psutil
+
+    try:
+        proc = psutil.Process(pid)
+        if not proc.is_running() or proc.status() == psutil.STATUS_ZOMBIE:
+            return False
+        return bool(proc.create_time() <= recorded + CLOCK_MARGIN_S)
+    except psutil.NoSuchProcess:
+        return False
+    except psutil.AccessDenied:
+        return unreadable
+
+
 def alive(pid: int) -> bool:
     """Whether a process still runs; a zombie counts as gone."""
     import psutil

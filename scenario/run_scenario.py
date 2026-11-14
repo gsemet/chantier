@@ -2636,18 +2636,18 @@ def stop_own_gate(w: World) -> None:
     note("\n## 18b. A Driver stops its own long gate; `cancel` needs the epoch")
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     from chantier import procs
-    items = [prepare_cr(w, t)[1] for t in ("Stop own gate", "Stop other gate")]
+    items = [prepare_cr(w, t)[1] for t in ("Stop own gate", "Stop other gate", "Stop merged gate")]
     slow = w.root / "slow_stop.py"
     pidfile = w.root / "slow_stop.pid"
     slow.write_text(f"import os, time\nopen({pidfile.as_posix()!r}, 'w').write(str(os.getpid()))\n"
                     "time.sleep(60)\n")
     slow_gate = f'"{sys.executable}" "{slow}"'
     w.reset()
-    w.start(*map(str, items), "--slots", 2, "--default-branch", "main")
+    w.start(*map(str, items), "--slots", 3, "--default-branch", "main")
     w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman18b", "--epoch", 1)
     Foreman(w, epoch=1).turn()
-    one, two = (c["id"] for c in w.batch()["crs"])
+    one, two, three = (c["id"] for c in w.batch()["crs"])
     wt = Path(w.cr(one)["worktree"])
 
     def events(cr):
@@ -2732,6 +2732,46 @@ def stop_own_gate(w: World) -> None:
     check("`cancel` with no `--epoch` exits 2, names `gate <cr> --stop`, and changes nothing",
           code == 2 and f"gate {one} --stop" in w.last_stderr
           and (w.cr(one)["status"], w.cr(one)["path"]) == before, w.last_stderr)
+
+    def suite_pid():  # the pid the slow suite wrote once it runs
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text()):
+            time.sleep(0.05)
+        return int(pidfile.read_text())
+
+    # a CR that holds the lock while it merges: its own gate is stopped
+    pidfile.unlink(missing_ok=True)
+    running = background(three)
+    pid = suite_pid()
+    code, _ = w.chantier("order", "merged", three, "--epoch", 1)
+    merged_out = w.last_out
+    out, err = running.communicate(timeout=30)
+    time.sleep(0.5)
+    check("`order merged` stops the CR's own long gate: its output names the group, the suite is "
+          "gone, the gate says STOPPED and exits 4, the last gate event is `stopped`, the CR is in "
+          "3-done",
+          code == 0 and any(ln.startswith(f"stopped the long gate of {three} (pg") for ln in merged_out)
+          and not procs.alive(pid) and out.startswith("STOPPED") and running.returncode == 4
+          and "Traceback" not in err and events(three)[-1]["result"] == "stopped"
+          and "3-done" in w.cr(three)["path"].replace("\\", "/"),
+          f"{merged_out} {out} {err} {running.returncode} {events(three)[-1:]}")
+    code, _ = w.chantier("gate", two, GATE)
+    log = logs(two)[-1].read_text("utf-8")
+    check("a gate of another CR then runs at once: no waiting line, no `its command still runs`",
+          code == 0 and "waiting for the long gate" not in log
+          and "its command still runs" not in log, log)
+
+    # a merge with another CR's gate running stops nothing
+    pidfile.unlink(missing_ok=True)
+    other = background(two)
+    pid = suite_pid()
+    w.chantier("order", "merged", one)
+    check("`order merged` of a CR that does not hold the lock stops nothing: no `stopped` line, "
+          "the other CR's suite still runs",
+          not any("stopped" in ln for ln in w.last_out) and procs.alive(pid) and other.poll() is None,
+          str(w.last_out))
+    w.chantier("gate", two, "--stop")
+    other.communicate(timeout=30)
 
 
 def rails(w: World) -> None:
@@ -2903,6 +2943,49 @@ def rails(w: World) -> None:
           left == 1 and code == 0 and "queued ahead" not in log and not tickets(),
           f"{left} {out} {log} {tickets()}")
 
+    # a pid that a later process reuses is not the one the file recorded
+    def newest_log(cr):
+        return max((w.state / w.cr(cr)["path"] / "work" / "gates").glob("*.log")).read_text("utf-8")
+
+    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+    gone = subprocess.Popen([sys.executable, "-c", "pass"])
+    gone.wait()
+    lock = w.state / ".long-gate.lock"
+
+    def reused_lock(cr):
+        lock.write_bytes(b"\0" + f"{cr} pid {gone.pid} pg{sleeper.pid}".encode())
+        back = time.time() - 10  # the sleeper was created after this write: a reused pid
+        os.utime(lock, (back, back))
+
+    reused_lock(one)
+    started = time.monotonic()
+    code, out = w.chantier("gate", two, long_gate)
+    check("a lock naming a reused pid is not waited for: the next gate runs at once",
+          code == 0 and time.monotonic() - started < 10
+          and "its command still runs" not in newest_log(two), f"{out} {newest_log(two)}")
+    # a waiting gate's ticket that names a reused pid is skipped like a dead one
+    (w.state / ".long-gate.queue").mkdir(exist_ok=True)
+    stale = w.state / ".long-gate.queue" / f"{time.time_ns() - 10 * 10**9:020d}-{sleeper.pid}"
+    stale.write_text(f"{one} pid {sleeper.pid}", encoding="utf-8")
+    back = time.time() - 10
+    os.utime(stale, (back, back))
+    code, out = w.chantier("gate", two, queue_gate)
+    check("a ticket naming a reused pid is deleted by the next gate and not waited for",
+          code == 0 and not stale.exists() and "queued ahead" not in newest_log(two),
+          f"{out} {newest_log(two)}")
+    reused_lock(one)
+    code, out = w.chantier("cancel", one, "--epoch", 1)
+    check("`cancel` does not signal a reused pid: no `pg` in `stopped …`, the process lives on",
+          code == 0 and f"pg{sleeper.pid}" not in "".join(out) and sleeper.poll() is None, str(out))
+    reused_lock(two)
+    code, out = w.chantier("order", "merged", two, "--epoch", 1)
+    check("`order merged` does not signal a reused pid: no `stopped` line, the process lives on",
+          code == 0 and not any("stopped" in ln for ln in out) and sleeper.poll() is None, str(out))
+    lock.write_bytes(b"\0")
+
+    sleeper.kill()
+    sleeper.wait()
+
 
 def driver_liveness(w: World) -> None:
     note("\n## 12c. A Driver that dies: activity lines, the restart path, the `context:` hand-back")
@@ -2928,7 +3011,9 @@ def driver_liveness(w: World) -> None:
     (sub / f"agent-agent-{one}.jsonl").write_text("{}\n")
     (sub / "agent-w1.jsonl").write_text("{}\n")
     (sub / "agent-w1.meta.json").write_text(json.dumps({"parentAgentId": f"agent-{one}"}))
-    (w.state / ".long-gate.lock").write_bytes(b"\0" + f"{three} pid 1 pg1".encode())
+    me = os.getpid()  # a live process, older than the lock written now
+    lock = w.state / ".long-gate.lock"
+    lock.write_bytes(b"\0" + f"{three} pid {me}".encode())
     code, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
     lines = {ln.split()[1]: ln for ln in out if ln.startswith("activity ")}
     check("`status --refresh` gives one activity age per working CR, and no longest silent Driver",
@@ -2937,6 +3022,33 @@ def driver_liveness(w: World) -> None:
           and lines[two] == f"activity {two} not measured"
           and lines[three] == f"activity {three} gate running"
           and not any("longest silent" in ln for ln in out), str(out))
+    queue = w.state / ".long-gate.queue"
+    queue.mkdir(exist_ok=True)
+    ticket = queue / f"{time.time_ns():020d}-{me}"
+    ticket.write_text(f"{two} pid {me}", encoding="utf-8")
+
+    def activity_lines():
+        _, o = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+        return {ln.split()[1]: ln for ln in o if ln.startswith("activity ")}
+
+    lines = activity_lines()
+    check("a live ticket of the queue gives `gate queued behind <holder>`, and `status` keeps it",
+          lines[two] == f"activity {two} gate queued behind {three}" and ticket.exists(), str(lines))
+    lock.write_bytes(b"\0")
+    lines = activity_lines()
+    check("with the lock empty and a live ticket alone the line is `gate queued`",
+          lines[two] == f"activity {two} gate queued", str(lines))
+    done = subprocess.Popen([sys.executable, "-c", "pass"])
+    done.wait()
+    lock.write_bytes(b"\0" + f"{three} pid {done.pid}".encode())
+    ticket.write_text(f"{two} pid {done.pid}", encoding="utf-8")
+    lines = activity_lines()
+    check("a lock or a ticket naming a dead pid is no gate: an age, never `gate running` or "
+          "`gate queued`",
+          lines[three] == f"activity {three} not measured" and lines[two] == f"activity {two} not measured"
+          and ticket.exists(), str(lines))
+    ticket.unlink()
+    lock.unlink()
     w.chantier("agents", "set", one, "-", "--epoch", 1)
     _, out = w.chantier("note", one, "no Driver recorded")
     check("`note` prints `context: not measured (no agent recorded)` with no agent recorded",
@@ -2965,7 +3077,6 @@ def driver_liveness(w: World) -> None:
     line = next((ln for ln in out if ln.startswith(f"{one}:")), "")
     check("`cost --by cr` shows the Driver's peak context and compactions on the CR's line",
           "Driver peak context 9,000 tokens, 1 compaction)" in line, str(out))
-    (w.state / ".long-gate.lock").unlink()
     chief.unlink()
     shutil.rmtree(sub)
     code, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)

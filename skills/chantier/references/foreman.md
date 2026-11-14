@@ -99,8 +99,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 
 - `$CHANTIER status` (with `--refresh --epoch <n>` on a wake: it records your heartbeat and the
   spend, and gives one `activity` line per working CR, the stack driver and each open QA order
-  with an agent id: the age of its last event or session record, `gate running`, or `not
-  measured`; a CR with no agent recorded shows `no Driver recorded` in its row); `handoff <cr>`
+  with an agent id: the age of its last event or session record, `gate running`, `gate queued
+  behind <cr>`, or `not measured`; a CR with no agent recorded shows `no Driver recorded` in its row); `handoff <cr>`
   and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
   for the prompt ([concepts](concepts.md), "Starting an agent"). It is refused (exit 2) on a
@@ -281,7 +281,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
   kind, and holds in a direct batch, whose Chief of Staff reads this card).
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
-    shows no activity and no `gate running` for one full heartbeat interval (30 minutes). A line
+    shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (30
+    minutes). A line
     `not measured` or a row `no Driver recorded` is read for what it says, never as activity. A
     project's `AGENTS.md` ranks above this threshold.
   - **Proof of death**, one of two: the host refuses a message to the agent because it no
