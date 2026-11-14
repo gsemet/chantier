@@ -18,7 +18,6 @@ from chantier.commands.cost.breakdown import (
 )
 from chantier.commands.cost.pricing import hints, spend, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
-from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
@@ -138,25 +137,3 @@ def cost(args: argparse.Namespace) -> list[str]:
     if args.explain:
         out += _explain_notes(rows)
     return list(dict.fromkeys(out))  # a model the Chief of Staff shares gets one hint
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(sub, "cost", cost, "price the Foreman's transcript and its subagents", BATCH)
-    s.add_argument(
-        "--by",
-        choices=["role", "cr"],
-        default="role",
-        help="role: the Foreman, each Driver type, each worker type; cr: a CR's own",
-    )
-    s.add_argument(
-        "--explain",
-        action="store_true",
-        help="under each line: agents, model, shares of cost, calls after the cache "
-        "expired, restarted Drivers; ends with what the figures do not count",
-    )
-    s.add_argument(
-        "--summary",
-        action="store_true",
-        help="total, budget, Foreman, Drivers and workers, the costliest CRs",
-    )

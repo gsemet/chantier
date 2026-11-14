@@ -11,12 +11,12 @@ from chantier.commands.close_archive import Closing, archive_and_delete, batch_f
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
-from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command
 from chantier.core.batch import check_epoch, resolve_batch
 from chantier.core.batch_records import check_closable, number_of, read_retro
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, BatchRecord, normalize_batch, read_batch_json
+from chantier.core.ids import normalize_batch
+from chantier.core.records import LIVE, BatchRecord, read_batch_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
@@ -169,25 +169,3 @@ def close(args: argparse.Namespace) -> tuple[list[str], int]:
         *k.done_lines()[1:],
         *tail,
     ], 0
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    add_command(
-        sub,
-        "pause",
-        pause,
-        "pause the batch once its work is done: refused while anything is live or already "
-        "paused; prints the cost to date",
-        BATCH_EPOCH,
-    )
-
-    s = add_command(
-        sub,
-        "close",
-        close,
-        "refused while anything runs; prints the final cost and what deleting a paused batch "
-        "would remove; --yes deletes it",
-        BATCH,
-    )
-    s.add_argument("--yes", action="store_true", help="on the user's word")

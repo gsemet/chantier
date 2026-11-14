@@ -4,7 +4,10 @@ for the CLI. `just lint` holds the style; these two checks hold what a linter do
 from __future__ import annotations
 
 import ast
+import os
 import re
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -120,4 +123,37 @@ def test_the_web_frame_has_small_scripts_and_both_word_files_share_their_keys() 
     }
     if keys["en"] != keys["fr"]:
         problems.append(f"word files differ: {sorted(keys['en'] ^ keys['fr'])}")
+    assert not problems, "\n".join(problems)
+
+
+START_UP_PROGRAM = """
+import contextlib
+import io
+import sys
+from chantier.cli import main
+with contextlib.redirect_stdout(io.StringIO()), contextlib.suppress(SystemExit):
+    main(sys.argv[1:])
+print("\\n".join(sorted({name.split(".")[0] for name in sys.modules})))
+"""
+SITE_HOOKS = {"_virtualenv", "_distutils_hack", "sitecustomize", "usercustomize"}
+
+
+def test_the_start_up_imports_only_the_standard_library_and_chantier() -> None:
+    problems = []
+    for argv in (["--version"], ["--help"]):
+        run = subprocess.run(
+            [sys.executable, "-c", START_UP_PROGRAM, *argv],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+            env={**os.environ, "PYTHONPATH": str(CLI / "src")},
+        )
+        allowed = set(sys.stdlib_module_names) | SITE_HOOKS | {"chantier", "__main__"}
+        extra = sorted(set(run.stdout.split()) - allowed)
+        if extra:
+            problems.append(
+                f"`chantier {argv[0]}` imports {', '.join(extra)} at start: "
+                "import them in the command that needs them"
+            )
     assert not problems, "\n".join(problems)

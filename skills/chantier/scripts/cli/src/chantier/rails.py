@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import hashlib
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +18,6 @@ from chantier.core.records import (
     round_limit,
 )
 from chantier.core.repo import Repo
-from chantier.costs.sessions import idle_seconds
 
 ENDED = {"merged", "cancelled"}
 
@@ -51,6 +49,8 @@ def running(repo: Repo, d: BatchRecord) -> list[str]:
     causes += [f"order {o.id} ({o.kind}) is open" for o in d.orders if not o.done]
     if d.stack_agent:
         causes.append(f"stack agent {d.stack_agent} is recorded")
+    from chantier.costs.sessions import idle_seconds  # noqa: PLC0415 - slow import
+
     sessions = d.foreman_transcripts or ([d.foreman_transcript] if d.foreman_transcript else [])
     for label, age in idle_seconds(repo.session_root, d.host, sessions, chief_sessions(d)):
         if age is None:
@@ -264,6 +264,8 @@ def worktree_print(wt: Path | None) -> dict[str, Any]:
     if wt is None or not wt.is_dir():
         return {}
     head = git("rev-parse", "HEAD", cwd=wt, check=False)
+    import hashlib  # noqa: PLC0415 - slow import
+
     h = hashlib.sha1()
     h.update(git("status", "--porcelain", "--untracked-files=normal", cwd=wt, check=False).encode())
     h.update(git("diff", "HEAD", cwd=wt, check=False).encode())

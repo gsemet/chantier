@@ -23,12 +23,11 @@ from chantier.core.files import (
     write_file,
     write_json,
 )
+from chantier.core.ids import normalize_batch, normalize_cr
 from chantier.core.records import (
     BatchRecord,
     CrEntry,
     EventRecord,
-    normalize_batch,
-    normalize_cr,
     read_batch_json,
     read_restored_number,
 )

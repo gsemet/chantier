@@ -13,7 +13,6 @@ from chantier.commands.crs import (
     last_verdict,
     short_head,
 )
-from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
@@ -217,11 +216,3 @@ def _last_restack(c: CrEntry) -> str:
     """The CR's last note that starts with `restack:`, whole; `restack: none` with no such note."""
     found = [n for n in c.notes if n.startswith("restack:")]
     return found[-1] if found else "restack: none"
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub, "handoff", handoff, "the CR's facts, for any agent; changes nothing", BATCH
-    )
-    s.add_argument("cr")

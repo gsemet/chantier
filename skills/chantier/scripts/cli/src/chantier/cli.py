@@ -7,10 +7,14 @@ import sys
 from typing import Any
 
 from chantier import __version__, plugin_files
-from chantier.board import command as board_command
-from chantier.commands import (
+from chantier.core import repo
+from chantier.core.errors import ChantierError
+from chantier.core.ids import normalize_cr
+from chantier.declare import (
     batch_status,
+    board,
     closing,
+    cost,
     delivery,
     driver,
     facts,
@@ -25,10 +29,6 @@ from chantier.commands import (
     seat,
     summary,
 )
-from chantier.commands.cost import command as cost_command
-from chantier.core import repo
-from chantier.core.errors import ChantierError
-from chantier.core.records import normalize_cr
 
 MAX_LINES = 10
 # The facts of a CR, a list of files, the whole batch, or what the user approves, is useless cut
@@ -71,7 +71,7 @@ def _parser() -> argparse.ArgumentParser:
         opening,
         orders,
         seat,
-        board_command,
+        board,
         batch_status,
         driver,
         rules,
@@ -81,7 +81,7 @@ def _parser() -> argparse.ArgumentParser:
         forge_stack,
         release,
         closing,
-        cost_command,
+        cost,
         summary,
     ):
         module.register(sub)
@@ -97,7 +97,7 @@ def _one_spelling_of_a_cr(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Output holds `→` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
+    # Output holds `â†’` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         return e.code
     lines, code = result if isinstance(result, tuple) else (result, 0)
     if args.cmd not in FULL_OUTPUT and len(lines) > MAX_LINES:
-        lines = [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
+        lines = [*lines[: MAX_LINES - 1], f"â€¦ {len(lines) - MAX_LINES + 1} more lines"]
     if lines:  # `board` printed its own lines while it served
         print("\n".join(lines))
     return int(code)

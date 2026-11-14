@@ -1,4 +1,4 @@
-"""The JSON records chantier keeps, as pydantic models, and the ids of batches and CRs.
+"""The JSON records chantier keeps, as pydantic models.
 
 One model per record: `batch.json` (with its settings and CR entries), an `events.jsonl` line,
 `seat.json`, `.long-gate.run` and `restored.json`. Every model keeps the keys it does not
@@ -8,9 +8,8 @@ does not know survives a read and a write, and an absent key stays absent."""
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
@@ -31,7 +30,7 @@ ORIGIN_KINDS = ("verbal", *TRACKERS)
 class Record(BaseModel):
     """What every record has in common: unknown keys are kept."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", defer_build=True)
 
     def to_data(self) -> dict[str, Any]:
         """The record as JSON data: the keys that were set, and no other."""
@@ -321,22 +320,3 @@ def read_events(folder: Path) -> list[EventRecord]:
         except ValueError:  # the last line of a process killed while appending
             continue
     return out
-
-
-def normalize_batch(batch: str) -> str:
-    """`4`, `04` and `batch-04` all name `batch-04`; anything else is left as given."""
-    match = re.fullmatch(r"(?:batch-)?(\d+)", batch.strip())
-    return f"batch-{int(match.group(1)):02d}" if match else batch
-
-
-@overload
-def normalize_cr(value: str) -> str: ...
-@overload
-def normalize_cr(value: None) -> None: ...
-def normalize_cr(value: str | None) -> str | None:
-    """`165`, `CR-165` and `cr-165` all name `CR-165`; anything else (`stack`, `-`, an `O-k`
-    order, a QA folder) is left as given."""
-    if not isinstance(value, str):
-        return value
-    match = re.fullmatch(r"(?:cr-)?(\d+)", value.strip(), re.I)
-    return f"CR-{match.group(1)}" if match else value

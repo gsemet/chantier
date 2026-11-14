@@ -21,14 +21,9 @@ from chantier.board.context import Context
 from chantier.board.key import KeyFile, key_path, load_or_create
 from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
-from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 
-HELP = (
-    "serve the web board (the record, the planning folder's files, the backlog) on this machine "
-    "and the local network, behind a key in its URL"
-)
 BEYOND = (
     "board: listens on the local network ({host}); the link holds its key: give it to the user "
     "only, plain HTTP"
@@ -108,36 +103,3 @@ def board(args: argparse.Namespace) -> list[str]:
         print(BEYOND.format(host=host), flush=True)
     _run(projects, seats, sock)
     return []
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(sub, "board", board, HELP, NO_BATCH)
-    s.add_argument(
-        "--host",
-        help="the address to listen on (default: chantier.yaml's board.host, else 0.0.0.0, the "
-        "local network)",
-    )
-    s.add_argument(
-        "--port",
-        type=int,
-        help="the port, or 0 for a free one the system picks (default: chantier.yaml's "
-        "board.port, else 8765)",
-    )
-    s.add_argument(
-        "--seat",
-        metavar="SESSION",
-        help="the Chief of Staff session this board is for: the board follows its seats and "
-        "stops when none of them names its session any more",
-    )
-    s.add_argument(
-        "--clock",
-        metavar="TIMESTAMP",
-        help="answer as if it were this instant (UTC, YYYY-MM-DDTHH:MM:SSZ), for screenshots "
-        "and tests",
-    )
-    s.add_argument(
-        "--new-key",
-        action="store_true",
-        help="replace the board's key: the old link stops working",
-    )

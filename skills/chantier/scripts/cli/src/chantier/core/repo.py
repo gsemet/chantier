@@ -12,7 +12,7 @@ from typing import Any
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.files import ensure_gitignore, read_text
 from chantier.core.git import git
-from chantier.core.records import normalize_batch, read_batch_json
+from chantier.core.ids import normalize_batch
 
 CHANGES = Path(".agents") / "changes"
 RECORDS = Path("5-archives") / "batches"  # each batch's `batch-NN.json` and `batch-NN.md`
@@ -233,6 +233,8 @@ class Repo:
 
     def batch_ids(self) -> list[str]:
         """The id of the current batch, read from its `batch.json`, never from a folder name."""
+        from chantier.core.records import read_batch_json  # noqa: PLC0415 - lazy pydantic
+
         return [read_batch_json(d / "batch.json").id for d in self.batch_folders()]
 
     def batch_dir(self, batch: str) -> Path:
@@ -257,5 +259,7 @@ class Repo:
         return max([kept, *recorded, *live]) + 1
 
     def open_batches(self) -> list[str]:
+        from chantier.core.records import read_batch_json  # noqa: PLC0415 - lazy pydantic
+
         states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
         return sorted(s.id for s in states if s.status != "paused")
