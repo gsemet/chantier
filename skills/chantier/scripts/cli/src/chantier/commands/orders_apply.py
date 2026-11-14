@@ -7,8 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from chantier.commands.crs import filed_fix, grant_line
-from chantier.commands.gate_lock import lock_holder, parse_holder
 from chantier.commands.gate_run import stop_gate
+from chantier.commands.gate_slots import slot_of
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
 from chantier.commands.orders_release import (
     add_release,
@@ -196,11 +196,11 @@ def _merged(w: Word) -> list[str]:
 
 
 def _stop_gate(b: Batch, cr_id: str) -> list[str]:
-    """Stop the long gate the lock names for this CR, as `gate <cr> --stop` does; its line."""
-    h = parse_holder(lock_holder(b.repo))
-    if h is None or h.cr != cr_id:
+    """Stop the long gate the slots name for this CR, as `gate <cr> --stop` does; its line."""
+    v = slot_of(b.repo, cr_id)
+    if v is None or v.holder is None:
         return []
-    s = stop_gate(b.repo, h, b, "")
+    s = stop_gate(v.slot, v.holder, b, "")
     if not s.acted:
         return []
     return [f"stopped the long gate of {cr_id}" + (f" (pg{s.pg})" if s.pg is not None else "")]

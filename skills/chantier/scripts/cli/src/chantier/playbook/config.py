@@ -92,12 +92,15 @@ def load(path: Path, host: str, roles: list[str]) -> tuple[dict[str, Any] | None
     for key, (kline, node) in tree.value.items():
         if key == "roles":
             resolved.update(_roles(node, kline, host, roles, bad) or {})
+        elif key == "long_gate":
+            _long_gate(node, kline, bad)
         elif key in keyed:
             got[key] = keyed[key](node, kline, bad)
         else:
             bad(
                 kline,
-                f'unknown key "{key}": the top-level keys are "roles", "prices", "board" and "ci"',
+                f'unknown key "{key}": the top-level keys are "roles", "prices", "board", "ci" '
+                'and "long_gate"',
             )
     problems.sort(key=lambda p: p[0])
     lines = [f"{FILE}:{n}: {m}" for n, m in problems]
@@ -246,6 +249,48 @@ def load_board(path: Path) -> tuple[dict[str, Any], list[str]]:
         line, node = tree.value["board"]
         rec = _board(node, line, lambda n, m: problems.append((n, m)))
     return rec, [f"{FILE}:{n}: {m}" for n, m in sorted(problems)]
+
+
+def _long_gate(node: Node, kline: int, bad: Bad) -> int:
+    """The `long_gate` key: how many long gates may run at once. 1 when `parallel` is absent."""
+    if node.kind != "map" or not node.value:
+        bad(kline, '"long_gate" holds its key: `parallel:`')
+        return 1
+    parallel = 1
+    for key, (line, value) in node.value.items():
+        if key != "parallel":
+            bad(line, f'long_gate: unknown key "{key}": one of parallel')
+        elif (
+            value.kind != "scalar"
+            or not re.fullmatch(r"[0-9]+", value.value)
+            or not int(value.value)
+        ):
+            found = value.value if value.kind == "scalar" else ""
+            bad(line, f'long_gate: "parallel" is a whole number, 1 or more, found "{found}"')
+        else:
+            parallel = int(value.value)
+    return parallel
+
+
+def load_long_gate(path: Path) -> tuple[int, list[str]]:
+    """The `long_gate` key alone, for `chantier gate`: `(1, [])` when the file or the key is
+    absent, else the number of long gates at once or the problems found in the key."""
+    if not path.is_file():
+        return 1, []
+    try:
+        tree = parse(path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError) as e:
+        return 1, [f"{FILE}:1: cannot read the file as UTF-8: {e}"]
+    except YamlError as e:
+        return 1, [f"{FILE}:{e.line}: {e.message}"]
+    if tree.kind != "map":
+        return 1, [f"{FILE}:{tree.line}: the file is a mapping: `roles:` then one entry per role"]
+    if "long_gate" not in tree.value:
+        return 1, []
+    problems: list[tuple[int, str]] = []
+    line, node = tree.value["long_gate"]
+    parallel = _long_gate(node, line, lambda n, m: problems.append((n, m)))
+    return parallel, [f"{FILE}:{n}: {m}" for n, m in sorted(problems)]
 
 
 def _role_agent(role: str, kline: int, value: Node, bad: Bad) -> str | None:

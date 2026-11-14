@@ -1,4 +1,4 @@
-"""`chantier gate`: the long gate, run alone in the repository."""
+"""`chantier gate`: the long gate, as many at once as the project allows."""
 
 from __future__ import annotations
 
@@ -13,28 +13,65 @@ from typing import Any
 
 from chantier import procs
 from chantier.commands.crs import batch_cr, cr_worktree, dirty_files, short_head, work
-from chantier.commands.gate_lock import LongGateLock, lock_holder, parse_holder
-from chantier.commands.gate_run import run_file, run_write, stop_asked, stop_file, stop_gate
+from chantier.commands.gate_lock import LongGateLock
+from chantier.commands.gate_queue import move_first
+from chantier.commands.gate_run import run_write, stop_asked, stop_gate
+from chantier.commands.gate_slots import Slot, running_crs, slot_of
+from chantier.core.batch import check_epoch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
 from chantier.core.records import RunRecord
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
+from chantier.playbook.config import FILE, load_long_gate
 
 
 def _gate_stop(args: argparse.Namespace, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
-    """`gate <cr> --stop`: stop this CR's running long gate (its suite, the lock) and record the
-    run `stopped`: no pass, no failure. Nothing else of the CR changes."""
-    h = parse_holder(lock_holder(repo))
-    if h is None:
-        return [f"no long gate running for {args.cr}: nothing to stop"], 0
-    if h.cr != args.cr:
-        return [f"the long gate running is {h.cr}'s: not stopped"], EXIT_PRECONDITION
+    """`gate <cr> --stop`: stop this CR's running long gate (its suite, its slot's lock) and
+    record the run `stopped`: no pass, no failure. Nothing else of the CR changes, and no other
+    slot is touched."""
+    v = slot_of(repo, args.cr)
+    if v is None or v.holder is None:
+        running = running_crs(repo)
+        if not running:
+            return [f"no long gate running for {args.cr}: nothing to stop"], 0
+        return [
+            f"no long gate of {args.cr} running (running: {', '.join(running)}): not stopped"
+        ], EXIT_PRECONDITION
     with RenderedBatch(repo, batch, actor="driver") as b:
-        s = stop_gate(repo, h, b, git("rev-parse", "HEAD", cwd=wt))
+        s = stop_gate(v.slot, v.holder, b, git("rev-parse", "HEAD", cwd=wt))
     where = f" (pg{s.pg})" if s.pg is not None else ""
     return [f"stopped the long gate of {args.cr} at {short_head(s.head)}{where}"], 0
+
+
+def _gate_first(args: argparse.Namespace, repo: Repo, batch: str) -> tuple[list[str], int]:
+    """`gate <cr> --first --epoch <n>`: the steering session puts the CR's waiting long gate at
+    the head of the queue. It orders the queue only: a running gate is not touched."""
+    if args.stop or args.command:
+        raise ChantierError(f"gate {args.cr} --first takes no command and no --stop", EXIT_USAGE)
+    if args.epoch is None:
+        raise ChantierError(
+            f"gate {args.cr} --first --epoch <n>: the steering session's command to put a "
+            "critical-path CR's long gate first; a Driver never moves its own gate",
+            EXIT_PRECONDITION,
+        )
+    with RenderedBatch(repo, batch, actor="foreman") as b:
+        check_epoch(b, args.epoch)
+        ahead = move_first(repo, args.cr)
+        if ahead is None:
+            return [f"no long gate of {args.cr} waiting: nothing to move"], 0
+        b.log("gate-first", args.cr)
+    where = f"ahead of: {', '.join(ahead)}" if ahead else "it was first"
+    return [f"moved the long gate of {args.cr} to the head of the queue ({where})"], 0
+
+
+def _parallel(repo: Repo) -> int:
+    """How many long gates may run at once, from the project's `chantier.yaml`, read at each run."""
+    parallel, problems = load_long_gate(repo.root / FILE)
+    if problems:
+        raise ChantierError(problems[0])
+    return parallel
 
 
 @dataclass
@@ -79,17 +116,18 @@ def _run_commands(
     """Run the commands in order until one fails or a stop is asked: what ran, and the command
     that was running when a `--stop` came (empty if none)."""
     ran: list[tuple[str, int]] = []
+    s: Slot = lock.slot  # the slot this gate took: its run file, its stop marker
     for cmd in cmds:
-        if stop_asked(g.repo):  # stopped between two commands: none starts
+        if stop_asked(s):  # stopped between two commands: none starts
             # the record names the previous command (the one that last ran), or the first
             return ran, ran[-1][0] if ran else cmd
         p = _spawn(cmd, g)
         lock.holding(f"{g.cr} pid {os.getpid()} pg{p.pid}")
-        run_write(g.repo, g.record(command=cmd, pg=p.pid))
-        if stop_asked(g.repo):  # asked before the stopper could see this group: stop it here
+        run_write(s, g.record(command=cmd, pg=p.pid))
+        if stop_asked(s):  # asked before the stopper could see this group: stop it here
             procs.stop_group(p.pid)
         rc = p.wait()
-        if stop_asked(g.repo):  # stopped: no pass, and no failure of the code
+        if stop_asked(s):  # stopped: no pass, and no failure of the code
             return ran, cmd
         ran.append((cmd, rc))
         if rc:
@@ -180,13 +218,16 @@ def _commands(args: argparse.Namespace) -> list[str]:
 
 
 def gate(args: argparse.Namespace) -> tuple[list[str], int]:
-    """The long gate: the command the project's rules name, run in the CR's worktree, alone in
-    the repository (a second one waits), logged in the work folder, recorded with its head.
+    """The long gate: the command the project's rules name, run in the CR's worktree, as many at
+    once as `chantier.yaml` allows (the others wait), logged in the work folder, recorded with its
+    head. `--first` (the steering session's) moves a waiting gate to the head of the queue.
     `--stop` stops this CR's running gate (its suite and the lock): recorded `stopped`, no pass,
     no failure; the stopped gate exits 4; nothing else of the CR changes."""
     repo = open_repo()
     batch, _, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
+    if args.first:
+        return _gate_first(args, repo, batch)
     cmds = _commands(args)
     if args.stop:
         return _gate_stop(args, repo, batch, wt)
@@ -196,6 +237,7 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
             "a gate binds to a commit, commit first",
             EXIT_PRECONDITION,
         )
+    parallel = _parallel(repo)  # an invalid key: nothing runs, nothing is logged
     start = git("rev-parse", "HEAD", cwd=wt)  # the full SHA, before the first command
     logdir = work(repo, c) / "gates"
     logdir.mkdir(parents=True, exist_ok=True)
@@ -204,10 +246,10 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     # the events of this invocation share the run id
     g = _Gate(repo, args.cr, batch, wt, log, f"{stamped}-{os.getpid()}", start)
     g.note(f"gate {c.id} branch {c.branch} head {start}\n")  # before any waiting note
-    with LongGateLock(repo, args.cr, log) as lock:
-        stop_file(repo).unlink(missing_ok=True)  # a stale ask is not this gate's
-        run_write(repo, g.record(command=""))
+    with LongGateLock(repo, args.cr, log, parallel) as lock:
+        lock.slot.stop.unlink(missing_ok=True)  # a stale ask is not this gate's
+        run_write(lock.slot, g.record(command=""))
         ran, stopped = _run_commands(g, cmds, lock)
-        run_file(repo).unlink(missing_ok=True)
-        stop_file(repo).unlink(missing_ok=True)
+        lock.slot.run.unlink(missing_ok=True)
+        lock.slot.stop.unlink(missing_ok=True)
     return _finish_stopped(g, ran, stopped) if stopped else _finish(g, ran)

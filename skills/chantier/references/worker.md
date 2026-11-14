@@ -100,7 +100,8 @@ is what refuses a hand-back without a gate pass: you cite the pass in `verify.md
 log's first line (the CR and the full SHA it ran at) and `handoff`'s checklist, at the full SHA
 you verified. You run `$CHANTIER gate <cr> "<the project's command>"` (one command per argument,
 never a `;` or `&&` chain; refused on a dirty tree) yourself only when no pass exists at that
-head and a claim only the long suite proves. Output:
+head and a claim only the long suite proves, and only for the project's long gate: a short check
+you run directly and cite with its command and output, as any other claim. Output:
 `verify.md`: a `Head: <sha>` line, each claim with the SHA it was judged at, the command and the
 output that prove it, and `VERIFIED` or `NOT VERIFIED`. This holds for a claim that something is
 refused, absent or unchanged too: its proof is the command that shows it and that command's
