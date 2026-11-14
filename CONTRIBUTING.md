@@ -221,8 +221,11 @@ visible in the PR's head, absent on main).
 - Repository text is in English.
 - Write code and docs in the style of the surrounding files: short sentences, exact terms.
 - Tests check the structure (versions, manifests, agents, references, and a smoke run in a fresh
-  repository) in a few seconds. They do not evaluate the batch workflow: run `just scenario`
-  ([scenario/](scenario/README.md)) when you change it; CI runs it too, on Linux. A change to the eval kit
+  repository) and the CLI's refusals on a prepared state, called in-process; keep them few,
+  parametrized and fast (`just test` at most 30 s above its 18.5 s of 2026-11-14). They do not
+  evaluate the batch workflow: run `just scenario` ([scenario/](scenario/README.md)) when you
+  change it; CI runs it too, on Linux. A new check goes to a unit or to pytest, as
+  [Adding a case](scenario/README.md#adding-a-case) says. A change to the eval kit
   (`evals/kit/`) runs `just eval-dry-run`, as [Changing the kit](evals/README.md#changing-the-kit) says.
 - A change that adds a CI job to `.github/workflows/`, or changes the steps of one, runs that
   job's steps once on the local machine before the push, in the workflow's order, with
