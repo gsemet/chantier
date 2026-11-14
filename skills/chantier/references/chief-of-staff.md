@@ -50,6 +50,9 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 - **Only the user starts work.** Start the Foreman (or begin steering) only in the turn where the user gave the go.
   Never start a backlog item the user did not choose. Never merge: the user does, and the
   Foreman only what the user allowed a release.
+- **No delivery time without the floor.** A time of delivery is told to the user only from [The
+  floor](#the-floor), with its terms; with no floor in hours (the gate's time unknown), none is
+  told.
 - **In Foreman mode you start no Driver** and never message one: orders go through the Foreman.
   Your own subagents explore, prototype or study; none implements. **In direct mode you steer
   the batch yourself**: you start the Drivers, hear their hand-backs and do the Foreman's work
@@ -381,7 +384,7 @@ Only in the turn where the user gave the go:
    no real dependency (for a wait on the same lines: the two CRs, number and slug once `open`
    numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
    Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (4 unless you say
-   otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
+   otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user merges in one action from its top PR. On a no, say that the stack
@@ -418,6 +421,16 @@ Only in the turn where the user gave the go:
    - **A batch keeps the steering it was opened with.** Going to the phone or coming back changes
      no running or paused batch; a Foreman batch never becomes direct (see Switching to Foreman
      mode).
+
+   **The cut.** When the user has given a time (a night, "by 9 o'clock") and the floor exceeds
+   it, the plan proposes a cut: the largest set of CRs whose floor fits the time given, taking
+   the short chains first; a CR enters only with every CR it waits for, and a chain may be cut
+   after any of its CRs. The rest is named "for later" (it stays where it is: `3-ready` or the
+   backlog; nothing is moved before the go). The plan shows both: the whole batch with its
+   floor, and the cut with its own floor. The user chooses; the go names the choice, and `open`
+   takes only the CRs chosen. When the user gave no time, no cut is proposed: the floor and its
+   delivery time are said, nothing else. With the delivery time unknown, no cut can be counted:
+   say so in the plan.
 
    The limits are the same in both modes; there is no CR threshold of its own. Then
    the go. While a batch is not closed, whatever its state
@@ -485,18 +498,78 @@ Only in the turn where the user gave the go:
    may allow one, for that batch only: pass their words to the Foreman as they wrote them, and
    never turn them into a rule.
 
+### The floor
+
+The least time the batch can take, counted from facts, never a prediction: extra rounds, a
+Verifier or a wait add to it, and none of them is counted. It is said "at least about <h> h" and a
+delivery time from it "not before <time>", in the user's time zone. You count it by hand; the CLI
+prints none.
+
+- **The depth:** the longest chain of CRs that wait for one another (each CR's `after`: its
+  `depends.json`, a chain the go approved or the Foreman recorded, the order of a series; a
+  release CR waits for every other CR, one more level). Say it with the CRs of that chain, in
+  order: "critical path: CR-221 → CR-237 → …". A parallel batch with no `after` has depth 1.
+- **The gates:** the CRs still to pass their long gate. Long gates run one at a time under one
+  lock ([concepts](concepts.md), the long gate), so every CR's gate queues behind the others
+  whatever the slots. A CR whose project rules exempt it from the long gate (`handback
+  --no-gate`) does not count.
+- **The two terms, and the floor.** The **lock term** is the gates times the long gate's time.
+  The **chain term** is the depth times (the long gate's time plus one CI run's time), since a
+  level cannot start before the one under it is ready. The floor is the larger of the two; the
+  line says which one it is.
+- **The long gate's time: from the record only.** The latest passed runs of the gate in this
+  project: in the batch's `events.jsonl`, the `gate` events of one `run` share that id; the run
+  ends at the last event's `t` (UTC) and starts at the time in the `run` id
+  (`<yyyymmdd>-<hhmmss>-<pid>`, the machine's local time, not UTC: convert before subtracting).
+  With no run in this batch, the project's rules when they give the gate's time. A time with no
+  source is unknown ("A brief … states a past fact only with its source", "The project").
+- **A CI run's time: from the forge.** The latest passed runs of the project's CI on its PRs or
+  its default branch, read on the forge read-only with what the session already uses (on GitHub,
+  `gh run list --json`, each run's start and update times; on GitLab, `glab ci list`). A project
+  with no CI on its PRs counts 0 for it (a measured zero, said as such). The record holds no CI
+  event, so the forge is the only source. When it cannot be read (no `gh` or `glab`, no rights,
+  no passed run yet), the chain term counts the gate alone and the line says `CI time unknown, not
+  counted`; the delivery time is still told as `not before`.
+- **Unknown gate time.** When no source gives the gate's time (a new project, a first batch), the
+  floor is the depth alone, said as a number of levels with its critical path, and the delivery
+  time is **unknown**: say so, and state no delivery time. Nobody is asked for the gate's time and
+  no gate is run to measure it.
+- **No delivery time without it.** Before the go, and at any moment, any sentence that tells the
+  user when work will be done ("by morning", "when you wake up", "in two hours") comes from the
+  floor, said with its terms. With no floor in hours, no time is promised.
+
+Example (batch-17's figures; the CI time is a symbol): "lock: 13 gates × 35 min = about 7.6 h;
+chain: 6 levels × (35 min + <CI> min); at least the larger; critical path: CR-221 → CR-237 →
+CR-222 → CR-225 → CR-226 → CR-228."
+
 ## While it runs
 
 - **Status:** `$CHANTIER status [--notes]`, with PR links, and the planning folder's
   `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`status-layout.md`).
   A 🔴 CR is a question for the user. Never read the Foreman's transcript.
 - **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `status-layout.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
+  Every Progress report gives the remaining floor and the updated delivery time ([The
+  floor](#the-floor), counted again on the state `status --refresh` has just written: the CRs not
+  yet past their long gate at their current head, the depth of what remains, the gate's and the CI
+  run's times from their latest passed runs), in its **Notes** (`status-layout.md`), and beside
+  it the mergeable partial stack as it stands, `partial stack mergeable below <commit>`. When the
+  updated delivery time is an hour or more later than the last one told to the user, the report
+  says the slip and its cause in one line, in the user's language (for instance "delivery not
+  before 09:40, was 07:30: CR-221 took 8 rounds"). A slip is reported only: no new cut is
+  proposed, and the batch's CRs stay as they are.
   Before each report, in both modes, run `git status --porcelain` on the main checkout (with a
   planning surface, the clone `take` names) and name every path outside the planning folder that
   you have not named yet: a write the worker guard cannot see, a shell's included. Revert
   nothing and hold no CR back: another Driver or the user may be its cause. The report also gives
   the latest `main checkout:` note of a CR merged since the last report (`status --notes`, `log
   <cr>`; `status-layout.md`): a fast-forward leaves `git status` clean, so it is no trace there.
+- **When the time will not hold:** when the delivery time passes the time the user gave, the
+  steering (the Foreman through your order, or you in direct mode) works toward the largest
+  mergeable partial stack from the bottom by that time: the CRs that can be ready by then come
+  first, and the stack is made and grown from the bottom as each becomes ready, as the CR
+  stack-grows-from-bottom specifies for the stack driver. The report's **Notes** names which CRs
+  that partial stack is expected to hold. This bullet only points to that CR's mechanism; it adds
+  no step of its own to the Foreman's or the stack driver's cards.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from
@@ -1023,3 +1096,4 @@ covers these comments.
   let a Driver, the Foreman, a Griller or a subagent post on one.
 - Close or reopen an issue by hand: only a reference that closes, in the PR's Issues References
   (a project rule's keyword, or Jira's default `Closes`), closes it at the merge.
+- Tell the user when a batch or a CR will be done without its floor.

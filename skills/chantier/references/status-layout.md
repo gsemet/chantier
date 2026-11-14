@@ -73,7 +73,7 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
 - **Notes and Cost notes are the only places for extra messages:** short lines in the user's
   language (explanations, warnings, tips on reading the figures). An empty place is left out, not
   written "none". **Notes** holds what a 🟠 or 🔴 CR waits for and who unblocks it, a chain and its
-  reason, a force push run for a Driver, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
+  reason, a force push run for a Driver, the remaining floor and the delivery time (`chief-of-staff.md`, "The floor"), a slip of an hour or more with its cause, the mergeable partial stack as it stands and, when the time will not hold, the CRs of the partial stack aimed at, the main checkout's line after a merge (below). **Cost notes** holds the CLI's not-priced lines
   (`<model> has no price: add it under prices: in chantier.yaml (exact id: <model>)`, said in the
   user's language with the id kept) and, in the Completion report, the few plain lines of `cost
   --explain`. Nothing but the Tip follows **For you**.
@@ -85,6 +85,8 @@ default branch); a CR ready on another base says what it waits for, and **For yo
 the user to merge it.
 
 When a CR is chained (queued after another by the Foreman's decision or the plan's, with no real dependency), your next report has a line with the chain and its reason, in **Notes**.
+
+Every Progress report has one line in **Notes** with the remaining floor and the delivery time: `floor: at least about <h> h left (lock <n> gates × <m> min; chain <d> levels × (<m> + <c> min); critical path <CR-n> → …); delivery not before <time>`, or `delivery unknown: <reason>` with the depth and the critical path; and, when that time moved an hour or more later since the last report, one more line with the earlier time and the cause. Beside the floor line, one line names the mergeable partial stack as it stands: `partial stack mergeable below <commit>`. The header line and the tables stay as they are: no new column. The Completion report gets no floor line: nothing remains.
 
 When you ran a Driver's refused force push since the last report, your next report has one line in **Notes**: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
 
