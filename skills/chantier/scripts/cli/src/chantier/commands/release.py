@@ -9,7 +9,7 @@ from chantier import procs
 from chantier.commands.gate_slots import mtime, slot_of
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.lifecycle.convert import open_repo
+from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, trash_cr
 from chantier.rails import all_merged, spent_text
@@ -22,7 +22,7 @@ def release(args: argparse.Namespace) -> tuple[list[str], int]:
     then the merge is the go, else each one is approved by the user, or allowed by the grant the
     user gave, within the budget. A fix's merge is an action too:
     `go` on the fix CR, under the grant alone."""
-    repo = open_repo()
+    repo = Repo.find()
     with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
         c = b.cr(args.cr)
         is_fix = c.kind == "fix" and args.action == "go"
@@ -87,7 +87,7 @@ def cancel(args: argparse.Namespace) -> list[str]:
             f"`gate {args.cr} --stop`",
             EXIT_PRECONDITION,
         )
-    repo = open_repo()
+    repo = Repo.find()
     with (
         changes_lock(repo),
         RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="foreman") as b,

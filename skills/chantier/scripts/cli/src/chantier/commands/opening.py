@@ -21,7 +21,6 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
 from chantier.core.records import CrEntry, ReleaseGrant
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.filing import shown, slugify
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import (
@@ -262,7 +261,7 @@ def _short(p: Path | str) -> str:
 
 
 def open_batch(args: argparse.Namespace) -> list[str]:
-    repo = open_repo()
+    repo = Repo.find()
     host = detect_host()
     team, problems = read_playbook(repo, host)  # before any folder moves
     if problems:

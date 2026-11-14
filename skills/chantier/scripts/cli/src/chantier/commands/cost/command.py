@@ -21,7 +21,6 @@ from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.rails import not_priced
 
 Line = tuple[
@@ -99,7 +98,7 @@ def _explain_notes(rows: list[dict[str, Any]]) -> list[str]:
 def cost(args: argparse.Namespace) -> list[str]:
     """The batch's spend, read from the Foreman's transcript on the batch's host; `status
     --refresh` and `pause` record it."""
-    repo = open_repo()
+    repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     d = read_batch(repo, batch)
     if not (d.foreman_transcripts or d.foreman_transcript):

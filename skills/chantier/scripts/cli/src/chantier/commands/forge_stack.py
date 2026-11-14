@@ -17,7 +17,6 @@ from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.stacks import chain, stack_base, state_word
 
 PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
@@ -78,7 +77,7 @@ def _plan(
     status, PR number, link, base, head, release), the CRs to come (those from the first with no PR
     up: cr, status, PR number or None), the forge's host, owner and repository, read from the
     PR links, and the PR numbers of the batch's dropped CRs (to their CR ids)."""
-    repo = open_repo()
+    repo = Repo.find()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
         raise ChantierError(f"batch {data.id} is not a stack", EXIT_PRECONDITION)

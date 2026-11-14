@@ -12,7 +12,6 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
 from chantier.core.records import LIVE, OrderRecord
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.filing import new_request, shown
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
@@ -136,7 +135,7 @@ def order(args: argparse.Namespace) -> list[str]:
     note = args.note or ""
     new_release = bool(getattr(args, "release", False))
     _check_args(args, note, new_release)
-    repo = open_repo()
+    repo = Repo.find()
     if args.kind == "done":
         return _order_done(repo, args)
     if args.kind in CR_ORDERS or args.kind == "note":

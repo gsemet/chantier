@@ -191,16 +191,11 @@ def _relocate(batch: Batch, cr: CrEntry, target: Path) -> None:
     source = cr_directory(batch.repo, cr)
     batch.move(source, target)
     cr.path = batch.repo.rel(target)
-    old = batch.repo.changes / "3-requests"  # a working CR of a converted tree was its last tenant
-    for folder in (source.parent, source.parent.parent):
-        if old in (folder, *folder.parents) and folder.is_dir() and not any(folder.iterdir()):
-            with contextlib.suppress(OSError):
-                folder.rmdir()
 
 
 def start_cr(batch: Batch, cr: CrEntry) -> None:
     """`take`: the CR's folder goes from `1-pending` to `2-actives`, before its Driver gets the
-    facts. A CR already elsewhere (taken before, or still at the path of an older tree) stays."""
+    facts. A CR already elsewhere (taken before) stays."""
     if not cr.path:
         return
     paths = stage_layout(batch.repo)

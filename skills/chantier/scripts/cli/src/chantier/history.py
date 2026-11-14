@@ -23,11 +23,7 @@ def last_closed_text(record: Rec | None) -> str:
         f"{sum(c['result'] == 'merged' for c in crs)} merged, "
         f"{sum(c['result'] == 'dropped' for c in crs)} dropped"
     )
-    when = (
-        f", closed {record['closed'][:10]}"
-        if record.get("closed")
-        else " (backfilled, no close date)"
-    )
+    when = f", closed {record['closed'][:10]}" if record.get("closed") else " (no close date)"
     cost = record.get("cost_usd")
     price = "" if cost is None else ", " + usd_text(cost, record.get("cost_unpriced"))
     return f"last closed: {record['batch']}{when}, {counts}{price}"
@@ -36,7 +32,7 @@ def last_closed_text(record: Rec | None) -> str:
 def archive_of(c: CrEntry) -> str | None:
     """A CR's folder after `close`, relative to the planning folder, in `/` form."""
     path = c.path
-    return str(path).replace("\\", "/").removeprefix(".agents/changes/") if path else None
+    return str(path).replace("\\", "/") if path else None
 
 
 def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:

@@ -20,7 +20,6 @@ from chantier.core.records import (
 )
 from chantier.core.repo import Repo
 from chantier.lifecycle.backlog import file_idea, move_item
-from chantier.lifecycle.convert import convert_old_tree, open_repo
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import (
     PRIORITIES,
@@ -35,7 +34,7 @@ from chantier.status.write import write_dashboard
 def init(args: argparse.Namespace) -> list[str]:
     """Create the eight stage folders, empty; leave the ones that exist; write nothing else."""
     try:
-        repo = open_repo()
+        repo = Repo.find()
     except ChantierError as e:
         raise ChantierError(
             f"no git repository found ({e}): chantier needs one; run `git init` first",
@@ -49,7 +48,6 @@ def init(args: argparse.Namespace) -> list[str]:
             f"this is a linked worktree: init runs in the main checkout ({repo.session_root})",
             EXIT_PRECONDITION,
         )
-    convert_old_tree(repo)  # an older tree first, so that its folders are not made twice
     repo.changes.mkdir(parents=True, exist_ok=True)
     repo.ensure_gitignore()
     lines = []
@@ -63,7 +61,7 @@ def init(args: argparse.Namespace) -> list[str]:
 
 
 def file_cr(args: argparse.Namespace) -> list[str]:
-    repo = open_repo()
+    repo = Repo.find()
     if args.item.startswith("@"):
         source = Path(args.item[1:]).expanduser()
         if not source.is_absolute():
@@ -83,11 +81,11 @@ def triage(args: argparse.Namespace) -> list[str]:
     chosen = [args.priority, "3-ready" if args.ready else None, "inbox" if args.inbox else None]
     if sum(c is not None for c in chosen) != 1:
         raise ChantierError(TRIAGE_USAGE, EXIT_USAGE)
-    return move_item(open_repo(), args.item, next(c for c in chosen if c))
+    return move_item(Repo.find(), args.item, next(c for c in chosen if c))
 
 
 def abandon(args: argparse.Namespace) -> list[str]:
-    repo = open_repo()
+    repo = Repo.find()
     paths = stage_layout(repo)
     source = repo.planning_path(args.item, "CR folder")
     in_backlog = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
@@ -165,7 +163,7 @@ def restore(args: argparse.Namespace) -> list[str]:
     date (and without its number when an open batch's record says it was that batch's CR). Only on
     the user's word. A cancelled CR of an open batch stays cancelled there; its branch, worktree and
     PR are not touched."""
-    repo = open_repo()
+    repo = Repo.find()
     paths = stage_layout(repo)
     source = repo.planning_path(args.item, "CR folder")
     if source.parent != paths["trash"] or not source.is_dir():

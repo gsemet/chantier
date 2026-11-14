@@ -132,8 +132,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   `--fix-for` accepted; `order merged` and `order confirm` refused while another CR is open;
   an irreversible action refused until the release PR is merged (an approval never covers it), then
   `go` because of the merge, with no approval; a procedure with no release PR, whose go is the
-  user's word (`order confirm`); a change of content under a prepared release; an older batch's
-  `confirmed` giving no go; a fix CR that stops every `go` until it merges and a new
+  user's word (`order confirm`); a change of content under a prepared release; a fix CR that stops every `go` until it merges and a new
   attempt, and a grant (the Foreman merging the fix and the release PR with the forge's CLI after
   `release go`, recorded with `order merged --epoch`; a merge the forge refuses; the budget;
   the number of releases);
@@ -142,9 +141,6 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   to-date line and one total in `STATUS.md`, a second `pause` refused, `order add` leaving it paused, `take` setting it
   running again, `close` on a running batch saying `pause` comes first, a call made after `pause`
   counted;
-- an old batch: `batch.json` written by hand with `status: "landed"` and a `landed` time read as
-  paused, one with `status: "open"` read as running, taken by `take` and paused by `pause`, each
-  rewritten with the new words at the next write;
 - closing on the user's word: `close` refusing, with and without `--yes`, a CR not merged, an
   open order, a stack agent, and a session file (any agent's, a Copilot one's, or one whose
   time is not measured) written in the last 5 minutes; a pricing failure and a missing
@@ -156,8 +152,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   a planted `batch-NN.md` (exit 3, all put back); then the closed JSON (cost, CRs, archives) and the
   Markdown (table, cost, the retro byte for byte), no `retro.md` in any CR archive, the records
   neither listed nor counted on the board; no retro printing `retro: no retro`; `status`'s `last closed`
-  line and the no-batch refusal's tail; the next number read from the records; the backfill of the
-  earlier batches, once; and in external mode the records in the surface, never in the CR's PR archive.
+  line and the no-batch refusal's tail; the next number read from the records; and in external mode the records in the surface, never in the CR's PR archive.
 
 The transcript goes to `scenario/results/<forge>-<time>.md` (not committed); exit 1 if any check
 fails. Windows runs one check more than Linux: `close` on a folder in use, since elsewhere a file

@@ -102,8 +102,7 @@ class Repo:
         """`--project` names the project's folder in a planning surface (external mode); else a
         git root that is a surface, with one project, is taken as that. Otherwise in-project.
         `CHANTIER_ROOT` wins over the working folder, so agents elsewhere reach the same state.
-        `readonly` (used by `board` only) writes nothing: no `.gitignore`. The conversion of an
-        old tree is not done here but by `open_repo` (`lifecycle.convert`)."""
+        `readonly` (used by `board` only) writes nothing: no `.gitignore`."""
         cwd = Path(cwd or os.environ.get("CHANTIER_ROOT") or os.getcwd())
         project = project or PROJECT
         if project:
@@ -212,10 +211,8 @@ class Repo:
 
     def planning_path(self, value: str | Path, label: str = "path") -> Path:
         """A CR folder or file inside the planning folder. A relative value is read from that
-        folder; the older record's form, `.agents/changes/...`, still reads."""
+        folder."""
         text = str(value).replace("\\", "/")
-        if text.startswith(".agents/changes/"):
-            text = text[len(".agents/changes/") :]
         return project_path(self.changes, text, label, "the planning folder")
 
     @property

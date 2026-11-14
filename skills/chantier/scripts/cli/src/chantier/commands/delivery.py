@@ -16,7 +16,6 @@ from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.plugin_files import archive_path
 from chantier.stacks import chain, stack_base
@@ -28,7 +27,7 @@ HISTORY_CHARS = 120
 def verdict(args: argparse.Namespace) -> list[str]:
     """A verdict on the worktree's head, in the log: the last one at a head decides. It knows a
     verdict, not a role; a card says who runs it."""
-    repo = open_repo()
+    repo = Repo.find()
     given = " ".join(" ".join(args.result).split())
     result = given.upper()
     if result not in VERDICTS:
@@ -120,7 +119,7 @@ def ship(args: argparse.Namespace) -> list[str]:
     """The Driver pushed and opened or updated the PR itself; this records the link at the
     worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
     passed at this head."""
-    repo = open_repo()
+    repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
     if "://" not in args.pr:
@@ -150,7 +149,7 @@ def ship(args: argparse.Namespace) -> list[str]:
 
 def stack(args: argparse.Namespace) -> list[str]:
     """The stack's order, as its driver set it; each PR's base follows from it."""
-    repo = open_repo()
+    repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     if args.out_of_draft or args.draft:
         return _record_drafts(repo, batch, args)

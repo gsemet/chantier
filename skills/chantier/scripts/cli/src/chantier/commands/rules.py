@@ -9,7 +9,7 @@ from pathlib import Path
 
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.lifecycle.convert import open_repo
+from chantier.core.repo import Repo
 from chantier.playbook.config import FILE
 from chantier.playbook.lines import escalate_line, playbook_lines
 from chantier.plugin_files import (
@@ -53,7 +53,7 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
     """The project's playbook: which agent and model each role of the plugin runs. Without
     `--batch` it reads `chantier.yaml` now, for the host; with it, the playbook the batch opened
     with (a batch with none recorded runs the plugin's agents and models)."""
-    repo = open_repo()
+    repo = Repo.find()
     if args.batch:
         d = read_batch(repo, resolve_batch(repo, args.batch))
         made, host = d.playbook, d.host
@@ -77,7 +77,7 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
 def rules(args: argparse.Namespace) -> list[str]:
     """The project's rules: its instruction file and the local Markdown files it links, two
     levels deep. Every role reads them before its own card; they rank above it."""
-    repo = open_repo()
+    repo = Repo.find()
     found, outer = project_instructions(repo), surface_instructions(repo)
     if not found and not outer:
         raise ChantierError(f"no {', '.join(INSTRUCTIONS)} in {repo.session_root}: ask your parent")

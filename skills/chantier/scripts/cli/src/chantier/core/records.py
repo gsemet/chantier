@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from chantier.core.errors import ChantierError
 from chantier.core.files import read_json, read_text
@@ -134,9 +134,7 @@ class ClaimRecord(Record):
 
 
 class BatchRecord(Record):
-    """A `batch.json`. Batches written before the words running and paused recorded
-    `status: "open"` and `status: "landed"` (with a `landed` time): they read as running and
-    paused."""
+    """A `batch.json`."""
 
     id: str = ""
     version: str | None = None
@@ -168,20 +166,6 @@ class BatchRecord(Record):
     paused: str | None = None
     summary: list[str] = []
     closing: bool = False
-
-    @model_validator(mode="before")
-    @classmethod
-    def _old_words(cls, data: Any) -> Any:
-        if not isinstance(data, dict):
-            return data
-        data = dict(data)
-        if data.get("status") == "landed":
-            data["status"] = "paused"
-            if "landed" in data:
-                data["paused"] = data.pop("landed")
-        elif data.get("status") == "open":
-            data["status"] = "running"
-        return data
 
 
 class EventRecord(Record):

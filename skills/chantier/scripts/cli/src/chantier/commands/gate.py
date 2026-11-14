@@ -22,7 +22,6 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, C
 from chantier.core.git import git
 from chantier.core.records import RunRecord
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.playbook.config import FILE, load_long_gate
 
@@ -223,7 +222,7 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     head. `--first` (the steering session's) moves a waiting gate to the head of the queue.
     `--stop` stops this CR's running gate (its suite and the lock): recorded `stopped`, no pass,
     no failure; the stopped gate exits 4; nothing else of the CR changes."""
-    repo = open_repo()
+    repo = Repo.find()
     batch, _, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
     if args.first:
