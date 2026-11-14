@@ -9,6 +9,9 @@ import shutil
 from pathlib import Path
 
 from chantier import __version__
+from chantier.autosync.lines import preflight_check
+from chantier.autosync.reading import names_of, read_view
+from chantier.autosync.site import find_site
 from chantier.commands.permissions import CAPABILITIES, SETTINGS_SHOWN, commands_not_allowed
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import read_text
@@ -215,6 +218,16 @@ def _check_allow(r: _Report, repo: Repo | None, wanted: set[str]) -> None:
         )
 
 
+def _check_autosync(r: _Report, repo: Repo) -> None:
+    """P13: the surface's own autosync, when its rules name one. Read-only, warn-only."""
+    site = find_site(repo)
+    if site is None:
+        return
+    check = preflight_check(site, read_view(site, names_of([repo])))
+    text = check.text
+    r.check("P13", check.passed, text, text, warn=True)
+
+
 def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
     _check_checkout(r, repo)
     _check_instructions(r, repo)
@@ -222,6 +235,7 @@ def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
         _check_playbook(r, repo, host)
     if repo.external:
         _check_surface(r, repo)
+    _check_autosync(r, repo)
 
 
 def preflight(args: argparse.Namespace) -> tuple[list[str], int]:

@@ -41,7 +41,8 @@ It is an isolated, multi-user workspace for a very small active team (2 to 4 peo
 around one subject. It works like an Obsidian vault with obsidian-git: every change is pushed to
 the default branch as fast as possible, like OneDrive. Its own sync rules win; without any, the
 Chief of Staff commits and pushes after each step that changes it. Chantier does not coordinate
-several Chiefs of Staff's pushes (a later change).
+several Chiefs of Staff's pushes (a later change). A surface can also name an autosync of its own
+([below](#the-surfaces-autosync)).
 
 - `checkout.yml` has two keys, `repo:` and `worktrees:`, paths relative to `projects/<name>/`
   (defaults `.repo/` and `.worktrees/`). The project's clone is used for git only
@@ -87,6 +88,36 @@ worktree it joins no autosync and commits nothing: its files go to the Chief of 
 them in the planning folder. If the surface's rules rank above the cards, they can say so: "a
 session in a worktree of the surface does not join the autosync; it sends its files to the Chief
 of Staff."
+
+A Griller in the surface's checkout joins the autosync group like the other sessions.
+
+## The surface's autosync
+
+A surface names its autosync when its `AGENTS.md` (or the rules it points to) mentions
+`.agents/guidelines/autosync.guidelines.md` and `scripts/ai-autosync-git.py` exists. Chantier then
+reports it and never replaces it:
+
+- **Preflight P13** and a line of `status` give the state: active (leader, participants, last
+  push), stopped, blocked (with the reason), or waiting for your approval of an incident. A script
+  that is missing is a warning. Chantier only reads the files under
+  `<surface git dir>/ai-autosync/`; it deletes none, a dead participant's included.
+- **The board** joins the group once, at a fresh start (never when it reuses a running board), as
+  `join . --owner-pid <its pid> --harness generic --session-id chantier-board`, and shows the
+  state as a pill (a dot on a phone) with a panel. Its buttons run the script's
+  `start . --enable-only`, `stop .` and, for an incident, `approve . <id>` then
+  `start . --enable-only`, on your click only. A blocked group has no button: the Chief of
+  Staff integrates, then restarts it. The first join needs the network once (uv's cache);
+  offline, the board says `board: autosync not joined`.
+- **Who joins:** the Chief of Staff, the Foreman and a Griller in the surface's checkout join the
+  group at session start. Drivers, and a Griller in a surface worktree, never join. While the group
+  is enabled, nobody commits or pushes the surface by hand.
+- **The four states:** active (green), stopped (grey, commit by hand), blocked (red, with its
+  reason) and waiting for approval (orange, with the incident).
+- **Who fixes a block:** the Chief of Staff. When upstream moved it integrates by rebase, loses no
+  change, never force-pushes, then restarts the group; for LFS, Gitleaks or a conflict it repairs
+  what is its own, else tells you the reason and waits.
+- **The Chief of Staff** never runs `approve`, even on your word in the chat; it shows you the
+  incident and waits for your click on the board or your own terminal.
 
 ## Outside contributors
 

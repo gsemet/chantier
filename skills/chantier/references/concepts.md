@@ -73,7 +73,16 @@ started.
   "main checkout" for git only (`git -C <clone>`): no session runs in it. The project's
   `AGENTS.md` may point to its surface with one line, `- planning: <url>, projects/<name>`, which
   the Chief of Staff reads and the CLI does not. With a surface, every `$CHANTIER` carries
-  `--project <the project's folder>`; a `cli:` line says so. Full account:
+  `--project <the project's folder>`; a `cli:` line says so. A surface whose rules name
+  `.agents/guidelines/autosync.guidelines.md` and that holds `scripts/ai-autosync-git.py` has an
+  **autosync**: its own tool keeps the surface pushed. Preflight's P13 and a line of `status` report
+  its state (active, stopped, blocked, or waiting for the user's approval); chantier only reads its
+  files in `<surface git dir>/ai-autosync/` and never deletes one. chantier owns no autosync: the
+  Chief of Staff, the Foreman and a Griller in the surface's checkout join its group at session
+  start, with `--session-id <their session id>`, and follow its guidelines. Drivers, and a Griller
+  in a surface worktree, never join. While the group is enabled, no session commits or pushes the
+  surface by hand. The board's server joins it too while it runs (`AGENTS.md`'s named exception).
+  Full account:
   [planning modes](../../../docs/planning-modes.md).
 - **Archive:** the CR's folder in `5-archives/`, with a `delivery.md` (the PR, the merge time,
   whether the archive is also in the PR). In external mode the Driver also commits a cleaned

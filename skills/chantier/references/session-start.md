@@ -71,10 +71,22 @@ never start it.
   (`board: listens on the local network ...`), on the local network, and that the link is theirs
   only.
 - `board already running at <URL>`: the same line, if not given yet in this session.
+- `board: autosync not joined: <reason>` (a second line of a fresh start on a surface with an
+  autosync): one line with the reason; the board serves anyway. The board joins only at a fresh
+  start, never on a reuse.
 - `error: board not started: ...`, or a host that cannot run a background command: one line with
   the reason, then go on. The board never blocks the session, a preflight, a batch or a report.
 
 On a surface, `$CHANTIER board --seat <id>` keeps the `--project` that `$CHANTIER` holds.
+
+**The surface's autosync.** After the role is set (the Chief of Staff right after `seat take` and
+the board; a Griller once it is a Griller), and only in a surface whose rules name an autosync, run
+the surface's `status`, then join as its guidelines say, adding `--session-id <own session id>`,
+once per session. Do not join when `status` already lists a participant with this session's id. A
+reload joins nothing, like the board. A blocked or approval state met there: the Chief of Staff
+handles it ([chief-of-staff](chief-of-staff.md)), and a Griller says it in one line and goes on. A
+failed join is reported by the session itself in one line to the user, with the reason, like a
+board that did not start; the `board: autosync not joined` line is the board server's own.
 
 A reload starts nothing: the board survives a compaction, and at the next skill invocation the
 `board` run is a reuse.

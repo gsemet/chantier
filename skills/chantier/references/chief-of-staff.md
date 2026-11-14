@@ -38,6 +38,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
+| "start autosync", "stop autosync" (a surface with an autosync) | the surface script's `start . --enable-only` (a join first if this session is not a member) or `stop .`, from the surface's root; never `approve` | With a planning surface |
 | "board on my phone", "where is the board?" | the board's link again (it holds the key); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>` | [session-start](session-start.md) |
 | "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); without autosync, commit the planning folder by hand; tell the user what moved and whether the next batch is declared ready | [session-start](session-start.md) |
 
@@ -333,6 +334,23 @@ default branch, a rebase on a rejected push, never a force push. A clone missing
 contributors submit a CR by a PR on the surface, which the user reviews and merges on the forge;
 a CR so merged into `1-inbox` or `2-backlog/P<n>` is read like any other. Never touch the
 project's clone except by `git -C <clone>`.
+
+A surface with an autosync (P13, `status`; [concepts](concepts.md)) is kept pushed by its own tool:
+
+- **Enabled:** commit or push nothing by hand. `uv run scripts/ai-autosync-git.py sync .`, from
+  the surface's root, publishes at once when a step needs it.
+- **Stopped by the user, or no autosync:** today's rule above (by hand, explicit paths, a plain
+  push, a rebase on a rejected push, never a force push).
+- **Blocked** (the `status` line, P13, the Foreman's ask, the board, or the user): the reason says
+  what. When upstream moved, integrate as the surface's rules say (chantier's own: a rebase, no
+  change discarded, never a force push), then `start . --enable-only`. When something else blocks
+  it (LFS, Gitleaks, a conflict), repair what is the session's own, else tell the user the reason
+  and wait.
+- **Approval:** show the user the incident (its id and message). Only the user approves, from the
+  board's approve button (give the board's URL) or in their own terminal. You never run `approve`,
+  even on the user's word in the chat.
+- **"start autosync", "stop autosync":** the script's `start . --enable-only` (after a join, if
+  this session is not a member) or `stop .`, from the surface's root.
 
 Shared understanding: ask whether a CR is grilled enough only after a complete restatement of it,
 in the user's language: what it changes, every decision taken (from `02-answers.md`), what is

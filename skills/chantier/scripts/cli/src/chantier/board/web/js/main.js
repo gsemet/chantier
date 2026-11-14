@@ -10,6 +10,8 @@ import { confirmLeave } from './edit/markdown-editor.js';
 import { openNew } from './edit/new-idea.js';
 import { nextLanguage, pick, setLanguage, t } from './model/words.js';
 import { afterPanel, bindPanel, closePanel, panelMarkup, syncPanel } from './panel/panel.js';
+import { dot, pill } from './ui/autosync.js';
+import { bindAutosync } from './ui/autosync-events.js';
 import { bottomBar } from './ui/bottombar.js';
 import { notice, stats, title } from './ui/header.js';
 import { show } from './ui/host.js';
@@ -23,6 +25,8 @@ function drawFrame(state) {
   paint($('#project-side'), projectSide(state));
   paint($('#views-label'), t('nav.views'));
   paint($('#side-nav'), navigation(state));
+  paint($('#autosync-side'), pill(state));
+  paint($('#autosync-phone'), dot(state));
   paint($('#heard'), heard(state));
   paint($('#lang'), languageButton());
   paint($('#project-phone'), [trigger(state, 'pbtn'), menu(state)]);
@@ -91,6 +95,7 @@ function listenToFrame() {
   );
   delegate(body, 'click', '[data-new]', () => openNew());
   bindPanel($('#panel'));
+  bindAutosync(body);
   delegate(body, 'keydown', '[tabindex][data-go], [tabindex][data-project]', (event, el) => {
     if (event.key === 'Enter') el.click();
   });
