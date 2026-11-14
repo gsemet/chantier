@@ -21,7 +21,8 @@ def register(sub: Subparsers) -> None:
         "--refresh",
         action="store_true",
         help="the activity of each working CR (age of its last event or session "
-        "record, `gate running`, `not measured`) and the spend (recorded); "
+        "record, `gate running`, `gate queued behind <cr>`, `not measured`) "
+        "and the spend (recorded); "
         "with --epoch, the steering session's wake: it records the heartbeat "
         "and prints the gap since the wake before; without, it moves nothing",
     )

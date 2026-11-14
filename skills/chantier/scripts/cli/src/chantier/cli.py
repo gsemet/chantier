@@ -97,7 +97,7 @@ def _one_spelling_of_a_cr(args: argparse.Namespace) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Output holds `â†’` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
+    # Output holds `→` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         return e.code
     lines, code = result if isinstance(result, tuple) else (result, 0)
     if args.cmd not in FULL_OUTPUT and len(lines) > MAX_LINES:
-        lines = [*lines[: MAX_LINES - 1], f"â€¦ {len(lines) - MAX_LINES + 1} more lines"]
+        lines = [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
     if lines:  # `board` printed its own lines while it served
         print("\n".join(lines))
     return int(code)

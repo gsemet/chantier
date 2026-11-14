@@ -28,6 +28,7 @@ from chantier.summaries.gaps import Gap, gap_of
 from chantier.summaries.origin import issue_url, origin_of
 from chantier.summaries.sources import checksums, covered_files
 
+
 def _cr_folder(repo: Repo, paths: dict[str, Path], item: str) -> Path:
     """A CR folder of a stage, from the path the command was given."""
     folder = repo.planning_path(item, "CR folder")
