@@ -175,7 +175,7 @@ def _release_tag(b: Batch, c: CrEntry) -> str:
     if alone(b.record.crs, c):
         return " (release, alone in its batch: it starts when taken)"
     return (
-        " (release: starts once every other CR is ready (stack, series) or merged "
+        " (release: starts once every other CR is handed back ready (stack, series) or merged "
         "(parallel); its PR is the user's to merge)"
     )
 

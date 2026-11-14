@@ -18,7 +18,7 @@ const reviewTile = (state) => {
     tone: c.review ? 'go' : 'calm',
     label: t('home.review'),
     value: c.review,
-    sub: c.review ? t('home.review_go') : t('home.review_none', { n: c.ready }),
+    sub: c.review ? t('home.review_go') : t('home.review_none', { n: c.ready + c.draft + c.local }),
     go: 'batch',
   });
 };

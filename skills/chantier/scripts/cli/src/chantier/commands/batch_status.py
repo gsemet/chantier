@@ -21,6 +21,7 @@ from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import held, not_priced, spent_text, usd_text, waits_all
 from chantier.rails_release import record_ask
+from chantier.stacks import state_word
 from chantier.status.words import shape_word, steering_word
 
 
@@ -115,8 +116,8 @@ def _heartbeat_text(d: BatchRecord, prev: str | None) -> str:
     return text
 
 
-def _cr_row(d: BatchRecord, c: CrEntry, notes: bool) -> str:
-    row = f"{c.id} {c.status} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
+def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool) -> str:
+    row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
     if c.kind == "release":
         row += f" release{' ' + c.released if c.released else ''}"
         row += "".join(f" | draft {p}" for p in c.drafts[-2:])
@@ -178,7 +179,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
     lines = [_batch_line(d, _heartbeat_text(d, prev)), last_closed_text(last_closed(repo))]
-    lines += [_cr_row(d, c, args.notes) for c in sorted(d.crs, key=lambda c: c.order)]
+    lines += [_cr_row(repo, d, c, args.notes) for c in sorted(d.crs, key=lambda c: c.order)]
     lines += _order_lines(d)
     unread = sum(1 for a in d.asks if not a.read)
     if unread:

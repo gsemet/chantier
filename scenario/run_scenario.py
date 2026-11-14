@@ -703,7 +703,7 @@ def scenario(w: World) -> None:
     pr101 = w.cr("CR-101")["pr"]
     _, out = w.ready("CR-101", pr101)
     check("a hand-back writes the state and prints the line to send",
-          out[0] == f"[driver CR-101→foreman] hand-back ready {pr101}"
+          out[0] == f"[driver CR-101→foreman] hand-back ready to merge {pr101}"
           and w.cr("CR-101")["status"] == "ready", str(out))
     fm.turn()
     check("hand-back frees a slot: CR-103 taken", fm.started[-1] == "CR-103")
@@ -1927,7 +1927,7 @@ def status_files(w: World) -> None:
     board = (w.state / "STATUS.md").read_text(encoding="utf-8")
     batch = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     check("the status cell gives the pastille, the state, the step and the round",
-          "🔵 ready Notify 1/3" in board and "🔵 ready Notify 1/3" in batch, board)
+          "🟢 ready to merge Notify 1/3" in board and "🟢 ready to merge Notify 1/3" in batch, board)
     index = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
     rows = [r for b in index["batches"] for r in b["crs"]]
     own = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["crs"]
@@ -5727,7 +5727,7 @@ def dependencies(w: World) -> None:
     start_driver(w, c1)
     driver_round(w, c1, "icons_one.py", "ONE = 1\n")
     w.ready(c1, w.cr(c1)["pr"])
-    icon_is(w, c1, "🔵", "a ready CR")
+    icon_is(w, c1, "🟢", "a ready CR out of draft")
     w.chantier("order", "merged", c1)
     icon_is(w, c1, "✅", "a merged CR")
     w.env.pop("CHANTIER_BATCH", None)

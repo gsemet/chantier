@@ -14,13 +14,13 @@ from chantier.commands.crs import (
     same_head,
     short_head,
 )
-from chantier.commands.facts import top_cr
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.rails import ENDED
+from chantier.stacks import top_cr
 
 
 def check_release_branch(repo: Repo, d: BatchRecord, c: CrEntry) -> None:

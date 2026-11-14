@@ -86,6 +86,16 @@
   color: var(--tag-ready-ink);
 }
 
+.tag.draft {
+  background: var(--tag-draft-fill);
+  color: var(--tag-draft-ink);
+}
+
+.tag.local {
+  background: var(--tag-local-fill);
+  color: var(--tag-local-ink);
+}
+
 .tag.waits {
   background: var(--tag-waits-fill);
   color: var(--tag-waits-ink);
@@ -136,6 +146,16 @@
 .st-ready {
   --edge: var(--tint-ready-edge);
   --fill: var(--tint-ready-fill);
+}
+
+.st-draft {
+  --edge: var(--tint-draft-edge);
+  --fill: var(--tint-draft-fill);
+}
+
+.st-local {
+  --edge: var(--tint-local-edge);
+  --fill: var(--tint-local-fill);
 }
 
 .st-merged {

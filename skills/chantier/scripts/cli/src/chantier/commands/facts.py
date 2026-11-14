@@ -19,64 +19,7 @@ from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines
 from chantier.plugin_files import archive_path, cli_command, project_instructions, skill_dir
-from chantier.rails import ENDED, series_predecessor
-
-
-def chain(b_data: BatchRecord) -> list[CrEntry]:
-    """The stack as it stands: the CRs not ended, in order, the release CR last whatever its
-    `order` (it is the top piece). A fix CR sits outside it, on the default branch. What a
-    partial merge leaves forms the next stack, so the first CR left stands on the default
-    branch; a CR added by `order add` goes on top (under the release)."""
-    if b_data.mode != "stack":
-        return []
-    return sorted(
-        [x for x in b_data.crs if x.status not in {"cancelled", "merged"} and x.kind != "fix"],
-        key=lambda x: (x.kind == "release", x.order),
-    )
-
-
-def top_cr(b_data: BatchRecord) -> CrEntry | None:
-    """In an ordered batch (stack, series), the last open CR under the release, in order: the
-    branch the release starts on and its PR sits on. A fix CR and the release are not in it."""
-    if b_data.mode not in {"stack", "series"}:
-        return None
-    open_ = [x for x in b_data.crs if x.status not in ENDED and x.kind not in {"release", "fix"}]
-    return max(open_, key=lambda x: x.order, default=None)
-
-
-def _start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """The branch a CR starts on: that of its last dependency still open, in the order of
-    `after`; with none open, the default branch, whatever its place in a stack. A release in an
-    ordered batch starts on the top CR's branch, with none open under it on the default branch;
-    in a parallel batch, or alone, on the default branch."""
-    default: str = repo.config["default_branch"]
-    if c.kind == "release":
-        top = top_cr(b_data)
-        return top.branch if top else default
-    if b_data.mode == "series":
-        pred = series_predecessor(b_data.crs, c)
-        return pred.branch if pred and pred.status != "merged" else default
-    if c.after and c.kind not in {"release", "fix"}:
-        found = {x.id: x for x in b_data.crs}
-        open_ = [found[i] for i in c.after if i in found and found[i].status not in ENDED]
-        return open_[-1].branch if open_ else default
-    return default
-
-
-def stack_base(b_data: BatchRecord, c: CrEntry, repo: Repo, planned: bool = False) -> str:
-    """The base its PR has: its place in the stack once `stack` marked the CR (`planned`: the
-    place it will take); otherwise where it started. A CR sits on the one below it in the chain
-    (the first on the default branch), whatever its `after`; a CR with an open dependency that
-    `stack` has not placed yet, on that dependency's branch."""
-    default: str = repo.config["default_branch"]
-    if c.kind == "release":  # the top of the stack: on the top CR's branch
-        return _start_base(b_data, c, repo)
-    if not c.stacked and ((c.after and c.kind != "fix") or not planned):
-        return _start_base(b_data, c, repo)  # not placed by `stack` yet: where it started
-    order = chain(b_data)
-    ids = [x.id for x in order]
-    i = ids.index(c.id) if c.id in ids else 0
-    return order[i - 1].branch if i > 0 else default
+from chantier.stacks import chain, stack_base, start_base, state_word
 
 
 def _ref(repo: Repo, branch: str) -> str:
@@ -88,7 +31,7 @@ def _ref(repo: Repo, branch: str) -> str:
 def _base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
     """The ref the CR's branch starts on: the remote's default branch, or the branch of its
     last open dependency."""
-    return _ref(repo, _start_base(d, c, repo))
+    return _ref(repo, start_base(d, c, repo))
 
 
 def _stack_ref(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
@@ -104,7 +47,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     skill = skill_dir().as_posix()
     made = Path(c.worktree).is_dir()
     lines = [
-        f'{c.id} "{c.title}" ({c.kind}) {c.status} in batch {batch} ({d.mode})',
+        f'{c.id} "{c.title}" ({c.kind}) {state_word(d, c, repo)} in batch {batch} ({d.mode})',
         f"cli: {cli_command(repo)} <command> --batch {batch}",
         f"cards: {skill}/references/ (driver.md, worker.md, concepts.md); the project's "
         "rules rank above them: `rules`",
@@ -205,7 +148,7 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
     `stack` with no CR print)."""
     crs = chain(d)
     return [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"] + [
-        f"{x.id} {x.status} worktree {x.worktree} branch {x.branch} "
+        f"{x.id} {state_word(d, x, repo)} worktree {x.worktree} branch {x.branch} "
         f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'} head {short_head(x.head) or '-'} "
         f"{_last_restack(x)}"
         for x in crs

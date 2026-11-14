@@ -9,16 +9,17 @@ from pathlib import Path
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
 from chantier.commands.driver import context_line
-from chantier.commands.facts import chain, stack_base, stack_lines
+from chantier.commands.facts import stack_lines
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import git
-from chantier.core.records import CrEntry
+from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.plugin_files import archive_path
+from chantier.stacks import chain, stack_base
 
 VERDICTS = ("VERIFIED", "NOT VERIFIED")
 HISTORY_CHARS = 120
@@ -134,16 +135,20 @@ def ship(args: argparse.Namespace) -> list[str]:
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     off += _stale_body_shas(repo, c, wt, head)
     base = stack_base(d, c, repo)
+    draft = bool(args.draft)
     with RenderedBatch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(c.id), pr=args.pr, head=head, archive_seen=seen)
-        b.log("ship", c.id, pr=args.pr, base=base, head=head, off=off)
-    return [f"recorded {args.pr} (base {base}, head {short})"] + [f"off: {x}" for x in off]
+        b.touch(b.cr(c.id), pr=args.pr, pr_draft=draft, head=head, archive_seen=seen)
+        b.log("ship", c.id, pr=args.pr, base=base, head=head, draft=draft, off=off)
+    state = "draft" if draft else "out of draft"
+    return [f"recorded {args.pr} (base {base}, head {short}, {state})"] + [f"off: {x}" for x in off]
 
 
 def stack(args: argparse.Namespace) -> list[str]:
     """The stack's order, as its driver set it; each PR's base follows from it."""
     repo = open_repo()
     batch = resolve_batch(repo, args.batch)
+    if args.out_of_draft or args.draft:
+        return _record_drafts(repo, batch, args)
     if not args.crs:  # read only: no lock, no event, no epoch
         d = read_batch(repo, batch)
         if d.mode != "stack":
@@ -162,6 +167,45 @@ def stack(args: argparse.Namespace) -> list[str]:
             b.touch(b.cr(cr), order=i)
         b.log("stack-order", None, crs=args.crs)
     return [f"stack order: {' → '.join(args.crs)}"]
+
+
+def _record_drafts(repo: Repo, batch: str, args: argparse.Namespace) -> list[str]:
+    """`stack --out-of-draft <cr>…` / `stack --draft <cr>…`: the PRs the stack driver turned
+    ready or back to a draft on the forge, as the record holds them. A CR leaves draft only
+    when it was handed back ready and every CR under it in the stack is out of draft."""
+    if args.out_of_draft and args.draft:
+        raise ChantierError("stack takes --out-of-draft or --draft, not both", EXIT_USAGE)
+    if not args.crs:
+        raise ChantierError("stack --out-of-draft|--draft <cr>…", EXIT_USAGE)
+    out = bool(args.out_of_draft)
+    with RenderedBatch(repo, batch, actor="stack") as b:
+        if b.record.mode != "stack":
+            raise ChantierError(f"batch {batch} is not a stack")
+        crs = [b.cr(x) for x in args.crs]
+        if out:
+            _check_out_of_draft(b.record, crs)
+        for c in crs:
+            b.touch(c, pr_draft=not out)
+            b.log("pr-draft", c.id, draft=not out)
+    word = "ready to merge" if out else "PR in draft"
+    return [f"{c.id} {word}" for c in crs]
+
+
+def _check_out_of_draft(d: BatchRecord, crs: list[CrEntry]) -> None:
+    """Refuse (nothing written) a CR not handed back ready, and one with a draft under it: the
+    CRs named before it count as out of draft."""
+    named = {c.id for c in crs}
+    place = chain(d)
+    ids = [x.id for x in place]
+    for c in crs:
+        if c.status != "ready" or not c.pr:
+            raise ChantierError(
+                f"{c.id}: only a CR handed back ready leaves draft", EXIT_PRECONDITION
+            )
+        under = place[: ids.index(c.id)] if c.id in ids else []
+        drafts = [x.id for x in under if x.pr_draft is not False and x.id not in named]
+        if drafts:
+            raise ChantierError(f"{c.id}: under it is a draft: {drafts[-1]}", EXIT_PRECONDITION)
 
 
 def _check_place(place: dict[str, int], rest: list[str], cr: str, after: list[str]) -> None:

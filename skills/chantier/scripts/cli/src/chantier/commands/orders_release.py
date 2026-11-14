@@ -48,7 +48,8 @@ def add_release(b: Batch, note: str) -> list[str]:
         ""
         if alone(b.record.crs, c)
         else (
-            "; it starts once every other CR is ready (stack, series) or merged (parallel), "
+            "; it starts once every other CR is handed back ready (stack, series) or merged "
+            "(parallel), "
             "and its PR is the user's to merge"
         )
     )
