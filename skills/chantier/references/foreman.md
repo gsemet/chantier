@@ -201,7 +201,24 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     come: the drafts on top and the CRs with no PR; `<sha7>` as `forge-stack show` printed it);
   - the stack complete: `$CHANTIER asks "stack-ready <stack link> mergeable below <sha7>
     <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
-  - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask.
+  - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask;
+  - `hand-back blocked context: …` (or an end with no hand-back and no `activity`): neither an
+    anomaly nor an ask: `agents set stack -`, `take stack --note "resume: <its text>"`, a new stack
+    driver on the batch's model; a failed restack stays an escalation;
+  - `anomaly <cr> conflict: stacked on <cr>: <files>`: before the five checks,
+    `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"` (the CR is `working`,
+    its draft no check 4 failure; its Driver rebases, the CR turns ready at a later take);
+  - **A drop in the stack:** `take stack --note "drop: <cr>"` right after the drop is applied, or
+    `[foreman→stack] note drop: <cr>` to a running stack driver. A working CR above gets
+    `[foreman→driver <cr>] note rebase: stacked on <cr below>, without <dropped cr>` (a plain
+    `status` just before). An open CR whose `after` names the dropped CR: ask the Chief of Staff
+    once, and hold the take until the answer. A release above: after the hand-back, `take <release>
+    --note "redo: <cr> dropped"`, then `take stack`. Then `order done`; the user is asked nothing;
+  - **Heavy CI on a head** (the Chief of Staff's `order note <cr> "heavy CI: at its head"`):
+    `[foreman→stack] note heavy CI: <cr>`, or `take stack --note "heavy CI: <cr>"`; a working
+    CR's own Driver CI covers it (tell the Chief of Staff). Its hand-back
+    `heavy CI <cr> at <head7>: green|red <checks>` goes up as `$CHANTIER asks "heavy-ci <cr>
+    <head7> green|red <checks>"`.
 
   When one check fails, no
   ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. A CR of the
@@ -231,7 +248,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
   note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready <stack link> [partial stack] mergeable
-  below <sha7> <cr>=<link>… [to come: <cr> <cr>…]`. In the
+  below <sha7> <cr>=<link>… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`. In the
   text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name").
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the

@@ -207,9 +207,16 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
     crs = chain(d)
     return [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"] + [
         f"{x.id} {x.status} worktree {x.worktree} branch {x.branch} "
-        f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'}"
+        f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'} head {short_head(x.head) or '-'} "
+        f"{_last_restack(x)}"
         for x in crs
     ]
+
+
+def _last_restack(c: CrEntry) -> str:
+    """The CR's last note that starts with `restack:`, whole; `restack: none` with no such note."""
+    found = [n for n in c.notes if n.startswith("restack:")]
+    return found[-1] if found else "restack: none"
 
 
 def register(sub: Subparsers) -> None:

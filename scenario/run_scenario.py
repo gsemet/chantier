@@ -4036,6 +4036,29 @@ def forge_stack_cli(w: World) -> None:
         code, out = w.chantier("forge-stack", "show", env=on_path)
         check("`forge-stack show` without --stack prefers the open stack over a closed one that "
               "overlaps the batch's PRs", code == 0 and "stack #100 ready" in out[0], str(out))
+        # 7. a dropped CR's PR still in the forge's stack is named apart from a foreign one
+        kept = gh_state()
+        stack_on_forge([*full, 999])
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("a foreign PR is still named `not in the batch's stack #999`",
+              any("not in the batch's stack #999" in x for x in out), str(out))
+        stack_on_forge(full)
+        record({b: "cancelled"})
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check(f"a dropped CR's PR still held by the forge's stack: `check 2: … dropped #202 ({b}): "
+              "close it`, exit 2, and #202 is not called foreign",
+              any(x.startswith("check 2") and f"dropped #202 ({b}): close it" in x
+                  and "not in the batch's stack" not in x for x in out), str(out))
+        before = len(stack_calls())
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        posts = stack_calls()[before:]
+        check(f"`rebuild` unstacks with `(it also held #202 of {b}, dropped: close it)` and posts the "
+              "stack without #202",
+              code == 0 and f"unstacked #100 (it also held #202 of {b}, dropped: close it)" in out
+              and len(posts) == 1 and [x for x in posts[0] if x.startswith("pull_requests[]")]
+              == [f"pull_requests[]={n}" for n in (201, 204, 203)], str(out))
+        record({b: "ready"})
+        w.gh_state.write_text(json.dumps(kept))  # the forge as it was before this step
         record(**{b: PR_LINK["gitlab"] + "202"})
         for action in ("create", "show"):
             code, _ = w.chantier("forge-stack", action, env=on_path, expect=2)
@@ -4061,6 +4084,24 @@ def forge_stack_cli(w: World) -> None:
           "`take stack`, the release CR still last",
           listed and listed[0].endswith(" → ".join(order)) and listed[-1].startswith(f"{r} "),
           str(listed))
+    check("`take stack` prints the rows with no `context:` line (its agent has not started yet)",
+          not any(ln.startswith("context:") for ln in listed), str(listed))
+    code, rows = w.chantier("stack")
+    body = rows[1:-1]
+    check("`stack` with no CR prints each row with `head <head7>` (or `head -`) and `restack: none`, "
+          "then a `context:` line (`not measured` here: no transcript)",
+          len(body) == len(order) and all(" head " in ln and ln.endswith("restack: none") for ln in body)
+          and any(ln.startswith(f"{a} ") and f" head {h7(a)} " in ln for ln in body)
+          and any(ln.startswith(f"{ins} ") and " head - " in ln for ln in body)
+          and rows[-1].startswith("context: not measured"), str(rows))
+    w.chantier("note", a, f"restack: on main {h7(a)}, head {h7(a)}")
+    _, rows = w.chantier("stack")
+    check("after `note <cr> \"restack: on … head …\"`, that CR's row shows the note and the others "
+          "still say `restack: none`",
+          any(ln.startswith(f"{a} ") and ln.endswith(f"restack: on main {h7(a)}, head {h7(a)}")
+              for ln in rows)
+          and all(ln.endswith("restack: none") for ln in rows[1:-1] if not ln.startswith(f"{a} ")),
+          str(rows))
     if ARGS.forge == "github":
         code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
         check("after the insertion, `forge-stack show` reads the stack as it stands (the CR with no "
