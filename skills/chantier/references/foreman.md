@@ -116,6 +116,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
   <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended, with its hand-back or without, before the CR's next `take`).
+- `$CHANTIER gate <cr> --first --epoch <n>`: when a CR on the critical path (other CRs wait for
+  it, by `after` or by the stack) has its long gate queued (`gate queued behind …`), put it
+  first, and say in your next report which CR, ahead of which. Never for another reason, nor at
+  a Driver's request alone.
 - Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
   failed, goes to a new Driver on the escalation model that `playbook --batch` prints
   (`take <cr> --note "escalate: ..."`); you record it with `note` and give it one line in the

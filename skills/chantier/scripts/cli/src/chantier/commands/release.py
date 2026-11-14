@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 
 from chantier import procs
-from chantier.commands.gate_lock import lock_holder, lock_mtime, parse_holder
+from chantier.commands.gate_slots import mtime, slot_of
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.lifecycle.convert import open_repo
@@ -97,13 +97,14 @@ def cancel(args: argparse.Namespace) -> list[str]:
         if c.status == "merged":
             raise ChantierError(f"{args.cr} is merged: nothing to cancel")
         killed = []
-        h = parse_holder(lock_holder(repo))
+        v = slot_of(repo, args.cr)
+        h = v.holder if v else None
         # a pg the lock names counts only while it is still that process (a pid can be reused)
         if (
-            h
-            and h.cr == args.cr
+            v
+            and h
             and h.pg is not None
-            and procs.alive_since(h.pg, lock_mtime(repo), False)
+            and procs.alive_since(h.pg, mtime(v.slot.lock), False)
             and procs.stop_group(h.pg)
         ):
             killed.append(f"pg{h.pg}")

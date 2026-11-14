@@ -265,9 +265,11 @@ started.
   `&&` chain; it stops at the first failure, and it has passed at a head when the last `gate`
   there passed every command it was given and the head did not move during the run. The log's
   first line names the CR, the branch and the full SHA it ran at; its last line, the result.
-  Long gates run one at a time, in arrival order, and `gate` is refused (exit 2) only when one
-  gate has held the lock, or its suite has run on, for over an hour; the refusal names that gate.
-  `gate <cr> --stop` stops that CR's running long gate (its suite and the lock), records the run
+  As many long gates run at once as `chantier.yaml`'s `long_gate.parallel` says (one when absent),
+  the others in arrival order; `gate` is only for the long gate the project's rules name, and a
+  short gate runs outside it. `gate` is refused (exit 2) only when a gate has held a slot, or its
+  suite has run on, for over an hour; the refusal names that gate.
+  `gate <cr> --stop` acts on the slot that names that CR: it stops that CR's running long gate (its suite and the slot's lock), records the run
   `stopped` (no pass, and the last run at a head decides) and changes nothing else; it refuses
   when the lock names another CR (exit 2) and says so when no gate runs (exit 0).
   The Verifier records its verdict with `verdict <cr>

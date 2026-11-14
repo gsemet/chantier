@@ -82,7 +82,9 @@ recommended answer and an offer to write it in `AGENTS.md`; an absent gate never
 project's rules say there is no long gate, or exempt a kind of CR, a Driver's `handback --no-gate` carries
 that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
 When the user says "our long gate is `<command>`", propose the exact `AGENTS.md` lines
-(`docs/gates.md`) and write them on the user's yes.
+(`docs/gates.md`) and write them on the user's yes. At that moment ask once, on the same rule as
+`init.md`'s step 5.1, whether that long gate is isolated per worktree, and propose the
+`long_gate:` / `parallel: <n>` lines of `chantier.yaml`.
 
 **The allow rules (P10, Claude Code).** The one write chantier makes in the user's settings, and
 only on the user's yes. Asked once per session per capability (the table "Capabilities and their
@@ -137,6 +139,8 @@ roles:
     skills: [jira]           # what the role needs
   cr-driver:
     agent: my-driver         # your own Driver; it keeps driver.md as its card
+long_gate:
+  parallel: 2                # long gates that may run at once (1 when absent)
 ```
 
 A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,

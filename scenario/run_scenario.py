@@ -1031,6 +1031,7 @@ def scenario(w: World) -> None:
     cancel_during_gate(w)
     stop_own_gate(w)
     rails(w)
+    gate_parallel(w)
     handback_proofs(w)
     gate_proof(w)
     restore_cr(w)
@@ -2823,11 +2824,14 @@ def playbook_config(w: World) -> None:
         w.env["CHANTIER_BATCH"] = earlier
 
 
-def lock_names(w: World, what: str) -> bool:
+def lock_names(w: World, what: str, slot: int = 1) -> bool:
+    """Whether the text of slot `slot`'s lock (`.long-gate.lock`, `.long-gate.<k>.lock`) names
+    `what` within ten seconds."""
     deadline = time.monotonic() + 10
+    lock = w.state / (".long-gate.lock" if slot == 1 else f".long-gate.{slot}.lock")
     while time.monotonic() < deadline:
         try:
-            with open(w.state / ".long-gate.lock", encoding="utf-8") as f:  # byte 0 is locked
+            with open(lock, encoding="utf-8") as f:  # byte 0 is locked
                 f.seek(1)
                 if what in f.read():
                     return True
@@ -3222,6 +3226,178 @@ def rails(w: World) -> None:
 
     sleeper.kill()
     sleeper.wait()
+
+
+def gate_parallel(w: World) -> None:
+    note("\n## 19b. The long gate: as many at once as chantier.yaml says, a stop per slot, `--first`")
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    from chantier import procs
+    items = [prepare_cr(w, t)[1] for t in ("Par one", "Par two", "Par three", "Par four")]
+    slow = w.root / "slow_par.py"
+    slow.write_text("import os, sys, time\n"
+                    "open(os.path.join(os.path.dirname(__file__), 'par_' + sys.argv[1] + '.pid'), 'w')"
+                    ".write(str(os.getpid()))\ntime.sleep(float(sys.argv[2]))\n")
+    yaml = w.work / "chantier.yaml"
+    yaml.unlink(missing_ok=True)
+    w.reset()
+    w.start(*map(str, items), "--slots", 4, "--default-branch", "main")
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman19b", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    one, two, three, four = (c["id"] for c in w.batch()["crs"])
+    queue = w.state / ".long-gate.queue"
+
+    def spawn(cr, name, secs):
+        gate = f'"{sys.executable}" "{slow}" {name} {secs}'
+        return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, gate], cwd=w.work,
+                                env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, encoding="utf-8")
+
+    def log(cr):
+        return max((w.at(w.cr(cr)["path"]) / "work" / "gates").glob("*.log")).read_text("utf-8")
+
+    def tickets():
+        return sorted(queue.glob("[0-9]*")) if queue.is_dir() else []
+
+    def wait_tickets(n):
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and len(tickets()) < n:
+            time.sleep(0.05)
+
+    def suite_pid(name):  # the pid the slow suite wrote once it runs
+        pidfile = w.root / f"par_{name}.pid"
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text()):
+            time.sleep(0.05)
+        return int(pidfile.read_text())
+
+    def kinds(kind):
+        return [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+                if json.loads(ln)["kind"] == kind]
+
+    def activity():
+        _, o = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+        return {ln.split()[1]: ln for ln in o if ln.startswith("activity ")}
+
+    # E6. the key: refused with its line, valid otherwise
+    for label, text, line, why in (("zero", "long_gate:\n  parallel: 0\n", 2, '"parallel" is a whole number'),
+                                   ("a word", "long_gate:\n  parallel: two\n", 2, '"parallel" is a whole number'),
+                                   ("an unknown key", "long_gate:\n  slots: 2\n", 2, 'unknown key "slots"')):
+        yaml.write_text(text, encoding="utf-8")
+        code, _ = w.chantier("gate", one, GATE, expect=2)
+        err = w.last_stderr
+        pcode, pout = w.chantier("playbook", expect=None)
+        _, pre = w.chantier("preflight", expect=None)
+        check(f"E6: `long_gate` with {label} makes `gate` exit 2 with its line and run nothing; `playbook` "
+              "exits 2 and preflight P12 fails with the same line",
+              code == 2 and f"chantier.yaml:{line}: long_gate:" in err and why in err and pcode == 2
+              and any(ln.startswith(f"chantier.yaml:{line}: long_gate:") for ln in pout)
+              and any(ln.startswith(f"P12 FAIL chantier.yaml:{line}: long_gate:") for ln in pre),
+              f"{err} {pout} {pre}")
+    yaml.write_text("long_gate:\n  parallel: 2\n", encoding="utf-8")
+    pcode, pout = w.chantier("playbook", expect=None)
+    _, pre = w.chantier("preflight", expect=None)
+    check("E6: a valid `long_gate` leaves `playbook` valid and preflight P12 ok",
+          pcode == 0 and pout[0].startswith("playbook: chantier.yaml, valid")
+          and any(ln.startswith("P12 ok") for ln in pre), f"{pout} {pre}")
+
+    # E5. the move-up, with one long gate at a time
+    yaml.write_text("long_gate:\n  parallel: 1\n", encoding="utf-8")
+    first = spawn(one, "q1", 8)
+    lock_names(w, f"{one} pid")
+    second = spawn(two, "q2", 1)
+    wait_tickets(1)
+    time.sleep(1.1)  # the logs are named by the second
+    third = spawn(three, "q3", 1)
+    wait_tickets(2)
+    code, _ = w.chantier("gate", three, "--first", expect=2)
+    refusal = w.last_stderr
+    code1, _ = w.chantier("gate", three, "--first", "--epoch", 1, GATE, expect=1)
+    code2, out = w.chantier("gate", three, "--first", "--epoch", 1)
+    lines = activity()
+    check("E5: `gate <cr> --first` without `--epoch` exits 2 with the refusal's text, with a command exits 1, "
+          "and with `--epoch` prints where the gate went and records `gate-first`",
+          code == 2 and "the steering session's command" in refusal and code1 == 1 and code2 == 0
+          and out == [f"moved the long gate of {three} to the head of the queue (ahead of: {two})"]
+          and [e["cr"] for e in kinds("gate-first")] == [three], f"{refusal} {out}")
+    check("E5: `status` shows `gate queued behind` the holder for the moved gate while it waits",
+          lines[three] == f"activity {three} gate queued behind {one}", str(lines))
+    for p in (first, second, third):
+        p.communicate(timeout=60)
+    order = [e["cr"] for e in kinds("gate")][-3:]
+    code, out = w.chantier("gate", two, "--first", "--epoch", 1)
+    check("E5: the moved gate runs before the earlier one; `--first` of a CR with no ticket says there is "
+          "nothing to move and exits 0; no `first-*` marker is left",
+          order == [one, three, two] and code == 0 and any("nothing to move" in ln for ln in out)
+          and not list(queue.glob("first-*")) and not tickets(), f"{order} {out}")
+
+    # E2, E3. two at once
+    yaml.write_text("long_gate:\n  parallel: 2\n", encoding="utf-8")
+    first = spawn(one, "a1", 16)
+    named1 = lock_names(w, f"{one} pid")
+    second = spawn(two, "a2", 8)
+    named2 = lock_names(w, f"{two} pid", 2) and lock_names(w, " pg", 2)
+    wait3 = spawn(three, "a3", 2)
+    wait_tickets(1)
+    time.sleep(1.1)
+    wait4 = spawn(four, "a4", 2)
+    wait_tickets(2)
+    lines = activity()
+    check("E2: with `parallel: 2` two long gates run at once, one in each slot",
+          named1 and named2 and first.poll() is None and second.poll() is None)
+    check("E3: both running CRs show `gate running`, the waiting ones `gate queued behind <one>, <two>`",
+          lines[one] == f"activity {one} gate running" and lines[two] == f"activity {two} gate running"
+          and lines[three] == f"activity {three} gate queued behind {one}, {two}"
+          and lines[four] == f"activity {four} gate queued behind {one}, {two}", str(lines))
+    outs = [p.communicate(timeout=90) for p in (second, wait3, wait4, first)]
+    order = [e["cr"] for e in kinds("gate")][-4:]
+    check("E2: the second gate ran with no waiting line and ended before the first; a third waited "
+          "naming both holders; the waiters took a slot in arrival order",
+          "waiting for the long gate" not in log(two)
+          and re.search(rf"waiting for the long gate of {one} pid .* and {two} pid ", log(three))
+          and [p.returncode for p in (first, second, wait3, wait4)] == [0, 0, 0, 0]
+          and order == [two, three, four, one] and not tickets(), f"{order} {outs} {log(three)}")
+
+    # E4. a stop acts on its slot only
+    first = spawn(one, "hold", 60)
+    lock_names(w, " pg")
+    held_pid = suite_pid("hold")
+    second = spawn(two, "stop", 60)
+    lock_names(w, " pg", 2)
+    two_pid = suite_pid("stop")
+    code, _ = w.chantier("gate", two, "--stop")
+    out, err = second.communicate(timeout=30)
+    time.sleep(0.5)
+    check("E4: `gate <cr> --stop` stops the suite of its own slot only: its gate says STOPPED and exits 4, "
+          "the other slot's suite runs on",
+          code == 0 and out.startswith("STOPPED") and second.returncode == 4 and not procs.alive(two_pid)
+          and procs.alive(held_pid) and first.poll() is None and "Traceback" not in err, f"{out} {err}")
+    second = spawn(two, "merge", 60)
+    lock_names(w, " pg", 2)
+    two_pid = suite_pid("merge")
+    code, _ = w.chantier("order", "merged", two, "--epoch", 1)
+    out, err = second.communicate(timeout=30)
+    time.sleep(0.5)
+    check("E4: `order merged` stops its CR's gate only",
+          code == 0 and out.startswith("STOPPED") and not procs.alive(two_pid) and procs.alive(held_pid)
+          and first.poll() is None, f"{out} {err}")
+    third = spawn(three, "cancel", 60)
+    lock_names(w, " pg", 2)
+    three_pid = suite_pid("cancel")
+    code, _ = w.chantier("gate", four, "--stop", expect=2)
+    named = w.last_stderr + "".join(w.last_out)
+    check("E4: `gate <cr> --stop` with no slot naming the CR exits 2, names the running CRs and stops nothing",
+          code == 2 and one in named and three in named and "not stopped" in named
+          and procs.alive(three_pid) and procs.alive(held_pid), named)
+    w.chantier("cancel", three, "--epoch", 1)
+    third.communicate(timeout=30)
+    time.sleep(0.5)
+    check("E4: `cancel` stops its CR's suite only",
+          not procs.alive(three_pid) and procs.alive(held_pid) and first.poll() is None)
+    w.chantier("gate", one, "--stop")
+    first.communicate(timeout=30)
+    yaml.unlink(missing_ok=True)
+    (w.state / ".long-gate.2.lock").unlink(missing_ok=True)
 
 
 def driver_liveness(w: World) -> None:
@@ -6001,7 +6177,7 @@ class SurfaceWorld(World):
 
 
 LOCAL_FILES = {"STATUS.md", "STATUS.json", ".lock", ".lifecycle.lock", ".long-gate.lock",
-               ".batch-number", "seat.json", "batch.json", "events.jsonl", "brief.md"}
+               ".long-gate.2.lock", ".long-gate.2.run", ".long-gate.2.stop", ".batch-number", "seat.json", "batch.json", "events.jsonl", "brief.md"}
 
 
 def surface_publishes(w: SurfaceWorld, label: str) -> None:
@@ -6100,6 +6276,16 @@ def external_surface(tmp: Path) -> None:
           and text.index("/code/AGENTS.md") < text.index("surface:") < text.index("/surface/AGENTS.md"),
           text)
     surface_publishes(w, "after the take")
+    # E7. a second slot's files and a move-up marker stay local, as the first slot's
+    slot_files = [w.state / n for n in (".long-gate.2.lock", ".long-gate.2.run", ".long-gate.2.stop")]
+    (w.state / ".long-gate.queue").mkdir(exist_ok=True)
+    slot_files.append(w.state / ".long-gate.queue" / f"first-{time.time_ns():020d}-1")
+    for p in slot_files:
+        p.write_text("x", encoding="utf-8")
+    check("E7: the files of a second long-gate slot and a move-up marker are not published by the surface",
+          not [f for f in w.surface_files() if ".long-gate" in f], str(w.surface_files()))
+    for p in slot_files:
+        p.unlink()
     # the web board at a surface: every project of the surface, each confined to its own folder
     bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:

@@ -8,8 +8,10 @@ Two checks guard every change, in any project. You declare them in your `AGENTS.
   run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
   change.
 - **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
-  alone in the repository, in arrival order when several wait. `handback ready` requires it passed at the PR's head, and the
-  Verifier's `VERIFIED` there. One command may serve as both gates.
+  as many at once as your `chantier.yaml` allows (one by default, see below), in arrival order
+  when more wait. `handback ready` requires it passed at the PR's head, and the
+  Verifier's `VERIFIED` there. One command may serve as both gates. The fast gate is never run
+  through `chantier gate`.
 
 Declare them with one line each, the exact commands, one command per item, never chained with
 `&&` or `;` (the Driver passes each as its own argument to `chantier gate`, so it runs the same
@@ -25,6 +27,10 @@ An exemption (the last line) and a project with no long gate at all (`This proje
 gate: <why>`) are written there too: the Driver quotes that rule with `handback ready
 --no-gate`, and the Foreman (or the Chief of Staff steering) checks it. A rule that is not
 written is a question for you, never a pass.
+
+A long gate that is isolated per worktree (its own ports, folders and services) can run several at
+once with `long_gate:` then `parallel: <n>` in `chantier.yaml`; the number is what your machine
+carries. With no such key the long gates run one at a time.
 
 To have chantier declare them, say "init" (the tour looks for both gates and proposes the exact
 lines), or tell the Chief of Staff "our long gate is `<command>`". Either writes them only on

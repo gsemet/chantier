@@ -114,8 +114,12 @@ The CLI keeps the CR's record and tells you what is off.
 - The long gate, the project's command, before the first push and the PR (with the `ci: beside
   the long gate` line, at the head you pushed, started right after `ship`, while CI runs; the
   "CI" bullet gives that order): `$CHANTIER gate <cr> "<command>"
-  ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
-  gate waits its turn, in arrival order), stops at the first failure, keeps the log and records the pass at that head. It
+  ["<command>"...]` runs only the long gate the project's rules name, in the worktree, in order,
+  as many at once as the project allows (`chantier.yaml`, one by default), the others in arrival
+  order. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
+  the long gate, such as a docs-only change) you run yourself in the worktree, never through
+  `gate`: it would wait in the lock behind the long gates. A CR the rules exempt hands back with
+  `--no-gate "<the rule>"`. It stops at the first failure, keeps the log and records the pass at that head. It
   is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
