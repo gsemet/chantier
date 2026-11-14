@@ -21,13 +21,14 @@ from chantier.core.records import (
 )
 from chantier.core.repo import Repo
 from chantier.rails import held
+from chantier.stacks import ready_word
 from chantier.status.words import (
     ENDED,
-    can_start,
     forge_word,
-    label,
     no_start,
+    notify,
     severity,
+    state_label,
     step,
     waits,
     waits_on,
@@ -41,7 +42,7 @@ SPEC_LINK = re.compile(r"[\w./-]+\.md\b")
 TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
 
 
-def _now_next(d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]:
+def _now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]:
     pr = c.pr or f"its {forge_word([])}"
     if waits_on(c):
         reason = c.blocked_reason or ""
@@ -55,6 +56,8 @@ def _now_next(d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]
             c.blocked_reason or "Blocked.",
             "The user's answer, through the Chief of Staff.",
         )
+    if c.status == "ready":
+        return notify(repo, d, c, pr)
     return {
         "Queued": (
             f"Waits for {', '.join(waiting)}." if waiting else no_start(d),
@@ -66,7 +69,6 @@ def _now_next(d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]
             "The hand-back.",
         ),
         "Release": ("The Release driver follows the project's procedure.", "The next step of it."),
-        "Notify": (f"Ready: {pr} waits for the user's merge.", "The merge, then the archive."),
         "Merged": (f"Merged: {pr}.", "Nothing."),
         "Dropped": ("Dropped on the user's word.", "Nothing."),
     }[step(c)]
@@ -151,7 +153,7 @@ def cr_view(
     """The CR's page; `where`: its folder, its events, and whether the folder is in the batch."""
     folder, events, in_batch = where
     waiting = waits(d, c)
-    now_line, next_line = _now_next(d, c, waiting)
+    now_line, next_line = _now_next(repo, d, c, waiting)
     silent = age_minutes(c.updated) if c.status in LIVE else None
     pr = c.pr
     number = re.search(r"(\d+)/?$", pr or "")
@@ -165,7 +167,8 @@ def cr_view(
         "state": c.status,
         "severity": severity(c),
         "step": step(c),
-        "label": label(c, round_limit(d, c), waiting, can_start(d)),
+        "label": state_label(repo, d, c, waiting),
+        "readiness": ready_word(d, c, repo),
         "waits": waiting,
         "round": c.round,
         "max_rounds": round_limit(d, c),
@@ -201,7 +204,8 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, start: Path) -> dict[str, Any]:
         "state": c.status,
         "severity": severity(c),
         "step": step(c),
-        "label": label(c, round_limit(d, c), waiting, can_start(d)),
+        "label": state_label(repo, d, c, waiting),
+        "readiness": ready_word(d, c, repo),
         "waits": waiting,
         "round": c.round,
         "branch": c.branch,

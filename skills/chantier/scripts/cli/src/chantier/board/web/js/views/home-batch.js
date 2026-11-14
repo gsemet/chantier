@@ -8,6 +8,8 @@ import { dot, meter, stateColor, tag } from '../ui/parts.js';
 const PARTS = [
   ['merged', 'home.merged'],
   ['ready', 'home.handed'],
+  ['draft', 'home.draft'],
+  ['local', 'home.local'],
   ['working', 'home.working'],
   ['blocked', 'home.blocked'],
   ['queued', 'home.queued'],

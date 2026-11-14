@@ -112,7 +112,10 @@ function gauge(spent: number, budget: number | null): string {
 }
 
 const PRIORITIES = ['3-ready', 'inbox', 'P1', 'P2', 'P3', 'P4']
-const isWaiting = (r: ChantierRow) => r.state === 'blocked' || r.state === 'ready'
+// Waits for the user: a blocked CR, or a PR the user can merge. A PR in draft waits for what is under
+// it, a CR ready locally has no PR yet: neither waits for the user.
+const isWaiting = (r: ChantierRow) =>
+  r.state === 'blocked' || (r.state === 'ready' && r.readiness === 'ready to merge')
 
 // ---- the tables: Markdown, so a surface draws them as it draws a table in a reply ----
 

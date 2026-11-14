@@ -15,6 +15,7 @@
   --red: #d6455d;
   --amber: #d98a1c;
   --violet: #8b5cf6;
+  --brown: #9a6b3f;
   --grey: #9aa0ab;
   --chip: #f3f4f6;
   --hover: #eceef1;
@@ -38,6 +39,10 @@
   --tint-queued-fill: #fbfbfc;
   --tint-waits-edge: #f1dcb8;
   --tint-waits-fill: #fffaf2;
+  --tint-draft-edge: #e6d5c3;
+  --tint-draft-fill: #fcf9f5;
+  --tint-local-edge: #ddd0f7;
+  --tint-local-fill: #faf8ff;
 
   /* the tags' pairs */
   --tag-working-fill: #e8effd;
@@ -46,6 +51,10 @@
   --tag-blocked-ink: #c03552;
   --tag-ready-fill: #e3f6ec;
   --tag-ready-ink: #1f7a4b;
+  --tag-draft-fill: #f3e8dc;
+  --tag-draft-ink: #7a4b1f;
+  --tag-local-fill: #efe9fe;
+  --tag-local-ink: #5b2a9e;
   --tag-waits-fill: #fdf0df;
   --tag-waits-ink: #8a5208;
   --tag-queued-fill: #f0f0f2;

@@ -14,7 +14,8 @@ def register(sub: Subparsers) -> None:
         "create: the stack batch's stack as it stands (the bottom CRs with a PR, drafts on top), "
         "on GitHub its native stack, on GitLab the chain of MRs each targeting the one below, "
         "bottom to top, the release last; "
-        "show: read it back, one line per failed check (exit 2); rebuild: make the forge's "
+        "show: read it back, one line per failed check (exit 2), else `stack #N ready to merge:`; "
+        "rebuild: make the forge's "
         "stack match the record (GitHub unstacks, retargets and creates again, GitLab retargets)",
         BATCH,
     )

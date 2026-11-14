@@ -30,6 +30,7 @@ const row = (over = {}) => ({
   severity: 'yellow',
   step: 'Round',
   label: '🟡 working Round 1/3',
+  readiness: null,
   round: 1,
   branch: 'chantier/demo/cr-1',
   pr: null,
@@ -70,6 +71,7 @@ const sheet = (over = {}) => ({
   cr: 'CR-1',
   title: 'First change',
   label: '🟡 working Round 1/3',
+  readiness: null,
   cost_usd: 1.5,
   now: 'A coder is working.',
   next: 'The long gate.',
@@ -564,7 +566,9 @@ test('the board shows each label the CLI draws unchanged, one icon per state', a
     '🟡 working Round 1/3',
     '🟠 blocked Waits 1/3',
     '🔴 blocked Question 1/3',
-    '🔵 ready Notify 1/3',
+    '🟢 ready to merge Notify 1/3',
+    '🟤 PR in draft, waits for CR-1',
+    '🟣 ready locally Notify 1/3',
     '✅ merged',
     '⚪ dropped',
   ]
@@ -575,6 +579,23 @@ test('the board shows each label the CLI draws unchanged, one icon per state', a
   const shown = (await words(ui)) as string
   for (const label of labels) expect(shown).toContain(`| ${label} |`)
   await ui.unmount()
+})
+
+test('only a PR ready to merge waits for the user: a draft or a CR ready locally does not', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const ready = (readiness: string, label: string) => row({ state: 'ready', readiness, label })
+  const shownWith = async (r: object) => {
+    w.put(INDEX, index({ batches: [batch({ crs: [r] })] }))
+    await skill($)
+    const ui = await board($)
+    const shown = (await words(ui)) as string
+    await ui.unmount()
+    return shown
+  }
+  expect(await shownWith(ready('ready to merge', '🟢 ready to merge Notify 1/3'))).toContain('Waiting for you (1)')
+  expect(await shownWith(ready('PR in draft', '🟤 PR in draft, waits for CR-2'))).toContain('Waiting for you (0)')
+  expect(await shownWith(ready('ready locally', '🟣 ready locally Notify 1/3'))).toContain('Waiting for you (0)')
 })
 
 test('Backlog, Merged and Trashed are folded and open when pressed', async ($, on) => {
