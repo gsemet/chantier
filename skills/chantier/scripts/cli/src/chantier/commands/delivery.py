@@ -70,8 +70,9 @@ def _stale_body_shas(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
 
 
 def _stale_token(line: str, wt: Path, head: str) -> str | None:
-    """The first commit the line names that exists in the worktree and is not in the head."""
-    for tok in dict.fromkeys(re.findall(r"\b[0-9a-f]{7,40}\b", line)):
+    """The first commit the line names that exists in the worktree and is not in the head. A token
+    of digits only (a PR number, a date) is not read as a commit."""
+    for tok in dict.fromkeys(re.findall(r"\b(?=[0-9a-f]{0,39}[a-f])[0-9a-f]{7,40}\b", line)):
         if not git("rev-parse", "--verify", "--quiet", f"{tok}^{{commit}}", cwd=wt, check=False):
             continue
         ancestor = subprocess.run(

@@ -6,6 +6,8 @@ import contextlib
 import json
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -17,6 +19,7 @@ from chantier.plugin_files import is_dev_checkout
 # The commands the cards make the agents write, filled with realistic values, each tied to the
 # recommended allow rule that covers it and to a group. P10 asks whether some allow rule of the
 # user's settings lets each one through (as Claude Code matches rules), whatever the rule's form.
+GH_LIST_TIMEOUT = 10
 _SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
@@ -31,6 +34,7 @@ _TREE = "/work/project.worktrees/batch-01-CR-101"
 # The capability is one of CAPABILITIES; the forge is any, github, gitlab, gh-stack, dev or plugin.
 # The order is the order of the table "Capabilities and their commands" in hosts/claude-code.md;
 # SendMessage, a bare tool, belongs to the capability batch and comes last.
+# P10 counts these commands, not rules.
 SAMPLES = (
     ("batch", "any", f"git push -u origin {_BRANCH}", "git push -u origin chantier/*"),
     (
@@ -202,7 +206,8 @@ def _settings_rules(repo: Repo | None) -> tuple[dict[str, list[str]], list[str]]
 
 
 def _forges(remote: str) -> set[str]:
-    """The forges that apply: the remote's forge, the `gh stack` extension when installed."""
+    """The forges that apply: the remote's forge, the `gh stack` extension when
+    `gh extension list` names it."""
     url = git("remote", "get-url", remote, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
     forges = {"any", "dev" if is_dev_checkout() else "plugin"}
@@ -212,16 +217,36 @@ def _forges(remote: str) -> set[str]:
         forges.add("github")
     else:
         forges |= {"github", "gitlab"}
-    data = [os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")]
-    if os.environ.get("LOCALAPPDATA"):
-        data.append(os.environ["LOCALAPPDATA"])
-    if "github" in forges and any(
-        (Path(d) / sub / "extensions" / "gh-stack").exists()
-        for d in data
-        for sub in ("gh", "GitHub CLI")
-    ):
+    if "github" in forges and _gh_names_stack():
         forges.add("gh-stack")
     return forges
+
+
+def _gh_names_stack() -> bool:
+    """Whether `gh extension list` names the `gh stack` extension. No `gh`, a failure or a
+    timeout reads as no: P9 reports a missing or broken `gh`."""
+    exe = shutil.which("gh")
+    if not exe:
+        return False
+    try:
+        p = subprocess.run(
+            [exe, "extension", "list"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=GH_LIST_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if p.returncode != 0:
+        return False
+    for line in p.stdout.splitlines():
+        cols = [c.strip() for c in line.split("\t")]
+        if cols[0].startswith("gh stack") or (len(cols) > 1 and cols[1].endswith("/gh-stack")):
+            return True
+    return False
 
 
 def _caught(rules: dict[str, Any], tool: str, command: str) -> tuple[str, str] | None:

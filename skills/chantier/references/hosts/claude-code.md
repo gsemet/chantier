@@ -121,6 +121,12 @@ page (`https://code.claude.com/docs/en/<page>`).
   check (P5, P9, P10). For missing allow rules it asks the question of `chief-of-staff.md`
   ("The project") and adds the rules on the yes; it gives the command line of "Allow rules to
   add" only when the host refuses the edit or when the file cannot be read. P10 checks the commands the agents run, not the rules' text; P9 checks the forge's rights.
+  Each P10 line's `<k> of <n>` counts commands of its capability: `<n>` is that capability's
+  samples that apply to the project (any forge, the remote's forge, and for a stack `gh stack`
+  when `gh extension list` names it), plus `SendMessage` for every batch, and `<k>` those the
+  settings do not let through. On Windows a command counts as allowed only
+  when both its Bash and PowerShell forms are. A count from before 0.9.0 counted rule strings
+  and is not comparable.
 - The Foreman and the Drivers read this file with their card (their prompts already name it):
   "Auto mode" tells them what a refusal means and that it is reported, never worked around.
 - The workers do not read this file; what they need (one command per call, read before you
@@ -187,7 +193,7 @@ In the rules below, `origin` is the project's remote name.
 | `Bash(gh pr ready*)` and `PowerShell(…)` | a PR turned ready, or back to draft (`--undo`) | a PR turned ready, or back to draft | documented (rule form) |
 | `Bash(gh pr checks*)` and `PowerShell(…)` | a Driver reads its CI | read-only | documented (rule form) |
 | `Bash(gh pr view*)` and `PowerShell(…)` | a Driver or the steering session reads a PR | read-only | documented (rule form) |
-| `Bash(gh stack*)` and `PowerShell(…)` | the stack on the forge, only with the `gh stack` extension installed | any operation of the extension | **unproved**: the rule form for an extension command is not documented; trial: set it, run `gh stack view` in auto mode |
+| `Bash(gh stack*)` and `PowerShell(…)` | the stack on the forge, only when `gh extension list` names `gh-stack` | any operation of the extension | **unproved**: the rule form for an extension command is not documented; trial: set it, run `gh stack view` in auto mode |
 | `Bash(glab mr create*)` and `PowerShell(…)` | a Driver opens its MR on GitLab (`driver.md`: `glab mr create --draft`) | any MR on any project `glab` can reach | documented (rule form) |
 | `Bash(glab mr update*)` and `PowerShell(…)` | a Driver's description or the stack's retarget on GitLab | any MR edit on any project `glab` can reach | documented (rule form) |
 | `Bash(glab mr view*)` and `PowerShell(…)` | a Driver reads its MR | read-only | documented (rule form) |

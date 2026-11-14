@@ -11,7 +11,11 @@ args = sys.argv[1:]
 with open(state_path + ".calls", "a") as f:
     f.write(json.dumps(args) + "\n")
 
-if args[:2] == ["pr", "create"]:
+if args[:2] == ["extension", "list"]:
+    # `extensions` holds `name\towner/repo\tversion` lines (default: none installed)
+    for line in state.get("extensions", []):
+        print(line)
+elif args[:2] == ["pr", "create"]:
     n = state["next_pr"]
     state["next_pr"] = n + 1
     json.dump(state, open(state_path, "w"))
@@ -46,6 +50,9 @@ elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks/\d+/uns
     if not found:
         print("fake gh: HTTP 404: Not Found", file=sys.stderr)
         sys.exit(1)
+    if state.get("unstack_ignored"):  # answers 200 and leaves the stack open
+        print(json.dumps(found[0]))
+        sys.exit(0)
     gone = {int(a.split("=", 1)[1]) for a in args if a.startswith("pull_requests[]=")}
     found[0]["pull_requests"] = [n for n in found[0]["pull_requests"] if n not in gone]
     if not found[0]["pull_requests"]:
