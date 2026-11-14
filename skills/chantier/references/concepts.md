@@ -104,16 +104,21 @@ started.
   Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
   time; `not measured` refuses). A batch has one of three **modes**, set by
   `open --mode parallel|series|stack` and shown by `status`. **Parallel** (the default, when the
-  user names none): every CR starts from the default branch at once and its PR is on the default
-  branch; the first one ready wins, and the user merges in the order things become ready unless
+  user names none): every CR with no open dependency starts from the default branch at once and
+  its PR is on the default branch; a CR with a dependency starts only once that dependency is
+  `ready` (`take` refuses it until then), on the branch of its last dependency still open, else on
+  the default branch (see **Dependencies**), and its PR stays a draft on that branch until the
+  dependency merges; the first one ready wins, and the user merges in the order things become ready unless
   told otherwise; after each merge, every PR still open is rebased onto the default branch and
   its checks run again. **Series**: the CRs have a precise order, the one given to `open` (`order
   add` puts a CR on top); the next CR starts once the previous one is `ready`, from the previous
   CR's pushed branch, and its PR is a draft; once the previous one merges, the next is rebased
   onto the default branch and turns ready; `order mode --note stack` switches the series to a
-  stack, on the user's word. **Stack**: parallel, with a stack driver: every CR starts at once, on
-  the default branch or on its last open dependency, and the stack driver puts the PRs each on the
-  previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
+  stack, on the user's word. **Stack**: parallel, with a stack driver: every CR with no open
+  dependency starts at once, on the default branch; a CR with a dependency starts only once that
+  dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
+  open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each
+  on the previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
   and the start base for any other). Once every PR is ready, the stack driver makes one native
   stack on the forge (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
   declined the extension); the user merges it in one action from the top PR, the release commit
