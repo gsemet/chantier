@@ -118,7 +118,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `team:` line): its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
-  <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
+  <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Every Driver's prompt you write, for each start and restart and whatever the Driver kind, holds the `Steering:` line of "Starting an agent" (you, and the host's means to reach you). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended, with its hand-back or without, before the CR's next `take`).
 - `$CHANTIER gate <cr> --first --epoch <n>`: when a CR on the critical path (other CRs wait for
   it, by `after` or by the stack) has its long gate queued (`gate queued behind …`), put it
@@ -205,7 +205,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   and the `stack-ready-to-merge` asks (with the commit and the `to come:` tail) the same. On its `hand-back ready to merge <stack link>
   <cr>=<link>…`, read the stack on the forge before anything else, the five checks (below), then:
   - the first stack made: `$CHANTIER asks "stack-ready-to-merge <stack link> partial stack mergeable below
-    <sha7> <cr>=<link>… to come: <cr> <cr>…"` (the `<cr>=<link>` pairs: the mergeable part; to
+    <sha7> <cr>=<link> gaps: …… to come: <cr> <cr>…"` (the `<cr>=<link>` pairs: the mergeable part,
+    each CR's gaps after its link as in the complete form below; to
     come: the drafts on top and the CRs with no PR; `<sha7>` as `forge-stack show` printed it);
   - the stack complete: `$CHANTIER asks "stack-ready-to-merge <stack link> mergeable below <sha7>
     <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
@@ -231,7 +232,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   When one check fails, no
   ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. A CR of the
   stack handed back, ready to merge or PR in draft: no ask. Record its gaps with `$CHANTIER note <cr> "gaps: …"` (`none`
-  when it has none) and quote them after its link in the complete `stack-ready-to-merge`; the next report's
+  when it has none, no `gaps:` text) and quote them after its link in the `stack-ready-to-merge`, partial or complete; the next report's
   partial-stack line shows it once its PR is in the mergeable part. The Chief
   of Staff's order that inserts a CR into a stack ready to merge (`order note` `insert: <new cr> below
   <cr>`) makes this sequence, the steps of the stack driver's card ([driver](driver.md), "Stack
@@ -260,7 +261,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
   note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready-to-merge <stack link> [partial stack] mergeable
-  below <sha7> <cr>=<link>… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`. In the
+  below <sha7> <cr>=<link>[ gaps: …]… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`. In the
   text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name").
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the

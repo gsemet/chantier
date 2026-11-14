@@ -17,7 +17,7 @@ specification, whichever exist (an inbox item often has no specification).
 
 ## What you look for
 
-Only these three:
+Only these four:
 
 1. **A gap with the request's intent:** something the user asked for that the specification drops,
    narrows or bends; something it adds that nobody asked for; a decision of `02-answers.md` lost
@@ -29,6 +29,11 @@ Only these three:
 3. **An unproved claim about the real world:** a statement about a host, a tool, a forge, a model
    or an outside service that the repository does not prove (the host references' marks: proved,
    documented, unproved) and that the specification treats as a fact.
+4. **A bundle:** the specification joins work that would ship more cheaply as separate CRs: a
+   refactor or a feature together with a lint, format or type cleanup across files the change does
+   not otherwise need; or several views, screens or commands that each deliver alone. Name the
+   parts and the cut. A bundle always touches behaviour (scope): its draft question offers the
+   split first (the parts named), then keeping it whole.
 
 ## What you do not do
 
@@ -43,7 +48,7 @@ Only these three:
 
 One list of findings, numbered, each with:
 
-- its kind (intent, inconsistency or claim);
+- its kind (intent, inconsistency, claim or bundle);
 - where: the specification's section, and the file and line it conflicts with, when any;
 - the evidence, in one or two lines;
 - whether it touches behaviour (what the software does for the user or a role, its scope or its

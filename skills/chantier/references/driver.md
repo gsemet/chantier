@@ -9,6 +9,8 @@ itself: it starts the child for it, and restarts a failing child rather than doi
 Git and the forge are yours: the worktree, the commits, the rebase, the push, the PR, its
 checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
 The CLI keeps the CR's record and tells you what is off.
+You send every line to the steering session by the `Steering:` line of your prompt; a prompt
+without it is a `Needs:`-like gap: `note` it and use the host's reference row.
 
 Opening reads: you judge what you read whole and what you read by section. These are the card's
 defaults, not a gate.
@@ -67,7 +69,11 @@ defaults, not a gate.
   `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
   printed them (`worktree:` and `folder:`); a CR Driver's own prompt holds `writes: <CR folder>`
   (and `; <archive path>` when `take` prints one): you write your notes, `pr-body.md`, your large
-  outputs and the archive, nothing else. A `Needs:`
+  outputs and the archive, nothing else. A Driver and its workers write nothing in the repository's
+  git folder (`.git/info/exclude`, `.git/config`, `.git/hooks`), by any tool or shell command; git's
+  own commands write there as git does. A file to ignore is ignored by the worktree's own files (a
+  `.gitignore` change goes through a `coder`, in a round, as any project file) or not at all; a
+  file that should not be committed is simply not staged (staging is by name). A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it.
 - A reply out of format is a failed worker. Each worker's reply has the format its section of
   [worker](worker.md) names; before acting on a reply, check it against that format:
@@ -143,13 +149,29 @@ defaults, not a gate.
   the `escalate:` line of `$CHANTIER playbook --batch <batch>`, as printed.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
   <path>` for a file the user reviews and edits in place.
-- The worktree is your first step: `git fetch <remote> <default branch>`, then `git worktree
-  add -b <branch> <path> <base>` from the main checkout (with a planning surface, from the clone
-  that `take` names: `git -C <clone>`), with the names your prompt gives. An
-  earlier Driver's worktree is there: use it (its branch alone: `git worktree add <path>
-  <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
+- Every git command a Driver runs names its worktree: `git -C <worktree> <command>` (the CR's
+  worktree as `take`/`handoff` printed it; for the stack driver, the worktree of the CR it moves;
+  for the QA and Release drivers, their own worktree). A bare `git <command>` relies on the shell's
+  current folder, which the host may reset between calls, and lands in the main checkout. The main
+  checkout is read-only for a Driver: its branch, index and files never change by a Driver's
+  command (no `checkout`, `switch`, `rebase`, `merge`, `reset`, `commit`, `stash`, `pull` there).
+  The only commands that name it are the worktree's creation, `git -C <main checkout> fetch
+  <remote> <default branch>` and `git -C <main checkout> worktree add …` (with a planning surface,
+  `git -C <clone>`), which change neither its branch nor its files. The one move of the main
+  checkout is the steering session's post-merge fast-forward ([concepts](concepts.md), rule 8;
+  `foreman.md`, "The main checkout after a merge"), never a Driver's. A git command run in the
+  wrong place by mistake: stop, undo only what is safe to undo (`git -C <main checkout> rebase
+  --abort`, `merge --abort`), and `note` it; anything else left in the main checkout goes to the
+  steering session as it is, by an `anomaly` (stack driver) or a `blocked question:` hand-back,
+  never cleaned by force.
+- The worktree is your first step: `git -C <main checkout> fetch <remote> <default branch>`, then
+  `git -C <main checkout> worktree add -b <branch> <path> <base>` (with a planning surface, from
+  the clone that `take` names: `git -C <clone>`), with the names your prompt gives. An
+  earlier Driver's worktree is there: use it (its branch alone: `git -C <main checkout> worktree
+  add <path> <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
   it removes at its end.
-- Rebase first, so the long gate passes on the head you push: `git fetch`, `git rebase <base>`;
+- Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
+  <worktree> rebase <base>`;
   a conflict is a `conflict-resolver`. Never `git stash`: the stash is shared by every worktree,
   so set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
   stop only one you started, by its id (a running long gate is stopped with `gate <cr> --stop`,
@@ -196,8 +218,9 @@ defaults, not a gate.
   force-push route, a failed lease examined), with no re-run. The CI rule (an infrastructure
   failure gets one re-run) is about a CI job, and the Release driver's "On the infrastructure"
   is about a step of the procedure; both stay. This is the same rule for a single command.
-- Push: a plain `git push -u <remote> <branch>` when the remote branch is an ancestor of your
-  head, `git push --force-with-lease -u <remote> <branch>` only for a rewrite (a rebase).
+- Push: a plain `git -C <worktree> push -u <remote> <branch>` when the remote branch is an ancestor
+  of your head, `git -C <worktree> push --force-with-lease -u <remote> <branch>` only for a rewrite
+  (a rebase).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
   --body-file <work folder>/pr-body.md`, `glab mr create --draft` with the form below), a Release
   driver opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
@@ -426,6 +449,9 @@ redirection, `Set-Content`, `sed -i`, an interpreter's inline code): the guard r
 sees, and the rule holds for what it does not. Every change the CR makes goes
 through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
 
+A CR that touches the board's write paths carries the scratch-folder rule of [worker](worker.md)
+in each Coder's and Verifier's brief, and the evidence plan names the scratch folder its runs use.
+
 Your worktree's work is never discarded by you: no `git reset --hard`, `git checkout -- <path>`,
 `git restore`, `git clean`, and no deletion of a file in the worktree. `git rebase --abort` is
 allowed: it returns to the head before the rebase, and no work is lost. After a coder that
@@ -448,8 +474,12 @@ the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (w
 in the same round, with no `$CHANTIER round` and no `coder`. A blocking item on the code, alone
 or with body items, is the next round. Any blocking item on the code or another project file,
 from any review, a later one included, goes to a `coder` in a round, then a new review: never a
-Driver edit. All approved: commit with nothing changed since the review (stage the files the
-round changed by name, `git add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above) and record
+Driver edit. All approved: first check nothing changed since the review (`git -C <worktree> status
+--porcelain` and `git -C <worktree> diff --stat` show the files the Inspector reviewed with the
+same contents; a file touched after the review means a new `inspector` on the new state before the
+commit), then commit (stage the files the
+round changed by name, `git -C <worktree> add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above), check
+`git -C <worktree> diff --stat <commit> -- <paths>` against the reviewed state is empty and the tree is clean, and record
 `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase, the long gate (a
 failure is a round), push, the PR, `ship`, CI (with the `ci: beside the long gate` line: rebase,
 push, the PR, `ship`, then the long gate and CI side by side, a failure of either that is the
@@ -499,7 +529,9 @@ move. The note holds the verdict, the `head` copied from the JSON and what was r
 `r<n> inspector approved at <head>`, `r<n> body re-inspection approved at <head>`, `r<n> <review
 step> approved at <head>`, `move <old7>..<new7> (<kind>) inspector approved at <head>`. The note
 after the round's commit stays: the Inspector's `head` predates the commit, and that note ties the
-pass to `committed as <sha>`; a move's pass needs no second note, its `head` is the moved head. A
+pass to `committed as <sha>`, written only once the check above holds (the tree unchanged since
+the review before the commit; after it, nothing differs from the reviewed state and the tree is
+clean); a move's pass needs no second note, its `head` is the moved head. A
 `FIX-REQUIRED` needs none: the next round's brief carries it. Note first, then the box: the Review
 box of `pr-body.md` and of the posted description is filled or updated only from a recorded note,
 citing the SHA it holds for the reviewed state at the PR's head (the round's `committed as <sha>`,
@@ -522,13 +554,13 @@ keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`.
 notes came since your last push: one rebase, onto the latest default branch. With a long gate of
 the CR running, stop it (`gate <cr> --stop`) before that rebase, then run the long gate at the new
 head; CI runs at the new head. A note `rebase: stacked on <cr below>, without <dropped cr>`
-changes the rebase command only: `git rebase --onto <base> <the dropped CR's branch>`, so the
+changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dropped CR's branch>`, so the
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
 
 A CR taken with the note `folded: <k> merged into its branch` (GitLab only: the user merged CR
 k's MR, which targeted this CR's branch, so k's change now rides in this CR's MR): bring the
-forge's branch into the worktree (`git fetch`, then `git merge --ff-only origin/<branch>`; one
+forge's branch into the worktree (`git -C <worktree> fetch`, then `git -C <worktree> merge --ff-only origin/<branch>`; one
 that cannot fast-forward is a `conflict-resolver`'s, never `git reset --hard`), add to
 `pr-body.md` one line naming the folded CR's change and its merged MR (Deliverables, and the
 Internal references), post the file, then treat it as a move that changed the CR's patch:
@@ -565,7 +597,7 @@ before its next push and `ship`s.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
-or a script), in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
+or a script), in the CRs' own worktrees (one that is gone: `git -C <main checkout> worktree add <path> <branch>`),
 `ship` each one you moved, and keep the stack green with heavy CI once at the top (by default; a
 head the steering session names gets it too). You edit no project file yourself, through the shell
 either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and you never discard a CR
@@ -615,7 +647,7 @@ drafts above (theirs by their Drivers' notes when working), `rebuild`, then turn
 
 **A merge during a take.** On `[foreman→stack] note merged: <cr>…`, read the stack again
 (`$CHANTIER stack`), restack what remains on `origin/<default branch>` with the CRs being added
-(one restack, as "After a partial merge"), then `rebuild`. A `rebuild` refused because a PR of the
+(one restack pass, as "After a partial merge", the siblings pushed at once), then `rebuild`. A `rebuild` refused because a PR of the
 plan merged meanwhile is an `anomaly` with the exact text, as any refused `rebuild`.
 
 **Deliver by a time.** A take whose note names `deliver by <time>` keeps the stack on the forge
@@ -641,11 +673,26 @@ again at any time and changes nothing. You never run `take stack`: the Foreman r
 its output. Merged CRs are gone from it, moved to `3-done` at once and alone,
 while the stack lives. After a partial merge what remains is a new stack of the same batch, and
 one restack for what remains, whatever the number of CRs one merge action of the user merged: on
-`origin/<default branch>`, rebase the first PR there and each other PR on the one under it, once
-each, push once with `--force-with-lease` (a refused one goes up as above), and `ship` each one
-you moved once: `ship` records the new base. Run heavy CI once at the top, then one
-`$CHANTIER forge-stack rebuild` (no manual retarget: it retargets the first PR to the default
-branch) and read it back before the hand-back; this hand-back is silent: no `stack-ready-to-merge` follows
+`origin/<default branch>`, the restack is one planned pass, in this order:
+  1. `git -C <main checkout or clone> fetch <remote>` once, then `$CHANTIER stack` once (the old
+     heads), before any rebase. The forge may have rewritten the remote branches above the merged
+     PR (GitHub's native stack merge did in batch-17): the local branches stay the source of each
+     CR's commits, and a `--force-with-lease` push after this fetch replaces the forge's rewrite
+     (unproved; trial: the next native stack merge on GitHub, the restack's pushes accepted and
+     `forge-stack show` exit 0).
+  2. Rebase every remaining CR with no live Driver, bottom up, each on the one under it (the first
+     on `origin/<default branch>`), all before any push. A conflict goes the usual way
+     (`conflict-resolver`, or "A conflict that needs code").
+  3. Push every moved branch right after the last rebase, back to back, once each with
+     `--force-with-lease` (a refused one goes up as above; one command per branch, never a loop or
+     a script), so the forge starts every PR's CI at once; then `ship` each one once: `ship`
+     records the new base. Pushing a branch and waiting for its CI before rebasing the next one is
+     what this pass avoids.
+  4. One CI wait for all of them (heavy CI once at the top), the proofs each move touched judged
+     again as above, then one `$CHANTIER forge-stack rebuild` (no manual retarget: it retargets
+     the first PR to the default branch), read back before the hand-back.
+
+This hand-back is silent: no `stack-ready-to-merge` follows
 a restack. On GitLab, the forge may already have retargeted the next MR to the default branch when
 the merged MR's source branch was deleted: `rebuild` then retargets nothing for it, which is no
 anomaly (unproved; trial: one run on a GitLab project). A middle MR merged on GitLab is a folded
@@ -687,9 +734,9 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
 1. Turn every PR above the dropped one back to a draft first (`gh pr ready --undo`, `glab mr
    update --draft`, then `$CHANTIER stack --draft <cr>…`): the user must not merge a stack that still holds the dropped commits.
 2. Take the dropped commits out of each CR above that has no live Driver (handed back `ready`, or `blocked`),
-   bottom up, in its own worktree. The first CR above sits on the dropped CR's branch: `git rebase
-   --onto <the branch now under it, or origin/<default branch>> <the dropped CR's branch>`. Each CR
-   above that one: `git rebase --onto <branch under it> <that branch's head before this take>`, the
+   bottom up, in its own worktree. The first CR above sits on the dropped CR's branch: `git -C
+   <worktree> rebase --onto <the branch now under it, or origin/<default branch>> <the dropped CR's
+   branch>`. Each CR above that one: `git -C <worktree> rebase --onto <branch under it> <that branch's head before this take>`, the
    old head being the `head` that `$CHANTIER stack` printed for that CR before the take's first
    rebase. Skip a `working` CR: its Driver does it, on the Foreman's note. A conflict that only
    needs resolving goes to a `conflict-resolver`; one that needs code goes the way "A conflict
@@ -709,8 +756,8 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
 A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR
 and nothing on its branch needs nothing from you.
 
-**A conflict that needs code,** at the join or the move of a CR with no live Driver: `git rebase
---abort` in its worktree and push nothing for it; turn its PR to a draft; place it on top among the
+**A conflict that needs code,** at the join or the move of a CR with no live Driver: `git -C <worktree> rebase
+--abort` and push nothing for it; turn its PR to a draft; place it on top among the
 drafts with `stack` (above the CRs it does not depend on, the release last), where it stays in the
 stack as it stands (its PR retargeted by the rebuild, its branch not rebased); go on with the rest
 of the take, the `rebuild` included; before the hand-back, send `[stack→foreman] anomaly <cr>
@@ -743,7 +790,7 @@ head>` note exists. Go on from the first CR, bottom up, that is not done; never 
 Use the project as its user would, at the head of its default branch, never an unmerged PR, and
 report what breaks. Your prompt gives a work folder in the inbox and what to test; you hold no
 CR, so no `round` and no `handback`. You never fix and start no children. Work in a worktree of
-your own, under the same worktrees folder (`git fetch <remote> <default branch>`, `git worktree add --detach
+your own, under the same worktrees folder (`git -C <main checkout> fetch <remote> <default branch>`, `git -C <main checkout> worktree add --detach
 <repo>.worktrees/<folder name> <remote>/<default branch>`), removed at your end. Reproduce before
 reporting. Everything goes in the folder: `04-result.md`, one finding per bullet (steps, expected,
 actual; "No findings." without bullets), proof in `evidence/` (commands, output, screenshots),
@@ -764,7 +811,7 @@ inside the procedure and the grant, and ask for anything beyond them.
   go for; the announcement thread stays a draft, never posted.
 - The base is the one `take` printed (the top CR's branch in an ordered batch, the default
   branch otherwise). A new attempt (no attempt yet, a `fix merged:` note, or `redo: <cr> <why>`)
-  starts on that base: the worktree as above, or `git fetch` and `git reset --hard <base>`, then
+  starts on that base: the worktree as above, or `git -C <worktree> fetch` and `git -C <worktree> reset --hard <base>`, then
   `$CHANTIER release start <cr>`, and the procedure from its first step whatever had passed
   before. On a `redo:`, rebuild on the new base and refresh the same PR (version commit, count,
   notes, captures); read the drafts again, never rewrite them.
