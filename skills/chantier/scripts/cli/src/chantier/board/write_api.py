@@ -13,7 +13,6 @@ from typing import Any
 
 from chantier.board import journal
 from chantier.board.context import Context, Request
-from chantier.board.files import inside
 from chantier.board.projects import Project
 from chantier.board.reply import Reply, as_json, text
 from chantier.core import clock
@@ -23,10 +22,12 @@ from chantier.core.errors import (
     EXIT_USAGE,
     ChantierError,
 )
+from chantier.core.files import inside
+from chantier.core.records import GROUP_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle import backlog
 from chantier.lifecycle.stages import PRIORITIES
-from chantier.summaries.edit import change_group, change_labels, label_set
+from chantier.summaries.edit import change_group, change_labels, label_set, one_line
 from chantier.summaries.view import summary_view
 
 COLUMNS = ("inbox", *PRIORITIES, "3-ready")
@@ -189,7 +190,7 @@ def _labels(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
 
 
 def _group(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    name = _text(data, "name")
+    name = one_line(_text(data, "name"), "group", GROUP_MAX)  # checked before anything moves
     folders, refused = _resolve(repo, _texts(data, "items"))
     results = list(refused)
     column = backlog.column_of(repo, next(iter(folders.values()))) if folders else "inbox"

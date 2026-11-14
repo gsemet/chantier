@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board.reply import Reply, text
-from chantier.core.files import retry
+from chantier.core.files import inside, is_lock, retry
 
 TEXT_LIMIT = 1_000_000  # bytes of a text file sent; the rest is cut
 IMAGE_LIMIT = 5_000_000
@@ -44,32 +44,9 @@ NOT_FOUND = "not found"
 SHA_HEADER = "X-Chantier-Sha256"  # of the file's bytes on disk, sent when the text is not cut
 
 
-def is_lock(name: str) -> bool:
-    """The locks of a running batch: `.lock`, `.lifecycle.lock`, `.long-gate.*`."""
-    return name in {".lock", ".lifecycle.lock"} or name.startswith(".long-gate.")
-
-
 def kind_of(name: str) -> str:
     ext = Path(name).suffix.lower()
     return "text" if ext in TEXT else "image" if ext in IMAGES else "other"
-
-
-def inside(root: Path, rel: str) -> Path | None:
-    """The path in the planning folder, or None when it leaves it, does not exist, or is a
-    lock: no absolute path, no drive, no NUL, symlinks out refused."""
-    if (
-        "\x00" in rel
-        or rel.startswith(("/", "\\"))
-        or re.match(r"^[A-Za-z]:", rel)
-        or Path(rel).is_absolute()
-        or any(is_lock(part) for part in re.split(r"[\\/]", rel))
-    ):
-        return None
-    try:
-        target = (root / rel).resolve()
-    except (OSError, ValueError):
-        return None
-    return target if target.is_relative_to(root) and target.exists() else None
 
 
 def _listed(root: Path, folder: Path) -> list[dict[str, Any]]:

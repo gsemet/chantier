@@ -2,9 +2,11 @@
 // empty `place` elements that a later change fills (a source badge, labels), and opens its folder.
 import { html, vars } from '../core/dom.js';
 import { slug, title, usd } from '../core/format.js';
+import { labelTags } from '../labels/tags.js';
 import { stageWord } from '../model/grill.js';
 import { roundLimit, roundText, vstate } from '../model/semantics.js';
 import { crKey, isOpenKey, itemKey } from '../model/targets.js';
+import { labelsOf } from '../model/triage.js';
 import { t, tn } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
@@ -30,7 +32,8 @@ export function itemCard(state, item, bucket) {
   const key = itemKey(item);
   const name = bucket === 'inbox' ? t('priority.inbox') : bucket;
   const sel = isOpenKey(state, key) ? ' sel' : '';
-  return html`<div class="card${sel}" ${opener(key)}><div class="row-tags">${tag(`pri-${bucket}`, name)}<span class="lbl">${item.item}</span><span class="place"></span></div><div class="ttl">${title(item.title)}</div><span class="place"></span><div class="desc">${item.description ?? ''}</div><div class="meta">${files(item.files)}<span class="r">${stageWord(item)}</span></div></div>`;
+  const labels = labelTags(item, labelsOf(state.data.backlog));
+  return html`<div class="card${sel}" ${opener(key)}><div class="row-tags">${tag(`pri-${bucket}`, name)}<span class="lbl">${item.item}</span><span class="place"></span></div><div class="ttl">${title(item.title)}</div><span class="place">${labels}</span><div class="desc">${item.description ?? ''}</div><div class="meta">${files(item.files)}<span class="r">${stageWord(item)}</span></div></div>`;
 }
 
 // The card of a CR of the batch.

@@ -6,6 +6,7 @@
 import { fileUrl } from '../core/api.js';
 import { html } from '../core/dom.js';
 import { size } from '../core/format.js';
+import { canEdit, editButton, editorPlace } from '../edit/markdown-editor.js';
 import { t } from '../model/words.js';
 import { renderMarkdown } from './markdown.js';
 
@@ -43,10 +44,15 @@ function bodyOf(project, entry, file) {
   return html`<pre><code>${text}</code></pre>`;
 }
 
-// The view of the open file, or nothing to show while no file is chosen.
-export function fileView(project, folder, list, file) {
+// The view of the open file, or nothing to show while no file is chosen. A Markdown file of a
+// backlog item has an "Edit" button; while it is edited, the editor takes the place of its text.
+export function fileView(target, list, file, editing) {
+  const { project, folder } = target;
   const entry = list?.find((f) => f.path === file?.path);
   if (!entry) return html`<div class="info">${list ? '' : t('stats.loading')}</div>`;
   const cut = file.cut ? ` ${t('panel.cut')}` : '';
-  return html`<div class="info">${folder}/${entry.rel} · ${size(entry.size)}${cut}</div>${bodyOf(project, entry, file)}`;
+  const editor = editing?.path === file.path;
+  const action = !editor && canEdit(target, file) ? editButton() : '';
+  const body = editor ? editorPlace() : bodyOf(project, entry, file);
+  return html`<div class="info"><span>${folder}/${entry.rel} · ${size(entry.size)}${cut}</span>${action}</div>${body}`;
 }

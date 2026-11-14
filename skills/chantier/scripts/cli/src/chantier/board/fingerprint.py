@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from chantier.board.files import is_lock
+from chantier.core.files import is_lock
 
 # The stage folders the state reads whole; the archives and the trash are read for their last
 # folders only, so a shallow walk of them is enough (a folder added or removed moves its parent).

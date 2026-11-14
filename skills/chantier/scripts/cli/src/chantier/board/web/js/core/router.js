@@ -40,7 +40,20 @@ function settle(place) {
   return place;
 }
 
-const reset = { data: null, etag: null, now: null, fails: 0, panel: null, menu: false };
+const reset = {
+  data: null,
+  etag: null,
+  now: null,
+  fails: 0,
+  panel: null,
+  menu: false,
+  editing: null,
+  selection: [],
+  labelFilter: [],
+  journalOpen: false,
+  journal: null,
+  pending: [],
+};
 
 function apply(place) {
   const moved = place.project !== snapshot().project;

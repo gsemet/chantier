@@ -13,14 +13,23 @@ export async function loadFile(key, entry) {
   if (!entry) return;
   const project = snapshot().panel.project;
   const kind = viewKind(entry);
-  const base = { path: entry.path, kind, text: null, cut: false, failed: false };
+  const base = {
+    path: entry.path,
+    rel: entry.rel,
+    kind,
+    text: null,
+    sha256: null,
+    cut: false,
+    failed: false,
+  };
   const fetched = FETCHED.has(kind);
   update({ panelFile: { ...base, loading: fetched } });
   if (!fetched) return;
   try {
     const got = await fileText(project, entry.path);
     if (!stillOpen(key) || snapshot().panelFile?.path !== entry.path) return;
-    update({ panelFile: { ...base, loading: false, text: got.text, cut: got.cut } });
+    const loaded = { loading: false, text: got.text, cut: got.cut, sha256: got.sha256 };
+    update({ panelFile: { ...base, ...loaded } });
   } catch {
     if (stillOpen(key) && snapshot().panelFile?.path === entry.path) {
       update({ panelFile: { ...base, loading: false, failed: true } });
