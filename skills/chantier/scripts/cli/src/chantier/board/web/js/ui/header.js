@@ -3,27 +3,28 @@ import { html } from '../core/dom.js';
 import { ALL } from '../core/router.js';
 import { toGrill } from '../model/grill.js';
 import { byState } from '../model/semantics.js';
-import { t } from '../model/words.js';
+import { t, tn } from '../model/words.js';
 import { entry } from '../views/registry.js';
 import { projectsOf } from './picker.js';
 
 const figure = (n, word) => html`<span><b>${n}</b> ${t(word)}</span>`;
+const counted = (n, word) => html`<span><b>${n}</b> ${tn(word, n)}</span>`;
 
 // The figures of the whole surface, on All projects.
 function overall(state) {
   const projects = projectsOf(state);
   const sum = (pick) => projects.reduce((n, p) => n + pick(p), 0);
   return [
-    figure(projects.length, 'stats.projects'),
-    figure(
+    counted(projects.length, 'stats.projects'),
+    counted(
       sum((p) => Number(p.running)),
       'stats.batches',
     ),
-    figure(
+    counted(
       sum((p) => p.to_review.length),
       'stats.reviews',
     ),
-    figure(
+    counted(
       sum((p) => p.working.length),
       'stats.crs',
     ),

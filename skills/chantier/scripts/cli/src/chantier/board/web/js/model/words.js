@@ -36,5 +36,8 @@ export function t(key, params = {}) {
   return text.replace(/\{(\w+)\}/g, (_, name) => params[name] ?? '');
 }
 
+// A word with a count: `<key>.one` when the count is one ("1 file"), else `<key>` ("3 files").
+export const tn = (key, n) => t(n === 1 ? `${key}.one` : key, { n });
+
 // A word of another language (the language button names the language it switches to).
 export const wordOf = (code, key) => LANGUAGES[code][key] ?? key;

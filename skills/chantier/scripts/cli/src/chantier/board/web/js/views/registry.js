@@ -2,6 +2,7 @@
 // icon, its word, the module that draws it on a project, and, if it also shows on "All projects",
 // the module that draws it there. A view without `overview` opens on the last real project.
 
+import { usd } from '../core/format.js';
 import { ALL } from '../core/router.js';
 import { itemsOf } from '../model/grill.js';
 import { crsOf } from '../model/semantics.js';
@@ -18,16 +19,24 @@ export const VIEWS = [
     icon: 'kanban',
     word: 'nav.kanban',
     module: kanban,
-    count: (state) => itemsOf(state.data?.backlog).length,
+    count: (state) =>
+      itemsOf(state.data?.backlog).length +
+      crsOf(state.data?.batch).filter((c) => c.state !== 'merged').length,
   },
   {
     id: 'batch',
     icon: 'batch',
     word: 'nav.batch',
     module: batch,
-    count: (state) => crsOf(state.data?.batch).length,
+    count: (state) => state.data?.batch?.id ?? null,
   },
-  { id: 'costs', icon: 'costs', word: 'nav.costs', module: costs },
+  {
+    id: 'costs',
+    icon: 'costs',
+    word: 'nav.costs',
+    module: costs,
+    count: (state) => (state.data?.batch ? usd(state.data.batch.spent_usd) : null),
+  },
 ];
 
 export const ids = () => VIEWS.map((v) => v.id);

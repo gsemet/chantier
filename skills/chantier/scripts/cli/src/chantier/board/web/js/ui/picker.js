@@ -4,7 +4,7 @@ import { html } from '../core/dom.js';
 import { ALL } from '../core/router.js';
 import { t } from '../model/words.js';
 import { icon } from './icons.js';
-import { mark } from './parts.js';
+import { live, mark } from './parts.js';
 
 export const projectsOf = (state) => state.board?.projects ?? [];
 
@@ -40,7 +40,7 @@ export function trigger(state, cls) {
 }
 
 const row = (project, state) =>
-  html`<button class="row${project.id === state.project ? ' on' : ''}" type="button" data-project="${project.id}" role="menuitem">${mark(project.id)}<span><b>${project.id}</b><small>${lineOf(project)}</small></span></button>`;
+  html`<button class="row${project.id === state.project ? ' on' : ''}" type="button" data-project="${project.id}" role="menuitem">${mark(project.id)}<span><b>${project.id}</b>${project.running ? live() : ''}<small>${lineOf(project)}</small></span></button>`;
 
 // The open menu, or nothing.
 export function menu(state) {

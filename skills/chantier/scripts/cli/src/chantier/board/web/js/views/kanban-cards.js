@@ -5,14 +5,14 @@ import { slug, title, usd } from '../core/format.js';
 import { stageWord } from '../model/grill.js';
 import { roundLimit, roundText, vstate } from '../model/semantics.js';
 import { crKey, isOpenKey, itemKey } from '../model/targets.js';
-import { t } from '../model/words.js';
+import { t, tn } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
 import { stateColor, stateTag, tag } from '../ui/parts.js';
 
 const count = (files) => (Array.isArray(files) ? files.length : (files ?? 0));
 
-const files = (n) => html`<span>${icon('file')} ${t('card.files', { n: count(n) })}</span>`;
+const files = (n) => html`<span>${icon('file')} ${tn('card.files', count(n))}</span>`;
 
 // One bar per round of the CR's limit; the rounds taken are filled with the state's colour.
 function bars(c, batch) {

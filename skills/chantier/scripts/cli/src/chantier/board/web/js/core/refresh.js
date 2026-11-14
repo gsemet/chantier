@@ -53,7 +53,8 @@ async function ask() {
 // Start asking: at once, every 5 s while visible, at once again when the page shows again, and
 // at once when the project changes. It returns the function that stops it.
 export function start() {
-  let shown = null;
+  let shown = snapshot().project;
+  ask();
   const stop = subscribe((now) => {
     if (now.project === shown) return;
     shown = now.project;
