@@ -11,7 +11,8 @@
   were empty; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
-  when the project asks for it, and fast-forwards a clean main checkout after a merge it records.
+  when the project asks for it, and fast-forwards a clean main checkout after a merge it records,
+  and the board keeps its key in the repository's git folder (`chantier/board.json`).
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
   per role and host: change a role on both hosts together; their bodies must stay identical.
 - A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file
@@ -21,10 +22,14 @@
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools. The agents do the work, git and the forge included; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. One named
-  exception: `chantier board`, a read-only web view of the record the CLI already keeps, for the
-  user in remote: it writes no file, is part of the CLI's package and runs with no plugin too
-  (`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board`), and knows no role; anything
-  more (answering an ask, filing an item) is another CR.
+  exception: `chantier board`, the web board's server, for the user on this machine and the local
+  network, behind a key in its URL: it serves the record and the planning folder's files, and it
+  edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) only
+  through the CLI's role-free commands; it never edits a batch and never messages an agent; it
+  takes its dependencies like the rest of the CLI and knows no role.
+- The board's server is also the CLI's one git exception: while it runs it joins the planning
+  surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
+  The rest of the CLI keeps no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a

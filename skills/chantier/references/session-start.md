@@ -65,13 +65,15 @@ including a take-over and a hand-over received), the Chief of Staff runs `$CHANT
 and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
 never start it.
 
-- `board on ...` alone (a loopback address): nothing to say.
-- With `board: listens beyond this machine ...`: one line to the user, once in the session, in
-  their language: the board's address (with the port) and that it has no password.
-- `board already running at ...`: nothing to say, or the same line as above if it listens beyond
-  the machine and the user was not told yet in this session.
+- `board on <URL> over ...`: one line to the user, once in the session, in their language: the
+  link (with its key), that it opens on this machine and, when the second line says so
+  (`board: listens on the local network ...`), on the local network, and that the link is theirs
+  only.
+- `board already running at <URL>`: the same line, if not given yet in this session.
 - `error: board not started: ...`, or a host that cannot run a background command: one line with
   the reason, then go on. The board never blocks the session, a preflight, a batch or a report.
+
+On a surface, `$CHANTIER board --seat <id>` keeps the `--project` that `$CHANTIER` holds.
 
 A reload starts nothing: the board survives a compaction, and at the next skill invocation the
 `board` run is a reuse.

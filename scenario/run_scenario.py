@@ -15,7 +15,7 @@ Exit 0 when every check passes; the transcript is written to scenario/results/<f
 from __future__ import annotations
 
 import argparse
-import html
+import http.client
 import json
 import os
 import queue
@@ -28,9 +28,7 @@ import sys
 import tempfile
 import threading
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -1054,16 +1052,43 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
-def fetch(port: int, path: str, method: str = "GET", host: str = "127.0.0.1") -> tuple[int, dict, str]:
-    """One request to a board, with no proxy: the status, the headers and the body."""
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-    req = urllib.request.Request(f"http://{host}:{port}{path}", method=method,
-                                 data=b"x" if method == "POST" else None)
+class Link:
+    """What a board's start line says: the address, the key, the planning folder."""
+
+    LINE = re.compile(r"^board on http://(?P<host>[^/]+):(?P<port>\d+)/\?k=(?P<key>\S+) over (?P<over>.+)$")
+
+    def __init__(self, line: str | None):
+        found = self.LINE.match(line or "")
+        self.ok = found is not None
+        self.port = int(found["port"]) if found else 0
+        self.key = found["key"] if found else ""
+        self.over = found["over"] if found else ""
+
+    @property
+    def cookie(self) -> dict[str, str]:
+        return {"Cookie": f"chantier_board={self.key}"}
+
+
+def fetch(port: int, path: str, method: str = "GET", headers: dict | None = None,
+          body: bytes | None = None) -> tuple[int, dict, bytes]:
+    """One request to a board, with no proxy and no redirect followed: the status, the headers
+    (names in lower case) and the body. `path` is already percent-encoded."""
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
     try:
-        with opener.open(req, timeout=10) as r:
-            return r.status, dict(r.headers), r.read().decode("utf-8")
-    except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers), e.read().decode("utf-8", errors="replace")
+        conn.request(method, path, body, headers or {})
+        r = conn.getresponse()
+        return r.status, {k.lower(): v for k, v in r.getheaders()}, r.read()
+    finally:
+        conn.close()
+
+
+def jget(port: int, link: Link, path: str, headers: dict | None = None) -> tuple[int, dict, dict]:
+    """A GET with the cookie, its body read as JSON ({} when it is not)."""
+    code, head, raw = fetch(port, path, headers={**link.cookie, **(headers or {})})
+    try:
+        return code, head, json.loads(raw.decode("utf-8"))
+    except ValueError:
+        return code, head, {}
 
 
 def folder_state(root: Path) -> dict:
@@ -1072,22 +1097,34 @@ def folder_state(root: Path) -> dict:
             for p in sorted(root.rglob("*")) if p.is_file()}
 
 
-def without_time(value):
-    """A board's view with the minutes a working CR has been silent left out: they tick."""
-    if isinstance(value, dict):
-        return {k: without_time(v) for k, v in value.items() if k != "silent_minutes"}
-    if isinstance(value, list):
-        return [without_time(v) for v in value]
-    return value
+def settled_live(port: int, link: Link, project: str, timeout: float = 30) -> dict:
+    """The costs' answer once the board's live figure has been computed."""
+    end = time.monotonic() + timeout
+    while True:
+        _, _, costs = jget(port, link, f"/api/projects/{project}/costs")
+        live = costs.get("live")
+        if live and not live["computing"] or time.monotonic() > end:
+            return costs
+        time.sleep(0.3)
+
+
+def exits(proc: BoardProc, timeout: float = 25) -> int | None:
+    try:
+        return proc.p.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return None
 
 
 def remote_board(w: World) -> None:
-    note("\n## 16c. The remote board: a read-only web view of the planning folder")
+    note("\n## 16c. The remote board: the web board's server, behind a key")
     w.reset()
     (w.state / "seat.json").unlink(missing_ok=True)
     titles = ("Board working", "Board blocked", "Board queued <b>bold</b> title", "Board last")
     items = [prepare_cr(w, t)[1] for t in titles]
-    prepare_cr(w, "Board backlog item", "P2")
+    _, with_bom = prepare_cr(w, "Board backlog item", "P2")
+    for name in ("01-intent.md", "03-change-spec.md"):  # a Windows editor's byte-order mark
+        path = with_bom / name
+        path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
     _, ready = prepare_cr(w, "Board ready item")
     w.chantier("triage", ready, "--ready")
     w.chantier("file", "Board inbox item")
@@ -1112,10 +1149,8 @@ def remote_board(w: World) -> None:
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
     w.chantier("status", "--refresh", "--epoch", 1)
     own = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
-    index = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
-    before = folder_state(w.state)
+    recorded = w.batch()
     porcelain = w.sh("git", "status", "--porcelain", "--", ".agents/changes")
-    port = free_port()
     procs: list[BoardProc] = []
 
     def board(*args, cwd=None) -> BoardProc:
@@ -1123,109 +1158,220 @@ def remote_board(w: World) -> None:
         return procs[-1]
 
     try:
-        # 1. the start line, no second line on a loopback address
-        first = board("board", "--host", "127.0.0.1", "--port", port, "--seat", "s-1")
+        # 1. the start lines: a free port, the key in the link, nothing else on a loopback address
+        first = board("board", "--host", "127.0.0.1", "--port", 0, "--seat", "s-1")
         line = first.line()
-        check("`board` on a loopback address prints its start line and nothing else",
-              line == f"board on http://127.0.0.1:{port}/ over {w.state.resolve().as_posix()}"
+        link = Link(line)
+        port = link.port
+        check("`board` on a loopback address with `--port 0` prints the picked port and the link with "
+              "its key, and nothing else",
+              link.ok and port > 0 and link.over == w.state.resolve().as_posix()
               and first.line(1.5) is None, str(line))
-        # 2. the page
-        code, headers, page = fetch(port, "/")
-        labels = [c["label"] for c in own["crs"]]
-        check("`GET /` is HTML in UTF-8 with each CR's number and label as STATUS.json says it",
-              code == 200 and headers["Content-Type"] == "text/html; charset=utf-8"
-              and all(c["cr"] in page and html.escape(c["label"]) in page for c in own["crs"])
-              and len(labels) == 4, f"{code} {headers.get('Content-Type')}")
-        slugs = [r["item"] for r in index["backlog"]]
-        check("it holds the inbox, backlog and 3-ready items and escapes a title's markup",
-              all(r["item"] in page for r in index["backlog"]) and slugs
-              and {"3-ready", "inbox", "P2"} <= {r["priority"] for r in index["backlog"]}
-              and "<b>bold</b>" not in page and "&lt;b&gt;bold&lt;/b&gt;" in page,
-              str(slugs))
-        check("every response is not cached, not sniffed, and its policy allows no script",
-              headers["Cache-Control"] == "no-store" and headers["X-Content-Type-Options"] == "nosniff"
-              and "script" not in headers["Content-Security-Policy"].replace("default-src 'none'", "")
-              and "default-src 'none'" in headers["Content-Security-Policy"], str(headers))
-        # 3. the JSON
-        code, headers, body = fetch(port, "/api/status")
-        view = json.loads(body)
-        check("`GET /api/status` gives the index's view, plus the folder, the seat and `board`",
-              code == 200 and headers["Content-Type"] == "application/json; charset=utf-8"
-              and all(without_time(view[k]) == without_time(index[k])
-                      for k in ("batches", "backlog", "merged", "trashed"))
-              and view["planning_folder"] == w.state.resolve().as_posix()
-              and view["seat"] == "s-1" and view["board"] is True, body[:300])
-        # 4. the files
-        spec = (w.at(w.cr(one)["path"]) / "03-change-spec.md")
-        rel = spec.relative_to(w.state).as_posix()
-        code, _, text = fetch(port, "/file?p=" + urllib.parse.quote(rel))
-        check("`/file` gives a CR's specification as text", code == 200 and "Board working" in text, str(code))
-        outside = [urllib.parse.quote(p) for p in
-                   ("../AGENTS.md", "../../AGENTS.md", str(w.work / "AGENTS.md"), "nothing/here.md")]
-        check("`/file` answers 404 for a path outside the planning folder, an absolute one, a missing one",
-              all(fetch(port, "/file?p=" + p)[0] == 404 for p in outside)
-              and fetch(port, "/elsewhere")[0] == 404, str(outside))
-        check("`POST` answers 405", fetch(port, "/", "POST")[0] == 405
-              and fetch(port, "/", "HEAD")[0] == 200)
-        # 5. nothing written, so far
+        # 2. the key
+        key_file = Path(w.sh("git", "rev-parse", "--path-format=absolute", "--git-common-dir")) \
+            / "chantier" / "board.json"
+        check("the key is kept in the git folder's `chantier/board.json`",
+              key_file.is_file() and json.loads(key_file.read_text(encoding="utf-8"))["key"] == link.key,
+              str(key_file))
+        refused = [fetch(port, p)[0] for p in ("/", "/api/board", "/js/main.js",
+                                               "/api/projects/x/file?path=a.md")]
+        check("with no key `/`, `/api/board`, a static file and a file answer 401", refused == [401] * 4,
+              str(refused))
+        code, head, _ = fetch(port, f"/?k={link.key}")
+        cookie = head.get("set-cookie", "")
+        check("`/?k=<key>` answers 303 with the cookie (HttpOnly, SameSite=Strict) and no `k` in "
+              "`Location`",
+              code == 303 and head.get("location") == "/" and f"chantier_board={link.key}" in cookie
+              and "HttpOnly" in cookie and "SameSite=Strict" in cookie, f"{code} {head}")
+        code, head, _ = fetch(port, "/?k=wrong")
+        check("a wrong key answers 401 and sets no cookie", code == 401 and "set-cookie" not in head,
+              str(code))
+        code, head, _ = fetch(port, "/caf%C3%A9%20dir/x?k=" + link.key + "&q=a%20b%C3%A9")
+        where = head.get("location", "")
+        check("the 303 keeps a path with spaces and non-ASCII letters, percent-encoded",
+              code == 303 and where.startswith("/caf%C3%A9%20dir/x?") and "k=" not in where
+              and " " not in where and "%C3%A9" in where.split("?", 1)[1], where)
+        code, head, _ = fetch(port, f"/?k={link.key}", "PUT")
+        check("`PUT` with the good key answers 405 and no cookie",
+              code == 405 and "set-cookie" not in head, f"{code} {head}")
+        code, _, _ = fetch(port, "/?k=wrong", "PUT")
+        check("`PUT` with a bad key answers 401", code == 401, str(code))
+        code, _, _ = fetch(port, "/api/board", headers={"X-Chantier-Board-Key": link.key})
+        check("the key in the `X-Chantier-Board-Key` header opens the API, with no cookie", code == 200)
+        # 3. the page and the frame
+        code, head, page = fetch(port, "/", headers=link.cookie)
+        policy = head.get("content-security-policy", "")
+        check("`GET /` with the cookie is HTML in UTF-8, its policy `script-src 'self'` with no "
+              "`unsafe-inline`, nothing sniffed",
+              code == 200 and head["content-type"] == "text/html; charset=utf-8"
+              and "script-src 'self'" in policy and "unsafe-inline" not in policy
+              and head["x-content-type-options"] == "nosniff", f"{code} {head}")
+        code, head, _ = fetch(port, "/js/main.js", headers=link.cookie)
+        etag = head.get("etag", "")
+        check("`js/main.js` answers as text/javascript with an ETag",
+              code == 200 and head["content-type"].startswith("text/javascript") and etag, str(head))
+        code, _, _ = fetch(port, "/js/main.js", headers={**link.cookie, "If-None-Match": etag})
+        check("a static file asked again with its ETag answers 304", code == 304, str(code))
+        # 4. the API
+        code, _, api = jget(port, link, "/api/board")
+        project = api["projects"][0]["id"] if api.get("projects") else ""
+        check("`GET /api/board`: one project, `surface: false`, the seat counted",
+              code == 200 and api.get("board") is True and api["surface"] is False
+              and len(api["projects"]) == 1 and api["seats"] == 1 and api["served"] == link.over, str(api))
+        settled_live(port, link, project)
+        base = f"/api/projects/{project}"
+        code, head, data = jget(port, link, f"{base}/state")
+        rows = {c["cr"]: c for c in (data.get("batch") or {}).get("crs", [])}
+        labels = {c["cr"]: c["label"] for c in own["crs"]}
+        check("`state` holds each CR of the batch with its `label` as STATUS.json says it, and the "
+              "fields the views need",
+              code == 200 and set(rows) == set(labels) and len(rows) == 4
+              and all(rows[k]["label"] == v for k, v in labels.items())
+              and all({"round_limit", "after", "chain_place", "base", "to_review"} <= set(r)
+                      for r in rows.values()), f"{code} {sorted(rows)}")
+        backlog = data.get("backlog", {})
+        check("it holds the inbox, `P2` and `3-ready` items with their `grill`, and a title's markup "
+              "comes back as text",
+              "board-inbox-item" in [i["item"] for i in backlog.get("inbox", [])]
+              and "board-backlog-item" in [i["item"] for i in backlog.get("P2", [])]
+              and "board-ready-item" in [i["item"] for i in backlog.get("3-ready", [])]
+              and all("grill" in i for k in ("inbox", "P2", "3-ready") for i in backlog.get(k, []))
+              and "Board queued <b>bold</b> title" in {r["title"] for r in rows.values()}, str(backlog))
+        check("a title written with a byte-order mark is cleaned of it",
+              [i["title"] for i in backlog.get("P2", []) if i["item"] == "board-backlog-item"]
+              == ["Board backlog item"],
+              str(backlog.get("P2")))
+        etag = head.get("etag", "")
+        asks = {"the ETag": etag, "a weak ETag": f"W/{etag}", "a list holding it": f'"nope", {etag}',
+                "`*`": "*"}
+        check("`state` asked again with `If-None-Match` as the ETag, a weak one, a list or `*` "
+              "answers 304",
+              etag and all(fetch(port, f"{base}/state", headers={**link.cookie, "If-None-Match": v})[0] == 304
+                           for v in asks.values()), str(asks))
+        check("a stale `If-None-Match` gets the state again",
+              fetch(port, f"{base}/state", headers={**link.cookie, "If-None-Match": '"stale"'})[0] == 200)
+        # 5. the files (the folder's state is taken once the test files are in)
+        spec_dir = w.at(w.cr(one)["path"]).relative_to(w.state).as_posix()
+        picture = w.at(w.cr(one)["path"]) / "work" / "shot.png"
+        picture.parent.mkdir(parents=True, exist_ok=True)
+        picture.write_bytes(b"\x89PNG\r\n\x1a\n")
+        lock = w.at(w.cr(one)["path"]) / ".lock"
+        lock.write_text("x")
+        before = folder_state(w.state)
+        code, _, listing = jget(port, link, f"{base}/tree?path=" + urllib.parse.quote(spec_dir))
+        names = [f["path"] for f in listing.get("files", [])]
+        check("`tree` lists a CR folder's files, nested ones included, and no lock",
+              code == 200 and f"{spec_dir}/03-change-spec.md" in names
+              and f"{spec_dir}/work/shot.png" in names and f"{spec_dir}/.lock" not in names, str(names))
+        spec_url = urllib.parse.quote(f"{spec_dir}/03-change-spec.md")
+        code, head, text = fetch(port, f"{base}/file?path={spec_url}", headers=link.cookie)
+        check("`file` gives the specification as text", code == 200 and b"Board working" in text
+              and head["content-type"].startswith("text/plain"), str(head))
+        code, head, _ = fetch(port, f"{base}/file?path=" + urllib.parse.quote(f"{spec_dir}/work/shot.png"),
+                              headers=link.cookie)
+        check("`file` gives an image with its type", code == 200 and head["content-type"] == "image/png",
+              str(head))
+        outside = [urllib.parse.quote(p) for p in ("../AGENTS.md", "../../AGENTS.md",
+                                                   str(w.work / "AGENTS.md"), "nothing/here.md",
+                                                   f"{spec_dir}/.lock")]
+        check("`file` answers 404 for a path outside the planning folder, an absolute one, a missing "
+              "one and a lock file",
+              all(fetch(port, f"{base}/file?path={p}", headers=link.cookie)[0] == 404 for p in outside)
+              and fetch(port, "/elsewhere", headers=link.cookie)[0] == 404, str(outside))
+        # 6. costs and the rule for writes
+        json_head = {**link.cookie, "Content-Type": "application/json"}
+        code, _, _ = fetch(port, f"{base}/costs/recompute", "POST", json_head, b"{}")
+        check("`POST costs/recompute` answers 202", code == 202, str(code))
+        costs = settled_live(port, link, project)
+        live = costs.get("live") or {}
+        check("`GET costs` then gives a live figure equal to the one `status --refresh` recorded from "
+              "the same transcripts",
+              live.get("error") is None and live.get("spent_usd") is not None
+              and abs(live["spent_usd"] - recorded["spent_usd"]) < 0.001, str(costs))
+        code, _, _ = fetch(port, f"{base}/costs/recompute", "POST",
+                           {**json_head, "Origin": "http://evil.example"}, b"{}")
+        check("a `POST` with a foreign `Origin` answers 403", code == 403, str(code))
+        check("`PUT` answers 405", fetch(port, "/api/board", "PUT", link.cookie)[0] == 405)
+        # 7. nothing written
         check("nothing was written in the planning folder, its files, sizes and times, nor its git status",
               folder_state(w.state) == before
               and w.sh("git", "status", "--porcelain", "--", ".agents/changes") == porcelain,
               str(set(folder_state(w.state).items()) ^ set(before.items())))
-        # 6. a second board, a port held
-        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
-                            str(port), "--seat", "s-1"], cwd=w.work, env=w.env, capture_output=True,
+        lock.unlink()
+        # 8. a second board, a port held
+        again = [sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port", str(port)]
+        p = subprocess.run([*again, "--seat", "s-1"], cwd=w.work, env=w.env, capture_output=True,
                            text=True, encoding="utf-8", timeout=30)
-        check("a second board with the same address and seat says it is running and exits 0",
-              p.returncode == 0
-              and p.stdout.strip() == f"board already running at http://127.0.0.1:{port}/", p.stdout + p.stderr)
+        check("a second `board` on the same address says it is running, with the same link, exit 0",
+              p.returncode == 0 and p.stdout.strip()
+              == f"board already running at http://127.0.0.1:{port}/?k={link.key}", p.stdout + p.stderr)
         with socket.socket() as held:
             held.bind(("127.0.0.1", 0))
             held.listen()
             busy = held.getsockname()[1]
-            p = subprocess.run([sys.executable, "-m", "chantier", "board", "--port", str(busy)],
-                               cwd=w.work, env=w.env, capture_output=True, text=True,
-                               encoding="utf-8", timeout=30)
+            p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1",
+                                "--port", str(busy)], cwd=w.work, env=w.env, capture_output=True,
+                               text=True, encoding="utf-8", timeout=30)
         check("a port held by another program exits 4 with one `board not started` line",
               p.returncode == 4 and len(p.stderr.strip().splitlines()) == 1
               and p.stderr.startswith("error: board not started: ") and not p.stdout.strip(), p.stderr)
-        # 7. the seat moves: the board stops, a new one starts
+        # 9. the seat moves: the board stops by itself, a new one has the same link
         w.chantier("seat", "take", "s-2", "--over", "s-1")
-        fetch(port, "/")
-        try:
-            stopped = first.p.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            stopped = None
-        check("when the seat moves the board stops by itself, exit 0", stopped == 0, str(stopped))
+        check("when the seat moves the board stops by itself, exit 0", exits(first) == 0)
         second = board("board", "--host", "127.0.0.1", "--port", port, "--seat", "s-2")
-        check("a board for the new seat starts on the same port",
-              second.line() == f"board on http://127.0.0.1:{port}/ over {w.state.resolve().as_posix()}"
-              and json.loads(fetch(port, "/api/status")[2])["seat"] == "s-2")
-        after = folder_state(w.state)
-        after.pop("seat.json"), before.pop("seat.json")
-        check("serving to the end wrote nothing in the planning folder", after == before,
-              str(set(after.items()) ^ set(before.items())))
-        # 8. a wider address says so
-        wide = board("board", "--host", "0.0.0.0", "--port", free_port(), "--seat", "s-2")
+        again_link = Link(second.line())
+        check("a board for the new seat starts on the same port with the same link",
+              again_link.ok and again_link.port == port and again_link.key == link.key
+              and jget(port, link, "/api/board")[2].get("seats") == 1)
+        p = subprocess.run([*again, "--seat", "s-3"], cwd=w.work, env=w.env, capture_output=True,
+                           text=True, encoding="utf-8", timeout=30)
+        check("`board --seat s-3` registers the seat on the running board",
+              p.returncode == 0 and p.stdout.startswith("board already running at ")
+              and jget(port, link, "/api/board")[2].get("seats") == 2, p.stdout + p.stderr)
+        w.chantier("seat", "take", "s-3", "--over", "s-2")
+        time.sleep(1)
+        check("the seat moving from s-2 to s-3 keeps the board running",
+              second.p.poll() is None and fetch(port, "/api/board", headers=link.cookie)[0] == 200)
+        # a board with no seat starts its watch at its first seat, whenever it comes
+        late = board("board", "--host", "127.0.0.1", "--port", 0)
+        late_link = Link(late.line())
+        w.chantier("seat", "take", "s-4", "--over", "s-3")
+        check("the board whose seats are gone stops by itself, with no request of ours",
+              exits(second) == 0)
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+                            str(late_link.port), "--seat", "s-4"], cwd=w.work, env=w.env,
+                           capture_output=True, text=True, encoding="utf-8", timeout=30)
+        w.chantier("seat", "take", "s-5", "--over", "s-4")
+        check("a board that had no seat takes its first over `POST /api/seats`, then stops by itself "
+              "when that session goes",
+              late_link.ok and p.returncode == 0 and exits(late) == 0, p.stdout + p.stderr)
+        # 10. a wider address says so; the clock
+        wide = board("board", "--host", "0.0.0.0", "--port", 0)
         head, warning = wide.line(), wide.line()
-        check("an address beyond this machine prints the second line",
-              (head or "").startswith("board on http://0.0.0.0:")
-              and (warning or "").startswith("board: listens beyond this machine (0.0.0.0")
-              and "no password" in (warning or ""), f"{head} / {warning}")
+        check("an address beyond this machine prints the second line, the link in the first",
+              Link(head).ok and (warning or "").startswith("board: listens on the local network (0.0.0.0)"),
+              f"{head} / {warning}")
         wide.stop()
-        # 9. chantier.yaml
+        timed = board("board", "--host", "127.0.0.1", "--port", 0, "--clock", "2026-01-02T03:04:05Z")
+        tlink = Link(timed.line())
+        _, thead, tapi = jget(tlink.port, tlink, "/api/board")
+        check("`--clock` fixes `now` in the answers and in `X-Chantier-Now`",
+              tapi.get("now") == "2026-01-02T03:04:05Z"
+              and thead.get("x-chantier-now") == "2026-01-02T03:04:05Z", str(tapi.get("now")))
+        timed.stop()
+        # 11. chantier.yaml
         yaml = w.work / "chantier.yaml"
         other = free_port()
         yaml.write_text(f"board:\n  host: 127.0.0.1\n  port: {other}\n", encoding="utf-8")
-        configured = board("board", "--seat", "s-2")
+        configured = board("board")
         line = configured.line()
         check("`board.port` of chantier.yaml sets the port of a board with no option",
-              line is not None and line.startswith(f"board on http://127.0.0.1:{other}/"), str(line))
+              line is not None and line.startswith(f"board on http://127.0.0.1:{other}/?k="), str(line))
         configured.stop()
         for bad, wrong in (("port: abc", "port"), ("color: red", "color")):
             yaml.write_text(f"board:\n  host: 127.0.0.1\n  {bad}\n", encoding="utf-8")
             code, out = w.chantier("playbook", expect=None)
-            problem = f"chantier.yaml:3: board: " in "\n".join(out) and wrong in "\n".join(out)
+            problem = "chantier.yaml:3: board: " in "\n".join(out) and wrong in "\n".join(out)
             code_board, _ = w.chantier("board", "--port", free_port(), expect=None)
             check(f"an invalid `board` ({bad}) is reported by `playbook` with its line, and the board "
                   "refuses to start with it",
@@ -1237,7 +1383,8 @@ def remote_board(w: World) -> None:
             proc.stop()
         (w.work / "chantier.yaml").unlink(missing_ok=True)
         w.env.pop("CHANTIER_BATCH", None)
-        w.chantier("seat", "leave", "s-2", expect=None)
+        for seat in ("s-5", "s-2", "s-1"):
+            w.chantier("seat", "leave", seat, expect=None)
         w.reset()
 
 
@@ -5457,19 +5604,25 @@ def external_surface(tmp: Path) -> None:
           and text.index("/code/AGENTS.md") < text.index("surface:") < text.index("/surface/AGENTS.md"),
           text)
     surface_publishes(w, "after the take")
-    # the remote board of one project: its own folder only, never the other project or the clone
-    port = free_port()
-    bp = BoardProc(w, "board", "--project", "demo", "--port", port, cwd=w.surface)
+    # the web board at a surface: every project of the surface, each confined to its own folder
+    bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:
-        start = bp.line()
-        check("`board` at a surface starts on the project's folder", bool(start) and start.startswith("board on ")
-              and "projects/demo/changes" in start.replace("\\", "/"), str(start))
-        code, _, body = fetch(port, "/")
-        check("the surface's board lists the project's CR", code == 200 and "Surface work" in body, body[:200])
+        link = Link(bp.line())
+        check("`board` at a surface starts with the link and its key", link.ok, str(link.over))
+        code, _, api = jget(link.port, link, "/api/board")
+        names = sorted(p["id"] for p in api.get("projects", []))
+        check("the surface's board serves both projects (`surface: true`, two lines)",
+              code == 200 and api.get("surface") is True and names == ["demo", "other"], str(api))
+        code, _, own = jget(link.port, link, "/api/projects/demo/state")
+        check("the project's state lists its CR", code == 200 and "Surface work" in json.dumps(own), str(own)[:200])
+        code, _, other = jget(link.port, link, "/api/projects/other/tree?path=")
+        check("the other project's folder is reached through its own id", code == 200 and other.get("files"),
+              str(other)[:200])
         for label, rel in (("the other project's folder", "../../other/changes/1-inbox"),
                            ("the code clone", "../../../../code/app.py")):
-            code, _, _ = fetch(port, "/file?p=" + urllib.parse.quote(rel))
-            check(f"the surface's board refuses {label}", code == 404, str(code))
+            code, _, _ = fetch(link.port, "/api/projects/demo/file?path=" + urllib.parse.quote(rel),
+                               headers=link.cookie)
+            check(f"the surface's board refuses {label} through a `..` path", code == 404, str(code))
     finally:
         bp.stop()
     # the Driver's round: a change, the long gate, a PR without the archive, then with it

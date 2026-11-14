@@ -78,15 +78,21 @@ chantier is four things in one repository:
    command that changes anything (it reads the head, the remote and the status to say what is
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the planning folder (the target repository's `.agents/changes/`, or the project's
-   folder of an external planning surface, plus its own `.gitignore`), as plain JSON and
+   folder of an external planning surface, plus its own `.gitignore`, and the board's key in the
+   git folder), as plain JSON and
    Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
    `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
    (each with a `work/` folder while it runs), and the batch's own files at the root of
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
-   write the prompts. One named exception among the tools: `board`, a read-only web view of this
-   record for the user in remote (it writes no file, is part of the CLI's package and runs with no plugin
-   too (`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board`), and knows no role; more is another CR). A new CLI tool comes only from measured token-costly behaviour of the
+   write the prompts. One named exception among the tools: `board`, the web board's server, for
+   the user on this machine and the local network, behind a key in its URL (it serves the record
+   and the planning folder's files, edits the backlog only through the CLI's role-free commands,
+   never edits a batch and never messages an agent, takes its dependencies like the rest of the CLI
+   and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
+   build step). It is also the CLI's one git exception: while it runs it joins the planning
+   surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
+   A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and
    [`.claude-plugin/`](.claude-plugin/) (Claude Code) ship the skill
@@ -108,7 +114,8 @@ chantier is four things in one repository:
    (named in `plugin.json`) is its contract. It writes nothing and runs no process but
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
    `STATUS.json` (`schema` 3) as `status.py` writes it: change both together. The CR board pane
-   and `chantier board` show the same view (`schema` 3) and change with `status.py`.
+   reads `STATUS.json` (`schema` 3); the web board reads the server's API, which the views of
+   `status.py` feed: change them together.
 
 The design rule that shapes everything: **no fallback.** When a tool, a host feature, a model
 or an agent is not exactly available, chantier stops and says so; it never picks a look-alike.
@@ -134,7 +141,8 @@ skills/chantier/
 │                             spec-writer, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
-└── scripts/cli/            ← the `chantier` CLI's source, its tests and `session_usage.py`
+└── scripts/cli/            ← the `chantier` CLI's source (its web board in `board/web/`), its tests
+                              and `session_usage.py`
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
@@ -262,8 +270,20 @@ each with its `register(sub)`) and `board/`, then `cli.py`.
 
 A dependency must replace hand-written code and ship wheels for Linux, macOS (x86_64 and arm64)
 and Windows: the root `pyproject.toml` sets `no-build = true`, so nothing is built from source. After
-a change to its dependencies, run `uv lock` (from the root); `just lint` refuses a stale lock. The board CRs add
-the JS and CSS targets with their linter.
+a change to its dependencies, run `uv lock` (from the root); `just lint` refuses a stale lock.
+
+The board's page (`board/web/`: HTML, CSS and native ES modules, no build step, no framework)
+meets these targets, which `just lint` (Biome, run by `uvx` on a Node.js taken from PyPI and pinned
+in the `justfile`) and `tests/test_code_targets.py` enforce:
+
+- **File:** every `.js` file at most 300 lines, one responsibility per module, one module per view
+  under `js/views/`.
+- **Function:** at most 50 lines; `const` by default, no `var`, no global but the module's scope.
+- **Style:** Biome format and lint clean; names in English; every colour in `css/tokens.css`.
+- **Page:** no inline script or style, no resource loaded from outside (the policy allows `self`
+  only), `innerHTML` set in `js/dom.js` only.
+- **Words:** one file per language under `js/i18n/`, the same keys in each; a language is added by
+  one file and its line in `i18n.js`.
 
 ## Versions
 
