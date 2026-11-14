@@ -1,6 +1,6 @@
 # Boards
 
-The CR board in Claude Code and the remote board, two read-only views of the planning folder.
+The CR board in Claude Code, a read-only pane over the planning folder, and the web board, served by `chantier board` to any device on the local network.
 
 ## The CR board (Claude Code)
 
@@ -65,26 +65,35 @@ folders named. It judges the agent's Bash or PowerShell writes the same way when
 redirection, `Set-Content`, `sed -i`, `rm`...); what it cannot see, such as an interpreter's inline
 code, is covered by the cards, and the steering session reports what changed in the main checkout.
 
-## The remote board
+## The web board
 
-In remote there is no pane, so the Chief of Staff also starts a small web page, `chantier board`,
-that shows the same view: the batch with its CRs (state, round, cost, PR), the inbox, `3-ready`
-and the backlog, the last merged and trashed CRs, and each CR's files as text. It reloads
-itself every 30 seconds, is **read only** (to act, you talk to the Chief of Staff), writes no file
-and stops when its session leaves the seat. It listens on `127.0.0.1:8765` by default, so only the
-machine itself reaches it. To open it from your phone, set the address once in `chantier.yaml`
-(on your word, the Chief of Staff writes it):
+On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
+batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
+trashed CRs, the costs, and each CR's files (text and images). It writes nothing in the planning
+folder and stops when its session leaves the seat.
+
+- **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. Open it
+  once: the board keeps the key in a cookie and takes it out of the address. The link is yours
+  only; whoever has it reads the planning folder. `chantier board --new-key` replaces the key
+  and the old link stops working. The key lives in the repository's git folder
+  (`chantier/board.json`), so it survives restarts and is never pushed.
+- **The local network.** By default the board listens on every address of the machine
+  (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
+  off any network you do not trust. On Windows, the first start asks the firewall for permission:
+  that prompt is the machine's own.
+- **Keeping it on the machine.** Set the address once in `chantier.yaml` (on your word, the Chief
+  of Staff writes it):
 
 ```yaml
 board:
-  host: 0.0.0.0   # or the machine's Tailscale address; default 127.0.0.1
-  port: 8765      # default 8765
+  host: 127.0.0.1   # only this machine; default 0.0.0.0, the local network
+  port: 8765        # default 8765
 ```
 
-Reach it over your private network: Tailscale (the tailnet's address) or your LAN (`0.0.0.0`
-listens on every network of the machine). **There is no password**: the Chief of Staff tells you
-the address and that fact when the board listens beyond the machine. You can also run it by hand:
-`chantier board --host <address> --port <n>`. With no plugin and no agent, on a machine where only
-`uv` is installed, start it from a planning surface with
-`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
-(`<version>` is the release the surface's planners use).
+- **By hand.** `chantier board --host <address> --port <n>`. With no plugin and no agent, on a
+  machine where only `uv` is installed, start it from a planning surface with
+  `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
+  (`<version>` is the release the surface's planners use).
+- **When it stops.** With Ctrl-C, or by itself once no session that registered a seat holds it any
+  more. A second `chantier board` on the same address says the board is already running and
+  prints the same link.
