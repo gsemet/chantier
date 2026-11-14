@@ -445,8 +445,10 @@ keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`.
 `note rebase: …` received while working: rebase before the next push, however many `rebase:`
 notes came since your last push: one rebase, onto the latest default branch. With a long gate of
 the CR running, stop it (`gate <cr> --stop`) before that rebase, then run the long gate at the new
-head; CI runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a
-Driver still retargets nothing but on a `rebase:` note.
+head; CI runs at the new head. A note `rebase: stacked on <cr below>, without <dropped cr>`
+changes the rebase command only: `git rebase --onto <base> <the dropped CR's branch>`, so the
+dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
+on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
 
 A CR taken with the note `folded: <k> merged into its branch` (GitLab only: the user merged CR
 k's MR, which targeted this CR's branch, so k's change now rides in this CR's MR): bring the
@@ -488,9 +490,10 @@ before its next push and `ship`s.
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
 or a script), in the CRs' own worktrees (one that is gone: `git worktree add <path> <branch>`),
-`ship` each one you moved, and keep the stack green with heavy CI once at the top. You edit no
-project file yourself, through the shell either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and
-you never discard a CR worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
+`ship` each one you moved, and keep the stack green with heavy CI once at the top (by default; a
+head the steering session names gets it too). You edit no project file yourself, through the shell
+either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and you never discard a CR
+worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
 no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
 `glab mr update --draft`) while the stack is being made or changed. Each CR keeps its
 own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in
@@ -599,6 +602,62 @@ checks hold, then it turns ready with the others. A fix CR is not in the stack. 
    inserted"`) so that its notes name the new change, then takes the stack again.
 5. Verify every PR of the stack again on the forge (the five checks) and only then turn the PRs
    above ready, the release PR last; hand back with the stack's link.
+
+**Removing a dropped CR.** Taken with a note, or sent one, that names `drop: <cr>`:
+
+1. Turn every PR above the dropped one back to a draft first (`gh pr ready --undo`, `glab mr
+   update --draft`): the user must not merge a stack that still holds the dropped commits.
+2. Take the dropped commits out of each CR above that has no live Driver (`ready`, `blocked`),
+   bottom up, in its own worktree. The first CR above sits on the dropped CR's branch: `git rebase
+   --onto <the branch now under it, or origin/<default branch>> <the dropped CR's branch>`. Each CR
+   above that one: `git rebase --onto <branch under it> <that branch's head before this take>`, the
+   old head being the `head` that `$CHANTIER stack` printed for that CR before the take's first
+   rebase. Skip a `working` CR: its Driver does it, on the Foreman's note. A conflict that only
+   needs resolving goes to a `conflict-resolver`; one that needs code goes the way "A conflict
+   that needs code" says.
+3. Push each moved branch with `--force-with-lease`, one command per branch, and `ship` each one.
+   Judge again the proofs each move touched (a `verifier` given the move, and an `inspector` when
+   the patch changed, always after a `conflict-resolver`). Fix the PR body lines `ship` names as
+   stale.
+4. Heavy CI at the top. Then `$CHANTIER forge-stack rebuild`: it unstacks the stack that still
+   holds the dropped CR's PR, and names that PR apart (`it also held #n of <cr>, dropped: close
+   it`).
+5. Close the dropped CR's PR (`gh pr close <n>`, `glab mr close <n>`), with no `--delete-branch`
+   and no comment. Its branch and worktree stay until the user's word at `close`.
+6. Turn the mergeable part ready. A release above stays a draft, waiting for the Foreman's
+   `redo:`. Hand back as for any take.
+
+A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR
+and nothing on its branch needs nothing from you.
+
+**A conflict that needs code,** at the join or the move of a CR with no live Driver: `git rebase
+--abort` in its worktree and push nothing for it; turn its PR to a draft; place it on top among the
+drafts with `stack` (above the CRs it does not depend on, the release last), where it stays in the
+stack as it stands (its PR retargeted by the rebuild, its branch not rebased); go on with the rest
+of the take, the `rebuild` included; before the hand-back, send `[stack→foreman] anomaly <cr>
+conflict: stacked on <cr below>: <files>`.
+
+**Heavy CI on a head.** A note `heavy CI: <cr>` (the user asked for it): run the project's heavy
+CI at that PR's pushed head by the means the project's rules give (a re-run, a label, a workflow
+dispatch); when the forge already ran it at that head, only read the result. Judge it as the CI
+bullet says (the head first, a skipped job is never green, one re-run for an infrastructure
+failure), note it in that form (`CI: gh pr checks <n> at <head7>: …`), and name it in your
+hand-back as `heavy CI <cr> at <head7>: green|red <checks>`. A red result changes nothing by
+itself.
+
+**Recording a restack.** Before a take's first rebase, run `$CHANTIER stack`: its `head` values
+are the old heads. After each CR you move is rebased, pushed and `ship`ped, record `$CHANTIER note
+<cr> "restack: on <cr below or default branch> <its head7>, head <new head7>"`. After its proofs
+are judged, record `$CHANTIER note <cr> "restack: judged at <head7>"` (an `inspector`'s approval
+keeps its own note). A `working` CR carries no `restack:` note from you. After each CR, read the
+`context:` line of `$CHANTIER stack`: at 130,000 tokens or more, send `[stack→foreman] hand-back
+blocked context: <where it stopped, what is next>` and end (the Driver's context rule, applied to
+you); at `context: not measured`, go on.
+
+**Resuming.** When a take's note names `resume:`, or a take finds the stack partly restacked, read
+`$CHANTIER stack` once. A CR you move is done when its last `restack: on …` note names the CR
+below at that CR's current `head` and names its own `head`, and a later `restack: judged at <its
+head>` note exists. Go on from the first CR, bottom up, that is not done; never redo one that is.
 
 ## QA driver
 

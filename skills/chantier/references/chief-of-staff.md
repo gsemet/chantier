@@ -795,6 +795,18 @@ CR-222 → CR-225 → CR-226 → CR-228."
   trains). A check
   that fails: no "ready" to the user; send it back through the Foreman. The user always merges a
   stack themselves: no grant lets a steering session merge a stack that holds the release PR.
+  When you tell the user about a `stack-ready` ask (partial or complete), add one clause in their
+  language: heavy CI ran at the top PR's head only; merging a PR below it without heavy CI at its
+  own head is their choice; heavy CI can be run on that head if they ask (the partial-stack line of
+  a report does not repeat it). A merge in the middle is recorded as above, never questioned or
+  refused. On their word to run it: `order note <cr> "heavy CI: at its head"`; the Foreman passes
+  it on, and its `heavy-ci <cr> <head7> green|red <checks>` ask is told to the user (a red result
+  changes nothing by itself: the user decides).
+- **Dropping a CR from a stack:** on the user's word, `order drop <cr>` as today (the Foreman then
+  removes it from the stack with `take stack --note "drop: <cr>"`), then tell the
+  user that the CR's commits come out of the PRs above it, its PR is closed, its branch stays until
+  `close`, and the PRs above it are drafts, not mergeable, until the next report's partial-stack
+  line shows them mergeable again. Nothing more is asked of the user.
 - **Inserting a CR into a ready stack:** on the user's word, first and at once put to draft every
   PR that will sit above the new one (`gh pr ready --undo`, `glab mr update --draft`): the stack
   is changing under them. A CR in the middle of a ready stack that goes back to its Driver for a

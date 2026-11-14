@@ -23,7 +23,7 @@ from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_comma
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, BatchRecord, CrEntry
+from chantier.core.records import LIVE, BatchRecord
 from chantier.core.repo import Repo
 from chantier.costs.sessions import agent_context
 from chantier.lifecycle.convert import open_repo
@@ -117,14 +117,13 @@ def round_(args: argparse.Namespace) -> list[str]:
         b.log("round", c.id, round=c.round, note=args.note, **seen)
         work(repo, c).mkdir(parents=True, exist_ok=True)
         facts = cr_facts(repo, batch, b.record, c)
-        context = _context_line(repo, b.record, c)
+        context = context_line(repo, b.record, c.agent)
     return [f"round {c.round} of {limit} for {c.id}", *facts, context]
 
 
-def _context_line(repo: Repo, d: BatchRecord, c: CrEntry) -> str:
-    """The context size of the agent recorded on the CR, its Driver: the last call's prompt, read
-    from the end of its transcript. Not an error when it cannot be measured."""
-    agent = c.agent
+def context_line(repo: Repo, d: BatchRecord, agent: str | None) -> str:
+    """The context size of an agent (a CR's Driver, or the stack driver): the last call's prompt,
+    read from the end of its transcript. Not an error when it cannot be measured."""
     if not agent:
         return "context: not measured (no agent recorded)"
     if d.host == "copilot":
@@ -210,7 +209,7 @@ def note(args: argparse.Namespace) -> list[str]:
         c.append("notes", text)
         b.touch(c)
         b.log("note", args.cr, note=text)
-        context = _context_line(repo, b.record, c)
+        context = context_line(repo, b.record, c.agent)
     return ["ok", context]
 
 

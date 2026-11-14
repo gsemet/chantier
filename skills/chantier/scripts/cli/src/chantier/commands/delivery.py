@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
+from chantier.commands.driver import context_line
 from chantier.commands.facts import chain, stack_base, stack_lines
 from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
@@ -148,7 +149,7 @@ def stack(args: argparse.Namespace) -> list[str]:
         d = read_batch(repo, batch)
         if d.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
-        return stack_lines(repo, batch, d)
+        return [*stack_lines(repo, batch, d), context_line(repo, d, d.stack_agent)]
     with RenderedBatch(repo, batch, actor="stack") as b:
         if b.record.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")

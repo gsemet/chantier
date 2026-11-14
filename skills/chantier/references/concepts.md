@@ -12,7 +12,8 @@ started.
   below) is a second way: the user merges it with those under it, in one action from its top PR,
   or its PRs one at a time from the bottom, the user's choice made merge by merge, never fixed at
   the go (one action from the top is GitHub's; on GitLab, one MR at a time from the bottom); a
-  draft on top is not mergeable. Any other CR's
+  draft on top is not mergeable. A PR of the mergeable part below the top had heavy CI
+  only at the top, unless the user asked for it at its head. Any other CR's
   PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
   changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
   merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
@@ -150,7 +151,10 @@ started.
   verified, and only then the PRs above turn ready again; the release PR stays on top and its
   notes name the new change (the steps are the stack driver's, in [driver](driver.md)). A CR in
   the middle of a ready stack that goes back for a new round puts the PRs above it to draft first,
-  the same way. A CR stands on another
+  the same way. **A CR dropped from the stack** is removed: the PRs above go to draft first, its
+  commits come out of the branches above (by the stack driver, or by the Driver of a working CR),
+  its PR is closed and its branch kept, the stack is rebuilt without it and judged again where it
+  changed, and a release above is redone. A CR stands on another
   only by a dependency: a real one (`depends.json`) or a chain the Foreman decided, or the plan
   proposed and the user's go approved (`order after`). A fix CR sits outside a series and a stack,
   on the default branch. A release CR is
