@@ -168,7 +168,7 @@ the project's rules, one line says so. A `conflicts.md` without this line is a r
 
 ## Demo explorer
 
-Study a stack that is ready and write the demo of what it delivers. Your prompt, from the Chief
+Study a stack that is ready to merge and write the demo of what it delivers. Your prompt, from the Chief
 of Staff, names the batch, its folder and the language of the user; it has no CR and no round.
 You work in no CR's worktree and you never commit, push, comment or open a PR. Read in this
 order, and stop as soon as you can write:

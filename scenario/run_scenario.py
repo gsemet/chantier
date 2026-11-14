@@ -440,7 +440,8 @@ class Foreman:
                 if c.get("kind") == "fix" and (d.get("release") or {}).get("fixes"):
                     self.merge(c)
                 else:
-                    self.ask(f"ready {c['id']} {c['pr']}")
+                    word = "ready-to-merge" if c.get("pr_draft") is False else "pr-in-draft"
+                    self.ask(f"{word} {c['id']} {c['pr']}")
         d = self.w.batch()
         # a slot is a running Driver: a CR working, or a QA order not done
         live = sum(c["status"] in LIVE for c in d["crs"]) \
@@ -708,10 +709,10 @@ def scenario(w: World) -> None:
     fm.turn()
     check("hand-back frees a slot: CR-103 taken", fm.started[-1] == "CR-103")
     check("the Chief of Staff is told CR-101 is ready with its PR",
-          fm.asked[-1] == f"ready CR-101 {pr101}")
+          fm.asked[-1] == f"ready-to-merge CR-101 {pr101}")
     fm.turn()
     check("a second turn with nothing new does nothing", fm.started[-1] == "CR-103"
-          and fm.asked[-1] == f"ready CR-101 {pr101}")
+          and fm.asked[-1] == f"ready-to-merge CR-101 {pr101}")
     code, _ = w.chantier("handback", "CR-101", "ready", pr101, expect=2)
     check("a CR without a Driver cannot be handed back", code == 2)
     code, _ = w.chantier("round", "CR-101", expect=2)
@@ -724,7 +725,7 @@ def scenario(w: World) -> None:
     w.ready("CR-102", w.cr("CR-102")["pr"])
     fm.turn()
     check("a second ready CR goes to the Chief of Staff",
-          fm.asked[-1].startswith(f"ready CR-102 {PR_LINK[ARGS.forge]}"))
+          fm.asked[-1].startswith(f"ready-to-merge CR-102 {PR_LINK[ARGS.forge]}"))
 
     note("\n## 5. Steering: the user drops CR-103, adds an item, changes CR-101")
     _, out = w.chantier("order", "drop", "CR-103")
@@ -1012,6 +1013,7 @@ def scenario(w: World) -> None:
     lifecycle_regressions(w)
     stack_batch(w)
     forge_stack_cli(w)
+    ready_words(w)
     batch_modes(w)
     release(w)
     granted_fixes(w)
@@ -4389,7 +4391,13 @@ def forge_stack_cli(w: World) -> None:
         check("GitLab: the complete chain (every CR ready, no draft, the release on top): `stack "
               "complete, mergeable below` the release's head, and no `to come:` line",
               code == 0 and len(out) == 1 and f"stack complete, mergeable below {h7(r)} (!203)" in out[0]
-              and "the release on top" in out[0], str(out))
+              and "the release on top" in out[0] and "ready to merge:" in out[0], str(out))
+        edit_cr(a, pr_draft=True)
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("GitLab: check 4 reads the draft state the CLI recorded: `recorded draft !201, the "
+              "forge says out of draft`",
+              "check 4: recorded draft !201, the forge says out of draft" in out, str(out))
+        edit_cr(a, pr_draft=None)
         forge_mrs([a, b, new, r], extra=dict([("999", {**foreign["999"], "target_branch": branch(r)})]))
         code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
         check("GitLab: an open MR targeting the release's branch: `check 5` naming it, exit 2",
@@ -4513,7 +4521,13 @@ def forge_stack_cli(w: World) -> None:
                      {"number": 100, "open": True, "pull_requests": full}], drafts=[])
         code, out = w.chantier("forge-stack", "show", env=on_path)
         check("`forge-stack show` without --stack prefers the open stack over a closed one that "
-              "overlaps the batch's PRs", code == 0 and "stack #100 ready" in out[0], str(out))
+              "overlaps the batch's PRs", code == 0 and "stack #100 ready to merge:" in out[0], str(out))
+        edit_cr(a, pr_draft=True)
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("check 4 reads the draft state the CLI recorded: `recorded draft #201, the forge says "
+              "out of draft`",
+              "check 4: recorded draft #201, the forge says out of draft" in out, str(out))
+        edit_cr(a, pr_draft=None)
         # 7. a dropped CR's PR still in the forge's stack is named apart from a foreign one
         kept = gh_state()
         stack_on_forge([*full, 999])
@@ -4808,7 +4822,7 @@ def release(w: World) -> None:
     w.ready(work, w.cr(work)["pr"])
     fm.turn()
     check("an ordinary ready CR goes to the user, never to a merge",
-          fm.asked[-1].startswith(f"ready {work} "), str(fm.asked))
+          fm.asked[-1].startswith(f"ready-to-merge {work} "), str(fm.asked))
     w.chantier("order", "merged", work)
     fm.turn()
     check("once the other CR is merged, the release is taken at once (no confirmation), with "
@@ -5724,6 +5738,189 @@ def icon_is(w: World, cr: str, icon: str, what: str) -> dict:
     return own
 
 
+def ready_words(w: World) -> None:
+    note("\n## 13b. Ready locally, PR in draft, ready to merge: a ready CR reads its state")
+
+    def edit_cr(cr: str, drop: tuple[str, ...] = (), **fields: object) -> None:
+        d = w.batch()
+        c = next(x for x in d["crs"] if x["id"] == cr)
+        c.update(fields)
+        for key in drop:
+            c.pop(key, None)
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    def ready_of(cr: str) -> str | None:
+        return drawn(w, cr)[1].get("readiness")
+
+    def batch_readiness(cr: str) -> str | None:
+        board = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
+        return next(r.get("readiness") for r in board["crs"] if r["cr"] == cr)
+
+    def row(cr: str) -> str:
+        return next(ln for ln in w.chantier("status")[1] if ln.startswith(cr + " "))
+
+    # a stack: a out of draft, b in draft, c out of draft above a draft
+    w.reset()
+    a_item, b_item, c_item = (prepare_cr(w, t)[1] for t in ("Words a", "Words b", "Words c"))
+    w.start(str(a_item), str(b_item), str(c_item), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_words", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    fm.turn()
+    w.chantier("stack", a, b, c)
+    for i, cr in enumerate((a, b, c)):
+        driver_round(w, cr, f"words{i}.py", f"N = {i}\n")
+    _, out = w.chantier("ship", b, w.cr(b)["pr"], "--draft")
+    check("1. `ship --draft` records the PR as a draft and says so; `ship` alone records it out of draft",
+          "draft)" in out[0] and "out of draft" not in out[0] and w.cr(b)["pr_draft"] is True
+          and w.cr(a)["pr_draft"] is False and w.cr(c)["pr_draft"] is False,
+          f"{out} {[x.get('pr_draft') for x in w.batch()['crs']]}")
+
+    _, out = w.ready(a, w.cr(a)["pr"])
+    check("2. a CR out of draft at the bottom is handed back `ready to merge`, in the line to the "
+          "Foreman and in the state's own line",
+          out[0].startswith(f"[driver {a}→foreman] hand-back ready to merge")
+          and out[1].startswith(f"{a} ready to merge"), str(out))
+    icon_is(w, a, "🟢", "a ready CR out of draft at the bottom")
+    check("2. its STATUS files and `status` read `ready to merge`",
+          ready_of(a) == "ready to merge" == batch_readiness(a) and "ready to merge" in row(a)
+          and "ready to merge" in w.chantier("handoff", a)[1][0], row(a))
+    _, out = w.ready(b, w.cr(b)["pr"])
+    check("3. a PR in draft is handed back `PR in draft`, naming the base it waits on",
+          out[0].startswith(f"[driver {b}→foreman] hand-back PR in draft")
+          and out[1].startswith(f"{b} PR in draft: it waits on {w.cr(a)['branch']}"), str(out))
+    own = icon_is(w, b, "🟤", "a ready CR whose PR is a draft")
+    check("3. its label and `readiness` read `PR in draft`, held by the CR it sits on",
+          own["readiness"] == "PR in draft" == batch_readiness(b)
+          and f"PR in draft, waits for {a}" in own["label"], str(own))
+    _, out = w.ready(c, w.cr(c)["pr"])
+    check("4. a PR out of draft over a draft reads `PR in draft` too, and waits for the CR under it",
+          out[0].startswith(f"[driver {c}→foreman] hand-back PR in draft")
+          and f"waits for {b}" in drawn(w, c)[1]["label"], str(out))
+    icon_is(w, c, "🟤", "a PR out of draft over a draft")
+    check("4. `status` and the `stack` rows read the same word",
+          "PR in draft" in row(c) and any(ln.startswith(f"{c} PR in draft worktree")
+                                          for ln in w.chantier("stack")[1]), row(c))
+
+    kept = {n: (w.folder() / n).read_bytes() for n in ("batch.json", "events.jsonl")}
+    code, _ = w.chantier("stack", "--out-of-draft", c, expect=2)
+    check("5. `stack --out-of-draft` over a draft is refused, naming it; nothing is written",
+          code == 2 and f"under it is a draft: {b}" in w.last_stderr
+          and all((w.folder() / n).read_bytes() == v for n, v in kept.items()), w.last_stderr)
+    code, out = w.chantier("stack", "--out-of-draft", a, b, c)
+    check("5. `stack --out-of-draft a b c` records the three and each reads `ready to merge`",
+          code == 0 and out == [f"{x} ready to merge" for x in (a, b, c)]
+          and all(w.cr(x)["pr_draft"] is False for x in (a, b, c))
+          and all(ready_of(x) == "ready to merge" for x in (a, b, c)), str(out))
+    for x in (a, b, c):
+        icon_is(w, x, "🟢", "a stack ready to merge")
+    code, _ = w.chantier("stack", "--out-of-draft", "--draft", a, expect=1)
+    check("5. `--out-of-draft` and `--draft` together are refused",
+          code == 1 and "not both" in w.last_stderr, w.last_stderr)
+
+    check("6. a CR taken back for a round: the PR above it falls back to `PR in draft`",
+          fm.take(b, "round: a change") == 0 and w.cr(b)["status"] == "working", str(w.cr(b)))
+    icon_is(w, c, "🟤", "the CR above a CR taken back")
+    check("6. `readiness` of the CR above follows, and it waits for the CR taken back",
+          ready_of(c) == "PR in draft" and ready_of(a) == "ready to merge"
+          and f"waits for {b}" in drawn(w, c)[1]["label"], str(drawn(w, c)[1]))
+    code, _ = w.chantier("stack", "--out-of-draft", b, expect=2)
+    check("6. `--out-of-draft` on a CR that is working is refused: only a CR handed back ready",
+          code == 2 and "only a CR handed back ready" in w.last_stderr, w.last_stderr)
+    driver_round(w, b, "words1.py", "N = 11\n")
+    w.ready(b, w.cr(b)["pr"])
+    w.chantier("stack", "--draft", c)
+    check("7. `stack --draft` records a PR turned back to a draft; the CR reads `PR in draft`",
+          w.cr(c)["pr_draft"] is True and ready_of(c) == "PR in draft"
+          and ready_of(b) == "ready to merge", str(w.cr(c)))
+    w.chantier("stack", "--out-of-draft", c)
+
+    # an old record, a hand-edited record
+    edit_cr(c, drop=("pr_draft",))
+    w.chantier("note", c, "record edited by hand")  # any write draws the STATUS files again
+    check("8. an old record with no draft state reads `PR in draft`, never ahead of the forge",
+          ready_of(c) == "PR in draft" and "🟤" in drawn(w, c)[1]["label"], str(drawn(w, c)[1]))
+    edit_cr(c, pr_draft=False)
+    edit_cr(a, drop=("pr",))
+    w.chantier("note", a, "record edited by hand")
+    own = icon_is(w, a, "🟣", "a ready CR with no PR recorded")
+    check("8. a hand-edited ready CR with no `pr` reads `ready locally`",
+          own["readiness"] == "ready locally" and "ready locally" in own["label"]
+          and "ready locally" in row(a), str(own))
+    edit_cr(a, pr=OPENED[a])
+
+    stray = [str(p.relative_to(w.state)) for p in w.state.rglob("STATUS.*")
+             if "\U0001f535" in p.read_text(encoding="utf-8")]
+    check("no STATUS file draws the retired blue icon", stray == [], str(stray))
+
+    # a release prepared on the stack's top CR reads its state like any CR
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Words top", "Words release")]
+    w.start(*map(str, items), "--mode", "stack", "--release", 2, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_words2", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    top, rel = (x["id"] for x in w.batch()["crs"])
+    fm.turn()
+    driver_round(w, top, "words_top.py", "N = 1\n")
+    w.ready(top, w.cr(top)["pr"])
+    w.chantier("stack", top, rel)
+    on_branch(w, rel, w.cr(top)["branch"])
+    check("9. the release is taken", fm.take(rel) == 0, str(fm.facts))
+    w.chantier("order", "approve", rel, "--note", "tag v1.9.0")
+    w.chantier("release", "start", rel)
+    commit(w, rel, "VERSION", "1.9.0\n", "release: v1.9.0")
+    w.chantier("gate", rel, GATE)
+    wt = Path(w.cr(rel)["worktree"])
+    w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", w.cr(rel)["branch"], cwd=wt)
+    (w.at(w.cr(rel)["path"]) / "work").mkdir(exist_ok=True)
+    (w.at(w.cr(rel)["path"]) / "work" / "pr-body.md").write_text(
+        BODY.format(title=w.cr(rel)["title"], cr=rel))
+    pr = open_pr(w, rel, "release: v1.9.0", base=w.cr(top)["branch"])
+    w.chantier("ship", rel, pr, "--draft")
+    _, out = w.chantier("handback", rel, "ready", f"{pr} waits for the merge")
+    check("9. a prepared release whose PR is a draft is handed back `PR in draft`, naming the PR "
+          "and what it waits on",
+          out[0].startswith(f"[driver {rel}→foreman] hand-back PR in draft")
+          and f"the release PR {pr} waits on {w.cr(top)['branch']}" in out[1], str(out))
+    icon_is(w, rel, "🟤", "a prepared release whose PR is a draft")
+    w.chantier("stack", "--out-of-draft", top, rel)
+    _, out = w.chantier("handoff", rel)
+    check("9. out of draft with the CR under it, the prepared release reads `ready to merge`",
+          ready_of(rel) == "ready to merge" and "ready to merge" in out[0], str(out))
+    icon_is(w, rel, "🟢", "a prepared release out of draft")
+
+    # a parallel batch: a CR on another CR's branch is a PR in draft until that CR is merged
+    w.reset()
+    w.env.pop("CHANTIER_BATCH", None)
+    base_, next_ = prepare_cr(w, "Words base")[1], prepare_cr(w, "Words next")[1]
+    depends_on(next_, base_.name)
+    w.start(str(base_), str(next_), "--slots", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    p, q = (x["id"] for x in w.batch()["crs"])
+    w.chantier("take", p)
+    start_driver(w, p)
+    driver_round(w, p, "words_p.py", "P = 1\n")
+    w.ready(p, w.cr(p)["pr"])
+    icon_is(w, p, "🟢", "a parallel CR on the default branch, out of draft")
+    w.chantier("take", q)
+    start_driver(w, q)
+    driver_round(w, q, "words_q.py", "Q = 1\n")
+    _, out = w.ready(q, w.cr(q)["pr"])
+    check("10. a CR on an open CR's branch, shipped out of draft, is still `PR in draft`: its base "
+          "is not the default branch",
+          out[0].startswith(f"[driver {q}→foreman] hand-back PR in draft")
+          and f"waits for {p}" in drawn(w, q)[1]["label"], str(out))
+    icon_is(w, q, "🟤", "a CR on an open CR's branch")
+    w.chantier("order", "merged", p)
+    check("10. once the CR under it is merged, it reads `ready to merge`",
+          ready_of(q) == "ready to merge" and "ready to merge" in w.chantier("handoff", q)[1][0],
+          str(drawn(w, q)[1]))
+    icon_is(w, q, "🟢", "that CR once its base merged")
+    w.env.pop("CHANTIER_BATCH", None)
+
+
 def dependencies(w: World) -> None:
     note("\n## 14d. A CR declares what it depends on; a slot is a running Driver")
     one, two = prepare_cr(w, "Cycle one")[1], prepare_cr(w, "Cycle two")[1]
@@ -5894,7 +6091,7 @@ def release_merge_on_approval(w: World) -> None:
     w.chantier("handback", rel, "ready", pr)
     fm.turn()
     check("without a grant, the prepared release PR goes to the user, never to a merge",
-          fm.asked[-1] == f"ready {rel} {pr}" and w.cr(rel)["status"] == "ready", str(fm.asked))
+          fm.asked[-1] == f"ready-to-merge {rel} {pr}" and w.cr(rel)["status"] == "ready", str(fm.asked))
     drivers = len(fm.started)
     w.chantier("order", "approve", rel, "--note", f"merge the release PR {pr}")
     for o in w.batch()["orders"]:
@@ -5954,7 +6151,7 @@ def lost_messages(w: World) -> None:
     driver_round(w, one, "lost.py", f"WHO = '{one}'\n")
     w.ready(one, w.cr(one)["pr"])
     fm.turn()
-    check("a ready CR is told", fm.asked[-1].startswith(f"ready {one} "))
+    check("a ready CR is told", fm.asked[-1].startswith(f"ready-to-merge {one} "))
     driver_round(w, two, "lost.py", f"WHO = '{two}'\n")
     w.sh("git", "push", "--quiet", "origin", f"{w.cr(one)['branch']}:main")  # the user merges
     _, out = w.ready(two, w.cr(two)["pr"])
@@ -5977,7 +6174,7 @@ def lost_messages(w: World) -> None:
                        out[0]), str(out))
     _, out = w.chantier("asks")
     check("`asks` gives every ask still unread, sent or not",
-          out[0].startswith(f"A-1: ready {one} ")
+          out[0].startswith(f"A-1: ready-to-merge {one} ")
           and out[-1].endswith(f"refused {one} the host said no"), str(out))
     first_id = out[0].split(":")[0]
     _, out = w.chantier("asks", "--read", first_id)

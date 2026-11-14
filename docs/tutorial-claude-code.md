@@ -169,7 +169,7 @@ answer is recorded in the CR's `02-answers.md` and the work resumes.
 
 ## 7. Review and merge
 
-When a CR is ready, the Chief of Staff gives you its pull request. Each PR was built in rounds
+When a CR is ready to merge, the Chief of Staff gives you its pull request (a PR in draft waits for what is under it: do not merge it). Each PR was built in rounds
 (Coder, then a fresh Inspector), passed the long gate and CI, and was checked at its pushed head
 by a Verifier that did not write it; the Driver committed, rebased, pushed and opened it by your
 project's rules; its description follows the default PR template shipped in the skill, unless

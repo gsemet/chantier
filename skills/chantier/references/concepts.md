@@ -6,15 +6,27 @@ started.
 ## Words
 
 - **Pull request (PR):** a merge request on GitLab.
-- **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch,
-  in every mode: the user may merge it on its own at any moment, a stack batch is no exception.
+- **Ready (the status):** the CR's stored status `ready` in `batch.json`: its Driver handed it back
+  (`handback <cr> ready <link>`). It is a token the rails and old records read; the CLI derives
+  from it the three words below, and no person reads `ready` alone.
+- **Ready to merge** (🟢): a CR handed back `ready` whose PR is out of draft on the forge (the CLI
+  records it: `ship` without `--draft`, `stack --out-of-draft`, never ahead of the forge) and, in a
+  stack batch, with every CR under it ready to merge too; outside a stack its PR's base is the
+  default branch. The user may merge it on its own at any moment, a stack batch is no exception;
+  the top of a stack ready to merge means the whole stack is mergeable. "Mergeable" names only PRs
+  ready to merge, never a draft, whatever the forge's `mergeable` field says.
   In a stack batch, a PR of the mergeable part of a verified stack (the five checks of **Stack**,
   below) is a second way: the user merges it with those under it, in one action from its top PR,
   or its PRs one at a time from the bottom, the user's choice made merge by merge, never fixed at
   the go (one action from the top is GitHub's; on GitLab, one MR at a time from the bottom); a
   draft on top is not mergeable. A PR of the mergeable part below the top had heavy CI
-  only at the top, unless the user asked for it at its head. Any other CR's
-  PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
+  only at the top, unless the user asked for it at its head.
+- **PR in draft** (🟤): a CR handed back `ready` whose PR is open and a draft; it waits for what is
+  under it (a CR below, its dependency, the release's top) or for its turn out of draft, and
+  nobody merges it (do not merge). **Ready locally** (🟣): a CR handed back `ready` with no PR yet
+  (rare: `handback ready` needs a PR). A draft's icon is its CR's state, never "draft" by
+  default: 🟡 while it rebases or runs a gate, 🟠 waiting for another CR's work, 🔴 blocked.
+  Any other CR's PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
   changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
   merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
   in a series, after the rest, from the bottom up); the steering session merges it only under the
@@ -126,7 +138,7 @@ started.
   its PR is on the default branch; a CR with a dependency starts only once that dependency is
   `ready` (`take` refuses it until then), on the branch of its last dependency still open, else on
   the default branch (see **Dependencies**), and its PR stays a draft on that branch until the
-  dependency merges; the first one ready wins, and the user merges in the order things become ready unless
+  dependency merges; the first one ready to merge wins, and the user merges in the order things become ready to merge unless
   told otherwise; after each merge, every PR still open is rebased onto the default branch and
   its checks run again. **Series**: the CRs have a precise order, the one given to `open` (`order
   add` puts a CR on top); the next CR starts once the previous one is `ready`, from the previous
@@ -137,33 +149,33 @@ started.
   dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
   open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
-  and the start base for any other). As soon as two PRs are ready the stack driver makes the native
+  and the start base for any other). As soon as two PRs are handed back ready the stack driver makes the native
   stack on the forge (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
   declined the extension); each further CR joins on top as a draft when it has its PR
-  (`$CHANTIER forge-stack rebuild`: unstack, then create); the ready PRs come first in readiness
+  (`$CHANTIER forge-stack rebuild`: unstack, then create); the PRs ready to merge come first in readiness
   order, a CR always above its dependencies; the user merges the mergeable part at any time, in
   one action from its top PR or one PR at a time from the bottom, the release commit last. On
   GitHub, a chain of PRs based on each other is not a stack. On GitHub a stack is the forge's
   native stacked-PR stack; on GitLab, which has none, it is the chain of MRs `forge-stack` makes
-  and checks, each targeting the one below, the first on the default branch, ready MRs below and
+  and checks, each targeting the one below, the first on the default branch, MRs ready to merge below and
   drafts on top, merged one MR at a time from the bottom (a middle MR merged folds into the one
   below it); unproved on GitLab. Merging a PR of the mergeable part "with those under it" in one
   action is GitHub's; on GitLab the MRs under it are merged first, one at a time from the bottom.
   **Stack as it stands:** the
   bottom CRs of the stack with a PR, whatever their status. **Mergeable part:** those of it from
-  the bottom while each CR is `ready` and its PR not a draft; its commit is the head of its highest
-  PR. **Drafts on top:** the PRs of the stack above the mergeable part. **To come:** the open CRs
-  of the stack with no PR yet. **Stack ready** means five checks hold on the forge
+  the bottom while each CR is ready to merge; its commit is the head of its highest
+  PR. **Drafts on top:** the CRs above it (PR in draft, or not ready). **To come:** the open CRs
+  of the stack with no PR yet. **Stack ready to merge** means five checks hold on the forge
   (`$CHANTIER forge-stack show` prints the failing ones): the stack is open; it holds every PR of
-  the stack as it stands, and no other; in the record's order, bottom first; no PR of a ready CR
-  is a draft and every draft sits above the ready PRs; the release PR, when it is in the stack, is
+  the stack as it stands, and no other; in the record's order, bottom first; no PR of a CR ready to merge
+  is a draft and every draft sits above the PRs ready to merge; the release PR, when it is in the stack, is
   on top; the five checks are read on both forges.
-  **Inserting a change into a ready stack:** before anything else every PR that will sit above the
+  **Inserting a change into a stack ready to merge:** before anything else every PR that will sit above the
   new one goes back to draft; then the new CR's PR is inserted at its place, the PRs above are
   restacked on it, the stack is rebuilt on the forge (`$CHANTIER forge-stack rebuild`) and
   verified, and only then the PRs above turn ready again; the release PR stays on top and its
   notes name the new change (the steps are the stack driver's, in [driver](driver.md)). A CR in
-  the middle of a ready stack that goes back for a new round puts the PRs above it to draft first,
+  the middle of a stack ready to merge that goes back for a new round puts the PRs above it to draft first,
   the same way. **A CR dropped from the stack** is removed: the PRs above go to draft first, its
   commits come out of the branches above (by the stack driver, or by the Driver of a working CR),
   its PR is closed and its branch kept, the stack is rebuilt without it and judged again where it
@@ -171,7 +183,7 @@ started.
   only by a dependency: a real one (`depends.json`) or a chain the Foreman decided, or the plan
   proposed and the user's go approved (`order after`). A fix CR sits outside a series and a stack,
   on the default branch. A release CR is
-  their top: it starts on the top CR's branch once every other CR is ready and the top branch
+  their top: it starts on the top CR's branch once every other CR is handed back ready and the top branch
   holds them all, and its PR is the top PR. When a stack merges only in part, what remains forms another stack in the same batch, restacked on
   the default branch, silently, and it goes on growing (one restack for one merge action of the user, none when the whole stack merged). Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
@@ -226,7 +238,7 @@ started.
   result of another: CRs that touch the same file do not depend on each other.
 - **Release CR:** a CR of its batch that releases the batch's work by the project's own
   procedure. It waits for every other CR (its `after`, which the CLI writes, the CRs added later
-  too). In an ordered batch a Release driver prepares it on top, once the others are ready and
+  too). In an ordered batch a Release driver prepares it on top, once the others are handed back ready and
   stacked, and its PR is the top PR; in a parallel batch, after the merges. There is no version
   confirmation: the version is the specification's, else the Driver's choice, with its reason.
   In every mode the merge of the release PR is the go for the rest of the procedure (with no

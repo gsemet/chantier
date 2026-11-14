@@ -29,7 +29,7 @@ others go on. Past the budget, nothing new starts until you answer. In the morni
 > "These three do not depend on each other: run them."
 
 Parallel is the default: no flag, no word. Every CR starts from the default branch at once and its
-PR is on the default branch. The first one ready wins: you merge in the order things become ready,
+PR is on the default branch. The first one ready to merge wins: you merge in the order things become ready to merge,
 unless you say otherwise. After each merge you report, every PR still open is rebased onto the
 default branch and its checks run again, conflict or not. When two CRs edit the same lines, the
 plan may propose that one waits for the other, with its reason; you approve or refuse it at the
@@ -40,7 +40,7 @@ go.
 > "Build a stack of these three."
 
 Asked for, `open --mode stack`. The CRs run in parallel, each PR based on the default branch. The
-stack comes after: when every CR is ready, a stack driver orders the stack, rebases and pushes each
+stack comes after: when every CR is handed back ready, a stack driver orders the stack, rebases and pushes each
 PR on the one below it, and heavy CI runs once at the top. It then makes one native stack on the
 forge (GitHub: the `gh stack` extension, which chantier recommends, else a chantier command over the
 REST API), reads it back, and you merge it in one action from the top PR or one PR at a time from the bottom, as you choose. A CR
@@ -48,15 +48,15 @@ stands on another before that only by a dependency or a chain the Foreman decide
 turn off while the CR is queued. After a partial merge you report, it restacks the rest on the default
 branch.
 
-## Insert a change into a ready stack
+## Insert a change into a stack ready to merge
 
 > "Add this change to the stack, below the release."
 
 The Chief of Staff first puts back to draft every PR that will sit above the new one, so the stack
 cannot be merged while it changes, then adds the CR. Its PR is inserted at the place you named, the
 PRs above are restacked on it, the stack is updated on the forge and read back, and only then do the
-PRs above turn ready again. The release PR stays on top and its notes are redone to name the change.
-The stack is not mergeable until the Foreman reports it ready again.
+PRs above turn ready to merge again. The release PR stays on top and its notes are redone to name the change.
+The stack is not mergeable until the Foreman reports it ready to merge again.
 
 ## Build a series of pull requests
 
@@ -65,8 +65,8 @@ The stack is not mergeable until the Foreman reports it ready again.
 Asked for, `open --mode series`: the CRs have a precise order, the one you gave. Only the first
 starts. The next starts once the previous one is handed back ready, from the previous CR's pushed
 branch, and its PR is a draft. The Chief of Staff tells you which PR to merge next, the bottom one,
-ready on the default branch; the others are drafts waiting on it. After you say it is merged, the
-next one is rebased onto the default branch and turns ready; if the previous one changes during
+ready to merge on the default branch; the others are PRs in draft waiting on it (do not merge). After you say it is merged, the
+next one is rebased onto the default branch and turns ready to merge; if the previous one changes during
 review, the next is rebased on it. You can switch at any time:
 
 > "Switch to a stack."
@@ -84,8 +84,8 @@ to date.
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Hold." · "Resume." | slots 0: no new CR starts (a hold); a number resumes |
 | "Switch to a stack." | a series becomes a stack at once (`order mode --note stack`): every CR left starts, each on the previous one |
-| "Insert this change into the stack, below the release." | the PRs above it go back to draft at once, the CR joins and is ordered there; the stack is not mergeable until the Foreman reports it ready again, and the release notes name the change |
-| "I merged #42." | the CR moves to `3-done`; a ready PR that stops merging goes back to a Driver, which rebases it |
+| "Insert this change into the stack, below the release." | the PRs above it go back to draft at once, the CR joins and is ordered there; the stack is not mergeable until the Foreman reports it ready to merge again, and the release notes name the change |
+| "I merged #42." | the CR moves to `3-done`; a PR ready to merge that stops merging goes back to a Driver, which rebases it |
 
 Every order goes to the Foreman with an id, and `status` shows it until it is done; an order read
 twice runs once. `status` keeps two lines: `orders pending` for the orders nothing has touched yet
@@ -125,7 +125,7 @@ in the inbox: an ordinary item you triage, which holds no CR back. It takes a sl
 ## Make a release
 
 Say "release v1.4.0" along with the work, best in a stack batch. The release is a CR of the batch:
-it waits for every other CR, starts once they are all ready, and its PR is the top of the stack.
+it waits for every other CR, starts once they are all handed back ready, and its PR is the top of the stack.
 You review the work and the release together, and merge the stack in one action from the top PR or one PR at a time from the bottom; the release PR is
 last, and your merge starts your release procedure. In a parallel batch no branch holds all
 the work before the merges, so the release is prepared after them, and your merge of its PR is the
@@ -151,7 +151,7 @@ attempts, you can allow more up front, always within a budget:
 | You say | What it allows |
 | --- | --- |
 | "up to 3 releases without asking, budget $20" | the Foreman merges the release PR for you, and the steps your procedure asks a go for go ahead, up to that number of releases |
-| "merge the fixes yourself" | the Foreman merges a release's ready fixes with `gh` or `glab`, by your project's method, if the forge gives it the rights |
+| "merge the fixes yourself" | the Foreman merges a release's fixes ready to merge with `gh` or `glab`, by your project's method, if the forge gives it the rights |
 
 The release's own PR is yours to merge, last. The Foreman merges it only under that grant, once
 every other CR of the batch is merged or cancelled; an approval never lets it.

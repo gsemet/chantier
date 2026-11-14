@@ -34,7 +34,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "run CI beside the gate", "CI earlier", "push before the gate" | `ci: beside_gate: true` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it; it counts from the next batch, and it spends CI minutes on every approved round | The project |
 | "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
-| a stack is ready, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
+| a stack is ready to merge, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
@@ -524,13 +524,13 @@ another: then the plan proposes a series or a stack, and says why. In a parallel
 as soon as a slot is free, and every open PR is rebased after each merge. Touching the same file is no reason to wait, and
 two CRs editing the same file do not depend on each other. Write `depends.json` in a CR's folder
 (`{"after": ["<slug>", …]}`, a slug being a folder's name without its number) only when it needs
-the result of another, merged or ready first, and say in the plan what it needs; `open` and
+the result of another, merged or handed back ready first, and say in the plan what it needs; `open` and
 `order add` read it and exit 2 on an unknown slug, a malformed file or a cycle. A CR without the
 file depends on nothing. Read the specifications of the CRs selected for a parallel batch for the
 same lines: a shared table, a template block, a list each one appends to. For such a pair, propose
 in the plan that the later one waits for the other, and say why: both edit those lines, so each
 merge of one would make the other rebase with a conflict anyway; waiting, it starts on the first
-one's work. Say the cost too: the waiting CR starts only once the other is ready, so it takes
+one's work. Say the cost too: the waiting CR starts only once the other is handed back ready, so it takes
 longer on the clock and a slot may stay free. A shared file alone is no reason. Small work whose
 rebase would cost more than waiting stays a reason too. The plan gives the reason for each CR
 queued this way, the user's go approves each wait, and the user may refuse it per CR: the CR then
@@ -676,15 +676,15 @@ Only in the turn where the user gave the go:
    the batch. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user may merge in one action from its top PR, or one PR at a time from
-   the bottom: the user may also merge each ready PR as it comes, before the stack is made, and
+   the bottom: the user may also merge each PR ready to merge as it comes, before the stack is made, and
    nothing about the merge path is fixed at the go nor recorded in `brief.md`. Say too that the stack
-   is made as soon as two PRs are ready, each further CR joins on top as a draft when it has its PR,
-   the user may merge the ready ones below at any time, and a new stack of what remains is made
+   is made as soon as two PRs are handed back ready, each further CR joins on top as a draft when it has its PR,
+   the user may merge the ones ready to merge below at any time, and a new stack of what remains is made
    silently after a merge. On a no, say that the stack
    will be made by `$CHANTIER forge-stack create` over the REST API, and record the choice in
    `brief.md` (step 3) so the Foreman passes it to the stack driver. On GitLab, say that the stack is
    made by `$CHANTIER forge-stack create` (the chain of MRs, each on the one below; no extension to
-   install, nothing to record in `brief.md`), at two ready MRs, growing the same way, and that the
+   install, nothing to record in `brief.md`), at two MRs handed back ready, growing the same way, and that the
    user will merge it one MR at a time from the bottom, a middle MR folding into the one below;
    unproved on GitLab (no real run yet). Re-read the seat first ([session-start](session-start.md)). The steering mode is
    **direct mode** (you steer the batch yourself, no Foreman session) or **Foreman mode** (a
@@ -811,7 +811,7 @@ prints none.
   --no-gate`) does not count.
 - **The two terms, and the floor.** The **lock term** is the gates times the long gate's time.
   The **chain term** is the depth times (the long gate's time plus one CI run's time), since a
-  level cannot start before the one under it is ready. The floor is the larger of the two; the
+  level cannot start before the one under it is handed back ready. The floor is the larger of the two; the
   line says which one it is.
 - **The long gate's time: from the record only.** The latest passed runs of the gate in this
   project: in the batch's `events.jsonl`, the `gate` events of one `run` share that id; the run
@@ -908,44 +908,64 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `open`. Your next report says the chain and its reason (`status-layout.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
-- **A plain `ready <cr> <link> gaps: …` ask:** when you tell the user the PR is ready, quote each
+- **The words to the user** (the CLI's, in the user's language): "ready to merge" / "prête à
+  merger" only for a PR the user can merge now; "PR in draft" / "PR en draft" for a draft, with
+  what it waits for; "ready locally" / "prête localement" for done work with no PR yet. "Ready" /
+  "prête" alone is never said of a CR or a PR, and "mergeable" never of a draft, whatever the
+  forge's `mergeable` field says. An icon you write beside a CR is copied from `label` (🟢 ready to
+  merge, 🟤 PR in draft, 🟣 ready locally), never judged.
+- **The icon is the present:** the icon beside a PR or a CR is its state at the time of writing,
+  never the state it is expected to reach; the future is said in words. Wrong: "the next PR ready
+  to merge will be 🟢 #171 CR-237" while #171 is a draft. Right: "🟤 #171 CR-237, do not merge: it
+  waits for its gate; it will be the next ready to merge". A draft's icon is its CR's state from
+  the refreshed `STATUS.md`: 🟤 only when the CR has nothing left to do; a draft whose CR is
+  rebasing or running CI or a Verifier is 🟡, one waiting for another CR's work (not its merge) 🟠,
+  a blocked one 🔴.
+- **A draft says "do not merge":** every PR in draft you name to the user carries, in the user's
+  language, "do not merge" / "ne pas merger" and what blocks it: "🟤 #174 CR-222: ne pas merger,
+  base = branche de CR-237". A PR in draft based on another CR's branch is never called "prête",
+  even of its own work: merging it lands it in that branch, not in the default branch.
+- **"You can merge it"** / "tu peux la merger": only for a PR ready to merge (🟢: out of draft, CI
+  green, no conflict, on the default branch or with everything under it ready to merge).
+- **A plain `ready-to-merge <cr> <link> gaps: …` ask (or `pr-in-draft <cr> <link> on <base>: waits
+  for <what> gaps: …`):** when you tell the user the PR is ready to merge, quote each
   gap of the ask next to the PR's link, in the user's language; with none, say nothing about
   gaps. Where the project's rules ask for a screenshot of the board pane for a change to it and
   the gaps name it as missing, ask the user for one screenshot of the pane from a session
   running the PR's branch. On the user's file, `order note <cr> --note "evidence: <path of the
   image>"`: the Foreman turns it into `take <cr> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
-  ready again. In every mode, a `ready` ask whose PR is on the default branch is offered to the
-  user as mergeable now, on its own, with its gaps as above; a `ready … draft on <base>: waits for
-  <cr>` ask is not: say what it waits for. Say "you can merge" (or any equivalent) about a PR only
-  after its `ready` line (or the `stack-ready` line for a stack) has reached you, never on a
+  ready again. In every mode, a `ready-to-merge` ask is offered to the
+  user as mergeable now, on its own, with its gaps as above; a `pr-in-draft … on <base>: waits for
+  <cr>` ask is not: say it is a PR in draft, do not merge, and what it waits for. Say "you can merge" (or any equivalent) about a PR only
+  after its `ready-to-merge` line (or the `stack-ready-to-merge` line for a stack) has reached you, never on a
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
-  its `ready` line, record it as any merge (`order merged <cr>`: the user's merge is a fact) and
+  its `ready-to-merge` line, record it as any merge (`order merged <cr>`: the user's merge is a fact) and
   tell the Foreman in the same message; no reproach, no question.
-- **A series batch:** the CRs merge one by one, in order. On each `ready` ask, tell the user which
-  PR is next to merge (the bottom one, ready on the default branch) and that the others are drafts
+- **A series batch:** the CRs merge one by one, in order. On each `ready-to-merge` ask, tell the user which
+  PR is next to merge (the bottom one, ready to merge on the default branch) and that the others are drafts
   waiting on it; quote each gap of the ask as above; when the user says it is merged,
   `order merged <cr>`, then say what comes next. The user may merge the bottom PR as soon as it
-  is ready, which is what the series already does; nothing waits for a "go" of the user to merge.
+  is ready to merge, which is what the series already does; nothing waits for a "go" of the user to merge.
   Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
   --note stack`.
 - **A stack batch:** the one-action stack merge is not the only path. Before the stack is made on
-  the forge, each CR handed back `ready` on the default branch is an ordinary `ready` ask, offered
+  the forge, each CR handed back `ready` on the default branch is an ordinary `ready-to-merge` ask, offered
   as mergeable now (the bullet above); a CR above it, a draft on another CR's branch, waits. On a
-  `stack-ready <stack link> … <cr>=<link>…` ask (with or without `to come: …`), read the stack on
+  `stack-ready-to-merge <stack link> … <cr>=<link>…` ask (with or without `to come: …`), read the stack on
   the forge yourself before you tell the user: the five checks of the stack ([foreman](foreman.md),
   "The five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold).
-  All hold: with `to come: …`, tell the user the stack is mergeable up to its last ready PR (in one
+  All hold: with `to come: …`, tell the user the stack is mergeable up to its last PR ready to merge (in one
   action from that PR, or one PR at a time from the bottom, per the paragraph above), the drafts on
   top and the CRs still to come named (number and slug), and that the top goes on while they
-  merge: it grows silently, and its state is in each report. The `stack-ready` with no `to come:`
+  merge: it grows silently, and its state is in each report. The `stack-ready-to-merge` with no `to come:`
   says the stack is complete: it can be merged in one action from its top PR (the link), or one PR
   at a time from the bottom, as they like, with the release commit last, quoting each CR's gaps of
   the ask in the user's language (none: say nothing about gaps). Both name the commit, in the
   user's language ("partial stack mergeable below <sha7>", "stack partielle mergeable en dessous
-  du commit <sha7>"). A CR of the stack that turns ready reaches the user through the next
+  du commit <sha7>"). A CR of the stack that turns ready to merge reaches the user through the next
   report's partial-stack line, never as an ask; its gaps are quoted with the complete
-  `stack-ready`. After each merge action of the user (one PR or several), record `order
+  `stack-ready-to-merge`. After each merge action of the user (one PR or several), record `order
   merged` for every CR it merged, bottom first, all before telling the Foreman, in one message
   (one action leads to
   one restack at most, silently: no ask follows it, and none when the whole stack merged; the release CR's merge starts the
@@ -968,9 +988,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   again at the next report; only the bottom MR (on the default branch) can join the train, the next
   once it is retargeted after that merge (unproved; trial: one run on a GitLab project with merge
   trains). A check
-  that fails: no "ready" to the user; send it back through the Foreman. The user always merges a
+  that fails: no "ready to merge" to the user; send it back through the Foreman. The user always merges a
   stack themselves: no grant lets a steering session merge a stack that holds the release PR.
-  When you tell the user about a `stack-ready` ask (partial or complete), add one clause in their
+  When you tell the user about a `stack-ready-to-merge` ask (partial or complete), add one clause in their
   language: heavy CI ran at the top PR's head only; merging a PR below it without heavy CI at its
   own head is their choice; heavy CI can be run on that head if they ask (the partial-stack line of
   a report does not repeat it). A merge in the middle is recorded as above, never questioned or
@@ -980,14 +1000,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **Dropping a CR from a stack:** on the user's word, `order drop <cr>` as today (the Foreman then
   removes it from the stack with `take stack --note "drop: <cr>"`), then tell the
   user that the CR's commits come out of the PRs above it, its PR is closed, its branch stays until
-  `close`, and the PRs above it are drafts, not mergeable, until the next report's partial-stack
-  line shows them mergeable again. Nothing more is asked of the user.
-- **Inserting a CR into a ready stack:** on the user's word, first and at once put to draft every
+  `close`, and the PRs above it are PRs in draft (do not merge) until the next report's partial-stack
+  line shows them ready to merge again. Nothing more is asked of the user.
+- **Inserting a CR into a stack ready to merge:** on the user's word, first and at once put to draft every
   PR that will sit above the new one (`gh pr ready --undo`, `glab mr update --draft`): the stack
-  is changing under them. A CR in the middle of a ready stack that goes back to its Driver for a
+  is changing under them. A CR in the middle of a stack ready to merge that goes back to its Driver for a
   new round gets the same: every PR above it goes to draft first. Then `order add --note
   <folder>` and an `order note` naming the place (`insert: <new cr> below <cr>`). Tell the user
-  that the stack is not mergeable until the Foreman's next `stack-ready`, and that the release
+  that the stack is not mergeable until the Foreman's next `stack-ready-to-merge`, and that the release
   notes will name the change (the release CR, once started, goes back to `redo:` and updates its
   notes). The steps are the stack driver's ([driver](driver.md), "Stack driver").
 - **A refused force push:** on `[foreman→chief-of-staff] push <branch> <expected remote sha>
@@ -1050,7 +1070,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   1. **First use:** the first-turn introduction ([session-start](session-start.md)) or the end of
      the `init` tour.
   2. **After a status:** a Progress report given on "status?" or `/chantier:status`, or a report on
-     a CR ready or merged.
+     a CR ready to merge or merged.
   3. **End of a batch:** the Completion report at the pause, or the bilan of `close`.
   4. **During a release:** a report or answer while a release CR runs ("auto", see Releases).
 
@@ -1239,16 +1259,16 @@ these differences.
   hand-back. "Never message a Driver" does not hold for the Drivers of a batch you steer. Start a
   QA driver as the Foreman's card says and record its agent id with `agents set O-<k> <id> --epoch
   <n>`.
-- **A stack batch.** The Foreman's check of the five checks of a ready stack
+- **A stack batch.** The Foreman's check of the five checks of a stack ready to merge
   ([foreman](foreman.md), "The five checks") is yours; one check, read on the forge
-  (`$CHANTIER forge-stack show`), is enough before you tell the user the stack is ready. Inserting
-  a CR into a ready stack is as in "Inserting a CR into a ready stack", the stack driver and the
+  (`$CHANTIER forge-stack show`), is enough before you tell the user the stack is ready to merge. Inserting
+  a CR into a stack ready to merge is as in "Inserting a CR into a stack ready to merge", the stack driver and the
   release redone by you.
-- **A dependent draft PR.** The Foreman's rule after an `order merged` (a ready draft waiting
+- **A dependent draft PR.** The Foreman's rule after an `order merged` (a draft handed back ready, waiting
   for that dependency goes back to a Driver with `rebase: <dependency> merged`) applies to you.
 - **A note that carries work to a Driver.** The Foreman's rule applies to you: just before you
   send one (a `rebase:` first of all), read a plain `$CHANTIER status` and choose from the state
-  it shows now: `ready` or `blocked`, `take <cr> --note` and the take-back path; `working`, the
+  it shows now: handed back `ready` or `blocked`, `take <cr> --note` and the take-back path; `working`, the
   message.
 - **The main checkout after a merge.** The Foreman card's procedure ([foreman](foreman.md), "The
   main checkout after a merge": its steps, commands and `<why>` words) is yours, after each
@@ -1340,7 +1360,7 @@ session; its result is a report or a study. It never starts an implementation: n
 push, no PR, nothing in a CR's worktree, and a prototype lives in a temporary folder and is
 thrown away. Implementation goes through a CR and the Foreman. Its cost is on the `steering the batch` line (outside the budget in Foreman mode). In Foreman mode, still no message to a Driver.
 
-- **The offer.** On the Foreman's `ready` that is the last of a stack, when no CR of the batch
+- **The offer.** On the Foreman's `ready-to-merge` that is the last of a stack, when no CR of the batch
   is working, end the Progress report with the offer of a demo (`status-layout.md`).
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.

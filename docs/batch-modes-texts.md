@@ -1,6 +1,6 @@
 # Batch modes
 
-A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready wins and the user merges in the order things become ready; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is ready, from the previous CR's pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a ready stack: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready.
+A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready to merge wins and the user merges in the order things become ready to merge; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is handed back, from the previous CR's pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready to merge; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a stack ready to merge: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready to merge.
 
 ## Header
 
@@ -17,24 +17,24 @@ Parallel
 Ask: nothing, it is the default.
 Every CR starts at once,
 from the default branch.
-The first one ready wins: you
+The first one ready to merge wins: you
 merge in the order things
-become ready, unless told
+become ready to merge, unless told
 otherwise.
 time
 CR A
 CR B
 CR C
 CR A on main
-ready
+to merge
 you merge A
 CR B on main
-ready
+to merge
 rebase + checks
 you merge B
 CR C on main
 rebase + checks
-ready
+to merge
 rebase + checks
 you merge C
 After each merge, every open PR is rebased
@@ -49,26 +49,26 @@ Series
 Ask: "run these in series".
 The CRs have a precise order.
 The next one starts once the
-previous one is ready, on its
+previous one is handed back, on its
 branch, as a draft. After the
 previous one merges, it is
 rebased on main and turns
-ready. The Chief of Staff
+ready to merge. The Chief of Staff
 guides you merge by merge.
 time
 CR A
 CR B
 CR C
 CR A on main
-ready
+to merge
 you merge A
 CR B on A (draft)
 rebase
-ready
+to merge
 you merge B
 CR C on B (draft)
 rebase
-ready
+to merge
 you merge C
 On request: switch to a stack, at once (order mode --note stack):
 every CR left starts together, each on the previous one.
@@ -96,20 +96,20 @@ CR C on main
 stack
 driver
 stacks
-ready on main
-ready on A
-ready on B
+ready to merge on main
+ready to merge on A
+ready to merge on B
 you merge: stack, or one by one
 one stack on the forge, merged from the top or one by one, release last
-insert: drafts above, insert, restack, stack, verify, ready
+insert: drafts above, insert, restack, stack, verify, ready to merge
 ```
 
 ## Legend
 
 ```md
 CR driver works
-PR ready
-PR draft or driver on a draft
+ready to merge
+PR in draft or driver on a draft
 rebase, checks, restack
 you merge
 ```

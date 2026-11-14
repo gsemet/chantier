@@ -21,7 +21,7 @@ leaves the Foreman's heartbeat alone (only the loop's wake, `--refresh --epoch <
   are fixed, the text around them is yours to judge, in the user's language. Say "MR" on a GitLab
   remote, in the column and in the text, "PR" elsewhere (you know the forge from the remote).
   Icons, each with its word beside it: ⚪ not started or dropped, 🟡 working, 🟠 waiting,
-  🔵 to review, 🔴 blocked, ✅ merged. Each icon is the one `status` draws in the CR's `label`
+  🟣 ready locally, 🟤 PR in draft, 🟢 ready to merge, 🔴 blocked, ✅ merged. Each icon is the one `status` draws in the CR's `label`
   (the same as `STATUS.md` and the board; read it there, in the Status column of the batch's `STATUS.md`, or in `label` of its `STATUS.json`, which `status --refresh` has just written): copy it, never judge it. 🟠 is a CR that waits for a
   thing already on its way, named: the stack driver, another CR, a fix of a release, a slot, the
   user's word on a release, the budget a queued CR cannot start on; ⚪ is a queued CR that could start now. 🔴 is a CR that
@@ -29,13 +29,13 @@ leaves the Foreman's heartbeat alone (only the loop's wake, `--refresh --epoch <
 
 ## Progress
 
-On a CR ready or merged and on "status?", written in this order, exactly this skeleton (angle
+On a CR ready to merge or merged and on "status?", written in this order, exactly this skeleton (angle
 brackets are yours to fill, from the CLI as printed; the icons and their words stay as written):
 
 ```markdown
 **<batch> <name>** · <who steers> · <shape> · slots <live>/<slots> · <done> CRs done · spent <spent> of <budget>
 
-⚪ not started · 🟡 working · 🟠 waiting · 🔵 to review · 🔴 blocked · ✅ merged
+⚪ not started or dropped · 🟡 working · 🟠 waiting · 🟣 ready locally · 🟤 PR in draft · 🟢 ready to merge · 🔴 blocked · ✅ merged
 
 | CR | Subject | State | PR | Cost |
 | --- | --- | --- | --- | ---: |
@@ -80,9 +80,9 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
 - **For you:** always there: what the user has to review or decide, or "nothing" (only a Tips
   line can follow it, see below).
 
-🔵 to review is a ready PR only (a PR whose CR was handed back `ready` and whose base is the
-default branch); a CR ready on another base says what it waits for, and **For you** does not ask
-the user to merge it.
+🟢 ready to merge is a PR out of draft whose CR is ready to merge; a PR in draft is
+🟤 and says what it waits for (and "do not merge"); **For you** asks the user to merge only a PR
+ready to merge. A CR ready locally (🟣) has no PR yet.
 
 When a CR is chained (queued after another by the Foreman's decision or the plan's, with no real dependency), your next report has a line with the chain and its reason, in **Notes**.
 
@@ -90,13 +90,13 @@ Every Progress report has one line in **Notes** with the remaining floor and the
 
 When you ran a Driver's refused force push since the last report, your next report has one line in **Notes**: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
 
-In a stack batch with a native stack on the forge, every Progress report has one line in **Notes**, in the user's language, the CRs by number and slug: `partial stack mergeable below <sha7> (<cr> #<n>); to come: <cr> <cr>…`, or `stack complete, mergeable below <sha7>` once complete. With no stack on the forge yet: `no stack yet: <k> of 2 PRs ready`. The Completion report has none (nothing remains). It adds no column and no CLI line in `STATUS.md` or `STATUS.json`; it sits beside a floor line when the batch has one.
+In a stack batch with a native stack on the forge, every Progress report has one line in **Notes**, in the user's language, the CRs by number and slug: `partial stack mergeable below <sha7> (<cr> #<n>); to come: <cr> <cr>…`, or `stack complete, mergeable below <sha7>` once complete. With no stack on the forge yet: `no stack yet: <k> of 2 PRs handed back ready`. The Completion report has none (nothing remains). It adds no column and no CLI line in `STATUS.md` or `STATUS.json`; it sits beside a floor line when the batch has one.
 
 When a CR merged since the last report carries a `main checkout:` note, your next report has one line in **Notes**: `main checkout: fast-forwarded to <sha7>` (or `already at <sha7>`), or `main checkout not fast-forwarded: <why>`, the latest one only. The Completion report has it too, by the same skeleton. It is not a **For you** item: nothing waits on the user (a `tracked changes` or `on <branch>` line may leave the user something to do, which they judge).
 
 When you named a trace in the main checkout since the last report (`chief-of-staff.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.
 
-On the Foreman's `ready` that is the last of a stack, when no CR of the batch is working, end
+On the Foreman's `ready-to-merge` that is the last of a stack, when no CR of the batch is working, end
 the Progress report with the offer of a demo of what the stack delivers (in **For you**).
 
 ## Completion

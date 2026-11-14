@@ -59,6 +59,14 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   (`stack` and `ship`), `stack` with no CR printing what `take stack` printed and writing nothing
   with a stack driver recorded, and `ship` naming the `work/pr-body.md` lines whose SHA left the
   head's history after a rebase (`carried from` and `STALE` lines left out), and not taking a token of digits only for a commit (a dangling commit whose first seven characters are digits);
+- the three words of a ready CR (`ready locally`, `PR in draft`, `ready to merge`) with their
+  icons 🟣, 🟤 and 🟢 in `status`, the STATUS files (`readiness`), `handoff` and the `stack` rows:
+  `ship` and `ship --draft`, the hand-back line by word, a PR out of draft over a draft, `stack
+  --out-of-draft` refused over a draft (nothing written) or on a CR that is working, `stack
+  --out-of-draft` and `--draft` recorded, a CR taken back dropping the PR above it to `PR in draft`,
+  a prepared release, a CR on an open CR's branch in a parallel batch, an old record with no draft
+  state, a hand-edited ready CR with no `pr`, and no retired blue icon in any STATUS file; `forge-stack show`
+  reads `ready to merge:` and check 4 compares the recorded draft state with the forge's;
 - `forge-stack` (GitHub, against `fake_gh.py`, which also unstacks and reads and changes a PR's
   base, refusing the change while the PR is in an open stack): the stack as it stands
   (the bottom CRs with a PR, the others to come): `create` and `show` with two ready PRs and the

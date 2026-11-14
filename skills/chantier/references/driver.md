@@ -173,7 +173,8 @@ The CLI keeps the CR's record and tells you what is off.
   references (role names included) and on Known gaps first, and fixes `pr-body.md` itself before
   posting. This is not a round and not a review: it replaces neither the Inspector's audit nor
   the Verifier's description pass. Then
-  `$CHANTIER ship <cr> <pr link>`: it records the PR at this head (the full SHA) and says what
+  `$CHANTIER ship <cr> <pr link> [--draft]` (`--draft` while the PR is a draft: the CLI records the
+  forge's draft state, so the word it prints never leads the forge): it records the PR at this head (the full SHA) and says what
   is off (uncommitted changes, a head not pushed, no long gate passed at it; with the `ci: beside
   the long gate` line `ship` runs before the gate passes, so `off: no long gate passed at <sha>`
   is expected there and no slip, and `handback ready` still refuses a head with no passed long
@@ -193,8 +194,8 @@ The CLI keeps the CR's record and tells you what is off.
   real message: never a rewrite for a message alone (a rebase onto the base is still the
   ordinary rule). A commit a procedure names (a release's `release: vX.Y.Z`) keeps the
   procedure's message.
-- A CR's PR says on the forge when it is not [ready to merge](concepts.md). When a CR is sent
-  back to a CR Driver (ready or blocked, with a PR, whatever the note), it turns the PR back to
+- A CR's PR says on the forge when it is not [ready to merge](concepts.md) (a PR in draft). When a CR is sent
+  back to a CR Driver (handed back ready or blocked, with a PR, whatever the note), it turns the PR back to
   a draft first (`gh pr ready --undo`, `glab mr update --draft`): the Foreman never edits a PR.
   A release PR is a draft while its base is not the default branch, and turns ready when the
   stack driver retargets it and it is green. A project that shows it otherwise (a label, a
@@ -292,13 +293,15 @@ The CLI keeps the CR's record and tells you what is off.
   the steering session checks it, and sends the CR back with a note if it does not hold: run
   the long gate, then hand back again without `--no-gate`; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
-  branch; on another base it stays a draft and the text after the link says so and what it
+  branch, then runs `ship <cr> <link>` again without `--draft` (a PR turned back to a draft is shipped
+  again with `--draft`); on another base it stays a draft (PR in draft) and the text after the link says so and what it
   waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`; when the body's
   Known gaps is not "None", the text ends with `gaps: <gap>; <gap>`, each gap the first sentence
   of its bullet as written in the posted body, in the body's order, none the body does not name
   and none missing: `handback <cr> ready <link> gaps: …`, or `… draft on <base>: waits for
   <what>; gaps: …`; with `--no-gate`: `handback <cr> ready <link> gaps: <gap> --no-gate "<rule>"`,
-  which prints `no long gate: <rule> gaps: <gap>`) or `handback
+  which prints `no long gate: <rule> gaps: <gap>`); the CLI prints which state the CR is, ready to
+  merge, PR in draft or ready locally) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`): it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
@@ -471,22 +474,22 @@ the stack's order starts from the series order.
 
 Your end is one native stack on the forge that the user merges in one action from the top PR or one PR
 at a time from the bottom (on GitLab, only one MR at a time from the bottom, below): a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs
-based on each other is not one. Your `hand-back ready` is sent only once the stack is made on the
-forge and you have read it back as ready (the five checks, below). On GitLab the stack is the chain
-of MRs made by `$CHANTIER forge-stack create`, each MR targeting the one below, the ready MRs below
+based on each other is not one. Your `hand-back ready to merge` is sent only once the stack is made on the
+forge and you have read it back as ready to merge (the five checks, below). On GitLab the stack is the chain
+of MRs made by `$CHANTIER forge-stack create`, each MR targeting the one below, the MRs ready to merge below
 and the drafts on top; the user merges it one MR at a time from the bottom (GitLab has no
 one-action merge), and may merge a middle MR directly ("A folded CR", below). Unproved; trial: one
 run on a GitLab project. Each take ends with the stack as
-it stands on the forge, its mergeable part ready and the drafts on top; the batch's last take ends
+it stands on the forge, its mergeable part ready to merge and the drafts on top; the batch's last take ends
 with it complete (see [concepts](concepts.md), "Stack").
 
 **Ordering.** Name with `$CHANTIER stack <cr>…` every CR that `take stack` prints with a PR, in the
-stack's order: the ready ones first (those already in the mergeable part in their place, then the
+stack's order: the ones ready to merge first (those already in the mergeable part in their place, then the
 newly ready in their place order), then the drafts (those already stacked in their place, then the
 newly joined in planned order). The CRs to come (no PR yet) are not named. A CR always sits above
 the ones it depends on; `stack` refuses an order that breaks it.
 
-**Who moves a branch.** A CR with no live Driver (`ready`, `blocked`) is rebased and pushed by you,
+**Who moves a branch.** A CR with no live Driver (handed back `ready`, or `blocked`) is rebased and pushed by you,
 as below. A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends
 its Driver `[foreman→driver <cr>] note rebase: stacked on <cr below>`; that Driver rebases once
 before its next push and `ship`s.
@@ -511,15 +514,17 @@ CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$C
 the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`.
 
-**Making the stack.** Once two CRs are ready with their PRs (ordered, restacked, pushed,
+**Making the stack.** Once two CRs are handed back ready with their PRs (ordered, restacked, pushed,
 `ship`ped, CI green at the top), create the native stack on the forge with the means your prompt
 names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the user declined the
 extension; the PRs bottom to top, the CRs with a draft PR on top as drafts. Then turn every PR of
-the mergeable part ready (`gh pr ready`), not only the bottom one. A means that is not available as the prompt names it
+the mergeable part ready (`gh pr ready`), not only the bottom one, and record them right after
+the forge command: `$CHANTIER stack --out-of-draft <cr>…` (refused for a CR not handed back `ready`
+and for one with a draft under it). A means that is not available as the prompt names it
 (the extension not installed, the command refused by the forge, the API missing) is an `anomaly`
 with the exact text: no other means without the user's word (no fallback). On GitLab the means is always
 `$CHANTIER forge-stack create` (no extension): the MRs of the mergeable part are turned ready
-(`glab mr update <iid> --ready`), the drafts on top left drafts (unproved; trial: one run on a
+(`glab mr update <iid> --ready`, then `stack --out-of-draft <cr>…`), the drafts on top left drafts (unproved; trial: one run on a
 GitLab project). Any later change to a stack already on the forge (an
 insertion, a restack after a merge, a reorder) is `$CHANTIER forge-stack rebuild`, after the
 rebases and pushes: it dissolves the stack, retargets each PR whose base is not the record's,
@@ -531,13 +536,13 @@ the exact text, as above; no other means.
 
 **A CR that joins** (it has a PR, a draft): order it on top (`stack`), have it rebased (see "Who
 moves a branch"), then `$CHANTIER forge-stack rebuild` (unstack, retarget, create; on GitLab, retarget). The PRs below
-are not moved and stay ready: the user may merge them meanwhile. The same holds on GitLab for a
+are not moved and stay ready to merge: the user may merge them meanwhile. The same holds on GitLab for a
 draft that turns ready, an insertion and a restack after a merge, each ending with `rebuild`.
 
-**A draft that turns ready** (its CR handed back `ready`) moves into the mergeable part. When it
+**A draft that turns ready to merge** (its CR handed back `ready`) moves into the mergeable part. When it
 is the lowest draft, nothing moves: no `rebuild`; read the stack back and turn its PR ready once
-the five checks hold. When drafts sit under it, order it below them (`stack`), rebase it and the
-drafts above (theirs by their Drivers' notes when working), `rebuild`, then turn it ready.
+the five checks hold, then `stack --out-of-draft <cr>`. When drafts sit under it, order it below them (`stack`), rebase it and the
+drafts above (theirs by their Drivers' notes when working), `rebuild`, then turn it ready and `stack --out-of-draft <cr>`.
 
 **A merge during a take.** On `[foreman→stack] note merged: <cr>…`, read the stack again
 (`$CHANTIER stack`), restack what remains on `origin/<default branch>` with the CRs being added
@@ -553,12 +558,12 @@ as it stands.
 **The five checks,** read on the forge with `$CHANTIER forge-stack show` (one line per failed
 check, exit 0 when all hold), on the stack as it stands (the bottom CRs with a PR; drafts on top
 and the `to come:` line are no failure): the stack is open; it holds every PR of the stack as it
-stands, and no other; in the order of `take stack`, bottom first; no PR of a ready CR is a draft
-and every draft sits above the ready PRs; the release PR, when it is in the stack, is on top. On
+stands, and no other; in the order of `take stack`, bottom first; no PR of a CR ready to merge is a draft
+and every draft sits above the PRs ready to merge; the release PR, when it is in the stack, is on top. On
 GitLab the checks read the chain (each MR's target is the branch below, the first on the default
 branch; no other MR on a branch of the stack but drafts of CRs to come; drafts only on top; the
 release on top; unproved; trial: one run on a GitLab project).
-Green and checked: `[stack→foreman] hand-back ready <stack
+Green and checked: `[stack→foreman] hand-back ready to merge <stack
 link> <cr>=<link>…`.
 
 The stack is what your prompt gives from `take stack`, each CR with its base (the state computes
@@ -571,7 +576,7 @@ one restack for what remains, whatever the number of CRs one merge action of the
 each, push once with `--force-with-lease` (a refused one goes up as above), and `ship` each one
 you moved once: `ship` records the new base. Run heavy CI once at the top, then one
 `$CHANTIER forge-stack rebuild` (no manual retarget: it retargets the first PR to the default
-branch) and read it back before the hand-back; this hand-back is silent: no `stack-ready` follows
+branch) and read it back before the hand-back; this hand-back is silent: no `stack-ready-to-merge` follows
 a restack. On GitLab, the forge may already have retargeted the next MR to the default branch when
 the merged MR's source branch was deleted: `rebuild` then retargets nothing for it, which is no
 anomaly (unproved; trial: one run on a GitLab project). A middle MR merged on GitLab is a folded
@@ -585,13 +590,14 @@ of them; a dependency sent back to a Driver is yours to restack. The release CR 
 `take stack` lists it last. Restack it like any PR above (rebase onto the CR under it, push with
 `--force-with-lease`, `ship`); its checks run again, and no `verifier` and no `inspector` is
 started for it (it has no verdict). A release with no PR yet is no anomaly: it is to come, and
-joins like any CR when it has its PR. Its PR stays a draft on top until its CR is `ready` and the
-checks hold, then it turns ready with the others. A fix CR is not in the stack. The batch stays running until its last CR ends.
+joins like any CR when it has its PR. Its PR stays a draft on top until its CR is handed back `ready` and the
+checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix CR is not in the stack. The batch stays running until its last CR ends.
 
-**Inserting into a ready stack.** Taken with a note that names the new CR and its place
+**Inserting into a stack ready to merge.** Taken with a note that names the new CR and its place
 (`take stack --note "insert: <new cr> below <cr>"`):
 
-1. Every PR that will sit above the new one goes back to draft first (`gh pr ready --undo`),
+1. Every PR that will sit above the new one goes back to draft first (`gh pr ready --undo`, then
+   `$CHANTIER stack --draft <cr>…`),
    before any other step, so the user cannot merge the stack while it changes (the Chief of Staff
    may have done it already: check it on the forge).
 2. Order the stack with the new CR at the place named (`$CHANTIER stack <cr>…`, bottom first; the
@@ -605,13 +611,13 @@ checks hold, then it turns ready with the others. A fix CR is not in the stack. 
    and hand back; the Foreman sends the release back (`take <release> --note "redo: <new cr>
    inserted"`) so that its notes name the new change, then takes the stack again.
 5. Verify every PR of the stack again on the forge (the five checks) and only then turn the PRs
-   above ready, the release PR last; hand back with the stack's link.
+   above ready (`stack --out-of-draft <cr>…`), the release PR last; hand back with the stack's link.
 
 **Removing a dropped CR.** Taken with a note, or sent one, that names `drop: <cr>`:
 
 1. Turn every PR above the dropped one back to a draft first (`gh pr ready --undo`, `glab mr
-   update --draft`): the user must not merge a stack that still holds the dropped commits.
-2. Take the dropped commits out of each CR above that has no live Driver (`ready`, `blocked`),
+   update --draft`, then `$CHANTIER stack --draft <cr>…`): the user must not merge a stack that still holds the dropped commits.
+2. Take the dropped commits out of each CR above that has no live Driver (handed back `ready`, or `blocked`),
    bottom up, in its own worktree. The first CR above sits on the dropped CR's branch: `git rebase
    --onto <the branch now under it, or origin/<default branch>> <the dropped CR's branch>`. Each CR
    above that one: `git rebase --onto <branch under it> <that branch's head before this take>`, the
@@ -628,7 +634,7 @@ checks hold, then it turns ready with the others. A fix CR is not in the stack. 
    it`).
 5. Close the dropped CR's PR (`gh pr close <n>`, `glab mr close <n>`), with no `--delete-branch`
    and no comment. Its branch and worktree stay until the user's word at `close`.
-6. Turn the mergeable part ready. A release above stays a draft, waiting for the Foreman's
+6. Turn the mergeable part ready (`stack --out-of-draft <cr>…`). A release above stays a draft, waiting for the Foreman's
    `redo:`. Hand back as for any take.
 
 A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR

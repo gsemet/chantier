@@ -23,7 +23,7 @@ At the top, a header line: `5 live · 0 waiting for you · checked 3s ago, every
 line (its id, its cost against its budget, a gauge), its unread asks and its slots (`Slots 3/3, 0
 free`). Then "Waiting for you" and "In progress", with the columns CR, Subject, State, PR and Cost.
 The state says the state, the step and the round: `working Round 1/3`, `working CI 2/3`,
-`ready Notify 1/3`, `queued`. Then Backlog, Merged (n of m) and Trashed (n of m). Press a CR for its
+`🟢 ready to merge Notify 1/3`, `🟤 PR in draft, waits for …`, `🟣 ready locally Notify 1/3`, `queued`. Then Backlog, Merged (n of m) and Trashed (n of m). Press a CR for its
 sheet and its documents. The pane checks every 15 seconds while open and reads a file again only when it changed. A **Refresh** button at the top of the pane (in every view) checks at once: it reads the files again, even unchanged ones, and looks for the planning folders again (a project added to a surface, a `.agents/changes/` created after opening), keeping the page shown and the folds. It does not refresh the batch's cost or record: that moves when the steering session refreshes the status.
 
 ### A batch in pictures
@@ -36,7 +36,7 @@ Three CRs in CI, with PRs #1 to #3 and their costs: $0.57 of $20.
 
 ![The board, three CRs in CI with their PRs](board-mod-batch-prs-light.png)
 
-"3 waiting for you": two CRs ready, and one unread ask.
+"3 waiting for you": two CRs ready to merge, and one unread ask.
 
 ![The board, three things waiting for you](board-mod-waiting-light.png)
 
