@@ -12,6 +12,7 @@ from conftest import PLUGIN_ROOT, SKILL, load_script
 
 from chantier import __version__
 from chantier.playbook.models import MODELS, normalise, resolve
+from chantier.plugin_files import cli_command
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 
@@ -271,3 +272,27 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         body = "\n".join(ln for ln in text.splitlines() if "hosts/" not in ln)
         assert [t for t in HOST_TOOLS if t in body] == [], card
+
+
+def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def command_for(root: Path, *, git: bool) -> str:
+        skill = root / "skills" / "chantier"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("x\n", encoding="utf-8")
+        if git:
+            (root / ".git").mkdir()
+        monkeypatch.setenv("CHANTIER_SKILL_DIR", str(skill))
+        return cli_command()
+
+    dev = tmp_path / "dev"
+    plugin = tmp_path / "plugin"
+    assert command_for(dev, git=True) == f'uv run --locked --project "{dev.as_posix()}" chantier'
+    skill = (plugin / "skills" / "chantier").as_posix()
+    assert command_for(plugin, git=False) == (
+        f'uvx --from "{plugin.as_posix()}" chantier --skill "{skill}"'
+    )
+    for name in ("chantier", "chief-of-staff", "griller", "status"):
+        text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        for form in ("uv run --locked --project", "uvx --from", "--skill", ".git"):
+            assert form in text, f"{name}/SKILL.md does not name `{form}`"
+        assert "git+https" not in text, f"{name}/SKILL.md hard-codes a ref"

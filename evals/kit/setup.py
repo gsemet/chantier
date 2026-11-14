@@ -36,7 +36,7 @@ sys.path.insert(0, str(HERE))
 import sandbox  # noqa: E402  (the sandbox's constants, its survey helpers, its folder removal)
 
 ROOT = HERE.parents[1]
-CLI = ROOT / "skills" / "chantier" / "scripts" / "cli" / "chantier.py"
+CLI = ROOT / "skills" / "chantier" / "scripts" / "cli"  # the package's folder: its source is `src/`
 IGNORE = shutil.ignore_patterns(".venv", "__pycache__", ".pytest_cache", "tasks.json")
 REVIEWS = {
     "docs-review": ("chantier-eval-docs-reviewer", "every new or changed CLI command or option "
@@ -161,7 +161,7 @@ def run_number() -> int:
 
 def chantier_state() -> dict:
     """This checkout's chantier: the CLI's version, its commit, whether the tree is clean."""
-    init = (CLI.parent / "src" / "chantier" / "__init__.py").read_text(encoding="utf-8")
+    init = (CLI / "src" / "chantier" / "__init__.py").read_text(encoding="utf-8")
     version = re.search(r"^__version__\s*=\s*[\"']([^\"']+)[\"']", init, re.M)[1]
     commit = sandbox.run(["git", "rev-parse", "HEAD"], cwd=ROOT).strip()
     dirty = bool(sandbox.run(["git", "status", "--porcelain"], cwd=ROOT).strip())
@@ -269,7 +269,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
         head = sandbox.run(["git", "rev-parse", "HEAD"], cwd=dest).strip()
         if head != base:
             raise sandbox.Stop(PRECONDITION, f"the clone's HEAD is {head}, not the base {base}")
-        sandbox.run(["uv", "run", "--script", str(CLI), "init"], cwd=dest)
+        sandbox.run(["uv", "run", "--locked", "--project", str(ROOT), "chantier", "init"], cwd=dest)
         sandbox.run(["uv", "sync", "--locked"], cwd=dest)
         allowed = write_settings(dest, spec) if spec["host"] == "claude" else 0
         # 4. the frozen CRs with the run's PR-title convention
@@ -290,7 +290,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
           f"{' (dirty tree)' if chantier['dirty'] else ''}")
     print(f"CRs placed in .agents/changes/3-ready/ ({len(record['crs'])}):")
     print("".join(f"  {slug}\n" for slug in record["crs"]), end="")
-    print(f"\nCHANTIER = uv run --script \"{CLI}\"   (run from the workspace)")
+    print(f"\nCHANTIER = uv run --locked --project \"{ROOT}\" chantier   (run from the workspace)")
     print(f"merge     {merge_command()} <pr>   (run from the workspace)")
     if allowed:
         print(f"allowed   {allowed} rules in .claude/settings.local.json")

@@ -53,16 +53,16 @@ import judge  # noqa: E402  (the hidden tests and the release judge)
 import sandbox  # noqa: E402  (the merge's rule of a green PR, shared with J5)
 
 SCORECARD = ROOT / "evals" / "SCORECARD.md"
-CLI = ROOT / "skills" / "chantier" / "scripts" / "cli" / "chantier.py"
 HANDBACK_WORDS = ("question:", "approval:", "merge:", "fix:", "infra:", "budget:", "rounds:",
                   "refused", "waits:", "context:")  # what `chantier handback ... blocked` takes
 PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|the stack)\b")
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
-# the CLI, however it is called: its script, or a variable holding the call (`$c`, `$env:CHANTIER`,
+# the CLI, however it is called: `uv run … chantier` or `uvx --from … chantier`, the old script, or a variable holding the call (`$c`, `$env:CHANTIER`,
 # `${CHANTIER}`) where a call starts: after `&`, `Invoke-Expression "` or at a statement's start
-CLI_CALL = (r"(?:chantier\.py[\"']?|(?:&\s*|(?:Invoke-Expression|iex)\s+[\"']?|(?:^|[;|\n{(])\s*)"
+CLI_CALL = (r"(?:chantier\.py[\"']?|uvx?\s+(?:run|--from)\s[^|;\n]*?\schantier[\"']?(?:\s+--skill\s+\S+)?"
+            r"|(?:&\s*|(?:Invoke-Expression|iex)\s+[\"']?|(?:^|[;|\n{(])\s*)"
             r"\$(?:\{(?:env:)?\w+\}|(?:env:)?\w+)[\"']?)\s+")
 EPOCH_COMMANDS = re.compile(CLI_CALL + r"(status --refresh|cancel|pause|take)\b|agents set"
                             r"|order (done|merged)", re.I | re.M)
@@ -768,7 +768,7 @@ def sandbox_checks(data: dict, events: list[dict], run: dict, check: Checks) -> 
 def cost_run(ws: Path, batch: str, *flags: str) -> tuple[bool, str]:
     """The CLI's `cost`, from the checkout. A failure keeps its exact text: no figure is made up."""
     try:
-        p = subprocess.run(["uv", "run", "--script", str(CLI), "cost", "--batch", batch, *flags],
+        p = subprocess.run(["uv", "run", "--locked", "--project", str(ROOT), "chantier", "cost", "--batch", batch, *flags],
                            cwd=ws, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=300)
     except (OSError, subprocess.SubprocessError) as e:

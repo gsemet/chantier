@@ -128,9 +128,9 @@ page (`https://code.claude.com/docs/en/<page>`).
 | Tool | Needed for | Checked by | Missing |
 | --- | --- | --- | --- |
 | `git` | every Driver, the CLI's reads | P5 (CLI) | preflight fails |
-| `uv` | `$CHANTIER` (`uv run --script`) | P5 (CLI) | preflight fails |
+| `uv` | `$CHANTIER` (`uv run --locked --project` in chantier's own checkout, `uvx --from` as a plugin) | P5 (CLI) | preflight fails |
 | `gh` or `glab`, logged in to the remote's host | the Drivers' PRs and CI | P9 (the Chief of Staff: `gh auth status` / `glab auth status`) | preflight fails |
-| `python` | none directly: `uv run --script` provides the interpreter | not checked | say so; on Windows a `python` that resolves to the Microsoft Store alias fails (seen 15 times in the user's week): the fix is the user's (App execution aliases); **unproved** as to which roles call `python` |
+| `python` | none directly: `uv run` and `uvx` provide the interpreter | not checked | say so; on Windows a `python` that resolves to the Microsoft Store alias fails (seen 15 times in the user's week): the fix is the user's (App execution aliases); **unproved** as to which roles call `python` |
 | `bash` | Claude Code's Bash tool on POSIX | not checked | **unproved** whether chantier needs it on Windows, where the PowerShell tool is used |
 | `claude` | not a batch's need | not checked | seen missing from PATH 5 times in the user's week; no card calls it |
 
@@ -177,7 +177,8 @@ In the rules below, `origin` is the project's remote name.
 | `Bash(git push --force-with-lease -u origin chantier/*)` and `PowerShell(…)` | a Driver's push after a rebase, and the stack driver's restack, one command per branch (`driver.md`, Push) | a lease-protected force push of any `chantier/` branch | documented (rule form) |
 | `Bash(git -C * push --force-with-lease -u origin chantier/*)` and `PowerShell(…)` | the same from outside the worktree, the form refused 4 times as "Git Destructive" | as above, in any repository the `-C` path names | documented (rule form) |
 | `Bash(git push --force-with-lease=chantier/* origin *chantier/*)` and `PowerShell(…)` | the steering session's route for a refused force push: `git push --force-with-lease=<branch>:<expected> <remote> <sha>:refs/heads/<branch>` | as above | documented (rule form) |
-| `Bash(uv run --script *chantier.py *)` and `PowerShell(…)` | every `$CHANTIER` command (`merge`, `ship`, `spawn`… were refused 5 times) | any script whose path ends in `chantier.py` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
+| `Bash(uv run --locked --project * chantier *)` and `PowerShell(…)` | every `$CHANTIER` command in chantier's own checkout, the dev mode (`merge`, `ship`, `spawn`… were refused 5 times) | any local project whose script is named `chantier` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
+| `Bash(uvx --from * chantier *)` and `PowerShell(…)` | every `$CHANTIER` command of an installed plugin, the plugin mode | any package that `uvx` can run from any source, named `chantier` | **unproved**: whether auto mode drops it as a "package-manager run command" is not documented (checked 2026-11-09); trial: enter auto mode with the rule set, run `$CHANTIER status`, see whether the classifier is asked |
 | `Bash(gh pr create*)` and `PowerShell(…)` | a Driver opens its PR (refused once as "Git Destructive") | any PR on any repository `gh` can reach | documented (rule form) |
 | `Bash(gh pr edit*)` and `PowerShell(…)` | a Driver's body (`--body-file`) and the stack driver's retarget (`--base`); refused in batch-15 | any edit of any PR `gh` can reach | documented (rule form) |
 | `Bash(gh pr ready*)` and `PowerShell(…)` | a PR turned ready, or back to draft (`--undo`) | a PR turned ready, or back to draft | documented (rule form) |
@@ -193,7 +194,7 @@ In the rules below, `origin` is the project's remote name.
 | `SendMessage` | the Foreman and the Drivers message each other (refused twice) | any message between this session's agents and sessions | **unproved**: `SendMessage` as a rule is not documented (absent from tools-reference, checked 2026-11-09); trial: set it, enter auto mode, have the Foreman message a Driver |
 
 There is no `gh api` rule: it would allow any API write. The stack on the forge is changed only
-by `$CHANTIER forge-stack` (covered by the `chantier.py` rule) or the `gh stack` extension.
+by `$CHANTIER forge-stack` (covered by the two `chantier` rules) or the `gh stack` extension.
 
 The same rules as one block, ready to paste into the `permissions.allow` array of
 `~/.claude/settings.json` (a test compares it with the CLI's list):
@@ -212,8 +213,10 @@ The same rules as one block, ready to paste into the `permissions.allow` array o
       "PowerShell(git -C * push --force-with-lease -u origin chantier/*)",
       "Bash(git push --force-with-lease=chantier/* origin *chantier/*)",
       "PowerShell(git push --force-with-lease=chantier/* origin *chantier/*)",
-      "Bash(uv run --script *chantier.py *)",
-      "PowerShell(uv run --script *chantier.py *)",
+      "Bash(uv run --locked --project * chantier *)",
+      "PowerShell(uv run --locked --project * chantier *)",
+      "Bash(uvx --from * chantier *)",
+      "PowerShell(uvx --from * chantier *)",
       "Bash(gh pr create*)",
       "PowerShell(gh pr create*)",
       "Bash(gh pr edit*)",
@@ -321,7 +324,7 @@ Each **unproved**, not documented (checked 2026-11-09):
   (<https://code.claude.com/docs/en/tools-reference>). Seen 177 times in the user's week, mostly
   from subagents.
 - PowerShell assignments and allow rules; `SendMessage` as a rule; plugin names in `Agent(…)`;
-  the auto-mode fate of `uv run --script *chantier.py *` (as above).
+  the auto-mode fate of `uv run --locked --project * chantier *` and `uvx --from * chantier *` (as above).
 - Whether a running session picks up a change of the settings files: not checked; the block of
   "Allow rules to add" says to start a new session.
 

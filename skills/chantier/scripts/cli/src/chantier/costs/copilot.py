@@ -13,8 +13,13 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
+from chantier.plugin_files import skill_dir
 
-SESSION_USAGE_SCRIPT = Path(__file__).resolve().parents[3] / "session_usage.py"
+
+def session_usage_script() -> Path:
+    """The `session_usage.py` helper, in the skill's own folder (`--skill`, else where this code
+    lives): the package that `uvx` installs does not hold it."""
+    return skill_dir() / "scripts" / "cli" / "session_usage.py"
 
 
 UV_INDEX_VARIABLES = (
@@ -71,7 +76,7 @@ def copilot_session_costs(session: str) -> list[dict[str, Any]]:
     cmd = _split(os.environ.get("CHANTIER_SESSION_USAGE") or "")
     env = None
     if not cmd:
-        cmd = ["uv", "run", "--no-config", "--script", str(SESSION_USAGE_SCRIPT)]
+        cmd = ["uv", "run", "--no-config", "--script", str(session_usage_script())]
         env = os.environ.copy()
         for variable in UV_INDEX_VARIABLES:
             env.pop(variable, None)

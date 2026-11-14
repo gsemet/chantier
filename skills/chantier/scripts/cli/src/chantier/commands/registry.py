@@ -24,6 +24,7 @@ def add_command(
     s: argparse.ArgumentParser = sub.add_parser(name, help=help_)
     s.set_defaults(fn=fn)
     s.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    s.add_argument("--skill", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
     if scope != NO_BATCH:
         s.add_argument(
             "--batch",

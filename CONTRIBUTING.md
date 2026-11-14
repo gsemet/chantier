@@ -66,9 +66,11 @@ chantier is four things in one repository:
    `hosts/copilot.md` hold what is proper to a host (tools, heartbeat, sessions), each behaviour
    marked proved, documented or unproved, and the cards only point to them. They are written for agents: short, exact, one meaning per word. A card
    says what a role judges and how; the project's own rules (`chantier rules`) rank above it.
-2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): Python whose
-   dependencies are declared in `chantier.py`'s PEP 723 block and locked in `chantier.py.lock`,
-   run by `uv run --script`, on Linux, macOS and Windows. Its scope is the frame
+2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): a Python package
+   declared in the root `pyproject.toml` and locked in `uv.lock`, on Linux, macOS and Windows. Installed
+   as a plugin, it runs by `uvx --from "<plugin root>" chantier --skill "<skill folder>"`, from the
+   plugin's own folder; in this checkout (a `.git` at the plugin root), by `uv run --locked --project
+   "<root>" chantier`, the local code, live. Its scope is the frame
    the agents work in: the CR lifecycle (`file`, `triage`, `abandon`, `open`, the stages,
    `cancel`, `pause`, `close`), the batch's limits and record (`take`, `round`, `handback`,
    `ship`, `release go`; `rails.py` says what is refused), the means to synchronise (`order`,
@@ -83,8 +85,8 @@ chantier is four things in one repository:
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. One named exception among the tools: `board`, a read-only web view of this
-   record for the user in remote (it writes no file, takes its dependencies through the CLI's PEP 723
-   inline metadata like the rest of the CLI, and knows no role; more is another CR). A new CLI tool comes only from measured token-costly behaviour of the
+   record for the user in remote (it writes no file, is part of the CLI's package and runs with no plugin
+   too (`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board`), and knows no role; more is another CR). A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and
    [`.claude-plugin/`](.claude-plugin/) (Claude Code) ship the skill
@@ -122,6 +124,7 @@ agents/                     ← Claude Code agents, one per role
 hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of the writes of a worker and a CR Driver
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
+pyproject.toml, uv.lock       ← the CLI's package: the only declaration of its dependencies, and their lock
 skills/griller/             ← the Griller's entry point (thin)
 skills/status/              ← `/chantier:status`, the progress report (thin: it loads status-layout.md)
 skills/chantier/
@@ -131,7 +134,7 @@ skills/chantier/
 │                             spec-writer, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
-└── scripts/cli/            ← the `chantier` CLI, its tests, and `chantier.py.lock` (its locked dependencies)
+└── scripts/cli/            ← the `chantier` CLI's source, its tests and `session_usage.py`
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
@@ -160,6 +163,9 @@ The main checkout is what runs: a branch switched there changes the plugin, and 
 counts once merged. After each merge it records, the steering session fast-forwards a clean main
 checkout on `main`, so a merged fix to the CLI runs at once; the cards load at the next session or
 with `/reload-plugins`.
+
+In this checkout, `$CHANTIER` runs the local code, live, with no fetch (the dev mode: the plugin
+root holds `.git`); an installed plugin runs its own folder with `uvx --from`.
 
 ## Daily work
 
@@ -255,14 +261,13 @@ the batch, the seat), then the domain modules (`lifecycle/`, `playbook/`, `costs
 each with its `register(sub)`) and `board/`, then `cli.py`.
 
 A dependency must replace hand-written code and ship wheels for Linux, macOS (x86_64 and arm64)
-and Windows: the block sets `no-build = true`, so nothing is built from source. After a change to
-the block of `chantier.py`, run `uv lock --script chantier.py` (from `scripts/cli/`) and keep the
-dependency list of `pyproject.toml` the same; `just lint` refuses a stale lock. The board CRs add
+and Windows: the root `pyproject.toml` sets `no-build = true`, so nothing is built from source. After
+a change to its dependencies, run `uv lock` (from the root); `just lint` refuses a stale lock. The board CRs add
 the JS and CSS targets with their linter.
 
 ## Versions
 
-One version, `MAJOR.MINOR.PATCH`, is carried by the CLI, `pyproject.toml`, `uv.lock`,
+One version, `MAJOR.MINOR.PATCH`, is carried by the CLI, the root `pyproject.toml` and `uv.lock`,
 `SKILL.md`, the plugin manifests and marketplaces, and the agents. Never edit it by hand:
 
 ```bash
