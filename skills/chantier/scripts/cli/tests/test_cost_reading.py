@@ -342,3 +342,13 @@ def test_each_agent_type_has_its_line_and_explain_gives_the_cache_and_restarts(
 def test_the_chief_lines_and_a_model_with_no_price(world: CostWorld) -> None:
     check_the_chief_lines_add_up(world)
     check_no_price_is_a_floor_until_chantier_yaml_prices_it(world)
+
+
+def test_a_retro_critic_of_the_foreman_is_counted_on_the_foreman_own_subagents_line(
+    world: CostWorld,
+) -> None:
+    before = world.cost()
+    world.agent("retro", "retro-critic", 2)  # no parent that a Driver owns, on no grill line
+    out = world.cost()
+    assert any(ln.startswith("Foreman's own subagents") and "(2 calls," in ln for ln in out)
+    assert not any("grill" in ln and "retro" in ln for ln in out) and out[0] != before[0]

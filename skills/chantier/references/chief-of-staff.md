@@ -147,7 +147,7 @@ long_gate:
 
 A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,
 `investigator`, `coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`,
-`demo-explorer`, `spec-writer`, `spec-critic`); it keeps its card, whoever runs it. `$CHANTIER playbook` prints
+`demo-explorer`, `spec-writer`, `spec-critic`, `retro-critic`); it keeps its card, whoever runs it. `$CHANTIER playbook` prints
 what each role runs (the exact agent and model to pass, "Starting an agent" in
 [concepts](concepts.md)), or says there is no `chantier.yaml`; an invalid file exits 2 with each
 problem and its line, and preflight's P12 fails: show the user the lines, never fix the file
@@ -167,7 +167,7 @@ skill <name>: not found in this session; <role> works without it.` It is a warni
 preflight failure, and nothing blocks. The role then works without it, and never reaches the same
 thing by another means ([concepts](concepts.md), rule 2).
 
-Your own subagents (the `spec-writer`, the `spec-critic`, the `demo-explorer`) are started with the agent and model
+Your own subagents (the `spec-writer`, the `spec-critic`, the `retro-critic`, the `demo-explorer`) are started with the agent and model
 `$CHANTIER playbook` prints for their role, as printed.
 
 On the user's request for their own PR template, file a CR for it (`$CHANTIER file`, section
@@ -1165,7 +1165,16 @@ CR-222 → CR-225 → CR-226 → CR-228."
     of points, it goes the chantier route below.
   - The user may move a point to the other route ("13 is a project point"): follow that word and
     say the route it now takes.
-  - A release's `work/retro.md` is offered once, with the batch's, each point by its own tag.
+  - A release's `work/retro.md` is offered once, with the batch's, each point by its own tag; its
+    points went through the Foreman's critic with the batch's, so only the kept ones (marked
+    `(release)` in the section) are offered.
+  - The retro you read holds only the points the `retro-critic` kept; its section's header ends
+    with `(critic: kept <k>, dropped <d>)`. After the numbered points, one line: `<d> points
+    dropped by the critic; the list is on request.` Asked for it, read `4-batch/retro-dropped.md`
+    and show it, before any `close`. A section of `nothing worth changing` is said as such:
+    "Retro: nothing worth changing (<d> points dropped by the critic; the list is on request)."
+    A section `retro not checked: <cause>` is said as such, with nothing offered; the drafted
+    points are in `retro-dropped.md` on request. The routes below apply to the kept points only.
 
   Offer the Retro before any `close`, which writes `4-batch/retro.md` into the batch's record,
   `5-archives/batches/batch-NN.md`.
@@ -1175,6 +1184,17 @@ CR-222 → CR-225 → CR-226 → CR-228."
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
   because every Driver has ended for 30 minutes (nothing can move); arm it again with the next
   order you send the Foreman.
+- **Any other list of changes you propose on your own.** Before proposing, on your own
+  initiative, changes to chantier or to the project (a retro after a release or a closed batch, a
+  report's suggestions, an answer to a question such as "are the workers useful?", even a single
+  change), start one `retro-critic` ([`retro-critic.md`](retro-critic.md)) with the points and the
+  evidence each cites, its first line copied from `$CHANTIER playbook`, and offer only the kept
+  points, then the one line `<d> points dropped by the critic; the list is on request.` Here the
+  dropped list stays in the chat (no file), shown on request in the same session. When it keeps
+  nothing: "Nothing worth changing." and the dropped line. When it fails twice (restarted once),
+  offer nothing, say "retro not checked: <cause>", and keep the drafted points for the user to ask
+  for. A change the user asked for does not go through the critic, nor does a CR's own content (a
+  specification, a gap, a Driver's hand-back), which have their own checks.
 - **The chantier route** (a `chantier` point, on the user's word; nothing is drafted unless the
   user named the point for this route; all of it at the pause, before any `close`), in this order:
   1. The repository is the `repository` field of the plugin manifest
@@ -1372,7 +1392,9 @@ these differences.
   `status --notes`, `events.jsonl`, the CRs' `work/` notes and `cost --explain`; one untagged line
   saying so when there was none; one line per distinct refused command, `- [chantier] refused
   `<command>` (<capability>): <the table row or rule to fix>`; never rewrite an earlier section;
-  a release's retro is named by reference, not copied), then run `$CHANTIER pause --epoch <n>`:
+  a release's retro is named by reference, not copied), after running the `retro-critic` exactly
+  as `foreman.md` ("The retro critic") says (the section holds the kept points only, the dropped
+  ones go to `4-batch/retro-dropped.md`), then run `$CHANTIER pause --epoch <n>`:
   the batch is paused. Give the
   Completion report, with its Retro offered as the Foreman-mode pause says (each point numbered,
   by route, on the user's word, before any `close`). Grill the inbox ideas with the user and, on their word,

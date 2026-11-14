@@ -114,7 +114,9 @@ the pause (the cost to date):
   - the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
     `work/retro.md` if the batch had a release, each point once), one numbered line each,
     `<n>. [<tag>] <problem>: <long-term fix>`, one numbering across both tags so the user answers
-    by number; a `project` point that matches an inbox or backlog item names that item, a
+    by number; the points are the ones the retro critic kept, followed by one line `<d> points
+    dropped by the critic; the list is on request.`, or, when it kept none, `Retro: nothing worth
+    changing (<d> points dropped by the critic; the list is on request).`; a `project` point that matches an inbox or backlog item names that item, a
     `chantier` point that matches an open issue on chantier's repository names that issue's link;
   - **For you:** the batch is paused, which `project` points to file as inbox items (by their
     numbers), which `chantier` points to draft as an issue (by their numbers; several may go in

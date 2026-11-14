@@ -2649,6 +2649,8 @@ def retro_cases(w: World) -> None:
         retro = w.folder() / "retro.md"
         if text is not None:
             retro.write_text(text, encoding="utf-8", newline="")
+        dropped = w.folder() / "retro-dropped.md"
+        dropped.write_text("# Dropped\n\n- 1. drop: once, no cost\n", encoding="utf-8")
         before = sorted(p.name for p in archives.iterdir())
         merged_before = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8")).get(
             "merged_total")
@@ -2668,6 +2670,8 @@ def retro_cases(w: World) -> None:
         previous = w.name  # the last closed from here on
         new = [p for p in archives.iterdir() if p.name not in before]
         body = report.read_text(encoding="utf-8") if report.is_file() else ""
+        check(f"{label}: `close --yes` deletes `retro-dropped.md`, whose lines are not in batch-NN.md",
+              not dropped.exists() and "once, no cost" not in body, f"{dropped.exists()} {body[:80]}")
         if text is not None and text.strip():
             check(f"{label}: `close --yes` writes batch-NN.md with the retro, and no folder for "
                   "the batch in 5-archives",

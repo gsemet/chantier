@@ -163,13 +163,15 @@ CHIEF_SUBAGENT_LINE = re.compile(
 )
 
 
-def chief_prompt_lines(host: str, root: str) -> list[str]:
+def chief_prompt_lines(host: str, root: str, started_by: str | None = None) -> list[str]:
     """The first line of each agent the Chief of Staff starts with a `<root>` and no batch, read
-    from the agent files' descriptions (`<role> prompt, first line: …`), `<root>` filled in."""
+    from the agent files' descriptions (`<role> prompt, first line: …`), `<root>` filled in;
+    with `started_by`, only the agents whose description says that parent starts them."""
     lines = []
     for p in _agent_files(host)[1]:
-        m = CHIEF_SUBAGENT_LINE.search(p.read_text(encoding="utf-8"))
-        if m:
+        text = p.read_text(encoding="utf-8")
+        m = CHIEF_SUBAGENT_LINE.search(text)
+        if m and (started_by is None or f"Started by the {started_by}" in text):
             lines.append(f"{m[2]} prompt, first line: {m[1].replace('<root>', root)}")
     return lines
 
