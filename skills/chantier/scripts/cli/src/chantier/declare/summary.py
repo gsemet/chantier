@@ -38,9 +38,7 @@ def register(sub: Subparsers) -> None:
     p = _action(actions, "lint", "lint", "list the CRs whose summary is missing or late")
     p.add_argument("folders", nargs="*", help="CR folders; none: every CR but the archives")
 
-    p = _action(
-        actions, "set", "set_summary", "store a CR's title and summary, and its checksums"
-    )
+    p = _action(actions, "set", "set_summary", "store a CR's title and summary, and its checksums")
     p.add_argument("folder", help="the CR's folder")
     p.add_argument("--title", help=f"one line, {TITLE_MAX} characters at most")
     g = p.add_mutually_exclusive_group()
