@@ -29,6 +29,7 @@ export default {
   'postit.late': 'Its summary is late: the CR changed since it was written',
   'postit.origin': 'Where the request came from',
   'postit.open': 'Open the folder',
+  'postit.selected': 'selected',
   'postit.raw': 'Raw: not grilled yet',
   'postit.grill': 'In grill: answers, no specification',
   'postit.spec': 'Specified: the specification is written',

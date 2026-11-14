@@ -5,7 +5,7 @@ import { addLabel } from '../api/backlog.js';
 import { delegate, html } from '../core/dom.js';
 import { snapshot, update } from '../core/store.js';
 import { targetFor } from '../model/targets.js';
-import { COLUMNS, findItem, labelsOf } from '../model/triage.js';
+import { COLUMNS, findItem, labelsOf, passes } from '../model/triage.js';
 import { t } from '../model/words.js';
 import { openPanel } from '../panel/panel.js';
 import { showDialog } from '../ui/dialog.js';
@@ -65,7 +65,10 @@ function act(action, slugs) {
 
 // The selection as the record now holds it: a slug that left the backlog drops out.
 export const selectedNow = (state) =>
-  state.selection.filter((s) => findItem(state.data?.backlog, s));
+  state.selection.filter((s) => {
+    const item = findItem(state.data?.backlog, s);
+    return item && passes(item, state.labelFilter);
+  });
 
 export function bindSelection(root) {
   const offs = [

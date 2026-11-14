@@ -5,6 +5,7 @@
 // it back in its place, with what was typed and the caret.
 import { BoardWriteError, saveFile } from '../api/backlog.js';
 import { $, delegate, html, setHtml } from '../core/dom.js';
+import { guardLeave } from '../core/router.js';
 import { snapshot, update } from '../core/store.js';
 import { loadJournal } from '../journal/journal.js';
 import { t } from '../model/words.js';
@@ -156,10 +157,13 @@ export function bindEditor(root) {
   const away = (event) => {
     wantsFocus = Boolean(box?.contains(event.target));
   };
+  // Back and forward: the router asks before it leaves the page the text is typed in.
+  guardLeave(() => (dirty() ? confirmLeave() : true));
   window.addEventListener('beforeunload', leaving);
   document.addEventListener('pointerdown', away);
   return () => {
     for (const off of offs) off();
+    guardLeave(null);
     window.removeEventListener('beforeunload', leaving);
     document.removeEventListener('pointerdown', away);
   };
