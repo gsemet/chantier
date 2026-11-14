@@ -302,7 +302,7 @@ class Batch:
         return next(c for c in self.data()["crs"] if c["id"] == cr_id)
 
     def folder(self, c: dict) -> Path:
-        return self.changes / str(c["path"]).removeprefix(".agents/changes/")
+        return self.changes / str(c["path"])
 
     def pr_number(self, link: str) -> str:
         return link.rstrip("/").rsplit("/", 1)[-1]
@@ -363,7 +363,7 @@ class Batch:
     # the staged steps -------------------------------------------------------------------------------
 
     def play(self) -> None:
-        ready = ".agents/changes/3-ready/"
+        ready = "3-ready/"
         slugs = (["delete-item"] if self.features else []) + ["release-v0-2-0"]
         _, out = self.cli(None, "open", *[ready + s for s in slugs], "--release", len(slugs), "--mode",
                           "parallel", "--slots", 2, "--budget", 40, "--default-branch", "main")

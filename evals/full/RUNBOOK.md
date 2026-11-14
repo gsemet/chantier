@@ -39,11 +39,11 @@ Foreman mode, playing the user in full. One new Foreman session per batch.
 Open, from the workspace:
 
 ```bash
-$CHANTIER open .agents/changes/3-ready/delete-item .agents/changes/3-ready/edit-item \
-  .agents/changes/3-ready/status-filter .agents/changes/3-ready/json-api \
-  .agents/changes/3-ready/stats-page .agents/changes/3-ready/csv-export \
-  .agents/changes/3-ready/item-notes .agents/changes/3-ready/title-search \
-  .agents/changes/3-ready/release-v0-2-0 --release 9 --mode parallel --slots 4 --budget 40 \
+$CHANTIER open 3-ready/delete-item 3-ready/edit-item \
+  3-ready/status-filter 3-ready/json-api \
+  3-ready/stats-page 3-ready/csv-export \
+  3-ready/item-notes 3-ready/title-search \
+  3-ready/release-v0-2-0 --release 9 --mode parallel --slots 4 --budget 40 \
   --default-branch main
 ```
 
@@ -51,7 +51,7 @@ A new Foreman session starts. The user's turns, played by the operator:
 
 1. The go once the plan is shown.
 2. At the first `ask ready` (the first CR handed back ready), before or with its merge:
-   `$CHANTIER order add --note ".agents/changes/3-ready/item-rating"`, and its line to the
+   `$CHANTIER order add --note "3-ready/item-rating"`, and its line to the
    Foreman. The release waits for this CR too.
 3. Each `ask ready`: the merge (`uv run --no-project python <this checkout>/evals/kit/sandbox.py
    merge <n>`, from the workspace, alone, as the README says), `$CHANTIER order merged CR-<n>`,
@@ -79,8 +79,8 @@ so the frozen release CRs do.
 Open, in the same workspace:
 
 ```bash
-$CHANTIER open .agents/changes/3-ready/sort-list .agents/changes/3-ready/duplicate-url \
-  .agents/changes/3-ready/release-v0-3-0 --release 3 --mode parallel --slots 4 --budget 15 \
+$CHANTIER open 3-ready/sort-list 3-ready/duplicate-url \
+  3-ready/release-v0-3-0 --release 3 --mode parallel --slots 4 --budget 15 \
   --default-branch main
 ```
 

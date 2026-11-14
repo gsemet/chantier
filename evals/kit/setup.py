@@ -238,7 +238,7 @@ def open_lines(spec: dict, campaign: str) -> list[str]:
     lines = []
     for batch in spec["batches"]:
         mode = spec.get("mode")
-        parts = ["$CHANTIER open", *(f".agents/changes/3-ready/{slug}" for slug in batch["crs"])]
+        parts = ["$CHANTIER open", *(f"3-ready/{slug}" for slug in batch["crs"])]
         if batch.get("release"):
             parts.append(f"--release {batch['release']}")
         if mode:
