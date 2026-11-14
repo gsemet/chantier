@@ -5,6 +5,9 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
+from chantier.autosync.lines import status_line
+from chantier.autosync.reading import names_of, read_view
+from chantier.autosync.site import find_site
 from chantier.commands.activity import activity
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
@@ -168,6 +171,14 @@ def _batch_line(d: BatchRecord, hb_text: str) -> str:
     )
 
 
+def _autosync_lines(repo: Repo) -> list[str]:
+    """The surface's autosync, one line, when its rules name one and its script is there."""
+    site = find_site(repo)
+    if site is None or site.script_missing:
+        return []
+    return [status_line(read_view(site, names_of([repo])))]
+
+
 def status(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = open_repo()
     batch = resolve_batch(repo, args.batch)
@@ -177,7 +188,8 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     elif args.refresh:
         extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
-    lines = [_batch_line(d, _heartbeat_text(d, prev)), last_closed_text(last_closed(repo))]
+    lines = [_batch_line(d, _heartbeat_text(d, prev)), *_autosync_lines(repo)]
+    lines.append(last_closed_text(last_closed(repo)))
     lines += [_cr_row(d, c, args.notes) for c in sorted(d.crs, key=lambda c: c.order)]
     lines += _order_lines(d)
     unread = sum(1 for a in d.asks if not a.read)

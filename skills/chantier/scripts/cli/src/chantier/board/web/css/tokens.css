@@ -106,6 +106,16 @@
   --mark-4: #a8691f;
   --mark-5: #1f7a74;
 
+  /* the surface's autosync: the pill's states, and its two boxes */
+  --autosync-active: #23805a;
+  --autosync-stopped: #8b909c;
+  --autosync-blocked: #c03552;
+  --autosync-approval: #b86e0c;
+  --autosync-ko-fill: #fff4f5;
+  --autosync-ko-ink: #9c2a41;
+  --autosync-wa-fill: #fff6ec;
+  --autosync-wa-ink: #7a4a0c;
+
   /* shadows */
   --shadow-menu: 0 8px 24px rgb(20 24 31 / 12%);
   --shadow-panel: -14px 0 40px rgb(15 18 28 / 14%);

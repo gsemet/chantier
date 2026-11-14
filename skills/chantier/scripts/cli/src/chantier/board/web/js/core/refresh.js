@@ -20,7 +20,7 @@ const clock = (got) => {
   return { now, minute: minuteOf(now), heard: Date.now(), fails: 0, denied: false };
 };
 
-const lines = (b) => JSON.stringify(b?.projects ?? []);
+const lines = (b) => JSON.stringify([b?.projects ?? [], b?.autosync ?? null]);
 
 async function readBoard() {
   const got = await board();
