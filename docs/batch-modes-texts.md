@@ -1,6 +1,6 @@
 # Batch modes
 
-A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready wins and the user merges in the order things become ready; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is ready, from the previous CR's pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR, the release last. A change inserted into a ready stack: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready.
+A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready wins and the user merges in the order things become ready; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is ready, from the previous CR's pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a ready stack: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready.
 
 ## Header
 
@@ -84,8 +84,8 @@ Parallel, with a stack driver:
 every CR starts at once, the
 PRs go each on the previous
 one, then one native stack on
-the forge. You merge it in one
-action from the top PR.
+the forge. You merge it at once
+from the top, or one by one.
 time
 CR A
 CR B
@@ -99,8 +99,8 @@ stacks
 ready on main
 ready on A
 ready on B
-you merge the stack, once
-one stack on the forge, merged from the top PR, release last
+you merge: stack, or one by one
+one stack on the forge, merged from the top or one by one, release last
 insert: drafts above, insert, restack, stack, verify, ready
 ```
 
