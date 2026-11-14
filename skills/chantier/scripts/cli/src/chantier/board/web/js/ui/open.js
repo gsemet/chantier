@@ -2,16 +2,17 @@
 // click, or with Enter or Space once it has the keyboard focus. A view binds it once on its root.
 import { delegate, html } from '../core/dom.js';
 import { snapshot } from '../core/store.js';
+import { confirmLeave } from '../edit/markdown-editor.js';
 import { targetFor } from '../model/targets.js';
 import { openPanel } from '../panel/panel.js';
 
-function open(event, element) {
+async function open(event, element) {
   const state = snapshot();
   const target = targetFor(state, element.dataset.open);
   if (!target) return;
   event.preventDefault();
   event.stopPropagation();
-  openPanel(state, target);
+  if (await confirmLeave()) openPanel(state, target);
 }
 
 // Returns the function that removes both listeners.

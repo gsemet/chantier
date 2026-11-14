@@ -4,8 +4,10 @@ import { board } from './core/api.js';
 import { $, delegate } from './core/dom.js';
 import { paint } from './core/paint.js';
 import { start } from './core/refresh.js';
-import { configure, go, listen, resolve } from './core/router.js';
+import { ALL, configure, go, listen, resolve } from './core/router.js';
 import { snapshot, subscribe, update } from './core/store.js';
+import { confirmLeave } from './edit/markdown-editor.js';
+import { openNew } from './edit/new-idea.js';
 import { nextLanguage, pick, setLanguage, t } from './model/words.js';
 import { afterPanel, bindPanel, closePanel, panelMarkup, syncPanel } from './panel/panel.js';
 import { bottomBar } from './ui/bottombar.js';
@@ -27,6 +29,8 @@ function drawFrame(state) {
   paint($('#title'), title(state));
   paint($('#stats'), stats(state));
   paint($('#bottom-nav'), bottomBar(state));
+  paint($('#new'), t('new.button'));
+  $('#new').hidden = state.project === ALL || !state.data;
 }
 
 function drawNotice(state) {
@@ -48,18 +52,44 @@ function draw(state) {
   syncPanel(state);
 }
 
+// A move away from an open editor asks first when the text would be lost.
+const guarded = (action) => async (event, el) => {
+  if (await confirmLeave()) action(event, el);
+};
+
 function listenToFrame() {
   const body = document.body;
-  delegate(body, 'click', '[data-view]', (_, el) => {
-    update({ menu: false });
-    go({ view: el.dataset.view });
-  });
-  delegate(body, 'click', '[data-go]', (_, el) => go({ view: el.dataset.go }));
-  delegate(body, 'click', '[data-project]', (_, el) => {
-    update({ menu: false });
-    go({ project: el.dataset.project });
-  });
-  delegate(body, 'click', '[data-close]', () => closePanel());
+  delegate(
+    body,
+    'click',
+    '[data-view]',
+    guarded((_, el) => {
+      update({ menu: false });
+      go({ view: el.dataset.view });
+    }),
+  );
+  delegate(
+    body,
+    'click',
+    '[data-go]',
+    guarded((_, el) => go({ view: el.dataset.go })),
+  );
+  delegate(
+    body,
+    'click',
+    '[data-project]',
+    guarded((_, el) => {
+      update({ menu: false });
+      go({ project: el.dataset.project });
+    }),
+  );
+  delegate(
+    body,
+    'click',
+    '[data-close]',
+    guarded(() => closePanel()),
+  );
+  delegate(body, 'click', '[data-new]', () => openNew());
   bindPanel($('#panel'));
   delegate(body, 'keydown', '[tabindex][data-go], [tabindex][data-project]', (event, el) => {
     if (event.key === 'Enter') el.click();
@@ -73,11 +103,17 @@ function listenToFrame() {
     if (snapshot().menu && !event.target.closest('.menu, [data-menu]')) update({ menu: false });
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') return;
-    const { menu: open, panel } = snapshot();
-    if (open) update({ menu: false });
-    else if (panel) closePanel();
+    if (event.key === 'Escape' && !$('dialog[open]')) closeInnermost();
   });
+}
+
+// Escape closes the innermost thing first: the menu, the journal, the selection, then the panel.
+function closeInnermost() {
+  const { menu: open, panel, journalOpen, selection } = snapshot();
+  if (open) update({ menu: false });
+  else if (journalOpen) update({ journalOpen: false });
+  else if (selection.length) update({ selection: [] });
+  else if (panel) confirmLeave().then((ok) => ok && closePanel());
 }
 
 // Read the board until the server answers; the refresh takes over once a project is shown.

@@ -11,9 +11,17 @@ import * as costs from './costs.js';
 import * as home from './home.js';
 import * as kanban from './kanban.js';
 import * as overview from './overview.js';
+import * as triage from './triage.js';
 
 export const VIEWS = [
   { id: 'home', icon: 'home', word: 'nav.home', module: home, overview },
+  {
+    id: 'triage',
+    icon: 'triage',
+    word: 'nav.triage',
+    module: triage,
+    count: (state) => itemsOf(state.data?.backlog).length,
+  },
   {
     id: 'kanban',
     icon: 'kanban',

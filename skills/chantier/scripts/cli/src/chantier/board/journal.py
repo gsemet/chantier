@@ -14,7 +14,6 @@ from chantier.core.repo import Repo
 from chantier.lifecycle.stages import changes_lock
 
 FILE = "board-journal.jsonl"
-KINDS = ("new", "move", "label", "group", "ungroup", "edit", "next-batch")
 
 
 def _lines(changes: Path) -> list[dict[str, Any]]:
@@ -42,9 +41,11 @@ def since_rescan(changes: Path) -> list[dict[str, Any]]:
 
 def _append(repo: Repo, entry: dict[str, Any]) -> None:
     """One line, appended whole under the lifecycle lock."""
+    # a lone surrogate (a half of an emoji from a page) cannot be UTF-8: it is replaced
     line = json.dumps(entry, ensure_ascii=False, separators=(",", ":")) + "\n"
+    data = line.encode("utf-8", errors="replace")
     with changes_lock(repo), (repo.changes / FILE).open("ab") as f:
-        f.write(line.encode("utf-8"))
+        f.write(data)
 
 
 def record(repo: Repo, kind: str, items: list[str], words: str) -> dict[str, Any]:

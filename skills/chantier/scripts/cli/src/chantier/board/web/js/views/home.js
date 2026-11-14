@@ -3,6 +3,7 @@
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
 import { delegate, html } from '../core/dom.js';
+import { countOf } from '../journal/journal.js';
 import { counts } from '../model/semantics.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
@@ -47,8 +48,20 @@ const nextTile = (state) => {
   });
 };
 
+// What the board wrote in the backlog since the user's last "rescan" to the Chief of Staff.
+const writtenTile = (state) => {
+  const n = countOf(state);
+  return kpi({
+    tone: n ? 'go' : 'calm',
+    label: t('home.written'),
+    value: n,
+    sub: t(n ? 'home.written_sub' : 'home.written_none'),
+    go: 'triage',
+  });
+};
+
 // Each tile is a function of the state that returns markup.
-export const TILES = [reviewTile, waitingTile, nextTile];
+export const TILES = [reviewTile, waitingTile, nextTile, writtenTile];
 
 export const render = (state) =>
   html`<div class="home"><div class="tiles">${TILES.map((tile) => tile(state))}</div><div class="blocks">${batchBlock(state)}${prsBlock(state)}${activityBlock(state)}${backlogBlock(state)}</div></div>`;

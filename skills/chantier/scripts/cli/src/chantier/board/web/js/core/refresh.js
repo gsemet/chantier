@@ -34,7 +34,9 @@ async function readProject(project) {
   return { ...clock(got), data: withLive(got.data), etag: got.etag };
 }
 
-async function ask() {
+let running = Promise.resolve(); // the read in progress
+
+async function read() {
   const { project } = snapshot();
   if (!project || busy === project) return;
   busy = project;
@@ -48,6 +50,18 @@ async function ask() {
   } finally {
     if (busy === project) busy = null;
   }
+}
+
+function ask() {
+  running = read();
+  return running;
+}
+
+// Read the shown project again now, after a write: a read already running is waited for first
+// (it may have started before the write), then the project is read once more.
+export async function reload() {
+  await running;
+  await ask();
 }
 
 // Start asking: at once, every 5 s while visible, at once again when the page shows again, and

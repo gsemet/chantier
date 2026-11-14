@@ -2,7 +2,9 @@
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
 import { html } from '../core/dom.js';
+import { bindFilter, filterRow } from '../labels/filter.js';
 import { crsOf, defaultBranch } from '../model/semantics.js';
+import { passes } from '../model/triage.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { dot } from '../ui/parts.js';
@@ -20,7 +22,9 @@ const inProgress = (batch) => PROGRESS.flatMap((s) => crsOf(batch).filter((c) =>
 function columns(state) {
   const { batch, backlog } = state.data;
   const items = (buckets) =>
-    itemsIn(backlog, buckets).map((x) => itemCard(state, x.item, x.bucket));
+    itemsIn(backlog, buckets)
+      .filter((x) => passes(x.item, state.labelFilter))
+      .map((x) => itemCard(state, x.item, x.bucket));
   const crs = (rows) => rows.map((c) => crCard(state, c));
   const progressSub = batch
     ? t('kanban.progress_sub', { batch: batch.id })
@@ -39,14 +43,22 @@ function columns(state) {
   ];
 }
 
+// The Intake column's button: it opens the New dialog (wired once for the page, in main.js).
+const newIdea = html`<div class="colact"><button type="button" class="btn" data-new>${t('new.kanban')}</button></div>`;
+
 const column = (col) =>
-  html`<section class="col" data-key="col-${col.key}"><div class="colh">${dot(col.color)}<h2>${t(`kanban.${col.key}`)}</h2><span class="c">${col.cards.length}</span><span class="place"></span></div><div class="colsub">${col.sub}</div><div class="cards">${col.cards.length ? col.cards : html`<div class="none">${t('kanban.empty')}</div>`}</div></section>`;
+  html`<section class="col" data-key="col-${col.key}"><div class="colh">${dot(col.color)}<h2>${t(`kanban.${col.key}`)}</h2><span class="c">${col.cards.length}</span><span class="place"></span></div>${col.key === 'intake' ? newIdea : ''}<div class="colsub">${col.sub}</div><div class="cards">${col.cards.length ? col.cards : html`<div class="none">${t('kanban.empty')}</div>`}</div></section>`;
 
 export function render(state) {
   const cols = columns(state);
   const shown = cols.reduce((n, col) => n + col.cards.length, 0);
   const count = t('kanban.count', { n: shown, m: state.data.merged_total ?? 0 });
-  return html`<div class="kanban"><div class="filters"><span class="place"></span><span class="count">${count}</span></div><div class="board">${cols.map(column)}</div></div>`;
+  return html`<div class="kanban"><div class="filters"><span class="place">${filterRow(state)}</span><span class="count">${count}</span></div><div class="board">${cols.map(column)}</div></div>`;
 }
 
-export const mount = (root) => bindOpen(root);
+export function mount(root) {
+  const offs = [bindOpen(root), bindFilter(root)];
+  return () => {
+    for (const off of offs) off();
+  };
+}

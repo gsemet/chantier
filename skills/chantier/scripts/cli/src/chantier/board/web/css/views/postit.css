@@ -1,0 +1,233 @@
+/* Post-its, groups, the selection bar and the labels. Colours come from tokens.css only. */
+/* a post-it: a shadow, not an edge */
+.pi {
+  position: relative;
+  background: var(--pi-raw-fill);
+  border-radius: 4px 4px 4px 14px;
+  padding: 9px 10px;
+  box-shadow: var(--shadow-note);
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.pi:hover {
+  transform: rotate(-0.6deg);
+  box-shadow: var(--shadow-note-hover);
+}
+
+.pi.grill,
+.pi.specifying {
+  background: var(--pi-grill-fill);
+}
+
+.pi.specified {
+  background: var(--pi-spec-fill);
+}
+
+.pi.automatable {
+  background: var(--pi-auto-fill);
+}
+
+.pi.sel {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.pi.drag {
+  opacity: 0.45;
+}
+
+.pi.pend {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.pi.chg::after {
+  content: "modified";
+  position: absolute;
+  top: -7px;
+  right: 8px;
+  background: var(--tag-working-fill);
+  color: var(--tag-working-ink);
+  border-radius: 9px;
+  padding: 1px 7px;
+  font-size: var(--text-badge);
+}
+
+.pi .row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pi .sl {
+  font-family: var(--mono);
+  font-size: var(--text-small);
+  color: var(--ink2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pi .late {
+  color: var(--warn-ink);
+}
+
+.pi .pt {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--text);
+}
+
+.pi .pm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  flex-wrap: wrap;
+}
+
+.pi .open {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  padding: 2px 4px;
+  border-radius: var(--radius-s);
+}
+
+.pi .open:hover {
+  background: var(--hover);
+}
+
+.grpf {
+  border: 1px dashed var(--edge-arrow);
+  border-radius: var(--radius-m);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grpf .gh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  cursor: grab;
+}
+
+.grpf .x {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--ink2);
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+}
+
+.grpf .x:hover {
+  background: var(--hover);
+}
+
+/* the selection bar floats at the bottom of the view */
+.selbar {
+  position: sticky;
+  bottom: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--dark);
+  color: var(--dark-ink);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-float);
+}
+
+.selbar .n {
+  color: var(--dark-ink-soft);
+  padding-right: var(--space-2);
+}
+
+.selbar button {
+  border: 0;
+  background: var(--dark-button);
+  color: var(--dark-ink);
+  border-radius: var(--radius-s);
+  padding: 6px 10px;
+}
+
+.selbar button:hover {
+  background: var(--dark-button-hover);
+}
+
+/* labels: a tinted word in the label's colour */
+.labs {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.lab {
+  --lc: var(--label-5);
+  display: inline-block;
+  border: 0;
+  border-radius: 9px;
+  padding: 1px 8px;
+  font-size: var(--text-badge);
+  color: var(--lc);
+  background: color-mix(in srgb, var(--lc) 12%, var(--panel));
+}
+
+.lfil {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lfil .lt {
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.lbtn {
+  cursor: pointer;
+  font-size: var(--text-small);
+}
+
+.lbtn.on {
+  color: var(--white);
+  background: var(--lc);
+}
+
+.lclr {
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font-size: var(--text-small);
+}
+
+@media (max-width: 760px) {
+  .selbar {
+    position: fixed;
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: calc(var(--bar-height) + var(--space-2));
+    flex-wrap: wrap;
+    z-index: 5;
+  }
+}

@@ -10,6 +10,9 @@ export class AskError extends Error {
 }
 
 const base = (id) => `api/projects/${encodeURIComponent(id)}`;
+
+// A route of a project, relative to the page: `route('p', 'backlog/move')`.
+export const route = (id, path) => `${base(id)}/${path}`;
 const withPath = (path) => `path=${encodeURIComponent(path)}`;
 const OPTIONS = { cache: 'no-store', credentials: 'same-origin' };
 
@@ -31,11 +34,16 @@ export const costs = (id) => get(`${base(id)}/costs`);
 
 export const tree = (id, path) => get(`${base(id)}/tree?${withPath(path)}`);
 
-// A text file: its text, and whether the server cut it.
+// A text file: its text, whether the server cut it, and the SHA-256 of its bytes (an editor sends
+// it back; the server leaves it out of a cut file).
 export async function fileText(id, path) {
   const res = await fetch(`${base(id)}/file?${withPath(path)}`, OPTIONS);
   if (!res.ok) throw new AskError(res.status);
-  return { text: await res.text(), cut: res.headers.get('X-Chantier-Cut') === '1' };
+  return {
+    text: await res.text(),
+    cut: res.headers.get('X-Chantier-Cut') === '1',
+    sha256: res.headers.get('X-Chantier-Sha256'),
+  };
 }
 
 // Where a file is served from: an image's `src`, or a download link's `href`.
@@ -52,4 +60,18 @@ export async function recompute(id) {
   });
   if (!res.ok) throw new AskError(res.status);
   return res.json();
+}
+
+// A write: method is POST or PUT, body an object sent as JSON. It never throws on a refusal:
+// the answer is { ok, status, data }, data the board's JSON (or null). Only a failure of the
+// network throws. api/backlog.js turns a refusal into a BoardWriteError.
+export async function send(method, path, body = {}) {
+  const res = await fetch(path, {
+    ...OPTIONS,
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, data };
 }

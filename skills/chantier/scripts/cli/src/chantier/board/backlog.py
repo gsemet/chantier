@@ -8,8 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.board.files import is_lock
-from chantier.core.files import read_text
+from chantier.core.files import is_lock, read_text
 from chantier.status.views import spec_state
 from chantier.summaries.view import summary_view
 

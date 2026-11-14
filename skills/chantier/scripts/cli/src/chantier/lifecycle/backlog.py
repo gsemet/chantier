@@ -9,10 +9,9 @@ import hashlib
 import re
 from pathlib import Path
 
-from chantier.board.files import inside
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import read_json, retry, write_bytes, write_json
+from chantier.core.files import inside, read_json, retry, write_bytes, write_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
 from chantier.lifecycle.stages import (
