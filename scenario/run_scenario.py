@@ -1158,7 +1158,7 @@ def remote_board(w: World) -> None:
     w.chantier("file", "Board inbox item")
     w.start(*items, "--direct", "--slots", 2, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
-    w.chantier("seat", "take", "s-1", "--env", "remote", "--title", "[remote] proj [Chief of Staff]",
+    w.chantier("seat", "take", "s-1", "--env", "remote", "--title", "[Remote] 💬 Proj · CoS",
                "--link", "link-s1")
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)
     w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 1)
@@ -1445,7 +1445,7 @@ def seat_handover(w: World) -> None:
     w.reset()
     w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
-    w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[remote] proj [Chief of Staff]",
+    w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[Remote] 💬 Proj · CoS",
                "--link", "link-a")
     seat = json.loads((w.state / "seat.json").read_text(encoding="utf-8"))
     check("`seat take` writes one file with the session, transcript, env, title and link, no date",

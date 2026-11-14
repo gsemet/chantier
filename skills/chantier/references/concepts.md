@@ -231,7 +231,7 @@ started.
   names the repository's Chief of Staff session: its session id, its transcript id, the
   environment, the title and the link. It records no date: no activity date is ever taken as
   proof of life. The host says whether the seat's session is alive.
-- **Session title:** `[env] Project [role]` ([session-start](session-start.md), "Titles").
+- **Session title:** `[<code>] 💬 Project · <role>` for a session the user talks to, `[<code>] ⚙️ Project <nn> · Foreman` for the Foreman ([session-start](session-start.md), "Titles").
 - **Steering session:** the session that runs the batch from its state: a Foreman, or, in direct
   mode (`open --direct`), the Chief of Staff itself, the session the seat names. Both claim an epoch the same way. The batch
   records which steers it and switches to Foreman mode when a later epoch is claimed by another

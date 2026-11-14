@@ -101,7 +101,7 @@ Only on your explicit word does a CR go to `6-trash/`.
 One session per repository is the **Chief of Staff**: the only one that opens and runs batches.
 Any other session can be a **Griller**: it refines the inbox and the backlog (questions,
 `02-answers.md`, the restated CR, the spec-writer) and never opens a batch. Each session shows its
-role in its title, in the form `[env] Project [role]`, so you tell them apart in the session list.
+role in its title, in the form `[Battle] 💬 Chantier · CoS` or `[Battle] 💬 Chantier · Griller` (💬 a session you talk to, ⚙️ the Foreman), so you tell them apart in the session list.
 
 In a remote session, the steps are yours (chantier explains them and never does them):
 
