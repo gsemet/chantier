@@ -29,9 +29,14 @@ def verdict(args: argparse.Namespace) -> list[str]:
     """A verdict on the worktree's head, in the log: the last one at a head decides. It knows a
     verdict, not a role; a card says who runs it."""
     repo = open_repo()
-    result = " ".join(" ".join(args.result).upper().split())
+    given = " ".join(" ".join(args.result).split())
+    result = given.upper()
     if result not in VERDICTS:
-        raise ChantierError('verdict <cr> VERIFIED | "NOT VERIFIED"', EXIT_USAGE)
+        raise ChantierError(
+            f'verdict: "{given}" is not a verdict: '
+            'the accepted words are VERIFIED and "NOT VERIFIED"',
+            EXIT_USAGE,
+        )
     try:
         batch, _, c = batch_cr(repo, args.cr, args.batch)
     except ChantierError as e:

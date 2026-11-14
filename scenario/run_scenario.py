@@ -3718,7 +3718,10 @@ def handback_proofs(w: World) -> None:
     check("a VERIFIED then a NOT VERIFIED at the same head refuses: the last verdict decides",
           code == 2 and "NOT VERIFIED" in w.last_stderr, w.last_stderr)
     code, _ = w.chantier("verdict", cr, "maybe", expect=1)
-    check("a verdict is VERIFIED or NOT VERIFIED, nothing else", code == 1, w.last_stderr)
+    check("a verdict is VERIFIED or NOT VERIFIED, nothing else, and the refusal quotes the word "
+          "given and names both accepted words",
+          code == 1 and '"maybe"' in w.last_stderr and "VERIFIED" in w.last_stderr
+          and '"NOT VERIFIED"' in w.last_stderr, w.last_stderr)
     w.chantier("verdict", cr, "VERIFIED")
     check("a later VERIFIED at the head lets the last verdict through",
           [e["result"] for e in log_events("verdict")][-1] == "VERIFIED"
