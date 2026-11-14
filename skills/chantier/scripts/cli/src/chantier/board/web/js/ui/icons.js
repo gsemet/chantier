@@ -18,6 +18,7 @@ const PATHS = {
   img: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-9 9"/>',
   blank: '<rect x="5" y="3" width="14" height="18" rx="1"/>',
   chev: '<path d="m7 10 5 5 5-5"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   lang: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
 };

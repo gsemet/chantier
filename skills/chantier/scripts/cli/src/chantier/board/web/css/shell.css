@@ -93,6 +93,11 @@ button.ws:hover {
   background: var(--hover-soft);
 }
 
+.menu .row .ok {
+  margin-left: auto;
+  color: var(--ink2);
+}
+
 .menu .mark {
   width: 28px;
   height: 28px;
