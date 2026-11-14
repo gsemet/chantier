@@ -68,8 +68,9 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
                 *problems,
             ], EXIT_PRECONDITION
     lines = playbook_lines(made, host, plugin_roles(host), label)
-    if not args.batch:  # the Chief of Staff's subagents' first lines, to copy as printed
-        lines += chief_prompt_lines(host, repo.root.as_posix())
+    # first lines to copy as printed: the Chief of Staff's all, the Foreman's (in a batch) only
+    # those of the agents whose description says the Foreman starts them
+    lines += chief_prompt_lines(host, repo.root.as_posix(), "Foreman" if args.batch else None)
     lines.append(escalate_line(host))
     return lines, 0
 

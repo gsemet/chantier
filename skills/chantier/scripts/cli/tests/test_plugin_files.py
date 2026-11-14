@@ -34,7 +34,8 @@ WORKERS = (
 CHIEF_ROLES = (
     "spec-writer",
     "spec-critic",
-)  # started by the Chief of Staff; its card is its own file
+    "retro-critic",
+)  # started by the Chief of Staff or the Foreman; its card is its own file
 
 
 ROLES = DRIVERS + WORKERS + CHIEF_ROLES
@@ -43,6 +44,7 @@ ROLES = DRIVERS + WORKERS + CHIEF_ROLES
 CLAUDE_OPUS_ROLES = {
     "spec-writer",
     "spec-critic",
+    "retro-critic",
 }  # Sonnet by default; escalation starts Opus at need
 
 
@@ -51,6 +53,7 @@ COPILOT_OPUS_ROLES = {
     "release-driver",
     "spec-writer",
     "spec-critic",
+    "retro-critic",
 }  # Copilot is untouched
 
 

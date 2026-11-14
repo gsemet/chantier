@@ -10,7 +10,7 @@ from conftest import PLUGIN_ROOT, Chantier
 
 from chantier.core.errors import EXIT_PRECONDITION
 
-PROMPTERS = ("spec-critic", "spec-writer")
+PROMPTERS = ("retro-critic", "spec-critic", "spec-writer")
 ESCALATE = "escalate: opus (claude-opus-5-5, Claude Opus 5.5)"
 CODER = "coder: agent=chantier:coder model=(its file's)"
 PRICES = "prices:\n  mystery-model:\n"
@@ -39,7 +39,7 @@ def test_with_no_chantier_yaml_playbook_prints_the_plugin_agents(
     prompts = sorted(ln for ln in out if " prompt, first line: " in ln)
     assert len(prompts) == len(
         PROMPTERS
-    )  # the spec-critic and the spec-writer, not the Demo explorer
+    )  # the retro, spec-critic and spec-writer, not the Demo explorer
     for who, line in zip(PROMPTERS, prompts, strict=True):
         assert line.startswith(f"{who} prompt, first line: chantier {who} for the Chief of Staff, ")
         assert "in the project " in line and "proj" in line and line.endswith(".")
@@ -60,6 +60,12 @@ def test_with_no_chantier_yaml_open_records_nothing_and_take_prints_no_team(
     code, out, _ = chantier("playbook", "--batch", record(repo)["id"], "--host", "copilot")
     assert "playbook" not in record(repo) and not team(took) and not team(shown)
     assert code == 0 and out[0].startswith("playbook: no chantier.yaml") and CODER in out
+    prompts = [
+        ln for ln in out if " prompt, first line: " in ln
+    ]  # the Foreman's: the retro critic's only
+    assert len(prompts) == 1 and prompts[0].startswith(
+        "retro-critic prompt, first line: chantier retro-critic for the Chief of Staff, "
+    )
 
 
 def test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch(
@@ -85,12 +91,12 @@ def test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch(
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert now[-1] == ESCALATE and out[-1] == ESCALATE and "opened it" in out[0]
     kept = [ln for ln in now[1:] if " prompt, first line: " not in ln]
-    assert out[1:] == kept
+    assert [ln for ln in out[1:] if " prompt, first line: " not in ln] == kept
     yaml.write_text("roles:\n  coder:\n    agent: other-coder\n", encoding="utf-8")
     _, took, _ = chantier("take", ids[1], "--epoch", 1)  # S3: the batch keeps its opening's
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert "other-coder" not in "".join(took + out) and "agent=my-driver" in "".join(team(took))
-    assert out[1:] == kept
+    assert [ln for ln in out[1:] if " prompt, first line: " not in ln] == kept
 
 
 def test_ci_beside_the_gate_is_printed_recorded_and_kept_after_the_key_is_dropped(

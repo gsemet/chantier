@@ -20,6 +20,7 @@ fact.
 | Start a Driver or a worker | `task`, `mode: background`, `agent_type: <agent>`; the plugin's agent is `chantier-<role>`; no model (the capability is none, below), no effort |
 | Start the Spec-writer (Chief of Staff) | `task`, `mode: background`, `agent_type: chantier-spec-writer`; no model (as above), no effort |
 | Start the Spec critic (Chief of Staff, Griller) | `task`, `mode: background`, `agent_type: chantier-spec-critic`; no model (as above), no effort; Fable is not recorded on Copilot |
+| Start the Retro critic (Foreman, Chief of Staff) | `task`, `agent_type: chantier-retro-critic`; no model (as above), no effort; Fable is not recorded on Copilot |
 | Models | each plugin agent's file names its model (`[display name, id]`): Luna, Sol, Sonnet 5.5 or Opus 5.5 |
 | Models at an agent's start (capability, start value) | capability: none, unproved; no start value. A `model` in `chantier.yaml` is refused on this host, with the CLI's message "cannot set a model when it starts an agent". Trial that would settle it: start a plugin agent through `task` with a model passed, read the model its transcript shows, and record the parameter and the value it took here |
 | Skills and tools of a session (what the Chief of Staff compares a role's needs with) | not known (unproved); trial: a `chantier.yaml` naming one skill that is installed and one that is not; the Chief of Staff names only the second |

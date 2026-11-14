@@ -142,7 +142,7 @@ skills/chantier/
 ├── SKILL.md                ← the router: asks which role this session takes
 ├── references/             ← one file per running context: concepts, session-start,
 │                             chief-of-staff, griller, report, foreman, driver, worker, routing,
-│                             spec-writer, spec-critic, init,
+│                             spec-writer, spec-critic, retro-critic, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
 └── scripts/cli/            ← the `chantier` CLI's source (its web board in `board/web/`), its tests

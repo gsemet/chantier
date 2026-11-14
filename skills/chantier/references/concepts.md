@@ -418,6 +418,7 @@ agent with that line, never a message to the refused one and never a variant. Ea
 | Demo explorer, and the Chief of Staff's other subagents | `chantier <role> for the Chief of Staff of batch <batch>, in the project <root>.` |
 | Spec-writer | `chantier spec-writer for the Chief of Staff, in the project <root>.` |
 | Spec critic | `chantier spec-critic for the Chief of Staff, in the project <root>.` |
+| Retro critic | `chantier retro-critic for the Chief of Staff, in the project <root>.` |
 
 A subagent of the Chief of Staff (the Demo explorer, or an exploration, a prototype or a study)
 is started the same way: its first line is the one of the table above. When the work is for a CR,
@@ -432,11 +433,12 @@ Tell every subagent that writes a file not to start a `.md` name with `report`, 
 refuse a subagent's Write of such a file ([host's reference](hosts/claude-code.md)).
 
 **An agent that ends before its part is done.** This holds for every parent and every agent (a
-Driver of any kind, a worker, a spec-writer, a spec critic, a Demo explorer).
+Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a Demo explorer).
 
 - Each such end is restarted **once**, from the recorded state (`handoff`, `log`, the CR's notes,
   the worktree's commits, the folder's files), and the parent records why first: for a CR,
-  `$CHANTIER note <cr> "restart: <cause>"`; for a spec-writer or a spec critic, the line of `work/specifying`.
+  `$CHANTIER note <cr> "restart: <cause>"`; for a spec-writer or a spec critic, the line of `work/specifying`; for a retro critic, the cause in
+  the parent's own words in its turn (there is no CR to `note`).
 - The causes, one word each: `host failure: <the host's exact text>` (an API error, an overloaded
   or refused service, a network error the host reports as the agent's end, not the agent's own
   words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, plus those `foreman.md` already names
@@ -456,6 +458,10 @@ CR folder. It writes `03-change-spec.md` there and takes no slot and no budget o
 The Spec critic is a subagent of the Chief of Staff or of a Griller too, outside any batch: it
 reads [`spec-critic.md`](spec-critic.md), its brief gives the CR folder, it writes nothing and
 takes no slot and no budget of a batch.
+The Retro critic is a subagent of the Foreman or of the Chief of Staff: it reads
+[`retro-critic.md`](retro-critic.md), its brief gives the points and the files that carry their
+evidence, it writes nothing and takes no slot. Its cost counts in the batch when a batch's steering
+session starts it.
 
 ## Escalation
 
