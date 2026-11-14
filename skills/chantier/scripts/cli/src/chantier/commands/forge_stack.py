@@ -11,13 +11,14 @@ from typing import Any
 
 from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.crs import short_head
-from chantier.commands.facts import chain, stack_base
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
 from chantier.commands.forge_stack_shared import Where, draft_checks, left, ready_tail
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
-from chantier.core.records import BatchRecord
+from chantier.core.records import BatchRecord, CrEntry
+from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
+from chantier.stacks import chain, stack_base, state_word
 
 PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
 
@@ -97,6 +98,8 @@ def _plan(
             {
                 "cr": c.id,
                 "status": c.status,
+                "word": state_word(data, c, repo),
+                "recorded": c.pr_draft,
                 "number": int(number),
                 "link": c.pr,
                 "base": stack_base(data, c, repo, planned=True),
@@ -111,12 +114,18 @@ def _plan(
             f"no PR at the bottom of the stack: {links[0].id} is {links[0].status}, no PR",
             EXIT_PRECONDITION,
         )
+    return rows, _come(data, repo, links[len(rows) :]), where, _dropped(data)
+
+
+def _come(data: BatchRecord, repo: Repo, rest: list[CrEntry]) -> list[dict[str, Any]]:
+    """The CRs to come, from the first with no PR up: cr, status, word, PR number or None."""
     come = []
-    for c in links[len(rows) :]:
+    for c in rest:
         found = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
         pending = int(found.groups()[-1]) if found else None
-        come.append({"cr": c.id, "status": c.status, "number": pending})
-    return rows, come, where, _dropped(data)
+        word = state_word(data, c, repo)
+        come.append({"cr": c.id, "status": c.status, "word": word, "number": pending})
+    return come
 
 
 def _dropped(data: BatchRecord) -> dict[int, str]:
@@ -351,4 +360,7 @@ def _show(args: argparse.Namespace) -> tuple[list[str], int]:
         return lines, EXIT_PRECONDITION
     prs = stack.get("pull_requests", [])
     part, tail = ready_tail(rows, come, {p["number"] for p in prs if p.get("draft")}, release)
-    return [f"stack #{stack.get('number')} ready: open, {len(prs)} PRs in order, {part}", *tail], 0
+    return [
+        f"stack #{stack.get('number')} ready to merge: open, {len(prs)} PRs in order, {part}",
+        *tail,
+    ], 0

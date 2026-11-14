@@ -160,7 +160,7 @@ def show(
     drafts = {m["iid"] for m in mrs if m.get("draft")}
     part, tail = ready_tail(rows, come, drafts, release, "!")
     top = rows[-1]["link"]
-    return [f"chain {top} ready: open, {len(rows)} MRs in order, {part}", *tail], 0
+    return [f"chain {top} ready to merge: open, {len(rows)} MRs in order, {part}", *tail], 0
 
 
 def make(rows: Rows, come: Rows, where: Where) -> tuple[list[str], int]:

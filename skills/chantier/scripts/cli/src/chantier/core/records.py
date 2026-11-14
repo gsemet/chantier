@@ -69,6 +69,7 @@ class CrEntry(Record):
     round: int = 0
     agent: str | None = None
     pr: str | None = None
+    pr_draft: bool | None = None  # the forge's draft state, as whoever changed it recorded it
     head: str | None = None
     branch: str = ""
     worktree: str = ""

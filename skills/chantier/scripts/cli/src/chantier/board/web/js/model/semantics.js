@@ -4,7 +4,16 @@
 import { t } from './words.js';
 
 const CLOSED = ['merged', 'cancelled'];
-export const STATE_ORDER = ['blocked', 'working', 'ready', 'waits', 'queued', 'merged'];
+export const STATE_ORDER = [
+  'blocked',
+  'working',
+  'ready',
+  'draft',
+  'local',
+  'waits',
+  'queued',
+  'merged',
+];
 export const HEARTBEAT_LATE_MIN = 15;
 const MINUTE_MS = 60000;
 
@@ -14,8 +23,15 @@ export const isRelease = (c) => c.kind === 'release';
 export const crsOf = (batch) => batch?.crs ?? [];
 export const byState = (batch, state) => crsOf(batch).filter((c) => c.state === state);
 
-// A queued CR held by its dependencies shows as "waits"; any other keeps its own state.
-export const vstate = (c) => (c.state === 'queued' && c.waits?.length ? 'waits' : c.state);
+// A handed-back CR shows by the word the record derived: `ready` (ready to merge), `draft` (PR in
+// draft; also a record with no word) or `local` (ready locally). A queued CR held by its
+// dependencies shows as "waits"; any other keeps its own state.
+const READY_STATE = { 'ready to merge': 'ready', 'PR in draft': 'draft', 'ready locally': 'local' };
+const READY_WORDS = ['ready', 'draft', 'local'];
+export function vstate(c) {
+  if (c.state === 'ready') return READY_STATE[c.readiness] ?? 'draft';
+  return c.state === 'queued' && c.waits?.length ? 'waits' : c.state;
+}
 
 export const defaultBranch = (batch) => batch?.default_branch || 'main';
 
@@ -67,13 +83,9 @@ export function baseOf(c, batch) {
   return base;
 }
 
-// To review: handed back `ready`, and its PR on the default branch, or in a stack (a fix apart)
-// a stack verified on the forge. The record carries no such fact yet: a stack's PRs stay drafts.
-export function toReview(c, batch) {
-  if (c.state !== 'ready') return false;
-  if (batch.mode === 'stack' && !isFix(c)) return Boolean(batch.stack_verified);
-  return baseOf(c, batch).on === defaultBranch(batch);
-}
+// To review: ready to merge, the word the record derives (the PR is out of draft on the forge and
+// everything under it is ready to merge too).
+export const toReview = (c) => vstate(c) === 'ready';
 
 // The open CRs with a PR, in the order their PRs are merged. A stack or a series: the chain, a
 // fix apart. A parallel batch: the order the CRs were handed back, the release last.
@@ -95,8 +107,8 @@ export function prLists(batch) {
   const all = mergeOrder(batch);
   const read = (list) => (batch.mode === 'stack' ? [...list].reverse() : list);
   return {
-    review: read(all.filter((c) => toReview(c, batch))),
-    drafts: read(all.filter((c) => !toReview(c, batch))),
+    review: read(all.filter((c) => toReview(c))),
+    drafts: read(all.filter((c) => !toReview(c))),
   };
 }
 
@@ -111,7 +123,7 @@ export function placeOf(c, batch, index) {
 }
 
 // Why a PR is not to review yet.
-export const draftWhy = (c) => (c.state === 'ready' ? t('pr.draft') : t(`state.${vstate(c)}`));
+export const draftWhy = (c) => (vstate(c) === 'draft' ? t('pr.draft') : t(`state.${vstate(c)}`));
 
 // The CRs in levels: a CR is one level above the highest of its dependencies in the batch; a
 // cycle counts as level 0.
@@ -154,8 +166,10 @@ export function related(rows, id) {
 
 // The CRs and counts the Home and Batch figures need.
 export function counts(batch) {
-  const n = (state) => byState(batch, state).length;
-  const review = crsOf(batch).filter((c) => toReview(c, batch)).length;
+  const n = (state) =>
+    crsOf(batch).filter((c) => (READY_WORDS.includes(state) ? vstate(c) : c.state) === state)
+      .length;
+  const review = crsOf(batch).filter((c) => toReview(c)).length;
   return {
     total: crsOf(batch).length,
     review,
@@ -186,10 +200,11 @@ export const steeringWord = (batch) =>
 // The mode's words: its name and its sentence.
 export const modeWords = (mode) => ({ name: t(`mode.${mode}`), text: t(`mode.${mode}.text`) });
 
-// The hint over the PRs to review, by mode and by whether the stack is verified.
+// The hint over the PRs to review, by mode and by whether the whole stack is ready to merge.
 export function reviewHint(batch) {
   if (batch.mode === 'stack') {
-    return t(batch.stack_verified ? 'prs.hint_stack_ok' : 'prs.hint_stack_no');
+    const whole = chain(batch).length > 0 && chain(batch).every(toReview);
+    return t(whole ? 'prs.hint_stack_ok' : 'prs.hint_stack_no');
   }
   if (batch.mode === 'series') return t('prs.hint_series', { branch: defaultBranch(batch) });
   return t('prs.hint_parallel');

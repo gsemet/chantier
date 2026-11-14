@@ -9,6 +9,8 @@ export type ChantierRow = {
   severity: string
   step: string
   label: string
+  /** A ready CR's state: `ready locally`, `PR in draft` or `ready to merge`; null for any other. */
+  readiness: string | null
   round: number
   branch: string | null
   pr: string | null

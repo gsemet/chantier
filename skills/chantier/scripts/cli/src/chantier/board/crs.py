@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board.backlog import count_files, description, subject
-from chantier.commands.facts import chain, stack_base
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
-from chantier.status.words import can_start, label, severity, waits
+from chantier.stacks import READY_TO_MERGE, chain, ready_word, stack_base
+from chantier.status.words import severity, state_label, waits
 
 
 def link_of(url: str | None) -> str | None:
@@ -67,13 +67,14 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
     waiting = waits(d, c)
     place = [x.id for x in chain(d)]
     base = base_of(d, c, repo)
-    default: str = repo.config["default_branch"] or "main"
+    readiness = ready_word(d, c, repo)
     return {
         "cr": c.id,
         "title": subject(c.title),
         "folder": repo.rel(folder) if folder else None,
         "state": c.status,
-        "label": label(c, round_limit(d, c), waiting, can_start(d)),
+        "label": state_label(repo, d, c, waiting),
+        "readiness": ready_word(d, c, repo),
         "severity": severity(c),
         "round": c.round,
         "round_limit": round_limit(d, c),
@@ -94,10 +95,8 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "description": description(folder) if folder else "",
         "chain_place": place.index(c.id) + 1 if c.id in place else None,
         "base": base,
-        # a stack's PRs stay drafts until the forge verifies the stack: the record has no such fact
-        "to_review": c.status == "ready"
-        and base["on"] == default
-        and not (d.mode == "stack" and c.kind != "fix"),
+        # to review: the PR is out of draft and everything under it is (`ready_word`)
+        "to_review": readiness == READY_TO_MERGE,
     }
 
 
