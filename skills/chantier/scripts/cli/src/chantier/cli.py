@@ -7,10 +7,14 @@ import sys
 from typing import Any
 
 from chantier import __version__, plugin_files
-from chantier.board import command as board_command
-from chantier.commands import (
+from chantier.core import repo
+from chantier.core.errors import ChantierError
+from chantier.core.ids import normalize_cr
+from chantier.declare import (
     batch_status,
+    board,
     closing,
+    cost,
     delivery,
     driver,
     facts,
@@ -24,10 +28,6 @@ from chantier.commands import (
     rules,
     seat,
 )
-from chantier.commands.cost import command as cost_command
-from chantier.core import repo
-from chantier.core.errors import ChantierError
-from chantier.core.records import normalize_cr
 
 MAX_LINES = 10
 # The facts of a CR, a list of files, the whole batch, or what the user approves, is useless cut
@@ -70,7 +70,7 @@ def _parser() -> argparse.ArgumentParser:
         opening,
         orders,
         seat,
-        board_command,
+        board,
         batch_status,
         driver,
         rules,
@@ -80,7 +80,7 @@ def _parser() -> argparse.ArgumentParser:
         forge_stack,
         release,
         closing,
-        cost_command,
+        cost,
     ):
         module.register(sub)
     return p

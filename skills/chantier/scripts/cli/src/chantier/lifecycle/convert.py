@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -14,9 +13,7 @@ from chantier.core.files import LOCK_TIMEOUT_S, retry, try_lock, unlock, write_f
 from chantier.core.records import BatchRecord, CrEntry, read_batch_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.backfill import backfill_history
-from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import STATE_FOLDERS, changes_lock, stage_layout
-from chantier.status.write import write_dashboard
 
 
 def _has_files(path: Path) -> bool:
@@ -159,6 +156,8 @@ def _move_batch(
     moves = _move_files(repo, batch, target, where, renames)
     for state in STATE_FOLDERS:
         (target / state).mkdir(parents=True, exist_ok=True)
+    from chantier.lifecycle.session import RenderedBatch  # noqa: PLC0415 - slow import
+
     with RenderedBatch(repo, data.id, actor="cli") as b:
         for cr in b.record.crs:
             if cr.path:
@@ -218,11 +217,15 @@ def _convert(repo: Repo) -> list[str]:
             lock, original = _lock_batch(batch)
         for (a, b), empty in zip(plain, clear, strict=False):
             if empty:
+                import shutil  # noqa: PLC0415 - slow import
+
                 shutil.rmtree(b)
             _rename(renames, a, b)
             parts.append(f"{a.name} -> {b.name}")
         if batch:
             if clear_batch:
+                import shutil  # noqa: PLC0415 - slow import
+
                 shutil.rmtree(target)
             _move_batch(repo, batch, target, plain, renames)
             parts.insert(0, "3-requests -> 4-batch")
@@ -281,6 +284,8 @@ def _undo(
 
 def write_dashboard_after_rename(repo: Repo) -> None:
     """Archives and trash moved without a batch: the index at the root is written anew."""
+    from chantier.status.write import write_dashboard  # noqa: PLC0415 - slow import
+
     with contextlib.suppress(OSError):  # a file that cannot be written; any other error shows
         write_dashboard(repo, stage_layout(repo))
 

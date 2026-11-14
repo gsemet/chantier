@@ -15,7 +15,8 @@ from conftest import PLUGIN_ROOT, load_script
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
 from chantier.commands.crs import gate_passed, last_verdict
-from chantier.core.records import EventRecord, normalize_cr
+from chantier.core.ids import normalize_cr
+from chantier.core.records import EventRecord
 
 FULL_ROWS = 13
 

@@ -13,7 +13,6 @@ from chantier.commands.crs import (
     last_verdict,
     short_head,
 )
-from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
@@ -210,11 +209,3 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
         f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'}"
         for x in crs
     ]
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub, "handoff", handoff, "the CR's facts, for any agent; changes nothing", BATCH
-    )
-    s.add_argument("cr")

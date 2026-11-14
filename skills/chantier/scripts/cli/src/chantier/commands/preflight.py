@@ -10,7 +10,6 @@ from pathlib import Path
 
 from chantier import __version__
 from chantier.commands.permissions import SETTINGS_SHOWN, commands_not_allowed
-from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import default_branch, git
@@ -218,19 +217,3 @@ def preflight(args: argparse.Namespace) -> tuple[list[str], int]:
     r.lines.append(f"{own} and 'not unattended' are the Chief of Staff's own checks")
     r.lines.append("preflight passed" if r.ok else "preflight FAILED: start nothing")
     return r.lines, 0 if r.ok else EXIT_PRECONDITION
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "preflight",
-        preflight,
-        "check P1, P4–P8, P10 and P12; exit 2 if any fails (P10 only warns)",
-        NO_BATCH,
-    )
-    s.add_argument(
-        "--direct",
-        action="store_true",
-        help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point",
-    )

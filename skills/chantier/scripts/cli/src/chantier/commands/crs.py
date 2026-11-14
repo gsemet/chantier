@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
 
 from chantier.core.batch import Batch, find_cr_batch, read_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
+from chantier.core.ids import normalize_cr
 from chantier.core.records import (
     BatchRecord,
     CrEntry,
     EventRecord,
     ReleaseGrant,
-    normalize_cr,
     read_events,
 )
 from chantier.core.repo import Repo
@@ -145,5 +144,7 @@ def filed_fix(b: Batch, rel: CrEntry, item: str) -> str:
     if not source.is_file() or cr_directory(repo, rel) not in source.parents:
         return item
     folder = new_request(repo, f"{rel.id.lower()}-{slugify(source.stem)}", source.read_bytes())
+    import shutil  # noqa: PLC0415 - slow import
+
     shutil.copyfile(source, folder / "03-change-spec.md")
     return str(folder)

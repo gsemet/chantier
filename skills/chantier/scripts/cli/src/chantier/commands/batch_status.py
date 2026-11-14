@@ -9,7 +9,6 @@ from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.commands.gate_lock import lock_holder
-from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, read_batch, resolve_batch
 from chantier.core.batch_records import last_closed
 from chantier.core.clock import age_minutes, now
@@ -328,42 +327,3 @@ def agents(args: argparse.Namespace) -> list[str]:
             b.touch(b.cr(args.cr), agent=args.agent)
         b.log("agent", args.cr, agent=args.agent)
     return [f"{args.cr} → {args.agent}"]
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "status",
-        status,
-        "one line per CR, the open orders (untouched, then applied), the unread asks; "
-        "--refresh: the live facts; its line says `heartbeat N min` (since the last "
-        "`--refresh --epoch`), `never` or `stopped`",
-        BATCH_EPOCH,
-    )
-    s.add_argument("--notes", action="store_true", help="each CR's last note")
-    s.add_argument(
-        "--refresh",
-        action="store_true",
-        help="the activity of each working CR (age of its last event or session "
-        "record, `gate running`, `not measured`) and the spend (recorded); "
-        "with --epoch, the steering session's wake: it records the heartbeat "
-        "and prints the gap since the wake before; without, it moves nothing",
-    )
-    s.add_argument(
-        "--stop-heartbeat",
-        action="store_true",
-        help="with --epoch: record that the steering session ended its loop "
-        "(`heartbeat stopped`, until the next wake)",
-    )
-
-    s = add_command(
-        sub, "asks", asks, "the Foreman's asks still unread; with text, record one", BATCH
-    )
-    s.add_argument("text", nargs="*", help="the Foreman's own ask")
-    s.add_argument("--read", metavar="A-k|all", help="mark heard")
-
-    s = add_command(sub, "agents", agents, "map a CR (or stack) to its agent id", BATCH_EPOCH)
-    s.add_argument("action", choices=["set"])
-    s.add_argument("cr")
-    s.add_argument("agent", help="the agent id; `-` clears it")

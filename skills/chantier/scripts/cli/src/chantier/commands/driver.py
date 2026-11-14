@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from chantier.commands.cost.sessions import foreman_uuid
 from chantier.commands.crs import (
     batch_cr,
     cr_events,
@@ -19,13 +18,11 @@ from chantier.commands.driver_checks import (
     live_cr,
 )
 from chantier.commands.facts import cr_facts, stack_lines
-from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.costs.sessions import agent_context
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, done_cr, start_cr
@@ -124,6 +121,9 @@ def round_(args: argparse.Namespace) -> list[str]:
 def _context_line(repo: Repo, d: BatchRecord, c: CrEntry) -> str:
     """The context size of the agent recorded on the CR, its Driver: the last call's prompt, read
     from the end of its transcript. Not an error when it cannot be measured."""
+    from chantier.commands.cost.sessions import foreman_uuid  # noqa: PLC0415 - slow import
+    from chantier.costs.sessions import agent_context  # noqa: PLC0415 - slow import
+
     agent = c.agent
     if not agent:
         return "context: not measured (no agent recorded)"
@@ -230,51 +230,3 @@ def log(args: argparse.Namespace) -> list[str]:
             + (" " + " ".join(f"{k}={v}" for k, v in rest.items()) if rest else "")
         )
     return lines or [f"no event for {c.id}"]
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "take",
-        take,
-        "a Driver takes the CR (or `stack`): the slot, then its facts",
-        BATCH_EPOCH,
-    )
-    s.add_argument("cr", help="the CR, or `stack` for the stack driver")
-    s.add_argument(
-        "--note",
-        help="why a ready or blocked CR goes back to a Driver, or a working CR "
-        "restarts (needs `agents set <cr> -` first)",
-    )
-
-    s = add_command(
-        sub,
-        "round",
-        round_,
-        "count a round of the CR (exit 5 past the budget or the limit); its facts",
-        BATCH,
-    )
-    s.add_argument("cr")
-    s.add_argument("--note", help="the round's brief, kept in the log")
-
-    s = add_command(
-        sub, "handback", handback, "a Driver's end: ready <link> or blocked <reason>", BATCH
-    )
-    s.add_argument("cr")
-    s.add_argument("result", choices=["ready", "blocked"])
-    s.add_argument("note", nargs="*")
-    s.add_argument(
-        "--no-gate",
-        metavar="REASON",
-        help="ready: the project's rule that declares no long gate or exempts this CR "
-        "from it; the steering session checks it",
-    )
-
-    s = add_command(sub, "note", note, "a line in the CR's record, shown in its STATUS.md", BATCH)
-    s.add_argument("cr")
-    s.add_argument("text", nargs="*")
-    s.add_argument("--draft", help="a file the user reviews and edits in place")
-
-    s = add_command(sub, "log", log, "the CR's events", BATCH)
-    s.add_argument("cr")

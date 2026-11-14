@@ -7,7 +7,6 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
-from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.lifecycle.convert import open_repo
@@ -98,23 +97,3 @@ def rules(args: argparse.Namespace) -> list[str]:
     if not repo.external:
         return listed(found, repo.root)
     return ["project:", *listed(found, repo.root), "surface:", *listed(outer, repo.surface_root)]
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    add_command(sub, "rules", rules, "the project's instruction file and the files it links", BATCH)
-
-    s = add_command(
-        sub,
-        "playbook",
-        playbook,
-        "the agent and model each role runs, from chantier.yaml (or, with --batch, as the batch "
-        "opened); "
-        "exit 2 if the file is invalid",
-        BATCH,
-    )
-    s.add_argument(
-        "--host",
-        choices=["claude", "copilot"],
-        help="the host to resolve for (default: the detected host); ignored with --batch",
-    )

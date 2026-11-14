@@ -6,7 +6,6 @@ import json
 import os
 import re
 import shlex
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -80,6 +79,8 @@ def copilot_session_costs(session: str) -> list[dict[str, Any]]:
         env = os.environ.copy()
         for variable in UV_INDEX_VARIABLES:
             env.pop(variable, None)
+    import shutil  # noqa: PLC0415 - slow import
+
     if not shutil.which(cmd[0]):
         raise ChantierError(
             f"`{cmd[0]}` not found: chantier needs uv to run copilot-session-usage on Copilot",

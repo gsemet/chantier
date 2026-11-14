@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,9 +26,7 @@ from chantier.core.clock import now
 from chantier.core.files import read_text, retry, write_file
 from chantier.core.records import BatchRecord, read_batch_json
 from chantier.core.repo import RECORDS, Repo
-from chantier.history import table_lines
 from chantier.lifecycle.stages import changes_lock
-from chantier.status.views import when_of
 
 STAGES = (("5-archives", "merged"), ("6-trash", "dropped"))
 OLD_RETRO_FOLDER = re.compile(r"\d{6}-\d{4}-batch-(\d+)")
@@ -103,6 +100,8 @@ def _add_cr(repo: Repo, found: dict[int, Found], folder: Path, result: str) -> N
     if not re.fullmatch(r"batch-\d+", batch_id):
         one.former_id = batch_id
     one.steps += [s["at"] for s in status.get("steps") or [] if isinstance(s, dict) and s.get("at")]
+    from chantier.status.views import when_of  # noqa: PLC0415 - slow import
+
     if result == "merged" and (when := when_of(folder.name)):
         one.merges.append(when)
     one.retros += [
@@ -156,6 +155,8 @@ def _record(number: int, one: Found | None, written: str) -> Rec:
 
 
 def _markdown(record: Rec) -> str:
+    from chantier.history import table_lines  # noqa: PLC0415 - slow import
+
     back = record["backfill"]
     note = (
         (
@@ -177,6 +178,8 @@ def _write_all(repo: Repo, found: dict[int, Found], live: BatchRecord | None, hi
     final = repo.changes / RECORDS
     tmp = repo.changes / "5-archives" / ".batches.tmp"
     if tmp.exists():
+        import shutil  # noqa: PLC0415 - slow import
+
         shutil.rmtree(tmp)  # a killed run's leftover
     written = now()
     for n in range(1, highest + 1):

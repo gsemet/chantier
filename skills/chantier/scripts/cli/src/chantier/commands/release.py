@@ -8,7 +8,6 @@ from pathlib import Path
 
 from chantier import procs
 from chantier.commands.gate_lock import lock_holder
-from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.lifecycle.convert import open_repo
@@ -111,22 +110,3 @@ def cancel(args: argparse.Namespace) -> list[str]:
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + (
         ["every CR is merged or cancelled: `chantier pause`"] if done else []
     )
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "release",
-        release,
-        "release driver: start an attempt, go for an irreversible action, published",
-        BATCH,
-    )
-    s.add_argument("action", choices=["start", "go", "published"])
-    s.add_argument("cr")
-    s.add_argument("--note", help="go: the irreversible action; published: version and link")
-
-    s = add_command(
-        sub, "cancel", cancel, "stop a CR's processes and mark it cancelled", BATCH_EPOCH
-    )
-    s.add_argument("cr")

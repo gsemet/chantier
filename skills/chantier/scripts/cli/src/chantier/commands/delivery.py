@@ -9,7 +9,6 @@ from pathlib import Path
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
 from chantier.commands.facts import stack_base, stack_lines
-from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
@@ -163,30 +162,3 @@ def stack(args: argparse.Namespace) -> list[str]:
             b.touch(b.cr(cr), order=i, stacked=True)
         b.log("stack-order", None, crs=args.crs)
     return [f"stack order: {' → '.join(args.crs)}"]
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "verdict",
-        verdict,
-        "the Verifier's verdict on the CR's worktree head: VERIFIED or \"NOT VERIFIED\"",
-        BATCH,
-    )
-    s.add_argument("cr")
-    s.add_argument("result", nargs="+", help="VERIFIED, or NOT VERIFIED (one argument or two)")
-
-    s = add_command(
-        sub, "ship", ship, "record the PR the Driver opened or updated; say what is off", BATCH
-    )
-    s.add_argument("cr")
-    s.add_argument("pr", help="the PR link")
-
-    s = add_command(sub, "stack", stack, "the stack's order, as its driver set it", BATCH)
-    s.add_argument(
-        "crs",
-        nargs="*",
-        help="the stack's order, as its driver set it, bottom first; "
-        "with no CR, print the stack as it stands (writes nothing)",
-    )

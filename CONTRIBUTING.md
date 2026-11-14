@@ -261,6 +261,9 @@ The plugin's Python (every `.py` file under `skills/`, tests included) meets the
 - **Style:** `ruff format` and `ruff check` clean (`E`, `W`, `F`, `I`, `B`, `UP`, `SIM`, `C90`,
   `PL`, `RUF`), lines of 100 at most; a `# noqa: <code>` names its code and says why.
 - **Types:** every function annotated, `mypy --strict` clean.
+- **Start-up:** the CLI's start-up (parsing and dispatch) imports only the standard library and
+  chantier's own modules; a command imports its libraries when it runs (`test_code_targets.py`
+  checks `--version` and `--help`).
 
 The code of `src/chantier/` is in layers, and a module imports only from its own layer or the ones
 below: `core/` (errors, files, clock, git, the JSON records as pydantic models, the repository,
