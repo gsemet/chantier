@@ -5,7 +5,8 @@ judges and point here. Read it with your card when you run on Copilot.
 
 The lines below moved from the cards as they were, unchanged in substance. Copilot's marks:
 nothing here was re-tried when they moved, so each line is **unproved** as to date and place
-unless it says otherwise; no new Copilot finding. Never tell the user an unproved behaviour as a
+unless it says otherwise; no new Copilot finding, with one exception: the question tool's row, a
+user's statement dated 2026-11-14 (CR-250 answer 10), unproved like the rest. Never tell the user an unproved behaviour as a
 fact.
 
 ## Tools
@@ -26,6 +27,7 @@ fact.
 | Stop a Driver | `write_agent` `[foreman→driver <cr>] stop` |
 | Agent ids of the project | a file in `.github/agents/` or `~/.copilot/agents/` |
 | Preflight P2 | `create_session` and `send_message` load |
+| Ask the user a series of questions (grill, specification) | the host's question tool, at most 5 questions per call, at most 4 options per question (the general rule), the reference opening each question's text. The tool's exact name and whether it has its own free answer are not recorded here. Mark: the user's statement (2026-11-14, CR-250 answer 10), unproved; trial: one call with 5 questions on Copilot, all 5 shown, the tool's name and its free answer recorded |
 | Run the board | the host's background shell with the command `$CHANTIER board --seat <id>`, its first lines read from the output, stopped with the host's stop of a background shell (unproved; trial: a Chief of Staff starts it, `GET /api/board` with the key answers from the machine, the output shows the start line). If the host has no background command, the Chief of Staff gives the one line of `session-start.md` and goes on: no workaround |
 | The board when the session ends | whether the host ends a background command when the session ends (unproved; trial: start the board, end the session, ask `GET /api/board` with the key). Until proved, the board stops when the seat moves (the CLI) |
 | The skills | the same four, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `foreman` or `direct`, or the argument `reload`, is not known (unproved) |
