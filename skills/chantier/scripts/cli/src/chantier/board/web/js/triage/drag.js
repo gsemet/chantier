@@ -22,16 +22,19 @@ function start(event, source) {
 }
 
 // The nearest thing a drag can land on: a post-it, a group's frame, a column or a row.
+// A dragged group lands on a column or a row only, wherever the pointer is inside it.
 const targetOf = (event) =>
-  event.target.closest('.pi') ??
-  event.target.closest('.grpf') ??
-  event.target.closest('[data-col]');
+  dragging?.group
+    ? event.target.closest('[data-col]')
+    : (event.target.closest('.pi') ??
+      event.target.closest('.grpf') ??
+      event.target.closest('[data-col]'));
 
 function light(root, event) {
   if (!dragging) return null;
   const target = targetOf(event);
   const own = target?.classList.contains('pi') && target.dataset.slug === dragging.slug;
-  if (!target || own || (dragging.group && !target.dataset.col)) return null;
+  if (!target || own) return null;
   event.preventDefault();
   clearOver(root);
   if (!target.classList.contains('pi')) target.classList.add('over');

@@ -3,7 +3,7 @@
 // Triage and Kanban draw it and share it.
 import { delegate, html } from '../core/dom.js';
 import { snapshot, update } from '../core/store.js';
-import { labelsOf } from '../model/triage.js';
+import { findItem, labelsOf, passes } from '../model/triage.js';
 import { t } from '../model/words.js';
 import { colorVars } from './tags.js';
 
@@ -25,10 +25,14 @@ export function filterRow(state) {
 export const bindFilter = (root) =>
   delegate(root, 'click', '[data-lf]', (_, button) => {
     const label = button.dataset.lf;
-    const now = snapshot().labelFilter;
-    if (!label) update({ labelFilter: [] });
-    else
-      update({
-        labelFilter: now.includes(label) ? now.filter((l) => l !== label) : [...now, label],
-      });
+    const state = snapshot();
+    const now = state.labelFilter;
+    const toggled = now.includes(label) ? now.filter((l) => l !== label) : [...now, label];
+    const next = label ? toggled : [];
+    // A post-it the filter hides leaves the selection.
+    const selection = state.selection.filter((s) => {
+      const item = findItem(state.data?.backlog, s);
+      return item && passes(item, next);
+    });
+    update({ labelFilter: next, selection });
   });

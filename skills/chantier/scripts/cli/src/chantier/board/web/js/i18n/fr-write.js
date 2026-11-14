@@ -29,6 +29,7 @@ export default {
   'postit.late': 'Son résumé est en retard : la CR a changé depuis son écriture',
   'postit.origin': 'D’où vient la demande',
   'postit.open': 'Ouvrir le dossier',
+  'postit.selected': 'sélectionné',
   'postit.raw': 'Brut : pas encore grillé',
   'postit.grill': 'En grill : des réponses, pas de spec',
   'postit.spec': 'Spécifié : la spec est écrite',
