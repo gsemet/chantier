@@ -387,7 +387,9 @@ Only in the turn where the user gave the go:
    otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
-   one native stack the user merges in one action from its top PR. On a no, say that the stack
+   one native stack the user may merge in one action from its top PR, or one PR at a time from
+   the bottom: the user may also merge each ready PR as it comes, before the stack is made, and
+   nothing about the merge path is fixed at the go nor recorded in `brief.md`. On a no, say that the stack
    will be made by `$CHANTIER forge-stack create` over the REST API, and record the choice in
    `brief.md` (step 3) so the Foreman passes it to the stack driver. GitHub only: on GitLab the
    stack stays as it was. Re-read the seat first ([session-start](session-start.md)). The steering mode is
@@ -615,20 +617,32 @@ CR-222 → CR-225 → CR-226 → CR-228."
   running the PR's branch. On the user's file, `order note <cr> --note "evidence: <path of the
   image>"`: the Foreman turns it into `take <cr> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
-  ready again.
+  ready again. In every mode, a `ready` ask whose PR is on the default branch is offered to the
+  user as mergeable now, on its own, with its gaps as above; a `ready … draft on <base>: waits for
+  <cr>` ask is not: say what it waits for. Say "you can merge" (or any equivalent) about a PR only
+  after its `ready` line (or the `stack-ready` line for a stack) has reached you, never on a
+  Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
+  its `ready` line, record it as any merge (`order merged <cr>`: the user's merge is a fact) and
+  tell the Foreman in the same message; no reproach, no question.
 - **A series batch:** the CRs merge one by one, in order. On each `ready` ask, tell the user which
   PR is next to merge (the bottom one, ready on the default branch) and that the others are drafts
   waiting on it; quote each gap of the ask as above; when the user says it is merged,
-  `order merged <cr>`, then say what comes next.
+  `order merged <cr>`, then say what comes next. The user may merge the bottom PR as soon as it
+  is ready, which is what the series already does; nothing waits for a "go" of the user to merge.
   Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
   --note stack`.
-- **A stack batch:** on a `stack-ready <stack link> <cr>=<link>…` ask, read the stack on the forge
+- **A stack batch:** the one-action stack merge is not the only path. Before the stack is made on
+  the forge, each CR handed back `ready` on the default branch is an ordinary `ready` ask, offered
+  as mergeable now (the bullet above); a CR above it, a draft on another CR's branch, waits. On a
+  `stack-ready <stack link> <cr>=<link>…` ask, read the stack on the forge
   yourself before you tell the user: the five checks of the stack ([foreman](foreman.md), "The
   five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold). All
-  hold: tell the user the stack is ready to merge in one action from its top PR (the link), with
+  hold: tell the user the stack can be merged in one action from its top PR (the link), or one PR
+  at a time from the bottom, as they like, with
   the release commit last, quoting each CR's gaps of the ask in the user's language (none: say
-  nothing about gaps). After one merge action of the user, record `order merged` for every
-  CR it merged, bottom first, all before telling the Foreman, in one message (one action leads to
+  nothing about gaps). After each merge action of the user (one PR or several), record `order
+  merged` for every CR it merged, bottom first, all before telling the Foreman, in one message
+  (one action leads to
   one restack at most, and none when the whole stack merged; the release CR's merge starts the
   release procedure, as today). An `anomaly` of the stack driver or the Foreman on a refused
   `$CHANTIER forge-stack rebuild` reaches the user as an ask with the exact text; on the user's

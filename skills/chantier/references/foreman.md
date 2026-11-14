@@ -154,7 +154,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   release redone after; one that belongs to no CR is a fix CR. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
   (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
-  (`--mode stack`, or a series switched by `order mode`): a stack driver takes the stack when its open CRs are all
+  (`--mode stack`, or a series switched by `order mode`): until then it runs like a parallel batch
+  with chains: each CR handed back `ready` on the default branch is an ordinary `ready` ask (the
+  user may merge it now), and a merge is handled by the rebase notes below, not by a restack. A
+  stack driver takes the stack when its open CRs are all
   ready or blocked, and again, once every CR merged by one action of the user is recorded, one
   `take stack` for what remains; none when nothing of the stack remains open. You run `take
   stack`, never the stack driver: its output goes in the stack driver's prompt, you start it, then
@@ -164,7 +167,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   first CR on the default branch. A fix CR is outside it; the release CR is its top. A CR added by `order
   add` goes on top. The stack driver ends with each hand-back: `agents set stack - --epoch <n>`
   before the next `take stack`. Its end is one native stack on the forge that the user merges in
-  one action from the top PR. On its `hand-back ready <stack link> <cr>=<link>…`, read the stack
+  one action from the top PR, or one PR at a time from the bottom. On its `hand-back ready <stack link> <cr>=<link>…`, read the stack
   on the forge before anything else, the five checks (below), then:
   `$CHANTIER asks "stack-ready <stack link> <cr>=<link>…"` when all hold, each CR's gaps after
   its link (`<cr>=<link> gaps: …`) as the hand-back wrote them; when one fails, no
@@ -212,9 +215,28 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     rebase, a new round after review), the started CR above it goes back to a Driver with
     `--note "rebase: <cr> moved"` (or the `note` line, when it is working), and stays a draft on
     that branch; each one moved this way moves the next.
-  - **Stack:** once every CR that one action of the user merged is recorded, one `take stack`
-    for what remains and one restack by the stack driver; none when nothing of the stack remains
-    open.
+  - **Stack:** a choice you make per recorded merge (or per group of merges recorded in one
+    message), never fixed at the go:
+    - **A restack** (once every CR that one action of the user merged is recorded, one `take
+      stack` for what remains and one stack driver) when a native stack of the batch is on the
+      forge, or when every open CR of the stack is ready or blocked.
+    - **Rebase notes** otherwise (a Driver of the stack is still working, no stack on the
+      forge): the parallel rules apply, scoped to the CRs whose base the merge changed. A
+      `working` CR based on the merged CR's branch or on the default branch gets `[foreman→driver
+      <cr>] note rebase: <merged cr> merged`; a `ready` or `blocked` one with a PR that no longer
+      merges (`gh pr view --json mergeable`, `glab mr view`) or whose base was the merged CR's
+      branch goes back with `take <cr> --note "rebase: <merged cr> merged"`. A ready PR on the
+      default branch that still merges cleanly is left alone.
+    - Nothing of the stack left open: neither.
+
+    Say in your next line to the Chief of Staff which one you chose and why, in one clause.
+  - **A Driver merged under it:** a Driver's line `[driver <cr>→foreman] … <cr> is merged: no
+    Driver to hand it back …` (with its note of what it left undone) is not an anomaly and not an
+    ask: read the Driver's note (`log <cr>`), and when it names work still needed on the default
+    branch, pass it to the Chief of Staff in one line (`[foreman→chief-of-staff] merged early
+    <cr>: left undone: <the note>`), who offers it to the user as an inbox item. Nothing else: no
+    `take`, no restart. The CR's worktree and branch are removed by the usual cleanup before
+    `pause`, never while its Driver may still run.
 - **The main checkout after a merge.** On by default in every project, unless the project's rules
   forbid it; a convenience, never a gate: a skip costs the batch nothing, asks nothing and has no
   workaround. It is yours alone (a Driver, a worker and, in Foreman mode, the Chief of Staff never

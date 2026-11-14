@@ -3162,6 +3162,17 @@ def handback_proofs(w: World) -> None:
     check("a second hand-back on a blocked CR is refused with the `take` that reopens it",
           code == 2 and "is blocked" in w.last_stderr and f"take {cr} --note" in w.last_stderr,
           w.last_stderr)
+    # the user merges the PR while its Driver is still finishing
+    w.chantier("agents", "set", cr, "-")
+    w.chantier("take", cr, "--epoch", 1, "--note", "answer: go")
+    w.chantier("order", "merged", cr)
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    refused = w.last_stderr
+    code_note, _ = w.chantier("note", cr, "merged before the hand-back; left undone: none")
+    check("a CR merged under its working Driver: `handback` is refused naming `is merged`, and the "
+          "Driver's `note` of what it left undone is accepted",
+          code == 2 and "is merged: no Driver to hand it back" in refused and code_note == 0
+          and w.cr(cr)["status"] == "merged", refused)
 
 
 def gate_proof(w: World) -> None:
