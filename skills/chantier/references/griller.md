@@ -12,7 +12,8 @@ your host's reference with this card: [Claude Code](hosts/claude-code.md) or
 As [chief-of-staff](chief-of-staff.md), "Backlog and grill", says (it is not copied here):
 `$CHANTIER file`, `triage`, write `01-intent.md` (with its `issue:` line, if the CR comes from a
 tracker issue), record every answer in `02-answers.md` at once, the restatement before "grilled
-enough?", `depends.json` when a CR needs another's result, and on the user's word the
+enough?", the shape of a series of questions to the user ("Asking the user: a series": reference,
+text first, options), `depends.json` when a CR needs another's result, and on the user's word the
 `spec-writer` (one per CR, `work/specifying` as the guard, and a refused start restarted by a new
 start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
 [concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
@@ -73,6 +74,11 @@ When a piece is done, send the Chief of Staff's session one line naming the abso
 no live Chief of Staff, tell the user where the files are; the next Chief of Staff places them on
 the user's word. Run no `summary` command there: the planning folder is the main checkout's, and
 the Chief of Staff refreshes the summary on placing the files.
+For a series of questions, read the item's short name and last question reference in the
+`02-answers.md` of the main checkout's CR folder, and write your answers, continuing that
+numbering, in your worktree's `02-answers.md` under the same relative path; it goes to the Chief of
+Staff as above. An item with no short name yet gets one from you, written as its line in your
+worktree's copy.
 
 ## Your cost
 

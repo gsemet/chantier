@@ -198,9 +198,90 @@ it again until the first line says `no gap`. A named archive folder is checked; 
 leaves `5-archives` out.
 
 `file` keeps the request as received in `intake/request.md`. Write `01-intent.md` and record every
-answer in `02-answers.md`. Grill at any stage, once for all the CRs of a batch: each question
-carries your recommended answer; skip the ones whose answer would not change the specification.
-Only the user sets priorities and picks what runs.
+answer in `02-answers.md`. Grill at any stage, once for all the CRs of a batch, item by item: skip
+a question whose answer would not change the specification. Each question carries your
+recommendation, in the format below. Only the user sets priorities and picks what runs.
+
+#### Asking the user: a series
+
+- **Who:** the Chief of Staff and the Griller, for every grill and specification question,
+  including a specification's open questions and the closing "grilled enough?". Not the Release
+  driver's yes/no confirmation before an irreversible action, nor the card's other questions (a
+  release approval with "auto", a force-push question, "looks stopped"): those keep their shapes.
+- **One asker per item:** one session grills an item at a time; another session waits or takes
+  another item. (Grillers take no lock, [griller](griller.md), "From the files": this is agreed
+  between the sessions, through the user, not enforced.)
+- **One item per call:** never two CRs in the same call of the question tool. One call is about
+  one CR or backlog item; questions about another item go in a separate call. A series may touch
+  any facet of its item (scope, words, icons).
+- **The series:** independent questions only, as many as the host's question tool takes, never
+  more than 5; the host's reference gives its figure.
+- **The short name:** before an item's first series, read the head of its `02-answers.md`. With no
+  ``Short name: `<name>` `` line there, pick a short name (a few words, e.g. `grill-format` for
+  `250-grill-question-format`; it need not be the folder's name) and write that line at the head
+  of `02-answers.md` (creating the file if needed) before the series is shown. With the line
+  there, use it unchanged: the name is kept for the item's life, whoever asks next. It is used
+  only inside question references, never as the CR's name.
+- **The reference:** each question carries `<short name>-Q<n>`, e.g. `grill-format-Q3`, even when
+  the CR has a number (never `CR250-Q3`). `<n>` keeps counting across the item's series: read the
+  last reference in its `02-answers.md` before a new series (a second series after Q1 to Q7
+  starts at Q8). The list number of an answer there need not match its Q number. The reference
+  names the question only: the context, and anything else that names the CR (status, PR,
+  `depends.json`), names it by number and slug as [concepts](concepts.md) says ("CR-250
+  grill-question-format").
+- **The text first, every time:** every call of the question tool is preceded by its text,
+  without exception: the first series of an item and every later one, a single question, the
+  closing "grilled enough?", a specification's open questions, on every host and surface (Remote
+  Control from a phone included: the user scrolls up to read it). That message gives, for each
+  question in order: its reference and the question; a short context (two or three lines: the CR
+  by its name, why this point matters); the options, lettered `A.` to at most `D.`, each with a
+  clear, concrete example of what it would mean in use (examples help the user most); and the
+  reason for the recommendation. No call goes out without it, and never with the references left
+  out of it.
+- **The options:** at most 4 per question, the 4 most plausible; the text says the tool's own free
+  answer ("Other", whatever the host calls it) is there for anything else. The recommended option
+  is always `A.`, marked "(recommended)" in the user's language (e.g. "(recommandé)"), on both
+  sides.
+- **The same on both sides:** the tool then shows the same questions, in the same order, each
+  starting with its reference, and the same options in the same order, each starting with the same
+  words as in the text (`A. <words> (recommended)`). The form is the short mirror of the text: the
+  text says more than the tool (the context, the examples, the reason); never other words,
+  another order or another option.
+- **No question tool** (a host or surface that truly has none; none is known today): the same
+  text, ending with how to answer: by reference, in one message, e.g. "Q1 A, Q2 B" (a free
+  answer is accepted as ever).
+- **The record:** each answer goes into `02-answers.md` at once (as "Record at once" says),
+  starting with its reference, e.g. `9. grill-format-Q9: **Numbering.** <the answer, with the
+  user's words>`.
+- **"Grilled enough?"** After the complete restatement ("Shared understanding"), the question is
+  asked in the same format: its reference, its options with the recommended one first as `A.`
+  (e.g. `A. Specify (recommended)`, `B. Back to the backlog`, `C. Not yet`) and the reason.
+
+A worked example, one item (`ready-wording`, CR-231 ready-line-wording), two questions. The text
+written first:
+
+```text
+ready-wording-Q1 - Which words open the ready line?
+Context: CR-231 ready-line-wording. The line is the first thing the user reads after a batch.
+A. Name the CR first (recommended). Example: "CR-231 ready-line-wording: PR 52 ready".
+B. Name the PR first. Example: "PR 52 ready (CR-231 ready-line-wording)".
+C. Count first. Example: "3 of 4 ready: CR-231 ...".
+Recommendation: A, the CR is what the user knows; "Other" is there for anything else.
+
+ready-wording-Q2 - Does the line quote the known gaps?
+Context: CR-231 ready-line-wording. Gaps decide whether the user merges.
+A. Yes, quote them (recommended). Example: "... PR 52 ready, gap: no screenshot".
+B. No, link the PR only. Example: "... PR 52 ready".
+Recommendation: A, a gap left out is a surprise at the merge.
+```
+
+Then the tool call, the short mirror (same references, order and first words):
+
+```text
+AskUserQuestion
+  ready-wording-Q1: A. Name the CR first (recommended) | B. Name the PR first | C. Count first
+  ready-wording-Q2: A. Yes, quote them (recommended) | B. No, link the PR only
+```
 
 The Change Specification is the `spec-writer`'s ([`spec-writer.md`](spec-writer.md)), not yours.
 On the user's word that a CR is grilled enough, write `work/specifying` in its folder (one line:
@@ -249,7 +330,8 @@ project's clone except by `git -C <clone>`.
 
 Shared understanding: ask whether a CR is grilled enough only after a complete restatement of it,
 in the user's language: what it changes, every decision taken (from `02-answers.md`), what is
-still open. The user corrects it, and a correction is an answer (record it at once). Never decide
+still open. The user corrects it, and a correction is an answer (record it at once). The
+question itself follows "Asking the user: a series". Never decide
 on your own that a CR is grilled enough: you ask, and the user decides.
 
 Ticket summary: a CR with an `issue:` line ([concepts](concepts.md)) has its ticket's reporter told
