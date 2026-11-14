@@ -15,10 +15,17 @@ import { prsBlock } from './batch-prs.js';
 
 const MODES = ['stack', 'series', 'parallel'];
 
+// "N queued", and the CR the batch would start next when it names one.
+const slotsSub = (batch, c) => {
+  const next = batch.crs.find((r) => r.next_to_start);
+  const queued = t('batch.queued', { n: c.queued });
+  return next ? t('batch.queued_next', { q: queued, cr: next.cr }) : queued;
+};
+
 function figures(batch) {
   const c = counts(batch);
   const spent = meter([{ n: batch.spent_usd ?? 0, color: 'var(--blue)' }], batch.budget_usd);
-  return html`<div class="bhead">${kpi({ label: t('batch.batch'), value: batch.id, sub: `${batch.state} · ${t(`mode.${batch.mode}`)} · ${steeringWord(batch)}` })}${kpi({ label: t('batch.slots'), value: `${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}`, sub: t('batch.queued', { n: c.queued }) })}${kpi({ label: t('batch.working'), value: c.working, sub: t('batch.blocked', { n: c.blocked }) })}${kpi({ label: t('batch.handed_ready'), value: c.ready, sub: t('batch.review_merged', { a: c.review, b: c.merged }) })}${kpi({ label: t('batch.spent'), value: usd(batch.spent_usd), extra: spent, sub: t('batch.of_budget', { budget: usd(batch.budget_usd) }) })}</div>`;
+  return html`<div class="bhead">${kpi({ label: t('batch.batch'), value: batch.id, sub: `${batch.state} · ${t(`mode.${batch.mode}`)} · ${steeringWord(batch)}` })}${kpi({ label: t('batch.slots'), value: `${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}`, sub: slotsSub(batch, c) })}${kpi({ label: t('batch.working'), value: c.working, sub: t('batch.blocked', { n: c.blocked }) })}${kpi({ label: t('batch.handed_ready'), value: c.ready, sub: t('batch.review_merged', { a: c.review, b: c.merged }) })}${kpi({ label: t('batch.spent'), value: usd(batch.spent_usd), extra: spent, sub: t('batch.of_budget', { budget: usd(batch.budget_usd) }) })}</div>`;
 }
 
 function modeBand(batch) {

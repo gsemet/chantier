@@ -81,6 +81,14 @@
   font-size: var(--text-small);
 }
 
+.kanban .meta .step {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .kanban .bars {
   display: flex;
   gap: 3px;

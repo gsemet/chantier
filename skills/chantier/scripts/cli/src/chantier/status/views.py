@@ -22,11 +22,13 @@ from chantier.core.records import (
 from chantier.core.repo import Repo
 from chantier.rails import held
 from chantier.stacks import ready_word
+from chantier.status.steps import steps
 from chantier.status.words import (
     ENDED,
     forge_word,
     no_start,
     notify,
+    phase_text,
     severity,
     state_label,
     step,
@@ -36,7 +38,6 @@ from chantier.status.words import (
 
 SCHEMA = 3
 PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
-AHEAD = ("Shipped", "Handed back")
 IN_PROGRESS = ("draft:",)  # shown in `Documents`, not in `Decisions`
 SPEC_LINK = re.compile(r"[\w./-]+\.md\b")
 TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
@@ -72,50 +73,6 @@ def _now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tup
         "Merged": (f"Merged: {pr}.", "Nothing."),
         "Dropped": ("Dropped on the user's word.", "Nothing."),
     }[step(c)]
-
-
-def _step_entries(
-    e: EventRecord, c: CrEntry, out: list[dict[str, Any]]
-) -> list[tuple[str, str, str]]:
-    """The steps (name, verdict, note) one event of the log makes."""
-    kind, note = e.kind, e.note or ""
-    head = (e.head or "")[:7]  # display only
-    result = e.result if e.result is not None else ""
-    plain = {
-        "round": (f"Round {e.round}", "", note),
-        "note": ("Note", "", note),
-        "gate": ("Long gate", result, head),
-        "verdict": ("Verdict", result, head),
-        "ship": ("Shipped", "", e.pr if e.pr is not None else ""),
-    }
-    if kind in plain:
-        return [plain[kind]]
-    if kind == "handback":
-        if result != "ready":
-            return [("Blocked", "", note)]
-        # handed back with no long gate: the reason is shown
-        waived = [("Long gate", f"waived: {e.no_gate}", "")] if e.no_gate else []
-        return [*waived, ("Handed back", "", "")]
-    merged = kind == "order" and e.order_kind == "merged"
-    if merged and not any(s["name"] == "Merged" for s in out):
-        return [("Merged", "", c.pr or "")]
-    return []
-
-
-def _steps(c: CrEntry, events: list[EventRecord]) -> list[dict[str, Any]]:
-    """What the CR went through, from its log, then what is still ahead of it."""
-    out: list[dict[str, Any]] = []
-    for e in events:
-        for name, verdict, note in _step_entries(e, c, out):
-            out.append({"name": name, "done": True, "verdict": verdict, "note": note, "at": e.t})
-    if c.status not in ENDED and c.kind != "release":
-        seen = {s["name"] for s in out}
-        out += [
-            {"name": name, "done": False, "verdict": "", "note": "", "at": ""}
-            for name in AHEAD
-            if name not in seen
-        ]
-    return out
 
 
 def _link(path: Path, start: Path) -> str:
@@ -167,6 +124,8 @@ def cr_view(
         "state": c.status,
         "severity": severity(c),
         "step": step(c),
+        "phase": phase_text(c),
+        "phase_at": c.phase_at if c.status == "working" else None,
         "label": state_label(repo, d, c, waiting),
         "readiness": ready_word(d, c, repo),
         "waits": waiting,
@@ -175,7 +134,7 @@ def cr_view(
         "now": now_line,
         "next": next_line,
         "pr": {"url": pr, "number": int(number[1]) if number else None} if pr else None,
-        "steps": _steps(c, events),
+        "steps": steps(c, events),
         "documents": _documents(repo, c, folder),
         "branch": c.branch,
         "worktree": c.worktree,
@@ -204,6 +163,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, start: Path) -> dict[str, Any]:
         "state": c.status,
         "severity": severity(c),
         "step": step(c),
+        "phase": phase_text(c),
         "label": state_label(repo, d, c, waiting),
         "readiness": ready_word(d, c, repo),
         "waits": waiting,

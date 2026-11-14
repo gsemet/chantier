@@ -147,6 +147,13 @@ defaults, not a gate.
   - `Note: …`, and `Needs: …` when the `team:` line prints one.
 - Escalation ([concepts](concepts.md), "Escalation"): only when one of its triggers arises, read
   the `escalate:` line of `$CHANTIER playbook --batch <batch>`, as printed.
+- `$CHANTIER phase <cr> <phase> [detail]` before each step, as it starts, so the board and the
+  pane show it: `investigator` before the investigator, `inspector` before the round's inspector,
+  `review <name>` before each review step of `Team:`, `rebase`, `gate <name>` before `gate`, `pr`
+  before the push and the PR, `ci` while CI runs, `verifier` before each verifier, `debugger` and
+  `conflict-resolver` before those. `round` records `coder` itself; `take` and `handback` clear
+  the step. A step is one call, not chained with another command. A step left unrecorded shows
+  the last one: record each. The Stack driver and the QA driver record none.
 - `$CHANTIER note <cr> "<one sentence>"` after each step worth knowing; `note <cr> --draft
   <path>` for a file the user reviews and edits in place.
 - Every git command a Driver runs names its worktree: `git -C <worktree> <command>` (the CR's
@@ -812,6 +819,8 @@ Run one release CR by the project's own procedure, and add nothing from habit. Y
 code and start no children: a defect becomes a fix CR a CR Driver codes. Take the initiative
 inside the procedure and the grant, and ask for anything beyond them.
 
+- At each step of the procedure: `$CHANTIER phase <cr> release "<the step>"` (at most 40
+  characters), one call, as the step starts.
 - An **irreversible action** is any step of the project's procedure that cannot be taken back or
   that others see (the procedure names them; the merge of a release PR is one). Before each:
   `$CHANTIER release go <cr> --note "<the action>"`; `go` is for that action, in this Driver.

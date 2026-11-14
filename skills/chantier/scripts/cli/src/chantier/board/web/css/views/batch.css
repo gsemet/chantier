@@ -165,6 +165,15 @@
   -webkit-box-orient: vertical;
 }
 
+.batch .np {
+  margin-top: var(--space-1);
+  overflow: hidden;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .batch .nm {
   display: flex;
   align-items: center;

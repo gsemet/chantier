@@ -834,20 +834,21 @@ export const register: Register = on => {
         p => showPath($, p),
       )
 
-    const COLUMNS = ['CR', 'Subject', 'State', 'PR', 'Cost']
+    const CR_COLUMNS = ['CR', 'Subject', 'State', 'Step', 'PR', 'Cost']
+    const PAST_COLUMNS = ['CR', 'Subject', 'State', 'PR', 'Cost']
 
     const Crs = (key: string, rows: ChantierRow[]) =>
       Table(
         key,
-        COLUMNS,
-        rows.map(r => [crCell(r.folder, r.cr), cell(r.title), stateCell(r), prCell(r.pr), money(r.cost_usd)]),
+        CR_COLUMNS,
+        rows.map(r => [crCell(r.folder, r.cr), cell(r.title), stateCell(r), cell(r.phase ?? '-'), prCell(r.pr), money(r.cost_usd)]),
         rows.map(r => r.folder),
       )
 
     const Pasts = (key: string, rows: ChantierPast[]) =>
       Table(
         key,
-        COLUMNS,
+        PAST_COLUMNS,
         rows.map(p => [
           crCell(p.path, p.cr ?? p.path.split('/').pop() ?? p.path),
           cell(p.title),
@@ -915,6 +916,7 @@ export const register: Register = on => {
             {note}
             <Text bold>{`${s.cr} ${s.title}`}</Text>
             <Text>{`${s.label}  ${money(s.cost_usd)}`}</Text>
+            {s.phase != null && <Text>{`Step: ${s.phase}`}</Text>}
             {s.steps.length === 0 ? (
               <Text dimColor>No step yet.</Text>
             ) : (

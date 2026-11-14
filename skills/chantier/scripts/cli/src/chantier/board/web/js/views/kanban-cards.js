@@ -10,7 +10,7 @@ import { labelsOf } from '../model/triage.js';
 import { t, tn } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
-import { stateColor, stateTag, tag } from '../ui/parts.js';
+import { nextTag, stateColor, stateTag, tag } from '../ui/parts.js';
 
 const count = (files) => (Array.isArray(files) ? files.length : (files ?? 0));
 
@@ -44,5 +44,5 @@ export function crCard(state, c) {
   const deps = c.after?.length
     ? html`<span>${icon('dep')} ${t('card.deps', { n: c.after.length })}</span>`
     : '';
-  return html`<div class="card st-${vstate(c)}${sel}" ${opener(key)}><div class="row-tags"><span class="tag cr">${c.cr}</span>${stateTag(c)}<span class="lbl">${slug(c.folder)}</span><span class="place"></span></div><div class="ttl">${title(c.title)}</div><div class="desc">${c.description ?? ''}</div>${bars(c, batch)}<div class="meta"><span>${t('card.round', { r: roundText(c, batch) })}</span>${files(c.files)}${deps}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+  return html`<div class="card st-${vstate(c)}${sel}" ${opener(key)}><div class="row-tags"><span class="tag cr">${c.cr}</span>${stateTag(c)}${nextTag(c)}<span class="lbl">${slug(c.folder)}</span><span class="place"></span></div><div class="ttl">${title(c.title)}</div><div class="desc">${c.description ?? ''}</div>${bars(c, batch)}<div class="meta">${c.phase ? html`<span class="step" title="${t('step')}">${c.phase}</span>` : ''}<span>${t('card.round', { r: roundText(c, batch) })}</span>${files(c.files)}${deps}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
 }

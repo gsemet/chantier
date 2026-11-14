@@ -91,6 +91,14 @@ class CrEntry(Record):
     rounds: int | None = None
     attempts: int = 0
     stacked: bool = False
+    phase: str | None = None  # the step its Driver is at (`chantier phase`)
+    phase_detail: str | None = None
+    phase_at: str | None = None
+
+    def clear_phase(self) -> None:
+        """No step: a new Driver starts, or the CR is handed back."""
+        for name in ("phase", "phase_detail", "phase_at"):
+            self.unset(name)
 
 
 class ReleaseGrant(Record):
@@ -176,6 +184,7 @@ class EventRecord(Record):
     actor: str
     kind: str
     cr: str | None = None
+    phase: str | None = None
 
     if TYPE_CHECKING:
 

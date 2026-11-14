@@ -791,6 +791,38 @@ def scenario(w: World) -> None:
     check("`round` counts the round and prints the facts", w.cr("CR-101")["round"] == 1
           and out[0] == "round 1 of 3 for CR-101" and any(ln == "rounds: 1 of 3" for ln in out),
           str(out))
+    sheet = lambda cr: json.loads((w.at(w.cr(cr)["path"]) / "STATUS.json").read_text(encoding="utf-8"))
+    row = lambda cr: next(r for r in json.loads((w.folder() / "STATUS.json").read_text(
+        encoding="utf-8"))["crs"] if r["cr"] == cr)
+    check("`round` records the step `coder r1`: the CR's STATUS.json and its batch row say it",
+          w.cr("CR-101")["phase"] == "coder" and sheet("CR-101")["phase"] == "coder r1"
+          and row("CR-101")["phase"] == "coder r1")
+    code, out = w.chantier("phase", "CR-101", "inspector")
+    check("`phase` records the inspector's step and prints `ok` and the context line",
+          code == 0 and out[0] == "ok" and out[1].startswith("context: ")
+          and sheet("CR-101")["phase"] == "inspector r1", str(out))
+    w.chantier("phase", "CR-101", "gate", "scenario")
+    _, status = w.chantier("status")
+    check("`phase gate scenario` shows in the CR's STATUS.json, `chantier status` and the batch's "
+          "STATUS.md Step cell",
+          sheet("CR-101")["phase"] == "gate scenario" and sheet("CR-101")["phase_at"]
+          and any(ln.startswith("CR-101 ") and "| step: gate scenario" in ln for ln in status)
+          and "| gate scenario |" in (w.folder() / "STATUS.md").read_text(encoding="utf-8")
+          and "**Step:** gate scenario" in (w.at(w.cr("CR-101")["path"]) / "STATUS.md").read_text(
+              encoding="utf-8"), str(status))
+    before = w.cr("CR-101")
+    refused = [w.chantier("phase", "CR-103", "inspector", expect=2)[0],
+               w.chantier("phase", "CR-101", "nonsense", expect=2)[0],
+               w.chantier("phase", "CR-101", "review", expect=2)[0]]
+    check("`phase` on a queued CR, with an unknown word, and `review` with no detail: each exit 2, "
+          "the record unchanged", refused == [2, 2, 2] and w.cr("CR-101") == before
+          and "phase" not in w.cr("CR-103"), str(refused))
+    events = [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text(
+        encoding="utf-8").splitlines() if ln.strip()]
+    check("the event `phase` is in `events.jsonl` and not in the CR's Progress steps",
+          any(e["kind"] == "phase" and e["cr"] == "CR-101" and e["phase"] == "gate"
+              and e["note"] == "scenario" for e in events)
+          and not any("hase" in s["name"] for s in sheet("CR-101")["steps"]))
     code, _ = w.chantier("handback", "CR-101", "ready", "done", expect=2)
     check("no hand-back ready before a PR is recorded", code == 2 and "PR recorded" in w.last_stderr)
     wt = Path(w.cr("CR-101")["worktree"])
@@ -814,6 +846,8 @@ def scenario(w: World) -> None:
     check("a hand-back writes the state and prints the line to send",
           out[0] == f"[driver CR-101→foreman] hand-back ready to merge {pr101}"
           and w.cr("CR-101")["status"] == "ready", str(out))
+    check("after `handback ready` the step is null", sheet("CR-101")["phase"] is None
+          and row("CR-101")["phase"] is None and "phase" not in w.cr("CR-101"))
     fm.turn()
     check("hand-back frees a slot: CR-103 taken", fm.started[-1] == "CR-103")
     check("the Chief of Staff is told CR-101 is ready with its PR",
@@ -894,7 +928,12 @@ def scenario(w: World) -> None:
 
     section("7. CR-104 is lost, then hands back; CR-105 and CR-101 run")
     note("\n## 7. CR-104 is lost, then hands back; CR-105 and CR-101 run")
+    w.chantier("phase", "CR-104", "ci")
+    check("`phase ci` reads `CI`", w.cr("CR-104")["phase"] == "ci"
+          and json.loads((w.at(w.cr("CR-104")["path"]) / "STATUS.json").read_text(
+              encoding="utf-8"))["phase"] == "CI")
     fm.driver_died("CR-104")
+    check("a `take` clears the step", "phase" not in w.cr("CR-104"))
     check("a Driver that ends without a hand-back is replaced from the facts",
           fm.started[-1].startswith("CR-104 resume: CR-104 \"Audit log\" (change) working"),
           fm.started[-1])
@@ -1428,6 +1467,22 @@ def remote_board(w: World) -> None:
                       <= set(r) for r in rows.values())
               and {"asks_unread", "last_event_at"} <= set(api["projects"][0]),
               f"{code} {sorted(rows)}")
+        check("the read data names `phase` (`coder r1`, `waits for the user`) and `next_to_start` on "
+              "the queued CR of the lowest order with nothing to wait for, and on none once the "
+              "budget is spent",
+              rows[one]["phase"] == "coder r1" and rows[two]["phase"] == "waits for the user"
+              and rows[three]["phase"] is None
+              and [k for k, r in rows.items() if r["next_to_start"]] == [three], str(rows))
+        batch_file = w.folder() / "batch.json"
+        original = batch_file.read_bytes()
+        before = batch_file.stat()
+        batch_file.write_text(json.dumps({**json.loads(original), "budget_usd": 1, "spent_usd": 2}),
+                              encoding="utf-8")
+        _, _, spent = jget(port, link, f"{base}/state")
+        batch_file.write_bytes(original)
+        os.utime(batch_file, ns=(before.st_atime_ns, before.st_mtime_ns))  # the ETag fingerprints mtime
+        check("with the budget spent no CR is next to start",
+              not any(r["next_to_start"] for r in spent["batch"]["crs"]), str(spent["batch"]["crs"]))
         backlog = data.get("backlog", {})
         check("it holds the inbox, `P2` and `3-ready` items with their `grill`, and a title's markup "
               "comes back as text",

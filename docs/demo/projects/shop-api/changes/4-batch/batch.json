@@ -147,7 +147,9 @@
       "updated": "2026-06-18T10:27:50Z",
       "after": [],
       "blocked_reason": null,
-      "cost_usd": 11.6
+      "cost_usd": 11.6,
+      "phase": "ci",
+      "phase_at": "2026-06-18T10:27:50Z"
     },
     {
       "id": "CR-145",
@@ -170,7 +172,9 @@
       ],
       "blocked_reason": null,
       "cost_usd": 14.85,
-      "rounds": 3
+      "rounds": 3,
+      "phase": "inspector",
+      "phase_at": "2026-06-18T10:26:15Z"
     },
     {
       "id": "CR-146",

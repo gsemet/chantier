@@ -41,7 +41,7 @@ The right column follows the batch's mode (stack, series or parallel, named in t
 
 ![The kanban: Intake, Grill, 3-ready, In progress, Handed back](web-board/kanban-pc.png)
 
-One column per place a CR passes through: **Intake** (`1-inbox`), **Grill** (`2-backlog`, P1 to P4), **3-ready** (waits for the next batch), **In progress** (queued, working, blocked) and **Handed back**. A card shows its labels, its first lines, the number of files and its state (raw, in grill, specified, automatable), or its round for a CR of the batch. A click opens the folder. The labels at the top filter the cards. **+ New: a new idea** files an idea (see below).
+One column per place a CR passes through: **Intake** (`1-inbox`), **Grill** (`2-backlog`, P1 to P4), **3-ready** (waits for the next batch), **In progress** (queued, working, blocked) and **Handed back**. A card shows its labels, its first lines, the number of files and its state (raw, in grill, specified, automatable), or its round for a CR of the batch. A working CR of the batch shows its step (`coder r2`, `gate scenario`, `CI`), a blocked one "waits for the user", and the CR the batch would start next carries a "next to start" tag (the Batch view's Slots figure names it). A click opens the folder. The labels at the top filter the cards. **+ New: a new idea** files an idea (see below).
 
 ### Triage
 

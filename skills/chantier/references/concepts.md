@@ -301,6 +301,7 @@ started.
   (no priced call in the batch, no Foreman transcript recorded), `close` refuses, naming the cause, with or
   without `--yes` (calls of a model with no price do not refuse it: the cost is a floor): the Chief of Staff reports the cause to the user. A batch with no recorded Foreman
   transcript has no way through `close`.
+- **Step:** the Driver's `phase <cr> <phase> [detail]` records what it is doing (`coder r2`, `gate scenario`, `CI`); a working CR's `STATUS.json` holds it as `phase`, and the board, `chantier status` and the pane show it.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (in chantier's own checkout `uv run --locked --project "<…>" chantier`, else `uvx --from "<…>" chantier --skill "<…>"`; with a planning surface, plus `--project <folder>`).
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and

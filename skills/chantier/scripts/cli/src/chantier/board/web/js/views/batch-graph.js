@@ -15,10 +15,10 @@ import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
-import { dot, stateColor } from '../ui/parts.js';
+import { dot, nextTag, stateColor } from '../ui/parts.js';
 
 const node = (c, batch) =>
-  html`<div class="node st-${vstate(c)}" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span><span class="lbl">${slug(c.folder)}</span></div><div class="nt">${title(c.title)}</div><div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+  html`<div class="node st-${vstate(c)}" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span></div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
 
 const group = (g, batch) =>
   html`<div class="grp"><div class="gh">${dot(stateColor(g.state))}${t(`state.${g.state}`)} · ${g.rows.length}</div>${g.rows.map((c) => node(c, batch))}</div>`;
