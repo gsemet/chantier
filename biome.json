@@ -15,11 +15,19 @@
   "javascript": {
     "formatter": { "quoteStyle": "single", "semicolons": "always" }
   },
+  "css": {
+    "formatter": { "enabled": true, "quoteStyle": "double" },
+    "linter": { "enabled": true }
+  },
   "linter": {
     "enabled": true,
     "rules": {
       "preset": "recommended",
       "suspicious": { "noVar": "error" },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
+      },
       "style": {
         "useConst": "error",
         "noExcessiveLinesPerFile": {
@@ -28,9 +36,18 @@
         }
       },
       "complexity": {
+        "noImportantStyles": "error",
         "noExcessiveLinesPerFunction": {
           "level": "error",
           "options": { "maxLines": 50 }
+        },
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": { "maxAllowedComplexity": 10 }
+        },
+        "useMaxParams": {
+          "level": "error",
+          "options": { "max": 5 }
         }
       }
     }

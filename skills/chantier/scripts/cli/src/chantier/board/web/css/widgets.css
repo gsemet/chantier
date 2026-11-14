@@ -1,0 +1,67 @@
+/* Widgets of the views: kind tags, dots, meters, figures. Colours come from tokens.css. */
+.tag.kind-release {
+  background: var(--tag-waits-fill);
+  color: var(--tag-waits-ink);
+}
+
+.tag.kind-fix {
+  background: var(--tag-blocked-fill);
+  color: var(--tag-blocked-ink);
+}
+
+.dot {
+  background: var(--c, var(--grey));
+}
+
+/* a stacked bar: each segment takes its width and its token colour from custom properties */
+.meter {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--chip);
+}
+
+.meter i {
+  width: var(--w, 0);
+  background: var(--c, var(--grey));
+}
+
+/* a figure: a label, a large number, a sub-line */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.kpi[data-go] {
+  cursor: pointer;
+}
+
+.kpi .l {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.kpi b {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.kpi.go {
+  background: var(--tint-ready-fill);
+  border-color: var(--tint-ready-edge);
+}
+
+.kpi.hot {
+  background: var(--tint-blocked-fill);
+  border-color: var(--tint-blocked-edge);
+}
+
+.kpi.calm {
+  background: var(--tint-queued-fill);
+  border-color: var(--tint-queued-edge);
+}

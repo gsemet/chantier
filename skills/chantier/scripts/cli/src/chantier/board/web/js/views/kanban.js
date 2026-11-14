@@ -1,10 +1,8 @@
-// The kanban view. Its title is the header's h1 (the frame reads `title`); the body is empty here.
-import { html, setHtml } from '../dom.js';
-import { t } from '../i18n.js';
+// The kanban view. Round 1 ships the contract only: round 2 draws the view.
+//   render(state) returns the view's markup (html); mount(root, state), if any, returns a cleanup;
+//   after(root, state), if any, runs after each paint (measures, arrows).
 
-export const title = 'nav.kanban';
+import { t } from '../model/words.js';
+import { empty } from '../ui/parts.js';
 
-// The body, drawn from the page's state (store.js) into the view area.
-export function render(_state, root) {
-  setHtml(root, html`<section class="empty" data-view="kanban">${t('view.empty')}</section>`);
-}
+export const render = () => empty(t('nav.kanban'));

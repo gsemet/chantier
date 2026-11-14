@@ -1,9 +1,11 @@
-// The words: one file per language under i18n/, registered here. Add a language by adding a file.
-import en from './i18n/en.js';
-import fr from './i18n/fr.js';
+// Every word the page shows: one file per language under i18n/, registered here. To add a
+// language, add its file with the same keys and one line below.
+import { pref, setPref } from '../core/store.js';
+import en from '../i18n/en.js';
+import fr from '../i18n/fr.js';
 
 const LANGUAGES = { en, fr };
-const STORE_KEY = 'chantier.lang';
+const KEY = 'lang';
 let current = 'en';
 
 export const codes = () => Object.keys(LANGUAGES);
@@ -11,16 +13,14 @@ export const codes = () => Object.keys(LANGUAGES);
 export const language = () => current;
 
 // The language asked: ?lang=, the one chosen last, then the browser's, else English.
-export function pick(search = location.search) {
-  const asked = new URLSearchParams(search).get('lang') ?? localStorage.getItem(STORE_KEY);
-  const browser = (navigator.language ?? '').slice(0, 2);
-  return [asked, browser].find((code) => code in LANGUAGES) ?? 'en';
+export function pick(asked = null, browser = navigator.language ?? '') {
+  return [asked, pref(KEY), browser.slice(0, 2)].find((code) => code in LANGUAGES) ?? 'en';
 }
 
 export function setLanguage(code) {
   if (!(code in LANGUAGES)) return;
   current = code;
-  localStorage.setItem(STORE_KEY, code);
+  setPref(KEY, code);
   document.documentElement.lang = code;
 }
 
@@ -30,9 +30,11 @@ export function nextLanguage() {
   return all[(all.indexOf(current) + 1) % all.length];
 }
 
+// A word, with its `{name}` holes filled. An unknown key shows as itself.
 export function t(key, params = {}) {
   const text = LANGUAGES[current][key] ?? key;
   return text.replace(/\{(\w+)\}/g, (_, name) => params[name] ?? '');
 }
 
+// A word of another language (the language button names the language it switches to).
 export const wordOf = (code, key) => LANGUAGES[code][key] ?? key;

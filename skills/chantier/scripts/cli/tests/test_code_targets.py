@@ -157,3 +157,79 @@ def test_the_start_up_imports_only_the_standard_library_and_chantier() -> None:
                 "import them in the command that needs them"
             )
     assert not problems, "\n".join(problems)
+
+
+WEB = CLI / "src" / "chantier" / "board" / "web"
+MAX_STYLE_LINES = 300
+MAX_NESTING = 3
+COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch)\(")
+
+
+def _inside(origin: Path, ref: str) -> str | None:
+    """Why a reference leaves the web folder, else None."""
+    if re.match(r"[a-z][a-z0-9+.-]*:|//|/", ref, re.I):
+        return f"{ref!r} is not relative"
+    target = (origin.parent / ref.split("?", maxsplit=1)[0].split("#", maxsplit=1)[0]).resolve()
+    if WEB.resolve() not in target.parents:
+        return f"{ref!r} leaves the web folder"
+    return None if target.is_file() else f"{ref!r} does not exist"
+
+
+def _reference_problems(path: Path, text: str) -> list[str]:
+    pattern = {
+        ".html": r"""(?:href|src)=["']([^"']+)["']""",
+        ".js": r"""(?:from|import)\s*\(?\s*["'](\.[^"']*)["']""",
+        ".css": r"""(?:@import\s+|url\()["']?([^"')\s;]+)""",
+    }[path.suffix]
+    found = [_inside(path, ref) for ref in re.findall(pattern, text)]
+    return [f"{path.relative_to(WEB)}: {why}" for why in found if why]
+
+
+def _markup_problems(text: str) -> list[str]:
+    problems = []
+    if re.search(r"<script(?![^>]*\bsrc=)", text) or "<style" in text:
+        problems.append("index.html has an inline script or style")
+    if re.search(r"""\sstyle\s*=|\son[a-z]+\s*=""", text):
+        problems.append("index.html has a style or on... attribute")
+    return problems
+
+
+def _style_problems(path: Path, text: str) -> list[str]:
+    bare = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    problems = []
+    if len(text.splitlines()) > MAX_STYLE_LINES:
+        problems.append(f"over {MAX_STYLE_LINES} lines")
+    if any("#" in prelude for prelude in re.findall(r"([^{};]+)\{", bare)):
+        problems.append("an id selector")
+    depth = deepest = 0
+    for char in bare:
+        depth += (char == "{") - (char == "}")
+        deepest = max(deepest, depth)
+    if deepest > MAX_NESTING:
+        problems.append(f"nesting {deepest} deep (max {MAX_NESTING})")
+    if path.name != "tokens.css" and COLOUR.search(bare):
+        problems.append("a colour outside tokens.css")
+    return [f"{path.relative_to(WEB)}: {p}" for p in problems]
+
+
+def _script_problems(path: Path, text: str) -> list[str]:
+    problems = []
+    if path.name != "dom.js" and re.search(r"innerHTML\s*=|insertAdjacentHTML|outerHTML\s*=", text):
+        problems.append("sets HTML outside dom.js")
+    if re.search(r"""\sstyle\s*=\s*["']|\son[a-z]+\s*=\s*["']""", text):
+        problems.append("writes a style or on... attribute in markup")
+    return [f"{path.relative_to(WEB)}: {p}" for p in problems]
+
+
+def test_the_web_frame_is_self_contained_and_follows_the_style_rules() -> None:
+    problems = _markup_problems((WEB / "index.html").read_text(encoding="utf-8"))
+    for path in sorted(p for p in WEB.rglob("*") if p.suffix in {".html", ".js", ".css"}):
+        text = path.read_text(encoding="utf-8")
+        problems += _reference_problems(path, text)
+        if re.search(r"https?://", text):
+            problems.append(f"{path.relative_to(WEB)}: names another origin")
+        if path.suffix == ".css":
+            problems += _style_problems(path, text)
+        elif path.suffix == ".js":
+            problems += _script_problems(path, text)
+    assert not problems, "\n".join(problems)

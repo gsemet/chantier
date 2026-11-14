@@ -1,0 +1,15 @@
+/* The file panel: it slides in from the right. Its shell is in components.css; round 3 fills it. */
+.panel > .bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel > .body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}

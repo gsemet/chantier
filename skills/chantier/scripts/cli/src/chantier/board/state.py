@@ -179,4 +179,6 @@ def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:
         "cost_at": batch["cost_at"] if batch else None,
         "heartbeat": batch["heartbeat"] if batch else None,
         "heartbeat_stopped": batch["heartbeat_stopped"] if batch else None,
+        "asks_unread": batch["asks_unread"] if batch else 0,
+        "last_event_at": state["events"][-1]["t"] if state["events"] else None,
     }

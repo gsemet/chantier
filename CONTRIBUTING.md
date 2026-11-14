@@ -279,14 +279,36 @@ The board's page (`board/web/`: HTML, CSS and native ES modules, no build step, 
 meets these targets, which `just lint` (Biome, run by `uvx` on a Node.js taken from PyPI and pinned
 in the `justfile`) and `tests/test_code_targets.py` enforce:
 
-- **File:** every `.js` file at most 300 lines, one responsibility per module, one module per view
-  under `js/views/`.
-- **Function:** at most 50 lines; `const` by default, no `var`, no global but the module's scope.
-- **Style:** Biome format and lint clean; names in English; every colour in `css/tokens.css`.
-- **Page:** no inline script or style, no resource loaded from outside (the policy allows `self`
-  only), `innerHTML` set in `js/dom.js` only.
-- **Words:** one file per language under `js/i18n/`, the same keys in each; a language is added by
-  one file and its line in `i18n.js`.
+- **File:** every `.js` and `.css` file at most 300 lines (Biome checks both), one responsibility
+  per module, one module per view under `js/views/`.
+- **Function:** at most 50 lines, at most 5 parameters, cognitive complexity at most 10 (Biome has
+  no cyclomatic rule: its cognitive one is the closest, and the stricter for nesting); `const` by
+  default, no `var`, no unused variable or import, no global but the module's scope.
+- **CSS:** no `!important`, no id selector, nesting at most 3 levels (the test counts the braces;
+  Biome has no such rule), every colour in `css/tokens.css` and a computed width or colour passed as
+  a custom property.
+- **Page:** no inline script or style, no `style=` and no `on...=` attribute, no resource loaded
+  from outside (the policy allows `self` only), every link, script and import relative and inside
+  `web/`, `innerHTML` set in `js/core/dom.js` only.
+- **Words:** one file per language under `js/i18n/`, the same keys in each (a test checks it); a
+  language is added by one file and one line in `js/model/words.js`.
+- **Layout:** `js/core/` (`api`, `store`, `router`, `refresh`, `paint`, `dom`, `format`: no view
+  knowledge), `js/model/` (`semantics`, `grill`, `events`, `words`: pure, no DOM, the one place
+  where "to review", the chain, the merge order, the levels and the rounds are defined),
+  `js/ui/` (the shell: icons, parts, sidebar, picker, bottom bar, header, host),
+  `js/views/` (`registry.js` and one module per view), `css/` (`tokens`, `base`, `shell`,
+  `components`, `widgets`, `panel`, then one file per view).
+- **A view's contract:** `render(state)` returns markup built with `html` from `core/dom.js`;
+  `mount(root, state)`, optional, runs once per project and view and returns its cleanup;
+  `after(root, state)`, optional, runs after every paint (to measure or draw arrows). A view reads
+  the store's state and the model, never `fetch` or `localStorage`; the URL and `localStorage`
+  belong to `core/router.js` and `core/store.js`.
+- **HTML escaping:** the `html` tag escapes every value unless it is markup built by `html`, a list
+  of it, or `raw(...)` (for trusted constants such as icons). Never concatenate a string from the
+  record into markup. A redraw goes through `core/paint.js`, which keeps focus (`data-key`) and
+  scroll (`data-scroll`) and draws nothing when the markup is unchanged.
+- **Lint tool:** Biome 2.6.7 through `uvx --from nodejs-wheel==24.19.0 npx --yes @biomejs/biome@2.6.7`
+  (`just lint`); `biome.json` at the root holds the rules.
 
 ## Versions
 

@@ -6,24 +6,27 @@
     <meta name="color-scheme" content="light" />
     <title>chantier board</title>
     <link rel="stylesheet" href="css/tokens.css" />
-    <link rel="stylesheet" href="css/frame.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/shell.css" />
     <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/widgets.css" />
+    <link rel="stylesheet" href="css/panel.css" />
   </head>
   <body>
     <div class="app">
       <aside class="side">
-        <div id="project-side"></div>
+        <div class="project" id="project-side"></div>
         <div class="sec" id="views-label"></div>
         <nav id="side-nav" aria-labelledby="views-label"></nav>
         <div class="foot">
           <div id="heard"></div>
-          <button class="lang" id="lang" type="button"></button>
+          <button class="lang" id="lang" type="button" data-lang></button>
         </div>
       </aside>
       <main class="main">
         <header class="head">
           <div>
-            <div id="project-phone"></div>
+            <div class="project phone" id="project-phone"></div>
             <h1 id="title">chantier board</h1>
             <div class="stats" id="stats"></div>
             <div class="notice" id="notice" role="status" hidden></div>

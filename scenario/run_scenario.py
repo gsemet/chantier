@@ -20,6 +20,7 @@ import html
 import http.client
 import json
 import os
+import posixpath
 import queue
 import re
 import shlex
@@ -1236,6 +1237,24 @@ def remote_board(w: World) -> None:
         etag = head.get("etag", "")
         check("`js/main.js` answers as text/javascript with an ETag",
               code == 200 and head["content-type"].startswith("text/javascript") and etag, str(head))
+        check("the policy allows scripts, styles, images and fetches from `'self'` only",
+              all(f"{d} 'self'" in policy for d in ("script-src", "style-src", "img-src", "connect-src"))
+              and "http" not in policy and "*" not in policy, policy)
+        wanted = ["/js/main.js", *re.findall(r'(?:href|src)="([^"]+)"', page.decode())]
+        seen, bad = set(), []
+        while wanted:
+            name = "/" + wanted.pop().lstrip("/")
+            if name in seen or not name.endswith((".js", ".css")):
+                continue
+            seen.add(name)
+            code, head, body = fetch(port, name, headers=link.cookie)
+            kind = "text/css" if name.endswith(".css") else "text/javascript"
+            if code != 200 or not head.get("content-type", "").startswith(kind):
+                bad.append((name, code, head.get("content-type")))
+            for ref in re.findall(r"from '(\.[^']+)'", body.decode()):
+                wanted.append(posixpath.normpath(f"{name.rsplit('/', 1)[0]}/{ref}"))
+        check("every module and stylesheet the page loads answers 200 with its JavaScript or CSS type",
+              bool(seen) and not bad, str(bad))
         code, _, _ = fetch(port, "/js/main.js", headers={**link.cookie, "If-None-Match": etag})
         check("a static file asked again with its ETag answers 304", code == 304, str(code))
         # 4. the API
@@ -1253,8 +1272,10 @@ def remote_board(w: World) -> None:
               "fields the views need",
               code == 200 and set(rows) == set(labels) and len(rows) == 4
               and all(rows[k]["label"] == v for k, v in labels.items())
-              and all({"round_limit", "after", "chain_place", "base", "to_review"} <= set(r)
-                      for r in rows.values()), f"{code} {sorted(rows)}")
+              and all({"round_limit", "after", "chain_place", "base", "to_review", "updated", "branch"}
+                      <= set(r) for r in rows.values())
+              and {"asks_unread", "last_event_at"} <= set(api["projects"][0]),
+              f"{code} {sorted(rows)}")
         backlog = data.get("backlog", {})
         check("it holds the inbox, `P2` and `3-ready` items with their `grill`, and a title's markup "
               "comes back as text",
