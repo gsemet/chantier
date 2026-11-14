@@ -70,7 +70,9 @@ The CLI keeps the CR's record and tells you what is off.
   only when the last `context:` line read 130,000 or more; a Driver that stops for any other reason
   names that reason, never `context:`. Never end your turn to wait for a child: a child runs in the
   foreground, and its reply is the result of the call that started it. The one turn end that waits
-  is the long CI wait, with the forge's watch running in a background shell (the "CI" bullet). On
+  is the long CI wait, with the forge's watch running in a background shell (the "CI" bullet); with
+  the `ci: beside the long gate` line, the long gate and the CI watch run side by side in two
+  background shells, and the first to end wakes you. On
   Claude Code, a turn that ends with nothing running in the background ends your run: the host asks
   for your hand-back at once. When the host asks for your hand-back while the CR's work remains,
   record your state with `$CHANTIER note <cr> "…"`, then `handback <cr> blocked context: host asked
@@ -109,7 +111,9 @@ The CLI keeps the CR's record and tells you what is off.
   stop only one you started, by its id (a running long gate is stopped with `gate <cr> --stop`,
   never by ending the `gate` command, which leaves its suite running). A command the host may refuse runs alone, never chained
   with routine steps.
-- The long gate, the project's command, before any PR: `$CHANTIER gate <cr> "<command>"
+- The long gate, the project's command, before the first push and the PR (with the `ci: beside
+  the long gate` line, at the head you pushed, started right after `ship`, while CI runs; the
+  "CI" bullet gives that order): `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs them in the worktree, in order, alone in the repository (a second long
   gate waits its turn, in arrival order), stops at the first failure, keeps the log and records the pass at that head. It
   is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
@@ -118,7 +122,8 @@ The CLI keeps the CR's record and tells you what is off.
   One command per argument, never a `;` or `&&` chain. The fast gates you run yourself.
   Stop only your own CR's running long gate, only with `$CHANTIER gate <cr> --stop`, never
   another CR's. Do it only when the run's result can no longer count (the head is about to
-  move: a `rebase:` note, or a change that needs a round) or on the steering session's `stop`;
+  move: a `rebase:` note, a change that needs a round, or a red CI job that is the CR's, see the
+  "CI" bullet) or on the steering session's `stop`;
   never because the gate is slow, since a run that would still be a valid pass is worth more
   finished than restarted. A stopped run is recorded `stopped`: not a failure, so not a round;
   no pass, and it voids an earlier pass at that head, so run the long gate again at the head you
@@ -165,7 +170,10 @@ The CLI keeps the CR's record and tells you what is off.
   posting. This is not a round and not a review: it replaces neither the Inspector's audit nor
   the Verifier's description pass. Then
   `$CHANTIER ship <cr> <pr link>`: it records the PR at this head (the full SHA) and says what
-  is off (uncommitted changes, a head not pushed, no long gate passed at it). The PR's base is the
+  is off (uncommitted changes, a head not pushed, no long gate passed at it; with the `ci: beside
+  the long gate` line `ship` runs before the gate passes, so `off: no long gate passed at <sha>`
+  is expected there and no slip, and `handback ready` still refuses a head with no passed long
+  gate). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
   does.
 - Commits: a PR merges by rebase with every commit of its branch, so each commit you make is a
@@ -219,6 +227,31 @@ The CLI keeps the CR's record and tells you what is off.
   project's rules gives its own limit). What you say about CI follows these rules, for every
   Driver that pushes (a stack driver opens no PR: "the PR" is the one whose branch it pushed, the
   top of the stack):
+  - With the `ci: beside the long gate` line (a CR Driver only), after the approved round,
+    the commit and the rebase: push, open the PR as a draft or update it (the audit pass on
+    `pr-body.md` first), `ship`, then start the long gate (`$CHANTIER gate <cr> "<command>"…`)
+    and the CI watch (`gh pr checks <pr> --watch --fail-fast`; on GitLab `glab ci status
+    --live`, unproved; trial: a red job of a GitLab pipeline ends the watch or shows in its
+    output before the pipeline's end), each in its own background shell by the host's means
+    (Claude Code `Bash` with `run_in_background: true`, Copilot's background shell). Do
+    everything that needs neither result, end your turn, and the first shell to end wakes you.
+    Unproved; trial: a CR Driver of a batch with the line pushes at the approved round, runs its
+    gate while CI runs, and on a red CI job stops its gate and starts a debugger before the gate
+    ends. The outcomes:
+    - A red job that is the CR's (not an infrastructure failure, not a job also red on the
+      default branch, judged as above): at once, without waiting for the gate or the other jobs,
+      `$CHANTIER gate <cr> --stop` (recorded `stopped`: no pass, not a round), a `note` naming
+      the job and the head, `gh run view <run> --log-failed > <work folder>/ci-<run>.log`, a
+      `debugger` on it, the next round.
+    - An infrastructure failure, or a job also red on the default branch: its rule above (one
+      re-run, or a note). The gate is not stopped, its result still counts.
+    - The gate fails first: a round, as today. Stop the CI watch's shell you started, by its
+      id; CI at that head no longer counts.
+    - The gate passes first: go on waiting for CI. CI is green first: go on waiting for the
+      gate.
+    - Both done, the gate passed and CI green or judged by the rules: the `verifier` at the
+      pushed head, as today.
+    The 3-hour limit, the "no CI" looks, the head check and the CI note's form stay.
   - The only source: any claim about CI (running, green, red or none) comes from the forge's list
     of checks for the PR at the pushed head: `gh pr checks <pr>`, `glab ci list`, or the forge's
     equivalent. The project's files (a workflow folder or its absence), its rules, an earlier
@@ -296,7 +329,9 @@ The CLI keeps the CR's record and tells you what is off.
   push again. A `push refused` note, whether the branch is not this batch's or the Chief of
   Staff's own push was refused, ends with `handback blocked refused <exact text>`; it goes to
   the user. The exception is `push refused <branch>: no long gate passed at <sha>`: run the long
-  gate and send the push line again, no hand-back. Any other refused action stays `blocked refused` as above.
+  gate and send the push line again, no hand-back (with the `ci: beside the long gate` line the
+  Chief of Staff does not send it; one you get anyway goes to the steering session as printed).
+  Any other refused action stays `blocked refused` as above.
 - `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
   `note` the decision. A `note taken back: <why>` received after your own `handback ready`
   means the steering session took the CR back for you: the CR is yours again, `handoff <cr>`
@@ -340,7 +375,10 @@ from any review, a later one included, goes to a `coder` in a round, then a new 
 Driver edit. All approved: commit with nothing changed since the review (stage the files the
 round changed by name, `git add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above) and record
 `note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase, the long gate (a
-failure is a round), push, the PR, `ship`, CI, then a `verifier` at the pushed head, given the plan
+failure is a round), push, the PR, `ship`, CI (with the `ci: beside the long gate` line: rebase,
+push, the PR, `ship`, then the long gate and CI side by side, a failure of either that is the
+CR's being a round and a red CI job stopping the gate first), then a `verifier` at the pushed
+head (with the line, once the gate passed and CI is judged green), given the plan
 (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence
 in Deliverables and the Test plan boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
@@ -353,6 +391,13 @@ turns ready, never in the same command as the edit.
 A gap you judge left, whether in a note, a hand-back or a reply to the steering session, is
 written in Known gaps of `pr-body.md` first; a gap said anywhere else and absent from the body is
 a defect of the body. The ready line quotes the body's gaps, as "Your end" says.
+
+With the `ci: beside the long gate` line, a CR Driver reads the systems CI covers from the
+forge's list of checks at the pushed head (job names such as `just check (ubuntu-latest)` name
+their system) and compares them with the system the long gate ran on. In Known gaps it writes one
+bullet naming the systems only CI covers and which commands of the long gate ran only there, for
+example "The long gate ran on Windows only; Linux and macOS are covered by CI alone." A forge
+that lists no check gives no such bullet; the "no CI" rule says what to write then.
 
 Escalation applies to the CR driver as to any parent ([concepts](concepts.md), "Escalation"): a
 `debugger` that explains no red check, or a `conflict-resolver` that settles no conflict, gets a
@@ -391,7 +436,8 @@ branch>` (a `conflict-resolver` for a conflict that needs only resolving; one th
 a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
 above), `ship`, run the long gate at the new head, read CI (red is a round). The `verifier`, given the move, judges again what it touched before
-`handback ready`. Green and mergeable, ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
+`handback ready`. With the `ci: beside the long gate` line, the long gate and the CI watch run
+side by side by the rules of the "CI" bullet. Green and mergeable, ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round. If the note names another open dependency instead, or is
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back

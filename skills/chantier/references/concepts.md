@@ -259,7 +259,8 @@ started.
 A parent starts an agent, by its host's means (the host's reference gives the tool and the
 agent's name). Which agent and which model come from the project's playbook, an optional
 `chantier.yaml` that only the CLI reads, validates and resolves (it may also carry `prices:` for
-models the built-in table lacks, read by the CLI only when it prices):
+models the built-in table lacks, read by the CLI only when it prices, and `ci:` with
+`beside_gate: true`, which the CLI prints as one `ci:` line):
 
 - The parent passes the agent and, when one is printed, the model, exactly as `$CHANTIER` printed
   them (`playbook`, `playbook --batch`, or the `team:` lines of `take`, `round` and `handoff`):

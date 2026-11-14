@@ -42,6 +42,7 @@ def playbook_lines(
         lines.append(f"prices: {', '.join(resolved['prices'])} ({FILE}, above the built-in table)")
         if host == "copilot":
             lines.append("prices: not used on Copilot, whose records carry the price")
+    lines += ci_lines(resolved)
     lines += [
         f"needs: {role}: "
         + "; ".join(f"{k} {', '.join(rec[k])}" for k in ("skills", "tools") if rec.get(k))
@@ -60,6 +61,16 @@ def escalate_line(host: str) -> str:
         if found
         else "escalate: (none on this host)"
     )
+
+
+def ci_lines(resolved: dict[str, Any] | None) -> list[str]:
+    """The `ci:` line, only when `beside_gate` is on."""
+    if not resolved or not (resolved.get("ci") or {}).get("beside_gate"):
+        return []
+    return [
+        f"ci: beside the long gate ({FILE}): push at the approved round, "
+        "run the long gate while CI runs"
+    ]
 
 
 def team_lines(resolved: dict[str, Any] | None) -> list[str]:
