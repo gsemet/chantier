@@ -20,7 +20,7 @@ from chantier.commands.driver_checks import (
 from chantier.commands.facts import cr_facts, stack_lines
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
 from chantier.core.clock import now, stamp
-from chantier.core.errors import EXIT_USAGE, ChantierError
+from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.phases import PHASE_DETAIL_MAX
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
@@ -233,14 +233,16 @@ def phase(args: argparse.Namespace) -> list[str]:
     detail = " ".join(args.detail).strip()
     if len(detail) > PHASE_DETAIL_MAX:
         raise ChantierError(
-            f"phase: the detail is at most {PHASE_DETAIL_MAX} characters", EXIT_USAGE
+            f"phase: the detail is at most {PHASE_DETAIL_MAX} characters", EXIT_PRECONDITION
         )
     if args.phase == "review" and not detail:
-        raise ChantierError("phase <cr> review <the review step's name>", EXIT_USAGE)
+        raise ChantierError("phase <cr> review <the review step's name>", EXIT_PRECONDITION)
     with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
         c = b.cr(args.cr)
         if c.status not in LIVE:
-            raise ChantierError(f"{c.id} is {c.status}: no Driver to record a step", EXIT_USAGE)
+            raise ChantierError(
+                f"{c.id} is {c.status}: no Driver to record a step", EXIT_PRECONDITION
+            )
         keeps = args.phase in {"review", "gate", "release"}
         b.touch(c, phase=args.phase, phase_at=now())
         if keeps and detail:
