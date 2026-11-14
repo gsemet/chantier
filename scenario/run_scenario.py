@@ -8,9 +8,13 @@ a fake `gh` (or `glab`), and use the CLI for its record (`round`, `gate`, `ship`
 The Chief of Staff steers with `chantier order`. Nothing calls a model: the scripted agents prove
 the frame, and the checks are on what the CLI refuses, records and reports.
 
-    uv run --no-project python scenario/run_scenario.py [--forge gitlab] [--keep] [--verbose]
+    just scenario [--unit NAME]... [--forge github|gitlab] [--jobs N] [--keep] [--verbose]
 
-Exit 0 when every check passes; the transcript is written to scenario/results/<forge>-<time>.md (ignored by git).
+The scenario is a table of independent units (`UNITS`), each run by a child process of its own, in
+a temporary world of its own, `--jobs` at a time (4 by default). Exit 0 when every check of every
+unit passes and no unit hangs; a unit over its budget only prints a warning. The transcript is
+written to scenario/results/scenario-<time>-<pid>.md and each unit's own files to
+scenario/results/<time>-<pid>/ (ignored by git).
 """
 from __future__ import annotations
 
@@ -31,6 +35,7 @@ import sys
 import tempfile
 import threading
 import time
+import traceback
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -45,7 +50,7 @@ PR_LINK = {"github": "https://github.com/acme/demo/pull/",
 FAKE_USAGE = Path(__file__).with_name("fake_session_usage.py")
 LOG: list[str] = []
 CHECKS = {"pass": 0, "fail": 0}
-GATE = "uv run --no-project python -m compileall -q ."  # what the project's AGENTS.md names
+GATE = f'"{sys.executable}" -m compileall -q .'  # what the project's AGENTS.md names: no uv start per gate
 FROM_AGENTS_MD = ("--default-branch", "main")
 TRAILER = "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 BODY = ("## Summary\n\n{title}.\n\n## Deliverables\n\nNone.\n\n## Blast radius\n\nGrade: 1\n\n"
@@ -59,8 +64,33 @@ BACK_NOTES = ("rebase:", "merged:")
 OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 
 
+# The units: {name: (budget in seconds, forges, [case, ...])}. Each unit is one child process in a
+# world of its own; a unit over its budget only warns (the budget is one literal per unit, easy to
+# edit), a unit past its hang timeout (the larger of 600 s and 4 times its budget) is killed and
+# fails the run. A case is a function of CASES at the end of this file. `parallel`'s first case is
+# the main batch's sections; GitLab runs only the `gitlab` unit.
+UNITS = {
+    "parallel": (150, ["github"], ["scenario", "close_batch", "retro_cases",
+                                   "copilot_missing_transcript", "open_remote_nowhere"]),
+    "stack": (120, ["github"], ["stack_batch", "ready_words", "forge_stack_cli"]),
+    "release": (150, ["github"], ["release", "granted_fixes", "release_last", "release_on_stack",
+                                  "release_merge_on_approval"]),
+    "gates": (120, ["github"], ["rails", "gate_parallel", "cancel_during_gate", "stop_own_gate",
+                                "handback_proofs", "gate_proof"]),
+    "series-deps": (70, ["github"], ["batch_modes", "dependencies", "changes_tree",
+                                     "playbook_config"]),
+    "direct": (80, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
+    "surface-board": (100, ["github"], ["remote_board", "external_surface", "cr_summary"]),
+    "qa-driver": (40, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr",
+                                   "next_number", "failed_opening"]),
+    "gitlab": (70, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
+}
+JOBS = 4  # units run at once, by default
+HANG_FLOOR_S = 600  # a unit is hung past max(this, 4 times its budget)
+
 COMMANDS = [0]  # the processes the scenario itself starts (the CLI's own children are not counted)
 TIMES: list[tuple[str, float, int]] = []  # (case or section, seconds, commands)
+FAILED: list[str] = []  # the labels of the failed checks, for the unit's JSON
 _popen_init = subprocess.Popen.__init__
 
 
@@ -69,7 +99,9 @@ def _counting_init(self, *args, **kwargs):  # subprocess.run goes through Popen:
     _popen_init(self, *args, **kwargs)
 
 
-subprocess.Popen.__init__ = _counting_init
+def count_commands() -> None:
+    """A unit's process counts the processes it starts; the parent counts none."""
+    subprocess.Popen.__init__ = _counting_init
 
 
 class timed:
@@ -118,6 +150,8 @@ def note(line: str) -> None:
 
 def check(label: str, ok: bool, detail: str = "") -> None:
     CHECKS["pass" if ok else "fail"] += 1
+    if not ok:
+        FAILED.append(label)
     note(f"- [{'x' if ok else ' '}] {label}{'' if ok else f' — {detail}'}")
     if not ok and not ARGS.verbose:
         print(f"FAIL {label}: {detail}")
@@ -1070,70 +1104,6 @@ def scenario(w: World) -> None:
           created in calls and merged not in calls and "edit" not in calls and '"PUT"' not in calls,
           calls[-300:])
     section_end()
-    with timed("close_batch"):
-        close_batch(w)
-    with timed("retro_cases"):
-        retro_cases(w)
-    with timed("copilot_missing_transcript"):
-        copilot_missing_transcript(w)
-    with timed("lifecycle_regressions"):
-        lifecycle_regressions(w)
-    with timed("stack_batch"):
-        stack_batch(w)
-    with timed("forge_stack_cli"):
-        forge_stack_cli(w)
-    with timed("ready_words"):
-        ready_words(w)
-    with timed("batch_modes"):
-        batch_modes(w)
-    with timed("release"):
-        release(w)
-    with timed("granted_fixes"):
-        granted_fixes(w)
-    with timed("release_last"):
-        release_last(w)
-    with timed("release_on_stack"):
-        release_on_stack(w)
-    with timed("qa_on_head"):
-        qa_on_head(w)
-    with timed("changes_tree"):
-        changes_tree(w)
-    with timed("next_number"):
-        next_number(w)
-    with timed("dependencies"):
-        dependencies(w)
-    with timed("release_merge_on_approval"):
-        release_merge_on_approval(w)
-    with timed("lost_messages"):
-        lost_messages(w)
-    with timed("failed_opening"):
-        failed_opening(w)
-    with timed("playbook_config"):
-        playbook_config(w)
-    with timed("cancel_during_gate"):
-        cancel_during_gate(w)
-    with timed("stop_own_gate"):
-        stop_own_gate(w)
-    with timed("rails"):
-        rails(w)
-    with timed("gate_parallel"):
-        gate_parallel(w)
-    with timed("handback_proofs"):
-        handback_proofs(w)
-    with timed("gate_proof"):
-        gate_proof(w)
-    with timed("restore_cr"):
-        restore_cr(w)
-    with timed("driver_liveness"):
-        driver_liveness(w)
-    with timed("foreman_in_a_worktree"):
-        foreman_in_a_worktree(w)
-    with timed("direct_batch"):
-        direct_batch(w)
-    with timed("seat_handover"):
-        seat_handover(w)
-    with timed("remote_board"):
-        remote_board(w)
 
 
 class BoardProc:
@@ -1392,7 +1362,7 @@ def remote_board(w: World) -> None:
         check("`board` on a loopback address with `--port 0` prints the picked port and the link with "
               "its key, and nothing else",
               link.ok and port > 0 and link.over == w.state.resolve().as_posix()
-              and first.line(1.5) is None, str(line))
+              and first.line(0.5) is None, str(line))
         # 2. the key
         key_file = Path(w.sh("git", "rev-parse", "--path-format=absolute", "--git-common-dir")) \
             / "chantier" / "board.json"
@@ -1583,7 +1553,7 @@ def remote_board(w: World) -> None:
               p.returncode == 0 and p.stdout.startswith("board already running at ")
               and jget(port, link, "/api/board")[2].get("seats") == 2, p.stdout + p.stderr)
         w.chantier("seat", "take", "s-3", "--over", "s-2")
-        time.sleep(1)
+        fetch(port, "/api/board", headers=link.cookie)  # the board checks its seats at each request
         check("the seat moving from s-2 to s-3 keeps the board running",
               second.p.poll() is None and fetch(port, "/api/board", headers=link.cookie)[0] == 200)
         # a board with no seat starts its watch at its first seat, whenever it comes
@@ -1615,10 +1585,14 @@ def remote_board(w: World) -> None:
         timed.stop()
         # 11. chantier.yaml
         yaml = w.work / "chantier.yaml"
-        other = free_port()
-        yaml.write_text(f"board:\n  host: 127.0.0.1\n  port: {other}\n", encoding="utf-8")
-        configured = board("board")
-        line = configured.line()
+        for attempt in range(2):  # a port free a moment ago can be taken by another unit: one retry
+            other = free_port()
+            yaml.write_text(f"board:\n  host: 127.0.0.1\n  port: {other}\n", encoding="utf-8")
+            configured = board("board")
+            line = configured.line()
+            if line is not None and line.startswith(f"board on http://127.0.0.1:{other}/?k="):
+                break
+            configured.stop()
         check("`board.port` of chantier.yaml sets the port of a board with no option",
               line is not None and line.startswith(f"board on http://127.0.0.1:{other}/?k="), str(line))
         configured.stop()
@@ -1626,7 +1600,7 @@ def remote_board(w: World) -> None:
             yaml.write_text(f"board:\n  host: 127.0.0.1\n  {bad}\n", encoding="utf-8")
             code, out = w.chantier("playbook", expect=None)
             problem = "chantier.yaml:3: board: " in "\n".join(out) and wrong in "\n".join(out)
-            code_board, _ = w.chantier("board", "--port", free_port(), expect=None)
+            code_board, _ = w.chantier("board", "--port", 0, expect=None)
             check(f"an invalid `board` ({bad}) is reported by `playbook` with its line, and the board "
                   "refuses to start with it",
                   code == 2 and problem and code_board == 2 and "chantier.yaml:3: board: " in w.last_stderr,
@@ -2084,6 +2058,9 @@ def direct_batch(w: World) -> None:
           str(w.last_out))
     w.chantier("foreman", "set", "local_foreman_next", "--epoch", 2)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 2)
+    foreman_file = chief.with_name("uuid-foreman.jsonl")  # the Foreman's own, seeded in this unit
+    if not foreman_file.is_file():
+        foreman_file.write_text(msg("fm-1", at(40)), encoding="utf-8")
     d = w.batch()
     code, _ = w.chantier("status", "--refresh", "--epoch", 1, expect=3)
     check("a later epoch from another transcript switches the steering to Foreman, and refuses "
@@ -2988,8 +2965,8 @@ def playbook_config(w: World) -> None:
 
 def lock_names(w: World, what: str, slot: int = 1) -> bool:
     """Whether the text of slot `slot`'s lock (`.long-gate.lock`, `.long-gate.<k>.lock`) names
-    `what` within ten seconds."""
-    deadline = time.monotonic() + 10
+    `what` within thirty seconds (the wait is only bounded, a green run does not use it)."""
+    deadline = time.monotonic() + 30
     lock = w.state / (".long-gate.lock" if slot == 1 else f".long-gate.{slot}.lock")
     while time.monotonic() < deadline:
         try:
@@ -3008,7 +2985,7 @@ def cancel_during_gate(w: World) -> None:
     _, item = prepare_cr(w, "Stopped mid gate")
     slow = w.root / "slow_gate.py"
     slow.write_text("import time\ntime.sleep(60)\n")
-    gate = f"uv run --no-project python {slow.as_posix()}"
+    gate = f'"{sys.executable}" "{slow}"'
     w.reset()
     w.start(str(item), "--default-branch", "main")
     w.env["CHANTIER_BATCH"] = w.name
@@ -3021,7 +2998,7 @@ def cancel_during_gate(w: World) -> None:
     lock_names(w, f"{cr} pid")
     lock_names(w, " pg")
     w.chantier("cancel", cr, "--epoch", 1)
-    out, err = running.communicate(timeout=30)
+    out, err = running.communicate(timeout=120)
     check("a cancel stops the suite and moves the CR while its gate runs; the gate ends cleanly",
           "6-trash/" in w.cr(cr)["path"] and out.startswith("FAIL") and "Traceback" not in err
           and "pg" in w.last_out[0], f"{out} {err} {w.last_out}")
@@ -3073,7 +3050,7 @@ def stop_own_gate(w: World) -> None:
     running = background(one)
     code, _ = w.chantier("gate", one, "--stop", expect=None)
     stop_out = w.last_out
-    out, err = running.communicate(timeout=30)
+    out, err = running.communicate(timeout=120)
     time.sleep(0.5)
     gone = not procs.alive(int(pidfile.read_text()))
     check("`gate <cr> --stop` exits 0 and names the group; the stopped gate says STOPPED, exits 4, "
@@ -3098,7 +3075,7 @@ def stop_own_gate(w: World) -> None:
                          text=True, encoding="utf-8")
     lock_names(w, " pg")
     w.chantier("gate", one, "--stop")
-    out, err = p.communicate(timeout=30)
+    out, err = p.communicate(timeout=120)
     new = events(one)[n_before:]
     check("a stop while the first of two commands runs: the second never starts, the gate exits 4 "
           "and records `stopped` with no `fail` event",
@@ -3111,7 +3088,7 @@ def stop_own_gate(w: World) -> None:
           and gate_passed(events(one), head))
     running = background(one)
     w.chantier("gate", one, "--stop")
-    running.communicate(timeout=30)
+    running.communicate(timeout=120)
     _, out = w.chantier("ship", one, "https://example.invalid/pr/0")
     check("a stopped run voids an earlier pass at the same head: `ship` says no long gate passed",
           not gate_passed(events(one), head) and any("no long gate passed" in ln for ln in out),
@@ -3125,7 +3102,7 @@ def stop_own_gate(w: World) -> None:
           code == 2 and two in w.last_stderr + "".join(w.last_out) and other.poll() is None,
           f"{w.last_out} {w.last_stderr}")
     w.chantier("gate", two, "--stop")
-    other.communicate(timeout=30)
+    other.communicate(timeout=120)
     code, _ = w.chantier("gate", one, "--stop", GATE, expect=1)
     code2, _ = w.chantier("gate", one, expect=1)
     check("`--stop` with a command, and `gate` with neither command nor `--stop`, exit 1",
@@ -3137,7 +3114,7 @@ def stop_own_gate(w: World) -> None:
           and (w.cr(one)["status"], w.cr(one)["path"]) == before, w.last_stderr)
 
     def suite_pid():  # the pid the slow suite wrote once it runs
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + 30
         while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text()):
             time.sleep(0.05)
         return int(pidfile.read_text())
@@ -3148,7 +3125,7 @@ def stop_own_gate(w: World) -> None:
     pid = suite_pid()
     code, _ = w.chantier("order", "merged", three, "--epoch", 1)
     merged_out = w.last_out
-    out, err = running.communicate(timeout=30)
+    out, err = running.communicate(timeout=120)
     time.sleep(0.5)
     check("`order merged` stops the CR's own long gate: its output names the group, the suite is "
           "gone, the gate says STOPPED and exits 4, the last gate event is `stopped`, the CR is in "
@@ -3174,16 +3151,38 @@ def stop_own_gate(w: World) -> None:
           not any("stopped" in ln for ln in w.last_out) and procs.alive(pid) and other.poll() is None,
           str(w.last_out))
     w.chantier("gate", two, "--stop")
-    other.communicate(timeout=30)
+    other.communicate(timeout=120)
 
 
 def rails(w: World) -> None:
     note("\n## 19. The rails: rounds, slots 0, the budget, the long gate")
     _, a = prepare_cr(w, "Rail one")
     _, b = prepare_cr(w, "Rail two")
-    slow = w.root / "slow_long.py"
-    slow.write_text("import time\ntime.sleep(2)\n")
-    long_gate = f'"{sys.executable}" "{slow}"'
+    slow = w.root / "slow_long.py"  # a suite that ends when its release file exists (event-driven)
+    slow.write_text("import os, sys, time\nend = time.time() + 180\n"
+                    "while not os.path.exists(sys.argv[1]) and time.time() < end:\n"
+                    "    time.sleep(0.05)\n")
+
+    def held_suite(name):
+        release = w.root / f"release_{name}"
+        release.unlink(missing_ok=True)
+        return f'"{sys.executable}" "{slow}" "{release}"', release
+
+    def newest_log_of(cr):
+        logs = sorted((w.state / w.cr(cr)["path"] / "work" / "gates").glob("*.log"))
+        return logs[-1].read_text("utf-8") if logs else ""
+
+    def release_when_logged(cr, text, release, since):
+        """The held suite ends once `cr`'s gate has been seen waiting, and at least a second after
+        `since`: the check asserts the order, never how long the machine took."""
+        end = time.monotonic() + 45
+        while text not in newest_log_of(cr) and time.monotonic() < end:
+            time.sleep(0.05)
+        time.sleep(max(0.0, 1.05 - (time.monotonic() - since)))
+        release.touch()
+
+    long_gate, free = held_suite("free")  # already released: this gate returns at once
+    free.touch()
     w.reset()
     w.start(str(a), str(b), "--slots", 1, "--budget", 1, "--default-branch", "main")
     w.env["CHANTIER_BATCH"] = w.name
@@ -3263,44 +3262,47 @@ def rails(w: World) -> None:
           code == 0 and w.cr(one)["status"] == "working"
           and w.cr(one)["notes"][-1].startswith("back to a Driver: rebase:"))
 
-    def held_gate(cr):
-        return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, long_gate],
+    def gate_proc(cr, command):
+        return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, command],
                                 cwd=w.work, env=w.env, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, text=True, encoding="utf-8")
 
-    held = held_gate(one)
+    held_gate = lambda cr, command: gate_proc(cr, command)  # noqa: E731
+    command, release = held_suite("one")
+    held = held_gate(one, command)
     lock_names(w, f"{one} pid")
     started = time.monotonic()
-    code, out = w.chantier("gate", two, long_gate)
+    waiter = gate_proc(two, command)
+    release_when_logged(two, "waiting for the long gate of", release, started)
+    out, _ = waiter.communicate(timeout=120)
     waited = time.monotonic() - started
-    held.communicate(timeout=30)
-    log = max((w.state / w.cr(two)["path"] / "work" / "gates").glob("*.log"))
+    held.communicate(timeout=120)
     check("a second long gate waits for the first (one long gate at a time)",
-          code == 0 and waited >= 1 and "waiting for the long gate of" in log.read_text("utf-8"),
-          f"{waited:.1f}s {out}")
-    held = held_gate(one)
+          waiter.returncode == 0 and waited >= 1
+          and "waiting for the long gate of" in newest_log_of(two), f"{waited:.1f}s {out}")
+    command, release = held_suite("died")
+    held = held_gate(one, command)
     lock_names(w, " pg")
     held.kill()  # the command dies; its suite runs on in its own process group
-    held.communicate(timeout=30)
+    held.communicate(timeout=120)
     started = time.monotonic()
-    code, out = w.chantier("gate", two, long_gate)
+    waiter = gate_proc(two, command)
+    release_when_logged(two, "its command still runs", release, started)
+    out, _ = waiter.communicate(timeout=120)
     waited = time.monotonic() - started
-    log = max((w.state / w.cr(two)["path"] / "work" / "gates").glob("*.log"))
     check("a long gate whose command died still holds the next one while its suite runs",
-          code == 0 and waited >= 1 and "its command still runs" in log.read_text("utf-8"),
+          waiter.returncode == 0 and waited >= 1 and "its command still runs" in newest_log_of(two),
           f"{waited:.1f}s {out}")
 
     # the queue: first come, first served
-    slow3 = w.root / "slow_queue.py"
-    slow3.write_text("import time\ntime.sleep(3)\n")
-    queue_gate = f'"{sys.executable}" "{slow3}"'
+    queue_gate = long_gate  # released: every gate that gets the lock ends at once
     queue = w.state / ".long-gate.queue"
 
     def tickets():
         return sorted(p for p in queue.glob("[0-9]*")) if queue.is_dir() else []
 
     def wait_tickets(n):
-        deadline = time.monotonic() + 15
+        deadline = time.monotonic() + 45
         while time.monotonic() < deadline and len(tickets()) < n:
             time.sleep(0.05)
 
@@ -3313,6 +3315,7 @@ def rails(w: World) -> None:
         return [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
                 if json.loads(ln)["kind"] == "gate"]
 
+    queue_gate, queue_release = held_suite("queue")  # held until the queue is seen as it should be
     before = len(gate_events())
     first = queued_gate(one)
     lock_names(w, f"{one} pid")
@@ -3322,7 +3325,8 @@ def rails(w: World) -> None:
     time.sleep(1.1)
     third = queued_gate(one)
     wait_tickets(2)
-    outs = [p.communicate(timeout=60) for p in (first, second, third)]
+    release_when_logged(one, f"queued ahead: {two}", queue_release, time.monotonic())
+    outs = [p.communicate(timeout=180) for p in (first, second, third)]
     order = [e["cr"] for e in gate_events()[before:]]
     third_log = max((w.state / w.cr(one)["path"] / "work" / "gates").glob("*.log")).read_text("utf-8")
     check("long gates take the lock in arrival order; the later waiter's log names the earlier one "
@@ -3330,18 +3334,22 @@ def rails(w: World) -> None:
           [p.returncode for p in (first, second, third)] == [0, 0, 0] and order == [one, two, one]
           and f"queued ahead: {two}" in third_log and not tickets(), f"{order} {outs} {third_log}")
 
+    queue_gate, queue_release = held_suite("queue2")
     first = queued_gate(one)
     lock_names(w, f"{one} pid")
     time.sleep(1.1)
     dead = queued_gate(two)
     wait_tickets(1)
     dead.kill()  # a waiter whose `gate` command ended leaves its ticket behind
-    dead.communicate(timeout=30)
+    dead.communicate(timeout=120)
     left = len(tickets())
     time.sleep(1.1)
-    code, out = w.chantier("gate", two, queue_gate)
-    first.communicate(timeout=60)
-    log = max((w.state / w.cr(two)["path"] / "work" / "gates").glob("*.log")).read_text("utf-8")
+    next_gate = queued_gate(two)
+    release_when_logged(two, "waiting for the long gate of", queue_release, time.monotonic())
+    out, _ = next_gate.communicate(timeout=120)
+    code = next_gate.returncode
+    first.communicate(timeout=180)
+    log = newest_log_of(two)
     check("a waiter killed in the queue leaves a ticket that the next gate skips",
           left == 1 and code == 0 and "queued ahead" not in log and not tickets(),
           f"{left} {out} {log} {tickets()}")
@@ -3398,7 +3406,9 @@ def gate_parallel(w: World) -> None:
     slow = w.root / "slow_par.py"
     slow.write_text("import os, sys, time\n"
                     "open(os.path.join(os.path.dirname(__file__), 'par_' + sys.argv[1] + '.pid'), 'w')"
-                    ".write(str(os.getpid()))\ntime.sleep(float(sys.argv[2]))\n")
+                    ".write(str(os.getpid()))\nend = time.time() + 180  # ends on its release file\n"
+                    "release = os.path.join(os.path.dirname(__file__), 'par_' + sys.argv[1] + '.release')\n"
+                    "while not os.path.exists(release) and time.time() < end:\n    time.sleep(0.05)\n")
     yaml = w.work / "chantier.yaml"
     yaml.unlink(missing_ok=True)
     w.reset()
@@ -3409,8 +3419,15 @@ def gate_parallel(w: World) -> None:
     one, two, three, four = (c["id"] for c in w.batch()["crs"])
     queue = w.state / ".long-gate.queue"
 
-    def spawn(cr, name, secs):
-        gate = f'"{sys.executable}" "{slow}" {name} {secs}'
+    def release(name):
+        (w.root / f"par_{name}.release").touch()
+
+    def spawn(cr, name, hold=True):
+        """A long gate whose suite ends on `release(name)`; with `hold` False it ends at once."""
+        (w.root / f"par_{name}.release").unlink(missing_ok=True)
+        if not hold:
+            release(name)
+        gate = f'"{sys.executable}" "{slow}" {name}'
         return subprocess.Popen([sys.executable, "-m", "chantier", "gate", cr, gate], cwd=w.work,
                                 env=w.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 text=True, encoding="utf-8")
@@ -3422,13 +3439,13 @@ def gate_parallel(w: World) -> None:
         return sorted(queue.glob("[0-9]*")) if queue.is_dir() else []
 
     def wait_tickets(n):
-        deadline = time.monotonic() + 15
+        deadline = time.monotonic() + 45
         while time.monotonic() < deadline and len(tickets()) < n:
             time.sleep(0.05)
 
     def suite_pid(name):  # the pid the slow suite wrote once it runs
         pidfile = w.root / f"par_{name}.pid"
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + 30
         while time.monotonic() < deadline and not (pidfile.exists() and pidfile.read_text()):
             time.sleep(0.05)
         return int(pidfile.read_text())
@@ -3465,12 +3482,12 @@ def gate_parallel(w: World) -> None:
 
     # E5. the move-up, with one long gate at a time
     yaml.write_text("long_gate:\n  parallel: 1\n", encoding="utf-8")
-    first = spawn(one, "q1", 8)
+    first = spawn(one, "q1")
     lock_names(w, f"{one} pid")
-    second = spawn(two, "q2", 1)
+    second = spawn(two, "q2", hold=False)
     wait_tickets(1)
     time.sleep(1.1)  # the logs are named by the second
-    third = spawn(three, "q3", 1)
+    third = spawn(three, "q3", hold=False)
     wait_tickets(2)
     code, _ = w.chantier("gate", three, "--first", expect=2)
     refusal = w.last_stderr
@@ -3484,8 +3501,9 @@ def gate_parallel(w: World) -> None:
           and [e["cr"] for e in kinds("gate-first")] == [three], f"{refusal} {out}")
     check("E5: `status` shows `gate queued behind` the holder for the moved gate while it waits",
           lines[three] == f"activity {three} gate queued behind {one}", str(lines))
+    release("q1")  # the holder ends: the queue empties by its order
     for p in (first, second, third):
-        p.communicate(timeout=60)
+        p.communicate(timeout=180)
     order = [e["cr"] for e in kinds("gate")][-3:]
     code, out = w.chantier("gate", two, "--first", "--epoch", 1)
     check("E5: the moved gate runs before the earlier one; `--first` of a CR with no ticket says there is "
@@ -3495,14 +3513,14 @@ def gate_parallel(w: World) -> None:
 
     # E2, E3. two at once
     yaml.write_text("long_gate:\n  parallel: 2\n", encoding="utf-8")
-    first = spawn(one, "a1", 16)
+    first = spawn(one, "a1")
     named1 = lock_names(w, f"{one} pid")
-    second = spawn(two, "a2", 8)
+    second = spawn(two, "a2")
     named2 = lock_names(w, f"{two} pid", 2) and lock_names(w, " pg", 2)
-    wait3 = spawn(three, "a3", 2)
+    wait3 = spawn(three, "a3", hold=False)
     wait_tickets(1)
     time.sleep(1.1)
-    wait4 = spawn(four, "a4", 2)
+    wait4 = spawn(four, "a4", hold=False)
     wait_tickets(2)
     lines = activity()
     check("E2: with `parallel: 2` two long gates run at once, one in each slot",
@@ -3511,7 +3529,10 @@ def gate_parallel(w: World) -> None:
           lines[one] == f"activity {one} gate running" and lines[two] == f"activity {two} gate running"
           and lines[three] == f"activity {three} gate queued behind {one}, {two}"
           and lines[four] == f"activity {four} gate queued behind {one}, {two}", str(lines))
-    outs = [p.communicate(timeout=90) for p in (second, wait3, wait4, first)]
+    release("a2")  # the second ends, then the two waiters run in their arrival order, then the first
+    outs = [p.communicate(timeout=240) for p in (second, wait3, wait4)]
+    release("a1")
+    outs.append(first.communicate(timeout=240))
     order = [e["cr"] for e in kinds("gate")][-4:]
     check("E2: the second gate ran with no waiting line and ended before the first; a third waited "
           "naming both holders; the waiters took a slot in arrival order",
@@ -3521,29 +3542,29 @@ def gate_parallel(w: World) -> None:
           and order == [two, three, four, one] and not tickets(), f"{order} {outs} {log(three)}")
 
     # E4. a stop acts on its slot only
-    first = spawn(one, "hold", 60)
+    first = spawn(one, "hold")
     lock_names(w, " pg")
     held_pid = suite_pid("hold")
-    second = spawn(two, "stop", 60)
+    second = spawn(two, "stop")
     lock_names(w, " pg", 2)
     two_pid = suite_pid("stop")
     code, _ = w.chantier("gate", two, "--stop")
-    out, err = second.communicate(timeout=30)
+    out, err = second.communicate(timeout=120)
     time.sleep(0.5)
     check("E4: `gate <cr> --stop` stops the suite of its own slot only: its gate says STOPPED and exits 4, "
           "the other slot's suite runs on",
           code == 0 and out.startswith("STOPPED") and second.returncode == 4 and not procs.alive(two_pid)
           and procs.alive(held_pid) and first.poll() is None and "Traceback" not in err, f"{out} {err}")
-    second = spawn(two, "merge", 60)
+    second = spawn(two, "merge")
     lock_names(w, " pg", 2)
     two_pid = suite_pid("merge")
     code, _ = w.chantier("order", "merged", two, "--epoch", 1)
-    out, err = second.communicate(timeout=30)
+    out, err = second.communicate(timeout=120)
     time.sleep(0.5)
     check("E4: `order merged` stops its CR's gate only",
           code == 0 and out.startswith("STOPPED") and not procs.alive(two_pid) and procs.alive(held_pid)
           and first.poll() is None, f"{out} {err}")
-    third = spawn(three, "cancel", 60)
+    third = spawn(three, "cancel")
     lock_names(w, " pg", 2)
     three_pid = suite_pid("cancel")
     code, _ = w.chantier("gate", four, "--stop", expect=2)
@@ -3552,12 +3573,12 @@ def gate_parallel(w: World) -> None:
           code == 2 and one in named and three in named and "not stopped" in named
           and procs.alive(three_pid) and procs.alive(held_pid), named)
     w.chantier("cancel", three, "--epoch", 1)
-    third.communicate(timeout=30)
+    third.communicate(timeout=120)
     time.sleep(0.5)
     check("E4: `cancel` stops its CR's suite only",
           not procs.alive(three_pid) and procs.alive(held_pid) and first.poll() is None)
     w.chantier("gate", one, "--stop")
-    first.communicate(timeout=30)
+    first.communicate(timeout=120)
     yaml.unlink(missing_ok=True)
     (w.state / ".long-gate.2.lock").unlink(missing_ok=True)
 
@@ -5064,9 +5085,7 @@ def granted_fixes(w: World) -> None:
     for o in w.batch()["orders"]:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 1)
-    w.chantier("pause", "--epoch", 1)
-    priced_foreman(w)
-    w.chantier("close", "--batch", w.name, "--yes")
+    w.reset()
 
 
 def release_last(w: World) -> None:
@@ -5350,9 +5369,7 @@ def release_on_stack(w: World) -> None:
     w.chantier("order", "merged", a)
     w.chantier("order", "merged", b)
     w.chantier("order", "approve", r, "--note", tag)
-    code, out = w.chantier("release", "go", r, "--note", tag, expect=2)
-    check("9. the stack merged, the release PR still is the user's to merge: `release go` "
-          "is refused with an approval", code == 2 and "user's to merge" in out[0], str(out))
+    w.chantier("release", "go", r, "--note", tag, expect=2)  # the refusal is checked in `release`
     w.chantier("order", "grant", r, "--note", "releases=1 budget=5")
     code, out = w.chantier("release", "go", r, "--note", tag)
     check("9. under a grant (`releases=1 budget=5`) it answers `go`",
@@ -5372,8 +5389,6 @@ def release_on_stack(w: World) -> None:
     fm.turn()
     check("10. the release `3-done`, the batch pauses",
           "/3-done/" in w.cr(r)["path"] and fm.paused, str(w.cr(r)))
-    priced_foreman(w)
-    w.chantier("close", "--batch", w.name, "--yes")
 
     # 12. a procedure with no release PR
     w.reset()
@@ -5477,9 +5492,7 @@ def qa_on_head(w: World) -> None:
           w.last_stderr)
     (folder / "04-result.md").write_text("# QA\n\n- The export button is hidden on mobile\n")
     w.chantier("order", "done", "O-2", "--epoch", 1)
-    w.chantier("pause", "--epoch", 1)
-    priced_foreman(w)
-    w.chantier("close", "--batch", w.name, "--yes")
+    w.reset()
     check("its findings stay in the inbox, an ordinary item",
           (folder / "04-result.md").is_file())
     w.chantier("abandon", folder)
@@ -5991,7 +6004,6 @@ def release_merge_on_approval(w: World) -> None:
               code != 0 and "in use" in w.last_stderr and (last / "batch.json").is_file(),
               w.last_stderr)
     w.chantier("close", "--batch", w.name, "--yes")
-    w.number_after = int(w.name.split("-")[1]) + 1
 
 
 def lost_messages(w: World) -> None:
@@ -5999,10 +6011,14 @@ def lost_messages(w: World) -> None:
     titles = ("Lost one", "Lost two", "Lost three")
     prepared = [prepare_cr(w, title)[1] for title in titles]
     w.reset()
+    # seeded here, not left by an earlier case: batch 7 was the last, its folder is gone, and the
+    # trash holds a dated CR
+    (w.state / ".batch-number").write_text("7\n")
+    (w.state / "6-trash" / "261103-1100-111-dropped").mkdir(parents=True)
     w.start(*(str(p) for p in prepared), "--slots", 3, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     check("batch numbers go on rising after the last batch's folder is deleted",
-          w.name == f"batch-{w.number_after:02d}", w.name)
+          w.name == "batch-08", w.name)
     w.chantier("foreman", "set", "local_foreman5", "--epoch", 1)
     fm = Foreman(w, epoch=1)
     fm.turn()
@@ -6060,7 +6076,9 @@ def lost_messages(w: World) -> None:
     check("an ask is read once", out == ["no unread ask"], str(out))
 
 
-def lifecycle_regressions(w: World) -> None:
+def open_remote_nowhere(w: World) -> None:
+    """Kept for round 3, which moves this refusal to pytest; the write-scope check is now the end of
+    every unit."""
     note("\n## 12. Lifecycle recovery")
     w.reset()
     _, original = prepare_cr(w, "Preserve failed opening")
@@ -6069,9 +6087,6 @@ def lifecycle_regressions(w: World) -> None:
     check("a remote Git does not know is refused before anything moves",
           code == 4 and "nowhere" in w.last_stderr and (original / "03-change-spec.md").is_file()
           and not list((w.state / "4-batch").glob("batch.json")), w.last_stderr)
-    check("chantier wrote nothing outside .agents/changes",
-          all(line[3:].startswith(".agents/changes/")
-              for line in w.sh("git", "status", "--porcelain", "-uall").splitlines()))
 
 
 def copilot_cost(w: World, d: dict) -> None:
@@ -6507,7 +6522,7 @@ def surface_autosync(w: SurfaceWorld) -> None:
             joined = bp.line()
             check("E2: the board starts and says it joins the surface's autosync",
                   link.ok and "joining the surface's autosync" in (joined or ""), str(joined))
-            end = time.monotonic() + 40
+            end = time.monotonic() + 90
             api: dict = {}
             while time.monotonic() < end:
                 api = jget(link.port, link, "/api/autosync")[2]
@@ -6962,51 +6977,293 @@ def cr_summary(tmp: Path) -> None:
     summary_walk(w)
 
 
-def main() -> int:
-    tmp = Path(tempfile.mkdtemp(prefix="chantier-scenario-"))
+def gitlab_ship_merge(w: World) -> None:
+    """The slim GitLab path: a Driver opens its merge request through the forge's API and hands
+    back, the user's merge reaches the origin, and the forge's own merge call has its shape."""
+    note("\n## 22. The GitLab path: open, ship, hand back, merge")
+    _, item = prepare_cr(w, "Gitlab path")
+    w.start(str(item), "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_gl", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    fm.turn()
+    cr = w.batch()["crs"][0]["id"]
+    driver_round(w, cr, "gl.py", "GL = 1\n")
+    pr = w.cr(cr)["pr"]
+    check("the Driver's PR is a merge request of the GitLab project",
+          bool(pr) and pr.startswith(PR_LINK["gitlab"]), str(pr))
+    w.ready(cr, pr)
+    fm.turn()
+    check("the Chief of Staff is told the CR is ready, with its merge request",
+          bool(fm.asked) and fm.asked[-1] == f"ready-to-merge {cr} {pr}", str(fm.asked))
+    land(w, w.cr(cr)["branch"])
+    w.chantier("order", "merged", cr)
+    fm.turn()
+    remote = w.sh("git", "ls-remote", "origin", "refs/heads/main").split()[0]
+    check("the user's merge ends the CR and the main checkout fast-forwards",
+          w.cr(cr)["status"] == "merged" and w.sh("git", "rev-parse", "HEAD") == remote
+          and (w.work / "gl.py").is_file(), str(w.cr(cr)["status"]))
+    calls = Path(str(w.gh_state) + ".calls").read_text()
+    check("only the Driver called the forge, to create the merge request: nobody merged or edited it",
+          '"POST"' in calls and '/merge"' not in calls and '"PUT"' not in calls, calls[-300:])
+    code, err = merge_pr(w, pr)
+    calls = Path(str(w.gh_state) + ".calls").read_text()
+    check("the forge's merge call is a PUT on the merge request's merge path, and it answers",
+          code == 0 and '"PUT"' in calls and f"merge_requests/{pr.rsplit('/', 1)[-1]}/merge" in calls,
+          err or calls[-300:])
+    w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
+
+
+CASES = {
+    "scenario": scenario, "close_batch": close_batch, "retro_cases": retro_cases,
+    "copilot_missing_transcript": copilot_missing_transcript,
+    "open_remote_nowhere": open_remote_nowhere, "stack_batch": stack_batch,
+    "ready_words": ready_words, "forge_stack_cli": forge_stack_cli, "release": release,
+    "granted_fixes": granted_fixes, "release_last": release_last,
+    "release_on_stack": release_on_stack, "release_merge_on_approval": release_merge_on_approval,
+    "rails": rails, "gate_parallel": gate_parallel, "cancel_during_gate": cancel_during_gate,
+    "stop_own_gate": stop_own_gate, "handback_proofs": handback_proofs, "gate_proof": gate_proof,
+    "batch_modes": batch_modes, "dependencies": dependencies, "changes_tree": changes_tree,
+    "playbook_config": playbook_config, "direct_batch": direct_batch,
+    "seat_handover": seat_handover, "foreman_in_a_worktree": foreman_in_a_worktree,
+    "remote_board": remote_board,
+    "external_surface": lambda w: external_surface(w.root / "external"),
+    "cr_summary": lambda w: cr_summary(w.root / "summary"), "lost_messages": lost_messages,
+    "qa_on_head": qa_on_head, "driver_liveness": driver_liveness, "restore_cr": restore_cr,
+    "next_number": next_number, "failed_opening": failed_opening,
+    "gitlab_ship_merge": gitlab_ship_merge,
+}
+
+
+def remove_tree(path: Path) -> str:
+    """Remove a unit's workspace. A file Defender or an indexer holds is retried; what stays is
+    named in the returned warning, and never fails the run."""
+    left: list[str] = []
+
+    def retry(func, name, *_):
+        for _try in range(5):
+            time.sleep(0.5)
+            try:
+                os.chmod(name, 0o700)
+                func(name)
+                return
+            except FileNotFoundError:
+                return
+            except OSError:
+                continue
+        left.append(str(name))
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=retry)
+    else:
+        shutil.rmtree(path, onerror=retry)
+    if path.exists() and not left:
+        left.append(str(path))
+    if not left:
+        return ""
+    return f"left {left[0]}" + (f" and {len(left) - 1} more" if len(left) > 1 else "")
+
+
+def write_scope(w: World) -> None:
+    """The end of every unit: git sees nothing outside the planning folder."""
+    lines = w.sh("git", "status", "--porcelain", "-uall").splitlines()
+    outside = [ln for ln in lines if not ln[3:].startswith(".agents/changes/")]
+    check("chantier wrote nothing outside the planning folder (`git status` shows only "
+          ".agents/changes/)", not outside, str(outside[:5]))
+
+
+def run_unit(unit: str, forge: str, out: Path) -> int:
+    """The child process of one unit: its own world, its checks, its transcript and its JSON."""
+    ARGS.forge = forge
+    count_commands()
+    tmp = Path(tempfile.mkdtemp(prefix=f"cs-{unit}-"))
+    config = tmp / "gitconfig"  # the identity only: no hook, template or helper of the machine
+    config.write_text("[user]\n\tname = scenario\n\temail = scenario@example.com\n", encoding="utf-8")
+    os.environ["GIT_CONFIG_GLOBAL"] = str(config)
     w = World(tmp)
     started = time.monotonic()
+    left = ""
     try:
         with timed("build"):
             w.build()
-        if not ARGS.external_only:
-            scenario(w)
-        with timed("external_surface"):
-            external_surface(tmp / "external")
-        if not ARGS.external_only:
-            with timed("cr_summary"):
-                cr_summary(tmp / "summary")
-    except Exception as e:  # a crash is a failed check with its reason
-        check("scenario ran to the end", False, f"{type(e).__name__}: {e}")
+        for name in UNITS[unit][2]:
+            with timed(name):
+                try:
+                    CASES[name](w)
+                except Exception as e:  # a crash is a failed check with its reason
+                    check(f"{name} ran to the end", False, f"{type(e).__name__}: {e}")
+                    note(traceback.format_exc())
+                    w.env.pop("CHANTIER_BATCH", None)
+                    try:
+                        w.reset()
+                    except OSError:
+                        pass
+        section_end()
+        write_scope(w)
+    except Exception as e:
+        check("the unit ran to the end", False, f"{type(e).__name__}: {e}")
+        note(traceback.format_exc())
     finally:
+        section_end()
         if not ARGS.keep:
             subprocess.run(["git", "worktree", "prune"], cwd=w.work, capture_output=True)
-            shutil.rmtree(tmp, ignore_errors=True)
-    section_end()
+            left = remove_tree(tmp)
     elapsed = time.monotonic() - started
     table = timing_table()
-    table.append(f"| whole run | {elapsed:.1f} | {COMMANDS[0]} |")
-    print("\n".join(table))
+    table.append(f"| whole unit | {elapsed:.1f} | {COMMANDS[0]} |")
     LOG.extend(["", "## Timing", "", *table])
     total = CHECKS["pass"] + CHECKS["fail"]
-    head = [f"# chantier global scenario on {ARGS.forge}: {CHECKS['pass']}/{total} checks passed",
+    where = " (kept)" if ARGS.keep else f" ({left})" if left else " (removed)"
+    head = [f"# chantier scenario, unit {unit} on {forge}: {CHECKS['pass']}/{total} checks passed",
             "", f"- Run: {time.strftime('%Y-%m-%d %H:%M:%S')}, {elapsed:.1f} s",
-            f"- Workspace: `{tmp}`{' (kept)' if ARGS.keep else ' (removed)'}", ""]
+            f"- Workspace: `{tmp}`{where}", ""]
+    (out / f"{unit}-{forge}.md").write_text("\n".join(head + LOG) + "\n", encoding="utf-8")
+    (out / f"{unit}-{forge}.json").write_text(json.dumps({
+        "unit": unit, "forge": forge, "checks": total, "passed": CHECKS["pass"], "failed": FAILED,
+        "commands": COMMANDS[0], "seconds": round(elapsed, 1), "left": left}), encoding="utf-8")
+    return 0 if not FAILED else 1
+
+
+def kill_tree(proc: subprocess.Popen) -> None:
+    """A unit's process and everything it started: no gate or sleeper outlives the run."""
+    import psutil
+    try:
+        root = psutil.Process(proc.pid)
+        procs = root.children(recursive=True) + [root]
+    except psutil.NoSuchProcess:
+        return
+    for p in procs:
+        try:
+            p.kill()
+        except psutil.NoSuchProcess:
+            pass
+    psutil.wait_procs(procs, timeout=10)
+
+
+class Running:
+    def __init__(self, unit: str, forge: str, run_dir: Path, live: bool):
+        self.unit, self.forge = unit, forge
+        self.hang = max(HANG_FLOOR_S, 4 * UNITS[unit][0])  # counted from the unit's own start
+        self.log = None if live else open(run_dir / f"{unit}-{forge}.out", "w", encoding="utf-8")
+        flags = ({"start_new_session": True} if sys.platform != "win32"
+                 else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP})
+        cmd = [sys.executable, __file__, "--child", unit, "--forge", forge, "--out", str(run_dir)]
+        cmd += [f"--{k}" for k in ("keep", "verbose") if getattr(ARGS, k)]
+        self.t0 = time.monotonic()
+        self.proc = subprocess.Popen(cmd, stdout=self.log, stderr=subprocess.STDOUT, **flags)
+        self.seconds = 0.0
+        self.timed_out = False
+
+    def close(self) -> None:
+        if self.log:
+            self.log.close()
+
+
+def unit_row(r: Running, run_dir: Path) -> dict:
+    """What a finished unit reports: its JSON, or what a crash left."""
+    file = run_dir / f"{r.unit}-{r.forge}.json"
+    d = json.loads(file.read_text(encoding="utf-8")) if file.is_file() else {}
+    if r.timed_out or not d:
+        tail = ""
+        out = run_dir / f"{r.unit}-{r.forge}.out"
+        if not r.timed_out and out.is_file():
+            tail = " ".join(out.read_text(encoding="utf-8", errors="replace").split()[-60:])
+        d = {"checks": 0, "passed": 0, "commands": 0, "left": "",
+             "failed": [] if r.timed_out else [f"the unit crashed with no result: {tail}"], **d}
+    status = ("timed out" if r.timed_out else "FAIL" if d["failed"]
+              else "over budget" if r.seconds > UNITS[r.unit][0] else "ok")
+    return {**d, "unit": r.unit, "forge": r.forge, "seconds": r.seconds, "status": status,
+            "budget": UNITS[r.unit][0]}
+
+
+def run_all(plan: list[tuple[str, str]]) -> int:
+    stamp = f"{time.strftime('%Y%m%d-%H%M%S')}-{os.getpid()}"
     results = HERE / "results"
-    results.mkdir(exist_ok=True)
-    out = results / f"{ARGS.forge}-{time.strftime('%Y%m%d-%H%M%S')}.md"
-    out.write_text("\n".join(head + LOG) + "\n", encoding="utf-8")
-    print(f"{ARGS.forge}: {CHECKS['pass']}/{total} checks passed in {elapsed:.1f} s; transcript {out}")
-    return 0 if CHECKS["fail"] == 0 else 1
+    run_dir = results / stamp
+    run_dir.mkdir(parents=True)
+    queue_ = sorted(plan, key=lambda uf: -UNITS[uf[0]][0])  # the longest budget first
+    live: dict[tuple[str, str], Running] = {}
+    rows: dict[tuple[str, str], dict] = {}
+    started = time.monotonic()
+    try:
+        while queue_ or live:
+            while queue_ and len(live) < ARGS.jobs:
+                unit, forge = queue_.pop(0)
+                live[unit, forge] = Running(unit, forge, run_dir, ARGS.verbose and len(plan) == 1)
+            time.sleep(0.2)
+            for key, r in list(live.items()):
+                r.seconds = time.monotonic() - r.t0
+                if r.proc.poll() is None and r.seconds > r.hang:
+                    r.timed_out = True
+                    kill_tree(r.proc)
+                    r.proc.wait()
+                if r.proc.poll() is not None:
+                    r.close()
+                    rows[key] = unit_row(r, run_dir)
+                    del live[key]
+                    d = rows[key]
+                    print(f"{d['status']:>11}  {key[0]} ({key[1]}): {d['passed']}/{d['checks']} "
+                          f"checks, {r.seconds:.1f} s", flush=True)
+    finally:
+        for r in live.values():  # an exit or a Ctrl-C leaves no gate or sleeper behind
+            kill_tree(r.proc)
+            r.close()
+    wall = time.monotonic() - started
+    order = [uf for u in UNITS for uf in plan if uf[0] == u]
+    table = ["| unit | forge | checks | commands | seconds | budget | status |",
+             "| --- | --- | ---: | ---: | ---: | ---: | --- |"]
+    for key in order:
+        d = rows[key]
+        table.append(f"| {d['unit']} | {d['forge']} | {d['passed']}/{d['checks']} | {d['commands']} "
+                     f"| {d['seconds']:.1f} | {d['budget']} | {d['status']} |")
+    total = sum(d["seconds"] for d in rows.values())
+    summary = [f"wall time: {wall:.1f} s", f"sum of the units' seconds: {total:.1f} s"]
+    print("\n" + "\n".join(table) + "\n\n" + "\n".join(summary))
+    ds = [rows[k] for k in order]
+    warns = [f"WARN {d['unit']} ({d['forge']}) over its budget: {d['seconds']:.1f} s > {d['budget']} s"
+             for d in ds if d["seconds"] > d["budget"] and d["status"] != "timed out"]
+    notes = [f"warning: {d['unit']} ({d['forge']}) {d['left']}" for d in ds if d.get("left")]
+    hung = [f"TIMED OUT {d['unit']} ({d['forge']}): killed with its processes after "
+            f"{max(HANG_FLOOR_S, 4 * d['budget'])} s" for d in ds if d["status"] == "timed out"]
+    fails = [f"FAIL {d['unit']} ({d['forge']}): {label}" for d in ds for label in d["failed"]]
+    for line in warns + notes + hung + fails:
+        print(line)
+    transcript = [f"# chantier scenario: {len(plan)} unit runs, {wall:.1f} s", "", *table, "",
+                  *summary, "", *warns, *notes, *hung, ""]
+    for unit, forge in order:
+        md = run_dir / f"{unit}-{forge}.md"
+        transcript += [md.read_text(encoding="utf-8") if md.is_file()
+                       else f"# unit {unit} on {forge}: no transcript ({rows[unit, forge]['status']})",
+                       ""]
+    out = results / f"scenario-{stamp}.md"
+    out.write_text("\n".join(transcript), encoding="utf-8")
+    print(f"transcript {out}\nunit files {run_dir}")
+    return 1 if any(d["status"] in ("FAIL", "timed out") for d in ds) else 0
+
+
+def main() -> int:
+    if ARGS.child:
+        return run_unit(ARGS.child, ARGS.forge, Path(ARGS.out))
+    plan = [(u, f) for u, (_, forges, _) in UNITS.items() if not ARGS.unit or u in ARGS.unit
+            for f in forges if not ARGS.forge or f == ARGS.forge]
+    if not plan:
+        print("no unit runs for this --unit and --forge", file=sys.stderr)
+        return 2
+    return run_all(plan)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--forge", choices=sorted(FAKE), default="github",
-                        help="the fake forge CLI the Drivers ship to")
-    parser.add_argument("--external-only", action="store_true",
-                        help="run only the planning-surface case")
-    parser.add_argument("--keep", action="store_true", help="keep the temporary workspace")
-    parser.add_argument("--verbose", action="store_true", help="print the transcript live")
+    parser.add_argument("--unit", action="append", choices=sorted(UNITS),
+                        help="run this unit only (repeatable); with none, every unit runs")
+    parser.add_argument("--forge", choices=sorted(FAKE),
+                        help="restrict the forge; with none, each unit runs on its own forges")
+    parser.add_argument("--jobs", type=int, default=JOBS, help="how many units run at once")
+    parser.add_argument("--keep", action="store_true", help="keep the temporary workspaces")
+    parser.add_argument("--verbose", action="store_true",
+                        help="print the transcript live (with one unit)")
+    parser.add_argument("--child", choices=sorted(UNITS), help=argparse.SUPPRESS)
+    parser.add_argument("--out", help=argparse.SUPPRESS)
     ARGS = parser.parse_args()
     sys.exit(main())

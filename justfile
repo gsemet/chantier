@@ -28,10 +28,9 @@ bump-version part="patch":
 test *args:
     uv run --locked --group dev pytest -q {{args}}
 
-# Optional: one whole batch, end to end through the real CLI and a fake gh, then glab, no model
-scenario:
-    {{run-cli}} scenario/run_scenario.py --forge github
-    {{run-cli}} scenario/run_scenario.py --forge gitlab
+# The scripted scenario, no model: independent units in parallel (4 at a time), GitHub and the GitLab unit
+scenario *args:
+    {{run-cli}} scenario/run_scenario.py {{args}}
 
 # The eval kit's dry run: reset, setup, a staged run, the audit and the judge, on a local sandbox; no model, no GitHub
 eval-dry-run:
