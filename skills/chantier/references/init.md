@@ -42,7 +42,7 @@ getting started here, phrases to say, the glossary.
   its paths, branch name and gate commands are this project's.
 - **Steering.** A batch is steered either by the **Foreman**, a separate session, or by you in
   **direct mode**: no Foreman session, you start the Drivers and hold no grill
-  until the batch completes (filing, triage and the spec-writer stay open), and a CR added while it runs is queued and taken when a slot frees (once it is
+  until the batch completes (filing, triage, the spec-writer and the spec critic stay open), and a CR added while it runs is queued and taken when a slot frees (once it is
   paused, it takes the next grilled CRs before its first `take`). Direct mode is used where
   the session is under Remote Control or the host cannot start a Foreman session, or when the
   user forces it (`direct`, or says so); the plan names it and why, the go approves it. The story follows the Foreman; one or two sentences after step 4 give

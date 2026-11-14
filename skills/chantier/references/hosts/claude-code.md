@@ -25,12 +25,13 @@ Each behaviour carries a mark:
 | A session's link (for the seat) | what `get_session` gives | unproved until recorded; trial: `get_session("self")` and note the link field |
 | Start a Driver or a worker | `Agent`, `run_in_background: true` for a Driver, `subagent_type: <agent>`; the plugin's agent is `chantier:<role>`; the model, only when `$CHANTIER` printed one (`team:` or `playbook`): the `model` parameter, set to the printed start value (an alias: `opus`, `sonnet` or `haiku`), as printed; no effort | the agent: proved, same; the model: capability yes (alias), proved 2026-11-10 (trial below) |
 | Start the Spec-writer (Chief of Staff) | `Agent`, `run_in_background: true`, `subagent_type: chantier:spec-writer`; the `model` parameter as in the row above, only when `$CHANTIER playbook` printed one; no effort | the agent: unproved until a CR is specified this way; the model: capability yes (alias), proved 2026-11-10 |
+| Start the Spec critic (Chief of Staff, Griller) | `Agent`, `run_in_background: true`, `subagent_type: chantier:spec-critic`; the `model` parameter as for the Spec-writer, only when `$CHANTIER playbook` printed one or the user asked for Fable; no effort | the agent: unproved until a CR's specification is checked this way (the trial on CR-250's specification did not use this agent); Fable through the `model` parameter: unproved. Trials: the first impactful CR specified after the merge; one critic run on Fable, its transcript showing the model |
 | Message a Driver | `SendMessage` to the agent id | proved, same |
 | Message the Chief of Staff | `SendMessage` to its session id | proved, same |
 | A Driver messages its steering session (the Foreman; in direct mode the Chief of Staff, which is `main` there) | `SendMessage` to `main` | proved, same; in direct mode the same mechanism, unproved until a direct batch runs |
 | Stop a Driver | `TaskStop` | proved, same |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
-| Models | the Spec-writer runs Opus 5.5; the Foreman, every Driver and the workers run Sonnet 5.5, unless the project's `chantier.yaml` sets a model; a task under escalation (`concepts.md`, "Escalation") runs the escalation model that `$CHANTIER playbook` prints | proved, same, except the CR driver, the stack and release drivers and the Foreman: unproved; the trial is the model their transcripts show in the next batch (the Foreman: the trial in the row "Start the Foreman's session") |
+| Models | the Spec-writer and the Spec critic run Opus 5.5; the Foreman, every Driver and the workers run Sonnet 5.5, unless the project's `chantier.yaml` sets a model; a task under escalation (`concepts.md`, "Escalation") runs the escalation model that `$CHANTIER playbook` prints | proved, same, except the CR driver, the stack and release drivers and the Foreman: unproved; the trial is the model their transcripts show in the next batch (the Foreman: the trial in the row "Start the Foreman's session") |
 | Models at an agent's start (capability, start value) | capability: yes. Start value: an alias, which the CLI's table maps from the exact identifier: `claude-opus-5-5` (Claude Opus 5.5) is `opus`, `claude-sonnet-5-5` (Claude Sonnet 5.5) is `sonnet`, `claude-haiku-5-5` (Claude Haiku 5.5) is `haiku`. The full identifier is not recorded as accepted | proved 2026-11-10: a trial started a plugin agent through `Agent` with `model: haiku`, and its transcript showed `claude-haiku-5-5`; the other two aliases are the same mechanism, unproved one by one |
 | Skills and tools of a session (what the Chief of Staff compares a role's needs with) | not recorded: how a session lists its skills and its tools, and whether a subagent sees what the session sees | unproved; trial: a `chantier.yaml` naming one skill that is installed and one that is not; the Chief of Staff names only the second; and a subagent started with a need says whether it has it |
 | Preflight P2 | `mcp__ccd_session__start_session` loads | proved, same |
@@ -459,7 +460,7 @@ absolute path leaves the agent unguarded and unmoved), a shell target that holds
 own code throws. A guard at fault costs nothing.
 
 Not guarded: the main session (the Chief of Staff, the Foreman), the Release driver, the stack
-driver, the QA driver, the Spec-writer, the Griller, the Demo explorer, any agent with no
+driver, the QA driver, the Spec-writer, the Spec critic, the Griller, the Demo explorer, any agent with no
 `writes:` line, and the shell writes the mod cannot see (an interpreter's inline code such as
 `python -c` or `node -e`, a script's own writes): the card's rule covers those, and after a
 report's `git status` of the main checkout, the steering session names what changed there

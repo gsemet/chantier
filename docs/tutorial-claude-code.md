@@ -101,7 +101,8 @@ your request kept as written. Then it asks the questions that change the result 
 or as you type?"), each with its recommended answer, and records your answers in `02-answers.md`.
 When the questions are done, it restates the CR and asks whether it is grilled enough. On your
 word, a **spec-writer** agent writes the **Change Specification** (`03-change-spec.md`) in the
-background, and the Chief of Staff shows it to you after checking it against your answers. Read
+background, and the Chief of Staff shows it to you after checking it against your answers (on an
+impactful CR, a 🧐 **spec critic** checks it first, and its questions come to you). Read
 it: it is exactly what the team will build.
 
 File as many items as you like. To prioritize one:
@@ -223,7 +224,7 @@ roles:
 writes), so your agent only brings its model, tools and know-how. A new role runs after the Inspector approves each round and answers with
 the same verdict. The next batch uses the new team; a running batch keeps its own.
 
-By default the spec-writer runs on Opus 5.5 (what a specification must say), and the Foreman, every
+By default the spec-writer and the spec critic run on Opus 5.5 (what a specification must say; Fable on request for the critic), and the Foreman, every
 driver and the workers on Sonnet 5.5; run your own session (the Chief of Staff) on Opus 5.5. On a
 named trouble (a CR blocked twice, the rounds used up with the Inspector still asking for fixes, a
 red check nobody could explain, a conflict nobody could settle, a restack that failed) the task goes

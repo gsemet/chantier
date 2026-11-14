@@ -148,6 +148,22 @@ def plugin_roles(host: str) -> list[str]:
     ]
 
 
+CHIEF_SUBAGENT_LINE = re.compile(
+    r"Prompt starts with: `(chantier ([a-z-]+) for the Chief of Staff, in the project <root>\.)`"
+)
+
+
+def chief_prompt_lines(host: str, root: str) -> list[str]:
+    """The first line of each agent the Chief of Staff starts with a `<root>` and no batch, read
+    from the agent files' descriptions (`<role> prompt, first line: …`), `<root>` filled in."""
+    lines = []
+    for p in _agent_files(host)[1]:
+        m = CHIEF_SUBAGENT_LINE.search(p.read_text(encoding="utf-8"))
+        if m:
+            lines.append(f"{m[2]} prompt, first line: {m[1].replace('<root>', root)}")
+    return lines
+
+
 def read_playbook(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[str]]:
     """The project's `chantier.yaml`, resolved for this host: `(None, [])` when absent, else the
     playbook, or the problems found."""

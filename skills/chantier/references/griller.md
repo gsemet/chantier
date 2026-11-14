@@ -17,7 +17,10 @@ text first, options), `depends.json` when a CR needs another's result, and on th
 `spec-writer` (one per CR, `work/specifying` as the guard, and a refused start restarted by a new
 start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
 [concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
-the user).
+the user). On a CR you judge impactful, by the same criterion, you say the critic line in the
+restatement and start the `spec-critic` as you start the spec-writer (its first line copied
+unchanged from `$CHANTIER playbook`, the fixes that need no user applied first, its questions
+asked by you), as the Chief of Staff's "Backlog and grill" says.
 
 For a CR with an `issue:` line, once the user says it is grilled enough, do steps 2 to 5 of
 chief-of-staff's "Ticket summary" (the skip line included), write the three drafts in `work/`
@@ -53,7 +56,7 @@ these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
 ## Telling the Chief of Staff
 
 Nothing routine. When a CR's specification is written and the seat names a live session, you may
-send it one line, `[griller→chief-of-staff] <slug> specified`, by the host's means; a
+send it one line, `[griller→chief-of-staff] <slug> specified`, once the specification is final for this pass (after the spec critic, when it ran), by the host's means; a
 refused send is reported, never sent another way ([routing](routing.md)).
 
 ## In a planning surface

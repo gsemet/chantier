@@ -22,7 +22,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | --- | --- | --- |
 | "init", a guided tour, "I am new here" | `$CHANTIER init`, then the tour | [init](init.md) |
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
-| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
+| to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification and, on an impactful CR, the `spec-critic` checks it. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
 | a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](#starting-a-batch)) | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route) | While it runs |
@@ -145,7 +145,7 @@ long_gate:
 
 A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,
 `investigator`, `coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`,
-`demo-explorer`, `spec-writer`); it keeps its card, whoever runs it. `$CHANTIER playbook` prints
+`demo-explorer`, `spec-writer`, `spec-critic`); it keeps its card, whoever runs it. `$CHANTIER playbook` prints
 what each role runs (the exact agent and model to pass, "Starting an agent" in
 [concepts](concepts.md)), or says there is no `chantier.yaml`; an invalid file exits 2 with each
 problem and its line, and preflight's P12 fails: show the user the lines, never fix the file
@@ -165,7 +165,7 @@ skill <name>: not found in this session; <role> works without it.` It is a warni
 preflight failure, and nothing blocks. The role then works without it, and never reaches the same
 thing by another means ([concepts](concepts.md), rule 2).
 
-Your own subagents (the `spec-writer`, the `demo-explorer`) are started with the agent and model
+Your own subagents (the `spec-writer`, the `spec-critic`, the `demo-explorer`) are started with the agent and model
 `$CHANTIER playbook` prints for their role, as printed.
 
 On the user's request for their own PR template, file a CR for it (`$CHANTIER file`, section
@@ -296,12 +296,17 @@ message to the refused one and no variants. A spec-writer ended by a host failur
 with `restart: host failure: <text>`. Remove `work/specifying` when the (last) one ends, whatever
 the result. Review `03-change-spec.md` against `02-answers.md` before you show it:
 nothing dropped, nothing invented. Its open questions go to the user; record the answers in
-`02-answers.md`, then run the writer again. A CR moves to `3-ready` (`triage --ready`)
+`02-answers.md`, then run the writer again (and see "The spec critic", below, for an impactful
+CR). A CR moves to `3-ready` (`triage --ready`)
 only on the user's word, specified or not; until then it stays in the inbox or the backlog. A
 `3-ready` CR keeps no priority: it is one flat set, the next batch's candidates (`triage
-<3-ready-folder> --priority Pn` puts it back in the backlog). The spec-writer takes no slot and no
-budget of any batch; its cost is on the `grill and specifications with the user` line. A release CR's and a fix's specification stay
-yours. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
+<3-ready-folder> --priority Pn` puts it back in the backlog). The spec-writer and the spec critic
+take no slot and no budget of any batch; their cost is on the `grill and specifications with the
+user` line. A release CR's and a fix's specification stay yours; the spec critic runs on them too
+when you judge them impactful, by the criterion below: with no grill, you judge once you have
+written the specification and say the critic line in the message that would show it (the user may
+flip it); you apply the fixes yourself (step 4 below, without the spec-writer), then the user sees
+the summary line and the questions as step 5 says. A ticket (Jira, GitLab, GitHub): read it with what the project has, and `file` it as
 received, with its link: write `issue: <link>` under the title of `01-intent.md` (as
 [concepts](concepts.md) says), and add it later if the grill reveals the issue. A Jira ticket's link is its browse URL
 (`https://<site>/browse/<KEY>-<n>`).
@@ -330,9 +335,74 @@ project's clone except by `git -C <clone>`.
 
 Shared understanding: ask whether a CR is grilled enough only after a complete restatement of it,
 in the user's language: what it changes, every decision taken (from `02-answers.md`), what is
-still open. The user corrects it, and a correction is an answer (record it at once). The
-question itself follows "Asking the user: a series". Never decide
-on your own that a CR is grilled enough: you ask, and the user decides.
+still open. The complete restatement ends with one line on the critic, just before the closing
+"grilled enough?" question: `critic: yes, <why>` or `critic: no, <why>`, in the user's language
+(e.g. "critique : oui, elle touche le contrat des Drivers"). The user corrects it, and a
+correction is an answer (record it at once). The question itself follows "Asking the user: a
+series". The closing question keeps its options: the user asks
+for or cancels the critic in the tool's free answer or as a correction ("specify, no critic"); that
+word is an answer, recorded at once in `02-answers.md`. Never decide on your own that a CR is
+grilled enough: you ask, and the user decides. When the user says the CR is grilled enough, the
+critic's yes or no goes into `02-answers.md` with that answer (e.g. `Spec critic: yes, it touches
+the Drivers' contract.`), so a later session knows whether it is due.
+
+**The spec critic.** A fresh `spec-critic` ([`spec-critic.md`](spec-critic.md)) reads the request,
+the answers, the specification and the repository, and looks for a gap with the request's intent,
+an inconsistency with the rest of the software, an unproved claim about the real world. It never
+edits the specification. It runs once per specification, on a CR you judge impactful; it is never
+a loop.
+
+- **The criterion** (the same for the Chief of Staff and a Griller): the critic runs on a CR whose
+  specification, if wrong, would cost the user most: it changes what a role does or may do (a
+  card's contract, the CLI's refusals, a host behaviour), what the user sees or decides, an
+  irreversible or shared step (merge, release, push, a tracker post), or several areas at once. It
+  does not run on a CR that changes wording, a doc or a test alone with no behaviour behind it.
+  The subject and the priority decide nothing by themselves. You judge, and say why in the critic
+  line. An automatable CR with no specification gets no critic.
+- **Items grilled before the critic existed** have no `Spec critic:` line in `02-answers.md`:
+  whoever starts their spec-writer judges then, by the same criterion, says the critic line to the
+  user in the same message as the start (the user may flip it), and records it in `02-answers.md`.
+  A specification already final then gets no critic unless the user asks.
+- **Its model:** Opus 5.5 by default, from `$CHANTIER playbook`. When the user asks for Fable, for
+  one run you start the critic with `claude-fable-5-2` through the host's model parameter; for the
+  project, the role's model is set in `chantier.yaml`. A host that does not offer Fable: say so to
+  the user and run the default, never a look-alike model. The critic line names Fable when it is
+  asked for (e.g. "critic: yes, on Fable, …").
+- **The steps**, in this order, after the spec-writer ends:
+  1. You review its specification against `02-answers.md` as above (nothing dropped, nothing
+     invented).
+  2. With the critic due, start one `spec-critic` in the background (you, or the Griller who
+     grills), its first line copied unchanged from `$CHANTIER playbook` (`spec-critic prompt,
+     first line: …`) or the Spec critic's row of "Starting an agent" in
+     [concepts](concepts.md), with the agent and model the playbook prints for it; the prompt
+     names the card and the CR folder and nothing of the grill. `work/specifying` stays the guard
+     of the specification from the spec-writer's start until the specification is shown: each
+     agent started on it (the critic, the spec-writer's next run) replaces its line with `<time>
+     <agent id> <role>`; no other spec-writer or critic starts while it exists; remove it when the
+     last of them ends. A refused first line or a host failure: restart once, as for a
+     spec-writer.
+  3. Sort its findings. Each one that touches behaviour (scope, behaviour, risk: what the user
+     would decide) becomes a question for the user; each other one (a record fix, a wrong name, a
+     dropped decision, an old rule left standing, an inconsistency whose answer is already
+     settled, an unproved claim to mark as unproved with its trial) is a fix. An unproved claim
+     that a decision rests on is a question. Every finding takes one of the two ways.
+  4. **The fixes first:** with any fix, run the spec-writer once with them in its brief, before
+     the user sees anything of the critic. It applies each, or says why one does not hold; then
+     review again against `02-answers.md`. A fix it refuses for a reason you accept is dropped;
+     one you do not accept becomes a question.
+  5. **Then the user**, in the text before the question tool: one summary line, in the user's
+     language, counting what is true at that point (e.g. "critique : 10 points, 6 corrigés sans
+     vous, 4 questions"; a dropped one is counted too, e.g. "1 écarté"); then the questions, in
+     the format of "Asking the user: a series" (text first, `<short name>-Q<n>` references
+     continuing the item's numbering, at most 5 per call), together with the specification's own
+     open questions. With no question: the summary line, then the
+     specification, the fixes already applied. With no finding: "critique : aucun point", then the
+     specification. The full list is shown on request, from the critic's reply, while the session
+     lasts: it is written nowhere.
+  6. **The answers:** record them in `02-answers.md`, then a second spec-writer run folds them, as
+     above; review again. Start the critic again only if those answers change behaviour (one more
+     pass, the same steps; its summary line says so, e.g. "critique, 2e passage : …"). Otherwise
+     the specification is final once the user approves it.
 
 Ticket summary: a CR with an `issue:` line ([concepts](concepts.md)) has its ticket's reporter told
 what was accepted, before any code. A CR with none skips the whole block; say so in one line only
@@ -617,7 +687,7 @@ Only in the turn where the user gave the go:
    - **The plan says it, no question.** One line states the mode and why ("direct: this session is
      under Remote Control", "Foreman: at the desktop", "direct: forced by the argument") and, when
      direct, what changes: no Foreman session; you steer the Drivers yourself; no grill while the
-     batch runs (backlog work and the spec-writer stay open); new ideas go to the inbox. There is
+     batch runs (backlog work, the spec-writer and the spec critic stay open); new ideas go to the inbox. There is
      no separate yes for the mode: the go is the yes. The user may change the mode before the go
      by saying so.
    - **A forced `foreman` where no Foreman can start** (Remote Control with no Foreman to reuse, a
@@ -1139,7 +1209,7 @@ these differences.
   Staff, steering the batch` row, which counts in the spend and the budget as a Foreman's does;
   the turns that grill with the user or write specifications (a turn that writes a CR's
   `01-intent.md`, `02-answers.md`, `03-change-spec.md` or `work/specifying`, or starts a
-  spec-writer; a turn that only names or reads them, in a Driver's prompt or a command, stays on
+  spec-writer or a spec critic; a turn that only names or reads them, in a Driver's prompt or a command, stays on
   the row; a turn is attributed whole) leave that row for the `grill and specifications with the
   user` line, outside the budget. Write those four files with the host's Write (or Edit) tool,
   never with a shell command: the CLI recognises grill work only by that write. A `steering the batch (outside the budget)` line also shows what you spent since the
@@ -1185,8 +1255,10 @@ these differences.
     `02-answers.md` (the "Record at once" rule holds), and keep each CR's summary fresh
     (`summary lint`, `summary set`; `summary label` and `summary group` on the user's word
     only). `triage --ready` moves a CR to `3-ready`; it does not join the running batch.
-  - **The spec-writer.** On the user's word that a CR already grilled (by a Griller, or before the
-    batch) is grilled enough, start it as "Backlog and grill" says.
+  - **The spec-writer and the spec critic.** On the user's word that a CR already grilled (by a
+    Griller, or before the batch) is grilled enough, start the spec-writer as "Backlog and grill"
+    says; the spec critic stays open too, on a CR grilled before, and its questions wait for the
+    pause, like any grill question.
   - **Not while the batch runs:** grill a CR (ask its questions, write its `01-intent.md` from a
     discussion with the user); touch the running batch from backlog work (`triage --ready` joins no CR to it, the CLI
     refuses `order qa`; nothing starts that the user did not order on the batch);

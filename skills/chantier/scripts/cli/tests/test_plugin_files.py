@@ -31,16 +31,27 @@ WORKERS = (
 )
 
 
-CHIEF_ROLES = ("spec-writer",)  # started by the Chief of Staff; its card is its own file
+CHIEF_ROLES = (
+    "spec-writer",
+    "spec-critic",
+)  # started by the Chief of Staff; its card is its own file
 
 
 ROLES = DRIVERS + WORKERS + CHIEF_ROLES
 
 
-CLAUDE_OPUS_ROLES = {"spec-writer"}  # Sonnet by default; escalation starts Opus at need
+CLAUDE_OPUS_ROLES = {
+    "spec-writer",
+    "spec-critic",
+}  # Sonnet by default; escalation starts Opus at need
 
 
-COPILOT_OPUS_ROLES = {"stack-driver", "release-driver", "spec-writer"}  # Copilot is untouched
+COPILOT_OPUS_ROLES = {
+    "stack-driver",
+    "release-driver",
+    "spec-writer",
+    "spec-critic",
+}  # Copilot is untouched
 
 
 CARDS = {**{r: "driver" for r in DRIVERS}, **{r: "worker" for r in WORKERS}}

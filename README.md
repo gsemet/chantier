@@ -232,7 +232,7 @@ Talk to the Chief of Staff in plain language:
 | "chantier reload" (`/chantier:chantier reload`) | the session reads chantier's rules again, typically after a compaction; on Claude Code the plugin also does it by itself at every compaction |
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
-| "it is grilled enough" | the spec-writer writes the Change Specification in the background |
+| "it is grilled enough" | the spec-writer writes the Change Specification in the background; on an impactful CR the spec critic checks it after |
 | "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR or one PR at a time from the bottom, as you choose; a PR handed back ready is mergeable at once |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |

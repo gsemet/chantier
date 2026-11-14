@@ -12,6 +12,8 @@ there, and the project's rules (`$CHANTIER rules`; what touches the CR ranks abo
 Read the code the CR touches, read-only, to name real files, functions and commands. When the CR
 adds or changes a CI job, read the project's CI files too, read-only, to name the environment the
 job runs in. What the CI files and the answers do not give goes in the list of open questions.
+A run may carry, in its brief, fixes from the spec critic, sent by the one who grills: apply each,
+or say in your reply why it does not hold. Never against `02-answers.md`.
 
 ## Output
 
@@ -39,4 +41,5 @@ questions, which the Chief of Staff takes to the user.
 
 ## End
 
-Reply in a few lines: the path of the specification, and the open questions if any.
+Reply in a few lines: the path of the specification, and the open questions if any. When the brief
+carried fixes from the spec critic, the reply names the fixes applied and those not, with why.

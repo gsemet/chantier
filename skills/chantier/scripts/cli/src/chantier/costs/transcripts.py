@@ -114,14 +114,17 @@ def _grill_use(block: Any, strict: bool = False) -> bool:
     """Whether a tool use belongs to the grill and the specifications.
 
     Loose (outside a steering window): its input names a CR's intent, answers, specification or
-    `work/specifying` marker anywhere, or it starts a spec-writer. Strict (inside a steering
-    window, where a turn that only names or reads a specification is steering): it starts a
-    spec-writer, or it is a host write tool whose target path ends in one of those names; a shell
-    command, a read, or a write to another file whose content names one is not."""
+    `work/specifying` marker anywhere, or it starts a spec-writer or a spec critic. Strict (inside
+    a steering window, where a turn that only names or reads a specification is steering): it
+    starts a spec-writer or a spec critic, or it is a host write tool whose target path ends in
+    one of those names; a shell command, a read, or a write to another file whose content names
+    one is not."""
     if not isinstance(block, dict) or block.get("type") != "tool_use":
         return False
     given = block.get("input")
-    if isinstance(given, dict) and str(given.get("subagent_type", "")).endswith("spec-writer"):
+    if isinstance(given, dict) and str(given.get("subagent_type", "")).endswith(
+        ("spec-writer", "spec-critic")
+    ):
         return True
     if strict:
         key = WRITE_PATHS.get(str(block.get("name")))
