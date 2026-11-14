@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "Customer reviews on product pages",
+  "sources": {
+    "intake/request.md": "4e22020b01d48f250d355362a321a029599f36aa66aeba31a88af6010b9ee845"
+  },
+  "summary": "Star ratings and short reviews on product pages, moderated by the team.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "search"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

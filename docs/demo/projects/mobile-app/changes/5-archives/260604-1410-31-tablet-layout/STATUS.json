@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-31",
+  "title": "Change Specification: A two-column layout on tablets",
+  "state": "merged",
+  "batch": "batch-01",
+  "pr": {
+    "url": "https://github.com/example/shop-mobile/pull/6"
+  },
+  "cost_usd": 9.8
+}

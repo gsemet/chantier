@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "title": "Archive orders older than five years",
+  "sources": {
+    "intake/request.md": "e64c6607908ebea5844f374dacaf94465b5a0e26ff6e9b1c56872080ea367057"
+  },
+  "summary": "Move orders older than five years to cold storage.",
+  "origin": {
+    "kind": "github",
+    "ref": "#33",
+    "url": "https://github.com/example/shop-api/issues/33"
+  },
+  "labels": [
+    "perf"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

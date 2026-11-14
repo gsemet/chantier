@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "Dark mode for the admin console",
+  "sources": {
+    "intake/request.md": "5addd9f8e76ddd0a02f8c9a5b1bf0c754330b798df44c1fdcc01a2f7072223b1"
+  },
+  "summary": "A dark theme for the admin console, asked by the support team.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "admin"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

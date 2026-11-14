@@ -164,13 +164,15 @@ improves the procedure, which stays written and maintained in the project.
 
 ## The CR board
 
-On Claude Code, the CR board is a read-only pane over the planning folder: the live batches, what
-waits for you, the backlog and the merged CRs. Open it with `/chantier-board`, or by loading the
-Chief of Staff.
+On any device, `chantier board` serves the CR board as a web page: the live batches, what waits
+for you, the backlog and the merged CRs, and it lets you triage the backlog from your phone.
 
-![The CR board, a batch just opened](docs/board-mod-batch.png)
+![The web board: a batch in stack mode, its CRs by level, the PRs to review and the merged PRs](docs/web-board/batch-pc.png)
 
-See [boards](docs/boards.md) for how to open it and how to read it.
+*The web board with a batch running, on a made-up project.* On Claude Code, a read-only pane shows
+the same record beside it; open it with `/chantier-board`, or by loading the Chief of Staff. See
+[boards](docs/boards.md) for the pane and [the web board](docs/web-board.md) for every view, with
+pictures.
 
 ## Install
 
@@ -248,11 +250,15 @@ Talk to the Chief of Staff in plain language:
 ## More
 
 - [Boards](docs/boards.md): the CR board and the web board.
+- [The web board](docs/web-board.md): every view, with pictures taken from the real board.
 - [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`.
 - [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.
 - [Supported hosts](docs/hosts.md): hosts, forges and Windows.
 - [Costs and budgets](docs/costs.md): what a batch costs and how it is capped.
+- [Planning modes](docs/planning-modes.md): plan in the project or outside it.
+- [Use cases](docs/use-cases.md): [Foreman mode](docs/use-cases-foreman.md) and [direct mode](docs/use-cases-direct.md).
+- [The release process](docs/release-process.md): how a release is cut.
 
 ## Develop
 

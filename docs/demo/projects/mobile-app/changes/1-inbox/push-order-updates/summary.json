@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "title": "Push notifications for order updates",
+  "sources": {
+    "intake/request.md": "5a2d13d5530aa5676bba39532950128a9b118744cd7efbf4ca814d329fd9727b"
+  },
+  "summary": "A push notification when an order ships or is delivered.",
+  "origin": {
+    "kind": "jira",
+    "ref": "APP-77",
+    "url": "https://example.atlassian.net/browse/APP-77"
+  },
+  "labels": [
+    "push"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

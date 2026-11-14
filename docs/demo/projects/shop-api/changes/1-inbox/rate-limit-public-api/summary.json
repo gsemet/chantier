@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "title": "Rate limit the public API",
+  "sources": {
+    "intake/request.md": "4362dea881fae8a221633939980f18f58b0787c37cfb4037b8cf2c2c47e6b325"
+  },
+  "summary": "Per-key rate limit on the public API, 429 with Retry-After.",
+  "origin": {
+    "kind": "github",
+    "ref": "#58",
+    "url": "https://github.com/example/shop-api/issues/58"
+  },
+  "labels": [
+    "api",
+    "perf"
+  ],
+  "group": "api-hardening",
+  "summarized": "2026-06-17T16:05:00Z"
+}

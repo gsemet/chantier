@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-138",
+  "title": "Change Specification: A newsletter opt-in at checkout",
+  "state": "merged",
+  "batch": "batch-02",
+  "pr": {
+    "url": "https://github.com/example/shop-api/pull/9"
+  },
+  "cost_usd": 7.4
+}

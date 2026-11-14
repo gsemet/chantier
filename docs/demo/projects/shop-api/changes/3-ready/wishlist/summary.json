@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "title": "A wishlist for signed-in customers",
+  "sources": {
+    "01-intent.md": "4e1d98da20269b8d19af8e8ed021b89beb9500f4bebdbed0c111fc1f406d442a",
+    "02-answers.md": "4abb721155b764cd4fe8cf161db9d82763894fe8822ff913b9ac63fefc667f0d",
+    "03-change-spec.md": "18fb407787f7fc37d467325b667e60c1f6c9fa465519feb49dd9ad0c189bde47"
+  },
+  "summary": "A private wishlist under the customer's account.",
+  "origin": {
+    "kind": "jira",
+    "ref": "SHOP-201",
+    "url": "https://example.atlassian.net/browse/SHOP-201"
+  },
+  "labels": [
+    "checkout"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

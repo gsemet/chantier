@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "Open product links in the app",
+  "sources": {
+    "intake/request.md": "225360bfc99e1a4964849f8f01fdf7889f0936ed11c7865d3d65858dd7465017"
+  },
+  "summary": "Universal links to products and orders.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "links"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

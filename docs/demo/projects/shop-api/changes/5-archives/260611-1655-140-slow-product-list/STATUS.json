@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-140",
+  "title": "Change Specification: The product list loads in under a second",
+  "state": "merged",
+  "batch": "batch-02",
+  "pr": {
+    "url": "https://github.com/example/shop-api/pull/11"
+  },
+  "cost_usd": 12.3
+}

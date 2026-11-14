@@ -1,6 +1,6 @@
 # Boards
 
-The CR board in Claude Code, a read-only pane over the planning folder, and the web board, served by `chantier board` to any device on the local network.
+The CR board in Claude Code, a read-only pane over the planning folder, and the web board ([its own page](web-board.md)), served by `chantier board` to any device on the local network.
 
 ## The CR board (Claude Code)
 
@@ -67,38 +67,4 @@ code, is covered by the cards, and the steering session reports what changed in 
 
 ## The web board
 
-On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
-batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
-trashed CRs, the costs, and each CR's files (text and images). It stops when its session leaves
-the seat. It writes in the backlog only (the inbox, the priorities, `3-ready`), never in a batch:
-file an idea, move items between those places, label and group them, edit an item's Markdown
-files, and declare the next batch ready (`next-batch.json`, the time and the CRs then in
-`3-ready`; it decides nothing). Every write lands in `board-journal.jsonl` (not committed); the
-"rescan" button empties it, to tell the Chief of Staff the backlog changed. All projects is
-read-only.
-
-- **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. Open it
-  once: the board keeps the key in a cookie and takes it out of the address. The link is yours
-  only; whoever has it reads the planning folder. `chantier board --new-key` replaces the key
-  and the old link stops working. The key lives in the repository's git folder
-  (`chantier/board.json`), so it survives restarts and is never pushed.
-- **The local network.** By default the board listens on every address of the machine
-  (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
-  off any network you do not trust. On Windows, the first start asks the firewall for permission:
-  that prompt is the machine's own.
-- **Keeping it on the machine.** Set the address once in `chantier.yaml` (on your word, the Chief
-  of Staff writes it):
-
-```yaml
-board:
-  host: 127.0.0.1   # only this machine; default 0.0.0.0, the local network
-  port: 8765        # default 8765
-```
-
-- **By hand.** `chantier board --host <address> --port <n>`. With no plugin and no agent, on a
-  machine where only `uv` is installed, start it from a planning surface with
-  `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
-  (`<version>` is the release the surface's planners use).
-- **When it stops.** With Ctrl-C, or by itself once no session that registered a seat holds it any
-  more. A second `chantier board` on the same address says the board is already running and
-  prints the same link.
+The web board is a small web server, `chantier board`, for any device. Every view, how to start it, keep it on the machine and stop it are in [the web board](web-board.md).

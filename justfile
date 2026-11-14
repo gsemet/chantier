@@ -41,6 +41,10 @@ eval-dry-run:
 mod:
     uv run --no-project python scripts/mod.py
 
+# Retake the web board's screenshots in docs/ from docs/demo/ (by hand: when the UI changes, before a release; not in check)
+docs-screenshots:
+    uv run --script scripts/docs_screenshots.py
+
 # The reviewed release notes and thread of the current version (none needed before 0.8.0)
 release-notes:
     uv run --script scripts/release_notes.py --check
