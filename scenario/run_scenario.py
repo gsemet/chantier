@@ -639,7 +639,7 @@ def scenario(w: World) -> None:
               w.cr(x)["worktree"])) == w.sh("git", "rev-parse", "origin/main")
               for x in ("CR-101", "CR-102")) and not Path(w.cr("CR-103")["worktree"]).exists())
     check("`take` prints the facts for the prompt: the CLI, the cards, the base, the rounds",
-          any(ln.startswith("cli: uv run --script") for ln in fm.facts)
+          any(ln.startswith("cli: uv run --locked --project ") for ln in fm.facts)
           and any(ln.startswith("cards: ") and "references/" in ln for ln in fm.facts)
           and any("base origin/main" in ln for ln in fm.facts)
           and any(ln == "rounds: 0 of 3" for ln in fm.facts), str(fm.facts))
@@ -5164,7 +5164,7 @@ def copilot_uv(w: World) -> None:
         argv = run.call_args.args[0]
         child_env = run.call_args.kwargs["env"]
         check("Copilot cost invokes uv with the inline script and exact session",
-              argv == ["uv", "run", "--no-config", "--script", str(costs.SESSION_USAGE_SCRIPT),
+              argv == ["uv", "run", "--no-config", "--script", str(costs.session_usage_script()),
                        "--agent", "cli", "--session-root",
                        str(Path(env["COPILOT_HOME"]) / "session-state"),
                        "calls", "--name", r"^uuid\-foreman$"], str(argv))

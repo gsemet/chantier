@@ -20,8 +20,9 @@ Everything lives in one temporary folder, removed at the end unless --keep: a ba
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
 staged transcripts. `sandbox.URL` is rebound to that repository in this process only; the fake `gh`
 is first on the PATH of this process and of every process it starts; GIT_ALLOW_PROTOCOL=file makes
-any git call that would reach a network URL fail. The CLI runs as `python chantier.py` (the kit's
-own `uv run --script` form is the one setup prints; the dry run makes some sixty calls).
+any git call that would reach a network URL fail. The CLI runs as `python -m chantier` in the root
+project's environment (the recipe's `uv run --locked`; the dev form is the one setup prints; the dry
+run makes some sixty calls).
 
 Exit codes, as `judge.py`: 0 every case as expected, 1 a case not as expected (named), 2 usage,
 4 external (git or uv failed: the tool's own text). Standard library only; POSIX and Windows.
@@ -145,7 +146,7 @@ def dry_environment(tmp: Path):
         "GIT_AUTHOR_NAME": "dry run", "GIT_AUTHOR_EMAIL": "dry-run@example.com",
         "GIT_COMMITTER_NAME": "dry run", "GIT_COMMITTER_EMAIL": "dry-run@example.com",
         "CHANTIER_CLAUDE_PROJECTS": str(tmp / "unused-projects"),
-        "CHANTIER_SKILL_DIR": str(CLI.parents[2]), "CHANTIER_HOST": "claude",
+        "CHANTIER_SKILL_DIR": str(CLI.parents[1]), "CHANTIER_HOST": "claude",
         "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CLAUDE_CODE_SESSION_ID": "uuid-chief",
     })
     try:
@@ -279,7 +280,7 @@ class Batch:
 
     def cli(self, actor, *args, expect=(0,)):
         args = [str(a) for a in args]
-        done = subprocess.run([sys.executable, str(CLI), *args], cwd=self.ws, capture_output=True,
+        done = subprocess.run([sys.executable, "-m", "chantier", *args], cwd=self.ws, capture_output=True,
                               text=True, encoding="utf-8", errors="replace")
         if done.returncode not in expect:
             raise External(f"chantier {shown(args)} exited {done.returncode}: "

@@ -2,10 +2,9 @@
 
 set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 
-cli := "skills/chantier/scripts/cli"
 ruff := "ruff@0.17.5"
 mypy := "mypy==1.20.0"
-run-cli := "uv run --no-project --with-requirements skills/chantier/scripts/cli/chantier.py python"
+run-cli := "uv run --locked python"
 
 # List the recipes
 default:
@@ -25,7 +24,7 @@ bump-version part="patch":
 
 # Structure tests: versions, manifests, agents, references, a smoke run
 test *args:
-    cd {{cli}}; uv run --group dev pytest -q {{args}}
+    uv run --locked --group dev pytest -q {{args}}
 
 # Optional: one whole batch, end to end through the real CLI and a fake gh, then glab, no model
 scenario:
@@ -44,12 +43,12 @@ mod:
 release-notes:
     uv run --script scripts/release_notes.py --check
 
-# The code standards: format, lint, types and the lock (tools through uvx, versions pinned above)
+# The code standards: format, lint, types and the lock (tools pinned above, the types against the locked dependencies)
 lint:
-    cd {{cli}}; uvx {{ruff}} format --check .
-    cd {{cli}}; uvx {{ruff}} check .
-    cd {{cli}}; uvx --with-requirements chantier.py --with pytest --with types-psutil --from {{mypy}} mypy
-    cd {{cli}}; uv lock --script chantier.py --check
+    uvx {{ruff}} format --check skills
+    uvx {{ruff}} check skills
+    uv run --locked --group dev --with {{mypy}} --with types-psutil mypy
+    uv lock --check
 
 # Everything a change must pass
 check: lint test release-notes

@@ -13,7 +13,7 @@ from chantier.commands.rules import linked
 from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.repo import Repo
-from chantier.plugin_files import project_instructions, surface_instructions
+from chantier.plugin_files import is_dev_checkout, project_instructions, surface_instructions
 
 # The commands the cards make the agents write, filled with realistic values, each tied to the
 # recommended allow rule that covers it and to a group. P10 asks whether some allow rule of the
@@ -49,9 +49,14 @@ SAMPLES = (
         "git push --force-with-lease=chantier/* origin *chantier/*",
     ),
     (
-        "always",
-        "uv run --script /plugin/skills/chantier/scripts/cli/chantier.py status",
-        "uv run --script *chantier.py *",
+        "dev",
+        "uv run --locked --project /checkout chantier status",
+        "uv run --locked --project * chantier *",
+    ),
+    (
+        "plugin",
+        "uvx --from /plugin chantier --skill /plugin/skills/chantier status",
+        "uvx --from * chantier *",
     ),
     ("github", "gh pr create --draft --body-file /tmp/body.md", "gh pr create*"),
     ("github", "gh pr edit 12 --body-file /tmp/body.md", "gh pr edit*"),
@@ -160,7 +165,7 @@ def _sample_groups(repo: Repo | None, remote: str) -> set[str]:
     the publication when the project's rules name it."""
     url = git("remote", "get-url", remote, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
-    groups = {"always"}
+    groups = {"always", "dev" if is_dev_checkout() else "plugin"}
     if "gitlab" in host:
         groups.add("gitlab")
     elif "github" in host:
