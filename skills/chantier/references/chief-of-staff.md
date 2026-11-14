@@ -507,8 +507,11 @@ Only in the turn where the user gave the go:
    the user may merge the ready ones below at any time, and a new stack of what remains is made
    silently after a merge. On a no, say that the stack
    will be made by `$CHANTIER forge-stack create` over the REST API, and record the choice in
-   `brief.md` (step 3) so the Foreman passes it to the stack driver. GitHub only: on GitLab the
-   stack stays as it was. Re-read the seat first ([session-start](session-start.md)). The steering mode is
+   `brief.md` (step 3) so the Foreman passes it to the stack driver. On GitLab, say that the stack is
+   made by `$CHANTIER forge-stack create` (the chain of MRs, each on the one below; no extension to
+   install, nothing to record in `brief.md`), at two ready MRs, growing the same way, and that the
+   user will merge it one MR at a time from the bottom, a middle MR folding into the one below;
+   unproved on GitLab (no real run yet). Re-read the seat first ([session-start](session-start.md)). The steering mode is
    **direct mode** (you steer the batch yourself, no Foreman session) or **Foreman mode** (a
    separate Foreman session), by these rules:
    - **The argument.** Only the invocation's first word counts, and only when it is exactly
@@ -681,12 +684,11 @@ CR-222 → CR-225 → CR-226 → CR-228."
   nothing and hold no CR back: another Driver or the user may be its cause. The report also gives
   the latest `main checkout:` note of a CR merged since the last report (`status --notes`, `log
   <cr>`; `status-layout.md`): a fast-forward leaves `git status` clean, so it is no trace there.
-  In a stack batch, before each Progress report, read `$CHANTIER forge-stack show` (GitHub; read
+  In a stack batch, before each Progress report, read `$CHANTIER forge-stack show` (read
   only) and take the line for **Notes** from its `partial stack mergeable below …` or failing
   checks: while a check fails (a take is changing the stack), the line says `stack changing: last
   mergeable below <sha7>` with the commit of the last report, or `stack changing` when none was
-  told. On GitLab the line names the head of the highest MR of the chain that is ready on the
-  forge, read with `glab mr view`. In direct mode the same, you steering.
+  told. In direct mode the same, you steering.
 - **When the delivery time passes the time the user gave** (the batch will not finish by it):
   record `$CHANTIER order note - --note "deliver by <time>"` (it prints the line to send to the
   Foreman, and a restarted Foreman finds it). In direct mode you apply the Foreman's "Deliver by a
@@ -774,7 +776,23 @@ CR-222 → CR-225 → CR-226 → CR-228."
   one restack at most, silently: no ask follows it, and none when the whole stack merged; the release CR's merge starts the
   release procedure, as today). An `anomaly` of the stack driver or the Foreman on a refused
   `$CHANTIER forge-stack rebuild` reaches the user as an ask with the exact text; on the user's
-  yes, run `$CHANTIER forge-stack rebuild` yourself (no raw `gh api`). A check
+  yes, run `$CHANTIER forge-stack rebuild` yourself (no raw `gh api`). On GitLab (unproved; trial: one run
+  on a GitLab project), `forge-stack show` reads the same checks on the chain and names the commit
+  the same way; tell the user the stack is mergeable one MR at a time from the bottom up to the MR
+  of the commit named, never "in one action from that MR"; that each next MR is mergeable once
+  GitLab shows it so (retargeted to the default branch and its pipeline green; when GitLab says it
+  needs a rebase, chantier's restack brings it); and that an MR merged directly in the middle
+  folds into the MR below it, its change reaching the default branch when that MR merges. To bring
+  the MRs up to MR k onto the default branch, merge them one at a time from the bottom up to k. When
+  the user merges a middle MR anyway (or `show` prints `check 1: !<iid> merged into <target> …
+  folded into <cr below>`), record `order merged <k>` at once, with `order note <k-1> --note
+  "folded: <k> into <k-1>"`, tell the Foreman in the same message, and tell the user that CR k's
+  change now rides in CR k-1's MR. An MR added to a merge train or set to auto-merge is not merged:
+  on the user's "merged", read the MR (`glab mr view <iid>`) and record `order merged` only once it
+  reads merged, else say it is recorded once the train (or the pipeline) merges it, and read it
+  again at the next report; only the bottom MR (on the default branch) can join the train, the next
+  once it is retargeted after that merge (unproved; trial: one run on a GitLab project with merge
+  trains). A check
   that fails: no "ready" to the user; send it back through the Foreman. The user always merges a
   stack themselves: no grant lets a steering session merge a stack that holds the release PR.
 - **Inserting a CR into a ready stack:** on the user's word, first and at once put to draft every

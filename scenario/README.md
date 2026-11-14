@@ -68,8 +68,17 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   `stack` naming only some CRs, refused when a dependency is left out; `rebuild`
   after an insertion (unstack, retarget, one new stack bottom to top, the release on top), after
   a partial merge (the first PR left to the default branch), stopped by a forge refusal and run
-  again, stopped by a stack that stays open after five unstack tries (exit 4, `unstack_ignored`) and run again, idempotent with drafts as a line to act on, and refused on a GitLab link, on a parallel
-  batch and with no PR at the bottom of the stack;
+  again, stopped by a stack that stays open after five unstack tries (exit 4, `unstack_ignored`) and run again, idempotent with drafts as a line to act on, and refused on a GitLab link mixed into a GitHub stack
+  (not all in one repository), on a link of neither shape, on a parallel batch and with no PR at the
+  bottom of the stack;
+- `forge-stack` on GitLab (against `fake_glab.py`, which answers a merge request's read, the open
+  MRs on a branch and a retarget from the state's `mrs`, and refuses the retarget with
+  `retarget_refused`): the chain made by `create` (retarget off the record's base, bottom first,
+  `--hostname`) and made again with nothing to retarget; `show` naming the commit, `to come:` and
+  writing nothing; a CR that joins as a draft (`rebuild` retargets, no unstack); the three
+  `check 4` forms; the wrong target (`check 3`), a foreign MR (`check 2`), a closed MR and an MR
+  merged into the branch below (`check 1`, folded), an MR on the release's branch (`check 5`); the
+  complete chain; a refused retarget (exit 4, the done lines first); `--stack` refused;
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch, which stays paused until the first `take`, then paused again, and `close` (priced with one `Chief of
   Staff, steering the batch` row that keeps a turn which only names or reads a specification, a grill and specifications

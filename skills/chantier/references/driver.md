@@ -448,15 +448,29 @@ the CR running, stop it (`gate <cr> --stop`) before that rebase, then run the lo
 head; CI runs at the new head. A series CR's PR opens, as a draft, on the base `take` printed: a
 Driver still retargets nothing but on a `rebase:` note.
 
+A CR taken with the note `folded: <k> merged into its branch` (GitLab only: the user merged CR
+k's MR, which targeted this CR's branch, so k's change now rides in this CR's MR): bring the
+forge's branch into the worktree (`git fetch`, then `git merge --ff-only origin/<branch>`; one
+that cannot fast-forward is a `conflict-resolver`'s, never `git reset --hard`), add to
+`pr-body.md` one line naming the folded CR's change and its merged MR (Deliverables, and the
+Internal references), post the file, then treat it as a move that changed the CR's patch:
+`verifier` given the move, `inspector` on it (its `APPROVE` recorded first), the long gate and CI
+at the new head, the description pass, and hand back as before. Unproved; trial: one run on a
+GitLab project.
+
 ## Stack driver
 
 A stack batch is one opened `--mode stack`, or a series switched by `order mode`; after a switch,
 the stack's order starts from the series order.
 
 Your end is one native stack on the forge that the user merges in one action from the top PR or one PR
-at a time from the bottom: a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs
+at a time from the bottom (on GitLab, only one MR at a time from the bottom, below): a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs
 based on each other is not one. Your `hand-back ready` is sent only once the stack is made on the
-forge and you have read it back as ready (the five checks, below). Each take ends with the stack as
+forge and you have read it back as ready (the five checks, below). On GitLab the stack is the chain
+of MRs made by `$CHANTIER forge-stack create`, each MR targeting the one below, the ready MRs below
+and the drafts on top; the user merges it one MR at a time from the bottom (GitLab has no
+one-action merge), and may merge a middle MR directly ("A folded CR", below). Unproved; trial: one
+run on a GitLab project. Each take ends with the stack as
 it stands on the forge, its mergeable part ready and the drafts on top; the batch's last take ends
 with it complete (see [concepts](concepts.md), "Stack").
 
@@ -496,18 +510,22 @@ names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
 extension; the PRs bottom to top, the CRs with a draft PR on top as drafts. Then turn every PR of
 the mergeable part ready (`gh pr ready`), not only the bottom one. A means that is not available as the prompt names it
 (the extension not installed, the command refused by the forge, the API missing) is an `anomaly`
-with the exact text: no other means without the user's word (no fallback). On GitLab the stack
-stays a chain as today: the first PR on the default branch is ready, the others drafts
-(`glab mr update --ready`, `--draft`). Any later change to a stack already on the forge (an
+with the exact text: no other means without the user's word (no fallback). On GitLab the means is always
+`$CHANTIER forge-stack create` (no extension): the MRs of the mergeable part are turned ready
+(`glab mr update <iid> --ready`), the drafts on top left drafts (unproved; trial: one run on a
+GitLab project). Any later change to a stack already on the forge (an
 insertion, a restack after a merge, a reorder) is `$CHANTIER forge-stack rebuild`, after the
 rebases and pushes: it dissolves the stack, retargets each PR whose base is not the record's,
-creates the stack again and reads it back (the drafts are a line to act on, not a failure). Never
-retarget a PR by hand: a PR's base cannot change while it is stacked. A `rebuild` refused (by the
-forge or the permission check) is an `anomaly` with the exact text, as above; no other means.
+creates the stack again and reads it back (the drafts are a line to act on, not a failure); on
+GitLab it only retargets, there is nothing to unstack. Never retarget a PR by hand: a PR's base
+cannot change while it is stacked, and on GitLab `forge-stack` retargets, though GitLab would
+allow it by hand. A `rebuild` refused (by the forge or the permission check) is an `anomaly` with
+the exact text, as above; no other means.
 
 **A CR that joins** (it has a PR, a draft): order it on top (`stack`), have it rebased (see "Who
-moves a branch"), then `$CHANTIER forge-stack rebuild` (unstack, retarget, create). The PRs below
-are not moved and stay ready: the user may merge them meanwhile.
+moves a branch"), then `$CHANTIER forge-stack rebuild` (unstack, retarget, create; on GitLab, retarget). The PRs below
+are not moved and stay ready: the user may merge them meanwhile. The same holds on GitLab for a
+draft that turns ready, an insertion and a restack after a merge, each ending with `rebuild`.
 
 **A draft that turns ready** (its CR handed back `ready`) moves into the mergeable part. When it
 is the lowest draft, nothing moves: no `rebuild`; read the stack back and turn its PR ready once
@@ -529,7 +547,10 @@ as it stands.
 check, exit 0 when all hold), on the stack as it stands (the bottom CRs with a PR; drafts on top
 and the `to come:` line are no failure): the stack is open; it holds every PR of the stack as it
 stands, and no other; in the order of `take stack`, bottom first; no PR of a ready CR is a draft
-and every draft sits above the ready PRs; the release PR, when it is in the stack, is on top.
+and every draft sits above the ready PRs; the release PR, when it is in the stack, is on top. On
+GitLab the checks read the chain (each MR's target is the branch below, the first on the default
+branch; no other MR on a branch of the stack but drafts of CRs to come; drafts only on top; the
+release on top; unproved; trial: one run on a GitLab project).
 Green and checked: `[stack→foreman] hand-back ready <stack
 link> <cr>=<link>…`.
 
@@ -544,7 +565,10 @@ each, push once with `--force-with-lease` (a refused one goes up as above), and 
 you moved once: `ship` records the new base. Run heavy CI once at the top, then one
 `$CHANTIER forge-stack rebuild` (no manual retarget: it retargets the first PR to the default
 branch) and read it back before the hand-back; this hand-back is silent: no `stack-ready` follows
-a restack. After a restack, `ship` names the lines of
+a restack. On GitLab, the forge may already have retargeted the next MR to the default branch when
+the merged MR's source branch was deleted: `rebuild` then retargets nothing for it, which is no
+anomaly (unproved; trial: one run on a GitLab project). A middle MR merged on GitLab is a folded
+CR, below (the Foreman's `take` for it comes first). After a restack, `ship` names the lines of
 `work/pr-body.md` whose SHA left the head's history (`off: pr-body.md line <n> names …`): fix
 them (carried, or judged again, as above), post the file (`gh pr edit --body-file`), and run
 `ship` again until no such line remains, before the PRs turn ready. A CR added by `order add` is

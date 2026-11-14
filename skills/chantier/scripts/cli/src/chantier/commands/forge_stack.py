@@ -9,8 +9,11 @@ import shutil
 import subprocess
 from typing import Any
 
+from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.crs import short_head
 from chantier.commands.facts import chain, stack_base
+from chantier.commands.forge_stack_gitlab import GITLAB_LINK
+from chantier.commands.forge_stack_shared import Where, draft_checks, left, ready_tail
 from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
@@ -21,7 +24,7 @@ PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
 
 UNSTACK_TRIES = 5
 
-GITHUB_ONLY = "forge-stack is GitHub only: {what} is not a GitHub pull request link"
+NEITHER = "forge-stack reads GitHub pull requests and GitLab merge requests: {what} is neither"
 
 
 def _gh(args: list[str], host: str) -> Any:
@@ -47,18 +50,24 @@ def _gh(args: list[str], host: str) -> Any:
 
 
 def _pr_parts(pr: str) -> tuple[str, ...]:
-    """The host, owner, repository and number of a GitHub PR link; anything else is refused."""
+    """The host, owner, repository and number of a GitHub PR link; the host, project path, an
+    empty name and the iid of a GitLab MR link; anything else is refused. The forge is read from
+    the shape of the link, never from the host."""
     link = PR_LINK.match(pr)
-    if link is None:
-        raise ChantierError(GITHUB_ONLY.format(what=pr), EXIT_PRECONDITION)
-    return link.groups()
+    if link is not None:
+        return link.groups()
+    mr = GITLAB_LINK.match(pr)
+    if mr is None:
+        raise ChantierError(NEITHER.format(what=pr), EXIT_PRECONDITION)
+    return mr.group(1), mr.group(2), "", mr.group(3)
+
+
+def _is_gitlab(rows: list[dict[str, Any]]) -> bool:
+    return GITLAB_LINK.match(rows[0]["link"]) is not None
 
 
 class NoBottom(ChantierError):
     """The stack's first CR has no PR: nothing to stack."""
-
-
-Where = tuple[str, str, str]
 
 
 def _plan(
@@ -91,6 +100,7 @@ def _plan(
                 "number": int(number),
                 "link": c.pr,
                 "base": stack_base(data, c, repo, planned=True),
+                "branch": c.branch,
                 "head": short_head(c.head) or "-",
                 "release": c.kind == "release",
             }
@@ -102,21 +112,15 @@ def _plan(
         )
     come = []
     for c in links[len(rows) :]:
-        found = PR_LINK.match(c.pr) if c.pr else None
-        come.append(
-            {"cr": c.id, "status": c.status, "number": int(found.group(4)) if found else None}
-        )
+        found = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
+        pending = int(found.groups()[-1]) if found else None
+        come.append({"cr": c.id, "status": c.status, "number": pending})
     return rows, come, where
 
 
 def forge_stack(args: argparse.Namespace) -> tuple[list[str], int]:
     if args.action == "create":
-        try:
-            return _create(args)
-        except ChantierError as e:
-            if e.code != EXIT_EXTERNAL:
-                raise
-            raise ChantierError(f"{e} (`forge-stack rebuild` replaces a stack)", e.code) from e
+        return _create(args)
     if args.action == "rebuild":
         return _rebuild(args)
     return _show(args)
@@ -199,22 +203,14 @@ def _retarget(rows: list[dict[str, Any]], where: Where, done: list[str]) -> None
             done.append(f"#{r['number']} base {old} -> {r['base']}")
 
 
-def _left(come: list[dict[str, Any]]) -> dict[int, str]:
-    """The PRs of the batch's stack left out of the rows (a CR above one with no PR)."""
-    return {c["number"]: c["cr"] for c in come if c["number"] is not None}
-
-
-def _come_line(rows: list[dict[str, Any]], come: list[dict[str, Any]], merge: int) -> list[str]:
-    """`to come:` the drafts' CRs, then those with no PR, bottom first; nothing when complete."""
-    todo = [*rows[merge:], *come]
-    return ["to come: " + ", ".join(f"{c['cr']} {c['status']}" for c in todo)] if todo else []
-
-
 def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     """Unstack the open stacks that hold the batch's PRs, retarget the bases, stack again. When
     the forge refuses, its exact text comes back (exit 4), and when a stack stays open after its
     unstack tries."""
     rows, come, where = _plan(args)
+    if _is_gitlab(rows):
+        gitlab.refuse_stack(args)
+        return gitlab.make(rows, come, where)
     host, owner, name = where
     done: list[str] = []
     try:
@@ -222,7 +218,7 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
         for s in _stacks(host, owner, name):
             held = {p["number"] for p in s.get("pull_requests", [])}
             if s.get("open") and planned & held:
-                done.append(_unstack(s, planned, where, _left(come)))
+                done.append(_unstack(s, planned, where, left(come)))
         _retarget(rows, where, done)
         number, line = _make(rows, host, owner, name)
         done.append(line)
@@ -240,28 +236,16 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
 
 
 def _create(args: argparse.Namespace) -> tuple[list[str], int]:
-    rows, _, where = _plan(args)
-    return [_make(rows, *where)[1]], 0
-
-
-def _draft_checks(prs: list[dict[str, Any]], rows: list[dict[str, Any]]) -> list[str]:
-    """Check 4, each PR's draft state read against its CR's status, bottom first. A draft on top
-    of a CR that is not ready is no failure."""
-    cr = {r["number"]: r for r in rows}
-    lines = []
-    still = []
-    below_ready = True  # every CR under this PR is ready
-    for i, p in enumerate(prs):
-        n, draft = p["number"], bool(p.get("draft"))
-        status = cr[n]["status"] if n in cr else ""
-        if draft and any(not q.get("draft") for q in prs[i + 1 :]):
-            lines.append(f"check 4: a draft under a ready PR #{n}")
-        elif draft and below_ready and status == "ready":
-            still.append(f"#{n}")
-        elif not draft and n in cr and status != "ready":
-            lines.append(f"check 4: not a draft #{n} ({cr[n]['cr']} {status})")
-        below_ready = below_ready and status == "ready"
-    return ([f"check 4: still a draft {' '.join(still)}"] if still else []) + lines
+    rows, come, where = _plan(args)
+    if _is_gitlab(rows):
+        gitlab.refuse_stack(args)
+        return gitlab.make(rows, come, where)
+    try:
+        return [_make(rows, *where)[1]], 0
+    except ChantierError as e:
+        if e.code != EXIT_EXTERNAL:
+            raise
+        raise ChantierError(f"{e} (`forge-stack rebuild` replaces a stack)", e.code) from e
 
 
 def _checks(
@@ -290,7 +274,7 @@ def _checks(
             f"check 3: order on the forge {' '.join('#' + str(n) for n in have)}, "
             f"expected {' '.join('#' + str(n) for n in expected)} (bottom first)"
         )
-    lines += _draft_checks(prs, rows)
+    lines += draft_checks(prs, rows)
     release = next((r for r in rows if r["release"]), None)
     if release and (not have or have[-1] != release["number"]):
         lines.append(
@@ -321,52 +305,26 @@ def _read(args: argparse.Namespace, rows: list[dict[str, Any]], where: Where) ->
     return next((s for s in found if s.get("open")), found[0])
 
 
-def _ready_line(
-    stack: dict[str, Any],
-    rows: list[dict[str, Any]],
-    come: list[dict[str, Any]],
-    release: dict[str, Any] | None,
-) -> list[str]:
-    """The success lines: the mergeable part, the drafts on top, what is to come."""
-    prs = stack.get("pull_requests", [])
-    drafts = {p["number"] for p in prs if p.get("draft")}
-    merge = 0
-    while (
-        merge < len(rows)
-        and rows[merge]["status"] == "ready"
-        and rows[merge]["number"] not in drafts
-    ):
-        merge += 1
-    top = rows[merge - 1] if merge else None
-    if top is None:
-        part = "no part mergeable yet"
-    elif merge == len(rows) and not come:
-        part = f"stack complete, mergeable below {top['head']} (#{top['number']})"
-    else:
-        part = f"partial stack mergeable below {top['head']} (#{top['number']}, {merge} PRs)"
-    line = f"stack #{stack.get('number')} ready: open, {len(prs)} PRs in order, {part}"
-    if rows[merge:]:
-        line += ", drafts on top " + " ".join(f"#{r['number']}" for r in rows[merge:])
-    if release:
-        line += ", the release on top"
-    return [line, *_come_line(rows, come, merge)]
-
-
 def _show(args: argparse.Namespace) -> tuple[list[str], int]:
     try:
         rows, come, where = _plan(args)
     except NoBottom as e:
         return [f"check 1: {e}"], EXIT_PRECONDITION
+    if _is_gitlab(rows):
+        gitlab.refuse_stack(args)
+        return gitlab.show(rows, come, where)
     try:
         stack = _read(args, rows, where)
     except ChantierError as e:
         if e.code != EXIT_PRECONDITION:
             raise
         return [str(e)], EXIT_PRECONDITION
-    lines, release = _checks(stack, rows, _left(come))
+    lines, release = _checks(stack, rows, left(come))
     if lines:
         return lines, EXIT_PRECONDITION
-    return _ready_line(stack, rows, come, release), 0
+    prs = stack.get("pull_requests", [])
+    part, tail = ready_tail(rows, come, {p["number"] for p in prs if p.get("draft")}, release)
+    return [f"stack #{stack.get('number')} ready: open, {len(prs)} PRs in order, {part}", *tail], 0
 
 
 def register(sub: Subparsers) -> None:
@@ -375,10 +333,11 @@ def register(sub: Subparsers) -> None:
         sub,
         "forge-stack",
         forge_stack,
-        "create: the stack batch's stack as it stands (the bottom CRs with a PR, drafts on top) "
-        "as a native stack on GitHub, PRs bottom to top, the release last; "
+        "create: the stack batch's stack as it stands (the bottom CRs with a PR, drafts on top), "
+        "on GitHub its native stack, on GitLab the chain of MRs each targeting the one below, "
+        "bottom to top, the release last; "
         "show: read it back, one line per failed check (exit 2); rebuild: make the forge's "
-        "stack match the record (unstack, retarget, create again); GitHub only",
+        "stack match the record (GitHub unstacks, retargets and creates again, GitLab retargets)",
         BATCH,
     )
     s.add_argument("action", choices=["create", "show", "rebuild"])
@@ -386,5 +345,5 @@ def register(sub: Subparsers) -> None:
         "--stack",
         type=int,
         metavar="N",
-        help="show: the stack's number (default: the one that holds the batch's PRs)",
+        help="show: the stack's number (default: the one that holds the batch's PRs); GitHub only",
     )

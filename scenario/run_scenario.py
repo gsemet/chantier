@@ -3812,16 +3812,125 @@ def forge_stack_cli(w: World) -> None:
     w.chantier("foreman", "set", "local_foreman_fs", "--epoch", 1)
 
     if ARGS.forge == "gitlab":
-        record(**links)
-        code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
-        check("on a GitLab remote `forge-stack create` is refused: GitHub only",
-              code == 2 and "GitHub only" in w.last_stderr and not stack_calls(), w.last_stderr)
-        code, _ = w.chantier("forge-stack", "show", env=on_path, expect=2)
-        check("on a GitLab remote `forge-stack show` is refused: GitHub only",
+        branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
+
+        def put_calls() -> list[list[str]]:
+            log = w.root / "gh-state.json.calls"
+            rows = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
+            return [x for x in rows if "PUT" in x and not x[1].endswith("/merge")]
+
+        def mr(cr: str, n: int, target: str, state: str = "opened", draft: bool = False):
+            return str(n), {"state": state, "draft": draft, "source_branch": branch(cr),
+                            "target_branch": target, "web_url": PR_LINK["gitlab"] + str(n)}
+
+        # 2. two ready MRs, the release with none: the chain made, read back, made again
+        w.gh(mrs=dict([mr(a, 201, "main"), mr(b, 202, "main")]))
+        record(**{a: links[a], b: links[b]})
+        code, out = w.chantier("forge-stack", "create", env=on_path)
+        puts = put_calls()
+        check("GitLab: `forge-stack create` retargets the MR that is off the record's base (not the "
+              "first), passes `--hostname`, prints the chain's link and its MRs bottom to top",
+              code == 0 and len(puts) == 1 and "merge_requests/202" in puts[0][1]
+              and f"target_branch={branch(a)}" in puts[0] and "--hostname" in puts[0]
+              and "gitlab.example.com" in puts[0] and out[0] == f"chain {links[b]} (MRs bottom to top: !201 !202)",
+              f"{out} {puts}")
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("GitLab: `forge-stack show` names the commit the user may merge below and the release "
+              "as to come; it writes nothing (no `PUT`)",
+              code == 0 and f"partial stack mergeable below {h7(b)} (!202" in out[0]
+              and any(x.startswith("to come:") and r in x for x in out) and len(put_calls()) == 1,
+              str(out))
+        code, out = w.chantier("forge-stack", "create", env=on_path)
+        check("GitLab: a second `create` on the chain in place retargets nothing and exits 0",
+              code == 0 and len(put_calls()) == 1, str(out))
+
+        # 3. a CR joins as a draft: retarget only, no unstack
+        _, joined = prepare_cr(w, "Forge joined")
+        w.chantier("order", "add", "--note", str(joined))
+        new = w.batch()["crs"][-1]["id"]
+        w.chantier("stack", a, b, new)
+        record({new: "working"}, **{new: PR_LINK["gitlab"] + "204"})
+        num = {a: 201, b: 202, new: 204, r: 203}
+        base = {a: "main", b: branch(a), new: branch(b), r: branch(new)}
+
+        def forge_mrs(only, draft=(), state=None, target=None, extra=None) -> None:
+            mrs = dict(mr(cr, num[cr], (target or {}).get(num[cr], base[cr]),
+                          (state or {}).get(num[cr], "opened"), num[cr] in draft) for cr in only)
+            w.gh(mrs={**mrs, **(extra or {})}, retarget_refused=False)
+
+        w.gh(mrs={**dict([mr(a, 201, "main"), mr(b, 202, branch(a))]), **dict([mr(new, 204, "main", draft=True)])})
+        before = len(put_calls())
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        log = (w.root / "gh-state.json.calls").read_text()
+        check("GitLab: a CR joins as a draft: `rebuild` retargets the new MR onto the CR below, with "
+              "no unstack, and prints the draft on top",
+              code == 0 and f"!204 target main -> {branch(b)}" in out and len(put_calls()) == before + 1
+              and "unstack" not in log and "/stacks" not in log
+              and any("drafts on top !204" in x for x in out), str(out))
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("GitLab: `forge-stack show` of that chain: mergeable below the second MR, the draft on "
+              "top, `to come:` the draft's CR and the release",
+              code == 0 and f"mergeable below {h7(b)} (!202" in out[0] and "drafts on top !204" in out[0]
+              and f"to come: {new} working, {r} queued" in out, str(out))
+
+        # 4. the checks, one case each
+        three = [a, b, new]
+        record({new: "ready"})
+        forge_mrs(three, draft=[204])
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("GitLab: a ready CR whose MR is still a draft: `check 4: still a draft !204`",
+              any(x.startswith("check 4: still a draft") and "!204" in x for x in out), str(out))
+        record({new: "working"})
+        forge_mrs(three)
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("GitLab: a CR not ready whose MR is not a draft: `check 4: not a draft !204 (<cr> working)`",
+              f"check 4: not a draft !204 ({new} working)" in out, str(out))
+        record({new: "ready"})
+        forge_mrs(three, draft=[201])
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("GitLab: a draft under a ready MR: `check 4: a draft under a ready MR !201`",
+              "check 4: a draft under a ready MR !201" in out, str(out))
+        foreign = dict([("999", {"state": "opened", "draft": False, "source_branch": "elsewhere",
+                                 "target_branch": branch(b), "web_url": PR_LINK["gitlab"] + "999"})])
+        cases = [("an MR on the wrong target", dict(target={202: "main"}), "check 3",
+                  f"!202 targets main, expected {branch(a)}"),
+                 ("a foreign open MR on a stack branch", dict(extra=foreign), "check 2",
+                  f"not in the batch's stack !999 (on {branch(b)})"),
+                 ("a closed MR", dict(state={202: "closed"}), "check 1", "!202 is closed"),
+                 ("an MR merged into the branch below",
+                  dict(state={202: "merged"}, target={202: branch(a)}), "check 1",
+                  f"!202 merged into {branch(a)}, not main: folded into {a}")]
+        for what, kw, line, word in cases:
+            forge_mrs(three, **kw)
+            code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+            check(f"GitLab: `forge-stack show` on {what}: a `{line}` line naming the cause, exit 2",
+                  code == 2 and any(x.startswith(line) and word in x for x in out), str(out))
+        record(**{r: links[r]})
+        forge_mrs([a, b, new, r])
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("GitLab: the complete chain (every CR ready, no draft, the release on top): `stack "
+              "complete, mergeable below` the release's head, and no `to come:` line",
+              code == 0 and len(out) == 1 and f"stack complete, mergeable below {h7(r)} (!203)" in out[0]
+              and "the release on top" in out[0], str(out))
+        forge_mrs([a, b, new, r], extra=dict([("999", {**foreign["999"], "target_branch": branch(r)})]))
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("GitLab: an open MR targeting the release's branch: `check 5` naming it, exit 2",
+              any(x.startswith("check 5") and "!203" in x and "!999" in x for x in out), str(out))
+
+        # 5. a forge refusal mid-way, and --stack
+        forge_mrs([a, b, new, r], target={202: "elsewhere", 204: "elsewhere"})
+        w.gh(retarget_refused=[204])
+        w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
+        said = w.last_stderr
+        check("GitLab: a `rebuild` stopped by the forge prints what was done before the forge's exact "
+              "text (exit 4)",
+              f"!202 target elsewhere -> {branch(a)}" in said and "403 Forbidden" in said
+              and said.index("!202 target") < said.index("403 Forbidden"), said)
+        forge_mrs([a, b, new, r])
+        code, _ = w.chantier("forge-stack", "show", "--stack", 5, env=on_path, expect=2)
+        check("GitLab: `show --stack 5` is refused naming `GitHub only`",
               code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
-        code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
-        check("on a GitLab remote `forge-stack rebuild` is refused: GitHub only",
-              code == 2 and "GitHub only" in w.last_stderr and not stack_calls(), w.last_stderr)
+        record({new: "ready"})
     else:
         branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
         gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
@@ -3930,8 +4039,13 @@ def forge_stack_cli(w: World) -> None:
         record(**{b: PR_LINK["gitlab"] + "202"})
         for action in ("create", "show"):
             code, _ = w.chantier("forge-stack", action, env=on_path, expect=2)
-            check(f"on a GitLab link `forge-stack {action}` is refused: GitHub only",
-                  code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
+            check(f"a GitLab link in a GitHub stack: `forge-stack {action}` is refused, not all in "
+                  "one repository",
+                  code == 2 and "not all in one repository" in w.last_stderr, w.last_stderr)
+        record(**{b: "https://example.com/acme/demo/issues/202"})
+        code, _ = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("a link of neither shape is refused naming `is neither`",
+              code == 2 and "is neither" in w.last_stderr, w.last_stderr)
         record(**{b: links[b]})
 
     _, joined = prepare_cr(w, "Forge inserted")
@@ -3939,7 +4053,7 @@ def forge_stack_cli(w: World) -> None:
     w.chantier("order", "add", "--note", str(joined))
     record({r: "ready"})
     ins = w.batch()["crs"][-1]["id"]
-    order = [a, ins, b, r] if ARGS.forge == "gitlab" else [a, ins, b, new, r]
+    order = [a, ins, b, new, r]
     w.chantier("stack", *order)
     _, listed = w.chantier("take", "stack", "--epoch", 1)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
@@ -4026,8 +4140,9 @@ def forge_stack_cli(w: World) -> None:
         # 4. refused on a GitLab link
         record(**{b: PR_LINK["gitlab"] + "202"})
         code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
-        check("on a GitLab link `forge-stack rebuild` is refused: GitHub only",
-              code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
+        check("a GitLab link in a GitHub stack: `forge-stack rebuild` is refused, not all in one "
+              "repository",
+              code == 2 and "not all in one repository" in w.last_stderr, w.last_stderr)
         record(**{b: links[b]})
     w.reset()
     _, par = prepare_cr(w, "Forge parallel")
