@@ -40,13 +40,15 @@ def _not_started(reason: object) -> ChantierError:
 
 
 def _bind(host: str, port: int) -> socket.socket:
-    """The listening socket, bound before anything is printed: a port held fails here. On
+    """The socket, bound and listening before anything is printed (a client that connects on the
+    start line is queued): a port held fails here. On
     Windows SO_REUSEADDR lets a second socket take a port in use: never there."""
     sock = socket.socket(socket.AF_INET6 if ":" in host else socket.AF_INET, socket.SOCK_STREAM)
     try:
         if sys.platform != "win32":
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind((host, port))
+        sock.listen(socket.SOMAXCONN)
     except (OSError, OverflowError) as e:
         sock.close()
         raise _not_started(e) from e
