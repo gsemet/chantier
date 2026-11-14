@@ -3737,9 +3737,10 @@ def stack_batch(w: World) -> None:
           "`stack`" in refused, refused)
     kept = {n: (w.folder() / n).read_bytes() for n in ("batch.json", "events.jsonl")}
     _, again = w.chantier("stack")
-    check("`stack` with no CR prints the lines `take stack` printed, with a stack driver recorded, "
+    check("`stack` with no CR prints the lines `take stack` printed plus a last `context:` line, "
           "and writes nothing (`batch.json`, `events.jsonl`)",
-          again == out and all((w.folder() / n).read_bytes() == v for n, v in kept.items()),
+          again[:-1] == out and again[-1].startswith("context:")
+          and all((w.folder() / n).read_bytes() == v for n, v in kept.items()),
           str(again))
     code, _ = w.chantier("order", "after", four, "--note", two, expect=2)
     check("`order after` on a ready CR in a stack batch is refused, and the message names `stack`",
