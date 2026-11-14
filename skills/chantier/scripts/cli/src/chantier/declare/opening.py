@@ -30,7 +30,8 @@ def register(sub: Subparsers) -> None:
         type=int,
         metavar="N",
         help="the item number of the release CR; it waits for every other CR: prepared on top of a "
-        "stack or a series once they are ready, after the merges in a parallel batch; its PR "
+        "stack or a series once they are handed back ready, after the merges in a parallel "
+        "batch; its PR "
         "is the user's to merge",
     )
     s.add_argument(

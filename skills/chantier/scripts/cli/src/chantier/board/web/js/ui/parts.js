@@ -42,6 +42,8 @@ const STATE_COLOR = {
   waits: 'var(--amber)',
   blocked: 'var(--red)',
   ready: 'var(--green)',
+  draft: 'var(--brown)',
+  local: 'var(--violet)',
   merged: 'var(--ok-ink)',
 };
 

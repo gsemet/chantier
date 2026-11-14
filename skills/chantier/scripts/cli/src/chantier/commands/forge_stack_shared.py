@@ -17,14 +17,14 @@ def left(come: list[dict[str, Any]]) -> dict[int, str]:
 def come_line(rows: list[dict[str, Any]], come: list[dict[str, Any]], merge: int) -> list[str]:
     """`to come:` the drafts' CRs, then those with no PR, bottom first; nothing when complete."""
     todo = [*rows[merge:], *come]
-    return ["to come: " + ", ".join(f"{c['cr']} {c['status']}" for c in todo)] if todo else []
+    return ["to come: " + ", ".join(f"{c['cr']} {c['word']}" for c in todo)] if todo else []
 
 
 def draft_checks(
     prs: list[dict[str, Any]], rows: list[dict[str, Any]], mark: str = "#", noun: str = "PR"
 ) -> list[str]:
-    """Check 4, each PR's draft state read against its CR's status, bottom first. A draft on top
-    of a CR that is not ready is no failure."""
+    """Check 4, each PR's draft state read against its CR's status and against the draft state
+    the CLI recorded, bottom first. A draft on top of a CR that is not ready is no failure."""
     cr = {r["number"]: r for r in rows}
     lines = []
     still = []
@@ -32,12 +32,18 @@ def draft_checks(
     for i, p in enumerate(prs):
         n, draft = p["number"], bool(p.get("draft"))
         status = cr[n]["status"] if n in cr else ""
+        kept = cr[n].get("recorded") if n in cr else None
+        if kept is not None and kept != draft:
+            said = ("draft", "out of draft")
+            lines.append(
+                f"check 4: recorded {said[not kept]} {mark}{n}, the forge says {said[not draft]}"
+            )
         if draft and any(not q.get("draft") for q in prs[i + 1 :]):
             lines.append(f"check 4: a draft under a ready {noun} {mark}{n}")
         elif draft and below_ready and status == "ready":
             still.append(f"{mark}{n}")
         elif not draft and n in cr and status != "ready":
-            lines.append(f"check 4: not a draft {mark}{n} ({cr[n]['cr']} {status})")
+            lines.append(f"check 4: not a draft {mark}{n} ({cr[n]['cr']} {cr[n]['word']})")
         below_ready = below_ready and status == "ready"
     return ([f"check 4: still a draft {' '.join(still)}"] if still else []) + lines
 

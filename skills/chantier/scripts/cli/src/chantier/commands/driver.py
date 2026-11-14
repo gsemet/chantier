@@ -21,7 +21,7 @@ from chantier.commands.facts import cr_facts, stack_lines
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, BatchRecord
+from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
@@ -35,6 +35,7 @@ from chantier.rails import (
     held,
     worktree_print,
 )
+from chantier.stacks import PR_IN_DRAFT, READY_TO_MERGE, ready_word, stack_base
 
 
 def _reopen(b: Batch) -> list[str]:
@@ -172,8 +173,6 @@ def handback(args: argparse.Namespace) -> list[str]:
         if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
         handback_refusals(repo, b, c, no_gate, prepared)
-        if no_gate is not None:
-            line = f"[driver {args.cr}→foreman] hand-back ready, no long gate: {no_gate} {note}"
         b.log(
             "handback",
             args.cr,
@@ -182,9 +181,21 @@ def handback(args: argparse.Namespace) -> list[str]:
             **({"no_gate": no_gate} if no_gate is not None else {}),
         )
         b.touch(c, status="ready")
-        if prepared:
-            return [line, f"{args.cr} ready: the release PR {c.pr} waits for its merge"]
-        return [line, f"{args.cr} ready"]
+        gate = f", no long gate: {no_gate}" if no_gate is not None else ""
+        return _ready_lines(repo, b.record, c, prepared, f"{gate} {note}")
+
+
+def _ready_lines(repo: Repo, d: BatchRecord, c: CrEntry, prepared: bool, tail: str) -> list[str]:
+    """The line to send the Foreman and the CR's state, in the word the record derives: ready to
+    merge, or PR in draft with what its PR waits on."""
+    word = ready_word(d, c, repo) or PR_IN_DRAFT
+    line = f"[driver {c.id}→foreman] hand-back {word}{tail}"
+    if word == READY_TO_MERGE:
+        wait = f": the release PR {c.pr} waits for its merge" if prepared else ""
+        return [line, f"{c.id} {word}{wait}"]
+    base = stack_base(d, c, repo)
+    on = f"the release PR {c.pr} waits on {base}" if prepared else f"it waits on {base}"
+    return [line, f"{c.id} {word}: {on}"]
 
 
 def note(args: argparse.Namespace) -> list[str]:

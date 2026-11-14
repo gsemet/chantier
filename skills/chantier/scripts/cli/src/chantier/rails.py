@@ -227,9 +227,9 @@ def check_take(d: BatchRecord, c: CrEntry, note: str | None) -> None:
     ):
         ordered = d.mode in {"stack", "series"}
         ends = (
-            ("ready or merged" if ordered else "merged or cancelled")
+            ("handed back ready or merged" if ordered else "merged or cancelled")
             if is_release(c)
-            else "ready or merged"
+            else "handed back ready or merged"
         )
         raise ChantierError(
             f"{c.id} waits for {', '.join(unmet(d, c))}: it starts once each is {ends}"
