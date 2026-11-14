@@ -6,7 +6,7 @@ import argparse
 import sys
 from typing import Any
 
-from chantier import __version__
+from chantier import __version__, plugin_files
 from chantier.board import server
 from chantier.commands import (
     batch_status,
@@ -58,6 +58,11 @@ def _parser() -> argparse.ArgumentParser:
         "(`<surface>/projects/<name>`, or the bare name); omitted: the project's own "
         ".agents/changes/, or the surface's only project",
     )
+    p.add_argument(
+        "--skill",
+        help="the chantier skill's folder, needed when this code runs from uv's cache (a plugin "
+        "install); omitted: CHANTIER_SKILL_DIR, else the folder this code lives in",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
     for module in (
         preflight,
@@ -97,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     _one_spelling_of_a_cr(args)
     repo.PROJECT = args.project
+    plugin_files.SKILL = args.skill
     try:
         result: Any = args.fn(args)
     except ChantierError as e:

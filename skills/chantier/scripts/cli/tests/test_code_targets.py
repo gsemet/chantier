@@ -1,5 +1,5 @@
-"""The code's own targets: the sizes of files and functions, no import cycle, and one list of
-dependencies. `just lint` holds the style; these two checks hold what a linter does not."""
+"""The code's own targets: the sizes of files and functions, no import cycle, and one project
+for the CLI. `just lint` holds the style; these two checks hold what a linter does not."""
 
 from __future__ import annotations
 
@@ -83,17 +83,16 @@ def test_files_and_functions_are_small_and_the_imports_have_no_cycle() -> None:
     assert not problems, "\n".join(problems)
 
 
-def _names(requirements: list[str]) -> set[str]:
-    return {
-        re.split(r"[<>=!~\[; ]", r, maxsplit=1)[0].lower().replace("_", "-") for r in requirements
-    }
-
-
-def test_the_dependency_lists_agree_and_nothing_is_built_from_source() -> None:
-    text = (CLI / "chantier.py").read_text(encoding="utf-8")
-    block = re.search(r"(?m)^# /// script\r?\n((?:#.*\r?\n)+?)# ///", text)
-    assert block, "chantier.py has no PEP 723 block"
-    inline = tomllib.loads("".join(re.sub(r"^# ?", "", line) for line in block[1].splitlines(True)))
-    project = tomllib.loads((CLI / "pyproject.toml").read_text(encoding="utf-8"))
-    assert _names(inline["dependencies"]) == _names(project["project"]["dependencies"])
-    assert inline["tool"]["uv"]["no-build"] is True
+def test_one_root_project_holds_the_dependencies_and_nothing_else_is_a_script() -> None:
+    root = CLI.parents[3]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    assert all("==" in dep for dep in project["project"]["dependencies"]), "pin each with =="
+    assert project["tool"]["uv"]["no-build"] is True
+    assert not (CLI / "pyproject.toml").exists()
+    assert not (CLI / "chantier.py").exists()
+    blocks = [
+        path.name
+        for path in SCOPE
+        if re.search(r"(?m)^# /// script\r?$", path.read_text(encoding="utf-8"))
+    ]
+    assert blocks == ["session_usage.py"], blocks

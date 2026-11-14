@@ -463,7 +463,7 @@ Only in the turn where the user gave the go:
    Your session title: <title>. Set it on yourself first.
    Read <skill>/references/foreman.md, <skill>/references/hosts/<host>.md and
    <skill>/references/concepts.md now and follow them.
-   CLI: uv run --script "<skill>/scripts/cli/chantier.py" <command> --batch <batch>
+   CLI: <$CHANTIER, exactly as your skill gives it> <command> --batch <batch>
    Repository: <this repository's absolute path>
    Team: <the lines of `$CHANTIER playbook`, as printed, and the review steps; or "the plugin's agents">
    Needs: <only if a role needs skills or tools: as printed>

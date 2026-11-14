@@ -84,4 +84,7 @@ board:
 Reach it over your private network: Tailscale (the tailnet's address) or your LAN (`0.0.0.0`
 listens on every network of the machine). **There is no password**: the Chief of Staff tells you
 the address and that fact when the board listens beyond the machine. You can also run it by hand:
-`chantier board --host <address> --port <n>`.
+`chantier board --host <address> --port <n>`. With no plugin and no agent, on a machine where only
+`uv` is installed, start it from a planning surface with
+`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
+(`<version>` is the release the surface's planners use).

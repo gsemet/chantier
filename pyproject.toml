@@ -4,9 +4,9 @@ version = "0.9.0"
 description = "CLI of the chantier skill: the CR lifecycle, the batch's limits and record, orders and asks, the long gate, cost."
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic>=2.11",
-    "ruamel.yaml>=0.18",
-    "psutil>=7",
+    "pydantic==2.14.3",
+    "ruamel.yaml==0.19.1",
+    "psutil==7.2.2",
 ]
 
 [project.scripts]
@@ -20,14 +20,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/chantier"]
+packages = ["skills/chantier/scripts/cli/src/chantier"]
+
+[tool.uv]
+no-build = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["skills/chantier/scripts/cli/tests"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+src = ["skills/chantier/scripts/cli/src"]
 extend-exclude = [".venv"]
 
 [tool.ruff.lint]
@@ -55,7 +59,11 @@ banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil"]
 strict = true
 python_version = "3.11"
 plugins = ["pydantic.mypy"]
-files = ["src", "tests", "session_usage.py"]  # chantier.py names the package `chantier`: it is run by uv, not typed here
+files = [
+    "skills/chantier/scripts/cli/src",
+    "skills/chantier/scripts/cli/tests",
+    "skills/chantier/scripts/cli/session_usage.py",
+]
 
 [[tool.mypy.overrides]]
 module = ["copilot_session_usage", "copilot_session_usage.*"]

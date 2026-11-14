@@ -29,8 +29,8 @@ V = r"(\d+\.\d+\.\d+)"
 # (file, pattern with one group holding the version, expected number of matches)
 TARGETS: list[tuple[Path, str, int]] = [
     (CLI / "src" / "chantier" / "__init__.py", rf'^__version__ = "{V}"$', 1),
-    (CLI / "pyproject.toml", rf'^version = "{V}"$', 1),
-    (CLI / "uv.lock", rf'^name = "chantier"\nversion = "{V}"$', 1),
+    (ROOT / "pyproject.toml", rf'^version = "{V}"$', 1),
+    (ROOT / "uv.lock", rf'^name = "chantier"\nversion = "{V}"$', 1),
     (SKILL / "SKILL.md", rf"^chantier-version: {V}$", 1),
     (ROOT / "skills" / "chief-of-staff" / "SKILL.md", rf"^chantier-version: {V}$", 1),
     (ROOT / "skills" / "griller" / "SKILL.md", rf"^chantier-version: {V}$", 1),

@@ -13,8 +13,9 @@ description: >-
 
 chantier-version: 0.9.0
 
-`$CHANTIER` means `uv run --script "<this skill's folder>/scripts/cli/chantier.py"`, with the
-absolute path of the folder this file is in. Nothing to install or set up: the plugin ships the
+`$CHANTIER` is the CLI, one launch in two modes, checked once at the session's start. The plugin root is the folder two levels above the common skill (`<plugin root>` = `<this skill's folder>/../..`, made absolute). If `<plugin root>/.git` exists (a folder or a file), this is chantier's own checkout, the dev mode: `$CHANTIER` is `uv run --locked --project "<plugin root>" chantier`, the local code, live, with no fetch. Otherwise it is a host's plugin copy, the plugin mode: `$CHANTIER` is `uvx --from "<plugin root>" chantier --skill "<this skill's folder>"`, the plugin's own folder, with no fetch.
+
+Nothing to install or set up but `uv`: the plugin ships the
 agents, the project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration, and everything chantier writes goes
 to the planning folder (`.agents/changes/`, or the project's folder of an external surface), as
 plain JSON and Markdown, and, when the project asks for it, a CR's archive in its PR. In a

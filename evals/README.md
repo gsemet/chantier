@@ -74,7 +74,7 @@ sandbox).
   names the runbook by its absolute path in this checkout. It is the Chief of Staff and plays the
   user in full: the go after the plan, every merge, every answer, every approval, the release's
   confirmation, the injected CR, `pause` coming and the "close the batch". Nothing waits on the
-  real user. `$CHANTIER` is `uv run --script "<this checkout>/skills/chantier/scripts/cli/chantier.py"`,
+  real user. `$CHANTIER` is `uv run --locked --project "<this checkout>" chantier`,
   run from the workspace. The plugin must be installed from this checkout (see "Before you
   start").
 - **A merge** is the user's, and the operator plays the user: `chief-of-staff.md`'s "Never merge"
@@ -187,7 +187,7 @@ These steps are for `claude-planted`.
    `../chantier-eval/<campaign>-<date>`: `uv run --no-project python evals/kit/setup.py
    <campaign> <workspace>`.
 2. **Be the Chief of Staff** in that workspace: load the chantier skill, run its CLI from the
-   workspace (`$CHANTIER` is `uv run --script "<this checkout>/skills/chantier/scripts/cli/chantier.py"`),
+   workspace (`$CHANTIER` is `uv run --locked --project "<this checkout>" chantier`),
    and start the batch as `chief-of-staff.md` says (preflight, plan, go), with the `open`
    command of the runbook. The Foreman's session starts with the workspace as its folder. The
    operator's shell lacks the workspace's `.claude/settings.local.json`: set its `env` before

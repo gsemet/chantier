@@ -23,17 +23,21 @@ AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
 INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md")
 
 
+SKILL: str | None = None  # `--skill`, set by the CLI before the command runs
+
+
 def skill_dir() -> Path:
-    """The skill folder: `CHANTIER_SKILL_DIR`, else the nearest parent of this file with
-    SKILL.md."""
-    env = os.environ.get("CHANTIER_SKILL_DIR")
-    if env:
-        return Path(env).resolve()
+    """The skill folder, in order: `--skill`, `CHANTIER_SKILL_DIR`, else the nearest parent of
+    this file with SKILL.md (chantier's own checkout, where the package is installed in place)."""
+    given = SKILL or os.environ.get("CHANTIER_SKILL_DIR")
+    if given:
+        return Path(given).resolve()
     for p in Path(__file__).resolve().parents:
         if (p / "SKILL.md").exists():
             return p
     raise ChantierError(
-        "cannot find the chantier skill folder; set CHANTIER_SKILL_DIR", EXIT_PRECONDITION
+        "cannot find the chantier skill folder: pass --skill <the skill's folder>",
+        EXIT_PRECONDITION,
     )
 
 
@@ -55,12 +59,24 @@ def plugin_root() -> Path | None:
     )
 
 
+def is_dev_checkout() -> bool:
+    """Whether the plugin root holds `.git` (a folder or a worktree's file): chantier's own
+    checkout, as opposed to a host's plugin copy."""
+    return (skill_dir().parents[1] / ".git").exists()
+
+
 def cli_command(repo: Repo | None = None) -> str:
-    """How every agent runs this CLI: the exact command, with the absolute path."""
+    """How every agent runs this CLI, by the mode of the install. In chantier's own checkout (the
+    plugin root holds `.git`, a folder or a file) it runs the local code,
+    `uv run --locked --project "<plugin root>" chantier`; anywhere else (a host's plugin copy) it
+    runs the plugin's own folder, `uvx --from "<plugin root>" chantier --skill "<skill folder>"`.
+    A planning surface adds `--project "<folder>"` after `chantier`."""
+    skill = skill_dir()
+    root = skill.parents[1]
     option = f' --project "{repo.project_folder.as_posix()}"' if repo and repo.external else ""
-    return (
-        f'uv run --script "{(skill_dir() / "scripts" / "cli" / "chantier.py").as_posix()}"{option}'
-    )
+    if is_dev_checkout():
+        return f'uv run --locked --project "{root.as_posix()}" chantier{option}'
+    return f'uvx --from "{root.as_posix()}" chantier --skill "{skill.as_posix()}"{option}'
 
 
 def detect_host(explicit: str | None = None) -> str:

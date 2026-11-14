@@ -8,7 +8,8 @@
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
 - The plugin must work with no setup: the user's `AGENTS.md`, and an optional `chantier.yaml` at
   the project's root, are the only configuration (with no `chantier.yaml` chantier runs as if it
-  were empty), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  were empty; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
+  packages), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
   when the project asks for it, and fast-forwards a clean main checkout after a merge it records.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
@@ -21,14 +22,16 @@
   to synchronise, and a few tools. The agents do the work, git and the forge included; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. One named
   exception: `chantier board`, a read-only web view of the record the CLI already keeps, for the
-  user in remote: it writes no file, takes its dependencies through the CLI's PEP 723 inline metadata like the
-  rest of the CLI, and knows no role; anything
+  user in remote: it writes no file, is part of the CLI's package and runs with no plugin too
+  (`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board`), and knows no role; anything
   more (answering an ask, filing an item) is another CR.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
-- The CLI's dependencies are Python packages declared in its scripts' PEP 723 inline metadata and
-  locked beside them; uv installs them at the first run, with no install by the user. A dependency
-  ships wheels for Linux, macOS and Windows and replaces hand-written code. The CLI stays portable
-  (POSIX and Windows, UTF-8 everywhere).
+- The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
+  there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a
+  plugin, from the plugin's own folder; in chantier's own checkout (a `.git` at the plugin root),
+  `uv run --locked --project` runs the local code, live. A dependency ships wheels for Linux, macOS
+  and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8
+  everywhere).
 - Tests check the structure only (`tests/`): keep them few and fast; the batch
   workflow belongs to `just scenario`.
 - A session here runs chantier itself, read live from the main checkout: use it to debug it. An
