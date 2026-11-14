@@ -7,6 +7,7 @@ import { start } from './core/refresh.js';
 import { configure, go, listen, resolve } from './core/router.js';
 import { snapshot, subscribe, update } from './core/store.js';
 import { nextLanguage, pick, setLanguage, t } from './model/words.js';
+import { closePanel, panelMarkup } from './panel/panel.js';
 import { bottomBar } from './ui/bottombar.js';
 import { notice, stats, title } from './ui/header.js';
 import { show } from './ui/host.js';
@@ -40,6 +41,7 @@ function draw(state) {
   drawNotice(state);
   show($('#view'), state);
   const panel = $('#panel');
+  paint(panel, panelMarkup(state));
   panel.classList.toggle('open', Boolean(state.panel));
   panel.inert = !state.panel;
 }
@@ -54,6 +56,10 @@ function listenToFrame() {
   delegate(body, 'click', '[data-project]', (_, el) => {
     update({ menu: false });
     go({ project: el.dataset.project });
+  });
+  delegate(body, 'click', '[data-close]', () => closePanel());
+  delegate(body, 'keydown', '[tabindex][data-go], [tabindex][data-project]', (event, el) => {
+    if (event.key === 'Enter') el.click();
   });
   delegate(body, 'click', '[data-menu]', () => update({ menu: !snapshot().menu }));
   delegate(body, 'click', '[data-lang]', () => {

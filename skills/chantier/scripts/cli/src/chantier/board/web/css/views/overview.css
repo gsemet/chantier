@@ -1,0 +1,122 @@
+/* The Overview view (All projects): a table on a desktop, cards on a phone. */
+.overview .note {
+  max-width: 760px;
+  margin: var(--space-4) 0 0;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.overview .tbl {
+  margin-top: var(--space-3);
+}
+
+.overview table {
+  font-size: 13.5px;
+}
+
+.overview td {
+  padding: var(--space-3) 10px;
+  vertical-align: middle;
+}
+
+.overview th {
+  padding: 6px 10px;
+  font-size: var(--text-small);
+}
+
+.overview tr[data-project] {
+  cursor: pointer;
+}
+
+.overview tr[data-project]:hover td {
+  background: var(--row-hover);
+}
+
+.overview .who {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.overview .who .mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: var(--text-small);
+}
+
+.overview .bad {
+  color: var(--tag-blocked-ink);
+}
+
+.overview .prlink {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 2px 7px;
+  border: 1px solid var(--tint-ready-edge);
+  border-radius: 7px;
+  background: var(--tint-ready-fill);
+  color: var(--tag-ready-ink);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.overview .prlink:hover {
+  border-color: var(--green);
+}
+
+.overview .mbar {
+  width: 110px;
+  margin-bottom: 3px;
+}
+
+.overview .mbar .meter {
+  height: 6px;
+}
+
+.overview .cards {
+  display: none;
+}
+
+.overview .apc {
+  margin-bottom: 10px;
+  padding: 11px var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--tint-queued-fill);
+  cursor: pointer;
+}
+
+.overview .apt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.overview .apt .mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: var(--text-small);
+}
+
+.overview .aps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  color: var(--ink2);
+  font-size: 12.5px;
+}
+
+@media (max-width: 760px) {
+  .overview .tbl {
+    display: none;
+  }
+
+  .overview .cards {
+    display: block;
+    margin-top: var(--space-3);
+  }
+}

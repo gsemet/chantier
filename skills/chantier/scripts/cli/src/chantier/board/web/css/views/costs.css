@@ -1,0 +1,48 @@
+/* The Costs view: the age line with its button, four figures, two tables with a bar per cost. */
+.costs .age {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: var(--space-4) 0 var(--space-3);
+  color: var(--ink2);
+}
+
+.costs .age .note {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.costs .btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.costs .kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.costs tr.click {
+  cursor: pointer;
+}
+
+.costs tr.click:hover td {
+  background: var(--row-hover);
+}
+
+.costs th.bar {
+  width: 28%;
+}
+
+@media (max-width: 760px) {
+  .costs .kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .costs .hide-phone {
+    display: none;
+  }
+}

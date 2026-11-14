@@ -1,0 +1,265 @@
+/* The Home view: attention tiles, then the batch, the open PRs, the activity and the backlog. */
+.home .tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: var(--space-4);
+}
+
+.home .blocks {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.home .block {
+  min-width: 0;
+  padding: 14px var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.home .wide {
+  grid-column: span 7;
+}
+
+.home .side {
+  grid-column: span 5;
+}
+
+.home h2,
+.home h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 10px;
+  font-size: var(--text);
+}
+
+.home h3 {
+  margin-top: var(--space-4);
+}
+
+.home .sub {
+  color: var(--ink3);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+.home .more {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+.home .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.home .legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.home .mini {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.home .mini div {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line2);
+}
+
+.home .mini small {
+  display: block;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.home .mini b {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.home .mini .late {
+  color: var(--warn-ink);
+}
+
+.home .list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.home .x {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  border: 1px solid var(--line2);
+  border-radius: var(--space-2);
+  font-size: 12.5px;
+}
+
+.home .x[data-open]:hover {
+  background: var(--row-hover);
+}
+
+.home .x b,
+.home .x .r,
+.home .x .tag {
+  flex: none;
+  white-space: nowrap;
+}
+
+.home .x .r {
+  margin-left: auto;
+  color: var(--ink3);
+}
+
+.home .ell {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.home .none {
+  padding: 10px var(--space-2);
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.home .feed {
+  max-height: 330px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.home .feed li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line2);
+  font-size: 12.5px;
+}
+
+.home .feed li:last-child {
+  border-bottom: 0;
+}
+
+.home .feed .t {
+  flex: none;
+  width: 42px;
+  color: var(--ink3);
+}
+
+.home .feed .ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-s);
+  background: var(--chip);
+  font-size: var(--text-small);
+}
+
+.home .feed .ic.ok {
+  background: var(--tag-ready-fill);
+  color: var(--tag-ready-ink);
+}
+
+.home .feed .ic.ko {
+  background: var(--tag-blocked-fill);
+  color: var(--tag-blocked-ink);
+}
+
+.home .feed .ic.pr {
+  background: var(--tag-cr-fill);
+  color: var(--tag-cr-ink);
+}
+
+.home .pipe {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home .pipe-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 34px;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink2);
+  font-size: 12.5px;
+}
+
+.home .pipe .bar {
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: var(--chip);
+}
+
+.home .pipe .bar i {
+  width: var(--w, 0);
+  background: var(--c, var(--grey));
+}
+
+.home .pipe .n {
+  color: var(--ink);
+  font-weight: 600;
+  text-align: right;
+}
+
+.home .kpi.hot b {
+  color: var(--red);
+}
+
+.home .kpi.go b {
+  color: var(--ok-ink);
+}
+
+.home .kpi.calm b {
+  color: var(--ink3);
+}
+
+@media (max-width: 760px) {
+  .home .tiles {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .home .blocks {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .home .wide,
+  .home .side {
+    grid-column: auto;
+  }
+
+  .home .mini {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -65,3 +65,134 @@
   background: var(--tint-queued-fill);
   border-color: var(--tint-queued-edge);
 }
+
+/* the CR tag, the release and fix tags, the priority tags */
+.tag.cr,
+.tag.pri-3-ready {
+  background: var(--tag-cr-fill);
+  color: var(--tag-cr-ink);
+}
+
+.tag.rel {
+  background: var(--tag-queued-fill);
+  color: var(--ink2);
+}
+
+.tag.pri-P1 {
+  background: var(--tag-blocked-fill);
+  color: var(--tag-blocked-ink);
+}
+
+.tag.pri-P2 {
+  background: var(--tag-waits-fill);
+  color: var(--tag-waits-ink);
+}
+
+.tag.pri-P3 {
+  background: var(--tag-working-fill);
+  color: var(--tag-working-ink);
+}
+
+.tag.pri-P4,
+.tag.pri-inbox {
+  background: var(--tag-queued-fill);
+  color: var(--tag-queued-ink);
+}
+
+/* the CR's slug, the muted label next to a tag */
+.lbl {
+  font-size: var(--text-small);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0 6px;
+  color: var(--ink2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+/* a clickable card, row or node: the keyboard reaches it, the edge darkens on hover */
+[data-open] {
+  cursor: pointer;
+}
+
+.card[data-open]:hover {
+  border-color: color-mix(in srgb, var(--edge, var(--line)), var(--ink) 22%);
+}
+
+.card.sel {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--halo);
+}
+
+.row-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ttl {
+  margin-top: 6px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.desc {
+  margin-top: 4px;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.meta .r {
+  margin-left: auto;
+}
+
+.meta .svgi,
+.nm .svgi {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
+/* an extension place stays empty and takes no room */
+.place:empty {
+  display: none;
+}
+
+.hbar {
+  height: 8px;
+  width: var(--w, 0);
+  background: var(--c, var(--blue));
+  border-radius: 4px;
+  opacity: 0.85;
+}
+
+.h2t {
+  font-size: 15px;
+  margin: 22px 0 8px;
+}
+
+.kpi .sub {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}

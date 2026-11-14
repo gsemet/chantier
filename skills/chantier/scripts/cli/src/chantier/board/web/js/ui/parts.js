@@ -29,11 +29,25 @@ export function meter(parts, whole) {
   return html`<div class="meter">${bars}</div>`;
 }
 
-// A figure with its label and sub-line: `tone` is calm, go or hot; `go` the place a click opens.
-export function kpi({ tone = '', label, value, sub = '', go = null }) {
-  const attrs = go ? html` data-go="${go}"` : '';
-  return html`<div class="kpi ${tone}"${attrs}><span class="l">${label}</span><b>${value}</b><span>${sub}</span></div>`;
+// A figure with its label and sub-line: `tone` is calm, go or hot; `go` the view a click opens;
+// `extra` is markup under the figure (a meter).
+export function kpi({ tone = '', label, value, sub = '', go = null, extra = '' }) {
+  const attrs = go ? html` data-go="${go}" role="link" tabindex="0"` : '';
+  return html`<div class="kpi ${tone}"${attrs}><span class="l">${label}</span><b>${value}</b>${extra}<span class="sub">${sub}</span></div>`;
 }
+
+const STATE_COLOR = {
+  working: 'var(--blue)',
+  queued: 'var(--grey)',
+  waits: 'var(--amber)',
+  blocked: 'var(--red)',
+  ready: 'var(--green)',
+  merged: 'var(--ok-ink)',
+};
+
+// The token colour of a state, by its name or by a CR.
+export const stateColor = (s) =>
+  STATE_COLOR[typeof s === 'string' ? s : vstate(s)] ?? 'var(--grey)';
 
 // What a view shows when it has nothing to show.
 export const empty = (text) => html`<div class="empty">${text}</div>`;
