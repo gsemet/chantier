@@ -245,7 +245,7 @@ Talk to the Chief of Staff in plain language:
 
 ## More
 
-- [Boards](docs/boards.md): the CR board and the remote board.
+- [Boards](docs/boards.md): the CR board and the web board.
 - [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`.
 - [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.

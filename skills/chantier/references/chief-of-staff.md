@@ -38,7 +38,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
-| "board on my phone", "where is the board?" | the board's address; on the user's word `board.host` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>` | [session-start](session-start.md) |
+| "board on my phone", "where is the board?" | the board's link again (it holds the key); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>` | [session-start](session-start.md) |
 
 ## Hard rules
 
@@ -894,8 +894,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
     agent X as the coder".
   - After a status: "what did it cost?", once a CR has spent; `/chantier:status` from any session,
     for the table at once; `/chantier-board` to show or hide the CR board (Claude Code only, never
-    on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>"; in remote, when the board listens on `127.0.0.1`
-    only, "board on my phone" (on the user's word, `board.host` is set in `chantier.yaml`).
+    on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>"; in remote, "board on my phone" (the link
+    again; on the user's word, `board.host: 127.0.0.1` in `chantier.yaml` keeps the board on this
+    machine).
   - End of a batch: "close the batch"; "add <slug> to this batch"; "why did it cost that?";
     "release v<x.y.z>"; "run what is in 3-ready", when that folder holds CRs.
   - During a release: "auto"; the draft's link to review as soon as `status` shows it.

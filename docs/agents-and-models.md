@@ -25,7 +25,7 @@ prices:                    # a model chantier has no price for yet, in $/MTok
     output: 15
 ```
 
-The file's other keys are `prices`, `board` (where [the remote board](boards.md#the-remote-board) listens: `host`
+The file's other keys are `prices`, `board` (where [the web board](boards.md#the-web-board) listens: `host`
 and `port`) and `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
 minutes on every approved round, off by default). Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier
