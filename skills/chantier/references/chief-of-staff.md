@@ -39,6 +39,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
 | "board on my phone", "where is the board?" | the board's link again (it holds the key); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>` | [session-start](session-start.md) |
+| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); without autosync, commit the planning folder by hand; tell the user what moved and whether the next batch is declared ready | [session-start](session-start.md) |
 
 ## Hard rules
 

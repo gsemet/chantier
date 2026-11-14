@@ -16,7 +16,7 @@ from chantier.board.files import is_lock
 # folders only, so a shallow walk of them is enough (a folder added or removed moves its parent).
 DEEP = ("1-inbox", "2-backlog", "3-ready", "4-batch")
 SHALLOW = ("5-archives", "6-trash", "5-archives/batches")
-SINGLE = ("seat.json",)  # the batch's own files are in `4-batch`
+SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl")  # the batch's are in `4-batch`
 
 
 def _entry(path: Path, base: Path) -> str:

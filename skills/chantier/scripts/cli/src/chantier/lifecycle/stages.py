@@ -261,35 +261,36 @@ def archive_name(cr: CrEntry, folder: Path) -> str:
     return f"{day}-{folder.name}"
 
 
-def move_backlog_item(
-    repo: Repo, item: str, priority: str | None, paths: dict[str, Path], ready: bool = False
-) -> Path:
-    """Triage: an inbox or backlog item to a priority, or to `3-ready`; an item of `3-ready`
-    back to a priority. `3-ready` keeps no priority."""
-    if (priority is None) == (not ready):
-        raise ChantierError("triage takes --priority P<n> or --ready, one of them", EXIT_USAGE)
-    if priority is not None and priority not in PRIORITIES:
-        raise ChantierError(f"priority must be one of {', '.join(PRIORITIES)}", EXIT_USAGE)
+TRIAGE_USAGE = "triage takes --priority P<n>, --ready or --inbox, one of them"
+
+
+def _destination(paths: dict[str, Path], source: Path, to: str) -> tuple[Path, str]:
+    """The folder an item moves to and how it is named in a message; refused when it is there."""
+    if to == "inbox":
+        folder, where, said = paths["inbox"], "1-inbox", f"{source.name} is already in 1-inbox"
+    elif to == "3-ready":
+        folder, where, said = paths["ready"], "3-ready", f"{source.name} is already in 3-ready"
+    else:
+        folder, where, said = paths["backlog"] / to, to, f"{source.name} is already {to}"
+    if source.parent == folder:
+        raise ChantierError(said, EXIT_PRECONDITION)
+    return folder / source.name, where
+
+
+def move_backlog_item(repo: Repo, item: str, to: str, paths: dict[str, Path]) -> Path:
+    """Triage: an item of the inbox, of a priority or of `3-ready` to `to`: `inbox`, a priority
+    or `3-ready`. `3-ready` keeps no priority."""
+    if to not in ("inbox", "3-ready", *PRIORITIES):
+        raise ChantierError(TRIAGE_USAGE, EXIT_USAGE)
     source = repo.planning_path(item, "CR folder")
     held = source.parent.parent == paths["backlog"] and source.parent.name in PRIORITIES
-    waiting = source.parent == paths["ready"]
-    if source.parent != paths["inbox"] and not held and not waiting:
+    if source.parent not in (paths["inbox"], paths["ready"]) and not held:
         raise ChantierError(
             "triage expects a CR folder: 1-inbox/<item>, 2-backlog/P<n>/<item> or "
             f"3-ready/<item>; got {source}",
             EXIT_USAGE,
         )
-    if ready:
-        if waiting:
-            raise ChantierError(f"{source.name} is already in 3-ready", EXIT_PRECONDITION)
-        target = paths["ready"] / source.name
-        where = "3-ready"
-    else:
-        assert priority is not None  # the check above: no priority only with `ready`
-        if held and source.parent.name == priority:
-            raise ChantierError(f"{source.name} is already {priority}", EXIT_PRECONDITION)
-        target = paths["backlog"] / priority / source.name
-        where = priority
+    target, where = _destination(paths, source, to)
     if target.exists():
         raise ChantierError(
             f"{where} already holds {source.name}: nothing moved", EXIT_PRECONDITION

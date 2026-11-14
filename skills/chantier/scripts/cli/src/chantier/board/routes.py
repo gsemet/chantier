@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from chantier.board import costs, files, guard, static
+from chantier.board import costs, files, guard, static, write_api
 from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
@@ -138,6 +138,7 @@ ROUTES: list[tuple[str, str, Handler]] = [
     ("GET", r"/api/projects/([^/]+)/costs", costs_of),
     ("POST", r"/api/projects/([^/]+)/costs/recompute", recompute),
     ("POST", r"/api/seats", seats),
+    *write_api.ROUTES,
 ]
 
 
@@ -167,7 +168,7 @@ def _judged(ctx: Context, req: Request) -> Reply:
         return text(401, guard.NEEDS_KEY)
     if req.method not in guard.ALLOWED:
         return guard.not_allowed()
-    refused = guard.refusal(req) if req.method == "POST" else None
+    refused = guard.refusal(req) if req.method in guard.WRITE else None
     if refused:
         return refused
     try:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,7 @@ IMAGES = {
     ".webp": "image/webp",
 }
 NOT_FOUND = "not found"
+SHA_HEADER = "X-Chantier-Sha256"  # of the file's bytes on disk, sent when the text is not cut
 
 
 def is_lock(name: str) -> bool:
@@ -118,9 +120,11 @@ def read(root: Path, rel: str) -> Reply:
     size = target.stat().st_size
     if kind == "text":
         raw = retry(_head, target)
-        cut = {"X-Chantier-Cut": "1"} if size > TEXT_LIMIT else {}
+        head = (
+            {"X-Chantier-Cut": "1"} if size > TEXT_LIMIT else {SHA_HEADER: sha256(raw).hexdigest()}
+        )
         body = raw[:TEXT_LIMIT].decode("utf-8-sig", errors="replace").encode("utf-8")
-        return Reply(200, body, "text/plain; charset=utf-8", cut)
+        return Reply(200, body, "text/plain; charset=utf-8", head)
     if kind == "image" and size <= IMAGE_LIMIT:
         return Reply(200, retry(target.read_bytes), IMAGES[ext])
     return Reply(

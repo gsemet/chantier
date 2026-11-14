@@ -7,7 +7,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.commands.crs import new_request, shown, slugify
 from chantier.commands.opening import cr_slug
 from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
 from chantier.core.clock import stamp
@@ -20,12 +19,14 @@ from chantier.core.records import (
     write_restored_number,
 )
 from chantier.core.repo import Repo
+from chantier.lifecycle.backlog import file_idea, move_item
 from chantier.lifecycle.convert import convert_old_tree, open_repo
+from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import (
     PRIORITIES,
+    TRIAGE_USAGE,
     changes_lock,
     ensure_unclaimed,
-    move_backlog_item,
     stage_layout,
 )
 from chantier.status.write import write_dashboard
@@ -63,7 +64,6 @@ def init(args: argparse.Namespace) -> list[str]:
 
 def file_cr(args: argparse.Namespace) -> list[str]:
     repo = open_repo()
-    paths = stage_layout(repo)
     if args.item.startswith("@"):
         source = Path(args.item[1:]).expanduser()
         if not source.is_absolute():
@@ -76,26 +76,14 @@ def file_cr(args: argparse.Namespace) -> list[str]:
     else:
         text = args.item
         raw = text.encode("utf-8")
-    if not text.strip():
-        raise ChantierError("the request is empty", EXIT_USAGE)
-    title = next(line.lstrip("# ").strip() for line in text.splitlines() if line.strip())
-    slug = args.slug or slugify(title)
-    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", slug):
-        raise ChantierError("CR slug: lowercase letters, digits and hyphens", EXIT_USAGE)
-    with changes_lock(repo):
-        folder = new_request(repo, slug, raw)
-        write_dashboard(repo, paths)
-    return [f"filed {shown(repo, folder)}; write the intent and grill the CR here"]
+    return file_idea(repo, text, args.slug, raw)
 
 
 def triage(args: argparse.Namespace) -> list[str]:
-    repo = open_repo()
-    with changes_lock(repo):
-        target = move_backlog_item(
-            repo, args.item, args.priority, stage_layout(repo), ready=args.ready
-        )
-        write_dashboard(repo, stage_layout(repo))
-    return [f"triaged {shown(repo, target)}" + (f" ({args.priority})" if args.priority else "")]
+    chosen = [args.priority, "3-ready" if args.ready else None, "inbox" if args.inbox else None]
+    if sum(c is not None for c in chosen) != 1:
+        raise ChantierError(TRIAGE_USAGE, EXIT_USAGE)
+    return move_item(open_repo(), args.item, next(c for c in chosen if c))
 
 
 def abandon(args: argparse.Namespace) -> list[str]:

@@ -87,11 +87,15 @@ started.
   Driver) → `3-done/` (merged, until `close`) → `5-archives/<YYMMDD-HHMM>-<number>-<slug>/`
   (after `close`, the time of the merge) or `6-trash/…` (dropped, with its work; it returns to
   the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
-  date or its batch number, and with a line `formerly CR-<n> of batch-<m>`).
+  date or its batch number, and with a line `formerly CR-<n> of batch-<m>`). A CR in the backlog
+  or in `3-ready` goes back to the inbox with `triage <item> --inbox`.
 - **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no
   specification: the Driver works from the request alone), moved there on the user's word. It is
   not "ready to merge": a CR handed back `ready` sits in `4-batch/2-actives/`, never in
-  `3-ready`. Write the folder `3-ready`, never "the ready CRs".
+  `3-ready`. Write the folder `3-ready`, never "the ready CRs". From the web board the user may
+  say "the next batch is ready": the board writes `next-batch.json` in the planning folder (the
+  time and the slugs then in `3-ready`). It is the user's word and decides nothing: the Chief of
+  Staff reads it and still asks before opening a batch.
 - **A CR's name:** when an agent names a CR to a person or in a report (messages, report tables,
   asks; in a CR's PR only the description's Internal references section, never the title or the
   body's text, unless the project's rules say otherwise), it gives the number and the short slug
