@@ -11,14 +11,17 @@ first trial of the card's unproved GitHub lines (`gh issue artifact`, a comment 
 
 Follow the sandbox campaign text in [the evals README](../README.md#a-sandbox-campaign) (the
 preparation, the run's number and prefix, the operator), with these differences: no batch is
-opened, and no PR is merged.
+opened, no PR is merged, and setup places no frozen CR.
 
 ## Setup, by the operator
 
-1. Create one issue on the sandbox, its title starting with the run's prefix
-   (`gh issue create --body-file <file>`); note its number `<n>`.
-2. File a CR from it (`$CHANTIER file`, with the `issue: <link>` line under the title of
-   `01-intent.md`) and a second CR from the chat, with no ticket.
+1. Prepare as the evals README's sandbox campaign text says, with
+   `uv run --no-project python evals/kit/setup.py ticket-summary <workspace>`.
+2. Run the `issue` line setup printed (the frozen issue, its title with the run's prefix); note
+   its number `<n>`.
+3. File a CR from it (`$CHANTIER file`, with the `issue: <link>` line under the title of
+   `01-intent.md`), and a second CR from the chat with the text of the `chat` line's file, with
+   no ticket.
 
 ## The user's turns
 

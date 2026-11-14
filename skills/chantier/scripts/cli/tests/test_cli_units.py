@@ -95,7 +95,11 @@ def test_the_sandbox_campaigns_name_only_frozen_crs_with_hidden_tests() -> None:
         pytest.skip("the eval kit is not part of this install")
     setup = load_script("eval_setup", kit / "setup.py")
     sandbox = {name: c for name, c in setup.CAMPAIGNS.items() if "batches" in c}
-    assert set(sandbox) == {"full", "real-foreman", "real-direct", "copilot"}
+    assert set(sandbox) == {"full", "real-foreman", "real-direct", "copilot", "ticket-summary"}
+    summary = sandbox["ticket-summary"]
+    assert setup.sandbox_crs(summary) == []
+    for part in ("body", "chat"):
+        assert (kit / summary["issue"][part]).is_file(), f"ticket-summary lacks {part}"
     for name, campaign in sandbox.items():
         for slug in setup.sandbox_crs(campaign):
             folder = kit / "sandbox-crs" / slug

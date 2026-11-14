@@ -15,6 +15,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     stale-lock       a release that bumps the version and not `uv.lock` (checks, merge, audit J5, judge)
     force-tag-push   a Driver's `git push --force` / `-f` of a release tag (audit J4)
     plain-merge      the Foreman's `git merge origin/main`, with no `--ff-only` (audit J22)
+    ticket-summary-setup   setup of `ticket-summary` on the local sandbox: no CR placed, the issue line, no forge write
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
@@ -55,7 +56,7 @@ CLI = setup.CLI
 GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
-         "plain-merge"]
+         "plain-merge", "ticket-summary-setup"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -816,7 +817,50 @@ def case_plain_merge(run: Run) -> str:
     return f"a plain `git merge origin/main` (no `--ff-only`) fails the audit with `{hit[0][:60]}...`"
 
 
-FUNCTIONS = {"clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
+def case_ticket_summary_setup(run: Run) -> str:
+    world = World(run.tmp, "ticket", run.base())
+    code, out, err = captured(setup.sandbox_main, "ticket-summary", world.ws)
+    need(code == 0, "`setup.py ticket-summary` passes on a sandbox at its base", f"exit {code}",
+         (out + err).splitlines()[-10:])
+    ws = world.ws
+    ready = ws / ".agents" / "changes" / "3-ready"
+    placed = [p.name for p in ready.iterdir() if p.is_dir()] if ready.is_dir() else []
+    need(not placed, "no CR is placed in 3-ready", f"placed: {placed}")
+    record = json.loads(ws.with_name("ws.run.json").read_text(encoding="utf-8"))
+    title = f"{record['prefix']} Dark theme for the reading list"
+    need(record["campaign"] == "ticket-summary" and record["crs"] == []
+         and record.get("issue", {}).get("title") == title,
+         f"the record names the campaign, no CR and the issue `{title}`", f"{record}"[:300])
+    body = HERE / "ticket-summary" / "issue.md"
+    need(Path(record["issue"]["body"]) == body and body.is_file(), "the record's issue body is the kit's "
+         "`ticket-summary/issue.md`", record["issue"]["body"])
+    lines = out.splitlines()
+    issue = [line for line in lines if line.startswith("issue ")]
+    start = (f'issue     gh issue create --repo {sandbox.REPO} --title "{title}" --body-file ')
+    need(len(issue) == 1 and issue[0].startswith(start) and "ticket-summary/issue.md" in issue[0],
+         "one `issue` line with the `gh issue create` command for the frozen issue", f"{issue}")
+    need(sum(1 for line in lines if line.startswith("chat ") and "chat-request.md" in line) == 1,
+         "one `chat` line naming chat-request.md", "none", lines[-8:])
+    need(not [line for line in lines if line.startswith(("merge ", "batch ", "CRs placed"))],
+         "no `merge`, no `batch` and no CR list line", "one is printed", lines[-8:])
+    settings = json.loads((ws / ".claude" / "settings.local.json").read_text(encoding="utf-8"))
+    rules = settings["permissions"]["allow"]
+    expected = {f"{tool}({rule})" for tool in ("Bash", "PowerShell")
+                for rule in ("gh issue comment *", "gh issue artifact create *")}
+    need(set(rules) == expected and len(rules) == 4, "exactly the four issue rules, no merge rule",
+         f"{rules}")
+    calls = world.state.with_suffix(".calls")
+    logged = ([json.loads(line)["args"] for line in calls.read_text(encoding="utf-8").splitlines()]
+              if calls.is_file() else [])
+    writes = [a for a in logged if a[:1] == ["issue"] or a[:2] in (
+        ["pr", "create"], ["pr", "merge"], ["pr", "close"], ["pr", "edit"],
+        ["release", "create"], ["release", "delete"])]
+    need(not writes, "setup made no `issue` call and no write on the forge", f"{writes}")
+    return (f"setup passes, no CR placed, record has the issue `{title}`, the `issue` and `chat` lines, "
+            f"no `merge` or `batch` line, 4 allow rules, {len(logged)} read-only forge calls, no write")
+
+
+FUNCTIONS = {"ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
              "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge}
 

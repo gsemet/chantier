@@ -9,7 +9,7 @@ which review steps the project's `AGENTS.md` declares, and which CI contracts th
 Claude, `.claude/settings.local.json` puts the forge's folder first on `PATH` for every session in
 the workspace (the Foreman, its Drivers and workers): their `gh` is the local forge.
 
-`full`, `real-foreman`, `real-direct`, `copilot`: the sandbox (shelf, on GitHub). Setup checks that
+`full`, `real-foreman`, `real-direct`, `copilot`, `ticket-summary`: the sandbox (shelf, on GitHub). Setup checks that
 the sandbox is at its base (it never resets and never pushes), takes the run's number, clones the
 sandbox into `<workspace>`, runs `chantier init` and `uv sync --locked` there, places the frozen
 CRs (`kit/sandbox-crs/`) in `.agents/changes/3-ready/` with the run's PR-title convention, writes
@@ -17,6 +17,11 @@ CRs (`kit/sandbox-crs/`) in `.agents/changes/3-ready/` with the run's PR-title c
 Claude, it also writes the workspace's `.claude/settings.local.json` (ignored by the sandbox's git)
 with the rules the user's settings may lack: the operator's merge (`sandbox.py merge`) and, for a
 release, its tag push and its GitHub release; nothing else.
+
+`ticket-summary` places no CR and opens no batch: instead of the `open` lines, setup prints the
+`gh issue create` line of the campaign's frozen issue (`kit/ticket-summary/`) and the path of the
+ticket-less chat request, and allows the two posting commands (`gh issue comment`, `gh issue
+artifact create`) in place of the merge. It creates nothing on the forge: the operator runs the line.
 
 Exit codes: 0 ok, 1 usage, 2 precondition, 4 external (git, gh or uv failed). Standard library only.
 """
@@ -63,6 +68,11 @@ CAMPAIGNS = {
         {"crs": QUICK, "added": [], "slots": 3, "budget": 20, "direct": True}]},
     "copilot": {"host": "copilot", "batches": [
         {"crs": ["delete-item"], "added": [], "slots": 1, "budget": 3}]},
+    # no batch and no frozen CR: one issue the operator creates, one request typed in the chat
+    "ticket-summary": {"host": "claude", "batches": [],
+                       "issue": {"title": "Dark theme for the reading list",
+                                 "body": "ticket-summary/issue.md",
+                                 "chat": "ticket-summary/chat-request.md"}},
 }
 OK, USAGE, PRECONDITION, EXTERNAL = sandbox.OK, sandbox.USAGE, sandbox.PRECONDITION, sandbox.EXTERNAL
 
@@ -201,6 +211,8 @@ def allow_rules(spec: dict) -> list[str]:
     """The permission rules a sandbox run needs and the user's settings may lack: the merge, and
     for each release CR the tag push and the GitHub release of RELEASING.md (steps 6 and 7)."""
     both = lambda rule: [f"Bash({rule})", f"PowerShell({rule})"]  # noqa: E731
+    if spec.get("issue"):  # merges nothing; posts the ticket summary on GitHub
+        return both("gh issue comment *") + both("gh issue artifact create *")
     rules = both(f"{merge_command()} *")
     for slug in sandbox_crs(spec):
         m = re.fullmatch(r"release-v(\d+)-(\d+)-(\d+)", slug)
@@ -282,22 +294,41 @@ def sandbox_main(campaign: str, dest: Path) -> int:
     record = {"campaign": campaign, "run": run, "date": date, "prefix": prefix,
               "repository": sandbox.REPO, "base": base, "chantier": chantier,
               "host": spec["host"], "crs": sandbox_crs(spec)}
+    if spec.get("issue"):
+        record["issue"] = {"title": f"{prefix} {spec['issue']['title']}",
+                           "body": str(HERE / spec["issue"]["body"])}
     dest.with_name(dest.name + ".run.json").write_bytes(
         (json.dumps(record, indent=2) + "\n").encode("utf-8"))
     # 6. the summary
     print(f"campaign  {campaign}\nrun       {run}\nprefix    {prefix}\nworkspace {dest}\n"
           f"base      {base}\nchantier  {chantier['version']} {chantier['commit']}"
           f"{' (dirty tree)' if chantier['dirty'] else ''}")
-    print(f"CRs placed in .agents/changes/3-ready/ ({len(record['crs'])}):")
-    print("".join(f"  {slug}\n" for slug in record["crs"]), end="")
+    if record["crs"]:
+        print(f"CRs placed in .agents/changes/3-ready/ ({len(record['crs'])}):")
+        print("".join(f"  {slug}\n" for slug in record["crs"]), end="")
     print(f"\nCHANTIER = uv run --locked --project \"{ROOT}\" chantier   (run from the workspace)")
-    print(f"merge     {merge_command()} <pr>   (run from the workspace)")
+    if spec.get("issue"):
+        print(issue_lines(record["issue"], spec["issue"]))
+    else:
+        print(f"merge     {merge_command()} <pr>   (run from the workspace)")
     if allowed:
         print(f"allowed   {allowed} rules in .claude/settings.local.json")
     for number, line in enumerate(open_lines(spec, campaign), 1):
         added = spec["batches"][number - 1]["added"]
         print(f"batch {number}: {line}" + (f"   (added during it: {', '.join(added)})" if added else ""))
     return OK
+
+
+def issue_lines(issue: dict, frozen: dict) -> str:
+    """The `ticket-summary` campaign's next steps: the issue's creation line and the chat request."""
+    body = (HERE / frozen["body"]).as_posix()
+    if " " in body:
+        body = f'"{body}"'
+    create = (f'gh issue create --repo {sandbox.REPO} --title "{issue["title"]}" '
+              f"--body-file {body}")
+    return (f"issue     {create}   (run it, then note its number)\n"
+            f"chat      {(HERE / frozen['chat']).as_posix()}   "
+            "(the ticket-less request, typed in the chat)")
 
 
 if __name__ == "__main__":
