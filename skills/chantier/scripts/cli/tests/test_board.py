@@ -25,6 +25,8 @@ MODULES = [
     "reply",
     "static",
     "context",
+    "journal",
+    "write_api",
 ]
 LAZY = ("starlette", "uvicorn")
 

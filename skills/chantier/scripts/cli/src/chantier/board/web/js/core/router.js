@@ -40,7 +40,20 @@ function settle(place) {
   return place;
 }
 
-const reset = { data: null, etag: null, now: null, fails: 0, panel: null, menu: false };
+const reset = {
+  data: null,
+  etag: null,
+  now: null,
+  fails: 0,
+  panel: null,
+  menu: false,
+  editing: null,
+  selection: [],
+  labelFilter: [],
+  journalOpen: false,
+  journal: null,
+  pending: [],
+};
 
 function apply(place) {
   const moved = place.project !== snapshot().project;
@@ -53,6 +66,8 @@ function apply(place) {
 export const href = (place) =>
   `?${new URLSearchParams({ p: place.project ?? '', v: place.view ?? 'home' })}`;
 
+let here = null; // the address the page last settled on
+
 export function go(place, { replace = false } = {}) {
   const now = snapshot();
   const next = settle({
@@ -61,13 +76,27 @@ export function go(place, { replace = false } = {}) {
   });
   if (replace) history.replaceState(null, '', href(next));
   else history.pushState(null, '', href(next));
+  here = location.href;
   apply(next);
 }
 
-// The back and forward buttons.
+// A guard asked before back or forward leaves the page: it answers true to let it go.
+let guard = null;
+export const guardLeave = (fn) => {
+  guard = fn;
+};
+
+// The back and forward buttons. A refused leave puts the address back where it was.
 export function listen() {
-  window.addEventListener('popstate', () => {
+  here = location.href;
+  window.addEventListener('popstate', async () => {
     const board = snapshot().board;
-    if (board) apply(settle(resolve(board.projects)));
+    if (!board) return;
+    if (guard && !(await guard())) {
+      history.pushState(null, '', here); // here is where the page still is
+      return;
+    }
+    apply(settle(resolve(board.projects)));
+    here = location.href;
   });
 }

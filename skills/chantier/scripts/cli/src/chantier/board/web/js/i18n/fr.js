@@ -1,4 +1,6 @@
 // Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../model/words.js.
+import write from './fr-write.js';
+
 export default {
   'lang.name': 'Français',
   'lang.switch': 'English',
@@ -222,4 +224,5 @@ export default {
   'panel.other': '{name} ({size}) ne peut pas être affiché ici.',
   'panel.tree': 'Fichiers du dossier',
   'panel.doc': 'Fichier',
+  ...write,
 };

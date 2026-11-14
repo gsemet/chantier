@@ -1,0 +1,230 @@
+/* Triage: the inbox, the backlog lanes and 3-ready, as post-its. Colours come from tokens.css only. */
+.triage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  height: 100%;
+}
+
+.tbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.ind {
+  border: 1px solid var(--ind-no-edge);
+  background: var(--ind-no-fill);
+  color: var(--ind-no-ink);
+  border-radius: var(--radius-m);
+  padding: 6px 10px;
+  font-size: var(--text-small);
+}
+
+.ind.ok {
+  border-color: var(--ind-ok-edge);
+  background: var(--ind-ok-fill);
+  color: var(--ind-ok-ink);
+}
+
+.ind b {
+  font-weight: 600;
+}
+
+.legend2 {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  flex-wrap: wrap;
+}
+
+.legend2 span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* the grill mark: a dashed circle, a part-filled one, a green tick, a violet bolt */
+.gs {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: var(--text-badge);
+  line-height: 1;
+  flex: none;
+}
+
+.gs.raw {
+  border: 1.5px dashed var(--grey);
+}
+
+.gs.grill {
+  border: 1.5px solid var(--amber);
+  background: conic-gradient(var(--amber) 0 50%, var(--gs-grill-rest) 50% 100%);
+}
+
+.gs.specifying {
+  border: 1.5px solid var(--amber);
+  background: conic-gradient(var(--amber) 0 75%, var(--gs-grill-rest) 75% 100%);
+}
+
+.gs.specified {
+  background: var(--green);
+  color: var(--white);
+}
+
+.gs.specified::after {
+  content: "✓";
+}
+
+.gs.automatable {
+  background: var(--violet);
+  color: var(--white);
+}
+
+.gs.automatable::after {
+  content: "⚡";
+}
+
+.tri {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.tcol {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--col-fill);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.tcol.rdy {
+  background: var(--ready-fill);
+  border-color: var(--ready-edge);
+}
+
+.tcol.over,
+.tbody .over,
+.grpf.over {
+  background: var(--drop-fill);
+  border-color: var(--drop-edge);
+}
+
+.colh {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.colh h2 {
+  margin: 0;
+  font-size: var(--text);
+  font-weight: 600;
+}
+
+.colh .c {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.colh .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--grey);
+}
+
+.scs {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.sc {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ink2);
+  font-size: var(--text-badge);
+}
+
+.tbody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.lanes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  overflow: auto;
+}
+
+.lanesh {
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.tcol.lane {
+  flex: none;
+}
+
+/* an empty lane is a thin strip */
+.tcol.lane.empty {
+  padding: 6px var(--space-3);
+}
+
+.tcol.lane.empty .tbody {
+  display: none;
+}
+
+.dropzone {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-m);
+  padding: 10px;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-align: center;
+}
+
+.rfoot {
+  color: var(--ink2);
+  font-size: var(--text-small);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (max-width: 760px) {
+  /* the three columns are swiped side by side */
+  .tri {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .tri > .tcol,
+  .tri > .lanes {
+    flex: 0 0 86%;
+    scroll-snap-align: center;
+  }
+}

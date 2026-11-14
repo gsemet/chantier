@@ -65,6 +65,39 @@
   --col-fill: #f6f7f9;
   --row-hover: #fafbfc;
 
+  /* Triage: the post-its by grill state, the next-batch indicator, the column over a drag */
+  --pi-raw-fill: #fafafa;
+  --pi-grill-fill: #fff6e0;
+  --pi-spec-fill: #e9f8ef;
+  --pi-auto-fill: #f3eefe;
+  --gs-grill-rest: #f3e2c4;
+  --ind-ok-fill: #eefaf3;
+  --ind-ok-edge: #bfe8d1;
+  --ind-ok-ink: #1f6b44;
+  --ind-no-fill: #fff6ec;
+  --ind-no-edge: #f3d6ad;
+  --ind-no-ink: #8a5410;
+  --drop-fill: #eef3fd;
+  --drop-edge: #b9cdf6;
+  --ready-fill: #f3faf6;
+  --ready-edge: #d3eedf;
+  --note-fill: #e8effd;
+
+  /* the labels' six colours, in the order of the project's sorted labels */
+  --label-0: #2a56b8;
+  --label-1: #8f5400;
+  --label-2: #1c6e44;
+  --label-3: #7440c0;
+  --label-4: #b02f4b;
+  --label-5: #515867;
+
+  /* the dark surfaces: the selection bar and the toast */
+  --dark: #16181d;
+  --dark-button: #2c2f37;
+  --dark-button-hover: #3a3e48;
+  --dark-ink: #fff;
+  --dark-ink-soft: #c9ccd4;
+
   /* the project's marks (an id picks one) */
   --mark-0: #c8401f;
   --mark-1: #2f6f9f;
@@ -77,6 +110,10 @@
   --shadow-menu: 0 8px 24px rgb(20 24 31 / 12%);
   --shadow-panel: -14px 0 40px rgb(15 18 28 / 14%);
   --ring-nav: 0 0 0 1px var(--line);
+  --shadow-note: 0 1px 1px rgb(0 0 0 / 6%), 0 3px 8px rgb(30 30 50 / 7%);
+  --shadow-note-hover: 0 6px 16px rgb(30 30 50 / 12%);
+  --shadow-float: 0 10px 30px rgb(0 0 0 / 25%);
+  --shadow-dialog: 0 0 0 1px rgb(20 24 31 / 6%), 0 10px 30px rgb(0 0 0 / 12%);
 
   /* type */
   --font:

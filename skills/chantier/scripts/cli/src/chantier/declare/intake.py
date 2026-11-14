@@ -26,7 +26,8 @@ def register(sub: Subparsers) -> None:
         sub,
         "triage",
         "chantier.commands.intake:triage",
-        "move an inbox, backlog or 3-ready CR to a priority of the backlog, or to 3-ready",
+        "move an inbox, backlog or 3-ready CR to a priority of the backlog, to 3-ready, or back "
+        "to the inbox",
         NO_BATCH,
     )
     s.add_argument(
@@ -37,6 +38,11 @@ def register(sub: Subparsers) -> None:
     g.add_argument("--priority", choices=["P1", "P2", "P3", "P4"])
     g.add_argument(
         "--ready", action="store_true", help="the CR waits in 3-ready for the next batch"
+    )
+    g.add_argument(
+        "--inbox",
+        action="store_true",
+        help="the CR goes back to 1-inbox (from the backlog or 3-ready)",
     )
     _register_trash(sub)
 

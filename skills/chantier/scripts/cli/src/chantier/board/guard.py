@@ -11,7 +11,8 @@ from chantier.board.reply import Reply, text
 
 NEEDS_KEY = "this board needs the link with its key: ask the Chief of Staff for it"
 READ = ("GET", "HEAD")
-ALLOWED = (*READ, "POST")
+WRITE = ("POST", "PUT")
+ALLOWED = (*READ, *WRITE)
 
 
 def exchange(req: Request, key: str) -> Reply | None:
@@ -41,7 +42,8 @@ def authorised(req: Request, key: str) -> bool:
 
 def refusal(req: Request) -> Reply | None:
     """For a request that changes something: `403` unless it comes from the board's own page
-    (`Sec-Fetch-Site` same-origin or absent, `Origin` the board's own) and its body is JSON."""
+    (`Sec-Fetch-Site` same-origin or absent, `Origin` the board's own), `415` when its body is
+    not JSON."""
     site = req.headers.get("sec-fetch-site")
     origin = req.headers.get("origin")
     host = req.headers.get("host", "")
@@ -50,7 +52,7 @@ def refusal(req: Request) -> Reply | None:
     if origin is not None and origin.lower() != f"http://{host}".lower():
         return text(403, "refused: not from the board's own page")
     if req.body and not req.headers.get("content-type", "").startswith("application/json"):
-        return text(403, "refused: the body is application/json")
+        return text(415, "refused: the body is application/json")
     return None
 
 

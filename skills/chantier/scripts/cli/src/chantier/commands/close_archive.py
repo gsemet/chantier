@@ -10,7 +10,6 @@ from pathlib import Path
 from chantier.commands.cost.breakdown import cost_groups
 from chantier.commands.cost.pricing import sum_unpriced
 from chantier.commands.cost.sessions import cost_rows, foreman_uuid
-from chantier.commands.crs import shown
 from chantier.core.batch import move_directory
 from chantier.core.batch_records import (
     Rec,
@@ -27,6 +26,7 @@ from chantier.core.files import retry
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.history import close_markdown, close_record, release_retro_line
+from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import STATE_FOLDERS, archive_name, stage_layout
 from chantier.status.write import write_final_pages
 

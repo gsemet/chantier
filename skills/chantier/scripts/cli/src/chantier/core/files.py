@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from collections.abc import Callable
@@ -78,8 +79,39 @@ def write_file(path: Path, text: str) -> None:
     retry(os.replace, tmp, path)
 
 
+def write_bytes(path: Path, data: bytes) -> None:
+    """Write bytes as they are by atomic rename: a text's line endings stay the caller's."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(data)
+    retry(os.replace, tmp, path)
+
+
 def write_json(path: Path, data: Any, *, ensure_ascii: bool = True) -> None:
     write_file(path, json.dumps(data, indent=2, ensure_ascii=ensure_ascii) + "\n")
+
+
+def is_lock(name: str) -> bool:
+    """The locks of a running batch: `.lock`, `.lifecycle.lock`, `.long-gate.*`."""
+    return name in {".lock", ".lifecycle.lock"} or name.startswith(".long-gate.")
+
+
+def inside(root: Path, rel: str) -> Path | None:
+    """The path in the planning folder, or None when it leaves it, does not exist, or is a
+    lock: no absolute path, no drive, no NUL, symlinks out refused."""
+    if (
+        "\x00" in rel
+        or rel.startswith(("/", "\\"))
+        or re.match(r"^[A-Za-z]:", rel)
+        or Path(rel).is_absolute()
+        or any(is_lock(part) for part in re.split(r"[\\/]", rel))
+    ):
+        return None
+    try:
+        target = (root / rel).resolve()
+    except (OSError, ValueError):
+        return None
+    return target if target.is_relative_to(root) and target.exists() else None
 
 
 # The files that stay on the steering machine, never published by the surface's git: a running
@@ -99,6 +131,7 @@ IGNORED = (
     ".batch-number",
     ".closing-*",
     "seat.json",
+    "board-journal.jsonl",
     "/4-batch/batch.json",
     "/4-batch/events.jsonl",
     "/4-batch/brief.md",

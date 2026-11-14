@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import os
 import re
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
 from chantier.board.reply import Reply, text
-from chantier.core.files import retry
+from chantier.core.files import inside, is_lock, retry
 
 TEXT_LIMIT = 1_000_000  # bytes of a text file sent; the rest is cut
 IMAGE_LIMIT = 5_000_000
@@ -40,34 +41,12 @@ IMAGES = {
     ".webp": "image/webp",
 }
 NOT_FOUND = "not found"
-
-
-def is_lock(name: str) -> bool:
-    """The locks of a running batch: `.lock`, `.lifecycle.lock`, `.long-gate.*`."""
-    return name in {".lock", ".lifecycle.lock"} or name.startswith(".long-gate.")
+SHA_HEADER = "X-Chantier-Sha256"  # of the file's bytes on disk, sent when the text is not cut
 
 
 def kind_of(name: str) -> str:
     ext = Path(name).suffix.lower()
     return "text" if ext in TEXT else "image" if ext in IMAGES else "other"
-
-
-def inside(root: Path, rel: str) -> Path | None:
-    """The path in the planning folder, or None when it leaves it, does not exist, or is a
-    lock: no absolute path, no drive, no NUL, symlinks out refused."""
-    if (
-        "\x00" in rel
-        or rel.startswith(("/", "\\"))
-        or re.match(r"^[A-Za-z]:", rel)
-        or Path(rel).is_absolute()
-        or any(is_lock(part) for part in re.split(r"[\\/]", rel))
-    ):
-        return None
-    try:
-        target = (root / rel).resolve()
-    except (OSError, ValueError):
-        return None
-    return target if target.is_relative_to(root) and target.exists() else None
 
 
 def _listed(root: Path, folder: Path) -> list[dict[str, Any]]:
@@ -118,9 +97,11 @@ def read(root: Path, rel: str) -> Reply:
     size = target.stat().st_size
     if kind == "text":
         raw = retry(_head, target)
-        cut = {"X-Chantier-Cut": "1"} if size > TEXT_LIMIT else {}
+        head = (
+            {"X-Chantier-Cut": "1"} if size > TEXT_LIMIT else {SHA_HEADER: sha256(raw).hexdigest()}
+        )
         body = raw[:TEXT_LIMIT].decode("utf-8-sig", errors="replace").encode("utf-8")
-        return Reply(200, body, "text/plain; charset=utf-8", cut)
+        return Reply(200, body, "text/plain; charset=utf-8", head)
     if kind == "image" and size <= IMAGE_LIMIT:
         return Reply(200, retry(target.read_bytes), IMAGES[ext])
     return Reply(

@@ -8,9 +8,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.board.files import is_lock
-from chantier.core.files import read_text
+from chantier.core.files import is_lock, read_text
 from chantier.status.views import spec_state
+from chantier.summaries.view import summary_view
 
 STAGES = ("inbox", "P1", "P2", "P3", "P4", "3-ready")
 DESCRIPTION_LIMIT = 300
@@ -87,6 +87,18 @@ def grill_of(folder: Path, priority: str) -> str:
     return "grill" if (folder / "02-answers.md").is_file() else "raw"
 
 
+def summary_fields(folder: Path) -> dict[str, Any]:
+    """What a post-it shows of the CR's `summary.json`: labels, group, origin, late summary."""
+    try:
+        view = summary_view(folder)
+    except (OSError, ValueError):
+        view = None
+    if view is None:
+        return {"labels": [], "group": None, "origin": None, "late": False}
+    origin = view.origin.model_dump(mode="json", exclude_none=True) if view.origin else None
+    return {"labels": list(view.labels), "group": view.group, "origin": origin, "late": view.late}
+
+
 def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     """The inbox, `2-backlog/P1`...`P4` and `3-ready`, by the record's own `priority` word."""
     out: dict[str, list[dict[str, Any]]] = {k: [] for k in STAGES}
@@ -101,6 +113,7 @@ def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[d
                 "depends": depends_of(folder),
                 "description": description(folder),
                 "grill": grill_of(folder, row["priority"]),
+                **summary_fields(folder),
             }
         )
     return out
