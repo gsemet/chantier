@@ -132,11 +132,11 @@ def _spawn(cmd: str, g: _Gate) -> subprocess.Popen[bytes]:
     with open(g.log, "a", encoding="utf-8") as f:
         f.write(f"$ {cmd}\n")
         f.flush()
-        group: dict[str, Any] = (
-            {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-            if sys.platform == "win32"
-            else {"start_new_session": True}
-        )
+        group: dict[str, Any]
+        if sys.platform == "win32":
+            group = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+        else:
+            group = {"start_new_session": True}
         return subprocess.Popen(
             cmd, shell=True, cwd=g.wt, stdout=f, stderr=subprocess.STDOUT, **group
         )
