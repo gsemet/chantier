@@ -1182,7 +1182,7 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
               and not body.get("ok"), f"{code} {body}")
     code, body = call("POST", "backlog/new", {"text": "Board filed idea\r\n\r\nbody é\r\n"})
     filed = w.state / "1-inbox" / "board-filed-idea"
-    request = next(iter(filed.glob("*.md")), filed / "none.md") if filed.is_dir() else filed
+    request = filed / "intake" / "request.md"
     check("`POST backlog/new` files the text byte for byte in 1-inbox",
           code == 200 and request.is_file()
           and request.read_bytes() == "Board filed idea\r\n\r\nbody é\r\n".encode("utf-8"),
@@ -1323,9 +1323,12 @@ def remote_board(w: World) -> None:
         check("the 303 keeps a path with spaces and non-ASCII letters, percent-encoded",
               code == 303 and where.startswith("/caf%C3%A9%20dir/x?") and "k=" not in where
               and " " not in where and "%C3%A9" in where.split("?", 1)[1], where)
-        code, head, _ = fetch(port, f"/?k={link.key}", "PUT")
-        check("`PUT` with the good key answers 405 and no cookie",
+        code, head, _ = fetch(port, f"/?k={link.key}", "DELETE")
+        check("`DELETE` with the good key answers 405 and no cookie",
               code == 405 and "set-cookie" not in head, f"{code} {head}")
+        code, head, _ = fetch(port, f"/?k={link.key}", "PUT")
+        check("`PUT` with only `?k` answers 401 (a write needs the cookie or the header) and no cookie",
+              code == 401 and "set-cookie" not in head, f"{code} {head}")
         code, _, _ = fetch(port, "/?k=wrong", "PUT")
         check("`PUT` with a bad key answers 401", code == 401, str(code))
         code, _, _ = fetch(port, "/api/board", headers={"X-Chantier-Board-Key": link.key})
