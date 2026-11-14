@@ -7,8 +7,10 @@ started.
 
 - **Pull request (PR):** a merge request on GitLab.
 - **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch,
-  or, in a stack batch, a PR that belongs to a stack verified on the forge (the five checks of
-  **Stack**, below): the user merges the whole stack in one action from its top PR. Any other CR's
+  in every mode: the user may merge it on its own at any moment, a stack batch is no exception.
+  In a stack batch, a stack verified on the forge (the five checks of **Stack**, below) is a
+  second way: the user merges it in one action from its top PR, or its PRs one at a time from the
+  bottom, the user's choice made merge by merge, never fixed at the go. Any other CR's
   PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
   changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
   merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
@@ -116,8 +118,8 @@ started.
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
   and the start base for any other). Once every PR is ready, the stack driver makes one native
   stack on the forge (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
-  declined the extension); the user merges it in one action from the top PR, the release commit
-  last. A chain of PRs based on each other is not a stack. On GitHub a stack is the forge's native
+  declined the extension); the user merges it in one action from the top PR, or one PR at a
+  time from the bottom, the release commit last. A chain of PRs based on each other is not a stack. On GitHub a stack is the forge's native
   stacked-PR stack; on GitLab the stack stays a chain, as it was. **Stack ready** means five
   checks hold on the forge (`$CHANTIER forge-stack show` prints the failing ones): the stack is
   open; it holds every open PR of the batch's stack, and no other; in the order of `take stack`,

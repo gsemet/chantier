@@ -275,7 +275,12 @@ The CLI keeps the CR's record and tells you what is off.
   head. Pass the refused line, as printed, to the steering session (`[driver <cr>→foreman] …`,
   by the host's means) and wait for its `taken back:` note, then hand back again. A hand-back
   refused with `the worktree's head … is not the head ship recorded`: `ship` at this head, then
-  the long gate and a new `verifier` given the move, then hand back again. A decision only the user can take is `blocked question: <text>`. `blocked waits:
+  the long gate and a new `verifier` given the move, then hand back again. A hand-back refused
+  with `<cr> is merged: no Driver to hand it back` means the user merged the PR while you were
+  finishing. Do not push, edit the PR, retarget it or turn it ready or draft any more. Record
+  what you left undone in one line, `$CHANTIER note <cr> "merged before the hand-back; left
+  undone: <what>"` (`none` when nothing), pass the refused line as printed to the steering
+  session (`[driver <cr>→foreman] …`, by the host's means), and end. A decision only the user can take is `blocked question: <text>`. `blocked waits:
   <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
   decide: the CR shows 🟠, and the steering session takes it back when that thing lands. A
   Driver whose context is ending first records its state with `$CHANTIER note <cr> "…"`, then
@@ -402,8 +407,8 @@ Driver still retargets nothing but on a `rebase:` note.
 A stack batch is one opened `--mode stack`, or a series switched by `order mode`; after a switch,
 the stack's order starts from the series order.
 
-Your end is one native stack on the forge that the user merges in one go: a stack is the forge's
-own stack of PRs grouped bottom to top and merged in one action from the top PR; a chain of PRs
+Your end is one native stack on the forge that the user merges in one action from the top PR or one PR
+at a time from the bottom: a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs
 based on each other is not one. Your `hand-back ready` is sent only once the stack is made on the
 forge and you have read it back as ready (the five checks, below).
 
