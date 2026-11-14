@@ -85,7 +85,9 @@ getting started here, phrases to say, the glossary.
      "The project"), and the command line of your host's "Allow rules to add" when the host
      refuses the edit. The tour writes in the user's settings only the allow rules P10 named, on
      the user's yes, as the Chief of Staff does at a first turn. When the first turn already asked
-     the question in this session, the tour does not ask it again: it says what P10 says now.
+     the question in this session, the tour does not ask it again: it says what P10 says now. The
+     tour checks the capability "every batch" only; it names the others (a stack, a release on its
+     own, fixes on a grant) as checked at the go, and runs no trial.
    - **The long gate:** the exact `AGENTS.md` lines above, written on the user's yes.
    - **The forge's tools:** when the project's forge is GitHub and `gh` is missing or not logged
      in, or the `gh stack` extension (github/gh-stack) is not installed, recommend it and say why

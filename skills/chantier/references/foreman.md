@@ -30,7 +30,9 @@ infrastructure), `chantier` when it is in chantier's own way of working (its car
 files, skills, or how it drives the host and the forge); you judge it. A cause on both sides is two
 lines, one per tag, each with its own fix. What went wrong or slowly: an ask, a block, a refusal of the
 CLI, a Driver restarted, a red gate or CI, a round past the first, cache expiries or a cost far
-over the others, an infrastructure failure; read `status --notes`, `events.jsonl`, the CRs'
+over the others, an infrastructure failure, a command the host refused (one line per distinct
+refused command: `- [chantier] refused `<command>` (<capability>): <the table row or rule to
+fix>`, the capabilities of "Capabilities and their commands" in the host reference); read `status --notes`, `events.jsonl`, the CRs'
 `work/` notes and `cost --explain`, and judge what is a problem; an escalation line takes the tag
 of its cause. A batch with no problem gets one untagged line saying so. Never rewrite an earlier section (an
 untagged line of an earlier pause reads as `project`); a release's own `work/retro.md` is named by
@@ -190,7 +192,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   Code](hosts/claude-code.md), "Auto-fix events").
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link> [gaps: …]`,
-  `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>`, `budget <text>`,
+  `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
+  note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready <stack link> <cr>=<link>…`. In the
   text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name").
@@ -299,7 +302,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   <branch> <text>`; tell the Driver at once, `[foreman→driver <cr>] note push <branch>: <the
   answer>`. The Chief of Staff judges the push and may ask the user first: wait for its answer
   and pass nothing else meanwhile. A push the host refuses the Chief of Staff too is the user's,
-  shown by it; the Driver hears `push refused <branch>: <exact text>` and hands back.
+  shown by it; the Driver hears `push refused <branch>: <exact text>` and hands back. Record each
+  refusal with `$CHANTIER note <cr> "refused: <the exact command> -> <the host's exact text>"`.
 - **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
   kind, and holds in a direct batch, whose Chief of Staff reads this card).
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line

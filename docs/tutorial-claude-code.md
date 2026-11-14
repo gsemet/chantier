@@ -121,14 +121,17 @@ The Chief of Staff:
 1. runs the **preflight** (Desktop app, plugin agents, `uv` and `git`, main checkout, project
    instructions, the forge's CLI logged in) and stops with the reason if anything is missing. It
    also checks, as warnings only, the forge's rights and branch rules (can you push, force-push
-   a `chantier/` branch, edit PRs), and whether your allow rules let through the commands the
-   agents run, judged by what they match and not by their text;
+   a `chantier/` branch, edit PRs), and, per capability the batch uses (every batch, a stack, a
+   release on its own, fixes on a grant), whether your allow rules let through the commands the
+   agents run, judged by what they match and not by their text; a missing rule is a strong warning,
+   never a failure, and the Chief of Staff runs one harmless trial per used capability before the go;
 2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch
    (a Foreman or the Chief of Staff itself, and why: the surface, or your `foreman` / `direct`);
 3. waits for your **go**.
 
 For fewer auto-mode interruptions, when the preflight finds allow rules missing the Chief of Staff
-asks you whether to add them, and adds them to `~/.claude/settings.json` on your yes, and nothing
+asks you whether to add them (the rules of a release on its own, or of fixes on a grant, only when
+you grant it), and adds them to `~/.claude/settings.json` on your yes, and nothing
 else there; when the host refuses that edit, it gives you one command line to run at your
 computer. The rules, the risk each accepts and what must stay refused are in the host reference's
 section "Configuration" ([claude-code.md](../skills/chantier/references/hosts/claude-code.md)).

@@ -7,7 +7,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from chantier.core.files import read_text
 from chantier.core.git import git
@@ -27,61 +27,109 @@ _BRANCH = "chantier/batch-01/cr-101-example"
 _TREE = "/work/project.worktrees/batch-01-CR-101"
 
 
-# (group, command, recommended rule); ` origin ` stands for the project's remote name. The order
-# is the order of the table in hosts/claude-code.md; SendMessage, a bare tool, comes last.
+# (capability, forge, command, recommended rule); ` origin ` stands for the project's remote name.
+# The capability is one of CAPABILITIES; the forge is any, github, gitlab, gh-stack, dev or plugin.
+# The order is the order of the table "Capabilities and their commands" in hosts/claude-code.md;
+# SendMessage, a bare tool, belongs to the capability batch and comes last.
 SAMPLES = (
-    ("always", f"git push -u origin {_BRANCH}", "git push -u origin chantier/*"),
-    ("always", f"git -C {_TREE} push -u origin {_BRANCH}", "git -C * push -u origin chantier/*"),
+    ("batch", "any", f"git push -u origin {_BRANCH}", "git push -u origin chantier/*"),
     (
-        "always",
+        "batch",
+        "any",
+        f"git -C {_TREE} push -u origin {_BRANCH}",
+        "git -C * push -u origin chantier/*",
+    ),
+    (
+        "batch",
+        "any",
         f"git push --force-with-lease -u origin {_BRANCH}",
         "git push --force-with-lease -u origin chantier/*",
     ),
     (
-        "always",
+        "batch",
+        "any",
         f"git -C {_TREE} push --force-with-lease -u origin {_BRANCH}",
         "git -C * push --force-with-lease -u origin chantier/*",
     ),
     (
-        "always",
+        "batch",
+        "any",
         f"git push --force-with-lease={_BRANCH}:{_SHA} origin {_SHA}:refs/heads/{_BRANCH}",
         "git push --force-with-lease=chantier/* origin *chantier/*",
     ),
     (
+        "batch",
         "dev",
         "uv run --locked --project /checkout chantier status",
         "uv run --locked --project * chantier *",
     ),
     (
+        "batch",
         "plugin",
         "uvx --from /plugin chantier --skill /plugin/skills/chantier status",
         "uvx --from * chantier *",
     ),
-    ("github", "gh pr create --draft --body-file /tmp/body.md", "gh pr create*"),
-    ("github", "gh pr edit 12 --body-file /tmp/body.md", "gh pr edit*"),
-    ("github", "gh pr edit 12 --base chantier/batch-01/cr-100-base", "gh pr edit*"),
-    ("github", "gh pr ready 12", "gh pr ready*"),
-    ("github", "gh pr ready 12 --undo", "gh pr ready*"),
-    ("github", "gh pr checks 12", "gh pr checks*"),
-    ("github", "gh pr view 12", "gh pr view*"),
-    ("gh-stack", "gh stack view", "gh stack*"),
-    ("gitlab", "glab mr create --draft --description-file /tmp/body.md", "glab mr create*"),
-    ("gitlab", "glab mr update 12 --target-branch main", "glab mr update*"),
-    ("gitlab", "glab mr view 12", "glab mr view*"),
-    ("gitlab", "glab ci status", "glab ci status*"),
-)
-
-
-# The allow rules hosts/claude-code.md recommends, in its table's order (a test compares them).
-RECOMMENDED_ALLOW = (
-    *tuple(
-        f"{tool}({rule})"
-        for rule in dict.fromkeys(s[2] for s in SAMPLES)
-        for tool in ("Bash", "PowerShell")
+    ("batch", "github", "gh pr create --draft --body-file /tmp/body.md", "gh pr create*"),
+    ("batch", "github", "gh pr edit 12 --body-file /tmp/body.md", "gh pr edit*"),
+    ("batch", "github", "gh pr edit 12 --base chantier/batch-01/cr-100-base", "gh pr edit*"),
+    ("batch", "github", "gh pr ready 12", "gh pr ready*"),
+    ("batch", "github", "gh pr ready 12 --undo", "gh pr ready*"),
+    ("batch", "github", "gh pr checks 12", "gh pr checks*"),
+    ("batch", "github", "gh pr view 12", "gh pr view*"),
+    ("stack", "gh-stack", "gh stack view", "gh stack*"),
+    (
+        "batch",
+        "gitlab",
+        "glab mr create --draft --description-file /tmp/body.md",
+        "glab mr create*",
     ),
-    "SendMessage",
+    ("batch", "gitlab", "glab mr update 12 --target-branch main", "glab mr update*"),
+    ("batch", "gitlab", "glab mr view 12", "glab mr view*"),
+    ("batch", "gitlab", "glab ci status", "glab ci status*"),
+    ("release", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
+    ("release", "gitlab", "glab mr merge 12 --rebase", "glab mr merge*"),
+    ("release", "any", "git push origin v1.2.3", "git push origin v*"),
+    (
+        "release",
+        "github",
+        "gh release create v1.2.3 --verify-tag --notes-file /tmp/notes.md",
+        "gh release create*",
+    ),
+    (
+        "release",
+        "gitlab",
+        "glab release create v1.2.3 --notes-file /tmp/notes.md",
+        "glab release create*",
+    ),
+    ("fixes", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
+    ("fixes", "gitlab", "glab mr merge 12 --rebase", "glab mr merge*"),
 )
 
+
+# The capabilities, in the table's order, and how P10 names each.
+CAPABILITIES = {
+    "batch": "every batch",
+    "stack": "a stack",
+    "release": "a release on its own",
+    "fixes": "fixes on a grant",
+}
+
+
+def _allow_for(capabilities: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(
+        f"{tool}({rule})"
+        for rule in dict.fromkeys(s[3] for s in SAMPLES if s[0] in capabilities)
+        for tool in ("Bash", "PowerShell")
+    )
+
+
+# The allow rules hosts/claude-code.md recommends, in its table's order (a test compares them):
+# the capabilities every batch and a stack; the pasteable block holds exactly these.
+RECOMMENDED_ALLOW = (*_allow_for(("batch", "stack")), "SendMessage")
+
+
+# The rules offered only under a grant (a release on its own, fixes on a grant): not in the block.
+GRANT_ALLOW = _allow_for(("release", "fixes"))
 
 SETTINGS_SHOWN = "~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json"
 
@@ -153,27 +201,27 @@ def _settings_rules(repo: Repo | None) -> tuple[dict[str, list[str]], list[str]]
     return rules, unreadable
 
 
-def _sample_groups(remote: str) -> set[str]:
-    """The sample groups that apply: the remote's forge, the `gh stack` extension when installed."""
+def _forges(remote: str) -> set[str]:
+    """The forges that apply: the remote's forge, the `gh stack` extension when installed."""
     url = git("remote", "get-url", remote, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
-    groups = {"always", "dev" if is_dev_checkout() else "plugin"}
+    forges = {"any", "dev" if is_dev_checkout() else "plugin"}
     if "gitlab" in host:
-        groups.add("gitlab")
+        forges.add("gitlab")
     elif "github" in host:
-        groups.add("github")
+        forges.add("github")
     else:
-        groups |= {"github", "gitlab"}
+        forges |= {"github", "gitlab"}
     data = [os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")]
     if os.environ.get("LOCALAPPDATA"):
         data.append(os.environ["LOCALAPPDATA"])
-    if "github" in groups and any(
+    if "github" in forges and any(
         (Path(d) / sub / "extensions" / "gh-stack").exists()
         for d in data
         for sub in ("gh", "GitHub CLI")
     ):
-        groups.add("gh-stack")
-    return groups
+        forges.add("gh-stack")
+    return forges
 
 
 def _caught(rules: dict[str, Any], tool: str, command: str) -> tuple[str, str] | None:
@@ -189,25 +237,24 @@ def _caught(rules: dict[str, Any], tool: str, command: str) -> tuple[str, str] |
     )
 
 
-def commands_not_allowed(repo: Repo | None) -> tuple[int, int, list[str], list[str], list[str]]:
-    """The applicable sample commands that the settings do not let through: how many of how many;
-    what to add; what a deny or ask rule catches; the unreadable files."""
-    remote = "origin"
-    if repo:
-        with contextlib.suppress(Exception):
-            remote = repo.config.get("remote") or remote
-    remotes = git("remote", check=False).split()
-    if remote not in remotes and remotes:
-        remote = "origin" if "origin" in remotes else remotes[0]
-    rules, unreadable = _settings_rules(repo)
+class Gap(NamedTuple):
+    """What the settings lack for one capability."""
+
+    missing: int
+    total: int
+    named: list[str]
+    blocked: list[str]
+
+
+def _gap(
+    rows: list[tuple[str, str, str, str]], remote: str, rules: dict[str, Any], send: bool
+) -> Gap:
     allow = [r for r in rules["allow"] if _counts_as_allow(r)]
     tools = ("Bash", "PowerShell") if os.name == "nt" else ("Bash",)
-    groups = _sample_groups(remote)
-    wanted = [s for s in SAMPLES if s[0] in groups]
     adds: dict[str, list[str]] = {}
     blocked: list[str] = []
     missing = 0
-    for _, raw_command, raw_rule in wanted:
+    for _, _, raw_command, raw_rule in rows:
         command = raw_command.replace(" origin ", f" {remote} ")
         rule = raw_rule.replace(" origin ", f" {remote} ")
         short = command if len(command) < SHORT_CHARS else command[: SHORT_CHARS - 3] + "..."
@@ -218,13 +265,37 @@ def commands_not_allowed(repo: Repo | None) -> tuple[int, int, list[str], list[s
                 held.append(f"{short} by {hit[1]}" + (" (asks)" if hit[0] == "ask" else ""))
             elif not any(rule_matches(r, tool, command) for r in allow):
                 lacking.append(f"{tool}({rule})")
-        held_back = bool(held)
         blocked += [n for n in dict.fromkeys(held) if n not in blocked]
         if lacking:
             adds.setdefault(", ".join(lacking), []).append(short)
-        missing += bool(lacking) or held_back
-    if not any(rule_matches(r, "SendMessage") for r in rules["allow"]):
+        missing += bool(lacking) or bool(held)
+    if send and not any(rule_matches(r, "SendMessage") for r in rules["allow"]):
         adds["SendMessage"] = ["SendMessage"]
         missing += 1
     named = [f"{' / '.join(samples)} (add {add})" for add, samples in adds.items()]
-    return missing, len(wanted) + 1, named, blocked, unreadable
+    return Gap(missing, len(rows) + send, named, blocked)
+
+
+def commands_not_allowed(
+    repo: Repo | None, capabilities: set[str] | None = None
+) -> tuple[dict[str, Gap], list[str]]:
+    """For each asked capability (the base by default), in the table's order: the applicable
+    sample commands that the settings do not let through (how many of how many, what to add,
+    what a deny or ask rule catches); and the unreadable settings files."""
+    remote = "origin"
+    if repo:
+        with contextlib.suppress(Exception):
+            remote = repo.config.get("remote") or remote
+    remotes = git("remote", check=False).split()
+    if remote not in remotes and remotes:
+        remote = "origin" if "origin" in remotes else remotes[0]
+    rules, unreadable = _settings_rules(repo)
+    forges = _forges(remote)
+    gaps = {
+        cap: _gap(
+            [s for s in SAMPLES if s[0] == cap and s[1] in forges], remote, rules, cap == "batch"
+        )
+        for cap in CAPABILITIES
+        if cap in (capabilities or {"batch"}) | {"batch"}
+    }
+    return gaps, unreadable
