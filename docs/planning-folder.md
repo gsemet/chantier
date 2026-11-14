@@ -56,6 +56,16 @@ by the project's setting (default yes), a cleaned copy in the CR's PR, in extern
 linking to the others. The CLI rewrites them at every state change, from the state alone; a
 status cell reads like `🔴 blocked Question 1/3`.
 
+Each CR folder may also hold a `summary.json`: the CR's title, a one-line summary of what it means
+now, where its request came from (a GitHub, GitLab or Jira issue read from its `issue:` line, or a
+verbal request), its labels and its group, with a checksum of the Markdown files it covers
+(`intake/*.md`, `01-intent.md`, `02-answers.md`, `03-change-spec.md`, `delivery.md`) so that a late
+summary can be told. An agent writes it, never the CLI: the agent that edits a CR's Markdown runs
+`chantier summary lint <folder>`, which lists the gaps and the command for each, and closes them
+with `chantier summary set`; the Chief of Staff closes what is left. It is published with the CR
+(it is not ignored by git), so every device sees it, and the board reads it instead of the
+Markdown. A late summary blocks nothing, and the STATUS files read the same with or without it.
+
 The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
 (named by chantier, next to the repository), the steering session (the Foreman, or the Chief of
 Staff in direct mode) removes a merged CR's before the batch is paused, and the Chief of Staff

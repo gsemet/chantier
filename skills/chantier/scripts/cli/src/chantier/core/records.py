@@ -12,12 +12,20 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, overload
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from chantier.core.errors import ChantierError
 from chantier.core.files import read_json, read_text
 
 DEFAULT_MAX_ROUNDS = 3
+SUMMARY_FILE = "summary.json"
+SUMMARY_SCHEMA = 1
+TITLE_MAX = 120
+SUMMARY_MAX = 300
+GROUP_MAX = 60
+LABEL_PATTERN = r"[a-z0-9][a-z0-9-]{0,23}"
+TRACKERS = ("github", "gitlab", "jira")
+ORIGIN_KINDS = ("verbal", *TRACKERS)
 
 
 class Record(BaseModel):
@@ -222,6 +230,40 @@ class RestoredRecord(Record):
     """`restored.json`: the highest number `restore` took off a folder."""
 
     last_number: int
+
+
+class Origin(Record):
+    """Where a CR's request came from: a tracker's issue, or a verbal request in the chat."""
+
+    kind: str
+    ref: str | None = None
+    url: str | None = None
+
+    @field_validator("kind")
+    @classmethod
+    def _known_kind(cls, value: str) -> str:
+        if value not in ORIGIN_KINDS:
+            raise ValueError(f"origin kind {value!r} is not one of {', '.join(ORIGIN_KINDS)}")
+        return value
+
+
+class CrSummary(Record):
+    """A CR's `summary.json`: the condensed fields an agent keeps, and the checksums of the
+    covered Markdown files at the time it did. `schema` is read through `schema_version`, a
+    name that does not shadow pydantic's own."""
+
+    schema_version: int = Field(default=SUMMARY_SCHEMA, alias="schema")
+    title: str | None = None
+    summary: str | None = None
+    origin: Origin | None = None
+    labels: list[str] = []
+    group: str | None = None
+    sources: dict[str, str] = {}
+    summarized: str | None = None
+
+    def to_data(self) -> dict[str, Any]:
+        """The record as JSON data, `schema` under its own name."""
+        return self.model_dump(mode="json", exclude_unset=True, by_alias=True)
 
 
 def read_batch_json(path: Path) -> BatchRecord:

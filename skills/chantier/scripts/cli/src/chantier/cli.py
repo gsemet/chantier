@@ -23,6 +23,7 @@ from chantier.commands import (
     release,
     rules,
     seat,
+    summary,
 )
 from chantier.commands.cost import command as cost_command
 from chantier.core import repo
@@ -81,6 +82,7 @@ def _parser() -> argparse.ArgumentParser:
         release,
         closing,
         cost_command,
+        summary,
     ):
         module.register(sub)
     return p

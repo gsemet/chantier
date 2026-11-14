@@ -78,8 +78,8 @@ def write_file(path: Path, text: str) -> None:
     retry(os.replace, tmp, path)
 
 
-def write_json(path: Path, data: Any) -> None:
-    write_file(path, json.dumps(data, indent=2) + "\n")
+def write_json(path: Path, data: Any, *, ensure_ascii: bool = True) -> None:
+    write_file(path, json.dumps(data, indent=2, ensure_ascii=ensure_ascii) + "\n")
 
 
 # The files that stay on the steering machine, never published by the surface's git: a running

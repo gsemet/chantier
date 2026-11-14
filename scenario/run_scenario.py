@@ -5408,6 +5408,14 @@ def external_surface(tmp: Path) -> None:
     check("preflight passes in the surface's main checkout", code == 0, str(out))
     item = w.prepare("Surface work")
     item2 = w.prepare("Surface second")
+    w.chantier("summary", "set", item, "--title", "Surface work", "--summary", "A surface CR.")
+    code, out = w.chantier("summary", "lint", expect=None)
+    ignored = subprocess.run(["git", "check-ignore", "-q", "--", str(item / "summary.json")],
+                             cwd=w.surface).returncode
+    check("`summary set` and `lint` with --project write and read the surface's project, and its "
+          ".gitignore does not ignore summary.json",
+          (item / "summary.json").is_file() and code == 2 and out[0] == "1 gap(s) in 2 CRs"
+          and ignored == 1, str(out))
     w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     check("the batch opens in the project's planning folder, the CR path is relative to it",
@@ -5519,6 +5527,7 @@ def external_surface(tmp: Path) -> None:
         "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
     (w.folder() / "retro.md").write_text("# Retro\n\n## Pause 1\n\n- one, fix one\n", encoding="utf-8")
+    before_close = (w.at(w.cr(cr)["path"]) / "summary.json").read_text(encoding="utf-8")
     w.chantier("close", "--batch", w.name, "--yes")
     archives = list((w.state / "5-archives").glob("*-101-*"))
     check("`close` puts the merged CR in 5-archives with its delivery.md, the gate log staying off the surface's git",
@@ -5531,7 +5540,222 @@ def external_surface(tmp: Path) -> None:
           and not (archives[0] / "retro.md").exists()
           and not any(f.endswith("retro.md") or "/batches/" in f for f in tree), str(archives))
     surface_publishes(w, "after the close")
+    kept = (archives[0] / "summary.json").is_file() and (archives[0] / "summary.json").read_text(
+        encoding="utf-8") == before_close
+    code, out = w.chantier("summary", "lint", archives[0], expect=None)
+    check("the summary travelled through take, order merged and close, and the archive's new "
+          "delivery.md makes it late", kept and code == 2 and "delivery.md new" in out[1], str(out))
     w.env.pop("CHANTIER_BATCH", None)
+
+
+def filed(w: World, title: str) -> Path:
+    _, out = w.chantier("file", title)
+    return w.work / out[0].removeprefix("filed ").split(";", 1)[0]
+
+
+def summary_of(folder: Path) -> dict:
+    return json.loads((folder / "summary.json").read_text(encoding="utf-8"))
+
+
+def summary_basics(w: World, a: Path) -> None:
+    """E2 items 1 to 4: no summary, set, what is not a gap, late, `--unchanged`."""
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("`summary lint` on a filed item exits 2: the count first, then the `no summary` line "
+          "with its command", code == 2 and out[0] == "1 gap(s) in 1 CRs" and "no summary" in out[1]
+          and "summary set" in out[1], str(out))
+    code, out = w.chantier("summary", "set", a, "--title", "Alpha", "--summary", "Alpha is filed.")
+    s = summary_of(a)
+    check("`summary set` writes summary.json: schema 1, a verbal origin, one source",
+          s["schema"] == 1 and s["origin"]["kind"] == "verbal"
+          and list(s["sources"]) == ["intake/request.md"] and s["title"] == "Alpha", str(s))
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("`lint` then says no gap", code == 0 and out == ["no gap (1 CRs)"], str(out))
+    (a / "work").mkdir()
+    (a / "work" / "notes.md").write_text("notes\n")
+    (a / "evidence").mkdir()
+    (a / "evidence" / "shot.txt").write_text("ok\n")
+    (a / "STATUS.md").write_text("status\n")
+    request = a / "intake" / "request.md"
+    request.write_bytes(b"\xef\xbb\xbf" + request.read_bytes().replace(b"\r\n", b"\n")
+                        .replace(b"\n", b"\r\n"))
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("a change in work/, evidence/ or STATUS.md, and a request rewritten with CRLF and a "
+          "byte-order mark, make no gap", code == 0, str(out))
+    (a / "02-answers.md").write_text("# Decisions\n\nOne.\n")
+    (a / "intake" / "02-more.md").write_text("More.\n")
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("a new `02-answers.md` and a new intake file make the summary late, naming both",
+          code == 2 and "02-answers.md new" in out[1] and "intake/02-more.md new" in out[1], str(out))
+    before = summary_of(a)
+    w.chantier("summary", "set", a, "--title", "Alpha again")
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("`--title` alone leaves the summary late", code == 2 and "late" in out[1], str(out))
+    w.chantier("summary", "set", a, "--unchanged")
+    after = summary_of(a)
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("`--unchanged` closes the gap and leaves the summary as it was",
+          code == 0 and after["summary"] == before["summary"] and "02-answers.md" in after["sources"],
+          str(out))
+
+
+def summary_origins(w: World, a: Path) -> Path:
+    """E2 item 5: the origin comes from the `issue:` line."""
+    b = filed(w, "Summary beta")
+    intent = b / "01-intent.md"
+
+    def origin(url: str, *more: str) -> tuple[int, dict | None]:
+        intent.write_text(f"# Beta\n\nissue: {url}\n", encoding="utf-8")
+        code, _ = w.chantier("summary", "set", b, "--title", "Beta", "--summary", "Beta.", *more,
+                             expect=None)
+        return code, (summary_of(b)["origin"] if code == 0 else None)
+
+    for url, kind, ref in (("https://github.com/o/r/issues/41", "github", "#41"),
+                           ("https://gitlab.com/o/r/-/issues/12", "gitlab", "#12"),
+                           ("https://example.atlassian.net/browse/CHT-118", "jira", "CHT-118")):
+        code, found = origin(url)
+        check(f"an `issue:` line {url} gives the origin {kind} {ref}",
+              code == 0 and found is not None and found["kind"] == kind and found["ref"] == ref
+              and found["url"] == url, str(found))
+    kept = (b / "summary.json").read_bytes()
+    code, _ = origin("https://tracker.example.org/t/7")
+    check("an unplaced URL is refused (exit 1), and summary.json is not touched", code == 1
+          and "--tracker" in w.last_stderr and (b / "summary.json").read_bytes() == kept,
+          w.last_stderr)
+    code, found = origin("https://tracker.example.org/t/7", "--tracker", "gitlab")
+    check("`--tracker gitlab` places it: gitlab #7",
+          code == 0 and found is not None and found["kind"] == "gitlab" and found["ref"] == "#7",
+          str(found))
+    state = tree_bytes(w.state)
+    code, _ = w.chantier("summary", "set", a, "--unchanged", "--tracker", "gitlab", expect=None)
+    check("`--tracker` with no `issue:` line is refused (exit 1), nothing written",
+          code == 1 and tree_bytes(w.state) == state, w.last_stderr)
+    return b
+
+
+def summary_labels(w: World, a: Path, b: Path) -> Path:
+    """E2 items 6 and 7: labels and groups."""
+    sources = summary_of(a)["sources"]
+    w.chantier("summary", "label", a, b, "--add", "Board,cli")
+    check("`label --add Board,cli` lowercases and stores both labels on both CRs",
+          summary_of(a)["labels"] == ["board", "cli"] and summary_of(b)["labels"] == ["board", "cli"])
+    w.chantier("summary", "label", a, b, "--remove", "cli")
+    check("`label --remove cli` leaves `board`", summary_of(a)["labels"] == ["board"])
+    state = tree_bytes(w.state)
+    code, _ = w.chantier("summary", "label", a, b, "--add", "no way", expect=None)
+    check("a label with a space is refused (exit 1), nothing written",
+          code == 1 and tree_bytes(w.state) == state, w.last_stderr)
+    w.chantier("summary", "group", a, b, "--name", "board v1")
+    check("`group --name` puts both CRs in the group",
+          summary_of(a)["group"] == "board v1" and summary_of(b)["group"] == "board v1")
+    w.chantier("summary", "group", b, "--clear")
+    check("`group --clear` takes one out of its group, and labels and groups leave `sources` alone",
+          not summary_of(b).get("group") and summary_of(a)["group"] == "board v1"
+          and summary_of(a)["sources"] == sources)
+    d = filed(w, "Summary delta")
+    w.chantier("summary", "label", d, "--add", "board")
+    code, out = w.chantier("summary", "lint", d, expect=None)
+    check("a label on an item with no summary creates the file, and `lint` still says no summary",
+          (d / "summary.json").is_file() and code == 2 and "no summary" in out[1], str(out))
+    return d
+
+
+def summary_refusals(w: World, a: Path, d: Path) -> None:
+    """E2 items 8 and 9: refused writes, an unreadable file."""
+    gone = filed(w, "Summary dropped")
+    _, out = w.chantier("abandon", gone)
+    trashed = w.work / out[0].removeprefix("abandoned ")
+    cases = (
+        ("a newline in the summary", (a, "--summary", "one\ntwo")),
+        ("a summary of 301 characters", (a, "--summary", "x" * 301)),
+        ("a folder of 6-trash", (trashed, "--title", "T", "--summary", "S")),
+        ("a path that is not a CR folder", (w.state / "STATUS.md", "--title", "T", "--summary", "S")),
+        ("`--unchanged` on a new item", (d, "--unchanged")),
+    )
+    for label, args in cases:
+        state = tree_bytes(w.state)
+        code, _ = w.chantier("summary", "set", *args, expect=None)
+        check(f"{label} is refused (exit 1), nothing written",
+              code == 1 and tree_bytes(w.state) == state, f"{code} {w.last_stderr}")
+    original = (a / "summary.json").read_bytes()
+    (a / "summary.json").write_text("{not json", encoding="utf-8")
+    code, out = w.chantier("summary", "lint", a, expect=None)
+    check("`lint` names an unreadable summary.json", code == 2 and "unreadable" in out[1], str(out))
+    code, _ = w.chantier("summary", "set", a, "--title", "T", "--summary", "S", expect=None)
+    check("`set` on it exits 2 and leaves it as it was",
+          code == 2 and (a / "summary.json").read_text(encoding="utf-8") == "{not json", w.last_stderr)
+    (a / "summary.json").write_bytes(original)
+
+
+def summary_moves(w: World, a: Path) -> Path:
+    """E2 item 10 in the main checkout: the file moves with its folder; archives are not walked by
+    default but are checked when named."""
+    _, out = w.chantier("triage", a, "--priority", "P2")
+    p2 = w.state / "2-backlog" / "P2" / a.name
+    check("`triage --priority P2` keeps summary.json with the folder",
+          (p2 / "summary.json").is_file() and not a.exists(), str(out))
+    w.chantier("triage", p2, "--ready")
+    ready = w.state / "3-ready" / a.name
+    check("`triage --ready` keeps it too", (ready / "summary.json").is_file(), str(ready))
+    old = w.state / "5-archives" / "261101-1200-901-old-cr"
+    old.mkdir(parents=True)
+    (old / "01-intent.md").write_text("# Old\n", encoding="utf-8")
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("an archived CR is not walked by default", "old-cr" not in "\n".join(out), str(out))
+    code, out = w.chantier("summary", "lint", old, expect=None)
+    check("but is checked when named", code == 2 and "no summary" in out[1], str(out))
+    shutil.rmtree(old)
+    return ready
+
+
+def summary_status_bytes(w: World, ready: Path) -> None:
+    """E2 items 10 (open) and 11: the STATUS files read the same with or without summary.json."""
+    w.start(ready, "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    cr = w.at(w.batch()["crs"][0]["path"])
+    s = summary_of(cr)
+    check("`open` keeps summary.json with the folder", s["title"] == "Alpha again", str(s))
+    spare = filed(w, "Summary spare")
+    twin = w.root / "proj2"
+    shutil.copytree(w.work, twin)
+    for p in (twin / ".agents" / "changes").rglob("summary.json"):
+        p.unlink()
+    rel = f".agents/changes/1-inbox/{spare.name}"
+    w.chantier("triage", rel, "--priority", "P3")
+    w.chantier("triage", rel, "--priority", "P3", cwd=twin)
+    names = sorted(p.relative_to(w.state).as_posix() for p in w.state.rglob("STATUS.*"))
+
+    def read(root: Path, name: str) -> str:  # the minute of each rewrite is the one thing that differs
+        return re.sub(r"\d{4}-\d\d-\d\dT[\d:.+Z-]+", "T", (root / name).read_text(encoding="utf-8"))
+
+    same = [n for n in names if read(w.state, n) == read(twin / ".agents" / "changes", n)]
+    check("the STATUS files (index, batch, CR) are byte-identical with and without summary.json",
+          names and same == names and any(n.startswith("4-batch/2-actives") or n.startswith("4-batch/1-pending")
+                                          for n in names), str([n for n in names if n not in same]))
+
+
+def summary_walk(w: World) -> None:
+    """E2 item 12: more than ten gaps print the count first and cut the rest."""
+    for i in range(11):
+        filed(w, f"Summary many {i}")
+    code, out = w.chantier("summary", "lint", expect=None)
+    check("more than ten gaps: the count is the first line and the output ends with `… N more lines`",
+          code == 2 and re.fullmatch(r"\d+ gap\(s\) in \d+ CRs", out[0]) and len(out) == 10
+          and re.fullmatch(r"… \d+ more lines", out[-1]), str(out))
+
+
+def cr_summary(tmp: Path) -> None:
+    note("\n## 21. A CR's summary: the linter and its commands")
+    tmp.mkdir()
+    w = World(tmp)
+    w.build()
+    w.chantier("init")
+    a = filed(w, "Summary alpha")
+    summary_basics(w, a)
+    b = summary_origins(w, a)
+    d = summary_labels(w, a, b)
+    summary_refusals(w, a, d)
+    ready = summary_moves(w, a)
+    summary_status_bytes(w, ready)
+    summary_walk(w)
 
 
 def main() -> int:
@@ -5543,6 +5767,8 @@ def main() -> int:
         if not ARGS.external_only:
             scenario(w)
         external_surface(tmp / "external")
+        if not ARGS.external_only:
+            cr_summary(tmp / "summary")
     except Exception as e:  # a crash is a failed check with its reason
         check("scenario ran to the end", False, f"{type(e).__name__}: {e}")
     finally:

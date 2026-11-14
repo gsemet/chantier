@@ -15,7 +15,9 @@ job runs in. What the CI files and the answers do not give goes in the list of o
 
 ## Output
 
-`03-change-spec.md` in the CR's folder, and nothing else written anywhere.
+`03-change-spec.md` in the CR's folder and the CR's summary refreshed (`$CHANTIER summary lint
+<the CR's folder>`, then `summary set`, as [concepts](concepts.md), "A CR's summary", says), and
+nothing else written anywhere.
 
 A rich specification holds:
 

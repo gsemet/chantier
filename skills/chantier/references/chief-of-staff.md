@@ -138,7 +138,21 @@ $CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog 
 $CHANTIER triage <inbox-or-backlog-folder> --ready    # to 3-ready, for the next batch, on the user's word
 $CHANTIER abandon <unclaimed-folder>                  # only on the user's explicit word
 $CHANTIER restore <6-trash/item> [--slug <slug>]      # only on the user's word
+$CHANTIER summary lint [<folder>]                     # the CRs whose summary is missing or late, each with its command
+$CHANTIER summary set <folder> --title "…" --summary "…"   # what you wrote; --unchanged when it still holds
+$CHANTIER summary label <folders> --add|--remove <labels>  # on the user's word only
+$CHANTIER summary group <folders> --name "…"|--clear  # on the user's word only
 ```
+
+A CR's summary ([concepts](concepts.md), "A CR's summary") applies to your own writes too
+(`01-intent.md`, `02-answers.md`, the ticket summary's records): run `summary lint <the CR's
+folder>` before you end the turn, and close its gap with `summary set`. The sweep: `summary lint`
+with no folder, and its gaps closed, whenever you re-read the backlog's folders (before proposing
+a batch, on "status?", when the user says a Griller has finished), after placing a Griller's files
+from a worktree, after a `restore` (it appends to `01-intent.md`), and after `close --yes` (the
+archives' `delivery.md`). Its first line carries the count and the output stops at ten lines: run
+it again until the first line says `no gap`. A named archive folder is checked; the default walk
+leaves `5-archives` out.
 
 `file` keeps the request as received in `intake/request.md`. Write `01-intent.md` and record every
 answer in `02-answers.md`. Grill at any stage, once for all the CRs of a batch: each question
@@ -919,8 +933,9 @@ these differences.
   - **Backlog work.** Any work on the backlog's files: file (`file`), triage (`triage`, on the
     user's word as always, directly or on a Griller's request), reorganise, merge items, drop
     (`abandon`, on the user's explicit word), and record answers and decisions in a CR's
-    `02-answers.md` (the "Record at once" rule holds). `triage --ready` moves a CR to `3-ready`; it
-    does not join the running batch.
+    `02-answers.md` (the "Record at once" rule holds), and keep each CR's summary fresh
+    (`summary lint`, `summary set`; `summary label` and `summary group` on the user's word
+    only). `triage --ready` moves a CR to `3-ready`; it does not join the running batch.
   - **The spec-writer.** On the user's word that a CR already grilled (by a Griller, or before the
     batch) is grilled enough, start it as "Backlog and grill" says.
   - **Not while the batch runs:** grill a CR (ask its questions, write its `01-intent.md` from a

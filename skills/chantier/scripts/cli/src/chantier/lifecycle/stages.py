@@ -40,6 +40,39 @@ def stage_layout(repo: Repo) -> dict[str, Path]:
     }
 
 
+def _stage_folders(paths: dict[str, Path], include_archives: bool) -> list[Path]:
+    """The folders that hold CR folders, in the lifecycle's order."""
+    stages = [
+        paths["inbox"],
+        *(paths["backlog"] / p for p in PRIORITIES),
+        paths["ready"],
+        paths["pending"],
+        paths["actives"],
+        paths["done"],
+    ]
+    return [*stages, paths["archives"]] if include_archives else stages
+
+
+def cr_folders(paths: dict[str, Path], include_archives: bool = False) -> list[Path]:
+    """Every CR folder of the planning folder, stage by stage in the lifecycle's order, each stage
+    sorted by name. `6-trash` is left out; `5-archives` too unless asked."""
+    found: list[Path] = []
+    for stage in _stage_folders(paths, include_archives):
+        if stage.is_dir():
+            found.extend(sorted((p for p in stage.iterdir() if p.is_dir()), key=lambda p: p.name))
+    return found
+
+
+def cr_stage(paths: dict[str, Path], folder: Path) -> str | None:
+    """The stage key (`inbox`, `backlog`, `ready`, `pending`, `actives`, `done`, `archives`,
+    `trash`) of a folder that is directly one stage's CR folder, else None."""
+    parent = folder.parent
+    if parent.parent == paths["backlog"] and parent.name in PRIORITIES:
+        return "backlog"
+    keys = ("inbox", "ready", "pending", "actives", "done", "archives", "trash")
+    return next((k for k in keys if paths[k] == parent), None)
+
+
 @contextlib.contextmanager
 def changes_lock(repo: Repo) -> Iterator[None]:
     repo.changes.mkdir(parents=True, exist_ok=True)
