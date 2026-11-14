@@ -51,9 +51,31 @@ started.
   ├── 03-change-spec.md    ← the Change Specification
   ├── summary.json         ← title, summary, origin, labels, group; through $CHANTIER summary, never by hand
   ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
-  ├── evidence/            ← other proof kept with the CR (the Verifier's: work/verifier/evidence/)
+  ├── prototypes/NN-<idea>/ ← each prototype version, with a README.md that says how to run it; only once there is one
+  ├── experiments/         ← scripts, tests, benchmarks, studies and research notes (sources, quotes) made for the CR; only once there is one
+  ├── evidence/            ← proof kept with the CR: screenshots kept on purpose, the Verifier's (work/verifier/evidence/); only once there is one
   └── work/                ← written while it runs: notes, gate logs, the PR body
   ```
+
+  **A CR's folder holds its work.** Whatever an agent makes for a CR (a prototype, a script, a
+  test, a benchmark, a study, a research note, a screenshot it keeps, a plan) is written in that
+  CR's folder, in the place the tree gives, never in the host's scratchpad or a temporary folder.
+  This rule ranks above the host's own instruction to use its scratchpad; outside any CR's work the
+  scratchpad stays the host's. A sub-folder is created only when its first file is written: neither
+  the CLI nor an agent creates `prototypes/`, `experiments/` or `evidence/` ahead of use.
+  Prototypes come in versions, `prototypes/01-<idea>/`, `prototypes/02-<idea>/`, … (two digits, then
+  a short kebab-case name of the idea); a new version is a new folder and the earlier ones stay.
+  Each holds a `README.md` of a few lines: what the version tries, the command that runs it again
+  (its server command, its port) and what it needs. A script that belongs to one version (its
+  snapshot generator, its data builder) goes in that version's folder, not in `experiments/`. Names
+  in `experiments/` follow the advice for subagent files below (a numbered name such as
+  `01-benchmark.md`). `prototypes/` and `experiments/` are not covered files of a summary, like
+  `evidence/` and `work/`. Kept out by design: secrets, personal data, and large binaries that are
+  not the retained prototype (a dataset, a video above the forge's limits: the folder names where
+  it is); the batch's own files and raw logs (already gitignored; a raw log stays in `work/gates/`
+  or a `*.log` file); the agent's memory and the host's settings (`~/.claude/`), never a CR's
+  place. What only the conversation holds (a subagent's reply, an inline visualization, a pasted
+  image) is lost unless an agent writes it in the folder: writing it is the agent's job.
 
 - **A CR's summary:** `summary.json` in the CR's folder: its title (one line), a summary of what
   the CR means now (one line of plain text; its state of grill or delivery, not its progress in a
@@ -98,8 +120,11 @@ started.
   [planning modes](../../../docs/planning-modes.md).
 - **Archive:** the CR's folder in `5-archives/`, with a `delivery.md` (the PR, the merge time,
   whether the archive is also in the PR). In external mode the Driver also commits a cleaned
-  archive (`intake/`, `evidence/`, `01`–`03`, `delivery.md`, `STATUS.md`; no `work/`) in its PR,
-  when `take` prints `archive: in the PR at <path>`.
+  archive (`intake/`, `evidence/`, `01`–`03`, `delivery.md`, `STATUS.md`, and the retained
+  prototype `prototypes/NN-<idea>/`, zipped if needed, as the grill decided; no `work/`, no
+  `experiments/`) in its PR, when `take` prints `archive: in the PR at <path>`. Size: as is up to
+  1 MB, zipped from 1 to 10 MB, very big above 10 MB; no retained version named, nothing from
+  `prototypes/` ([driver](driver.md)).
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
@@ -374,9 +399,12 @@ agent with that line, never a message to the refused one and never a variant. Ea
 | Spec critic | `chantier spec-critic for the Chief of Staff, in the project <root>.` |
 
 A subagent of the Chief of Staff (the Demo explorer, or an exploration, a prototype or a study)
-is started the same way, with no CR: its first line is the one of the table above and its brief gives the folder it writes to. Its
-result is a report or a study. It never implements: no commit, no push, no PR, nothing in a CR's
-worktree; a prototype lives in a temporary folder and is thrown away.
+is started the same way: its first line is the one of the table above. When the work is for a CR,
+its brief names that CR's folder and the place in it (a `prototypes/NN-<idea>/` or `experiments/`),
+and its result (the study, the report) is written there as a file, not only returned in the
+conversation. When it is for no CR yet, its brief names a folder it writes to, and when a CR comes
+of it, the Chief of Staff moves what it kept into that CR's folder. It never implements: no commit,
+no push, no PR, nothing in a CR's worktree.
 
 Tell every subagent that writes a file not to start a `.md` name with `report`, `summary`,
 `findings` or `analysis`, and to prefer a numbered name such as `04-result.md`: the host may

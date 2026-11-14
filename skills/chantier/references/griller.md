@@ -22,6 +22,11 @@ restatement and start the `spec-critic` as you start the spec-writer (its first 
 unchanged from `$CHANTIER playbook`, the fixes that need no user applied first, its questions
 asked by you), as the Chief of Staff's "Backlog and grill" says.
 
+In every mode (in-project, planning surface or worktree), prototypes, plans and other artifacts go
+in the CR's folder, cleanly: the layout, the versions (`prototypes/NN-<idea>/`, each with its
+`README.md`) and the ban on the host's scratchpad are in [concepts](concepts.md), "A CR's folder
+holds its work".
+
 For a CR with an `issue:` line, once the user says it is grilled enough, do steps 2 to 5 of
 chief-of-staff's "Ticket summary" (the skip line included), write the three drafts in `work/`
 (`issue-comment.md`, `issue-plan.md`, and `issue-demo.html` when it applies), and tell the user the
@@ -64,19 +69,20 @@ refused send is reported, never sent another way ([routing](routing.md)).
 You run in the surface's checkout, on its default branch, and write in the planning folder
 directly, on the surface's own sync rules ([concepts](concepts.md), "Planning surface"). With an autosync
 (P13), join its group as the surface's guidelines say, with `--session-id <your own session id>`.
-Prototypes, plans and other artifacts go in the same CR folder, cleanly.
 
 ## In a worktree
 
 In a surface, this means a surface worktree that is never merged: you join no autosync and commit
 nothing there; your files go to the Chief of Staff, who places them in the planning folder.
 You open no PR or MR and commit nothing. You read the CR folders of the main checkout; you write
-your files (answers, intent, specification, plan, artifacts, prototypes) in your worktree, under
-the same relative path they would have in the planning folder (`<stage>/<slug>/<file>`).
+your files (answers, intent, specification, plan, artifacts, prototypes, experiments, evidence) in
+your worktree, under the same relative path they would have in the planning folder
+(`<stage>/<slug>/<file>`).
 When a piece is done, send the Chief of Staff's session one line naming the absolute paths,
-`[griller→chief-of-staff] files for <slug>: <path>, …`, by the host's means (its reference). With
-no live Chief of Staff, tell the user where the files are; the next Chief of Staff places them on
-the user's word. Run no `summary` command there: the planning folder is the main checkout's, and
+`[griller→chief-of-staff] files for <slug>: <path>, …`, by the host's means (its reference), and
+tell the user not to remove your worktree until the Chief of Staff has placed your files. With
+no live Chief of Staff, tell the user where the files are and the same; the next Chief of Staff
+places them on the user's word. Run no `summary` command there: the planning folder is the main checkout's, and
 the Chief of Staff refreshes the summary on placing the files.
 For a series of questions, read the item's short name and last question reference in the
 `02-answers.md` of the main checkout's CR folder, and write your answers, continuing that

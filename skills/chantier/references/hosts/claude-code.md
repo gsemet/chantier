@@ -468,7 +468,9 @@ driver, the QA driver, the Spec-writer, the Spec critic, the Griller, the Demo e
 `python -c` or `node -e`, a script's own writes): the card's rule covers those, and after a
 report's `git status` of the main checkout, the steering session names what changed there
 (`chief-of-staff.md`). The host's scratchpad is outside the worktree: a
-worker writes in its work folder instead. Copilot has no such guard, and the line is inert there.
+worker writes in its work folder instead. The host's instruction to send scripts and intermediate
+results to its scratchpad does not apply to a CR's work, which goes in the CR's folder
+([concepts](../concepts.md)). Copilot has no such guard, and the line is inert there.
 
 The refusals are proved by `hooks/register.test.tsx`, run with `just mod`. The passes are proved
 by the next real eval's normal use, and the audit checks each worker's prompt holds the line:

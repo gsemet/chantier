@@ -323,7 +323,21 @@ Grillers write the CR folders too: re-read the backlog's folders before proposin
 "status?", and when the user says a Griller has finished; re-read a CR's folder before each act
 on it. Files from a Griller in a worktree (`files for <slug>: <paths>`): read them, place them in
 the CR folder of the planning folder as received (a new item through `$CHANTIER file @<its
-request>` first), tell the user, and review a specification as one from the `spec-writer`.
+request>` first), tell the user (the worktree may be removed only after you have placed its files),
+and review a specification as one from the `spec-writer`.
+
+A CR's artifacts during a grill follow [concepts](concepts.md), "A CR's folder holds its work":
+prototypes and experiments go in the CR's folder; a new version of a prototype is a new
+`prototypes/NN-<idea>/` (the earlier ones stay); the user's choice of the retained version is
+recorded in `02-answers.md` at once like any answer (e.g. "Retained prototype:
+`prototypes/02-<idea>/`"). Leaks you close during a grill: an image the user pastes in the chat (no
+file exists) is asked for as a file and saved in `evidence/`, or, if the user does not give it,
+described in `02-answers.md`; a built-in browser screenshot kept as proof is saved on purpose in
+`evidence/`; web research keeps its sources and quotes in an `experiments/` note; a claude.ai
+artifact or an inline visualization that matters to the CR has its source saved in
+`prototypes/NN-<idea>/` (its link, if any, in that version's `README.md`); a plan-mode plan about
+the CR is written in the CR's folder; your memory is never a CR's place (decisions go to
+`02-answers.md`, as "Record at once" says).
 
 **With a planning surface** ([concepts](concepts.md)): the surface's own rules win for its sync,
 its `AGENTS.md` first. Without sync rules there, commit and push the surface after each step that
@@ -364,6 +378,15 @@ word is an answer, recorded at once in `02-answers.md`. Never decide on your own
 grilled enough: you ask, and the user decides. When the user says the CR is grilled enough, the
 critic's yes or no goes into `02-answers.md` with that answer (e.g. `Spec critic: yes, it touches
 the Drivers' contract.`), so a later session knows whether it is due.
+
+Size, at "grilled enough?": when the CR's folder is very big (above 10 MB), the restatement says so
+and you add one question in the same series format: what to do with it at the end of the
+implementation (for instance A. keep the retained prototype zipped in the PR's archive and the rest
+in the planning folder only; B. keep everything in the planning folder only, nothing in the PR's
+archive; C. drop the non-retained versions at `close`). The answer is recorded in `02-answers.md`
+and the specification carries it. A folder that grows very big during the batch is not asked about
+by the Driver: it names it in the PR's Known gaps ([driver](driver.md)), the ready line quotes it,
+and you ask the user at the ready.
 
 **The spec critic.** A fresh `spec-critic` ([`spec-critic.md`](spec-critic.md)) reads the request,
 the answers, the specification and the repository, and looks for a gap with the request's intent,
@@ -1356,9 +1379,10 @@ Rules only; the models judge the rest.
 ## Subagents and the demo
 
 You may start a subagent of your own for an exploration, a prototype or a study, in this
-session; its result is a report or a study. It never starts an implementation: no commit, no
-push, no PR, nothing in a CR's worktree, and a prototype lives in a temporary folder and is
-thrown away. Implementation goes through a CR and the Foreman. Its cost is on the `steering the batch` line (outside the budget in Foreman mode). In Foreman mode, still no message to a Driver.
+session. For a CR, its brief names that CR's folder and the place in it, and its result is written
+there as a file ([concepts](concepts.md), "Starting an agent"); for no CR yet, its brief names a
+folder, and you move what it kept into the CR's folder once a CR comes of it. It never starts an
+implementation: no commit, no push, no PR, nothing in a CR's worktree. Implementation goes through a CR and the Foreman. Its cost is on the `steering the batch` line (outside the budget in Foreman mode). In Foreman mode, still no message to a Driver.
 
 - **The offer.** On the Foreman's `ready-to-merge` that is the last of a stack, when no CR of the batch
   is working, end the Progress report with the offer of a demo (`status-layout.md`).
