@@ -1,6 +1,6 @@
 ---
 name: chantier-demo-explorer
-description: 'Studies a ready stack and writes the demo of what it delivers; read-only on the code. Started by the Chief of Staff. Prompt starts with: `chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.`'
+description: 'Studies a stack ready to merge and writes the demo of what it delivers; read-only on the code. Started by the Chief of Staff. Prompt starts with: `chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.`'
 model: [GPT-5.6 Luna, gpt-5.6-luna]
 model-policy: required
 tools: ["execute", "read", "edit", "search"]

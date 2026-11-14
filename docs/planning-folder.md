@@ -16,7 +16,7 @@ Everything lives in the planning folder, `.agents/changes/` in your project or
 │   ├── retro.md                           the pauses' retro; `close` writes it into batch-NN.md
 │   ├── STATUS.md, STATUS.json             the batch; once paused, its exit report
 │   ├── 1-pending/<number>-<slug>/         in the batch, not started
-│   ├── 2-actives/<number>-<slug>/         taken by a Driver: working, ready or blocked; named
+│   ├── 2-actives/<number>-<slug>/         taken by a Driver: working, handed back ready or blocked; named
 │   │                                      branch chantier/batch-<n>/… and worktree next to the repo
 │   └── 3-done/<number>-<slug>/            merged, until `close`
 ├── 5-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged, after `close` (time of the merge, UTC)

@@ -13,9 +13,9 @@ the Foreman `$CHANTIER status`, a new Driver `$CHANTIER handoff <cr>`.
 | Chief of Staff → Chief of Staff (hand-over) | `your turn, you are the Chief of Staff`; back: `I have the batch` |
 | Griller → Chief of Staff | `<slug> specified` (optional), `files for <slug>: <paths>` (a Griller in a worktree) |
 | Foreman → Driver | `note <text>` (the push result too), `fix <fix-cr>`, `ping`, `stop` |
-| Driver → Foreman | `hand-back ready <link> [<text>]` (the text: the PR stays a draft, and why), `hand-back blocked <reason>` (printed by `$CHANTIER handback`), `anomaly <text>`, `pong <step>`, `push <branch> <expected remote sha> <local sha>` |
+| Driver → Foreman | `hand-back ready to merge <link> [<text>]` or `hand-back PR in draft <link> [<text>]` (the word is the CLI's; the text: the PR stays a draft, and why), `hand-back blocked <reason>` (printed by `$CHANTIER handback`), `anomaly <text>`, `pong <step>`, `push <branch> <expected remote sha> <local sha>` |
 | QA driver → Foreman | `qa done <folder> <n> findings` |
-| Stack driver → Foreman | `hand-back ready <stack link> <cr>=<link>…`, `anomaly <cr> <text>` |
+| Stack driver → Foreman | `hand-back ready to merge <stack link> <cr>=<link>…`, `anomaly <cr> <text>` |
 
 In direct mode the steering session is the Chief of Staff: the rows between the Chief of Staff and
 the Foreman do not travel (what it would send itself is not sent; an ask is still recorded with

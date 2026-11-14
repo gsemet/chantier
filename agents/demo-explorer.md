@@ -1,6 +1,6 @@
 ---
 name: demo-explorer
-description: 'Studies a ready stack and writes the demo of what it delivers; read-only on the code. Started by the Chief of Staff. Prompt starts with: `chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.`'
+description: 'Studies a stack ready to merge and writes the demo of what it delivers; read-only on the code. Started by the Chief of Staff. Prompt starts with: `chantier demo-explorer for the Chief of Staff of batch <batch>, in the project <root>.`'
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
 tools: Bash, PowerShell, Read, Write, Grep, Glob

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Batch modes: parallel, series and stack</title>
-  <desc>A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready wins and the user merges in the order things become ready; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is ready, from the previous CR&#x27;s pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a ready stack: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready.</desc>
+  <desc>A batch has one of three modes. Parallel, the default: every CR starts from the default branch at once and every PR is on the default branch; the first one ready to merge wins and the user merges in the order things become ready to merge; after each merge, every PR still open is rebased onto the default branch and checked again. Series: the CRs have a precise order; the next CR starts once the previous one is handed back, from the previous CR&#x27;s pushed branch, and its PR is a draft; once the previous one is merged, the next one is rebased onto the default branch and turns ready to merge; the Chief of Staff guides the user merge by merge; on request a series switches to a stack. Stack: parallel with a stack driver; every CR starts at once, the PRs go each on the previous one and the stack driver makes one native stack on the forge; the user merges it in one action from the top PR or one PR at a time from the bottom, the release last. A change inserted into a stack ready to merge: the PRs above go back to draft, insert, restack, update the stack on the forge, verify, then the PRs turn ready to merge.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -18,9 +18,9 @@
   <text x="44" y="158" font-size="12.5" fill="#0f172a" font-weight="700">Ask: nothing, it is the default.</text>
   <text x="44" y="180" font-size="12.5" fill="#334155">Every CR starts at once,</text>
   <text x="44" y="197" font-size="12.5" fill="#334155">from the default branch.</text>
-  <text x="44" y="214" font-size="12.5" fill="#334155">The first one ready wins: you</text>
+  <text x="44" y="214" font-size="12.5" fill="#334155">The first one ready to merge wins: you</text>
   <text x="44" y="231" font-size="12.5" fill="#334155">merge in the order things</text>
-  <text x="44" y="248" font-size="12.5" fill="#334155">become ready, unless told</text>
+  <text x="44" y="248" font-size="12.5" fill="#334155">become ready to merge, unless told</text>
   <text x="44" y="265" font-size="12.5" fill="#334155">otherwise.</text>
   <line x1="296" y1="140" x2="1150" y2="140" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
   <text x="1150" y="134" font-size="11.5" fill="#475569" text-anchor="end">time</text>
@@ -30,13 +30,13 @@
   <rect x="300" y="174" width="200" height="30" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
   <text x="400.0" y="194" font-size="12" fill="#0f172a" text-anchor="middle">CR A on main</text>
   <rect x="500" y="174" width="80" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="540.0" y="194" font-size="12" fill="#0f172a" text-anchor="middle">ready</text>
+  <text x="540.0" y="194" font-size="10" fill="#0f172a" text-anchor="middle">to merge</text>
   <path d="M630,171 L641,186 L630,201 L619,186 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
   <text x="646" y="190" font-size="11.5" fill="#c2410c" font-weight="700">you merge A</text>
   <rect x="300" y="216" width="260" height="30" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
   <text x="430.0" y="236" font-size="12" fill="#0f172a" text-anchor="middle">CR B on main</text>
   <rect x="560" y="216" width="80" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="600.0" y="236" font-size="12" fill="#0f172a" text-anchor="middle">ready</text>
+  <text x="600.0" y="236" font-size="10" fill="#0f172a" text-anchor="middle">to merge</text>
   <rect x="650" y="216" width="110" height="30" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="705.0" y="236" font-size="11.5" fill="#4c1d95" text-anchor="middle">rebase + checks</text>
   <path d="M800,213 L811,228 L800,243 L789,228 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
@@ -46,7 +46,7 @@
   <rect x="710" y="258" width="110" height="30" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="765.0" y="278" font-size="11.5" fill="#4c1d95" text-anchor="middle">rebase + checks</text>
   <rect x="830" y="258" width="70" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="865.0" y="278" font-size="12" fill="#0f172a" text-anchor="middle">ready</text>
+  <text x="865.0" y="278" font-size="10" fill="#0f172a" text-anchor="middle">to merge</text>
   <rect x="910" y="258" width="110" height="30" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="965.0" y="278" font-size="11.5" fill="#4c1d95" text-anchor="middle">rebase + checks</text>
   <path d="M1060,255 L1071,270 L1060,285 L1049,270 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
@@ -61,11 +61,11 @@
   <text x="44" y="410" font-size="12.5" fill="#0f172a" font-weight="700">Ask: &quot;run these in series&quot;.</text>
   <text x="44" y="432" font-size="12.5" fill="#334155">The CRs have a precise order.</text>
   <text x="44" y="449" font-size="12.5" fill="#334155">The next one starts once the</text>
-  <text x="44" y="466" font-size="12.5" fill="#334155">previous one is ready, on its</text>
+  <text x="44" y="466" font-size="12.5" fill="#334155">previous one is handed back, on its</text>
   <text x="44" y="483" font-size="12.5" fill="#334155">branch, as a draft. After the</text>
   <text x="44" y="500" font-size="12.5" fill="#334155">previous one merges, it is</text>
   <text x="44" y="517" font-size="12.5" fill="#334155">rebased on main and turns</text>
-  <text x="44" y="534" font-size="12.5" fill="#334155">ready. The Chief of Staff</text>
+  <text x="44" y="534" font-size="12.5" fill="#334155">ready to merge. The Chief of Staff</text>
   <text x="44" y="551" font-size="12.5" fill="#334155">guides you merge by merge.</text>
   <line x1="296" y1="392" x2="1150" y2="392" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
   <text x="1150" y="386" font-size="11.5" fill="#475569" text-anchor="end">time</text>
@@ -75,7 +75,7 @@
   <rect x="300" y="422" width="180" height="30" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
   <text x="390.0" y="442" font-size="12" fill="#0f172a" text-anchor="middle">CR A on main</text>
   <rect x="480" y="422" width="60" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="510.0" y="442" font-size="12" fill="#0f172a" text-anchor="middle">ready</text>
+  <text x="510.0" y="442" font-size="10" fill="#0f172a" text-anchor="middle">to merge</text>
   <path d="M580,419 L591,434 L580,449 L569,434 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
   <text x="596" y="438" font-size="11.5" fill="#c2410c" font-weight="700">you merge A</text>
   <rect x="480" y="464" width="180" height="30" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="5 3"/>
@@ -83,7 +83,7 @@
   <rect x="668" y="464" width="72" height="30" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="704.0" y="484" font-size="11.5" fill="#4c1d95" text-anchor="middle">rebase</text>
   <rect x="748" y="464" width="70" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="783.0" y="484" font-size="12" fill="#0f172a" text-anchor="middle">ready</text>
+  <text x="783.0" y="484" font-size="10" fill="#0f172a" text-anchor="middle">to merge</text>
   <path d="M860,461 L871,476 L860,491 L849,476 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
   <text x="876" y="480" font-size="11.5" fill="#c2410c" font-weight="700">you merge B</text>
   <rect x="660" y="506" width="180" height="30" rx="8" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="5 3"/>
@@ -91,7 +91,7 @@
   <rect x="868" y="506" width="72" height="30" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="904.0" y="526" font-size="11.5" fill="#4c1d95" text-anchor="middle">rebase</text>
   <rect x="948" y="506" width="70" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="983.0" y="526" font-size="12" fill="#0f172a" text-anchor="middle">ready</text>
+  <text x="983.0" y="526" font-size="10" fill="#0f172a" text-anchor="middle">to merge</text>
   <path d="M1060,503 L1071,518 L1060,533 L1049,518 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
   <text x="1076" y="522" font-size="11.5" fill="#c2410c" font-weight="700">you merge C</text>
   <line x1="580" y1="449" x2="580" y2="464" stroke="#c2410c" stroke-width="1.4" stroke-dasharray="4 3"/>
@@ -126,21 +126,21 @@
   <text x="665" y="774" font-size="12" fill="#4c1d95" font-weight="700" text-anchor="middle">driver</text>
   <text x="665" y="790" font-size="11.5" fill="#4c1d95" text-anchor="middle">stacks</text>
   <rect x="730" y="706" width="120" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="790.0" y="726" font-size="12" fill="#0f172a" text-anchor="middle">ready on main</text>
+  <text x="790.0" y="726" font-size="11" fill="#0f172a" text-anchor="middle">ready to merge on main</text>
   <rect x="730" y="748" width="120" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="790.0" y="768" font-size="12" fill="#0f172a" text-anchor="middle">ready on A</text>
+  <text x="790.0" y="768" font-size="11" fill="#0f172a" text-anchor="middle">ready to merge on A</text>
   <rect x="730" y="790" width="120" height="30" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="790.0" y="810" font-size="12" fill="#0f172a" text-anchor="middle">ready on B</text>
+  <text x="790.0" y="810" font-size="11" fill="#0f172a" text-anchor="middle">ready to merge on B</text>
   <path d="M900,748 L911,763 L900,778 L889,763 z" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
   <text x="916" y="767" font-size="11.5" fill="#c2410c" font-weight="700">you merge: stack, or one by one</text>
   <text x="730" y="840" font-size="11.5" fill="#4c1d95">one stack on the forge, merged from the top or one by one, release last</text>
-  <text x="730" y="854" font-size="11.5" fill="#4c1d95">insert: drafts above, insert, restack, stack, verify, ready</text>
+  <text x="730" y="854" font-size="11.5" fill="#4c1d95">insert: drafts above, insert, restack, stack, verify, ready to merge</text>
   <rect x="300" y="872" width="22" height="14" rx="4" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
   <text x="328" y="883" font-size="11.5" fill="#475569">CR driver works</text>
   <rect x="450" y="872" width="22" height="14" rx="4" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
-  <text x="478" y="883" font-size="11.5" fill="#475569">PR ready</text>
+  <text x="478" y="883" font-size="11.5" fill="#475569">ready to merge</text>
   <rect x="560" y="872" width="22" height="14" rx="4" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3 2"/>
-  <text x="588" y="883" font-size="11.5" fill="#475569">PR draft or driver on a draft</text>
+  <text x="588" y="883" font-size="11.5" fill="#475569">PR in draft or driver on a draft</text>
   <rect x="790" y="872" width="22" height="14" rx="4" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="818" y="883" font-size="11.5" fill="#475569">rebase, checks, restack</text>
   <path d="M983,872 l8,7 l-8,7 l-8,-7 z" fill="#fff7ed" stroke="#c2410c" stroke-width="1.6"/>

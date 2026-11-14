@@ -81,7 +81,7 @@ Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
   is only a signal. The steering session checks the forge itself (`gh pr checks`, `gh pr view
   --json mergeable`, or `glab` on GitLab). If the PR is really red or in conflict, it follows the
   card's usual route: the CR goes back to a Driver with `take <cr> --note "<why>"` (`foreman.md`,
-  "Your means": a red check, or the ready PR that stopped merging with `--note "rebase: …"`). It
+  "Your means": a red check, or the PR ready to merge that stopped merging with `--note "rebase: …"`). It
   never does what the event asks itself. If the forge shows nothing wrong, nothing is done.
 - **Both steerings.** The same rule holds for whichever session steers: the Foreman, or the Chief
   of Staff in direct mode.

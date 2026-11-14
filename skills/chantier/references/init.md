@@ -38,7 +38,7 @@ getting started here, phrases to say, the glossary.
   in `1-inbox`, grilled with a question and its recommended answer, specified, prioritized into
   `2-backlog/P<n>`, put in `3-ready` for the next batch, run in a batch by the Foreman, taken by a
   Driver in a slot on its branch and worktree, rounds of Coder then Inspector, long gate, PR, CI,
-  Verifier, ready, the user's merge, `3-done`, then `5-archives` at `close`. The example CR is a real, small improvement you pick from what you read;
+  Verifier, ready to merge, the user's merge, `3-done`, then `5-archives` at `close`. The example CR is a real, small improvement you pick from what you read;
   its paths, branch name and gate commands are this project's.
 - **Steering.** A batch is steered either by the **Foreman**, a separate session, or by you in
   **direct mode**: no Foreman session, you start the Drivers and hold no grill
@@ -50,7 +50,7 @@ getting started here, phrases to say, the glossary.
 - **Concepts appear when they serve,** in bold. A role is first an image of the building site
   (chief of staff, foreman, team lead, workers), then its exact term.
 - **About ten core terms** in the story: CR, specification, batch, Chief of Staff, Foreman,
-  Driver, slot, round, Coder, Inspector, Verifier, ready. The others go to the glossary.
+  Driver, slot, round, Coder, Inspector, Verifier, ready to merge. The others go to the glossary.
 - **Three diagrams, generated for this project:** who talks to whom (the user, the Chief of
   Staff, the Foreman, a Driver per CR, its workers; orders down, questions and hand-backs up);
   the five folders and what moves a CR between them; one CR over time (rounds, gate, PR, CI,
@@ -79,7 +79,7 @@ getting started here, phrases to say, the glossary.
    then propose `long_gate:` / `parallel: <n>` for `chantier.yaml`, written only on the user's
    yes; on a no, propose `parallel: 1`, so the question is not asked again. Not asked when
    `chantier.yaml` already has `long_gate`. The impact when the key is missing: long gates run
-   one at a time, and four ready CRs wait their turns. Point to `docs/gates.md`. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
+   one at a time, and four CRs in `3-ready` wait their turns. Point to `docs/gates.md`. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
    only on the user's yes. For an in-project planning folder, the `.gitignore` line is explained only: keep `.agents/changes/` out
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.

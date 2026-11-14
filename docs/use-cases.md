@@ -196,7 +196,7 @@ steering not claimed), `cost` and `close` both refuse: `close` deletes nothing i
 Once a batch is paused, `status` and `cost` without `--batch` answer `no running batch`: pass
 `--batch <name>`.
 
-You also get it unasked: one line per CR when it is ready or merged, and the full cost to date when
+You also get it unasked: one line per CR when it is ready to merge or merged, and the full cost to date when
 the batch is paused, final at `close` (total, budget, the split between the steering session,
 Drivers and workers, the costliest CRs).
 

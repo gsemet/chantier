@@ -93,21 +93,21 @@ what, when. You never merge through chantier: you merge, and the steering sessio
 ![Batch modes: parallel, series and stack](docs/batch-modes.svg)
 
 - **Parallel** (the default; ask for nothing): every CR starts from the default branch at once and
-  its PR is on the default branch. The first one ready wins: you merge in the order things become
-  ready, unless you say otherwise. After each merge, every PR still open is rebased onto the
+  its PR is on the default branch. The first one ready to merge wins: you merge in the order things become
+  ready to merge, unless you say otherwise. After each merge, every PR still open is rebased onto the
   default branch and its checks run again, conflict or not.
 - **Series** ("run these in series"): the CRs have a precise order, the one you gave. The next CR
   starts once the previous one is handed back ready, from the previous CR's pushed branch, and its
   PR is a draft. Once the previous one merges, the next one is rebased onto the default branch and
-  turns ready. The Chief of Staff guides you merge by merge. On request ("switch to a stack"), a
+  turns ready to merge. The Chief of Staff guides you merge by merge. On request ("switch to a stack"), a
   series becomes a stack at once.
 - **Stack** ("build a stack of these"): parallel, with a stack driver. Every CR starts at once, the
-  PRs go each on the previous one, and once every PR is ready the stack driver makes one native
+  PRs go each on the previous one, and once every PR is handed back ready the stack driver makes one native
   stack on the forge (GitHub; install the `gh stack` extension, which chantier recommends). You merge
   it in one action from the top PR, or one PR at a time from the bottom, as you choose merge by
-  merge; the release commit is last. A change inserted into a ready stack
+  merge; the release commit is last. A change inserted into a stack ready to merge
   sends the PRs above it back to draft first, then restacks and verifies the stack before they turn
-  ready again.
+  ready to merge again.
 
 A CR that depends on another (`depends.json`) waits for it in every mode. A fix CR
 sits outside a series and a stack; a release CR is their top. The lifecycle of a batch (running, paused, closed) is the same in
@@ -233,7 +233,8 @@ Talk to the Chief of Staff in plain language:
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background; on an impactful CR the spec critic checks it after |
-| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR or one PR at a time from the bottom, as you choose; a PR handed back ready is mergeable at once |
+| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR or one PR at a time from the bottom, as you choose; a PR ready to merge (out of draft) is mergeable at once, a PR in draft is not |
+| "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR or one PR at a time from the bottom, as you choose; a PR ready to merge (out of draft) is mergeable at once, a PR in draft is not |
 | "status?" | one line per CR with its PR; a blocked CR comes back as a question |
 | "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
 | "close the batch" | the check and the final cost, then closing on your yes |
