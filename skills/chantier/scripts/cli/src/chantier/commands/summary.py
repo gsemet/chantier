@@ -11,7 +11,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 from chantier.commands.crs import shown
-from chantier.commands.registry import NO_BATCH, Handler, Subparsers, add_command
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import (
@@ -19,7 +18,6 @@ from chantier.core.records import (
     LABEL_PATTERN,
     SUMMARY_MAX,
     TITLE_MAX,
-    TRACKERS,
     CrSummary,
 )
 from chantier.core.repo import Repo
@@ -29,12 +27,6 @@ from chantier.summaries import store
 from chantier.summaries.gaps import Gap, gap_of
 from chantier.summaries.origin import issue_url, origin_of
 from chantier.summaries.sources import checksums, covered_files
-
-HELP = (
-    "the CR's condensed JSON (title, summary, origin, labels, group): lint lists what is missing "
-    "or late, set stores what an agent wrote, label and group link CRs"
-)
-
 
 def _cr_folder(repo: Repo, paths: dict[str, Path], item: str) -> Path:
     """A CR folder of a stage, from the path the command was given."""
@@ -181,48 +173,5 @@ def group(args: argparse.Namespace) -> list[str]:
     return _edit_all(args.folders, edit, lambda path, s: f"group {path}: {s.group or 'none'}")
 
 
-def _needs_action(args: argparse.Namespace) -> list[str]:
+def needs_action(args: argparse.Namespace) -> list[str]:
     raise ChantierError("summary takes lint, set, label or group", EXIT_USAGE)
-
-
-def _action(actions: Subparsers, name: str, fn: Handler, help_: str) -> argparse.ArgumentParser:
-    """One action of `summary`; `--project` is accepted after it too."""
-    p: argparse.ArgumentParser = actions.add_parser(name, help=help_)
-    p.set_defaults(fn=fn)
-    p.add_argument("--project", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
-    p.add_argument("--skill", default=argparse.SUPPRESS, help=argparse.SUPPRESS)
-    return p
-
-
-def register(sub: Subparsers) -> None:
-    """Declare `summary` and its four actions."""
-    s = add_command(sub, "summary", _needs_action, HELP, NO_BATCH)
-    s.description = HELP
-    actions = s.add_subparsers(dest="action", required=True, metavar="lint|set|label|group")
-
-    p = _action(actions, "lint", lint, "list the CRs whose summary is missing or late")
-    p.add_argument("folders", nargs="*", help="CR folders; none: every CR but the archives")
-
-    p = _action(actions, "set", set_summary, "store a CR's title and summary, and its checksums")
-    p.add_argument("folder", help="the CR's folder")
-    p.add_argument("--title", help=f"one line, {TITLE_MAX} characters at most")
-    g = p.add_mutually_exclusive_group()
-    g.add_argument("--summary", help=f"one line of plain text, {SUMMARY_MAX} characters at most")
-    g.add_argument(
-        "--unchanged", action="store_true", help="the changed files were read and it still holds"
-    )
-    p.add_argument(
-        "--tracker", choices=TRACKERS, help="the issue: line's tracker, when its URL says not"
-    )
-
-    p = _action(actions, "label", label, "add or remove labels on CRs")
-    p.add_argument("folders", nargs="+", help="CR folders")
-    g = p.add_mutually_exclusive_group(required=True)
-    g.add_argument("--add", help="comma-separated labels to add")
-    g.add_argument("--remove", help="comma-separated labels to remove")
-
-    p = _action(actions, "group", group, "put CRs in a group, or take them out of theirs")
-    p.add_argument("folders", nargs="+", help="CR folders")
-    g = p.add_mutually_exclusive_group(required=True)
-    g.add_argument("--name", help=f"the group's name, one line, {GROUP_MAX} characters at most")
-    g.add_argument("--clear", action="store_true", help="take the CRs out of their group")

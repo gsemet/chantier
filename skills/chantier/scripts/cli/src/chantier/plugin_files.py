@@ -5,14 +5,16 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import CrEntry
 from chantier.core.repo import Repo
 from chantier.playbook.config import FILE, load
+
+if TYPE_CHECKING:
+    from chantier.core.records import CrEntry
 
 HOSTS = ("claude", "copilot")
 

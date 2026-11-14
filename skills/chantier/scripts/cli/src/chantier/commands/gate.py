@@ -15,7 +15,6 @@ from chantier import procs
 from chantier.commands.crs import batch_cr, cr_worktree, dirty_files, short_head, work
 from chantier.commands.gate_lock import LongGateLock, lock_holder, parse_holder
 from chantier.commands.gate_run import run_file, run_write, stop_asked, stop_file, stop_gate
-from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
 from chantier.core.records import RunRecord
@@ -212,28 +211,3 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
         run_file(repo).unlink(missing_ok=True)
         stop_file(repo).unlink(missing_ok=True)
     return _finish_stopped(g, ran, stopped) if stopped else _finish(g, ran)
-
-
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "gate",
-        gate,
-        "run the long gate in the CR worktree, alone in the repository, "
-        "a second one waits its turn, first come first served; --stop stops this CR's running one",
-        BATCH,
-    )
-    s.add_argument("cr")
-    s.add_argument(
-        "command",
-        nargs="*",
-        help="the long gate's commands, from the project's rules: "
-        "one per argument, never chained with ; or &&; they stop at the first failure",
-    )
-    s.add_argument(
-        "--stop",
-        action="store_true",
-        help="stop this CR's running long gate: its suite, the gate lock; recorded "
-        "`stopped`, no pass; nothing else changes",
-    )
