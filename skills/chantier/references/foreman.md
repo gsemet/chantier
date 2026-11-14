@@ -368,12 +368,26 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
   `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through
   `asks` (it is not for the user).
-  The Chief of Staff answers `[chief-of-staff→foreman] pushed <branch>` or `push failed
-  <branch> <text>`; tell the Driver at once, `[foreman→driver <cr>] note push <branch>: <the
-  answer>`. The Chief of Staff judges the push and may ask the user first: wait for its answer
-  and pass nothing else meanwhile. A push the host refuses the Chief of Staff too is the user's,
-  shown by it; the Driver hears `push refused <branch>: <exact text>` and hands back. Record each
-  refusal with `$CHANTIER note <cr> "refused: <the exact command> -> <the host's exact text>"`.
+  The Chief of Staff answers `[chief-of-staff→foreman] pushed <branch>`, `push failed <branch>
+  <text>` or `push refused <branch>: <text>`. The Chief of Staff judges the push and may ask the
+  user first: wait for its answer and pass nothing else meanwhile. A push the host refuses the
+  Chief of Staff too is the user's, shown by it.
+  - The answer does not go to a live Driver as a note: the Driver handed back `blocked waits: push
+    <branch> …` and ended. When the CR is `blocked` with that `waits:`, take it back at once with
+    the restart path's steps (the id cleared first: `agents set <cr> - --epoch <n>`) and `take <cr>
+    --note "push: <the Chief of Staff's answer, as it came>"`, then a new CR Driver (or Release
+    driver), before any queued CR: a blocked CR holds no slot, so it takes the next free one, as
+    for a `context:` hand-back. No round is counted.
+  - An answer that comes before the hand-back has landed (the CR still `working`): wait for the
+    hand-back, then take it back as above. A Driver that ended without its hand-back takes the
+    lost-Driver path, with the answer in its `resume:` note.
+  - A Driver of a CR handed back `waits: push` is never pinged, and the CR is not a lost Driver
+    (it is `blocked`, not `working`). The stack driver, which waits for the push result, still
+    gets `[foreman→driver stack] note push <branch>: <the answer>`.
+  - Record each refusal once, whoever sees it: the Driver records its own refused push before its
+    push line (`driver.md`), the Chief of Staff records its own (its step 6), you record a refusal
+    you meet yourself, with `$CHANTIER note <cr> "refused: <the exact command> -> <the host's
+    exact text>"`.
 - **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
   kind, and holds in a direct batch, whose Chief of Staff reads this card).
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line

@@ -55,7 +55,7 @@ The direct-mode lines that `hosts/claude-code.md` marks unproved:
 - the heartbeat in the Chief of Staff's own session;
 - the `Chief of Staff, steering the batch` cost row (the steering share of the scorecard reads
   it);
-- a refused force push, judged and run by the Chief of Staff with the Driver told by note, if one
+- a refused force push, judged and run by the Chief of Staff with the CR's fresh Driver told by its `take` note, if one
   happens;
 - `order qa` refused while the batch runs.
 

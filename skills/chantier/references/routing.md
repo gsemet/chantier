@@ -9,10 +9,10 @@ the Foreman `$CHANTIER status`, a new Driver `$CHANTIER handoff <cr>`.
 | --- | --- |
 | Chief of Staff → Foreman | `order O-<k>: …` (printed by `$CHANTIER order`), `ping` |
 | Foreman → Chief of Staff | `ready <batch>`, `ask <A-k>: …` (printed by `$CHANTIER asks`), `pong <status line>`, `final <STATUS.md path>`, `push <branch> <expected remote sha> <local sha>` (a Driver's refused force push, passed as it came), `chain <cr> after <cr>: <reason>` (a queued CR the Foreman chains; the Chief of Staff records it at once, without the user's word) |
-| Chief of Staff → Foreman | also `pushed <branch>`, `push failed <branch> <text>`, `push refused <branch>: <reason or git's exact text>` (the Driver then ends with `handback blocked refused <exact text>`), `chief-of-staff <session id>` (a hand-over: the new Chief of Staff's session) |
+| Chief of Staff → Foreman | also `pushed <branch>`, `push failed <branch> <text>`, `push refused <branch>: <reason or git's exact text>` (the CR's fresh Driver then hands back `blocked refused <exact text>`), `chief-of-staff <session id>` (a hand-over: the new Chief of Staff's session) |
 | Chief of Staff → Chief of Staff (hand-over) | `your turn, you are the Chief of Staff`; back: `I have the batch` |
 | Griller → Chief of Staff | `<slug> specified` (optional), `files for <slug>: <paths>` (a Griller in a worktree) |
-| Foreman → Driver | `note <text>` (the push result too), `fix <fix-cr>`, `ping`, `stop` |
+| Foreman → Driver | `note <text>`, `fix <fix-cr>`, `ping`, `stop` |
 | Driver → Foreman | `hand-back ready to merge <link> [<text>]` or `hand-back PR in draft <link> [<text>]` (the word is the CLI's; the text: the PR stays a draft, and why), `hand-back blocked <reason>` (printed by `$CHANTIER handback`), `anomaly <text>`, `pong <step>`, `push <branch> <expected remote sha> <local sha>` |
 | QA driver → Foreman | `qa done <folder> <n> findings` |
 | Stack driver → Foreman | `hand-back ready to merge <stack link> <cr>=<link>…`, `anomaly <cr> <text>` |
