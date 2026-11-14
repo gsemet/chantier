@@ -1043,7 +1043,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   4. Not legitimate: push nothing and tell the user at once, in the report's shape (the question
      is the **For you:** line, no tip): the CR (number and slug), the branch, the expected and
      local shas, and what the judgement found (for instance, the remote has 2 commits the local
-     head does not hold). The Driver keeps waiting. On the user's go, push as in 3; on their no,
+     head does not hold). The CR keeps waiting (its Driver has handed back). On the user's go, push as in 3; on their no,
      answer `push refused <branch>: <the user's reason>`.
   5. A failed lease is not retried (the remote moved; the Driver looks at why): answer `push
      failed <branch> <git's text>` and tell the user at once, with git's text and what it means
@@ -1278,9 +1278,9 @@ these differences.
 - **Nothing is sent to yourself.** No `ready <batch>`, no `[foreman→chief-of-staff]` line. An
   ask is still recorded with `$CHANTIER asks "<text>"` (so a resume loses nothing) and told to the
   user at once, in the report's shape. A Driver's refused force push is judged and run by you, as
-  above, without asking the user; the Driver hears the result as a note (`order note` or the
-  host's message, as your other notes to it): `pushed <branch>`, `push failed <branch> <text>` or
-  `push refused <branch>: <text>`.
+  above, without asking the user; the CR goes back to a fresh Driver with the result as its `take`
+  note (`push: <the result>`, as `foreman.md` says): `pushed <branch>`, `push failed <branch>
+  <text>` or `push refused <branch>: <text>`.
 - **A CR added while the batch runs is queued.** `order add` queues it, with no pause needed, and
   you take it when a slot frees; `order qa` is refused by the CLI (exit 2). `order add --release`
   and `order add --fix-for <release-cr>` are accepted as ever, a release CR needing no real grill.

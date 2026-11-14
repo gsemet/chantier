@@ -329,7 +329,9 @@ and chantier does not do them unasked. Each with why:
   labels "Merge Without Review" and "Create Public Surface", seen in the user's week:
   **unproved**, not documented (checked 2026-11-09).
 - A refusal is reported with its exact text (concepts rule 7). A refused force push takes the
-  route already written (`driver.md`, `foreman.md`: Driver → Foreman → Chief of Staff). Cause:
+  route already written (`driver.md`, `foreman.md`: Driver → Foreman → Chief of Staff); the
+  Driver records the refused command and text before it sends the push line (`driver.md`), so a
+  refusal on a command an allow rule matches is told apart from one with no rule. Cause:
   the classifier blocks destructive git in subagents ("Git Destructive"); the steering session's
   own `git -C <worktree> push --force-with-lease=...` went through (**proved by use**,
   2026-11-11, batch-09; not always: refused on 2026-11-13 as a loop). So the route ends in the

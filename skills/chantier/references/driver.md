@@ -328,17 +328,33 @@ The CLI keeps the CR's record and tells you what is off.
   a fresh Driver from it.
 - A force push the host refuses (any Driver that pushes): the Chief of Staff judges it and runs
   it for you, without the user's word in the normal case.
-  With your work committed, send `[driver <cr>→foreman] push <branch> <expected remote sha>
-  <local sha>` (the remote head you expect, from `git ls-remote`, and your head), then wait: no
-  other push, no other way. While the steering session asks the user (a push it judges not right),
-  you keep waiting. The steering session tells you the result. Done: `ship` and go on. A failed
-  lease (the remote moved): look at why (`git fetch`, what the remote gained), never the same
-  push again. A `push refused` note, whether the branch is not this batch's or the Chief of
-  Staff's own push was refused, ends with `handback blocked refused <exact text>`; it goes to
-  the user. The exception is `push refused <branch>: no long gate passed at <sha>`: run the long
-  gate and send the push line again, no hand-back (with the `ci: beside the long gate` line the
-  Chief of Staff does not send it; one you get anyway goes to the steering session as printed).
-  Any other refused action stays `blocked refused` as above.
+  This holds for a CR Driver and the Release driver (both hand back with `handback <cr>`); the
+  stack driver keeps its own rule, below. With your work committed:
+  1. Record the refusal first, in one note: `$CHANTIER note <cr> "refused: <the exact command> ->
+     <the host's exact text>"`: the command as it ran (its `git -C <path>` form included, flags
+     and refspec as typed), and the host's whole text as it came (with the classifier's label,
+     such as "Git Destructive", when the host gives one). Never a summary such as "refused by
+     host". It is what proves afterwards a missing allow rule or the classifier on a matching rule.
+  2. Then one note with what is next: `$CHANTIER note <cr> "next after push: <the steps left, in
+     order>"` (for instance: `ship`, the long gate already passed at `<sha7>`, read CI, the
+     verifier given the move, turn the PR ready, hand back ready), so a fresh Driver starts from it
+     without reading the whole record again.
+  3. `$CHANTIER handback <cr> blocked waits: push <branch> <expected remote sha> <local sha>`
+     (the remote head you expect, from `git ls-remote`, and your head).
+  4. Send `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>`, and end: no
+     other push, no other way, and no wait in your turn. The CR waits, not you; the steering
+     session restarts a fresh Driver on it when the Chief of Staff's answer comes back.
+
+  The fresh Driver reads the answer in its `take` note (`push: <the answer>`) and acts on it, from
+  your `next after push` note: `pushed <branch>`: `ship` and go on. `push failed`: look at why
+  (`git fetch`, what the remote gained), never the same push again. `push refused <branch>: no
+  long gate passed at <sha>`: run the long gate, send the push line again and hand back `waits:`
+  again as above (with the `ci: beside the long gate` line the Chief of Staff does not send it;
+  one you get anyway goes to the steering session as printed). Any other `push refused` (the
+  branch is not this batch's, or the Chief of Staff's own push was refused): `handback blocked
+  refused <exact text>` at once; it goes to the user. Any other refused action stays `blocked
+  refused` as above. The stack driver, which restacks several branches in one take, sends the
+  push line and waits for the result as a note, no other push, no other way.
 - `[foreman→driver <cr>] note <text>`: decide what it does (next round, restart, after the PR),
   `note` the decision. A `note taken back: <why>` received after your own `handback ready`
   means the steering session took the CR back for you: the CR is yours again, `handoff <cr>`
