@@ -38,7 +38,7 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
         "--env",
         "Mac",
         "--title",
-        "[Mac] Proj [Chief of Staff]",
+        "[Mac] 💬 Proj · CoS",
         "--link",
         "claude://s-1",
     )
@@ -48,8 +48,7 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
     assert seat["session"] == "s-1" and seat["link"] == "claude://s-1"
     assert set(seat) == {"session", "transcript", "env", "title", "link"}  # no date
     assert (
-        chantier("seat")[1][0]
-        == 'seat s-1 env Mac title "[Mac] Proj [Chief of Staff]" link claude://s-1'
+        chantier("seat")[1][0] == 'seat s-1 env Mac title "[Mac] 💬 Proj · CoS" link claude://s-1'
     )
     assert chantier("seat", "take", "s-1", "--title", "again")[0] == 0  # the same session
     code, _, err = chantier("seat", "take", "s-2")

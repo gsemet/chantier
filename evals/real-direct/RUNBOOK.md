@@ -34,7 +34,7 @@ either one.
 
 The session is new and its own: not a Foreman session. It is the steering session ("Steering a
 batch yourself" in `chief-of-staff.md`): it runs `$CHANTIER preflight --direct`, `open --direct`,
-claims its epoch, renames itself `[env] Project [Chief of Staff - Batch <nn> - Direct]`, starts
+claims its epoch, renames itself `[<code>] 💬 Project <nn> · CoS`, starts
 the Drivers itself and arms the heartbeat. It also plays the user in full, as in real-foreman.
 
 The merge (`sandbox.py merge <n>`, from the workspace, alone), the question, the stuck CR and the
