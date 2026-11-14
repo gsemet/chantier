@@ -1,0 +1,28 @@
+// Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../i18n.js.
+export default {
+  'lang.name': 'Français',
+  'lang.switch': 'English',
+  'nav.views': 'Vues',
+  'nav.home': 'Home',
+  'nav.triage': 'Triage',
+  'nav.kanban': 'Kanban',
+  'nav.batch': 'Batch',
+  'nav.costs': 'Coûts',
+  'project.change': 'Changer de projet',
+  'stats.intake': 'intake',
+  'stats.backlog': 'au grill',
+  'stats.working': 'en cours',
+  'stats.handed': 'rendus',
+  'stats.no_batch': 'pas de batch',
+  'stats.loading': 'Chargement…',
+  'time.s': '{n} s',
+  'time.min': '{n} min',
+  'time.h': '{n} h',
+  'time.d': '{n} j',
+  'heard.at': 'Dernier échange avec le serveur : il y a {age}',
+  'heard.never': 'Aucun échange avec le serveur pour le moment',
+  'notice.silent':
+    'Le board ne répond plus (arrêté, ou le réseau). Les données affichées sont les dernières reçues.',
+  'notice.key': 'Ce board demande le lien avec sa clé : demande-le au Chief of Staff.',
+  'view.empty': 'Cette vue est dessinée par un changement à venir.',
+};

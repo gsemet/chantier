@@ -7,7 +7,7 @@ import sys
 from typing import Any
 
 from chantier import __version__, plugin_files
-from chantier.board import server
+from chantier.board import command as board_command
 from chantier.commands import (
     batch_status,
     closing,
@@ -70,7 +70,7 @@ def _parser() -> argparse.ArgumentParser:
         opening,
         orders,
         seat,
-        server,
+        board_command,
         batch_status,
         driver,
         rules,

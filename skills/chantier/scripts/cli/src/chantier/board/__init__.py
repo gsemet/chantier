@@ -1,2 +1,3 @@
-"""`chantier board`: a read-only web view of the record, on the standard library's HTTP server;
-its dependencies come through the CLI's PEP 723 block like the rest of the CLI."""
+"""`chantier board`: the web board's server (starlette and uvicorn, pinned in the root
+pyproject.toml and imported lazily). It reads the record the CLI keeps, writes only its key file
+in the git folder, and knows no role."""
