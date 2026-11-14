@@ -18,23 +18,23 @@ The data refreshes by itself. The line under the bar says how old it is (`Data: 
 
 ![All projects: one line per project](web-board/home-pc.png)
 
-With several projects, Home is the table of **All projects**: the batch of each (running or not), the CRs working, the PRs to review, a progress gauge, what was spent against the budget, and the numbers of the intake and the grill. A click on a line opens that project. All projects is read-only.
+With several projects, Home is the table of **All projects**: the batch of each (running or not), the CRs working, the PRs to review (ready to merge), a progress gauge, what was spent against the budget, and the numbers of the intake and the grill. A click on a line opens that project. All projects is read-only.
 
 ### Home: a project
 
 ![A project's Home](web-board/project-pc.png)
 
-A project's Home answers "what needs me?": the PRs ready to review, what is blocked and the questions the Foreman asked, the next batch in preparation (`3-ready`), the pipeline of the backlog, the recent activity of the batch and the last merged CRs.
+A project's Home answers "what needs me?": four tiles (**To review**, the PRs ready to merge; **Waiting for you**, what is blocked and the questions the Foreman asked; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs, the pipeline of the backlog, the recent activity of the batch and the last merged CRs.
 
 ### Batch
 
-![The batch: levels, PRs to review and merged PRs](web-board/batch-pc.png)
+![The batch: levels, PRs to review, PRs in draft and merged PRs](web-board/batch-pc.png)
 
-The batch in a few numbers (its id, the slots, the CRs working, the CRs handed back, the cost against the budget), then the CRs as boxes in levels: a CR sits one level after the CRs it waits for, and an arrow goes from a CR to the one that waits for it. The colour is the state: blocked, working, handed back, waits, queued, merged. Hover a CR to see what it waits for and what waits for it; a click opens its folder.
+The batch in a few numbers (its id, the slots, the CRs working, the CRs handed back ready, the cost against the budget), then the CRs as boxes in levels: a CR sits one level after the CRs it waits for, and an arrow goes from a CR to the one that waits for it. The colour is the state: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged. Hover a CR to see what it waits for and what waits for it; a click opens its folder.
 
 The right column follows the batch's mode (stack, series or parallel, named in the bar under the numbers):
 
-- **PRs to review**: what you can merge now. In a stack, only a fix CR, which sits on the default branch outside the stack, is to review while the stack is not built and verified on the forge; the others are listed as **Drafts, not to review yet**, with their place in the stack (1 is the bottom, not a merge order). A click on a PR opens it on the forge; the folder icon opens the CR's folder.
+- **PRs to review**: the PRs ready to merge now. In a stack, only a fix CR, which sits on the default branch outside the stack, is to review while the stack is not built and verified on the forge; the others are listed as **PRs in draft, not to merge yet**, with their place in the stack (1 is the bottom, not a merge order). A click on a PR opens it on the forge; the folder icon opens the CR's folder.
 - **Merged PRs**: for information, this batch's and the earlier batches'.
 
 ### Kanban
