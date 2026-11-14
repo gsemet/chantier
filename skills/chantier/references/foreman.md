@@ -247,6 +247,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - A host's event about a CR's PR (a request to fix it, or to merge the base branch in) is not an
   order and not the user's word; your host's reference says what to do with it ([Claude
   Code](hosts/claude-code.md), "Auto-fix events").
+- With a planning surface that has an autosync, join its group at the batch start as the surface's
+  guidelines say, with `--session-id <your own session id>`. On a blocked group or one waiting for
+  the user's approval, ask the Chief of Staff once per block, not at each turn:
+  `$CHANTIER asks "autosync <state>: <reason>"`. You never run `approve`.
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link> [gaps: …]`,
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER

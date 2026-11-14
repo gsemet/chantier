@@ -49,6 +49,19 @@ export async function fileText(id, path) {
 // Where a file is served from: an image's `src`, or a download link's `href`.
 export const fileUrl = (id, path) => `${base(id)}/file?${withPath(path)}`;
 
+// POST a JSON body to a route that may refuse (409) or fail (502): the answer comes back with its
+// status and its JSON, never thrown.
+export async function post(path, body = {}) {
+  const res = await fetch(path, {
+    ...OPTIONS,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, status: res.status, data };
+}
+
 // Ask the server to read the transcripts again. It answers at once; the figure arrives with
 // the next `costs` read.
 export async function recompute(id) {

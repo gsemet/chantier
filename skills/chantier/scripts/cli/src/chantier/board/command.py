@@ -4,11 +4,13 @@ of a board already running; `starlette` and `uvicorn` load only once the board s
 from __future__ import annotations
 
 import argparse
+import os
 import socket
 import sys
 from typing import Any
 
 from chantier import __version__
+from chantier.autosync.site import find_site
 from chantier.board.address import (
     is_loopback,
     probe,
@@ -17,6 +19,7 @@ from chantier.board.address import (
     url,
 )
 from chantier.board.app import make_server
+from chantier.board.autosync_tool import spawn_join, watch_join
 from chantier.board.context import Context
 from chantier.board.key import KeyFile, key_path, load_or_create
 from chantier.board.projects import Projects, check_planning, open_projects
@@ -74,6 +77,24 @@ def _running(projects: Projects, host: str, port: int, key: str) -> bool:
     return isinstance(found, dict) and found.get("served") == projects.served.as_posix()
 
 
+def _join_autosync(projects: Projects) -> None:
+    """Join the surface's autosync group while the server runs, and say so in one line. The board
+    serves either way: it never blocks a session."""
+    site = find_site(projects.home)
+    if site is None:
+        return
+    if site.script_missing:
+        print("board: autosync not joined: scripts/ai-autosync-git.py is missing", flush=True)
+        return
+    try:
+        proc = spawn_join(site, os.getpid())
+    except OSError as e:
+        print(f"board: autosync not joined: {' '.join(str(e).split())}", flush=True)
+        return
+    print(f"board: joining the surface's autosync (join process {proc.pid})", flush=True)
+    watch_join(proc, lambda line: print(line, file=sys.stderr, flush=True))
+
+
 def board(args: argparse.Namespace) -> list[str]:
     if args.clock:
         try:
@@ -101,5 +122,6 @@ def board(args: argparse.Namespace) -> list[str]:
     print(f"board on {link} over {projects.served.as_posix()}", flush=True)
     if not is_loopback(host):
         print(BEYOND.format(host=host), flush=True)
+    _join_autosync(projects)
     _run(projects, seats, sock)
     return []

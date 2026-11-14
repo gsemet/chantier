@@ -62,8 +62,9 @@ refused send is reported, never sent another way ([routing](routing.md)).
 ## In a planning surface
 
 You run in the surface's checkout, on its default branch, and write in the planning folder
-directly, on the surface's own sync rules ([concepts](concepts.md), "Planning surface"). Prototypes,
-plans and other artifacts go in the same CR folder, cleanly.
+directly, on the surface's own sync rules ([concepts](concepts.md), "Planning surface"). With an autosync
+(P13), join its group as the surface's guidelines say, with `--session-id <your own session id>`.
+Prototypes, plans and other artifacts go in the same CR folder, cleanly.
 
 ## In a worktree
 
