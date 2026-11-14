@@ -60,11 +60,16 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   with a stack driver recorded, and `ship` naming the `work/pr-body.md` lines whose SHA left the
   head's history after a rebase (`carried from` and `STALE` lines left out), and not taking a token of digits only for a commit (a dangling commit whose first seven characters are digits);
 - `forge-stack` (GitHub, against `fake_gh.py`, which also unstacks and reads and changes a PR's
-  base, refusing the change while the PR is in an open stack): `create` and `show`; `rebuild`
+  base, refusing the change while the PR is in an open stack): the stack as it stands
+  (the bottom CRs with a PR, the others to come): `create` and `show` with two ready PRs and the
+  release to come, naming the commit the user may merge below; a CR that joins as a draft on top
+  (`rebuild`: unstack, retarget, create again; `drafts on top`, `to come:`); `check 4` read against
+  each CR's status; the complete stack (`stack complete, mergeable below`, no `to come:` line);
+  `stack` naming only some CRs, refused when a dependency is left out; `rebuild`
   after an insertion (unstack, retarget, one new stack bottom to top, the release on top), after
   a partial merge (the first PR left to the default branch), stopped by a forge refusal and run
   again, stopped by a stack that stays open after five unstack tries (exit 4, `unstack_ignored`) and run again, idempotent with drafts as a line to act on, and refused on a GitLab link, on a parallel
-  batch and with a CR that has no PR;
+  batch and with no PR at the bottom of the stack;
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch, which stays paused until the first `take`, then paused again, and `close` (priced with one `Chief of
   Staff, steering the batch` row that keeps a turn which only names or reads a specification, a grill and specifications

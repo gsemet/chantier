@@ -15,6 +15,7 @@ Exit 0 when every check passes; the transcript is written to scenario/results/<f
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -3767,16 +3768,26 @@ def forge_stack_cli(w: World) -> None:
     w.start(str(a_item), str(b_item), str(r_item), "--mode", "stack", "--release", 3, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     a, b, r = (c["id"] for c in w.batch()["crs"])
-    w.chantier("stack", a, b, r)
     path_key = next(k for k in w.env if k.upper() == "PATH")
     on_path = {path_key: f"{w.fake.parent}{os.pathsep}{w.env[path_key]}"}
     links = {a: PR_LINK[ARGS.forge] + "201", b: PR_LINK[ARGS.forge] + "202", r: PR_LINK[ARGS.forge] + "203"}
+    h7 = lambda cr: hashlib.sha1(cr.encode()).hexdigest()[:7]  # noqa: E731
 
-    def record(**prs: str) -> None:
+    def record(statuses: dict[str, str] | None = None, **prs: str) -> None:
+        """A PR and a head for the CRs named (`ready` unless `statuses` says otherwise), and the
+        statuses named."""
         d = w.batch()
         for c in d["crs"]:
             if c["id"] in prs:
                 c["pr"] = prs[c["id"]]
+                c["head"] = hashlib.sha1(c["id"].encode()).hexdigest()
+                c["status"] = "ready"
+            c["status"] = (statuses or {}).get(c["id"], c["status"])
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    def edit_cr(cr: str, **fields: object) -> None:
+        d = w.batch()
+        next(c for c in d["crs"] if c["id"] == cr).update(fields)
         (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
 
     def stack_calls() -> list[list[str]]:
@@ -3784,14 +3795,24 @@ def forge_stack_cli(w: World) -> None:
         rows = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
         return [x for x in rows if x[:1] == ["api"] and "POST" in x and any(a.endswith("/stacks") for a in x)]
 
-    record(**{a: links[a], b: links[b]})
-    code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
-    check("`forge-stack create` is refused (exit 2) when a stacked CR has no PR recorded, naming it"
-          if ARGS.forge == "github" else "`forge-stack create` is refused (exit 2) on GitLab links",
-          code == 2 and (r in w.last_stderr and "no PR recorded" in w.last_stderr
-                         if ARGS.forge == "github" else "GitHub only" in w.last_stderr), w.last_stderr)
-    record(**{r: links[r]})
+    # `stack` naming only some of the open CRs: they take the bottom, the others stay above
+    w.chantier("stack", b)
+    got = {c["id"]: c for c in w.batch()["crs"]}
+    check("`stack` naming one CR of three: it takes order 1, the others keep their relative order "
+          "above it, and only the CR named is `stacked`",
+          got[b]["order"] == 1 and 1 < got[a]["order"] < got[r]["order"]
+          and got[b]["stacked"] and not got[a].get("stacked") and not got[r].get("stacked"),
+          str({k: (v["order"], v.get("stacked")) for k, v in got.items()}))
+    edit_cr(b, after=[a])
+    code, _ = w.chantier("stack", b, expect=2)
+    check("`stack` naming a CR whose dependency is open and not named is refused: `which is not named`",
+          code == 2 and "which is not named" in w.last_stderr and w.cr(b)["order"] == 1, w.last_stderr)
+    edit_cr(b, after=[])
+    w.chantier("stack", a, b, r)
+    w.chantier("foreman", "set", "local_foreman_fs", "--epoch", 1)
+
     if ARGS.forge == "gitlab":
+        record(**links)
         code, _ = w.chantier("forge-stack", "create", env=on_path, expect=2)
         check("on a GitLab remote `forge-stack create` is refused: GitHub only",
               code == 2 and "GitHub only" in w.last_stderr and not stack_calls(), w.last_stderr)
@@ -3802,39 +3823,107 @@ def forge_stack_cli(w: World) -> None:
         check("on a GitLab remote `forge-stack rebuild` is refused: GitHub only",
               code == 2 and "GitHub only" in w.last_stderr and not stack_calls(), w.last_stderr)
     else:
+        branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
+        gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
+
+        def stack_on_forge(order: list[int], drafts: list[int] = (), is_open: bool = True) -> None:
+            w.gh(stacks=[{"number": 100, "open": is_open, "pull_requests": order}], drafts=list(drafts))
+
+        # 1. two ready PRs, the release with none: the stack as it stands, the release to come
+        record(**{a: links[a], b: links[b]})
         code, out = w.chantier("forge-stack", "create", env=on_path)
         posts = stack_calls()
-        check("`forge-stack create` calls the stacks endpoint once, the PRs bottom to top and the "
-              "release PR last, and prints the stack's link",
+        check("`forge-stack create` stacks the CRs that have a PR (the release has none): the stacks "
+              "endpoint once, `201 202` only, and the stack's link",
               code == 0 and len(posts) == 1 and [x for x in posts[0] if x.startswith("pull_requests[]")]
-              == [f"pull_requests[]={n}" for n in (201, 202, 203)] and "--hostname" not in posts[0]
+              == ["pull_requests[]=201", "pull_requests[]=202"] and "--hostname" not in posts[0]
               and "repos/acme/demo/stacks" in posts[0] and out and out[0].startswith("stack #100 ")
-              and links[r] in out[0], f"{out} {posts}")
+              and links[b] in out[0], f"{out} {posts}")
         code, out = w.chantier("forge-stack", "show", env=on_path)
-        check("`forge-stack show` exits 0 on a stack that matches the record; it writes nothing",
-              code == 0 and "ready" in out[0] and len(stack_calls()) == 1, str(out))
+        check("`forge-stack show` on that stack names the commit the user may merge below, and the "
+              "release as to come; it writes nothing",
+              code == 0 and f"partial stack mergeable below {h7(b)} (#202" in out[0]
+              and any(x.startswith("to come:") and r in x for x in out) and len(stack_calls()) == 1,
+              str(out))
         w.chantier("forge-stack", "create", env=on_path, expect=4)
         check("a second `create` over PRs already stacked comes back with the forge's exact text (exit 4)",
               "already in a stack" in w.last_stderr, w.last_stderr)
 
-        def stack_on_forge(order: list[int], drafts: list[int] = (), is_open: bool = True) -> None:
-            w.gh(stacks=[{"number": 100, "open": is_open, "pull_requests": order}], drafts=list(drafts))
-        cases = [("a draft", dict(order=[201, 202, 203], drafts=[202]), "check 4", "#202"),
-                 ("a wrong order", dict(order=[202, 201, 203]), "check 3", "#202"),
-                 ("the release not on top", dict(order=[201, 203, 202]), "check 5", "#203"),
-                 ("a closed stack", dict(order=[201, 202, 203], is_open=False), "check 1", "not open"),
-                 ("a missing PR", dict(order=[201, 203]), "check 2", "#202"),
-                 ("a foreign PR", dict(order=[201, 202, 203, 999]), "check 2", "#999")]
+        # 6. no PR at the bottom
+        record(**{a: ""})
+        for action in ("create", "rebuild"):
+            code, _ = w.chantier("forge-stack", action, env=on_path, expect=2)
+            check(f"`forge-stack {action}` with no PR at the bottom is refused (exit 2), naming the CR",
+                  code == 2 and "no PR at the bottom of the stack" in w.last_stderr and a in w.last_stderr,
+                  w.last_stderr)
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("`forge-stack show` with no PR at the bottom prints `check 1: no PR at the bottom`, exit 2",
+              code == 2 and any(x.startswith("check 1: no PR at the bottom") and a in x for x in out), str(out))
+        record(**{a: links[a]})
+
+        # 2. a CR joins on top as a draft: unstack, retarget, create again
+        _, joined = prepare_cr(w, "Forge joined")
+        w.chantier("order", "add", "--note", str(joined))
+        new = w.batch()["crs"][-1]["id"]
+        w.chantier("stack", a, b, new)
+        record({new: "working"}, **{new: PR_LINK["github"] + "204"})
+        w.gh(drafts=[204])
+        before = len(stack_calls())
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        posts = stack_calls()[before:]
+        check("a CR joins as a draft: `rebuild` unstacks the stack, retargets the new PR onto the CR "
+              "below, stacks `201 202 204`, and prints the draft on top and what is to come",
+              code == 0 and out[0] == "unstacked #100" and f"#204 base main -> {branch(b)}" in out
+              and len(posts) == 1 and [x for x in posts[0] if x.startswith("pull_requests[]")]
+              == [f"pull_requests[]={n}" for n in (201, 202, 204)]
+              and any("drafts on top #204" in x for x in out), str(out))
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("`forge-stack show` of that stack: mergeable below the second PR, the draft on top, "
+              "`to come:` the draft's CR and the release",
+              code == 0 and f"mergeable below {h7(b)} (#202" in out[0] and "drafts on top #204" in out[0]
+              and f"to come: {new} working, {r} queued" in out, str(out))
+
+        # 3. check 4 against each CR's status
+        record({new: "ready"})
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("a ready CR whose PR is still a draft: `check 4: still a draft #204`",
+              any(x.startswith("check 4: still a draft") and "#204" in x for x in out), str(out))
+        record({new: "working"})
+        w.gh(drafts=[])
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("a CR that is not ready whose PR is not a draft: `check 4: not a draft #204 (<cr> working)`",
+              f"check 4: not a draft #204 ({new} working)" in out, str(out))
+        record({new: "ready"})
+        w.gh(drafts=[201])
+        code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
+        check("a draft under a ready PR: `check 4: a draft under a ready PR #201`",
+              "check 4: a draft under a ready PR #201" in out, str(out))
+
+        # 5. the complete stack
+        record(**{r: links[r]})
+        full = [201, 202, 204, 203]
+        stack_on_forge(full)
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("the complete stack (every CR ready, no draft, the release on top): `stack complete, "
+              "mergeable below` the release's head, and no `to come:` line",
+              code == 0 and len(out) == 1 and f"stack complete, mergeable below {h7(r)} (#203)" in out[0]
+              and "the release on top" in out[0], str(out))
+        cases = [("a draft", dict(order=full, drafts=[202]), "check 4", "#202"),
+                 ("a wrong order", dict(order=[202, 201, 204, 203]), "check 3", "#202"),
+                 ("the release not on top", dict(order=[201, 202, 203, 204]), "check 5", "#203"),
+                 ("a closed stack", dict(order=full, is_open=False), "check 1", "not open"),
+                 ("a missing PR", dict(order=[201, 202, 203]), "check 2", "#204"),
+                 ("a foreign PR", dict(order=[*full, 999]), "check 2", "#999")]
         for what, kw, line, word in cases:
             stack_on_forge(**kw)
             code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
             check(f"`forge-stack show` on {what}: a `{line}` line naming the cause, exit 2",
                   code == 2 and any(x.startswith(line) and word in x for x in out), str(out))
-        stack_on_forge([201, 202, 203], drafts=[202, 203])
+        stack_on_forge(full, drafts=[204, 203])
         code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
-        check("`forge-stack show` prints one line per failed check", len(out) == 1 and "#202 #203" in out[0], str(out))
+        check("`forge-stack show` prints one line per failed check", len(out) == 1 and "#204 #203" in out[0], str(out))
         w.gh(stacks=[{"number": 99, "open": False, "pull_requests": [201, 202]},
-                     {"number": 100, "open": True, "pull_requests": [201, 202, 203]}], drafts=[])
+                     {"number": 100, "open": True, "pull_requests": full}], drafts=[])
         code, out = w.chantier("forge-stack", "show", env=on_path)
         check("`forge-stack show` without --stack prefers the open stack over a closed one that "
               "overlaps the batch's PRs", code == 0 and "stack #100 ready" in out[0], str(out))
@@ -3845,50 +3934,50 @@ def forge_stack_cli(w: World) -> None:
                   code == 2 and "GitHub only" in w.last_stderr, w.last_stderr)
         record(**{b: links[b]})
 
-    w.chantier("foreman", "set", "local_foreman_fs", "--epoch", 1)
     _, joined = prepare_cr(w, "Forge inserted")
+    record({r: "queued"})  # a ready release refuses `order add`: it is added before it started
     w.chantier("order", "add", "--note", str(joined))
-    new = w.batch()["crs"][-1]["id"]
-    w.chantier("stack", a, new, b, r)
+    record({r: "ready"})
+    ins = w.batch()["crs"][-1]["id"]
+    order = [a, ins, b, r] if ARGS.forge == "gitlab" else [a, ins, b, new, r]
+    w.chantier("stack", *order)
     _, listed = w.chantier("take", "stack", "--epoch", 1)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     check("insertion: a CR added to the stack batch and ordered below the release CR sits there in "
           "`take stack`, the release CR still last",
-          listed and listed[0].endswith(f"{a} → {new} → {b} → {r}") and listed[-1].startswith(f"{r} "),
+          listed and listed[0].endswith(" → ".join(order)) and listed[-1].startswith(f"{r} "),
           str(listed))
     if ARGS.forge == "github":
         code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)
-        check("after the insertion, `forge-stack show` names the new CR, which has no PR yet",
-              code == 2 and any(x.startswith("check 2") and new in x for x in out), str(out))
-        code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)
-        check("`forge-stack rebuild` is refused (exit 2) with a CR with no PR recorded, naming it",
-              code == 2 and new in w.last_stderr and "no PR recorded" in w.last_stderr, w.last_stderr)
-        record(**{new: PR_LINK["github"] + "204"})
-        branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
-        gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
+        check("after the insertion, `forge-stack show` reads the stack as it stands (the CR with no "
+              "PR is to come): the PRs above it are not in it",
+              code == 2 and any(x.startswith("check 2") and "not in the stack as it stands" in x
+                                and b in x for x in out), str(out))
+        record(**{ins: PR_LINK["github"] + "205"})
         check("the release's base is the CR just under it after an insertion below it, and the CR "
               "above the new one sits on it (`take stack`)",
-              any(ln.startswith(r) and f"base {branch(b)}" in ln for ln in listed)
-              and any(ln.startswith(b) and f"base {branch(new)}" in ln for ln in listed), str(listed))
+              any(ln.startswith(r) and f"base {branch(new)}" in ln for ln in listed)
+              and any(ln.startswith(b) and f"base {branch(ins)}" in ln for ln in listed), str(listed))
         # 1. an insertion: the old stack dissolved, the bases moved, one new stack bottom to top
         before = len(stack_calls())
+        following = gh_state().get("next_stack", 100)
         code, out = w.chantier("forge-stack", "rebuild", env=on_path)
         posts = stack_calls()[before:]
         bases = gh_state()["bases"]
         check("`forge-stack rebuild` after an insertion: unstacks the old stack, retargets the PRs "
               "that sit on another base, creates one stack bottom to top (the release on top) and "
               "reads it back",
-              code == 0 and out[0] == "unstacked #100" and f"#202 base main -> {branch(new)}" in out
-              and f"#203 base main -> {branch(b)}" in out and len(posts) == 1
+              code == 0 and out[0] == "unstacked #100" and f"#202 base {branch(a)} -> {branch(ins)}" in out
+              and f"#203 base main -> {branch(new)}" in out and len(posts) == 1
               and [x for x in posts[0] if x.startswith("pull_requests[]")]
-              == [f"pull_requests[]={n}" for n in (201, 204, 202, 203)]
-              and bases["204"] == branch(a) and bases["202"] == branch(new)
-              and bases["203"] == branch(b) and any(ln.startswith("stack #101 ") for ln in out)
-              and any("stack #101 ready" in ln for ln in out), str(out))
-        w.gh(drafts=[202])
+              == [f"pull_requests[]={n}" for n in (201, 205, 202, 204, 203)]
+              and bases["205"] == branch(a) and bases["202"] == branch(ins)
+              and bases["203"] == branch(new) and any(ln.startswith(f"stack #{following} ") for ln in out)
+              and any(f"stack #{following} ready" in ln for ln in out), str(out))
+        w.gh(drafts=[203])
         code, out = w.chantier("forge-stack", "rebuild", env=on_path)
         check("`rebuild` is idempotent, and prints a draft as a line to act on, with exit 0",
-              code == 0 and any(ln.startswith("check 4") and "#202" in ln for ln in out)
+              code == 0 and any(ln.startswith("check 4") and "#203" in ln for ln in out)
               and not any("base" in ln and "->" in ln for ln in out), str(out))
         w.gh(drafts=[])
         # 2. a partial merge: the first PR left goes to the default branch, one stack made
@@ -3900,24 +3989,25 @@ def forge_stack_cli(w: World) -> None:
         posts = stack_calls()[before:]
         check("`forge-stack rebuild` after a partial merge: the first PR left is retargeted to the "
               "default branch, the merged PR is left out, one stack is created",
-              code == 0 and any(ln.startswith("#204 base ") and ln.endswith("-> main") for ln in out)
+              code == 0 and any(ln.startswith("#205 base ") and ln.endswith("-> main") for ln in out)
               and any("also held #201" in ln for ln in out) and len(posts) == 1
               and [x for x in posts[0] if x.startswith("pull_requests[]")]
-              == [f"pull_requests[]={n}" for n in (204, 202, 203)]
-              and gh_state()["bases"]["204"] == "main", str(out))
+              == [f"pull_requests[]={n}" for n in (205, 202, 204, 203)]
+              and gh_state()["bases"]["205"] == "main", str(out))
         # 3. a forge refusal mid-way: what was done and the forge's text, then a second run completes
-        w.gh(stacks=[{"number": 105, "open": True, "pull_requests": [204, 202, 203]}],
-             bases={"204": "main", "202": "elsewhere", "203": branch(b)}, patch_refused=True)
+        w.gh(stacks=[{"number": 150, "open": True, "pull_requests": [205, 202, 204, 203]}],
+             bases={"205": "main", "202": "elsewhere", "204": branch(b), "203": branch(new)},
+             patch_refused=True)
         w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
         check("a `rebuild` stopped by the forge prints what was done and the forge's exact text (exit 4)",
-              "unstacked #105" in w.last_stderr and "HTTP 403" in w.last_stderr
+              "unstacked #150" in w.last_stderr and "HTTP 403" in w.last_stderr
               and gh_state()["bases"]["202"] == "elsewhere", w.last_stderr)
         w.gh(patch_refused=False)
         code, out = w.chantier("forge-stack", "rebuild", env=on_path)
         check("run again, `rebuild` finds no stack, retargets what is still off and completes",
-              code == 0 and f"#202 base elsewhere -> {branch(new)}" in out
+              code == 0 and f"#202 base elsewhere -> {branch(ins)}" in out
               and not any(ln.startswith("unstacked") for ln in out)
-              and gh_state()["bases"]["202"] == branch(new)
+              and gh_state()["bases"]["202"] == branch(ins)
               and any(ln.startswith("stack #") for ln in out), str(out))
         # 3b. a stack the forge keeps open after its five unstack tries: exit 4, then a rerun works
         open_now = [s["number"] for s in gh_state()["stacks"] if s["open"]]

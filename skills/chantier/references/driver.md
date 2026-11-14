@@ -456,7 +456,20 @@ the stack's order starts from the series order.
 Your end is one native stack on the forge that the user merges in one action from the top PR or one PR
 at a time from the bottom: a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs
 based on each other is not one. Your `hand-back ready` is sent only once the stack is made on the
-forge and you have read it back as ready (the five checks, below).
+forge and you have read it back as ready (the five checks, below). Each take ends with the stack as
+it stands on the forge, its mergeable part ready and the drafts on top; the batch's last take ends
+with it complete (see [concepts](concepts.md), "Stack").
+
+**Ordering.** Name with `$CHANTIER stack <cr>…` every CR that `take stack` prints with a PR, in the
+stack's order: the ready ones first (those already in the mergeable part in their place, then the
+newly ready in their place order), then the drafts (those already stacked in their place, then the
+newly joined in planned order). The CRs to come (no PR yet) are not named. A CR always sits above
+the ones it depends on; `stack` refuses an order that breaks it.
+
+**Who moves a branch.** A CR with no live Driver (`ready`, `blocked`) is rebased and pushed by you,
+as below. A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends
+its Driver `[foreman→driver <cr>] note rebase: stacked on <cr below>`; that Driver rebases once
+before its next push and `ship`s.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
@@ -477,11 +490,11 @@ CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$C
 the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`.
 
-**Making the stack.** Once every PR of the stack is ready (the CRs ordered, restacked, pushed,
+**Making the stack.** Once two CRs are ready with their PRs (ordered, restacked, pushed,
 `ship`ped, CI green at the top), create the native stack on the forge with the means your prompt
 names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the user declined the
-extension; the PRs bottom to top, the release PR last. Then turn every PR of the stack ready
-(`gh pr ready`), not only the bottom one. A means that is not available as the prompt names it
+extension; the PRs bottom to top, the CRs with a draft PR on top as drafts. Then turn every PR of
+the mergeable part ready (`gh pr ready`), not only the bottom one. A means that is not available as the prompt names it
 (the extension not installed, the command refused by the forge, the API missing) is an `anomaly`
 with the exact text: no other means without the user's word (no fallback). On GitLab the stack
 stays a chain as today: the first PR on the default branch is ready, the others drafts
@@ -492,10 +505,32 @@ creates the stack again and reads it back (the drafts are a line to act on, not 
 retarget a PR by hand: a PR's base cannot change while it is stacked. A `rebuild` refused (by the
 forge or the permission check) is an `anomaly` with the exact text, as above; no other means.
 
+**A CR that joins** (it has a PR, a draft): order it on top (`stack`), have it rebased (see "Who
+moves a branch"), then `$CHANTIER forge-stack rebuild` (unstack, retarget, create). The PRs below
+are not moved and stay ready: the user may merge them meanwhile.
+
+**A draft that turns ready** (its CR handed back `ready`) moves into the mergeable part. When it
+is the lowest draft, nothing moves: no `rebuild`; read the stack back and turn its PR ready once
+the five checks hold. When drafts sit under it, order it below them (`stack`), rebase it and the
+drafts above (theirs by their Drivers' notes when working), `rebuild`, then turn it ready.
+
+**A merge during a take.** On `[foreman→stack] note merged: <cr>…`, read the stack again
+(`$CHANTIER stack`), restack what remains on `origin/<default branch>` with the CRs being added
+(one restack, as "After a partial merge"), then `rebuild`. A `rebuild` refused because a PR of the
+plan merged meanwhile is an `anomaly` with the exact text, as any refused `rebuild`.
+
+**Deliver by a time.** A take whose note names `deliver by <time>` keeps the stack on the forge
+mergeable at that time. Turn ready only what is restacked, judged and green at the top before the
+time; leave the rest a draft on top. Never leave, at the time, the stack unstacked or a rebuild
+half done: a `rebuild` that cannot finish before the time is not started. Hand back with the stack
+as it stands.
+
 **The five checks,** read on the forge with `$CHANTIER forge-stack show` (one line per failed
-check, exit 0 when all hold): the stack is open; it holds every open PR of the batch's stack, and
-no other; in the order of `take stack`, bottom first; none is a draft; the release PR, when the
-batch has one with a PR, is on top. Green and checked: `[stack→foreman] hand-back ready <stack
+check, exit 0 when all hold), on the stack as it stands (the bottom CRs with a PR; drafts on top
+and the `to come:` line are no failure): the stack is open; it holds every PR of the stack as it
+stands, and no other; in the order of `take stack`, bottom first; no PR of a ready CR is a draft
+and every draft sits above the ready PRs; the release PR, when it is in the stack, is on top.
+Green and checked: `[stack→foreman] hand-back ready <stack
 link> <cr>=<link>…`.
 
 The stack is what your prompt gives from `take stack`, each CR with its base (the state computes
@@ -508,7 +543,8 @@ one restack for what remains, whatever the number of CRs one merge action of the
 each, push once with `--force-with-lease` (a refused one goes up as above), and `ship` each one
 you moved once: `ship` records the new base. Run heavy CI once at the top, then one
 `$CHANTIER forge-stack rebuild` (no manual retarget: it retargets the first PR to the default
-branch) and read it back before the hand-back. After a restack, `ship` names the lines of
+branch) and read it back before the hand-back; this hand-back is silent: no `stack-ready` follows
+a restack. After a restack, `ship` names the lines of
 `work/pr-body.md` whose SHA left the head's history (`off: pr-body.md line <n> names …`): fix
 them (carried, or judged again, as above), post the file (`gh pr edit --body-file`), and run
 `ship` again until no such line remains, before the PRs turn ready. A CR added by `order add` is
@@ -517,8 +553,9 @@ in the stack, as `take stack` prints, and `stack` refuses an order that puts it 
 of them; a dependency sent back to a Driver is yours to restack. The release CR is the top piece:
 `take stack` lists it last. Restack it like any PR above (rebase onto the CR under it, push with
 `--force-with-lease`, `ship`); its checks run again, and no `verifier` and no `inspector` is
-started for it (it has no verdict). A release with no PR yet is no anomaly: leave it. Its PR
-stays a draft until the stack is made and checked, then it turns ready with the others. A fix CR is not in the stack. The batch stays running until its last CR ends.
+started for it (it has no verdict). A release with no PR yet is no anomaly: it is to come, and
+joins like any CR when it has its PR. Its PR stays a draft on top until its CR is `ready` and the
+checks hold, then it turns ready with the others. A fix CR is not in the stack. The batch stays running until its last CR ends.
 
 **Inserting into a ready stack.** Taken with a note that names the new CR and its place
 (`take stack --note "insert: <new cr> below <cr>"`):

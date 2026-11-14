@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from typing import Any
 
+from chantier.commands.crs import short_head
 from chantier.commands.facts import chain, stack_base
 from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
@@ -53,9 +54,20 @@ def _pr_parts(pr: str) -> tuple[str, ...]:
     return link.groups()
 
 
-def _plan(args: argparse.Namespace) -> tuple[list[dict[str, Any]], str, str, str]:
-    """The open stack of the record, bottom first: {cr, pr number, link, release}; and the forge's
-    host, owner and repository, read from the PR links."""
+class NoBottom(ChantierError):
+    """The stack's first CR has no PR: nothing to stack."""
+
+
+Where = tuple[str, str, str]
+
+
+def _plan(
+    args: argparse.Namespace,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Where]:
+    """The stack as it stands: the rows (the bottom CRs with a PR, whatever their status: cr,
+    status, PR number, link, base, head, release), the CRs to come (those from the first with no PR
+    up: cr, status, PR number or None), and the forge's host, owner and repository, read from the
+    PR links."""
     repo = open_repo()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
@@ -63,25 +75,11 @@ def _plan(args: argparse.Namespace) -> tuple[list[dict[str, Any]], str, str, str
     links = chain(data)
     if not links:
         raise ChantierError(f"batch {data.id} has no open CR in its stack", EXIT_PRECONDITION)
-    for c in links:
-        if c.pr:
-            _pr_parts(c.pr)
-    missing = [c.id for c in links if not c.pr]
-    if missing and args.action in {"create", "rebuild"}:
-        raise ChantierError(
-            f"{', '.join(missing)} {'has' if len(missing) == 1 else 'have'} no PR "
-            "recorded (`ship`): the stack is made once every PR is recorded",
-            EXIT_PRECONDITION,
-        )
     rows: list[dict[str, Any]] = []
     where = None
     for c in links:
-        release = c.kind == "release"
         if not c.pr:
-            rows.append(
-                {"cr": c.id, "number": None, "link": None, "base": None, "release": release}
-            )
-            continue
+            break
         host, owner, name, number = _pr_parts(c.pr)
         if where not in (None, (host, owner, name)):
             raise ChantierError("the stack's PRs are not all in one repository", EXIT_PRECONDITION)
@@ -89,16 +87,26 @@ def _plan(args: argparse.Namespace) -> tuple[list[dict[str, Any]], str, str, str
         rows.append(
             {
                 "cr": c.id,
+                "status": c.status,
                 "number": int(number),
                 "link": c.pr,
                 "base": stack_base(data, c, repo, planned=True),
-                "release": release,
+                "head": short_head(c.head) or "-",
+                "release": c.kind == "release",
             }
         )
     if where is None:
-        raise ChantierError("no PR recorded in the stack", EXIT_PRECONDITION)
-    host, owner, name = where
-    return rows, host, owner, name
+        raise NoBottom(
+            f"no PR at the bottom of the stack: {links[0].id} is {links[0].status}, no PR",
+            EXIT_PRECONDITION,
+        )
+    come = []
+    for c in links[len(rows) :]:
+        found = PR_LINK.match(c.pr) if c.pr else None
+        come.append(
+            {"cr": c.id, "status": c.status, "number": int(found.group(4)) if found else None}
+        )
+    return rows, come, where
 
 
 def forge_stack(args: argparse.Namespace) -> tuple[list[str], int]:
@@ -137,7 +145,24 @@ def _stacks(host: str, owner: str, name: str) -> list[dict[str, Any]]:
     return stacks
 
 
-def _unstack(s: dict[str, Any], planned: set[int], where: tuple[str, str, str]) -> str:
+def _outside(outside: list[int], left: dict[int, str]) -> str:
+    """The PRs an unstacked stack held that are not planned: those of the batch's stack left out
+    of the rows, and foreign ones."""
+    mine = [n for n in outside if n in left]
+    foreign = [n for n in outside if n not in left]
+    parts = []
+    if mine:
+        said = " ".join(f"#{n} of {left[n]}" for n in mine)
+        parts.append(f"it also held {said}: a plain PR until it joins again")
+    if foreign:
+        parts.append(
+            f"it also held {' '.join('#' + str(n) for n in foreign)}, not in the batch's "
+            "stack: a plain PR now"
+        )
+    return f" ({'; '.join(parts)})" if parts else ""
+
+
+def _unstack(s: dict[str, Any], planned: set[int], where: Where, left: dict[int, str]) -> str:
     """Unstack one open stack that holds a planned PR, until the forge reads it back as gone."""
     host, owner, name = where
     held = [p["number"] for p in s.get("pull_requests", [])]
@@ -160,15 +185,10 @@ def _unstack(s: dict[str, Any], planned: set[int], where: tuple[str, str, str]) 
             f"reads it back {'with ' + back if back else 'open, with no PR'})",
             EXIT_EXTERNAL,
         )
-    return f"unstacked #{s['number']}" + (
-        f" (it also held {' '.join('#' + str(n) for n in outside)}, not in the batch's "
-        "stack: a plain PR now)"
-        if outside
-        else ""
-    )
+    return f"unstacked #{s['number']}" + _outside(outside, left)
 
 
-def _retarget(rows: list[dict[str, Any]], where: tuple[str, str, str], done: list[str]) -> None:
+def _retarget(rows: list[dict[str, Any]], where: Where, done: list[str]) -> None:
     host, owner, name = where
     for r in rows:
         pull = _gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{r['number']}"], host)
@@ -179,19 +199,30 @@ def _retarget(rows: list[dict[str, Any]], where: tuple[str, str, str], done: lis
             done.append(f"#{r['number']} base {old} -> {r['base']}")
 
 
+def _left(come: list[dict[str, Any]]) -> dict[int, str]:
+    """The PRs of the batch's stack left out of the rows (a CR above one with no PR)."""
+    return {c["number"]: c["cr"] for c in come if c["number"] is not None}
+
+
+def _come_line(rows: list[dict[str, Any]], come: list[dict[str, Any]], merge: int) -> list[str]:
+    """`to come:` the drafts' CRs, then those with no PR, bottom first; nothing when complete."""
+    todo = [*rows[merge:], *come]
+    return ["to come: " + ", ".join(f"{c['cr']} {c['status']}" for c in todo)] if todo else []
+
+
 def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     """Unstack the open stacks that hold the batch's PRs, retarget the bases, stack again. When
     the forge refuses, its exact text comes back (exit 4), and when a stack stays open after its
     unstack tries."""
-    rows, host, owner, name = _plan(args)
-    where = (host, owner, name)
+    rows, come, where = _plan(args)
+    host, owner, name = where
     done: list[str] = []
     try:
         planned = {r["number"] for r in rows}
         for s in _stacks(host, owner, name):
             held = {p["number"] for p in s.get("pull_requests", [])}
             if s.get("open") and planned & held:
-                done.append(_unstack(s, planned, where))
+                done.append(_unstack(s, planned, where, _left(come)))
         _retarget(rows, where, done)
         number, line = _make(rows, host, owner, name)
         done.append(line)
@@ -201,35 +232,57 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
         raise ChantierError("\n".join([*done, str(e)]), e.code) from e
     args.stack = number
     lines, code = _show(args)
-    acts = [x for x in lines if x.startswith("check 4:")]
-    rest = [x for x in lines if not x.startswith("check 4:")]
+    drafts = "check 4: still a draft"
+    acts = [x for x in lines if x.startswith(drafts)]
+    rest = [x for x in lines if not x.startswith(drafts)]
     out = done + rest + [f"{x} (the stack driver turns the PRs ready)" for x in acts]
     return out, (code if rest else 0)
 
 
 def _create(args: argparse.Namespace) -> tuple[list[str], int]:
-    rows, host, owner, name = _plan(args)
-    return [_make(rows, host, owner, name)[1]], 0
+    rows, _, where = _plan(args)
+    return [_make(rows, *where)[1]], 0
+
+
+def _draft_checks(prs: list[dict[str, Any]], rows: list[dict[str, Any]]) -> list[str]:
+    """Check 4, each PR's draft state read against its CR's status, bottom first. A draft on top
+    of a CR that is not ready is no failure."""
+    cr = {r["number"]: r for r in rows}
+    lines = []
+    still = []
+    below_ready = True  # every CR under this PR is ready
+    for i, p in enumerate(prs):
+        n, draft = p["number"], bool(p.get("draft"))
+        status = cr[n]["status"] if n in cr else ""
+        if draft and any(not q.get("draft") for q in prs[i + 1 :]):
+            lines.append(f"check 4: a draft under a ready PR #{n}")
+        elif draft and below_ready and status == "ready":
+            still.append(f"#{n}")
+        elif not draft and n in cr and status != "ready":
+            lines.append(f"check 4: not a draft #{n} ({cr[n]['cr']} {status})")
+        below_ready = below_ready and status == "ready"
+    return ([f"check 4: still a draft {' '.join(still)}"] if still else []) + lines
 
 
 def _checks(
-    stack: dict[str, Any], rows: list[dict[str, Any]], want: list[dict[str, Any]]
+    stack: dict[str, Any], rows: list[dict[str, Any]], left: dict[int, str]
 ) -> tuple[list[str], dict[str, Any] | None]:
     """One line per failed check of a stack read back; and the release row, if any."""
     prs = stack.get("pull_requests", [])
     have = [p["number"] for p in prs]
-    expected = [r["number"] for r in want]
+    expected = [r["number"] for r in rows]
     lines = []
     if not stack.get("open"):
         lines.append(f"check 1: stack #{stack.get('number')} is not open")
     absent = [f"#{n}" for n in expected if n not in have]
-    extra = [f"#{n}" for n in have if n not in expected]
-    absent += [f"{r['cr']} (no PR recorded)" for r in rows if r["number"] is None]
-    if absent or extra:
-        said = (
-            f"missing {' '.join(absent)}" if absent else "",
-            f"not in the batch's stack {' '.join(extra)}" if extra else "",
-        )
+    foreign = [f"#{n}" for n in have if n not in expected and n not in left]
+    out = [f"#{n} ({left[n]})" for n in have if n in left]
+    said = (
+        f"missing {' '.join(absent)}" if absent else "",
+        f"not in the batch's stack {' '.join(foreign)}" if foreign else "",
+        f"not in the stack as it stands {' '.join(out)}" if out else "",
+    )
+    if any(said):
         lines.append("check 2: " + "; ".join(x for x in said if x))
     common = [n for n in expected if n in have]
     if [n for n in have if n in common] != common:
@@ -237,10 +290,8 @@ def _checks(
             f"check 3: order on the forge {' '.join('#' + str(n) for n in have)}, "
             f"expected {' '.join('#' + str(n) for n in expected)} (bottom first)"
         )
-    drafts = [f"#{p['number']}" for p in prs if p.get("draft")]
-    if drafts:
-        lines.append(f"check 4: still a draft {' '.join(drafts)}")
-    release = next((r for r in want if r["release"]), None)
+    lines += _draft_checks(prs, rows)
+    release = next((r for r in rows if r["release"]), None)
     if release and (not have or have[-1] != release["number"]):
         lines.append(
             f"check 5: the release PR #{release['number']} is not on top "
@@ -249,31 +300,73 @@ def _checks(
     return lines, release
 
 
-def _show(args: argparse.Namespace) -> tuple[list[str], int]:
-    rows, host, owner, name = _plan(args)
-    want = [r for r in rows if r["number"] is not None]
+def _read(args: argparse.Namespace, rows: list[dict[str, Any]], where: Where) -> dict[str, Any]:
+    """The forge's stack: the one asked for, else the one that holds the batch's PRs."""
+    host, owner, name = where
     if getattr(args, "stack", None):
-        stack = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks/{args.stack}"], host)
+        one: dict[str, Any] = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks/{args.stack}"], host)
+        return one
+    wanted = {r["number"] for r in rows}
+    found = [
+        s
+        for s in _stacks(host, owner, name)
+        if {p["number"] for p in s.get("pull_requests", [])} & wanted
+    ]
+    if not found:
+        raise ChantierError(
+            "check 1: no stack on the forge holds the batch's PRs "
+            f"{' '.join('#' + str(r['number']) for r in rows)}",
+            EXIT_PRECONDITION,
+        )
+    return next((s for s in found if s.get("open")), found[0])
+
+
+def _ready_line(
+    stack: dict[str, Any],
+    rows: list[dict[str, Any]],
+    come: list[dict[str, Any]],
+    release: dict[str, Any] | None,
+) -> list[str]:
+    """The success lines: the mergeable part, the drafts on top, what is to come."""
+    prs = stack.get("pull_requests", [])
+    drafts = {p["number"] for p in prs if p.get("draft")}
+    merge = 0
+    while (
+        merge < len(rows)
+        and rows[merge]["status"] == "ready"
+        and rows[merge]["number"] not in drafts
+    ):
+        merge += 1
+    top = rows[merge - 1] if merge else None
+    if top is None:
+        part = "no part mergeable yet"
+    elif merge == len(rows) and not come:
+        part = f"stack complete, mergeable below {top['head']} (#{top['number']})"
     else:
-        wanted = {r["number"] for r in want}
-        found = [
-            s
-            for s in _stacks(host, owner, name)
-            if {p["number"] for p in s.get("pull_requests", [])} & wanted
-        ]
-        if not found:
-            return [
-                f"check 1: no stack on the forge holds the batch's PRs "
-                f"{' '.join('#' + str(r['number']) for r in want)}"
-            ], EXIT_PRECONDITION
-        stack = next((s for s in found if s.get("open")), found[0])
-    lines, release = _checks(stack, rows, want)
+        part = f"partial stack mergeable below {top['head']} (#{top['number']}, {merge} PRs)"
+    line = f"stack #{stack.get('number')} ready: open, {len(prs)} PRs in order, {part}"
+    if rows[merge:]:
+        line += ", drafts on top " + " ".join(f"#{r['number']}" for r in rows[merge:])
+    if release:
+        line += ", the release on top"
+    return [line, *_come_line(rows, come, merge)]
+
+
+def _show(args: argparse.Namespace) -> tuple[list[str], int]:
+    try:
+        rows, come, where = _plan(args)
+    except NoBottom as e:
+        return [f"check 1: {e}"], EXIT_PRECONDITION
+    try:
+        stack = _read(args, rows, where)
+    except ChantierError as e:
+        if e.code != EXIT_PRECONDITION:
+            raise
+        return [str(e)], EXIT_PRECONDITION
+    lines, release = _checks(stack, rows, _left(come))
     if lines:
         return lines, EXIT_PRECONDITION
-    return [
-        f"stack #{stack.get('number')} ready: open, {len(stack.get('pull_requests', []))} PRs "
-        "in order, none a draft" + (", the release on top" if release else "")
-    ], 0
+    return _ready_line(stack, rows, come, release), 0
 
 
 def register(sub: Subparsers) -> None:
@@ -282,7 +375,8 @@ def register(sub: Subparsers) -> None:
         sub,
         "forge-stack",
         forge_stack,
-        "create: the stack batch's native stack on GitHub, PRs bottom to top, the release last; "
+        "create: the stack batch's stack as it stands (the bottom CRs with a PR, drafts on top) "
+        "as a native stack on GitHub, PRs bottom to top, the release last; "
         "show: read it back, one line per failed check (exit 2); rebuild: make the forge's "
         "stack match the record (unstack, retarget, create again); GitHub only",
         BATCH,
