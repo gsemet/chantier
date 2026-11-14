@@ -566,6 +566,23 @@ def scenario(w: World) -> None:
           "`-C` form still is", code == 0 and p10.startswith("P10 warn")
           and "add Bash(git push --force-with-lease" not in p10
           and "add Bash(git -C * push --force-with-lease -u origin chantier/*)" in p10, p10)
+    if ARGS.forge == "github":  # P10 asks `gh extension list` (the fake `gh`, first on PATH)
+        path_key = next(k for k in w.env if k.upper() == "PATH")
+        fake_gh = {**homes, path_key: f"{w.fake.parent}{os.pathsep}{w.env[path_key]}"}
+
+        def p10_line(**env: str) -> str:  # a stack: the capability that holds `gh stack view`
+            _, lines = w.chantier("preflight", "--mode", "stack", env={**fake_gh, **env})
+            return " | ".join(ln for ln in lines if ln.startswith("P10"))
+        w.gh(extensions=["gh stack\tgithub/gh-stack\tv0.3.0"])
+        check("preflight --mode stack (P10) names `gh stack view` when `gh extension list` names "
+              "the extension",
+              "gh stack view" in p10_line())
+        w.gh(extensions=[])
+        folder = w.root / "xdg" / "gh" / "extensions" / "gh-stack"
+        folder.mkdir(parents=True)
+        check("with no extension listed, P10 does not name `gh stack view`, a `gh-stack` folder "
+              "does not count", "gh stack view" not in p10_line(XDG_DATA_HOME=str(w.root / "xdg"),
+                                                                LOCALAPPDATA=str(w.root / "xdg")))
     (home / ".claude" / "settings.json").write_text(
         json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8")
     code, out = w.chantier("preflight", env=homes)
@@ -3668,6 +3685,11 @@ def stack_batch(w: World) -> None:
     wt = Path(w.cr(four)["worktree"])
     body = w.at(w.cr(four)["path"]) / "work" / "pr-body.md"
     old = w.sh("git", "rev-parse", "HEAD", cwd=wt)
+    for n in range(1, 50):  # the old head must hold a letter a-f in its first seven characters
+        if not old[:7].isdigit():
+            break
+        w.sh("git", "commit", "--quiet", "--amend", "-m", f"feat: stack3 try {n}", cwd=wt)
+        old = w.sh("git", "rev-parse", "HEAD", cwd=wt)
     body.write_text(f"## Test plan\n\nTested at {old[:7]} on the gate\ncarried from {old[:7]}\n"
                     f"STALE {old[:7]}\nNo hash here: deadbeefdeadbeef0000\n")
     w.sh("git", "commit", "--quiet", "--amend", "-m", "feat: stack3, amended", cwd=wt)
@@ -3681,6 +3703,17 @@ def stack_batch(w: World) -> None:
     body.write_text(f"## Test plan\n\nTested at {new_head[:7]} on the gate\n")
     _, out = w.chantier("ship", four, w.cr(four)["pr"])
     check("with the body fixed, `ship` names no line", not any("pr-body.md" in ln for ln in out), str(out))
+    # a dangling commit whose first seven characters are digits: a token of digits is no commit
+    tree = f"{new_head}^{{tree}}"
+    digits = next((c for c in (w.sh("git", "commit-tree", tree, "-m", f"digits {i}", cwd=wt)
+                               for i in range(2000)) if c[:7].isdigit()), "")
+    body.write_text(f"## Test plan\n\nPR {digits[:7]} and the date\nTested at {old[:7]} again\n")
+    _, out = w.chantier("ship", four, w.cr(four)["pr"])
+    named = [ln for ln in out if "pr-body.md" in ln]
+    check("`ship` does not take a token of digits for a commit, though it resolves outside the head; "
+          "the line naming the old head with a letter is still named",
+          digits != "" and len(named) == 1 and f"line 4 names {old[:7]}" in named[0], str(out))
+    body.write_text(f"## Test plan\n\nTested at {new_head[:7]} on the gate\n")
 
     _, out = w.chantier("order", "merged", one)
     d = w.batch()
@@ -3885,6 +3918,20 @@ def forge_stack_cli(w: World) -> None:
               code == 0 and f"#202 base elsewhere -> {branch(new)}" in out
               and not any(ln.startswith("unstacked") for ln in out)
               and gh_state()["bases"]["202"] == branch(new)
+              and any(ln.startswith("stack #") for ln in out), str(out))
+        # 3b. a stack the forge keeps open after its five unstack tries: exit 4, then a rerun works
+        open_now = [s["number"] for s in gh_state()["stacks"] if s["open"]]
+        w.gh(unstack_ignored=True)
+        w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
+        stuck = w.last_stderr
+        check("a `rebuild` whose stack stays open after five unstack tries exits 4 and names the "
+              "stack and the tries",
+              len(open_now) == 1 and f"stack #{open_now[0]} is still open after 5 unstack tries"
+              in stuck and "the forge reads it back with #" in stuck, stuck)
+        w.gh(unstack_ignored=False, next_stack=200)  # numbers apart from the one seeded in 3.
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        check("with the forge answering again, the next `rebuild` unstacks it and completes",
+              code == 0 and f"unstacked #{open_now[0]}" in out
               and any(ln.startswith("stack #") for ln in out), str(out))
         # 4. refused on a GitLab link
         record(**{b: PR_LINK["gitlab"] + "202"})

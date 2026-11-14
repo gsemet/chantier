@@ -25,7 +25,7 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
 - preflight refusing Claude in VS Code and passing on Desktop with no setup and nothing written;
   its P10 warning (one line per capability the batch uses) on the recommended allow rules missing from the settings (it still passes),
   and `P10 ok` once they are in a temporary home's `.claude/settings.json`, and the release
-rules named by `preflight --autonomous-releases 1` (it still passes);
+  rules named by `preflight --autonomous-releases 1` (it still passes); P10 (GitHub run, `--mode stack`) naming `gh stack view` only when the fake `gh extension list` names `github/gh-stack` (a `gh-stack` folder no longer counts);
 - the batch opened with the branch from `AGENTS.md`, each CR named a branch and a worktree that
   the Driver creates; `take` refused past the slots and the budget, `round` past the limit;
   nothing written outside the planning folder;
@@ -58,12 +58,12 @@ rules named by `preflight --autonomous-releases 1` (it still passes);
   and undone by `--note -`; a stacked CR with an `after` taking its place in the stack as base
   (`stack` and `ship`), `stack` with no CR printing what `take stack` printed and writing nothing
   with a stack driver recorded, and `ship` naming the `work/pr-body.md` lines whose SHA left the
-  head's history after a rebase (`carried from` and `STALE` lines left out);
+  head's history after a rebase (`carried from` and `STALE` lines left out), and not taking a token of digits only for a commit (a dangling commit whose first seven characters are digits);
 - `forge-stack` (GitHub, against `fake_gh.py`, which also unstacks and reads and changes a PR's
   base, refusing the change while the PR is in an open stack): `create` and `show`; `rebuild`
   after an insertion (unstack, retarget, one new stack bottom to top, the release on top), after
   a partial merge (the first PR left to the default branch), stopped by a forge refusal and run
-  again, idempotent with drafts as a line to act on, and refused on a GitLab link, on a parallel
+  again, stopped by a stack that stays open after five unstack tries (exit 4, `unstack_ignored`) and run again, idempotent with drafts as a line to act on, and refused on a GitLab link, on a parallel
   batch and with a CR that has no PR;
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch, which stays paused until the first `take`, then paused again, and `close` (priced with one `Chief of

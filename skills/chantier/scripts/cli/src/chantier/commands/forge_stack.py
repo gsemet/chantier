@@ -18,6 +18,8 @@ from chantier.lifecycle.convert import open_repo
 PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
 
 
+UNSTACK_TRIES = 5
+
 GITHUB_ONLY = "forge-stack is GitHub only: {what} is not a GitHub pull request link"
 
 
@@ -140,7 +142,7 @@ def _unstack(s: dict[str, Any], planned: set[int], where: tuple[str, str, str]) 
     host, owner, name = where
     held = [p["number"] for p in s.get("pull_requests", [])]
     outside = [n for n in held if n not in planned]
-    for _ in range(5):  # until the forge reads it back as gone or not open
+    for _ in range(UNSTACK_TRIES):  # until the forge reads it back as gone or not open
         fields = [x for n in held for x in ("-F", f"pull_requests[]={n}")]
         _gh(["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack", *fields], host)
         now = [
@@ -152,7 +154,12 @@ def _unstack(s: dict[str, Any], planned: set[int], where: tuple[str, str, str]) 
             break
         held = [p["number"] for p in now[0].get("pull_requests", [])]
     else:
-        raise ChantierError(f"stack #{s['number']} is still open after unstack")
+        back = " ".join(f"#{n}" for n in held)
+        raise ChantierError(
+            f"stack #{s['number']} is still open after {UNSTACK_TRIES} unstack tries (the forge "
+            f"reads it back {'with ' + back if back else 'open, with no PR'})",
+            EXIT_EXTERNAL,
+        )
     return f"unstacked #{s['number']}" + (
         f" (it also held {' '.join('#' + str(n) for n in outside)}, not in the batch's "
         "stack: a plain PR now)"
@@ -173,6 +180,9 @@ def _retarget(rows: list[dict[str, Any]], where: tuple[str, str, str], done: lis
 
 
 def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
+    """Unstack the open stacks that hold the batch's PRs, retarget the bases, stack again. When
+    the forge refuses, its exact text comes back (exit 4), and when a stack stays open after its
+    unstack tries."""
     rows, host, owner, name = _plan(args)
     where = (host, owner, name)
     done: list[str] = []
