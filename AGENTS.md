@@ -41,8 +41,9 @@
   `uv run --locked --project` runs the local code, live. A dependency ships wheels for Linux, macOS
   and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8
   everywhere).
-- Tests check the structure only (`tests/`): keep them few and fast; the batch
-  workflow belongs to `just scenario`.
+- Tests (`tests/`) check the structure and the CLI's refusals on a prepared state, calling the CLI
+  in-process: keep them few, parametrized and fast (`just test` at most 30 s above its 18.5 s of
+  2026-11-14 on the user's Windows machine); the batch workflow belongs to `just scenario`.
 - A session here runs chantier itself, read live from the main checkout: use it to debug it. An
   edit loads at the next session or with `/reload-plugins`, with no reinstall; a worktree's edit
   loads once merged into the main checkout.
