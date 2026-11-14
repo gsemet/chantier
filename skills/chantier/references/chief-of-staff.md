@@ -31,6 +31,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
 | "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result | The project |
+| "run CI beside the gate", "CI earlier", "push before the gate" | `ci: beside_gate: true` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it; it counts from the next batch, and it spends CI minutes on every approved round | The project |
 | "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
 | a stack is ready, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
@@ -717,7 +718,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
      passed every command it was given (its events share a `run`), or the Driver's notes and last gate log in `handoff`; the stack
      driver's restack follows its own card. No gate pass at the local head is the Driver's slip,
      not a doubt: push nothing and answer `push refused <branch>: no long gate passed at <local
-     sha>` (the Driver runs the gate and sends the line again). A push that would drop work the
+     sha>` (the Driver runs the gate and sends the line again). When the `handoff` of step 1
+     prints the `ci: beside the long gate` line, a push with no gate pass at the local head is
+     the mode's order, not a slip: skip this gate check (`handback ready` still enforces the
+     gate at the PR's head). A push that would drop work the
      remote has and the local head does not, or that you cannot tie to the CR, is not
      legitimate.
   3. Legitimate: from the main checkout, without changing its branch or touching its files:

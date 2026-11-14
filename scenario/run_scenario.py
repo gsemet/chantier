@@ -2525,6 +2525,44 @@ def playbook_config(w: World) -> None:
           "other-coder" not in "".join(took + out) and "agent=my-driver" in "".join(team(took))
           and out[1:] == [l for l in now_lines[1:] if not l.startswith("spec-writer prompt")], str(out))
 
+    # S2b: `ci: beside_gate: true` is printed by `playbook`, `take` and `handoff`, recorded by `open`
+    def ci_line(out: list[str]) -> list[str]:
+        return [ln for ln in out if ln.startswith("ci: beside the long gate")]
+
+    yaml.write_text("ci:\n  beside_gate: true\nroles:\n  cr-driver:\n    agent: my-driver\n",
+                    encoding="utf-8")
+    code, out = w.chantier("playbook")
+    on_playbook = ci_line(out)
+    crs = batch_of("Playbook ci one", "Playbook ci two")
+    _, took = w.chantier("take", crs[0], "--epoch", 1)
+    _, shown = w.chantier("handoff", crs[0])
+    brief = (w.folder() / "brief.md").read_text(encoding="utf-8")
+    check("S2b: with `beside_gate: true`, `playbook` prints the `ci:` line, `open` records it, `take` "
+          "and `handoff` print it, and `brief.md` says it is on",
+          code == 0 and len(on_playbook) == 1 and w.batch().get("playbook", {}).get("ci") == {"beside_gate": True}
+          and len(ci_line(took)) == 1 and len(ci_line(shown)) == 1
+          and "CI beside the long gate: on" in brief, str(on_playbook + took + shown))
+
+    # S3 (ci): the batch keeps what it opened with after the key is dropped
+    yaml.write_text("roles:\n  cr-driver:\n    agent: my-driver\n", encoding="utf-8")
+    _, took = w.chantier("take", crs[1], "--epoch", 1)
+    _, out = w.chantier("playbook", "--batch", w.name)
+    check("S3: after chantier.yaml drops `ci`, `take` of another CR and `playbook --batch` still print the line",
+          len(ci_line(took)) == 1 and len(ci_line(out)) == 1, str(took + out))
+
+    # S2c: off by default, with the key false or with no `ci` key, no `ci:` line anywhere
+    for label, text in (("beside_gate: false", "ci:\n  beside_gate: false\nroles:\n  cr-driver:\n    agent: my-driver\n"),
+                        ("no ci key", "roles:\n  cr-driver:\n    agent: my-driver\n")):
+        yaml.write_text(text, encoding="utf-8")
+        code, out = w.chantier("playbook")
+        crs = batch_of("Playbook ci off one", "Playbook ci off two")
+        _, took = w.chantier("take", crs[0], "--epoch", 1)
+        _, shown = w.chantier("handoff", crs[1])
+        brief = (w.folder() / "brief.md").read_text(encoding="utf-8")
+        check(f"S2c: with {label}, `playbook`, `take` and `handoff` print no `ci:` line and `brief.md` says nothing",
+              code == 0 and not ci_line(out) and not ci_line(took) and not ci_line(shown)
+              and "CI beside the long gate" not in brief, str(out + took + shown))
+
     # S4: refusals, each exit 2 with its line, `open` moving nothing
     w.reset()
     _, item = prepare_cr(w, "Playbook refused")
@@ -2543,6 +2581,11 @@ def playbook_config(w: World) -> None:
         ("a second document", "roles:\n  coder:\n    agent: x\n---\n", 4, "several documents"),
         ("an unknown model", head + "    model: opus 5.6\n", 3, "is unknown on Claude Code; known:"),
         ("a model with no letter", head + "    model: 5.5\n", 3, "name the model, not only its version"),
+        ("a ci that is not a mapping", "ci: true\n", 1, '"ci" holds its keys'),
+        ("an unknown key under ci", "ci:\n  colour: red\n", 2, 'ci: unknown key "colour"'),
+        ("a beside_gate that is not a boolean", "ci:\n  beside_gate: maybe\n", 2,
+         'ci: "beside_gate" is true or false, found "maybe"'),
+        ("an unknown top-level key", "colour: red\n", 1, '"board" and "ci"'),
         ("a price missing", PRICES + four, 2, "missing output"),
         ("a price that is not a number", PRICES + four + "    output: cheap\n", 7, '"output" is a number'),
         ("a negative price", PRICES + four + "    output: -1\n", 7, '"output" is a number, not negative'),

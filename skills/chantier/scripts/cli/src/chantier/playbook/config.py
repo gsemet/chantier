@@ -83,21 +83,55 @@ def load(path: Path, host: str, roles: list[str]) -> tuple[dict[str, Any] | None
         problems.append((line, message))
 
     resolved: dict[str, dict[str, Any]] = {}
-    prices: dict[str, dict[str, Any]] = {}
+    keyed: dict[str, Callable[[Node, int, Bad], dict[str, Any]]] = {
+        "prices": _prices,
+        "board": _board,
+        "ci": _ci,
+    }
+    got: dict[str, dict[str, Any]] = {}
     for key, (kline, node) in tree.value.items():
-        if key == "prices":
-            prices = _prices(node, kline, bad)
-        elif key == "board":
-            _board(node, kline, bad)
-        elif key == "roles":
+        if key == "roles":
             resolved.update(_roles(node, kline, host, roles, bad) or {})
+        elif key in keyed:
+            got[key] = keyed[key](node, kline, bad)
         else:
-            bad(kline, f'unknown key "{key}": the top-level keys are "roles", "prices" and "board"')
+            bad(
+                kline,
+                f'unknown key "{key}": the top-level keys are "roles", "prices", "board" and "ci"',
+            )
     problems.sort(key=lambda p: p[0])
     lines = [f"{FILE}:{n}: {m}" for n, m in problems]
-    return (
-        {"file": FILE, "host": host, "roles": resolved, "prices": prices} if not lines else None
-    ), lines
+    if lines:
+        return None, lines
+    out: dict[str, Any] = {
+        "file": FILE,
+        "host": host,
+        "roles": resolved,
+        "prices": got.get("prices", {}),
+    }
+    if got.get("ci"):
+        out["ci"] = got["ci"]
+    return out, lines
+
+
+CI_KEYS = ("beside_gate",)
+
+
+def _ci(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
+    """The `ci` key: how a CR's CI runs. Its one key is optional."""
+    rec: dict[str, Any] = {}
+    if node.kind != "map" or not node.value:
+        bad(kline, '"ci" holds its keys: `beside_gate:`')
+        return rec
+    for key, (line, value) in node.value.items():
+        if key not in CI_KEYS:
+            bad(line, f'ci: unknown key "{key}": one of {", ".join(CI_KEYS)}')
+        elif value.kind != "scalar" or value.value not in ("true", "false"):
+            found = value.value if value.kind == "scalar" else value.kind
+            bad(line, f'ci: "beside_gate" is true or false, found "{found}"')
+        else:
+            rec["beside_gate"] = value.value == "true"
+    return rec
 
 
 def _number(node: Node) -> float | None:

@@ -31,6 +31,8 @@ from chantier.lifecycle.stages import (
     prepared_cr,
     stage_layout,
 )
+from chantier.playbook.config import FILE
+from chantier.playbook.lines import ci_lines
 from chantier.plugin_files import detect_host, read_playbook
 from chantier.rails import ENDED, alone, check_no_open_batch, is_release
 
@@ -239,7 +241,8 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
         + instructions
         + ".\n"
         "- Team (who runs which role):\n"
-        "- Autonomous decisions:\n- Questions to bring back:\n"
+        + (f"- CI beside the long gate: on ({FILE}).\n" if ci_lines(data.playbook) else "")
+        + "- Autonomous decisions:\n- Questions to bring back:\n"
     )
 
 
