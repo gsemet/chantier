@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command
+from chantier.core.phases import PHASES
 
 
 def register(sub: Subparsers) -> None:
@@ -61,6 +62,17 @@ def _register_record(sub: Subparsers) -> None:
     s.add_argument("cr")
     s.add_argument("text", nargs="*")
     s.add_argument("--draft", help="a file the user reviews and edits in place")
+
+    s = add_command(
+        sub,
+        "phase",
+        "chantier.commands.driver:phase",
+        "record the step the CR is at, shown by the status, the board and the pane",
+        BATCH,
+    )
+    s.add_argument("cr")
+    s.add_argument("phase", choices=PHASES)
+    s.add_argument("detail", nargs="*", help="review: the step's name; gate, release: optional")
 
     s = add_command(sub, "log", "chantier.commands.driver:log", "the CR's events", BATCH)
     s.add_argument("cr")

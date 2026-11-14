@@ -16,7 +16,8 @@ from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
 from chantier.commands.crs import gate_passed, last_verdict
 from chantier.core.ids import normalize_cr
-from chantier.core.records import EventRecord
+from chantier.core.records import BatchRecord, CrEntry, EventRecord
+from chantier.status.words import next_to_start, phase_text
 
 FULL_ROWS = 13
 
@@ -119,3 +120,48 @@ def test_the_sandbox_campaigns_name_only_frozen_crs_with_hidden_tests() -> None:
     assert len(full) == FULL_ROWS
     for quick in ("real-foreman", "real-direct"):
         assert setup.sandbox_crs(sandbox[quick]) == setup.QUICK and set(setup.QUICK) <= set(full)
+
+
+def test_phase_text_reads_the_step_of_a_working_cr_and_waits_for_the_user_on_a_blocked_one() -> (
+    None
+):
+    def c(status: str = "working", **more: Any) -> CrEntry:
+        return CrEntry(id="CR-1", status=status, round=3, **more)
+
+    assert phase_text(c(phase="investigator")) == "investigator"
+    assert phase_text(c(phase="coder")) == "coder r3"
+    assert phase_text(c(phase="inspector")) == "inspector r3"
+    assert phase_text(c(phase="review", phase_detail="security")) == "security r3"
+    assert phase_text(c(phase="conflict-resolver")) == "conflict resolver"
+    assert phase_text(c(phase="gate", phase_detail="scenario")) == "gate scenario"
+    assert phase_text(c(phase="gate")) == "gate"
+    assert [phase_text(c(phase=p)) for p in ("pr", "ci", "rebase", "verifier", "debugger")] == [
+        "PR",
+        "CI",
+        "rebase",
+        "verifier",
+        "debugger",
+    ]
+    assert phase_text(c(phase="release", phase_detail="tag")) == "release tag"
+    assert phase_text(c()) is None  # working, no step recorded
+    assert phase_text(c("blocked", blocked_reason="question: which?")) == "waits for the user"
+    assert phase_text(c("blocked", blocked_reason="waits: CR-2")) is None
+    assert all(phase_text(c(s, phase="ci")) is None for s in ("queued", "ready", "merged"))
+
+
+def test_next_to_start_is_the_queued_cr_of_the_lowest_order_with_nothing_to_wait_for() -> None:
+    def batch(mode: str = "parallel", **more: Any) -> BatchRecord:
+        crs = [
+            CrEntry(id="CR-1", status="working", order=1),
+            CrEntry(id="CR-2", status="queued", order=2, after=["CR-1"]),
+            CrEntry(id="CR-4", status="queued", order=4),
+            CrEntry(id="CR-3", status="queued", order=3),
+        ]
+        return BatchRecord(mode=mode, crs=crs, **more)
+
+    assert next_to_start(batch()) == "CR-3"  # CR-2 waits for CR-1
+    assert next_to_start(batch("series")) is None  # a series waits for its predecessor
+    assert next_to_start(batch(budget_usd=1, spent_usd=2)) is None  # the budget is spent
+    d = batch()
+    d.crs[0].status = "merged"
+    assert next_to_start(d) == "CR-2"

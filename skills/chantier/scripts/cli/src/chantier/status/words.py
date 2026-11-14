@@ -72,6 +72,37 @@ def can_start(d: BatchRecord) -> bool:
     return slot_free(d) and not over_budget(d)
 
 
+def next_to_start(d: BatchRecord) -> str | None:
+    """The queued CR that `take` would give a slot first, by order: none when the budget is spent
+    or when every queued CR waits. The Foreman may take another one `take` accepts."""
+    if over_budget(d):
+        return None
+    ready = [c for c in d.crs if c.status == "queued" and not waits(d, c)]
+    return min(ready, key=lambda c: c.order).id if ready else None
+
+
+_PHASE_WORDS = {"conflict-resolver": "conflict resolver", "pr": "PR", "ci": "CI"}
+
+
+def phase_text(c: CrEntry) -> str | None:
+    """The step a CR shows, the text every surface copies: its Driver's recorded step while it
+    works, "waits for the user" when it is blocked and nobody else is on it."""
+    if c.status == "blocked" and not waits_on(c):
+        return "waits for the user"
+    if c.status != "working" or not c.phase:
+        return None
+    n = _round(c)
+    word = _PHASE_WORDS.get(c.phase, c.phase)
+    detail = c.phase_detail or ""
+    if c.phase in {"coder", "inspector"}:
+        return f"{word} r{n}"
+    if c.phase == "review":
+        return f"{detail} r{n}".strip()
+    if c.phase in {"gate", "release"}:
+        return f"{word} {detail}".strip()
+    return word
+
+
 READY_ICON = {READY_LOCALLY: "🟣", PR_IN_DRAFT: "🟤", READY_TO_MERGE: "🟢"}
 
 

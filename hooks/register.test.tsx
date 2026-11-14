@@ -557,6 +557,20 @@ test('a row draws its severity icon once, in the State column', async ($, on) =>
   await ui.unmount()
 })
 
+test('a row shows its step in the Step column, a dash with none, and an older file with no phase field', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const crs = [row({ cr: 'CR-1', phase: 'coder r2' }), row({ cr: 'CR-2', phase: null }), row({ cr: 'CR-3' })]
+  w.put(INDEX, index({ batches: [batch({ crs })] }))
+  await skill($)
+  const ui = await board($)
+  const shown = (await words(ui)) as string
+  expect(shown).toContain('| Step |')
+  expect(shown).toContain('| 🟡 working Round 1/3 | coder r2 |')
+  expect(shown.split('| 🟡 working Round 1/3 | - |').length - 1).toBe(2)
+  await ui.unmount()
+})
+
 test('the board shows each label the CLI draws unchanged, one icon per state', async ($, on) => {
   mock.clock(on)
   const w = world(on)

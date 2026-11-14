@@ -88,6 +88,7 @@ def handback_blocked(b: Batch, c: CrEntry, note: str, line: str) -> list[str]:
     cr = c.id
     b.log("handback", cr, result="blocked", note=note)
     b.touch(c, status="blocked", blocked_reason=note)
+    c.clear_phase()
     if note.lower().startswith("waits:"):
         return [line, f"{cr} waits; the Foreman takes it back when that lands"]
     if note.lower().startswith("context:"):

@@ -9,6 +9,8 @@ export type ChantierRow = {
   severity: string
   step: string
   label: string
+  /** The step a working CR is at, or `waits for the user`; null when it shows none. Absent from an older file. */
+  phase?: string | null
   /** A ready CR's state: `ready locally`, `PR in draft` or `ready to merge`; null for any other. */
   readiness: string | null
   round: number
@@ -91,6 +93,8 @@ export type ChantierSheet = {
   cr: string
   title: string
   label: string
+  /** The step text, as on a row; null when it shows none. Absent from an older file. */
+  phase?: string | null
   cost_usd: number | null
   now: string
   next: string

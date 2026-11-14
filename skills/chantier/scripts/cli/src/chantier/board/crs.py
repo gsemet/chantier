@@ -12,7 +12,7 @@ from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
 from chantier.stacks import READY_TO_MERGE, chain, ready_word, stack_base
-from chantier.status.words import severity, state_label, waits
+from chantier.status.words import next_to_start, phase_text, severity, state_label, waits
 
 
 def link_of(url: str | None) -> str | None:
@@ -69,6 +69,8 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
     base = base_of(d, c, repo)
     readiness = ready_word(d, c, repo)
     return {
+        "phase": phase_text(c),
+        "next_to_start": c.id == next_to_start(d),
         "cr": c.id,
         "title": subject(c.title),
         "folder": repo.rel(folder) if folder else None,

@@ -19,8 +19,9 @@ from chantier.commands.driver_checks import (
 )
 from chantier.commands.facts import cr_facts, stack_lines
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
-from chantier.core.clock import stamp
+from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_USAGE, ChantierError
+from chantier.core.phases import PHASE_DETAIL_MAX
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
@@ -83,6 +84,7 @@ def take(args: argparse.Namespace) -> list[str]:
         if c.status in {"ready", "blocked", "working"}:
             c.append("notes", f"back to a Driver: {args.note}")
         b.touch(c, status="working", blocked_reason=None)
+        c.clear_phase()
         b.log("take", c.id, note=args.note, **({"restart": True} if restart else {}))
         start_cr(b, c)  # `1-pending` to `2-actives`, before the Driver gets its facts
         if repo.external:
@@ -110,7 +112,8 @@ def round_(args: argparse.Namespace) -> list[str]:
         wt = Path(c.worktree) if c.worktree else None
         seen = worktree_print(wt)
         check_stray_round(cr_events(repo, batch, c.id), c, seen)  # then a stray round
-        b.touch(c, round=c.round + 1)
+        b.touch(c, round=c.round + 1, phase="coder", phase_at=now())
+        c.unset("phase_detail")
         b.log("round", c.id, round=c.round, note=args.note, **seen)
         work(repo, c).mkdir(parents=True, exist_ok=True)
         facts = cr_facts(repo, batch, b.record, c)
@@ -180,6 +183,7 @@ def handback(args: argparse.Namespace) -> list[str]:
             **({"no_gate": no_gate} if no_gate is not None else {}),
         )
         b.touch(c, status="ready")
+        c.clear_phase()
         gate = f", no long gate: {no_gate}" if no_gate is not None else ""
         return _ready_lines(repo, b.record, c, prepared, f"{gate} {note}")
 
@@ -219,6 +223,31 @@ def note(args: argparse.Namespace) -> list[str]:
         c.append("notes", text)
         b.touch(c)
         b.log("note", args.cr, note=text)
+        context = context_line(repo, b.record, c.agent)
+    return ["ok", context]
+
+
+def phase(args: argparse.Namespace) -> list[str]:
+    """A Driver records the step its CR is at, shown by the status, the board and the pane."""
+    repo = open_repo()
+    detail = " ".join(args.detail).strip()
+    if len(detail) > PHASE_DETAIL_MAX:
+        raise ChantierError(
+            f"phase: the detail is at most {PHASE_DETAIL_MAX} characters", EXIT_USAGE
+        )
+    if args.phase == "review" and not detail:
+        raise ChantierError("phase <cr> review <the review step's name>", EXIT_USAGE)
+    with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
+        c = b.cr(args.cr)
+        if c.status not in LIVE:
+            raise ChantierError(f"{c.id} is {c.status}: no Driver to record a step", EXIT_USAGE)
+        keeps = args.phase in {"review", "gate", "release"}
+        b.touch(c, phase=args.phase, phase_at=now())
+        if keeps and detail:
+            c.phase_detail = detail
+        else:
+            c.unset("phase_detail")
+        b.log("phase", c.id, phase=args.phase, note=detail or None)
         context = context_line(repo, b.record, c.agent)
     return ["ok", context]
 

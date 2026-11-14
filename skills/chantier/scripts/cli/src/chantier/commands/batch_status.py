@@ -24,7 +24,7 @@ from chantier.lifecycle.stages import changes_lock
 from chantier.rails import held, not_priced, spent_text, usd_text, waits_all
 from chantier.rails_release import record_ask
 from chantier.stacks import state_word
-from chantier.status.words import shape_word, steering_word
+from chantier.status.words import phase_text, shape_word, steering_word
 
 
 def _stop_heartbeat(repo: Repo, batch: str, epoch: int | None) -> list[str]:
@@ -125,6 +125,8 @@ def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool) -> str:
         row += "".join(f" | draft {p}" for p in c.drafts[-2:])
     elif c.kind == "fix":
         row += f" fix for {c.fix_for}"
+    if (text := phase_text(c)) is not None:
+        row += f" | step: {text}"
     waits = waits_all(d.crs, c, d.mode) if c.status == "queued" else []
     if waits:
         row += f" | waits for {', '.join(waits)}"

@@ -11,6 +11,9 @@ export const tag = (kind, text, { badge = false } = {}) =>
 // The tag of a CR's state: a queued CR held by its dependencies reads "waits".
 export const stateTag = (c, opts) => tag(vstate(c), t(`state.${vstate(c)}`), opts);
 
+// The tag of the CR the batch would start next, in the queued grey; nothing for another.
+export const nextTag = (c) => (c.next_to_start ? tag('queued', t('card.next')) : '');
+
 // "release" or "fix" for a CR of that kind, else nothing.
 export const kindTag = (c) =>
   c.kind ? tag(`kind-${c.kind}`, t(`kind.${c.kind}`), { badge: true }) : '';
