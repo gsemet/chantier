@@ -69,8 +69,13 @@ code, is covered by the cards, and the steering session reports what changed in 
 
 On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
-trashed CRs, the costs, and each CR's files (text and images). It writes nothing in the planning
-folder and stops when its session leaves the seat.
+trashed CRs, the costs, and each CR's files (text and images). It stops when its session leaves
+the seat. It writes in the backlog only (the inbox, the priorities, `3-ready`), never in a batch:
+file an idea, move items between those places, label and group them, edit an item's Markdown
+files, and declare the next batch ready (`next-batch.json`, the time and the CRs then in
+`3-ready`; it decides nothing). Every write lands in `board-journal.jsonl` (not committed); the
+"rescan" button empties it, to tell the Chief of Staff the backlog changed. All projects is
+read-only.
 
 - **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. Open it
   once: the board keeps the key in a cookie and takes it out of the address. The link is yours

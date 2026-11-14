@@ -78,6 +78,14 @@ def write_file(path: Path, text: str) -> None:
     retry(os.replace, tmp, path)
 
 
+def write_bytes(path: Path, data: bytes) -> None:
+    """Write bytes as they are by atomic rename: a text's line endings stay the caller's."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(data)
+    retry(os.replace, tmp, path)
+
+
 def write_json(path: Path, data: Any, *, ensure_ascii: bool = True) -> None:
     write_file(path, json.dumps(data, indent=2, ensure_ascii=ensure_ascii) + "\n")
 
@@ -99,6 +107,7 @@ IGNORED = (
     ".batch-number",
     ".closing-*",
     "seat.json",
+    "board-journal.jsonl",
     "/4-batch/batch.json",
     "/4-batch/events.jsonl",
     "/4-batch/brief.md",

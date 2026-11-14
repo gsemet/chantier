@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
-from chantier.commands.crs import new_request, shown
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
 from chantier.core.batch import Batch, check_epoch, resolve_batch
 from chantier.core.clock import now, stamp
@@ -14,6 +13,7 @@ from chantier.core.ids import normalize_cr
 from chantier.core.records import LIVE, OrderRecord
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
+from chantier.lifecycle.filing import new_request, shown
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import check_budget, check_slot

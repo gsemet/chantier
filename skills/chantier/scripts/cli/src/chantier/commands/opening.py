@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-from chantier.commands.crs import grant_line, shown, slugify
+from chantier.commands.crs import grant_line
 from chantier.commands.opening_record import (
     instruction_files,
     new_record,
@@ -22,6 +22,7 @@ from chantier.core.files import read_text
 from chantier.core.records import CrEntry, ReleaseGrant
 from chantier.core.repo import Repo
 from chantier.lifecycle.convert import open_repo
+from chantier.lifecycle.filing import shown, slugify
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import (
     changes_lock,

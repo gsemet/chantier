@@ -1143,6 +1143,110 @@ def exits(proc: BoardProc, timeout: float = 25) -> int | None:
         return None
 
 
+def board_writes(w: World, port: int, link: Link, base: str) -> None:
+    """The web board's writes on the backlog (CR-226): moves, a filed idea, an edited file, the
+    next-batch marker, the journal; every refusal writes nothing."""
+    jh = {**link.cookie, "Content-Type": "application/json"}
+
+    def call(method: str, path: str, data: dict, headers: dict | None = None) -> tuple[int, dict]:
+        code, _, raw = fetch(port, f"{base}/{path}", method, headers or jh,
+                             json.dumps(data).encode("utf-8"))
+        try:
+            return code, json.loads(raw.decode("utf-8"))
+        except ValueError:
+            return code, {}
+
+    def place(slug: str) -> str | None:
+        for where in ("1-inbox", "2-backlog/P1", "2-backlog/P2", "2-backlog/P3", "2-backlog/P4",
+                      "3-ready"):
+            if (w.state / where / slug).is_dir():
+                return where
+        return None
+
+    def journal_count() -> int:
+        return jget(port, link, f"{base}/journal")[2].get("count", -1)
+
+    slug = "board-inbox-item"
+    for to, where in (("P2", "2-backlog/P2"), ("3-ready", "3-ready"), ("inbox", "1-inbox")):
+        code, body = call("POST", "backlog/move", {"items": [slug], "to": to})
+        check(f"`POST backlog/move` to {to} moves the folder and says so in the journal",
+              code == 200 and body.get("ok") and place(slug) == where
+              and slug in body["journal"][-1]["text"], f"{code} {body}")
+    count = journal_count()
+    code, body = call("POST", "backlog/move", {"items": [slug], "to": "inbox"})
+    check("a move to the item's own column writes nothing", code == 200 and journal_count() == count,
+          f"{code} {body}")
+    for bad in ("4-batch-item", "../x", "board-working"):
+        code, body = call("POST", "backlog/move", {"items": [bad], "to": "P1"})
+        check(f"a move of {bad!r}, not in the backlog, is refused", code == 409
+              and not body.get("ok"), f"{code} {body}")
+    code, body = call("POST", "backlog/new", {"text": "Board filed idea\r\n\r\nbody é\r\n"})
+    filed = w.state / "1-inbox" / "board-filed-idea"
+    request = next(iter(filed.glob("*.md")), filed / "none.md") if filed.is_dir() else filed
+    check("`POST backlog/new` files the text byte for byte in 1-inbox",
+          code == 200 and request.is_file()
+          and request.read_bytes() == "Board filed idea\r\n\r\nbody é\r\n".encode("utf-8"),
+          f"{code} {body}")
+    code, body = call("POST", "backlog/new", {"text": "Board filed idea"})
+    check("a second idea with the same slug is refused: already exists",
+          code == 409 and "already exists" in body.get("error", ""), f"{code} {body}")
+    rel = request.relative_to(w.state).as_posix()
+    code, head, raw = fetch(port, f"{base}/file?path={rel}", headers=link.cookie)
+    sha = head.get("x-chantier-sha256", "")
+    check("`GET file` of a text file carries the SHA-256 of its bytes",
+          code == 200 and sha == hashlib.sha256(request.read_bytes()).hexdigest(), sha)
+    edit = {"item": "board-filed-idea", "path": request.relative_to(filed).as_posix(),
+            "text": "Board filed idea\n\nedited\n", "base_sha256": sha}
+    code, body = call("PUT", "backlog/file", edit)
+    check("`PUT backlog/file` with the right hash writes the text and keeps CRLF",
+          code == 200 and request.read_bytes() == b"Board filed idea\r\n\r\nedited\r\n"
+          and body.get("sha256") == hashlib.sha256(request.read_bytes()).hexdigest(),
+          f"{code} {body}")
+    kept = request.read_bytes()
+    code, body = call("PUT", "backlog/file", {**edit, "text": "stale"})
+    check("`PUT backlog/file` with the old hash answers 409 and changes nothing",
+          code == 409 and request.read_bytes() == kept, f"{code} {body}")
+    state_before = folder_state(w.state)
+    refused = (("board-filed-idea", "STATUS.md"), ("board-filed-idea", "../board-ready-item/x.md"),
+               ("board-filed-idea", "notes.txt"), ("board-working", "01-intent.md"),
+               ("anything", "a.md"))
+    codes = [call("PUT", "backlog/file", {"item": i, "path": p, "text": "x", "base_sha256": sha})[0]
+             for i, p in refused]
+    check("an edit of STATUS.md, `..`, a non-Markdown file, a batch CR or an archive slug is "
+          "refused and writes nothing",
+          all(c in (400, 409) for c in codes) and folder_state(w.state) == state_before, str(codes))
+    code, body = call("POST", "backlog/next-batch", {})
+    marker = json.loads((w.state / "next-batch.json").read_text(encoding="utf-8"))
+    ready = sorted(p.name for p in (w.state / "3-ready").iterdir() if p.is_dir())
+    check("`POST backlog/next-batch` writes next-batch.json with the sorted slugs of 3-ready",
+          code == 200 and marker["crs"] == ready and bool(marker["declared_at"]), f"{code} {marker}")
+    code, labelled = call("POST", "backlog/labels", {"items": ["board-backlog-item", slug],
+                                                    "add": "docs"})
+    code2, _ = call("POST", "backlog/group", {"items": ["board-backlog-item", slug], "name": "g1"})
+    st = jget(port, link, f"{base}/state")[2]
+    items = {i["item"]: i for col in st["backlog"].values() for i in col}
+    check("labels and a group show in the state, with the next batch and the journal count",
+          code == 200 and code2 == 200 and "docs" in items[slug]["labels"]
+          and items[slug]["group"] == "g1" and st["next_batch"]["crs"] == ready
+          and st["journal"]["count"] == journal_count(), str(st.get("journal")))
+    call("POST", "backlog/move", {"items": [slug], "to": "P4"})
+    items = {i["item"]: i for col in jget(port, link, f"{base}/state")[2]["backlog"].values()
+             for i in col}
+    check("a post-it moved alone leaves its group", items[slug]["group"] is None
+          and items["board-backlog-item"]["group"] == "g1", str(items[slug]))
+    check("the journal file is ignored by git",
+          w.sh("git", "check-ignore", ".agents/changes/board-journal.jsonl").strip() != "")
+    code, _ = call("POST", "journal/rescan", {})
+    check("`POST journal/rescan` empties the journal", code == 200 and journal_count() == 0)
+    check("a write with no key answers 401", fetch(port, f"{base}/backlog/move", "POST",
+          {"Content-Type": "application/json"}, b"{}")[0] == 401)
+    check("a write with a foreign `Origin` answers 403", call(
+          "POST", "backlog/move", {}, {**jh, "Origin": "http://evil.example"})[0] == 403)
+    check("a write whose body is not JSON answers 415", fetch(
+          port, f"{base}/backlog/move", "POST", {**link.cookie, "Content-Type": "text/plain"},
+          b"{}")[0] == 415)
+
+
 def remote_board(w: World) -> None:
     note("\n## 16c. The remote board: the web board's server, behind a key")
     w.reset()
@@ -1345,6 +1449,7 @@ def remote_board(w: World) -> None:
               folder_state(w.state) == before
               and w.sh("git", "status", "--porcelain", "--", ".agents/changes") == porcelain,
               str(set(folder_state(w.state).items()) ^ set(before.items())))
+        board_writes(w, port, link, base)
         lock.unlink()
         # 8. a second board, a port held
         again = [sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port", str(port)]
@@ -5423,6 +5528,17 @@ def changes_tree(w: World) -> None:
     check("`triage --priority P2` brings a 3-ready item back to the backlog",
           back.parent == w.state / "2-backlog" / "P2" and not ready_spec.exists(), str(out))
     w.chantier("triage", back, "--ready")
+    _, out = w.chantier("triage", w.state / "3-ready" / back.name, "--inbox")
+    inboxed = first(out, "triaged ")
+    check("`triage --inbox` brings a 3-ready item back to 1-inbox",
+          inboxed.parent == w.state / "1-inbox" and not back.exists(), str(out))
+    code, _ = w.chantier("triage", inboxed, "--inbox", expect=2)
+    check("`triage --inbox` of an inbox item is refused: already in 1-inbox",
+          code == 2 and "already in 1-inbox" in w.last_stderr and inboxed.is_dir(), w.last_stderr)
+    code, _ = w.chantier("triage", inboxed, "--inbox", "--ready", expect=None)
+    check("two targets are refused and move nothing", code != 0 and inboxed.is_dir(),
+          w.last_stderr)
+    w.chantier("triage", inboxed, "--ready")
     _, bare_backlog = prepare_cr(w, "Tree backlog bare")
     (bare_backlog / "03-change-spec.md").unlink()
     code, _ = w.chantier("open", bare_backlog, *FROM_AGENTS_MD, expect=2)

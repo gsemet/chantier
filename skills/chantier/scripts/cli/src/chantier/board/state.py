@@ -12,6 +12,7 @@ from typing import Any
 
 from chantier.board import crs
 from chantier.board.backlog import backlog_items
+from chantier.board.journal import since_rescan
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
 from chantier.core.files import read_text
@@ -24,6 +25,7 @@ from chantier.core.records import (
 )
 from chantier.core.repo import RECORDS, Repo
 from chantier.core.seat import read_seat
+from chantier.lifecycle.backlog import next_batch
 from chantier.lifecycle.stages import stage_layout
 from chantier.rails import held
 from chantier.status.views import batch_view, dashboard_view
@@ -141,6 +143,8 @@ def project_state(
         "batch": batch,
         "events": _events(events),
         "backlog": backlog_items(repo.changes, dash["backlog"]),
+        "next_batch": next_batch(repo),
+        "journal": {"count": len(since_rescan(repo.changes))},
         "merged": dash["merged"],
         "merged_total": dash["merged_total"],
         "trashed": dash["trashed"],
