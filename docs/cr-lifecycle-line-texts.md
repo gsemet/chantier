@@ -34,21 +34,24 @@ with 👤 you
 ```md
 ## Spec
 
-✍️ spec-writer
+✍️
+spec-writer
 ```
 
 ```md
 ## Spec critic
 
 🧐 spec critic
-when impactful
+when
+impactful
 ```
 
 ```md
 ## Driver
 
 🚜 CR driver
-🔨 Coder · 📏 Inspector
+🔨 Coder ·
+📏 Inspector
 gate · 🧪 CI
 ```
 
@@ -61,14 +64,17 @@ gate · 🧪 CI
 ```md
 ## 🟣 Ready locally
 
-🚜 hands back
-rare: no PR yet
+🚜 hands
+back
+rare:
+no PR yet
 ```
 
 ```md
 ## 🟤 PR in draft
 
-🚜 opens the PR
+🚜 opens
+the PR
 ```
 
 ```md
