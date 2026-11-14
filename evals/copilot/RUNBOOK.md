@@ -20,7 +20,7 @@ preparation, the run's number and prefix, a merge, the audit), on Copilot, with:
 | Setup | `uv run --no-project python evals/kit/setup.py copilot <workspace>` |
 | Batch | `copilot` |
 | CRs | `delete-item` |
-| Open | `$CHANTIER open .agents/changes/3-ready/delete-item --slots 1 --budget 3 --default-branch main` |
+| Open | `$CHANTIER open 3-ready/delete-item --slots 1 --budget 3 --default-branch main` |
 
 ## The user's turns
 

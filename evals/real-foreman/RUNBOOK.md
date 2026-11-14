@@ -13,7 +13,7 @@ CR, the audit, the report) is in [the evals README](../README.md#a-sandbox-campa
 | --- | --- |
 | Setup | `uv run --no-project python evals/kit/setup.py real-foreman <workspace>` (after `sandbox.py reset --yes`, see the README) |
 | CRs | `delete-item`, `edit-item`, `status-filter`, `json-api`, `stats-page`: frozen and specified, no grill, no release |
-| Open | `$CHANTIER open .agents/changes/3-ready/delete-item .agents/changes/3-ready/edit-item .agents/changes/3-ready/status-filter .agents/changes/3-ready/json-api .agents/changes/3-ready/stats-page --mode <mode> --slots 3 --budget 20 --default-branch main` (`setup.py` prints it) |
+| Open | `$CHANTIER open 3-ready/delete-item 3-ready/edit-item 3-ready/status-filter 3-ready/json-api 3-ready/stats-page --mode <mode> --slots 3 --budget 20 --default-branch main` (`setup.py` prints it) |
 | Mode | chosen at launch: `stack`, `parallel` or `series`; the same 5 CRs in every mode |
 | Team | the plugin's agents |
 | Cost and time | the budget caps the cost at $20; the first run measures cost and time and this table is then written from its report |
