@@ -11,6 +11,7 @@ from pathlib import Path
 CLI = Path(__file__).resolve().parents[1]
 MAX_FILE_LINES = 400
 MAX_FUNCTION_LINES = 50
+MAX_SCRIPT_LINES = 300
 SCOPE = [
     path
     for path in sorted(CLI.rglob("*.py"))
@@ -96,3 +97,27 @@ def test_one_root_project_holds_the_dependencies_and_nothing_else_is_a_script() 
         if re.search(r"(?m)^# /// script\r?$", path.read_text(encoding="utf-8"))
     ]
     assert blocks == ["session_usage.py"], blocks
+
+
+def test_the_web_frame_has_small_scripts_and_both_word_files_share_their_keys() -> None:
+    web = CLI / "src" / "chantier" / "board" / "web"
+    scripts = sorted((web / "js").rglob("*.js"))
+    assert scripts, "no script in the web frame"
+    problems = []
+    for path in scripts:
+        lines = len(path.read_text(encoding="utf-8").splitlines())
+        if lines > MAX_SCRIPT_LINES:
+            problems.append(f"{path.relative_to(web)}: {lines} lines (max 300)")
+    keys = {
+        lang: set(
+            re.findall(
+                r"^\s*'([\w.]+)':",
+                (web / "js" / "i18n" / f"{lang}.js").read_text(encoding="utf-8"),
+                re.M,
+            )
+        )
+        for lang in ("en", "fr")
+    }
+    if keys["en"] != keys["fr"]:
+        problems.append(f"word files differ: {sorted(keys['en'] ^ keys['fr'])}")
+    assert not problems, "\n".join(problems)

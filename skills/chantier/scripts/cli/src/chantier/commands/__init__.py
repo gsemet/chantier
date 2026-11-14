@@ -8,7 +8,7 @@ long gate's lock) and a few tools (the project's rules, the cost). The agents do
 and the forge included; the CLI names what they create (branches, worktrees), keeps the record,
 and runs no git command that changes anything: it reads the head, the remote and the status to
 say what is off, and no forge command at all. One named exception, in `board/`: `chantier
-board`, a read-only web view of this record for the user in remote; it writes no file, takes its
-dependencies through the CLI's PEP 723 inline metadata like the rest of the CLI, and knows no
+board`, the web board's server, for the user in remote; it writes only its key file in the git
+folder, takes its dependencies (starlette, uvicorn) from the root pyproject.toml, and knows no
 role.
 """

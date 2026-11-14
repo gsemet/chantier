@@ -1,0 +1,28 @@
+// English words. A language is one file like this, registered in ../i18n.js.
+export default {
+  'lang.name': 'English',
+  'lang.switch': 'Français',
+  'nav.views': 'Views',
+  'nav.home': 'Home',
+  'nav.triage': 'Triage',
+  'nav.kanban': 'Kanban',
+  'nav.batch': 'Batch',
+  'nav.costs': 'Costs',
+  'project.change': 'Change project',
+  'stats.intake': 'intake',
+  'stats.backlog': 'backlog',
+  'stats.working': 'working',
+  'stats.handed': 'handed back',
+  'stats.no_batch': 'no batch',
+  'stats.loading': 'Loading…',
+  'time.s': '{n} s',
+  'time.min': '{n} min',
+  'time.h': '{n} h',
+  'time.d': '{n} d',
+  'heard.at': 'Heard from the server {age} ago',
+  'heard.never': 'Not heard from the server yet',
+  'notice.silent':
+    'The board is not answering (stopped, or the network). The data shown is the last it sent.',
+  'notice.key': 'This board needs the link with its key: ask the Chief of Staff for it.',
+  'view.empty': 'This view is drawn by a later change.',
+};
