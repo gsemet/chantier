@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 
 from chantier import __version__
-from chantier.commands.permissions import SETTINGS_SHOWN, commands_not_allowed
+from chantier.commands.permissions import CAPABILITIES, SETTINGS_SHOWN, commands_not_allowed
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import read_text
@@ -175,19 +175,45 @@ def _check_surface(r: _Report, repo: Repo) -> None:
     )
 
 
-def _check_allow(r: _Report, repo: Repo | None) -> None:
-    count, total, named, blocked, unreadable = commands_not_allowed(repo)
+_WHY = (
+    "the host's auto-mode classifier judges each command at run time, and in a remote session "
+    "(Remote Control) nobody may be there to answer its prompt: {cap} may stop at the first one"
+)
+
+
+def _wanted(args: argparse.Namespace) -> set[str]:
+    """The capabilities the batch will use, from the words `open` takes."""
+    wanted = {"batch"}
+    if getattr(args, "mode", None) == "stack":
+        wanted.add("stack")
+    if getattr(args, "autonomous_releases", 0) > 0:
+        wanted.add("release")
+    if getattr(args, "grant_fixes", False):
+        wanted.add("fixes")
+    return wanted
+
+
+def _check_allow(r: _Report, repo: Repo | None, wanted: set[str]) -> None:
+    gaps, unreadable = commands_not_allowed(repo, wanted)
     note = f" (unreadable: {', '.join(unreadable)})" if unreadable else ""
-    r.check(
-        "P10",
-        not count,
-        f"the commands chantier's agents run are allowed by your settings{note}",
-        f"{count} of {total} commands chantier's agents run are not allowed by your settings "
-        f"({SETTINGS_SHOWN}){note}: {'; '.join(named)}"
-        f"{'; denied: ' + '; '.join(blocked) if blocked else ''}; the block is in "
-        'hosts/claude-code.md, "Allow rules"',
-        warn=True,
-    )
+    for cap, gap in gaps.items():
+        label = CAPABILITIES[cap]
+        r.check(
+            "P10",
+            not gap.missing,
+            f"{label}: the commands its agents run are allowed by your settings{note}",
+            f"{label}: {gap.missing} of {gap.total} commands its agents run are not allowed by "
+            f"your settings ({SETTINGS_SHOWN}){note}: {'; '.join(gap.named)}"
+            f"{'; denied: ' + '; '.join(gap.blocked) if gap.blocked else ''}; "
+            f"{_WHY.format(cap=label)}; the rules are in hosts/claude-code.md, "
+            '"Capabilities and their commands"',
+            warn=True,
+        )
+    left = [label for cap, label in CAPABILITIES.items() if cap not in gaps]
+    if left:  # on the last P10 line: the report stays within ten lines
+        r.lines[-1] += (
+            f"; not checked here: {', '.join(left)} (checked at the go when the batch uses them)"
+        )
 
 
 def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
@@ -213,7 +239,7 @@ def preflight(args: argparse.Namespace) -> tuple[list[str], int]:
     if repo:
         _check_project(r, repo, host)
     if host == "claude":
-        _check_allow(r, repo)
+        _check_allow(r, repo, _wanted(args))
     own = "P3, P9" if direct else "P2, P3, P9"
     r.lines.append(f"{own} and 'not unattended' are the Chief of Staff's own checks")
     r.lines.append("preflight passed" if r.ok else "preflight FAILED: start nothing")
@@ -233,4 +259,21 @@ def register(sub: Subparsers) -> None:
         "--direct",
         action="store_true",
         help="the Chief of Staff steers the batch: P1 passes on any Claude Code entry point",
+    )
+    s.add_argument(
+        "--mode",
+        choices=["parallel", "series", "stack"],
+        help="the batch's mode, as `open` takes it: stack adds the capability a stack",
+    )
+    s.add_argument(
+        "--autonomous-releases",
+        type=int,
+        default=0,
+        metavar="N",
+        help="releases the user allows without asking: N > 0 adds a release on its own",
+    )
+    s.add_argument(
+        "--grant-fixes",
+        action="store_true",
+        help="the release's fixes are merged on a grant: adds fixes on a grant",
     )

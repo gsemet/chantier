@@ -23,8 +23,9 @@ PRs against the fake forge, and use the CLI for its record (`round`, `gate`, `sh
 frame, not the judgement: the checks are on what the CLI refuses, records and reports.
 
 - preflight refusing Claude in VS Code and passing on Desktop with no setup and nothing written;
-  its P10 warning on the recommended allow rules missing from the settings (it still passes),
-  and `P10 ok` once they are in a temporary home's `.claude/settings.json`;
+  its P10 warning (one line per capability the batch uses) on the recommended allow rules missing from the settings (it still passes),
+  and `P10 ok` once they are in a temporary home's `.claude/settings.json`, and the release
+rules named by `preflight --autonomous-releases 1` (it still passes);
 - the batch opened with the branch from `AGENTS.md`, each CR named a branch and a worktree that
   the Driver creates; `take` refused past the slots and the budget, `round` past the limit;
   nothing written outside the planning folder;

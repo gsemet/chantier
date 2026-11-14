@@ -29,7 +29,7 @@ anything else:
 
 The other preflight lines are a batch's and are not reported here, except what the configuration
 checks add to the first message (P5, P9, P10), which goes in the same message; P10's warning
-comes as the Chief of Staff's question ([chief-of-staff](chief-of-staff.md), "The project"). P9 now holds the
+(one per capability, the base only at a first turn) comes as the Chief of Staff's question ([chief-of-staff](chief-of-staff.md), "The project"). P9 now holds the
 forge's rights and branch rules too ([chief-of-staff](chief-of-staff.md), "Forge permissions").
 
 ## 2. The seat and the role

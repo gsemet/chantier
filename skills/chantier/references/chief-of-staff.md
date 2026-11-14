@@ -85,20 +85,35 @@ When the user says "our long gate is `<command>`", propose the exact `AGENTS.md`
 (`docs/gates.md`) and write them on the user's yes.
 
 **The allow rules (P10, Claude Code).** The one write chantier makes in the user's settings, and
-only on the user's yes. Asked once per session:
+only on the user's yes. Asked once per session per capability (the table "Capabilities and their
+commands" of your host's reference):
 
 - **The question.** One question in the first message, after the P5/P10 lines: "add these rules
   to `~/.claude/settings.json`?" It lists each rule P10 named, with its risk taken from the "Risk
-  accepted" column of the table "Allow rules" of your host's reference. A Griller does not ask or
-  write: it reports the P10 line and says that the Chief of Staff asks.
+  accepted" column of the table "Allow rules" (or the Mark column of "Capabilities and their
+  commands") of your host's reference. At a first turn the question covers the capability "every
+  batch" only. At the go, it covers the capabilities the batch uses, with what is still missing;
+  at a grant given later (`order grant`), that capability. The rules of "a release on its own" and
+  "fixes on a grant" are offered only when the user granted them: never at a first turn, never for
+  a batch without the grant. A Griller does not ask or write: it reports the P10 line and says that the Chief of Staff asks.
 - **On the yes.** Add exactly those rules to `permissions.allow`. Merge with what is there: never
   replace, never remove, add no duplicate. Create the file or the keys when absent, and keep the
   file valid JSON. Then run `$CHANTIER preflight` again and say what P10 says now. Add in one line
   that whether this running session picks up the change is unproved: a session or agent started
   afterwards reads it.
-- **On a no.** Say once what will be refused: a Driver's force push after a rebase goes Driver ->
-  Foreman -> Chief of Staff, and an unattended batch waits at the first one. Do not ask again in
-  the session.
+- **On a no.** Say once, per capability, what will stop: for every batch, a Driver's force push
+  after a rebase goes Driver -> Foreman -> Chief of Staff, and an unattended batch waits at the
+  first one; for a release on its own, "the release will stop at the merge or the publication and
+  wait for you"; for fixes on a grant, "the fix's merge will wait for you". Do not ask again in
+  the session for that capability.
+- **The strong warning.** A P10 warn line or a refused trial is said first among the
+  configuration lines, with its explanation in the user's language (the host's auto-mode
+  classifier judges each command at run time; in a remote session nobody may be there to answer
+  its prompt), and with what the capability will do without the rules. It never blocks the go.
+- **The project's own release commands.** For a release on its own, read the project's release
+  procedure and name each command it runs that no table row covers (for chantier, `just tag`) in
+  one line: "`<command>` is the project's own: no rule is offered for it; it may meet the host's
+  prompt". No rule is offered for it.
 - **The host refuses the edit.** Say so with the refusal's exact text (concepts rule 7). Then give
   the command line of "Allow rules to add" (your host's reference) for the user's shell, and say it
   needs the user at that computer, not on the phone. Try no other way: no other file, no other
@@ -373,6 +388,20 @@ batch starts whatever it says.
    legacy branch protection is read only for an `ADMIN` account, else say "not readable with your
    rights". Write the branch name's `/` raw (`rules/branches/chantier/x/y`): the endpoint answered
    to it and to `%2F` alike (tried 2026-11-13).
+4. A stack (made by `forge-stack` or by the extension): the stacks API, `gh api
+   repos/<owner>/<repo>/stacks -X GET -F per_page=1`. A 404 or 403 means no native stack on this
+   repository: warn that `forge-stack create` or the extension will fail there, and that the
+   stack then stays a chain.
+5. A merge by the steering session (a release on its own, fixes on a grant), and a stack (merged
+   by the user in one action): the default branch's rules, `gh api
+   repos/<owner>/<repo>/rules/branches/<default branch>`, and the methods, `gh repo view --json
+   mergeCommitAllowed,rebaseMergeAllowed,squashMergeAllowed`. Warn on: a `pull_request` rule with
+   required approving reviews (a steering session's merge of its own account's PR waits for a
+   review it cannot give: the grant's merge stops); a `required_status_checks` rule (the merge
+   waits for those checks: said, not a problem); a `merge_queue` rule (a merge enqueues instead of
+   merging, and a stack's one-action merge may not apply); the project's merge method (its rules,
+   for instance "merge by rebase") not among the allowed methods. The legacy branch protection is
+   read as item 3 says (an `ADMIN` account only).
 
 **GitLab** (the remote's host is GitLab), all **unproved**; trial: one run on a GitLab project.
 
@@ -382,40 +411,82 @@ batch starts whatever it says.
 3. `glab api projects/<url-encoded path>/protected_branches`: a name or wildcard that matches a
    `chantier/` branch with `allow_force_push: false` refuses the force push; `push_access_levels`
    above the account's level refuses the push.
+4. No native stack: nothing to probe (a stack stays a chain).
+5. `glab api projects/<url-encoded path>`: `merge_method`, `approvals_before_merge` (or the
+   approval rules), merge trains; `projects/<path>/protected_branches/<default branch>`:
+   `merge_access_levels` above the account's level refuses the merge.
+
+These probes run at step 1 for the capabilities the batch uses.
 
 **What the user hears:** one short block in the first message, after the P5/P10 lines, in the same
 message:
 
-- what may stop the batch from running unattended, each line with what to change, a forge right in
-  the forge's own words (for instance: a ruleset `protect-all` refuses force pushes on
-  `chantier/*`: allow them for `chantier/**`, or exclude that pattern); the missing host rules are
+- what may stop the batch from running unattended, a P10 warn first (the strong warning, "The
+  project"), each line with what to change, a forge right in the forge's own words (for
+  instance: a ruleset `protect-all` refuses force pushes on `chantier/*`: allow them for `chantier/**`, or exclude that pattern); the missing host rules are
   exactly the ones P10 named (the question of "The project");
 - on Claude Code, the alert sentence of [claude-code](hosts/claude-code.md), "Auto mode";
-- the release's publication, when the project's release procedure runs it: it stays asked by the
-  host, by design (no rule is recommended for it, and it is not a missing rule). When the account
-  can publish, the Release driver runs the publication and the host asks or judges it. When the
-  host refuses, "the publication is yours: you will be asked to run `<the command>`" (the user is
+- the release's publication, when the project's release procedure runs it. Without a grant it
+  stays asked by the host, by design (no rule in the base set, and it is not a missing rule). With
+  a grant, the publication is a command of the capability "a release on its own": its rules are
+  offered ("The project"), and when they are not added, the strong warning says the release may
+  stop at publication with nobody to answer. When the account can publish, the Release driver
+  runs the publication and the host asks or judges it. When the host refuses, "the publication is yours: you will be asked to run `<the command>`" (the user is
   told now, not at the end).
 
 At step 1 the same check runs again; the plan's message repeats only what is still missing.
+
+## The trials before the go
+
+At step 1 of "Starting a batch", after the preflight with the batch's options: **one harmless
+trial per used capability**, run by you, each command alone (rule 9), in this session's permission
+mode, with the user there. A command the CLI ran would be a child process the host's permission
+check never sees, so the trials are your own tool calls. The forms (the host reference's column
+"Trial before the go", "Capabilities and their commands"):
+
+- every batch: the `$CHANTIER preflight` you just ran; `git -C <main checkout> push
+  --force-with-lease -u <remote> chantier/preflight-trial --dry-run` (the trailing `--dry-run`
+  keeps the command under the rule's `*`); on GitHub `gh pr view --json number`, on GitLab `glab
+  mr view`;
+- a stack with the extension: `gh stack view`; with `forge-stack`: the stacks API probe of P9;
+- a release on its own: `git push <remote> v0.0.0-preflight-trial --dry-run`; `gh release create`
+  and the merge have no harmless form: "no trial: P10's rule check only";
+- fixes on a grant: no harmless form: "no trial: P10's rule check only".
+
+A trial proves that the host let the command run. The command's own error (no such branch, no PR
+for this branch) is a pass: the trial tests the permission, not the command. A denial, a prompt or
+a classifier refusal is a refusal. When a trial passes where P10 named a missing rule, say the
+limits of the host reference's "Auto mode" (a pass proves nothing for a Driver). A refusal is said
+at once, with the command and the host's exact text (rule 7), in the same strong warning as P10's,
+with the rules P10 named for that capability in the question of "The project"; it never blocks the
+go. Each trial writes nothing: a `--dry-run` push of a branch or tag that does not exist fails on
+the refspec before reaching the remote.
+
+Recorded: after `open`, a section "Permission trials" in the batch's `brief.md`, one line per
+trial, `<capability>: <command> -> ran | refused: <exact text> | no trial: P10's rule check only`,
+with the P10 line of each capability. Before a batch (a first turn), the result is told, not
+recorded.
 
 ## Starting a batch
 
 Only in the turn where the user gave the go:
 
-1. **Preflight, all or nothing.** `$CHANTIER preflight` checks P1 (Claude Desktop or a Copilot
+1. **Preflight, all or nothing.** `$CHANTIER preflight` with the batch's options (`--mode`,
+   `--autonomous-releases`, `--grant-fixes`, as `open` will get them) checks P1 (Claude Desktop or
+   a Copilot
    agent session), P4 (the plugin's agents at this version), P5 (`uv` and `git`, versions), P6 (the
    repository's root), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
    Code: whether the commands the agents run are allowed), which warns and never fails: if the
    question of "The project" was not asked yet in this session, ask it, and act on the answer
    before the plan; if it was asked and the user said no, repeat in one line what is still
-   missing, with no question; then go on, P10 never blocks the go; and P12 (`chantier.yaml`, absent or valid). You warn the
+   missing, with no question; then go on, P10 never blocks the go (it names the capabilities it
+   did not check); and P12 (`chantier.yaml`, absent or valid). You warn the
    user of each skill or tool the playbook names and your session lacks. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
    keyboard. P9 also covers the forge's rights ([Forge permissions](#forge-permissions-p9)): they
-   only warn. On a failure start nothing, offer no other way, and say which condition failed and
-   what the user can do. The mode is settled before the preflight (step 2). Forced `direct`, or no
+   only warn. **Then the trials** ([below](#the-trials-before-the-go)). On a failure start
+   nothing, offer no other way, and say which condition failed and what the user can do. The mode is settled before the preflight (step 2). Forced `direct`, or no
    argument under the host's Remote Control notice: run `$CHANTIER preflight --direct`: P1 then
    passes on any Claude Code entry point or a Copilot agent session, and you leave P2 out, since
    no session is started. Otherwise the Foreman-mode preflight runs; with no forced mode, a
@@ -643,9 +714,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `02-answers.md`, then `order note <cr> --note "answer: …"`. A `fix:` from a release: under the
   grant the Foreman starts it alone; else show the user its `fix-<n>.md`, and on their go `order
   add --note <that file> --fix-for <cr>`, or file and grill a CR when it needs more. A `refused
-  <cr> <text>`: show the exact text; the user types one line in the Foreman's session allowing
-  that action. A `qa <folder> <n> findings`: its inbox folder is an ordinary item; triage it with
-  the user, split into CRs as needed.
+  <cr> <text>`: show the exact text, record it at once with `$CHANTIER note <cr> "refused: <the
+  exact command> -> <the host's exact text>"`; the user types one line in the Foreman's session
+  allowing that action. A `qa <folder> <n> findings`: its inbox folder is an ordinary item;
+  triage it with the user, split into CRs as needed.
 - **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
   without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
   "chain: <reason>"`. The same covers a chain the plan proposed and the go approved, recorded at
@@ -739,8 +811,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
      (the remote branch moved since the Driver read it); nobody waits for a word.
   6. If the host refuses your own push: show the user the exact text, as for any `refused`, with
      the CR, the branch and the exact push command, so they can run it themselves or allow it;
-     answer `push refused <branch>: <exact text>`; retry nothing, try no other way, and never
-     change the permission settings.
+     answer `push refused <branch>: <exact text>`, and record it at once with `$CHANTIER note
+     <cr> "refused: <the exact command> -> <the host's exact text>"`; retry nothing, try no other
+     way, and never change the permission settings.
 
   All answers go to the Foreman (`[chief-of-staff→foreman]`), never to the Driver.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
@@ -998,8 +1071,10 @@ these differences.
   long-term fix, `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as
   `foreman.md` defines it, a cause on both sides being two lines; what went wrong or slowly, from
   `status --notes`, `events.jsonl`, the CRs' `work/` notes and `cost --explain`; one untagged line
-  saying so when there was none; never rewrite an earlier section; a release's retro is named by
-  reference, not copied), then run `$CHANTIER pause --epoch <n>`: the batch is paused. Give the
+  saying so when there was none; one line per distinct refused command, `- [chantier] refused
+  `<command>` (<capability>): <the table row or rule to fix>`; never rewrite an earlier section;
+  a release's retro is named by reference, not copied), then run `$CHANTIER pause --epoch <n>`:
+  the batch is paused. Give the
   Completion report, with its Retro offered as the Foreman-mode pause says (each point numbered,
   by route, on the user's word, before any `close`). Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
@@ -1111,6 +1186,10 @@ action (`order approve`): part of the question, not a tip, so it holds when tips
    `grant:` line.
 2. If the batch has no budget, ask for one with a recommended figure (the CLI refuses autonomy
    without it); send nothing before the answer.
+   Then run `$CHANTIER preflight --autonomous-releases 1`, P9's probe 5 and the release trial; ask
+   the question for the release rules still missing and act on the answer. The same for a later
+   `order grant ... fixes=on` with `--grant-fixes`. The grant itself never waits for the rules:
+   the user's word is the grant.
 3. `$CHANTIER order grant <release-cr> --note "releases=<k+1>[ budget=<usd>]"`, and record the
    user's word with the date in the release CR's `02-answers.md`.
 4. Send the order's line to the Foreman (direct mode: act on it yourself; a release CR blocked on

@@ -197,9 +197,10 @@ In the rules below, `origin` is the project's remote name.
 There is no `gh api` rule: it would allow any API write. The stack on the forge is changed only
 by `$CHANTIER forge-stack` (covered by the two `chantier` rules) or the `gh stack` extension.
 
-There is no `gh release create` or `glab release create` rule, by design. A release is rare,
-public and irreversible. The Release driver already waits for `release go`, and the host's own
-check is a second guard at publication.
+The base set holds no release, merge or tag rule, by design: a release is rare, public and
+irreversible, and the host's check is a second guard at publication. When the user grants a
+release to run on its own, or fixes to merge on a grant, the Chief of Staff offers the rules of
+that capability ("Capabilities and their commands"), and only then.
 
 The same rules as one block, ready to paste into the `permissions.allow` array of
 `~/.claude/settings.json` (a test compares it with the CLI's list):
@@ -265,6 +266,28 @@ commands (`PowerShell(uv run *)`), every `Agent` rule and every `Monitor` rule. 
 classifier's call (refused 3 times in the user's week). The `Agent(Name)` form exists
 (documented); plugin agent names in it (`chantier:<role>`): **unproved**, not documented.
 
+### Capabilities and their commands
+
+The one table of what chantier's agents run, by capability. P10's `SAMPLES` follow its order and
+a test compares them. P10 checks only the capabilities the batch will use (`$CHANTIER preflight
+--mode stack --autonomous-releases N --grant-fixes`, as `open` takes them) and names those it did
+not check. Each rule is written `Bash(<rule>)` and, on Windows, `PowerShell(<rule>)`; `origin` is
+the project's remote name. A missing rule is a strong warning, never a failure: the host's
+auto-mode classifier judges each command at run time, and in a remote session (Remote Control)
+nobody may be there to answer its prompt.
+
+| Capability | Used when | Commands its agents run | Rules | Trial before the go | Mark |
+| --- | --- | --- | --- | --- | --- |
+| Every batch | always | `$CHANTIER ...` (dev: `uv run --locked --project <checkout> chantier ...`; plugin: `uvx --from <plugin> chantier ...`); a Driver's push `git push -u <remote> chantier/...` and `git -C <worktree> push -u <remote> chantier/...`; the force push after a rebase `git [-C <worktree>] push --force-with-lease -u <remote> chantier/...`; the steering session's route `git push --force-with-lease=<branch>:<sha> <remote> <sha>:refs/heads/<branch>`; on GitHub `gh pr create`, `edit` (with `--base`), `ready` (with `--undo`), `checks`, `view`; on GitLab `glab mr create`, `update`, `view`, `glab ci status`; `SendMessage` | `git push -u origin chantier/*`<br>`git -C * push -u origin chantier/*`<br>`git push --force-with-lease -u origin chantier/*`<br>`git -C * push --force-with-lease -u origin chantier/*`<br>`git push --force-with-lease=chantier/* origin *chantier/*`<br>`uv run --locked --project * chantier *`<br>`uvx --from * chantier *`<br>`gh pr create*`<br>`gh pr edit*`<br>`gh pr ready*`<br>`gh pr checks*`<br>`gh pr view*`<br>`glab mr create*`<br>`glab mr update*`<br>`glab mr view*`<br>`glab ci status*`<br>and the bare tool rule SendMessage | `$CHANTIER preflight`; `git -C <main checkout> push --force-with-lease -u <remote> chantier/preflight-trial --dry-run`; `gh pr view --json number` (GitHub) or `glab mr view` (GitLab) | documented (rule form); the `chantier` and SendMessage rules **unproved** (see the table above) |
+| A stack | `--mode stack` (or `order mode --note stack`) | the above, plus the native stack: `gh stack ...` when the user took the `gh stack` extension, else `$CHANTIER forge-stack create\|rebuild\|show` (covered by the `chantier` rule; it calls the stacks API itself) | `gh stack*` | `gh stack view`; with `forge-stack`, the stacks API probe of P9 | **unproved** (the rule form of an extension command) |
+| A release on its own | `--autonomous-releases N` at `open`, or `order grant <release-cr> --note "releases=<n>..."` | the merge of the release PR by the steering session (`gh pr merge <pr> --<the project's method>`, `glab mr merge ...`), the tag push (`git push <remote> v1.2.3`), the publication (`gh release create v1.2.3 ...`, `glab release create v1.2.3 ...`), and what the project's procedure names (for chantier: `just tag`, `uv run --script scripts/release_notes.py ...`: the project's own, no rule offered) | `gh pr merge*`<br>`glab mr merge*`<br>`git push origin v*`<br>`gh release create*`<br>`glab release create*` | `git push <remote> v0.0.0-preflight-trial --dry-run`; `gh release create` and the merge: no trial, P10's rule check only | documented (rule form). Risk: any merge of any PR `gh` can reach, a push of any `v*` tag, any release on any repository `gh` can reach |
+| Fixes on a grant | `--grant-fixes` at `open`, or `order grant ... fixes=on` | the merge of a fix PR by the steering session (`gh pr merge ...`, `glab mr merge ...`) | `gh pr merge*`<br>`glab mr merge*` | no harmless form: no trial, P10's rule check only | documented (rule form). Risk: any merge of any PR `gh` can reach |
+
+The rows "A release on its own" and "Fixes on a grant" are offered only when the user grants them:
+without a grant, the host's prompt and its classifier keep guarding these commands. They are not
+in the pasteable block above. A tag whose name does not start with `v` is not covered by the tag
+rule and gets the strong warning.
+
 ### What stays refused
 
 No allow rule for these; when the host refuses or asks, the agent reports it (concepts rule 7),
@@ -309,10 +332,22 @@ and chantier does not do them unasked. Each with why:
   loop), and it refused `gh pr edit --base`, a stack update through `gh api`, and `gh release
   create`. An allow rule resolves a matching command before the classifier; a loop, a script or a
   chain matches no prefix rule, so the classifier judges it alone: one command per branch.
+- What a trial before the go can and cannot prove (the Chief of Staff's trials, "Capabilities and
+  their commands"):
+  - an allow rule resolves a matching command at once, before the classifier (documented): a
+    trial that runs where P10 says a rule matches proves the host honours that rule's form, which
+    settles the unproved rows (`uv run ... chantier *`, `uvx --from * chantier *`, `gh stack*`);
+  - the host offers no way to try a rule ahead for the commands with no harmless form (`gh
+    release create`, `gh pr merge`, `gh pr edit --base`, `SendMessage`): the classifier judges
+    them at run time. Their only check before the go is P10's rule match;
+  - a harmless form the classifier lets through with no rule proves nothing for the real command:
+    it judges each command on its own;
+  - a trial runs in the Chief of Staff's session; the classifier blocks destructive git in
+    subagents, so a trial that passes there with no rule says nothing about a Driver.
 - The alert the Chief of Staff gives, once, at its first turn: "Auto mode's classifier refuses
   some force pushes. They come with every rebase: a Driver's push after a rebase, and the stack
   driver's restack of every PR above a change. Without the rules below, an unattended batch
-  waits for you at the first one."
+  waits for you at the first one, and in a remote session nobody may be there to answer."
 
 ### What the docs do not say
 

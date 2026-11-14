@@ -571,6 +571,11 @@ def scenario(w: World) -> None:
     code, out = w.chantier("preflight", env=homes)
     check("preflight says P10 ok once the rules are in the home settings", code == 0
           and any(ln.startswith("P10 ok") for ln in out), str(out))
+    code, out = w.chantier("preflight", "--autonomous-releases", "1", env=homes)
+    rel = next((ln for ln in out if ln.startswith("P10 warn") and "release on its own" in ln), "")
+    check("preflight --autonomous-releases 1 warns (P10) with the release rules and still passes",
+          code == 0 and "gh release create*" in rel and "gh pr merge*" in rel
+          and out[-1] == "preflight passed", rel)
     check("nothing was written in the working tree", w.sh("git", "status", "--porcelain") == "")
     _, out = w.chantier("rules")
     check("`rules` lists the project's instructions and what they link, with line counts",

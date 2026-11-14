@@ -226,12 +226,20 @@ def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks() -> Non
     assert found is not None
     block = found[1]
     assert tuple(json.loads(block)["permissions"]["allow"]) == RECOMMENDED_ALLOW
-    for _, command, rule in SAMPLES:  # each sample is covered by its own rule, in both forms
+    for _, _, command, rule in SAMPLES:  # each sample is covered by its own rule, in both forms
         assert all(
             rule_matches(f"{tool}({rule})", tool, command) for tool in ("Bash", "PowerShell")
         ), command
     assert rule_matches("SendMessage", "SendMessage")
     assert not any("release create" in rule for rule in RECOMMENDED_ALLOW)  # asked by the host
+    table = text.split("### Capabilities and their commands\n", 1)[1].split("\n###", 1)[0]
+    rows = [ln for ln in table.splitlines() if ln.startswith("| ") and "---" not in ln][1:]
+    in_table = [re.findall(r"`([^`]+)`", ln.split(" | ")[3]) for ln in rows]
+    in_samples = [
+        list(dict.fromkeys(s[3] for s in SAMPLES if s[0] == cap))
+        for cap in ("batch", "stack", "release", "fixes")
+    ]
+    assert in_table == in_samples  # the host card holds the one table P10 follows
 
 
 def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
@@ -248,7 +256,11 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
         for ln in out
     )
     assert len(out) <= MAX_OUTPUT_LINES
+    assert any(
+        ln.startswith("P10") and "; not checked here: a stack, a release" in ln for ln in out
+    )
     settings = repo / ".claude"
+
     settings.mkdir()
     local = settings / "settings.local.json"
 
@@ -300,6 +312,14 @@ def test_preflight_reads_the_settings_files_for_allow_rules(
         json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
     )
     assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])
+    (settings / "settings.json").write_text(
+        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
+    )
+    sh("git", "remote", "set-url", "origin", "git@github.com:a/b.git", cwd=repo)
+    code, out, _ = chantier("preflight", "--autonomous-releases", "1")  # a release on its own
+    warn = next(ln for ln in out if ln.startswith("P10 warn") and "a release on its own" in ln)
+    assert code == 0 and "gh release create*" in warn and "gh pr merge*" in warn
+    assert "classifier" in warn and "Remote Control" in warn
 
 
 def test_preflight_has_no_allow_rule_check_on_copilot(

@@ -56,6 +56,12 @@ already does); while an `/every` still fires, its next wake clears the mark, whi
   [concepts](../concepts.md) holds: a CR's branches must be force-pushable at all times.
 - No permission configuration is recorded for Copilot: **unproved**; nothing is recommended
   until a Copilot trial records one.
+- The capability table is the cards' commands, the same on both hosts: read it from
+  [claude-code](claude-code.md), "Capabilities and their commands"; its rules are Claude Code's.
+  The trials run as on Claude Code (the Chief of Staff's own calls, one per used capability), and
+  a refusal is told and recorded with its exact text (`chief-of-staff.md`, "The trials before the
+  go"): **unproved** until a Copilot batch runs them. P9's forge probes are the card's and run
+  unchanged.
 - The command hygiene of `concepts.md` rule 9 applies on both hosts.
 
 ## Compacting
