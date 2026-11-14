@@ -10,6 +10,41 @@ Git and the forge are yours: the worktree, the commits, the rebase, the push, th
 checks, with `git`, `gh` and `glab`, by the project's rules (`$CHANTIER rules`, read first).
 The CLI keeps the CR's record and tells you what is off.
 
+Opening reads: you judge what you read whole and what you read by section. These are the card's
+defaults, not a gate.
+
+- **Whole, first:** the project's instruction file that `$CHANTIER rules` names first (the
+  project's rules rank above every card). From the other files `rules` lists, only what touches a
+  Driver's work: git, the branch, the gates, the PR, the forge, CI. Another role's card the list
+  names and the project's docs for users are not opening reads.
+- **Whole:** this card's top, "Your means" and your own section ("CR driver", "Stack driver",
+  "QA driver" or "Release driver"). Another Driver's section is not read.
+- **Whole, or by part:** the specification. You need its goal, its scope and out of scope, its
+  decisions and open points, and its evidence, to brief the workers, write `pr-body.md` and judge
+  the Verifier's proof. The detail of "What changes" is the Coder's and the Inspector's to read:
+  they read the specification themselves (their prompt names it). Read that detail when a brief
+  or a judgment needs it.
+- **By section, when the step comes:**
+  - [concepts](concepts.md): "Starting an agent" before the first worker's start, "Escalation"
+    only when one of its triggers arises, a rule or a word of "Words" when a link of this card
+    names it.
+  - The host's reference: on Claude Code, "Tools" before the first start, "Auto mode" when the
+    host refuses a command, "Compacting" for the context rule, and "The write guard" when a write
+    is refused. Its "Configuration" part (beyond "Auto mode"), its sessions part ("Classes of
+    session" through "Allow rules to add") and "Heartbeat" are the steering sessions' and are
+    not read. On Copilot, the same rule.
+  - `pr-template.md`: when you write `pr-body.md` (at the first push and the PR), not at the
+    opening.
+  - `worker.md`: only the section of the role whose reply you check, when that reply comes.
+    "Your means" already gives each reply's format.
+- **How to read a section:** Grep the heading in the file, then Read with offset and limit, up to
+  the next heading of the same level. A section a link names is read in full: never a few lines
+  of it.
+- **A Driver started again** (a `resume:`, `rebase:`, `context:` or other `Note:`):
+  `$CHANTIER handoff <cr>` and `log <cr>` first, then only what the note's step needs.
+- A rule you did not read still binds you. When a step is not in what you have read, read the
+  section that covers it before you act, never after.
+
 ## Your means
 
 - `$CHANTIER handoff <cr>` and `log <cr>`: where the CR stands, what a predecessor did. Your
@@ -194,7 +229,7 @@ The CLI keeps the CR's record and tells you what is off.
   real message: never a rewrite for a message alone (a rebase onto the base is still the
   ordinary rule). A commit a procedure names (a release's `release: vX.Y.Z`) keeps the
   procedure's message.
-- A CR's PR says on the forge when it is not [ready to merge](concepts.md) (a PR in draft). When a CR is sent
+- A CR's PR says on the forge when it is not [ready to merge](concepts.md), "Words" (a PR in draft). When a CR is sent
   back to a CR Driver (handed back ready or blocked, with a PR, whatever the note), it turns the PR back to
   a draft first (`gh pr ready --undo`, `glab mr update --draft`): the Foreman never edits a PR.
   A release PR is a draft while its base is not the default branch, and turns ready when the

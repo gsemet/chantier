@@ -335,8 +335,10 @@ The prompt is the agent's whole brief:
 
 ```text
 chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
-Read <skill>/references/<driver|worker>.md, section "<Role>", and <skill>/references/concepts.md
-(a Driver also <skill>/references/hosts/<host>.md, `claude-code` or `copilot`);
+Read <skill>/references/driver.md, its top, "Your means" and section "<Role>", and, when the step
+comes, the sections of <skill>/references/concepts.md and <skill>/references/hosts/<host>.md
+(`claude-code` or `copilot`) that its "Opening reads" names;                  (a Driver's prompt)
+Read <skill>/references/worker.md, section "<Role>", and <skill>/references/concepts.md;   (a worker's prompt)
 the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree

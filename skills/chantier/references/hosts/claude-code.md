@@ -129,8 +129,9 @@ page (`https://code.claude.com/docs/en/<page>`).
   settings do not let through. On Windows a command counts as allowed only
   when both its Bash and PowerShell forms are. A count from before 0.9.0 counted rule strings
   and is not comparable.
-- The Foreman and the Drivers read this file with their card (their prompts already name it):
-  "Auto mode" tells them what a refusal means and that it is reported, never worked around.
+- The Foreman reads this file with its card. A Driver reads the sections its card's "Opening
+  reads" names ("Tools", "Auto mode", "Compacting", "The write guard"), when the step comes:
+  "Auto mode" tells it what a refusal means and that it is reported, never worked around.
 - The workers do not read this file; what they need (one command per call, read before you
   overwrite, no leading assignment, `git -C`) is in `concepts.md`, rule 9.
 
