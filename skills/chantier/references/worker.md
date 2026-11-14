@@ -18,9 +18,13 @@ the CR (reports and evidence are); never commits, pushes, rebases or merges unle
 project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
 `sleep` and no background shell; never runs `git stash` (the stash is shared by every
 worktree) and never stops a process by name or pattern (`pkill`, `killall`); stops when blocked and says why; replies in at most ten
-lines, or in the format its section names. That reply is the whole of its output to its Driver; a
-reply out of that format is a failed worker, which the Driver starts again rather than reads
-([driver](driver.md)).
+lines, or in the format its section names. Details go to the worker's notes or output file, and
+the reply names that file rather than repeating it. A role whose section ends with a reply
+template replies with that template and nothing else (no greeting, no summary of the work, no list
+of what was checked and found right). That reply is the whole of its output to its Driver; a
+reply out of that format is a failed worker, which the Driver starts again rather than reads; a
+reply in format that is only longer than its cap is read and noted ([driver](driver.md)), not
+restarted.
 
 ## Investigator
 
@@ -43,6 +47,19 @@ a failing gate. Never add a byte-order mark to a file: on Windows PowerShell 5.1
 `Set-Content -Encoding utf8` add one ([concepts](concepts.md), rule 9). A file that already has
 one keeps it: add none, strip none. Output: changes in the worktree, not committed; `r<n>.md`: what changed, the
 gates run with their results, open points, a hand-over note for the next round.
+
+Reply with this template and nothing else, at most ten lines:
+
+```text
+Round <n>: done | blocked: <one-line reason>
+Notes: <work folder>/coder/r<n>.md
+Gate: <command as run>: pass | fail: <first failing line>
+Open: <one line> | none
+```
+
+One `Gate:` line per gate run (the fast gates named in the project's rules); `Open:` names at most
+three points in one line each, the rest left to `r<n>.md`. What changed, file by file, and the
+hand-over note go in `r<n>.md` only, never in the reply.
 
 ## Inspector
 
@@ -85,6 +102,17 @@ folder), for the Human decisions item. A
 missing `pr-body.md` or a failed audit item is `blocking`, written `pr-body.md: <section>: …`.
 The extra review steps do not audit the body.
 
+The exact reply:
+
+- One JSON object and nothing around it (no prose, no code fence), with exactly the keys
+  `verdict`, `head`, `blocking`, `minor`, `confidence`, and no other key.
+- `verdict` is the word `APPROVE` or the word `FIX-REQUIRED`, nothing else (not `APPROVED`, not
+  `FIX REQUIRED`, not lower case).
+- `head` is the full 40-character SHA of `git rev-parse HEAD` in the worktree at the review; it is
+  always present.
+- `blocking` and `minor` are lists of strings (empty lists when there is nothing); `confidence` is
+  a number from 0 to 1.
+
 ## Debugger
 
 Find why a check is red or a behavior is wrong, and prove it. A diagnosis, not a fix: you
@@ -106,11 +134,11 @@ you run directly and cite with its command and output, as any other claim. Outpu
 output that prove it, and `VERIFIED` or `NOT VERIFIED`. This holds for a claim that something is
 refused, absent or unchanged too: its proof is the command that shows it and that command's
 output, and a claim without them is out of format. Then, from the CR's worktree at the head
-you verified, run `$CHANTIER verdict <cr> VERIFIED` or `$CHANTIER verdict <cr> "NOT VERIFIED"`
-before you reply (the last verdict at a head decides). A claim carried from an earlier judgment
+you verified, run `$CHANTIER verdict <cr> VERIFIED` or `$CHANTIER verdict <cr> "NOT VERIFIED"` (the two words it
+takes: `NOT VERIFIED` quoted as one argument, or as two arguments) before you reply (the last verdict at a head decides). A claim carried from an earlier judgment
 keeps its own SHA and says why the move did not touch it (`carried from <sha7>: <reason>`). Evidence that cannot be captured does not alone change the verdict; if the
-project's rules require it, its absence is `NOT VERIFIED`. Reply with that word and the claims
-that failed.
+project's rules require it, its absence is `NOT VERIFIED`. Your reply is the template at the end
+of this section.
 
 The PR's description, as posted on the forge, is one of the claims: it must be clean (it renders: line
 breaks, sections, the fold, images that resolve) and consistent with what the PR delivers (the
@@ -154,6 +182,19 @@ project with a UI), open each one and check that it shows what the PR claims of 
 the state and the change the Summary, Deliverables and Impacts say, legible, with nothing that
 contradicts them. A capture that does not show its claim fails that claim. On the description
 pass, check that the images attached are the ones captured at the SHA they name.
+
+The exact reply, at most ten lines, after `$CHANTIER verdict` has run:
+
+```text
+VERIFIED | NOT VERIFIED
+Head: <full SHA verified>
+Proof: <work folder>/verifier/verify.md
+Failed: <claim>: <one line why>
+```
+
+The first line is exactly one of the two words. One `Failed:` line per failed claim, none when
+`VERIFIED`; past six, the sixth says `Failed: and <n> more, in verify.md`. Each claim's command and
+output stay in `verify.md`, never in the reply.
 
 ## Conflict resolver
 

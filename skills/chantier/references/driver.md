@@ -74,7 +74,8 @@ defaults, not a gate.
   - Inspector, and each extra review step: the reply is the JSON object alone, parseable, with
     `verdict` exactly `APPROVE` or `FIX-REQUIRED` and `head` a commit SHA. Prose, prose around the
     JSON, or a verdict word outside the JSON fails.
-  - Verifier: the reply is `VERIFIED` or `NOT VERIFIED` and the claims that failed. `verify.md`
+  - Verifier: the reply's first line is exactly `VERIFIED` or `NOT VERIFIED`, with its `Head:`
+    line and the claims that failed. `verify.md`
     exists with its `Head: <sha>` line. Each claim in it names the SHA it was judged at (or
     `carried from <sha7>: <reason>`), the command it ran and that command's output. A claim
     without its command, output and SHA is a proof out of format, and so is a claim given as
@@ -83,7 +84,8 @@ defaults, not a gate.
   - Conflict resolver: `conflicts.md` exists, with each conflicted hunk and the choice made, and
     the fast gate's command and result.
   - Coder, Investigator and Debugger: their output file exists (`r<n>.md`, `investigation.md`,
-    `diagnosis.md`), and every gate it claims names its command and result.
+    `diagnosis.md`), and every gate it claims names its command and result. A Coder's reply also
+    has its `Notes:` line naming the `r<n>.md` that exists.
 
   You never read a verdict, a pass or a choice into a reply out of format, never fix it, and never
   ask the worker by message to fix it. Record `$CHANTIER note <cr> "restart: reply out of format:
@@ -97,6 +99,13 @@ defaults, not a gate.
   missing>`. A worker is never resumed by a message to its
   agent: only a new start continues its task, and a new round is always a new child, never the
   previous round's Coder resumed.
+- A long reply is read, not restarted. A reply in format that only passes its cap (more than ten
+  lines for a Coder or a Verifier; more than 3,000 characters for an Inspector or an extra review
+  step) is acted on as any other reply, and you record `$CHANTIER note <cr> "long reply: <role>:
+  <n> lines"` (`<n> characters` for the JSON). It is no cause of a restart and counts as no failed
+  worker. The brief of the role's next start in this CR (the next round's Coder, the next Verifier)
+  says that the last reply passed its cap and that the details go to the work file. An extra key
+  alone in an otherwise correct Inspector JSON is read and noted the same way, not restarted.
 - Context: `round` and `note` print `context: <n> tokens (agent <id>)`; read it after each. At
   130,000 tokens or more, record your state with `note`, then `handback <cr> blocked context:
   <where it stopped, what is next>`, before the host compacts or ends you (the host compacted
