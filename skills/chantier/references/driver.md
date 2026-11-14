@@ -444,7 +444,7 @@ a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
 above), `ship`, run the long gate at the new head, read CI (red is a round). The `verifier`, given the move, judges again what it touched before
 `handback ready`. With the `ci: beside the long gate` line, the long gate and the CI watch run
-side by side by the rules of the "CI" bullet. Green and mergeable, ready on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
+side by side by the rules of the "CI" bullet. Green, no conflict, on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round. If the note names another open dependency instead, or is
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
