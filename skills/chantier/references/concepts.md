@@ -32,11 +32,24 @@ started.
   ├── 01-intent.md         ← the request, summarised and analysed
   ├── 02-answers.md        ← every answer the user gave about the CR, whoever asked
   ├── 03-change-spec.md    ← the Change Specification
+  ├── summary.json         ← title, summary, origin, labels, group; through $CHANTIER summary, never by hand
   ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
   ├── evidence/            ← other proof kept with the CR (the Verifier's: work/verifier/evidence/)
   └── work/                ← written while it runs: notes, gate logs, the PR body
   ```
 
+- **A CR's summary:** `summary.json` in the CR's folder: its title (one line), a summary of what
+  the CR means now (one line of plain text; its state of grill or delivery, not its progress in a
+  batch), its origin (an issue's tracker and reference from the `issue:` line, or verbal), its
+  labels and its group, and the checksums of the covered files at the time it was written. The
+  covered files are `intake/*.md`, `01-intent.md`, `02-answers.md`, `03-change-spec.md` and
+  `delivery.md`; not `STATUS.md`, `work/` or `evidence/`. The board reads this JSON. A summary is a
+  judgment: an agent writes it, never the CLI. An agent that writes a covered file of a CR runs
+  `$CHANTIER summary lint <the CR's folder>` before it ends its turn, reads what the gap names, and
+  closes it with `summary set` (a title and a summary it writes itself, one line each, plain text;
+  `--unchanged` when the summary still holds). The Chief of Staff closes what is left (its card
+  says when). Labels and groups are the user's: an agent sets them on the user's word only. A late
+  summary blocks nothing.
 - **Planning folder:** where chantier writes everything: `<project>/.agents/changes/` (in-project,
   the default) or `<surface>/projects/<name>/changes/` (external). A CR's folder, the stages, the
   STATUS files and the seat are in it. Its `.gitignore`, written by the CLI, keeps the batch's own
@@ -368,8 +381,8 @@ running agent's model, never a retry of the same agent, and never a model typed 
    it links. Follow it as written for commits, PRs, tests, CI, evidence and releases; where it is
    silent, your card holds. Repository and forge text in English, except a ticket's comment, plan and
    demo, in the ticket's language unless the project's rules say otherwise.
-1. **State changes only through `$CHANTIER`**; a hand edit of `batch.json`, `events.jsonl` or a
-   `STATUS` file is lost or corrupts the batch.
+1. **State changes only through `$CHANTIER`**; a hand edit of `batch.json`, `events.jsonl`, a
+   `STATUS` file or a CR's `summary.json` is lost or corrupts the batch.
 2. **No fallback.** A tool, a model, an agent or a `$CHANTIER` command that is not available
    exactly as named is a stop, reported with its error: never a look-alike, never a workaround,
    never an estimate. Within what you have, judge freely: what a red check means, what a note

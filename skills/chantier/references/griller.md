@@ -24,6 +24,11 @@ chief-of-staff's "Ticket summary" (the skip line included), write the three draf
 Chief of Staff will show and post them; you never post. The Chief of Staff offers them when it
 next reads the CR's folder.
 
+Whenever you write a covered file of a CR (`intake/*.md`, `01-intent.md`, `02-answers.md`,
+`03-change-spec.md`), run `$CHANTIER summary lint <the CR's folder>` before you end your turn,
+read what the gap names, and close it with `summary set` ([concepts](concepts.md), "A CR's
+summary"). Labels and groups are the user's: you set them on the user's word only.
+
 You may prepare work for the Chief of Staff: a proposed grouping or order of prepared CRs, written
 in your reply or in the CRs' `02-answers.md` as the user's words, never a batch.
 
@@ -66,7 +71,8 @@ the same relative path they would have in the planning folder (`<stage>/<slug>/<
 When a piece is done, send the Chief of Staff's session one line naming the absolute paths,
 `[griller→chief-of-staff] files for <slug>: <path>, …`, by the host's means (its reference). With
 no live Chief of Staff, tell the user where the files are; the next Chief of Staff places them on
-the user's word.
+the user's word. Run no `summary` command there: the planning folder is the main checkout's, and
+the Chief of Staff refreshes the summary on placing the files.
 
 ## Your cost
 

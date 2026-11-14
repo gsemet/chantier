@@ -12,6 +12,7 @@ from chantier.core.clock import age_minutes, now
 from chantier.core.files import read_text
 from chantier.core.records import (
     LIVE,
+    SUMMARY_FILE,
     BatchRecord,
     CrEntry,
     EventRecord,
@@ -273,7 +274,9 @@ def _backlog(paths: dict[str, Path], start: Path) -> list[dict[str, Any]]:
                         "title": _title(item),
                         "path": _link(item, start),
                         "spec": spec_state(item),
-                        "files": sum(1 for p in item.rglob("*") if p.is_file()),
+                        "files": sum(
+                            1 for p in item.rglob("*") if p.is_file() and p.name != SUMMARY_FILE
+                        ),  # the summary is no document of the CR: the index reads the same
                     }
                 )
     return rows
