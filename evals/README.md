@@ -3,7 +3,7 @@
 An eval campaign runs chantier for real, with real agents, and checks that every agent got its
 role and behaved as its role says. The staged campaign (`claude-planted`) runs on a small
 fictional project (`tasks-cli`, a to-do list in Python) with a local forge. The real campaigns
-(`full`, `real-foreman`, `real-direct`, `copilot`) run on the [sandbox](#the-sandbox) (`shelf`),
+(`full`, `real-foreman`, `real-direct`, `ticket-summary`, `copilot`) run on the [sandbox](#the-sandbox) (`shelf`),
 reset to its recorded base before each run, with the real forge and CI, frozen CRs and a judge
 that runs hidden tests on each PR: only the plugin changes from one run to the next. Each run is
 reported in [`results/`](results/), in words anyone can follow, with the same
@@ -39,12 +39,12 @@ failures.
 
 A campaign starts from a prompt in a chat. On Claude: a Code session of the Claude Desktop app.
 On Copilot: a chat of the Copilot app. The prompt is in the campaign's runbook. The sandbox
-campaigns (`full`, `real-foreman`, `real-direct`, `copilot`) are described first, then the steps
+campaigns (`full`, `real-foreman`, `real-direct`, `ticket-summary`, `copilot`) are described first, then the steps
 of the staged campaign, `claude-planted`.
 
 ### A sandbox campaign
 
-The text common to the four sandbox campaigns; each runbook refers to it. All the commands run
+The text common to the five sandbox campaigns; each runbook refers to it. All the commands run
 from this checkout, with `uv`, `git` and `gh` (logged in to an account that can push to the
 sandbox).
 
@@ -61,7 +61,9 @@ sandbox).
      frozen CRs in `.agents/changes/3-ready/`, writes `<workspace>.run.json` (the run's record)
      and prints the campaign, the run, the prefix, the CRs placed and each batch's `open` line,
      ready to paste (`--mode <stack|parallel|series>` is left to fill in for the quick
-     campaigns). The agents use the real `gh`.
+     campaigns). The agents use the real `gh`. For `ticket-summary`, setup places no CR and
+     prints, instead of `open` lines, the issue's `gh issue create` line and the chat request's
+     file; it creates nothing on the forge.
 - **The run's number and prefix.** The number is 1 plus the highest `<n>` among the sandbox's PR
   titles that start with `[eval <n> `. A run that opened no PR leaves its number free for the next
   one. The prefix is `[eval <run> <date> <campaign>]`, for example `[eval 4 2026-11-14 full]`.
@@ -257,7 +259,7 @@ wrong in either batch, and the cost per batch and in total.
 
 | File | Role |
 | --- | --- |
-| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the release's tag push and GitHub release) |
+| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the release's tag push and GitHub release). For `ticket-summary`, the issue's `gh issue create` line and the chat request, with the two posting commands allowed |
 | [`kit/forge.py`](kit/forge.py) | The local forge, called as `gh`: PRs, CI in a fresh clone, CI-only contract tests |
 | [`kit/merge.py`](kit/merge.py) | `claude-planted`'s merge, on the local forge |
 | [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--sandbox` for the sandbox campaigns: also the run table, the real forge read-only and the judge |
@@ -266,11 +268,12 @@ wrong in either batch, and the cost per batch and in total.
 | [`kit/fixture/`](kit/fixture/) | `tasks-cli`, with its `AGENTS.md` and two review agents of its own |
 | [`kit/crs/`](kit/crs/) | The prepared CRs (request, intent, answers, specification) |
 | [`kit/contracts/`](kit/contracts/) | Tests only the simulated CI runs |
+| [`kit/ticket-summary/`](kit/ticket-summary/) | The `ticket-summary` campaign's frozen issue and ticket-less request |
 | [`kit/sandbox-crs/`](kit/sandbox-crs/) | The frozen CRs of the sandbox campaigns (request, intent, answers, specification): 11 features and 2 releases |
 | [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
 | [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or not all green) |
-| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`); no model, no GitHub |
+| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`), and the `ticket-summary` setup case (no CR placed, the issue line, no forge write); no model, no GitHub |
 | [`kit/sandbox_forge.py`](kit/sandbox_forge.py) | The sandbox's GitHub played locally, called as `gh`, for the dry run only |
 | [`kit/dry-run/`](kit/dry-run/) | The reference solution of the staged CR, `delete-item` (`delete-item.patch`) |
 
