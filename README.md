@@ -124,6 +124,8 @@ serve as the interface for outside customers and support.
 
 Chantier turns each request into a folder in the planning folder, carried through planning, study, implementation, QA, deployment and finally archive.
 
+![A change request's life in one line: who acts at each step](docs/cr-lifecycle-line.svg)
+
 ![docs/cr-lifecycle-simple.svg](docs/cr-lifecycle-simple.svg)
 
 Several files, essentially markdown will be injected into the folder with prototypes, studies, spec, reports,...

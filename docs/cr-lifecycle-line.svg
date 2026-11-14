@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 290" width="1420" height="290" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
+  <title>Life of a change request, in one line</title>
+  <desc>A change request (CR) goes through ten steps, in one line, from your request to your merge, and each step names who acts. Intent: you. Grill: the Chief of Staff or a Griller, with you. Spec: the spec-writer. Spec critic, drawn dashed because it does not always run: the spec critic, when impactful. Driver: the CR driver, with its Coder, Inspector, gate and CI. Verifier: the Verifier. Ready locally, drawn dashed and rare, no PR yet: the driver hands back. PR in draft: the driver opens the PR. Ready to merge: the driver, or the stack driver, takes the PR out of draft. You merge the PR/MR.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1420" height="290" fill="#f8fafc"/>
+  <text x="24" y="52" font-size="30" font-weight="700" fill="#0f172a">🔄 Life of a change request, in one line</text>
+  <text x="24" y="84" font-size="16" fill="#475569">From your request to your merge, step by step, and who acts at each step.</text>
+  <text x="24" y="108" font-size="13.5" fill="#334155">👤 you · 🤵 Chief of Staff · 🔥 Griller (optional) · ✍️ spec-writer · 🧐 spec critic · 🚜 driver · 🔨 worker · 🧱 stack driver</text>
+  <rect x="16.0" y="150" width="88" height="104" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="60.0" y="180" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Intent</text>
+  <text x="60.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">👤 you</text>
+  <line x1="104.0" y1="202.0" x2="116.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="118.0" y="150" width="96" height="104" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="166.0" y="180" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Grill</text>
+  <text x="166.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">🤵 or 🔥,</text>
+  <text x="166.0" y="224" font-size="13.5" fill="#475569" text-anchor="middle">with 👤 you</text>
+  <line x1="214.0" y1="202.0" x2="226.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="228.0" y="150" width="106" height="104" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="281.0" y="180" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Spec</text>
+  <text x="281.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">✍️ spec-writer</text>
+  <line x1="334.0" y1="202.0" x2="346.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="348.0" y="150" width="118" height="104" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="407.0" y="180" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Spec critic</text>
+  <text x="407.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">🧐 spec critic</text>
+  <text x="407.0" y="224" font-size="13.5" fill="#475569" text-anchor="middle">when impactful</text>
+  <line x1="466.0" y1="202.0" x2="478.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="480.0" y="150" width="172" height="104" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="566.0" y="180" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Driver</text>
+  <text x="566.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">🚜 CR driver</text>
+  <text x="566.0" y="224" font-size="12.5" fill="#475569" text-anchor="middle">🔨 Coder · 📏 Inspector</text>
+  <text x="566.0" y="244" font-size="12.5" fill="#475569" text-anchor="middle">gate · 🧪 CI</text>
+  <line x1="652.0" y1="202.0" x2="664.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="666.0" y="150" width="96" height="104" rx="12" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  <text x="714.0" y="180" font-size="16" font-weight="700" fill="#0f172a" text-anchor="middle">Verifier</text>
+  <text x="714.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">✅ Verifier</text>
+  <line x1="762.0" y1="202.0" x2="774.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="776.0" y="150" width="160" height="104" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="856.0" y="180" font-size="16" font-weight="700" fill="#5b21b6" text-anchor="middle">🟣 Ready locally</text>
+  <text x="856.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">🚜 hands back</text>
+  <text x="856.0" y="224" font-size="13.5" fill="#475569" text-anchor="middle">rare: no PR yet</text>
+  <line x1="936.0" y1="202.0" x2="948.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="950.0" y="150" width="132" height="104" rx="12" fill="#fdf8f6" stroke="#92400e" stroke-width="2"/>
+  <text x="1016.0" y="180" font-size="16" font-weight="700" fill="#78350f" text-anchor="middle">🟤 PR in draft</text>
+  <text x="1016.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">🚜 opens the PR</text>
+  <line x1="1082.0" y1="202.0" x2="1094.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="1096.0" y="150" width="168" height="104" rx="12" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="1180.0" y="180" font-size="16" font-weight="700" fill="#14532d" text-anchor="middle">🟢 Ready to merge</text>
+  <text x="1180.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">🚜 or 🧱,</text>
+  <text x="1180.0" y="224" font-size="13.5" fill="#475569" text-anchor="middle">out of draft</text>
+  <line x1="1264.0" y1="202.0" x2="1276.0" y2="202.0" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="1278.0" y="150" width="126" height="104" rx="12" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="1341.0" y="180" font-size="16" font-weight="700" fill="#14532d" text-anchor="middle">👤 you merge</text>
+  <text x="1341.0" y="204" font-size="13.5" fill="#475569" text-anchor="middle">the PR/MR</text>
+</svg>
