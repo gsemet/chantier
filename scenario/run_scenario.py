@@ -6827,7 +6827,7 @@ def summary_status_bytes(w: World, ready: Path) -> None:
     shutil.copytree(w.work, twin)
     for p in (twin / ".agents" / "changes").rglob("summary.json"):
         p.unlink()
-    rel = f".agents/changes/1-inbox/{spare.name}"
+    rel = f"1-inbox/{spare.name}"
     w.chantier("triage", rel, "--priority", "P3")
     w.chantier("triage", rel, "--priority", "P3", cwd=twin)
     names = sorted(p.relative_to(w.state).as_posix() for p in w.state.rglob("STATUS.*"))
