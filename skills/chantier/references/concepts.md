@@ -369,10 +369,19 @@ CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
 writes: <worktree>; <CR folder>   (a worker's prompt: worktree first; a CR Driver's: its CR folder, then the archive path when `take` prints one)
+Steering: <who steers> <how to reach it>   (a Driver's prompt only: CR, stack, release and QA driver)
 Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt: who runs which worker)
 Needs: skills <…>; tools <…>            (only when the playbook gives the role some, as printed)
 Note: <why the CR is with it, or the round's brief>
 ```
+
+A Driver's prompt holds the `Steering:` line: the steering session (the Foreman, or the Chief of
+Staff in direct mode) and the means of the host's reference row "A Driver messages its steering
+session" ([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)), written out as
+that reference says it, with the steering session's id for the record when the host gives one.
+Workers get no such line (they answer their Driver). Sending to the session id instead of the
+reference's means is not introduced: the id is in the line for the record only (a message from a
+Driver to its own parent session by id is unproved).
 
 On Claude Code the plugin starts an agent whose prompt holds the `writes:` line in its first
 folder and refuses its Write, Edit or NotebookEdit outside the folders named, and judges a Bash or PowerShell write it can see the same way; a prompt without

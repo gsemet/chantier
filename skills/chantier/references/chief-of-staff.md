@@ -390,9 +390,13 @@ and you ask the user at the ready.
 
 **The spec critic.** A fresh `spec-critic` ([`spec-critic.md`](spec-critic.md)) reads the request,
 the answers, the specification and the repository, and looks for a gap with the request's intent,
-an inconsistency with the rest of the software, an unproved claim about the real world. It never
+an inconsistency with the rest of the software, an unproved claim about the real world, a bundle
+(work that would ship more cheaply as separate CRs). It never
 edits the specification. It runs once per specification, on a CR you judge impactful; it is never
-a loop.
+a loop. A bundle finding is always a question for the user, the split recommended. On the user's
+split: the parts split off are filed as new inbox items (`$CHANTIER file`, one per part, the raw
+request naming the CR they come from), the answer is recorded in `02-answers.md`, and the
+spec-writer's next run narrows the specification to what stays. The Griller follows the same steps.
 
 - **The criterion** (the same for the Chief of Staff and a Griller): the critic runs on a CR whose
   specification, if wrong, would cost the user most: it changes what a role does or may do (a
@@ -978,6 +982,12 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `stack-ready-to-merge <stack link> … <cr>=<link>…` ask (with or without `to come: …`), read the stack on
   the forge yourself before you tell the user: the five checks of the stack ([foreman](foreman.md),
   "The five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold).
+  On any such ask, partial or complete, before you tell the user the stack is mergeable, apply the
+  plain ask's gap rule (the bullet above) to each CR of the mergeable part: quote its gaps next to
+  its link, in the user's language; where the project's rules ask for a screenshot of the board
+  pane and a gap names it as missing, ask the user for that screenshot in the same message, naming
+  the PR and which PRs are below and above it, before the sentence that says the stack can be
+  merged. The user decides; the evidence route stays (`order note <cr> --note "evidence: <path>"`).
   All hold: with `to come: …`, tell the user the stack is mergeable up to its last PR ready to merge (in one
   action from that PR, or one PR at a time from the bottom, per the paragraph above), the drafts on
   top and the CRs still to come named (number and slug), and that the top goes on while they
@@ -987,8 +997,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   the ask in the user's language (none: say nothing about gaps). Both name the commit, in the
   user's language ("partial stack mergeable below <sha7>", "stack partielle mergeable en dessous
   du commit <sha7>"). A CR of the stack that turns ready to merge reaches the user through the next
-  report's partial-stack line, never as an ask; its gaps are quoted with the complete
-  `stack-ready-to-merge`. After each merge action of the user (one PR or several), record `order
+  report's partial-stack line, never as an ask; its gaps are quoted with the next
+  `stack-ready-to-merge`, partial or complete. After each merge action of the user (one PR or several), record `order
   merged` for every CR it merged, bottom first, all before telling the Foreman, in one message
   (one action leads to
   one restack at most, silently: no ask follows it, and none when the whole stack merged; the release CR's merge starts the
@@ -1079,7 +1089,11 @@ CR-222 → CR-225 → CR-226 → CR-228."
 
   All answers go to the Foreman (`[chief-of-staff→foreman]`), never to the Driver.
 - **Asks:** `$CHANTIER asks` lists every ask still unread, sent or not; `asks --read A-<k>` or
-  `--read all` once the user has heard them. A host may limit messages between sessions (its
+  `--read all` once the user has heard them. `asks --read A-<k>` runs in the same turn you relay
+  that ask to the user or act on it (an `order`, an answer to the Foreman), not later; `--read all`
+  only after every unread ask listed has been relayed or acted on, never to clear the list. An ask
+  that waits for the user stays unread until the user has heard it. At each report, `asks` lists
+  what is still unread: each one is relayed or acted on in that turn. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
 - **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".
 - **Compacting:** once per session, advise the user to set the host's auto-compact window, if
@@ -1281,7 +1295,8 @@ these differences.
   hear their hand-backs, as the Foreman's card says, including its check of a `no long gate`
   hand-back. "Never message a Driver" does not hold for the Drivers of a batch you steer. Start a
   QA driver as the Foreman's card says and record its agent id with `agents set O-<k> <id> --epoch
-  <n>`.
+  <n>`. Every Driver's prompt you write holds the `Steering:` line of [concepts](concepts.md),
+  "Starting an agent" (you, and the host's means to reach you).
 - **A stack batch.** The Foreman's check of the five checks of a stack ready to merge
   ([foreman](foreman.md), "The five checks") is yours; one check, read on the forge
   (`$CHANTIER forge-stack show`), is enough before you tell the user the stack is ready to merge. Inserting

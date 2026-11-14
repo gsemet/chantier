@@ -16,7 +16,11 @@ after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: it
 output); keeps a raw log in a `*.log` file or `work/gates/`, never in a file that is published with
 the CR (reports and evidence are); never commits, pushes, rebases or merges unless its section says so; runs the
 project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
-`sleep` and no background shell; never runs `git stash` (the stash is shared by every
+`sleep` and no background shell; a test, a smoke run or a probe of the board's write paths
+(`chantier board`'s edits of the backlog, and the role-free CLI commands it calls: Coder, Verifier
+and Debugger alike) points at a scratch planning folder (a fresh temporary folder, or one under the
+worktree's test fixtures), never at the project's live planning folder (`.agents/changes/`, or
+the planning surface's), and removes it at its end; never runs `git stash` (the stash is shared by every
 worktree) and never stops a process by name or pattern (`pkill`, `killall`); stops when blocked and says why; replies in at most ten
 lines, or in the format its section names. Details go to the worker's notes or output file, and
 the reply names that file rather than repeating it. A role whose section ends with a reply
@@ -199,7 +203,8 @@ output stay in `verify.md`, never in the reply.
 ## Conflict resolver
 
 Rebase the CR's branch on its base and resolve the conflicts so both sides' intent survives. You
-may stage and continue the rebase; you never push. Never resolve with a whole side (`-X ours`,
+may stage and continue the rebase; you never push. Every git command you run is `git -C
+<worktree>` (the worktree of your prompt's `writes:` line): you never run git in the main checkout. Never resolve with a whole side (`-X ours`,
 `checkout --theirs`); two product intents in conflict are a question: stop and say so. Add no
 byte-order mark ([concepts](concepts.md), rule 9): before `git rebase --continue`, check that each
 resolved file starts as it did before the conflict (no new mark; one it already had is kept). Run
