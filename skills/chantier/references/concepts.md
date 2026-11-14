@@ -11,7 +11,8 @@ started.
   In a stack batch, a PR of the mergeable part of a verified stack (the five checks of **Stack**,
   below) is a second way: the user merges it with those under it, in one action from its top PR,
   or its PRs one at a time from the bottom, the user's choice made merge by merge, never fixed at
-  the go; a draft on top is not mergeable. Any other CR's
+  the go (one action from the top is GitHub's; on GitLab, one MR at a time from the bottom); a
+  draft on top is not mergeable. Any other CR's
   PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
   changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
   merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
@@ -127,9 +128,14 @@ started.
   declined the extension); each further CR joins on top as a draft when it has its PR
   (`$CHANTIER forge-stack rebuild`: unstack, then create); the ready PRs come first in readiness
   order, a CR always above its dependencies; the user merges the mergeable part at any time, in
-  one action from its top PR or one PR at a time from the bottom, the release commit last. A chain
-  of PRs based on each other is not a stack. On GitHub a stack is the forge's native
-  stacked-PR stack; on GitLab the stack stays a chain, as it was. **Stack as it stands:** the
+  one action from its top PR or one PR at a time from the bottom, the release commit last. On
+  GitHub, a chain of PRs based on each other is not a stack. On GitHub a stack is the forge's
+  native stacked-PR stack; on GitLab, which has none, it is the chain of MRs `forge-stack` makes
+  and checks, each targeting the one below, the first on the default branch, ready MRs below and
+  drafts on top, merged one MR at a time from the bottom (a middle MR merged folds into the one
+  below it); unproved on GitLab. Merging a PR of the mergeable part "with those under it" in one
+  action is GitHub's; on GitLab the MRs under it are merged first, one at a time from the bottom.
+  **Stack as it stands:** the
   bottom CRs of the stack with a PR, whatever their status. **Mergeable part:** those of it from
   the bottom while each CR is `ready` and its PR not a draft; its commit is the head of its highest
   PR. **Drafts on top:** the PRs of the stack above the mergeable part. **To come:** the open CRs
@@ -137,7 +143,7 @@ started.
   (`$CHANTIER forge-stack show` prints the failing ones): the stack is open; it holds every PR of
   the stack as it stands, and no other; in the record's order, bottom first; no PR of a ready CR
   is a draft and every draft sits above the ready PRs; the release PR, when it is in the stack, is
-  on top.
+  on top; the five checks are read on both forges.
   **Inserting a change into a ready stack:** before anything else every PR that will sit above the
   new one goes back to draft; then the new CR's PR is inserted at its place, the PRs above are
   restacked on it, the stack is rebuilt on the forge (`$CHANTIER forge-stack rebuild`) and
@@ -238,7 +244,7 @@ started.
 - **`$CHANTIER`:** the CLI, exactly as your prompt gives it (in chantier's own checkout `uv run --locked --project "<…>" chantier`, else `uvx --from "<…>" chantier --skill "<…>"`; with a planning surface, plus `--project <folder>`).
   It alone writes `batch.json`, `events.jsonl` and the `STATUS` files. It runs no git command
   that changes anything (it reads the head, the remote and the status to say what is off) and
-  no forge command beyond `forge-stack` (it calls the user's own `gh`, GitHub only): the agents
+  no forge command beyond `forge-stack` (it calls the user's own `gh` or `glab`): the agents
   create the worktrees, commit, rebase, push, open, watch and
   merge PRs, clean up and fast-forward the main checkout after a recorded merge
   ([foreman](foreman.md)), with `git`, `gh` and `glab`. Exit codes: 0 ok, 1 usage, 2 precondition (the message

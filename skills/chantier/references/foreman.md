@@ -191,7 +191,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   add` goes on top. The stack driver ends with each hand-back: `agents set stack - --epoch <n>`
   before the next `take stack`. Its end is one native stack on the forge that the user merges in
   one action from the top PR, or one PR at a time from the bottom: made at two ready PRs, grown on
-  top as each CR gets its PR, drafts on top. On its `hand-back ready <stack link>
+  top as each CR gets its PR, drafts on top; on GitLab, the chain of MRs checked by
+  `forge-stack`, merged one MR at a time from the bottom (unproved; trial: one run on a GitLab
+  project), the `<stack link>` of the asks being the top MR's link, the first take, each later take
+  and the `stack-ready` asks (with the commit and the `to come:` tail) the same. On its `hand-back ready <stack link>
   <cr>=<link>…`, read the stack on the forge before anything else, the five checks (below), then:
   - the first stack made: `$CHANTIER asks "stack-ready <stack link> partial stack mergeable below
     <sha7> <cr>=<link>… to come: <cr> <cr>…"` (the `<cr>=<link>` pairs: the mergeable part; to
@@ -215,7 +218,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   A ready PR that stopped merging is yours to notice (`gh pr
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.
   - **The five checks of a ready stack,** read on the forge with `$CHANTIER forge-stack show`
-    (it prints one line per failed check and exits 0 when all hold; GitHub only): the stack is
+    (it prints one line per failed check and exits 0 when all hold; on GitLab, read on the chain of
+    MRs: unproved; trial: one run on a GitLab project): the stack is
     open; it holds every PR of the stack as it stands (the bottom CRs with a PR), and no other;
     in the record's order, bottom first; no PR of a ready CR is a draft and every draft sits above
     the ready PRs; the release PR, when it is in the stack, on top.
@@ -255,7 +259,12 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     message), never fixed at the go:
     - **A restack** (once every CR that one action of the user merged is recorded, one `take
       stack` for what remains and one stack driver, or the note `merged:` to the one that runs)
-      whenever a native stack of the batch is on the forge.
+      whenever a native stack of the batch is on the forge (on GitLab, a chain made by
+      `forge-stack create` or `rebuild` and read back by `show`).
+    - **A folded CR** (GitLab): on the Chief of Staff's `order merged <k>` with the note `folded:
+      <k> into <k-1>`, the CR below goes back to a Driver first, `take <k-1> --note "folded: <k>
+      merged into its branch"` (a slot, or it waits like a queued CR); the restack of what remains
+      (`take stack`) comes after its hand-back. Unproved; trial: one run on a GitLab project.
     - **Rebase notes** only before the first stack is made: the parallel rules apply, scoped to the CRs whose base the merge changed. A
       `working` CR based on the merged CR's branch or on the default branch gets `[foreman→driver
       <cr>] note rebase: <merged cr> merged`; a `ready` or `blocked` one with a PR that no longer
