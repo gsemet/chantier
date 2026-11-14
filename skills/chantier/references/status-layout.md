@@ -90,6 +90,8 @@ Every Progress report has one line in **Notes** with the remaining floor and the
 
 When you ran a Driver's refused force push since the last report, your next report has one line in **Notes**: the CR (number and slug), the branch and "pushed for the Driver (host refused its push)". A push held for the user's word or failed was already told at once; **For you** still names a push question while it is open.
 
+In a stack batch with a native stack on the forge, every Progress report has one line in **Notes**, in the user's language, the CRs by number and slug: `partial stack mergeable below <sha7> (<cr> #<n>); to come: <cr> <cr>…`, or `stack complete, mergeable below <sha7>` once complete. With no stack on the forge yet: `no stack yet: <k> of 2 PRs ready`. The Completion report has none (nothing remains). It adds no column and no CLI line in `STATUS.md` or `STATUS.json`; it sits beside a floor line when the batch has one.
+
 When a CR merged since the last report carries a `main checkout:` note, your next report has one line in **Notes**: `main checkout: fast-forwarded to <sha7>` (or `already at <sha7>`), or `main checkout not fast-forwarded: <why>`, the latest one only. The Completion report has it too, by the same skeleton. It is not a **For you** item: nothing waits on the user (a `tracked changes` or `on <branch>` line may leave the user something to do, which they judge).
 
 When you named a trace in the main checkout since the last report (`chief-of-staff.md`, "Reports": `git status --porcelain`, a path outside the planning folder), your next report has one line with the paths, and **For you** asks what to do with them.

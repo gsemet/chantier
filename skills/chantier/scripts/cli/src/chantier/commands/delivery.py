@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
-from chantier.commands.facts import stack_base, stack_lines
+from chantier.commands.facts import chain, stack_base, stack_lines
 from chantier.commands.registry import BATCH, Subparsers, add_command
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -153,17 +153,32 @@ def stack(args: argparse.Namespace) -> list[str]:
         if b.record.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
         place = {cr: i for i, cr in enumerate(args.crs, 1)}
+        rest = [x.id for x in chain(b.record) if x.id not in place]
         for cr in args.crs:
-            below = [a for a in b.cr(cr).after if place.get(a, 0) > place[cr]]
-            if below:
-                raise ChantierError(
-                    f"{cr} depends on {', '.join(below)}: it cannot sit below "
-                    f"{'it' if len(below) == 1 else 'them'}"
-                )
+            _check_place(place, rest, cr, b.cr(cr).after)
         for i, cr in enumerate(args.crs, 1):
             b.touch(b.cr(cr), order=i, stacked=True)
+        for i, cr in enumerate(rest, len(args.crs) + 1):  # not placed: above, in their order
+            b.touch(b.cr(cr), order=i)
         b.log("stack-order", None, crs=args.crs)
     return [f"stack order: {' → '.join(args.crs)}"]
+
+
+def _check_place(place: dict[str, int], rest: list[str], cr: str, after: list[str]) -> None:
+    """Refuse a CR placed below a dependency, or a dependency left out of the order."""
+    below = [a for a in after if place.get(a, 0) > place[cr]]
+    if below:
+        raise ChantierError(
+            f"{cr} depends on {', '.join(below)}: it cannot sit below "
+            f"{'it' if len(below) == 1 else 'them'}"
+        )
+    left = [a for a in after if a in rest]
+    if left:
+        raise ChantierError(
+            f"{cr} depends on {', '.join(left)}, which "
+            f"{'is' if len(left) == 1 else 'are'} not named: it cannot sit below "
+            f"{'it' if len(left) == 1 else 'them'}"
+        )
 
 
 def register(sub: Subparsers) -> None:
@@ -188,6 +203,7 @@ def register(sub: Subparsers) -> None:
     s.add_argument(
         "crs",
         nargs="*",
-        help="the stack's order, as its driver set it, bottom first; "
+        help="the stack's order, as its driver set it, bottom first; naming only some CRs "
+        "puts them at the bottom, the others above in their order; "
         "with no CR, print the stack as it stands (writes nothing)",
     )

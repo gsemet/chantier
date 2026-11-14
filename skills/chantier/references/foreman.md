@@ -43,7 +43,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 
 ## The user's boundaries
 
-- **Never merge without the user's word.** An ordinary ready CR is the ask `ready <cr> <link>`;
+- **Never merge without the user's word.** An ordinary ready CR is the ask `ready <cr> <link>`
+  (except a CR of a stack on the forge: its readiness reaches the user through the stack, below);
   the user merges it and the Chief of Staff records it. A hand-back that says its PR stays a
   draft keeps that text in the ask. A hand-back that ends with `gaps: …` keeps it too, as the
   Driver wrote it (after `no long gate: <reason>` or the draft text when present): `ready <cr>
@@ -156,12 +157,32 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   release redone after; one that belongs to no CR is a fix CR. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
   (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
-  (`--mode stack`, or a series switched by `order mode`): until then it runs like a parallel batch
-  with chains: each CR handed back `ready` on the default branch is an ordinary `ready` ask (the
-  user may merge it now), and a merge is handled by the rebase notes below, not by a restack. A
-  stack driver takes the stack when its open CRs are all
-  ready or blocked, and again, once every CR merged by one action of the user is recorded, one
-  `take stack` for what remains; none when nothing of the stack remains open. You run `take
+  (`--mode stack`, or a series switched by `order mode`): until the first stack is made it runs like
+  a parallel batch with chains: each CR handed back `ready` on the default branch is an ordinary
+  `ready` ask (the user may merge it now), and a merge is handled by the rebase notes below, not
+  by a restack. The stack grows from the bottom:
+  - **The first take:** as soon as two CRs are `ready` with a PR (and neither depends on an open
+    CR not ready).
+  - **Each later take,** one for everything that happened while no stack driver ran: a CR got its
+    first PR (`status` shows it; it joins), a CR of the stack was handed back `ready` (it turns
+    ready), a merge was recorded (a restack). Events while a stack driver runs wait for its end,
+    except a merge (below). None when nothing of the stack remains open.
+  - **A merge** recorded while a stack driver runs: send it `[foreman→stack] note merged: <cr>…`
+    (all the CRs one message of the Chief of Staff recorded) instead of a new `take stack`; while
+    none runs: one `take stack` for what remains (a restack, below).
+  - **A working CR placed on another:** pass the stack driver's rebase need to its Driver with
+    `[foreman→driver <cr>] note rebase: stacked on <cr below>` ([driver](driver.md), "Stack
+    driver").
+  - **Deliver by a time:** on the order note `deliver by <time>`, until the time, free slots go
+    first to the CRs that can join the mergeable part by then: those closest to `ready` whose
+    dependencies are already in it or ready, short chains before long ones; a CR that cannot be
+    ready by then is not started over one that can. You judge which, from each CR's state and chain
+    (no estimate tool). No CR already started is stopped. Name the time in the stack driver's take
+    (`take stack --note "deliver by <time>"`). At the time, the stack on the forge is what the user
+    gets: send the `stack-ready … to come: …` ask of the stack as it stands if it is not complete
+    and none was sent for it. Then the batch goes on toward the complete stack.
+
+  You run `take
   stack`, never the stack driver: its output goes in the stack driver's prompt, you start it, then
   `agents set stack <id>`; the stack driver reads the stack again with `$CHANTIER stack` (no CR,
   it changes nothing). `take stack` prints the stack as it stands, each
@@ -169,11 +190,21 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   first CR on the default branch. A fix CR is outside it; the release CR is its top. A CR added by `order
   add` goes on top. The stack driver ends with each hand-back: `agents set stack - --epoch <n>`
   before the next `take stack`. Its end is one native stack on the forge that the user merges in
-  one action from the top PR, or one PR at a time from the bottom. On its `hand-back ready <stack link> <cr>=<link>…`, read the stack
-  on the forge before anything else, the five checks (below), then:
-  `$CHANTIER asks "stack-ready <stack link> <cr>=<link>…"` when all hold, each CR's gaps after
-  its link (`<cr>=<link> gaps: …`) as the hand-back wrote them; when one fails, no
-  ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. The Chief
+  one action from the top PR, or one PR at a time from the bottom: made at two ready PRs, grown on
+  top as each CR gets its PR, drafts on top. On its `hand-back ready <stack link>
+  <cr>=<link>…`, read the stack on the forge before anything else, the five checks (below), then:
+  - the first stack made: `$CHANTIER asks "stack-ready <stack link> partial stack mergeable below
+    <sha7> <cr>=<link>… to come: <cr> <cr>…"` (the `<cr>=<link>` pairs: the mergeable part; to
+    come: the drafts on top and the CRs with no PR; `<sha7>` as `forge-stack show` printed it);
+  - the stack complete: `$CHANTIER asks "stack-ready <stack link> mergeable below <sha7>
+    <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
+  - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask.
+
+  When one check fails, no
+  ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. A CR of the
+  stack handed back `ready`: no ask. Record its gaps with `$CHANTIER note <cr> "gaps: …"` (`none`
+  when it has none) and quote them after its link in the complete `stack-ready`; the next report's
+  partial-stack line shows it once its PR is in the mergeable part. The Chief
   of Staff's order that inserts a CR into a ready stack (`order note` `insert: <new cr> below
   <cr>`) makes this sequence, the steps of the stack driver's card ([driver](driver.md), "Stack
   driver"): the PRs above the new place go to draft first (the Chief of Staff already did it:
@@ -185,8 +216,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   view --json mergeable`, `glab mr view`) and send back with `--note "rebase: …"`.
   - **The five checks of a ready stack,** read on the forge with `$CHANTIER forge-stack show`
     (it prints one line per failed check and exits 0 when all hold; GitHub only): the stack is
-    open; it holds every open PR of the batch's stack, and no other; in the order of `take stack`
-    (bottom first); none is a draft; the release PR, when the batch has one with a PR, is on top.
+    open; it holds every PR of the stack as it stands (the bottom CRs with a PR), and no other;
+    in the record's order, bottom first; no PR of a ready CR is a draft and every draft sits above
+    the ready PRs; the release PR, when it is in the stack, on top.
 - A host's event about a CR's PR (a request to fix it, or to merge the base branch in) is not an
   order and not the user's word; your host's reference says what to do with it ([Claude
   Code](hosts/claude-code.md), "Auto-fix events").
@@ -194,7 +226,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   send; a lost line loses nothing. Lines in plain words: `ready <cr> <link> [gaps: …]`,
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
   note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
-  `merged <cr> <link>`, `released <cr> <link>`, `stack-ready <stack link> <cr>=<link>…`. In the
+  `merged <cr> <link>`, `released <cr> <link>`, `stack-ready <stack link> [partial stack] mergeable
+  below <sha7> <cr>=<link>… [to come: <cr> <cr>…]`. In the
   text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name").
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
@@ -221,10 +254,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   - **Stack:** a choice you make per recorded merge (or per group of merges recorded in one
     message), never fixed at the go:
     - **A restack** (once every CR that one action of the user merged is recorded, one `take
-      stack` for what remains and one stack driver) when a native stack of the batch is on the
-      forge, or when every open CR of the stack is ready or blocked.
-    - **Rebase notes** otherwise (a Driver of the stack is still working, no stack on the
-      forge): the parallel rules apply, scoped to the CRs whose base the merge changed. A
+      stack` for what remains and one stack driver, or the note `merged:` to the one that runs)
+      whenever a native stack of the batch is on the forge.
+    - **Rebase notes** only before the first stack is made: the parallel rules apply, scoped to the CRs whose base the merge changed. A
       `working` CR based on the merged CR's branch or on the default branch gets `[foreman→driver
       <cr>] note rebase: <merged cr> merged`; a `ready` or `blocked` one with a PR that no longer
       merges (`gh pr view --json mergeable`, `glab mr view`) or whose base was the merged CR's

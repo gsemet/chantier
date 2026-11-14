@@ -8,9 +8,10 @@ started.
 - **Pull request (PR):** a merge request on GitLab.
 - **Ready to merge:** a PR whose CR was handed back `ready` and whose base is the default branch,
   in every mode: the user may merge it on its own at any moment, a stack batch is no exception.
-  In a stack batch, a stack verified on the forge (the five checks of **Stack**, below) is a
-  second way: the user merges it in one action from its top PR, or its PRs one at a time from the
-  bottom, the user's choice made merge by merge, never fixed at the go. Any other CR's
+  In a stack batch, a PR of the mergeable part of a verified stack (the five checks of **Stack**,
+  below) is a second way: the user merges it with those under it, in one action from its top PR,
+  or its PRs one at a time from the bottom, the user's choice made merge by merge, never fixed at
+  the go; a draft on top is not mergeable. Any other CR's
   PR is a draft on the forge (a series, a stack not yet made on the forge, a stack being
   changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
   merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
@@ -119,16 +120,24 @@ started.
   stack, on the user's word. **Stack**: parallel, with a stack driver: every CR with no open
   dependency starts at once, on the default branch; a CR with a dependency starts only once that
   dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
-  open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each
-  on the previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
-  and the start base for any other). Once every PR is ready, the stack driver makes one native
+  open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
+  previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
+  and the start base for any other). As soon as two PRs are ready the stack driver makes the native
   stack on the forge (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
-  declined the extension); the user merges it in one action from the top PR, or one PR at a
-  time from the bottom, the release commit last. A chain of PRs based on each other is not a stack. On GitHub a stack is the forge's native
-  stacked-PR stack; on GitLab the stack stays a chain, as it was. **Stack ready** means five
-  checks hold on the forge (`$CHANTIER forge-stack show` prints the failing ones): the stack is
-  open; it holds every open PR of the batch's stack, and no other; in the order of `take stack`,
-  bottom first; none is a draft; the release PR, when the batch has one with a PR, is on top.
+  declined the extension); each further CR joins on top as a draft when it has its PR
+  (`$CHANTIER forge-stack rebuild`: unstack, then create); the ready PRs come first in readiness
+  order, a CR always above its dependencies; the user merges the mergeable part at any time, in
+  one action from its top PR or one PR at a time from the bottom, the release commit last. A chain
+  of PRs based on each other is not a stack. On GitHub a stack is the forge's native
+  stacked-PR stack; on GitLab the stack stays a chain, as it was. **Stack as it stands:** the
+  bottom CRs of the stack with a PR, whatever their status. **Mergeable part:** those of it from
+  the bottom while each CR is `ready` and its PR not a draft; its commit is the head of its highest
+  PR. **Drafts on top:** the PRs of the stack above the mergeable part. **To come:** the open CRs
+  of the stack with no PR yet. **Stack ready** means five checks hold on the forge
+  (`$CHANTIER forge-stack show` prints the failing ones): the stack is open; it holds every PR of
+  the stack as it stands, and no other; in the record's order, bottom first; no PR of a ready CR
+  is a draft and every draft sits above the ready PRs; the release PR, when it is in the stack, is
+  on top.
   **Inserting a change into a ready stack:** before anything else every PR that will sit above the
   new one goes back to draft; then the new CR's PR is inserted at its place, the PRs above are
   restacked on it, the stack is rebuilt on the forge (`$CHANTIER forge-stack rebuild`) and
@@ -141,7 +150,7 @@ started.
   on the default branch. A release CR is
   their top: it starts on the top CR's branch once every other CR is ready and the top branch
   holds them all, and its PR is the top PR. When a stack merges only in part, what remains forms another stack in the same batch, restacked on
-  the default branch (one restack for one merge action of the user, none when the whole stack merged). Each CR is named a branch
+  the default branch, silently, and it goes on growing (one restack for one merge action of the user, none when the whole stack merged). Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
   external mode): its Driver
   creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the

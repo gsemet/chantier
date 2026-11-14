@@ -502,7 +502,10 @@ Only in the turn where the user gave the go:
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user may merge in one action from its top PR, or one PR at a time from
    the bottom: the user may also merge each ready PR as it comes, before the stack is made, and
-   nothing about the merge path is fixed at the go nor recorded in `brief.md`. On a no, say that the stack
+   nothing about the merge path is fixed at the go nor recorded in `brief.md`. Say too that the stack
+   is made as soon as two PRs are ready, each further CR joins on top as a draft when it has its PR,
+   the user may merge the ready ones below at any time, and a new stack of what remains is made
+   silently after a merge. On a no, say that the stack
    will be made by `$CHANTIER forge-stack create` over the REST API, and record the choice in
    `brief.md` (step 3) so the Foreman passes it to the stack driver. GitHub only: on GitLab the
    stack stays as it was. Re-read the seat first ([session-start](session-start.md)). The steering mode is
@@ -678,13 +681,17 @@ CR-222 → CR-225 → CR-226 → CR-228."
   nothing and hold no CR back: another Driver or the user may be its cause. The report also gives
   the latest `main checkout:` note of a CR merged since the last report (`status --notes`, `log
   <cr>`; `status-layout.md`): a fast-forward leaves `git status` clean, so it is no trace there.
-- **When the time will not hold:** when the delivery time passes the time the user gave, the
-  steering (the Foreman through your order, or you in direct mode) works toward the largest
-  mergeable partial stack from the bottom by that time: the CRs that can be ready by then come
-  first, and the stack is made and grown from the bottom as each becomes ready, as the CR
-  stack-grows-from-bottom specifies for the stack driver. The report's **Notes** names which CRs
-  that partial stack is expected to hold. This bullet only points to that CR's mechanism; it adds
-  no step of its own to the Foreman's or the stack driver's cards.
+  In a stack batch, before each Progress report, read `$CHANTIER forge-stack show` (GitHub; read
+  only) and take the line for **Notes** from its `partial stack mergeable below …` or failing
+  checks: while a check fails (a take is changing the stack), the line says `stack changing: last
+  mergeable below <sha7>` with the commit of the last report, or `stack changing` when none was
+  told. On GitLab the line names the head of the highest MR of the chain that is ready on the
+  forge, read with `glab mr view`. In direct mode the same, you steering.
+- **When the delivery time passes the time the user gave** (the batch will not finish by it):
+  record `$CHANTIER order note - --note "deliver by <time>"` (it prints the line to send to the
+  Foreman, and a restarted Foreman finds it). In direct mode you apply the Foreman's "Deliver by a
+  time" bullet ([foreman](foreman.md), stack batch) yourself. Tell the user nothing beyond what the
+  report says.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from
@@ -748,16 +755,23 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **A stack batch:** the one-action stack merge is not the only path. Before the stack is made on
   the forge, each CR handed back `ready` on the default branch is an ordinary `ready` ask, offered
   as mergeable now (the bullet above); a CR above it, a draft on another CR's branch, waits. On a
-  `stack-ready <stack link> <cr>=<link>…` ask, read the stack on the forge
-  yourself before you tell the user: the five checks of the stack ([foreman](foreman.md), "The
-  five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold). All
-  hold: tell the user the stack can be merged in one action from its top PR (the link), or one PR
-  at a time from the bottom, as they like, with
-  the release commit last, quoting each CR's gaps of the ask in the user's language (none: say
-  nothing about gaps). After each merge action of the user (one PR or several), record `order
+  `stack-ready <stack link> … <cr>=<link>…` ask (with or without `to come: …`), read the stack on
+  the forge yourself before you tell the user: the five checks of the stack ([foreman](foreman.md),
+  "The five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold).
+  All hold: with `to come: …`, tell the user the stack is mergeable up to its last ready PR (in one
+  action from that PR, or one PR at a time from the bottom, per the paragraph above), the drafts on
+  top and the CRs still to come named (number and slug), and that the top goes on while they
+  merge: it grows silently, and its state is in each report. The `stack-ready` with no `to come:`
+  says the stack is complete: it can be merged in one action from its top PR (the link), or one PR
+  at a time from the bottom, as they like, with the release commit last, quoting each CR's gaps of
+  the ask in the user's language (none: say nothing about gaps). Both name the commit, in the
+  user's language ("partial stack mergeable below <sha7>", "stack partielle mergeable en dessous
+  du commit <sha7>"). A CR of the stack that turns ready reaches the user through the next
+  report's partial-stack line, never as an ask; its gaps are quoted with the complete
+  `stack-ready`. After each merge action of the user (one PR or several), record `order
   merged` for every CR it merged, bottom first, all before telling the Foreman, in one message
   (one action leads to
-  one restack at most, and none when the whole stack merged; the release CR's merge starts the
+  one restack at most, silently: no ask follows it, and none when the whole stack merged; the release CR's merge starts the
   release procedure, as today). An `anomaly` of the stack driver or the Foreman on a refused
   `$CHANTIER forge-stack rebuild` reaches the user as an ask with the exact text; on the user's
   yes, run `$CHANTIER forge-stack rebuild` yourself (no raw `gh api`). A check
