@@ -14,7 +14,6 @@ from urllib.parse import quote
 
 from chantier.commands.forge_stack_shared import Where, draft_checks, left, ready_tail
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
-from chantier.lifecycle.convert import open_repo
 
 GITLAB_LINK = re.compile(r"^https?://([^/\s]+)/(.+?)/-/merge_requests/(\d+)")
 STACK_FLAG = "--stack is GitHub only: a GitLab stack is the chain of its MRs"
@@ -153,7 +152,7 @@ def show(
     rows: Rows, come: Rows, where: Where, mrs: list[dict[str, Any]] | None = None
 ) -> tuple[list[str], int]:
     """The five checks read on the chain; the success line when they all hold."""
-    default = open_repo().config["default_branch"]
+    default = rows[0]["default"]
     mrs = mrs if mrs is not None else _read(where, rows)
     lines, release = _lines(rows, come, where, default, mrs)
     if lines:

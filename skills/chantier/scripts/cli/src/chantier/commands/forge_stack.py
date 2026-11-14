@@ -103,6 +103,7 @@ def _plan(
                 "branch": c.branch,
                 "head": short_head(c.head) or "-",
                 "release": c.kind == "release",
+                "default": repo.config["default_branch"],
             }
         )
     if where is None:
