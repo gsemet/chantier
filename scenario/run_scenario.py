@@ -59,6 +59,57 @@ BACK_NOTES = ("rebase:", "merged:")
 OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 
 
+COMMANDS = [0]  # the processes the scenario itself starts (the CLI's own children are not counted)
+TIMES: list[tuple[str, float, int]] = []  # (case or section, seconds, commands)
+_popen_init = subprocess.Popen.__init__
+
+
+def _counting_init(self, *args, **kwargs):  # subprocess.run goes through Popen: one place counts
+    COMMANDS[0] += 1
+    _popen_init(self, *args, **kwargs)
+
+
+subprocess.Popen.__init__ = _counting_init
+
+
+class timed:
+    """`with timed("name"):` adds one row (seconds, commands started inside) to TIMES."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __enter__(self):
+        self.t0, self.c0 = time.monotonic(), COMMANDS[0]
+        return self
+
+    def __exit__(self, *exc):
+        TIMES.append((self.name, time.monotonic() - self.t0, COMMANDS[0] - self.c0))
+        return False
+
+
+_SECTION: list[timed | None] = [None]
+
+
+def section_end() -> None:
+    if _SECTION[0] is not None:
+        _SECTION[0].__exit__()
+        _SECTION[0] = None
+
+
+def section(name: str) -> None:
+    """Close the running section of the main batch and open the next one."""
+    section_end()
+    _SECTION[0] = timed(f"section {name}")
+    _SECTION[0].__enter__()
+
+
+def timing_table() -> list[str]:
+    rows = ["| case or section | seconds | commands |", "| --- | ---: | ---: |"]
+    rows += [f"| {n} | {s:.1f} | {c} |" for n, s, c in TIMES]
+    rows.append(f"| total of the rows | {sum(s for _, s, _ in TIMES):.1f} | {sum(c for _, _, c in TIMES)} |")
+    return rows
+
+
 def note(line: str) -> None:
     LOG.append(line)
     if ARGS.verbose:
@@ -538,6 +589,7 @@ def prepare_cr(w: World, title: str, priority: str = "P1") -> tuple[Path, Path]:
 
 
 def scenario(w: World) -> None:
+    section("1. Setup and preflight")
     note("## 1. Setup and preflight")
     code, out = w.chantier("preflight", env={"CLAUDE_CODE_ENTRYPOINT": "claude-vscode",
                                              "CHANTIER_HOST": ""}, expect=2)
@@ -601,6 +653,7 @@ def scenario(w: World) -> None:
           out[0].startswith((w.work / "AGENTS.md").as_posix()) and "lines)" in out[0]
           and out[1].startswith((w.work / "CONTRIBUTING.md").as_posix()), str(out))
 
+    section("2. The Chief of Staff opens the batch and starts the Foreman")
     note("\n## 2. The Chief of Staff opens the batch and starts the Foreman")
     items = [prepare_cr(w, title) for title in
              ("Fix login timeout", "Add CSV export", "Dark mode", "Audit log")]
@@ -678,6 +731,7 @@ def scenario(w: World) -> None:
           f"[{w.name}](4-batch/STATUS.md)" in board and "Fix login timeout" in board
           and "| P3 |" in board and "Waits in the backlog" in board, board)
 
+    section("3. CR-101: one round, the Driver's own push and PR, hand-back")
     note("\n## 3. CR-101: one round, the Driver's own push and PR, hand-back")
     _, out = w.chantier("round", "CR-101", "--note", "round 1")
     check("`round` counts the round and prints the facts", w.cr("CR-101")["round"] == 1
@@ -718,6 +772,7 @@ def scenario(w: World) -> None:
     code, _ = w.chantier("round", "CR-101", expect=2)
     check("a CR without a Driver runs no round", code == 2)
 
+    section("4. CR-102: two rounds")
     note("\n## 4. CR-102: two rounds")
     driver_round(w, "CR-102", "export.py", "def export():\n    return 'csv'\n")
     w.chantier("note", "CR-102", "CI red: the product; export header missing")
@@ -727,6 +782,7 @@ def scenario(w: World) -> None:
     check("a second ready CR goes to the Chief of Staff",
           fm.asked[-1].startswith(f"ready-to-merge CR-102 {PR_LINK[ARGS.forge]}"))
 
+    section("5. Steering: the user drops CR-103, adds an item, changes CR-101")
     note("\n## 5. Steering: the user drops CR-103, adds an item, changes CR-101")
     _, out = w.chantier("order", "drop", "CR-103")
     check("`chantier order` prints the message with an order id, and what it did",
@@ -771,6 +827,7 @@ def scenario(w: World) -> None:
     check("the Foreman keeps the order pending while no slot is free",
           not all(o["done"] for o in w.batch()["orders"]))
 
+    section("6. A Foreman restart: the old one is refused")
     note("\n## 6. A Foreman restart: the old one is refused")
     w.chantier("foreman", "set", "local_foreman2", "--epoch", 2)
     w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 2)
@@ -781,6 +838,7 @@ def scenario(w: World) -> None:
           code == 3 and w.batch()["foreman"] == "local_foreman2")
     fm.epoch = 2
 
+    section("7. CR-104 is lost, then hands back; CR-105 and CR-101 run")
     note("\n## 7. CR-104 is lost, then hands back; CR-105 and CR-101 run")
     fm.driver_died("CR-104")
     check("a Driver that ends without a hand-back is replaced from the facts",
@@ -807,6 +865,7 @@ def scenario(w: World) -> None:
     w.chantier("cancel", "CR-103", "--epoch", 2)
     check("a second cancel leaves the trashed CR where it is", w.cr("CR-103")["path"] == trashed)
 
+    section("8. The user merges; the Foreman cleans up and pauses the batch")
     note("\n## 8. The user merges; the Foreman cleans up and pauses the batch")
     code, _ = w.chantier("pause", "--epoch", 2, expect=2)
     check("pause is refused while PRs are not merged", code == 2 and w.batch()["status"] == "running")
@@ -928,6 +987,7 @@ def scenario(w: World) -> None:
     prs = {c["id"]: c["pr"] for c in d["crs"] if c["pr"]}
     check("four PRs were opened on the fake forge by the Drivers", len(set(prs.values())) == 4)
 
+    section("9. Cost")
     note("\n## 9. Cost")
     code, out = w.chantier("cost", "--by", "cr", "--batch", w.name)
     check("Claude cost prices the Foreman and each Driver",
@@ -992,10 +1052,12 @@ def scenario(w: World) -> None:
     cost_audit(w)
     foreman_chief_lines(w)
 
+    section("10. Copilot cost")
     note("\n## 10. Copilot cost")
     copilot_cost(w, d)
     copilot_uv(w)
 
+    section("11. Event log")
     note("\n## 11. Event log")
     events = (w.folder() / "events.jsonl").read_text().splitlines()
     kinds = {json.loads(e)["kind"] for e in events}
@@ -1007,38 +1069,71 @@ def scenario(w: World) -> None:
     check("only the agents called the forge: the Drivers created the PRs, nobody merged",
           created in calls and merged not in calls and "edit" not in calls and '"PUT"' not in calls,
           calls[-300:])
-    close_batch(w)
-    retro_cases(w)
-    copilot_missing_transcript(w)
-    lifecycle_regressions(w)
-    stack_batch(w)
-    forge_stack_cli(w)
-    ready_words(w)
-    batch_modes(w)
-    release(w)
-    granted_fixes(w)
-    release_last(w)
-    release_on_stack(w)
-    qa_on_head(w)
-    changes_tree(w)
-    next_number(w)
-    dependencies(w)
-    release_merge_on_approval(w)
-    lost_messages(w)
-    failed_opening(w)
-    playbook_config(w)
-    cancel_during_gate(w)
-    stop_own_gate(w)
-    rails(w)
-    gate_parallel(w)
-    handback_proofs(w)
-    gate_proof(w)
-    restore_cr(w)
-    driver_liveness(w)
-    foreman_in_a_worktree(w)
-    direct_batch(w)
-    seat_handover(w)
-    remote_board(w)
+    section_end()
+    with timed("close_batch"):
+        close_batch(w)
+    with timed("retro_cases"):
+        retro_cases(w)
+    with timed("copilot_missing_transcript"):
+        copilot_missing_transcript(w)
+    with timed("lifecycle_regressions"):
+        lifecycle_regressions(w)
+    with timed("stack_batch"):
+        stack_batch(w)
+    with timed("forge_stack_cli"):
+        forge_stack_cli(w)
+    with timed("ready_words"):
+        ready_words(w)
+    with timed("batch_modes"):
+        batch_modes(w)
+    with timed("release"):
+        release(w)
+    with timed("granted_fixes"):
+        granted_fixes(w)
+    with timed("release_last"):
+        release_last(w)
+    with timed("release_on_stack"):
+        release_on_stack(w)
+    with timed("qa_on_head"):
+        qa_on_head(w)
+    with timed("changes_tree"):
+        changes_tree(w)
+    with timed("next_number"):
+        next_number(w)
+    with timed("dependencies"):
+        dependencies(w)
+    with timed("release_merge_on_approval"):
+        release_merge_on_approval(w)
+    with timed("lost_messages"):
+        lost_messages(w)
+    with timed("failed_opening"):
+        failed_opening(w)
+    with timed("playbook_config"):
+        playbook_config(w)
+    with timed("cancel_during_gate"):
+        cancel_during_gate(w)
+    with timed("stop_own_gate"):
+        stop_own_gate(w)
+    with timed("rails"):
+        rails(w)
+    with timed("gate_parallel"):
+        gate_parallel(w)
+    with timed("handback_proofs"):
+        handback_proofs(w)
+    with timed("gate_proof"):
+        gate_proof(w)
+    with timed("restore_cr"):
+        restore_cr(w)
+    with timed("driver_liveness"):
+        driver_liveness(w)
+    with timed("foreman_in_a_worktree"):
+        foreman_in_a_worktree(w)
+    with timed("direct_batch"):
+        direct_batch(w)
+    with timed("seat_handover"):
+        seat_handover(w)
+    with timed("remote_board"):
+        remote_board(w)
 
 
 class BoardProc:
@@ -6872,19 +6967,27 @@ def main() -> int:
     w = World(tmp)
     started = time.monotonic()
     try:
-        w.build()
+        with timed("build"):
+            w.build()
         if not ARGS.external_only:
             scenario(w)
-        external_surface(tmp / "external")
+        with timed("external_surface"):
+            external_surface(tmp / "external")
         if not ARGS.external_only:
-            cr_summary(tmp / "summary")
+            with timed("cr_summary"):
+                cr_summary(tmp / "summary")
     except Exception as e:  # a crash is a failed check with its reason
         check("scenario ran to the end", False, f"{type(e).__name__}: {e}")
     finally:
         if not ARGS.keep:
             subprocess.run(["git", "worktree", "prune"], cwd=w.work, capture_output=True)
             shutil.rmtree(tmp, ignore_errors=True)
+    section_end()
     elapsed = time.monotonic() - started
+    table = timing_table()
+    table.append(f"| whole run | {elapsed:.1f} | {COMMANDS[0]} |")
+    print("\n".join(table))
+    LOG.extend(["", "## Timing", "", *table])
     total = CHECKS["pass"] + CHECKS["fail"]
     head = [f"# chantier global scenario on {ARGS.forge}: {CHECKS['pass']}/{total} checks passed",
             "", f"- Run: {time.strftime('%Y-%m-%d %H:%M:%S')}, {elapsed:.1f} s",
