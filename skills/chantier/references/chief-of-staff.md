@@ -74,15 +74,38 @@ At the start of each session, `$CHANTIER rules`: the project's `AGENTS.md` (else
 merges and releases, on which branch, and the extra review steps. Nothing else is configured
 except `chantier.yaml` (below). Once per session, at your first turn, run `$CHANTIER preflight` and P9's check
 (step 1 of "Starting a batch"); tell the user only what P5, P9 and P10 say (the other conditions
-are a batch's). For a P10 warn, give the "For you" block "Allow rules to add" of your host's
-reference with exactly the rules P10 named; a missing tool is said with what to install. P9's
-forge side ("Forge permissions" below) is told in the same message, after the P5/P10 lines.
-Nothing blocks the user's request there. A project with no long gate written down is a question for the user, with your
+are a batch's). A missing tool is said with what to install. P9's forge side ("Forge
+permissions" below) is told in the same message, after the P5/P10 lines, and a P10 warn is a
+question, asked once per session (below). Nothing blocks the user's request there. A project with no long gate written down is a question for the user, with your
 recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success. Once the
 project's rules say there is no long gate, or exempt a kind of CR, a Driver's `handback --no-gate` carries
 that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
 When the user says "our long gate is `<command>`", propose the exact `AGENTS.md` lines
 (`docs/gates.md`) and write them on the user's yes.
+
+**The allow rules (P10, Claude Code).** The one write chantier makes in the user's settings, and
+only on the user's yes. Asked once per session:
+
+- **The question.** One question in the first message, after the P5/P10 lines: "add these rules
+  to `~/.claude/settings.json`?" It lists each rule P10 named, with its risk taken from the "Risk
+  accepted" column of the table "Allow rules" of your host's reference. A Griller does not ask or
+  write: it reports the P10 line and says that the Chief of Staff asks.
+- **On the yes.** Add exactly those rules to `permissions.allow`. Merge with what is there: never
+  replace, never remove, add no duplicate. Create the file or the keys when absent, and keep the
+  file valid JSON. Then run `$CHANTIER preflight` again and say what P10 says now. Add in one line
+  that whether this running session picks up the change is unproved: a session or agent started
+  afterwards reads it.
+- **On a no.** Say once what will be refused: a Driver's force push after a rebase goes Driver ->
+  Foreman -> Chief of Staff, and an unattended batch waits at the first one. Do not ask again in
+  the session.
+- **The host refuses the edit.** Say so with the refusal's exact text (concepts rule 7). Then give
+  the command line of "Allow rules to add" (your host's reference) for the user's shell, and say it
+  needs the user at that computer, not on the phone. Try no other way: no other file, no other
+  tool, no retry by another route.
+- **`~/.claude/settings.json` cannot be read** (P10 prints `unreadable: ...`). Do not write it.
+  Say so, and give the command line as for a refused edit, after the user has fixed the file.
+- Nothing else is written in any settings file: not the project's `.claude/settings.json` or
+  `.claude/settings.local.json`, and no deny, ask or other key.
 A brief (any prompt or message to an agent) states a past fact only with its source: a CR note,
 a file in the CR's folder, or an event in `events.jsonl`; a fact with no source is said as unknown.
 
@@ -351,11 +374,13 @@ message:
 - what may stop the batch from running unattended, each line with what to change, a forge right in
   the forge's own words (for instance: a ruleset `protect-all` refuses force pushes on
   `chantier/*`: allow them for `chantier/**`, or exclude that pattern); the missing host rules are
-  exactly the ones P10 named ("Allow rules to add");
+  exactly the ones P10 named (the question of "The project");
 - on Claude Code, the alert sentence of [claude-code](hosts/claude-code.md), "Auto mode";
-- the release's publication, when the project's release procedure runs it: either allowed (the
-  rule is there and the account can publish: the Release driver publishes) or "the publication is
-  yours: you will be asked to run `<the command>`" (the user is told now, not at the end).
+- the release's publication, when the project's release procedure runs it: it stays asked by the
+  host, by design (no rule is recommended for it, and it is not a missing rule). When the account
+  can publish, the Release driver runs the publication and the host asks or judges it. When the
+  host refuses, "the publication is yours: you will be asked to run `<the command>`" (the user is
+  told now, not at the end).
 
 At step 1 the same check runs again; the plan's message repeats only what is still missing.
 
@@ -366,8 +391,10 @@ Only in the turn where the user gave the go:
 1. **Preflight, all or nothing.** `$CHANTIER preflight` checks P1 (Claude Desktop or a Copilot
    agent session), P4 (the plugin's agents at this version), P5 (`uv` and `git`, versions), P6 (the
    repository's root), P7 (not a linked worktree), P8 (project instructions), and P10 (Claude
-   Code: whether the commands the agents run are allowed), which warns and never fails: give the
-   user the block for the rules it names, then go on; and P12 (`chantier.yaml`, absent or valid). You warn the
+   Code: whether the commands the agents run are allowed), which warns and never fails: if the
+   question of "The project" was not asked yet in this session, ask it, and act on the answer
+   before the plan; if it was asked and the user said no, repeat in one line what is still
+   missing, with no question; then go on, P10 never blocks the go; and P12 (`chantier.yaml`, absent or valid). You warn the
    user of each skill or tool the playbook names and your session lacks. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the

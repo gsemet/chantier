@@ -82,7 +82,7 @@ chantier is four things in one repository:
    Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
    `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
    (each with a `work/` folder while it runs), and the batch's own files at the root of
-   `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). There is no configuration file: every agent reads the project's `AGENTS.md`.
+   `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). The one write elsewhere is not the CLI's: on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else there. There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. One named exception among the tools: `board`, a read-only web view of this
    record for the user in remote (it writes no file, is part of the CLI's package and runs with no plugin

@@ -550,6 +550,8 @@ def scenario(w: World) -> None:
     check("preflight warns (P10) on the allow rules missing from the settings, names one, and "
           "still passes", p10.startswith("P10 warn")
           and "git push --force-with-lease -u origin chantier/*" in p10, p10)
+    check("the P10 warning names no `release create` rule (a publication stays asked by the host)",
+          "release create" not in p10, p10)
     sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
     from chantier.commands.permissions import RECOMMENDED_ALLOW
     (home / ".claude").mkdir(parents=True)

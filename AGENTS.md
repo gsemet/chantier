@@ -11,7 +11,9 @@
   were empty; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
-  when the project asks for it, and fast-forwards a clean main checkout after a merge it records.
+  when the project asks for it, and fast-forwards a clean main checkout after a merge it records, and,
+  on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else
+  there.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
   per role and host: change a role on both hosts together; their bodies must stay identical.
 - A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file

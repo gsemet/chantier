@@ -9,11 +9,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.commands.rules import linked
 from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.repo import Repo
-from chantier.plugin_files import is_dev_checkout, project_instructions, surface_instructions
+from chantier.plugin_files import is_dev_checkout
 
 # The commands the cards make the agents write, filled with realistic values, each tied to the
 # recommended allow rule that covers it and to a group. P10 asks whether some allow rule of the
@@ -66,16 +65,10 @@ SAMPLES = (
     ("github", "gh pr checks 12", "gh pr checks*"),
     ("github", "gh pr view 12", "gh pr view*"),
     ("gh-stack", "gh stack view", "gh stack*"),
-    (
-        "gh-release",
-        "gh release create v1.2.3 --title v1.2.3 --verify-tag --notes-file /tmp/n.md",
-        "gh release create*",
-    ),
     ("gitlab", "glab mr create --draft --description-file /tmp/body.md", "glab mr create*"),
     ("gitlab", "glab mr update 12 --target-branch main", "glab mr update*"),
     ("gitlab", "glab mr view 12", "glab mr view*"),
     ("gitlab", "glab ci status", "glab ci status*"),
-    ("glab-release", "glab release create v1.2.3 --notes-file /tmp/n.md", "glab release create*"),
 )
 
 
@@ -160,9 +153,8 @@ def _settings_rules(repo: Repo | None) -> tuple[dict[str, list[str]], list[str]]
     return rules, unreadable
 
 
-def _sample_groups(repo: Repo | None, remote: str) -> set[str]:
-    """The sample groups that apply: the remote's forge, the `gh stack` extension when installed,
-    the publication when the project's rules name it."""
+def _sample_groups(remote: str) -> set[str]:
+    """The sample groups that apply: the remote's forge, the `gh stack` extension when installed."""
     url = git("remote", "get-url", remote, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
     groups = {"always", "dev" if is_dev_checkout() else "plugin"}
@@ -172,21 +164,6 @@ def _sample_groups(repo: Repo | None, remote: str) -> set[str]:
         groups.add("github")
     else:
         groups |= {"github", "gitlab"}
-    text = ""
-    if repo:
-        seen: list[Path] = []
-        for first, root in (
-            (project_instructions(repo), repo.root),
-            (surface_instructions(repo), repo.surface or repo.root),
-        ):
-            if first:
-                seen.append(first.resolve())
-                linked(first.resolve(), root.resolve(), seen, 2)
-        text = "\n".join(p.read_text(encoding="utf-8", errors="replace") for p in seen)
-    if "github" in groups and "gh release create" in text:
-        groups.add("gh-release")
-    if "gitlab" in groups and "glab release create" in text:
-        groups.add("glab-release")
     data = [os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")]
     if os.environ.get("LOCALAPPDATA"):
         data.append(os.environ["LOCALAPPDATA"])
@@ -225,7 +202,7 @@ def commands_not_allowed(repo: Repo | None) -> tuple[int, int, list[str], list[s
     rules, unreadable = _settings_rules(repo)
     allow = [r for r in rules["allow"] if _counts_as_allow(r)]
     tools = ("Bash", "PowerShell") if os.name == "nt" else ("Bash",)
-    groups = _sample_groups(repo, remote)
+    groups = _sample_groups(remote)
     wanted = [s for s in SAMPLES if s[0] in groups]
     adds: dict[str, list[str]] = {}
     blocked: list[str] = []
