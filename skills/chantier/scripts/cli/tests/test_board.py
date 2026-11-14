@@ -61,5 +61,14 @@ def test_the_web_framework_loads_only_when_the_board_serves() -> None:
 
 def test_the_frame_is_shipped_with_the_package() -> None:
     web = BOARD / "web"
-    for name in ("index.html", "js/main.js", "css/tokens.css", "js/i18n/en.js", "js/i18n/fr.js"):
+    for name in (
+        "index.html",
+        "js/main.js",
+        "js/core/store.js",
+        "js/views/registry.js",
+        "css/tokens.css",
+        "css/shell.css",
+        "js/i18n/en.js",
+        "js/i18n/fr.js",
+    ):
         assert (web / name).is_file(), name

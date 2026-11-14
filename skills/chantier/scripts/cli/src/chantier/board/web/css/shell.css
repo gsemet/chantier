@@ -1,68 +1,10 @@
-/* The frame: the base, the sidebar, the header, the view area, the phone's bottom bar. */
-* {
-  box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll) transparent;
-}
-
-::selection {
-  background: var(--selection);
-  color: var(--ink);
-}
-
-:focus-visible {
-  outline: 2px solid var(--link);
-  outline-offset: 2px;
-  border-radius: var(--radius-s);
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--scroll);
-  border-radius: 10px;
-  border: 3px solid var(--panel);
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-a {
-  text-underline-offset: 3px;
-}
-
-html,
-body {
-  margin: 0;
-  height: 100%;
-  background: var(--panel);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--text);
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-}
-
-[hidden] {
-  display: none;
-}
-
+/* The shell: the sidebar, the project menu, the header, the view area, the phone's bottom bar. */
 .app {
   display: grid;
   grid-template-columns: var(--side-width) 1fr;
   height: 100vh;
 }
 
-/* the sidebar: a column with its rule, no card */
 .side {
   background: var(--side);
   border-right: 1px solid var(--line);
@@ -70,6 +12,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.project {
+  position: relative;
 }
 
 .ws {
@@ -89,7 +35,8 @@ button.ws:hover {
   border-color: var(--scroll);
 }
 
-.ws small {
+.ws small,
+.menu small {
   display: block;
   color: var(--ink3);
   font-size: var(--text-small);
@@ -98,6 +45,57 @@ button.ws:hover {
 .ws .car {
   margin-left: auto;
   color: var(--ink3);
+}
+
+.mark.all {
+  background: var(--ink);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 8;
+  width: max(100%, 280px);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-menu);
+}
+
+.menu .cap {
+  padding: 6px 8px;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.menu .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.menu .row:hover {
+  background: var(--hover);
+}
+
+.menu .row.on {
+  background: var(--hover-soft);
+}
+
+.menu .mark {
+  width: 28px;
+  height: 28px;
 }
 
 .sec {
@@ -152,6 +150,9 @@ button.ws:hover {
 }
 
 .lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   background: var(--panel);
@@ -161,7 +162,6 @@ button.ws:hover {
   margin-top: var(--space-1);
 }
 
-/* the main column: the header and the view */
 .main {
   background: var(--panel);
   padding: var(--space-5) 28px;
@@ -213,7 +213,7 @@ button.ws:hover {
 }
 
 /* the phone's project button and bottom bar exist on the phone only */
-.pbtn,
+.project.phone,
 .bnav {
   display: none;
 }
@@ -228,13 +228,16 @@ button.ws:hover {
   }
 
   .main {
-    border-radius: 0;
-    border: 0;
     padding: 14px var(--space-3) var(--bar-height);
   }
 
   .head h1 {
     font-size: var(--title-phone);
+  }
+
+  .project.phone {
+    display: block;
+    margin-bottom: var(--space-2);
   }
 
   .pbtn {
@@ -246,8 +249,16 @@ button.ws:hover {
     background: var(--panel);
     color: var(--ink);
     padding: 5px 9px;
-    margin-bottom: var(--space-2);
     font-size: 13px;
+  }
+
+  .pbtn .car {
+    margin-left: auto;
+    color: var(--ink3);
+  }
+
+  .pbtn small {
+    display: none;
   }
 
   .bnav {

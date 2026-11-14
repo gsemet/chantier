@@ -87,12 +87,17 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "stacked": c.stacked,
         "after": list(c.after),
         "merged_at": c.merged_at,
+        "updated": c.updated,
+        "branch": c.branch,
         "handed_back_at": handed_back_at(events, c.id),
         "files": count_files(folder) if folder else 0,
         "description": description(folder) if folder else "",
         "chain_place": place.index(c.id) + 1 if c.id in place else None,
         "base": base,
-        "to_review": c.status == "ready" and base["on"] == default,
+        # a stack's PRs stay drafts until the forge verifies the stack: the record has no such fact
+        "to_review": c.status == "ready"
+        and base["on"] == default
+        and not (d.mode == "stack" and c.kind != "fix"),
     }
 
 
