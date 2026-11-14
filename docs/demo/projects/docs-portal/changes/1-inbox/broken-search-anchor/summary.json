@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "Search results link to the wrong anchor",
+  "sources": {
+    "intake/request.md": "5af8779e0ef3a28ae33a6f23150fb1fa2ca20e4e6807d020fa42df71845fba32"
+  },
+  "summary": "Make search results link to the heading that matched.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "bug"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-21",
+  "title": "Change Specification: Code blocks in dark mode",
+  "state": "merged",
+  "batch": "batch-01",
+  "pr": {
+    "url": "https://github.com/example/docs-portal/pull/4"
+  },
+  "cost_usd": 3.9
+}

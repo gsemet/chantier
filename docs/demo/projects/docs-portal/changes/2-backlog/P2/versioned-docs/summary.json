@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "title": "Versioned documentation",
+  "sources": {
+    "01-intent.md": "69d8db87bf5fa8cd1f11e5cbb21323788a9088a8bbae76e27de99c91a6d0cd48"
+  },
+  "summary": "A version switcher on every page.",
+  "origin": {
+    "kind": "github",
+    "ref": "#12",
+    "url": "https://github.com/example/docs-portal/issues/12"
+  },
+  "labels": [
+    "docs"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

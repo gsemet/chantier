@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "title": "Saved delivery addresses",
+  "sources": {
+    "01-intent.md": "b73170b7da9aad32ce1f40ce34f6b7d20f9dff8402382f4385db6cea94baddfe",
+    "02-answers.md": "bcdecef27bad255b41dce1062d64eeb323839c678f05f3bc48246e89ea969ccb",
+    "03-change-spec.md": "c2caa5fc2378f55d264e6f26314a516356ef75bcc586dcbe291eb425994091f1"
+  },
+  "summary": "Up to five saved delivery addresses, picked at checkout.",
+  "origin": {
+    "kind": "github",
+    "ref": "#44",
+    "url": "https://github.com/example/shop-api/issues/44"
+  },
+  "labels": [
+    "checkout"
+  ],
+  "group": "checkout-polish",
+  "summarized": "2026-06-17T16:05:00Z"
+}

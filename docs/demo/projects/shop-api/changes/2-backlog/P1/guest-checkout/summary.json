@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "title": "Guest checkout without an account",
+  "sources": {
+    "01-intent.md": "ed7e6a0bdc554d10150ffa98325f5a55783aa784d4c68d1f51f3a8bfc56503a7",
+    "02-answers.md": "59627fa589a35c16aff5c0762bef1c338e4d61b602b3dbd52d4dc34afb5003b6",
+    "intake/request.md": "4a8a7ddc6a6943b554162df4e55ab15e7bd4c5551a33aa931d7cd3b6b215bc87"
+  },
+  "summary": "Let a visitor pay with an email address only, then offer an account.",
+  "origin": {
+    "kind": "jira",
+    "ref": "SHOP-190",
+    "url": "https://example.atlassian.net/browse/SHOP-190"
+  },
+  "labels": [
+    "checkout"
+  ],
+  "group": "checkout-polish",
+  "summarized": "2026-06-17T16:05:00Z"
+}

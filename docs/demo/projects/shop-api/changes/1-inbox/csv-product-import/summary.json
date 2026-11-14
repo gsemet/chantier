@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "title": "Import products from a CSV file",
+  "sources": {
+    "intake/request.md": "af0bfc604ba1dc4cd7daa2437b0ea44f295304396f8133ddaa910a5216425d41"
+  },
+  "summary": "Bulk product import from a CSV file, with a dry run that lists the errors.",
+  "origin": {
+    "kind": "jira",
+    "ref": "SHOP-212",
+    "url": "https://example.atlassian.net/browse/SHOP-212"
+  },
+  "labels": [
+    "admin"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-139",
+  "title": "Change Specification: Invoices are downloadable as PDF files",
+  "state": "merged",
+  "batch": "batch-02",
+  "pr": {
+    "url": "https://github.com/example/shop-api/pull/10"
+  },
+  "cost_usd": 10.95
+}

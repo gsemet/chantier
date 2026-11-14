@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-34",
+  "title": "Change Specification: Buttons have accessible labels",
+  "state": "merged",
+  "batch": "batch-02",
+  "pr": {
+    "url": "https://github.com/example/shop-mobile/pull/9"
+  },
+  "cost_usd": 4.55
+}

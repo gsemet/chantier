@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "title": "Scan a barcode to find a product",
+  "sources": {
+    "01-intent.md": "14d1da44de47dbcd5702b087f40e5ba23266a96da10b0602669171b5a5d76ba1",
+    "02-answers.md": "22845351887029d13ca748e4db5f8cbaa75ae818de27e2e2474437effdd383f3"
+  },
+  "summary": "Scan EAN-13 and QR codes to open a product page.",
+  "origin": {
+    "kind": "jira",
+    "ref": "APP-64",
+    "url": "https://example.atlassian.net/browse/APP-64"
+  },
+  "labels": [
+    "search"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

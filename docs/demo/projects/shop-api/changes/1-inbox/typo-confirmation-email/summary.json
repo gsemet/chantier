@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "title": "Typo in the order confirmation email",
+  "sources": {
+    "intake/request.md": "06ad195394da3aeb17bda73684bd4f6e459e3be84ca23b25e84063b70a74c5f0"
+  },
+  "summary": "Fix the typo in the confirmation email's footer.",
+  "origin": {
+    "kind": "github",
+    "ref": "#61",
+    "url": "https://github.com/example/shop-api/issues/61"
+  },
+  "labels": [
+    "bug"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

@@ -1,0 +1,11 @@
+{
+  "schema": 3,
+  "cr": "CR-32",
+  "title": "Change Specification: Dark mode follows the system setting",
+  "state": "merged",
+  "batch": "batch-01",
+  "pr": {
+    "url": "https://github.com/example/shop-mobile/pull/7"
+  },
+  "cost_usd": 6.15
+}

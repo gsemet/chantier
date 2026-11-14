@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "Refresh the app icon",
+  "sources": {
+    "intake/request.md": "b830ada40420fb70beb8dc1f093267c482a2ab95d0d18829170d2aae273f0c3b"
+  },
+  "summary": "New icon set for iOS and Android.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "design"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

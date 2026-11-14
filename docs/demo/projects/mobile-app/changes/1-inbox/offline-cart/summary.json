@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "The cart works offline",
+  "sources": {
+    "intake/request.md": "71fbec392f45d41aa81799f50e00228ba624ed542b82bcc13c83b08bd986720b"
+  },
+  "summary": "Keep the cart readable and editable without a network.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "offline"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

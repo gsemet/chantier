@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "title": "Crash on launch on Android 9",
+  "sources": {
+    "01-intent.md": "48df5590478a4bbafc123e281d5616089e6d3eb07c9b64cc9b66d9e24bb1cb82",
+    "02-answers.md": "8c50494fc57615dc3f8ab93c824f2cbbdb464f760b861f317f32a3be8d0772b5"
+  },
+  "summary": "Fix the launch crash on Android 9.",
+  "origin": {
+    "kind": "github",
+    "ref": "#21",
+    "url": "https://github.com/example/shop-mobile/issues/21"
+  },
+  "labels": [
+    "bug"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

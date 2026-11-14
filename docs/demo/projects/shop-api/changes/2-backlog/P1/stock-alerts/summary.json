@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "title": "Alert the merchant when stock runs low",
+  "sources": {
+    "intake/request.md": "60b7143248137a4784347df0df5daf39236fcdc0699a38c5b1799d9d58f8190e"
+  },
+  "summary": "An email to the merchant when a product's stock falls under its threshold.",
+  "origin": {
+    "kind": "verbal"
+  },
+  "labels": [
+    "admin"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}

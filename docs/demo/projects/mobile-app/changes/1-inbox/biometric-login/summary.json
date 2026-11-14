@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "title": "Sign in with a fingerprint or a face",
+  "sources": {
+    "intake/request.md": "8ce0033180e4672a685b6fb5ab4c14ad033d3ce387b81ca0074eeaf353ba16eb"
+  },
+  "summary": "Biometric sign-in as an option, with the password as the fallback.",
+  "origin": {
+    "kind": "github",
+    "ref": "#17",
+    "url": "https://github.com/example/shop-mobile/issues/17"
+  },
+  "labels": [
+    "login"
+  ],
+  "summarized": "2026-06-17T16:05:00Z"
+}
