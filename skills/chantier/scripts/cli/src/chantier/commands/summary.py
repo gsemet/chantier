@@ -16,7 +16,6 @@ from chantier.core.records import (
     CrSummary,
 )
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import changes_lock, cr_folders, cr_stage, stage_layout
 from chantier.summaries import store
@@ -58,7 +57,7 @@ def _gap_line(repo: Repo, gap: Gap) -> str:
 
 def lint(args: argparse.Namespace) -> tuple[list[str], int] | list[str]:
     """The gaps, one line each with the command that closes it; nothing is written."""
-    repo = open_repo()
+    repo = Repo.find()
     paths = stage_layout(repo)
     folders = [_cr_folder(repo, paths, item) for item in args.folders] or cr_folders(paths)
     crs = [f for f in folders if covered_files(f)]
@@ -80,7 +79,7 @@ def _require_fields(current: CrSummary, title: str | None, text: str | None, sam
 def set_summary(args: argparse.Namespace) -> list[str]:
     """Store the title and summary an agent gives, refresh the origin from the `issue:` line, and
     record the covered files' checksums when the summary is set or confirmed."""
-    repo = open_repo()
+    repo = Repo.find()
     folder = _cr_folder(repo, stage_layout(repo), args.folder)
     title = None if args.title is None else one_line(args.title, "title", TITLE_MAX)
     text = None if args.summary is None else one_line(args.summary, "summary", SUMMARY_MAX)
@@ -103,7 +102,7 @@ def set_summary(args: argparse.Namespace) -> list[str]:
 
 
 def _folders(items: list[str]) -> tuple[Repo, list[Path]]:
-    repo = open_repo()
+    repo = Repo.find()
     paths = stage_layout(repo)
     return repo, [_cr_folder(repo, paths, item) for item in items]
 

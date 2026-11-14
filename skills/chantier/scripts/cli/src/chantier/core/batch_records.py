@@ -75,7 +75,6 @@ def blank_record(number: int) -> Rec:
         "cost_unpriced": {},
         "crs": [],
         "report": None,
-        "backfill": None,
     }
 
 

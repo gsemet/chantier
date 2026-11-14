@@ -17,7 +17,6 @@ from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import default_branch, git
 from chantier.core.repo import Repo, SurfaceChoice
-from chantier.lifecycle.convert import open_repo
 from chantier.playbook.config import FILE
 from chantier.plugin_files import (
     INSTRUCTIONS,
@@ -72,7 +71,7 @@ def _check_host(r: _Report, host: str | None, direct: bool) -> None:
 
 def _open_project(r: _Report) -> Repo | None:
     try:
-        return open_repo(Path(os.getcwd()))
+        return Repo.find(Path(os.getcwd()))
     except SurfaceChoice as e:  # a surface: the projects are listed, a command names one
         r.lines.append(
             f"P6 ok   a planning surface with projects {', '.join(e.names)}: pass --project <name>"

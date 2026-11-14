@@ -15,7 +15,6 @@ from chantier.commands.crs import (
 )
 from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines
 from chantier.plugin_files import archive_path, cli_command, project_instructions, skill_dir
@@ -138,7 +137,7 @@ def _gate_log(folder: Path) -> list[str]:
 
 def handoff(args: argparse.Namespace) -> list[str]:
     """The CR's facts, for any agent; changes nothing."""
-    repo = open_repo()
+    repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
     return cr_facts(repo, batch, d, c)
 

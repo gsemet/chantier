@@ -23,7 +23,6 @@ from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, done_cr, start_cr
 from chantier.rails import (
@@ -53,7 +52,7 @@ def take(args: argparse.Namespace) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
     it, and the CR's facts are printed for the prompt. The Foreman chooses the agent."""
-    repo = open_repo()
+    repo = Repo.find()
     if args.cr == "stack":
         batch = resolve_batch(repo, args.batch)
     else:
@@ -101,7 +100,7 @@ def round_(args: argparse.Namespace) -> list[str]:
     budget first (its own message), the round count unchanged and nothing logged. A round on
     which nothing happened since the last one is refused too (exit 2). Prints the Driver's
     context size. The round event keeps the worktree's head and a fingerprint of its content."""
-    repo = open_repo()
+    repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch)
     with changes_lock(repo), RenderedBatch(repo, batch, actor="driver") as b:
         c = b.cr(args.cr)
@@ -142,7 +141,7 @@ def context_line(repo: Repo, d: BatchRecord, agent: str | None) -> str:
 def handback(args: argparse.Namespace) -> list[str]:
     """A Driver's end, in the state first: `ready <link>` or `blocked <reason>`. Prints the line
     to send the Foreman, and what the state did with it."""
-    repo = open_repo()
+    repo = Repo.find()
     note = " ".join(args.note).strip()
     no_gate = handback_args(args, note)
     with (
@@ -201,7 +200,7 @@ def _ready_lines(repo: Repo, d: BatchRecord, c: CrEntry, prepared: bool, tail: s
 def note(args: argparse.Namespace) -> list[str]:
     """A Driver's or worker's line in the CR's state: what was done or found, shown in its
     STATUS.md. `--draft <path>` names a file the user reviews and edits in place."""
-    repo = open_repo()
+    repo = Repo.find()
     text = " ".join(args.text).strip()
     if not text and not args.draft:
         raise ChantierError("note <cr> <text> | note <cr> --draft <path>", EXIT_USAGE)
@@ -226,7 +225,7 @@ def note(args: argparse.Namespace) -> list[str]:
 
 def log(args: argparse.Namespace) -> list[str]:
     """The CR's events, readable: what happened and when."""
-    repo = open_repo()
+    repo = Repo.find()
     batch, _, c = batch_cr(repo, args.cr, args.batch)
     lines = []
     for e in cr_events(repo, batch, c.id):

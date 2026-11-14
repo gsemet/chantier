@@ -19,7 +19,6 @@ from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import BatchRecord, CrEntry, round_limit
 from chantier.core.repo import Repo
 from chantier.history import last_closed_text
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import held, not_priced, spent_text, usd_text, waits_all
@@ -181,7 +180,7 @@ def _autosync_lines(repo: Repo) -> list[str]:
 
 
 def status(args: argparse.Namespace) -> tuple[list[str], int]:
-    repo = open_repo()
+    repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     extra, code, prev = [], 0, None
     if args.stop_heartbeat:
@@ -202,7 +201,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
 def asks(args: argparse.Namespace) -> list[str]:
     """The Chief of Staff reads what the Foreman had to tell it, sent or not, and marks what it
     heard. With `text`, the Foreman records an ask of its own and gets the line to send."""
-    repo = open_repo()
+    repo = Repo.find()
     text = " ".join(args.text)
     with RenderedBatch(
         repo, resolve_batch(repo, args.batch), actor="foreman" if text else "chief-of-staff"
@@ -226,7 +225,7 @@ def asks(args: argparse.Namespace) -> list[str]:
 def agents(args: argparse.Namespace) -> list[str]:
     """The agent id a CR's Driver or the stack driver runs under: the Foreman records it after
     each start, so a restart and the cost know who ran what."""
-    repo = open_repo()
+    repo = Repo.find()
     batch = (
         find_cr_batch(repo, args.cr, args.batch)
         if args.cr != "stack" and not args.cr.startswith("O-")

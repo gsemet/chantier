@@ -18,7 +18,6 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_batch
 from chantier.core.records import LIVE, BatchRecord, read_batch_json
 from chantier.core.repo import Repo
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, stage_layout
 from chantier.rails import check_idle
@@ -29,7 +28,7 @@ def pause(args: argparse.Namespace) -> list[str]:
     """The batch's end of work: it is paused, and the cost to date is computed and printed;
     `close` prices the final one. A paused batch is not paused again: `order add` adds work,
     the first `take` sets it running, then `pause` runs again."""
-    repo = open_repo()
+    repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     with RenderedBatch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
@@ -154,7 +153,7 @@ def close(args: argparse.Namespace) -> tuple[list[str], int]:
     with or without `--yes`, when nothing can be priced (no Foreman transcript recorded, no priced
     call in the whole batch). Calls of a model with no price do not refuse it: the final cost is a
     floor, printed with the calls not priced."""
-    repo = open_repo()
+    repo = Repo.find()
     with changes_lock(repo):
         batch, folder, d = _close_target(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
         check_idle(repo, d)

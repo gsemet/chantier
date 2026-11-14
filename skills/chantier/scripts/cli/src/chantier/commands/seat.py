@@ -13,14 +13,13 @@ from chantier.core.files import write_json
 from chantier.core.records import ClaimRecord, SeatRecord, chief_sessions
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.lifecycle.convert import open_repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.plugin_files import detect_host
 
 
 def foreman(args: argparse.Namespace) -> list[str]:
-    repo = open_repo()
+    repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     if args.action == "get":
         d = read_batch(repo, batch)
@@ -143,7 +142,7 @@ def _take(repo: Repo, path: Path, args: argparse.Namespace) -> list[str]:
 def seat(args: argparse.Namespace) -> list[str]:
     """The repository's Chief of Staff session: it records a session and refuses a silent
     take-over; who may take it is the cards' to say."""
-    repo = open_repo()
+    repo = Repo.find()
     path = repo.changes / "seat.json"
     if args.action == "get":
         return _get(repo)

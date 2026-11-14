@@ -179,8 +179,8 @@ class World:
         return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
 
     def at(self, path):
-        """A recorded CR path in the planning folder; the older `.agents/changes/` form reads too."""
-        return self.state / str(path).removeprefix(".agents/changes/")
+        """A recorded CR path in the planning folder."""
+        return self.state / str(path)
 
 
 def open_pr(w: World, cr_id: str, title: str, base: str = "main") -> str:
@@ -1020,11 +1020,8 @@ def scenario(w: World) -> None:
     release_last(w)
     release_on_stack(w)
     qa_on_head(w)
-    old_words(w)
     changes_tree(w)
-    old_tree(w)
     next_number(w)
-    backfill_cases(w)
     dependencies(w)
     release_merge_on_approval(w)
     lost_messages(w)
@@ -2508,7 +2505,7 @@ def close_batch(w: World) -> None:
           rec["schema"] == 1 and rec["state"] == "closed" and rec["closed"]
           and rec["opened"] == opened and rec["mode"] == mode and rec["steering"] == steering
           and rec["host"] and total and abs(rec["cost_usd"] - total[0]) < 0.0051
-          and rec["report"] == f"{w.name}.md" and rec["backfill"] is None, f"{rec} {total}")
+          and rec["report"] == f"{w.name}.md" and "backfill" not in rec, f"{rec} {total}")
     check("its CRs carry the result, an archive that exists, the PR, the rounds and the cost",
           sorted(c["cr"] for c in rec["crs"]) == crs_before
           and {c["result"] for c in rec["crs"]} == {"merged", "dropped"}
@@ -2567,7 +2564,7 @@ def opened_record(w: World) -> None:
           and rec["mode"] == d["mode"] and rec["steering"] == d["steering"]
           and rec["host"] == d["host"] and rec["budget_usd"] == d["budget_usd"]
           and rec["crs"] == [] and rec["closed"] is None and rec["cost_usd"] is None
-          and rec["report"] is None and rec["backfill"] is None, str(rec))
+          and rec["report"] is None and "backfill" not in rec, str(rec))
     ignored = (w.state / ".gitignore").read_text(encoding="utf-8").splitlines()
     check("`open` still writes `.batch-number`, and the record is published, not ignored",
           (w.state / ".batch-number").read_text().strip() == str(rec.get("number"))
@@ -2668,70 +2665,6 @@ def next_number(w: World) -> None:
               w.name == "batch-04"
               and (w.state / "5-archives" / "batches" / "batch-04.json").is_file()
               and (w.state / ".batch-number").read_text().strip() == "4", w.name)
-    finally:
-        shutil.rmtree(w.state, ignore_errors=True)
-        shutil.move(str(keep), str(w.state))
-        subprocess.run(["git", "worktree", "prune"], cwd=w.work, capture_output=True)
-
-
-def plant_archive(stage: Path, name: str, status: dict) -> Path:
-    folder = stage / name
-    folder.mkdir(parents=True)
-    (folder / "STATUS.json").write_text(json.dumps(status), encoding="utf-8")
-    return folder
-
-
-def backfill_cases(w: World) -> None:
-    note("\n## 14g. The records of the earlier batches are written once, from the archives")
-    keep = w.root / "changes-keep-backfill"
-    shutil.move(str(w.state), str(keep))
-    try:
-        w.chantier("init")
-        merged = {"state": "merged", "pr": {"url": "https://example.test/pull/1"}, "round": 2,
-                  "cost_usd": 1.5, "cost_unpriced": {}}
-        plant_archive(w.state / "5-archives", "261101-1000-101-first",
-                      {**merged, "cr": "CR-101", "title": "First", "batch": "01-eval-real",
-                       "steps": [{"at": "2026-11-01T09:00:00Z"}]})
-        third = plant_archive(w.state / "5-archives", "261103-1000-110-third",
-                              {**merged, "cr": "CR-110", "title": "Third", "batch": "batch-03"})
-        (third / "retro.md").write_text("# Retro of 3\n", encoding="utf-8")
-        plant_archive(w.state / "6-trash", "261103-1100-111-dropped",
-                      {"cr": "CR-111", "title": "Dropped", "batch": "batch-03",
-                       "state": "cancelled", "round": 0})
-        (w.state / ".batch-number").write_text("4\n")
-        records = w.state / "5-archives" / "batches"
-        code, _ = w.chantier("status", expect=2)
-        first_stderr = w.last_stderr
-        read = {n: json.loads((records / f"batch-0{n}.json").read_text(encoding="utf-8"))
-                for n in (1, 2, 3, 4) if (records / f"batch-0{n}.json").is_file()}
-        check("the first command writes batch-01 to batch-04, the unknown ones named as such",
-              sorted(read) == [1, 2, 3, 4] and read[2]["state"] == "unknown"
-              and read[4]["state"] == "unknown" and read[1]["state"] == "closed"
-              and read[3]["state"] == "closed" and not (records / "batch-05.json").exists(),
-              str(sorted(read)))
-        check("batch-01 keeps its former id; batch-03 lists one merged and one dropped CR",
-              read[1]["backfill"]["former_id"] == "01-eval-real"
-              and read[1]["backfill"]["first_step"] == "2026-11-01T09:00:00Z"
-              and read[3]["backfill"]["former_id"] is None
-              and sorted(c["result"] for c in read[3]["crs"]) == ["dropped", "merged"]
-              and read[3]["opened"] is None and read[3]["cost_usd"] is None
-              and read[3]["report"] == "batch-03.md" and read[2]["report"] is None,
-              str(read[3]))
-        retro = "5-archives/261103-1000-110-third/retro.md"
-        text = (records / "batch-03.md").read_text(encoding="utf-8")
-        check("batch-03's retro is listed, linked from its Markdown, and still in place",
-              read[3]["backfill"]["retros"] == [retro] and retro in text
-              and (w.state / retro).is_file()
-              and "No trace of this batch" in (records / "batch-02.md").read_text(encoding="utf-8")
-              and not (records / "batch-04.md").read_text(encoding="utf-8").count("Completion"),
-              text)
-        check("the stderr line says it once",
-              first_stderr.count("backfilled 5-archives/batches: batch-01 to batch-04") == 1
-              and "(2 with no trace)" in first_stderr, first_stderr)
-        snap = tree_bytes(records)
-        w.chantier("status", expect=2)
-        check("a second command writes nothing and says nothing",
-              tree_bytes(records) == snap and "backfilled" not in w.last_stderr, w.last_stderr)
     finally:
         shutil.rmtree(w.state, ignore_errors=True)
         shutil.move(str(keep), str(w.state))
@@ -5373,21 +5306,6 @@ def release_on_stack(w: World) -> None:
           "field is written", code == 0 and "the user's word" in out[0] and "yes, run it" in out[0]
           and "confirmed" not in w.cr(r) and w.cr(r)["procedure"] == "yes, run it", str(out))
 
-    # 15. a batch opened by the older CLI
-    w.reset()
-    _, old = prepare_cr(w, "Release v1.0.1")
-    w.start(str(old), "--release", 1, *FROM_AGENTS_MD)
-    w.env["CHANTIER_BATCH"] = w.name
-    w.chantier("foreman", "set", "local_foreman11", "--epoch", 1)
-    only = w.batch()["crs"][0]["id"]
-    state = w.folder() / "batch.json"
-    data = w.batch()
-    data["crs"][0]["confirmed"] = "v1.0.1"
-    data["crs"][0]["notes"] = ["merged: https://forge.example/pull/1"]
-    state.write_text(json.dumps(data))
-    code, out = w.chantier("release", "go", only, "--note", "tag v1.0.1", expect=2)
-    check("15. a record with the older CLI's `confirmed` and `merged:` note gives no go: `ask`",
-          code == 2 and out[0].startswith("no approval"), str(out))
     w.reset()
 
     # 13. a series
@@ -5470,60 +5388,6 @@ def qa_on_head(w: World) -> None:
     check("its findings stay in the inbox, an ordinary item",
           (folder / "04-result.md").is_file())
     w.chantier("abandon", folder)
-
-
-def old_words(w: World) -> None:
-    note("\n## 14d. A batch written with the old words: `open` and `landed`")
-    _, item = prepare_cr(w, "Old words")
-    w.reset()
-    w.start(str(item), *FROM_AGENTS_MD)
-    w.env["CHANTIER_BATCH"] = w.name
-    w.chantier("foreman", "set", "local_foreman_old", "--epoch", 1)
-    fm = Foreman(w, epoch=1)
-    cr = w.batch()["crs"][0]["id"]
-    state = w.folder() / "batch.json"
-
-    def written(status: str, **more) -> None:
-        d = w.batch()
-        d["status"] = status
-        d.update(more)
-        state.write_text(json.dumps(d))
-
-    # a batch recorded `open`: running for `status`, taken by `take`, stored as running
-    written("open")
-    _, out = w.chantier("status")
-    check("a batch written with status open is reported running by `status`",
-          out[0].split()[1] == "running", str(out))
-    check("`take` takes a CR of a batch recorded open, and stores it as running",
-          fm.take(cr) == 0 and w.batch()["status"] == "running"
-          and '"open"' not in state.read_text(), w.last_stderr)
-    w.chantier("cancel", cr, "--epoch", 1)
-    priced_foreman(w)
-    written("open")
-    w.chantier("pause", "--epoch", 1)
-    d = w.batch()
-    check("`pause` pauses a batch recorded open as a running batch, and stores no open",
-          d["status"] == "paused" and d.get("paused") and '"open"' not in state.read_text(),
-          str(d.get("status")))
-
-    # a batch recorded `landed` with a `landed` time: paused for `status` and for `close`
-    d = w.batch()
-    paused = d.pop("paused")
-    state.write_text(json.dumps({**d, "status": "landed", "landed": paused}))
-    _, out = w.chantier("status")
-    check("a batch written with status landed is reported paused by `status`",
-          out[0].split()[1] == "paused" and "paused, cost to date" in out[0], str(out))
-    age_sessions(w)
-    code, out = w.chantier("close", "--batch", w.name, expect=None)
-    check("`close` treats a batch recorded landed as paused: it names what would go, deletes nothing",
-          code == 0 and "not paused" not in w.last_stderr and (w.folder() / "batch.json").is_file(), w.last_stderr)
-    w.chantier("status", "--refresh")
-    text = state.read_text()
-    d = w.batch()
-    check("the next write through the CLI stores the new words: no `landed` key, no landed status",
-          d["status"] == "paused" and d.get("paused") and "landed" not in d
-          and '"landed"' not in text and '"open"' not in text, text[:300])
-    w.chantier("close", "--batch", w.name, "--yes")
 
 
 def changes_tree(w: World) -> None:
@@ -5624,94 +5488,6 @@ def changes_tree(w: World) -> None:
           ["1-pending", "2-actives", "3-done"], str(archived))
     w.env.pop("CHANTIER_BATCH", None)
 
-
-def old_tree(w: World) -> None:
-    note("\n## 14f. A tree written in the older layout is converted in place, once")
-    keep = w.root / "changes-keep"
-    shutil.move(str(w.state), str(keep))
-    try:
-        w.chantier("init")
-        (w.state / ".batch-number").write_text("80\n")  # no branch of the other batches is reused
-        items = [prepare_cr(w, title)[1] for title in ("Old queued", "Old ready", "Old working")]
-        w.start(*items, "--slots", 2, *FROM_AGENTS_MD)
-        w.env["CHANTIER_BATCH"] = w.name
-        w.chantier("foreman", "set", "local_foreman_old_tree", "--epoch", 1)
-        fm = Foreman(w, epoch=1)
-        queued, ready, working = (c["id"] for c in w.batch()["crs"])
-        fm.take(ready)
-        driver_round(w, ready, "old_tree.py", "N = 1\n")
-        w.ready(ready, w.cr(ready)["pr"])
-        fm.take(working)
-        # write the older layout by hand: every CR in the batch folder, 4-archives, 5-trash
-        d = w.batch()
-        old = w.state / "3-requests" / w.name
-        old.mkdir(parents=True)
-        new = w.state / "4-batch"
-        for p in list(new.iterdir()):
-            if p.name not in ("1-pending", "2-actives", "3-done"):
-                shutil.move(str(p), str(old / p.name))
-        for stage in ("1-pending", "2-actives", "3-done"):
-            for p in list((new / stage).iterdir()):
-                shutil.move(str(p), str(old / p.name))
-        shutil.rmtree(new)
-        for name in ("5-archives", "6-trash"):
-            shutil.rmtree(w.state / name)
-        for stage, who in (("4-archives", "190-old-merged"), ("5-trash", "191-old-dropped")):
-            (w.state / stage / f"260101-0000-{who}").mkdir(parents=True)
-            (w.state / stage / f"260101-0000-{who}" / "01-intent.md").write_text(f"# {who}\n")
-        for name in ("STATUS.md", "STATUS.json"):
-            (w.state / name).unlink()
-            (w.state / "3-requests" / name).write_text("older index\n")
-        for c in d["crs"]:
-            c["path"] = f".agents/changes/3-requests/{w.name}/{Path(c['path']).name}"
-        for n, (status, stage) in enumerate((("merged", "4-archives"), ("cancelled", "5-trash")), 190):
-            d["crs"].append({**d["crs"][0], "id": f"CR-{n}", "status": status, "order": 90 + n,
-                             "path": f".agents/changes/{stage}/260101-0000-{n}-old-"
-                                     f"{'merged' if n == 190 else 'dropped'}"})
-        (old / "batch.json").write_text(json.dumps(d), encoding="utf-8")
-        before = (old / "batch.json").read_bytes()
-        # a tree with both 4-archives and a non-empty 5-archives is refused, nothing moved
-        (w.state / "5-archives" / "x").mkdir(parents=True)
-        (w.state / "5-archives" / "x" / "f.txt").write_text("kept")
-        code, _ = w.chantier("status", expect=2)
-        check("an older tree whose target holds files exits 2, naming both folders, nothing moved",
-              code == 2 and "4-archives" in w.last_stderr and "5-archives" in w.last_stderr
-              and (old / "batch.json").read_bytes() == before
-              and (w.state / "4-archives/260101-0000-190-old-merged").is_dir()
-              and (w.state / "5-archives/x/f.txt").is_file(), w.last_stderr)
-        shutil.rmtree(w.state / "5-archives")
-        code, out = w.chantier("status")
-        converted = w.last_stderr
-        d = w.batch()
-        paths = {c["id"]: c["path"] for c in d["crs"]}
-        check("the next command converts the tree, says so once, and every recorded path exists",
-              converted.startswith("converted .agents/changes to the new tree")
-              and all(w.at(p).is_dir() for p in paths.values()), converted)
-        check("queued goes to 1-pending, ready to 2-actives, working stays; archives and trash "
-              "are renamed",
-              "4-batch/1-pending/" in paths[queued] and "4-batch/2-actives/" in paths[ready]
-              and paths[working] == f".agents/changes/3-requests/{w.name}/{Path(paths[working]).name}"
-              and "5-archives/" in paths["CR-190"] and "6-trash/" in paths["CR-191"]
-              and not (w.state / "4-archives").exists() and not (w.state / "5-trash").exists()
-              and (w.state / "STATUS.json").is_file(), str(paths))
-        w.chantier("status")
-        check("a second command converts nothing", "converted" not in w.last_stderr, w.last_stderr)
-        driver_round(w, working, "old_tree2.py", "N = 2\n")
-        w.ready(working, w.cr(working)["pr"])
-        w.chantier("order", "merged", working)
-        check("the working CR moves to 3-done on `order merged`, and 3-requests/ is gone",
-              "4-batch/3-done/" in w.cr(working)["path"]
-              and not (w.state / "3-requests").exists(), w.cr(working)["path"])
-        index = json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))
-        check("the index at .agents/changes/STATUS.json has schema 3 and paths that resolve",
-              index["schema"] == 3 and all((w.state / r["folder"]).is_dir()
-                                           for b in index["batches"] for r in b["crs"])
-              and all((w.state / e["path"]).is_dir() for e in index["merged"]), str(index)[:300])
-    finally:
-        w.env.pop("CHANTIER_BATCH", None)
-        shutil.rmtree(w.state, ignore_errors=True)
-        shutil.move(str(keep), str(w.state))
-        subprocess.run(["git", "worktree", "prune"], cwd=w.work, capture_output=True)
 
 def depends_on(item: Path, *slugs: str, raw: str | None = None) -> None:
     """The Chief of Staff's `depends.json`, in the CR's folder."""
