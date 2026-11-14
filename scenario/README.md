@@ -109,6 +109,12 @@ frame, not the judgement: the checks are on what the CLI refuses, records and re
   events.jsonl, STATUS files, locks, seat.json, gate logs), the clone stays clean; ship says
   the archive is missing from the PR until it is there; order merged writes delivery.md;
   ules lists the project's instructions then the surface's; close archives the CR;
+- a surface that names an autosync (`scenario/fake_autosync.py` stands for the surface's script): no
+  P13 or status line without the mention, script missing, no group yet, then active (with and
+  without a live participant, a dead participant's file kept), stopped, blocked and approval, each
+  with its exact two lines; the board's join argv and the group naming the board; `GET /api/autosync`,
+  `start` refused while blocked, `stop` refused while stopped, a stale incident refused, an approval
+  that runs `approve` then `start`; an in-project board has no autosync;
 - prepared-CR filing, lifecycle moves, collisions and rollback;
 - a release: added to a running batch (`order add --release`) it waits for each other CR, a
   later one too, with no confirmation of the version; in a stack or a series it starts on the top

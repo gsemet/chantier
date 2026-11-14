@@ -31,8 +31,9 @@
   through the CLI's role-free commands; it never edits a batch and never messages an agent; it
   takes its dependencies like the rest of the CLI and knows no role.
 - The board's server is also the CLI's one git exception: while it runs it joins the planning
-  surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
-  The rest of the CLI keeps no git write.
+  surface's own autosync group, which commits and pushes its writes; it commits nothing itself,
+  and runs the autosync's start, stop and approve on the user's click. The rest of the CLI keeps
+  no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a

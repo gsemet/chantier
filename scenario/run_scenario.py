@@ -1371,6 +1371,10 @@ def remote_board(w: World) -> None:
         check("`GET /api/board`: one project, `surface: false`, the seat counted",
               code == 200 and api.get("board") is True and api["surface"] is False
               and len(api["projects"]) == 1 and api["seats"] == 1 and api["served"] == link.over, str(api))
+        check("E2: a board of an in-project folder has no autosync (present: false) and starts no join",
+              api.get("autosync") == {"present": False}
+              and jget(port, link, "/api/autosync")[2].get("present") is False
+              and not (w.work / "scripts" / "ai-autosync-git.argv").exists(), str(api.get("autosync")))
         settled_live(port, link, project)
         base = f"/api/projects/{project}"
         code, head, data = jget(port, link, f"{base}/state")
@@ -6329,6 +6333,168 @@ def surface_publishes(w: SurfaceWorld, label: str) -> None:
           any(f.endswith("03-change-spec.md") for f in files), str(files))
 
 
+AUTOSYNC_GUIDE = ".agents/guidelines/autosync.guidelines.md"
+INCIDENT_ID = "staged-" + "0123456789abcdef0123"
+STOPPED = {"enabled": False, "reason": "stopped by user"}
+BLOCKED = {"enabled": False, "reason": "blocked: upstream moved"}
+APPROVAL = {"state": "approval_required", "incident": INCIDENT_ID, "message": "3 files staged"}
+
+
+def surface_autosync(w: SurfaceWorld) -> None:
+    """E2: a surface that names an autosync. The fake tool (scenario/fake_autosync.py) stands for
+    scripts/ai-autosync-git.py; the state files are written where the real tool keeps them."""
+    rules = w.surface / "AGENTS.md"
+    original = rules.read_bytes()
+    script = w.surface / "scripts" / "ai-autosync-git.py"
+    log = script.with_suffix(".argv")
+    state = w.surface / ".git" / "ai-autosync"
+
+    def put(name: str, data: dict) -> None:
+        path = state / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data), encoding="utf-8")
+
+    def lines() -> tuple[str, str]:
+        _, pre = w.chantier("preflight", expect=None)
+        _, st = w.chantier("status", expect=None)
+        return (next((ln for ln in pre if "P13" in ln), ""),
+                next((ln for ln in st if "autosync" in ln), ""))
+
+    def runs() -> list[list[str]]:
+        if not log.is_file():
+            return []
+        return [json.loads(ln) for ln in log.read_text(encoding="utf-8").splitlines() if ln]
+
+    def post(link: Link, path: str, body: dict | None = None) -> tuple[int, dict]:
+        code, _, raw = fetch(link.port, path, "POST",
+                             {**link.cookie, "Content-Type": "application/json"},
+                             json.dumps(body or {}).encode("utf-8"))
+        return code, json.loads(raw.decode("utf-8") or "{}")
+
+    live = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+    done = subprocess.Popen([sys.executable, "-c", "pass"])
+    done.wait()
+    gone = done.pid
+    try:
+        pre, st = lines()
+        check("E2: a surface whose rules do not name the autosync has no P13 and no status line",
+              not pre and not st, f"{pre!r} {st!r}")
+        rules.write_text(rules.read_text(encoding="utf-8")
+                         + f"\nShare the planning with `{AUTOSYNC_GUIDE}`.\n", encoding="utf-8")
+        pre, st = lines()
+        check("E2: the rules name it but the script is missing: P13 warns, and no status line",
+              "scripts/ai-autosync-git.py is missing" in pre and not st, f"{pre!r} {st!r}")
+        script.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(Path(__file__).with_name("fake_autosync.py"), script)
+        pre, st = lines()
+        check("E2: the script is there and no group ran yet: `no group yet` in both lines",
+              "has no group yet" in pre and st == "autosync: no group yet", f"{pre!r} {st!r}")
+        put(f"participants/{live.pid}.json", {"pid": live.pid, "harness": "generic",
+                                              "session_id": "scen0001-abcd", "role": "leader"})
+        put(f"participants/{gone}.json", {"pid": gone, "harness": "generic"})
+        put("watcher.json", {"pid": live.pid})
+        put("status.json", {"state": "synced", "updated_at": 1_700_000_000})
+        pre, st = lines()
+        check("E2: active, one live participant (the dead one is not counted): both lines say so",
+              "is active: leader session scen0001, 1 participant" in pre
+              and st.startswith("autosync active, leader session scen0001, 1 participant, synced "),
+              f"{pre!r} {st!r}")
+        mine = state / "participants" / f"{live.pid}.json"
+        mine.rename(state / "keep.json")
+        pre, st = lines()
+        check("E2: active with no live participant: both lines ask to join",
+              "has no live participant" in pre and st == "autosync active, no live participant: join it",
+              f"{pre!r} {st!r}")
+        (state / "keep.json").rename(mine)
+        put("control.json", STOPPED)
+        pre, st = lines()
+        check("E2: stopped: both lines say to commit the surface by hand",
+              "autosync is stopped (stopped by user)" in pre
+              and st == "autosync stopped (stopped by user): commit the surface by hand",
+              f"{pre!r} {st!r}")
+        put("control.json", BLOCKED)
+        pre, st = lines()
+        check("E2: blocked: both lines give the reason and who restarts it",
+              "is blocked: upstream moved" in pre
+              and st == "autosync blocked: upstream moved: the Chief of Staff integrates, then "
+                        "start . --enable-only", f"{pre!r} {st!r}")
+        put("status.json", APPROVAL)
+        pre, st = lines()
+        check("E2: an approval: both lines name the incident",
+              f"approval of incident {INCIDENT_ID}: 3 files staged" in pre
+              and st == f"autosync waits for the user's approval: incident {INCIDENT_ID}: 3 files staged",
+              f"{pre!r} {st!r}")
+        check("E2: reading never deletes a participant file, a dead one included",
+              (state / "participants" / f"{gone}.json").is_file() and mine.is_file(),
+              str(list(state.rglob("*"))))
+        # the board at the surface joins on a fresh start, and acts on the user's click
+        shutil.rmtree(state)
+        bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+                       cwd=w.surface)
+        try:
+            link = Link(bp.line())
+            joined = bp.line()
+            check("E2: the board starts and says it joins the surface's autosync",
+                  link.ok and "joining the surface's autosync" in (joined or ""), str(joined))
+            end = time.monotonic() + 40
+            api: dict = {}
+            while time.monotonic() < end:
+                api = jget(link.port, link, "/api/autosync")[2]
+                if api.get("participants"):
+                    break
+                time.sleep(0.5)
+            join = next((r for r in runs() if r[:1] == ["join"]), [])
+            check("E2: the join ran as `join . --owner-pid N --harness generic --session-id "
+                  "chantier-board`, and the group names the board server",
+                  len(join) == 8 and join[:3] == ["join", ".", "--owner-pid"] and join[3].isdigit()
+                  and join[4:] == ["--harness", "generic", "--session-id", "chantier-board"]
+                  and [m["name"] for m in api.get("participants", [])] == ["board"]
+                  and api.get("state") == "active", f"{join} {api}")
+            board = jget(link.port, link, "/api/board")[2]
+            check("E2: the same object rides on `GET /api/board`",
+                  board.get("autosync", {}).get("state") == "active", str(board.get("autosync")))
+            before = len(runs())
+            put("control.json", STOPPED)
+            code, body = post(link, "/api/autosync/stop")
+            check("E2: stop is refused while the group is stopped",
+                  code == 409 and body.get("code") == "stopped" and len(runs()) == before, str(body))
+            code, body = post(link, "/api/autosync/start")
+            check("E2: start in the stopped state runs `start . --enable-only` and the group is active",
+                  code == 200 and runs()[-1] == ["start", ".", "--enable-only"]
+                  and body.get("autosync", {}).get("state") == "active", f"{code} {body}")
+            put("control.json", BLOCKED)
+            before = len(runs())
+            code, body = post(link, "/api/autosync/start")
+            check("E2: start is refused while blocked: the Chief of Staff restarts it",
+                  code == 409 and body.get("code") == "blocked" and len(runs()) == before, str(body))
+            put("control.json", {"enabled": True})
+            put("status.json", APPROVAL)
+            code, body = post(link, "/api/autosync/approve", {"incident": "secrets-" + "f" * 20})
+            check("E2: approving an incident that is not the one waiting is refused (stale)",
+                  code == 409 and body.get("code") == "stale" and len(runs()) == before, str(body))
+            code, body = post(link, "/api/autosync/approve", {"incident": INCIDENT_ID})
+            check("E2: approving the current incident runs `approve . <id>` then `start . --enable-only`",
+                  code == 200 and runs()[-2:] == [["approve", ".", INCIDENT_ID],
+                                                  ["start", ".", "--enable-only"]], f"{code} {body}")
+            code, _, _ = fetch(link.port, "/api/autosync/start", "POST", dict(link.cookie), b"{}")
+            check("E2: a POST without the JSON content type is refused", code in (400, 403, 415),
+                  str(code))
+        finally:
+            shutil.rmtree(state, ignore_errors=True)  # the join leaves once its file is gone
+            bp.stop()
+    finally:
+        live.kill()
+        live.wait()
+        shutil.rmtree(state, ignore_errors=True)
+        rules.write_bytes(original)
+        script.unlink(missing_ok=True)
+        log.unlink(missing_ok=True)
+        try:
+            script.parent.rmdir()
+        except OSError:
+            pass
+
+
 def external_surface(tmp: Path) -> None:
     note("\n## 20. A planning surface: the project's plans in a repository of their own")
     OPENED.clear()
@@ -6425,6 +6591,7 @@ def external_surface(tmp: Path) -> None:
           not [f for f in w.surface_files() if ".long-gate" in f], str(w.surface_files()))
     for p in slot_files:
         p.unlink()
+    surface_autosync(w)
     # the web board at a surface: every project of the surface, each confined to its own folder
     bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:

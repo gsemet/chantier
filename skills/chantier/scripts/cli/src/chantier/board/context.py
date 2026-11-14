@@ -23,6 +23,21 @@ class Request:
 
 
 @dataclass
+class LastPush:
+    """The last push time a running process saw: the tool records none, so a board that watches
+    remembers the latest `synced` time it read."""
+
+    _at: float | None = None
+    _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def see(self, seen: float | None) -> float | None:
+        with self._lock:
+            if seen is not None and (self._at is None or seen > self._at):
+                self._at = seen
+            return self._at
+
+
+@dataclass
 class Context:
     projects: Projects
     key: KeyFile
@@ -30,6 +45,7 @@ class Context:
     version: str
     stop: Callable[[], None]
     cache: StateCache = field(default_factory=StateCache)
+    last_push: LastPush = field(default_factory=LastPush)
     _lives: dict[str, Live] = field(default_factory=dict[str, Live])
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
