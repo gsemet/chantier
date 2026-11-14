@@ -43,7 +43,7 @@ Asked for, `open --mode stack`. The CRs run in parallel, each PR based on the de
 stack comes after: when every CR is ready, a stack driver orders the stack, rebases and pushes each
 PR on the one below it, and heavy CI runs once at the top. It then makes one native stack on the
 forge (GitHub: the `gh stack` extension, which chantier recommends, else a chantier command over the
-REST API), reads it back, and you merge it in one action from the top PR. A CR
+REST API), reads it back, and you merge it in one action from the top PR or one PR at a time from the bottom, as you choose. A CR
 stands on another before that only by a dependency or a chain the Foreman decided, which you can
 turn off while the CR is queued. After a partial merge you report, it restacks the rest on the default
 branch.
@@ -126,7 +126,7 @@ in the inbox: an ordinary item you triage, which holds no CR back. It takes a sl
 
 Say "release v1.4.0" along with the work, best in a stack batch. The release is a CR of the batch:
 it waits for every other CR, starts once they are all ready, and its PR is the top of the stack.
-You review the work and the release together, and merge the whole stack in one action from the top PR; the release PR is
+You review the work and the release together, and merge the stack in one action from the top PR or one PR at a time from the bottom; the release PR is
 last, and your merge starts your release procedure. In a parallel batch no branch holds all
 the work before the merges, so the release is prepared after them, and your merge of its PR is the
 go there too. The version is the one you settled when you filed the release; if you left it open,
