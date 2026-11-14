@@ -7,6 +7,8 @@ dependencies = [
     "pydantic==2.14.3",
     "ruamel.yaml==0.19.1",
     "psutil==7.2.2",
+    "starlette==1.10.0",
+    "uvicorn==0.54.0",
 ]
 
 [project.scripts]
@@ -53,7 +55,7 @@ max-statements = 50
 max-nested-blocks = 3
 
 [tool.ruff.lint.flake8-tidy-imports]
-banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil"]
+banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil", "starlette", "uvicorn"]
 
 [tool.mypy]
 strict = true

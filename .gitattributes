@@ -1,1 +1,2 @@
 evals/kit/dry-run/*.patch text eol=lf
+skills/chantier/scripts/cli/src/chantier/board/web/** text eol=lf

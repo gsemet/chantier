@@ -5,6 +5,8 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 ruff := "ruff@0.17.5"
 mypy := "mypy==1.20.0"
 run-cli := "uv run --locked python"
+node := "nodejs-wheel==24.19.0"
+biome := "@biomejs/biome@2.6.7"
 
 # List the recipes
 default:
@@ -43,12 +45,13 @@ mod:
 release-notes:
     uv run --script scripts/release_notes.py --check
 
-# The code standards: format, lint, types and the lock (tools pinned above, the types against the locked dependencies)
+# The code standards: format, lint, types, the lock and the web frame's Biome (tools pinned above, the types against the locked dependencies)
 lint:
     uvx {{ruff}} format --check skills
     uvx {{ruff}} check skills
     uv run --locked --group dev --with {{mypy}} --with types-psutil mypy
     uv lock --check
+    uvx --from {{node}} npx --yes {{biome}} check skills/chantier/scripts/cli/src/chantier/board/web
 
 # Everything a change must pass
 check: lint test release-notes

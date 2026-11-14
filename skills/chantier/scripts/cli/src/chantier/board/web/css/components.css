@@ -1,0 +1,257 @@
+/* The components the views build on: icons, marks, tags, buttons, cards, tables, the panel's shell. */
+.svgi {
+  width: 16px;
+  height: 16px;
+  stroke: currentcolor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -3px;
+  flex: none;
+}
+
+.car .svgi {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+.nav .ic .svgi {
+  width: 17px;
+  height: 17px;
+}
+
+.bnav .ic .svgi {
+  width: 21px;
+  height: 21px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-m);
+  background: var(--mark-0);
+  color: var(--white);
+  font-weight: 700;
+}
+
+.pbtn .mark {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-small);
+}
+
+.mut {
+  color: var(--ink3);
+}
+
+.dot {
+  display: inline-block;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.tag {
+  font-size: var(--text-small);
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag.badge {
+  font-size: var(--text-badge);
+}
+
+.tag.working {
+  background: var(--tag-working-fill);
+  color: var(--tag-working-ink);
+}
+
+.tag.blocked {
+  background: var(--tag-blocked-fill);
+  color: var(--tag-blocked-ink);
+}
+
+.tag.ready,
+.tag.merged {
+  background: var(--tag-ready-fill);
+  color: var(--tag-ready-ink);
+}
+
+.tag.waits {
+  background: var(--tag-waits-fill);
+  color: var(--tag-waits-ink);
+}
+
+.tag.queued {
+  background: var(--tag-queued-fill);
+  color: var(--tag-queued-ink);
+}
+
+.btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: var(--space-2);
+  padding: 7px var(--space-3);
+  color: var(--ink);
+}
+
+.btn.pri {
+  background: var(--ink);
+  color: var(--white);
+  border-color: var(--ink);
+}
+
+/* a card: an edge or a shadow, never both, never inside another card */
+.card {
+  background: var(--fill, var(--panel));
+  border: 1px solid var(--edge, var(--line));
+  border-radius: 10px;
+  padding: 11px var(--space-3);
+}
+
+.card.lifted {
+  border-color: transparent;
+  box-shadow: var(--shadow-menu);
+}
+
+.st-working {
+  --edge: var(--tint-working-edge);
+  --fill: var(--tint-working-fill);
+}
+
+.st-blocked {
+  --edge: var(--tint-blocked-edge);
+  --fill: var(--tint-blocked-fill);
+}
+
+.st-ready {
+  --edge: var(--tint-ready-edge);
+  --fill: var(--tint-ready-fill);
+}
+
+.st-merged {
+  --edge: var(--tint-merged-edge);
+  --fill: var(--tint-merged-fill);
+}
+
+.st-queued,
+.st-cancelled {
+  --edge: var(--tint-queued-edge);
+  --fill: var(--tint-queued-fill);
+}
+
+.st-waits {
+  --edge: var(--tint-waits-edge);
+  --fill: var(--tint-waits-fill);
+}
+
+.tbl {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  color: var(--ink3);
+  font-weight: 500;
+  padding: var(--space-2) 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+td {
+  padding: var(--space-2) 6px;
+  border-bottom: 1px solid var(--line2);
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+td.num,
+th.num {
+  text-align: right;
+}
+
+.empty {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 28px;
+  color: var(--ink2);
+  text-align: center;
+  margin-top: 20px;
+  line-height: 1.6;
+}
+
+/* the panel's shell: it slides in from the right (the views fill it) */
+.panel {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: min(var(--panel-width), calc(100% - 28px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-panel);
+  transform: translateX(calc(100% + 30px));
+  transition: transform 0.25s ease;
+}
+
+.panel.open {
+  transform: none;
+}
+
+@media (max-width: 760px) {
+  .panel {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+/* a project's mark takes one of the palette's colours */
+.mark[data-mark="0"] {
+  background: var(--mark-0);
+}
+
+.mark[data-mark="1"] {
+  background: var(--mark-1);
+}
+
+.mark[data-mark="2"] {
+  background: var(--mark-2);
+}
+
+.mark[data-mark="3"] {
+  background: var(--mark-3);
+}
+
+.mark[data-mark="4"] {
+  background: var(--mark-4);
+}
+
+.mark[data-mark="5"] {
+  background: var(--mark-5);
+}

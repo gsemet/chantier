@@ -1,0 +1,280 @@
+/* The frame: the base, the sidebar, the header, the view area, the phone's bottom bar. */
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll) transparent;
+}
+
+::selection {
+  background: var(--selection);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: var(--radius-s);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroll);
+  border-radius: 10px;
+  border: 3px solid var(--panel);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+a {
+  text-underline-offset: 3px;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+[hidden] {
+  display: none;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: var(--side-width) 1fr;
+  height: 100vh;
+}
+
+/* the sidebar: a column with its rule, no card */
+.side {
+  background: var(--side);
+  border-right: 1px solid var(--line);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ws {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: left;
+}
+
+button.ws:hover {
+  border-color: var(--scroll);
+}
+
+.ws small {
+  display: block;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.ws .car {
+  margin-left: auto;
+  color: var(--ink3);
+}
+
+.sec {
+  margin: var(--space-4) 6px var(--space-1);
+  color: var(--ink2);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: var(--space-2) 9px;
+  border: 0;
+  border-radius: var(--space-2);
+  background: none;
+  color: var(--ink2);
+  text-align: left;
+}
+
+.nav:hover {
+  background: var(--hover);
+}
+
+.nav.on {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--ring-nav);
+}
+
+.nav .n {
+  margin-left: auto;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.nav .ic {
+  display: grid;
+  place-items: center;
+  width: 18px;
+}
+
+.side .foot {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+
+.lang {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--panel);
+  color: var(--ink2);
+  font-size: var(--text-small);
+  padding: 1px var(--space-2);
+  margin-top: var(--space-1);
+}
+
+/* the main column: the header and the view */
+.main {
+  background: var(--panel);
+  padding: var(--space-5) 28px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.head h1 {
+  margin: 0;
+  font-size: var(--title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.stats {
+  margin-top: 6px;
+  color: var(--ink2);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.stats b {
+  color: var(--ink);
+}
+
+.notice {
+  margin-top: var(--space-2);
+  color: var(--tag-blocked-ink);
+  background: var(--tint-blocked-fill);
+  border: 1px solid var(--tint-blocked-edge);
+  border-radius: var(--radius-m);
+  padding: 6px 10px;
+  font-size: var(--text-small);
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* the phone's project button and bottom bar exist on the phone only */
+.pbtn,
+.bnav {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    display: none;
+  }
+
+  .main {
+    border-radius: 0;
+    border: 0;
+    padding: 14px var(--space-3) var(--bar-height);
+  }
+
+  .head h1 {
+    font-size: var(--title-phone);
+  }
+
+  .pbtn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-m);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 5px 9px;
+    margin-bottom: var(--space-2);
+    font-size: 13px;
+  }
+
+  .bnav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    justify-content: space-around;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 6px 0 10px;
+  }
+
+  .bnav button {
+    border: 0;
+    background: none;
+    color: var(--ink3);
+    font-size: var(--text-small);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .bnav button.on {
+    color: var(--ink);
+  }
+}

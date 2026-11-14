@@ -1,0 +1,90 @@
+/* The design tokens: every colour, size and face the board uses. No other file holds a colour. */
+:root {
+  /* palette */
+  --bg: #eef0f3;
+  --panel: #fff;
+  --side: #f7f7f8;
+  --line: #e6e7ea;
+  --line2: #eeeff1;
+  --ink: #16181d;
+  --ink2: #454a58;
+  --ink3: #666b78;
+  --white: #fff;
+  --blue: #3b6fe0;
+  --green: #2fa86b;
+  --red: #d6455d;
+  --amber: #d98a1c;
+  --violet: #8b5cf6;
+  --grey: #9aa0ab;
+  --chip: #f3f4f6;
+  --hover: #eceef1;
+  --hover-soft: #f3f4f6;
+  --link: #2a62c9;
+  --selection: #d6e2fa;
+  --scroll: #cdd1d8;
+  --warn-ink: #8a5208;
+  --ok-ink: #1f7a4b;
+
+  /* a state is a tinted 1px border and a very light fill */
+  --tint-working-edge: #cddcf6;
+  --tint-working-fill: #f7faff;
+  --tint-blocked-edge: #f1cfcf;
+  --tint-blocked-fill: #fff8f8;
+  --tint-ready-edge: #cbe9d7;
+  --tint-ready-fill: #f6fcf8;
+  --tint-merged-edge: #e0d5f3;
+  --tint-merged-fill: #fbf9ff;
+  --tint-queued-edge: #e0e3e8;
+  --tint-queued-fill: #fbfbfc;
+  --tint-waits-edge: #f1dcb8;
+  --tint-waits-fill: #fffaf2;
+
+  /* the tags' pairs */
+  --tag-working-fill: #e8effd;
+  --tag-working-ink: #2f5fc7;
+  --tag-blocked-fill: #fde8ec;
+  --tag-blocked-ink: #c03552;
+  --tag-ready-fill: #e3f6ec;
+  --tag-ready-ink: #1f7a4b;
+  --tag-waits-fill: #fdf0df;
+  --tag-waits-ink: #8a5208;
+  --tag-queued-fill: #f0f0f2;
+  --tag-queued-ink: #6a6f7c;
+
+  /* the project's marks (an id picks one) */
+  --mark-0: #c8401f;
+  --mark-1: #2f6f9f;
+  --mark-2: #5b7a2a;
+  --mark-3: #7a4aa8;
+  --mark-4: #a8691f;
+  --mark-5: #1f7a74;
+
+  /* shadows */
+  --shadow-menu: 0 8px 24px rgb(20 24 31 / 12%);
+  --shadow-panel: -14px 0 40px rgb(15 18 28 / 14%);
+  --ring-nav: 0 0 0 1px var(--line);
+
+  /* type */
+  --font:
+    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, consolas, monospace;
+  --text: 14px;
+  --text-small: 12px;
+  --text-badge: 11px;
+  --title: 30px;
+  --title-phone: 24px;
+
+  /* space and shape */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius-s: 6px;
+  --radius-m: 9px;
+  --radius: 12px;
+  --side-width: 240px;
+  --panel-width: 680px;
+  --bar-height: 62px;
+  --phone-max: 760px;
+}
