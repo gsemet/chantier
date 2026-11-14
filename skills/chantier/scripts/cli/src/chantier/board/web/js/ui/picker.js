@@ -39,13 +39,16 @@ export function trigger(state, cls) {
   return html`<button class="${cls}" type="button" data-menu="toggle" data-key="${cls}-picker" aria-haspopup="true" aria-expanded="${state.menu}" title="${t('project.change')}">${body}</button>`;
 }
 
+// The check mark of the current line.
+const ok = () => html`<span class="ok">${icon('check')}</span>`;
+
 const row = (project, state) =>
-  html`<button class="row${project.id === state.project ? ' on' : ''}" type="button" data-project="${project.id}" role="menuitem">${mark(project.id)}<span><b>${project.id}</b>${project.running ? live() : ''}<small>${lineOf(project)}</small></span></button>`;
+  html`<button class="row${project.id === state.project ? ' on' : ''}" type="button" data-project="${project.id}" role="menuitem">${mark(project.id)}<span><b>${project.id}</b>${project.running ? live() : ''}<small>${lineOf(project)}</small></span>${project.id === state.project ? ok() : ''}</button>`;
 
 // The open menu, or nothing.
 export function menu(state) {
   if (!state.menu || !canPick(state)) return '';
   const projects = projectsOf(state);
-  const all = html`<button class="row${state.project === ALL ? ' on' : ''}" type="button" data-project="${ALL}" role="menuitem"><span class="mark all">${icon('overview')}</span><span><b>${t('project.all')}</b><small>${t('project.all_sub', { n: totalReviews(projects) })}</small></span></button>`;
+  const all = html`<button class="row${state.project === ALL ? ' on' : ''}" type="button" data-project="${ALL}" role="menuitem"><span class="mark all">${icon('overview')}</span><span><b>${t('project.all')}</b><small>${t('project.all_sub', { n: totalReviews(projects) })}</small></span>${state.project === ALL ? ok() : ''}</button>`;
   return html`<div class="menu" role="menu"><div class="cap">${t('project.head', { n: projects.length })}</div>${all}${projects.map((p) => row(p, state))}</div>`;
 }
