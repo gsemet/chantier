@@ -77,10 +77,28 @@ getting started here, phrases to say, the glossary.
    only on the user's yes. For an in-project planning folder, the `.gitignore` line is explained only: keep `.agents/changes/` out
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.
-   The example CR is offered for the inbox. The host's configuration comes from preflight's P5
-   and P10 and from P9 (which gives the missing forge rights too): the missing tools, and your host's "Allow rules to add" block for the
-   missing rules, explained only; the user adds them themself, like the `.gitignore` line. The
-   tour writes nothing in the user's settings.
+   The example CR is offered for the inbox. The tour runs every check a user's machine needs:
+   preflight's P5 (`uv`, `git`) and P10 (the allow rules), P9 with the forge's rights and branch
+   rules ("Forge permissions" of `chief-of-staff.md`), and the long gate above. For each missing
+   piece it asks and fixes it:
+   - **The allow rules:** the Chief of Staff's question and write ([chief-of-staff](chief-of-staff.md),
+     "The project"), and the command line of your host's "Allow rules to add" when the host
+     refuses the edit. The tour writes in the user's settings only the allow rules P10 named, on
+     the user's yes, as the Chief of Staff does at a first turn. When the first turn already asked
+     the question in this session, the tour does not ask it again: it says what P10 says now.
+   - **The long gate:** the exact `AGENTS.md` lines above, written on the user's yes.
+   - **The forge's tools:** when the project's forge is GitHub and `gh` is missing or not logged
+     in, or the `gh stack` extension (github/gh-stack) is not installed, recommend it and say why
+     (the stack driver then makes the stack on GitHub with it), ask, and on the yes run the
+     install yourself with the platform's usual installer (for instance `winget install --id
+     GitHub.cli` on Windows, `brew install gh` on macOS, the distribution's package on Linux;
+     then `gh extension install github/gh-stack`). `gh auth login` is interactive and stays the
+     user's. The same for `glab` on a GitLab project (no stack extension). When an install is
+     refused by the host or fails, give the user the exact commands to run at the computer, as for
+     the allow rules. Check the result (`gh --version`, `gh extension list`) and say what you
+     found. Other missing tools (`uv`, `git`): the exact install command, for the user to run.
+   - **The forge's settings** (rights, branch rules): chantier changes no forge setting; say the
+     exact change for the user to make.
 2. **Phrases to say:** "file this: …", "make it a P1", "run the P1s", "status?", "drop CR-<n>",
    "I merged #<n>", "what did it cost?". The tour's end is the first-use moment of the Tips rule: these phrases stand for its tip, so add no 💡 line.
 3. **Glossary:** one line per term not in the story: stack, fast gate, long gate, Investigator,

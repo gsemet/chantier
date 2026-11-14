@@ -211,13 +211,19 @@ its first run only fetches the CLI's Python packages: it needs the network once,
 enough after that; working on a
 repository also needs `git` and the forge's CLI, logged in: `gh` for GitHub, `glab` for GitLab.
 
+Once after installing, open a session on your project and run `/chief-of-staff init` (on Claude
+Code, `/chantier:chief-of-staff init`). It checks `uv` and `git`, and the forge's CLI with its
+rights and branch rules, and offers to install a missing `gh` or `glab`. On Claude Code it checks
+the allow rules and adds the missing ones on your yes, or gives you one command line to run at
+your computer. It checks the long gate in `AGENTS.md` and writes the lines on your yes.
+
 ## Use
 
 Talk to the Chief of Staff in plain language:
 
 | You say | What happens |
 | --- | --- |
-| "init", "I am new here" | the five stage folders are created, then a guided tour of how your project works with chantier |
+| "init", "I am new here" | the five stage folders are created, then a guided tour of how your project works with chantier, and the checks of your machine, each missing piece asked and fixed |
 | "become chief of staff" (`/chief-of-staff`) | this session takes the seat: the one session that opens and runs batches in the repository |
 | "you are a griller" (`/griller`) | this session refines the inbox and the backlog, never opens a batch; the Chief of Staff picks up what it files |
 | "status?" (`/chantier:status`) | the progress report: the table of CRs, their state, their PR and the cost; it changes nothing |

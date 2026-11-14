@@ -28,7 +28,8 @@ anything else:
   surface at <url>; start the session there", and plans nothing in the project.
 
 The other preflight lines are a batch's and are not reported here, except what the configuration
-checks add to the first message (P5, P9, P10), which goes in the same message. P9 now holds the
+checks add to the first message (P5, P9, P10), which goes in the same message; P10's warning
+comes as the Chief of Staff's question ([chief-of-staff](chief-of-staff.md), "The project"). P9 now holds the
 forge's rights and branch rules too ([chief-of-staff](chief-of-staff.md), "Forge permissions").
 
 ## 2. The seat and the role
@@ -145,7 +146,7 @@ here? say init for a guided tour". That line is the first-use tip; any other tip
 - **Zero configuration:** the project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration (I learn how it
   builds, tests and merges from it). Everything chantier writes is Markdown and JSON in
   the planning folder: `.agents/changes/` in the project, or the project's folder of an external
-  planning surface.
+  planning surface; and, on your yes, the allow rules in your Claude Code settings.
 - **Drivers and workers:** one Driver per CR runs short workers (Investigator, Coder, Inspector,
   Debugger, Verifier, Conflict resolver) in the CR's worktree, and commits, pushes, opens the
   PR and reads its CI with `git`, `gh` and `glab`. "Use my agent X as the coder" or "add a

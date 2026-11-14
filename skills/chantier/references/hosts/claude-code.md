@@ -86,8 +86,8 @@ Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
 - **A PR that is not a batch's** (the user's own PR in the same session) is out of chantier's
   rule: it is between the user and the app. This section speaks of a batch's PRs only.
 - **chantier never arms, disarms or unbinds the PR monitor.** No card uses the app's PR monitor
-  (`mcp__ccd_pr__set_monitor`), to arm it or to disarm it, and chantier never writes the user's
-  settings.
+  (`mcp__ccd_pr__set_monitor`), to arm it or to disarm it, and chantier writes no setting of it (the only settings it
+  writes are the allow rules of "Configuration", on the user's yes).
 - **The cost.** Even ignored, each event starts a turn of the steering session, which the user
   pays for.
 - **Turning Auto-fix off.** **Unproved**: no documentation and no dated trial gives the path, so
@@ -109,15 +109,18 @@ Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
 ## Configuration
 
 What the user configures so chantier runs on Claude Code with few interruptions. chantier never
-writes the user's settings: preflight's P10 compares, the user adds. Marks as above; a doc-check
+writes the user's settings in one case only: on the user's yes, the Chief of Staff adds to
+`~/.claude/settings.json` the allow rules P10 named, and nothing else there. Preflight's P10
+compares; the Chief of Staff asks. Marks as above; a doc-check
 of 2026-11-09 against <https://code.claude.com/docs> gave the **documented** lines, each with its
 page (`https://code.claude.com/docs/en/<page>`).
 
 ### Who reads it, when
 
 - The Chief of Staff, at its first turn of a session and at each batch's preflight: it runs the
-  check (P5, P9, P10) and gives the user the block of "Allow rules to add" for what is missing.
-  P10 checks the commands the agents run, not the rules' text; P9 checks the forge's rights.
+  check (P5, P9, P10). For missing allow rules it asks the question of `chief-of-staff.md`
+  ("The project") and adds the rules on the yes; it gives the command line of "Allow rules to
+  add" only when the host refuses the edit or when the file cannot be read. P10 checks the commands the agents run, not the rules' text; P9 checks the forge's rights.
 - The Foreman and the Drivers read this file with their card (their prompts already name it):
   "Auto mode" tells them what a refusal means and that it is reported, never worked around.
 - The workers do not read this file; what they need (one command per call, read before you
@@ -185,16 +188,18 @@ In the rules below, `origin` is the project's remote name.
 | `Bash(gh pr checks*)` and `PowerShell(…)` | a Driver reads its CI | read-only | documented (rule form) |
 | `Bash(gh pr view*)` and `PowerShell(…)` | a Driver or the steering session reads a PR | read-only | documented (rule form) |
 | `Bash(gh stack*)` and `PowerShell(…)` | the stack on the forge, only with the `gh stack` extension installed | any operation of the extension | **unproved**: the rule form for an extension command is not documented; trial: set it, run `gh stack view` in auto mode |
-| `Bash(gh release create*)` and `PowerShell(…)` | the release's publication, only when the project's release procedure runs it (`driver.md`, Release driver); `release go` still gates the step | a release published on any repository `gh` can reach | documented (rule form) |
 | `Bash(glab mr create*)` and `PowerShell(…)` | a Driver opens its MR on GitLab (`driver.md`: `glab mr create --draft`) | any MR on any project `glab` can reach | documented (rule form) |
 | `Bash(glab mr update*)` and `PowerShell(…)` | a Driver's description or the stack's retarget on GitLab | any MR edit on any project `glab` can reach | documented (rule form) |
 | `Bash(glab mr view*)` and `PowerShell(…)` | a Driver reads its MR | read-only | documented (rule form) |
 | `Bash(glab ci status*)` and `PowerShell(…)` | a Driver reads its CI on GitLab (`glab ci status --live`) | read-only | documented (rule form) |
-| `Bash(glab release create*)` and `PowerShell(…)` | the release's publication on GitLab, only when the project's release procedure runs it | a release published on any project `glab` can reach | documented (rule form) |
 | `SendMessage` | the Foreman and the Drivers message each other (refused twice) | any message between this session's agents and sessions | **unproved**: `SendMessage` as a rule is not documented (absent from tools-reference, checked 2026-11-09); trial: set it, enter auto mode, have the Foreman message a Driver |
 
 There is no `gh api` rule: it would allow any API write. The stack on the forge is changed only
 by `$CHANTIER forge-stack` (covered by the two `chantier` rules) or the `gh stack` extension.
+
+There is no `gh release create` or `glab release create` rule, by design. A release is rare,
+public and irreversible. The Release driver already waits for `release go`, and the host's own
+check is a second guard at publication.
 
 The same rules as one block, ready to paste into the `permissions.allow` array of
 `~/.claude/settings.json` (a test compares it with the CLI's list):
@@ -229,8 +234,6 @@ The same rules as one block, ready to paste into the `permissions.allow` array o
       "PowerShell(gh pr view*)",
       "Bash(gh stack*)",
       "PowerShell(gh stack*)",
-      "Bash(gh release create*)",
-      "PowerShell(gh release create*)",
       "Bash(glab mr create*)",
       "PowerShell(glab mr create*)",
       "Bash(glab mr update*)",
@@ -239,8 +242,6 @@ The same rules as one block, ready to paste into the `permissions.allow` array o
       "PowerShell(glab mr view*)",
       "Bash(glab ci status*)",
       "PowerShell(glab ci status*)",
-      "Bash(glab release create*)",
-      "PowerShell(glab release create*)",
       "SendMessage"
     ]
   }
@@ -653,15 +654,39 @@ Cost: none beyond the summary; the same conversation continues.
 
 ### Allow rules to add
 
-The block the Chief of Staff gives when P10 warns. Unproved until followed once by hand, like
-every block above.
+The command line the Chief of Staff gives when the host refused its edit of
+`~/.claude/settings.json`, or when that file cannot be read as JSON (P10 prints
+`unreadable: ...`). Otherwise the Chief of Staff adds the rules itself, on the user's yes
+(`chief-of-staff.md`, "The project"). Unproved until a user has followed it once, like every
+block above.
 
-- **Where:** the computer running Claude Desktop, the file `~/.claude/settings.json` (or the
-  project's `.claude/settings.json`, which the team shares through git, or
-  `.claude/settings.local.json`, the user's own in this project).
-- **Do:** open the file; add the lines below to `permissions.allow` (create the key if absent);
-  save; then start a new session. Whether a running session picks up a settings change is
-  **unproved** (see "What the docs do not say").
-- **Paste:** only the rules P10 named (with the project's remote name in place of `origin`), as
-  JSON strings, in their table order, copied from "Allow rules"; complete, no placeholder.
+- **Where:** at the computer running Claude Desktop, not on the phone, in your shell (Windows
+  PowerShell 5.1, or a POSIX shell).
+- **Do:** run one command line, the one for your shell, with the rules P10 named in its list. Then
+  start a new session: whether a running session picks up a settings change is **unproved** (see
+  "What the docs do not say").
+- **Paste:** that line. It merges exactly the rules P10 named into `permissions.allow` of
+  `~/.claude/settings.json`. It creates the file and the keys when they are absent, keeps every
+  other key and rule, adds no rule twice, and never replaces or removes anything. It writes valid
+  JSON in UTF-8 with no byte-order mark.
 - **You should see:** at the next preflight, `P10 ok`, or a P10 line that no longer names them.
+
+The Chief of Staff fills in only the list of rules: the strings P10 named, in their table order,
+with the project's remote name in place of `origin`, complete, no placeholder. Each was run by
+hand on a scratch home folder in three cases (file absent, file with other keys, file already
+holding some of the rules), twice each: valid JSON, no byte-order mark, no duplicate, nothing
+removed, and `preflight` reads it back as `P10 ok`.
+
+Windows PowerShell 5.1 (the file is rewritten as compact JSON, with the same keys and values; a
+character such as `<` or `'` in another value of the file may come back as its `\u` escape):
+
+```powershell
+Add-Type -AssemblyName System.Web.Extensions; $r = '<rule 1>','<rule 2>'; $p = Join-Path $HOME '.claude\settings.json'; $js = New-Object System.Web.Script.Serialization.JavaScriptSerializer; $d = if (Test-Path $p) { $js.DeserializeObject([IO.File]::ReadAllText($p, [Text.Encoding]::UTF8)) } else { @{} }; if (-not $d.ContainsKey('permissions')) { $d['permissions'] = @{} }; if (-not $d['permissions'].ContainsKey('allow')) { $d['permissions']['allow'] = @() }; $a = @($d['permissions']['allow']); foreach ($x in $r) { if ($a -notcontains $x) { $a += $x } }; $d['permissions']['allow'] = $a; New-Item -ItemType Directory -Force (Split-Path $p) | Out-Null; [IO.File]::WriteAllText($p, $js.Serialize($d), (New-Object Text.UTF8Encoding $false))
+```
+
+POSIX shell (needs `uv`, which chantier needs anyway; the file is rewritten with a two-space
+indent):
+
+```sh
+uv run --no-project python -c 'import json,os,sys;p=os.path.expanduser("~/.claude/settings.json");d=json.load(open(p,encoding="utf-8-sig")) if os.path.exists(p) else {};a=d.setdefault("permissions",{}).setdefault("allow",[]);a+=[r for r in dict.fromkeys(sys.argv[1:]) if r not in a];s=json.dumps(d,indent=2,ensure_ascii=False)+"\n";os.makedirs(os.path.dirname(p),exist_ok=True);open(p,"w",encoding="utf-8",newline="\n").write(s)' '<rule 1>' '<rule 2>'
+```

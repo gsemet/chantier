@@ -127,9 +127,10 @@ The Chief of Staff:
    (a Foreman or the Chief of Staff itself, and why: the surface, or your `foreman` / `direct`);
 3. waits for your **go**.
 
-For fewer auto-mode interruptions, the Chief of Staff gives you the allow rules to add to your
-Claude Code settings when the preflight finds some missing; chantier never edits your settings
-itself. The rules, the risk each accepts and what must stay refused are in the host reference's
+For fewer auto-mode interruptions, when the preflight finds allow rules missing the Chief of Staff
+asks you whether to add them, and adds them to `~/.claude/settings.json` on your yes, and nothing
+else there; when the host refuses that edit, it gives you one command line to run at your
+computer. The rules, the risk each accepts and what must stay refused are in the host reference's
 section "Configuration" ([claude-code.md](../skills/chantier/references/hosts/claude-code.md)).
 
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
@@ -246,9 +247,10 @@ included.
 - **A CR is blocked.** "status?" shows why; answer the question or drop the CR.
 - Anything refused (a permission, a tool, a model) is reported with its exact text: chantier
   never works around a refusal.
-- **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): add the
-  allow rules of the "Configuration" section of the
-  [host reference](../skills/chantier/references/hosts/claude-code.md) to your settings.
+- **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): say yes
+  when the Chief of Staff asks to add the allow rules of the "Configuration" section of the
+  [host reference](../skills/chantier/references/hosts/claude-code.md) to your settings, or run
+  the one command line it gives you at your computer when the host refuses that edit.
 - **The Foreman was refused an action by a classifier.** It wants your word in that session: type
   one line in the Foreman's session allowing that action, from your phone if you are away.
 

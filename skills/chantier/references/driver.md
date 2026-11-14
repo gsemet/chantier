@@ -572,8 +572,8 @@ inside the procedure and the grant, and ask for anything beyond them.
   chantier: go on through the procedure to its end. Where the procedure itself asks for a go,
   `handback blocked approval: <step>`. The publication step (for this project, `CONTRIBUTING.md`
   "Release" step 5, `gh release create … --verify-tag --notes-file …`) is yours once `release go`
-  answers `go`, when the host allows it by its named rule ([claude-code](hosts/claude-code.md),
-  "Allow rules"). When the host refuses it, report the refusal with its exact text (rule 7) as
+  answers `go`, when the host lets it through (no rule is recommended for it, by design: the host
+  asks or its classifier judges). When the host refuses it, report the refusal with its exact text (rule 7) as
   `handback blocked approval: publish: <the exact command>` and try nothing else: the steering
   session gives the user the command ("the publication is yours") and never runs it without their
   word.

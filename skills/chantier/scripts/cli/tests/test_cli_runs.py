@@ -231,6 +231,7 @@ def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks() -> Non
             rule_matches(f"{tool}({rule})", tool, command) for tool in ("Bash", "PowerShell")
         ), command
     assert rule_matches("SendMessage", "SendMessage")
+    assert not any("release create" in rule for rule in RECOMMENDED_ALLOW)  # asked by the host
 
 
 def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
@@ -272,6 +273,10 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
         }
     )
     assert line.startswith("P10 warn") and "denied: git push --force-with-lease" in line
+    with (repo / "AGENTS.md").open("a", encoding="utf-8") as agents:
+        agents.write("Publish with `gh release create`.\n")  # the project's rules name it
+    line = p10({"allow": list(RECOMMENDED_ALLOW)})
+    assert line.startswith("P10 ok") and "release create" not in line
 
 
 def test_preflight_reads_the_settings_files_for_allow_rules(
