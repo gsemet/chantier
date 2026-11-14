@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 812" width="1000" height="812" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>How chantier works (simple, Foreman mode)</title>
-  <desc>In Foreman mode a nested Foreman session steers each batch. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word. On your go the Chief of Staff starts one Foreman session per batch of changes; the Foreman starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff.</desc>
+  <desc>In Foreman mode a nested Foreman session steers each batch. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word, and on an impactful CR a Spec critic checks it and never edits it. On your go the Chief of Staff starts one Foreman session per batch of changes; the Foreman starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -41,6 +41,12 @@
   <text x="610" y="165" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">🤵 Chief of Staff</text>
   <text x="610" y="188" font-size="14" fill="#bfdbfe" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">/chantier:chief-of-staff · desk or foreman</text>
   <text x="610" y="212" font-size="15.5" fill="#dbeafe" text-anchor="middle">your session · stays free to talk while the batch runs</text>
+
+  <!-- Spec critic: checks an impactful CR's spec, never edits it -->
+  <rect x="852" y="80" width="130" height="54" rx="9" fill="#e0e7ff" stroke="#1e3a8a" stroke-width="1.5"/>
+  <text x="917" y="98" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">🧐 Spec critic</text>
+  <g font-size="12" fill="#475569" text-anchor="middle"><text x="917" y="113">checks impactful specs,</text><text x="917" y="127">never edits them</text></g>
+  <line x1="917" y1="136" x2="917" y2="138" stroke="#334155" stroke-width="1.6"/>
 
   <!-- Spec-writer: the Chief of Staff's agent -->
   <rect x="852" y="140" width="130" height="80" rx="9" fill="#e0e7ff" stroke="#1e3a8a" stroke-width="1.5"/>

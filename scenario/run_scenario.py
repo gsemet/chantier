@@ -939,7 +939,7 @@ def scenario(w: World) -> None:
           out[-3] == "Chief of Staff, steering the batch (outside the budget): unknown (1 calls "
                      "without a time, not placed)"
           and out[-2] == "Chief of Staff, grill and specifications with the user (outside the budget): "
-                         "$0.00 since the batch opened (0 calls, 0 spec-writers)"
+                         "$0.00 since the batch opened (0 calls, 0 spec-writers, 0 spec critics)"
           and out[-1] == "Chief of Staff, whole session: $9.02, context 22,010 tokens; not counted: "
                          "0 compactions since the batch opened, which leave no record (about $0.12 each)"
           and abs(w.batch()["spent_usd"] - 1.608) < 0.001 and w.batch()["chief_transcript"]
@@ -1535,7 +1535,7 @@ def foreman_chief_lines(w: World) -> None:
         a, b, total = money(steer), money(grill), money(whole)
         check("Foreman mode: the Chief of Staff's two lines add up to everything priced since the "
               "batch opened, each with its call count, and nothing of it is in the spend",
-              "(1 calls)" in steer and "(3 calls, 0 spec-writers)" in grill
+              "(1 calls)" in steer and "(3 calls, 0 spec-writers, 0 spec critics)" in grill
               and abs(a + b - total) <= 0.02 and abs(a * 3 - b) <= 0.02 and a > 0
               and abs(w.batch()["spent_usd"] - spent) < 0.001, str(out))
     finally:
@@ -1750,7 +1750,7 @@ def direct_batch(w: World) -> None:
           "and the whole session leaves the steering row out",
           abs(a - one) <= 0.02 and abs(b - 2 * one) <= 0.02 and abs(whole - 5 * one) <= 0.03
           and "(1 calls)" in next(ln for ln in out if ln.startswith(STEER))
-          and "(2 calls, 0 spec-writers)" in next(ln for ln in out if ln.startswith(GRILL))
+          and "(2 calls, 0 spec-writers, 0 spec critics)" in next(ln for ln in out if ln.startswith(GRILL))
           and abs(w.batch()["spent_usd"] - float(out[0].split()[1][1:])) <= 0.01
           and abs(float(out[0].split()[1][1:]) - 2 * steering) <= 0.02,
           f"{out} (steering ${steering})")
@@ -1782,8 +1782,23 @@ def direct_batch(w: World) -> None:
           "specifications line", out[0] == cost_out[0]
           and "spec-writer" not in "\n".join(ln for ln in out if not ln.startswith(GRILL))
           and money(out, GRILL) > grill_before and abs(money(out, GRILL) - 4 * one) <= 0.03
-          and "(4 calls, 1 spec-writers)" in next(ln for ln in out if ln.startswith(GRILL)),
+          and "(4 calls, 1 spec-writers, 0 spec critics)" in next(ln for ln in out if ln.startswith(GRILL)),
           f"{out} (before: {grill_before})")
+    # a spec critic of the Chief of Staff, beside the spec-writer: the same line, outside the spend,
+    # and the line's count names it
+    critic = sub / "agent-agent-critic.jsonl"
+    critic.write_text("".join(msg(f"k{i}", at(32)) for i in range(2)), encoding="utf-8")
+    critic.with_suffix("").with_suffix(".meta.json").write_text(
+        json.dumps({"agentType": "spec-critic"}), encoding="utf-8")
+    _, out = w.chantier("cost")
+    check("a spec critic's transcript is left out of the batch's cost and kept on the grill and "
+          "specifications line, which names it", out[0] == cost_out[0]
+          and "spec-critic" not in "\n".join(ln for ln in out if not ln.startswith(GRILL))
+          and abs(money(out, GRILL) - 6 * one) <= 0.04
+          and "(6 calls, 1 spec-writers, 1 spec critics)" in next(ln for ln in out if ln.startswith(GRILL)),
+          f"{out}")
+    critic.unlink()
+    critic.with_suffix("").with_suffix(".meta.json").unlink()
     writer.unlink()
     writer.with_suffix("").with_suffix(".meta.json").unlink()
     # a subagent no Driver owns is the steering session's own: its own line, not a Driver's
@@ -2656,6 +2671,11 @@ def playbook_config(w: World) -> None:
     check("S1: `playbook` prints the spec-writer's first prompt line with the project's root resolved",
           any(ln.startswith("spec-writer prompt, first line: chantier spec-writer for the Chief of Staff, "
                             "in the project ") and "proj" in ln and ln.endswith(".") for ln in out), str(out))
+    check("S1: `playbook` prints the spec critic's first prompt line beside the spec-writer's, the "
+          "same way, and prints no line for the Demo explorer, whose first line names a batch",
+          any(ln.startswith("spec-critic prompt, first line: chantier spec-critic for the Chief of Staff, "
+                            "in the project ") and "proj" in ln and ln.endswith(".") for ln in out)
+          and sum(" prompt, first line: " in ln for ln in out) == 2, str(out))
     want_escalate = "escalate: opus (claude-opus-5-5, Claude Opus 5.5)"
     check("S1: `playbook` ends with the escalation model, and the stack and release drivers "
           "show `model=(its file's)`",
@@ -2706,7 +2726,7 @@ def playbook_config(w: World) -> None:
     check("S2: `playbook` and `playbook --batch` end with the escalation model, with a chantier.yaml",
           now_lines[-1] == want_escalate and out[-1] == want_escalate, str(out))
     check("S2: `playbook --batch` prints the playbook the batch recorded",
-          code == 0 and out[1:] == [l for l in now_lines[1:] if not l.startswith("spec-writer prompt")]
+          code == 0 and out[1:] == [l for l in now_lines[1:] if " prompt, first line: " not in l]
           and "opened it" in out[0], str(out))
 
     # S3: a running batch keeps the playbook it opened with
@@ -2716,7 +2736,7 @@ def playbook_config(w: World) -> None:
     check("S3: after chantier.yaml changed, `take` of another CR and `playbook --batch` still "
           "print the opening's",
           "other-coder" not in "".join(took + out) and "agent=my-driver" in "".join(team(took))
-          and out[1:] == [l for l in now_lines[1:] if not l.startswith("spec-writer prompt")], str(out))
+          and out[1:] == [l for l in now_lines[1:] if " prompt, first line: " not in l], str(out))
 
     # S2b: `ci: beside_gate: true` is printed by `playbook`, `take` and `handoff`, recorded by `open`
     def ci_line(out: list[str]) -> list[str]:

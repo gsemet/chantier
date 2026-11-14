@@ -1,6 +1,6 @@
 # How chantier works (simple, direct mode)
 
-In direct mode there is no Foreman session. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word. On your go the Chief of Staff steers the batch itself and starts the Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. While a batch runs, the Chief of Staff's session holds no grill: an optional Griller, another session of yours, grills and specifies beside it.
+In direct mode there is no Foreman session. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word, and on an impactful CR a Spec critic checks it and never edits it. On your go the Chief of Staff steers the batch itself and starts the Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. While a batch runs, the Chief of Staff's session holds no grill: an optional Griller, another session of yours, grills and specifies beside it.
 
 ## Header
 
@@ -36,6 +36,14 @@ your rules, your gates
 /chantier:chief-of-staff · remote or direct
 your session · plays the Foreman's role
 direct mode
+```
+
+## Spec critic
+
+```md
+🧐 Spec critic
+checks impactful specs,
+never edits them
 ```
 
 ## Spec-writer

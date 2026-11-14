@@ -73,7 +73,9 @@ result, each with a recommended answer, and writes every answer in `02-answers.m
 nothing waits in the conversation only. Only you set priorities.
 
 When the questions run out, the Chief of Staff restates the CR: what it changes, every decision
-taken, what is still open. You correct it, and a correction is an answer. Only then it asks
+taken, what is still open, and one line on the critic (`critic: yes, it touches the Drivers'
+contract` or `critic: no, two lines of docs`; you can ask for it or cancel it). You correct it,
+and a correction is an answer. Only then it asks
 whether the CR is grilled enough, and you decide, never the Chief of Staff.
 
 > "It is grilled enough."
@@ -85,8 +87,12 @@ one-line link to the pull request when it opens.
 
 A **spec-writer** agent writes the Change Specification (`03-change-spec.md`) in the background,
 while you go on talking. The Chief of Staff reviews it against your answers, nothing dropped and
-nothing invented, before it shows it to you; open questions come to you, and the writer runs again
-with your answers. A specified CR waits in the inbox or the backlog until you say it is for
+nothing invented, before it shows it to you. On a CR the Chief of Staff judges impactful, a fresh
+**spec critic** (🧐) then checks the specification against your request, your answers and the rest
+of the software; the writer first applies the findings that need no decision of yours, and the
+critic's questions come to you with the specification's own, after one summary line (for example
+"10 findings, 6 fixed without you, 4 questions"). Open questions come to you, and the writer runs
+again with your answers. A specified CR waits in the inbox or the backlog until you say it is for
 the next batch: it then moves to `3-ready`. A simple CR may go there with no specification
 (automatable): its Driver works from the request alone.
 
@@ -100,7 +106,7 @@ Only on your explicit word does a CR go to `6-trash/`.
 
 One session per repository is the **Chief of Staff**: the only one that opens and runs batches.
 Any other session can be a **Griller**: it refines the inbox and the backlog (questions,
-`02-answers.md`, the restated CR, the spec-writer) and never opens a batch. Each session shows its
+`02-answers.md`, the restated CR, the spec-writer, the spec critic) and never opens a batch. Each session shows its
 role in its title, in the form `[Battle] 💬 Chantier · CoS` or `[Battle] 💬 Chantier · Griller` (💬 a session you talk to, ⚙️ the Foreman), so you tell them apart in the session list.
 
 In a remote session, the steps are yours (chantier explains them and never does them):

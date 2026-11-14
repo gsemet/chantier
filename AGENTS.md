@@ -20,7 +20,8 @@
 - A role's contract lives in `skills/chantier/references/` (the cards), never in an agent file
   or in the CLI: the parent that starts an agent names the card in its prompt. A card says what
   the role judges; the CLI (`rails.py`) says what it refuses; a user's project rules rank above
-  both. The CLI knows no role.
+  both. The CLI knows no role; one named exception: the cost code knows the two specification
+  agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line.
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools. The agents do the work, git and the forge included; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. One named

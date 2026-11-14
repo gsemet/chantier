@@ -1,6 +1,6 @@
 # How chantier works (simple, Foreman mode)
 
-In Foreman mode a nested Foreman session steers each batch. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word. On your go the Chief of Staff starts one Foreman session per batch of changes; the Foreman starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff.
+In Foreman mode a nested Foreman session steers each batch. You talk to one Chief of Staff, which reads the project's AGENTS.md: your rules and your gates; its Spec-writer writes the specification, on your word, and on an impactful CR a Spec critic checks it and never edits it. On your go the Chief of Staff starts one Foreman session per batch of changes; the Foreman starts Drivers; the CR driver runs short workers, any of which can be your own agent: Investigator, Coder, Inspector, which reads the diff before the commit, Verifier, which runs it at the pushed head, and Debugger; both the CR driver and the stack driver can run the conflict resolver. An optional Griller, another session of yours, grills and specifies the backlog beside the Chief of Staff.
 
 ## Header
 
@@ -35,6 +35,14 @@ your rules, your gates
 
 /chantier:chief-of-staff · desk or foreman
 your session · stays free to talk while the batch runs
+```
+
+## Spec critic
+
+```md
+🧐 Spec critic
+checks impactful specs,
+never edits them
 ```
 
 ## Spec-writer

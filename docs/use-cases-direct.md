@@ -33,7 +33,7 @@ answers only:
   explicit word), and recording answers in a CR's `02-answers.md`; a triage to `3-ready` does not
   join the running batch;
 - the spec-writer, on your word that a CR already grilled (by a Griller, or before the batch) is
-  grilled enough.
+  grilled enough; the spec critic stays open with it, and its questions wait for the pause.
 
 It does not grill, and it does not touch the running batch from backlog work. Any other request is noted word for word and handed back when the batch completes. An idea you
 raise meanwhile is filed in the inbox at once, without a grill.

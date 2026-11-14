@@ -13,7 +13,7 @@ per-call costs from
 [copilot-session-usage](https://github.com/gsemet/copilot-session-usage), which uv fetches from
 PyPI, and flags calls that were estimated rather than billed. In direct mode the steering is one
 `Chief of Staff, steering the batch` line, counted in the batch's spend and budget as a Foreman's is; the
-Chief of Staff's grill and specifications with you, and the rest of its session, stay apart on their own lines (a part that
+Chief of Staff's grill and specifications with you (its spec-writer's and spec critic's calls included), and the rest of its session, stay apart on their own lines (a part that
 cannot be measured says `unknown`, and the compactions are counted, not priced). A missing
 transcript is an error, never a guess. The calls of a model with no price are counted and
 named, the figure is a floor (`at least`), and you add the price under `prices:` in

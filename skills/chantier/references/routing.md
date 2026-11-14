@@ -22,8 +22,8 @@ the Foreman do not travel (what it would send itself is not sent; an ask is stil
 `$CHANTIER asks`), and a Driver's lines go to the Chief of Staff, keeping the `foreman` prefix of
 the steering session's lines.
 
-The Chief of Staff's subagents (the Demo explorer, the Spec-writer) answer the Chief of Staff alone, in their
-reply; they send no line to the Foreman or a Driver.
+The Chief of Staff's subagents (the Demo explorer, the Spec-writer, the Spec critic) answer the Chief of Staff alone, in their
+reply (a Griller's spec critic answers that Griller); they send no line to the Foreman or a Driver.
 
 Grillers send nothing else, to no Foreman and no Driver. The user talks with the Chief of Staff
 and with Grillers, about the backlog only in a Griller.

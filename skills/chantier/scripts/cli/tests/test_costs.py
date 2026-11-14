@@ -176,6 +176,7 @@ def test_a_turn_naming_the_answers_is_grill_and_a_turn_without_is_not(tmp_path: 
         ("Edit", {"file_path": "x/02-answers.md"}, True),
         ("Edit", {"file_path": "x\\02-answers.md"}, True),
         ("Agent", {"subagent_type": "chantier:spec-writer", "prompt": "x"}, True),
+        ("Agent", {"subagent_type": "chantier:spec-critic", "prompt": "x"}, True),
         (
             "Agent",
             {"subagent_type": "chantier:cr-driver", "prompt": "read x/03-change-spec.md"},

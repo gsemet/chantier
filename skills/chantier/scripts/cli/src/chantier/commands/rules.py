@@ -14,6 +14,7 @@ from chantier.playbook.config import FILE
 from chantier.playbook.lines import escalate_line, playbook_lines
 from chantier.plugin_files import (
     INSTRUCTIONS,
+    chief_prompt_lines,
     detect_host,
     plugin_roles,
     project_instructions,
@@ -67,11 +68,8 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
                 *problems,
             ], EXIT_PRECONDITION
     lines = playbook_lines(made, host, plugin_roles(host), label)
-    if not args.batch:  # the Spec-writer's first line, to copy as printed
-        lines.append(
-            "spec-writer prompt, first line: chantier spec-writer for the Chief of Staff, "
-            f"in the project {repo.root.as_posix()}."
-        )
+    if not args.batch:  # the Chief of Staff's subagents' first lines, to copy as printed
+        lines += chief_prompt_lines(host, repo.root.as_posix())
     lines.append(escalate_line(host))
     return lines, 0
 

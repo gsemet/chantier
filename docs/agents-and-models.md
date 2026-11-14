@@ -56,8 +56,9 @@ approves and answers with the same verdict. A running batch keeps the team it st
 | Coder, Investigator, Debugger, Conflict resolver, Demo explorer | Sonnet 5.5 | GPT-5.6 Luna |
 | Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
 | Spec-writer | Opus 5.5 | Claude Opus 5.5 |
+| Spec critic | Opus 5.5 (Fable on request) | Claude Opus 5.5 |
 
-By default every role but the Spec-writer runs Sonnet 5.5 on Claude Code. The roles that judge
+By default every role but the Spec-writer and the Spec critic runs Sonnet 5.5 on Claude Code. The roles that judge
 keep cards with goals and boundaries, not procedures. On a named trouble a task goes to a new
 agent on the escalation model (Opus 5.5 by default), and the report says so. On Copilot the models
 are its agent files' models.

@@ -31,7 +31,7 @@ The default description of a CR's PR, written by the CR Driver and checked by th
 - No internal reference in the title or the body text: no CR name, number or slug, no batch,
   round or order, no path under `.agents/changes/`, and no agent role of chantier (Chief of
   Staff, Foreman, Griller, Driver, Coder, Inspector, Verifier, Investigator, Debugger, Conflict
-  resolver, Spec-writer, Demo explorer) as the one who did the work or made the PR ("the Verifier
+  resolver, Spec-writer, Spec critic, Demo explorer) as the one who did the work or made the PR ("the Verifier
   checked…", "the Driver chose…"). The CR's name ("CR-142 grill-rules") and any other reference
   that helps maintainers go in the last section, "Internal references", and nowhere else.
 - A role name may appear in any section when it is a term of the project's own product: the diff

@@ -20,7 +20,13 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, chief_sessions, read_events
 from chantier.core.repo import Repo
 from chantier.costs.copilot import copilot_session_costs
-from chantier.costs.sessions import Scope, is_spec_writer, session_costs, without_spec_writers
+from chantier.costs.sessions import (
+    Scope,
+    is_spec_critic,
+    is_specification_agent,
+    session_costs,
+    without_specification_agents,
+)
 from chantier.costs.transcripts import transcript_path
 from chantier.rails import not_priced
 
@@ -84,6 +90,7 @@ class _Chief:
     steer: _Part = field(default_factory=_Part)
     grill: _Part = field(default_factory=_Part)
     writers: int = 0
+    critics: int = 0
     untimed: int = 0
     compactions: int = 0
     whole_usd: float = 0.0
@@ -101,15 +108,20 @@ def _chief_session(
     whole = session_costs(path, scope=Scope("chief-of-staff", prices=prices))
     scope = Scope("chief-of-staff", True, True, prices, window)
     since = session_costs(path, d.created or "", scope=scope)
-    steered = without_spec_writers(session_costs(path, *window, scope=scope)) if window else []
+    steered = (
+        without_specification_agents(session_costs(path, *window, scope=scope)) if window else []
+    )
     return whole, since, steered
 
 
 def _absorb(c: _Chief, whole: list[Any], since: list[Any], steered: list[Any]) -> None:
     main = since[0]
     for r in since:
-        if is_spec_writer(r):
-            c.writers += 1
+        if is_specification_agent(r):
+            if is_spec_critic(r):
+                c.critics += 1
+            else:
+                c.writers += 1
             c.grill.add(r)
         else:
             c.steer.add(r)
@@ -145,7 +157,8 @@ def _chief_lines(c: _Chief) -> list[str]:
     grill = c.grill
     lines += [
         f"{GRILL_OUT}: {spend(grill.usd, grill.calls, grill.unpriced)} since the batch opened "
-        f"({_why(grill.calls, grill.unpriced)}, {c.writers} spec-writers)",
+        f"({_why(grill.calls, grill.unpriced)}, {c.writers} spec-writers, "
+        f"{c.critics} spec critics)",
         f"{WHOLE}: {spend(c.whole_usd, 1, c.whole_un)}, context {c.context:,} tokens; not "
         f"counted: {c.compactions} compactions since the batch opened, which leave no record "
         f"(about ${COMPACTION_USD:.2f} each)"
@@ -209,7 +222,7 @@ def cost_rows(repo: Repo, d: BatchRecord, host: str, uuids: list[str]) -> list[d
             )
         if steering:
             got[0]["type"] = "chief-of-staff"
-            got = without_spec_writers(got)  # grill and specifications: their own line
+            got = without_specification_agents(got)  # grill and specifications: their own line
         for r in got:
             if (
                 r["agent"] != "main"

@@ -66,14 +66,20 @@ def session_costs(
     return rows
 
 
-def without_spec_writers(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The Chief of Staff's subagents of type spec-writer (`spec-writer`, `chantier:spec-writer`,
-    `chantier-spec-writer`) belong to no batch: they stay on the Chief of Staff's own line."""
-    return [r for r in rows if not is_spec_writer(r)]
+def without_specification_agents(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The Chief of Staff's subagents of type spec-writer or spec-critic (`spec-writer`,
+    `chantier:spec-writer`, `chantier-spec-writer`, and the same for `spec-critic`) belong to no
+    batch: they stay on the Chief of Staff's own line. A named exception to the CLI knowing no
+    role: the cost code knows these two agent types, to put them on the grill line."""
+    return [r for r in rows if not is_specification_agent(r)]
 
 
-def is_spec_writer(row: dict[str, Any]) -> bool:
-    return str(row.get("type", "")).endswith("spec-writer")
+def is_specification_agent(row: dict[str, Any]) -> bool:
+    return str(row.get("type", "")).endswith(("spec-writer", "spec-critic"))
+
+
+def is_spec_critic(row: dict[str, Any]) -> bool:
+    return str(row.get("type", "")).endswith("spec-critic")
 
 
 def idle_seconds(

@@ -19,7 +19,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    first, a `depends.json` (`{"after": ["<slug>"]}`). After the grill, the Chief of Staff
    restates the CR and asks whether it is grilled enough; on your word a **spec-writer** agent
    writes `03-change-spec.md` in the background, and the Chief of Staff reviews it against your
-   answers before showing it to you.
+   answers before showing it to you; on an impactful CR a **spec critic** agent checks it first.
 3. **You start a batch** ("run the P1s"; four slots; the CRs run in parallel unless you ask for a [series or a stack](README.md#batch-modes)). After a preflight and your go, the
    Chief of Staff starts one **Foreman** in a nested session. In **direct mode** (used under Remote
    Control, where the host cannot start a Foreman session, or when you force it) no Foreman starts: the Chief of
@@ -138,7 +138,7 @@ skills/chantier/
 ├── SKILL.md                ← the router: asks which role this session takes
 ├── references/             ← one file per running context: concepts, session-start,
 │                             chief-of-staff, griller, report, foreman, driver, worker, routing,
-│                             spec-writer, init,
+│                             spec-writer, spec-critic, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
 └── scripts/cli/            ← the `chantier` CLI's source (its web board in `board/web/`), its tests
