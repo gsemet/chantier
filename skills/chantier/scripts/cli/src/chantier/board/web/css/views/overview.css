@@ -1,7 +1,7 @@
 /* The Overview view (All projects): a table on a desktop, cards on a phone. */
 .overview .note {
   max-width: 760px;
-  margin: var(--space-4) 0 0;
+  margin: var(--space-3) 0 0;
   color: var(--ink3);
   font-size: var(--text-small);
 }
@@ -82,9 +82,9 @@
 .overview .apc {
   margin-bottom: 10px;
   padding: 11px var(--space-3);
-  border: 1px solid var(--line);
+  border: 1px solid var(--edge, var(--line));
   border-radius: var(--radius-m);
-  background: var(--tint-queued-fill);
+  background: var(--fill, var(--tint-queued-fill));
   cursor: pointer;
 }
 
@@ -99,6 +99,15 @@
   height: 24px;
   border-radius: 7px;
   font-size: var(--text-small);
+}
+
+.overview .apt .mut {
+  margin-left: auto;
+  font-size: var(--text-small);
+}
+
+.overview .aps b {
+  color: var(--ink);
 }
 
 .overview .aps {

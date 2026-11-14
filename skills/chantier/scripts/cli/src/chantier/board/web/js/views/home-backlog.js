@@ -34,7 +34,11 @@ const mergedRow = (m) =>
 
 export function backlogBlock(state) {
   const backlog = state.data.backlog ?? {};
-  const whole = Math.max(1, ...ROWS.map((b) => (backlog[b] ?? []).length));
+  // Every bar is scaled on the whole backlog, as the prototype's pipeRow does.
+  const whole = Math.max(
+    1,
+    ROWS.reduce((sum, b) => sum + (backlog[b] ?? []).length, 0),
+  );
   const legend = Object.keys(WORDS).map((k) => html`<span>${dot(COLORS[k])}${t(WORDS[k])}</span>`);
   const sort = knows('triage')
     ? html`<button class="more" type="button" data-go="triage">${t('home.sort')}</button>`

@@ -13,6 +13,17 @@
   background: var(--c, var(--grey));
 }
 
+/* the blue dot of a project whose batch runs */
+.live {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--blue);
+  vertical-align: middle;
+}
+
 /* a stacked bar: each segment takes its width and its token colour from custom properties */
 .meter {
   display: flex;

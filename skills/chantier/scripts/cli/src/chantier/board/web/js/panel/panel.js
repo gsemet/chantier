@@ -1,18 +1,72 @@
 // The CR's file panel. The contract the views use: `openPanel(state, target)` opens the folder of
-// a target (see model/targets.js) and `closePanel()` closes it. Round 3 draws the panel in full
-// (head, tree, file view); until then it shows the target's head only.
-import { html } from '../core/dom.js';
-import { update } from '../core/store.js';
+// a target (see model/targets.js) and `closePanel()` closes it. The panel is a head, the folder's
+// tree and the file view. The page draws it from the store (`panel`, `panelTree`, `panelFile`), so
+// a live refresh redraws it in place and it stays on its file.
+import { $, delegate, html } from '../core/dom.js';
+import { snapshot, update } from '../core/store.js';
+import { targetFor } from '../model/targets.js';
 import { t } from '../model/words.js';
-import { icon } from '../ui/icons.js';
+import { fileView } from './file-view.js';
+import { head } from './head.js';
+import { loadFile, loadTree } from './load.js';
+import { treeMarkup } from './tree.js';
 
-export const openPanel = (_state, target) => update({ panel: target });
+let openerKey = null; // the `data-key` of the element that opened the panel: it gets the focus back
+let shownKey = null; // the key of the panel the focus was last moved for
 
-export const closePanel = () => update({ panel: null });
+export function openPanel(state, target) {
+  openerKey = document.activeElement?.dataset?.key ?? null;
+  update({ panel: { ...target, project: state.project }, panelTree: null, panelFile: null });
+}
+
+export const closePanel = () => update({ panel: null, panelTree: null, panelFile: null });
+
+// The target as the data now says it (a live refresh moves a CR's round or cost); as it was opened
+// when the record no longer holds it.
+const current = (state) => ({ ...state.panel, ...targetFor(state, state.panel.key) });
 
 // What the panel holds for the state: nothing while it is closed.
 export function panelMarkup(state) {
-  const target = state.panel;
-  if (!target) return '';
-  return html`<div class="bar"><button class="btn" type="button" data-close aria-label="${t('panel.close')}">${icon('close')}</button><h2>${target.title}</h2></div><div class="body"><code>${target.folder ?? ''}</code> · ${t('panel.files', { n: target.files ?? 0 })}</div>`;
+  if (!state.panel) return '';
+  const target = current(state);
+  const { panelTree: tree, panelFile: file } = state;
+  const list = tree?.list ?? null;
+  const open = file ? `doc:${file.path}` : 'doc';
+  return html`${head(target, state.data?.batch, list?.length ?? target.files ?? 0)}<div class="pbody"><nav class="tree" data-scroll="tree" aria-label="${t('panel.tree')}">${treeMarkup(list, file?.path, tree?.failed)}</nav><div class="doc" data-scroll="${open}" tabindex="0" role="region" aria-label="${t('panel.doc')}">${fileView(target.project, target.folder, list, file)}</div></div>`;
+}
+
+// Read what the open panel needs and does not have: its listing, again when the folder's file
+// count moved. Called after every draw; a read already asked is not asked twice.
+export function syncPanel(state) {
+  if (!state.panel) return;
+  if (state.panel.project !== state.project) {
+    closePanel();
+    return;
+  }
+  const target = current(state);
+  const loaded = state.panelTree;
+  const same = loaded?.folder === target.folder;
+  if (!loaded || !same || (loaded.list && loaded.count !== target.files)) {
+    loadTree(target, same);
+  }
+}
+
+// The focus goes into the panel when it opens and back to what opened it when it closes.
+export function afterPanel(root, state) {
+  const key = state.panel?.key ?? null;
+  if (key === shownKey) return;
+  shownKey = key;
+  const target = key
+    ? $('[data-close]', root)
+    : openerKey && $(`[data-key="${CSS.escape(openerKey)}"]`);
+  target?.focus({ preventScroll: true });
+}
+
+// A click on a file of the tree opens it.
+export function bindPanel(root) {
+  return delegate(root, 'click', '[data-file]', (_, button) => {
+    const { panel, panelTree: tree } = snapshot();
+    const entry = tree?.list?.find((f) => f.path === button.dataset.file);
+    if (panel && entry) loadFile(panel.key, entry);
+  });
 }

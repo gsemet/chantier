@@ -58,3 +58,6 @@ export const mark = (id) =>
 
 // A small dot in a token colour.
 export const dot = (color) => html`<span class="dot" data-vars="${vars({ '--c': color })}"></span>`;
+
+// The blue dot of a project whose batch runs.
+export const live = () => html`<span class="live" title="${t('project.running')}"></span>`;
