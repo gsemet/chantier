@@ -12,6 +12,9 @@ export function configure(views, overview) {
   Object.assign(rules, { views, overview });
 }
 
+// Whether the page has a view of that id (a link to a later view shows only once it is there).
+export const knows = (view) => rules.views.includes(view);
+
 const known = (view) => (rules.views.includes(view) ? view : rules.views[0]);
 
 // The last real project (never "All projects"), against the ones the board lists.

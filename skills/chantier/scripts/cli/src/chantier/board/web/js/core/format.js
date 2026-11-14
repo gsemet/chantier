@@ -55,5 +55,8 @@ export const title = (text) => String(text ?? '').replace(/^(Change Specificatio
 export const percent = (part, whole) =>
   whole > 0 ? Math.min(100, Math.max(0, (part / whole) * 100)) : 0;
 
+// A link only for an http(s) address; anything else is no link and gives null.
+export const safeUrl = (url) => (/^https?:\/\//i.test(url ?? '') ? url : null);
+
 // A project's colour is one of the palette's marks, picked from its name.
 export const markOf = (id) => [...id].reduce((sum, c) => sum + c.codePointAt(0), 0) % 6;

@@ -38,11 +38,13 @@ export function chain(batch) {
     .sort((a, b) => rank(a) - rank(b) || (a.order ?? 0) - (b.order ?? 0));
 }
 
-const lastOpenDependency = (c, batch) => {
+// A CR's open dependencies: the CRs of its fter that are not merged or cancelled.
+export const openAfter = (c, batch) => {
   const rows = crsOf(batch);
-  const open = (c.after ?? []).map((id) => rows.find((x) => x.cr === id)).filter(isOpen);
-  return open.at(-1) ?? null;
+  return (c.after ?? []).map((id) => rows.find((x) => x.cr === id)).filter(isOpen);
 };
+
+const lastOpenDependency = (c, batch) => openAfter(c, batch).at(-1) ?? null;
 
 // Where a CR's PR sits: `{ on, text }`, the branch or CR it is based on and the words for it.
 export function baseOf(c, batch) {

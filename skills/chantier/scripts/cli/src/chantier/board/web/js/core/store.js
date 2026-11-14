@@ -13,7 +13,8 @@ const data = {
   fails: 0, // reads failed in a row
   denied: false, // the board refused the page's key
   menu: false, // the project menu is open
-  panel: null, // the key of the CR or item whose folder is open, else null
+  panel: null, // the target (kind, key, title, folder, files, row) whose folder is open, else null
+  recomputing: false, // Costs: a recompute was asked and its figure has not arrived
 };
 const listeners = new Set();
 

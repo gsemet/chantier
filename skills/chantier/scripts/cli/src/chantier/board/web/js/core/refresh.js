@@ -1,5 +1,6 @@
 // The live refresh: read the board and the shown project every 5 s while the page is visible. The
 // project is read with its last ETag, so an unchanged record costs a 304 and no redraw.
+import { withLive } from '../model/live.js';
 import { AskError, board, projectState } from './api.js';
 import { ALL } from './router.js';
 import { snapshot, subscribe, update } from './store.js';
@@ -30,7 +31,7 @@ async function readBoard() {
 async function readProject(project) {
   const got = await projectState(project, snapshot().etag);
   if (!got.changed) return clock(got);
-  return { ...clock(got), data: got.data, etag: got.etag };
+  return { ...clock(got), data: withLive(got.data), etag: got.etag };
 }
 
 async function ask() {

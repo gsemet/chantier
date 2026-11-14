@@ -170,6 +170,7 @@ export default {
   'prs.merged_ago': 'merged {age} ago',
   'prs.earlier': 'Earlier batches',
   'costs.computed': 'Last computed: {age} ago',
+  'costs.never': 'Not computed yet',
   'costs.recompute': '↻ Recompute',
   'costs.recomputing': 'recomputing…',
   'costs.note': 'the server reads the transcripts again: no agent turn',
