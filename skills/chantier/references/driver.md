@@ -256,7 +256,16 @@ defaults, not a gate.
   it with the change: `intake/`, `evidence/`, `01-intent.md`, `02-answers.md`,
   `03-change-spec.md`, `delivery.md` (what the PR delivers, from the PR body's summary, with the PR
   link once known) and `STATUS.md` as it stands; no `work/`, no log. Keep it current at each later
-  round. `ship` says `archive missing from the PR at <path>` when it is off. When the project
+  round. The retained prototype goes in too: the version `02-answers.md` (or the specification)
+  names as retained, copied as `prototypes/NN-<idea>/`, or zipped as `prototypes/NN-<idea>.zip`
+  when it is above 1 MB (up to 10 MB); when `02-answers.md` records a decision on a very big
+  folder, follow it. No other version and no `experiments/` go in the PR's archive (they stay in
+  the planning folder's `5-archives/`); with no retained prototype named, nothing from
+  `prototypes/` goes in. A retained prototype above 10 MB with no recorded decision stays out of
+  the archive: say it in a `note`, and name it in the PR's Known gaps ("retained prototype not in
+  the archive: too big, no decision recorded"), so the ready line quotes it and the Chief of Staff
+  asks the user. The same Known gap names a folder that grew very big during the batch. `ship`
+  says `archive missing from the PR at <path>` when it is off. When the project
   ignores `.agents/changes/`, say it in a `note` and hand back with the PR as it is: the Chief of
   Staff asks the user (no `git add -f`). `archive: not in the PR`: nothing to add.
 - Logs: a raw log goes in `work/gates/` or a `*.log` file, never in a file that is published with

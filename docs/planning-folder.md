@@ -48,7 +48,9 @@ External layout, beside it:
 What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
 `brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`) and the detailed logs
 (`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
-folder. A running CR's documents, reports and evidence are pushed with the surface. The archive
+folder. A running CR's documents, reports and evidence are pushed with the surface. A CR's folder
+may also hold `prototypes/NN-<idea>/` and `experiments/`, created only when used and published
+with the CR like its documents. The archive
 has two places: the surface's `5-archives/` (with a `delivery.md`: the PR, the merge time) and,
 by the project's setting (default yes), a cleaned copy in the CR's PR, in external mode.
 

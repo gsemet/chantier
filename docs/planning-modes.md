@@ -78,12 +78,14 @@ documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`.
 - In the CR's PR, in external mode, when `project.md` says `yes` (or says nothing): the Driver
   commits, before each hand-back `ready`, a cleaned archive at `.agents/changes/5-archives/…/`
   with `intake/`, `evidence/`, `01-intent.md`, `02-answers.md`, `03-change-spec.md`,
-  `delivery.md` and `STATUS.md`; no `work/`, no logs. A project that ignores `.agents/changes/`
+  `delivery.md` and `STATUS.md`, and the retained prototype (`prototypes/NN-<idea>/`, zipped if
+  it is big); no `work/`, no logs. A project that ignores `.agents/changes/`
   gets the PR as it is and the Chief of Staff asks you.
 
 ## Grillers
 
-A Griller writes prototypes, plans and other artifacts cleanly in the CR's folder. In a never-merged
+A Griller writes prototypes, plans and other artifacts cleanly in the CR's folder, in every mode,
+never in the host's scratchpad. In a never-merged
 worktree it joins no autosync and commits nothing: its files go to the Chief of Staff, who places
 them in the planning folder. If the surface's rules rank above the cards, they can say so: "a
 session in a worktree of the surface does not join the autosync; it sends its files to the Chief
