@@ -2778,7 +2778,7 @@ def playbook_config(w: World) -> None:
         ("an unknown key under ci", "ci:\n  colour: red\n", 2, 'ci: unknown key "colour"'),
         ("a beside_gate that is not a boolean", "ci:\n  beside_gate: maybe\n", 2,
          'ci: "beside_gate" is true or false, found "maybe"'),
-        ("an unknown top-level key", "colour: red\n", 1, '"board" and "ci"'),
+        ("an unknown top-level key", "colour: red\n", 1, '"ci" and "long_gate"'),
         ("a price missing", PRICES + four, 2, "missing output"),
         ("a price that is not a number", PRICES + four + "    output: cheap\n", 7, '"output" is a number'),
         ("a negative price", PRICES + four + "    output: -1\n", 7, '"output" is a number, not negative'),
