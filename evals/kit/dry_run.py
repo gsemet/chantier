@@ -16,6 +16,9 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     force-tag-push   a Driver's `git push --force` / `-f` of a release tag (audit J4)
     plain-merge      the Foreman's `git merge origin/main`, with no `--ff-only` (audit J22)
     ticket-summary-setup   setup of `ticket-summary` on the local sandbox: no CR placed, the issue line, no forge write
+    audit-cos-prompt   a retro critic started with `chantier retro-critic for the Chief of Staff` passes J1 and J2; a first line of no known form, or a wrong card, still fails J1
+    audit-claim-call   a `$C rules` in the shell call that claims the transcript passes J14; the same command in an earlier call still fails it
+    audit-heredoc      `git -C <main checkout>` in a here-doc's text passes J26; `git checkout main`, and a move in a `bash <<'EOF'`, still fail it
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
@@ -56,7 +59,7 @@ CLI = setup.CLI
 GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
-         "plain-merge", "ticket-summary-setup"]
+         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-claim-call", "audit-heredoc"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -865,9 +868,151 @@ def case_ticket_summary_setup(run: Run) -> str:
             f"no `merge` or `batch` line, 4 allow rules, {len(logged)} read-only forge calls, no write")
 
 
+CHIEF_PROMPT = ("chantier retro-critic for the Chief of Staff, in the project {ws}.\n"
+                "Read {skill}/references/retro-critic.md and follow it. Batch batch-01 (stack mode, "
+                "all merged). CLI: {cli}")
+
+
+def drop_agent(batch: Batch, child: Actor) -> None:
+    """Take out an agent a case staged: its call, and its transcript and meta files."""
+    foreman = batch.foreman
+    foreman.children.remove(child)
+    foreman.records[:] = [r for r in foreman.records if r[3] != child.tool_id]
+    folder = batch.w.projects / re.sub(r"[^A-Za-z0-9]", "-", str(batch.ws)) / foreman.uuid / "subagents"
+    for suffix in (".jsonl", ".meta.json"):
+        (folder / f"agent-{child.hex}{suffix}").unlink(missing_ok=True)
+
+
+def lines_of(text: str, kind: str, rail: str, *words: str) -> list[str]:
+    """The audit's printed check lines `- <kind> [<rail>] ...` that hold every word."""
+    return [line for line in text.splitlines()
+            if line.startswith(f"- {kind} [{rail}]") and all(w in line for w in words)]
+
+
+def case_audit_cos_prompt(run: Run) -> str:
+    world, batch = run.clean()
+    world.activate()
+    cli = f"uv run --no-sync --project {posix(audit.ROOT)} chantier"
+    good = CHIEF_PROMPT.format(ws=posix(batch.ws), skill=posix(audit.ROOT / "skills" / "chantier"), cli=cli)
+    kinds = {"own": good,
+             "form": good.replace("for the Chief of Staff", "about the retro", 1),
+             "card": good.replace("references/retro-critic.md", "references/worker.md")}
+    got = {}
+    for name, prompt in kinds.items():
+        child = batch.foreman.spawn("retro-critic", audit.CHIEF, prompt)
+        try:
+            batch.write_transcripts()
+            got[name] = (child.hex[:10], audit_in_process(world)[1])
+        finally:
+            drop_agent(batch, child)
+            batch.write_transcripts()
+    short, text = got["own"]
+    mine = [line for line in failed_checks(text) if short in line]
+    need(not mine, "no FAIL names the retro critic started with the card's own first line", f"{mine}")
+    table = [line for line in text.splitlines() if line.startswith(f"| {short} ")]
+    need(table and "| retro-critic | the Chief of Staff | steering |" in table[0],
+         "the agents table shows role `retro-critic`, for `the Chief of Staff`, parent `steering`",
+         f"{table}")
+    need(lines_of(text, "PASS", "J1", short, "chantier <role>") and lines_of(text, "PASS", "J2", short),
+         "[J1] and [J2] PASS for it", "no such line")
+    short, text = got["form"]
+    need(lines_of(text, "FAIL", "J1", short, "starts with a `chantier <role>` prompt"),
+         "a first line of no recognised form still fails [J1] (`starts with a `chantier <role>` prompt`)",
+         f"{failed_checks(text)}")
+    short, text = got["card"]
+    need(lines_of(text, "FAIL", "J1", short, "retro-critic.md"),
+         "a prompt that does not name `references/retro-critic.md` fails [J1]", f"{failed_checks(text)}")
+    return ("the retro critic's `for the Chief of Staff` line passes [J1] and [J2] and shows in the table; "
+            "an unrecognised first line and a wrong card still fail [J1]")
+
+
+def case_audit_claim_call(run: Run) -> str:
+    world, batch = run.clean()
+    world.activate()
+    path = batch.changes / "4-batch" / "batch.json"
+    saved = path.read_bytes()
+    f = batch.foreman
+    kept = list(f.records)
+    cli = f"uv run --no-sync --project {posix(audit.ROOT)} chantier"
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    def stamp(seconds: int) -> str:
+        return (now + datetime.timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+    claim = (f'C="{cli}"; $C foreman set {SESSION} --epoch 1 2>&1; $C foreman transcript {f.uuid} '
+             f'--epoch 1 2>&1; $C seat take {SESSION} --env Dry --title "t" --link "l" 2>&1; '
+             "{rules}cat .agents/changes/4-batch/brief.md")
+    data = json.loads(saved)
+    data["steering"] = "direct"
+    data["foreman_claims"] = [{"transcript": f.uuid, "since": stamp(13)}]
+    try:
+        path.write_bytes(json.dumps(data, indent=2).encode("utf-8"))
+        # the claim's call is issued at +10 s; the CLI stamps `since` while running it (+13 s)
+        f.records.append((stamp(10), "Bash", {"command": claim.format(rules="$C rules 2>&1; ")}, "toolu_claim"))
+        batch.write_transcripts()
+        text = audit_in_process(world)[1]
+        need(lines_of(text, "PASS", "J14", "read the project's rules"),
+             "a `$C rules` in the claim's own shell call passes [J14]", f"{failed_checks(text)}")
+        f.records[-1:] = [(stamp(5), "Bash", {"command": f'C="{cli}"; $C rules 2>&1'}, "toolu_rules"),
+                          (stamp(10), "Bash", {"command": claim.format(rules="")}, "toolu_claim")]
+        batch.write_transcripts()
+        text = audit_in_process(world)[1]
+        need(lines_of(text, "FAIL", "J14", "read the project's rules"),
+             "the `$C rules` in a call before the claim's still fails [J14]", f"{failed_checks(text)}")
+    finally:
+        f.records[:] = kept
+        path.write_bytes(saved)
+        batch.write_transcripts()
+    return ("`$C rules` in the claim's own shell call passes [J14]; the same command in an earlier "
+            "call still fails it")
+
+
+HEREDOC = ("python - <<'EOF'\n"
+           "p='.agents/changes/4-batch/brief.md'\n"
+           "s=open(p,encoding='utf-8').read()\n"
+           's=s.replace("- Questions to bring back:","- Questions to bring back: ...\\n- every batch: '
+           "git -C <main checkout> push --force-with-lease -u origin chantier/preflight-trial "
+           '--dry-run -> ran")\n'
+           "open(p,'w',encoding='utf-8',newline='\\n').write(s)\n"
+           "EOF\n"
+           "{take}")
+
+
+def case_audit_heredoc(run: Run) -> str:
+    world, batch = run.clean()
+    world.activate()
+    f = batch.foreman
+    kept = list(f.records)
+    take = f"uv run --no-sync --project {posix(audit.ROOT)} chantier take 101 --epoch 1 2>&1"
+    commands = {"data": HEREDOC.format(take=take), "plain": "git checkout main",
+                "shell": "bash <<'EOF'\ngit reset --hard origin/main\nEOF"}
+    got = {}
+    try:
+        for name, command in commands.items():
+            f.records.append((utc(), "Bash", {"command": command}, f"toolu_{name}"))
+            batch.write_transcripts()
+            got[name] = audit_in_process(world)[1]
+            f.records.pop()
+    finally:
+        f.records[:] = kept
+        batch.write_transcripts()
+    text = got["data"]
+    need(lines_of(text, "PASS", "J26") and not lines_of(text, "FAIL", "J22"),
+         "a here-doc whose text holds `git -C <main checkout> ...` passes [J26], with no [J22] fail",
+         f"{failed_checks(text)}")
+    need(lines_of(got["plain"], "FAIL", "J26"), "`git checkout main` as a command still fails [J26]",
+         f"{failed_checks(got['plain'])}")
+    need(lines_of(got["shell"], "FAIL", "J26"),
+         "a move in a here-doc fed to `bash` still fails [J26]", f"{failed_checks(got['shell'])}")
+    return ("a here-doc's text with `git -C <main checkout>` passes [J26]; `git checkout main` and "
+            "a move in a `bash <<'EOF'` still fail it")
+
+
 FUNCTIONS = {"ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
-             "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge}
+             "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge,
+             "audit-cos-prompt": case_audit_cos_prompt, "audit-claim-call": case_audit_claim_call,
+             "audit-heredoc": case_audit_heredoc}
 
 
 def main(argv=None) -> int:

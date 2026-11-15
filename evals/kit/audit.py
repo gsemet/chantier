@@ -31,7 +31,11 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   A command is read as the shell runs it: the CLI through a variable (`$c rules`), git past its
   global options (`git -C <dir> add -A;`), a file written with the shell in a CR's worktree (a
   cmdlet, .NET or a redirection) as a write; a throwaway repository the agent `git init`-ed is
-  not the CR's.
+  not the CR's. A here-doc's body is data (J26's moves skip it) unless the here-doc feeds a shell.
+  The steering session's commands count from the shell call that made its claim (`foreman
+  transcript <uuid>`), that call included. A prompt `chantier <role> for the Chief of Staff`
+  (the Retro critic, the Spec-writer, the Demo explorer...) is a Chief-of-Staff subagent: audited
+  by its own card, with no rules line asked and outside the review steps.
 - Copilot: not written yet. It is to be filled in from a real Copilot run, with the host's own
   log analysis tool; until then the audit says so and checks only what every host shares, with no
   rail ids and no scorecard.
@@ -55,7 +59,8 @@ import sandbox  # noqa: E402  (the merge's rule of a green PR, shared with J5)
 SCORECARD = ROOT / "evals" / "SCORECARD.md"
 HANDBACK_WORDS = ("question:", "approval:", "merge:", "fix:", "infra:", "budget:", "rounds:",
                   "refused", "waits:", "context:")  # what `chantier handback ... blocked` takes
-PROMPT = re.compile(r"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|the stack)\b")
+CHIEF = "the Chief of Staff"  # `chantier <role> for the Chief of Staff[ of batch <batch>], in the project <root>.`
+PROMPT = re.compile(rf"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|the stack|{CHIEF})\b")
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
@@ -125,6 +130,28 @@ SHELL_WRITES = (
     re.compile(r"(?<![\d&>=-])>>?(?!\s*(?:[&>]|\$null\b))"),
 )
 HERE_STRING = re.compile(r"@'.*?'@|@\".*?\"@", re.S)  # a here-string's text is data, not commands
+HERE_DOC = re.compile(r"(?<!<)<<(?!<)-?\s*(?P<q>['\"]?)(?P<word>\w+)(?P=q)")  # `<<WORD`, `<<'WORD'`, `<<-WORD`
+SHELLS = re.compile(r"\b(?:bash|sh|zsh|dash|ksh|pwsh|powershell)(?:\.exe)?(?:\s+-\S+)*$", re.I)
+
+
+def without_data(c: str) -> str:
+    """The command as the shell runs it: a PowerShell here-string and the body of a here-doc (up to
+    the line that closes it) are data, taken out; a here-doc fed to a shell is commands, so its
+    body stays."""
+    out, closing = [], ""
+    for line in HERE_STRING.sub("''", c).splitlines():
+        if closing:
+            if line.strip() == closing:
+                closing = ""
+                out.append(line)
+            continue
+        out.append(line)
+        m = HERE_DOC.search(line)
+        if m and not SHELLS.search(line[:m.start()].rstrip()):
+            closing = m["word"]
+    return "\n".join(out)
+
+
 QUOTED = re.compile(r"\"(?:`.|[^\"`])*\"|'[^']*'", re.S)
 
 
@@ -257,6 +284,15 @@ class Agent:
         """The shell commands, from `since` on (an ISO time) when it is given."""
         return [i.get("command", "") for (n, i), t in zip(self.tools, self.when)
                 if n in ("Bash", "PowerShell") and (not since or not t or t[:19] >= since[:19])]
+
+    def claim_call(self, uuid: str) -> str:
+        """The time of the latest shell call, stamped before the claim's `since`, that runs
+        `foreman transcript <uuid>`: the call was issued before the CLI stamped `since` ('' if none)."""
+        claim = re.compile(r"\bforeman\s+transcript\s+" + re.escape(uuid))
+        stamps = [t for (n, i), t in zip(self.tools, self.when)
+                  if n in ("Bash", "PowerShell") and t and claim.search(i.get("command", ""))
+                  and t[:19] <= self.since[:19]]
+        return max(stamps, default="")
 
     def commands(self, since: str = ""):
         """Each shell command (here-strings taken out), with its variables: `names(at)` gives
@@ -425,6 +461,8 @@ def load_agents(data: dict, projects: Path, check: Checks) -> tuple[list, list, 
         a = Agent(main_path, {"agentType": "chief-of-staff" if direct else "foreman"})
         # the Chief of Staff's own: from its claim; a Foreman's: from the batch's open
         a.since = since.get(uuid, "") if direct else opened
+        if direct and a.since:  # the window opens at the shell call that made the claim
+            a.since = a.claim_call(uuid) or a.since
         steering.append(a)
         for f in sorted(main_path.with_suffix("").rglob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
@@ -475,21 +513,25 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
 
     # the team is the project's `chantier` section, read by the Chief of Staff: a built-in role
     # runs the plugin's agent unless that section names another; any other role is a review step
-    reviews = {a.role for a in agents if a.role and a.role not in DRIVERS | WORKERS}
+    # a Chief-of-Staff subagent (`for the Chief of Staff`) is audited by its own card, not as a review step
+    reviews = {a.role for a in agents if a.role and a.what != CHIEF and a.role not in DRIVERS | WORKERS}
     for a in agents:
         check(a.role is not None, f"{a.id[:10]} ({a.type}) starts with a `chantier <role>` prompt", "J1")
         if a.role:
             check(a.type == PLUGIN_AGENT.format(role=a.role) or not a.type.startswith("chantier:"),
                   f"{a.id[:10]} runs the plugin's agent for {a.role}, or the project's own ({a.type})",
                   "J1")
-            card = "driver.md" if a.role in DRIVERS else "worker.md"
+            chief = a.what == CHIEF  # the CLI gives these a first line only: no rules line asked
+            card = f"{a.role}.md" if chief else "driver.md" if a.role in DRIVERS else "worker.md"
             check(f"references/{card}" in a.prompt, f"{a.id[:10]} is told to read {card}", "J1")
-            check("$CHANTIER rules" in a.prompt, f"{a.id[:10]} is told the project's rules rank first",
-                  "J1")
-            parent_ok = (a.parent in steering) if a.role in DRIVERS else \
+            if not chief:
+                check("$CHANTIER rules" in a.prompt,
+                      f"{a.id[:10]} is told the project's rules rank first", "J1")
+            by_steering = a.role in DRIVERS or chief
+            parent_ok = (a.parent in steering) if by_steering else \
                 (a.parent is not None and a.parent.role in DRIVERS)
             check(parent_ok, f"{a.id[:10]} ({a.role}) was started by "
-                             f"{'the steering session' if a.role in DRIVERS else 'a Driver'}", "J2")
+                             f"{'the steering session' if by_steering else 'a Driver'}", "J2")
         if a.role in WORKERS:
             check(re.search(r"^writes:", a.prompt, re.M) is not None,
                   f"{a.id[:10]} ({a.role}) prompt holds a `writes:` line (the plugin guards its writes)",
@@ -608,7 +650,8 @@ def fast_forward_checks(data: dict, loaded: tuple, ws: Path, check: Checks) -> N
     last = next((n for c in reversed(merged) for n in reversed(c.get("notes") or [])
                  if note_text(n).startswith("main checkout:")), None)
     skipped = last is not None and "not fast-forwarded:" in note_text(last)
-    moves = [c for c in sum((f.bash(f.since) for f in steering), []) if GIT_MOVES.search(c)]
+    moves = [d for d in (without_data(c) for f in steering for c in f.bash(f.since))
+             if GIT_MOVES.search(d)]
     ok = (bool(head) and head == theirs or skipped) and not moves
     why = (f"the workspace is at {head[:7] or '?'}, the remote's {default} at {theirs[:7] or '?'}"
            + (f", and the steering session ran `{moves[0][:80]}`" if moves else ""))
