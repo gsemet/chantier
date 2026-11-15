@@ -14,7 +14,8 @@
 }
 
 /* selected: a check mark in the top row and the card held lifted, no outline */
-.pi.sel {
+.card.pi.sel {
+  border-color: var(--edge, var(--line));
   box-shadow: var(--shadow-note-hover);
 }
 
