@@ -37,8 +37,8 @@ defaults, not a gate.
     not read. On Copilot, the same rule.
   - `pr-template.md`: when you write `pr-body.md` (at the first push and the PR), not at the
     opening.
-  - `worker.md`: only the section of the role whose reply you check, when that reply comes.
-    "Your means" already gives each reply's format.
+  - a worker's own card (`<role>.md`): only when its reply needs checking beyond what "Your means"
+    gives. "Your means" already gives each reply's format.
 - **How to read a section:** Grep the heading in the file, then Read with offset and limit, up to
   the next heading of the same level. A section a link names is read in full: never a few lines
   of it.
@@ -77,8 +77,8 @@ defaults, not a gate.
   `.gitignore` change goes through a `coder`, in a round, as any project file) or not at all; a
   file that should not be committed is simply not staged (staging is by name). A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it.
-- A reply out of format is a failed worker. Each worker's reply has the format its section of
-  [worker](worker.md) names; before acting on a reply, check it against that format:
+- A reply out of format is a failed worker. Each worker's reply has the format its own card names (for example
+  [coder](coder.md), [inspector](inspector.md), [verifier](verifier.md)); before acting on a reply, check it against that format:
   - Inspector, and each extra review step: the reply is the JSON object alone, parseable, with
     `verdict` exactly `APPROVE` or `FIX-REQUIRED` and `head` a commit SHA. Prose, prose around the
     JSON, or a verdict word outside the JSON fails.
@@ -522,8 +522,8 @@ redirection, `Set-Content`, `sed -i`, an interpreter's inline code): the guard r
 sees, and the rule holds for what it does not. Every change the CR makes goes
 through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
 
-A CR that touches the board's write paths carries the scratch-folder rule of [worker](worker.md)
-in each Coder's and Verifier's brief, and the evidence plan names the scratch folder its runs use.
+A CR that touches the board's write paths carries the scratch-folder rule of [coder](coder.md)
+(the same in [verifier](verifier.md)) in each Coder's and Verifier's brief, and the evidence plan names the scratch folder its runs use.
 
 Your worktree's work is never discarded by you: no `git reset --hard`, `git checkout -- <path>`,
 `git restore`, `git clean`, and no deletion of a file in the worktree. `git rebase --abort` is

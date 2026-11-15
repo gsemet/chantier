@@ -875,7 +875,7 @@ def scenario(w: World) -> None:
     check("`take` prints the Verifier's opening lines: the first line and the card's `Read` line "
           "(the scripted Driver builds no worker prompt, so it copies none)",
           vi >= 0 and fm.facts[vi + 1].startswith("  chantier verifier for CR-10")
-          and 'worker.md, section "Verifier"' in fm.facts[vi + 2]
+          and "references/verifier.md;" in fm.facts[vi + 2]
           and fm.facts[vi + 2].startswith("  Read "), str(fm.facts))
     code, _ = w.chantier("take", "CR-103", "--epoch", 1, expect=2)
     check("a third Driver is refused: no free slot", code == 2 and "no free slot" in w.last_stderr)

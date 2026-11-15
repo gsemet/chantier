@@ -1501,8 +1501,8 @@ implementation: no commit, no push, no PR, nothing in a CR's worktree. Implement
   is working, end the Progress report with the offer of a demo (`status-layout.md`).
   Nothing starts without the user's yes; a no ends it. You have no timer: it happens on that
   message. A parallel batch gets no offer.
-- **The study.** On a yes, start the `demo-explorer` (`worker.md`, section "Demo explorer";
-  prompt as in `concepts.md`, copy the first line, `chantier demo-explorer for the Chief of Staff
+- **The study.** On a yes, start the `demo-explorer` (`demo-explorer.md`;
+  prompt as in `concepts.md`, with a `Read <skill>/references/demo-explorer.md;` line and the rules line; copy the first line, `chantier demo-explorer for the Chief of Staff
   of batch <batch>, in the project <root>.`, with `4-batch/` as its folder and the user's
   language, and the agent and model `$CHANTIER playbook` prints for it). It writes
   `demo/demo.md` in `4-batch/`.

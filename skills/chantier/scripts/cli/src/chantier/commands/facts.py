@@ -74,8 +74,8 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     lines = [
         f'{c.id} "{c.title}" ({c.kind}) {state_word(d, c, repo)} in batch {batch} ({d.mode})',
         f"cli: {cli_command(repo)} <command> --batch {batch}",
-        f"cards: {skill}/references/ (driver.md, worker.md, concepts.md); the project's "
-        "rules rank above them: `rules`",
+        f"cards: {skill}/references/ (driver.md, concepts.md; each worker's own card, named in "
+        "its opening lines); the project's rules rank above them: `rules`",
         f"project instructions: {found.as_posix() if found else 'none'}",
         f"specification: {(folder / c.specification).as_posix()}",
         f"folder: {folder.as_posix()} (work/, evidence/)",

@@ -180,7 +180,7 @@ page (`https://code.claude.com/docs/en/<page>`).
   reads" names ("Tools", "Auto mode", "Compacting", "The write guard"), when the step comes:
   "Auto mode" tells it what a refusal means and that it is reported, never worked around.
 - The workers do not read this file; what they need (one command per call, read before you
-  overwrite, no leading assignment, `git -C`) is in `concepts.md`, rule 9.
+  overwrite, no leading assignment, `git -C`) is in each worker's own card.
 
 ### Prerequisites
 
