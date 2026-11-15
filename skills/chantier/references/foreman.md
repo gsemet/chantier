@@ -84,7 +84,13 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   --no-gate`) is checked first: read `$CHANTIER rules` and find the rule the reason quotes. It
   holds when the rules say the project has no long gate, or exempt this CR (for an exemption by
   kind of change, such as docs only, read the PR's changed files on the forge: `gh pr diff
-  --name-only`, `glab mr diff`); the ask is then `ready-to-merge <cr> <link> no long gate: <reason>` (or `pr-in-draft …`).
+  --name-only`, `glab mr diff`), or name a pipeline job as the long gate and that job is green at
+  the PR's head: read it on the forge (`gh pr checks <pr>`, the job by its name, state pass;
+  `glab ci status --branch <branch>` on GitLab, unproved), and send the CR back with `take <cr>
+  --note "long gate: <job> not green at <sha7>"` when it is not, with no ask. When the rules also
+  ask a local run on the stack's top, the stack's top handed back with `--no-gate` goes back with
+  `take <cr> --note "long gate: the stack's top runs <command> locally"`, with no ask; the Copilot
+  host's path is unproved. The ask is then `ready-to-merge <cr> <link> no long gate: <reason>` (or `pr-in-draft …`).
   When the rules declare a long gate that covers this CR, send the CR back to a Driver with
   `take <cr> --note "long gate: <why the exemption does not hold>"`, with no ask. When the rules
   say nothing about a long gate, ask `question <cr> no long gate written down: <the Driver's

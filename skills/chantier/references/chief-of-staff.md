@@ -81,7 +81,7 @@ are a batch's). A missing tool is said with what to install. P9's forge side ("F
 permissions" below) is told in the same message, after the P5/P10 lines, and a P10 warn is a
 question, asked once per session (below). Nothing blocks the user's request there. A project with no long gate written down is a question for the user, with your
 recommended answer and an offer to write it in `AGENTS.md`; an absent gate never means success. Once the
-project's rules say there is no long gate, or exempt a kind of CR, a Driver's `handback --no-gate` carries
+project's rules say there is no long gate, or exempt a kind of CR, or name a pipeline job as the long gate, a Driver's `handback --no-gate` carries
 that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
 When the user says "our long gate is `<command>`", propose the exact `AGENTS.md` lines
 (`docs/gates.md`) and write them on the user's yes. At that moment ask once, on the same rule as
@@ -1099,7 +1099,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
      the mode's order, not a slip: skip this gate check (`handback ready` still enforces the
      gate at the PR's head). Likewise for a branch whose PR the record holds (`handoff` prints
      it): a push after a rebase with no gate pass at the local head is the early-push rule's
-     order, not a slip ([driver](driver.md)): skip the gate check there too. `push refused
+     order, not a slip ([driver](driver.md)): skip the gate check there too. Likewise when the
+     project's rules name a pipeline job as the long gate: skip this gate check (the steering
+     session checks that job at the PR's head; GitLab and Copilot: unproved). `push refused
      <branch>: no long gate passed at <sha>` stays for a branch with no PR yet. A push that would drop work the
      remote has and the local head does not, or that you cannot tie to the CR, is not
      legitimate.

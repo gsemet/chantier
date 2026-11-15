@@ -29,6 +29,18 @@ gate: <why>`) are written there too: the Driver quotes that rule with `handback 
 --no-gate`, and the Foreman (or the Chief of Staff steering) checks it. A rule that is not
 written is a question for you, never a pass.
 
+A project whose CI runs the long suite faster than the machine may name that pipeline job as its
+long gate instead:
+
+```markdown
+- Long gate: the pipeline's `test` job, green at the PR's head.
+```
+
+The Driver then runs no local gate, waits for that job on the forge and quotes the rule with
+`--no-gate`, and the Foreman (or the Chief of Staff steering) reads the job's state at the PR's
+head. A project with no CI, or whose runner is the same slow machine, gains nothing. GitLab and
+Copilot: unproved.
+
 A long gate that is isolated per worktree (its own ports, folders and services) can run several at
 once with `long_gate:` then `parallel: <n>` in `chantier.yaml`; the number is what your machine
 carries. With no such key the long gates run one at a time.
