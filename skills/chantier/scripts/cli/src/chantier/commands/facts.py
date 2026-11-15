@@ -18,7 +18,13 @@ from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limi
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines
-from chantier.plugin_files import archive_path, cli_command, project_instructions, skill_dir
+from chantier.plugin_files import (
+    archive_path,
+    cli_command,
+    project_instructions,
+    skill_dir,
+    worker_prompt_lines,
+)
 from chantier.stacks import (
     chain,
     stack_base,
@@ -90,7 +96,12 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     if c.kind not in {"release"}:
         lines += _gate_lines(repo, batch, d, c)
     lines += _gate_log(folder)
-    return lines + team_lines(d.playbook) + ci_lines(d.playbook)
+    return (
+        lines
+        + team_lines(d.playbook)
+        + ci_lines(d.playbook)
+        + worker_prompt_lines(d.host, repo.root.as_posix(), c.id, c.title, batch)
+    )
 
 
 def _status_lines(d: BatchRecord, c: CrEntry) -> list[str]:

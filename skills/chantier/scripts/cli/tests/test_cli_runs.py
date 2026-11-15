@@ -60,6 +60,22 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
     assert chantier("seat", "leave", "s-2")[1] == ["seat none"]
 
 
+def _worker_opening_lines(out: list[str], repo: Path) -> None:
+    """`take` prints each worker's opening lines, the Verifier's exactly, and none for a Driver."""
+    opening = [i for i, ln in enumerate(out) if " prompt, opening lines (copy them" in ln]
+    roles = ["coder", "conflict-resolver", "debugger", "inspector", "investigator", "verifier"]
+    assert [out[i].split()[0] for i in opening] == roles
+    batch = next(ln for ln in out if ln.startswith("cli: ")).rsplit("--batch ", 1)[1]
+    refs = f"{SKILL.as_posix()}/references"
+    assert [ln.removeprefix("  ") for ln in out[opening[-1] + 1 : opening[-1] + 4]] == [
+        f'chantier verifier for CR-101 "Fix login" of batch {batch}, '
+        f"in the project {repo.resolve().as_posix()}.",
+        f'Read {refs}/worker.md, section "Verifier", and {refs}/concepts.md;',
+        "the project's rules rank above them: run `$CHANTIER rules` first and read what "
+        "touches your work.",
+    ]
+
+
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, host: str
@@ -82,6 +98,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     assert code == 0 and out[0].startswith("took CR-101")
     assert any(ln.startswith("cards: ") and "references/" in ln for ln in out)
     assert any(ln.startswith("worktree: ") and "not created yet" in ln for ln in out)
+    _worker_opening_lines(out, repo)
     _, out, _ = chantier("round", "CR-101", "--note", "round 1")
     assert out[0] == "round 1 of 3 for CR-101"
     assert chantier("status")[1][-1].startswith("CR-101 working r1/3")

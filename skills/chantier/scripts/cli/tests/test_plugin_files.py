@@ -216,6 +216,22 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: st
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
+@pytest.mark.parametrize("role", [r for r in WORKERS if r != "demo-explorer"])
+def test_a_worker_agent_file_points_to_its_card_and_refuses_a_prompt_without_it(
+    role: str, host: str
+) -> None:
+    body = _front(agent_file(role, host))[1]
+    section = role.replace("-", " ").capitalize()
+    assert f'Your card is `worker.md`, section "{section}"' in body
+    worker = (SKILL / "references" / "worker.md").read_text(encoding="utf-8")
+    assert f"\n## {section}\n" in worker
+    assert (
+        f'its `Read` line must name my card, `worker.md`, section "{section}"' in body
+        and f"`chantier {role}`, or that names no path to my card" in body
+    )
+
+
+@pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_the_model_table_names_every_model_the_agent_files_name(host: str) -> None:
     for role in ROLES:
         front, _ = _front(agent_file(role, host))
