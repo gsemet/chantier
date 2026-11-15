@@ -149,6 +149,20 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
     return oid
 
 
+def _normalise_args(args: argparse.Namespace, note: str) -> str:
+    """The CR ids of the arguments in their canonical form; returns the note."""
+    if (
+        args.kind in CR_ORDERS
+        or args.kind == "note"
+        or (args.kind == "waive" and args.cr != "stack")
+    ):
+        args.cr = _cr_arg(args.cr)
+    args.fix_for = _cr_arg(args.fix_for)
+    if args.kind == "after" and note.strip() != "-":
+        note = ", ".join(_cr_arg(s.strip()) for s in note.split(","))
+    return note
+
+
 def order(args: argparse.Namespace) -> list[str]:
     """The Chief of Staff's word, in the state at once; the Foreman sees it in `status` and
     marks it `order done` once its own part is done. `order merged --epoch <n>` is the Foreman
@@ -160,15 +174,8 @@ def order(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     if args.kind == "done":
         return _order_done(repo, args)
-    if (
-        args.kind in CR_ORDERS
-        or args.kind == "note"
-        or (args.kind == "waive" and args.cr != "stack")
-    ):
-        args.cr = _cr_arg(args.cr)
-    args.fix_for = _cr_arg(args.fix_for)
-    if args.kind == "after" and note.strip() != "-":
-        note = ", ".join(_cr_arg(s.strip()) for s in note.split(","))
+    note = _normalise_args(args, note)
+
     own = args.epoch is not None
     if own and args.kind != "merged" and not (args.kind == "add" and args.fix_for):
         raise ChantierError(
