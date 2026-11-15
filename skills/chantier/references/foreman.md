@@ -122,7 +122,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   when it ended, with its hand-back or without, before the CR's next `take`).
 - `$CHANTIER gate <cr> --first --epoch <n>`: when a CR on the critical path (other CRs wait for
   it, by `after` or by the stack) has its long gate queued (`gate queued behind …`), put it
-  first, and say in your next report which CR, ahead of which. Never for another reason, nor at
+  first, and say in your next report which CR, ahead of which. A second use, in a parallel
+  batch: the CR the user has said they merge next (an order note, an ask's answer). In a stack
+  or series batch the CLI already puts the next merge's gate first (the first CR of the order
+  not merged or cancelled), so `--first` is not needed for it. Never for another reason, nor at
   a Driver's request alone.
 - Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
   failed, goes to a new Driver on the escalation model that `playbook --batch` prints

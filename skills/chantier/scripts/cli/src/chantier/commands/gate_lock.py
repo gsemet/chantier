@@ -1,4 +1,5 @@
-"""The long gate's lock: first come first served, as many at once as the project allows."""
+"""The long gate's lock: the queue's order (the next merge, those moved first, arrival), as many
+at once as the project allows."""
 
 from __future__ import annotations
 

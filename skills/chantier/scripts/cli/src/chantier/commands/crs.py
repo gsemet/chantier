@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import subprocess
 from pathlib import Path
 
 from chantier.core.batch import Batch, find_cr_batch, read_batch
@@ -80,6 +82,59 @@ def gate_passed(events: list[EventRecord], head: str | None) -> bool:
     if run is None:
         return bool(here[-1].result == "pass")
     return all(e.result == "pass" for e in here if e.run == run)
+
+
+MERGE_TREE_GIT = (2, 38)  # `git merge-tree --write-tree` needs it
+
+
+def last_gate_pass(events: list[EventRecord]) -> str | None:
+    """The head of the CR's latest passed long gate, or None."""
+    seen: list[str] = []
+    for e in reversed(events):
+        if e.kind == "gate" and e.head and e.head not in seen:
+            seen.append(e.head)
+            if gate_passed(events, e.head):
+                return str(e.head)
+    return None
+
+
+def git_version() -> tuple[int, ...]:
+    """The installed git's version, as numbers (`git version 2.43.0.windows.1` is (2, 43, 0))."""
+    m = re.search(r"(\d+(?:\.\d+)+)", git("version", check=False))
+    return tuple(int(x) for x in m[1].split(".")) if m else ()
+
+
+def _replay(wt: Path, base: str, g: str, mb: str) -> str | None:
+    """The tree of g's commits replayed onto base (`git merge-tree`), None on a conflict."""
+    p = subprocess.run(
+        ["git", "merge-tree", "--write-tree", "--merge-base", mb, base, g],
+        cwd=wt,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    return (p.stdout.splitlines() or [""])[0].strip() if p.returncode == 0 else None
+
+
+def carry_check(wt: Path, base: str, head: str, g: str) -> str | None:
+    """Why the long gate that passed at `g` does not carry to `head` on `base`, or None when it
+    carries: replaying g's commits onto base is clean and gives exactly the head's tree, with as
+    many commits. Git does the proof (`merge-tree`), not the Driver's word; no other method."""
+    have = git_version()
+    if have < MERGE_TREE_GIT:
+        need = ".".join(map(str, MERGE_TREE_GIT))
+        got = ".".join(map(str, have)) or "?"
+        return f"git {got} is older than {need}: no merge-tree to prove it"
+    mb = git("merge-base", g, base, cwd=wt, check=False)
+    tree = _replay(wt, base, g, mb) if mb else None
+    if tree is None:
+        return "the replay conflicts"
+    same_patch = tree == git("rev-parse", f"{head}^{{tree}}", cwd=wt) and git(
+        "rev-list", "--count", f"{mb}..{g}", cwd=wt
+    ) == git("rev-list", "--count", f"{base}..{head}", cwd=wt)
+    return None if same_patch else "the rebase changed the patch"
 
 
 def last_verdict(events: list[EventRecord], head: str | None) -> str | None:

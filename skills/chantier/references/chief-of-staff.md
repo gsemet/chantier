@@ -1071,7 +1071,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
      sha>` (the Driver runs the gate and sends the line again). When the `handoff` of step 1
      prints the `ci: beside the long gate` line, a push with no gate pass at the local head is
      the mode's order, not a slip: skip this gate check (`handback ready` still enforces the
-     gate at the PR's head). A push that would drop work the
+     gate at the PR's head). Likewise for a branch whose PR the record holds (`handoff` prints
+     it): a push after a rebase with no gate pass at the local head is the early-push rule's
+     order, not a slip ([driver](driver.md)): skip the gate check there too. `push refused
+     <branch>: no long gate passed at <sha>` stays for a branch with no PR yet. A push that would drop work the
      remote has and the local head does not, or that you cannot tie to the CR, is not
      legitimate.
   3. Legitimate: from the main checkout, without changing its branch or touching its files:

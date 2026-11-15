@@ -179,7 +179,10 @@ defaults, not a gate.
   it removes at its end.
 - Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
   <worktree> rebase <base>`;
-  a conflict is a `conflict-resolver`. Never `git stash`: the stash is shared by every worktree,
+  a conflict is a `conflict-resolver`. A rebase with no conflict needs no new long gate: the
+  pass carries over it (see the long gate bullet). When the PR already exists and the rebase
+  needs a long gate (a conflict was resolved), push early, by the "Early push" rule below.
+  Never `git stash`: the stash is shared by every worktree,
   so set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
   stop only one you started, by its id (a running long gate is stopped with `gate <cr> --stop`,
   never by ending the `gate` command, which leaves its suite running). A command the host may refuse runs alone, never chained
@@ -188,8 +191,23 @@ defaults, not a gate.
   the long gate` line, at the head you pushed, started right after `ship`, while CI runs; the
   "CI" bullet gives that order): `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs only the long gate the project's rules name, in the worktree, in order,
-  as many at once as the project allows (`chantier.yaml`, one by default), the others in arrival
-  order. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
+  as many at once as the project allows (`chantier.yaml`, one by default), the others in this
+  order: the next merge's first (in a stack or series batch, the first CR of the order not merged
+  or cancelled, a fix CR and the release CR excepted), then those the Foreman moved first, then
+  arrival order; a running gate is never stopped. After a rebase with no conflict, run no long
+  gate: the pass at the head before the rebase carries, and `handback ready` checks that with
+  git (the replay of the gated commits onto the base is clean and gives the head's tree) and
+  records `gate_from`; a rebase that resolved a conflict, or any commit added or edited, is
+  gated again. The CLI reads no forge: you read CI at the new head and give the `verifier` the
+  move as before. **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
+  whose PR exists needs a long gate (a `rebase:` note, a restack, a taken-back CR, with a
+  conflict resolved), turn the PR to draft if it is not one (`gh pr ready --undo`, `glab mr
+  update --draft`), push at once with `--force-with-lease`, `ship <cr> <link> --draft`, then
+  start the long gate and the CI watch side by side, by the outcomes of the "CI" bullet (a red
+  CR job stops the gate, a failed gate stops the watch). The PR leaves draft (`gh pr ready`,
+  `glab mr update --ready`, then `ship` without `--draft`) only once the gate has passed and
+  CI is green at that same head. A PR that does not exist yet still waits for its gate before
+  its first push, unless the project chose `ci: beside_gate: true`. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
   `gate`: it would wait in the lock behind the long gates. A CR the rules exempt hands back with
   `--no-gate "<the rule>"`. It stops at the first failure, keeps the log and records the pass at that head. It
@@ -251,8 +269,9 @@ defaults, not a gate.
   forge's draft state, so the word it prints never leads the forge): it records the PR at this head (the full SHA) and says what
   is off (uncommitted changes, a head not pushed, no long gate passed at it; with the `ci: beside
   the long gate` line `ship` runs before the gate passes, so `off: no long gate passed at <sha>`
-  is expected there and no slip, and `handback ready` still refuses a head with no passed long
-  gate). The PR's base is the
+  is expected there and no slip, as it is for a PR already recorded after a rebase that needs a
+  long gate (the early push), and `handback ready` still refuses a head with no passed long
+  gate, unless the pass carries over a clean rebase). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
   does.
 - Commits: a PR merges by rebase with every commit of its branch, so each commit you make is a
@@ -339,6 +358,9 @@ defaults, not a gate.
       gate.
     - Both done, the gate passed and CI green or judged by the rules: the `verifier` at the
       pushed head, as today.
+    - The early push of a PR that exists (every batch, no line needed) uses these same
+      outcomes after a rebase that needs a long gate: the PR is a draft, pushed at once, and
+      leaves draft only once the gate has passed and CI is green at that same head.
     The 3-hour limit, the "no CI" looks, the head check and the CI note's form stay.
   - The only source: any claim about CI (running, green, red or none) comes from the forge's list
     of checks for the PR at the pushed head: `gh pr checks <pr>`, `glab ci list`, or the forge's
@@ -432,8 +454,9 @@ defaults, not a gate.
   your `next after push` note: `pushed <branch>`: `ship` and go on. `push failed`: look at why
   (`git fetch`, what the remote gained), never the same push again. `push refused <branch>: no
   long gate passed at <sha>`: run the long gate, send the push line again and hand back `waits:`
-  again as above (with the `ci: beside the long gate` line the Chief of Staff does not send it;
-  one you get anyway goes to the steering session as printed). Any other `push refused` (the
+  again as above (with the `ci: beside the long gate` line, and for a branch whose PR is
+  recorded (the early push), the Chief of Staff does not send it; one you get anyway goes to the
+  steering session as printed). Any other `push refused` (the
   branch is not this batch's, or the Chief of Staff's own push was refused): `handback blocked
   refused <exact text>` at once; it goes to the user. Any other refused action stays `blocked
   refused` as above. The stack driver, which restacks several branches in one take, sends the
@@ -550,17 +573,23 @@ a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin
 branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
 a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
-above), `ship`, run the long gate at the new head, read CI (red is a round). The `verifier`, given the move, judges again what it touched before
-`handback ready`. With the `ci: beside the long gate` line, the long gate and the CI watch run
-side by side by the rules of the "CI" bullet. Green, no conflict, on the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
+above), `ship`, read CI (red is a round). After a clean rebase (no conflict), run no long gate:
+the pass carries, which `handback ready` checks with git and records as `gate_from`. With a
+conflict resolved, run the long gate at the new head with the early push: the PR goes to draft
+and is pushed at once, the long gate and the CI watch run side by side by the rules of the "CI"
+bullet, and the PR leaves draft once both passed at that head. The `verifier`, given the move,
+judges again what it touched before `handback ready`. Green, no conflict, on the default branch:
+turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round. If the note names another open dependency instead, or is
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
 `note rebase: …` received while working: rebase before the next push, however many `rebase:`
 notes came since your last push: one rebase, onto the latest default branch. With a long gate of
-the CR running, stop it (`gate <cr> --stop`) before that rebase, then run the long gate at the new
-head; CI runs at the new head. A note `rebase: stacked on <cr below>, without <dropped cr>`
+the CR running, stop it (`gate <cr> --stop`) before that rebase. After a clean rebase run no
+new long gate (the pass carries, checked by `handback ready`); after one with a conflict
+resolved, run the long gate at the new head with the early push (the "Early push" rule above);
+CI runs at the new head either way. A note `rebase: stacked on <cr below>, without <dropped cr>`
 changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dropped CR's branch>`, so the
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
@@ -620,7 +649,9 @@ head the steering session names gets it too). You edit no project file yourself,
 either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and you never discard a CR
 worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
 no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
-`glab mr update --draft`) while the stack is being made or changed. Each CR keeps its
+`glab mr update --draft`) while the stack is being made or changed. A clean restack (no conflict)
+runs no new long gate: the CR's pass carries over it, which `handback ready` checks with git
+when that CR is handed back at the new head. Each CR keeps its
 own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in
 [concepts](concepts.md), "Escalation". A conflict that only needs resolving: a `conflict-resolver`; one that needs
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move

@@ -8,9 +8,10 @@ Two checks guard every change, in any project. You declare them in your `AGENTS.
   run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
   change.
 - **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
-  as many at once as your `chantier.yaml` allows (one by default, see below), in arrival order
-  when more wait. `handback ready` requires it passed at the PR's head, and the
-  Verifier's `VERIFIED` there. One command may serve as both gates. The fast gate is never run
+  as many at once as your `chantier.yaml` allows (one by default, see below); when more wait,
+  the CR you merge next goes first in a stack or series batch, then those the Foreman moved
+  first, then arrival order. `handback ready` requires it passed at the PR's head (or carried
+  over a clean rebase, which the CLI checks with git), and the Verifier's `VERIFIED` there. One command may serve as both gates. The fast gate is never run
   through `chantier gate`.
 
 Declare them with one line each, the exact commands, one command per item, never chained with
