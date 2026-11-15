@@ -16,7 +16,7 @@ CR, the audit, the report) is in [the evals README](../README.md#a-sandbox-campa
 | Open | `$CHANTIER open 3-ready/delete-item 3-ready/edit-item 3-ready/status-filter 3-ready/json-api 3-ready/stats-page --mode <mode> --slots 3 --budget 20 --default-branch main` (`setup.py` prints it) |
 | Mode | chosen at launch: `stack`, `parallel` or `series`; the same 5 CRs in every mode |
 | Team | the plugin's agents |
-| Cost and time | the budget caps the cost at $20; the first run measures cost and time and this table is then written from its report |
+| Cost and time | the budget caps the cost at $20; run 2 (2026-11-15, stack): $10.28 (steering 20%), about 28 min from `open` to the last merge and 36 to the close, [report](../results/real-foreman-2026-11-15-run2.md) |
 
 The mode is written in the report, so runs of one mode compare with each other, and the modes
 with each other.
