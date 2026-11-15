@@ -83,6 +83,13 @@ function isInside(root: string, p: string): boolean {
   return a === r || a.startsWith(r.endsWith('/') ? r : r + '/')
 }
 
+/** A Git Bash drive path (`/c`, `/c/Users/x`) in its drive form (`c:/`, `c:/Users/x`); any other path as it is. */
+const fromGitBash = (p: string) => slash(p).replace(/^\/([A-Za-z])(?:\/(.*))?$/, (_m, d: string, rest?: string) => `${d}:/${rest ?? ''}`)
+
+/** The guard's compare: `isInside`, with a Git Bash drive path read as its drive form when either side is in drive form. */
+const guardInside = (folder: string, p: string) =>
+  /^[A-Za-z]:/.test(slash(folder)) || /^[A-Za-z]:/.test(slash(p)) ? isInside(fromGitBash(folder), fromGitBash(p)) : isInside(folder, p)
+
 /** `href` resolved from the folder `base`, the `#fragment` and `?query` dropped; null for a URL. */
 function resolveFrom(base: string, href: string): string | null {
   if (/^[A-Za-z][A-Za-z0-9+.-]*:(?!\/[^/]|$)/.test(href) && !/^[A-Za-z]:[\\/]/.test(href)) return null
@@ -580,7 +587,7 @@ function judgeShell(command: string, cwd: string, folders: string[]): { outside:
       const path = slash(raw)
       if (/[$%]/.test(path) || path.startsWith('~')) unjudged.push(`${raw} holds a variable or ~`)
       else if (moved && !isAbsolute(path)) unjudged.push(`${raw} follows a change of folder`)
-      else if (outside === null && !folders.some(f => isInside(f, isAbsolute(path) ? path : cwd + '/' + path))) outside = path
+      else if (outside === null && !folders.some(f => guardInside(f, isAbsolute(path) ? path : cwd + '/' + path))) outside = path
     }
   }
   return { outside, unjudged }
@@ -680,7 +687,7 @@ export const register: Register = on => {
         } else {
           const path = slash(raw)
           const abs = isAbsolute(path) ? path : known.cwd + '/' + path
-          if (!known.folders.some(f => isInside(f, abs))) {
+          if (!known.folders.some(f => guardInside(f, abs))) {
             refusal = `refused: ${path} is outside the folders this agent may write in (${known.folders.join('; ')}); write there`
           }
         }
