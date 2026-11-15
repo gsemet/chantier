@@ -33,8 +33,30 @@ timing table by case) and `<unit>-<forge>.json` (checks, failed labels, commands
 runs one check more than Linux, in `release`: `close` on a folder in use, since elsewhere a file in
 use does not stop a rename.
 
-<!-- MEASUREMENT: the Driver fills this in. The wall time of a full run with --jobs 4 against
---jobs 8 on the same machine, the machine named, and the budget of each unit, from a clean run. -->
+Measured on 2026-11-15 on a Windows 11 machine (Ryzen 7 7800X3D, 16 logical cores), with other
+sessions running on it, so the machine was loaded and not quiet; one full run each, all checks
+passing:
+
+| unit | budget (s) | `--jobs 4` (s) | `--jobs 8` (s) |
+| --- | ---: | ---: | ---: |
+| parallel | 260 | 209.5 | 242.0 |
+| stack | 320 | 259.3 | 313.9 |
+| release | 420 | 332.9 | 354.0 |
+| gates | 330 | 262.3 | 283.2 |
+| series-deps | 190 | 154.5 | 193.2 |
+| direct | 125 | 100.0 | 122.5 |
+| surface-board | 250 | 201.6 | 235.9 |
+| qa-driver | 115 | 90.4 | 120.0 |
+| gitlab | 95 | 61.1 | 75.1 |
+| wall time | | 449.8 | 354.0 |
+| sum of the units | | 1671.6 | 1940.0 |
+
+`--jobs 8` is faster by wall time (354 s against 450 s) but each unit runs slower, since the
+processes compete for the same disk and CPU; the longest unit, `release`, sets the floor. The
+budgets are these `--jobs 4` times plus about 25 percent, a loaded-machine figure. The target of
+under 300 s on a quiet machine and on Linux CI is not proven by this run: neither run came under
+300 s, and a quiet Linux machine, where a process starts much faster than on Windows, has to
+confirm it and lower the budgets.
 
 In a unit, a scripted Foreman reads the batch's state and does what its card leaves it (fills the
 slots, asks, merges what the user allowed, cleans up, pauses); scripted Drivers create their
