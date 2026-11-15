@@ -134,19 +134,31 @@ def ready_word(d: BatchRecord, c: CrEntry, repo: Repo) -> str | None:
         under = place[: ids.index(c.id)]
         return READY_TO_MERGE if all(_out_of_draft(x) for x in under) else PR_IN_DRAFT
     default: str = repo.config["default_branch"]
-    return READY_TO_MERGE if stack_base(d, c, repo) == default else PR_IN_DRAFT
+    return READY_TO_MERGE if pr_base_of(d, c, repo) == default else PR_IN_DRAFT
+
+
+def pr_base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
+    """The base its PR has: the forge's, as `ship` last read it; with none recorded (no PR
+    shipped, an older record, a failed read) the record's plan, `stack_base`."""
+    return c.pr_base or stack_base(d, c, repo)
 
 
 def draft_waits(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """What a PR in draft waits for: the CR under it in the stack not yet out of draft, else the
-    CR whose branch it sits on, else its own turn out of draft."""
+    """What a PR in draft waits for: the CR whose branch its PR sits on, on the forge, when that
+    CR is not out of draft; else the CR under it in the stack not yet out of draft, else the CR
+    whose branch its base is, else its own turn out of draft."""
+    default: str = repo.config["default_branch"]
+    if c.pr_base and c.pr_base != default:
+        on = next((x for x in d.crs if x.branch == c.pr_base), None)
+        if on is not None and not _out_of_draft(on):
+            return on.id
     place = chain(d)
     ids = [x.id for x in place]
     if c.id in ids:
         below = [x for x in place[: ids.index(c.id)] if not _out_of_draft(x)]
         if below:
             return below[-1].id
-    base = stack_base(d, c, repo)
+    base = pr_base_of(d, c, repo)
     if base != repo.config["default_branch"]:
         return next((x.id for x in d.crs if x.branch == base), base)
     return "its turn out of draft"

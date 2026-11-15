@@ -48,7 +48,9 @@ elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a)
             sys.exit(1)
         bases[str(number)] = new
         json.dump(state, open(state_path, "w"))
-    print(json.dumps({"number": number, "base": {"ref": bases.get(str(number), "main")}}))
+    # `drafts` names the PRs the forge holds as drafts (a PR is out of draft unless listed)
+    print(json.dumps({"number": number, "base": {"ref": bases.get(str(number), "main")},
+                      "draft": number in state.get("drafts", [])}))
 elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks/\d+/unstack", a) for a in args):
     path = next(a for a in args if a.endswith("/unstack"))
     found = [s for s in state.setdefault("stacks", []) if s["number"] == int(path.split("/")[-2])]

@@ -10,9 +10,9 @@ started.
   (`handback <cr> ready <link>`). It is a token the rails and old records read; the CLI derives
   from it the three words below, and no person reads `ready` alone.
 - **Ready to merge** (🟢): a CR handed back `ready` whose PR is out of draft on the forge (the CLI
-  records it: `ship` without `--draft`, `stack --out-of-draft`, never ahead of the forge) and, in a
-  stack batch, with every CR under it ready to merge too; outside a stack its PR's base is the
-  default branch. The user may merge it on its own at any moment, a stack batch is no exception;
+  records it: `ship` reads it from the forge, `stack --out-of-draft`, never ahead of the forge) and, in a
+  stack batch, with every CR under it ready to merge too; outside a stack its PR's base on the
+  forge, as `ship` last read it, is the default branch. The user may merge it on its own at any moment, a stack batch is no exception;
   the top of a stack ready to merge means the whole stack is mergeable. "Mergeable" names only PRs
   ready to merge, never a draft, whatever the forge's `mergeable` field says.
   In a stack batch, a PR of the mergeable part of a verified stack (the five checks of **Stack**,
@@ -22,7 +22,8 @@ started.
   draft on top is not mergeable. A PR of the mergeable part below the top had heavy CI
   only at the top, unless the user asked for it at its head.
 - **PR in draft** (🟤): a CR handed back `ready` whose PR is open and a draft; it waits for what is
-  under it (a CR below, its dependency, the release's top) or for its turn out of draft, and
+  under it: first the CR whose branch its PR's base is on the forge, as `ship` last read it, else
+  a CR below, its dependency, the release's top, or for its turn out of draft, and
   nobody merges it (do not merge). **Ready locally** (🟣): a CR handed back `ready` with no PR yet
   (rare: `handback ready` needs a PR). A draft's icon is its CR's state, never "draft" by
   default: 🟡 while it rebases or runs a gate, 🟠 waiting for another CR's work, 🔴 blocked.

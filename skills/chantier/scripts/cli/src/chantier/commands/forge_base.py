@@ -1,5 +1,6 @@
-"""A stacked CR's real base: the branch its PR targets on the forge, read once, for `take`,
-`handoff` and `ship`. It reuses `forge-stack`'s calls (`pr_parts`, `gh`, `glab`): no copy."""
+"""A PR's real base and draft state: what the forge holds, read once, for `ship` (every CR),
+and the base alone for `take` and `handoff` (a stacked CR). It reuses `forge-stack`'s calls
+(`pr_parts`, `gh`, `glab`): no copy."""
 
 from __future__ import annotations
 
@@ -19,25 +20,37 @@ def is_stacked(d: BatchRecord, c: CrEntry) -> bool:
     return d.mode == "stack" and any(x.id == c.id for x in chain(d))
 
 
-def pr_base(link: str) -> str:
-    """The base branch of the PR or MR at `link`, from the forge (one read, no retry). The forge
-    is read from the shape of the link. A failed read raises `ChantierError`."""
+def pr_state(link: str) -> tuple[str, bool]:
+    """The base branch and the draft state of the PR or MR at `link`, from the forge (one read,
+    no retry). The forge is read from the shape of the link. A failed read, or a draft field
+    that is not a boolean, raises."""
     host, owner, name, number = pr_parts(link)
     if GITLAB_LINK.match(link):
         mr = glab(f"projects/{quote(owner, safe='')}/merge_requests/{number}", host)
-        return str(mr["target_branch"])
-    pull = gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{number}"], host)
-    return str(pull["base"]["ref"])
+        base, draft = str(mr["target_branch"]), mr["draft"]
+    else:
+        pull = gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{number}"], host)
+        base, draft = str(pull["base"]["ref"]), pull["draft"]
+    if not isinstance(draft, bool):
+        raise TypeError("draft is not a boolean")
+    return base, draft
+
+
+def read_state(link: str) -> tuple[str | None, bool | None, str]:
+    """`(branch, draft, "")` read from the forge, or `(None, None, the unread text)` when the
+    read failed: `base ? (not read from <link>: <the forge's text, one line>)`."""
+    try:
+        base, draft = pr_state(link)
+        return base, draft, ""
+    except (ChantierError, KeyError, TypeError) as e:
+        why = " ".join(str(e).split()) or type(e).__name__
+        return None, None, UNREAD.format(link=link, why=why)
 
 
 def read_base(link: str) -> tuple[str | None, str]:
-    """`(branch, "")` read from the forge, or `(None, the unread text)` when the read failed:
-    `base ? (not read from <link>: <the forge's text, one line>)`."""
-    try:
-        return pr_base(link), ""
-    except (ChantierError, KeyError, TypeError) as e:
-        why = " ".join(str(e).split()) or type(e).__name__
-        return None, UNREAD.format(link=link, why=why)
+    """`(branch, "")` read from the forge, or `(None, the unread text)` when the read failed."""
+    base, _, shown = read_state(link)
+    return base, shown
 
 
 def stacked_read(d: BatchRecord, c: CrEntry) -> tuple[str | None, str] | None:

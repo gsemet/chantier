@@ -23,16 +23,12 @@ def register(sub: Subparsers) -> None:
         sub,
         "ship",
         "chantier.commands.delivery:ship",
-        "record the PR the Driver opened or updated; say what is off",
+        "record the PR the Driver opened or updated, with its base and draft state read from the "
+        "forge; say what is off",
         BATCH,
     )
     s.add_argument("cr")
     s.add_argument("pr", help="the PR link")
-    s.add_argument(
-        "--draft",
-        action="store_true",
-        help="the PR is a draft on the forge (record it; without the flag it is out of draft)",
-    )
 
     s = add_command(
         sub,
