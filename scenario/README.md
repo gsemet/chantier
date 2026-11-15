@@ -161,7 +161,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (test: test_gate_view.py::test_the_state_of_a_gate_read_from_the_gate_events_at_the_head);
 - the three words of a ready CR (`ready locally`, `PR in draft`, `ready to merge`) with their
   icons 🟣, 🟤 and 🟢 in `status`, the STATUS files (`readiness`), `handoff` and the `stack` rows:
-  `ship` reading the draft state from the forge, the hand-back line by word, a PR out of draft over a draft, `stack
+  `ship` reading the draft state from the forge, the hand-back line by word (for `PR in draft`, its PR's draft state and the CR (and PR) it waits
+  on), a PR out of draft over a draft, `stack
   --out-of-draft` refused over a draft (nothing written) or on a CR that is working, `stack
   --out-of-draft` and `--draft` recorded, a CR taken back dropping the PR above it to `PR in
   draft`, a prepared release, a CR on an open CR's branch in a parallel batch, an old record with

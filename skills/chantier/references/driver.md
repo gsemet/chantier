@@ -439,7 +439,9 @@ defaults, not a gate.
   and none missing: `handback <cr> ready <link> gaps: …`, or `… draft on <base>: waits for
   <what>; gaps: …`; with `--no-gate`: `handback <cr> ready <link> gaps: <gap> --no-gate "<rule>"`,
   which prints `no long gate: <rule> gaps: <gap>`); the CLI prints which state the CR is, ready to
-  merge, PR in draft or ready locally) or `handback
+  merge, PR in draft or ready locally; for PR in draft the printed line says its PR's draft state on
+  the forge and the CR (and PR) it waits on, and asks for no change on the forge: it is no reason
+  to turn the PR to draft or ready, to retarget it, or to stop; the hand-back is done) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`): it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).

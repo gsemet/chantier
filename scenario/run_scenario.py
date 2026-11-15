@@ -4454,7 +4454,9 @@ def base_from_pr(w: World) -> None:
     check("handed back ready over a draft, it reads `PR in draft`, not `ready to merge`: the hand-back "
           "line, its label and the `notify` text name the forge's base and the CR it waits for",
           out[0].startswith(f"[driver {q}→foreman] hand-back PR in draft")
-          and f"waits on {pb}" in out[1] and f"waits for {p}" in drawn(w, q)[1]["label"]
+          and out[1] == f"{q} PR in draft: its PR {qlink} is out of draft on the forge; "
+                        f"it waits on {p} ({plink})"
+          and f"waits on {pb}" not in out[1] and f"waits for {p}" in drawn(w, q)[1]["label"]
           and f"on {pb}, waits for {p}" in own_md, str(out))
     forge_base(w, qlink, "main")
     w.chantier("ship", q, qlink)
@@ -6052,9 +6054,10 @@ def ready_words(w: World) -> None:
           ready_of(a) == "ready to merge" == batch_readiness(a) and "ready to merge" in row(a)
           and "ready to merge" in w.chantier("handoff", a)[1][0], row(a))
     _, out = w.ready(b, w.cr(b)["pr"])
-    check("3. a PR in draft is handed back `PR in draft`, naming the base it waits on",
+    check("3. a PR in draft is handed back `PR in draft`, naming its draft state and the CR it waits on",
           out[0].startswith(f"[driver {b}→foreman] hand-back PR in draft")
-          and out[1].startswith(f"{b} PR in draft: it waits on {w.cr(a)['branch']}"), str(out))
+          and out[1].startswith(f"{b} PR in draft: its PR {w.cr(b)['pr']} is a draft on the forge; "
+                                f"it waits on {a} ({w.cr(a)['pr']})"), str(out))
     own = icon_is(w, b, "🟤", "a ready CR whose PR is a draft")
     check("3. its label and `readiness` read `PR in draft`, held by the CR it sits on",
           own["readiness"] == "PR in draft" == batch_readiness(b)
@@ -6062,8 +6065,35 @@ def ready_words(w: World) -> None:
     _, out = w.ready(c, w.cr(c)["pr"])
     check("4. a PR out of draft over a draft reads `PR in draft` too, and waits for the CR under it",
           out[0].startswith(f"[driver {c}→foreman] hand-back PR in draft")
-          and f"waits for {b}" in drawn(w, c)[1]["label"], str(out))
+          and f"its PR {w.cr(c)['pr']} is out of draft on the forge; it waits on {b} ({w.cr(b)['pr']})"
+          in out[1] and f"waits for {b}" in drawn(w, c)[1]["label"], str(out))
     icon_is(w, c, "🟤", "a PR out of draft over a draft")
+    # run 1: c out of draft, the forge's base still `main`, b not out of draft: the line names b
+    cpr, bpr = w.cr(c)["pr"], w.cr(b)["pr"]
+    forge_base(w, cpr, "main")
+    w.chantier("ship", c, cpr)
+    edit_cr(c, status="working")  # handed back again, the record as a Driver leaves it
+    _, out = w.ready(c, cpr)
+    check("4. a stacked PR out of draft with the forge's base `main` waits on the CR under it, "
+          "never on `main`",
+          out[1].endswith(f"out of draft on the forge; it waits on {b} ({bpr})")
+          and "waits on main" not in out[1], str(out))
+    edit_cr(b, drop=("pr",))
+    edit_cr(c, status="working")  # handed back again, the record as a Driver leaves it
+    _, out = w.ready(c, cpr)
+    check("4. a CR waited on with no PR recorded reads `(no PR yet)`",
+          out[1].endswith(f"it waits on {b} (no PR yet)"), str(out))
+    edit_cr(b, pr=bpr)
+    forge_base(w, cpr, w.cr(b)["branch"])
+    w.chantier("ship", c, cpr)
+    edit_cr(c, drop=("pr_draft",))
+    edit_cr(c, status="working")  # handed back again, the record as a Driver leaves it
+    _, out = w.ready(c, cpr)
+    check("4. a PR with no recorded draft state reads `of unknown draft state` and stays `PR in draft`",
+          out[0].startswith(f"[driver {c}→foreman] hand-back PR in draft")
+          and f"its PR {cpr} is of unknown draft state (draft not read: ship {c} {cpr}); "
+              f"it waits on {b} ({bpr})" in out[1], str(out))
+    w.chantier("ship", c, cpr)
     check("4. `status` and the `stack` rows read the same word",
           "PR in draft" in row(c) and any(ln.startswith(f"{c} PR in draft worktree")
                                           for ln in w.chantier("stack")[1]), row(c))
@@ -6182,7 +6212,8 @@ def ready_words(w: World) -> None:
     check("9. a prepared release whose PR is a draft is handed back `PR in draft`, naming the PR "
           "and what it waits on",
           out[0].startswith(f"[driver {rel}→foreman] hand-back PR in draft")
-          and f"the release PR {pr} waits on {w.cr(top)['branch']}" in out[1], str(out))
+          and f"the release PR {pr} is a draft on the forge; it waits on {top} ({w.cr(top)['pr']})"
+          in out[1], str(out))
     icon_is(w, rel, "🟤", "a prepared release whose PR is a draft")
     w.chantier("stack", "--out-of-draft", top, rel)
     _, out = w.chantier("handoff", rel)

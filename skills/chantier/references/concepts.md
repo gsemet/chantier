@@ -21,7 +21,9 @@ started.
   the go (one action from the top is GitHub's; on GitLab, one MR at a time from the bottom); a
   draft on top is not mergeable. A PR of the mergeable part below the top had heavy CI
   only at the top, unless the user asked for it at its head.
-- **PR in draft** (🟤): a CR handed back `ready` whose PR is open and a draft; it waits for what is
+- **PR in draft** (🟤): a CR handed back `ready` whose PR is open and a draft, or out of draft over a CR that is not (a
+  stack, a PR on another CR's branch); its hand-back line names its own draft state and the CR it
+  waits on; it waits for what is
   under it: first the CR whose branch its PR's base is on the forge, as `ship` last read it, else
   a CR below, its dependency, the release's top, or for its turn out of draft, and
   nobody merges it (do not merge). **Ready locally** (🟣): a CR handed back `ready` with no PR yet
