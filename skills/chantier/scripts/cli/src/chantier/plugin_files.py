@@ -176,6 +176,38 @@ def chief_prompt_lines(host: str, root: str, started_by: str | None = None) -> l
     return lines
 
 
+WORKER_FIRST_LINE = re.compile(
+    r"Prompt starts with: `(chantier ([a-z-]+) for <cr> \"<title>\" of batch <batch>, "
+    r"in the project <root>\.)`"
+)
+WORKER_CARD_LINE = re.compile(r"^Your card is `([^`]+)`, section \"([^\"]+)\"", re.M)
+
+
+def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -> list[str]:
+    """The opening three lines of each worker's prompt (a Driver starts it), read from the agent
+    files: the description says `Started by a Driver.`, its first line holds `<cr> "<title>" of
+    batch <batch>` and its body names its card and section. The CLI knows no role."""
+    lines: list[str] = []
+    refs = f"{skill_dir().as_posix()}/references"
+    for p in _agent_files(host)[1]:
+        text = p.read_text(encoding="utf-8")
+        first, card = WORKER_FIRST_LINE.search(text), WORKER_CARD_LINE.search(text)
+        if "Started by a Driver." not in text or not first or not card:
+            continue
+        filled = first[1]
+        for key, value in (("<cr>", cr), ("<title>", title), ("<batch>", batch), ("<root>", root)):
+            filled = filled.replace(key, value)
+        lines += [
+            f"{first[2]} prompt, opening lines (copy them unchanged, without the two leading "
+            "spaces, at the top of the prompt):",
+            f"  {filled}",
+            f'  Read {refs}/{card[1]}, section "{card[2]}", and {refs}/concepts.md;',
+            "  the project's rules rank above them: run `$CHANTIER rules` first and read what "
+            "touches your work.",
+        ]
+    return lines
+
+
 def read_playbook(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[str]]:
     """The project's `chantier.yaml`, resolved for this host: `(None, [])` when absent, else the
     playbook, or the problems found."""

@@ -63,7 +63,9 @@ defaults, not a gate.
   printed (no model printed: none passed). Read those lines with `$CHANTIER handoff <cr>`, which
   prints them and counts nothing, or keep the ones `take` printed in your prompt; `round` is run
   only to start a round, just before that round's Coder, never to read facts. A worker refused for its first line, or ended by a host failure, gets
-  one new start of the same role with the same brief, `$CHANTIER note <cr> "restart: <cause>"`
+  one new start of the same role with the same brief (a worker refused because its prompt names
+  no card gets that one new start with the role's opening lines copied as printed; the rest of
+  the brief stays the same), `$CHANTIER note <cr> "restart: <cause>"`
   first, no `round`; a second refusal of the same start, a model included, is `handback blocked
   refused <exact text>`, never retried without the model. Every worker's prompt holds
   `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
@@ -142,8 +144,10 @@ defaults, not a gate.
 - Every worker's prompt, whatever the role (`coder`, `inspector`, `verifier`, `investigator`,
   `debugger`, `conflict-resolver`), carries these lines of [concepts](concepts.md), "Starting an
   agent"; check them before each start:
-  - the first line, `chantier <role> for <cr> …`, and the card to read;
-  - the rules line, with the command named: the project's rules rank first, `$CHANTIER rules`;
+  - the role's opening lines, as `take`, `round` or `handoff` printed them under `<role> prompt,
+    opening lines:`, copied unchanged at the top of the prompt (the first line, the card's `Read`
+    line, the rules line), never retyped, shortened or rephrased, a follow-up start (a new head,
+    a rebase, a description pass) included;
   - `CLI ($CHANTIER): …`;
   - `writes: <worktree>; <CR folder>`;
   - `Note: …`, and `Needs: …` when the `team:` line prints one.

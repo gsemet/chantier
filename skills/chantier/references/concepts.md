@@ -410,6 +410,9 @@ Needs: skills <…>; tools <…>            (only when the playbook gives the ro
 Note: <why the CR is with it, or the round's brief>
 ```
 
+`take`, `round` and `handoff` print a worker's first three lines (the first line, the `Read` line
+and the rules line) under `<role> prompt, opening lines:`, to copy unchanged.
+
 A Driver's prompt holds the `Steering:` line: the steering session (the Foreman, or the Chief of
 Staff in direct mode) and the means of the host's reference row "A Driver messages its steering
 session" ([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)), written out as
