@@ -1,15 +1,8 @@
-/* Post-its, groups, the selection bar and the labels. Colours come from tokens.css only. */
-/* a post-it: a shadow, not an edge */
+/* Triage's cards, groups, the selection bar and the labels. Colours come from tokens.css only. */
+/* a Triage card is the Kanban's `.card`; `.pi` adds the pick-up: it tilts and lifts under the pointer */
 .pi {
   position: relative;
-  background: var(--pi-raw-fill);
-  border-radius: 4px 4px 4px 14px;
-  padding: 9px 10px;
-  box-shadow: var(--shadow-note);
   cursor: grab;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   transition:
     transform 0.12s ease,
     box-shadow 0.12s ease;
@@ -20,22 +13,20 @@
   box-shadow: var(--shadow-note-hover);
 }
 
-.pi.grill,
-.pi.specifying {
-  background: var(--pi-grill-fill);
-}
-
-.pi.specified {
-  background: var(--pi-spec-fill);
-}
-
-.pi.automatable {
-  background: var(--pi-auto-fill);
-}
-
+/* selected: a check mark in the top row and the card held lifted, no outline */
 .pi.sel {
-  outline: 2px solid var(--blue);
-  outline-offset: 1px;
+  box-shadow: var(--shadow-note-hover);
+}
+
+.pi .chk {
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.pi .chk .svgi {
+  width: 14px;
+  height: 14px;
 }
 
 .pi.drag {
@@ -59,47 +50,11 @@
   font-size: var(--text-badge);
 }
 
-.pi .row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.pi .sl {
-  font-family: var(--mono);
-  font-size: var(--text-small);
-  color: var(--ink2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .pi .late {
   color: var(--warn-ink);
 }
 
-.pi .pt {
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: var(--text);
-}
-
-.pi .pm {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  color: var(--ink2);
-  font-size: var(--text-small);
-  flex-wrap: wrap;
-}
-
 .pi .open {
-  margin-left: auto;
   border: 0;
   background: transparent;
   color: var(--link);

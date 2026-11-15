@@ -1,20 +1,19 @@
-// One post-it's markup: its grill-state mark, the slug, the late-summary clock and the origin badge,
-// the title, its labels and a foot with the state's word, the file count and the "open" button.
+// One Triage card: the Kanban's item card (ui/item-card.js) with Triage's extras added to it: a check
+// mark when selected, the late-summary clock and the origin badge, the "open" button, the marks
+// "modified" and "pending", and the attributes the drag and the selection need.
 // Pure: it returns markup from an item and a context; `bind` code lives in selection.js and drag.js.
 import { html } from '../core/dom.js';
-import { title } from '../core/format.js';
-import { labelTags } from '../labels/tags.js';
-import { stageOf, stageWord } from '../model/grill.js';
+import { stageOf } from '../model/grill.js';
 import { itemKey } from '../model/targets.js';
-import { t, tn } from '../model/words.js';
+import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
+import { itemCard } from '../ui/item-card.js';
 
 const MARKS = { spec: '✓', auto: '⚡' };
 
+// The grill mark of the legend and of a column's counts.
 export const mark = (stage) =>
   html`<span class="gs ${stage}" aria-hidden="true">${MARKS[stage] ?? ''}</span>`;
-
-const filesOf = (item) => (Array.isArray(item.files) ? item.files.length : (item.files ?? 0));
 
 const late = (item) =>
   item.late
@@ -26,14 +25,24 @@ const origin = (item) =>
     ? html`<span class="tag badge origin" title="${t('postit.origin')}">${item.origin.ref ?? item.origin.kind}</span>`
     : '';
 
-// `ctx`: { selected, pending, modified, labels } (sets and lists of slugs).
+const openButton = (item, slug) =>
+  html`<button type="button" class="open" data-open="${itemKey(item)}" data-key="tri-open-${slug}" title="${t('postit.open')}" aria-label="${t('postit.open')}">${icon('expand')}</button>`;
+
+// `ctx`: { column, selected, pending, modified, labels } (the column the card sits in, sets and
+// lists of slugs).
 export function postit(item, ctx) {
-  const stage = stageOf(item);
   const slug = item.item;
   const sel = ctx.selected.includes(slug);
   const busy = ctx.pending.includes(slug);
-  const classes = `pi ${stage}${sel ? ' sel' : ''}${ctx.modified.has(slug) ? ' chg' : ''}${busy ? ' pend' : ''}`;
-  const hint = t(`postit.${stage}`);
+  const classes = ` pi${sel ? ' sel' : ''}${ctx.modified.has(slug) ? ' chg' : ''}${busy ? ' pend' : ''}`;
   const label = `${slug}, ${item.title ?? ''}${sel ? `, ${t('postit.selected')}` : ''}`;
-  return html`<div class="${classes}" draggable="${!busy}" tabindex="0" role="group" aria-label="${label}" aria-busy="${busy}" data-slug="${slug}" data-key="pi-${slug}" title="${hint}"><div class="row">${mark(stage)}<span class="sl">${slug}</span>${late(item)}${origin(item)}</div><div class="pt">${title(item.title)}</div>${labelTags(item, ctx.labels)}<div class="pm"><span>${stageWord(item)}</span><span>${icon('file')} ${tn('card.files', filesOf(item))}</span><button type="button" class="open" data-open="${itemKey(item)}" data-key="tri-open-${slug}" title="${t('postit.open')}" aria-label="${t('postit.open')}">${icon('expand')}</button></div></div>`;
+  const attrs = html`draggable="${!busy}" tabindex="0" role="group" aria-label="${label}" aria-busy="${busy}" data-slug="${slug}" data-key="pi-${slug}" title="${t(`postit.${stageOf(item)}`)}"`;
+  const lead = sel ? html`<span class="chk" aria-hidden="true">${icon('check')}</span>` : '';
+  return itemCard(item, ctx.column, ctx.labels, {
+    classes,
+    attrs,
+    lead,
+    badges: html`${late(item)}${origin(item)}`,
+    foot: openButton(item, slug),
+  });
 }

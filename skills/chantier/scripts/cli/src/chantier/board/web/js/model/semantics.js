@@ -178,9 +178,9 @@ export function counts(batch) {
   };
 }
 
-// "Waiting for you": every blocked CR plus the unread asks.
-export const waitingForYou = (batch) =>
-  byState(batch, 'blocked').length + (batch?.asks_unread ?? 0);
+// "Waiting for you": the blocked CRs. The Foreman's unread asks to the Chief of Staff are not the
+// user's to answer: they stay in the Batch view.
+export const waitingForYou = (batch) => byState(batch, 'blocked').length;
 
 // The heartbeat: `stopped`, else the minutes since it, and whether that is late.
 export function heartbeat(batch, nowIso) {

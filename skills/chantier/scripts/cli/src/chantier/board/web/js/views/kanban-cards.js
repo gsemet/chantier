@@ -1,20 +1,15 @@
-// The cards of the Kanban: one for an item of the backlog, one for a CR of the batch. Each has
-// empty `place` elements that a later change fills (a source badge, labels), and opens its folder.
+// The cards of the Kanban for a CR of the batch and for a merged one (the item's card is shared with
+// Triage: ui/item-card.js). Each has empty `place` elements that a later change fills, and opens
+// its folder.
 import { html, vars } from '../core/dom.js';
 import { slug, title, usd } from '../core/format.js';
-import { labelTags } from '../labels/tags.js';
-import { stageWord } from '../model/grill.js';
 import { roundLimit, roundText, vstate } from '../model/semantics.js';
-import { crKey, isOpenKey, itemKey } from '../model/targets.js';
-import { labelsOf } from '../model/triage.js';
-import { t, tn } from '../model/words.js';
+import { crKey, doneKey, isOpenKey, itemKey } from '../model/targets.js';
+import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
+import { files, itemCard } from '../ui/item-card.js';
 import { opener } from '../ui/open.js';
-import { nextTag, stateColor, stateTag, tag } from '../ui/parts.js';
-
-const count = (files) => (Array.isArray(files) ? files.length : (files ?? 0));
-
-const files = (n) => html`<span>${icon('file')} ${tn('card.files', count(n))}</span>`;
+import { nextTag, stateColor, stateTag } from '../ui/parts.js';
 
 // One bar per round of the CR's limit; the rounds taken are filled with the state's colour.
 function bars(c, batch) {
@@ -27,13 +22,19 @@ function bars(c, batch) {
   return html`<div class="bars">${cells}</div>`;
 }
 
-// The card of an item of the backlog; `bucket` is the folder it sits in.
-export function itemCard(state, item, bucket) {
+// The card of an item of the backlog, opened on a click: the shared card with the open mark.
+export function backlogCard(state, { item, bucket }, labels) {
   const key = itemKey(item);
-  const name = bucket === 'inbox' ? t('priority.inbox') : bucket;
+  const classes = isOpenKey(state, key) ? ' sel' : '';
+  return itemCard(item, bucket, labels, { classes, attrs: opener(key) });
+}
+
+// The card of a merged CR: its id, title, batch and merge date; it opens its folder.
+export function doneCard(state, m) {
+  const key = doneKey(m);
   const sel = isOpenKey(state, key) ? ' sel' : '';
-  const labels = labelTags(item, labelsOf(state.data.backlog));
-  return html`<div class="card${sel}" ${opener(key)}><div class="row-tags">${tag(`pri-${bucket}`, name)}<span class="lbl">${item.item}</span><span class="place"></span></div><div class="ttl">${title(item.title)}</div><span class="place">${labels}</span><div class="desc">${item.description ?? ''}</div><div class="meta">${files(item.files)}<span class="r">${stageWord(item)}</span></div></div>`;
+  const day = (m.when ?? '').slice(0, 10) || '—';
+  return html`<div class="card${sel}" ${opener(key)}><div class="row-tags"><span class="tag cr">${m.cr ?? ''}</span><span class="lbl">${m.batch ?? ''}</span></div><div class="ttl">${title(m.title)}</div><div class="meta"><span>${t('card.merged', { day })}</span></div></div>`;
 }
 
 // The card of a CR of the batch.

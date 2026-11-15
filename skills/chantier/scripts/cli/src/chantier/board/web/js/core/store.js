@@ -1,6 +1,9 @@
 // The page's one state, and who listens to it. One object, replaced by patches. With the router,
 // this module is the only one that writes the browser's `localStorage`.
 
+// The buckets the Kanban's priority filter toggles: the inbox and the four priorities.
+export const FILTER_BUCKETS = ['inbox', 'P1', 'P2', 'P3', 'P4'];
+
 const data = {
   board: null, // GET api/board: the projects of the surface, one line each
   project: null, // the id of the project shown, or '*' for All projects
@@ -21,6 +24,8 @@ const data = {
   recomputing: false, // Costs: a recompute was asked and its figure has not arrived
   selection: [], // Triage: the slugs selected
   labelFilter: [], // Triage: the labels that filter the post-its
+  priorityFilter: [...FILTER_BUCKETS], // Kanban: the buckets shown (all on at the start)
+  historyOpen: [], // Costs: the earlier batches whose CRs are unfolded
   journalOpen: false, // Triage: the journal panel is open
   journal: null, // the board's journal since the last rescan: { count, entries }
   pending: [], // Triage: the slugs whose write runs (dimmed until the folder answers)

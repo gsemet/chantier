@@ -1,0 +1,44 @@
+{
+    "schema":  1,
+    "batch":  "batch-02",
+    "number":  2,
+    "state":  "closed",
+    "opened":  "2026-06-11T09:30:00Z",
+    "closed":  "2026-06-12T17:05:00Z",
+    "mode":  "parallel",
+    "steering":  "foreman",
+    "host":  "claude",
+    "budget_usd":  40,
+    "cost_usd":  16.25,
+    "cost_unpriced":  {
+
+                      },
+    "crs":  [
+                {
+                    "cr":  "CR-33",
+                    "title":  "Change Specification: Start the app in under two seconds",
+                    "result":  "merged",
+                    "archive":  "5-archives/260612-1015-33-faster-startup",
+                    "pr":  "https://github.com/example/shop-mobile/pull/8",
+                    "rounds":  3,
+                    "cost_usd":  11.7,
+                    "cost_unpriced":  {
+
+                                      }
+                },
+                {
+                    "cr":  "CR-34",
+                    "title":  "Change Specification: Buttons have accessible labels",
+                    "result":  "merged",
+                    "archive":  "5-archives/260612-1030-34-accessible-buttons",
+                    "pr":  "https://github.com/example/shop-mobile/pull/9",
+                    "rounds":  1,
+                    "cost_usd":  4.55,
+                    "cost_unpriced":  {
+
+                                      }
+                }
+            ],
+    "report":  null,
+    "backfill":  null
+}

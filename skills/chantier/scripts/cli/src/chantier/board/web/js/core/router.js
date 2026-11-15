@@ -1,6 +1,6 @@
 // The address is the state of the page: ?p=<project>&v=<view>, and the browser's history. With
 // the store, this module is the only one that writes the URL.
-import { pref, setPref, snapshot, update } from './store.js';
+import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
 
 export const ALL = '*';
 const LAST = 'last';
@@ -50,6 +50,8 @@ const reset = {
   editing: null,
   selection: [],
   labelFilter: [],
+  priorityFilter: [...FILTER_BUCKETS],
+  historyOpen: [],
   journalOpen: false,
   journal: null,
   pending: [],

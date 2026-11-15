@@ -75,10 +75,6 @@
   --row-hover: #fafbfc;
 
   /* Triage: the post-its by grill state, the next-batch indicator, the column over a drag */
-  --pi-raw-fill: #fafafa;
-  --pi-grill-fill: #fff6e0;
-  --pi-spec-fill: #e9f8ef;
-  --pi-auto-fill: #f3eefe;
   --gs-grill-rest: #f3e2c4;
   --ind-ok-fill: #eefaf3;
   --ind-ok-edge: #bfe8d1;

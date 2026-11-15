@@ -1,4 +1,5 @@
 // English words. A language is one file like this, registered in ../model/words.js.
+import board from './en-board.js';
 import write from './en-write.js';
 
 export default {
@@ -17,9 +18,7 @@ export default {
   'project.line': '{batch} · {state} · {n} in intake',
   'project.no_batch': 'no batch',
   'project.running': 'batch running',
-  'stats.intake': 'intake',
   'stats.grill': 'in grill',
-  'stats.working': 'working',
   'stats.handed': 'handed back',
   'stats.no_batch': 'no batch',
   'stats.loading': 'Loading…',
@@ -81,7 +80,6 @@ export default {
   'home.review_go': 'PRs ready to merge',
   'home.review_none': '{n} handed back, none ready to merge',
   'home.waiting': 'Waiting for you',
-  'home.waiting_sub': '{blocked} blocked, {asks} questions',
   'home.next': 'Next batch',
   'home.next_sub': 'in preparation (3-ready)',
   'home.no_batch': 'The next batch opens on your go.',
@@ -127,20 +125,6 @@ export default {
   'ev.merged': 'merged',
   'ev.order': 'order',
   'ev.note': 'note',
-  'kanban.intake': 'Intake',
-  'kanban.grill': 'Grill',
-  'kanban.ready': '3-ready',
-  'kanban.progress': 'In progress',
-  'kanban.handed': 'Handed back',
-  'kanban.intake_sub': '1-inbox: filed, not triaged yet',
-  'kanban.grill_sub': '2-backlog: prioritised, being grilled',
-  'kanban.ready_sub': 'waits for the next batch (not "ready to merge")',
-  'kanban.progress_sub': '{batch}: queued, working, blocked',
-  'kanban.progress_none': 'no batch: queued, working, blocked',
-  'kanban.handed_sub':
-    'handed back: ready to merge once the PR is out of draft on {branch} or on a CR ready to merge',
-  'kanban.count': '{n} items · {m} merged',
-  'kanban.empty': 'empty',
   'priority.inbox': 'Inbox',
   'card.files': '{n} files',
   'card.files.one': '{n} file',
@@ -231,6 +215,7 @@ export default {
   'panel.tree': 'Files of the folder',
   'panel.doc': 'File',
   ...write,
+  ...board,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'active',
   'autosync.state.stopped': 'stopped',

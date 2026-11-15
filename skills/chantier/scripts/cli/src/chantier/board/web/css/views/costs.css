@@ -29,6 +29,15 @@
   cursor: pointer;
 }
 
+/* an earlier batch's CRs, unfolded under its row */
+.costs tr.sub > td {
+  padding: 0 0 8px 20px;
+}
+
+.costs tr.sub table {
+  width: 100%;
+}
+
 .costs tr.click:hover td {
   background: var(--row-hover);
 }

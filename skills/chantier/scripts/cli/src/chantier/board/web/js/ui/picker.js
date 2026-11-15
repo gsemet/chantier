@@ -17,7 +17,7 @@ const totalReviews = (projects) => projects.reduce((n, p) => n + p.to_review.len
 
 // A project's line: its batch and state, and how many items wait in its intake.
 export function lineOf(project) {
-  if (!project.batch) return `${t('project.no_batch')} · ${project.inbox} ${t('stats.intake')}`;
+  if (!project.batch) return `${t('project.no_batch')} · ${project.inbox} ${t('stats.inbox')}`;
   const state = project.running ? t('project.running') : project.batch.state;
   return t('project.line', { batch: project.batch.id, state, n: project.inbox });
 }

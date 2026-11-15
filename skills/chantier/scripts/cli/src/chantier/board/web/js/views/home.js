@@ -4,13 +4,15 @@
 
 import { delegate, html } from '../core/dom.js';
 import { countOf } from '../journal/journal.js';
-import { counts } from '../model/semantics.js';
+import { grillItems, specifiedCount } from '../model/columns.js';
+import { counts, waitingForYou } from '../model/semantics.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { kpi } from '../ui/parts.js';
 import { backlogBlock } from './home-backlog.js';
 import { batchBlock } from './home-batch.js';
 import { activityBlock } from './home-feed.js';
+import { historyBlock } from './home-history.js';
 import { prsBlock } from './home-prs.js';
 
 const reviewTile = (state) => {
@@ -25,15 +27,26 @@ const reviewTile = (state) => {
 };
 
 const waitingTile = (state) => {
-  const batch = state.data.batch;
-  const blocked = counts(batch).blocked;
-  const asks = batch?.asks_unread ?? 0;
+  const n = waitingForYou(state.data.batch);
   return kpi({
-    tone: blocked + asks ? 'hot' : 'calm',
+    tone: n ? 'hot' : 'calm',
     label: t('home.waiting'),
-    value: blocked + asks,
-    sub: t('home.waiting_sub', { blocked, asks }),
+    value: n,
+    sub: t('home.waiting_sub'),
     go: 'batch',
+  });
+};
+
+// What is being grilled or specified, the Kanban's Grill column.
+const grillTile = (state) => {
+  const backlog = state.data.backlog;
+  const n = grillItems(backlog).length;
+  return kpi({
+    tone: n ? 'go' : 'calm',
+    label: t('home.grill'),
+    value: n,
+    sub: t('home.grill_sub', { n: specifiedCount(backlog) }),
+    go: 'kanban',
   });
 };
 
@@ -61,10 +74,10 @@ const writtenTile = (state) => {
 };
 
 // Each tile is a function of the state that returns markup.
-export const TILES = [reviewTile, waitingTile, nextTile, writtenTile];
+export const TILES = [reviewTile, waitingTile, grillTile, nextTile, writtenTile];
 
 export const render = (state) =>
-  html`<div class="home"><div class="tiles">${TILES.map((tile) => tile(state))}</div><div class="blocks">${batchBlock(state)}${prsBlock(state)}${activityBlock(state)}${backlogBlock(state)}</div></div>`;
+  html`<div class="home"><div class="tiles">${TILES.map((tile) => tile(state))}</div><div class="blocks">${batchBlock(state)}${prsBlock(state)}${activityBlock(state)}${backlogBlock(state)}${historyBlock(state)}</div></div>`;
 
 // A CR row opens its folder; a PR link opens the PR only.
 export function mount(root) {
