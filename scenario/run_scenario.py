@@ -72,7 +72,7 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 # the main batch's sections; GitLab runs only the `gitlab` unit.
 UNITS = {
     "parallel": (260, ["github"], ["scenario", "close_batch", "retro_cases"]),
-    "stack": (320, ["github"], ["stack_batch", "ready_words", "forge_stack_cli"]),
+    "stack": (320, ["github"], ["stack_batch", "base_from_pr", "ready_words", "forge_stack_cli"]),
     "release": (
         420,
         ["github"],
@@ -194,6 +194,10 @@ class World:
         for var in ("CHANTIER_ROOT", "CHANTIER_BATCH", "CHANTIER_PLUGIN_ROOT",
                     "COPILOT_AGENT_SESSION_ID"):
             self.env.pop(var, None)
+        # the fake forge CLI comes first on PATH: a stacked CR's base is read from the forge by
+        # `take`, `handoff` and `ship`, and the scenario never reaches a real forge
+        path_key = next(k for k in self.env if k.upper() == "PATH")
+        self.env[path_key] = f"{self.fake.parent}{os.pathsep}{self.env[path_key]}"
         self.last_stderr = ""
         self.last_out: list[str] = []
         self.name = ""  # the running batch's id, `batch-<n>`: the CLI numbers it
@@ -301,6 +305,25 @@ def open_pr(w: World, cr_id: str, title: str, base: str = "main") -> str:
                         "--raw-field", f"source_branch={c['branch']}", "--raw-field",
                         f"target_branch={base}", "--raw-field", f"title={title}")
     return json.loads(out)["web_url"]
+
+
+def forge_base(w: World, link: str, base: str) -> None:
+    """What the stack driver does on the forge: the PR at `link` now targets `base`."""
+    n = link.rstrip("/").rsplit("/", 1)[-1]
+    state = json.loads(w.gh_state.read_text())
+    if ARGS.forge == "github":
+        state.setdefault("bases", {})[n] = base
+    else:
+        state.setdefault("mrs", {}).setdefault(n, {"state": "opened", "draft": False,
+                                                    "source_branch": "", "web_url": link})
+        state["mrs"][n]["target_branch"] = base
+    w.gh_state.write_text(json.dumps(state))
+
+
+def forge_calls(w: World) -> list[list[str]]:
+    """The calls the fake forge logged, in order."""
+    log = w.root / "gh-state.json.calls"
+    return [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
 
 
 def merge_pr(w: World, pr: str) -> tuple[int, str]:
@@ -655,6 +678,10 @@ def scenario(w: World) -> None:
     code, out = w.chantier("preflight", env=homes)
     check("preflight passes on Claude Desktop with no setup", code == 0
           and out[-1] == "preflight passed")
+    p5 = next((ln for ln in out if ln.startswith("P5")), "")
+    check("preflight's P5 line holds the `--no-sync` and sync sentence on Windows only",
+          ("dev mode on Windows: $CHANTIER runs --no-sync; sync with uv sync --locked --project "
+           in p5) == (os.name == "nt"), p5)
     p10 = next((ln for ln in out if ln.startswith("P10")), "")
     check("preflight warns (P10) on the allow rules missing from the settings, names one, and "
           "still passes", p10.startswith("P10 warn")
@@ -774,7 +801,7 @@ def scenario(w: World) -> None:
               w.cr(x)["worktree"])) == w.sh("git", "rev-parse", "origin/main")
               for x in ("CR-101", "CR-102")) and not Path(w.cr("CR-103")["worktree"]).exists())
     check("`take` prints the facts for the prompt: the CLI, the cards, the base, the rounds",
-          any(ln.startswith("cli: uv run --locked --project ") for ln in fm.facts)
+          any(ln.startswith("cli: uv run --no-sync --project ") for ln in fm.facts)
           and any(ln.startswith("cards: ") and "references/" in ln for ln in fm.facts)
           and any("base origin/main" in ln for ln in fm.facts)
           and any(ln == "rounds: 0 of 3" for ln in fm.facts), str(fm.facts))
@@ -3527,6 +3554,29 @@ def handback_proofs(w: World) -> None:
     check("a second hand-back on a blocked CR is refused with the `take` that reopens it",
           code == 2 and "is blocked" in w.last_stderr and f"take {cr} --note" in w.last_stderr,
           w.last_stderr)
+    # a blocked CR whose Driver is still recorded hands back ready, with no `take`
+    code, _ = w.chantier("handback", cr, "ready", link, expect=2)
+    check("`handback ready` on a blocked CR with no Driver recorded is refused with the `take` "
+          "that reopens it", code == 2 and "is blocked" in w.last_stderr
+          and f"take {cr} --note" in w.last_stderr and w.cr(cr)["status"] == "blocked",
+          w.last_stderr)
+    w.chantier("agents", "set", cr, "drv-x")
+    commit(w, cr, "unblocked.py", "UNBLOCKED = 1\n")
+    ship(w, cr, "feat: unblocked")
+    code, _ = w.chantier("handback", cr, "ready", link, "--no-gate", rule, expect=2)
+    check("a ready hand-back from a blocked CR still wants a verdict VERIFIED at its head: refused, "
+          "the CR still blocked", code == 2 and "no verdict VERIFIED" in w.last_stderr
+          and w.cr(cr)["status"] == "blocked", w.last_stderr)
+    w.chantier("gate", cr, GATE)
+    w.chantier("verdict", cr, "VERIFIED")
+    _, out = w.chantier("handback", cr, "ready", link)
+    _, events = w.chantier("log", cr)
+    check("the recorded Driver of a blocked CR hands back ready: ready, the block cleared, a note "
+          "and the event say what it left, the printed line says it was blocked",
+          w.cr(cr)["status"] == "ready" and not w.cr(cr).get("blocked_reason")
+          and "ready after blocked: question: x" in w.cr(cr)["notes"]
+          and any(" handback " in ln and "from_blocked=question: x" in ln for ln in events)
+          and out[-1].endswith("; it was blocked: question: x"), str(out))
     # the user merges the PR while its Driver is still finishing
     w.chantier("agents", "set", cr, "-")
     w.chantier("take", cr, "--epoch", 1, "--note", "answer: go")
@@ -3948,6 +3998,8 @@ def stack_batch(w: World) -> None:
     check("before `stack`, `ship` records the default branch for every independent CR",
           all(ship_bases(c)[-1] == "main" for c in (one, two, three)), str(ship_bases(two)))
     w.chantier("stack", one, two, three)
+    forge_base(w, w.cr(two)["pr"], w.cr(one)["branch"])  # the stack driver retargets the PRs
+    forge_base(w, w.cr(three)["pr"], w.cr(two)["branch"])
     w.chantier("ship", three, w.cr(three)["pr"])
     w.chantier("ship", one, w.cr(one)["pr"])
     check("after `stack`, `ship` records the CR under it, the first on the default branch",
@@ -3989,6 +4041,7 @@ def stack_batch(w: World) -> None:
         next(c for c in d["crs"] if c["id"] == cr).update(fields)
         (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
     edit_batch(four, after=[two])
+    forge_base(w, w.cr(four)["pr"], w.cr(three)["branch"])
     w.chantier("ship", four, w.cr(four)["pr"])
     check("`ship` records the stack place as base for a stacked CR that has an `after`",
           ship_bases(four)[-1] == w.cr(three)["branch"], str(ship_bases(four)))
@@ -4056,6 +4109,7 @@ def stack_batch(w: World) -> None:
     code, _ = w.chantier("order", "after", four, "--note", two, expect=2)
     check("`order after` on a ready CR in a stack batch is refused, and the message names `stack`",
           code == 2 and "not queued" in w.last_stderr and "`stack`" in w.last_stderr, w.last_stderr)
+    forge_base(w, w.cr(two)["pr"], "main")  # restacked onto the default branch
     w.chantier("ship", two, w.cr(two)["pr"])
     ships = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
     last = [e for e in ships if e["kind"] == "ship" and e["cr"] == two][-1]
@@ -4070,6 +4124,84 @@ def stack_batch(w: World) -> None:
           fm.paused and w.batch()["status"] == "paused"
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
           and not (w.folder() / "batch.json").exists())
+    w.env.pop("CHANTIER_BATCH", None)
+
+
+def base_from_pr(w: World) -> None:
+    note("\n## 13b. `take`, `handoff` and `ship` print a stacked CR's base as its PR has it on the forge")
+
+    def reads() -> int:
+        """The PR reads the fake forge logged (a GET of one pull request or merge request)."""
+        return sum(1 for x in forge_calls(w) if any(re.search(r"(pulls|merge_requests)/\d+$", a) for a in x)
+                   and not {"PATCH", "PUT", "POST"} & set(x))
+
+    def worktree_line(out: list[str]) -> str:
+        return next((ln for ln in out if ln.startswith("worktree: ")), "")
+
+    def ship_base(cr: str) -> list[str]:
+        events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
+        return [e["base"] for e in events if e["kind"] == "ship" and e["cr"] == cr]
+
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Base one", "Base two", "Base three")]
+    w.start(*map(str, items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.chantier("foreman", "set", "local_foreman_pb", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    one, two, three = (c["id"] for c in w.batch()["crs"])
+    driver_round(w, one, "base1.py", "N = 1\n")
+    driver_round(w, two, "base2.py", "N = 2\n")
+    w.chantier("stack", one, two, three)
+    link = w.cr(two)["pr"]
+    forge_base(w, link, w.cr(one)["branch"])  # the stack driver put it on the CR below
+    before = reads()
+    _, out = w.chantier("handoff", two)
+    check("`handoff` prints a stacked CR's base as its PR has it on the forge (the CR below's branch), "
+          "with one read", f"base {w.cr(one)['branch']}" in worktree_line(out) and reads() == before + 1,
+          worktree_line(out))
+    w.ready(two, link)
+    w.chantier("agents", "set", two, "-", "--epoch", 1)
+    _, out = w.chantier("take", two, "--epoch", 1, "--note", "rebase: base check")
+    check("`take --note` prints the same base on its `worktree:` line",
+          worktree_line(out).endswith(f"base {w.cr(one)['branch']}"), worktree_line(out))
+    _, out = w.chantier("ship", two, link)
+    check("`ship` prints the base of the PR it records, and the event keeps it",
+          f"(base {w.cr(one)['branch']}, head " in out[0] and ship_base(two)[-1] == w.cr(one)["branch"],
+          str(out))
+    forge_base(w, link, "main")
+    _, out = w.chantier("handoff", two)
+    check("a PR on the default branch is printed as the remote's default branch",
+          worktree_line(out).endswith("base origin/main"), worktree_line(out))
+    before = reads()
+    _, out = w.chantier("handoff", three)
+    check("a stacked CR with no PR prints today's line and makes no forge read",
+          worktree_line(out).endswith("base origin/main") and reads() == before, worktree_line(out))
+    w.gh(pull_read_refused=True)
+    _, out = w.chantier("handoff", two)
+    shown = f"base ? (not read from {link}: "
+    check("a forge that refuses the read: `handoff` exits 0 and prints `base ? (not read from <link>: …)`",
+          shown in worktree_line(out) and "403" in worktree_line(out) and "\n" not in worktree_line(out),
+          worktree_line(out))
+    _, out = w.chantier("ship", two, link)
+    check("`ship` on a refused read exits 0, prints `base ?` and keeps the event's base empty",
+          shown in out[0] and ship_base(two)[-1] == "", str(out))
+    w.gh(pull_read_refused=False)
+
+    # a parallel batch makes no forge read
+    w.chantier("agents", "set", two, "-", "--epoch", 1)
+    w.chantier("order", "merged", one, "--epoch", 1)
+    w.reset()
+    _, item = prepare_cr(w, "Base parallel")
+    w.start(str(item), *FROM_AGENTS_MD)
+    w.chantier("foreman", "set", "local_foreman_pp", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    (solo,) = (c["id"] for c in w.batch()["crs"])
+    driver_round(w, solo, "solo.py", "N = 0\n")
+    before = reads()
+    _, out = w.chantier("handoff", solo)
+    _, shipped = w.chantier("ship", solo, w.cr(solo)["pr"])
+    check("a CR of a parallel batch with a PR makes no forge read: `handoff` and `ship` print the "
+          "record's base", reads() == before and worktree_line(out).endswith("base origin/main")
+          and "(base main, head " in shipped[0], f"{worktree_line(out)} {shipped}")
     w.env.pop("CHANTIER_BATCH", None)
 
 
@@ -6621,6 +6753,7 @@ CASES = {
     "close_batch": close_batch,
     "retro_cases": retro_cases,
     "stack_batch": stack_batch,
+    "base_from_pr": base_from_pr,
     "ready_words": ready_words,
     "forge_stack_cli": forge_stack_cli,
     "release": release,

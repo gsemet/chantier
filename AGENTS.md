@@ -38,7 +38,9 @@
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a
   plugin, from the plugin's own folder; in chantier's own checkout (a `.git` at the plugin root),
-  `uv run --locked --project` runs the local code, live. A dependency ships wheels for Linux, macOS
+  `uv sync --locked --project` once at the moments the cards name (a session's start, a batch's
+  start, after a merge that changes `uv.lock`), then `uv run --no-sync --project` runs the local
+  code, live; never `uvx --from <checkout>`. A dependency ships wheels for Linux, macOS
   and Windows and replaces hand-written code. The CLI stays portable (POSIX and Windows, UTF-8
   everywhere).
 - Tests (`tests/`) check the structure and the CLI's refusals on a prepared state, calling the CLI

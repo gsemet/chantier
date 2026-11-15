@@ -415,8 +415,12 @@ defaults, not a gate.
   both spent you hand back `budget:`, not `rounds:`); never skip a proof pass to save budget:
   `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it. Then end: ending frees
   your slot; a Driver that handed back ready may be resumed later by a `taken back:` note.
-  A hand-back refused with `<cr> is ready` or `<cr> is blocked` means the CR was not taken back
-  after its earlier hand-back. Keep the commits, the gate and the verdict, which bind to the
+  A Driver still recorded on a CR it handed back `blocked` (a `waits:` that landed, a `question:`
+  answered to it, an `infra:` that cleared) hands back `ready <link>` directly once its checks
+  hold (the same ones as for any ready hand-back); the CLI records `ready after blocked: <reason>`
+  and prints `it was blocked: <reason>`. A release keeps the `take --note` route.
+  A hand-back refused with `<cr> is ready` or `<cr> is blocked` (a refusal naming `take <cr>
+  --note`) means the CR was not taken back after its earlier hand-back. Keep the commits, the gate and the verdict, which bind to the
   head. Pass the refused line, as printed, to the steering session (`[driver <cr>→foreman] …`,
   by the host's means) and wait for its `taken back:` note, then hand back again. A hand-back
   refused with `the worktree's head … is not the head ship recorded`: `ship` at this head, then
@@ -581,7 +585,9 @@ bullet, and the PR leaves draft once both passed at that head. The `verifier`, g
 judges again what it touched before `handback ready`. Green, no conflict, on the default branch:
 turn the PR ready and `handback ready <link>`. A clean rebase and
 green CI start no new `coder` round. If the note names another open dependency instead, or is
-`rebase: <cr> moved`, or `take` prints the base as another CR's branch, rebase onto that branch,
+`rebase: <cr> moved`, or `take` prints the base as another CR's branch (for a stacked CR with a PR,
+the base `take` prints is the PR's own base on the forge; `base ? (not read from <link>: …)` means
+the read failed, so read the base on the forge yourself), rebase onto that branch,
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
 `note rebase: …` received while working: rebase before the next push, however many `rebase:`

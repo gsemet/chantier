@@ -69,8 +69,12 @@ chantier is four things in one repository:
 2. **A CLI** ([`skills/chantier/scripts/cli/`](skills/chantier/scripts/cli/)): a Python package
    declared in the root `pyproject.toml` and locked in `uv.lock`, on Linux, macOS and Windows. Installed
    as a plugin, it runs by `uvx --from "<plugin root>" chantier --skill "<skill folder>"`, from the
-   plugin's own folder; in this checkout (a `.git` at the plugin root), by `uv run --locked --project
-   "<root>" chantier`, the local code, live. Its scope is the frame
+   plugin's own folder; in this checkout (a `.git` at the plugin root), by `uv run --no-sync --project
+   "<root>" chantier`, the local code, live, after one `uv sync --locked --project "<root>"` by the
+   steering session (a session's start, a batch's start, a merge that changes `uv.lock`); never by
+   `uvx --from <checkout>`: uv caches a local source by its version, so even with `--refresh` it can
+   serve an older build (on 2026-11-14 it served a board with no Triage view and no
+   `js/i18n/fr-write.js`, both on main at ce00ec3). Its scope is the frame
    the agents work in: the CR lifecycle (`file`, `triage`, `abandon`, `open`, the stages,
    `cancel`, `pause`, `close`), the batch's limits and record (`take`, `round`, `handback`,
    `ship`, `release go`; `rails.py` says what is refused), the means to synchronise (`order`,
@@ -173,7 +177,11 @@ checkout on `main`, so a merged fix to the CLI runs at once; the cards load at t
 with `/reload-plugins`.
 
 In this checkout, `$CHANTIER` runs the local code, live, with no fetch (the dev mode: the plugin
-root holds `.git`); an installed plugin runs its own folder with `uvx --from`.
+root holds `.git`); an installed plugin runs its own folder with `uvx --from`. The checkout's
+environment is synced once by the steering session (`uv sync --locked --project "<root>"`) and
+every command then runs `uv run --no-sync --project "<root>" chantier`, so a running board or gate
+never holds a file a command needs to rewrite (os error 32 on Windows); never `uvx --from
+<checkout>`.
 
 ## Daily work
 

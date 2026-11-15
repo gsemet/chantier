@@ -25,6 +25,7 @@ from chantier.plugin_files import (
     project_instructions,
     read_playbook,
     skill_version,
+    sync_command,
 )
 
 
@@ -97,12 +98,19 @@ def _check_agents(r: _Report, host: str | None) -> None:
 def _check_tools(r: _Report) -> None:
     missing = [t for t in ("uv", "git") if shutil.which(t) is None]
     sv = skill_version()
+    sync = sync_command() if os.name == "nt" else None
+    tail = (
+        f"; dev mode on Windows: $CHANTIER runs --no-sync; sync with {sync} only when no "
+        "chantier process runs (the board, a gate): os error 32 otherwise"
+        if sync
+        else ""
+    )
     r.check(
         "P5",
         not missing and sv == __version__,
-        f"chantier {__version__}, uv and git found",
+        f"chantier {__version__}, uv and git found{tail}",
         f"{', '.join(missing) + ' missing' if missing else 'uv and git found'}; "
-        f"CLI {__version__}, SKILL.md {sv}",
+        f"CLI {__version__}, SKILL.md {sv}{tail}",
     )
 
 
