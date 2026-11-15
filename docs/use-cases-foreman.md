@@ -83,6 +83,7 @@ to date.
 | "CR-103 goes first." | a note on the CR; the Foreman gives it the next free slot |
 | "For CR-102, keep the old API too." | a note on the CR; its Driver decides: next round, restart, or after the PR, and says which |
 | "Hold." · "Resume." | slots 0: no new CR starts (a hold); a number resumes |
+| (Two ready PRs of a parallel batch conflict.) | the Chief of Staff names the PRs and the files they both change, says each stays ready to merge on its own but merging one makes the other conflict, and offers the switch to a stack; your "Switch to a stack." below is the yes, and a no leaves the batch parallel |
 | "Switch to a stack." (or "to a series") | the batch changes mode at once (`order mode --note stack`, from parallel or series): the open PRs are stacked, the CRs to come join on top, the PRs above the bottom go to draft meanwhile; merged CRs never change |
 | "Switch to parallel." | the batch changes mode at once (`order mode --note parallel`): each open PR is rebased on main, its gate and CI run again, and it leaves draft once ready |
 | "Insert this change into the stack, below the release." | the PRs above it go back to draft at once, the CR joins and is ordered there; the stack is not mergeable until the Foreman reports it ready to merge again, and the release notes name the change |

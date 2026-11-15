@@ -958,6 +958,17 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `open`. Your next report says the chain and its reason (`status-layout.md`). The user turns
   it off with a word while the CR is queued: `order after <cr> --note -`. Once the CR has
   started, the chain stands until the stack driver restacks.
+- **An early conflict:** on `[foreman→chief-of-staff] conflict <cr> with <cr>…: <paths>; switch
+  to a stack?`, tell the user, in their language: the PRs, by link and CR name; the paths they
+  both change; that each PR stays ready to merge on its own, but merging one makes the others
+  conflict, and those go back to their Drivers for a rebase after that merge (the parallel rule);
+  and the offer: switch the batch to a stack, so the later CR is rebased once onto the earlier
+  one. On the user's yes, run `order mode --note stack` and tell the user what the switch does, as
+  "A series batch" says for `order mode` (the PRs above the bottom go to draft, "do not merge
+  them meanwhile", named). On a no, record nothing and send the Foreman nothing; the batch stays
+  parallel. In direct mode the steering session runs the check itself (it reads `foreman.md`) and
+  puts the same question to the user; the ask is still recorded with `$CHANTIER asks`, as
+  `routing.md` says. The ask counts like any other ask in the report.
 - **The words to the user** (the CLI's, in the user's language): "ready to merge" / "prête à
   merger" only for a PR the user can merge now; "PR in draft" / "PR en draft" for a draft, with
   what it waits for; "ready locally" / "prête localement" for done work with no PR yet. "Ready" /

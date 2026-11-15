@@ -102,7 +102,8 @@ UNITS = {
             "gate_carry",
         ],
     ),
-    "series-deps": (260, ["github"], ["batch_modes", "dependencies", "changes_tree"]),
+    "series-deps": (260, ["github"], ["batch_modes", "dependencies", "early_conflict",
+                                      "changes_tree"]),
     "direct": (125, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
     "surface-board": (250, ["github"], ["remote_board", "external_surface", "cr_summary"]),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -585,6 +586,8 @@ class Foreman:
                 else:
                     word = "ready-to-merge" if c.get("pr_draft") is False else "pr-in-draft"
                     self.ask(f"{word} {c['id']} {c['pr']}")
+                    if d["mode"] == "parallel":
+                        self.early_conflicts(d, c)
         d = self.w.batch()
         # a slot is a running Driver: a CR working, or a QA order not done
         live = sum(c["status"] in LIVE for c in d["crs"]) \
@@ -608,6 +611,38 @@ class Foreman:
             self.remove_merged()
             self.w.chantier("pause", "--epoch", self.epoch)
             self.paused = True
+
+    def early_conflicts(self, d: dict, c: dict) -> None:
+        """foreman.md, "An early conflict check (parallel batch)": the new ready CR against each
+        other ready CR with an open PR, by `git merge-tree` only; one note per conflicting pair,
+        one ask for the hand-back; a pair already noted is left out."""
+        by_id = {cr["id"]: cr for cr in d["crs"]}
+
+        def pair_noted(a: str, b: str) -> bool:
+            return any(n.startswith(f"early conflict: with {y}:")
+                       for x, y in ((a, b), (b, a)) for n in by_id[x].get("notes", []))
+
+        hits: list[tuple[str, list[str]]] = []
+        for o in sorted(d["crs"], key=lambda o: o["order"]):
+            if (o["id"] == c["id"] or o["status"] != "ready" or not o.get("pr")
+                    or c["id"] in o.get("after", []) or o["id"] in c.get("after", [])
+                    or pair_noted(c["id"], o["id"])):
+                continue
+            p = self.git("merge-tree", "--write-tree", "--name-only", "--no-messages",
+                         c["branch"], o["branch"])
+            if p.returncode == 1:
+                hits.append((o["id"], p.stdout.splitlines()[1:]))
+            elif p.returncode:
+                first = (p.stderr.strip().splitlines() or ["git refused"])[0]
+                self.w.chantier("note", c["id"],
+                                f"early conflict check: not run against {o['id']}: {first}")
+        for other, paths in hits:
+            shown = ", ".join(paths[:5]) + (f" and {len(paths) - 5} more" if len(paths) > 5 else "")
+            self.w.chantier("note", c["id"], f"early conflict: with {other}: {shown}")
+        if hits:
+            self.ask(f"conflict {c['id']} with {', '.join(o for o, _ in hits)}: "
+                     f"{', '.join(dict.fromkeys(p for _, ps in hits for p in ps))}; "
+                     "switch to a stack?")
 
     def driver_died(self, cr: str) -> None:
         """A task ended with no hand-back: the facts say where it stood."""
@@ -912,6 +947,13 @@ def scenario(w: World) -> None:
     fm.turn()
     check("a second ready CR goes to the Chief of Staff",
           fm.asked[-1].startswith(f"ready-to-merge CR-102 {PR_LINK[ARGS.forge]}"))
+    check("no conflict, no ask: merge-tree ran for CR-102 against CR-101, no `conflict` ask and "
+          "no `early conflict:` note",
+          any(g[0] == "merge-tree" and g[-2:] == (w.cr("CR-102")["branch"], w.cr("CR-101")["branch"])
+              for g in fm.git_main)
+          and not any(a.startswith("conflict ") for a in fm.asked)
+          and not any(n.startswith("early conflict:") for c in w.batch()["crs"]
+                      for n in c.get("notes", [])), str(fm.asked))
 
     section("5. Steering: the user drops CR-103, adds an item, changes CR-101")
     note("\n## 5. Steering: the user drops CR-103, adds an item, changes CR-101")
@@ -1100,9 +1142,11 @@ def scenario(w: World) -> None:
     (w.work / ".git" / "info" / "exclude").write_text("")
     fm.fast_forward("CR-105")
     check("the Foreman's git in the main checkout is only symbolic-ref, status, fetch, "
-          "`merge --ff-only --no-overwrite-ignore`, rev-parse, worktree remove and branch -D",
+          "`merge --ff-only --no-overwrite-ignore`, rev-parse, worktree remove, branch -D and "
+          "`merge-tree --write-tree`",
           all(g[0] in {"symbolic-ref", "status", "fetch", "rev-parse", "worktree", "branch"}
-              or g[:3] == ("merge", "--ff-only", "--no-overwrite-ignore") for g in fm.git_main)
+              or g[:3] == ("merge", "--ff-only", "--no-overwrite-ignore")
+              or g[:2] == ("merge-tree", "--write-tree") for g in fm.git_main)
           and any(g[0] == "merge" for g in fm.git_main), str(sorted({g[0] for g in fm.git_main})))
     local.unlink()
     check("the last merge makes the Foreman pause the batch", fm.paused)
@@ -4922,6 +4966,72 @@ def batch_modes(w: World) -> None:
     w.env.pop("CHANTIER_BATCH", None)
 
 
+def early_conflict(w: World) -> None:
+    note("\n## 13b. Early conflict between two ready PRs")
+
+    def two_ready(titles: tuple[str, str], *mode: str) -> tuple[Foreman, str, str]:
+        w.reset()
+        w.start(*(str(prepare_cr(w, t)[1]) for t in titles), *mode, *FROM_AGENTS_MD)
+        w.env["CHANTIER_BATCH"] = w.name
+        w.chantier("foreman", "set", "early_foreman", "--epoch", 1)
+        a_, b_ = (c["id"] for c in w.batch()["crs"])
+        return Foreman(w, epoch=1), a_, b_
+
+    def hand_back(cr: str, value: int) -> None:
+        if w.cr(cr)["status"] == "queued":  # the Foreman's turn may have taken it already
+            w.chantier("take", cr, "--epoch", 1)
+        start_driver(w, cr)
+        driver_round(w, cr, "shared.py", f"N = {value}\n")
+        w.ready(cr, w.cr(cr)["pr"])
+
+    def merge_trees(fm: Foreman) -> list[tuple[str, ...]]:
+        return [g for g in fm.git_main if g[0] == "merge-tree"]
+
+    def conflict_asks(fm: Foreman) -> list[str]:
+        return [a for a in fm.asked if a.startswith("conflict ")]
+
+    fm, first, second = two_ready(("Early first", "Early second"))
+    hand_back(first, 1)
+    fm.turn()
+    check("the first hand-back: no other ready PR, so no merge-tree and no `conflict` ask",
+          not merge_trees(fm) and not conflict_asks(fm), str(fm.git_main))
+    hand_back(second, 2)
+    fm.turn()
+    check("the second hand-back: the ready ask goes up unchanged, then one `conflict` ask naming "
+          "the file, and the second CR carries the note; merge-tree ran once, read-only",
+          fm.asked[-2:] == [f"ready-to-merge {second} {w.cr(second)['pr']}",
+                            f"conflict {second} with {first}: shared.py; switch to a stack?"]
+          and w.cr(second)["notes"][-1] == f"early conflict: with {first}: shared.py"
+          and len(merge_trees(fm)) == 1
+          and merge_trees(fm)[0][:4] == ("merge-tree", "--write-tree", "--name-only",
+                                         "--no-messages"), str(fm.asked) + str(fm.git_main))
+    fm.turn()
+    fm.early_conflicts(w.batch(), w.cr(second))
+    check("a pair already noted gives no second ask and no second note",
+          len(conflict_asks(fm)) == 1
+          and sum(n.startswith("early conflict:") for n in w.cr(second)["notes"]) == 1
+          and len(merge_trees(fm)) == 1, str(fm.asked))
+    check("the check moved no mode and no order: the batch is still parallel, both CRs ready",
+          w.batch()["mode"] == "parallel"
+          and all(w.cr(c)["status"] == "ready" for c in (first, second)))
+    code, out = w.chantier("order", "mode", "--note", "stack")
+    code2, _ = w.chantier("take", "stack", "--epoch", 1)
+    order = [c["id"] for c in sorted(w.batch()["crs"], key=lambda c: c["order"])]
+    check("the Chief of Staff's `order mode --note stack` gives a stack with the earlier ready CR "
+          "at the bottom",
+          code == 0 and code2 == 0 and w.batch()["mode"] == "stack" and order == [first, second]
+          and f"order: {first} → {second}" in out[-1], str(out) + str(order))
+
+    fm, first, second = two_ready(("Early stacked first", "Early stacked second"), "--mode", "stack")
+    hand_back(first, 1)
+    hand_back(second, 2)
+    fm.turn()
+    check("a stack batch: no merge-tree runs and no `conflict` ask is sent",
+          not merge_trees(fm) and not conflict_asks(fm)
+          and fm.asked[-1].startswith(f"ready-to-merge {second} "), str(fm.asked))
+    w.env.pop("CHANTIER_BATCH", None)
+
+
 def release(w: World) -> None:
     note("\n## 14. A release: the project's procedure, approvals, a fix, a grant")
     _, change = prepare_cr(w, "Last change")
@@ -6979,6 +7089,7 @@ CASES = {
     "gate_carry": gate_carry,
     "batch_modes": batch_modes,
     "dependencies": dependencies,
+    "early_conflict": early_conflict,
     "changes_tree": changes_tree,
     "direct_batch": direct_batch,
     "seat_handover": seat_handover,

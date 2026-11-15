@@ -131,6 +131,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_mode_switch.py::test_to_a_stack_the_ready_cr_go_first_in_the_order_they_became_ready)
   (test: test_mode_switch.py::test_a_chain_is_kept_when_the_switch_would_put_a_cr_below_its_dependency)
   (test: test_mode_switch.py::test_leaving_a_stack_clears_every_place_in_it);
+- the early conflict check: the scripted Foreman runs `git merge-tree --write-tree` for a CR handed
+  back ready against each other ready PR of a parallel batch, asks once (`conflict <cr> with <cr>:
+  <paths>; switch to a stack?`) and notes the pair on a conflict, sends nothing when two PRs do
+  not conflict, asks again for no pair already noted, and checks nothing in a stack batch; the
+  switch to a stack then puts the earlier ready CR at the bottom (unit: series-deps) (test:
+  test_mode_switch.py::test_to_a_stack_the_ready_cr_go_first_in_the_order_they_became_ready);
 - `order mode` refusing the mode the batch already has and an unknown one, nothing written (test:
   test_mode_switch.py::test_the_same_mode_and_an_unknown_one_are_refused_and_nothing_is_written);
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
