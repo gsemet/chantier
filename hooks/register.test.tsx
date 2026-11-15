@@ -556,7 +556,7 @@ test('the board has a Long gate column, and the sheet a Long gate line, in the C
   await skill($)
   const ui = await board($)
   const table = await words(ui)
-  expect(table).toContain('| CR | Subject | State | PR | Long gate | Cost |')
+  expect(table).toContain('| CR | Subject | State | Step | PR | Long gate | Cost |')
   expect(table).toContain('waived → CR-2 (#12)')
   expect(table).toContain('passed abc1234; validates CR-1')
   await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
