@@ -123,6 +123,19 @@ def _heartbeat_text(d: BatchRecord, prev: str | None) -> str:
     return text
 
 
+def _ended_unrecorded(repo: Repo, d: BatchRecord, agent: str | None) -> bool:
+    """Claude: the Driver's last tool call is the host's hand-back, yet the CR is still working."""
+    from chantier.costs.sessions import agent_handed_back  # noqa: PLC0415 - slow import
+
+    if not agent or d.host == "copilot":
+        return False
+    try:
+        sessions = foreman_uuid(d)
+    except ChantierError:
+        return False
+    return agent_handed_back(repo.session_root, sessions, agent) is True
+
+
 def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, events: list[EventRecord]) -> str:
     row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
     row += f" | long gate {gate_view(repo, d, c, events)['text']}"
@@ -138,6 +151,8 @@ def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, events: list[Ev
         row += f" | waits for {', '.join(waits)}"
     if c.status == "working" and not c.agent:
         row += " | no Driver recorded"
+    elif c.status == "working" and _ended_unrecorded(repo, d, c.agent):
+        row += f" | Driver {c.agent} ended, no hand-back recorded"
     if c.status == "blocked" and c.blocked_reason:
         row += f" | blocked: {c.blocked_reason[:70]}"
     elif c.notes and (notes or c.status == "queued"):

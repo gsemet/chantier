@@ -123,16 +123,19 @@ defaults, not a gate.
   130,000 leaves room for several steps, the note and the hand-back). Hand back `blocked context:`
   only when the last `context:` line read 130,000 or more; a Driver that stops for any other reason
   names that reason, never `context:`. Never end your turn to wait for a child: a child runs in the
-  foreground, and its reply is the result of the call that started it. The one turn end that waits
+  foreground, and its reply is the result of the call that started it. Ending the turn while your own long gate or CI watch runs in a background shell is allowed and
+  needs no message: the host tells the steering session that you are waiting on your own work. The
+  one turn end that waits
   is the long CI wait, with the forge's watch running in a background shell (the "CI" bullet); with
   the `ci: beside the long gate` line, the long gate and the CI watch run side by side in two
   background shells, and the first to end wakes you. On
   Claude Code, a turn that ends with nothing running in the background ends your run: the host asks
   for your hand-back at once. When the host asks for your hand-back while the CR's work remains,
   record your state with `$CHANTIER note <cr> "…"`, then `handback <cr> blocked context: host asked
-  the hand-back at <n> tokens: <where it stopped, what is next>` (`<n>` is the last `context:`
-  figure), then the host's hand-back. Never call the host's hand-back with no `$CHANTIER handback`
-  first. `context: not measured`: go on, and keep to these rules. Never take a
+  the hand-back at <n> tokens while waiting for <what>: <where it stopped, what is next>` (`<n>` is
+  the last `context:` figure; `<what>` is what the turn waited for: a worker's reply, the gate, CI;
+  a turn that ended to wait for a worker's reply had broken "a worker is never resumed by a
+  message"), then the host's hand-back. `context: not measured`: go on, and keep to these rules. Never take a
   large output whole into your context:
   - a gate log: its result from `handoff` (the last five lines it prints) or from the log's last
     lines, never the whole log;
@@ -407,7 +410,12 @@ defaults, not a gate.
     check listed at abc1234 (gh pr checks 12, two looks, the second a minute after the push)`. The
     PR body's CI box says the same in the template's words
     ([pr-template](pr-template.md)).
-- Your end: `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
+- Your end comes in this order: first `$CHANTIER handback <cr> …`; once the CLI accepted it, the
+  host's hand-back, whose first line is the line `handback` printed (`[driver <cr>→foreman]
+  hand-back …`), unchanged. A hand-back the CLI refused is never followed by the host's hand-back
+  until a `handback` (ready or blocked) is accepted. Never call the host's hand-back with no
+  `$CHANTIER handback` first: a report sent with no recorded hand-back leaves the CR `working`, and
+  the steering session resumes you to record it. `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
   at the PR's head, a passed long gate and a last verdict `VERIFIED`, refused alone when the
   worktree's head is not the one `ship` recorded (a commit or a rebase after `ship`), and
   refused, one line per cause, when the
@@ -548,7 +556,8 @@ head (with the line, once the gate passed and CI is judged green), given the pla
 in Deliverables and the Test plan boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
 narrowed in `pr-body.md` before the description pass), then, once the description is final, a
-short `verifier` pass on the posted description alone (`NOT VERIFIED` is fixed in the description, then checked again), the PR turned
+short `verifier` pass on the posted description alone (`NOT VERIFIED` is fixed in the description, then checked again by a new short `verifier` start,
+never a message to the Verifier that replied), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`. The last edit of the
 PR body comes before that description pass; any later edit runs the pass again before the PR
 turns ready, never in the same command as the edit.

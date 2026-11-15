@@ -199,3 +199,51 @@ def agent_context(root: Path, sessions: list[str], agent: str) -> int | None:
         if found is not None:
             return found
     return None
+
+
+def _line_tool(raw: bytes) -> str | None:
+    """The name of the last tool call of an assistant record, else None."""
+    try:
+        d = json.loads(raw)
+    except ValueError:
+        return None
+    m = d.get("message") if isinstance(d, dict) else None
+    items = m.get("content") if isinstance(m, dict) else None
+    if d.get("type") != "assistant" or not isinstance(items, list):
+        return None
+    names = [i.get("name") for i in items if isinstance(i, dict) and i.get("type") == "tool_use"]
+    return str(names[-1]) if names else None
+
+
+def _tail_tool(path: Path) -> str | None:
+    """The last tool call's name, read from the end of the file, never the whole of it."""
+    with path.open("rb") as f:
+        size = f.seek(0, os.SEEK_END)
+        chunk = 1 << 18
+        while True:
+            start = max(0, size - chunk)
+            f.seek(start)
+            lines = f.read(size - start).split(b"\n")
+            if start:
+                lines = lines[1:]  # the first line may be cut
+            found = next((c for c in map(_line_tool, reversed(lines)) if c is not None), None)
+            if found is not None or not start:
+                return found
+            chunk *= 2
+
+
+def agent_handed_back(root: Path, sessions: list[str], agent: str) -> bool | None:
+    """Claude: whether an agent's last tool call is the host's `SubagentHandback`, read from the
+    end of its `subagents/agent-<id>.jsonl` beside a steering transcript. None: not measured (no
+    file, unreadable, or no tool call in it), never "ended"."""
+    for session in sessions:
+        path = transcript_path(root, session).with_suffix("") / "subagents" / f"agent-{agent}.jsonl"
+        if not path.is_file():
+            continue
+        try:
+            found = _tail_tool(path)
+        except OSError:
+            continue
+        if found is not None:
+            return found == "SubagentHandback"
+    return None

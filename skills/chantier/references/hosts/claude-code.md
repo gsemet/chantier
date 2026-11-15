@@ -402,7 +402,8 @@ Documented (<https://code.claude.com/docs/en/settings-reference>,
 Sessions set to 300000 compacted around 165 to 170k (the user's week). This matches a window capped
 at the model's 200,000 with a reserve of about 35k, but the cap's value stays unproved until the
 trial reads it back: one session, the setting read with `/autocompact`, the token count at the
-first compaction recorded here.
+first compaction recorded here. Drivers of batch-18 and of both eval runs of 2026-11-15 peaked at
+80k to 124k with no compaction.
 
 **Recommendation**, not a proved fact: keep `idleCompaction` on (its default), and set
 `autoCompactWindow` to 300000 in `~/.claude/settings.json` for the Chief of Staff's and the
@@ -559,8 +560,9 @@ otherwise.
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |
 | Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |
-| Resume a stopped subagent | `SendMessage` to its agent id resumes it with its context | same | same | proved, batch-15 (a refused spec-writer resumed by a message); chantier uses it only for the `taken back:` note of `foreman.md`: a refused agent answers it with its refusal |
+| Resume a stopped subagent | `SendMessage` to its agent id resumes it with its context | same | same | proved, batch-15 (a refused spec-writer resumed by a message); chantier uses it for the `taken back:` note and the `record your hand-back` note of `foreman.md`: a refused agent answers it with its refusal; proved again, batch-18, twice (`a2c1f342e038708e6` and `ae6e32e6270cf2ba5` recorded their hand-back within 10 seconds of the message) |
 | End a subagent's turn with nothing running in the background | the host asks for its hand-back at once (`[handback-send-enforce] Your report has not been delivered. Call SubagentHandback…`), before a resumed worker's reply arrives; a background shell's end wakes it (the CI wait of `driver.md`) | same | same | proved, batch-16 (the CR-216 Driver, agent `ac87782157e90d829`; the CR-215 Driver's Inspector reply came after its hand-back) |
+| A background subagent stops | `<task-notification>` summary `Agent "<name>" is waiting on its own background work`: the agent stopped with background work of its own running, and resumes when that work reports, so it has not ended. `Agent "<name>" finished`: it stopped with no live background child, and its `SubagentHandback` report arrives as a message | same | same | proved, batch-18, Foreman session `446cff2e-8291-4f73-9ff0-f19c29743e6e` (four Drivers that waited for their own gate, each with the first notification) |
 
 ## A Foreman in a worktree asks
 
