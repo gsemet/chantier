@@ -14,7 +14,13 @@ from typing import Any, Self, TextIO
 
 from chantier.core.batch_records import last_closed_note, reserve_record
 from chantier.core.clock import now
-from chantier.core.errors import EXIT_CONFLICT, EXIT_EXTERNAL, EXIT_USAGE, ChantierError
+from chantier.core.errors import (
+    EXIT_CONFLICT,
+    EXIT_EXTERNAL,
+    EXIT_PRECONDITION,
+    EXIT_USAGE,
+    ChantierError,
+)
 from chantier.core.files import (
     LOCK_TIMEOUT_S,
     retry,
@@ -218,14 +224,26 @@ def resolve_batch(repo: Repo, batch: str | None) -> str:
     raise ChantierError(f"several running batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
 
 
+def require_epoch(epoch: int | None, usage: str) -> None:
+    """A steering command carries `--epoch`: the Foreman's number in its batch. Called before
+    anything is written; `usage` is the command's own form, e.g. `take <cr> --epoch <n>`."""
+    if epoch is None:
+        raise ChantierError(
+            f"{usage}: the steering session's command; <n> is your number as Foreman of the "
+            "batch (Foreman n°<n>)",
+            EXIT_PRECONDITION,
+        )
+
+
 def check_epoch(b: Batch, epoch: int | None) -> None:
-    """A Foreman command carries the epoch it was started with; a stale Foreman is refused."""
+    """A Foreman command carries the number it was started with; a stale Foreman is refused."""
     if epoch is None:
         return
     current = b.record.foreman_epoch
     if epoch != current:
         raise ChantierError(
-            f"stale Foreman: epoch {epoch}, batch {b.id} is at epoch {current}; stop now",
+            f"stale Foreman: Foreman n°{epoch} of {b.id}, which is now at Foreman n°{current}; "
+            "stop now",
             EXIT_CONFLICT,
         )
 

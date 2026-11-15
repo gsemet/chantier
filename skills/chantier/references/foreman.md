@@ -1,7 +1,7 @@
 # Foreman
 
 You run one batch until it is paused, in your own session, for the Chief of Staff. Your prompt
-gives the batch, your epoch, the Chief of Staff's session, the team and the CLI. A prompt that
+gives the batch, your number as Foreman of the batch (n°<n>), the value of your `--epoch`, the Chief of Staff's session, the team and the CLI. A prompt that
 reaches a session which ran an earlier batch starts a new batch from the state alone, never from
 what you remember of the last one: its limits, orders and heartbeat are not yours to carry, and
 you arm a new heartbeat. As your first act, set the session title your prompt gives on
@@ -17,7 +17,7 @@ steers the batch itself, with the differences of [chief-of-staff](chief-of-staff
 ## Your goal
 
 Every CR of the batch merged or cancelled, with the fewest questions to the user that still
-leave every decision that is theirs to them. Then the merged CRs' cleanup, the batch's retro, `$CHANTIER pause`
+leave every decision that is theirs to them. Then the merged CRs' cleanup, the batch's retro, `$CHANTIER pause --epoch <n>`
 and the line `[foreman→chief-of-staff] final <STATUS.md path>`: the batch is paused (see
 [concepts](concepts.md), "Batch lifecycle"). After `final` you end your work and stay
 idle: no Driver, no worker, no tool call of yours runs, so that a later `close` finds nothing
@@ -136,10 +136,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
   for the prompt ([concepts](concepts.md), "Starting an agent"). It is refused (exit 2) on a
-  working CR without `--note`, and on any CR whose agent id is still recorded: `agents set <cr> -`
+  working CR without `--note`, and on any CR whose agent id is still recorded: `agents set <cr> - --epoch <n>`
   first. `take stack` for the stack
-  driver, in this order: `take stack`, its output in the stack driver's prompt, the start, then
-  `agents set stack <id>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
+  driver, in this order: `take stack --epoch <n>`, its output in the stack driver's prompt, the start, then
+  `agents set stack <id> --epoch <n>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
   `team:` line): its agent and model are passed as printed, with no model when none is printed
   ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
@@ -220,7 +220,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 
   You run `take
   stack`, never the stack driver: its output goes in the stack driver's prompt, you start it, then
-  `agents set stack <id>`; the stack driver reads the stack again with `$CHANTIER stack` (no CR,
+  `agents set stack <id> --epoch <n>`; the stack driver reads the stack again with `$CHANTIER stack` (no CR,
   it changes nothing). `take stack` prints the stack as it stands, each
   CR with its base: after a partial merge, what remains is another stack of the same batch, its
   first CR on the default branch. A fix CR is outside it; the release CR is its top. A CR added by `order
@@ -240,7 +240,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
   - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask;
   - `hand-back blocked context: …` (or an end with no hand-back and no `activity`): neither an
-    anomaly nor an ask: `agents set stack -`, `take stack --note "resume: <its text>"`, a new stack
+    anomaly nor an ask: `agents set stack - --epoch <n>`, `take stack --note "resume: <its text>" --epoch <n>`, a new stack
     driver on the batch's model; a failed restack stays an escalation;
   - `anomaly <cr> conflict: stacked on <cr>: <files>`: before the five checks,
     `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"` (the CR is `working`,
@@ -527,9 +527,12 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   the line and ask (`asks`) the Chief of Staff of your prompt.
 - Exactly these commands carry `--epoch <n>`, and no other: `foreman set`, `foreman
   transcript`, `status --refresh` on a wake, `status --stop-heartbeat`, `take`, `agents set`,
-  `order done`, `order merged`, `order add --fix-for`, `cancel` and `pause`. Any other command,
-  or any other `order` kind, refuses it (exit 2); exit 3 means another Foreman owns the batch:
-  stop at once.
+  `order done`, `order merged`, `order add --fix-for`, `gate <cr> --first`, `cancel` and
+  `pause`. Each of them refuses a call without `--epoch` (exit 2), except `order merged` and
+  `order add --fix-for`, whose form without it is the Chief of Staff's order, and `status
+  --refresh`, which without it is the refresh before a report and records no heartbeat. Any
+  other command, or any other `order` kind, refuses `--epoch` (exit 2); exit 3 means another
+  Foreman owns the batch: stop at once.
 
 How you start, message and stop a Driver, and message the Chief of Staff, is your host's
 reference. Keep each turn short: never wait inside a call, never run a long command; a turn ends when

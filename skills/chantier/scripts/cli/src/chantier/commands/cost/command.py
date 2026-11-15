@@ -104,7 +104,8 @@ def cost(args: argparse.Namespace) -> list[str]:
     if not (d.foreman_transcripts or d.foreman_transcript):
         var = "$COPILOT_AGENT_SESSION_ID" if d.host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
         raise ChantierError(
-            f"no Foreman transcript recorded: the Foreman runs `chantier foreman transcript {var}`"
+            "no Foreman transcript recorded: the Foreman runs "
+            f"`chantier foreman transcript {var} --epoch <n>`"
         )
     rows = cost_rows(repo, d, d.host, foreman_uuid(d))
     total = sum(r["usd"] for r in rows)

@@ -92,7 +92,7 @@ def test_slots_zero_holds_and_a_spent_budget_stops_the_next_driver_until_it_is_r
 ) -> None:
     repo, chantier, (_, two) = rails
     chantier("order", "slots", "--note", "0")
-    code, _, err = chantier("take", two)
+    code, _, err = chantier("take", two, "--epoch", 1)
     assert code == EXIT_PRECONDITION and "no free slot" in err
     code, _, err = chantier("order", "slots", "--note", "none")
     assert code == EXIT_USAGE and "0 holds" in err
@@ -102,10 +102,10 @@ def test_slots_zero_holds_and_a_spent_budget_stops_the_next_driver_until_it_is_r
     assert record(repo)["status"] == "running"
     chantier("order", "slots", "--note", "2")
     spend(repo, SPENT)
-    code, _, err = chantier("take", two)
+    code, _, err = chantier("take", two, "--epoch", 1)
     assert code == EXIT_BUDGET and "budget" in err and cr_of(repo, two)["status"] == "queued"
     chantier("order", "budget", "--note", "10")
-    assert chantier("take", two)[0] == 0
+    assert chantier("take", two, "--epoch", 1)[0] == 0
 
 
 def test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_epoch(
@@ -117,9 +117,11 @@ def test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_
         if c["id"] == one:
             c.update(status="ready", pr="https://example.invalid/pr/1", agent=None)
     write_record(repo, data)
-    code, _, err = chantier("take", one)
+    code, _, err = chantier("take", one, "--epoch", 1)
     assert code == EXIT_PRECONDITION and "only with `--note`" in err
-    code, _, _ = chantier("take", one, "--note", "rebase: main moved; the PR no longer merges")
+    code, _, _ = chantier(
+        "take", one, "--note", "rebase: main moved; the PR no longer merges", "--epoch", 1
+    )
     assert code == 0 and cr_of(repo, one)["status"] == "working"
     assert cr_of(repo, one)["notes"][-1].startswith("back to a Driver: rebase:")
     before = (cr_of(repo, one)["status"], cr_of(repo, one)["path"])
@@ -128,12 +130,37 @@ def test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_
     assert (cr_of(repo, one)["status"], cr_of(repo, one)["path"]) == before
 
 
+STEERING = (
+    (("foreman", "set", "local_x"), "foreman set <session-id> --epoch <n>"),
+    (("foreman", "transcript", "uuid-x"), "foreman transcript <uuid> --epoch <n>"),
+    (("status", "--stop-heartbeat"), "status --stop-heartbeat --epoch <n>"),
+    (("take", "CR-102"), "take CR-102 --epoch <n>"),
+    (("take", "stack"), "take stack --epoch <n>"),
+    (("agents", "set", "CR-101", "-"), "agents set CR-101 <id>|- --epoch <n>"),
+    (("order", "done", "O-1"), "order done O-1 --epoch <n>"),
+    (("pause",), "pause --epoch <n>"),
+)
+
+
+@pytest.mark.parametrize(("argv", "usage"), STEERING)
+def test_a_steering_command_without_its_number_is_refused_and_writes_nothing(
+    rails: tuple[Path, Chantier, list[str]], argv: tuple[str, ...], usage: str
+) -> None:
+    repo, chantier, _ = rails
+    files = (changes(repo) / "4-batch" / "batch.json", changes(repo) / "4-batch" / "events.jsonl")
+    before = [f.read_bytes() for f in files]
+    code, _, err = chantier(*argv)
+    assert code == EXIT_PRECONDITION and usage in err and "Foreman n°" in err
+    assert "epoch" not in err.replace("--epoch", "")
+    assert [f.read_bytes() for f in files] == before
+
+
 def test_the_budget_bounds_the_rounds_and_leaves_the_round_limit_its_own_message(
     rails: tuple[Path, Chantier, list[str]],
 ) -> None:
     repo, chantier, (one, two) = rails
     chantier("order", "slots", "--note", "2")
-    assert chantier("take", two)[0] == 0
+    assert chantier("take", two, "--epoch", 1)[0] == 0
     chantier("order", "rounds", one, "--note", "9")
     for i in range(ROUNDS):
         chantier("note", one, f"round {i}")

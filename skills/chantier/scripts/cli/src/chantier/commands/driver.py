@@ -19,7 +19,7 @@ from chantier.commands.driver_checks import (
     live_cr,
 )
 from chantier.commands.facts import cr_facts, stack_lines
-from chantier.core.batch import Batch, check_epoch, find_cr_batch, resolve_batch
+from chantier.core.batch import Batch, check_epoch, find_cr_batch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.phases import PHASE_DETAIL_MAX
@@ -47,13 +47,14 @@ def _reopen(b: Batch) -> list[str]:
     b.record.unset("paused")
     b.record.unset("summary")
     b.log("reopen", None)
-    return [f"{b.id} was paused: running again; `pause` runs again at the end"]
+    return [f"{b.id} was paused: running again; `pause --epoch <n>` runs again at the end"]
 
 
 def take(args: argparse.Namespace) -> list[str]:
     """The Foreman gives a CR to a Driver (or the stack to its driver): the rails refuse what the
     batch does not allow (a slot, the budget, a CR that has nothing to do), the state records
     it, and the CR's facts are printed for the prompt. The Foreman chooses the agent."""
+    require_epoch(args.epoch, f"take {args.cr} --epoch <n>")
     repo = Repo.find()
     if args.cr == "stack":
         batch = resolve_batch(repo, args.batch)
@@ -68,7 +69,7 @@ def take(args: argparse.Namespace) -> list[str]:
             if d.stack_agent:
                 raise ChantierError(
                     f"a stack driver is recorded ({d.stack_agent}); one "
-                    "that ended: `agents set stack -` first (a stack driver "
+                    "that ended: `agents set stack - --epoch <n>` first (a stack driver "
                     "reads the stack with `stack`, which changes nothing)"
                 )
             check_budget(d)
@@ -170,7 +171,7 @@ def handback(args: argparse.Namespace) -> list[str]:
                 line,
                 f"{args.cr} released, in 3-done"
                 + (
-                    "; every CR is merged or cancelled: `chantier pause`"
+                    "; every CR is merged or cancelled: `chantier pause --epoch <n>`"
                     if all_merged(b.record)
                     else ""
                 ),

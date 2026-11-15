@@ -29,7 +29,7 @@ def register(sub: Subparsers) -> None:
     s.add_argument(
         "--stop-heartbeat",
         action="store_true",
-        help="with --epoch: record that the steering session ended its loop "
+        help="needs --epoch: record that the steering session ended its loop "
         "(`heartbeat stopped`, until the next wake)",
     )
 

@@ -78,7 +78,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     assert not (repo.parent / f"{repo.name}.worktrees").exists()
     assert sh("git", "branch", "--list", "chantier/*", cwd=repo) == ""
     assert chantier("gate", "CR-101", "true")[0] == EXIT_PRECONDITION
-    code, out, _ = chantier("take", "CR-101")
+    code, out, _ = chantier("take", "CR-101", "--epoch", 0)
     assert code == 0 and out[0].startswith("took CR-101")
     assert any(ln.startswith("cards: ") and "references/" in ln for ln in out)
     assert any(ln.startswith("worktree: ") and "not created yet" in ln for ln in out)
@@ -137,7 +137,7 @@ def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clea
     assert folder.relative_to(surface).as_posix().startswith("projects/demo/changes/1-inbox/")
     code, _, err = chantier("open", str(folder), *FROM_AGENTS_MD)
     assert code == 0, err
-    code, out, _ = chantier("take", "CR-101")
+    code, out, _ = chantier("take", "CR-101", "--epoch", 0)
     assert code == 0, out
     assert any(
         ln.startswith("cli: ") and f'--project "{project.resolve().as_posix()}"' in ln for ln in out
@@ -214,7 +214,7 @@ def test_a_byte_order_mark_from_windows_powershell_is_read_through(
     batch.write_bytes(b"\xef\xbb\xbf" + batch.read_bytes())
     code, out, err = chantier("status")
     assert code == 0 and out[-1].startswith("CR-101 queued"), err
-    assert chantier("take", "CR-101")[0] == 0
+    assert chantier("take", "CR-101", "--epoch", 0)[0] == 0
     assert not batch.read_bytes().startswith(b"\xef\xbb\xbf")  # written back without the mark
 
 

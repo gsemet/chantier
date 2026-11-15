@@ -215,7 +215,7 @@ def check_take(d: BatchRecord, c: CrEntry, note: str | None) -> None:
     if c.agent:  # one Driver per CR: the recorded one must have ended first
         raise ChantierError(
             f"{c.id} still has an agent recorded ({c.agent}): "
-            f"`agents set {c.id} -` first, once it ended"
+            f"`agents set {c.id} - --epoch <n>` first, once it ended"
         )
     check_budget(d)
     if c.status != "working":

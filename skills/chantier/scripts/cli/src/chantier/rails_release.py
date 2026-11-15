@@ -22,7 +22,7 @@ def merge_done(b: Batch, c: CrEntry) -> list[str]:
     b.touch(c, status="merged")
     lines = [f"merged {c.id}: moved to 3-done"]
     if all_merged(b.record):
-        lines.append("every CR is merged or cancelled: `chantier pause`")
+        lines.append("every CR is merged or cancelled: `chantier pause --epoch <n>`")
     return lines
 
 

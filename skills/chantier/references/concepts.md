@@ -291,7 +291,9 @@ started.
 - **Steering session:** the session that runs the batch from its state: a Foreman, or, in direct
   mode (`open --direct`), the Chief of Staff itself, the session the seat names. Both claim an epoch the same way. The batch
   records which steers it and switches to Foreman mode when a later epoch is claimed by another
-  transcript; a Foreman batch never switches to direct mode.
+  transcript; a Foreman batch never switches to direct mode. To the user, a claim's number is the
+  Foreman's number within its batch (`batch-18, Foreman n°2`), never the word epoch; the flag
+  stays `--epoch`.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
@@ -313,7 +315,7 @@ started.
   the tree is dirty, the remote branch is not at that head, or there is no passed long gate or
   `VERIFIED` verdict at it; `gate` on a dirty tree is another; so are a `take` of a working CR
   without `--note`, a `take` of a CR whose agent id is still recorded, working or blocked, and a
-  `cancel` without `--epoch`), 3 stale Foreman epoch, 4 external
+  steering command without `--epoch` (the cards list them)), 3 a stale Foreman (a later Foreman n° claimed the batch), 4 external
   (git, a gate; a gate whose head moved during the run), 5 the budget (`take`, `round`) or the
   round limit (`round`). A CR argument takes its bare number: `165`, `CR-165` and `cr-165` are
   one CR. Heads are the full 40-character SHA in the state and the events (7 characters only for

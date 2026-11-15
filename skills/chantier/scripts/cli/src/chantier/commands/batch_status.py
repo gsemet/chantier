@@ -12,7 +12,14 @@ from chantier.commands.activity import activity
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
-from chantier.core.batch import Batch, check_epoch, find_cr_batch, read_batch, resolve_batch
+from chantier.core.batch import (
+    Batch,
+    check_epoch,
+    find_cr_batch,
+    read_batch,
+    require_epoch,
+    resolve_batch,
+)
 from chantier.core.batch_records import last_closed
 from chantier.core.clock import age_minutes, now
 from chantier.core.errors import EXIT_USAGE, ChantierError
@@ -30,12 +37,9 @@ from chantier.status.words import phase_text, shape_word, steering_word
 def _stop_heartbeat(repo: Repo, batch: str, epoch: int | None) -> list[str]:
     """The steering session records that it ended its loop: `status` says "heartbeat stopped"
     until the next wake (`status --refresh --epoch`) clears it."""
+    require_epoch(epoch, "status --stop-heartbeat --epoch <n>")
     with RenderedBatch(repo, batch, actor="foreman") as b:
         check_epoch(b, epoch)
-        if epoch is None:
-            raise ChantierError(
-                "--stop-heartbeat carries --epoch <n>: the steering session's own", EXIT_USAGE
-            )
         b.record.heartbeat_stopped = now()
         b.log("heartbeat_stopped", None)
     return [
@@ -145,7 +149,7 @@ def _order_lines(d: BatchRecord) -> list[str]:
     lines = []
     for applied, head in (
         (False, "orders pending: "),
-        (True, "orders the CLI applied, the Foreman marks each `order done <O-k>`: "),
+        (True, "orders the CLI applied, the Foreman marks each `order done <O-k> --epoch <n>`: "),
     ):
         group = [o for o in open_orders if bool(o.applied) is applied]
         if group:
@@ -227,6 +231,7 @@ def asks(args: argparse.Namespace) -> list[str]:
 def agents(args: argparse.Namespace) -> list[str]:
     """The agent id a CR's Driver or the stack driver runs under: the Foreman records it after
     each start, so a restart and the cost know who ran what."""
+    require_epoch(args.epoch, f"agents set {args.cr} <id>|- --epoch <n>")
     repo = Repo.find()
     batch = (
         find_cr_batch(repo, args.cr, args.batch)
