@@ -1200,6 +1200,19 @@ def scenario(w: World) -> None:
     )
     w.chantier("status", "--refresh", "--batch", w.name)
     _, priced = w.chantier("status", "--batch", w.name)
+    unnamed = {"CHANTIER_BATCH": ""}
+    paused = w.batch()["status"] == "paused"
+    for form in (("--by", "cr"), ("--explain",)):
+        _, named = w.chantier("cost", *form, "--batch", w.name)
+        code, bare = w.chantier("cost", *form, env=unnamed, expect=None)
+        check(f"the only paused batch is read by `cost {' '.join(form)}` with no --batch",
+              paused and code == 0 and bare[:2] == named[:2], f"{code} {bare[:2]} {named[:2]}")
+    code, _ = w.chantier("status", env=unnamed, expect=None)
+    check("the only paused batch is read by `status` with no --batch", paused and code == 0, str(code))
+    code, _ = w.chantier("asks", env=unnamed, expect=None)
+    check("a command that writes refuses a paused batch by name, with `--batch <name>` and no `open`",
+          paused and code != 0 and f"--batch {w.name}" in w.last_stderr
+          and "chantier open" not in w.last_stderr, w.last_stderr)
     batch_report = (w.folder() / "STATUS.md").read_text(encoding="utf-8")
     board = (w.state / "STATUS.md").read_text(encoding="utf-8")
     check("once the spend is priced, `status`, the batch's STATUS.md and the board show a dollar figure",
@@ -1672,9 +1685,11 @@ def remote_board(w: World) -> None:
             p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1",
                                 "--port", str(busy)], cwd=w.work, env=w.env, capture_output=True,
                                text=True, encoding="utf-8", timeout=30)
-        check("a port held by another program exits 4 with one `board not started` line",
+        check("a port held by another program exits 4 with one `board not started` line naming the port"
+              " and `--port`",
               p.returncode == 4 and len(p.stderr.strip().splitlines()) == 1
-              and p.stderr.startswith("error: board not started: ") and not p.stdout.strip(), p.stderr)
+              and p.stderr.startswith("error: board not started: ") and not p.stdout.strip()
+              and f"port {busy}" in p.stderr and "--port" in p.stderr, p.stderr)
         # 9. the seat moves: the board stops by itself, a new one has the same link
         w.chantier("seat", "take", "s-2", "--over", "s-1")
         check("when the seat moves the board stops by itself, exit 0", exits(first) == 0)

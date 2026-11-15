@@ -11,7 +11,9 @@ import pytest
 from batch_helpers import FROM_AGENTS_MD, changes, open_batch, record, write_record
 from conftest import Chantier
 
-from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE
+from chantier.core.batch import resolve_batch
+from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.repo import Repo
 
 ROUNDS = 3
 SPENT = 2  # against a budget of 1
@@ -206,3 +208,45 @@ def test_order_qa_needs_a_request_and_a_budget_and_its_folder_is_not_opened(
     assert code == EXIT_PRECONDITION and "QA report" in err and "triage" in err
     assert chantier("agents", "set", order_id(out[0]), "agent-qa", "--epoch", 1)[0] == 0
     assert chantier("agents", "set", "O-1", "agent-x", "--epoch", 1)[0] == EXIT_USAGE
+
+
+@pytest.mark.usefixtures("repo")
+@pytest.mark.parametrize(
+    ("running", "paused", "reading", "expected"),
+    [
+        ([], [], True, "no running batch: run `chantier open` first"),
+        ([], ["batch-18"], True, "batch-18"),
+        ([], ["batch-18"], False, "no running batch; paused: batch-18: pass `--batch batch-18`"),
+        ([], ["batch-17", "batch-18"], True, "paused: batch-17, batch-18: pass `--batch <name>`"),
+        (["batch-19"], ["batch-18"], True, "batch-19"),
+    ],
+)
+def test_a_paused_batch_is_read_when_alone_and_named_otherwise(
+    monkeypatch: pytest.MonkeyPatch,
+    running: list[str],
+    paused: list[str],
+    reading: bool,
+    expected: str,
+) -> None:
+    repo_ = Repo.find()
+    monkeypatch.setattr(Repo, "open_batches", lambda _self: running)
+    monkeypatch.setattr(Repo, "paused_batches", lambda _self: paused)
+    if expected.startswith("batch-"):
+        assert resolve_batch(repo_, None, paused=reading) == expected
+        return
+    with pytest.raises(ChantierError) as refused:
+        resolve_batch(repo_, None, paused=reading)
+    assert expected in str(refused.value)
+    assert ("chantier open" in str(refused.value)) == (not paused)
+
+
+def test_a_command_that_writes_refuses_a_paused_batch_by_name_and_status_reads_it(
+    rails: tuple[Path, Chantier, list[str]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, chantier, _ = rails
+    write_record(repo, {**record(repo), "status": "paused"})
+    monkeypatch.delenv("CHANTIER_BATCH")
+    batch = record(repo)["id"]
+    assert chantier("status")[0] == 0
+    code, _, err = chantier("asks")
+    assert code != 0 and f"--batch {batch}" in err and "chantier open" not in err

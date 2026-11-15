@@ -211,15 +211,25 @@ class Batch:
         self._moves.clear()
 
 
-def resolve_batch(repo: Repo, batch: str | None) -> str:
+def resolve_batch(repo: Repo, batch: str | None, paused: bool = False) -> str:
     """`--batch`, else `CHANTIER_BATCH`, else the only running batch; never a guess among
-    several."""
+    several. A reading command passes `paused=True`: with no batch running it takes the only
+    paused one. A refusal names the paused batches and `--batch`."""
     if batch or os.environ.get("CHANTIER_BATCH"):
         return normalize_batch(batch or os.environ["CHANTIER_BATCH"])
     names = repo.open_batches()
     if len(names) == 1:
         return names[0]
     if not names:
+        held = repo.paused_batches()
+        if paused and len(held) == 1:
+            return held[0]
+        if held:
+            flag = f"--batch {held[0]}" if len(held) == 1 else "--batch <name>"
+            raise ChantierError(
+                f"no running batch; paused: {', '.join(held)}: pass `{flag}`"
+                + last_closed_note(repo).replace("; no batch closed yet", "")
+            )
         raise ChantierError("no running batch: run `chantier open` first" + last_closed_note(repo))
     raise ChantierError(f"several running batches ({', '.join(names)}): pass --batch", EXIT_USAGE)
 

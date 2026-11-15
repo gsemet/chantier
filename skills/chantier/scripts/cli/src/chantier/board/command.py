@@ -4,9 +4,11 @@ of a board already running; `starlette` and `uvicorn` load only once the board s
 from __future__ import annotations
 
 import argparse
+import errno
 import os
 import socket
 import sys
+from collections.abc import Callable
 from typing import Any
 
 from chantier import __version__
@@ -26,6 +28,7 @@ from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
 from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
+from chantier.playbook.config import FILE, load_board
 
 BEYOND = (
     "board: listens on the local network ({host}); the link holds its key: give it to the user "
@@ -37,7 +40,34 @@ def _not_started(reason: object) -> ChantierError:
     return ChantierError(f"board not started: {' '.join(str(reason).split())}", EXIT_EXTERNAL)
 
 
-def _bind(host: str, port: int) -> socket.socket:
+WSAEADDRINUSE = 10048  # Windows' "address in use"
+WAY_OUT = "pass --port <n> (0: any free port)"
+
+
+def _in_use(e: OSError) -> bool:
+    return e.errno == errno.EADDRINUSE or getattr(e, "winerror", None) == WSAEADDRINUSE
+
+
+def _held_by(host: str, port: int, key: str, from_config: bool) -> str:
+    """The refusal's text for a port in use: what holds it as far as the probe tells, and the
+    way out."""
+    where = f"port {port} on {host}"
+    out = WAY_OUT + (" or change board.port in chantier.yaml" if from_config else "")
+    found = probe(host, port, key)
+    if isinstance(found, dict):
+        link = url(host, port, key)
+        return (
+            f"{where} is held by a chantier board over {found.get('served')}: open {link}, or {out}"
+        )
+    if found == "another-key":
+        return (
+            f"{where} is held by another chantier board (another project's key; its session "
+            f"printed its link): {out}"
+        )
+    return f"{where} is in use (a board may already run there, or another program): {out}"
+
+
+def _bind(host: str, port: int, held: Callable[[], str] | None = None) -> socket.socket:
     """The socket, bound and listening before anything is printed (a client that connects on the
     start line is queued): a port held fails here. On
     Windows SO_REUSEADDR lets a second socket take a port in use: never there."""
@@ -49,6 +79,8 @@ def _bind(host: str, port: int) -> socket.socket:
         sock.listen(socket.SOMAXCONN)
     except (OSError, OverflowError) as e:
         sock.close()
+        if held is not None and isinstance(e, OSError) and _in_use(e):
+            raise _not_started(held()) from e
         raise _not_started(e) from e
     return sock
 
@@ -117,7 +149,8 @@ def board(args: argparse.Namespace) -> list[str]:
         if args.seat and not register_seat(host, port, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
         return [f"board already running at {url(host, port, key)}"]
-    sock = _bind(host, port)
+    from_config = args.port is None and "port" in load_board(projects.home.root / FILE)[0]
+    sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
     link = url(host, sock.getsockname()[1], key)
     print(f"board on {link} over {projects.served.as_posix()}", flush=True)
     if not is_loopback(host):

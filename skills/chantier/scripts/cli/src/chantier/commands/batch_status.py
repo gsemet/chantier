@@ -190,7 +190,7 @@ def _autosync_lines(repo: Repo) -> list[str]:
 
 def status(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = Repo.find()
-    batch = resolve_batch(repo, args.batch)
+    batch = resolve_batch(repo, args.batch, paused=not (args.refresh or args.stop_heartbeat))
     extra, code, prev = [], 0, None
     if args.stop_heartbeat:
         extra = _stop_heartbeat(repo, batch, args.epoch)
