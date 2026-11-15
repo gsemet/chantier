@@ -9,14 +9,19 @@ which review steps the project's `AGENTS.md` declares, and which CI contracts th
 Claude, `.claude/settings.local.json` puts the forge's folder first on `PATH` for every session in
 the workspace (the Foreman, its Drivers and workers): their `gh` is the local forge.
 
-`full`, `real-foreman`, `real-direct`, `copilot`, `ticket-summary`: the sandbox (shelf, on GitHub). Setup checks that
+`full`, `real-foreman`, `real-direct`, `copilot`, `ticket-summary`: the sandbox (shelf, on GitHub),
+the repository `sandbox.py` names (`sandbox.local.json`, else `sandbox.json`; the first line says
+which, before anything is written). Setup checks that
 the sandbox is at its base (it never resets and never pushes), takes the run's number, clones the
 sandbox into `<workspace>`, runs `chantier init` and `uv sync --locked` there, places the frozen
 CRs (`kit/sandbox-crs/`) in `.agents/changes/3-ready/` with the run's PR-title convention, writes
 `<workspace>.run.json` and prints the `open` line of each batch. The agents use the real `gh`. On
 Claude, it also writes the workspace's `.claude/settings.local.json` (ignored by the sandbox's git)
-with the rules the user's settings may lack: the operator's merge (`sandbox.py merge`) and, for a
-release, its tag push and its GitHub release; nothing else.
+with the rules the user's settings may lack: the operator's merge (`sandbox.py merge`), the
+operator's `mcp__ccd_pr__set_monitor` (it turns Auto-fix off on the run's own PRs) and, for a
+release, its tag push and its GitHub release; nothing else. The last line it prints is the `prompt`
+line: the campaign's runbook prompt with this checkout's path, ready to paste to start the
+operator's session (the mode of the quick campaigns stays a blank to fill).
 
 `ticket-summary` places no CR and opens no batch: instead of the `open` lines, setup prints the
 `gh issue create` line of the campaign's frozen issue (`kit/ticket-summary/`) and the path of the
@@ -38,7 +43,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import sandbox  # noqa: E402  (the sandbox's constants, its survey helpers, its folder removal)
+import sandbox  # noqa: E402  (the sandbox's repository, its survey helpers, its folder removal)
 
 ROOT = HERE.parents[1]
 CLI = ROOT / "skills" / "chantier" / "scripts" / "cli"  # the package's folder: its source is `src/`
@@ -57,23 +62,40 @@ CAMPAIGNS = {
                        "release": "RELEASING.md"},
     # the sandbox campaigns: each batch lists its CRs in `open` order, the release's item number,
     # the CRs added during the batch, the slots and the budget
-    "full": {"host": "claude", "mode": "parallel", "batches": [
+    "full": {"host": "claude", "mode": "parallel",
+             "prompt": "/chantier:chief-of-staff foreman Run the chantier eval campaign full: follow "
+                       "<this checkout>/evals/full/RUNBOOK.md.",
+             "batches": [
         {"crs": [*QUICK, "csv-export", "item-notes", "title-search", "release-v0-2-0"],
          "release": 9, "added": ["item-rating"], "slots": 4, "budget": 40},
         {"crs": ["sort-list", "duplicate-url", "release-v0-3-0"], "release": 3, "added": [],
          "slots": 4, "budget": 15}]},
-    "real-foreman": {"host": "claude", "mode": "choose", "batches": [
+    "real-foreman": {"host": "claude", "mode": "choose",
+                     "prompt": "/chantier:chief-of-staff foreman Run the chantier eval campaign "
+                               "real-foreman in <stack|parallel|series> mode: follow "
+                               "<this checkout>/evals/real-foreman/RUNBOOK.md.",
+                     "batches": [
         {"crs": QUICK, "added": [], "slots": 3, "budget": 20}]},
-    "real-direct": {"host": "claude", "mode": "choose", "batches": [
+    "real-direct": {"host": "claude", "mode": "choose",
+                    "prompt": "/chantier:chief-of-staff direct Run the chantier eval campaign "
+                              "real-direct in <stack|parallel|series> mode, in direct mode: follow "
+                              "<this checkout>/evals/real-direct/RUNBOOK.md.",
+                    "batches": [
         {"crs": QUICK, "added": [], "slots": 3, "budget": 20, "direct": True}]},
-    "copilot": {"host": "copilot", "batches": [
+    "copilot": {"host": "copilot",
+                "prompt": "Run the chantier eval campaign copilot: follow "
+                          "<this checkout>/evals/copilot/RUNBOOK.md.",
+                "batches": [
         {"crs": ["delete-item"], "added": [], "slots": 1, "budget": 3}]},
     # no batch and no frozen CR: one issue the operator creates, one request typed in the chat
     "ticket-summary": {"host": "claude", "batches": [],
+                       "prompt": "/chantier:chief-of-staff Run the chantier eval campaign "
+                                 "ticket-summary: follow <this checkout>/evals/ticket-summary/RUNBOOK.md.",
                        "issue": {"title": "Dark theme for the reading list",
                                  "body": "ticket-summary/issue.md",
                                  "chat": "ticket-summary/chat-request.md"}},
 }
+MONITOR_RULE = "mcp__ccd_pr__set_monitor"  # the operator turns Auto-fix off on the run's own PRs
 OK, USAGE, PRECONDITION, EXTERNAL = sandbox.OK, sandbox.USAGE, sandbox.PRECONDITION, sandbox.EXTERNAL
 
 
@@ -163,7 +185,7 @@ def survey() -> list[str]:
 
 def run_number() -> int:
     """1 plus the highest `<n>` among the sandbox's PR titles that start with `[eval <n> `."""
-    listed = json.loads(sandbox.gh("pr", "list", "--repo", sandbox.REPO, "--state", "all",
+    listed = json.loads(sandbox.gh("pr", "list", "--repo", sandbox.repository(), "--state", "all",
                                    "--limit", "1000", "--json", "title"))
     used = [int(m[1]) for p in listed if (m := re.match(r"\[eval (\d+) ", p["title"]))]
     return max(used, default=0) + 1
@@ -199,6 +221,15 @@ def place_crs(spec: dict, ws: Path, campaign: str, run: int, date: str, prefix: 
         path.write_bytes((body + extra).encode("utf-8"))
 
 
+def prompt_line(spec: dict, campaign: str) -> str:
+    """The operator's prompt, ready to paste: the campaign's, with this checkout's runbook in the
+    platform's own spelling (quoted only if it has a space, as the merge line is)."""
+    runbook = str(ROOT / "evals" / campaign / "RUNBOOK.md")
+    if " " in runbook:
+        runbook = f'"{runbook}"'
+    return spec["prompt"].replace(f"<this checkout>/evals/{campaign}/RUNBOOK.md", runbook)
+
+
 def merge_command() -> str:
     """The operator's merge, as a command line without its PR: the quoted script only if needed."""
     script = (HERE / "sandbox.py").as_posix()
@@ -213,7 +244,7 @@ def allow_rules(spec: dict) -> list[str]:
     both = lambda rule: [f"Bash({rule})", f"PowerShell({rule})"]  # noqa: E731
     if spec.get("issue"):  # merges nothing; posts the ticket summary on GitHub
         return both("gh issue comment *") + both("gh issue artifact create *")
-    rules = both(f"{merge_command()} *")
+    rules = both(f"{merge_command()} *") + [MONITOR_RULE]
     for slug in sandbox_crs(spec):
         m = re.fullmatch(r"release-v(\d+)-(\d+)-(\d+)", slug)
         if m:
@@ -252,6 +283,7 @@ def open_lines(spec: dict, campaign: str) -> list[str]:
 
 def sandbox_main(campaign: str, dest: Path) -> int:
     spec = CAMPAIGNS[campaign]
+    sandbox.announce(f"setup {campaign}")
     # 1. preconditions: nothing is created before they pass
     if dest.exists():
         raise sandbox.Stop(PRECONDITION, f"{dest} already exists")
@@ -277,7 +309,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
     chantier = chantier_state()
     # 3. the clone, `init`, `uv sync --locked`
     try:
-        sandbox.run(["git", "clone", "--quiet", sandbox.URL, str(dest)], env=sandbox.remote_env())
+        sandbox.run(["git", "clone", "--quiet", sandbox.url(), str(dest)], env=sandbox.remote_env())
         head = sandbox.run(["git", "rev-parse", "HEAD"], cwd=dest).strip()
         if head != base:
             raise sandbox.Stop(PRECONDITION, f"the clone's HEAD is {head}, not the base {base}")
@@ -292,7 +324,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
         raise
     # 5. the run record, next to the workspace
     record = {"campaign": campaign, "run": run, "date": date, "prefix": prefix,
-              "repository": sandbox.REPO, "base": base, "chantier": chantier,
+              "repository": sandbox.repository(), "base": base, "chantier": chantier,
               "host": spec["host"], "crs": sandbox_crs(spec)}
     if spec.get("issue"):
         record["issue"] = {"title": f"{prefix} {spec['issue']['title']}",
@@ -316,6 +348,7 @@ def sandbox_main(campaign: str, dest: Path) -> int:
     for number, line in enumerate(open_lines(spec, campaign), 1):
         added = spec["batches"][number - 1]["added"]
         print(f"batch {number}: {line}" + (f"   (added during it: {', '.join(added)})" if added else ""))
+    print(f"prompt    {prompt_line(spec, campaign)}")
     return OK
 
 
@@ -324,7 +357,7 @@ def issue_lines(issue: dict, frozen: dict) -> str:
     body = (HERE / frozen["body"]).as_posix()
     if " " in body:
         body = f'"{body}"'
-    create = (f'gh issue create --repo {sandbox.REPO} --title "{issue["title"]}" '
+    create = (f'gh issue create --repo {sandbox.repository()} --title "{issue["title"]}" '
               f"--body-file {body}")
     return (f"issue     {create}   (run it, then note its number)\n"
             f"chat      {(HERE / frozen['chat']).as_posix()}   "

@@ -34,6 +34,12 @@ Control), with the plugin installed from this checkout, the user types:
 with `<this checkout>` as its absolute path. That session is the operator: the Chief of Staff in
 Foreman mode, playing the user in full. One new Foreman session per batch.
 
+Setup prints this as its last line, the `prompt` line, with the path filled in. Start the
+operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
+spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
+workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
+Remote Control (the evals README, "The operator").
+
 ## Batch 1
 
 Open, from the workspace:
@@ -48,6 +54,11 @@ $CHANTIER open 3-ready/delete-item 3-ready/edit-item \
 ```
 
 A new Foreman session starts. The user's turns, played by the operator:
+
+On each new PR of the run (a PR of the sandbox whose title starts with the run's prefix), the first
+act is to turn that PR's Auto-fix monitor off with `mcp__ccd_pr__set_monitor`; never on another PR,
+never to arm one. When the call is refused, turn it off from the PR's menu in the Changes card and
+record the refusal as a finding (the evals README, "Auto-fix during the run").
 
 1. The go once the plan is shown.
 2. At the first `ask ready` (the first CR handed back ready), before or with its merge:
@@ -118,7 +129,9 @@ once; each `ping` is a human step, and the report counts them. They are the only
 
 ## Report
 
-`results/full-<date>-run<n>.md`: one report for both batches, with one scorecard where a row is
+`results/full-<date>-run<n>.md` (its cost figure is read after `close --yes`, from the closed
+batch's record `.agents/changes/5-archives/batches/batch-NN.md`; the audit's cost and `cost
+--explain` stay before it): one report for both batches, with one scorecard where a row is
 `seen, wrong` if it was wrong in either batch, and the cost per batch and in total. It names each
 human step and gives their count.
 

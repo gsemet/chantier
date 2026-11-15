@@ -90,18 +90,23 @@ Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
   rule: it is between the user and the app. This section speaks of a batch's PRs only.
 - **chantier never arms, disarms or unbinds the PR monitor.** No card uses the app's PR monitor
   (`mcp__ccd_pr__set_monitor`), to arm it or to disarm it, and chantier writes no setting of it (the only settings it
-  writes are the allow rules of "Configuration", on the user's yes).
+  writes are the allow rules of "Configuration", on the user's yes). The one use is the eval guide's
+  operator, who plays the user and turns the monitor off on a run's own sandbox PRs
+  (`evals/README.md`, "Auto-fix during the run"); no role does.
 - **The cost.** Even ignored, each event starts a turn of the steering session, which the user
   pays for.
-- **Turning Auto-fix off.** **Unproved**: no documentation and no dated trial gives the path, so
-  none is given here. Trial that settles it: in the Claude Desktop app, find the setting that
-  turns Auto-fix off for a session or a PR, turn it off, open a PR from a subagent, and see that
-  no Auto-fix event arrives; record the labels and the date here. Turning it off also loses
-  Auto-fix for the user's own PRs in that session.
+- **Turning Auto-fix off.** The per-PR switch is documented
+  (<https://code.claude.com/docs/en/desktop.md#monitor-pull-request-status>) and was seen on
+  2026-11-15: `mcp__ccd_pr__set_monitor` with the monitor off, or the PR's menu (the three dots) in
+  the Changes card. The global setting (Settings > Code, or Settings > Claude Code, by the app's
+  version) stays **unproved**: the documentation describes no default for PRs opened later, and
+  third-party reports say it may not reach local sessions' PRs. Trial that settles it: turn it
+  off, open a PR from a subagent, and see that no Auto-fix event arrives; record the labels and the
+  date here. Turning it off also loses Auto-fix for the user's own PRs.
 - **During a normal batch chantier stays silent** about Auto-fix: it does not ask the user to turn
   it off, has no preflight check for it and gives no "For you" line for it (chantier cannot see
   whether Auto-fix is on, and a line at every go would be noise). It only ignores the events as
-  above. Only the eval guide asks for Auto-fix off, before a real campaign. A tip may come later,
+  above. Only the eval guide turns Auto-fix off: before a real campaign, and on each of the run's own PRs. A tip may come later,
   from a measure of the ignored turns' cost in a real batch.
 - **Mark of the section.** The rule (the live Driver, no live Driver and both-steerings points,
   and the event-is-not-an-order point) is **unproved** until the next real campaign shows it.
@@ -266,7 +271,8 @@ Two rules described here that P10 does not check:
 
 - `mcp__ccd_pr__set_monitor`: Claude Desktop's PR monitor (auto-fix), refused twice in the
   user's week. No chantier card uses it, to arm or to disarm (see "Auto-fix events"). Risk: the session arms auto-fix on a PR. Rule form
-  documented; the tool itself is Claude Desktop's, **unproved** here.
+  documented; the tool itself is Claude Desktop's, **unproved** here. The eval kit's workspace
+  allows it for its operator (`evals/README.md`).
 - `Edit(<the folder that holds the repository and its .worktrees>/**)` (the user's form:
   `Edit(~/Projets/**)`): lets agents edit in the CR worktrees next to the repository. Risk: every
   file below that folder. Not checked: the path is the user's.

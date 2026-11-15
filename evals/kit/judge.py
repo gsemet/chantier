@@ -177,7 +177,7 @@ def changelog_section(text: str, version: str) -> list[str]:
 
 def is_sandbox(repository: str) -> bool:
     plain = repository.strip().rstrip("/").removesuffix(".git").lower()
-    return plain in (f"https://github.com/{sandbox.REPO}", f"git@github.com:{sandbox.REPO}")
+    return plain in (f"https://github.com/{sandbox.repository()}", f"git@github.com:{sandbox.repository()}")
 
 
 def release(version: str, repository: str, slugs: list[str]) -> tuple[bool, list[str]]:
@@ -234,12 +234,12 @@ def release(version: str, repository: str, slugs: list[str]) -> tuple[bool, list
     if not is_sandbox(repository):
         lines.append("GitHub release: not run: not the sandbox")
         return ok, lines
-    done = run(["gh", "release", "view", tag, "--repo", sandbox.REPO, "--json", "tagName,name,body"],
+    done = run(["gh", "release", "view", tag, "--repo", sandbox.repository(), "--json", "tagName,name,body"],
                env=git_env(), timeout=120)
     if done.returncode != 0:
         text = (done.stderr or done.stdout).strip()
         if "not found" in text.lower():
-            item(False, f"no GitHub release {tag} on {sandbox.REPO}: {text}")
+            item(False, f"no GitHub release {tag} on {sandbox.repository()}: {text}")
             return False, lines
         raise NotRun(f"`gh release view {tag}` failed ({done.returncode}): {text}")
     shown = json.loads(done.stdout)
