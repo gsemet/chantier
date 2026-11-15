@@ -2862,12 +2862,13 @@ def stop_own_gate(w: World) -> None:
     pid = suite_pid()
     code, _ = w.chantier("order", "merged", three, "--epoch", 1)
     merged_out = w.last_out
+    ended = running.poll() is not None  # the order waited for the gate's process to end
     out, err = running.communicate(timeout=120)
     time.sleep(0.5)
-    check("`order merged` stops the CR's own long gate: its output names the group, the suite is "
-          "gone, the gate says STOPPED and exits 4, the last gate event is `stopped`, the CR is in "
-          "3-done",
-          code == 0 and any(ln.startswith(f"stopped the long gate of {three} (pg") for ln in merged_out)
+    check("`order merged` stops the CR's own long gate and waits for it to end: its output names "
+          "the group, the suite is gone, the gate says STOPPED and exits 4, the last gate event is "
+          "`stopped`, the CR is in 3-done",
+          code == 0 and ended and any(ln.startswith(f"stopped the long gate of {three} (pg") for ln in merged_out)
           and not procs.alive(pid) and out.startswith("STOPPED") and running.returncode == 4
           and "Traceback" not in err and events(three)[-1]["result"] == "stopped"
           and "3-done" in w.cr(three)["path"].replace("\\", "/"),
@@ -3257,12 +3258,22 @@ def gate_parallel(w: World) -> None:
     second = spawn(two, "merge")
     lock_names(w, " pg", 2)
     two_pid = suite_pid("merge")
+    def stopped_events():
+        return [e for e in kinds("gate") if e["cr"] == two and e.get("result") == "stopped"]
+
+    stopped_before = len(stopped_events())
     code, _ = w.chantier("order", "merged", two, "--epoch", 1)
+    ended = second.poll() is not None  # the order waited for the gate's process to end
     out, err = second.communicate(timeout=120)
     time.sleep(0.5)
-    check("E4: `order merged` stops its CR's gate only",
-          code == 0 and out.startswith("STOPPED") and not procs.alive(two_pid) and procs.alive(held_pid)
-          and first.poll() is None, f"{out} {err}")
+    last = log(two).rstrip("\n").splitlines()[-1]
+    check("E4: `order merged` stops its CR's gate only, and waits for it to end before the move",
+          code == 0 and ended and out.startswith("STOPPED") and second.returncode == 4
+          and "Traceback" not in err and re.fullmatch(r"result: stopped at \S+: no pass", last)
+          and len(stopped_events()) == stopped_before + 1
+          and "3-done" in w.cr(two)["path"].replace("\\", "/")
+          and not procs.alive(two_pid) and procs.alive(held_pid)
+          and first.poll() is None, f"{out} {err} {last} {second.returncode}")
     third = spawn(three, "cancel")
     lock_names(w, " pg", 2)
     three_pid = suite_pid("cancel")

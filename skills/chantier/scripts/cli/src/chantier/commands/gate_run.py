@@ -10,6 +10,7 @@ from typing import NamedTuple
 
 from chantier import procs
 from chantier.core.batch import Batch
+from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import RunRecord
 from chantier.gate_slots import Holder, Slot, mtime
 
@@ -58,13 +59,9 @@ class Stopped(NamedTuple):
     acted: bool  # something was stopped or recorded
 
 
-def stop_gate(s: Slot, h: Holder, b: Batch, fallback_head: str) -> Stopped:
-    """Stop the long gate the slot's lock names (`h`): ask its command to stop and stop its
-    suite, each only while it is still the process the lock recorded. The run is recorded
-    `stopped`: no pass, no failure. When the command is gone, the stopper records it, in `b`'s
-    write. The other slots are not touched."""
-    run = run_read(s)
-    head = (run.head if run else "") or fallback_head
+def ask_stop(s: Slot, h: Holder) -> tuple[bool, int | None]:
+    """Ask the gate the slot's lock names to stop and stop its suite, each only while it is
+    still the process the lock recorded. Returns whether the command lives and the group."""
     recorded = mtime(s.lock)
     gate_alive = procs.alive_since(h.pid, recorded, False)
     pg = h.pg if h.pg is not None and procs.alive_since(h.pg, recorded, False) else None
@@ -72,6 +69,38 @@ def stop_gate(s: Slot, h: Holder, b: Batch, fallback_head: str) -> Stopped:
         s.stop.write_text("stop", encoding="utf-8")  # the running gate records it
     if pg is not None:
         procs.stop_group(pg)
+    return gate_alive, pg
+
+
+def stopped_line(cr_id: str, pg: int | None) -> str:
+    return f"stopped the long gate of {cr_id}" + (f" (pg{pg})" if pg is not None else "")
+
+
+def stop_and_wait(s: Slot, h: Holder, timeout_s: float) -> Stopped | None:
+    """Stop the gate of the slot as `stop_gate` does, then wait for its command to end, so it
+    records its own `stopped` with its folder in place. None when it was not running; a gate
+    still running at the bound is refused. It logs no event and takes no batch."""
+    run = run_read(s)
+    gate_alive, pg = ask_stop(s, h)
+    if not gate_alive:
+        return None
+    if not procs.wait_gone(h.pid, mtime(s.lock), timeout_s):
+        raise ChantierError(
+            f"order merged {h.cr}: its long gate (pid {h.pid}) did not end within "
+            f"{timeout_s:g} s after its stop: nothing recorded; run the order again once it ends",
+            EXIT_PRECONDITION,
+        )
+    return Stopped((run.head if run else ""), pg, True)
+
+
+def stop_gate(s: Slot, h: Holder, b: Batch, fallback_head: str) -> Stopped:
+    """Stop the long gate the slot's lock names (`h`): ask its command to stop and stop its
+    suite, each only while it is still the process the lock recorded. The run is recorded
+    `stopped`: no pass, no failure. When the command is gone, the stopper records it, in `b`'s
+    write. The other slots are not touched."""
+    run = run_read(s)
+    head = (run.head if run else "") or fallback_head
+    gate_alive, pg = ask_stop(s, h)
     if not gate_alive and run is not None and run.cr == h.cr:  # no run: the lock was stale
         if run.log and Path(run.log).exists():
             with open(run.log, "a", encoding="utf-8") as f:

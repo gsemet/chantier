@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 from batch_helpers import open_batch, record
 from conftest import Chantier, sh
 
+from chantier.commands import orders_merged
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE
+from chantier.core.repo import Repo
 
 GATE = "python -c pass"
 WHOLE = '"parallel" is a whole number'
@@ -52,6 +56,28 @@ def test_a_bad_long_gate_key_is_refused_with_its_line_by_gate_playbook_and_prefl
     code, out, _ = chantier("playbook")
     assert code == 0 and out[0].startswith("playbook: chantier.yaml, valid")
     assert any(ln.startswith("P12 ok") for ln in chantier("preflight")[1])
+
+
+def test_order_merged_refuses_and_records_nothing_when_the_stopped_gate_does_not_end(
+    gated: tuple[Path, Chantier, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, chantier, one = gated
+    before = record(repo)
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        lock = Repo.find().changes / ".long-gate.lock"
+        lock.write_bytes(f"\0{one} pid {child.pid}".encode())
+        monkeypatch.setattr(orders_merged, "STOP_WAIT_S", 0.3)
+        code, _, err = chantier("order", "merged", one, "--epoch", 1)
+        assert code == EXIT_PRECONDITION
+        assert f"order merged {one}: its long gate (pid {child.pid}) did not end" in err, err
+        after = record(repo)
+        assert after["crs"] == before["crs"] and after["orders"] == before["orders"]
+        assert after["crs"][0]["status"] != "merged"
+        assert next(repo.glob(".agents/changes/**/2-actives/*"), None) is not None
+    finally:
+        child.kill()
+        child.wait()
 
 
 def test_gate_stop_takes_no_command_and_gate_needs_one_and_nothing_running_is_not_an_error(
