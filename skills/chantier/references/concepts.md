@@ -352,8 +352,14 @@ started.
   VERIFIED` or `verdict <cr> "NOT VERIFIED"` at the head it verified; the last verdict at a head
   decides. `handback <cr> ready` needs both at the PR's head, committed, clean and pushed;
   `--no-gate "<the project's rule>"` waives the long gate check only, for a project whose rules
-  declare none or exempt this CR, and the steering session checks it; a waiver is not a project
+  declare none, exempt this CR, or name a pipeline job as the long gate, and the steering session checks it; a waiver is not a project
   rule, so `--no-gate` is never its flag.
+  A project's rule may name a pipeline job as its long gate (for instance "the long gate is the
+  pipeline's `<job name>` job, green at the PR's head"): its Driver runs no `gate`, pushes and
+  opens the PR after the approved round, waits for that job green at the PR's head, and hands back
+  `--no-gate "<the rule>"`; the steering session reads that job's state at the PR's head on the
+  forge (`gh pr checks <pr>` on GitHub; `glab ci status --branch <branch>` on GitLab, unproved).
+  The Copilot host's path is unproved.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
   `cost`, `asks`, `pause`, `close`, `playbook` and `preflight`.
 

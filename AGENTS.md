@@ -1,8 +1,11 @@
 # AGENTS.md
 
 - Run `just check` before you hand back; it must pass on Linux, macOS and Windows.
-- The long gate is `just scenario`: a change to the CLI, the cards or the scenario passes it
-  before its PR; a change to the docs or the eval kit alone needs none.
+- The long gate is the pipeline's `just scenario (ubuntu-latest)` job, green at the PR's head: a
+  change to the CLI, the cards or the scenario passes it before its PR; a change to the docs or the
+  eval kit alone needs none. Windows coverage: in each batch, the CR on top of the stack also
+  passes `just scenario` locally (`chantier gate`) at its head before the user merges; when a CR
+  joins on top, the local run moves to it.
 - A change to `hooks/` or `types/` passes `just mod` before its PR; the agent runs it itself, and
   one that cannot stops and says so, with no workaround.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.

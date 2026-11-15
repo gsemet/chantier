@@ -210,7 +210,15 @@ defaults, not a gate.
   its first push, unless the project chose `ci: beside_gate: true`. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
   `gate`: it would wait in the lock behind the long gates. A CR the rules exempt hands back with
-  `--no-gate "<the rule>"`. It stops at the first failure, keeps the log and records the pass at that head. It
+  `--no-gate "<the rule>"`. When the project's rules name a pipeline job as the long gate
+  ([concepts](concepts.md)), run no `gate`: push and open the PR after the approved round (the
+  first push starts the gate, so no wait before it; `ship`'s `off: no long gate passed at <sha>`
+  is then expected), read CI as the "CI" bullet says, and once that job is green at the PR's head
+  with the `VERIFIED` verdict there, hand back `ready <link> … --no-gate "<the rule>"`, quoting
+  the rule; a red run of that job is a red CI job, a round. A rebase needs no gate carry: the job
+  runs again at the pushed head. (GitLab and Copilot: unproved.) A rule that also asks the stack's
+  top for a local run is met by that CR's Driver with `$CHANTIER gate` as any long gate, and that
+  CR hands back with no `--no-gate`. `gate` stops at the first failure, keeps the log and records the pass at that head. It
   is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
@@ -394,7 +402,7 @@ defaults, not a gate.
   tree is dirty, or the remote branch is not at that head (not pushed): fix the cause, `ship`
   again, run the missing gate or start a new `verifier`, then hand back again; `--no-gate "<the
   project's rule>"` replaces the long gate check only, never the head, clean, pushed and verdict
-  checks, and only where the project's rules declare none or exempt this CR, and quotes that rule:
+  checks, and only where the project's rules declare none, exempt this CR, or name a pipeline job as the long gate, and quotes that rule:
   the steering session checks it, and sends the CR back with a note if it does not hold: run
   the long gate, then hand back again without `--no-gate`; a CR whose `take` or `handoff` prints
   `gate: waived (O-<k>, …)` runs no long gate and hands back with no `--no-gate`: the CLI
