@@ -37,16 +37,16 @@ Measured on 2026-11-15 on a Windows 11 machine (Ryzen 7 7800X3D, 16 logical core
 chantier sessions running their own scenario runs on it, so the machine was heavily loaded and not
 quiet; all checks passing in every run.
 
-The figure the 320 s budget of the `stack` unit is judged on is its solo time (`--unit stack`): three
-runs after the fix took 264.4 and 277.5 s on a lightly loaded machine and 381.0 s on a heavily loaded
-one (129 of 129 checks each), against 318.7 s before the fix. The budget is a margin of 15 to 20 percent
-over the lightly loaded times and is exceeded under heavy load, where it only warns. Two full runs with `--jobs 4`, under a
+The budget of the `stack` unit (640 s) follows this README's own rule, the loaded `--jobs 4` time plus
+about 25 percent, from 510.8 s. Its solo time (`--unit stack`) is well under it: three runs after the fix
+took 264.4 and 277.5 s on a lightly loaded machine (about 265 to 280 s) and 381.0 s on a heavily loaded
+one (129 of 129 checks each), against 318.7 s before the fix. Two full runs with `--jobs 4`, under a
 heavier load than the first table of this section had:
 
 | unit | budget (s) | run A (s) | run B (s) |
 | --- | ---: | ---: | ---: |
 | parallel | 260 | 274.7 | 245.1 |
-| stack | 320 | 440.2 | 510.8 |
+| stack | 640 | 440.2 | 510.8 |
 | release | 420 | 410.8 | 429.9 |
 | gates | 400 | 381.0 | 392.1 |
 | series-deps | 260 | 331.7 | 327.9 |

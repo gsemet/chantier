@@ -73,7 +73,7 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 UNITS = {
     "parallel": (260, ["github"], ["scenario", "close_batch", "retro_cases"]),
     "stack": (
-        320,
+        640,
         ["github"],
         ["stack_batch", "base_from_pr", "stack_waiver", "ready_words", "forge_stack_cli"],
     ),
