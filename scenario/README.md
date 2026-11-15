@@ -287,9 +287,16 @@ does a unit that is not in `UNITS` and a test that does not exist.
   a call made after `pause` counted (unit: parallel) (test:
   test_cost_reading.py::test_the_levels_the_pages_the_pause_and_a_relay);
 - closing on the user's word: `close` refusing, with and without `--yes`, a CR not merged, an
-  open order, a stack agent, and a session file (any agent's, a Copilot one's, or one whose
-  time is not measured) written in the last 5 minutes; a pricing failure and a missing
-  Foreman transcript refused the same way; a reopened batch named as such; then the final cost
+  open order, a stack agent, a Foreman whose last call waits on a tool (its file aged 10
+  minutes), an agent whose last record is a tool's result, an agent whose last line is cut
+  JSON, a missing Foreman transcript, and a Copilot session file written in the last 5 minutes
+  or whose time is not measured; passing an agent that handed back or ended its turn though
+  its file was just written; `--stopped` passing a running agent on its stem or its bare id
+  (writing nothing without `--yes`), refused for an unknown name, an ended agent or a
+  transcript that cannot be read, and never past another running agent or a record cause; a
+  pricing failure refused the same way; the declaration kept in the record
+  (`stopped_agents`), under Cost in `batch-NN.md` and in what `close --yes` prints, and absent
+  from a record closed without the flag; a reopened batch named as such; then the final cost
   printed (with a call made after the last `pause`) and the folder deleted by `close --yes`, the
   dropped CR's worktree and branch by the Chief of Staff's git (unit: parallel);
 - the batch's record: `open` writes `5-archives/batches/batch-NN.json` as running; `close` names

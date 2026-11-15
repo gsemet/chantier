@@ -63,6 +63,13 @@ def close_record(d: BatchRecord, closed: str, total: float, unpriced: Rec, by_cr
     }
 
 
+def stopped_agents(stopped: list[Rec], closed: str) -> Rec:
+    """The agents the user declared stopped (`close --stopped`), each `{agent, transcript, cause}`,
+    kept in the record as `stopped_agents` with the close time; empty when there are none, so the
+    key is there only when the flag was given."""
+    return {"stopped_agents": [{**s, "declared": closed} for s in stopped]} if stopped else {}
+
+
 def link_to(archive: str | None) -> str:
     """A folder of the planning folder, as a link from `5-archives/batches/`."""
     if not archive:
@@ -130,6 +137,10 @@ def close_markdown(record: Rec, summary: list[str], retro: str | None, release: 
         "## Cost",
         "",
         *(f"- {s.strip()}" for s in summary),
+        *(
+            f"- Declared stopped on the user's word: {s['agent']} ({s['cause']})"
+            for s in record.get("stopped_agents", [])
+        ),
         "",
         "## Retro",
         "",

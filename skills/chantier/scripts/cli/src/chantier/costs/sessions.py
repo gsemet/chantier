@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -114,6 +115,144 @@ def idle_seconds(
             found.append((f"transcript {session}", age(main)))
         for f in sorted((main.with_suffix("") / "subagents").glob("agent-*.jsonl")):
             found.append((f"transcript {session} {f.stem}", age(f)))
+    return found
+
+
+HANDBACK_TOOL = "SubagentHandback"  # the host's hand-back tool (Claude Code)
+_TURN_ENDS = {"end_turn", "stop_sequence"}
+
+
+@dataclass(frozen=True)
+class Ending:
+    """One Claude transcript's state: `label` (`transcript <session>` plus ` agent-<id>` for a
+    subagent), `name` as `close --stopped` takes it (the subagent's file stem, the session id of a
+    main transcript), the file's `path`, and a `state`: `ended`, `running` (with its `cause`) or
+    `unreadable` (with its reason in `cause`)."""
+
+    label: str
+    name: str
+    path: Path
+    state: str
+    cause: str = ""
+
+    def text(self) -> str:
+        """The cause line `close` prints for a transcript that runs or cannot be read."""
+        verb = "still runs" if self.state == "running" else "cannot be read"
+        return f"{self.label} {verb}: {self.cause} ({self.path})"
+
+
+def _lines_from_end(path: Path) -> Iterator[bytes]:
+    """The lines of a file, last first, read from the end in growing chunks."""
+    with path.open("rb") as f:
+        pos = f.seek(0, os.SEEK_END)
+        buf, chunk = b"", 1 << 16
+        while pos:
+            size = min(chunk, pos)
+            pos -= size
+            f.seek(pos)
+            parts = (f.read(size) + buf).split(b"\n")
+            buf = parts[0]
+            yield from reversed(parts[1:])
+            chunk *= 2
+        yield buf
+
+
+def _blocks(record: dict[str, Any]) -> list[dict[str, Any]]:
+    message = record.get("message")
+    content = message.get("content") if isinstance(message, dict) else None
+    return [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+
+
+class _Unreadable(Exception):
+    """A transcript that cannot be read, with the reason."""
+
+
+def _turns_from_end(path: Path) -> Iterator[dict[str, Any]]:
+    """The `user` and `assistant` records of a transcript, last first; every other record type
+    (`api-request`, `api-request-blob`, `attachment`...) is skipped. The last non-empty line must
+    be complete JSON."""
+    first = True
+    for raw in _lines_from_end(path):
+        if not raw.strip():
+            continue
+        try:
+            record = json.loads(raw)
+        except ValueError:
+            record = None
+        if first and not isinstance(record, dict):
+            raise _Unreadable("its last line is not complete JSON")
+        first = False
+        if isinstance(record, dict) and record.get("type") in {"user", "assistant"}:
+            yield record
+
+
+def _assistant_state(record: dict[str, Any]) -> tuple[str, str]:
+    calls = [b for b in _blocks(record) if b.get("type") == "tool_use"]
+    if calls:
+        return "running", f"its tool call {calls[-1].get('name', '?')} has no result yet"
+    message = record.get("message")
+    reason = message.get("stop_reason") if isinstance(message, dict) else None
+    if reason in _TURN_ENDS:
+        return "ended", ""
+    return "running", f"its last call stopped on {reason or 'null'}"
+
+
+def _result_state(record: dict[str, Any], earlier: Iterator[dict[str, Any]]) -> tuple[str, str]:
+    """The last record is a user record: ended when it answers the hand-back, else running."""
+    wanted = {str(b.get("tool_use_id")) for b in _blocks(record) if b.get("type") == "tool_result"}
+    if not wanted:
+        return "running", "its last record is a prompt with no answer yet"
+    calls = (b for before in earlier for b in _blocks(before) if b.get("type") == "tool_use")
+    for call in calls:
+        if str(call.get("id")) in wanted:
+            if call.get("name") == HANDBACK_TOOL:
+                return "ended", ""
+            wanted.discard(str(call.get("id")))
+        if not wanted:
+            break
+    return "running", "its last record is a tool's result with no answer yet"
+
+
+def transcript_state(path: Path) -> tuple[str, str]:
+    """The state of one Claude transcript, from the end of its file: (`ended`, ""), (`running`,
+    the cause) or (`unreadable`, the reason). Only the `user` and `assistant` records count; the
+    others (`api-request`, `api-request-blob`, `attachment`...) are skipped. It has ended when its
+    last such record is the result of the hand-back tool's call, or an assistant record with no
+    tool call whose `stop_reason` is `end_turn` or `stop_sequence`. Anything else runs: a tool
+    call with no result yet, a tool's result or a prompt with no answer yet, or another
+    `stop_reason`. A last line that is not complete JSON, a file that is missing or that cannot be
+    opened or decoded, or no user or assistant record at all, cannot be read. The file's age is
+    never looked at."""
+    try:
+        records = _turns_from_end(path)
+        last = next(records, None)
+        if last is None:
+            return "unreadable", "it holds no user or assistant record"
+        if last["type"] == "assistant":
+            return _assistant_state(last)
+        return _result_state(last, records)
+    except _Unreadable as e:
+        return "unreadable", str(e)
+    except FileNotFoundError:
+        return "unreadable", "the file is missing"
+    except (OSError, UnicodeError) as e:
+        return "unreadable", f"{type(e).__name__}: {e}"
+
+
+def transcript_endings(
+    root: Path, sessions: list[str], own: list[str] | None = None
+) -> list[Ending]:
+    """Claude: the state of the Foreman's transcript(s) and of every `subagents/agent-*.jsonl`
+    beside each, whatever the agent's type (see `transcript_state`). `own`: the sessions that ask
+    (a direct batch's Chief of Staff): their main file is skipped, their subagents are read."""
+    own = own or []
+    found: list[Ending] = []
+    for session in sessions:
+        main = transcript_path(root, session)
+        if session not in own:
+            found.append(Ending(f"transcript {session}", session, main, *transcript_state(main)))
+        for f in sorted((main.with_suffix("") / "subagents").glob("agent-*.jsonl")):
+            found.append(Ending(f"transcript {session} {f.stem}", f.stem, f, *transcript_state(f)))
     return found
 
 
