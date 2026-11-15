@@ -19,7 +19,7 @@ def register(sub: Subparsers) -> None:
     s.add_argument(
         "--note",
         help="why a ready or blocked CR goes back to a Driver, or a working CR "
-        "restarts (needs `agents set <cr> -` first)",
+        "restarts (needs `agents set <cr> - --epoch <n>` first)",
     )
 
     s = add_command(

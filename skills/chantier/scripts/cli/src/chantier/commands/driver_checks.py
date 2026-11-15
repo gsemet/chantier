@@ -43,7 +43,7 @@ def check_release_branch(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
         if not x.head:
             raise ChantierError(
                 f"{c.id}: {x.id} has no recorded head (`ship`): the stack "
-                f"driver stacks the CRs first (`take stack`)",
+                f"driver stacks the CRs first (`take stack --epoch <n>`)",
                 EXIT_PRECONDITION,
             )
         held_ = (
@@ -59,7 +59,7 @@ def check_release_branch(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
             raise ChantierError(
                 f"{c.id}: {top.branch} does not hold {x.id}'s head "
                 f"{short_head(x.head)}: the stack driver stacks the CRs first "
-                "(`take stack`)",
+                "(`take stack --epoch <n>`)",
                 EXIT_PRECONDITION,
             )
 

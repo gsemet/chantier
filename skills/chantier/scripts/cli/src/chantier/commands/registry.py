@@ -45,5 +45,12 @@ def add_command(
             "one)",
         )
     if scope == BATCH_EPOCH:
-        s.add_argument("--epoch", type=int, help="the Foreman's epoch; stale ones exit 3")
+        s.add_argument(
+            "--epoch",
+            type=int,
+            help=(
+                "the steering session's number in the batch (Foreman n°<n>): missing on a "
+                "steering command exits 2, stale exits 3"
+            ),
+        )
     return s

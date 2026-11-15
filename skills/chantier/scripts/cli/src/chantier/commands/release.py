@@ -115,5 +115,5 @@ def cancel(args: argparse.Namespace) -> list[str]:
         b.log("cancel", args.cr, killed=killed, path=c.path)
         done = all_merged(b.record)
     return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + (
-        ["every CR is merged or cancelled: `chantier pause`"] if done else []
+        ["every CR is merged or cancelled: `chantier pause --epoch <n>`"] if done else []
     )

@@ -198,7 +198,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   cleanup; `land` no longer a command; the long gate serialized, and held while the suite of a
   gate whose command died still runs; a Driver's stop of its own running gate (`gate <cr> --stop`:
   recorded `stopped`, no pass, another CR's gate refused; its usage and `nothing to stop` in
-  pytest) and a bare `cancel` refused without `--epoch` (in pytest) (unit: parallel, gates)
+  pytest) and a bare `cancel` refused without `--epoch` (in pytest), like every steering command
+  (`foreman set`, `foreman transcript`, `status --stop-heartbeat`, `take`, `take stack`, `agents
+  set`, `order done`, `pause`: exit 2, a message in the Foreman's number and not the word epoch,
+  the record and the events untouched, in pytest), and a stale Foreman refused in the same words
+  (unit: parallel, gates)
+  (test: test_rail_refusals.py::test_a_steering_command_without_its_number_is_refused_and_writes_nothing)
   (test: test_gate_refusals.py::test_gate_stop_takes_no_command_and_gate_needs_one_and_nothing_running_is_not_an_error)
   (test: test_rail_refusals.py::test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_epoch);
 - the long gate's queue running the next merge first (a stack's bottom CR, arriving last, passes

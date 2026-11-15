@@ -11,7 +11,7 @@ from chantier.commands.close_archive import Closing, archive_and_delete, batch_f
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
-from chantier.core.batch import check_epoch, resolve_batch
+from chantier.core.batch import check_epoch, require_epoch, resolve_batch
 from chantier.core.batch_records import check_closable, number_of, read_retro
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -28,6 +28,7 @@ def pause(args: argparse.Namespace) -> list[str]:
     """The batch's end of work: it is paused, and the cost to date is computed and printed;
     `close` prices the final one. A paused batch is not paused again: `order add` adds work,
     the first `take` sets it running, then `pause` runs again."""
+    require_epoch(args.epoch, "pause --epoch <n>")
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch)
     with RenderedBatch(repo, batch, actor="foreman") as b:
@@ -36,7 +37,7 @@ def pause(args: argparse.Namespace) -> list[str]:
             raise ChantierError(
                 f"{batch} is already paused (at {b.record.paused}): "
                 "`order add` adds work, the first `take` sets it running again, "
-                "then `pause` runs again"
+                "then `pause --epoch <n>` runs again"
             )
         paused = now()
         live_ids = [c.id for c in b.record.crs if c.status in LIVE]
@@ -49,7 +50,7 @@ def pause(args: argparse.Namespace) -> list[str]:
                 f"queued {', '.join(queued) or '-'}, "
                 f"not merged {', '.join(open_) or '-'}, orders pending "
                 f"{', '.join(pending) or '-'} (the Foreman ends each with "
-                "`order done <O-k>`), "
+                "`order done <O-k> --epoch <n>`), "
                 f"stack driver {b.record.stack_agent or 'none'}"
             )
         try:
@@ -92,7 +93,7 @@ def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, BatchRecord
         check_idle(repo, d)
         raise ChantierError(
             f"cannot close {d.id}: it is {d.status}, not paused; "
-            "`pause` comes first. Nothing was deleted.",
+            "`pause --epoch <n>` comes first. Nothing was deleted.",
             EXIT_PRECONDITION,
         )
     return d.id, pick[0], d

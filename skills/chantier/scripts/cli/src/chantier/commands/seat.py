@@ -6,7 +6,7 @@ import argparse
 import os
 from pathlib import Path
 
-from chantier.core.batch import check_epoch, read_batch, resolve_batch
+from chantier.core.batch import check_epoch, read_batch, require_epoch, resolve_batch
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import write_json
@@ -24,47 +24,59 @@ def foreman(args: argparse.Namespace) -> list[str]:
     if args.action == "get":
         d = read_batch(repo, batch)
         return [f"{d.foreman or 'none'} epoch {d.foreman_epoch}"]
+    if args.action == "set":
+        if not args.value:
+            raise ChantierError("foreman set <session-id> --epoch <n>", EXIT_USAGE)
+        require_epoch(args.epoch, "foreman set <session-id> --epoch <n>")
+    else:
+        require_epoch(args.epoch, "foreman transcript <uuid> --epoch <n>")
     with RenderedBatch(repo, batch, actor="foreman") as b:
         if args.action == "set":
-            if not args.value or args.epoch is None:
-                raise ChantierError("foreman set <session-id> --epoch <n>", EXIT_USAGE)
-            current = b.record.foreman_epoch
-            if args.epoch != current + 1:  # one session per epoch: the first to claim it runs it
-                raise ChantierError(
-                    f"epoch {args.epoch} cannot be claimed: batch {b.id} is at "
-                    f"epoch {current}; stop now",
-                    EXIT_CONFLICT,
-                )
-            b.record.foreman = args.value
-            b.record.foreman_epoch = args.epoch
-            b.record.foreman_transcript = None
-            b.log("foreman", None, session=args.value, epoch=b.record.foreman_epoch)
-            return [f"foreman {args.value} epoch {b.record.foreman_epoch}"]
+            return _claim(b, args)
         check_epoch(b, args.epoch)
-        if not args.value:
-            raise ChantierError("foreman transcript <session-uuid>", EXIT_USAGE)
-        claimed = b.record.foreman_transcript
-        if claimed and claimed != args.value:
-            # One epoch, one Foreman: a second session that starts as Foreman must not take over.
-            raise ChantierError(
-                f"epoch {b.record.foreman_epoch} of batch {b.id} is already run "
-                f"by transcript {claimed}; stop now",
-                EXIT_CONFLICT,
-            )
-        b.record.foreman_transcript = args.value
-        if args.value not in b.record.foreman_transcripts:  # a relay keeps the earlier ones
-            b.record.append("foreman_transcripts", args.value)
-            # each steering transcript is priced from its claim to the next one
-            b.record.append("foreman_claims", ClaimRecord(transcript=args.value, since=now()))
-        if (
-            b.record.steering == "direct"
-            and b.record.chief_transcript
-            and args.value != b.record.chief_transcript
-        ):
-            b.record.steering = "foreman"  # a Foreman took the batch over from the Chief of Staff
-            b.log("steering", None, steering="foreman", transcript=args.value)
-        b.log("foreman-transcript", None, transcript=args.value)
-        return [f"transcript {args.value}"]
+        return _transcript(b, args)
+
+
+def _claim(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
+    current = b.record.foreman_epoch
+    if args.epoch != current + 1:  # one number per Foreman: the first to claim it runs it
+        raise ChantierError(
+            f"Foreman n°{args.epoch} of {b.id} cannot be claimed: the batch is at "
+            f"Foreman n°{current}; stop now",
+            EXIT_CONFLICT,
+        )
+    b.record.foreman = args.value
+    b.record.foreman_epoch = args.epoch
+    b.record.foreman_transcript = None
+    b.log("foreman", None, session=args.value, epoch=b.record.foreman_epoch)
+    return [f"foreman {args.value} epoch {b.record.foreman_epoch}"]
+
+
+def _transcript(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
+    if not args.value:
+        raise ChantierError("foreman transcript <session-uuid>", EXIT_USAGE)
+    claimed = b.record.foreman_transcript
+    if claimed and claimed != args.value:
+        # One number, one Foreman: a second session that starts as Foreman must not take over.
+        raise ChantierError(
+            f"Foreman n°{b.record.foreman_epoch} of {b.id} is already run "
+            f"by transcript {claimed}; stop now",
+            EXIT_CONFLICT,
+        )
+    b.record.foreman_transcript = args.value
+    if args.value not in b.record.foreman_transcripts:  # a relay keeps the earlier ones
+        b.record.append("foreman_transcripts", args.value)
+        # each steering transcript is priced from its claim to the next one
+        b.record.append("foreman_claims", ClaimRecord(transcript=args.value, since=now()))
+    if (
+        b.record.steering == "direct"
+        and b.record.chief_transcript
+        and args.value != b.record.chief_transcript
+    ):
+        b.record.steering = "foreman"  # a Foreman took the batch over from the Chief of Staff
+        b.log("steering", None, steering="foreman", transcript=args.value)
+    b.log("foreman-transcript", None, transcript=args.value)
+    return [f"transcript {args.value}"]
 
 
 def own_transcript(host: str) -> str | None:

@@ -6,7 +6,7 @@ import argparse
 from dataclasses import dataclass
 
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
-from chantier.core.batch import Batch, check_epoch, resolve_batch
+from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
@@ -62,7 +62,7 @@ def _reopen(b: Batch, kind: str) -> list[str]:
         b.record.unset("paused")
         b.record.unset("summary")
         b.log("reopen", None)
-        return [f"{b.id} was paused: running again; `pause` runs again at the end"]
+        return [f"{b.id} was paused: running again; `pause --epoch <n>` runs again at the end"]
     return []
 
 
@@ -158,7 +158,8 @@ def order(args: argparse.Namespace) -> list[str]:
         check_epoch(b, args.epoch)
         if args.kind == "qa" and b.record.steering == "direct" and b.record.status != "paused":
             raise ChantierError(
-                "a running direct batch takes no QA: order it once the batch is paused (`pause`)",
+                "a running direct batch takes no QA: order it once the batch is paused "
+                "(`pause --epoch <n>`)",
                 EXIT_PRECONDITION,
             )
         cr = args.cr
@@ -178,6 +179,7 @@ def order(args: argparse.Namespace) -> list[str]:
 def _order_done(repo: Repo, args: argparse.Namespace) -> list[str]:
     if not args.cr or not args.cr.startswith("O-"):
         raise ChantierError("order done <O-k>", EXIT_USAGE)
+    require_epoch(args.epoch, f"order done {args.cr} --epoch <n>")
     with RenderedBatch(repo, resolve_batch(repo, args.batch), actor="foreman") as b:
         check_epoch(b, args.epoch)
         o = next((x for x in b.record.orders if x.id == args.cr), None)

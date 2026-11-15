@@ -783,11 +783,11 @@ Only in the turn where the user gave the go:
    too, comma separated. `order after` carries no `--epoch`.
 4. **Foreman mode: start the Foreman. Direct mode: steer it yourself**
    ([Steering a batch yourself](#steering-a-batch-yourself)); `open --direct` refuses when your
-   own session id is unknown. Starting the Foreman: `<n>` its epoch (`1`, else `$CHANTIER foreman get` plus one; a new
+   own session id is unknown. Starting the Foreman: `<n>` its number as Foreman of the batch, the value of its `--epoch` (`1`, else `$CHANTIER foreman get` plus one; a new
    batch starts at 0, so claims 1, even in a reused session):
 
    ```text
-   chantier Foreman of batch <batch>, epoch <n>, for the Chief of Staff <your session id>.
+   chantier Foreman n°<n> of batch <batch>, for the Chief of Staff <your session id>.
    Your session title: <title>. Set it on yourself first.
    Read <skill>/references/foreman.md, <skill>/references/hosts/<host>.md and
    <skill>/references/concepts.md now and follow them.
@@ -876,6 +876,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`status-layout.md`).
   A 🔴 CR is a question for the user. Never read the Foreman's transcript.
 - **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `status-layout.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
+  What you say or write to the user never uses the word epoch: a Foreman's number is `Foreman n°<k>` ([concepts](concepts.md), "Steering session"), and a stale-Foreman refusal or a relay is reported as "batch-18, Foreman n°2 is stale: Foreman n°3 runs it".
   Every Progress report gives the remaining floor and the updated delivery time ([The
   floor](#the-floor), counted again on the state `status --refresh` has just written: the CRs not
   yet past their long gate at their current head, the depth of what remains, the gate's and the CI
@@ -1242,7 +1243,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   batch no way through `close`). A model with no price does not refuse it: the final cost is a
   floor (`at least`) with its calls not priced, and the CLI says which id to add under `prices:`
   in `chantier.yaml`. On a batch set running again by a `take` or `order qa`, it names what
-  runs (or says `pause` comes first). Report a refusal to the user with its cause, do not retry in
+  runs (or says `pause --epoch <n>` comes first). Report a refusal to the user with its cause, do not retry in
   a loop, and do not `close --yes`; a Driver run from another session of the user's is not in what
   it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to
   `5-archives`), where the retro and the record go (`5-archives/batches/batch-NN.md` and
@@ -1257,8 +1258,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
   reporting progress. An app restart stops every session: tell the user, and on "resume" run
   preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch each
-  CR still working by the restart path (`agents set <cr> -`, `handoff`, `take <cr> --note
-  "resume: <cause>"`, a new Driver, `agents set <cr> <id>`); stop orphan processes with
+  CR still working by the restart path (`agents set <cr> - --epoch <n>`, `handoff`, `take <cr>
+  --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`); stop orphan processes with
   `$CHANTIER cancel`."
 - **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.
@@ -1306,7 +1307,7 @@ these differences.
 - **Your title.** At `open --direct`, rename yourself `[<code>] 💬 Project <nn> · CoS`;
   after `close --yes`, back to `[<code>] 💬 Project · CoS`
   ([session-start](session-start.md), "Titles").
-- **Your epoch.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
+- **Your number as Foreman.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
   <n>`. Right after each claim, every batch you steer, a resumed or taken-over one too: run
   `$CHANTIER rules` and read the rule files it lists, as a Foreman does at its start. A reading
@@ -1315,9 +1316,13 @@ these differences.
   after the claim, whatever ran before it. Carry `--epoch <n>` on exactly these commands and on no other: the claim (`foreman set`,
   `foreman transcript`), the loop's wakes (`status --refresh --epoch <n>`) and the recorded stop
   of your loop (`status --stop-heartbeat`), `take`, `agents set`, `order done`, `order merged`,
-  `order add --fix-for`, `cancel` and `pause`. Any other command, or any other `order` kind
-  (`order add` without `--fix-for`, `order note`, `order after`...), refuses it (exit 2). Never
-  on the refresh before a report, which stays `status --refresh` with no epoch; arm the
+  `order add --fix-for`, `gate <cr> --first`, `cancel` and `pause`. Each of them refuses a call
+  without `--epoch` (exit 2), except `order merged` and `order add --fix-for`, whose form
+  without it is the Chief of Staff's order, and the refresh before a report. Any other command,
+  or any other `order` kind (`order add` without `--fix-for`, `order note`, `order after`...),
+  refuses `--epoch` (exit 2). Never
+  on the refresh before a report, which stays `status --refresh` with no epoch and records no
+  heartbeat; arm the
   same heartbeat, as your host's reference says. Your own "heartbeat N min" is the minutes since
   your loop's last wake, and "heartbeat stopped" is a loop you ended on purpose (the host's
   reference says how it is recorded). The CLI prices your transcript from that claim, as one `Chief of
