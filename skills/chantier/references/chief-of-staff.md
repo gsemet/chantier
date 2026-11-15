@@ -1361,7 +1361,8 @@ these differences.
   the row; a turn is attributed whole) leave that row for the `grill and specifications with the
   user` line, outside the budget. Write those four files with the host's Write (or Edit) tool,
   never with a shell command: the CLI recognises grill work only by that write. A `steering the batch (outside the budget)` line also shows what you spent since the
-  batch opened outside your claim window (before the claim, after a Foreman took over); the `Chief of Staff, whole session` line leaves the steering window out and counts the
+  batch opened outside your claim window (before the claim, after a Foreman took over); the `Chief of Staff, whole session` line prices the whole session, steering window included, and names in a
+  parenthesis the part that is in the batch's spend; it counts the
   compactions since the batch opened.
 - **The Drivers.** You start them, several in parallel on the free slots, in the background, and
   hear their hand-backs, as the Foreman's card says, including its check of a `no long gate`

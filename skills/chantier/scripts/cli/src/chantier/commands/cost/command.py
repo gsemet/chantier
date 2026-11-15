@@ -31,8 +31,18 @@ Line = tuple[
 def _by_cr(repo: Repo, batch: str, rows: list[dict[str, Any]]) -> tuple[list[Line], dict[str, str]]:
     """A CR's Driver and its workers, and the Drivers' context notes."""
     groups = cost_groups(repo, batch, rows, "cr")
+    mains = [r.get("type") == "chief-of-staff" for r in rows if r["agent"] == "main"]
+    # the group key stays "foreman"; only its printed label names who steered
+    label = {
+        "foreman": "foreman"
+        if not any(mains)
+        else "Chief of Staff, steering the batch, and its own subagents"
+        if all(mains)
+        else "Chief of Staff, steering the batch, and the Foreman, with their own subagents"
+    }
     lines: list[Line] = [
-        (k, v[0], v[1], None, v[2]) for k, v in sorted(groups.items(), key=lambda kv: -kv[1][1])
+        (label.get(k, k), v[0], v[1], None, v[2])
+        for k, v in sorted(groups.items(), key=lambda kv: -kv[1][1])
     ]
     context = {
         k: f"Driver peak context {v[3]:,} tokens, {v[4]} compaction{'s' if v[4] != 1 else ''}"
@@ -103,8 +113,10 @@ def cost(args: argparse.Namespace) -> list[str]:
     d = read_batch(repo, batch)
     if not (d.foreman_transcripts or d.foreman_transcript):
         var = "$COPILOT_AGENT_SESSION_ID" if d.host == "copilot" else "$CLAUDE_CODE_SESSION_ID"
+        who = "Chief of Staff" if d.steering == "direct" else "Foreman"
+        what = "steering" if d.steering == "direct" else "Foreman"
         raise ChantierError(
-            "no Foreman transcript recorded: the Foreman runs "
+            f"no {what} transcript recorded: the {who} runs "
             f"`chantier foreman transcript {var} --epoch <n>`"
         )
     rows = cost_rows(repo, d, d.host, foreman_uuid(d))

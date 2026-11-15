@@ -155,7 +155,9 @@ the lines of `$CHANTIER cost`, in its order (a CR's own figure is the last field
   of the time since the batch opened, of a turn that names one; and the spec-writers' and spec
   critics' own calls; a turn is
   attributed whole), each since the batch opened, and `whole session` with its context size and
-  its compaction count. These lines carry no share. In a direct batch the grill and
+  its compaction count. `whole session` is copied as printed, its parenthesis included: it is the one
+  `Chief of Staff, ...` line that holds a part of the batch's spend, and the parenthesis says how
+  much. These lines carry no share. In a direct batch the grill and
   specifications are outside the batch's spend, as the spec-writer and the spec critic are.
 
 The CLI knows who is who from the record, not from a role name: the Foreman is the main agent
