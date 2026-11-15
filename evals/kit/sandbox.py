@@ -26,6 +26,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parent
@@ -44,6 +45,7 @@ SKIP_DIRS = {".venv", "__pycache__", ".pytest_cache"}
 SKIP_NAMES = {"shelf.json"}
 
 OK, USAGE, PRECONDITION, EXTERNAL = 0, 1, 2, 4
+MERGE_WAIT, MERGE_TRIES = 5, 60  # seconds between two reads of an asynchronous merge, and reads
 
 
 class Stop(Exception):
@@ -390,19 +392,57 @@ def cmd_merge(args) -> int:
         raise not_workspace
     if run_record.get("repository") != REPO:
         raise Stop(PRECONDITION, f"the run record names {run_record.get('repository')}, not {REPO}")
-    view = json.loads(gh("pr", "view", n, "--repo", REPO, "--json",
-                         "number,state,title,headRefOid,statusCheckRollup"))
-    refusal = merge_refusal(view, run_record["prefix"])
-    if refusal:
-        print(f"sandbox.py: refused: {refusal}; nothing merged", file=sys.stderr)
-        return PRECONDITION
-    sha = view["headRefOid"]
+    taken = merged_with(int(n))
+    views = {}
+    for m in taken:
+        views[m] = json.loads(gh("pr", "view", str(m), "--repo", REPO, "--json",
+                                 "number,state,title,headRefOid,statusCheckRollup"))
+        refusal = merge_refusal(views[m], run_record["prefix"])
+        if refusal:
+            if m != int(n):
+                refusal = f"PR #{n} is in a stack whose merge takes #{m}: {refusal}"
+            print(f"sandbox.py: refused: {refusal}; nothing merged", file=sys.stderr)
+            return PRECONDITION
+    sha = views[int(n)]["headRefOid"]
+    result = merge_async(n, sha)
+    said = " ".join(f"#{m}" for m in taken)
+    print(f"merged PR {said} at {sha[:7]} into {BRANCH} by rebase"
+          + (f" (one stack merge, {result})" if len(taken) > 1 else f" ({result})"))
+    return OK
+
+
+def merged_with(n: int) -> list[int]:
+    """The PRs a merge of #n takes, from the bottom: #n alone, or, when an open native stack
+    holds it, each PR of that stack up to and including #n (GitHub merges them together)."""
+    stacks = json.loads(gh("api", "-X", "GET", f"repos/{REPO}/stacks", "-F", "per_page=100"))
+    for s in stacks if isinstance(stacks, list) else []:
+        held = [p["number"] for p in s.get("pull_requests", []) if p.get("state") == "open"]
+        if s.get("open") and n in held:
+            return held[: held.index(n) + 1]
+    return [n]
+
+
+def merge_async(n: str, sha: str) -> str:
+    """Merge by rebase through GitHub's asynchronous merge, the only merge that takes a PR in a
+    native stack (and any other PR), then wait for its result; anything but merged stops."""
+    path = f"repos/{REPO}/pulls/{n}/merge-async"
     try:
-        gh("pr", "merge", n, "--repo", REPO, "--rebase", "--match-head-commit", sha)
+        answer = json.loads(gh("api", "-X", "PUT", path, "-f", "merge_method=rebase",
+                               "-f", "merge_action=direct_merge", "-f", f"sha={sha}"))
+        for _ in range(MERGE_TRIES):
+            status = answer.get("status")
+            details = answer.get("details") or {}
+            if status == "merged":
+                return "merged"
+            if status != "pending":
+                raise Stop(EXTERNAL, f"the asynchronous merge of PR #{n} ended {status}: "
+                                     f"{details.get('message') or answer}")
+            time.sleep(MERGE_WAIT)
+            answer = json.loads(gh("api", "-X", "GET", f"{path}/{details['uuid']}"))
     except Stop as stop:
         raise Stop(stop.code, f"{stop}; nothing merged") from None
-    print(f"merged PR #{n} at {sha[:7]} into {BRANCH} by rebase")
-    return OK
+    raise Stop(EXTERNAL, f"the asynchronous merge of PR #{n} is still pending after "
+                         f"{MERGE_TRIES * MERGE_WAIT} s; read the PR before merging again")
 
 
 def main(argv=None) -> int:

@@ -308,6 +308,10 @@ the recorded base in [`kit/sandbox.json`](kit/sandbox.json).
   `refs/pull/*` and no push can delete them.
 - `uv run --no-project python evals/kit/sandbox.py merge <pr>` merges a run's PR by rebase, for the
   operator who plays the user, and refuses what the user would not merge (see "A merge" above).
+  It merges through GitHub's asynchronous merge (`PUT .../pulls/<n>/merge-async`, then its
+  result read until it is no longer pending), the only merge GitHub accepts for a PR in a native
+  stack. A PR in an open stack merges with every PR below it in that stack, in one merge, as on
+  GitHub's page: each of them must pass the same refusals, or nothing is merged.
 
 Nothing else resets the sandbox: the repository is a constant of the script, and `reset` is
 the only force push.
