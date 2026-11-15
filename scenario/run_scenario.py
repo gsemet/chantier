@@ -96,7 +96,7 @@ UNITS = {
             "gate_proof",
         ],
     ),
-    "series-deps": (190, ["github"], ["batch_modes", "dependencies", "changes_tree"]),
+    "series-deps": (260, ["github"], ["batch_modes", "dependencies", "changes_tree"]),
     "direct": (125, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
     "surface-board": (250, ["github"], ["remote_board", "external_surface", "cr_summary"]),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
@@ -4282,6 +4282,39 @@ def forge_stack_cli(w: World) -> None:
               "repository",
               code == 2 and "not all in one repository" in w.last_stderr, w.last_stderr)
         record(**{b: links[b]})
+        # 5. leaving the stack: `order mode --note parallel`, then `unstack` dissolves it
+        def unstack_calls() -> list[list[str]]:
+            log = w.root / "gh-state.json.calls"
+            rows = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
+            return [x for x in rows if any(a.endswith("/unstack") for a in x)]
+
+        w.chantier("forge-stack", "rebuild", env=on_path)  # one open stack holds the open PRs
+        open_stack = [s["number"] for s in gh_state()["stacks"] if s["open"]]
+        gone, kept_open = len(unstack_calls()), len(stack_calls())
+        w.chantier("order", "mode", "--note", "parallel")
+        code, out = w.chantier("forge-stack", "unstack", env=on_path)
+        check("`forge-stack unstack` after `order mode --note parallel`: unstacks the open stack "
+              "(the fake's unstack call logged), retargets each open PR to main, creates no stack",
+              code == 0 and len(open_stack) == 1 and f"unstacked #{open_stack[0]}" in out
+              and len(unstack_calls()) == gone + 1 and len(stack_calls()) == kept_open
+              and any(ln.endswith("-> main") for ln in out)
+              and {gh_state()["bases"][n] for n in ("202", "204", "203")} == {"main"}, str(out))
+        code, out = w.chantier("forge-stack", "unstack", env=on_path)
+        check("a second `unstack` finds no stack and nothing to retarget: exit 0",
+              code == 0 and out == ["no stack holds the batch's PRs"]
+              and len(unstack_calls()) == gone + 1, str(out))
+    if ARGS.forge == "gitlab":
+        # 6. leaving the stack: `unstack` only retargets, there is no stack to dissolve
+        w.chantier("order", "mode", "--note", "parallel")
+        forge_mrs([a, b, new, r], target={202: branch(a), 204: branch(b)})
+        before = len(put_calls())
+        code, out = w.chantier("forge-stack", "unstack", env=on_path)
+        log = (w.root / "gh-state.json.calls").read_text()
+        check("GitLab: `forge-stack unstack` after `order mode --note parallel` only retargets each "
+              "MR to main (no unstack call, no stacks endpoint)",
+              code == 0 and f"!202 target {branch(a)} -> main" in out
+              and f"!204 target {branch(b)} -> main" in out and len(put_calls()) == before + 3
+              and "unstack" not in log.replace("forge-stack", "") and "/stacks" not in log, str(out))
     w.reset()
     _, par = prepare_cr(w, "Forge parallel")
     w.start(str(par), *FROM_AGENTS_MD)
@@ -4310,9 +4343,8 @@ def batch_modes(w: World) -> None:
           str(w.batch()["mode"]))
     code, _ = w.chantier("take", "stack", expect=2)
     code2, _ = w.chantier("stack", one, two, expect=2)
-    check("parallel: `take stack` and `stack` are refused, `order mode` too",
-          code == 2 and code2 == 2 and w.chantier("order", "mode", "--note", "stack", expect=2)[0] == 2
-          and w.batch()["mode"] == "parallel", w.last_stderr)
+    check("parallel: `take stack` and `stack` are refused",
+          code == 2 and code2 == 2 and w.batch()["mode"] == "parallel", w.last_stderr)
     for cr, name in ((one, "mode_one.py"), (two, "mode_two.py")):
         w.chantier("take", cr)
         start_driver(w, cr)
@@ -4381,9 +4413,6 @@ def batch_modes(w: World) -> None:
     w.start(*(str(p) for p in y), "--mode", "series", *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     a, b, c = (x["id"] for x in w.batch()["crs"])
-    code, _ = w.chantier("order", "mode", "--note", "parallel", expect=2)
-    check("`order mode --note parallel` is refused on a series", code == 2
-          and w.batch()["mode"] == "series", w.last_stderr)
     code, _ = w.chantier("take", c, expect=2)
     _, out = w.chantier("order", "mode", "--note", "stack")
     check("`order mode --note stack` turns a series into a stack at once, and logs it",
@@ -4397,8 +4426,71 @@ def batch_modes(w: World) -> None:
     code, out = w.chantier("take", "stack")
     check("after the switch, `take stack` works", code == 0 and out[0].startswith("the stack of batch"),
           str(out))
-    code, _ = w.chantier("order", "mode", "--note", "stack", expect=2)
-    check("`order mode` is refused on a stack", code == 2, w.last_stderr)
+
+    # any mode to any other, live: a merged CR (m), two ready (y before x), a working one (z) and a
+    # queued one (q); the merged CR's record never changes
+    w.reset()
+    names = ("Switch merged", "Switch x", "Switch y", "Switch z", "Switch q")
+    w.start(*(str(prepare_cr(w, t)[1]) for t in names), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    m, x, y, z, q = (c["id"] for c in w.batch()["crs"])
+    for cr, name in ((m, "sw_m.py"), (y, "sw_y.py"), (x, "sw_x.py")):
+        w.chantier("take", cr)
+        start_driver(w, cr)
+        driver_round(w, cr, name, "N = 1\n")
+        w.ready(cr, w.cr(cr)["pr"])
+    w.chantier("order", "merged", m)
+    w.chantier("take", z)
+    start_driver(w, z)
+    kept = {k: w.cr(m).get(k) for k in ("status", "order", "pr", "branch")}
+
+    def open_order() -> list[str]:
+        crs = [c for c in w.batch()["crs"] if c["status"] not in ENDED]
+        return [c["id"] for c in sorted(crs, key=lambda c: c["order"])]
+
+    def last_mode() -> dict:
+        lines = (w.folder() / "events.jsonl").read_text().splitlines()
+        return [e for e in map(json.loads, lines) if e["kind"] == "mode"][-1]
+
+    code, out = w.chantier("order", "mode", "--note", "series")
+    _, status = w.chantier("status")
+    check("parallel to series: the order is y, x, z, q (readiness first), the queued CR waits for its "
+          "predecessor, the merged CR is unchanged",
+          code == 0 and open_order() == [y, x, z, q] and last_mode()["previous"] == "parallel"
+          and any(ln.startswith(q) and f"waits for {z} working" in ln for ln in status)
+          and {k: w.cr(m).get(k) for k in kept} == kept, str(out) + str(status))
+    code, out = w.chantier("take", x, "--note", "rebase: mode series")
+    check("parallel to series: a ready CR's rebase prints its predecessor's branch",
+          code == 0 and any(f"base {w.cr(y)['branch']}" in ln for ln in out), str(out))
+    w.ready(x, w.cr(x)["pr"])
+    code, out = w.chantier("order", "mode", "--note", "parallel")
+    code2, out2 = w.chantier("take", q)
+    check("series to parallel: a queued CR that waited for its predecessor is taken at once, on the "
+          "default branch; the merged CR is unchanged",
+          code == 0 and code2 == 0 and any("base origin/main" in ln for ln in out2)
+          and {k: w.cr(m).get(k) for k in kept} == kept, str(out2))
+    code, out = w.chantier("order", "mode", "--note", "stack")
+    check("parallel to stack with two CRs ready: the order follows readiness (y before x), then the "
+          "others; the event names the previous mode; the merged CR is unchanged",
+          code == 0 and open_order() == [y, x, z, q] and last_mode()["previous"] == "parallel"
+          and last_mode()["mode"] == "stack" and f"order: {y} → {x} → {z} → {q}" in out[-1]
+          and {k: w.cr(m).get(k) for k in kept} == kept, str(out))
+    code, out = w.chantier("take", "stack")
+    code2, _ = w.chantier("stack", y, x)
+    check("after the switch, `take stack` works and `stack` accepts that order",
+          code == 0 and out[0].startswith("the stack of batch") and code2 == 0
+          and w.cr(x)["stacked"], str(out))
+    code, out = w.chantier("order", "mode", "--note", "parallel")
+    check("stack to parallel clears every place in the stack, and says to unstack first",
+          code == 0 and not any(c.get("stacked") for c in w.batch()["crs"])
+          and any("forge-stack unstack" in ln for ln in out), str(out))
+    code, out = w.chantier("take", x, "--note", "rebase: mode parallel")
+    _, status = w.chantier("status")
+    check("stack to parallel: a CR that was stacked on another is taken back on the default branch, "
+          "no CR waits for a predecessor, the merged CR is unchanged",
+          code == 0 and any("base origin/main" in ln for ln in out)
+          and not any("waits for" in ln for ln in status)
+          and {k: w.cr(m).get(k) for k in kept} == kept, str(out) + str(status))
     w.env.pop("CHANTIER_BATCH", None)
 
 

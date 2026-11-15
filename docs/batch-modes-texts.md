@@ -70,8 +70,8 @@ CR C on B (draft)
 rebase
 to merge
 you merge C
-On request: switch to a stack, at once (order mode --note stack):
-every CR left starts together, each on the previous one.
+On request: switch to any other mode, at once:
+order mode --note parallel|series|stack; merged CRs never change.
 ```
 
 ## Stack lane

@@ -163,6 +163,23 @@ def show(
     return [f"chain {top} ready to merge: open, {len(rows)} MRs in order, {part}", *tail], 0
 
 
+def retarget(rows: Rows, where: Where) -> list[str]:
+    """`unstack`: a GitLab chain has no stack to dissolve; each open MR targets the base the
+    record gives (one line per MR moved)."""
+    done: list[str] = []
+    try:
+        for r, m in zip(rows, _read(where, rows), strict=True):
+            old = m.get("target_branch")
+            if m.get("state") == "opened" and old != r["base"]:
+                glab(f"{_base(where)}/{r['number']}", where[0], "PUT", {"target_branch": r["base"]})
+                done.append(f"!{r['number']} target {old} -> {r['base']}")
+    except ChantierError as e:
+        if e.code != EXIT_EXTERNAL:
+            raise
+        raise ChantierError("\n".join([*done, str(e)]), e.code) from e
+    return done or ["no MR to retarget"]
+
+
 def make(rows: Rows, come: Rows, where: Where) -> tuple[list[str], int]:
     """`create` and `rebuild`: retarget, bottom first, each MR off the record's base, then read
     the chain back. A `still a draft` line is the stack driver's to act on, no failure."""

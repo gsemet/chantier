@@ -99,8 +99,8 @@ what, when. You never merge through chantier: you merge, and the steering sessio
 - **Series** ("run these in series"): the CRs have a precise order, the one you gave. The next CR
   starts once the previous one is handed back ready, from the previous CR's pushed branch, and its
   PR is a draft. Once the previous one merges, the next one is rebased onto the default branch and
-  turns ready to merge. The Chief of Staff guides you merge by merge. On request ("switch to a stack"), a
-  series becomes a stack at once.
+  turns ready to merge. The Chief of Staff guides you merge by merge. On request ("switch to a stack", "switch to parallel"), a
+  running batch changes to any other mode at once; merged CRs never change.
 - **Stack** ("build a stack of these"): parallel, with a stack driver. Every CR starts at once, the
   PRs go each on the previous one, and once every PR is handed back ready the stack driver makes one native
   stack on the forge (GitHub; install the `gh stack` extension, which chantier recommends). You merge

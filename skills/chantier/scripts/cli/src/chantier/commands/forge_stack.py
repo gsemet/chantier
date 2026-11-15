@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
-import shutil
-import subprocess
 from typing import Any
 
 from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.crs import short_head
+from chantier.commands.forge_stack_gh import (
+    PR_LINK,
+    gh,
+    pr_parts,
+    retarget,
+    stacks,
+    unstack,
+    unstack_action,
+)
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
 from chantier.commands.forge_stack_shared import Where, draft_checks, left, ready_tail
 from chantier.core.batch import read_batch, resolve_batch
@@ -18,48 +24,6 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.stacks import chain, stack_base, state_word
-
-PR_LINK = re.compile(r"^https?://([^/\s]+)/([^/\s]+)/([^/\s]+)/pull/(\d+)")
-
-
-UNSTACK_TRIES = 5
-
-NEITHER = "forge-stack reads GitHub pull requests and GitLab merge requests: {what} is neither"
-
-
-def _gh(args: list[str], host: str) -> Any:
-    exe = shutil.which("gh")
-    if not exe:
-        raise ChantierError(
-            "gh: not found on PATH (the user's own `gh` login is needed)", EXIT_EXTERNAL
-        )
-    cmd = [exe, "api"] + (["--hostname", host] if host != "github.com" else []) + args
-    p = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-    )
-    if p.returncode != 0:
-        raise ChantierError(
-            f"gh api {' '.join(args)}: {p.stderr.strip() or p.stdout.strip()}", EXIT_EXTERNAL
-        )
-    try:
-        return json.loads(p.stdout)
-    except ValueError as e:
-        raise ChantierError(
-            f"gh api {' '.join(args)}: not JSON: {p.stdout.strip()[:200]}", EXIT_EXTERNAL
-        ) from e
-
-
-def _pr_parts(pr: str) -> tuple[str, ...]:
-    """The host, owner, repository and number of a GitHub PR link; the host, project path, an
-    empty name and the iid of a GitLab MR link; anything else is refused. The forge is read from
-    the shape of the link, never from the host."""
-    link = PR_LINK.match(pr)
-    if link is not None:
-        return link.groups()
-    mr = GITLAB_LINK.match(pr)
-    if mr is None:
-        raise ChantierError(NEITHER.format(what=pr), EXIT_PRECONDITION)
-    return mr.group(1), mr.group(2), "", mr.group(3)
 
 
 def _is_gitlab(rows: list[dict[str, Any]]) -> bool:
@@ -89,7 +53,7 @@ def _plan(
     for c in links:
         if not c.pr:
             break
-        host, owner, name, number = _pr_parts(c.pr)
+        host, owner, name, number = pr_parts(c.pr)
         if where not in (None, (host, owner, name)):
             raise ChantierError("the stack's PRs are not all in one repository", EXIT_PRECONDITION)
         where = (host, owner, name)
@@ -143,6 +107,8 @@ def forge_stack(args: argparse.Namespace) -> tuple[list[str], int]:
         return _create(args)
     if args.action == "rebuild":
         return _rebuild(args)
+    if args.action == "unstack":
+        return unstack_action(args)
     return _show(args)
 
 
@@ -150,7 +116,7 @@ def _make(rows: list[dict[str, Any]], host: str, owner: str, name: str) -> tuple
     fields: list[str] = []
     for r in rows:
         fields += ["-F", f"pull_requests[]={r['number']}"]
-    made = _gh(["-X", "POST", f"repos/{owner}/{name}/stacks", *fields], host)
+    made = gh(["-X", "POST", f"repos/{owner}/{name}/stacks", *fields], host)
     number = made.get("number") if isinstance(made, dict) else None
     if number is None:
         raise ChantierError(
@@ -160,77 +126,6 @@ def _make(rows: list[dict[str, Any]], host: str, owner: str, name: str) -> tuple
         f"stack #{number} {rows[-1]['link']} (PRs bottom to top: "
         f"{' '.join('#' + str(r['number']) for r in rows)})"
     )
-
-
-def _stacks(host: str, owner: str, name: str) -> list[dict[str, Any]]:
-    stacks: list[dict[str, Any]] = _gh(
-        ["-X", "GET", f"repos/{owner}/{name}/stacks", "-F", "per_page=100"], host
-    )
-    return stacks
-
-
-def _outside(outside: list[int], left: dict[int, str], dropped: dict[int, str]) -> str:
-    """The PRs an unstacked stack held that are not planned: those of the batch's stack left out
-    of the rows, those of dropped CRs, and foreign ones."""
-    mine = [n for n in outside if n in left]
-    gone = [n for n in outside if n in dropped]
-    foreign = [n for n in outside if n not in left and n not in dropped]
-    parts = []
-    if mine:
-        said = " ".join(f"#{n} of {left[n]}" for n in mine)
-        parts.append(f"it also held {said}: a plain PR until it joins again")
-    if gone:
-        said = " ".join(f"#{n} of {dropped[n]}" for n in gone)
-        parts.append(f"it also held {said}, dropped: close it")
-    if foreign:
-        parts.append(
-            f"it also held {' '.join('#' + str(n) for n in foreign)}, not in the batch's "
-            "stack: a plain PR now"
-        )
-    return f" ({'; '.join(parts)})" if parts else ""
-
-
-def _unstack(
-    s: dict[str, Any],
-    planned: set[int],
-    where: Where,
-    left: dict[int, str],
-    dropped: dict[int, str],
-) -> str:
-    """Unstack one open stack that holds a planned PR, until the forge reads it back as gone."""
-    host, owner, name = where
-    held = [p["number"] for p in s.get("pull_requests", [])]
-    outside = [n for n in held if n not in planned]
-    for _ in range(UNSTACK_TRIES):  # until the forge reads it back as gone or not open
-        fields = [x for n in held for x in ("-F", f"pull_requests[]={n}")]
-        _gh(["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack", *fields], host)
-        now = [
-            t
-            for t in _stacks(host, owner, name)
-            if t.get("number") == s["number"] and t.get("open")
-        ]
-        if not now:
-            break
-        held = [p["number"] for p in now[0].get("pull_requests", [])]
-    else:
-        back = " ".join(f"#{n}" for n in held)
-        raise ChantierError(
-            f"stack #{s['number']} is still open after {UNSTACK_TRIES} unstack tries (the forge "
-            f"reads it back {'with ' + back if back else 'open, with no PR'})",
-            EXIT_EXTERNAL,
-        )
-    return f"unstacked #{s['number']}" + _outside(outside, left, dropped)
-
-
-def _retarget(rows: list[dict[str, Any]], where: Where, done: list[str]) -> None:
-    host, owner, name = where
-    for r in rows:
-        pull = _gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{r['number']}"], host)
-        old = (pull.get("base") or {}).get("ref") if isinstance(pull, dict) else None
-        if old != r["base"]:
-            patch = ["-X", "PATCH", f"repos/{owner}/{name}/pulls/{r['number']}"]
-            _gh([*patch, "-f", f"base={r['base']}"], host)
-            done.append(f"#{r['number']} base {old} -> {r['base']}")
 
 
 def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
@@ -245,11 +140,11 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     done: list[str] = []
     try:
         planned = {r["number"] for r in rows}
-        for s in _stacks(host, owner, name):
+        for s in stacks(host, owner, name):
             held = {p["number"] for p in s.get("pull_requests", [])}
             if s.get("open") and planned & held:
-                done.append(_unstack(s, planned, where, left(come), dropped))
-        _retarget(rows, where, done)
+                done.append(unstack(s, planned, where, left(come), dropped))
+        retarget(rows, where, done)
         number, line = _make(rows, host, owner, name)
         done.append(line)
     except ChantierError as e:
@@ -323,12 +218,12 @@ def _read(args: argparse.Namespace, rows: list[dict[str, Any]], where: Where) ->
     """The forge's stack: the one asked for, else the one that holds the batch's PRs."""
     host, owner, name = where
     if getattr(args, "stack", None):
-        one: dict[str, Any] = _gh(["-X", "GET", f"repos/{owner}/{name}/stacks/{args.stack}"], host)
+        one: dict[str, Any] = gh(["-X", "GET", f"repos/{owner}/{name}/stacks/{args.stack}"], host)
         return one
     wanted = {r["number"] for r in rows}
     found = [
         s
-        for s in _stacks(host, owner, name)
+        for s in stacks(host, owner, name)
         if {p["number"] for p in s.get("pull_requests", [])} & wanted
     ]
     if not found:

@@ -558,6 +558,15 @@ changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dr
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
 
+A CR taken (or a `note`) with `rebase: mode <mode>` (the batch switched mode with `order mode`; a
+stack was dissolved first by `forge-stack unstack` where it applied): put the PR to draft first
+(`gh pr ready --undo`, `glab mr update --draft`, `ship --draft`), rebase onto the base `take`
+printed (parallel: the default branch, or the branch of its open dependency; series: its
+predecessor's branch, the bottom CR on the default branch), retarget the PR to it, push with
+`--force-with-lease`, `ship`, run the long gate and CI again at the new head, and hand back `ready`;
+the PR leaves draft once it is ready to merge, as any CR of that mode (a series PR above the bottom
+stays a draft). A clean rebase and green CI start no new `coder` round.
+
 A CR taken with the note `folded: <k> merged into its branch` (GitLab only: the user merged CR
 k's MR, which targeted this CR's branch, so k's change now rides in this CR's MR): bring the
 forge's branch into the worktree (`git -C <worktree> fetch`, then `git -C <worktree> merge --ff-only origin/<branch>`; one
@@ -570,8 +579,9 @@ GitLab project.
 
 ## Stack driver
 
-A stack batch is one opened `--mode stack`, or a series switched by `order mode`; after a switch,
-the stack's order starts from the series order.
+A stack batch is one opened `--mode stack`, or a batch switched to a stack by `order mode`; after
+a switch, the stack's order starts from the record's order, which the switch set (the CRs already
+handed back `ready` first, in the order they became ready, then the others).
 
 Your end is one native stack on the forge that the user merges in one action from the top PR or one PR
 at a time from the bottom (on GitLab, only one MR at a time from the bottom, below): a stack is the forge's own stack of PRs grouped bottom to top; a chain of PRs

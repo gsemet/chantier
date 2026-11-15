@@ -16,8 +16,8 @@ def register(sub: Subparsers) -> None:
     )
     s.add_argument(
         "kind",
-        help="add [--release], after, drop, merged, note, rounds, slots, budget, qa, mode (series "
-        "to stack); "
+        help="add [--release], after, drop, merged, note, rounds, slots, budget, qa, "
+        "mode (any mode to any other); "
         "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "
         "--epoch, add --fix-for --epoch",
     )
@@ -26,9 +26,9 @@ def register(sub: Subparsers) -> None:
         "--note",
         help="add: <folder>, or a release's fix file; after: the CR ids it waits "
         "for, comma separated, or - for none; note: the line; rounds, "
-        "slots, budget: the number; qa: what to test; approve: the action; grant: "
-        "releases=N fixes=on|off budget=N; confirm: the user's word to run the "
-        "release procedure, once the other CRs are merged",
+        "slots, budget: the number; mode: parallel, series or stack; qa: what to test; "
+        "approve: the action; grant: releases=N fixes=on|off budget=N; "
+        "confirm: the user's word to run the release procedure, once the other CRs are merged",
     )
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
     s.add_argument(

@@ -43,7 +43,7 @@ passing:
 | stack | 320 | 259.3 | 313.9 |
 | release | 420 | 332.9 | 354.0 |
 | gates | 330 | 262.3 | 283.2 |
-| series-deps | 190 | 154.5 | 193.2 |
+| series-deps | 260 | 154.5 | 193.2 |
 | direct | 125 | 100.0 | 122.5 |
 | surface-board | 250 | 201.6 | 235.9 |
 | qa-driver | 115 | 90.4 | 120.0 |
@@ -110,11 +110,19 @@ does a unit that is not in `UNITS` and a test that does not exist.
   back only with a note (unit: parallel, gates) (test:
   test_rail_refusals.py::test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_epoch);
 - the three modes: `open --parallel` refused; parallel by default (`take stack` and `stack`
-  refused, `order mode` refused, a rebase note on a ready CR after a merge, on the default
-  branch); a series (the next CR waits for the previous one to be ready, starts on its branch,
-  is rebased on the default branch once the previous one is merged; `order add` goes on top; a
-  CR before its dependency refused at `open`); `order mode --note stack` turning a series into a
-  stack at once, and refused anywhere else (unit: series-deps, stack);
+  refused, a rebase note on a ready CR after a merge, on the default branch); a series (the next
+  CR waits for the previous one to be ready, starts on its branch, is rebased on the default
+  branch once the previous one is merged; `order add` goes on top; a CR before its dependency
+  refused at `open`); `order mode --note parallel|series|stack` switching a running batch between
+  any two modes at once (the order by readiness, then the others, the chains kept; a merged CR's
+  record unchanged; a leaving stack clearing every place; the rebase base each target prints), and
+  `forge-stack unstack` dissolving the open stack and retargeting each open PR to the base the new
+  mode gives (GitHub), or only retargeting (GitLab) (unit: series-deps, stack, gitlab) (test:
+  test_mode_switch.py::test_to_a_stack_the_ready_cr_go_first_in_the_order_they_became_ready)
+  (test: test_mode_switch.py::test_a_chain_is_kept_when_the_switch_would_put_a_cr_below_its_dependency)
+  (test: test_mode_switch.py::test_leaving_a_stack_clears_every_place_in_it);
+- `order mode` refusing the mode the batch already has and an unknown one, nothing written (test:
+  test_mode_switch.py::test_the_same_mode_and_an_unknown_one_are_refused_and_nothing_is_written);
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
   default branch, then stacked afterwards by `stack` (`ship` records the default branch before,
   the CR under it after); a dependency changed with `order after` (refused on a CR not queued, an
