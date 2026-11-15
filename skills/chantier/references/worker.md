@@ -12,7 +12,7 @@ plugin starts you in the worktree and refuses a Write or Edit outside the folder
 `writes:` line names: the path is wrong, so fix it, never retry by another means, a shell write
 included; a write refused by the host is reported); keeps its notes in
 `<work folder>/<role>/` and proof in the CR folder's `evidence/` (the Verifier's before and
-after go to `<work folder>/verifier/evidence/`; the Inspector writes nothing: its reply is its
+after go to `<work folder>/verifier/evidence/`, but its `verify.md` is at `<work folder>/verify.md`; the Inspector writes nothing: its reply is its
 output); keeps a raw log in a `*.log` file or `work/gates/`, never in a file that is published with
 the CR (reports and evidence are); never commits, pushes, rebases or merges unless its section says so; runs the
 project's fast gate itself (the Inspector may) and never claims a check it did not run; runs no
@@ -134,12 +134,12 @@ you verified. You run `$CHANTIER gate <cr> "<the project's command>"` (one comma
 never a `;` or `&&` chain; refused on a dirty tree) yourself only when no pass exists at that
 head and a claim only the long suite proves, and only for the project's long gate: a short check
 you run directly and cite with its command and output, as any other claim. Output:
-`verify.md`: a `Head: <sha>` line, each claim with the SHA it was judged at, the command and the
+`<work folder>/verify.md` (the work folder's root, the one file the CLI reads): a `Head: <full SHA>` line (the full SHA of `git rev-parse HEAD` in the worktree), each claim with the SHA it was judged at, the command and the
 output that prove it, and `VERIFIED` or `NOT VERIFIED`. This holds for a claim that something is
 refused, absent or unchanged too: its proof is the command that shows it and that command's
 output, and a claim without them is out of format. Then, from the CR's worktree at the head
 you verified, run `$CHANTIER verdict <cr> VERIFIED` or `$CHANTIER verdict <cr> "NOT VERIFIED"` (the two words it
-takes: `NOT VERIFIED` quoted as one argument, or as two arguments) before you reply (the last verdict at a head decides). A claim carried from an earlier judgment
+takes: `NOT VERIFIED` quoted as one argument, or as two arguments) before you reply (the last verdict at a head decides). `verdict <cr> VERIFIED` is refused (exit 2) until `<work folder>/verify.md` has a `Head:` line naming that full SHA; on the refusal, write or fix the note and run `verdict` again, in the same run, before you reply. A claim carried from an earlier judgment
 keeps its own SHA and says why the move did not touch it (`carried from <sha7>: <reason>`). Evidence that cannot be captured does not alone change the verdict; if the
 project's rules require it, its absence is `NOT VERIFIED`. Your reply is the template at the end
 of this section.
@@ -192,7 +192,7 @@ The exact reply, at most ten lines, after `$CHANTIER verdict` has run:
 ```text
 VERIFIED | NOT VERIFIED
 Head: <full SHA verified>
-Proof: <work folder>/verifier/verify.md
+Proof: <work folder>/verify.md
 Failed: <claim>: <one line why>
 ```
 

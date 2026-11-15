@@ -104,6 +104,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
   its refusals (no request, a spent budget, its folder not opened) in pytest (unit: parallel,
   gates, qa-driver) (test:
   test_rail_refusals.py::test_order_qa_needs_a_request_and_a_budget_and_its_folder_is_not_opened);
+- `verdict VERIFIED` refused without `work/verify.md` naming the head (no file, a stale `Head:`),
+  `NOT VERIFIED` accepted without it (unit: gates)
+  (test: test_verdict_note.py::test_verified_needs_a_verify_note_naming_the_head);
 - the step a working CR is at: `round` recording `coder r1`, `phase` recording the inspector, a
   gate with its detail, `ci`, in the CR's STATUS.json, the batch row, `chantier status` and
   STATUS.md, the `phase` event outside the Progress steps, the step cleared by `handback` and

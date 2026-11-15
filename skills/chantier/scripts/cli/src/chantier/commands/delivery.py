@@ -49,9 +49,35 @@ def verdict(args: argparse.Namespace) -> list[str]:
             EXIT_PRECONDITION,
         )
     head = git("rev-parse", "HEAD", cwd=wt)
+    if result == "VERIFIED":
+        note = work(repo, c) / "verify.md"
+        reason = _verify_note_gap(note, head)
+        if reason:
+            raise ChantierError(
+                f'{c.id}: verdict VERIFIED needs {note.as_posix()} with a line "Head: <full SHA>" '
+                f"for the head {short_head(head)} it records: {reason}",
+                EXIT_PRECONDITION,
+            )
     with RenderedBatch(repo, batch, actor="driver") as b:
         b.log("verdict", c.id, result=result, head=head)
     return [f"verdict {c.id} {result} at {short_head(head)}"]
+
+
+def _verify_note_gap(note: Path, head: str) -> str | None:
+    """Why the verify note does not name `head` (its full SHA on a `Head:` line), or None."""
+    if not note.is_file():
+        return "no such file"
+    values = []
+    for line in read_text(note).splitlines():
+        rest = line.strip()
+        if rest.startswith("Head:"):
+            tokens = rest[len("Head:") :].split()
+            values.append(tokens[0].strip("`") if tokens else "")
+    if not values:
+        return "no Head: line"
+    if any(v.lower() == head.lower() for v in values):
+        return None
+    return f"its Head: line names {values[0][:7]}"
 
 
 def _stale_body_shas(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
