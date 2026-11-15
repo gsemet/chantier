@@ -278,7 +278,7 @@ class Actor:
 
 
 def cards(role: str) -> str:
-    card = "driver.md" if role.endswith("driver") else "worker.md"
+    card = "driver.md" if role.endswith("driver") else f"{role}.md"
     return (f"Read skills/chantier/references/{card} first, and run $CHANTIER rules: the project's "
             "rules rank above the card.")
 
@@ -951,7 +951,7 @@ def case_audit_cos_prompt(run: Run) -> str:
     good = CHIEF_PROMPT.format(ws=posix(batch.ws), skill=posix(audit.ROOT / "skills" / "chantier"), cli=cli)
     kinds = {"own": good,
              "form": good.replace("for the Chief of Staff", "about the retro", 1),
-             "card": good.replace("references/retro-critic.md", "references/worker.md")}
+             "card": good.replace("references/retro-critic.md", "references/coder.md")}
     got = {}
     for name, prompt in kinds.items():
         child = batch.foreman.spawn("retro-critic", audit.CHIEF, prompt)

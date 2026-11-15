@@ -58,9 +58,10 @@ chantier is four things in one repository:
    which role the session takes), the cards, the CLI and the assets; the entries
    [`skills/chief-of-staff/`](skills/chief-of-staff/), [`skills/griller/`](skills/griller/) and
    [`skills/status/`](skills/status/) are thin and load the same cards. [`references/`](skills/chantier/references/) holds one file per
-   running context: `concepts.md` (read by everyone), `session-start.md` (the start checks, the
-   seat, the session titles), `chief-of-staff.md`, `griller.md`, `status-layout.md`, `foreman.md`, `driver.md`, `worker.md`
-   and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
+   running context: `concepts.md` (read by the steering sessions and the Drivers), `session-start.md` (the start checks, the
+   seat, the session titles), `chief-of-staff.md`, `griller.md`, `status-layout.md`, `foreman.md`, `driver.md`, the worker cards (`investigator.md`, `coder.md`,
+   `inspector.md`, `debugger.md`, `verifier.md`, `conflict-resolver.md`, `demo-explorer.md` and
+   `review-step.md`, each read by its own role) and `routing.md`; `pr-template.md` is the default PR description a CR Driver writes and the
    Inspector audits; `release-template.md` is the default release notes and announcement thread the
    release Driver writes when the project has none of its own; `hosts/claude-code.md` and
    `hosts/copilot.md` hold what is proper to a host (tools, heartbeat, sessions), each behaviour

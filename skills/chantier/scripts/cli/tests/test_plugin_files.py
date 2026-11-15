@@ -57,7 +57,7 @@ COPILOT_OPUS_ROLES = {
 }  # Copilot is untouched
 
 
-CARDS = {**{r: "driver" for r in DRIVERS}, **{r: "worker" for r in WORKERS}}
+CARDS = {**{r: "driver" for r in DRIVERS}, **{r: r for r in WORKERS}}
 
 
 def agent_file(role: str, host: str) -> Path:
@@ -221,12 +221,10 @@ def test_a_worker_agent_file_points_to_its_card_and_refuses_a_prompt_without_it(
     role: str, host: str
 ) -> None:
     body = _front(agent_file(role, host))[1]
-    section = role.replace("-", " ").capitalize()
-    assert f'Your card is `worker.md`, section "{section}"' in body
-    worker = (SKILL / "references" / "worker.md").read_text(encoding="utf-8")
-    assert f"\n## {section}\n" in worker
+    assert (SKILL / "references" / f"{role}.md").is_file()
+    assert f"Your card is `{role}.md`: read it first" in body
     assert (
-        f'its `Read` line must name my card, `worker.md`, section "{section}"' in body
+        f"its `Read` line must name my card, `{role}.md`;" in body
         and f"`chantier {role}`, or that names no path to my card" in body
     )
 
@@ -276,13 +274,18 @@ def test_four_skills_the_router_and_three_thin_ones_listed_by_copilot() -> None:
 
 
 def test_every_role_has_its_section_in_its_card() -> None:
-    """The contract a parent names in its prompt: `<card>.md`, section `<Role>`."""
+    """The contract a parent names in its prompt: a Driver's `driver.md`, section `<Role>`; a
+    worker's own card, `<role>.md`, titled `# <Role>`."""
     for role in CHIEF_ROLES:
         assert (SKILL / "references" / f"{role}.md").is_file(), role
     for role, card in CARDS.items():
         text = (SKILL / "references" / f"{card}.md").read_text(encoding="utf-8")
         section = role.replace("-", " ").capitalize().replace("Cr ", "CR ").replace("Qa ", "QA ")
-        assert f"\n## {section}\n" in text, (role, section)
+        if role in WORKERS:
+            assert text.startswith(f"# {section}\n"), (role, section)
+        else:
+            assert f"\n## {section}\n" in text, (role, section)
+    assert (SKILL / "references" / "review-step.md").is_file()
 
 
 def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
@@ -293,7 +296,8 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
         "chief-of-staff",
         "foreman",
         "driver",
-        "worker",
+        *WORKERS,
+        "review-step",
         "concepts",
         "griller",
         "session-start",

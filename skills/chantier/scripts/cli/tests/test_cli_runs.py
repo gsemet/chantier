@@ -70,8 +70,8 @@ def _worker_opening_lines(out: list[str], repo: Path) -> None:
     assert [ln.removeprefix("  ") for ln in out[opening[-1] + 1 : opening[-1] + 4]] == [
         f'chantier verifier for CR-101 "Fix login" of batch {batch}, '
         f"in the project {repo.resolve().as_posix()}.",
-        f'Read {refs}/worker.md, section "Verifier", and {refs}/concepts.md;',
-        "the project's rules rank above them: run `$CHANTIER rules` first and read what "
+        f"Read {refs}/verifier.md;",
+        "the project's rules rank above it: run `$CHANTIER rules` first and read what "
         "touches your work.",
     ]
 

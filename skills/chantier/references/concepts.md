@@ -1,7 +1,7 @@
 # Concepts and rules
 
-Every role reads this file: the words the team shares, the boundaries, and how an agent is
-started.
+The steering sessions and the Drivers read this file: the words the team shares, the boundaries,
+and how an agent is started. Each worker reads its own card, which restates the rules it uses.
 
 ## Words
 
@@ -415,8 +415,8 @@ chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
 Read <skill>/references/driver.md, its top, "Your means" and section "<Role>", and, when the step
 comes, the sections of <skill>/references/concepts.md and <skill>/references/hosts/<host>.md
 (`claude-code` or `copilot`) that its "Opening reads" names;                  (a Driver's prompt)
-Read <skill>/references/worker.md, section "<Role>", and <skill>/references/concepts.md;   (a worker's prompt)
-the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.
+Read <skill>/references/<role>.md;   (a worker's prompt; an extra review step reads review-step.md)
+the project's rules rank above them (a worker's prompt: above it): run `$CHANTIER rules` first and read what touches your work.
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
@@ -496,8 +496,8 @@ Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a De
 
 The Spec-writer is the subagent of the Chief of Staff or of a Griller, outside any batch: its first line is
 `chantier spec-writer for the Chief of Staff, in the project <root>.`, it reads
-[`spec-writer.md`](spec-writer.md) instead of a Driver or worker section, and its brief gives the
-CR folder. It writes `03-change-spec.md` there and takes no slot and no budget of a batch.
+[`spec-writer.md`](spec-writer.md), not `driver.md` (every role the Chief of Staff or a Driver
+starts reads its own card; only a Driver reads `driver.md`), and its brief gives the CR folder. It writes `03-change-spec.md` there and takes no slot and no budget of a batch.
 The Spec critic is a subagent of the Chief of Staff or of a Griller too, outside any batch: it
 reads [`spec-critic.md`](spec-critic.md), its brief gives the CR folder, it writes nothing and
 takes no slot and no budget of a batch.
@@ -584,7 +584,8 @@ running agent's model, never a retry of the same agent, and never a model typed 
    whole call. No leading assignment before a command (`X=1 cmd`, `$w='…'; cmd`): write the value
    into the command itself, because an allow rule does not see past it. Read a file before you
    overwrite it; to change part of a file, edit it rather than rewrite it. The host's side of
-   this is in your host's reference, section "Configuration" (the workers do not need it).
+   this is in your host's reference, section "Configuration" (the workers do not need it: their
+   cards hold what they use).
    Every file you write, a PR body included, is UTF-8 without a byte-order mark (on Windows
    PowerShell 5.1, `Out-File` and `Set-Content -Encoding utf8` add one).
    A multi-line text sent to the forge (a PR or MR body, a PR, MR or issue comment, release notes)

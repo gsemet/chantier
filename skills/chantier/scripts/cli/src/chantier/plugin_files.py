@@ -180,13 +180,13 @@ WORKER_FIRST_LINE = re.compile(
     r"Prompt starts with: `(chantier ([a-z-]+) for <cr> \"<title>\" of batch <batch>, "
     r"in the project <root>\.)`"
 )
-WORKER_CARD_LINE = re.compile(r"^Your card is `([^`]+)`, section \"([^\"]+)\"", re.M)
+WORKER_CARD_LINE = re.compile(r"^Your card is `([^`]+)`", re.M)
 
 
 def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -> list[str]:
     """The opening three lines of each worker's prompt (a Driver starts it), read from the agent
     files: the description says `Started by a Driver.`, its first line holds `<cr> "<title>" of
-    batch <batch>` and its body names its card and section. The CLI knows no role."""
+    batch <batch>` and its body names its card. The CLI knows no role."""
     lines: list[str] = []
     refs = f"{skill_dir().as_posix()}/references"
     for p in _agent_files(host)[1]:
@@ -201,8 +201,8 @@ def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -
             f"{first[2]} prompt, opening lines (copy them unchanged, without the two leading "
             "spaces, at the top of the prompt):",
             f"  {filled}",
-            f'  Read {refs}/{card[1]}, section "{card[2]}", and {refs}/concepts.md;',
-            "  the project's rules rank above them: run `$CHANTIER rules` first and read what "
+            f"  Read {refs}/{card[1]};",
+            "  the project's rules rank above it: run `$CHANTIER rules` first and read what "
             "touches your work.",
         ]
     return lines

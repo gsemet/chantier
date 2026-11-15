@@ -112,7 +112,7 @@ DETACHED = re.compile(r"(^|\s)(--detach|-d)(\s|$)")
 
 
 def lawful_worktree(role: str, command: str, match: re.Match) -> bool:
-    """A `git worktree add` the cards allow: the Verifier's detached one (worker.md), judged on its
+    """A `git worktree add` the cards allow: the Verifier's detached one (verifier.md), judged on its
     own arguments, from the end of the match to the next command separator."""
     own = re.split(r"[;&|\n]", command[match.end():], maxsplit=1)[0]
     return role == "verifier" and DETACHED.search(own) is not None
@@ -525,7 +525,8 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
                   f"{a.id[:10]} runs the plugin's agent for {a.role}, or the project's own ({a.type})",
                   "J1")
             chief = a.what == CHIEF  # the CLI gives these a first line only: no rules line asked
-            card = f"{a.role}.md" if chief else "driver.md" if a.role in DRIVERS else "worker.md"
+            card = ("driver.md" if a.role in DRIVERS else f"{a.role}.md" if chief or a.role in WORKERS
+                    else "review-step.md")
             check(f"references/{card}" in a.prompt, f"{a.id[:10]} is told to read {card}", "J1")
             if not chief:
                 check("$CHANTIER rules" in a.prompt,
