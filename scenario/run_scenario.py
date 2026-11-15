@@ -4032,14 +4032,17 @@ def gate_next_merge(w: World) -> None:
 
 
 def gate_carry(w: World) -> None:
-    note("\n## 12f. A clean rebase carries the long gate; a resolved conflict does not")
-    items = [prepare_cr(w, t)[1] for t in ("Carry clean", "Carry conflict")]
+    note(
+        "\n## 12f. A clean rebase carries the long gate and the verdict; a resolved conflict "
+        "carries neither"
+    )
+    items = [prepare_cr(w, t)[1] for t in ("Carry clean", "Carry conflict", "Carry later")]
     w.reset()
     w.start(*map(str, items), *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman12f", "--epoch", 1)
     Foreman(w, epoch=1).turn()
-    clean, clash = (c["id"] for c in w.batch()["crs"])
+    clean, clash, later = (c["id"] for c in w.batch()["crs"])
 
     def wt(cr):
         return Path(w.cr(cr)["worktree"])
@@ -4051,38 +4054,44 @@ def gate_carry(w: World) -> None:
             if e["kind"] == kind and e["cr"] == cr
         ]
 
-    for cr, name in ((clean, "carried.py"), (clash, "clash.py")):
+    for cr, name in ((clean, "carried.py"), (clash, "clash.py"), (later, "later.py")):
         commit(w, cr, name, "CR = 1\n")
         ship(w, cr, f"feat: {name}")
         w.chantier("gate", cr, GATE)
         w.verified(cr)
     old = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
     gates = len(events("gate", clean))
+    verdicts = len(events("verdict", clean))
     land(w, "main", ("moved.txt", "main moved\n"))
     ship(w, clean, "feat: carried")  # fetch, a clean rebase onto the moved main, push, record
     new = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
     link = w.cr(clean)["pr"]
-    code, _ = w.chantier("handback", clean, "ready", link, expect=2)
+    _, facts = w.chantier("handoff", clean)
+    boxes = [ln for ln in facts if ln.lstrip().startswith("[x]")]
     check(
-        "after a clean rebase and a `ship`, `handback ready` still wants the verdict at the new head",
+        "after a clean rebase and a `ship`, `handoff` shows the long gate and the verdict boxes "
+        "`[x]` with `carried from <sha7>`",
         new != old
-        and code == 2
-        and "no verdict VERIFIED" in w.last_stderr
-        and "no long gate passed" not in w.last_stderr,
-        w.last_stderr,
+        and sum(f"carried from {old[:7]}" in ln for ln in boxes) == 2
+        and any("long gate" in ln for ln in boxes)
+        and any("verdict" in ln for ln in boxes),
+        str(facts),
     )
-    w.verified(clean)
     _, out = w.chantier("handback", clean, "ready", link)
     done = events("handback", clean)[-1]
     check(
-        "a clean rebase onto a moved main: `handback ready` is accepted with no new gate, the line "
-        "says `long gate carried from <sha7> (clean rebase onto main)` and the event has `gate_from`",
+        "a clean rebase onto a moved main: `handback ready` is accepted with no new gate and no new "
+        "verdict, the line says `long gate and verdict carried from <sha7> (clean rebase onto "
+        "main)` and the event has `gate_from` and `verdict_from`",
         w.cr(clean)["status"] == "ready"
         and len(events("gate", clean)) == gates
+        and len(events("verdict", clean)) == verdicts
         and done.get("gate_from") == old
-        and f"long gate carried from {old[:7]} (clean rebase onto main)" in out[0],
+        and done.get("verdict_from") == old
+        and f"long gate and verdict carried from {old[:7]} (clean rebase onto main)" in out[0],
         str(out),
     )
+    note(f"12f ready line: {out[0]}")
     status_md = (w.folder() / "STATUS.md").read_text("utf-8")
     check(
         "after that hand-back `STATUS.md` shows `carried from <sha7>` in the CR's long gate column",
@@ -4120,17 +4129,33 @@ def gate_carry(w: World) -> None:
         cwd=wc,
     )
     w.chantier("ship", clash, w.cr(clash)["pr"])
-    w.verified(clash)
     code, _ = w.chantier("handback", clash, "ready", w.cr(clash)["pr"], expect=2)
     check(
-        "a rebase with a resolved conflict: `handback ready` is refused, `no long gate passed` "
-        "with the `does not carry` clause and its reason; the CR is not ready",
+        "a rebase with a resolved conflict: `handback ready` is refused, `no long gate passed` and "
+        "`no verdict VERIFIED` each with the `does not carry` clause and its reason; the CR is "
+        "not ready",
         rebase.returncode != 0
         and code == 2
         and "no long gate passed at" in w.last_stderr
-        and "does not carry: the replay conflicts" in w.last_stderr
+        and "no verdict VERIFIED at" in w.last_stderr
+        and w.last_stderr.count("does not carry: the replay conflicts") == 2
         and w.cr(clash)["status"] != "ready"
         and not events("handback", clash),
+        w.last_stderr,
+    )
+    note(f"12f conflict refusal: {w.last_stderr}")
+    # a commit after the verdict: the verdict does not carry, even with a new long gate
+    commit(w, later, "later.py", "CR = 2\n")
+    ship(w, later, "feat: later")
+    w.chantier("gate", later, GATE)
+    code, _ = w.chantier("handback", later, "ready", w.cr(later)["pr"], expect=2)
+    check(
+        "a commit after the verdict, then `ship` and the long gate: `handback ready` is refused, "
+        "`no verdict VERIFIED` with `does not carry: the rebase changed the patch`",
+        code == 2
+        and "no verdict VERIFIED at" in w.last_stderr
+        and "does not carry: the rebase changed the patch" in w.last_stderr
+        and w.cr(later)["status"] != "ready",
         w.last_stderr,
     )
     w.env.pop("CHANTIER_BATCH", None)

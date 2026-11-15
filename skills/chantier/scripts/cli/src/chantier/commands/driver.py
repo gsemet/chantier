@@ -219,9 +219,15 @@ def _record_ready(
     gate = f", no long gate: {no_gate}" if no_gate is not None else ""
     if basis.waiver:
         gate = f", {basis.words()}"
-    if carried:
-        base = stack_base(b.record, c, repo)
-        gate = f", long gate carried from {short_head(carried)} (clean rebase onto {base})"
+    vcarried = basis.verdict_carried
+    how = f"(clean rebase onto {stack_base(b.record, c, repo)})"
+    if carried and carried == vcarried:
+        gate = f", long gate and verdict carried from {short_head(carried)} {how}"
+    else:
+        if carried:
+            gate = f", long gate carried from {short_head(carried)} {how}"
+        if vcarried:
+            gate += f", verdict carried from {short_head(vcarried)} {how}"
     lines = _ready_lines(repo, b.record, c, prepared, f"{gate} {note}")
     if reason:
         lines[-1] += f"; it was blocked: {reason}"

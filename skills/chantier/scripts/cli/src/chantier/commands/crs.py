@@ -123,6 +123,16 @@ def last_verdict(events: list[EventRecord], head: str | None) -> str | None:
     return seen[-1] if seen else None
 
 
+def last_verdict_head(events: list[EventRecord]) -> str | None:
+    """The head of the CR's latest verdict, when the last verdict there is VERIFIED, else None: a
+    later NOT VERIFIED, at a later head or at the same one, blocks any carry from an older one."""
+    heads = [e.head for e in events if e.kind == "verdict" and e.head]
+    if not heads:
+        return None
+    head = str(heads[-1])
+    return head if last_verdict(events, head) == "VERIFIED" else None
+
+
 def grant_line(release: ReleaseGrant) -> str:
     """What the user allowed the release to do without asking, in one line."""
     n, done = release.autonomous, release.published

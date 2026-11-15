@@ -188,8 +188,9 @@ defaults, not a gate.
   it removes at its end.
 - Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
   <worktree> rebase <base>`;
-  a conflict is a `conflict-resolver`. A rebase with no conflict needs no new long gate: the
-  pass carries over it (see the long gate bullet). When the PR already exists and the rebase
+  a conflict is a `conflict-resolver`. A rebase with no conflict that leaves the CR's patch
+  unchanged needs no new long gate and no new `verifier`: the pass and the verdict carry over it
+  (see the long gate bullet). When the PR already exists and the rebase
   needs a long gate (a conflict was resolved), push early, by the "Early push" rule below.
   Never `git stash`: the stash is shared by every worktree,
   so set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
@@ -203,12 +204,13 @@ defaults, not a gate.
   as many at once as the project allows (`chantier.yaml`, one by default), the others in this
   order: the next merge's first (in a stack or series batch, the first CR of the order not merged
   or cancelled, a fix CR and the release CR excepted), then those the Foreman moved first, then
-  arrival order; a running gate is never stopped. After a rebase with no conflict, run no long
-  gate: the pass at the head before the rebase carries, and `handback ready` checks that with
-  git (the replay of the gated commits onto the base is clean and gives the head's tree) and
-  records `gate_from`; a rebase that resolved a conflict, or any commit added or edited, is
-  gated again. The CLI reads no forge: you read CI at the new head and give the `verifier` the
-  move as before. **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
+  arrival order; a running gate is never stopped. After a rebase with no conflict that leaves the
+  CR's patch unchanged, run no long gate and no `verifier`: the pass and the Verifier's verdict
+  at the head before the rebase carry, and `handback ready` checks both with git (the replay of
+  the gated commits onto the base is clean and gives the head's tree) and records `gate_from`
+  and `verdict_from`; a rebase that resolved a conflict, or any commit added or edited, is gated
+  again and gets a `verifier` given the move (the hand-back refuses with `does not carry:
+  <why>`). The CLI reads no forge: you read CI at the new head, which must be green. **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
   whose PR exists needs a long gate (a `rebase:` note, a restack, a taken-back CR, with a
   conflict resolved), turn the PR to draft if it is not one (`gh pr ready --undo`, `glab mr
   update --draft`), push at once with `--force-with-lease`, `ship <cr> <link>`, then
@@ -459,7 +461,8 @@ defaults, not a gate.
   head. Pass the refused line, as printed, to the steering session (`[driver <cr>→foreman] …`,
   by the host's means) and wait for its `taken back:` note, then hand back again. A hand-back
   refused with `the worktree's head … is not the head ship recorded`: `ship` at this head, then
-  the long gate and a new `verifier` given the move, then hand back again. A hand-back refused
+  the long gate and a new `verifier` given the move (unless the move was a clean rebase, whose
+  pass and verdict carry), then hand back again. A hand-back refused
   with `<cr> is merged: no Driver to hand it back` means the user merged the PR while you were
   finishing. Do not push, edit the PR, retarget it or turn it ready or draft any more. Record
   what you left undone in one line, `$CHANTIER note <cr> "merged before the hand-back; left
@@ -481,7 +484,8 @@ defaults, not a gate.
      host". It is what proves afterwards a missing allow rule or the classifier on a matching rule.
   2. Then one note with what is next: `$CHANTIER note <cr> "next after push: <the steps left, in
      order>"` (for instance: `ship`, the long gate already passed at `<sha7>`, read CI, the
-     verifier given the move, turn the PR ready, hand back ready), so a fresh Driver starts from it
+     verifier given the move (unless the rebase was clean: the verdict carries), turn the PR
+     ready, hand back ready), so a fresh Driver starts from it
      without reading the whole record again.
   3. `$CHANTIER handback <cr> blocked waits: push <branch> <expected remote sha> <local sha>`
      (the remote head you expect, from `git ls-remote`, and your head).
@@ -562,7 +566,8 @@ short `verifier` pass on the posted description alone (`NOT VERIFIED` is fixed i
 never a message to the Verifier that replied), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`. The last edit of the
 PR body comes before that description pass; any later edit runs the pass again before the PR
-turns ready, never in the same command as the edit.
+turns ready, never in the same command as the edit. One exception: after a carried verdict, the
+edit that only changes SHA marks to `carried from <sha7>` (below) needs no description pass.
 
 A gap you judge left, whether in a note, a hand-back or a reply to the steering session, is
 written in Known gaps of `pr-body.md` first; a gap said anywhere else and absent from the body is
@@ -581,7 +586,8 @@ second one on the escalation model; a note `escalate: rounds` means each new rou
 on it.
 
 A move is any change of the head after a judgment: a new round, a rebase, a restack, a conflict
-resolution. Every `verifier` you start after the first is given the previous `verify.md`, the move
+resolution. A clean rebase that leaves the CR's patch unchanged is a move that touches no
+judgment: no `verifier` and no `inspector` are due for it. Every `verifier` you start after the first is given the previous `verify.md`, the move
 (`<old head>..<new head>`, with the old and new base for a rebase) and its kind, so it judges
 again only what the move touched. A rebase during which a `conflict-resolver` ran is always a
 change of the CR's patch: the `inspector` on that change is due without reading a range-diff to
@@ -613,14 +619,18 @@ a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin
 branch>` (a `conflict-resolver` for a conflict that needs only resolving; one that needs code is
 a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
-above), `ship`, read CI (red is a round). After a clean rebase (no conflict), run no long gate:
-the pass carries, which `handback ready` checks with git and records as `gate_from`. With a
-conflict resolved, run the long gate at the new head with the early push: the PR goes to draft
-and is pushed at once, the long gate and the CI watch run side by side by the rules of the "CI"
-bullet, and the PR leaves draft once both passed at that head. The `verifier`, given the move,
-judges again what it touched before `handback ready`. Green, no conflict, on the default branch:
-turn the PR ready and `handback ready <link>`. A clean rebase and
-green CI start no new `coder` round. If the note names another open dependency instead, or is
+above), `ship`, read CI (red is a round). After a clean rebase (no conflict, the patch
+unchanged), run no long gate and no `verifier`: the pass and the verdict carry, which
+`handback ready` checks with git and records as `gate_from` and `verdict_from`. Mark each proof of
+`pr-body.md` whose SHA left the head's history (the Test plan items, the `Verified at` box, the
+evidence captions) as `carried from <sha7>`, as `ship`'s `off: pr-body.md line <n> names …`
+lines guide, run the pre-post audit and post the file. With a conflict resolved, run the long
+gate at the new head with the early push: the PR goes to draft and is pushed at once, the long
+gate and the CI watch run side by side by the rules of the "CI" bullet, and the PR leaves draft
+once both passed at that head. The `verifier`, given the move, judges again what it touched
+before `handback ready`: only after a resolved conflict or a refused carry. Green, no conflict, on
+the default branch: turn the PR ready and `handback ready <link>`. A clean rebase and
+green CI start no new `coder` round and no new `verifier`. If the note names another open dependency instead, or is
 `rebase: <cr> moved`, or `take` prints the base as another CR's branch (for a stacked CR with a PR,
 the base `take` prints is the PR's own base on the forge; `base ? (not read from <link>: …)` means
 the read failed, so read the base on the forge yourself), rebase onto that branch,
@@ -629,7 +639,7 @@ keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`.
 `note rebase: …` received while working: rebase before the next push, however many `rebase:`
 notes came since your last push: one rebase, onto the latest default branch. With a long gate of
 the CR running, stop it (`gate <cr> --stop`) before that rebase. After a clean rebase run no
-new long gate (the pass carries, checked by `handback ready`); after one with a conflict
+new long gate and no new `verifier` (the pass and the verdict carry, checked by `handback ready`); after one with a conflict
 resolved, run the long gate at the new head with the early push (the "Early push" rule above);
 CI runs at the new head either way. A note `rebase: stacked on <cr below>, without <dropped cr>`
 changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dropped CR's branch>`, so the
@@ -641,9 +651,10 @@ stack was dissolved first by `forge-stack unstack` where it applied): put the PR
 (`gh pr ready --undo`, `glab mr update --draft`, `ship`), rebase onto the base `take`
 printed (parallel: the default branch, or the branch of its open dependency; series: its
 predecessor's branch, the bottom CR on the default branch), retarget the PR to it, push with
-`--force-with-lease`, `ship`, run the long gate and CI again at the new head, and hand back `ready`;
+`--force-with-lease`, `ship`, read CI at the new head (the long gate and a `verifier` only when
+the carry does not hold), and hand back `ready`;
 the PR leaves draft once it is ready to merge, as any CR of that mode (a series PR above the bottom
-stays a draft). A clean rebase and green CI start no new `coder` round.
+stays a draft). A clean rebase and green CI start no new `coder` round and no new `verifier`.
 
 A CR taken with the note `folded: <k> merged into its branch` (GitLab only: the user merged CR
 k's MR, which targeted this CR's branch, so k's change now rides in this CR's MR): bring the
@@ -692,13 +703,12 @@ either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and you 
 worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
 no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
 `glab mr update --draft`) while the stack is being made or changed. A clean restack (no conflict)
-runs no new long gate: the CR's pass carries over it, which `handback ready` checks with git
-when that CR is handed back at the new head. Each CR keeps its
+runs no new long gate and no new `verifier`: the CR's pass and verdict carry over it, which
+`handback ready` checks with git when that CR is handed back at the new head. Each CR keeps its
 own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in
 [concepts](concepts.md), "Escalation". A conflict that only needs resolving: a `conflict-resolver`; one that needs
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
-touched a CR's proofs (its patch changed, or the base brought changes to what the proofs run),
-start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
+changed a CR's patch (a `conflict-resolver` ran, or the carry is refused), start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
 CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$CHANTIER note <cr>
 "move <old7>..<new7> (restack) inspector approved at <head>"`); then update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
 --body-file` / `glab mr update` with the file form of the Push bullet (unproved there), the Review box citing only a recorded note, as for
@@ -810,7 +820,7 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    release CR stays last), rebase the new PR on the one under it and each PR above on the one
    under it, push with `--force-with-lease`, `ship` each one moved (fix the PR body lines `ship`
    names as stale, as above); the proofs a move touched are judged again as above (`verifier`,
-   `inspector`).
+   `inspector`), a clean restack carrying the verdict.
 3. Update the stack on the forge: `$CHANTIER forge-stack rebuild` (it dissolves the stack,
    retargets the PRs, creates it again and reads it back).
 4. The release PR: the insertion is a change of content under it, so it is stale: leave it a draft
@@ -833,7 +843,8 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    that needs code" says.
 3. Push each moved branch with `--force-with-lease`, one command per branch, and `ship` each one.
    Judge again the proofs each move touched (a `verifier` given the move, and an `inspector` when
-   the patch changed, always after a `conflict-resolver`). Fix the PR body lines `ship` names as
+   the patch changed, always after a `conflict-resolver`); a drop's `rebase --onto` changes the
+   commit count, so it never carries and a `verifier` is due. Fix the PR body lines `ship` names as
    stale.
 4. Heavy CI at the top. Then `$CHANTIER forge-stack rebuild`: it unstacks the stack that still
    holds the dropped CR's PR, and names that PR apart (`it also held #n of <cr>, dropped: close

@@ -13,6 +13,7 @@ from chantier.commands.crs import (
     dirty_files,
     last_gate_pass,
     last_verdict,
+    last_verdict_head,
     short_head,
 )
 from chantier.core.batch import Batch
@@ -121,6 +122,26 @@ def _gate_missing(repo: Repo, b: Batch, c: CrEntry, events: list[EventRecord]) -
     return text.replace("(gate", clause, 1), ""
 
 
+def _verdict_missing(
+    repo: Repo, b: Batch, c: CrEntry, events: list[EventRecord]
+) -> tuple[str, str]:
+    """The refusal for a head with no verdict VERIFIED, and the head of the verdict that carries
+    to it (a clean rebase of the verified commits, proved by git); the first is empty when one
+    carries."""
+    head = c.head
+    last = last_verdict(events, head) or "none"
+    text = f"refused: no verdict VERIFIED at {head or 'any head'} (the last verdict there: {last})"
+    v = last_verdict_head(events)
+    if not v or not head:
+        return text, ""
+    base = f"{repo.config['remote']}/{stack_base(b.record, c, repo)}"
+    why = carry_check(cr_worktree(c), base, head, v)
+    if why is None:
+        return "", v
+    clause = f"(the verdict VERIFIED at {short_head(v)} does not carry: {why}) (the last"
+    return text.replace("(the last", clause, 1), ""
+
+
 @dataclass
 class GateBasis:
     """What let a ready hand-back pass its long gate, when it is not a pass at its own head: the
@@ -129,6 +150,7 @@ class GateBasis:
     carried: str = ""
     waiver: GateWaiver | None = None
     validated_by: str = ""
+    verdict_carried: str = ""
 
     def words(self) -> str:
         """The waiver as the hand-back line and the event say it."""
@@ -146,6 +168,8 @@ class GateBasis:
         """What the `handback` event records of the basis: the carried head, the waiver."""
         w = self.waiver
         carried = {"gate_from": self.carried} if self.carried else {}
+        if self.verdict_carried:
+            carried["verdict_from"] = self.verdict_carried
         if w is None:
             return carried
         return {
@@ -199,10 +223,9 @@ def handback_refusals(
         if text:
             missing.append(text)
     if not prepared and last_verdict(events, head) != "VERIFIED":
-        missing.append(
-            f"refused: no verdict VERIFIED at {head or 'any head'} (the last "
-            f"verdict there: {last_verdict(events, head) or 'none'})"
-        )
+        text, basis.verdict_carried = _verdict_missing(repo, b, c, events)
+        if text:
+            missing.append(text)
     if missing:
         raise ChantierError("\n".join(missing), EXIT_PRECONDITION)
     return basis
