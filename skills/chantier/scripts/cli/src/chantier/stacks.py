@@ -35,6 +35,16 @@ def top_cr(b_data: BatchRecord) -> CrEntry | None:
     return max(open_, key=lambda x: x.order, default=None)
 
 
+def next_merge(b_data: BatchRecord) -> CrEntry | None:
+    """In an ordered batch (stack, series), the CR the user merges next: the first, in order, that
+    is not merged or cancelled. A fix CR and the release CR do not count. None in a parallel
+    batch: the record names no next merge there."""
+    if b_data.mode not in {"stack", "series"}:
+        return None
+    open_ = [x for x in b_data.crs if x.status not in ENDED and x.kind not in {"release", "fix"}]
+    return min(open_, key=lambda x: x.order, default=None)
+
+
 def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     """The branch a CR starts on: that of its last dependency still open, in the order of
     `after`; with none open, the default branch, whatever its place in a stack. A release in an

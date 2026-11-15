@@ -8,6 +8,7 @@ from pathlib import Path
 from chantier.commands.crs import (
     batch_cr,
     cr_events,
+    short_head,
     work,
 )
 from chantier.commands.driver_checks import (
@@ -174,17 +175,21 @@ def handback(args: argparse.Namespace) -> list[str]:
             ]
         if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
-        handback_refusals(repo, b, c, no_gate, prepared)
+        carried = handback_refusals(repo, b, c, no_gate, prepared)
         b.log(
             "handback",
             args.cr,
             result=args.result,
             note=note,
             **({"no_gate": no_gate} if no_gate is not None else {}),
+            **({"gate_from": carried} if carried else {}),
         )
         b.touch(c, status="ready")
         c.clear_phase()
         gate = f", no long gate: {no_gate}" if no_gate is not None else ""
+        if carried:
+            base = stack_base(b.record, c, repo)
+            gate = f", long gate carried from {short_head(carried)} (clean rebase onto {base})"
         return _ready_lines(repo, b.record, c, prepared, f"{gate} {note}")
 
 

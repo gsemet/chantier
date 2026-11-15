@@ -42,7 +42,7 @@ passing:
 | parallel | 260 | 209.5 | 242.0 |
 | stack | 320 | 259.3 | 313.9 |
 | release | 420 | 332.9 | 354.0 |
-| gates | 330 | 262.3 | 283.2 |
+| gates | 400 | 262.3 | 283.2 |
 | series-deps | 260 | 154.5 | 193.2 |
 | direct | 125 | 100.0 | 122.5 |
 | surface-board | 250 | 201.6 | 235.9 |
@@ -201,6 +201,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   pytest) and a bare `cancel` refused without `--epoch` (in pytest) (unit: parallel, gates)
   (test: test_gate_refusals.py::test_gate_stop_takes_no_command_and_gate_needs_one_and_nothing_running_is_not_an_error)
   (test: test_rail_refusals.py::test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_epoch);
+- the long gate's queue running the next merge first (a stack's bottom CR, arriving last, passes
+  before the CR waiting; the holder is not stopped), and a long gate carried over a clean rebase
+  (`handback` accepted with `gate_from` and no new gate; a conflicting rebase refused with `does
+  not carry`; the order and the old-git refusal in pytest) (unit: gates)
+  (test: test_gate_queue_order.py::test_the_queue_runs_the_next_merge_then_the_moved_then_arrival)
+  (test: test_gate_carry.py::test_a_git_older_than_2_38_refuses_the_carry_and_says_so);
 - Claude cost by CR (one line in the main batch; the levels, the pages, the shares, the Chief of
   Staff's lines, an unpriced model and the audit in pytest); Copilot cost breakdown (`Agent
   <type>` lines) and by CR, estimated calls, updates and failures (unit: parallel) (test:

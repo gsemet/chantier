@@ -6,10 +6,12 @@ import argparse
 import subprocess
 
 from chantier.commands.crs import (
+    carry_check,
     cr_events,
     cr_worktree,
     dirty_files,
     gate_passed,
+    last_gate_pass,
     last_verdict,
     same_head,
     short_head,
@@ -17,10 +19,10 @@ from chantier.commands.crs import (
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
-from chantier.core.records import LIVE, BatchRecord, CrEntry
+from chantier.core.records import LIVE, BatchRecord, CrEntry, EventRecord
 from chantier.core.repo import Repo
 from chantier.rails import ENDED
-from chantier.stacks import top_cr
+from chantier.stacks import stack_base, top_cr
 
 
 def check_release_branch(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
@@ -100,10 +102,30 @@ def handback_blocked(b: Batch, c: CrEntry, note: str, line: str) -> list[str]:
     return [line, f"{cr} blocked; the Foreman asks the Chief of Staff"]
 
 
+def _gate_missing(repo: Repo, b: Batch, c: CrEntry, events: list[EventRecord]) -> tuple[str, str]:
+    """The refusal for a head with no gate pass, and the head of the pass that carries to it
+    (a clean rebase of the gated commits, proved by git); the first is empty when one carries."""
+    head = c.head
+    text = (
+        f"refused: no long gate passed at {head or 'any head'} (gate "
+        f'{c.id} "<cmd>"..., or --no-gate "<the project\'s rule>")'
+    )
+    g = last_gate_pass(events)
+    if not g or not head:
+        return text, ""
+    base = f"{repo.config['remote']}/{stack_base(b.record, c, repo)}"
+    why = carry_check(cr_worktree(c), base, head, g)
+    if why is None:
+        return "", g
+    clause = f"(the pass at {short_head(g)} does not carry: {why}) (gate"
+    return text.replace("(gate", clause, 1), ""
+
+
 def handback_refusals(
     repo: Repo, b: Batch, c: CrEntry, no_gate: str | None, prepared: bool
-) -> None:
-    """A ready CR is shipped at the worktree's head, clean, pushed, gated and verified."""
+) -> str | None:
+    """A ready CR is shipped at the worktree's head, clean, pushed, gated and verified. The head
+    of the gate pass it carries over a clean rebase, if that is what let it pass."""
     events, head = cr_events(repo, b.id, c.id), c.head
     wt = cr_worktree(c)
     missing = []
@@ -128,11 +150,11 @@ def handback_refusals(
             f"{'at ' + short_head(pushed) if pushed else 'not pushed'}, not at "
             f"{short_head(head) or 'the shipped head'}: push, then `ship` again"
         )
+    carried = ""
     if no_gate is None and not gate_passed(events, head):
-        missing.append(
-            f"refused: no long gate passed at {head or 'any head'} (gate "
-            f'{c.id} "<cmd>"..., or --no-gate "<the project\'s rule>")'
-        )
+        text, carried = _gate_missing(repo, b, c, events)
+        if text:
+            missing.append(text)
     if not prepared and last_verdict(events, head) != "VERIFIED":
         missing.append(
             f"refused: no verdict VERIFIED at {head or 'any head'} (the last "
@@ -140,6 +162,7 @@ def handback_refusals(
         )
     if missing:
         raise ChantierError("\n".join(missing), EXIT_PRECONDITION)
+    return carried or None
 
 
 def live_cr(b: Batch, cr: str) -> CrEntry:

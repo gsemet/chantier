@@ -85,7 +85,7 @@ UNITS = {
         ],
     ),
     "gates": (
-        330,
+        400,
         ["github"],
         [
             "rails",
@@ -94,6 +94,8 @@ UNITS = {
             "stop_own_gate",
             "handback_proofs",
             "gate_proof",
+            "gate_next_merge",
+            "gate_carry",
         ],
     ),
     "series-deps": (260, ["github"], ["batch_modes", "dependencies", "changes_tree"]),
@@ -3693,6 +3695,183 @@ def gate_proof(w: World) -> None:
           w.cr(f)["round"] == 3)
 
 
+def gate_next_merge(w: World) -> None:
+    note("\n## 12e. The long gate queue: the next merge of a stack goes first")
+    sys.path.insert(0, str(SKILL / "scripts" / "cli" / "src"))
+    items = [prepare_cr(w, t)[1] for t in ("Next one", "Next two", "Next three")]
+    slow = w.root / "slow_next.py"
+    slow.write_text(
+        "import os, sys, time\n"
+        "release = os.path.join(os.path.dirname(__file__), 'next_' + sys.argv[1] + '.release')\n"
+        "end = time.time() + 180\n"
+        "while not os.path.exists(release) and time.time() < end:\n    time.sleep(0.05)\n"
+    )
+    (w.work / "chantier.yaml").unlink(missing_ok=True)
+    w.reset()
+    w.start(*map(str, items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman12e", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    one, two, three = (c["id"] for c in w.batch()["crs"])
+    queue = w.state / ".long-gate.queue"
+
+    def spawn(cr, name, hold=True):
+        (w.root / f"next_{name}.release").unlink(missing_ok=True)
+        if not hold:
+            (w.root / f"next_{name}.release").touch()
+        gate = f'"{sys.executable}" "{slow}" {name}'
+        return subprocess.Popen(
+            [sys.executable, "-m", "chantier", "gate", cr, gate],
+            cwd=w.work,
+            env=w.env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+        )
+
+    def wait_tickets(n):
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline and len(list(queue.glob("[0-9]*"))) < n:
+            time.sleep(0.05)
+
+    holder = spawn(three, "h")  # the top of the stack runs: it is never stopped
+    lock_names(w, f"{three} pid")
+    later = spawn(two, "two", hold=False)
+    wait_tickets(1)
+    time.sleep(1.1)  # the tickets are named by arrival
+    next_merge = spawn(one, "one", hold=False)  # the bottom: the next merge, arrived last
+    wait_tickets(2)
+    _, o = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+    lines = {ln.split()[1]: ln for ln in o if ln.startswith("activity ")}
+    check(
+        "the next merge's waiting gate and the earlier waiter both show `gate queued behind` the "
+        "running gate, which shows `gate running`",
+        lines[three] == f"activity {three} gate running"
+        and lines[one] == f"activity {one} gate queued behind {three}"
+        and lines[two] == f"activity {two} gate queued behind {three}",
+        str(lines),
+    )
+    (w.root / "next_h.release").touch()
+    outs = [p.communicate(timeout=180) for p in (holder, later, next_merge)]
+    events = [
+        json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()
+    ]
+    order = [e["cr"] for e in events if e["kind"] == "gate"][-3:]
+    check(
+        "in a stack batch the next merge's gate (the bottom CR) runs before an earlier waiter, "
+        "after the running gate, which ends with its pass and is not stopped",
+        order == [three, one, two]
+        and holder.returncode == 0
+        and all(e["result"] == "pass" for e in events if e["kind"] == "gate")
+        and not list(queue.glob("[0-9]*")),
+        f"{order} {outs}",
+    )
+    w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
+
+
+def gate_carry(w: World) -> None:
+    note("\n## 12f. A clean rebase carries the long gate; a resolved conflict does not")
+    items = [prepare_cr(w, t)[1] for t in ("Carry clean", "Carry conflict")]
+    w.reset()
+    w.start(*map(str, items), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman12f", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    clean, clash = (c["id"] for c in w.batch()["crs"])
+
+    def wt(cr):
+        return Path(w.cr(cr)["worktree"])
+
+    def events(kind, cr):
+        return [
+            e
+            for e in map(json.loads, (w.folder() / "events.jsonl").read_text("utf-8").splitlines())
+            if e["kind"] == kind and e["cr"] == cr
+        ]
+
+    for cr, name in ((clean, "carried.py"), (clash, "clash.py")):
+        commit(w, cr, name, "CR = 1\n")
+        ship(w, cr, f"feat: {name}")
+        w.chantier("gate", cr, GATE)
+        w.chantier("verdict", cr, "VERIFIED")
+    old = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
+    gates = len(events("gate", clean))
+    land(w, "main", ("moved.txt", "main moved\n"))
+    ship(w, clean, "feat: carried")  # fetch, a clean rebase onto the moved main, push, record
+    new = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
+    link = w.cr(clean)["pr"]
+    code, _ = w.chantier("handback", clean, "ready", link, expect=2)
+    check(
+        "after a clean rebase and a `ship`, `handback ready` still wants the verdict at the new head",
+        new != old
+        and code == 2
+        and "no verdict VERIFIED" in w.last_stderr
+        and "no long gate passed" not in w.last_stderr,
+        w.last_stderr,
+    )
+    w.chantier("verdict", clean, "VERIFIED")
+    _, out = w.chantier("handback", clean, "ready", link)
+    done = events("handback", clean)[-1]
+    check(
+        "a clean rebase onto a moved main: `handback ready` is accepted with no new gate, the line "
+        "says `long gate carried from <sha7> (clean rebase onto main)` and the event has `gate_from`",
+        w.cr(clean)["status"] == "ready"
+        and len(events("gate", clean)) == gates
+        and done.get("gate_from") == old
+        and f"long gate carried from {old[:7]} (clean rebase onto main)" in out[0],
+        str(out),
+    )
+    # a conflict resolved by hand: the pass at the old head does not carry
+    land(w, "main", ("clash.py", "MAIN = 1\n"))
+    wc = wt(clash)
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wc)
+    rebase = subprocess.run(
+        ["git", "rebase", "origin/main"],
+        cwd=wc,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "GIT_EDITOR": "true"},
+    )
+    (wc / "clash.py").write_text("CR = 1\nMAIN = 1\n")
+    w.sh("git", "add", "--", "clash.py", cwd=wc)
+    subprocess.run(
+        ["git", "rebase", "--continue"],
+        cwd=wc,
+        check=True,
+        capture_output=True,
+        env={**os.environ, "GIT_EDITOR": "true"},
+    )
+    w.sh(
+        "git",
+        "push",
+        "--quiet",
+        "--force-with-lease",
+        "-u",
+        "origin",
+        w.cr(clash)["branch"],
+        cwd=wc,
+    )
+    w.chantier("ship", clash, w.cr(clash)["pr"])
+    w.chantier("verdict", clash, "VERIFIED")
+    code, _ = w.chantier("handback", clash, "ready", w.cr(clash)["pr"], expect=2)
+    check(
+        "a rebase with a resolved conflict: `handback ready` is refused, `no long gate passed` "
+        "with the `does not carry` clause and its reason; the CR is not ready",
+        rebase.returncode != 0
+        and code == 2
+        and "no long gate passed at" in w.last_stderr
+        and "does not carry: the replay conflicts" in w.last_stderr
+        and w.cr(clash)["status"] != "ready"
+        and not events("handback", clash),
+        w.last_stderr,
+    )
+    w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
+
+
+
 def restore_cr(w: World) -> None:
     note("\n## 12d. `restore`: a trashed CR back to the inbox")
     # the inbox restores (whole, clash, --slug, archives) are pytest's: test_opening_and_restore.py
@@ -6455,6 +6634,8 @@ CASES = {
     "stop_own_gate": stop_own_gate,
     "handback_proofs": handback_proofs,
     "gate_proof": gate_proof,
+    "gate_next_merge": gate_next_merge,
+    "gate_carry": gate_carry,
     "batch_modes": batch_modes,
     "dependencies": dependencies,
     "changes_tree": changes_tree,

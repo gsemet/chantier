@@ -323,8 +323,13 @@ started.
   there passed every command it was given and the head did not move during the run. The log's
   first line names the CR, the branch and the full SHA it ran at; its last line, the result.
   As many long gates run at once as `chantier.yaml`'s `long_gate.parallel` says (one when absent),
-  the others in arrival order; `gate` is only for the long gate the project's rules name, and a
-  short gate runs outside it. `gate` is refused (exit 2) only when a gate has held a slot, or its
+  the others wait in this order: the next merge's first, then those moved first (`gate --first`),
+  then arrival order. The next merge is, in a stack or series batch, the first CR of the order
+  that is not merged or cancelled (a fix CR and the release CR do not count); in a parallel
+  batch there is none by the record. A running gate is never stopped. A pass carries over a
+  clean rebase, which the CLI checks with git (`handback ready` records `gate_from`); a
+  rebase with a conflict needs a new gate. `gate` is only for the long gate the project's
+  rules name, and a short gate runs outside it. `gate` is refused (exit 2) only when a gate has held a slot, or its
   suite has run on, for over an hour; the refusal names that gate.
   `gate <cr> --stop` acts on the slot that names that CR: it stops that CR's running long gate (its suite and the slot's lock), records the run
   `stopped` (no pass, and the last run at a head decides) and changes nothing else; it refuses

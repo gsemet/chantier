@@ -1,5 +1,6 @@
 """The long gate's queue: one ticket per waiting gate in `.long-gate.queue/`, named by arrival,
-content `<cr> pid <pid>`. A marker `first-<ticket name>` puts that ticket at the head; a ticket
+content `<cr> pid <pid>`. The order: the tickets of the CR the user merges next (the batch's
+record), then those a marker `first-<ticket name>` moved to the head, then arrival; a ticket
 is never rewritten."""
 
 from __future__ import annotations
@@ -11,7 +12,10 @@ from pathlib import Path
 
 from chantier import procs
 from chantier.commands.gate_slots import mtime
+from chantier.core.errors import ChantierError
+from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
+from chantier.stacks import next_merge
 
 QUEUE = ".long-gate.queue"
 MARK = "first-"
@@ -47,9 +51,22 @@ def ticket_cr(p: Path, drop: bool) -> str | None:
     return None
 
 
+def next_merge_cr(queue: Path) -> str | None:
+    """The CR the user merges next, read from the batch's `batch.json` beside the queue (none in
+    a parallel batch, or with no batch). It only reads."""
+    path = queue.parent / "4-batch" / "batch.json"
+    if not path.is_file():
+        return None
+    try:
+        c = next_merge(read_batch_json(path))
+    except ChantierError:
+        return None
+    return c.id if c else None
+
+
 def ordered(queue: Path, drop: bool = False) -> list[Path]:
-    """The tickets in queue order: the marked ones first, then arrival. A marker whose ticket is
-    gone is ignored, and deleted when `drop`."""
+    """The tickets in queue order: those of the next merge, then the marked ones, then arrival.
+    A marker whose ticket is gone is ignored, and deleted when `drop`."""
     tickets = sorted(queue.glob("[0-9]*"))
     marks = {p.name for p in queue.glob(f"{MARK}*")}
     if drop:
@@ -57,7 +74,13 @@ def ordered(queue: Path, drop: bool = False) -> list[Path]:
         for m in marks:
             if m[len(MARK) :] not in names:
                 (queue / m).unlink(missing_ok=True)
-    return sorted(tickets, key=lambda p: (f"{MARK}{p.name}" not in marks, p.name))
+    nxt = next_merge_cr(queue)
+
+    def is_next(p: Path) -> bool:
+        t = read_ticket(p) if nxt else None
+        return t is not None and t[0] == nxt
+
+    return sorted(tickets, key=lambda p: (not is_next(p), f"{MARK}{p.name}" not in marks, p.name))
 
 
 def queued_crs(repo: Repo) -> list[str]:
