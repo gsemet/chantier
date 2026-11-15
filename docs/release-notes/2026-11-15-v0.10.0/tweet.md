@@ -1,4 +1,4 @@
-﻿# Announcement thread for 0.10.0
+# Announcement thread for 0.10.0
 
 ## 1/
 
