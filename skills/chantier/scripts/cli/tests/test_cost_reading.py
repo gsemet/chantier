@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from batch_helpers import record, write_record
 from conftest import Chantier
 from cost_world import (
     DRIVER_CALLS,
@@ -79,6 +80,18 @@ def check_status_shares_summary_and_pages(world: CostWorld) -> None:
     world.cost("--by", "cr")
     world.chantier("status", "--refresh", "--batch", world.batch)
     assert abs(json.loads(world.state.read_text())["spent_usd"] - TOTAL_USD) < TOLERANCE
+    first = record(world.repo)["crs"][0]
+    write_record(
+        world.repo,
+        {
+            **record(world.repo),
+            "crs": [
+                {**c, "status": "merged"} if c["id"] == first["id"] else c
+                for c in record(world.repo)["crs"]
+            ],
+        },
+    )
+    world.chantier("order", "merged", first["id"], "--batch", world.batch)
     world.paused()
     world.chantier("status", "--refresh", "--batch", world.batch)
     _, priced, _ = world.chantier("status", "--batch", world.batch)
@@ -109,7 +122,10 @@ def check_status_shares_summary_and_pages(world: CostWorld) -> None:
     assert sum(amounts) == round(money(out[0]) * PERCENT)
     assert sum(int(s) for s in re.findall(r"\((\d+)%\)", out[1])) == PERCENT
     report = (folder / "STATUS.md").read_text(encoding="utf-8")
-    assert "## Cost" in report and "Total: $1.00" in report
+    each = DRIVER_USD + WORKER_USD
+    assert f"| ${each:.2f} |" in report and "## Cost" in report and "Total: $1.00" in report
+    page = (world.repo / ".agents/changes" / first["path"] / "STATUS.md").read_text("utf-8")
+    assert f"${each:.2f} so far" in page and "(../../STATUS.md)" in page and "- [x] Merged" in page
 
 
 def check_a_call_after_the_pause_and_a_relay(world: CostWorld) -> None:
