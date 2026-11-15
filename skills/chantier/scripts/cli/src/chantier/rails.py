@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, ChantierError
 from chantier.core.git import git
@@ -18,6 +18,9 @@ from chantier.core.records import (
     round_limit,
 )
 from chantier.core.repo import Repo
+
+if TYPE_CHECKING:
+    from chantier.costs.sessions import Ending
 
 ENDED = {"merged", "cancelled"}
 
@@ -33,42 +36,99 @@ def check_no_open_batch(repo: Repo) -> None:
         )
 
 
-QUIET_SECONDS = 300  # a session record written more recently than this: something still runs
+COPILOT_QUIET_SECONDS = 300  # a Copilot session file written more recently: something still runs
+
+STOPPED_HINT = (
+    "an agent stopped without its hand-back (an app restart, the user's stop) passes only on the "
+    "user's word: close --stopped <name> for each"
+)
 
 
-def running(repo: Repo, d: BatchRecord) -> list[str]:
-    """What shows a batch still runs, from its record and from its sessions' files; empty when
-    nothing does. A long tool call writes nothing, so the recorded state is the first proof and
-    the files only the second. The Foreman's session tree is all the CLI knows: a Driver run
-    from another session of the user's is not in it. The Chief of Staff's own session is not
-    counted: it is the one that closes, and on a direct batch it is also the steering session,
-    so its own file is skipped and its subagents (the Drivers) are checked."""
+def running(repo: Repo, d: BatchRecord) -> tuple[list[str], list[Ending]]:
+    """What shows a batch still runs: (the causes no flag passes, the state of each Claude
+    transcript). The causes come from the record (a CR not merged or cancelled, an open order, a
+    recorded stack agent) and, on Copilot, from the session file (written in the last 5 minutes,
+    or not measured). On Claude each transcript is read at its end, never by the file's age: an
+    agent that handed back has ended, one that waits on a tool call or has a step under way
+    runs, one whose file is missing or cut cannot be read (see `transcript_state`). The Foreman's
+    session tree is all the CLI knows: a Driver run from another session of the user's is not in
+    it. The Chief of Staff's own session is not counted: it is the one that closes, and on a
+    direct batch it is also the steering session, so its own file is skipped and its subagents
+    (the Drivers) are read."""
     causes = [
         f"{c.id} is {c.status}, not merged or cancelled" for c in d.crs if c.status not in ENDED
     ]
     causes += [f"order {o.id} ({o.kind}) is open" for o in d.orders if not o.done]
     if d.stack_agent:
         causes.append(f"stack agent {d.stack_agent} is recorded")
-    from chantier.costs.sessions import idle_seconds  # noqa: PLC0415 - slow import
+    from chantier.costs.sessions import idle_seconds, transcript_endings  # noqa: PLC0415 - slow
 
     sessions = d.foreman_transcripts or ([d.foreman_transcript] if d.foreman_transcript else [])
-    for label, age in idle_seconds(repo.session_root, d.host, sessions, chief_sessions(d)):
-        if age is None:
-            causes.append(f"{label}: not measured")
-        elif age < QUIET_SECONDS:
-            causes.append(f"{label} was written {age:.0f} s ago (under {QUIET_SECONDS // 60} min)")
-    return causes
+    if d.host == "copilot":
+        for label, age in idle_seconds(repo.session_root, d.host, sessions, chief_sessions(d)):
+            if age is None:
+                causes.append(f"{label}: not measured")
+            elif age < COPILOT_QUIET_SECONDS:
+                causes.append(
+                    f"{label} was written {age:.0f} s ago (under {COPILOT_QUIET_SECONDS // 60} min)"
+                )
+        return causes, []
+    return causes, transcript_endings(repo.session_root, sessions, chief_sessions(d))
 
 
-def check_idle(repo: Repo, d: BatchRecord) -> None:
-    causes = running(repo, d)
+def _declared(d: BatchRecord, endings: list[Ending], stopped: list[str]) -> list[Ending]:
+    """The transcripts the user's `--stopped` names, each one that reads as running; a name
+    that matches none, an ended one or one that cannot be read is refused (exit 2)."""
+    chosen: list[Ending] = []
+    for name in stopped:
+        match = next((e for e in endings if name in {e.name, e.name.removeprefix("agent-")}), None)
+        if match is None:
+            names = [e.name for e in endings if e.state == "running"]
+            raise ChantierError(
+                f"close --stopped {name}: no transcript of {d.id} by that name; still running: "
+                f"{', '.join(names) or 'none'}. Nothing was deleted.",
+                EXIT_PRECONDITION,
+            )
+        if match.state == "ended":
+            raise ChantierError(
+                f"close --stopped {name}: its transcript shows it ended; drop the flag. "
+                "Nothing was deleted.",
+                EXIT_PRECONDITION,
+            )
+        if match.state == "unreadable":
+            raise ChantierError(
+                f"close --stopped {name}: its transcript cannot be read ({match.path}), and the "
+                "flag covers only an agent that reads as running. Nothing was deleted.",
+                EXIT_PRECONDITION,
+            )
+        if match not in chosen:
+            chosen.append(match)
+    return chosen
+
+
+def check_idle(repo: Repo, d: BatchRecord, stopped: list[str] | None = None) -> list[Ending]:
+    """Refuse (exit 2) while anything runs, with the causes and the files, and return the agents
+    the user declared stopped. The rule: a Claude transcript that shows its agent still runs, or
+    that cannot be read, refuses, whatever the file's age. `stopped` (`close --stopped`, on the
+    user's word only): the names of agents that read as running but ended with no hand-back; each
+    drops out of the causes. Every other cause still refuses, and a name that is not a running
+    agent of the batch is refused."""
+    causes, endings = running(repo, d)
+    declared = _declared(d, endings, stopped or [])
+    causes += [e.text() for e in endings if e.state != "ended" and e not in declared]
     if causes:
+        hint = (
+            f" {STOPPED_HINT}."
+            if any(e.state == "running" and e not in declared for e in endings)
+            else ""
+        )
         raise ChantierError(
             f"cannot close {d.id}, something still runs: "
             + "; ".join(causes)
-            + ". Nothing was deleted.",
+            + f". Nothing was deleted.{hint}",
             EXIT_PRECONDITION,
         )
+    return declared
 
 
 def live(d: BatchRecord) -> list[CrEntry]:

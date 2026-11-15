@@ -76,8 +76,9 @@ removes a dropped CR's only on your word. When every CR is merged or cancelled, 
 steering session stays idle. Several CRs can be added to a paused batch, which stays paused until the first one starts, then runs
 again; it pauses again at the end, with the cost to date grown. A batch is closed only on your
 word ("close the batch"): `chantier close` refuses, naming the
-cause, while anything still runs (a CR not merged, an open order, a stack agent, a session
-written in the last 5 minutes); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
+cause, while anything still runs (a CR not merged, an open order, a stack agent, an agent whose
+transcript shows it still runs; one that stopped without handing back passes on your word, and
+the batch's record keeps it); on a batch set running again it names what runs. Once nothing runs, it prices the final cost and shows it with
 what goes (the batch's own files, the dropped CRs' worktrees and branches) and what moves to `5-archives`; if it cannot price it (no
 priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
 reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, writes the batch's record (`5-archives/batches/batch-NN.json`) and its Markdown, retro included (`batch-NN.md`), deletes the batch's other files and removes the rest with git;

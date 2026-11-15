@@ -12,7 +12,7 @@ from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.core.batch import check_epoch, require_epoch, resolve_batch
-from chantier.core.batch_records import check_closable, number_of, read_retro
+from chantier.core.batch_records import Rec, check_closable, number_of, read_retro
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_batch
@@ -76,9 +76,11 @@ def pause(args: argparse.Namespace) -> list[str]:
     return [f"paused {batch}: cost to date below", f"report: {b.dir / 'STATUS.md'}", *summary]
 
 
-def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, BatchRecord]:
+def _close_target(
+    repo: Repo, batch: str | None, stopped: list[str] | None = None
+) -> tuple[str, Path, BatchRecord]:
     """The batch `close` acts on: the project's one batch, named or not. One that is not paused is
-    refused with what runs in it, or with "`pause` first"."""
+    refused with what runs in it (less the agents `--stopped` declares), or with "`pause` first"."""
     folders = repo.batch_folders()
     batch = normalize_batch(batch) if batch else batch
     datas = {d: read_batch_json(d / "batch.json") for d in folders}
@@ -90,7 +92,7 @@ def _close_target(repo: Repo, batch: str | None) -> tuple[str, Path, BatchRecord
         )
     d = datas[pick[0]]
     if d.status != "paused":
-        check_idle(repo, d)
+        check_idle(repo, d, stopped)
         raise ChantierError(
             f"cannot close {d.id}: it is {d.status}, not paused; "
             "`pause --epoch <n>` comes first. Nothing was deleted.",
@@ -112,7 +114,9 @@ def _held(batch: str, folder: Path) -> None:
         )
 
 
-def _closing(repo: Repo, batch: str, folder: Path, d: BatchRecord) -> tuple[Closing, list[str]]:
+def _closing(
+    repo: Repo, batch: str, folder: Path, d: BatchRecord, stopped: list[Rec]
+) -> tuple[Closing, list[str]]:
     """What `close` acts on, and the lines it prints after those of the `Closing`."""
     done = stage_layout(repo)["done"]
     archived = [
@@ -131,7 +135,16 @@ def _closing(repo: Repo, batch: str, folder: Path, d: BatchRecord) -> tuple[Clos
         chief_line(repo, d),
     )
     k = Closing(
-        repo, batch, folder, d, rows, archived, batch_files(folder), read_retro(folder), summary
+        repo,
+        batch,
+        folder,
+        d,
+        rows,
+        archived,
+        batch_files(folder),
+        read_retro(folder),
+        summary,
+        stopped,
     )
     tail = [
         "the dropped CRs, to remove on the same word where they still exist "
@@ -153,13 +166,28 @@ def close(args: argparse.Namespace) -> tuple[list[str], int]:
     and it prices the batch up to now: this is the final cost, printed either way. It refuses,
     with or without `--yes`, when nothing can be priced (no Foreman transcript recorded, no priced
     call in the whole batch). Calls of a model with no price do not refuse it: the final cost is a
-    floor, printed with the calls not priced."""
+    floor, printed with the calls not priced.
+
+    Whether anything runs is read from the batch's record and from the end of each Claude
+    transcript of the Foreman's session tree, never from a file's age: an agent that handed back
+    has ended, one that waits on a tool call or has a step under way runs, and a transcript that
+    cannot be read refuses; each refusal names the agent and the file. An agent that stopped
+    without its hand-back (an app restart, the user's stop) reads as running: `--stopped NAME`
+    (repeatable), on the user's word only, passes it. It is refused for a name that is not a
+    running agent of the batch. Nothing else is passed. With `--yes` the declaration is kept in
+    the batch's record (`stopped_agents` in `batch-NN.json`, a line under Cost in `batch-NN.md`)."""
     repo = Repo.find()
+    stopped = args.stopped or []
     with changes_lock(repo):
-        batch, folder, d = _close_target(repo, args.batch or os.environ.get("CHANTIER_BATCH"))
-        check_idle(repo, d)
+        batch, folder, d = _close_target(
+            repo, args.batch or os.environ.get("CHANTIER_BATCH"), stopped
+        )
+        declared = [
+            {"agent": e.name, "transcript": str(e.path), "cause": e.cause}
+            for e in check_idle(repo, d, stopped)
+        ]
         _held(batch, folder)
-        k, tail = _closing(repo, batch, folder, d)
+        k, tail = _closing(repo, batch, folder, d, declared)
         if not args.yes:
             return [*k.preview(), *tail, "ask the user, then `chantier close --yes`"], 0
         archive_and_delete(k)

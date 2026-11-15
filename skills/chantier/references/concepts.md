@@ -160,9 +160,13 @@ started.
   `take` sets it running again, `pause` runs again at the end, and is refused on a batch already paused;
   on a running direct batch `order add` queues the CR too, taken when a slot frees, and `order qa`
   is refused; `order qa` on a paused batch sets it running at once; see **Batch lifecycle**). `close` refuses while anything
-  runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or a session file of the
-  Foreman or of any of its agents (on a direct batch, of the Chief of Staff's own transcript: its subagents only) written in the last 5 minutes (on Copilot the session file's
-  time; `not measured` refuses). A batch has one of three **modes**, set by
+  runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, an agent of the
+  Foreman, or the Foreman itself, whose transcript shows it still runs (a tool call with no
+  result, or a step under way; on a direct batch the Chief of Staff's own transcript is not
+  read, its subagents are), or a transcript that cannot be read (on Copilot, a session file
+  written in the last 5 minutes; `not measured` refuses). The CLI reads the end of each
+  transcript, never the file's age. An agent that stopped without its hand-back passes only on
+  the user's word (`close --stopped <name>`), recorded in the batch's record. A batch has one of three **modes**, set by
   `open --mode parallel|series|stack` and shown by `status`. **Parallel** (the default, when the
   user names none): every CR with no open dependency starts from the default branch at once and
   its PR is on the default branch; a CR with a dependency starts only once that dependency is

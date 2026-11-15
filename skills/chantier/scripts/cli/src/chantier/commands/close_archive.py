@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from chantier.commands.cost.breakdown import cost_groups
@@ -25,7 +25,7 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.files import retry
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.history import close_markdown, close_record, release_retro_line
+from chantier.history import close_markdown, close_record, release_retro_line, stopped_agents
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import STATE_FOLDERS, archive_name, stage_layout
 from chantier.status.write import write_final_pages
@@ -45,6 +45,7 @@ class Closing:
     own: list[Path]
     retro: str | None
     summary: list[str]
+    stopped: list[Rec] = field(default_factory=list)
 
     def preview(self) -> list[str]:
         """The lines `close` prints about what it does: the files that go, the CRs archived,
@@ -56,6 +57,10 @@ class Closing:
             if self.retro is not None
             else "retro: no retro"
         )
+        declared = [
+            f"declared stopped on the user's word: {s['agent']}: {s['cause']} ({s['transcript']})"
+            for s in self.stopped
+        ]
         return [
             f"close {self.batch} deletes its files in {shown(r, self.folder)}: "
             f"{', '.join(p.name for p in self.own) or 'none'}",
@@ -63,6 +68,7 @@ class Closing:
             f"{', '.join(c.id for c, _ in self.archived) or 'none'}",
             retro,
             f"record: {shown(r, record)} and {report.name}",
+            *declared,
         ]
 
     def done_lines(self) -> list[str]:
@@ -110,7 +116,11 @@ def _final_pages(k: Closing, d: BatchRecord) -> None:
 def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
     """`batch-NN.json` and `batch-NN.md` as `close` writes them, the CRs at their archives."""
     by_cr = cost_groups(k.repo, k.batch, k.rows, "cr")
-    final = close_record(record, now(), sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr)
+    closed = now()
+    final = {
+        **close_record(record, closed, sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr),
+        **stopped_agents(k.stopped, closed),
+    }
     return final, close_markdown(final, k.summary, k.retro, release_retro_line(k.repo, record))
 
 

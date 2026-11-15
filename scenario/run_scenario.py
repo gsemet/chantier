@@ -1469,7 +1469,7 @@ def remote_board(w: World) -> None:
     chief = w.root / "claude-projects" / slug / "uuid-chief.jsonl"  # the Chief of Staff's transcript
     chief.parent.mkdir(parents=True, exist_ok=True)
     chief.write_text(json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "model": "claude-sonnet-5-5", "usage": {
+        "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "stop_reason": "end_turn", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
     w.chantier("status", "--refresh", "--epoch", 1)
     own = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
@@ -1807,7 +1807,7 @@ def seat_handover(w: World) -> None:
     projects.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     call = json.dumps({"type": "assistant", "timestamp": now, "message": {
-        "id": "seat", "model": "claude-sonnet-5-5", "usage": {
+        "id": "seat", "stop_reason": "end_turn", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n"
     for name in ("uuid-chief", "uuid-chief-b"):  # each Chief of Staff session has its own file
         if not (projects / f"{name}.jsonl").is_file():
@@ -1845,7 +1845,7 @@ def direct_batch(w: World) -> None:
 
     def msg(mid: str, stamp: str) -> str:
         return json.dumps({"type": "assistant", "timestamp": stamp, "message": {
-            "id": mid, "model": "claude-sonnet-5-5", "usage": {
+            "id": mid, "stop_reason": "end_turn", "model": "claude-sonnet-5-5", "usage": {
                 "input_tokens": 10, "output_tokens": 1_000_000, "cache_read_input_tokens": 20_000,
                 "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
 
@@ -2112,13 +2112,15 @@ def direct_batch(w: World) -> None:
         fm.turn()
     check("the reopened direct batch pauses again", fm.paused and w.batch()["status"] == "paused",
           str(w.batch()["status"]))
-    age_sessions(w)
     os.utime(chief, None)  # the Chief of Staff's own session is written by the very call that closes
-    os.utime(driver, None)  # a Driver's file is not
+    driver_kept = driver.read_text(encoding="utf-8")
+    runs(driver, driver_kept)  # a Driver with a step under way is not
     code, _ = w.chantier("close", "--batch", w.name, "--yes", expect=2)
-    check("`close` still sees a Driver that writes, on a direct batch", "agent-agent-1" in w.last_stderr
-          and "uuid-chief was written" not in w.last_stderr.replace("agent-agent-1", ""), w.last_stderr)
-    age_sessions(w)
+    check("`close` still sees a Driver that runs, on a direct batch, and not the Chief of Staff's "
+          "own transcript, which ends on a tool call", "transcript uuid-chief agent-agent-1 "
+          "still runs" in w.last_stderr and "transcript uuid-chief still" not in w.last_stderr
+          and "transcript uuid-chief cannot" not in w.last_stderr, w.last_stderr)
+    driver.write_text(driver_kept, encoding="utf-8")
     os.utime(chief, None)
     code, out = w.chantier("close", "--batch", w.name, "--yes")
     check("`close` is not blocked by the Chief of Staff's own fresh transcript", code == 0
@@ -2305,6 +2307,29 @@ def age_sessions(w: World, seconds: int = 600) -> None:
                 os.utime(f, (then, then))
 
 
+def turn_line(kind: str, block: dict, stop: str | None = None) -> str:
+    """One `user` or `assistant` record of a Claude transcript, as `close` reads its end."""
+    message = {"role": kind, "content": [block]}
+    if kind == "assistant":
+        message["stop_reason"] = stop
+    return json.dumps({"type": kind, "message": message}) + "\n"
+
+
+def call_line(name: str, ident: str = "tu-1") -> str:
+    return turn_line("assistant", {"type": "tool_use", "id": ident, "name": name, "input": {}},
+                     "tool_use")
+
+
+def result_line(ident: str = "tu-1") -> str:
+    return turn_line("user", {"type": "tool_result", "tool_use_id": ident, "content": "ok"})
+
+
+def runs(f: Path, kept: str) -> None:
+    """The agent's transcript `kept`, then a tool's result with no assistant record after it: it
+    reads as still running, whatever the file's age. `kept` alone makes it ended."""
+    f.write_text(kept + call_line("Bash") + result_line(), encoding="utf-8")
+
+
 def priced_foreman(w: World) -> None:
     """Give the running batch a Foreman transcript with one priced call, written long ago: `close`
     prices the batch before anything is touched, and refuses a batch it cannot price."""
@@ -2312,7 +2337,7 @@ def priced_foreman(w: World) -> None:
     f = w.root / "claude-projects" / slug / "uuid-closing.jsonl"
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps({"type": "assistant", "message": {
-        "id": "closing", "model": "claude-sonnet-5-5", "usage": {
+        "id": "closing", "stop_reason": "end_turn", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 300, "cache_read_input_tokens": 20_000,
             "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n")
     then = time.time() - 600
@@ -2324,7 +2349,7 @@ def priced_foreman(w: World) -> None:
 
 
 MYSTERY_CALL = json.dumps({"type": "assistant", "message": {
-    "id": "mys-1", "model": "mystery-model", "usage": {"input_tokens": 1000, "output_tokens": 2000}}}) + "\n"
+    "id": "mys-1", "stop_reason": "end_turn", "model": "mystery-model", "usage": {"input_tokens": 1000, "output_tokens": 2000}}}) + "\n"
 DATED_CALL = MYSTERY_CALL.replace("mys-1", "mys-2").replace("mystery-model", "mystery-model-20270101")
 MYSTERY_PRICES = ("prices:\n  mystery-model:\n    input: 1\n    cache_write_5m: 1\n"
                   "    cache_write_1h: 1\n    cache_read: 1\n    output: 1\n")
@@ -2430,7 +2455,7 @@ def close_refusals(w: World) -> None:
 
     # a call made after the pause is spend
     late = json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"), "message": {
-        "id": "after-pause", "model": "claude-sonnet-5-5", "usage": {
+        "id": "after-pause", "stop_reason": "end_turn", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100_000, "cache_read_input_tokens": 20_000,
             "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
     main.write_text(main.read_text() + late)
@@ -2509,7 +2534,6 @@ def close_refusals(w: World) -> None:
     for o in w.batch()["orders"]:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 2)
-    age_sessions(w)
     for extra in ((), ("--yes",)):
         code, out = w.chantier("close", "--batch", name, *extra, expect=2)
         check(f"`close{' --yes' if extra else ''}` on a running batch where nothing runs says it is not "
@@ -2537,22 +2561,90 @@ def close_refusals(w: World) -> None:
     base = state.read_text()
     d = json.loads(base)
 
-    def refused(label: str, text: str, change: dict | None = None, env: dict | None = None) -> None:
+    def refused(label: str, text: str | tuple, change: dict | None = None, env: dict | None = None,
+                flags: tuple = ()) -> None:
         if change is not None:
             state.write_text(json.dumps({**d, **change}))
+        texts = (text,) if isinstance(text, str) else text
         for extra in ((), ("--yes",)):
-            code, out = w.chantier("close", "--batch", name, *extra, env=env, expect=2)
-            check(f"`close{' --yes' if extra else ''}` refuses {label}, naming it and deleting "
-                  "nothing", code == 2 and text in w.last_stderr and not out
+            code, out = w.chantier("close", "--batch", name, *flags, *extra, env=env, expect=2)
+            check(f"`close{' ' + ' '.join(flags) if flags else ''}{' --yes' if extra else ''}` "
+                  f"refuses {label}, naming it and deleting nothing",
+                  code == 2 and all(t in w.last_stderr for t in texts) and not out
+                  and "Nothing was deleted." in w.last_stderr
                   and (w.folder() / "batch.json").is_file(), w.last_stderr)
         state.write_text(base)
 
-    refused("a transcript written within 5 minutes", "transcript uuid-foreman was written")
+    # the transcripts' ends, never their ages (the files are just written, or aged 10 minutes)
+    hint = "close --stopped <name> for each"
+    foreman_kept = main.read_text()
+    main.write_text(foreman_kept + call_line("Bash"))
     age_sessions(w)
-    first = sorted(sub.glob("agent-*.jsonl"))[0]
-    os.utime(first, None)
-    refused("an agent's transcript written within 5 minutes, whatever its type", first.stem)
+    refused("a Foreman whose last call waits on a tool for 10 minutes",
+            ("transcript uuid-foreman still runs", "its tool call Bash has no result yet",
+             str(main), hint))
+    main.write_text(foreman_kept)
     age_sessions(w)
+    first, second = sorted(sub.glob("agent-*.jsonl"))[:2]
+    kept, kept2 = first.read_text(), second.read_text()
+    runs(first, kept)
+    refused("an agent whose last record is a tool's result with no answer",
+            (f"transcript uuid-foreman {first.stem} still runs",
+             "its last record is a tool's result with no answer yet", str(first), hint))
+    # 3. the hand-back and its result, the file just written: nothing runs
+    first.write_text(kept + call_line("SubagentHandback") + result_line(), encoding="utf-8")
+    code, out = w.chantier("close", "--batch", name)
+    check("`close` passes an agent that handed back, though its file was just written, and prints "
+          "the final cost", code == 0 and any(ln.startswith("Total: ") for ln in out), str(out))
+    # 4. a turn ended with a plain message
+    first.write_text(kept + turn_line("assistant", {"type": "text", "text": "done"}, "end_turn"),
+                     encoding="utf-8")
+    code, out = w.chantier("close", "--batch", name)
+    check("`close` passes an agent whose last record is an `end_turn` message", code == 0
+          and any(ln.startswith("Total: ") for ln in out), str(out))
+    # 5. a cut last line cannot be read, and the flag does not pass it
+    first.write_text(kept + '{"type": "assistant", "mess', encoding="utf-8")
+    refused("an agent whose last line is cut JSON",
+            (f"transcript uuid-foreman {first.stem} cannot be read",
+             "its last line is not complete JSON", str(first)))
+    refused("`--stopped` of a transcript that cannot be read",
+            (f"close --stopped {first.stem}: its transcript cannot be read ({first})",),
+            flags=("--stopped", first.stem))
+    first.write_text(kept, encoding="utf-8")
+    # 6. a recorded Foreman transcript that is missing
+    gone = main.with_name("uuid-gone.jsonl")
+    refused("a recorded Foreman transcript that is missing",
+            ("transcript uuid-gone cannot be read", "the file is missing", str(gone)),
+            {"foreman_transcript": "uuid-gone", "foreman_transcripts": ["uuid-gone"]})
+    # 7. --stopped, on a running agent
+    runs(first, kept)
+    shelf = [w.folder(), w.state / "5-archives" / "batches"]
+    for given in (first.stem, first.stem.removeprefix("agent-")):
+        before = [tree_bytes(p) for p in shelf]
+        code, out = w.chantier("close", "--batch", name, "--stopped", given)
+        at = [i for i, ln in enumerate(out) if ln.startswith("declared stopped")]
+        cost = [i for i, ln in enumerate(out) if ln.startswith("Total: ")]
+        check(f"`close --stopped {given}` (no --yes) passes the agent the user declared stopped, "
+              "says so before the cost, and writes nothing",
+              code == 0 and [tree_bytes(p) for p in shelf] == before and at and cost
+              and out[at[0]].startswith(f"declared stopped on the user's word: {first.stem}: ")
+              and str(first) in out[at[0]] and at[0] < cost[0], str(out))
+    refused("`--stopped` of a name that is not in the batch",
+            (f"close --stopped nobody: no transcript of {name} by that name; still running: "
+             f"{first.stem}",), flags=("--stopped", "nobody"))
+    refused("`--stopped` of an agent whose transcript shows it ended",
+            (f"close --stopped {second.stem}: its transcript shows it ended; drop the flag",),
+            flags=("--stopped", second.stem))
+    runs(second, kept2)
+    refused("two running agents with one named, the other one",
+            (f"transcript uuid-foreman {second.stem} still runs", str(second), hint),
+            flags=("--stopped", first.stem))
+    second.write_text(kept2, encoding="utf-8")
+    refused("an open order, though the running agent is named", "order O-99 (qa) is open",
+            {"orders": d["orders"] + [{"id": "O-99", "kind": "qa", "cr": "-", "note": "x",
+                                       "sent": d["created"], "done": None}]},
+            flags=("--stopped", first.stem))
+    first.write_text(kept, encoding="utf-8")
     crs = [{**c, "status": "ready"} if i == 0 else c for i, c in enumerate(d["crs"])]
     refused("a CR that is not merged", f"{d['crs'][0]['id']} is ready", {"crs": crs})
     refused("an open order", "order O-99 (qa) is open", {"orders": d["orders"] + [
@@ -2561,7 +2653,7 @@ def close_refusals(w: World) -> None:
     # a model with no price does not refuse the close: its calls are counted apart, the cost is a floor
     original, aged = main.read_text(), main.stat()
     call = json.dumps({"type": "assistant", "message": {
-        "id": "mystery", "model": "mystery-model", "usage": {"input_tokens": 1, "output_tokens": 1}}}) + "\n"
+        "id": "mystery", "stop_reason": "end_turn", "model": "mystery-model", "usage": {"input_tokens": 1, "output_tokens": 1}}}) + "\n"
     main.write_text(original + call)
     os.utime(main, (aged.st_atime, aged.st_mtime))
     code, out = w.chantier("close", "--batch", name)
@@ -2671,7 +2763,12 @@ def close_batch(w: World) -> None:
           and (folder / "batch.json").is_file() and len(list((folder / "3-done").iterdir())) == 4
           and not (w.state / f".closing-{name}").exists(), w.last_stderr)
     report_file.unlink()
-    _, out = w.chantier("close", "--batch", name, "--yes")
+    # one agent stopped without its hand-back: the user's word passes it, and the record keeps it
+    slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
+    stopped = sorted((w.root / "claude-projects" / slug / "uuid-foreman" / "subagents")
+                     .glob("agent-*.jsonl"))[0]
+    runs(stopped, stopped.read_text(encoding="utf-8"))
+    _, out = w.chantier("close", "--batch", name, "--stopped", stopped.stem, "--yes")
     check("`close --yes` deletes the batch's own files, keeps the empty state folders, and "
           "repeats what is left to remove",
           sorted(p.name for p in folder.iterdir()) == ["1-pending", "2-actives", "3-done"]
@@ -2687,6 +2784,19 @@ def close_batch(w: World) -> None:
     total = [float(m[1]) for m in (re.match(r"Total: (?:at least )?\$(\d+\.\d\d)", ln)
                                    for ln in out) if m]
     rec = json.loads(record_file.read_text(encoding="utf-8"))
+    said = f"declared stopped on the user's word: {stopped.stem}: "
+    entry = (rec.get("stopped_agents") or [{}])[0]
+    cost_part = report_file.read_text(encoding="utf-8").split("## Cost")[1].split("## Retro")[0]
+    check("`close --stopped <agent> --yes` keeps the declaration: `stopped_agents` in the record "
+          "with the agent, its transcript, the cause and the close time, a line under Cost in "
+          "batch-NN.md, and the same line in what `close` prints",
+          len(rec.get("stopped_agents", [])) == 1 and entry.get("agent") == stopped.stem
+          and entry.get("transcript") == str(stopped)
+          and entry.get("cause") == "its last record is a tool's result with no answer yet"
+          and entry.get("declared") == rec["closed"]
+          and f"- Declared stopped on the user's word: {stopped.stem} ({entry.get('cause')})"
+          in cost_part and any(ln.startswith(said) and str(stopped) in ln for ln in out),
+          f"{rec.get('stopped_agents')} {out}")
     check("`batch-NN.json` is closed with its dates, its shape and the final cost the close printed",
           rec["schema"] == 1 and rec["state"] == "closed" and rec["closed"]
           and rec["opened"] == opened and rec["mode"] == mode and rec["steering"] == steering
@@ -2806,6 +2916,10 @@ def retro_cases(w: World) -> None:
                   lines == ["retro: no retro"], str(out))
         _, out = w.chantier("close", "--batch", w.name, "--yes")
         previous = w.name  # the last closed from here on
+        check(f"{label}: a record closed without `--stopped` has no `stopped_agents` key",
+              "stopped_agents" not in json.loads(
+                  (archives / "batches" / f"{previous}.json").read_text(encoding="utf-8"))
+              and "Declared stopped" not in report.read_text(encoding="utf-8"), "")
         new = [p for p in archives.iterdir() if p.name not in before]
         body = report.read_text(encoding="utf-8") if report.is_file() else ""
         check(f"{label}: `close --yes` deletes `retro-dropped.md`, whose lines are not in batch-NN.md",
@@ -6635,7 +6749,7 @@ def fake_transcripts(w: World, d: dict) -> None:
 
     def msg(mid, model, out, **fields):
         return json.dumps({"type": "assistant", **fields, "message": {
-            "id": mid, "model": model, "usage": {
+            "id": mid, "stop_reason": "end_turn", "model": model, "usage": {
                 "input_tokens": 10, "output_tokens": out, "cache_read_input_tokens": 20_000,
                 "cache_creation": {"ephemeral_1h_input_tokens": 2_000}}}}) + "\n"
 
@@ -7055,7 +7169,7 @@ def external_surface(tmp: Path) -> None:
     chief = w.root / "claude-projects" / slug / "uuid-chief.jsonl"  # the session's own transcript
     chief.parent.mkdir(parents=True, exist_ok=True)
     chief.write_text(json.dumps({"type": "assistant", "timestamp": datetime.now(timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "model": "claude-sonnet-5-5", "usage": {
+        "%Y-%m-%dT%H:%M:%S.000Z"), "message": {"id": "c1", "stop_reason": "end_turn", "model": "claude-sonnet-5-5", "usage": {
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
     (w.folder() / "retro.md").write_text("# Retro\n\n## Pause 1\n\n- one, fix one\n", encoding="utf-8")
     before_close = (w.at(w.cr(cr)["path"]) / "summary.json").read_text(encoding="utf-8")
