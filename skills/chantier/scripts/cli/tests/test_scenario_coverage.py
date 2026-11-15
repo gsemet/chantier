@@ -11,7 +11,7 @@ from conftest import PLUGIN_ROOT
 README = PLUGIN_ROOT / "scenario" / "README.md"
 RUNNER = PLUGIN_ROOT / "scenario" / "run_scenario.py"
 TESTS = Path(__file__).parent
-MARKER = re.compile(r"\((unit|test|legacy):\s*([^)]*)\)")
+MARKER = re.compile(r"\((unit|test):\s*([^)]*)\)")
 
 
 def bullets() -> list[str]:
@@ -45,22 +45,20 @@ def function_names(path: Path) -> set[str]:
     return {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
 
 
-def problems(bullet: str, units: set[str], runner_functions: set[str]) -> list[str]:
+def problems(bullet: str, units: set[str]) -> list[str]:
     markers = MARKER.findall(bullet)
     head = bullet[:70]
-    found = [f"no (unit: ...), (test: ...) or (legacy: ...) in the bullet: {head!r}"]
+    found = [f"no (unit: ...), (test: ...) in the bullet: {head!r}"]
     if not markers:
         return found
     names = [(k, v.strip()) for k, value in markers for v in value.split(",") if v.strip()]
-    found = [problem(k, n, units, runner_functions) for k, n in names]
+    found = [problem(k, n, units) for k, n in names]
     return [f"{p}: {head!r}" for p in found if p]
 
 
-def problem(kind: str, name: str, units: set[str], runner_functions: set[str]) -> str:
+def problem(kind: str, name: str, units: set[str]) -> str:
     if kind == "unit":
         return "" if name in units else f"unit {name!r} is not a key of UNITS"
-    if kind == "legacy":
-        return "" if name in runner_functions else f"legacy case {name!r} is not in run_scenario.py"
     file, _, test = name.partition("::")
     path = TESTS / file
     if not path.is_file():
@@ -70,8 +68,7 @@ def problem(kind: str, name: str, units: set[str], runner_functions: set[str]) -
 
 def test_every_coverage_bullet_names_a_unit_or_a_test_that_exists() -> None:
     units = unit_names()
-    runner_functions = function_names(RUNNER)
     found = bullets()
     assert found, "no bullet in the README's Coverage section"
-    errors = [e for b in found for e in problems(b, units, runner_functions)]
+    errors = [e for b in found for e in problems(b, units)]
     assert not errors, "\n" + "\n".join(errors)
