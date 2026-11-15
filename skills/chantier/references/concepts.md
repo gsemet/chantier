@@ -253,8 +253,10 @@ started.
   when none is free). A `ready` or `blocked` CR holds none. The budget is dollars the Foreman's
   session and its agents may spend; a round is one Coder pass with its reviews, three per CR
   unless the user grants more. The CLI refuses what passes a limit: `take` and `round` are refused
-  (exit 5) once the budget is spent, on the last recorded spend, the budget before the round
-  limit; `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it.
+  (exit 5) once the budget is spent, on the spend each of them first refreshes from the
+  transcripts (when the batch has a budget), the budget before the round limit; `order qa`, the
+  Foreman's granted fix and `release go` check the same refreshed figure; when the transcripts
+  cannot be read, the check uses the last recorded spend and the command says so; `gate`, `verdict`, `ship`, `note` and `handback` are never refused for it.
 - **Dependencies:** a CR's folder may hold `depends.json`, `{"after": ["<slug>", …]}`, written
   with the Chief of Staff during the grill; a slug is the folder's name without its number. `open`
   and `order add` record `after` as CR ids (a slug already merged, in `3-done` or

@@ -198,6 +198,7 @@ def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
         "mode": d.mode,
         "steering": d.steering,
         "spent_usd": d.spent_usd,
+        "spent_at": d.spent_at,
         "budget_usd": d.budget_usd,
         "unpriced": d.unpriced,  # model -> calls left out of spent_usd (a floor)
         "priced": _priced(d),
@@ -340,6 +341,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
                 "folder": folder.name,
                 "state": v["state"],
                 "spent_usd": v["spent_usd"],
+                "spent_at": v["spent_at"],
                 "budget_usd": v["budget_usd"],
                 "unpriced": v["unpriced"],
                 "asks_unread": v["asks_unread"],

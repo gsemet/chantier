@@ -66,13 +66,27 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int,
             b.log("heartbeat", None)
         data = b.record.model_copy(deep=True)
     lines = activity(repo, data)
+    actor = "foreman" if epoch is not None else "chief-of-staff"
     try:
-        rows = cost_rows(repo, data, data.host, foreman_uuid(data))
+        total, floor = refresh_spend(repo, batch, data, actor)
     except ChantierError as e:
         return [*lines, f"spend not updated: {e}"], e.code, prev
-    with RenderedBatch(
-        repo, batch, actor="foreman" if epoch is not None else "chief-of-staff"
-    ) as b:
+    return (
+        [*lines, f"spent {usd_text(total, floor)}" + (f"; {not_priced(floor)}" if floor else "")],
+        0,
+        prev,
+    )
+
+
+def refresh_spend(
+    repo: Repo, batch: str, data: BatchRecord, actor: str
+) -> tuple[float, dict[str, int]]:
+    """The one path that reads the spend from the transcripts and records it (the batch's
+    figure and its time, each CR's share, a `cost` event, a paused batch's summary). `data` is a
+    copy read outside any session, so the lock is not held while the transcripts are parsed.
+    Raises the ChantierError of an unreadable spend. Returns the spend and what is not priced."""
+    rows = cost_rows(repo, data, data.host, foreman_uuid(data))
+    with RenderedBatch(repo, batch, actor=actor) as b:
         total = record_costs(repo, b, rows)
         if b.record.status == "paused":  # the header and the Cost section read one figure
             b.record.summary = [
@@ -85,18 +99,38 @@ def _refresh(repo: Repo, batch: str, epoch: int | None) -> tuple[list[str], int,
                 ),
                 TO_DATE,
             ]
-    floor = sum_unpriced(rows)
-    return (
-        [*lines, f"spent {usd_text(total, floor)}" + (f"; {not_priced(floor)}" if floor else "")],
-        0,
-        prev,
-    )
+    return total, sum_unpriced(rows)
+
+
+def age_text(d: BatchRecord) -> str:
+    """How old the spend figure is: `12 min old`, `age unknown` for a record from before
+    `spent_at`, and nothing while the spend is unknown."""
+    if d.spent_usd is None:
+        return ""
+    age = age_minutes(d.spent_at)
+    return "age unknown" if age is None else f"{age:.0f} min old"
+
+
+def refresh_for_check(repo: Repo, batch: str, actor: str) -> list[str]:
+    """Before a budget check: with a budget, the spend is read from the transcripts and recorded
+    (kept on disk even if the command is then refused). When it cannot be read the check runs on
+    the last recorded figure, and the line returned says so. With no budget, nothing is read."""
+    d = read_batch(repo, batch)
+    if not d.budget_usd:
+        return []
+    try:
+        refresh_spend(repo, batch, d, actor)
+    except ChantierError as e:
+        age = age_text(d) or "age unknown"
+        return [f"spend not refreshed: {e}; budget checked on {spent_text(d)} ({age})"]
+    return []
 
 
 def record_costs(repo: Repo, b: Batch, rows: list[dict[str, Any]]) -> float:
     """The spend the budget check reads, and each CR's share, shown in its STATUS.md."""
     total: float = sum(r["usd"] for r in rows)
     b.record.spent_usd = round(total, 4)  # the priced part: the budget reads it as it is
+    b.record.spent_at = now()  # every writer of the spend dates it
     b.record.unpriced = sum_unpriced(rows)  # model -> calls left out of it: a floor, said so
     by_cr = cost_groups(repo, b.id, rows, "cr")
     for c in b.record.crs:
@@ -191,6 +225,7 @@ def _batch_line(d: BatchRecord, hb_text: str) -> str:
         f"heartbeat {hb_text}"
         f" spent {spent_text(d)}"
         + (f" of ${d.budget_usd:g}" if d.budget_usd else "")
+        + (f", {age_text(d)}" if age_text(d) else "")
         + (" (paused, cost to date)" if d.status == "paused" else "")
     )
 

@@ -61,6 +61,9 @@ def take(args: argparse.Namespace) -> list[str]:
         batch = resolve_batch(repo, args.batch)
     else:
         batch = find_cr_batch(repo, args.cr, args.batch)
+    from chantier.commands.batch_status import refresh_for_check  # noqa: PLC0415 - slow import
+
+    fresh = refresh_for_check(repo, batch, "foreman")  # the budget is checked on the real spend
     with changes_lock(repo), RenderedBatch(repo, batch, actor="foreman") as b:
         check_epoch(b, args.epoch)
         d = b.record
@@ -77,7 +80,7 @@ def take(args: argparse.Namespace) -> list[str]:
             reopened = _reopen(b)
             b.log("take", None, note=args.note)
             head, *rows = stack_lines(repo, batch, d)
-            return [head, *reopened, *rows]
+            return [head, *reopened, *rows, *fresh]
         c = b.cr(args.cr)
         check_take(d, c, args.note)
         if c.status != "working":
@@ -96,7 +99,7 @@ def take(args: argparse.Namespace) -> list[str]:
             )  # the archive's name, kept from the first take
         work(repo, c).mkdir(parents=True, exist_ok=True)
         facts = cr_facts(repo, batch, d, c)
-    return [f"took {c.id} ({len(held(d))} of {d.slots} slots held)", *reopened, *facts]
+    return [f"took {c.id} ({len(held(d))} of {d.slots} slots held)", *reopened, *facts, *fresh]
 
 
 def round_(args: argparse.Namespace) -> list[str]:
@@ -107,6 +110,9 @@ def round_(args: argparse.Namespace) -> list[str]:
     context size. The round event keeps the worktree's head and a fingerprint of its content."""
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch)
+    from chantier.commands.batch_status import refresh_for_check  # noqa: PLC0415 - slow import
+
+    fresh = refresh_for_check(repo, batch, "driver")  # the budget is checked on the real spend
     with changes_lock(repo), RenderedBatch(repo, batch, actor="driver") as b:
         c = b.cr(args.cr)
         if c.status not in LIVE:
@@ -121,7 +127,7 @@ def round_(args: argparse.Namespace) -> list[str]:
         work(repo, c).mkdir(parents=True, exist_ok=True)
         facts = cr_facts(repo, batch, b.record, c)
         context = context_line(repo, b.record, c.agent)
-    return [f"round {c.round} of {limit} for {c.id}", *facts, context]
+    return [f"round {c.round} of {limit} for {c.id}", *facts, context, *fresh]
 
 
 def context_line(repo: Repo, d: BatchRecord, agent: str | None) -> str:

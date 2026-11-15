@@ -180,8 +180,9 @@ def all_merged(d: BatchRecord) -> bool:
 
 def check_budget(d: BatchRecord) -> None:
     """No Driver of any kind starts, and no Driver starts a new round, past the budget; the spend
-    is the last recorded one. The gate, the verdict, the ship, the notes and the hand-back stay
-    open, and so do the workers of a round already started."""
+    is the one the caller refreshed from the transcripts just before (`refresh_for_check`), or
+    the last recorded one when they cannot be read. The gate, the verdict, the ship, the notes
+    and the hand-back stay open, and so do the workers of a round already started."""
     if over_budget(d):
         raise ChantierError(
             f"budget spent: {spent_text(d)} of "

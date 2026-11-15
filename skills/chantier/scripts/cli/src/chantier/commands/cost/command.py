@@ -107,7 +107,7 @@ def _explain_notes(rows: list[dict[str, Any]]) -> list[str]:
 
 def cost(args: argparse.Namespace) -> list[str]:
     """The batch's spend, read from the Foreman's transcript on the batch's host; `status
-    --refresh` and `pause` record it."""
+    --refresh`, `pause` and the budget checks record it."""
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch, paused=True)
     d = read_batch(repo, batch)

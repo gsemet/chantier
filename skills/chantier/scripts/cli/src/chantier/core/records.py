@@ -167,6 +167,7 @@ class BatchRecord(Record):
     slots: int = 4
     budget_usd: float | None = None
     spent_usd: float | None = None
+    spent_at: str | None = None  # UTC time of the last write of spent_usd
     unpriced: dict[str, int] = {}
     foreman: str | None = None
     foreman_epoch: int = 0
