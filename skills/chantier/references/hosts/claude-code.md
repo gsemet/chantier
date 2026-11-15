@@ -444,7 +444,7 @@ and no card wording. A spawn whose prompt holds the line starts in the first fol
 rewrites the spawn's `cwd`, except on a resume), and the mod records its agent id with the
 folders. That agent's Write, Edit or NotebookEdit outside every folder is refused, with the one
 message `refused: <path> is outside the folders this agent may write in (<folder>; <folder>);
-write there`; a relative path is read against the folder it runs in. The arguments of a
+write there`; a relative path is read against the folder it runs in. On Windows a Git Bash drive path (`/c/Users/...`) is read as its drive form (`C:/Users/...`), for Write, Edit, NotebookEdit and the shell targets alike. The arguments of a
 `tool.call` sit flat beside `tool` (`file_path` for Write and Edit, `notebook_path` for
 NotebookEdit), and the mod reads nothing else.
 

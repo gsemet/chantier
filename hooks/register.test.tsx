@@ -1034,6 +1034,40 @@ test('a Windows path in another drive case or with backslashes is judged the sam
   expect((await write($, agentId, 'Write', 'C:\\work\\repo\\a.py')).deny).toContain('refused:')
 })
 
+test('a Git Bash drive path is read as its drive form, for Write, Edit, NotebookEdit and the shell', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const listed = String.raw`C:/Work/repo.worktrees/b-CR-5; C:\Work\notes`
+  const { agentId } = await spawn($, `x\nwrites: ${listed}`)
+  for (const tool of ['Write', 'Edit', 'NotebookEdit']) {
+    expect((await write($, agentId, tool, '/c/Work/repo.worktrees/b-CR-5/src/a.py')).deny).toBeUndefined()
+    expect((await write($, agentId, tool, '/C/work/notes/a.md')).deny).toBeUndefined()
+  }
+  expect((await write($, agentId, 'Write', '/d/Work/notes/a.md')).deny).toBe(refusal('/d/Work/notes/a.md', listed))
+  expect((await write($, agentId, 'Write', '/c/Work/repo/a.py')).deny).toContain('refused:')
+  expect((await shell($, agentId, 'echo x > /c/Work/notes/log.txt', 'Bash')).deny).toBeUndefined()
+  expect((await shell($, agentId, 'cp a /c/Work/repo.worktrees/b-CR-5/b', 'Bash')).deny).toBeUndefined()
+  expect((await shell($, agentId, 'echo x > /c/Other/a', 'Bash')).deny).toBe(shellRefusal('/c/Other/a', listed))
+  expect((await shell($, agentId, 'cd /c/Work; echo x > /c/Work/notes/a', 'Bash')).deny).toBeUndefined()
+  expect(await said($)).not.toContain('could not')
+})
+
+test('a writes folder in the Git Bash form is judged against a drive-form path', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, 'x\nwrites: /c/Work/repo')
+  expect((await write($, agentId, 'Write', 'C:/Work/repo/a.py')).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', 'C:/Work/other/a.py')).deny).toContain('refused:')
+})
+
+test('a POSIX agent reads /c/ as a plain path: no mapping', async ($, on) => {
+  mock.clock(on)
+  guardWorld(on)
+  const { agentId } = await spawn($, 'x\nwrites: /work/repo')
+  expect((await write($, agentId, 'Write', '/c/work/repo/a.py')).deny).toContain('refused:')
+  expect((await write($, agentId, 'Write', '/work/repo/a.py')).deny).toBeUndefined()
+})
+
 test('the spawn reaches the engine in the first folder, and a relative path is read against it', async ($, on) => {
   mock.clock(on)
   const seen = guardWorld(on)
