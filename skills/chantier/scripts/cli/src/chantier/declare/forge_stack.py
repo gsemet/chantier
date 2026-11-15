@@ -16,10 +16,12 @@ def register(sub: Subparsers) -> None:
         "bottom to top, the release last; "
         "show: read it back, one line per failed check (exit 2), else `stack #N ready to merge:`; "
         "rebuild: make the forge's "
-        "stack match the record (GitHub unstacks, retargets and creates again, GitLab retargets)",
+        "stack match the record (GitHub unstacks, retargets and creates again, GitLab retargets); "
+        "unstack: dissolve the open stacks that hold the batch's PRs and retarget each open PR to "
+        "the base the record gives; any mode",
         BATCH,
     )
-    s.add_argument("action", choices=["create", "show", "rebuild"])
+    s.add_argument("action", choices=["create", "show", "rebuild", "unstack"])
     s.add_argument(
         "--stack",
         type=int,

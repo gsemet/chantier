@@ -168,8 +168,14 @@ started.
   its checks run again. **Series**: the CRs have a precise order, the one given to `open` (`order
   add` puts a CR on top); the next CR starts once the previous one is `ready`, from the previous
   CR's pushed branch, and its PR is a draft; once the previous one merges, the next is rebased
-  onto the default branch and turns ready; `order mode --note stack` switches the series to a
-  stack, on the user's word. **Stack**: parallel, with a stack driver: every CR with no open
+  onto the default branch and turns ready; a running batch switches between any two modes with
+  `order mode --note parallel|series|stack`, on the user's word, and the record changes at once:
+  the open CRs of a series or a stack made by the switch are ordered with the CRs already handed
+  back `ready` at the bottom, in the order they became ready, then the others in the batch's
+  order, the chains (`after`) kept; leaving a stack clears every CR's place in it; each open PR is
+  then moved by its Driver on a rebase note (`rebase: mode <mode>`), the Foreman and the stack
+  driver acting as their cards say; a merged CR never changes (its record, PR, branch and folder).
+  **Stack**: parallel, with a stack driver: every CR with no open
   dependency starts at once, on the default branch; a CR with a dependency starts only once that
   dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
   open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the

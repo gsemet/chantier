@@ -165,7 +165,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   release redone after; one that belongs to no CR is a fix CR. Its card holds the procedure's rules. Its `blocked fix: <line>; <path>`: under the user's grant, `$CHANTIER
   order add --note "<path>" --fix-for <cr> --epoch <n>` starts the fix on the fast track
   (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
-  (`--mode stack`, or a series switched by `order mode`): until the first stack is made it runs like
+  (`--mode stack`, or a batch switched to a stack by `order mode`): until the first stack is made it runs like
   a parallel batch with chains: each CR handed back `ready` on the default branch is an ordinary
   `ready-to-merge` ask (the user may merge it now), and a merge is handled by the rebase notes below, not
   by a restack. The stack grows from the bottom:
@@ -228,6 +228,30 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     CR's own Driver CI covers it (tell the Chief of Staff). Its hand-back
     `heavy CI <cr> at <head7>: green|red <checks>` goes up as `$CHANTIER asks "heavy-ci <cr>
     <head7> green|red <checks>"`.
+  - **A mode switch** (the Chief of Staff's `order mode --note <mode>`, any mode to any other; the
+    record is already changed, the order is in `status`): no CR already started is stopped, a merged
+    CR is never touched, a fix CR stays outside every shape. Read the new order from `status`, then
+    by target:
+    - *to a stack:* with two CRs or more handed back `ready` with a PR, the first `take stack` (the
+      stack driver orders the CRs from the record's order, rebases and pushes each PR on the one
+      below, puts each PR it moves to draft, `forge-stack create`, turns the mergeable part ready); a
+      `working` CR's Driver gets `[foreman→driver <cr>] note rebase: stacked on <cr below>`; the
+      CRs not started join on top as they get their PR;
+    - *to parallel:* from a stack, first `$CHANTIER forge-stack unstack` (a refusal is an
+      `anomaly` / ask with the forge's exact text, no other means). Then each open CR with a PR gets
+      its rebase: a `ready` or `blocked` CR `take <cr> --note "rebase: mode parallel"`, a `working`
+      CR's Driver `[foreman→driver <cr>] note rebase: mode parallel`; queued CRs start as slots
+      free, on the default branch;
+    - *to a series:* from a stack, first `forge-stack unstack`. Then the same rebase notes with `rebase:
+      mode series`, bottom CR first: the bottom one is rebased on the default branch, each one above
+      on the one below, and a PR above the bottom is a draft (a stack's mergeable part shrinks to the
+      bottom PR);
+    - a stack driver running when the batch leaves a stack: `[foreman→stack] note mode: <mode>`; it
+      stops after the branch it is pushing (no further rebase, no `rebuild`) and hands back; then
+      `forge-stack unstack` and the rebase notes;
+    - a release CR already started when an ordered batch goes parallel: `take <release> --note
+      "redo: mode parallel"` once the others are merged (its PR closed meanwhile, branch kept).
+    Then `order done`.
 
   When one check fails, no
   ask: `take stack --note "<the check that failed>"` sends it back to a stack driver. A CR of the

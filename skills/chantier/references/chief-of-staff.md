@@ -911,7 +911,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   $CHANTIER order slots --note 0              # 0 holds; a number resumes
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
-  $CHANTIER order mode --note stack           # a series becomes a stack, on the user's word
+  $CHANTIER order mode --note parallel|series|stack   # any mode to any other, on the user's word
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
@@ -974,8 +974,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
   waiting on it; quote each gap of the ask as above; when the user says it is merged,
   `order merged <cr>`, then say what comes next. The user may merge the bottom PR as soon as it
   is ready to merge, which is what the series already does; nothing waits for a "go" of the user to merge.
-  Never merge for the user. On the user's word "switch to a stack" (or the like), `order mode
-  --note stack`.
+  Never merge for the user. On the user's word to switch to another mode (parallel, series or a
+  stack, from any of the three), `order mode --note <mode>`; the same in a parallel or a stack
+  batch. Tell the user what the switch does at once, from the line `order mode` printed: to a
+  stack or a series, the PRs above the bottom go to draft while the batch is rebuilt, and
+  "do not merge them meanwhile" (name them); from a stack to a series, the PRs that were ready to
+  merge above the bottom stop being mergeable (name them); to parallel, each open PR is rebased
+  on the default branch, its long gate and CI run again, and it leaves draft once ready. A merge
+  the user makes anyway is recorded as any merge (`order merged`). Merged CRs never change.
 - **A stack batch:** the one-action stack merge is not the only path. Before the stack is made on
   the forge, each CR handed back `ready` on the default branch is an ordinary `ready-to-merge` ask, offered
   as mergeable now (the bullet above); a CR above it, a draft on another CR's branch, waits. On a
