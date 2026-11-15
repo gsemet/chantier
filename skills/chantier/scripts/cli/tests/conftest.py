@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
 from chantier.cli import main
+from chantier.core import git as git_module
 
 SKILL = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = SKILL.parents[1]
@@ -32,9 +35,10 @@ def sh(*args: str, cwd: Path | None = None) -> str:
     ).stdout.strip()
 
 
-@pytest.fixture
-def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    work = tmp_path / "proj"
+@pytest.fixture(scope="session")
+def repo_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The git repository every test starts from, built once: `repo` copies it (git is slow)."""
+    work = tmp_path_factory.mktemp("template") / "proj"
     sh("git", "init", "--quiet", "-b", "main", str(work))
     (work / "README.md").write_text("demo\n")
     (work / "AGENTS.md").write_text("# Project instructions\n\nRun `just check`.\n")
@@ -53,6 +57,13 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     )
     # `open` checks that the remote exists; nothing reaches it
     sh("git", "remote", "add", "origin", "git@gitlab.example.com:acme/demo.git", cwd=work)
+    return work
+
+
+@pytest.fixture
+def repo(repo_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    work = tmp_path / "proj"
+    shutil.copytree(repo_template, work)
     monkeypatch.chdir(work)
     monkeypatch.setenv("CHANTIER_SKILL_DIR", str(SKILL))
     monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(PLUGIN_ROOT))
@@ -73,8 +84,23 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.fixture
-def chantier(capsys: pytest.CaptureFixture[str]) -> Chantier:
-    """Run `chantier …` in-process; returns (exit code, stdout lines, stderr)."""
+def chantier(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> Chantier:
+    """Run `chantier ...` in-process; returns (exit code, stdout lines, stderr).
+
+    Every command asks git for the repository's common folder, a process of 0.1 s on Windows:
+    a test's repository does not move, so the answer is kept per folder."""
+    real_git = git_module.git
+    asked: dict[str, str] = {}
+
+    def git_cached(*args: str, cwd: Path | None = None, **kw: Any) -> str:
+        if args[:3] != ("rev-parse", "--path-format=absolute", "--git-common-dir"):
+            return str(real_git(*args, cwd=cwd, **kw))
+        key = str(cwd)
+        if key not in asked:
+            asked[key] = str(real_git(*args, cwd=cwd, **kw))
+        return asked[key]
+
+    monkeypatch.setattr("chantier.core.repo.git", git_cached)
 
     def run(*args: object) -> tuple[int, list[str], str]:
         code = main([str(a) for a in args])
