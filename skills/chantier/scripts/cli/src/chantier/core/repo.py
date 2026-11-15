@@ -260,3 +260,9 @@ class Repo:
 
         states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
         return sorted(s.id for s in states if s.status != "paused")
+
+    def paused_batches(self) -> list[str]:
+        from chantier.core.records import read_batch_json  # noqa: PLC0415 - lazy pydantic
+
+        states = [read_batch_json(d / "batch.json") for d in self.batch_folders()]
+        return sorted(s.id for s in states if s.status == "paused")

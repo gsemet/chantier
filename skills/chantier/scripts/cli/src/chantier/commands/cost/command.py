@@ -99,7 +99,7 @@ def cost(args: argparse.Namespace) -> list[str]:
     """The batch's spend, read from the Foreman's transcript on the batch's host; `status
     --refresh` and `pause` record it."""
     repo = Repo.find()
-    batch = resolve_batch(repo, args.batch)
+    batch = resolve_batch(repo, args.batch, paused=True)
     d = read_batch(repo, batch)
     if not (d.foreman_transcripts or d.foreman_transcript):
         var = "$COPILOT_AGENT_SESSION_ID" if d.host == "copilot" else "$CLAUDE_CODE_SESSION_ID"

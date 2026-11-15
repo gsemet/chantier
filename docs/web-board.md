@@ -143,4 +143,5 @@ board:
   <checkout>`; never `uvx --from <checkout>`.
 - **When it stops.** With Ctrl-C, or by itself once no session that registered a seat holds it any
   more. A second `chantier board` on the same address says the board is already running and
-  prints the same link.
+  prints the same link. A port held by something else stops the start with the port named
+  and the way out (the running board's link when it is chantier's behind the same key, else `--port`).

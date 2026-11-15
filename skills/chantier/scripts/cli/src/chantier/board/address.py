@@ -8,8 +8,10 @@ import re
 import socket
 import urllib.error
 import urllib.request
+from http import HTTPStatus
 from typing import Any
 
+from chantier.board.guard import NEEDS_KEY
 from chantier.board.key import HEADER
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
@@ -86,12 +88,24 @@ def _call(base: str, key: str, method: str, route: str, body: Any = None) -> Any
         return json.loads(r.read(5_000_000))
 
 
+def _says_needs_key(e: urllib.error.HTTPError) -> bool:
+    try:
+        return NEEDS_KEY in e.read(10_000).decode("utf-8", "replace")
+    except OSError:
+        return False
+
+
 def probe(host: str, port: int, key: str) -> dict[str, Any] | str | None:
-    """None: nothing answers. A dict: a chantier board's `/api/board`, behind this key. "other":
-    something else holds the port."""
+    """None: nothing answers. A dict: a chantier board's `/api/board`, behind this key.
+    "another-key": a chantier board that refused this key. "other": something else holds the
+    port."""
     try:
         data = _call(_base(host, port), key, "GET", "/api/board")
-    except (urllib.error.HTTPError, ValueError):
+    except urllib.error.HTTPError as e:
+        return (
+            "another-key" if e.code == HTTPStatus.UNAUTHORIZED and _says_needs_key(e) else "other"
+        )
+    except ValueError:
         return "other"
     except OSError:
         return None
