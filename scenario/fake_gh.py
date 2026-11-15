@@ -18,6 +18,8 @@ if args[:2] == ["extension", "list"]:
 elif args[:2] == ["pr", "create"]:
     n = state["next_pr"]
     state["next_pr"] = n + 1
+    if "--base" in args:  # the PR's base on the forge, as `pr create --base` set it
+        state.setdefault("bases", {})[str(n)] = args[args.index("--base") + 1]
     json.dump(state, open(state_path, "w"))
     print("Creating pull request…")
     print(f"https://github.com/acme/demo/pull/{n}")
@@ -32,6 +34,9 @@ elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a)
     path = next(a for a in args if re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a))
     number = int(path.rsplit("/", 1)[1])
     bases = state.setdefault("bases", {})
+    if "PATCH" not in args and state.get("pull_read_refused"):  # a read the forge refuses
+        print("fake gh: HTTP 403: cannot read the pull request", file=sys.stderr)
+        sys.exit(1)
     if "PATCH" in args:
         new = next(a.split("=", 1)[1] for a in args if a.startswith("base="))
         if any(s["open"] and number in s["pull_requests"] for s in state.get("stacks", [])):

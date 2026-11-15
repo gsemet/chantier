@@ -33,6 +33,9 @@ one = re.fullmatch(r"merge_requests/(\d+)", path)
 if path == "merge_requests" and method == "POST":
     n = state["next_pr"]
     state["next_pr"] = n + 1
+    raw = dict(a.split("=", 1) for i, a in enumerate(args) if i and args[i - 1] == "--raw-field")
+    mrs[str(n)] = {"state": "opened", "draft": False, "source_branch": raw.get("source_branch", ""),
+                   "target_branch": raw.get("target_branch", "main"), "web_url": f"{URL}/-/merge_requests/{n}"}
     json.dump(state, open(state_path, "w"))
     print(json.dumps({"iid": n, "web_url": f"{URL}/-/merge_requests/{n}"}))
 elif re.fullmatch(r"merge_requests/\d+/merge", path) and method == "PUT":
@@ -48,6 +51,9 @@ elif path == "merge_requests" and method == "GET":
         if mrs[i]["state"] == "opened" and (not target or mrs[i]["target_branch"] == target)
     ]
     print(json.dumps(rows if fields.get("page", "1") == "1" else []))
+elif one and method == "GET" and state.get("pull_read_refused"):  # a read the forge refuses
+    print("fake glab: 403 Forbidden: cannot read the merge request", file=sys.stderr)
+    sys.exit(1)
 elif one and one.group(1) in mrs and method == "GET":
     print(json.dumps(shown(one.group(1))))
 elif one and one.group(1) in mrs and method == "PUT":

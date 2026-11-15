@@ -165,10 +165,13 @@ def handback_refusals(
     return carried or None
 
 
-def live_cr(b: Batch, cr: str) -> CrEntry:
-    """The CR a Driver holds, or the refusal that says why none does."""
+def live_cr(b: Batch, cr: str, result: str = "") -> CrEntry:
+    """The CR a Driver holds, or the refusal that says why none does. A `ready` hand-back is also
+    accepted from a `blocked` CR that still has its Driver recorded (not a release)."""
     c = b.cr(cr)
     if c.status in LIVE:
+        return c
+    if c.status == "blocked" and result == "ready" and c.agent and c.kind != "release":
         return c
     if c.status in ("ready", "blocked"):
         raise ChantierError(

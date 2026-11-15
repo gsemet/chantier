@@ -64,8 +64,14 @@ SAMPLES = (
     (
         "batch",
         "dev",
-        "uv run --locked --project /checkout chantier status",
-        "uv run --locked --project * chantier *",
+        "uv run --no-sync --project /checkout chantier status",
+        "uv run --no-sync --project * chantier *",
+    ),
+    (
+        "batch",
+        "dev",
+        "uv sync --locked --project /checkout",
+        "uv sync --locked --project *",
     ),
     (
         "batch",

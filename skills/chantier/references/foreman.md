@@ -90,7 +90,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   the one read at your last wake: `ready` or `blocked`, no message, `take <cr> --note "<the
   note>"` and the take-back path below; `working`, the `[foreman→driver <cr>] note <text>`
   message. A hand-back that lands between that read and the message is caught by the Driver, who
-  passes the note back: then take the CR back as for a CR handed back `ready`.
+  passes the note back: then take the CR back as for a CR handed back `ready`. A `blocked` CR
+  whose Driver is still recorded may be handed back `ready` by that Driver with no `take` (a
+  `hand-back ready … it was blocked: …` line, see the take-back list below).
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Your git
@@ -360,7 +362,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
        deleted.
     4. `git fetch <remote> <default>`. A failure: do nothing. `<why>` = `fetch failed: <git's
        text>`.
-    5. `git merge --ff-only --no-overwrite-ignore <remote>/<default>`, only this form: never `git
+    5. Note `git rev-parse HEAD` as `<before>`, then `git merge --ff-only --no-overwrite-ignore
+       <remote>/<default>`, only this form: never `git
        pull`, `reset`, `rebase`, `stash`, `clean`, `checkout`, `switch` or a merge without both
        flags. It succeeds: done, `fast-forwarded to <sha7>` (the new `HEAD`), or `already at
        <sha7>` when there was nothing to bring. Git refuses it: do nothing more, retry nothing;
@@ -372,7 +375,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     several): `$CHANTIER note <cr> "main checkout: fast-forwarded to <sha7>"`, `"main checkout:
     already at <sha7>"` or `"main checkout: not fast-forwarded: <why>"`, with no `--epoch`. No ask,
     no message: the Chief of Staff reads the note for its next report. The CR's state is
-    unchanged.
+    unchanged. After a fast-forward, when `git diff --quiet <before> HEAD -- uv.lock` says
+    `uv.lock` changed (exit 1), the note is `main checkout: fast-forwarded to <sha7>; uv.lock
+    changed: sync pending`: you never sync, the Chief of Staff does (chantier's own checkout, the
+    dev mode).
   - **After:** no reload of the plugin, no new reading of the cards (the CLI is read live; the
     cards load at the next session or with `/reload-plugins`). The next merge recorded tries
     again from step 1.
@@ -392,6 +398,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     Driver that ended without its hand-back, with `take <cr> --note "resume: <the take's note>"`
     (the CR is `working`: no new slot).
   - A CR taken back from `blocked` keeps a new CR Driver.
+  - A `[driver <cr>→foreman] hand-back ready … it was blocked: …` comes from a blocked CR whose
+    Driver was still recorded (a `waits:` that landed, a `question:` answered to it, an `infra:`
+    that cleared): the CLI accepted it after its usual checks, the CR is `ready`, and it needs no
+    `take`. Handle it as any ready hand-back. A release stays `blocked` until `take <release>
+    --note`.
 - A Driver's `[driver <cr>→foreman] push <branch> <expected remote sha> <local sha>` (its force
   push was refused): you push nothing yourself. Pass it as it is to the Chief of Staff,
   `[foreman→chief-of-staff] push <branch> <expected remote sha> <local sha>`, not through

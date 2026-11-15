@@ -70,15 +70,25 @@ def is_dev_checkout() -> bool:
 def cli_command(repo: Repo | None = None) -> str:
     """How every agent runs this CLI, by the mode of the install. In chantier's own checkout (the
     plugin root holds `.git`, a folder or a file) it runs the local code,
-    `uv run --locked --project "<plugin root>" chantier`; anywhere else (a host's plugin copy) it
-    runs the plugin's own folder, `uvx --from "<plugin root>" chantier --skill "<skill folder>"`.
+    `uv run --no-sync --project "<plugin root>" chantier` (the environment is synced at named
+    moments by the steering session, with `sync_command()`, never by a command); anywhere else (a
+    host's plugin copy) it runs the plugin's own folder,
+    `uvx --from "<plugin root>" chantier --skill "<skill folder>"`.
     A planning surface adds `--project "<folder>"` after `chantier`."""
     skill = skill_dir()
     root = skill.parents[1]
     option = f' --project "{repo.project_folder.as_posix()}"' if repo and repo.external else ""
     if is_dev_checkout():
-        return f'uv run --locked --project "{root.as_posix()}" chantier{option}'
+        return f'uv run --no-sync --project "{root.as_posix()}" chantier{option}'
     return f'uvx --from "{root.as_posix()}" chantier --skill "{skill.as_posix()}"{option}'
+
+
+def sync_command() -> str | None:
+    """The dev mode's sync line, `uv sync --locked --project "<plugin root>"`, run by the steering
+    session at named moments; None in the plugin mode."""
+    if not is_dev_checkout():
+        return None
+    return f'uv sync --locked --project "{skill_dir().parents[1].as_posix()}"'
 
 
 def detect_host(explicit: str | None = None) -> str:

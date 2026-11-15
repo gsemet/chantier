@@ -12,7 +12,7 @@ from conftest import PLUGIN_ROOT, SKILL, load_script
 
 from chantier import __version__
 from chantier.playbook.models import MODELS, normalise, resolve
-from chantier.plugin_files import cli_command
+from chantier.plugin_files import cli_command, sync_command
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}
 
@@ -286,24 +286,35 @@ def test_each_host_has_its_reference_and_the_cards_hold_no_host_tool() -> None:
 
 
 def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def command_for(root: Path, *, git: bool) -> str:
+    def command_for(root: Path, *, git: bool, sync: bool = False) -> str | None:
         skill = root / "skills" / "chantier"
         skill.mkdir(parents=True)
         (skill / "SKILL.md").write_text("x\n", encoding="utf-8")
         if git:
             (root / ".git").mkdir()
         monkeypatch.setenv("CHANTIER_SKILL_DIR", str(skill))
-        return cli_command()
+        return sync_command() if sync else cli_command()
 
     dev = tmp_path / "dev"
     plugin = tmp_path / "plugin"
-    assert command_for(dev, git=True) == f'uv run --locked --project "{dev.as_posix()}" chantier'
+    assert command_for(dev, git=True) == f'uv run --no-sync --project "{dev.as_posix()}" chantier'
+    dev2, plugin2 = tmp_path / "dev2", tmp_path / "plugin2"
+    assert command_for(dev2, git=True, sync=True) == (
+        f'uv sync --locked --project "{dev2.as_posix()}"'
+    )
+    assert command_for(plugin2, git=False, sync=True) is None
     skill = (plugin / "skills" / "chantier").as_posix()
     assert command_for(plugin, git=False) == (
         f'uvx --from "{plugin.as_posix()}" chantier --skill "{skill}"'
     )
     for name in ("chantier", "chief-of-staff", "griller", "status"):
         text = (PLUGIN_ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
-        for form in ("uv run --locked --project", "uvx --from", "--skill", ".git"):
+        for form in (
+            "uv run --no-sync --project",
+            "uv sync --locked --project",
+            "uvx --from",
+            "--skill",
+            ".git",
+        ):
             assert form in text, f"{name}/SKILL.md does not name `{form}`"
         assert "git+https" not in text, f"{name}/SKILL.md hard-codes a ref"

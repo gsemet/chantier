@@ -137,7 +137,9 @@ board:
 - **By hand.** `chantier board --host <address> --port <n>`. With no plugin and no agent, on a
   machine where only `uv` is installed, start it from a planning surface with
   `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
-  (`<version>` is the release the surface's planners use).
+  (`<version>` is the release the surface's planners use). In chantier's own checkout, start it
+  with `uv run --no-sync --project <checkout> chantier board` after a `uv sync --locked --project
+  <checkout>`; never `uvx --from <checkout>`.
 - **When it stops.** With Ctrl-C, or by itself once no session that registered a seat holds it any
   more. A second `chantier board` on the same address says the board is already running and
   prints the same link.

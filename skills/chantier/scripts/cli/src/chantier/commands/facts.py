@@ -13,6 +13,7 @@ from chantier.commands.crs import (
     last_verdict,
     short_head,
 )
+from chantier.commands.forge_base import stacked_read
 from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import cr_directory
@@ -28,9 +29,14 @@ def _ref(repo: Repo, branch: str) -> str:
 
 
 def _base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """The ref the CR's branch starts on: the remote's default branch, or the branch of its
-    last open dependency."""
-    return _ref(repo, start_base(d, c, repo))
+    """The `base <ref>` a CR's `worktree:` line ends with: the ref its branch starts on (the
+    remote's default branch, or the branch of its last open dependency); for a stacked CR with a
+    PR, the PR's base read from the forge, or `base ? (not read from <link>: …)`."""
+    read = stacked_read(d, c)
+    if read is not None:
+        branch, unread = read
+        return f"base {_ref(repo, branch)}" if branch else unread
+    return f"base {_ref(repo, start_base(d, c, repo))}"
 
 
 def _stack_ref(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
@@ -53,7 +59,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         f"project instructions: {found.as_posix() if found else 'none'}",
         f"specification: {(folder / c.specification).as_posix()}",
         f"folder: {folder.as_posix()} (work/, evidence/)",
-        f"worktree: {c.worktree} branch {c.branch} base {_base_of(d, c, repo)}"
+        f"worktree: {c.worktree} branch {c.branch} {_base_of(d, c, repo)}"
         + ("" if made else "; not created yet: a Driver creates it first"),
         *(
             [f"clone: {repo.clone.as_posix()} (`git -C` it to create the worktree)"]

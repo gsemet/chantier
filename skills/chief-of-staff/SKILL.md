@@ -18,7 +18,7 @@ description: >-
 
 chantier-version: 0.9.0
 
-`$CHANTIER` is the CLI, one launch in two modes, checked once at the session's start. The plugin root is the folder two levels above the common skill (`<plugin root>` = `<../chantier made absolute>/../..`, made absolute). If `<plugin root>/.git` exists (a folder or a file), this is chantier's own checkout, the dev mode: `$CHANTIER` is `uv run --locked --project "<plugin root>" chantier`, the local code, live, with no fetch. Otherwise it is a host's plugin copy, the plugin mode: `$CHANTIER` is `uvx --from "<plugin root>" chantier --skill "<../chantier made absolute>"`, the plugin's own folder, with no fetch.
+`$CHANTIER` is the CLI, one launch in two modes, checked once at the session's start. The plugin root is the folder two levels above the common skill (`<plugin root>` = `<../chantier made absolute>/../..`, made absolute). If `<plugin root>/.git` exists (a folder or a file), this is chantier's own checkout, the dev mode: run `uv sync --locked --project "<plugin root>"` once, before the first `$CHANTIER` command (a sync that fails, os error 32 because another session's board or gate runs, or any uv error, is one line to the user with uv's text, and the session goes on), then `$CHANTIER` is `uv run --no-sync --project "<plugin root>" chantier`, the local code, live, with no fetch; only the steering session syncs, never a Foreman, a Driver or a worker. Otherwise it is a host's plugin copy, the plugin mode: `$CHANTIER` is `uvx --from "<plugin root>" chantier --skill "<../chantier made absolute>"`, the plugin's own folder, with no fetch.
 
 The common skill is at `../chantier/` from this file's folder, with its cards
 (`../chantier/references/`), its CLI (`../chantier/scripts/cli/`) and its assets.

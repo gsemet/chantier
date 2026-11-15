@@ -152,7 +152,9 @@ def handback(args: argparse.Namespace) -> list[str]:
         changes_lock(repo),
         RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b,
     ):
-        c = live_cr(b, args.cr)
+        c = live_cr(b, args.cr, args.result)
+        was_blocked = c.status == "blocked"  # a ready hand-back from the Driver that blocked
+        reason = c.blocked_reason or ""
         line = f"[driver {args.cr}→foreman] hand-back {args.result} {note}"
         if args.result == "blocked":
             return handback_blocked(b, c, note, line)
@@ -176,21 +178,42 @@ def handback(args: argparse.Namespace) -> list[str]:
         if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
         carried = handback_refusals(repo, b, c, no_gate, prepared)
-        b.log(
-            "handback",
-            args.cr,
-            result=args.result,
-            note=note,
-            **({"no_gate": no_gate} if no_gate is not None else {}),
-            **({"gate_from": carried} if carried else {}),
-        )
-        b.touch(c, status="ready")
-        c.clear_phase()
-        gate = f", no long gate: {no_gate}" if no_gate is not None else ""
-        if carried:
-            base = stack_base(b.record, c, repo)
-            gate = f", long gate carried from {short_head(carried)} (clean rebase onto {base})"
-        return _ready_lines(repo, b.record, c, prepared, f"{gate} {note}")
+        said = (note, no_gate, prepared)
+        return _record_ready(repo, b, c, said, (carried, reason if was_blocked else ""))
+
+
+def _record_ready(
+    repo: Repo,
+    b: RenderedBatch,
+    c: CrEntry,
+    said: tuple[str, str | None, bool],
+    carried_reason: tuple[str | None, str],
+) -> list[str]:
+    """The ready hand-back in the record; `reason` is the block it ends, when the CR was blocked,
+    and `carried` the head whose long gate a clean rebase carries."""
+    note, no_gate, prepared = said
+    carried, reason = carried_reason
+    b.log(
+        "handback",
+        c.id,
+        result="ready",
+        note=note,
+        **({"no_gate": no_gate} if no_gate is not None else {}),
+        **({"gate_from": carried} if carried else {}),
+        **({"from_blocked": reason} if reason else {}),
+    )
+    if reason:
+        c.append("notes", f"ready after blocked: {reason}")
+    b.touch(c, status="ready", **({"blocked_reason": None} if reason else {}))
+    c.clear_phase()
+    gate = f", no long gate: {no_gate}" if no_gate is not None else ""
+    if carried:
+        base = stack_base(b.record, c, repo)
+        gate = f", long gate carried from {short_head(carried)} (clean rebase onto {base})"
+    lines = _ready_lines(repo, b.record, c, prepared, f"{gate} {note}")
+    if reason:
+        lines[-1] += f"; it was blocked: {reason}"
+    return lines
 
 
 def _ready_lines(repo: Repo, d: BatchRecord, c: CrEntry, prepared: bool, tail: str) -> list[str]:
