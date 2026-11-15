@@ -6,6 +6,7 @@ import argparse
 from dataclasses import dataclass
 
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
+from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
 from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -41,6 +42,10 @@ def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
         )
     if kind == "qa" and not note.strip():
         raise ChantierError('order qa --note "<what to test>"', EXIT_USAGE)
+    if args.follow_up and kind != "waive":
+        raise ChantierError("--follow-up goes with `order waive <cr>` alone", EXIT_USAGE)
+    if kind == "waive" and (not args.cr or args.cr == "-"):
+        raise ChantierError(WAIVE_USAGE, EXIT_USAGE)
     if kind in CR_ORDERS and (not args.cr or args.cr == "-"):
         raise ChantierError(
             "order rounds <cr> --note <n>" if kind == "rounds" else f"order {kind} <cr>",
@@ -90,20 +95,36 @@ class _Req:
     note: str
     own: bool
     new_release: bool
+    oid: str = ""
 
 
 def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
     cr = req.cr
     if args.kind == "after" and not any(x.id == cr for x in b.record.crs):
         raise ChantierError(f"order after: unknown CR {cr} in batch {b.id}")
-    has_cr = args.kind in CR_ORDERS or (args.kind == "note" and cr != "-")
+    has_cr = (
+        args.kind in CR_ORDERS
+        or (args.kind == "note" and cr != "-")
+        or (args.kind == "waive" and cr != "stack")
+    )
     c = b.cr(cr) if has_cr else None
-    return Word(b, args.kind, cr, c, req.note, args.fix_for, req.own, req.new_release)
+    return Word(
+        b,
+        args.kind,
+        cr,
+        c,
+        req.note,
+        args.fix_for,
+        req.own,
+        req.new_release,
+        follow_up=args.follow_up,
+        order_id=req.oid,
+    )
 
 
 def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
     cr, note, own, new_release = req.cr, req.note, req.own, req.new_release
-    oid = f"O-{len(b.record.orders) + 1}"
+    oid = req.oid
     # The CLI did its whole part, the Foreman only has to end the order: not a note (the
     # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
     applied = args.kind not in {"note", "qa"} and not (
@@ -120,6 +141,7 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
             done=now() if own else None,
             **({} if own else {"applied": applied}),
             **({"fix_for": args.fix_for} if args.fix_for else {}),
+            **({"follow_up": args.follow_up} if args.follow_up else {}),
             **({"release": True} if new_release else {}),
         ),
     )
@@ -138,7 +160,11 @@ def order(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     if args.kind == "done":
         return _order_done(repo, args)
-    if args.kind in CR_ORDERS or args.kind == "note":
+    if (
+        args.kind in CR_ORDERS
+        or args.kind == "note"
+        or (args.kind == "waive" and args.cr != "stack")
+    ):
         args.cr = _cr_arg(args.cr)
     args.fix_for = _cr_arg(args.fix_for)
     if args.kind == "after" and note.strip() != "-":
@@ -166,7 +192,7 @@ def order(args: argparse.Namespace) -> list[str]:
         reopened = _reopen(b, args.kind)
         if args.kind == "qa":
             cr = _qa_folder(repo, b, note)
-        req = _Req(cr, note, own, new_release)
+        req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}")
         effect = reopened + apply_order(_word(b, args, req))
         oid = _record_order(b, args, req)
     if own:

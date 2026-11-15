@@ -1,6 +1,7 @@
 // What chantier's words mean, in one place. Pure: no DOM, no fetch. Every view reads the meanings
 // here and nowhere else (02-answers, "Semantics fixed"). A `batch` is the record's batch, its
 // `crs` the rows of the batch; a `c` is one row.
+import { prNumber, safeUrl } from '../core/format.js';
 import { t } from './words.js';
 
 const CLOSED = ['merged', 'cancelled'];
@@ -124,6 +125,36 @@ export function placeOf(c, batch, index) {
 
 // Why a PR is not to review yet.
 export const draftWhy = (c) => (vstate(c) === 'draft' ? t('pr.draft') : t(`state.${vstate(c)}`));
+
+// The long gate's words, from the row's `gate` object: the words `chantier status` uses. Empty for
+// a CR with no gate to say (none, and no stack to validate).
+function waivedWords(g) {
+  const by = g.validated_by;
+  if (by) {
+    const number = prNumber(by.pr);
+    return t('gate.waived_by', { target: number ? `${by.cr} (${number})` : by.cr });
+  }
+  return g.follow_up ? t('gate.waived_follow', { folder: g.follow_up }) : t('gate.waived');
+}
+
+export function gateWords(c) {
+  const g = c.gate;
+  if (!g) return '';
+  const own = {
+    queued: t('gate.queued'),
+    running: t('gate.running'),
+    passed: t('gate.passed', { head: g.head }),
+    carried: t('gate.carried', { head: g.head }),
+    failed: t('gate.failed', { head: g.head }),
+    exempt: t('gate.exempt', { rule: g.waiver }),
+    waived: waivedWords(g),
+  }[g.state];
+  const validates = g.validates?.length ? t('gate.validates', { crs: g.validates.join(', ') }) : '';
+  return [own, validates].filter(Boolean).join('; ');
+}
+
+// The PR of the CR whose gate validates a covered CR, when it has a web address.
+export const gateLink = (c) => safeUrl(c.gate?.validated_by?.pr);
 
 // The CRs in levels: a CR is one level above the highest of its dependencies in the batch; a
 // cycle counts as level 0.

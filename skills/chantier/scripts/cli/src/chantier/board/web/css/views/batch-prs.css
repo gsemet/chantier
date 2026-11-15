@@ -106,6 +106,20 @@
   flex-wrap: wrap;
 }
 
+.batch .prc .gate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: var(--text-small);
+  color: var(--ink2);
+}
+
+.batch .prc .gate .gl {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .batch .prc .fold {
   padding: 0 6px;
   border: 1px solid var(--line);

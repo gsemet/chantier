@@ -1,17 +1,18 @@
-"""What a CR went through, from its log, then what is still ahead of it."""
+"""The steps of a CR's page: what its log says it went through, then what is still ahead."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from chantier.core.records import CrEntry, EventRecord
+from chantier.core.records import BatchRecord, CrEntry, EventRecord
+from chantier.status.gate import event_step
 from chantier.status.words import ENDED
 
 AHEAD = ("Shipped", "Handed back")
 
 
-def _step_entries(
-    e: EventRecord, c: CrEntry, out: list[dict[str, Any]]
+def step_entries(
+    e: EventRecord, d: BatchRecord, c: CrEntry, out: list[dict[str, Any]]
 ) -> list[tuple[str, str, str]]:
     """The steps (name, verdict, note) one event of the log makes."""
     kind, note = e.kind, e.note or ""
@@ -29,20 +30,21 @@ def _step_entries(
     if kind == "handback":
         if result != "ready":
             return [("Blocked", "", note)]
-        # handed back with no long gate: the reason is shown
-        waived = [("Long gate", f"waived: {e.no_gate}", "")] if e.no_gate else []
-        return [*waived, ("Handed back", "", "")]
+        # handed back with no long gate pass of its own: the exemption, the waiver or the
+        # carried pass is shown, in the words of the "Long gate" column
+        says = event_step(d, e)
+        return [*([("Long gate", says, "")] if says else []), ("Handed back", "", "")]
     merged = kind == "order" and e.order_kind == "merged"
     if merged and not any(s["name"] == "Merged" for s in out):
         return [("Merged", "", c.pr or "")]
     return []
 
 
-def steps(c: CrEntry, events: list[EventRecord]) -> list[dict[str, Any]]:
+def steps(d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> list[dict[str, Any]]:
     """What the CR went through, from its log, then what is still ahead of it."""
     out: list[dict[str, Any]] = []
     for e in events:
-        for name, verdict, note in _step_entries(e, c, out):
+        for name, verdict, note in step_entries(e, d, c, out):
             out.append({"name": name, "done": True, "verdict": verdict, "note": note, "at": e.t})
     if c.status not in ENDED and c.kind != "release":
         seen = {s["name"] for s in out}

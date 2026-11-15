@@ -26,6 +26,11 @@ leaves the Foreman's heartbeat alone (only the loop's wake, `--refresh --epoch <
   thing already on its way, named: the stack driver, another CR, a fix of a release, a slot, the
   user's word on a release, the budget a queued CR cannot start on; ⚪ is a queued CR that could start now. 🔴 is a CR that
   nothing moves until someone decides or repairs it.
+- `STATUS.md`, `status` and `STATUS.json` carry each CR's long gate: a "Long gate" column in the
+  tables, one `gate` object in the JSON, the same words in each: `passed abc1234`, `carried from
+  abc1234`, `queued`, `running`, `failed abc1234`, `waived → CR-k (#n)` (or `waived → follow-up
+  <folder>`), `validates CR-a, CR-b` (the top of a waived stack), `exempt: <rule>`, `-`. Copy
+  the words when a report names a CR's long gate; a report adds no column for it.
 
 ## Progress
 
@@ -110,7 +115,10 @@ the pause (the cost to date):
 - the CR table has the columns CR, subject, result, PR, rounds, cost;
 - after **Cost notes**, in this order:
   - **What the batch did not prove:** each CR handed back with `--no-gate` and its reason (the
-    CR's "Long gate" step shows `waived: <reason>`);
+    CR's "Long gate" step shows `exempt: <reason>`), and each CR handed back under a waiver
+    (`order waive`) with its validating CR, or with its follow-up folder when nothing in the batch
+    validates it (the step shows `waived (O-<k>): validated by CR-<k> (#<n>)` or `follow-up
+    <folder>`; `carried from <sha7>` is a pass carried over a clean rebase, not a gap);
   - the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
     `work/retro.md` if the batch had a release, each point once), one numbered line each,
     `<n>. [<tag>] <problem>: <long-term fix>`, one numbering across both tags so the user answers

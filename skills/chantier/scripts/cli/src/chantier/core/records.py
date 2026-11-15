@@ -56,6 +56,15 @@ class BatchSettings(Record):
     max_rounds: int = DEFAULT_MAX_ROUNDS
 
 
+class GateWaiver(Record):
+    """A long gate the user waived for a CR, as the order that recorded it says."""
+
+    order: str
+    scope: str
+    note: str = ""
+    follow_up: str | None = None
+
+
 class CrEntry(Record):
     """A CR of the batch, as `batch.json` lists it."""
 
@@ -91,6 +100,7 @@ class CrEntry(Record):
     rounds: int | None = None
     attempts: int = 0
     stacked: bool = False
+    gate_waiver: GateWaiver | None = None
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
     phase_detail: str | None = None
     phase_at: str | None = None
@@ -122,6 +132,7 @@ class OrderRecord(Record):
     applied: bool | None = None
     agent: str | None = None
     fix_for: str | None = None
+    follow_up: str | None = None
     release: bool = False
 
 

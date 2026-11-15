@@ -396,7 +396,12 @@ defaults, not a gate.
   project's rule>"` replaces the long gate check only, never the head, clean, pushed and verdict
   checks, and only where the project's rules declare none or exempt this CR, and quotes that rule:
   the steering session checks it, and sends the CR back with a note if it does not hold: run
-  the long gate, then hand back again without `--no-gate`; just before
+  the long gate, then hand back again without `--no-gate`; a CR whose `take` or `handoff` prints
+  `gate: waived (O-<k>, …)` runs no long gate and hands back with no `--no-gate`: the CLI
+  reads the recorded waiver and prints `long gate waived (O-<k>): validated by CR-<top>'s gate`
+  (or `follow-up <folder>`) in the line to send; the stack's top, whose `gate:` line says `this
+  CR's long gate validates the stack`, runs its gate as any CR does, and a fix its gate finds
+  goes on the top PR or a PR above it; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
   branch, then runs `ship <cr> <link>` again without `--draft` (a PR turned back to a draft is shipped
   again with `--draft`); on another base it stays a draft (PR in draft) and the text after the link says so and what it

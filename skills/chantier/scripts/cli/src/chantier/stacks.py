@@ -4,7 +4,7 @@ Read by the commands and by the status and board views, so it lives below both."
 
 from __future__ import annotations
 
-from chantier.core.records import BatchRecord, CrEntry
+from chantier.core.records import BatchRecord, CrEntry, GateWaiver
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
 
@@ -33,6 +33,38 @@ def top_cr(b_data: BatchRecord) -> CrEntry | None:
         return None
     open_ = [x for x in b_data.crs if x.status not in ENDED and x.kind not in {"release", "fix"}]
     return max(open_, key=lambda x: x.order, default=None)
+
+
+def stack_top(b_data: BatchRecord) -> CrEntry | None:
+    """The stack's top under the release: the last CR of `chain`, the release and a fix left out.
+    The CR whose long gate validates a stack waiver; never stored, read from the chain."""
+    return next((x for x in reversed(chain(b_data)) if x.kind not in {"release", "fix"}), None)
+
+
+def waived_gate(b_data: BatchRecord, c: CrEntry) -> GateWaiver | None:
+    """The waiver that covers this CR's long gate, or None. A `cr` waiver covers its CR; a
+    `stack` waiver covers every CR of the chain but the stack's top, whose gate validates."""
+    w = c.gate_waiver
+    if w is None:
+        return None
+    if w.scope != "stack":
+        return w
+    top = stack_top(b_data)
+    return w if top is not None and top.id != c.id else None
+
+
+def validating_cr(b_data: BatchRecord, c: CrEntry) -> CrEntry | None:
+    """The CR whose gate validates this CR's `stack` waiver, None for any other CR."""
+    w = waived_gate(b_data, c)
+    return stack_top(b_data) if w is not None and w.scope == "stack" else None
+
+
+def validated_ids(b_data: BatchRecord, c: CrEntry) -> list[str]:
+    """The CRs a stack waiver leaves to this CR's gate: the stack's top, when it carries one."""
+    top = stack_top(b_data)
+    if top is None or top.id != c.id or c.gate_waiver is None or c.gate_waiver.scope != "stack":
+        return []
+    return [x.id for x in chain(b_data) if validating_cr(b_data, x) is c]
 
 
 def next_merge(b_data: BatchRecord) -> CrEntry | None:

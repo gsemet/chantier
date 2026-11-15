@@ -14,7 +14,8 @@ from conftest import PLUGIN_ROOT, load_script
 
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
-from chantier.commands.crs import gate_passed, last_verdict
+from chantier.commands.crs import last_verdict
+from chantier.core.heads import gate_passed
 from chantier.core.ids import normalize_cr
 from chantier.core.records import BatchRecord, CrEntry, EventRecord
 from chantier.status.words import next_to_start, phase_text

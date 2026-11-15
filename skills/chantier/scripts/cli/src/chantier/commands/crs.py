@@ -9,6 +9,7 @@ from pathlib import Path
 from chantier.core.batch import Batch, find_cr_batch, read_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
+from chantier.core.heads import gate_passed, same_head
 from chantier.core.ids import normalize_cr
 from chantier.core.records import (
     BatchRecord,
@@ -53,14 +54,6 @@ def cr_events(repo: Repo, batch: str, cr_id: str) -> list[EventRecord]:
     return [e for e in read_events(repo.batch_dir(batch)) if e.cr == cr_id]
 
 
-def same_head(recorded: str | None, head: str | None) -> bool:
-    """Heads are recorded as the full SHA. One recorded short before (an open batch from an older
-    version) matches the full SHA it is a prefix of."""
-    if not recorded or not head:
-        return False
-    return recorded == head or head.startswith(recorded) or recorded.startswith(head)
-
-
 def short_head(head: str | None) -> str:
     """A head for display only: 7 characters."""
     return (head or "")[:7]
@@ -69,19 +62,6 @@ def short_head(head: str | None) -> str:
 def dirty_files(wt: Path) -> str:
     """The worktree's tracked changes and untracked files, as `git status --porcelain` says."""
     return git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
-
-
-def gate_passed(events: list[EventRecord], head: str | None) -> bool:
-    """A long gate passed at a head: the last `gate` invocation at that head passed every command
-    it was given. The events of one invocation share a `run`; it stops at its first failure, so
-    its last event says. An event with no `run` (an older record) is an invocation by itself."""
-    here = [e for e in events if e.kind == "gate" and same_head(e.head, head)]
-    if not here:
-        return False
-    run = here[-1].run
-    if run is None:
-        return bool(here[-1].result == "pass")
-    return all(e.result == "pass" for e in here if e.run == run)
 
 
 MERGE_TREE_GIT = (2, 38)  # `git merge-tree --write-tree` needs it

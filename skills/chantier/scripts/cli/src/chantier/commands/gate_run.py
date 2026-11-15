@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 from chantier import procs
-from chantier.commands.gate_slots import Holder, Slot, mtime
 from chantier.core.batch import Batch
 from chantier.core.records import RunRecord
+from chantier.gate_slots import Holder, Slot, mtime
 
 
 # A slot's run file (`.long-gate.run` for slot 1, `.long-gate.<k>.run` after; planning folder,

@@ -14,14 +14,14 @@ from typing import Any
 from chantier import procs
 from chantier.commands.crs import batch_cr, cr_worktree, dirty_files, short_head, work
 from chantier.commands.gate_lock import LongGateLock
-from chantier.commands.gate_queue import move_first
 from chantier.commands.gate_run import run_write, stop_asked, stop_gate
-from chantier.commands.gate_slots import Slot, running_crs, slot_of
 from chantier.core.batch import check_epoch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
 from chantier.core.records import RunRecord
 from chantier.core.repo import Repo
+from chantier.gate_queue import move_first
+from chantier.gate_slots import Slot, running_crs, slot_of
 from chantier.lifecycle.session import RenderedBatch
 from chantier.playbook.config import FILE, load_long_gate
 

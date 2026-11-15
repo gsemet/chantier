@@ -11,10 +11,10 @@ import time
 from pathlib import Path
 
 from chantier import procs
-from chantier.commands.gate_slots import mtime
 from chantier.core.errors import ChantierError
 from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
+from chantier.gate_slots import holder_alive, list_slots, mtime
 from chantier.stacks import next_merge
 
 QUEUE = ".long-gate.queue"
@@ -102,3 +102,21 @@ def move_first(repo: Repo, cr: str) -> list[str] | None:
     for p in mine:
         (queue / f"{MARK}{p.name}").touch()
     return ahead
+
+
+def gate_state(repo: Repo, cr: str) -> str | None:
+    """`gate running` when a slot names the CR and its command or suite still lives;
+    `gate queued behind <crs>` (the live holders, else the first ticket; bare `gate queued` when
+    it is next) for a live ticket; else None."""
+    live = []
+    for v in list_slots(repo):
+        if v.holder and holder_alive(v.slot.lock, v.holder, True):
+            live.append(v.holder.cr)
+    if cr in live:
+        return "gate running"
+    queue = queued_crs(repo)
+    if cr not in queue:
+        return None
+    if live:
+        return f"gate queued behind {', '.join(live)}"
+    return f"gate queued behind {queue[0]}" if queue.index(cr) else "gate queued"

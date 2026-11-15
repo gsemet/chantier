@@ -11,6 +11,7 @@ import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter } from '../ui/parts.js';
 import { bindLight, drawEdges, graphBlock } from './batch-graph.js';
+import { bindGateLinks } from './batch-pr-card.js';
 import { prsBlock } from './batch-prs.js';
 
 const MODES = ['stack', 'series', 'parallel'];
@@ -52,7 +53,7 @@ export function mount(root) {
     frame = requestAnimationFrame(() => drawEdges(root, rowsNow()));
   };
   window.addEventListener('resize', onResize);
-  const off = [bindOpen(root), bindLight(root, rowsNow)];
+  const off = [bindOpen(root), bindLight(root, rowsNow), bindGateLinks(root)];
   return () => {
     window.removeEventListener('resize', onResize);
     cancelAnimationFrame(frame);

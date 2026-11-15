@@ -72,7 +72,11 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 # the main batch's sections; GitLab runs only the `gitlab` unit.
 UNITS = {
     "parallel": (260, ["github"], ["scenario", "close_batch", "retro_cases"]),
-    "stack": (320, ["github"], ["stack_batch", "base_from_pr", "ready_words", "forge_stack_cli"]),
+    "stack": (
+        320,
+        ["github"],
+        ["stack_batch", "base_from_pr", "stack_waiver", "ready_words", "forge_stack_cli"],
+    ),
     "release": (
         420,
         ["github"],
@@ -3881,6 +3885,12 @@ def gate_carry(w: World) -> None:
         and f"long gate carried from {old[:7]} (clean rebase onto main)" in out[0],
         str(out),
     )
+    status_md = (w.folder() / "STATUS.md").read_text("utf-8")
+    check(
+        "after that hand-back `STATUS.md` shows `carried from <sha7>` in the CR's long gate column",
+        f"carried from {old[:7]}" in status_md,
+        status_md[-400:],
+    )
     # a conflict resolved by hand: the pass at the old head does not carry
     land(w, "main", ("clash.py", "MAIN = 1\n"))
     wc = wt(clash)
@@ -5586,6 +5596,89 @@ def icon_is(w: World, cr: str, icon: str, what: str) -> dict:
     return own
 
 
+def stack_waiver(w: World) -> None:
+    note("\n## 13b. One long gate on the stack's top PR: `order waive stack`")
+    w.reset()
+    low, mid, top = (prepare_cr(w, t)[1] for t in ("Waive low", "Waive mid", "Waive top"))
+    _, joined = prepare_cr(w, "Waive joiner")
+    w.start(str(low), str(mid), str(top), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman13b", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    one, two, three = (c["id"] for c in w.batch()["crs"])
+
+    def events(kind, cr):
+        return [e for e in map(json.loads, (w.folder() / "events.jsonl").read_text("utf-8").splitlines())
+                if e["kind"] == kind and e["cr"] == cr]
+
+    def row(cr):
+        rows = json.loads((w.folder() / "STATUS.json").read_text("utf-8"))["crs"]
+        return next(r for r in rows if r["cr"] == cr)
+
+    def gate_lines(cr):
+        return [ln for ln in w.chantier("handoff", cr)[1] if ln.startswith("gate:")]
+
+    for cr, name in ((one, "low.py"), (two, "mid.py"), (three, "top.py")):
+        commit(w, cr, name, "CR = 1\n")
+        ship(w, cr, f"feat: {name}")
+        w.chantier("verdict", cr, "VERIFIED")
+    code, _ = w.chantier("handback", one, "ready", w.cr(one)["pr"], expect=2)
+    check("with no waiver, a lower CR is refused its hand-back without a long gate",
+          code == 2 and "no long gate passed" in w.last_stderr and not gate_lines(one), w.last_stderr)
+    note_ = "the user: one long gate on the top PR"
+    _, out = w.chantier("order", "waive", "stack", "--note", note_)
+    check("`order waive stack` records the waiver on each CR of the stack, as the order's id, "
+          "its scope and the user's words",
+          all(w.cr(c).get("gate_waiver") == {"order": "O-1", "scope": "stack", "note": note_}
+              for c in (one, two)) and w.batch()["orders"][-1]["kind"] == "waive", str(out))
+    code, _ = w.chantier("order", "waive", two, "--note", "-", expect=2)
+    check("the waiver of one CR of a waived stack is not withdrawn alone: the refusal names the "
+          "stack's withdrawal", code == 2 and "waive stack --note -" in w.last_stderr, w.last_stderr)
+    check("`handoff` prints one `gate:` line: waived and validated by the top for a lower CR, the "
+          "stack's validation for the top",
+          gate_lines(one) == [f"gate: waived (O-1, stack): run no long gate; validated by {three}"]
+          and gate_lines(three)[0].startswith(("gate: this CR's long gate validates the stack (")),
+          str(gate_lines(one) + gate_lines(three)))
+    _, shown = w.chantier("status")
+    status_md = (w.folder() / "STATUS.md").read_text("utf-8")
+    pr3 = w.cr(three)["pr"].rsplit("/", 1)[-1]
+    words = (f"waived → {three} (#{pr3})", f"validates {one}, {two}")
+    check("`status`, `STATUS.md` and `STATUS.json` show `waived → CR-k` for a covered CR and "
+          "`validates …` for the top",
+          words[0] in "\n".join(shown) and words[1] in "\n".join(shown) and all(x in status_md for x in words)
+          and row(one)["gate"]["state"] == "waived" and row(one)["gate"]["validated_by"]["cr"] == three
+          and row(three)["gate"]["validates"] == [one, two] and row(three)["gate"]["state"] == "none",
+          "\n".join(shown))
+    _, out = w.chantier("handback", one, "ready", w.cr(one)["pr"])
+    done = events("handback", one)[-1]
+    check("a covered CR hands back ready with no long gate and no `--no-gate`: the line says so, "
+          "the event records the order and no gate ran",
+          w.cr(one)["status"] == "ready" and not events("gate", one)
+          and f"long gate waived (O-1): validated by {three}'s gate" in out[0]
+          and done.get("gate_waiver") == "O-1" and done.get("waiver_note") == note_,
+          str(out))
+    code, _ = w.chantier("handback", three, "ready", w.cr(three)["pr"], expect=2)
+    check("the top of a waived stack is refused its hand-back without its own long gate",
+          code == 2 and "no long gate passed" in w.last_stderr, w.last_stderr)
+    w.chantier("order", "add", "--note", str(joined))
+    four = w.batch()["crs"][-1]["id"]
+    check("an `order add` on top moves the validation to the new CR, which is never covered",
+          gate_lines(four)[0].startswith("gate: this CR's long gate validates the stack (")
+          and f"validated by {four}" in gate_lines(three)[0]
+          and row(four)["gate"]["state"] != "waived",
+          str(gate_lines(four)) + str(gate_lines(three)))
+    check("the hand-back event of a covered CR keeps working through the move: its gate stays waived",
+          row(one)["gate"]["state"] == "waived" and row(one)["gate"]["validated_by"]["cr"] == four,
+          str(row(one)["gate"]))
+    w.chantier("order", "waive", "stack", "--note", "-")
+    code, _ = w.chantier("handback", two, "ready", w.cr(two)["pr"], expect=2)
+    check("`order waive stack --note -` makes a lower CR need its long gate again; a CR already "
+          "handed back keeps the waiver it was handed back under, with the user's words",
+          code == 2 and "no long gate passed" in w.last_stderr and "gate_waiver" not in w.cr(two)
+          and not gate_lines(two) and row(one)["gate"]["state"] == "waived"
+          and row(one)["gate"]["waiver"] == note_, w.last_stderr)
+
+
 def ready_words(w: World) -> None:
     note("\n## 13b. Ready locally, PR in draft, ready to merge: a ready CR reads its state")
 
@@ -6764,6 +6857,7 @@ CASES = {
     "retro_cases": retro_cases,
     "stack_batch": stack_batch,
     "base_from_pr": base_from_pr,
+    "stack_waiver": stack_waiver,
     "ready_words": ready_words,
     "forge_stack_cli": forge_stack_cli,
     "release": release,

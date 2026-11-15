@@ -10,39 +10,19 @@ from pathlib import Path
 from typing import IO
 
 from chantier import procs
-from chantier.commands.gate_queue import MARK, QUEUE, ordered, queued_crs, ticket_cr
-from chantier.commands.gate_slots import (
+from chantier.core.errors import ChantierError
+from chantier.core.files import try_lock, unlock
+from chantier.core.repo import Repo
+from chantier.gate_queue import MARK, QUEUE, ordered, ticket_cr
+from chantier.gate_slots import (
     Slot,
-    holder_alive,
-    list_slots,
     lock_text,
     mtime,
     parse_holder,
     slot,
 )
-from chantier.core.errors import ChantierError
-from chantier.core.files import try_lock, unlock
-from chantier.core.repo import Repo
 
 LONG_GATE_WAIT_S = 3600
-
-
-def gate_state(repo: Repo, cr: str) -> str | None:
-    """`gate running` when a slot names the CR and its command or suite still lives;
-    `gate queued behind <crs>` (the live holders, else the first ticket; bare `gate queued` when
-    it is next) for a live ticket; else None."""
-    live = []
-    for v in list_slots(repo):
-        if v.holder and holder_alive(v.slot.lock, v.holder, True):
-            live.append(v.holder.cr)
-    if cr in live:
-        return "gate running"
-    queue = queued_crs(repo)
-    if cr not in queue:
-        return None
-    if live:
-        return f"gate queued behind {', '.join(live)}"
-    return f"gate queued behind {queue[0]}" if queue.index(cr) else "gate queued"
 
 
 def _key(text: str) -> str:

@@ -8,18 +8,26 @@ from pathlib import Path
 from chantier.commands.crs import (
     batch_cr,
     cr_events,
-    gate_passed,
     grant_line,
     last_verdict,
     short_head,
 )
 from chantier.commands.forge_base import stacked_read
+from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines
 from chantier.plugin_files import archive_path, cli_command, project_instructions, skill_dir
-from chantier.stacks import chain, stack_base, start_base, state_word
+from chantier.stacks import (
+    chain,
+    stack_base,
+    start_base,
+    state_word,
+    validated_ids,
+    validating_cr,
+    waived_gate,
+)
 
 
 def _ref(repo: Repo, branch: str) -> str:
@@ -80,7 +88,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     ]
     lines += _status_lines(d, c)
     if c.kind not in {"release"}:
-        lines += _gate_lines(repo, batch, c)
+        lines += _gate_lines(repo, batch, d, c)
     lines += _gate_log(folder)
     return lines + team_lines(d.playbook) + ci_lines(d.playbook)
 
@@ -116,16 +124,39 @@ def _status_lines(d: BatchRecord, c: CrEntry) -> list[str]:
     return lines
 
 
-def _gate_lines(repo: Repo, batch: str, c: CrEntry) -> list[str]:
+def _waiver_line(d: BatchRecord, c: CrEntry) -> str | None:
+    """The one `gate:` line a waiver sets: covered, or the stack's top that validates."""
+    w = waived_gate(d, c)
+    if w is not None:
+        top = validating_cr(d, c)
+        by = f"validated by {top.id}" if top else f"follow-up {w.follow_up}"
+        return f"gate: waived ({w.order}, {w.scope}): run no long gate; {by}"
+    covers = validated_ids(d, c)
+    if covers:
+        return f"gate: this CR's long gate validates the stack ({', '.join([*covers, c.id])})"
+    return None
+
+
+def _gate_lines(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     events = cr_events(repo, batch, c.id)
     head = c.head
     verdict = last_verdict(events, head)
+    waiver = _waiver_line(d, c)
+    waived = waived_gate(d, c) is not None
+    long_gate = (
+        [
+            f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
+            f'{c.id} "<cmd>" ["<cmd>"...]; none in the project\'s rules: handback '
+            f'{c.id} ready --no-gate "<rule>")'
+        ]
+        if not waived
+        else ["  [-] long gate waived (see the gate: line)"]
+    )
     return [
+        *([waiver] if waiver else []),
         f"gates before handback ready, at the PR's head {head or 'not shipped yet'} "
         "(the full SHA; the gate log's first line names it):",
-        f"  [{'x' if gate_passed(events, head) else ' '}] long gate passed (gate "
-        f'{c.id} "<cmd>" ["<cmd>"...]; none in the project\'s rules: handback '
-        f'{c.id} ready --no-gate "<rule>")',
+        *long_gate,
         f"  [{'x' if verdict == 'VERIFIED' else ' '}] verdict "
         f"{verdict if verdict == 'NOT VERIFIED' else 'VERIFIED'} (the Verifier: verdict "
         f'{c.id} VERIFIED|"NOT VERIFIED")',
