@@ -6,6 +6,7 @@ import argparse
 from dataclasses import dataclass
 
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
+from chantier.commands.orders_merged import stop_before_merge
 from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
 from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
@@ -96,6 +97,7 @@ class _Req:
     own: bool
     new_release: bool
     oid: str = ""
+    stopped: list[str] | None = None
 
 
 def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
@@ -119,6 +121,7 @@ def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
         req.new_release,
         follow_up=args.follow_up,
         order_id=req.oid,
+        stopped=req.stopped,
     )
 
 
@@ -184,6 +187,7 @@ def order(args: argparse.Namespace) -> list[str]:
             EXIT_USAGE,
         )
     actor = "foreman" if own else "chief-of-staff"
+    stopped = stop_before_merge(repo, args, actor) if args.kind == "merged" else None
     with (
         changes_lock(repo),
         RenderedBatch(repo, resolve_batch(repo, args.batch), actor=actor) as b,
@@ -199,7 +203,7 @@ def order(args: argparse.Namespace) -> list[str]:
         reopened = _reopen(b, args.kind)
         if args.kind == "qa":
             cr = _qa_folder(repo, b, note)
-        req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}")
+        req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}", stopped)
         effect = reopened + apply_order(_word(b, args, req))
         oid = _record_order(b, args, req)
     if own:

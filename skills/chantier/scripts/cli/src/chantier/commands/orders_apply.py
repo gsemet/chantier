@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from chantier.commands.crs import filed_fix, grant_line
-from chantier.commands.gate_run import stop_gate
+from chantier.commands.gate_run import stop_gate, stopped_line
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
 from chantier.commands.orders_release import (
     add_release,
@@ -49,6 +49,7 @@ class Word:
     release: bool = False
     follow_up: str | None = None
     order_id: str = ""
+    stopped: list[str] | None = None  # `order merged`: the line of a gate stopped before the locks
 
 
 def target(w: Word) -> CrEntry:
@@ -193,19 +194,27 @@ def _note(w: Word) -> list[str]:
     return out
 
 
-def _merged(w: Word) -> list[str]:
-    b, c, cr_id = w.b, target(w), w.cr_id
+def check_merged(b: Batch, c: CrEntry) -> bool:
+    """The refusals of `order merged`, changing nothing; True when the CR is already merged."""
     if c.status == "merged":
-        return [f"{cr_id} already merged"]
+        return True
     if c.status == "cancelled":
-        raise ChantierError(f"cannot mark cancelled {cr_id} merged")
-    open_ = _open_ids(b, cr_id) if c.kind == "release" else []
+        raise ChantierError(f"cannot mark cancelled {c.id} merged")
+    open_ = _open_ids(b, c.id) if c.kind == "release" else []
     if open_:
         raise ChantierError(
             f"order merged: {', '.join(open_)} not merged or cancelled: the release PR merges last"
         )
-    # a merged head needs no gate: stop it first, while the CR's folder and its log are in place
-    stopped = _stop_gate(b, cr_id)
+    return False
+
+
+def _merged(w: Word) -> list[str]:
+    b, c, cr_id = w.b, target(w), w.cr_id
+    if check_merged(b, c):
+        return [f"{cr_id} already merged"]
+    # a merged head needs no gate: it was stopped and waited for before the locks (`w.stopped`),
+    # or a stale lock is stopped now, while the CR's folder and its log are in place
+    stopped = w.stopped or _stop_gate(b, cr_id)
     if c.kind != "release":
         lines = merge_done(b, c)
         return [lines[0], *stopped, *lines[1:]]
@@ -221,7 +230,7 @@ def _stop_gate(b: Batch, cr_id: str) -> list[str]:
     s = stop_gate(v.slot, v.holder, b, "")
     if not s.acted:
         return []
-    return [f"stopped the long gate of {cr_id}" + (f" (pg{s.pg})" if s.pg is not None else "")]
+    return [stopped_line(cr_id, s.pg)]
 
 
 def _rounds(w: Word) -> list[str]:

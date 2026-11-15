@@ -125,6 +125,16 @@ def alive_since(pid: int, recorded: float, unreadable: bool) -> bool:
         return unreadable
 
 
+def wait_gone(pid: int, recorded: float, timeout_s: float) -> bool:
+    """Wait until the process a file named has ended; False when it still runs at the bound."""
+    deadline = time.monotonic() + timeout_s
+    while alive_since(pid, recorded, False):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(POLL_S)
+    return True
+
+
 def alive(pid: int) -> bool:
     """Whether a process still runs; a zombie counts as gone."""
     import psutil
