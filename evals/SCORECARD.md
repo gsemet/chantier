@@ -73,6 +73,7 @@ or the transcripts).
 | C21 | `order merged` of a CR whose long gate runs stops that gate and waits for its process to end before it moves the folder: the gate's `stopped` event comes before the CR's `merged` move, with no `FileNotFoundError` and no os error 32 | `orders_apply._merged`, `gate_run.stop_gate` | full, real-foreman, real-direct, claude-planted | by hand |
 | J27 | with a project rule naming a pipeline job as its long gate, the Driver waits on that job green at the PR's head instead of a local long gate, and says so at hand-back | driver.md, the project's `AGENTS.md` | none on the sandbox as it is (its rule names a local long gate) | by hand |
 | J28 | in a parallel batch steered by a Foreman, a new ready PR is checked against the other ready PRs with `git merge-tree` only, and a conflict brings one ask to switch the batch to a stack; nothing switches without the user | foreman.md | full, real-foreman (parallel), claude-planted | by hand |
+| J29 | in a Foreman batch, a turn of the Chief of Staff started by the host's notice of the Foreman's turn end alone ends at once: no tool call, no message, no report; a notice that shows the Foreman stopped on an error, with no line, gets one line to the user and no tool call | chief-of-staff.md, hosts/claude-code.md | real-foreman, full | by hand: in the Chief of Staff's transcript, each user entry that holds only a "finished a turn" reminder is followed by assistant entries with no tool_use |
 
 ## Below the table
 

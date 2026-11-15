@@ -884,6 +884,13 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **Status:** `$CHANTIER status [--notes]`, with PR links, and the planning folder's
   `STATUS.md` for the user. Before a report, run `$CHANTIER status --refresh` with no epoch (`status-layout.md`).
   A 🔴 CR is a question for the user. Never read the Foreman's transcript.
+- **The Foreman's turn end:** your host may tell you each time the Foreman ends a turn (Claude
+  Code: [the Foreman's turn-end notice](hosts/claude-code.md)). It is not a line and needs nothing
+  from you: end that turn at once, with no tool call, no message and no report, and restate nothing
+  of it to the user. You act on the Foreman's lines (`ready`, an ask, `pong`, `final`, `push`,
+  `chain`), the user's words and your reports, never on the notice. One exception: a notice that
+  shows the Foreman stopped on an error (a usage limit, an API error), with no line from it, gets
+  one line to the user saying so, still with no tool call (unproved; see the host's reference).
 - **Reports:** every Progress report and Completion report, with its icons, columns and cost table, is written as `status-layout.md` says: read it whole before each one. It holds the shape, the cost table, the Tips line, "MR" or "PR", and how a CR is named.
   What you say or write to the user never uses the word epoch: a Foreman's number is `Foreman n°<k>` ([concepts](concepts.md), "Steering session"), and a stale-Foreman refusal or a relay is reported as "batch-18, Foreman n°2 is stale: Foreman n°3 runs it".
   Every Progress report gives the remaining floor and the updated delivery time ([The

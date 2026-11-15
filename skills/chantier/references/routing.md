@@ -22,6 +22,10 @@ the Foreman do not travel (what it would send itself is not sent; an ask is stil
 `$CHANTIER asks`), and a Driver's lines go to the Chief of Staff, keeping the `foreman` prefix of
 the steering session's lines.
 
+A host's notice that the Foreman's session ended a turn is not a line of this table. The Chief of
+Staff acts on no such notice, except one that shows the Foreman stopped on an error, which it tells
+the user in one line ([Claude Code](hosts/claude-code.md), "The Foreman's turn-end notice").
+
 The Chief of Staff's subagents (the Demo explorer, the Spec-writer, the Spec critic) answer the Chief of Staff alone, in their
 reply (a Griller's spec critic answers that Griller); they send no line to the Foreman or a Driver.
 
