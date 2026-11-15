@@ -143,25 +143,34 @@ def pr_base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
     return c.pr_base or stack_base(d, c, repo)
 
 
-def draft_waits(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
+def draft_waited(d: BatchRecord, c: CrEntry, repo: Repo) -> CrEntry | str | None:
     """What a PR in draft waits for: the CR whose branch its PR sits on, on the forge, when that
     CR is not out of draft; else the CR under it in the stack not yet out of draft, else the CR
-    whose branch its base is, else its own turn out of draft."""
+    whose branch its base is, else the base branch itself (no CR of the batch), else None (its
+    own turn out of draft)."""
     default: str = repo.config["default_branch"]
     if c.pr_base and c.pr_base != default:
         on = next((x for x in d.crs if x.branch == c.pr_base), None)
         if on is not None and not _out_of_draft(on):
-            return on.id
+            return on
     place = chain(d)
     ids = [x.id for x in place]
     if c.id in ids:
         below = [x for x in place[: ids.index(c.id)] if not _out_of_draft(x)]
         if below:
-            return below[-1].id
+            return below[-1]
     base = pr_base_of(d, c, repo)
-    if base != repo.config["default_branch"]:
-        return next((x.id for x in d.crs if x.branch == base), base)
-    return "its turn out of draft"
+    if base != default:
+        return next((x for x in d.crs if x.branch == base), base)
+    return None
+
+
+def draft_waits(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
+    """The same answer as a word for the views: the CR's id, the branch, or its own turn."""
+    waited = draft_waited(d, c, repo)
+    if waited is None:
+        return "its turn out of draft"
+    return waited if isinstance(waited, str) else waited.id
 
 
 def state_word(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
