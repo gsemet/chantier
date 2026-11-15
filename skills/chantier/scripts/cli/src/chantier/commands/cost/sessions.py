@@ -38,7 +38,8 @@ def claimed_transcripts(d: BatchRecord) -> list[str]:
 def foreman_uuid(d: BatchRecord) -> list[str]:
     uuids = d.foreman_transcripts or ([d.foreman_transcript] if d.foreman_transcript else [])
     if not uuids or not uuids[0]:
-        raise ChantierError("no Foreman transcript recorded", EXIT_PRECONDITION)
+        who = "steering" if d.steering == "direct" else "Foreman"
+        raise ChantierError(f"no {who} transcript recorded", EXIT_PRECONDITION)
     return uuids
 
 
@@ -94,6 +95,8 @@ class _Chief:
     untimed: int = 0
     compactions: int = 0
     whole_usd: float = 0.0
+    inside_usd: float = 0.0
+    inside_un: dict[str, Any] = field(default_factory=dict[str, Any])
     context: int = 0
     inside_calls: int = 0
     whole_un: dict[str, Any] = field(default_factory=dict[str, Any])
@@ -135,8 +138,11 @@ def _absorb(c: _Chief, whole: list[Any], since: list[Any], steered: list[Any]) -
     c.steer.usd -= inside
     c.steer.unpriced = minus(c.steer.unpriced, inside_un)
     c.inside_calls += inside_n + sum(inside_un.values())
-    c.whole_usd += sum(r["usd"] for r in whole) - inside
-    add_unpriced(c.whole_un, minus(sum_unpriced(whole), inside_un))
+    # the whole session, the steering window included; `inside` is the part in the batch's spend
+    c.whole_usd += sum(r["usd"] for r in whole)
+    c.inside_usd += inside
+    add_unpriced(c.inside_un, inside_un)
+    add_unpriced(c.whole_un, sum_unpriced(whole))
     c.context = whole[0]["last_context"]  # the current session's, the last
 
 
@@ -155,11 +161,16 @@ def _chief_lines(c: _Chief) -> list[str]:
             f"opened ({_why(steer.calls, steer.unpriced)})"
         )
     grill = c.grill
+    part = (
+        f" ({spend(c.inside_usd, c.inside_calls, c.inside_un)} of it in the batch's spend)"
+        if c.inside_calls
+        else ""
+    )
     lines += [
         f"{GRILL_OUT}: {spend(grill.usd, grill.calls, grill.unpriced)} since the batch opened "
         f"({_why(grill.calls, grill.unpriced)}, {c.writers} spec-writers, "
         f"{c.critics} spec critics)",
-        f"{WHOLE}: {spend(c.whole_usd, 1, c.whole_un)}, context {c.context:,} tokens; not "
+        f"{WHOLE}: {spend(c.whole_usd, 1, c.whole_un)}{part}, context {c.context:,} tokens; not "
         f"counted: {c.compactions} compactions since the batch opened, which leave no record "
         f"(about ${COMPACTION_USD:.2f} each)"
         + (f"; {not_priced(c.whole_un)}" if c.whole_un else ""),
@@ -172,7 +183,9 @@ def _chief_lines(c: _Chief) -> list[str]:
 def chief_line(repo: Repo, d: BatchRecord) -> list[str]:
     """The Chief of Staff's session, priced apart from the spend and the budget, in the lines
     that add up: what it spent since the batch opened, steering and grilling apart, and the whole
-    session. What a direct batch's steering row holds is that row's, never counted twice."""
+    session, steering window included, with the part of it in the batch's spend named in a
+    parenthesis. What a direct batch's steering row holds is that row's, never counted twice in
+    the steering line."""
     chiefs = chief_sessions(d)
     if d.host == "copilot":
         return _chief_unknown("not measured on this host")
@@ -188,6 +201,12 @@ def chief_line(repo: Repo, d: BatchRecord) -> list[str]:
         _absorb(c, *parts)
     unpriced = add_unpriced(add_unpriced(dict(c.steer.unpriced), c.grill.unpriced), c.whole_un)
     return _chief_lines(c) + hints(sorted(unpriced))
+
+
+def _transcripts(d: BatchRecord) -> str:
+    if d.steering == "direct":
+        return "steering transcripts (the Chief of Staff's)"
+    return "Foreman transcripts"
 
 
 def cost_rows(repo: Repo, d: BatchRecord, host: str, uuids: list[str]) -> list[dict[str, Any]]:
@@ -233,5 +252,5 @@ def cost_rows(repo: Repo, d: BatchRecord, host: str, uuids: list[str]) -> list[d
                 r["own"] = OWN_CHIEF if steering else OWN_FOREMAN
         rows += got
     if not any(r["calls"] for r in rows):
-        raise ChantierError("no priced calls in the Foreman transcripts", EXIT_EXTERNAL)
+        raise ChantierError(f"no priced calls in the {_transcripts(d)}", EXIT_EXTERNAL)
     return rows

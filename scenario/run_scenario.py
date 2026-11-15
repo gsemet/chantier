@@ -2017,10 +2017,15 @@ def direct_batch(w: World) -> None:
     steering = money(out, ROW)
     one = steering / 3  # a call of the Chief of Staff's transcript
     a, b, whole = money(out, STEER), money(out, GRILL), money(out, WHOLE)
+    paren = re.search(r"\(\$(\d+\.\d{2}) of it in the batch's spend\)",
+                      next(ln for ln in out if ln.startswith(WHOLE)))
+    inside = float(paren.group(1)) if paren else -1.0
     check("the Chief of Staff's lines add up: the steering row's three calls (one of them names and reads a specification: steering), one steering call "
           "before the claim, the two grill and specification turns (the repeated call priced once), "
-          "and the whole session leaves the steering row out",
-          abs(a - one) <= 0.02 and abs(b - 2 * one) <= 0.02 and abs(whole - 5 * one) <= 0.03
+          "and the whole session holds the steering window and names the part in the batch's spend",
+          abs(a - one) <= 0.02 and abs(b - 2 * one) <= 0.02
+          and abs((whole - inside) - 5 * one) <= 0.03
+          and abs(inside - float(out[0].split()[1][1:])) <= 0.01 and whole >= steering
           and "(1 calls)" in next(ln for ln in out if ln.startswith(STEER))
           and "(2 calls, 0 spec-writers, 0 spec critics)" in next(ln for ln in out if ln.startswith(GRILL))
           and abs(w.batch()["spent_usd"] - float(out[0].split()[1][1:])) <= 0.01
@@ -2029,6 +2034,10 @@ def direct_batch(w: World) -> None:
     check("the whole-session line counts the compactions of the window, not the one before it",
           "2 compactions since the batch opened" in next(ln for ln in out if ln.startswith(WHOLE)),
           str(out))
+    _, by_cr = w.chantier("cost", "--by", "cr")
+    check("`cost --by cr` names the steering role by the mode: the Chief of Staff, no 'foreman:'",
+          by_cr[1].startswith("Chief of Staff, steering the batch, and its own subagents: $")
+          and not any(ln.startswith("foreman:") for ln in by_cr), str(by_cr))
     _, out = w.chantier("cost", "--summary")
     check("the summary splits the steering under its own name", out[1].startswith(
           "Chief of Staff, steering the batch $") and "Foreman" not in out[1]
@@ -2135,6 +2144,11 @@ def direct_batch(w: World) -> None:
         "Chief of Staff, steering the batch", "Foreman"] or labels == [
         "Foreman", "Chief of Staff, steering the batch"],
           str(out))
+    _, by_cr = w.chantier("cost", "--by", "cr")
+    check("`cost --by cr` of a taken-over direct batch names both steering sessions",
+          any(ln.startswith("Chief of Staff, steering the batch, and the Foreman, with their own "
+                            "subagents: $") for ln in by_cr)
+          and not any(ln.startswith("foreman:") for ln in by_cr), str(by_cr))
     w.env.pop("CHANTIER_BATCH", None)
     w.reset()
     if kept is None:
