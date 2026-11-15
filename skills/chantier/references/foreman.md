@@ -150,7 +150,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - `$CHANTIER status` (with `--refresh --epoch <n>` on a wake: it records your heartbeat and the
   spend, and gives one `activity` line per working CR, the stack driver and each open QA order
   with an agent id: the age of its last event or session record, `gate running`, `gate queued
-  behind <cr>`, or `not measured`; a CR with no agent recorded shows `no Driver recorded` in its row); `handoff <cr>`
+  behind <cr>`, or `not measured`; a CR with no agent recorded shows `no Driver recorded` in its row; a working CR whose recorded Driver
+  called the host's hand-back with no `handback` recorded shows `Driver <id> ended, no hand-back
+  recorded` (Claude Code only)); `handoff <cr>`
   and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
   for the prompt ([concepts](concepts.md), "Starting an agent"). It is refused (exit 2) on a
@@ -162,7 +164,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
   <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Every Driver's prompt you write, for each start and restart and whatever the Driver kind, holds the `Steering:` line of "Starting an agent" (you, and the host's means to reach you). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
-  when it ended, with its hand-back or without, before the CR's next `take`).
+  when it ended, with its hand-back or without, before the CR's next `take`). When a Driver ends,
+  read its row in `status` before `agents set <cr> -`: a row showing `ended, no hand-back
+  recorded` takes "A Driver that ended with no hand-back recorded" first, with the id still
+  recorded (the flag reads it).
 - `$CHANTIER gate <cr> --first --epoch <n>`: when a CR on the critical path (other CRs wait for
   it, by `after` or by the stack) has its long gate queued (`gate queued behind …`), put it
   first, and say in your next report which CR, ahead of which. A second use, in a parallel
@@ -537,6 +542,12 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     exact text>"`.
 - **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
   kind, and holds in a direct batch, whose Chief of Staff reads this card).
+  - **A Driver waiting on its own background work** has not ended. A Driver that ends its turn
+    while its own background work runs (the long gate, a CI watch) is allowed to. On Claude Code the
+    host says `Agent "<name>" is waiting on its own background work`: send it no message and no
+    ping, and do not run `agents set -`. It wakes on its own when that work ends, and the
+    heartbeat's `activity` line covers it (`gate running`, `gate queued`, an age). Only `Agent
+    "<name>" finished`, or a host refusal, is an end.
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
     shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (30
     minutes). A line
@@ -563,11 +574,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     failure, `--note "resume: host failure: <exact text>"`), a new Driver, `agents set
     <cr> <id> --epoch <n>`. No round is counted and no second slot is taken; the budget applies (a
     refusal with exit 5 is a `budget` ask).
-  - **A hand-back `blocked context: …`** (the Driver's context ran out): restart a fresh Driver on
+  - **A hand-back `blocked context: …`** (the Driver's context reached the threshold, or the host asked its hand-back early: its text
+    says which): restart a fresh Driver on
     that CR before any queued CR (a blocked CR holds no slot, so it takes the next free one):
     `agents set <cr> - --epoch <n>`, then `take <cr> --note "resume: context" --epoch <n>`, no
     round, no ask. A second `context:` on the same CR with no new head, round or note since the
-    first is an ask: `question <cr> driver out of context twice`.
+    first is an ask: `question <cr> driver out of context twice`. In a report or a retro, a
+    `context: host asked the hand-back …` is named "a turn ended early", with what the Driver
+    waited for, never "out of context"; the second-`context:` ask counts only real context ends (no
+    `host asked the hand-back` in the text).
   - **A host failure:** a Driver (CR, stack, release, QA) whose end carries the host's error
     rather than a hand-back takes the restart path at once, with no ping round (the host's error is
     the proof it ended). It is not a silent
@@ -576,6 +591,18 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     verdicts, the PR) and does not redo it when the worktree's head is that head and the tree is
     clean. A second host failure on the same CR with no new head, round or note since the first is
     an ask: `question <cr> host failure twice: <text>`.
+  - **A Driver that ended with no hand-back recorded** (the `status` flag, or a `[driver
+    <cr>→foreman] hand-back …` report while `status` still shows the CR `working`):
+    - resume it once by the host's means to resume a stopped agent (its reference):
+      `[foreman→driver <cr>] record your hand-back: $CHANTIER handback <cr> as your report says,
+      then the host's hand-back with the line it prints`;
+    - keep or set again its id (`agents set <cr> <id> --epoch <n>`), so the log shows the resume;
+    - when the CLI records its hand-back, handle it as any hand-back;
+    - when it records none by the next heartbeat wake, or the host refuses the message: `agents set
+      <cr> - --epoch <n>`, then the restart path with `--note "resume: ended with no hand-back
+      recorded: <its report's first line>"`. This counts as a silent end ("A silent end"). A resume
+      that records the hand-back counts as nothing;
+    - never record the hand-back yourself: `handback` is the Driver's.
   - **A silent end** (a task that ends with no hand-back) takes the restart path. A second silent
     end on one CR is `handback <cr> blocked driver ended twice`. Only silent ends of the Driver
     itself count: a death by the host (a new epoch, all Drivers lost at one wake) and a `context:`

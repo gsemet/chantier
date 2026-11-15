@@ -3489,6 +3489,39 @@ def driver_liveness(w: World) -> None:
     line = next((ln for ln in out if ln.startswith(f"{one}:")), "")
     check("`cost --by cr` shows the Driver's peak context and compactions on the CR's line",
           "Driver peak context 9,000 tokens, 1 compaction)" in line, str(out))
+    def tool_line(name):
+        return json.dumps({"type": "assistant", "message": {"id": "t", "content": [
+            {"type": "tool_use", "name": name, "input": {}}]}})
+
+    def flagged(cr, agent):
+        _, o = w.chantier("status")
+        return any(ln.startswith(f"{cr} ") and f"Driver {agent} ended, no hand-back recorded" in ln
+                   for ln in o)
+
+    events = w.folder() / "events.jsonl"
+    log_before = events.read_text("utf-8")
+    ended = sub / f"agent-agent-{one}.jsonl"
+    ended.write_text(tool_line("SubagentHandback") + "\n" + json.dumps({"type": "user"}) + "\n",
+                     encoding="utf-8")
+    check("status flags a working CR whose Driver's last tool call is the host's hand-back",
+          flagged(one, f"agent-{one}"), "no flag")
+    with ended.open("a", encoding="utf-8") as f:
+        f.write(tool_line("PowerShell") + "\n")
+    check("a Driver that went on after its hand-back (a later tool call) is not flagged",
+          not flagged(one, f"agent-{one}"), "flagged")
+    check("`status` writes no event for the flag",
+          events.read_text("utf-8") == log_before, "status logged")
+    (sub / f"agent-agent-{three}.jsonl").write_text(tool_line("SubagentHandback") + "\n",
+                                                    encoding="utf-8")
+    w.chantier("handback", three, "blocked", "question: x")
+    _, out = w.chantier("status")
+    check("once the hand-back is recorded the row shows blocked, with no flag",
+          any(ln.startswith(f"{three} blocked") for ln in out)
+          and not any("ended, no hand-back recorded" in ln for ln in out if ln.startswith(three)),
+          str(out))
+    w.chantier("agents", "set", three, "-", "--epoch", 1)
+    w.chantier("take", three, "--note", "resume: x", "--epoch", 1)
+    w.chantier("agents", "set", three, f"agent-{three}", "--epoch", 1)
     chief.unlink()
     shutil.rmtree(sub)
     code, out = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
@@ -3506,6 +3539,8 @@ def driver_liveness(w: World) -> None:
     _, out = w.chantier("status")
     check("status flags a working CR with no Driver recorded",
           any(ln.startswith(f"{one} working") and "no Driver recorded" in ln for ln in out), str(out))
+    check("a working CR with no agent recorded gets no `ended` flag",
+          not any("ended, no hand-back recorded" in ln for ln in out if ln.startswith(one)), str(out))
     code, out = w.chantier("take", one, "--note", "resume: x", "--epoch", 1)
     _, facts = w.chantier("handoff", one)
     kinds = [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()]

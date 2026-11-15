@@ -24,6 +24,7 @@ from cost_world import (
 )
 
 from chantier.core.errors import EXIT_PRECONDITION
+from chantier.costs import sessions
 
 CRS = 2
 FOREMAN_USD = FOREMAN_CALLS * call_usd(300)
@@ -352,3 +353,34 @@ def test_a_retro_critic_of_the_foreman_is_counted_on_the_foreman_own_subagents_l
     out = world.cost()
     assert any(ln.startswith("Foreman's own subagents") and "(2 calls," in ln for ln in out)
     assert not any("grill" in ln and "retro" in ln for ln in out) and out[0] != before[0]
+
+
+def _tool(name: str) -> str:
+    item = {"type": "tool_use", "name": name, "input": {}}
+    return json.dumps({"type": "assistant", "message": {"content": [item]}})
+
+
+_TEXT = json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "ok"}]}})
+
+
+@pytest.mark.parametrize(
+    ("lines", "expected"),
+    [
+        ([_tool("SubagentHandback"), _TEXT], True),
+        ([_tool("PowerShell")], False),
+        ([_tool("SubagentHandback"), _tool("PowerShell")], False),
+        ([_tool("SubagentHandback"), *[_TEXT + " " * 4000] * 100], True),  # past one read chunk
+        (None, None),
+        ([_TEXT, "not json"], None),
+    ],
+    ids=["handed back", "mid-call", "resumed", "large", "missing", "no tool call"],
+)
+def test_agent_handed_back_reads_the_end_of_the_transcript(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lines: list[str] | None, expected: bool | None
+) -> None:
+    monkeypatch.setattr(sessions, "transcript_path", lambda _root, uuid: tmp_path / f"{uuid}.jsonl")
+    if lines is not None:
+        sub = tmp_path / "s" / "subagents"
+        sub.mkdir(parents=True)
+        (sub / "agent-a.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert sessions.agent_handed_back(tmp_path, ["s"], "a") is expected
