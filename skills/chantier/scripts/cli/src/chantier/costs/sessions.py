@@ -340,35 +340,17 @@ def agent_context(root: Path, sessions: list[str], agent: str) -> int | None:
     return None
 
 
-def _line_tool(raw: bytes) -> str | None:
-    """The name of the last tool call of an assistant record, else None."""
+def last_tool_call(path: Path) -> str | None:
+    """The name of the last tool call in a Claude transcript, from the end of its file (the same
+    reader as `transcript_state`). None: no tool call in it, or a file that cannot be read."""
     try:
-        d = json.loads(raw)
-    except ValueError:
+        for record in _turns_from_end(path):
+            calls = [b for b in _blocks(record) if b.get("type") == "tool_use"]
+            if record["type"] == "assistant" and calls:
+                return str(calls[-1].get("name"))
+    except (_Unreadable, OSError, UnicodeError):
         return None
-    m = d.get("message") if isinstance(d, dict) else None
-    items = m.get("content") if isinstance(m, dict) else None
-    if d.get("type") != "assistant" or not isinstance(items, list):
-        return None
-    names = [i.get("name") for i in items if isinstance(i, dict) and i.get("type") == "tool_use"]
-    return str(names[-1]) if names else None
-
-
-def _tail_tool(path: Path) -> str | None:
-    """The last tool call's name, read from the end of the file, never the whole of it."""
-    with path.open("rb") as f:
-        size = f.seek(0, os.SEEK_END)
-        chunk = 1 << 18
-        while True:
-            start = max(0, size - chunk)
-            f.seek(start)
-            lines = f.read(size - start).split(b"\n")
-            if start:
-                lines = lines[1:]  # the first line may be cut
-            found = next((c for c in map(_line_tool, reversed(lines)) if c is not None), None)
-            if found is not None or not start:
-                return found
-            chunk *= 2
+    return None
 
 
 def agent_handed_back(root: Path, sessions: list[str], agent: str) -> bool | None:
@@ -379,10 +361,7 @@ def agent_handed_back(root: Path, sessions: list[str], agent: str) -> bool | Non
         path = transcript_path(root, session).with_suffix("") / "subagents" / f"agent-{agent}.jsonl"
         if not path.is_file():
             continue
-        try:
-            found = _tail_tool(path)
-        except OSError:
-            continue
-        if found is not None:
-            return found == "SubagentHandback"
+        tool = last_tool_call(path)
+        if tool is not None:
+            return tool == HANDBACK_TOOL
     return None
