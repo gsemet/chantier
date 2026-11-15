@@ -265,10 +265,20 @@ class World:
                   f"exit {p.returncode}: {self.last_stderr[:200]}")
         return p.returncode, out
 
+    def verified(self, cr, **kw):
+        """The Verifier's end: its proof note at the head it judged, then `verdict VERIFIED`."""
+        raw = str(cr).upper()
+        c = self.cr(raw if raw.startswith("CR-") else f"CR-{raw}")
+        head = subprocess.run(["git", "-C", c["worktree"], "rev-parse", "HEAD"], capture_output=True,
+                              text=True, encoding="utf-8", check=True).stdout.strip()
+        note_file = self.at(c["path"]) / "work" / "verify.md"
+        note_file.parent.mkdir(parents=True, exist_ok=True)
+        note_file.write_text(f"Head: {head}\n", encoding="utf-8", newline="\n")
+        return self.chantier("verdict", cr, "VERIFIED", **kw)
     def ready(self, cr, link, expect=0):
         """The Driver's end: the long gate and the Verifier's verdict at the head, then `handback ready`."""
         self.chantier("gate", cr, GATE, expect=None)
-        self.chantier("verdict", cr, "VERIFIED", expect=None)
+        self.verified(cr, expect=None)
         return self.chantier("handback", cr, "ready", link, expect=expect)
 
     def batch(self):
@@ -3472,7 +3482,28 @@ def handback_proofs(w: World) -> None:
     check("`handback ready` with the gate but no verdict is refused, naming the verdict",
           code == 2 and "no verdict VERIFIED" in w.last_stderr
           and "no long gate passed" not in w.last_stderr, w.last_stderr)
-    w.chantier("verdict", num, "VERIFIED")
+    wt_path = w.cr(cr)["worktree"]
+    verify_note = folder / "work" / "verify.md"
+    before = len(log_events("verdict"))
+    code, _ = w.chantier("verdict", cr, "VERIFIED", expect=2)
+    check("`verdict VERIFIED` with no work/verify.md is refused, naming the file and `no such file`, "
+          "and logs no event",
+          code == 2 and "work/verify.md" in w.last_stderr and "no such file" in w.last_stderr
+          and len(log_events("verdict")) == before, w.last_stderr)
+    previous = subprocess.run(["git", "-C", wt_path, "rev-parse", "HEAD~1"], capture_output=True,
+                              text=True, encoding="utf-8", check=True).stdout.strip()
+    verify_note.parent.mkdir(parents=True, exist_ok=True)
+    verify_note.write_text(f"Head: {previous}\n", encoding="utf-8", newline="\n")
+    code, _ = w.chantier("verdict", cr, "VERIFIED", expect=2)
+    check("`verdict VERIFIED` with a stale `Head:` line is refused, naming the other head, and "
+          "logs no event",
+          code == 2 and f"its Head: line names {previous[:7]}" in w.last_stderr
+          and len(log_events("verdict")) == before, w.last_stderr)
+    verify_note.unlink()
+    code, _ = w.chantier("verdict", cr, "NOT VERIFIED")
+    check("`verdict NOT VERIFIED` is accepted with no note: one event",
+          code == 0 and len(log_events("verdict")) == before + 1, w.last_stderr)
+    w.verified(num)
     w.chantier("verdict", cr, "NOT VERIFIED")
     code, _ = w.chantier("handback", cr, "ready", link, expect=2)
     check("a VERIFIED then a NOT VERIFIED at the same head refuses: the last verdict decides",
@@ -3482,10 +3513,10 @@ def handback_proofs(w: World) -> None:
           "given and names both accepted words",
           code == 1 and '"maybe"' in w.last_stderr and "VERIFIED" in w.last_stderr
           and '"NOT VERIFIED"' in w.last_stderr, w.last_stderr)
-    w.chantier("verdict", cr, "VERIFIED")
+    w.verified(cr)
     check("a later VERIFIED at the head lets the last verdict through",
           [e["result"] for e in log_events("verdict")][-1] == "VERIFIED"
-          and len(log_events("verdict")) == 3)
+          and len(log_events("verdict")) == 4)
     # a new commit, shipped: the gate and the verdict above are of the old head
     commit(w, cr, "proof2.py", "PROOF = 2\n")
     ship(w, cr, "feat: proof")
@@ -3512,7 +3543,7 @@ def handback_proofs(w: World) -> None:
     code, _ = w.chantier("handback", cr, "ready", link, expect=2)
     check("a gate that failed leaves no gate passed at the head", code == 2
           and "no long gate passed" in w.last_stderr, w.last_stderr)
-    w.chantier("verdict", cr, "VERIFIED")
+    w.verified(cr)
     _, out = w.chantier("handback", f"cr-{num}", "ready", link, "--no-gate", rule)
     check("`--no-gate <rule>` with a verdict is accepted: the reason is on the printed line, in "
           "the event and in STATUS.md",
@@ -3566,7 +3597,7 @@ def handback_proofs(w: World) -> None:
           code == 2 and "no long gate passed" in w.last_stderr
           and "no verdict VERIFIED" in w.last_stderr, w.last_stderr)
     w.chantier("gate", cr, GATE)
-    w.chantier("verdict", cr, "VERIFIED")
+    w.verified(cr)
     w.chantier("handback", cr, "ready", link)
     check("with `ship`, the gate and a verdict at the new head, the CR hands back ready again, "
           "in the same round", w.cr(cr)["status"] == "ready" and w.cr(cr)["round"] == before)
@@ -3591,7 +3622,7 @@ def handback_proofs(w: World) -> None:
           "the CR still blocked", code == 2 and "no verdict VERIFIED" in w.last_stderr
           and w.cr(cr)["status"] == "blocked", w.last_stderr)
     w.chantier("gate", cr, GATE)
-    w.chantier("verdict", cr, "VERIFIED")
+    w.verified(cr)
     _, out = w.chantier("handback", cr, "ready", link)
     _, events = w.chantier("log", cr)
     check("the recorded Driver of a blocked CR hands back ready: ready, the block cleared, a note "
@@ -3670,7 +3701,7 @@ def gate_proof(w: World) -> None:
     # handback ready: the head, the tree, the push, the gate
     commit(w, a, "g2.py", "G = 2\n")
     w.chantier("gate", a, GATE)
-    w.chantier("verdict", a, "VERIFIED")
+    w.verified(a)
     ship(w, a, "feat: g2")
     link, shipped = w.cr(a)["pr"], head(a)
     check("`ship` records the full SHA of the head in the CR and its event",
@@ -3698,7 +3729,7 @@ def gate_proof(w: World) -> None:
           str(refusals))
     commit(w, a, "g4.py", "G = 4\n")
     ship(w, a, "feat: g4")
-    w.chantier("verdict", a, "VERIFIED")
+    w.verified(a)
     code, _ = w.chantier("handback", a, "ready", link, expect=2)
     check("a gate passed only at an earlier head is refused, with that cause alone",
           code == 2 and "no long gate passed" in w.last_stderr
@@ -3716,7 +3747,7 @@ def gate_proof(w: World) -> None:
         commit(w, b, "g5.py", "G = 5\n")
         w.chantier("gate", b, GATE)
         ship(w, b, "feat: g5")
-        w.chantier("verdict", b, "VERIFIED")
+        w.verified(b)
         w.chantier("handback", b, "ready", w.cr(b)["pr"])
     finally:
         w.sh("git", "config", "--unset", "core.abbrev")
@@ -3727,7 +3758,7 @@ def gate_proof(w: World) -> None:
     commit(w, c, "g6.py", "G = 6\n")
     w.chantier("gate", c, GATE)
     ship(w, c, "feat: g6")
-    w.chantier("verdict", c, "VERIFIED")
+    w.verified(c)
     long_head = w.cr(c)["head"]
     for name in ("events.jsonl", "batch.json"):
         path = w.folder() / name
@@ -3743,7 +3774,7 @@ def gate_proof(w: World) -> None:
     w.chantier("gate", d, GATE)
     ship(w, d, "feat: g7")
     w.chantier("note", d, "still open past the budget")
-    w.chantier("verdict", d, "VERIFIED")
+    w.verified(d)
     w.chantier("handback", d, "ready", w.cr(d)["pr"])
     check("`gate`, `ship`, `note`, `verdict` and `handback` are never refused for the budget",
           w.cr(d)["status"] == "ready")
@@ -3868,7 +3899,7 @@ def gate_carry(w: World) -> None:
         commit(w, cr, name, "CR = 1\n")
         ship(w, cr, f"feat: {name}")
         w.chantier("gate", cr, GATE)
-        w.chantier("verdict", cr, "VERIFIED")
+        w.verified(cr)
     old = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
     gates = len(events("gate", clean))
     land(w, "main", ("moved.txt", "main moved\n"))
@@ -3884,7 +3915,7 @@ def gate_carry(w: World) -> None:
         and "no long gate passed" not in w.last_stderr,
         w.last_stderr,
     )
-    w.chantier("verdict", clean, "VERIFIED")
+    w.verified(clean)
     _, out = w.chantier("handback", clean, "ready", link)
     done = events("handback", clean)[-1]
     check(
@@ -3933,7 +3964,7 @@ def gate_carry(w: World) -> None:
         cwd=wc,
     )
     w.chantier("ship", clash, w.cr(clash)["pr"])
-    w.chantier("verdict", clash, "VERIFIED")
+    w.verified(clash)
     code, _ = w.chantier("handback", clash, "ready", w.cr(clash)["pr"], expect=2)
     check(
         "a rebase with a resolved conflict: `handback ready` is refused, `no long gate passed` "
@@ -5632,7 +5663,7 @@ def stack_waiver(w: World) -> None:
     for cr, name in ((one, "low.py"), (two, "mid.py"), (three, "top.py")):
         commit(w, cr, name, "CR = 1\n")
         ship(w, cr, f"feat: {name}")
-        w.chantier("verdict", cr, "VERIFIED")
+        w.verified(cr)
     code, _ = w.chantier("handback", one, "ready", w.cr(one)["pr"], expect=2)
     check("with no waiver, a lower CR is refused its hand-back without a long gate",
           code == 2 and "no long gate passed" in w.last_stderr and not gate_lines(one), w.last_stderr)

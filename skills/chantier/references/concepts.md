@@ -350,7 +350,9 @@ started.
   when the lock names another CR (exit 2) and says so when no gate runs (exit 0).
   The Verifier records its verdict with `verdict <cr>
   VERIFIED` or `verdict <cr> "NOT VERIFIED"` at the head it verified; the last verdict at a head
-  decides. `handback <cr> ready` needs both at the PR's head, committed, clean and pushed;
+  decides. `verdict <cr> VERIFIED` is refused (exit 2) unless `work/verify.md` in the CR's folder
+  has a `Head:` line naming the full SHA of the head it records; `NOT VERIFIED` is not.
+  `handback <cr> ready` needs both at the PR's head, committed, clean and pushed;
   `--no-gate "<the project's rule>"` waives the long gate check only, for a project whose rules
   declare none, exempt this CR, or name a pipeline job as the long gate, and the steering session checks it; a waiver is not a project
   rule, so `--no-gate` is never its flag.

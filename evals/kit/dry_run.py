@@ -405,6 +405,11 @@ class Batch:
         self.tool(driver, ["git", "-C", wt, "push", "--quiet", "--force-with-lease", "origin", c["branch"]])
         self.cli(driver, "gate", cr_id, GATE)
         self.cli(driver, "ship", cr_id, link)
+        # the Verifier's proof note, at the head it judged: the CLI refuses VERIFIED without it
+        head = self.tool(driver, ["git", "-C", wt, "rev-parse", "HEAD"]).stdout.strip()
+        note = self.folder(c) / "work" / "verify.md"
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_text(f"Head: {head}\n", encoding="utf-8")
         self.cli(driver, "verdict", cr_id, "VERIFIED")
         self.tool(driver, ["gh", "pr", "checks", link])
         self.cli(driver, "handback", cr_id, "ready", link)

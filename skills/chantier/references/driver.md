@@ -81,8 +81,10 @@ defaults, not a gate.
     `verdict` exactly `APPROVE` or `FIX-REQUIRED` and `head` a commit SHA. Prose, prose around the
     JSON, or a verdict word outside the JSON fails.
   - Verifier: the reply's first line is exactly `VERIFIED` or `NOT VERIFIED`, with its `Head:`
-    line and the claims that failed. `verify.md`
-    exists with its `Head: <sha>` line. Each claim in it names the SHA it was judged at (or
+    line and the claims that failed. `work/verify.md`
+    exists with its `Head: <sha>` line; the CLI refuses `verdict VERIFIED` without a `Head:` line
+    naming the head there, so a `VERIFIED` in `$CHANTIER handoff <cr>` at the head is proof the
+    note exists at that head. Each claim in it names the SHA it was judged at (or
     `carried from <sha7>: <reason>`), the command it ran and that command's output. A claim
     without its command, output and SHA is a proof out of format, and so is a claim given as
     prose ("refused", "passes") with no command. The verdict is recorded at that head
