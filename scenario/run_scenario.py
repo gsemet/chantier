@@ -4828,7 +4828,7 @@ def batch_modes(w: World) -> None:
           code == 0 and open_order() == [y, x, z, q] and last_mode()["previous"] == "parallel"
           and any(ln.startswith(q) and f"waits for {z} working" in ln for ln in status)
           and {k: w.cr(m).get(k) for k in kept} == kept, str(out) + str(status))
-    code, out = w.chantier("take", x, "--note", "rebase: mode series", "--epoch", 1)
+    code, out = w.chantier("take", x, "--note", "rebase: mode series", "--epoch", 0)
     check("parallel to series: a ready CR's rebase prints its predecessor's branch",
           code == 0 and any(f"base {w.cr(y)['branch']}" in ln for ln in out), str(out))
     w.ready(x, w.cr(x)["pr"])
@@ -4853,7 +4853,7 @@ def batch_modes(w: World) -> None:
     check("stack to parallel clears every place in the stack, and says to unstack first",
           code == 0 and not any(c.get("stacked") for c in w.batch()["crs"])
           and any("forge-stack unstack" in ln for ln in out), str(out))
-    code, out = w.chantier("take", x, "--note", "rebase: mode parallel", "--epoch", 1)
+    code, out = w.chantier("take", x, "--note", "rebase: mode parallel", "--epoch", 0)
     _, status = w.chantier("status")
     check("stack to parallel: a CR that was stacked on another is taken back on the default branch, "
           "no CR waits for a predecessor, the merged CR is unchanged",
