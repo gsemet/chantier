@@ -106,7 +106,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   except under the grant, once every other CR is merged or cancelled and its base is the default
   branch, after `$CHANTIER release go <cr> --note "merge <pr>"` says `go`; an approval never
   covers it. You merge a fix only under the grant (else it is an ordinary CR handed back), with the
-  forge's CLI by the project's method, then `$CHANTIER order merged <cr> --epoch <n>`, then the
+  forge's CLI by the project's method (on GitHub, by the route of "Merging on GitHub", Your means),
+  then `$CHANTIER order merged <cr> --epoch <n>`, then the
   fast-forward (Your means).
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit or the budget; a refusal is a fact, not an argument. A spent budget, a round limit, a
@@ -467,6 +468,28 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   - **After:** no reload of the plugin, no new reading of the cards (the CLI is read live; the
     cards load at the next session or with `/reload-plugins`). The next merge recorded tries
     again from step 1.
+- **Merging on GitHub** (a release PR or a fix PR, under the grant, after `release go` says `go`;
+  GitLab has no native stack and `glab mr merge` stays; the route is **unproved** by an agent, on a
+  Copilot host too, until a real run). GitHub refuses `gh pr merge` for a PR of a native stack. In
+  direct mode the Chief of Staff follows the same route.
+  1. Read the stacks: `gh api -X GET repos/<owner>/<repo>/stacks -F per_page=100`; find an open
+     stack (`open: true`) whose `pull_requests` holds the PR among its open ones.
+  2. None holds it: `gh pr merge <pr> --<the project's method> --match-head-commit <head SHA>` (head
+     from `gh pr view <pr> --json headRefOid`).
+  3. A stack holds it and an open PR sits below it: do not merge (the asynchronous merge takes every
+     open PR below it). Ask `[foreman→chief-of-staff] release <cr>: PR <pr> is in a stack above open
+     PRs <numbers>; not merged`; in direct mode the Chief of Staff tells the user.
+  4. A stack holds it and it is the lowest open PR: `gh api -X PUT
+     repos/<owner>/<repo>/pulls/<pr>/merge-async -f merge_method=<rebase|squash|merge, the project's
+     method> -f merge_action=direct_merge -f sha=<head SHA>`. Its `status`: `merged`: go on (`order
+     merged`, the fast-forward). `pending`: one wait of at most 30 s (concepts, rule 8's second
+     exception), then one `gh api -X GET repos/<owner>/<repo>/pulls/<pr>/merge-async/<details.uuid>`;
+     `merged`: go on; still `pending`: no new `PUT`, no loop, `$CHANTIER note <cr> "merge: <pr>
+     pending on GitHub's asynchronous merge after <s> s"` and ask `[foreman→chief-of-staff] release
+     <cr>: merge of PR <pr> still pending on GitHub`; before any later attempt read `gh pr view <pr>
+     --json state,mergedAt`: a merged PR is recorded, never merged again. Anything else, or a
+     refused call: a stop, reported with its exact text; no other route, no `gh pr merge`.
+  The head SHA in both forms guards that the merged head is the one judged.
 - A CR taken back from `ready` (every `take <cr> --note` above, the Series one and the PR ready to merge
   that stopped merging included) is run by the Driver that handed it back:
   - Note the Driver's agent id first (`status`; it may be the same read as the one before the

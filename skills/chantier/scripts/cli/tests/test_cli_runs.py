@@ -248,6 +248,7 @@ def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks() -> Non
         ), command
     assert rule_matches("SendMessage", "SendMessage")
     assert not any("release create" in rule for rule in RECOMMENDED_ALLOW)  # asked by the host
+    assert not any("merge-async" in rule or "/stacks" in rule for rule in RECOMMENDED_ALLOW)
     table = text.split("### Capabilities and their commands\n", 1)[1].split("\n###", 1)[0]
     rows = [ln for ln in table.splitlines() if ln.startswith("| ") and "---" not in ln][1:]
     in_table = [re.findall(r"`([^`]+)`", ln.split(" | ")[3]) for ln in rows]
@@ -336,6 +337,11 @@ def test_preflight_reads_the_settings_files_for_allow_rules(
     warn = next(ln for ln in out if ln.startswith("P10 warn") and "a release on its own" in ln)
     assert code == 0 and "gh release create*" in warn and "gh pr merge*" in warn
     assert "classifier" in warn and "Remote Control" in warn
+    assert "gh api -X PUT repos/*/pulls/*/merge-async*" in warn
+    code, out, _ = chantier("preflight", "--grant-fixes")  # fixes on a grant
+    warn = next(ln for ln in out if ln.startswith("P10 warn") and "fixes on a grant" in ln)
+    assert code == 0 and "gh pr merge*" in warn
+    assert "gh api -X PUT repos/*/pulls/*/merge-async*" in warn
 
 
 def test_preflight_has_no_allow_rule_check_on_copilot(

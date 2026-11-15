@@ -31,7 +31,9 @@ started.
   changed): it says so itself, and no one merges it. A release PR follows the same rule: the user
   merges it, last of the batch (in a stack, the stack's top PR, with the rest in the same action;
   in a series, after the rest, from the bottom up); the steering session merges it only under the
-  grant, and never a stack that holds it.
+  grant, and never a stack that holds it. On GitHub a PR in a native stack is merged through the
+  asynchronous merge, which takes every open PR below it, so the steering session merges it only when
+  nothing open sits below it ([foreman](foreman.md), Your means, "Merging on GitHub").
 - **Tracker issue:** an issue in the project's tracker (GitHub, GitLab, Jira…) that a CR comes
   from, named by an `issue: <link>` line under the title of the CR's `01-intent.md` and
   `03-change-spec.md`. The CR's PR names it in its `## Issues References` section
@@ -556,7 +558,9 @@ running agent's model, never a retry of the same agent, and never a model typed 
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell
-   (except the one bounded wait before a second CI look that [driver](driver.md), `CI:`, names).
+   (except two bounded waits, each once: the one before a second CI look that [driver](driver.md), `CI:`,
+   names, and the one after a `pending` answer of GitHub's asynchronous merge, a single `sleep` of at
+   most 30 seconds then one read, at most once per merge: [foreman](foreman.md), "Merging on GitHub").
    `git -C <worktree>` is accepted
    for any git command; the push rule is unchanged (plain when the remote branch is an ancestor,
    `--force-with-lease` after a rewrite).
