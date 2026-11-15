@@ -1,4 +1,4 @@
-﻿<h1 align="center">chantier 0.10</h1>
+<h1 align="center">chantier 0.10</h1>
 
 <p align="center"><b>Introducing the board web UI, tested by intensive evals: edit your backlog in the browser, run a stack from the start, and keep each proof across a clean rebase</b></p>
 
