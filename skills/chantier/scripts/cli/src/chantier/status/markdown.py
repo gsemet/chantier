@@ -83,11 +83,14 @@ def _rows_markdown(rows: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def _budget(v: dict[str, Any]) -> str:
+def _budget(v: dict[str, Any], dated: bool = False) -> str:
     spent, budget = v["spent_usd"], v["budget_usd"]
-    return ("unknown" if spent is None else _usd(spent, v.get("unpriced"))) + (
-        f" of ${budget:g}" if budget else ""
-    )
+    at = v.get("spent_at") if dated else None
+    return (
+        "unknown"
+        if spent is None
+        else _usd(spent, v.get("unpriced")) + (f" as of {at}" if at else "")
+    ) + (f" of ${budget:g}" if budget else "")
 
 
 def batch_markdown(v: dict[str, Any]) -> str:
@@ -104,7 +107,7 @@ def batch_markdown(v: dict[str, Any]) -> str:
         f"# {v['batch']}: {v['state']}",
         "",
         f"Updated {v['updated']} · {who} · {shape} · "
-        f"spent {_budget(v) if v['priced'] else 'unknown'}"
+        f"spent {_budget(v, True) if v['priced'] else 'unknown'}"
         f"{' (to date)' if v['paused'] and v['priced'] else ''} · "
         f"{v['asks_unread']} asks unread · "
         f"{v['orders_pending']} orders pending",

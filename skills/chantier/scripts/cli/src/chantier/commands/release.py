@@ -23,7 +23,13 @@ def release(args: argparse.Namespace) -> tuple[list[str], int]:
     user gave, within the budget. A fix's merge is an action too:
     `go` on the fix CR, under the grant alone."""
     repo = Repo.find()
-    with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
+    batch = find_cr_batch(repo, args.cr, args.batch)
+    fresh: list[str] = []
+    if args.action == "go":  # the only action that checks the budget: on the real spend
+        from chantier.commands.batch_status import refresh_for_check  # noqa: PLC0415 - slow
+
+        fresh = refresh_for_check(repo, batch, "driver")
+    with RenderedBatch(repo, batch, actor="driver") as b:
         c = b.cr(args.cr)
         is_fix = c.kind == "fix" and args.action == "go"
         if c.kind != "release" and not is_fix:
@@ -47,7 +53,8 @@ def release(args: argparse.Namespace) -> tuple[list[str], int]:
             b.log("release-published", args.cr, note=args.note)
             return [f"release {grant.published} published: {args.note}"], 0
         result, why = fix_go(b, c, args.note) if is_fix else release_go(b, c, args.note)
-        return _answer(b, result, why, args.note, is_fix)
+        words, code = _answer(b, result, why, args.note, is_fix)
+        return [*words, *fresh], code
 
 
 def _answer(

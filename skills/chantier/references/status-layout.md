@@ -71,7 +71,8 @@ brackets are yours to fill, from the CLI as printed; the icons and their words s
   the CRs done, the spend and the budget. Who steers (`direct (the Chief of Staff)` or `Foreman`)
   and the shape (`parallel`, `series` or `stack`) are copied from the first line of
   `$CHANTIER status`, never judged; `unknown` stays `unknown`; the spend is copied as `status`
-  prints it (`at least $1.61` while calls are not priced).
+  prints it (`at least $1.61` while calls are not priced), without its age (`, <n> min old`): a
+  report runs right after `status --refresh`.
 - **CR table:** one row per CR: CR, subject (a few words, not the title), state, PR as a link,
   cost (from the row of `status --refresh`, a merged CR too, `at least` copied when its row says
   so); rows with one cause get the same words, whatever each Driver wrote.

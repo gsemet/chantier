@@ -188,6 +188,11 @@ def order(args: argparse.Namespace) -> list[str]:
         )
     actor = "foreman" if own else "chief-of-staff"
     stopped = stop_before_merge(repo, args, actor) if args.kind == "merged" else None
+    fresh: list[str] = []
+    if args.kind == "qa" or (own and args.kind == "add" and args.fix_for):
+        from chantier.commands.batch_status import refresh_for_check  # noqa: PLC0415 - slow
+
+        fresh = refresh_for_check(repo, resolve_batch(repo, args.batch), actor)  # budget checked
     with (
         changes_lock(repo),
         RenderedBatch(repo, resolve_batch(repo, args.batch), actor=actor) as b,
@@ -207,10 +212,10 @@ def order(args: argparse.Namespace) -> list[str]:
         effect = reopened + apply_order(_word(b, args, req))
         oid = _record_order(b, args, req)
     if own:
-        return effect
+        return [*effect, *fresh]
     target = f" {cr}" if cr and cr != "-" else ""
     text = f" {note}" if note else ""
-    return [f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}", *effect]
+    return [f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}", *effect, *fresh]
 
 
 def _order_done(repo: Repo, args: argparse.Namespace) -> list[str]:

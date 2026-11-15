@@ -2436,8 +2436,33 @@ def close_refusals(w: World) -> None:
     state.write_text(json.dumps({**json.loads(held), "slots": 0}))
     zero = state.read_text()
     code, _ = w.chantier("take", new, "--epoch", 2, expect=None)
-    check("a refused `take` on a paused batch leaves it paused and unchanged",
-          code != 0 and state.read_text() == zero and w.batch()["status"] == "paused", w.last_stderr)
+    # the budget check refreshes the spend and records it even when `take` is then refused: the
+    # spend's own fields (and the paused batch's cost summary) are the only thing that moves
+    spend_keys = {"spent_usd", "spent_at", "unpriced", "summary", "crs"}
+    after = w.batch()
+    check("a refused `take` on a paused batch leaves it paused and unchanged, but for the spend",
+          code != 0 and w.batch()["status"] == "paused"
+          and {k: v for k, v in after.items() if k not in spend_keys}
+          == {k: v for k, v in json.loads(zero).items() if k not in spend_keys}
+          and [(c["id"], c["status"]) for c in after["crs"]]
+          == [(c["id"], c["status"]) for c in json.loads(zero)["crs"]], w.last_stderr)
+    # the budget is checked on the transcripts' spend: a budget below it refuses the `take` although
+    # the stored figure is far below the budget, and the refreshed figure is recorded and dated
+    stale = {**json.loads(held), "budget_usd": 0.5, "spent_usd": 0.01}
+    stale.pop("spent_at", None)
+    state.write_text(json.dumps(stale))
+    code, _ = w.chantier("take", new, "--epoch", 2, expect=None)
+    refused = w.last_stderr
+    _, shown = w.chantier("status", "--batch", name)
+    d = w.batch()
+    check("a `take` is refused (exit 5) on the spend read from the transcripts, not on the stored "
+          "figure; `status` shows the refreshed figure, `, 0 min old`, and the batch's STATUS.json "
+          "has `spent_at`",
+          code == 5 and "budget spent" in refused and w.cr(new)["status"] == "queued"
+          and d["spent_usd"] > 1 and d["spent_at"]
+          and re.search(r" spent \$\d+\.\d\d of \$0\.5, 0 min old", shown[0])
+          and json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["spent_at"]
+          == d["spent_at"], f"{code} {refused} {shown[0]}")
     state.write_text(held)
     # the steering takes it, without --batch: the CR is found in a paused batch, which runs again
     unpriced_model(w, main, name)  # a call of a model with no price is in the transcript now
