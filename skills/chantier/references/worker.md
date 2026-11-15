@@ -148,7 +148,8 @@ The PR's description, as posted on the forge, is one of the claims: it must be c
 breaks, sections, the fold, images that resolve) and consistent with what the PR delivers (the
 Summary, Deliverables and Changes match the diff at the pushed head: no claimed change missing, no
 delivered change unmentioned). A description that fails either is `NOT VERIFIED`. Each proof in
-the description names its SHA, which is the head or carried with its reason; a claim stated as
+the description names its SHA, which is the head or carried with its reason (`carried from <sha7>` after a clean rebase is a
+valid carried proof); a claim stated as
 fact with no proof in `verify.md`, the gates or the evidence is `NOT VERIFIED` (the Driver marks
 it `UNVERIFIED` or narrows it). A `STALE` mark left at the end is `NOT VERIFIED`. The description's
 Known gaps is one of the claims: each `**UNVERIFIED:**` claim, each evidence pair
@@ -168,7 +169,10 @@ reviewed `head`, the round's `committed as <sha>`, the move's head; for `carried
 a review happened and where, not the code: you still prove every other claim yourself. This holds
 for the description-only pass too.
 
-Delta assessment: given the previous `verify.md` and a move, judge again each claim the move
+Delta assessment: a Verifier is not started for a clean rebase that leaves the CR's patch
+unchanged, since its verdict carries, proved by git at `handback ready`. When it is started after
+a move, the delta rule stays as written, base changes included. Given the previous `verify.md` and
+a move, judge again each claim the move
 touched, and the claims that failed; carry the others. A claim is touched when the move changed a
 file, a behaviour or a dependency its proof exercises: the CR's patch changed (the diff or the
 range-diff), or the base brought changes to what the proof runs (`git diff --name-only <old

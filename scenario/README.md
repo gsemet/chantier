@@ -226,8 +226,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (test: test_gate_refusals.py::test_gate_stop_takes_no_command_and_gate_needs_one_and_nothing_running_is_not_an_error)
   (test: test_rail_refusals.py::test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_epoch);
 - the long gate's queue running the next merge first (a stack's bottom CR, arriving last, passes
-  before the CR waiting; the holder is not stopped), and a long gate carried over a clean rebase
-  (`handback` accepted with `gate_from` and no new gate; a conflicting rebase refused with `does
+  before the CR waiting; the holder is not stopped), and a long gate and a verdict carried over a clean rebase
+  (`handback` accepted with `gate_from` and `verdict_from`, no new gate and no new verdict; a conflicting rebase refused with `does
   not carry`; `STATUS.md` then shows `carried from <sha7>`; the order and the old-git refusal in
   pytest) (unit: gates)
   (test: test_gate_queue_order.py::test_the_queue_runs_the_next_merge_then_the_moved_then_arrival)

@@ -118,7 +118,7 @@ the pause (the cost to date):
     CR's "Long gate" step shows `exempt: <reason>`), and each CR handed back under a waiver
     (`order waive`) with its validating CR, or with its follow-up folder when nothing in the batch
     validates it (the step shows `waived (O-<k>): validated by CR-<k> (#<n>)` or `follow-up
-    <folder>`; `carried from <sha7>` is a pass carried over a clean rebase, not a gap);
+    <folder>`; `carried from <sha7>` is a pass carried over a clean rebase, not a gap, and so is a verdict carried that way);
   - the **Retro**: the points of `4-batch/retro.md` written at this pause (and of the release's
     `work/retro.md` if the batch had a release, each point once), one numbered line each,
     `<n>. [<tag>] <problem>: <long-term fix>`, one numbering across both tags so the user answers

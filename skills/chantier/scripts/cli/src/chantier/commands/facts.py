@@ -7,14 +7,19 @@ from pathlib import Path
 
 from chantier.commands.crs import (
     batch_cr,
+    carry_check,
     cr_events,
+    cr_worktree,
     grant_line,
+    last_gate_pass,
     last_verdict,
+    last_verdict_head,
     short_head,
 )
 from chantier.commands.forge_base import stacked_read
+from chantier.core.errors import ChantierError
 from chantier.core.heads import gate_passed
-from chantier.core.records import BatchRecord, CrEntry, ReleaseGrant, round_limit
+from chantier.core.records import BatchRecord, CrEntry, EventRecord, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines
@@ -148,6 +153,30 @@ def _waiver_line(d: BatchRecord, c: CrEntry) -> str | None:
     return None
 
 
+def _carried_lines(
+    repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]
+) -> tuple[str, str]:
+    """For the gate box and the verdict box, `carried from <sha7> (clean rebase onto <base>)`
+    when the pass or the verdict at an older head carries to this head (proved by git, as the
+    hand-back does), else an empty string. Read only."""
+    head = c.head
+    if not head or not (c.worktree and Path(c.worktree).is_dir()):
+        return "", ""
+    base = stack_base(d, c, repo)
+    ref = f"{repo.config['remote']}/{base}"
+    out = []
+    for g, have in (
+        (last_gate_pass(events), gate_passed(events, head)),
+        (last_verdict_head(events), last_verdict(events, head) == "VERIFIED"),
+    ):
+        try:
+            ok = g and not have and carry_check(cr_worktree(c), ref, head, g) is None
+        except ChantierError:  # a ref git cannot read: nothing is proved, the box stays open
+            ok = False
+        out.append(f"carried from {short_head(g)} (clean rebase onto {base})" if ok else "")
+    return out[0], out[1]
+
+
 def _gate_lines(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     events = cr_events(repo, batch, c.id)
     head = c.head
@@ -163,14 +192,21 @@ def _gate_lines(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]
         if not waived
         else ["  [-] long gate waived (see the gate: line)"]
     )
+    carried = _carried_lines(repo, d, c, events)
+    if carried[0] and not gate_passed(events, head) and not waived:
+        long_gate = [f"  [x] long gate passed {carried[0]}"]
+    verdict_box = (
+        f"  [x] verdict VERIFIED {carried[1]}"
+        if carried[1] and verdict != "VERIFIED"
+        else f"  [{'x' if verdict == 'VERIFIED' else ' '}] verdict "
+        f"{verdict if verdict == 'NOT VERIFIED' else 'VERIFIED'}"
+    )
     return [
         *([waiver] if waiver else []),
         f"gates before handback ready, at the PR's head {head or 'not shipped yet'} "
         "(the full SHA; the gate log's first line names it):",
         *long_gate,
-        f"  [{'x' if verdict == 'VERIFIED' else ' '}] verdict "
-        f"{verdict if verdict == 'NOT VERIFIED' else 'VERIFIED'} (the Verifier: verdict "
-        f'{c.id} VERIFIED|"NOT VERIFIED")',
+        f'{verdict_box} (the Verifier: verdict {c.id} VERIFIED|"NOT VERIFIED")',
     ]
 
 

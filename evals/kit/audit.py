@@ -426,12 +426,15 @@ def event_checks(data: dict, events: list[dict], check: Checks) -> None:
                     and same(e.get("head"), c["head"]) for e in mine)
         waived = any(e.get("kind") == "handback" and e.get("result") == "ready" and (e.get("no_gate") or e.get("gate_from") or e.get("gate_waiver"))
                      for e in mine)
-        if not verdicts or verdicts[-1].get("result") != "VERIFIED":
+        carried = any(e.get("kind") == "handback" and e.get("result") == "ready" and e.get("verdict_from")
+                      for e in mine)
+        if not carried and (not verdicts or verdicts[-1].get("result") != "VERIFIED"):
             problems.append(f"{c['id']} no verdict VERIFIED at {c['head']}")
         if not gated and not waived:
             problems.append(f"{c['id']} no passed gate at {c['head']}")
-    check(not problems, f"each CR handed back ready has a verdict VERIFIED and a passed long gate "
-                        f"(or a `no_gate`, `gate_from` or `gate_waiver` hand-back) at its head ({judged} CRs)"
+    check(not problems, f"each CR handed back ready has a verdict VERIFIED (or a `verdict_from` hand-back) "
+                        f"and a passed long gate (or a `no_gate`, `gate_from` or `gate_waiver` "
+                        f"hand-back) at its head ({judged} CRs)"
           + (f": {problems[:2]}" if problems else ""), "C7", seen=bool(judged))
     blocked = [e for e in events if e.get("kind") == "handback" and e.get("result") == "blocked"]
     odd = [f"{e.get('cr')}: {(e.get('note') or '')[:40]}" for e in blocked

@@ -14,7 +14,7 @@ from conftest import PLUGIN_ROOT, load_script
 
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
-from chantier.commands.crs import last_verdict
+from chantier.commands.crs import last_verdict, last_verdict_head
 from chantier.core.heads import gate_passed
 from chantier.core.ids import normalize_cr
 from chantier.core.records import BatchRecord, CrEntry, EventRecord
@@ -50,6 +50,11 @@ def test_a_cr_has_one_spelling_and_a_passed_gate_and_a_verdict_are_read_at_a_hea
     assert last_verdict([v("VERIFIED"), v("NOT VERIFIED")], "abc1234") == "NOT VERIFIED"
     assert last_verdict([v("NOT VERIFIED"), v("VERIFIED")], "abc1234") == "VERIFIED"
     assert last_verdict([v("VERIFIED", "old")], "abc1234") is None
+    assert last_verdict_head([v("VERIFIED", "a")]) == "a"
+    assert last_verdict_head([v("VERIFIED", "a"), v("NOT VERIFIED", "b")]) is None
+    assert last_verdict_head([v("VERIFIED", "a"), v("NOT VERIFIED", "a")]) is None
+    assert last_verdict_head([v("NOT VERIFIED", "a"), v("VERIFIED", "b")]) == "b"
+    assert last_verdict_head([]) is None
 
 
 def test_cost_puts_the_steering_sessions_own_subagents_on_their_own_line_and_qa_on_a_driver() -> (

@@ -87,7 +87,7 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   not in the text. With nothing visible: one line, e.g. "No visual change".
 - Each proof names the SHA it covers (seven characters): the Test plan items, and the captions of
   the before/after visuals in Deliverables (before at the base's SHA, after at the head's). A
-  proof carried over a move says so (`carried from <sha7>`). A proof the head has moved past, not
+  proof carried over a move says so (`carried from <sha7>`); a clean rebase carries every proof whose patch it left unchanged. A proof the head has moved past, not
   yet judged again, is marked `STALE (judged at <sha7>, head now <sha7>)`. A claim in Summary,
   Deliverables, Changes or Impacts with no proof (no test, no gate, no Verifier claim, no
   evidence) starts with `**UNVERIFIED:**`, or is narrowed to what is proven; it is never left as a
