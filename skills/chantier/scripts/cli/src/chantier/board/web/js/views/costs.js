@@ -8,6 +8,7 @@ import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter } from '../ui/parts.js';
 import { recomputeCosts } from './costs-action.js';
+import { bindHistory, historyBlock } from './costs-history.js';
 import { lastMerged, perCr } from './costs-tables.js';
 
 const sum = (rows) => rows.reduce((n, c) => n + (c.cost_usd ?? 0), 0);
@@ -34,15 +35,20 @@ function figures(batch) {
 
 export function render(state) {
   const batch = state.data.batch;
-  if (!batch) return empty(t('batch.none'));
-  return html`<div class="costs">${ageLine(state)}${figures(batch)}${perCr(batch)}${lastMerged(state.data.merged ?? [])}</div>`;
+  const merged = lastMerged(state.data.merged ?? []);
+  if (!batch) {
+    return html`<div class="costs">${empty(t('batch.none'))}${historyBlock(state)}${merged}</div>`;
+  }
+  return html`<div class="costs">${ageLine(state)}${figures(batch)}${perCr(batch)}${historyBlock(state)}${merged}</div>`;
 }
 
 export function mount(root) {
-  const off = bindOpen(root);
-  const ask = delegate(root, 'click', '[data-recompute]', () => recomputeCosts());
+  const offs = [
+    bindOpen(root),
+    bindHistory(root),
+    delegate(root, 'click', '[data-recompute]', () => recomputeCosts()),
+  ];
   return () => {
-    off();
-    ask();
+    for (const off of offs) off();
   };
 }

@@ -30,6 +30,3 @@ export function tally(items) {
 export const BUCKETS = ['inbox', 'P1', 'P2', 'P3', 'P4', '3-ready'];
 
 export const itemsOf = (backlog) => BUCKETS.flatMap((b) => backlog?.[b] ?? []);
-
-// Items still to grill: not yet specified.
-export const toGrill = (items) => items.filter((item) => !isSpecified(item));

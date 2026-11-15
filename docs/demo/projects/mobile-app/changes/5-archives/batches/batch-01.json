@@ -1,0 +1,44 @@
+{
+    "schema":  1,
+    "batch":  "batch-01",
+    "number":  1,
+    "state":  "closed",
+    "opened":  "2026-06-03T09:00:00Z",
+    "closed":  "2026-06-04T16:20:00Z",
+    "mode":  "stack",
+    "steering":  "foreman",
+    "host":  "claude",
+    "budget_usd":  40,
+    "cost_usd":  15.95,
+    "cost_unpriced":  {
+
+                      },
+    "crs":  [
+                {
+                    "cr":  "CR-31",
+                    "title":  "Change Specification: A two-column layout on tablets",
+                    "result":  "merged",
+                    "archive":  "5-archives/260604-1410-31-tablet-layout",
+                    "pr":  "https://github.com/example/shop-mobile/pull/6",
+                    "rounds":  2,
+                    "cost_usd":  9.8,
+                    "cost_unpriced":  {
+
+                                      }
+                },
+                {
+                    "cr":  "CR-32",
+                    "title":  "Change Specification: Dark mode follows the system setting",
+                    "result":  "merged",
+                    "archive":  "5-archives/260604-1422-32-dark-mode",
+                    "pr":  "https://github.com/example/shop-mobile/pull/7",
+                    "rounds":  1,
+                    "cost_usd":  6.15,
+                    "cost_unpriced":  {
+
+                                      }
+                }
+            ],
+    "report":  null,
+    "backfill":  null
+}

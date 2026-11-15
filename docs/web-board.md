@@ -1,3 +1,4 @@
+
 # The web board
 
 `chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch.
@@ -24,7 +25,7 @@ With several projects, Home is the table of **All projects**: the batch of each 
 
 ![A project's Home](web-board/project-pc.png)
 
-A project's Home answers "what needs me?": four tiles (**To review**, the PRs ready to merge; **Waiting for you**, what is blocked and the questions the Foreman asked; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs, the pipeline of the backlog, the recent activity of the batch and the last merged CRs.
+A project's Home answers "what needs me?": five tiles (**To review**, the PRs ready to merge; **Waiting for you**, the CRs that are blocked; **In grill**, the items being grilled or specified; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs, the pipeline of the backlog, the recent activity of the batch (with no batch running, it names the last closed one), the last merged CRs and the five latest closed batches, one line each, with a link to the costs.
 
 ### Batch
 
@@ -39,15 +40,19 @@ The right column follows the batch's mode (stack, series or parallel, named in t
 
 ### Kanban
 
-![The kanban: Intake, Grill, 3-ready, In progress, Handed back](web-board/kanban-pc.png)
+![The kanban: Inbox, Backlog, Grill, 3-ready, In progress, Handed back, Done](web-board/kanban-pc.png)
 
+<<<<<<< HEAD
 One column per place a CR passes through: **Intake** (`1-inbox`), **Grill** (`2-backlog`, P1 to P4), **3-ready** (waits for the next batch), **In progress** (queued, working, blocked) and **Handed back**. A card shows its labels, its first lines, the number of files and its state (raw, in grill, specified, automatable), or its round for a CR of the batch. A working CR of the batch shows its step (`coder r2`, `gate scenario`, `CI`), a blocked one "waits for the user", and the CR the batch would start next carries a "next to start" tag (the Batch view's Slots figure names it). A click opens the folder. The labels at the top filter the cards. **+ New: a new idea** files an idea (see below).
+=======
+Seven columns, from the idea to the merged CR: **Inbox** (`1-inbox`), **Backlog** (`2-backlog`, P1 to P4, not yet grilled), **Grill** (items being grilled or specified, from the inbox or the backlog), **3-ready** (waits for the next batch), **In progress** (queued, working, blocked), **Handed back** and **Done** (the newest merged CRs; the total is in the column's head). A card shows its priority, its labels, its first lines, the number of files and its state (raw, in grill, specified, automatable), or its round for a CR of the batch. A click opens the folder. The labels at the top filter the cards, and a priority filter (the inbox and P1 to P4) sits beside them. **+ New: a new idea** files an idea (see below).
+>>>>>>> 93a67aa (feat(board): kanban columns with a Done column and a priority filter, shared item card on Triage, earlier batches on Costs and Home)
 
 ### Triage
 
 ![Triage: the inbox, the backlog by priority and 3-ready](web-board/triage-pc.png)
 
-The place where you sort the backlog. Each item is a post-it: its folder name, where the request came from (an issue number, a Jira key or `verbal`), its labels, and a mark for how far it has been worked (raw, in grill, specified, automatable). A dashed post-it with a clock has a late summary: the CR changed after its summary was written.
+The place where you sort the backlog. Each item is a post-it, the same card as the Kanban's with the selection and the drag added: its folder name, where the request came from (an issue number, a Jira key or `verbal`), its labels, and a mark for how far it has been worked (raw, in grill, specified, automatable). A dashed post-it with a clock has a late summary: the CR changed after its summary was written.
 
 - Drag a post-it between **Inbox**, a priority (P1 more urgent than P4) and **3-ready**, or up and down in a column.
 - Select several post-its for the bar that groups them under a theme (a group moves to the first post-it's column, **undo** takes it apart) or labels them (one lower-case word).
@@ -60,7 +65,7 @@ Each change is written at once, with the CLI's own file and triage commands, in 
 
 ![The costs: totals and one row per CR](web-board/costs-pc.png)
 
-What was spent against the budget, the sum of the CRs (the rest is the steering sessions), the average per active CR, one row per CR of the batch with its state and its cost, and the last merged CRs of all the batches. The figures are those the batch recorded; **Recompute** makes the server read the transcripts again, with no agent turn. The costs of the CRs a batch has not yet priced read as a dash.
+What was spent against the budget, the sum of the CRs (the rest is the steering sessions), the average per active CR, one row per CR of the batch with its state and its cost, and the last merged CRs of all the batches. **Earlier batches** lists the closed batches, newest first (closing day, mode, CRs merged, cost against the budget); a click on a row unfolds its CRs. A record made after the fact shows a dash where it has no figure. The figures are those the batch recorded; **Recompute** makes the server read the transcripts again, with no agent turn. The costs of the CRs a batch has not yet priced read as a dash.
 
 ## A CR's files
 

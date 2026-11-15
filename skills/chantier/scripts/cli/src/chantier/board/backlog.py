@@ -88,15 +88,21 @@ def grill_of(folder: Path, priority: str) -> str:
 
 
 def summary_fields(folder: Path) -> dict[str, Any]:
-    """What a post-it shows of the CR's `summary.json`: labels, group, origin, late summary."""
+    """What a card shows of the CR's `summary.json`: title, labels, group, origin, late summary."""
     try:
         view = summary_view(folder)
     except (OSError, ValueError):
         view = None
     if view is None:
-        return {"labels": [], "group": None, "origin": None, "late": False}
+        return {"title": "", "labels": [], "group": None, "origin": None, "late": False}
     origin = view.origin.model_dump(mode="json", exclude_none=True) if view.origin else None
-    return {"labels": list(view.labels), "group": view.group, "origin": origin, "late": view.late}
+    return {
+        "title": subject(view.title),
+        "labels": list(view.labels),
+        "group": view.group,
+        "origin": origin,
+        "late": view.late,
+    }
 
 
 def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -104,16 +110,17 @@ def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[d
     out: dict[str, list[dict[str, Any]]] = {k: [] for k in STAGES}
     for row in rows:
         folder = (changes / row["path"]).resolve()
+        fields = summary_fields(folder)
         out[row["priority"]].append(
             {
                 "item": row["item"],
-                "title": subject(row["title"]),
+                "title": fields["title"] or subject(row["title"]),
                 "folder": row["path"],
                 "files": count_files(folder),
                 "depends": depends_of(folder),
                 "description": description(folder),
                 "grill": grill_of(folder, row["priority"]),
-                **summary_fields(folder),
+                **{k: v for k, v in fields.items() if k != "title"},
             }
         )
     return out

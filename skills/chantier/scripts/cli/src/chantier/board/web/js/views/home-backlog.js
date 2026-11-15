@@ -1,6 +1,6 @@
 // Home, the backlog block: the pipeline from the inbox to 3-ready, and the last merged CRs.
 import { html, vars } from '../core/dom.js';
-import { percent } from '../core/format.js';
+import { percent, title } from '../core/format.js';
 import { knows } from '../core/router.js';
 import { tally } from '../model/grill.js';
 import { t } from '../model/words.js';
@@ -30,7 +30,7 @@ function pipeRow(bucket, items, whole) {
 }
 
 const mergedRow = (m) =>
-  html`<div class="x"><b>${m.cr}</b><span class="ell">${m.title}</span><span class="r">${(m.when ?? '').slice(5, 10)}</span></div>`;
+  html`<div class="x"><b>${m.cr}</b><span class="ell">${title(m.title)}</span><span class="lbl">${m.batch ?? ''}</span><span class="r">${(m.when ?? '').slice(5, 10)}</span></div>`;
 
 export function backlogBlock(state) {
   const backlog = state.data.backlog ?? {};

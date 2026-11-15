@@ -18,7 +18,17 @@ const itemFacts = (target) => {
   return html`${tag(`pri-${target.bucket}`, name)}<span class="lbl">${target.row.item}</span><span class="lbl">${stageWord(target.row)}</span>`;
 };
 
+// The facts of a merged CR: its tag, its batch and its cost.
+const doneFacts = (m) =>
+  html`${tag('cr', m.cr)}<span class="lbl">${m.batch ?? ''}</span><span class="lbl">${usd(m.cost_usd)}</span>`;
+
+const FACTS = {
+  cr: (target, batch) => crFacts(target.row, batch),
+  done: (target) => doneFacts(target.row),
+  item: (target) => itemFacts(target),
+};
+
 export function head(target, batch, count) {
-  const facts = target.kind === 'cr' ? crFacts(target.row, batch) : itemFacts(target);
+  const facts = FACTS[target.kind](target, batch);
   return html`<div class="ph"><div class="row-tags">${facts}<span class="grow"></span><span class="place" data-place="panel-actions"></span><button class="x" type="button" data-close aria-label="${t('panel.close')}">${icon('close')}</button></div><h2>${title(target.title)}</h2><div class="path">${target.folder}/ · ${tn('panel.files', count)}</div></div>`;
 }

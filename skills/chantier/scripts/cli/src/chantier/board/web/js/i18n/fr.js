@@ -1,4 +1,5 @@
 // Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../model/words.js.
+import board from './fr-board.js';
 import write from './fr-write.js';
 
 export default {
@@ -17,9 +18,7 @@ export default {
   'project.line': '{batch} · {state} · {n} en intake',
   'project.no_batch': 'pas de batch',
   'project.running': 'batch en cours',
-  'stats.intake': 'intake',
   'stats.grill': 'au grill',
-  'stats.working': 'en cours',
   'stats.handed': 'rendus',
   'stats.no_batch': 'pas de batch',
   'stats.loading': 'Chargement…',
@@ -81,7 +80,6 @@ export default {
   'home.review_go': 'PR prêtes à merger',
   'home.review_none': '{n} rendu(s), aucun prêt à merger',
   'home.waiting': "T'attendent",
-  'home.waiting_sub': '{blocked} bloqué(s), {asks} question(s)',
   'home.next': 'Batch suivant',
   'home.next_sub': 'en préparation (3-ready)',
   'home.no_batch': "Le batch suivant s'ouvrira sur ton go.",
@@ -127,20 +125,6 @@ export default {
   'ev.merged': 'mergé',
   'ev.order': 'ordre',
   'ev.note': 'note',
-  'kanban.intake': 'Intake',
-  'kanban.grill': 'Grill',
-  'kanban.ready': '3-ready',
-  'kanban.progress': 'In progress',
-  'kanban.handed': 'Rendus',
-  'kanban.intake_sub': '1-inbox : déposé, pas encore trié',
-  'kanban.grill_sub': '2-backlog : priorisé, en cours de grill',
-  'kanban.ready_sub': 'attend le prochain batch (pas « prêt à merger »)',
-  'kanban.progress_sub': '{batch} : en file, au travail, bloqué',
-  'kanban.progress_none': 'aucun batch : en file, au travail, bloqué',
-  'kanban.handed_sub':
-    'rendu : prête à merger quand la PR est sortie de draft sur {branch} ou sur un CR prêt à merger',
-  'kanban.count': '{n} items · {m} mergés',
-  'kanban.empty': 'vide',
   'priority.inbox': 'Inbox',
   'card.files': '{n} fichiers',
   'card.files.one': '{n} fichier',
@@ -232,6 +216,7 @@ export default {
   'panel.tree': 'Fichiers du dossier',
   'panel.doc': 'Fichier',
   ...write,
+  ...board,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'actif',
   'autosync.state.stopped': 'arrêté',

@@ -56,7 +56,8 @@ function readyFoot(ctx) {
   return html`<div class="rfoot">${summary}<button type="button" class="btn pri" data-ready="next"${ready.length && !done ? '' : ' disabled'}>${label}</button><small>${line}</small></div>`;
 }
 
-export function column(backlog, key, ctx) {
+export function column(backlog, key, base) {
+  const ctx = { ...base, column: key };
   const items = shownIn(backlog, key, ctx.filter);
   const lane = LANES.includes(key);
   const classes = `tcol${key === READY ? ' rdy' : ''}${lane ? ' lane' : ''}${lane && !items.length ? ' empty' : ''}`;
