@@ -8,8 +8,9 @@ What it keeps of GitHub: pull requests, with a `refs/pull/<n>/head` in the origi
 its head moves (never deleted, as on GitHub); real checks (`uv run --locked pytest -q` on the PR's
 head in a fresh clone, once per commit; a head marked pending stays pending); a rebase merge that
 does not wait for the checks (the repository has no branch protection); releases. It answers
-`auth status` (with the `workflow` scope), `repo view`, `pr create|view|list|checks|merge|close|edit`
-and `release create|list|view|delete`; anything else exits 1. Every call is logged in
+`auth status` (with the `workflow` scope), `repo view`, `pr create|view|list|checks|merge|close|edit`,
+`release create|list|view|delete`, and `api` for the stacks (none) and the asynchronous merge;
+anything else exits 1. Every call is logged in
 `<state>.calls`. Standard library only.
 """
 from __future__ import annotations
@@ -248,6 +249,24 @@ def text_of(args: list[str], inline: str, from_file: str) -> str:
     return Path(path).read_text(encoding="utf-8") if path else (option(args, inline) or "")
 
 
+def api(forge: Forge, args: list[str]) -> str:
+    """The REST calls `sandbox.py merge` makes: the stacks (none: the fake makes no native
+    stack) and the asynchronous rebase merge, which ends at once."""
+    method = option(args, "-X") or "GET"
+    path = next((a for a in args[1:] if a.startswith("repos/")), "")
+    fields = dict(f.split("=", 1) for i, f in enumerate(args) if i and args[i - 1] in ("-f", "-F"))
+    if method == "GET" and path == f"repos/{REPO}/stacks":
+        return "[]"
+    m = re.fullmatch(rf"repos/{re.escape(REPO)}/pulls/(\d+)/merge-async", path)
+    if method == "PUT" and m:
+        if fields.get("merge_method") != "rebase":
+            raise Refused("this repository merges by rebase: merge_method=rebase")
+        pr = forge.pr(m[1])
+        forge.merge(pr, fields.get("sha"))
+        return json.dumps({"status": "merged", "details": {"sha": pr["head_sha"]}})
+    raise Refused(f"`gh {' '.join(args)}` is not something this fake forge does")
+
+
 def handle(forge: Forge, args: list[str]) -> str | int:
     """One call. Returns the text to print, or an exit code (after printing its own text)."""
     repo = option(args, "--repo") or option(args, "-R")
@@ -298,6 +317,8 @@ def handle(forge: Forge, args: list[str]) -> str | int:
         pr = forge.pr(positional(args))
         forge.merge(pr, option(args, "--match-head-commit"))
         return f"merged #{pr['number']}"
+    if args[:1] == ["api"]:
+        return api(forge, args)
     if words == ["pr", "close"]:
         pr = forge.pr(positional(args))
         if pr["state"] == "merged":
