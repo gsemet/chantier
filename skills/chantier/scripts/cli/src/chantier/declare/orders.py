@@ -17,7 +17,8 @@ def register(sub: Subparsers) -> None:
     s.add_argument(
         "kind",
         help="add [--release], after, drop, merged, note, rounds, slots, budget, qa, "
-        "mode (any mode to any other), waive stack|<cr> [--follow-up] (the long gate; --note - withdraws); "
+        "mode (any mode to any other), waive stack|<cr> [--follow-up] (the long gate; "
+        "--note - withdraws); "
         "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "
         "--epoch, add --fix-for --epoch",
     )
