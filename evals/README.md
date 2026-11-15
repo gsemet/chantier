@@ -32,7 +32,7 @@ from before the campaigns merged. New ones are `results/<campaign>-<date>.md`, a
 
 Which campaign, after a change: a role or flow change runs one quick campaign (`real-foreman` or
 `real-direct`, five frozen CRs on the sandbox), in the mode the change touched. Before a release,
-`full` with both quick campaigns. `claude-planted` runs after a change to how a batch handles
+`full` with both quick campaigns, in the modes the release's claims file names. `claude-planted` runs after a change to how a batch handles
 failures.
 
 ## Run a campaign
@@ -252,10 +252,39 @@ share, and for a sandbox campaign the judge's line (`Judge: <n> pass, <n> fail, 
 
 ## For maintainers
 chantier version and commit, failed audit checks verbatim, anything to reproduce.
+
+## Claims
+A run made before a release only: the claims file's name (`claims-vX.Y.Z.md`) and the claims this
+run exercised, by rail id.
 ```
 
 `full` has one report for both batches: one scorecard, where a row is `seen, wrong` if it was
 wrong in either batch, and the cost per batch and in total.
+
+### Before a release: the claims
+
+A release claims its changes; an eval run may not have brought them to the test. Each release
+has a claims file, `evals/results/claims-vX.Y.Z.md`, written before that release's campaigns and
+completed after them, and committed with the campaigns' reports.
+
+- **The claims.** One row per `feat:` and `fix:` commit since the previous tag (the set the
+  release notes cover once each): `git log --no-merges --format="%h %s" vPREVIOUS..origin/main`,
+  keeping the subjects that start with `feat` or `fix`. A claim that lands later gets its row
+  before the release's version PR is prepared.
+- **The columns.** The file opens with `# Claims of vX.Y.Z`, then `Since vPREVIOUS, at <sha7 of
+  origin/main>. Runs: <report file names>.` and a table: `Claim` (the subject without its type
+  prefix), `Commit`, `Rail` (the SCORECARD id(s) whose situation proves it, or `none: <why no run
+  can see it>`), `Can come up in` (the campaign and the launch choice, mode and Foreman or direct,
+  read from the rail's `where seen`, or `no campaign`), `Result` and `Evidence`.
+- **The three results.** `exercised`: a run of this release's campaigns marked the rail `seen,
+  right` or `seen, wrong` (a `seen, wrong` is a finding of that report); the evidence is the
+  report's file name and the rail's mark. `scenario only`: no run saw it and a named check of
+  `just scenario` or `just test` proves it; the evidence is the unit and case. `not exercised`:
+  neither; the evidence is empty.
+- **The runs' modes.** The campaigns are launched so that every claim whose `Can come up in`
+  names a campaign has at least one run that can bring it.
+- **The release notes.** They list each claim not `exercised`, under `For contributors`
+  ([release-process](../docs/release-process.md)).
 
 ## The kit
 
