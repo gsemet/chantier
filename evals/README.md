@@ -115,8 +115,10 @@ sandbox).
 
   then `$CHANTIER cost --explain` and `$CHANTIER cost --by cr` from the workspace. Then the
   operator runs the `close` flow and `close --yes`. The audit prints the run's table, the facts,
-  the checks, the judge (the hidden tests on each CR's head, on `main`, and the release judge),
-  the scorecard and the cost. It exits 1 on a failed check, an unknown rail or a judge `fail`;
+  the checks, the judge (the hidden tests on each CR's PR head as the forge reports it, its head
+  at merge once merged, which a stack's restack may have replaced since the CR's hand-back; the row
+  names the head judged and, when it differs, the head the record holds; then `main`, and the
+  release judge), the scorecard and the cost. It exits 1 on a failed check, an unknown rail or a judge `fail`;
   `not run` is not a failure.
 - **The report** goes in `results/<campaign>-<date>-run<n>.md`, written in a worktree of this
   repository on its own branch, with its PR (the main checkout does not change during an eval).

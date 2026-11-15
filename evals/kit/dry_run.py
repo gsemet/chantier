@@ -275,6 +275,7 @@ class Batch:
         self.changes = self.ws / ".agents" / "changes"
         self.foreman = None
         self.links: dict[str, str] = {}
+        self.restacked: dict[str, tuple[str, str]] = {}
         self.refused = ""
 
     # the CLI and its records ------------------------------------------------------------------------
@@ -414,6 +415,13 @@ class Batch:
         self.tool(driver, ["gh", "pr", "checks", link])
         self.cli(driver, "handback", cr_id, "ready", link)
         self.links[cr_id] = link
+        # the forge restacks the PR (a stack's bottom merge does): its branch moves to a new commit
+        # with the same change, made outside any agent; the record keeps the old head
+        parent = self.w.git_origin("rev-parse", f"{head}^")
+        moved = self.w.git_origin("commit-tree", f"{head}^{{tree}}", "-p", parent, "-m",
+                                  "feat: delete an item, with a button (restacked)")
+        self.w.git_origin("update-ref", f"refs/heads/{c['branch']}", moved, head)
+        self.restacked[cr_id] = (head, moved)
         # the operator merges it, with the command setup printed, then records it (no epoch)
         done = sh([*shlex.split(self.record["merge_command"]), self.pr_number(link)], cwd=self.ws)
         need(re.search(r"merged PR #\d+", done.stdout), "the operator's merge prints `merged PR #<n>`",
@@ -600,12 +608,13 @@ def failed_checks(text: str) -> list[str]:
     return [line for line in text.splitlines() if line.startswith("- FAIL")]
 
 
-def judge_rows(text: str) -> dict[str, str]:
+def judge_rows(text: str, cell: int = -1) -> dict[str, str]:
+    """The judge table by CR label: its result column, or the cell at index `cell`."""
     rows = {}
     for line in text.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if line.startswith("| ") and len(cells) == 6 and cells[0] not in ("CR", "---"):
-            rows[cells[0]] = cells[-1]
+            rows[cells[0]] = cells[cell]
     return rows
 
 
@@ -666,6 +675,12 @@ def case_clean(run: Run) -> str:
     rows = judge_rows(text)
     need(len(rows) == 3 and all(v == "pass" for v in rows.values()),
          "the judge: the feature CR, `main` and the release all pass", f"{rows}", tail)
+    old, new = next(iter(batch.restacked.values()))
+    judged = next(v for k, v in judge_rows(text, 2).items() if not k.startswith("main") and "release" not in k)
+    need(judged.startswith(new[:7]) and "the PR's head at merge" in judged
+         and f"the record holds {old[:7]}" in judged,
+         "the judge's feature row names the restacked head at merge and the head the record holds",
+         f"{judged!r}, wanted {new[:7]} / {old[:7]}")
     return (f"audit exit 0, no failed check, [C12] with the release PR counted, [J5] x2, judge "
             f"{', '.join(rows.values())}; reset, setup (run 4) and the staged batch as expected")
 

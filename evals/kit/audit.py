@@ -18,7 +18,7 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   the sandbox's base, the batch, the models each role used), the facts and the agent tree, the
   checks, `## The judge`, the scorecard and the cost. No local forge: the checks that need a
   forge ask the real one, read-only (`gh pr view`, `gh pr list`, `git ls-remote`). The judge
-  (`judge.py`) runs the hidden tests of the frozen CRs on each CR's recorded head, on `main`, and
+  (`judge.py`) runs the hidden tests of the frozen CRs on each CR's PR head as the forge reports it (its head at merge once merged), on `main`, and
   the release judge on a release; it marks no rail. Exit 1 on a failed check, an unknown rail or
   a judge `fail`; `not run` is not a failure. A batch steered in direct mode (`steering: direct`
   in `batch.json`) is read from the Chief of Staff's transcript, from its claim on; the agents it
@@ -714,7 +714,7 @@ def batch_prs(data: dict, events: list[dict]) -> dict[str, list[str]]:
 
 def sandbox_checks(data: dict, events: list[dict], run: dict, check: Checks) -> dict:
     """J5 and C12 from the real forge (`gh`, read-only); returns the view of each CR's last PR by
-    CR id."""
+    CR id, and of every PR by its number (`#<n>`; `{"error": <gh's text>}` when `gh pr view` failed)."""
     default = (data.get("settings") or {}).get("default_branch")
     prefix, repo = run["prefix"], run["repository"]
     prs = batch_prs(data, events)
@@ -724,9 +724,11 @@ def sandbox_checks(data: dict, events: list[dict], run: dict, check: Checks) -> 
             n = pr_number(link)
             view, error = forge_view(link)
             if view is None:
+                views[f"#{n}"] = {"error": error}
                 check(False, f"{c['id']} PR {n}: `gh pr view` said: {error}", "J5", seen=False)
                 continue
             views[c["id"]] = view
+            views[f"#{n}"] = view
             merged_links[link] = view.get("state") == "MERGED"
             problems = []
             if not str(view.get("title") or "").startswith(prefix + " "):
@@ -917,7 +919,9 @@ def merged_slugs(data: dict, changes: Path, before: dict | None = None) -> list[
 
 def judge_rows(data: dict, ws: Path, changes: Path, views: dict,
                prs: dict | None = None) -> list[list[str]]:
-    """One row per CR, then `main`: [CR, PR, head judged, hidden tests, suite, result]. A release's
+    """One row per CR, then `main`: [CR, PR, head judged, hidden tests, suite, result]. A feature CR
+    is judged at its PR's head from the forge (`views["#<pr>"]`); its cell names the head and its
+    source. A release's
     PR column holds the numbers of all its PRs (`prs`, from `batch_prs`)."""
     prs = prs or {}
     origin = git_out("remote", "get-url", "origin", cwd=ws)
@@ -957,20 +961,26 @@ def judge_rows(data: dict, ws: Path, changes: Path, views: dict,
                                "pass" if passed else f"fail ({bad[0][6:90] if bad else 'see judge.py'})"])
         elif not c.get("pr"):
             rows.append(not_run([label, pr, head], "no PR"))
-        elif not c.get("head"):
-            rows.append(not_run([label, pr, head], "no head"))
         elif not has_hidden(slug_of(c)):
             rows.append(not_run([label, pr, head], "no hidden test"))
         else:
-            view = views.get(c["id"]) or {}
-            if view.get("headRefOid") and not same(view["headRefOid"][:12], c["head"]):
-                head += f" (the PR's head is {view['headRefOid'][:7]})"
-            try:
-                got = judge.feature(origin, c["head"], [slug_of(c)])
-            except judge.NotRun as why:
-                rows.append(not_run([label, pr, head], str(why)))
+            view = views.get(f"#{pr}") or {}
+            forge_head = view.get("headRefOid") or ""
+            if not forge_head:
+                why = view.get("error") or "no headRefOid"
+                recorded = f"{head} (the record's head, not judged)" if c.get("head") else "-"
+                rows.append(not_run([label, pr, recorded],
+                                    f"the PR's head could not be read from the forge: {why}"))
                 continue
-            rows.append([label, pr, head, got["hidden"], got["suite"], "pass" if got["ok"] else "fail"])
+            source = "the PR's head at merge" if view.get("state") == "MERGED" else "the PR's head"
+            kept = f" (the record holds {head})" if c.get("head") and not same(forge_head[:12], c["head"]) else ""
+            try:
+                got = judge.feature(origin, forge_head, [slug_of(c)])
+            except judge.NotRun as why:
+                rows.append(not_run([label, pr, f"{forge_head[:7]}, {source}{kept}"], str(why)))
+                continue
+            rows.append([label, pr, f"{got['sha'][:7]}, {source}{kept}", got["hidden"], got["suite"],
+                         "pass" if got["ok"] else "fail"])
     slugs = merged_slugs(data, changes)
     row = ["main", "-", "main"]
     if not origin:
