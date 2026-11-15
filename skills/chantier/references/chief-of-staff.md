@@ -1549,7 +1549,8 @@ action (`order approve`): part of the question, not a tip, so it holds when tips
    user's word with the date in the release CR's `02-answers.md`.
 4. Send the order's line to the Foreman (direct mode: act on it yourself; a release CR blocked on
    an approval goes back to a Driver with `--note "auto: <the grant line>"`).
-5. Tell the user in one line what auto now does (the steering session merges the release PR once
+5. Tell the user in one line what auto now does (the steering session merges the release PR, by the
+   GitHub route of [foreman](foreman.md), "Merging on GitHub", once
    every other CR is merged or cancelled, and the steps the procedure asks a go for, this release
    only) and what stays theirs (the announcement, posted by them; a fix, unless they grant it).
 

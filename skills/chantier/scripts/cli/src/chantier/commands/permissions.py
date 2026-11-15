@@ -97,6 +97,25 @@ SAMPLES = (
     ("batch", "gitlab", "glab mr view 12", "glab mr view*"),
     ("batch", "gitlab", "glab ci status", "glab ci status*"),
     ("release", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
+    (
+        "release",
+        "github",
+        "gh api -X GET repos/o/r/stacks -F per_page=100",
+        "gh api -X GET repos/*/stacks*",
+    ),
+    (
+        "release",
+        "github",
+        "gh api -X PUT repos/o/r/pulls/12/merge-async -f merge_method=rebase "
+        f"-f merge_action=direct_merge -f sha={_SHA}",
+        "gh api -X PUT repos/*/pulls/*/merge-async*",
+    ),
+    (
+        "release",
+        "github",
+        "gh api -X GET repos/o/r/pulls/12/merge-async/0a1b2c3d-4e5f-6789-abcd-ef0123456789",
+        "gh api -X GET repos/*/pulls/*/merge-async/*",
+    ),
     ("release", "gitlab", "glab mr merge 12 --rebase", "glab mr merge*"),
     ("release", "any", "git push origin v1.2.3", "git push origin v*"),
     (
@@ -112,6 +131,25 @@ SAMPLES = (
         "glab release create*",
     ),
     ("fixes", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
+    (
+        "fixes",
+        "github",
+        "gh api -X GET repos/o/r/stacks -F per_page=100",
+        "gh api -X GET repos/*/stacks*",
+    ),
+    (
+        "fixes",
+        "github",
+        "gh api -X PUT repos/o/r/pulls/12/merge-async -f merge_method=rebase "
+        f"-f merge_action=direct_merge -f sha={_SHA}",
+        "gh api -X PUT repos/*/pulls/*/merge-async*",
+    ),
+    (
+        "fixes",
+        "github",
+        "gh api -X GET repos/o/r/pulls/12/merge-async/0a1b2c3d-4e5f-6789-abcd-ef0123456789",
+        "gh api -X GET repos/*/pulls/*/merge-async/*",
+    ),
     ("fixes", "gitlab", "glab mr merge 12 --rebase", "glab mr merge*"),
 )
 
