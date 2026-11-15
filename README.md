@@ -102,8 +102,8 @@ what, when. You never merge through chantier: you merge, and the steering sessio
   turns ready to merge. The Chief of Staff guides you merge by merge. On request ("switch to a stack", "switch to parallel"), a
   running batch changes to any other mode at once; merged CRs never change.
 - **Stack** ("build a stack of these"): parallel, with a stack driver. Every CR starts at once, the
-  PRs go each on the previous one, and once every PR is handed back ready the stack driver makes one native
-  stack on the forge (GitHub; install the `gh stack` extension, which chantier recommends). You merge
+  PRs go each on the previous one, and as soon as two PRs are handed back ready the stack driver makes one native
+  stack on the forge, and the CRs started afterwards are built on it (GitHub; install the `gh stack` extension, which chantier recommends). You merge
   it in one action from the top PR, or one PR at a time from the bottom, as you choose merge by
   merge; the release commit is last. A change inserted into a stack ready to merge
   sends the PRs above it back to draft first, then restacks and verifies the stack before they turn

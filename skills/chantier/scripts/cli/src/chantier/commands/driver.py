@@ -37,7 +37,14 @@ from chantier.rails import (
     held,
     worktree_print,
 )
-from chantier.stacks import PR_IN_DRAFT, READY_TO_MERGE, draft_waited, ready_word, stack_base
+from chantier.stacks import (
+    PR_IN_DRAFT,
+    READY_TO_MERGE,
+    draft_waited,
+    ready_word,
+    stack_base,
+    start_on_for,
+)
 
 
 def _reopen(b: Batch) -> list[str]:
@@ -49,6 +56,24 @@ def _reopen(b: Batch) -> list[str]:
     b.record.unset("summary")
     b.log("reopen", None)
     return [f"{b.id} was paused: running again; `pause --epoch <n>` runs again at the end"]
+
+
+def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str) -> list[str]:
+    """The stack's driver is taken: the batch must be a stack with no driver recorded."""
+    d = b.record
+    if d.mode != "stack":
+        raise ChantierError(f"batch {batch} is not a stack")
+    if d.stack_agent:
+        raise ChantierError(
+            f"a stack driver is recorded ({d.stack_agent}); one "
+            "that ended: `agents set stack - --epoch <n>` first (a stack driver "
+            "reads the stack with `stack`, which changes nothing)"
+        )
+    check_budget(d)
+    reopened = _reopen(b)
+    b.log("take", None, note=note)
+    head, *rows = stack_lines(repo, batch, d)
+    return [head, *reopened, *rows]
 
 
 def take(args: argparse.Namespace) -> list[str]:
@@ -68,19 +93,7 @@ def take(args: argparse.Namespace) -> list[str]:
         check_epoch(b, args.epoch)
         d = b.record
         if args.cr == "stack":
-            if d.mode != "stack":
-                raise ChantierError(f"batch {batch} is not a stack")
-            if d.stack_agent:
-                raise ChantierError(
-                    f"a stack driver is recorded ({d.stack_agent}); one "
-                    "that ended: `agents set stack - --epoch <n>` first (a stack driver "
-                    "reads the stack with `stack`, which changes nothing)"
-                )
-            check_budget(d)
-            reopened = _reopen(b)
-            b.log("take", None, note=args.note)
-            head, *rows = stack_lines(repo, batch, d)
-            return [head, *reopened, *rows, *fresh]
+            return [*_take_stack(repo, b, batch, args.note), *fresh]
         c = b.cr(args.cr)
         check_take(d, c, args.note)
         if c.status != "working":
@@ -89,6 +102,8 @@ def take(args: argparse.Namespace) -> list[str]:
         restart = c.status == "working"  # a new Driver on a CR already working
         if c.status in {"ready", "blocked", "working"}:
             c.append("notes", f"back to a Driver: {args.note}")
+        if c.status == "queued" and (start_on := start_on_for(d, c)):
+            c.start_on = start_on  # the start base is fixed at the first take
         b.touch(c, status="working", blocked_reason=None)
         c.clear_phase()
         b.log("take", c.id, note=args.note, **({"restart": True} if restart else {}))

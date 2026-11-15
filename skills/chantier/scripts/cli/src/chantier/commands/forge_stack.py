@@ -23,7 +23,7 @@ from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.stacks import chain, stack_base, state_word
+from chantier.stacks import chain, off_place, stack_base, state_word
 
 
 def _is_gitlab(rows: list[dict[str, Any]]) -> bool:
@@ -37,10 +37,11 @@ class NoBottom(ChantierError):
 def _plan(
     args: argparse.Namespace,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Where, dict[int, str]]:
-    """The stack as it stands: the rows (the bottom CRs with a PR, whatever their status: cr,
-    status, PR number, link, base, head, release), the CRs to come (those from the first with no PR
-    up: cr, status, PR number or None), the forge's host, owner and repository, read from the
-    PR links, and the PR numbers of the batch's dropped CRs (to their CR ids)."""
+    """The stack as it stands: the rows (the bottom CRs with a PR on its place, whatever their
+    status: cr, status, PR number, link, base, head, release), the CRs to come (those from the
+    first with no PR, or a working one off its place, up: cr, status, PR number or None), the
+    forge's host, owner and repository, read from the PR links, and the PR numbers of the
+    batch's dropped CRs (to their CR ids)."""
     repo = Repo.find()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
@@ -51,7 +52,7 @@ def _plan(
     rows: list[dict[str, Any]] = []
     where = None
     for c in links:
-        if not c.pr:
+        if not c.pr or off_place(data, c, repo):  # a working PR off its place is to come
             break
         host, owner, name, number = pr_parts(c.pr)
         if where not in (None, (host, owner, name)):
@@ -73,11 +74,23 @@ def _plan(
             }
         )
     if where is None:
-        raise NoBottom(
-            f"no PR at the bottom of the stack: {links[0].id} is {links[0].status}, no PR",
+        raise _no_bottom(data, repo, links[0])
+    return rows, _come(data, repo, links[len(rows) :]), where, _dropped(data)
+
+
+def _no_bottom(data: BatchRecord, repo: Repo, first: CrEntry) -> NoBottom:
+    """The refusal when no PR stands at the bottom: none, or a working one off its place."""
+    off = off_place(data, first, repo) if first.pr else None
+    if off:
+        planned = stack_base(data, first, repo, planned=True)
+        return NoBottom(
+            f"no PR placed at the bottom of the stack: {first.id} is working and its PR "
+            f"{first.pr} is on {off[0]}, not on {planned}",
             EXIT_PRECONDITION,
         )
-    return rows, _come(data, repo, links[len(rows) :]), where, _dropped(data)
+    return NoBottom(
+        f"no PR at the bottom of the stack: {first.id} is {first.status}, no PR", EXIT_PRECONDITION
+    )
 
 
 def _come(data: BatchRecord, repo: Repo, rest: list[CrEntry]) -> list[dict[str, Any]]:
@@ -165,12 +178,15 @@ def _create(args: argparse.Namespace) -> tuple[list[str], int]:
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
         return gitlab.make(rows, come, where)
+    done: list[str] = []
     try:
-        return [_make(rows, *where)[1]], 0
+        retarget(rows, where, done)
+        return [*done, _make(rows, *where)[1]], 0
     except ChantierError as e:
         if e.code != EXIT_EXTERNAL:
             raise
-        raise ChantierError(f"{e} (`forge-stack rebuild` replaces a stack)", e.code) from e
+        said = f"{e} (`forge-stack rebuild` replaces a stack)"
+        raise ChantierError("\n".join([*done, said]), e.code) from e
 
 
 def _checks(

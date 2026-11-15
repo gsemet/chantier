@@ -261,18 +261,21 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   a parallel batch with chains: each CR handed back `ready` on the default branch is an ordinary
   `ready-to-merge` ask (the user may merge it now), and a merge is handled by the rebase notes below, not
   by a restack. The stack grows from the bottom:
-  - **The first take:** as soon as two CRs are handed back `ready` with a PR (and neither depends on an open
-    CR not ready).
+  - **The first take,** the moment the stack can form: as soon as two CRs are handed back `ready`
+    with a PR (and neither depends on an open CR not ready). From then on `take` starts every new
+    CR on the stack (the top of its ready part), recorded at its first take.
   - **Each later take,** one for everything that happened while no stack driver ran: a CR got its
-    first PR (`status` shows it; it joins), a CR of the stack was handed back `ready` (it turns
+    first PR (`status` shows it; it joins), a working CR rebased onto its place (its `ship` reads
+    the new base; it joins like a CR that got its first PR), a CR of the stack was handed back `ready` (it turns
     ready to merge once the stack driver turns its PR out of draft), a merge was recorded (a restack). Events while a stack driver runs wait for its end,
     except a merge (below). None when nothing of the stack remains open.
   - **A merge** recorded while a stack driver runs: send it `[foreman→stack] note merged: <cr>…`
     (all the CRs one message of the Chief of Staff recorded) instead of a new `take stack`; while
     none runs: one `take stack` for what remains (a restack, below).
-  - **A working CR placed on another:** pass the stack driver's rebase need to its Driver with
-    `[foreman→driver <cr>] note rebase: stacked on <cr below>` ([driver](driver.md), "Stack
-    driver").
+  - **A working CR placed on another:** in the same turn as each `take stack`, for each row it
+    printed `not on its place`, send that CR's Driver `[foreman→driver <cr>] note rebase: stacked
+    on <cr below>` (the CR the row's `base` names; [driver](driver.md), "Stack driver"). Never hold
+    the take for it: the CR joins at a later take.
   - **Deliver by a time:** on the order note `deliver by <time>`, until the time, free slots go
     first to the CRs that can join the mergeable part by then: those closest to being handed back `ready` whose
     dependencies are already in it or ready to merge, short chains before long ones; a CR that cannot be

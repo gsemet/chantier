@@ -32,6 +32,7 @@ from chantier.plugin_files import (
 )
 from chantier.stacks import (
     chain,
+    off_place,
     stack_base,
     start_base,
     state_word,
@@ -233,9 +234,20 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
     return [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"] + [
         f"{x.id} {state_word(d, x, repo)} worktree {x.worktree} branch {x.branch} "
         f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'} head {short_head(x.head) or '-'} "
-        f"{_last_restack(x)}"
+        f"{_last_restack(x)}{_off_place_tail(d, x, repo)}"
         for x in crs
     ]
+
+
+def _off_place_tail(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
+    """The end of a stack row for a working CR whose PR is not on its place: it is to come."""
+    off = off_place(d, c, repo)
+    if off is None:
+        return ""
+    return (
+        f" not on its place: its PR is on {off[0]}; to come until its Driver rebases "
+        f"(note rebase: stacked on {off[1]})"
+    )
 
 
 def _last_restack(c: CrEntry) -> str:

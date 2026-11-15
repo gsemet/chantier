@@ -11,6 +11,7 @@ from chantier.rails import ENDED, series_predecessor
 READY_LOCALLY = "ready locally"
 PR_IN_DRAFT = "PR in draft"
 READY_TO_MERGE = "ready to merge"
+FORMING = 2  # the CRs handed back ready with a PR from which the stack can form
 
 
 def chain(b_data: BatchRecord) -> list[CrEntry]:
@@ -77,9 +78,52 @@ def next_merge(b_data: BatchRecord) -> CrEntry | None:
     return min(open_, key=lambda x: x.order, default=None)
 
 
+def _alone(c: CrEntry) -> bool:
+    """A CR that is neither a release nor a fix."""
+    return c.kind not in {"release", "fix"}
+
+
+def stack_forms(b_data: BatchRecord) -> bool:
+    """The moment the stack can form: two CRs or more of the stack, the release and a fix CR
+    aside, are handed back `ready` with a PR."""
+    ready = [x for x in chain(b_data) if _alone(x) and x.status == "ready" and x.pr]
+    return len(ready) >= FORMING
+
+
+def ready_top(b_data: BatchRecord, c: CrEntry) -> CrEntry | None:
+    """The top of the stack's ready part: the highest CR of the chain, other than `c`, handed back
+    `ready` with a PR; None before the stack can form."""
+    if not stack_forms(b_data):
+        return None
+    return next(
+        (
+            x
+            for x in reversed(chain(b_data))
+            if x.id != c.id and _alone(x) and x.status == "ready" and x.pr
+        ),
+        None,
+    )
+
+
+def _open_after(b_data: BatchRecord, c: CrEntry) -> list[CrEntry]:
+    """The dependencies of `c` still open, in the order of `after`."""
+    found = {x.id: x for x in b_data.crs}
+    return [found[i] for i in c.after if i in found and found[i].status not in ENDED]
+
+
+def start_on_for(b_data: BatchRecord, c: CrEntry) -> str | None:
+    """The branch a CR taken from `queued` in a stack batch is to start on, to record on it: the
+    top of the stack's ready part once the stack can form; None for any other CR."""
+    if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c):
+        return None
+    top = ready_top(b_data, c)
+    return top.branch if top else None
+
+
 def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     """The branch a CR starts on: that of its last dependency still open, in the order of
-    `after`; with none open, the default branch, whatever its place in a stack. A release in an
+    `after`; with none open, in a stack batch the branch recorded at its first `take` while the CR
+    that owns it is open, else the default branch. A release in an
     ordered batch starts on the top CR's branch, with none open under it on the default branch;
     in a parallel batch, or alone, on the default branch."""
     default: str = repo.config["default_branch"]
@@ -90,9 +134,13 @@ def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
         pred = series_predecessor(b_data.crs, c)
         return pred.branch if pred and pred.status != "merged" else default
     if c.after and c.kind not in {"release", "fix"}:
-        found = {x.id: x for x in b_data.crs}
-        open_ = [found[i] for i in c.after if i in found and found[i].status not in ENDED]
-        return open_[-1].branch if open_ else default
+        open_ = _open_after(b_data, c)
+        if open_:
+            return open_[-1].branch
+    if b_data.mode == "stack" and c.start_on and c.kind != "fix":
+        owner = next((x for x in b_data.crs if x.branch == c.start_on), None)
+        if owner is not None and owner.status not in ENDED:
+            return c.start_on
     return default
 
 
@@ -110,6 +158,19 @@ def stack_base(b_data: BatchRecord, c: CrEntry, repo: Repo, planned: bool = Fals
     ids = [x.id for x in order]
     i = ids.index(c.id) if c.id in ids else 0
     return order[i - 1].branch if i > 0 else default
+
+
+def off_place(d: BatchRecord, c: CrEntry, repo: Repo) -> tuple[str, str] | None:
+    """For a working CR whose PR is not on its place in the stack: the base its PR is on (as
+    `ship` last read it) and the CR (else the branch) it is to be stacked on. None otherwise,
+    and for a CR with no `pr_base` recorded (no forge read to doubt it)."""
+    if c.status != "working" or not c.pr or not c.pr_base or d.mode != "stack":
+        return None
+    planned = stack_base(d, c, repo, planned=True)
+    if c.pr_base == planned:
+        return None
+    below = next((x.id for x in d.crs if x.branch == planned), planned)
+    return c.pr_base, below
 
 
 def _out_of_draft(c: CrEntry) -> bool:
