@@ -1,14 +1,16 @@
 """A local stand-in for GitHub's `gh`, for the eval kit's dry run: it answers for the sandbox
-repository `gsemet/chantier-eval-sandbox` and for no other, and never reaches the network.
+repository `sandbox.py` names (`sandbox.local.json`, else `sandbox.json`) and for no other, and
+never reaches the network.
 
     gh <command>        called as `gh` (first on the PATH); $FAKE_GH_STATE is its JSON state,
-                        $SANDBOX_FORGE_ORIGIN the bare repository that stands for the sandbox
+                        $SANDBOX_FORGE_ORIGIN the bare repository that stands for the sandbox,
+                        $SANDBOX_FORGE_REPOSITORY (the dry run only) the name it answers for
 
 What it keeps of GitHub: pull requests, with a `refs/pull/<n>/head` in the origin when one opens or
 its head moves (never deleted, as on GitHub); real checks (`uv run --locked pytest -q` on the PR's
 head in a fresh clone, once per commit; a head marked pending stays pending); a rebase merge that
 does not wait for the checks (the repository has no branch protection); releases. It answers
-`auth status` (with the `workflow` scope), `repo view`, `pr create|view|list|checks|merge|close|edit`,
+`auth status` (with the `workflow` scope), `repo view|create`, `pr create|view|list|checks|merge|close|edit`,
 `release create|list|view|delete`, and `api` for the stacks (none) and the asynchronous merge;
 anything else exits 1. Every call is logged in
 `<state>.calls`. Standard library only.
@@ -26,8 +28,21 @@ import tempfile
 import time
 from pathlib import Path
 
-REPO = "gsemet/chantier-eval-sandbox"
-PR_URL = f"https://github.com/{REPO}/pull/"
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import sandbox  # noqa: E402  (the one reader of the sandbox repository's name)
+
+
+def repo_name() -> str:
+    """The repository this fake answers for: the one `sandbox.py` names. $SANDBOX_FORGE_REPOSITORY
+    is the dry run's only handle on it, since the fake runs as a process of its own."""
+    return os.environ.get("SANDBOX_FORGE_REPOSITORY") or sandbox.repository()
+
+
+def pr_url() -> str:
+    return f"https://github.com/{repo_name()}/pull/"
+
+
 CI_COMMAND = ["uv", "run", "--locked", "pytest", "-q", "-p", "no:cacheprovider"]
 GIT = ["git", "-c", "core.autocrlf=false", "-c", "user.name=sandbox forge",
        "-c", "user.email=forge@example.com"]
@@ -150,14 +165,14 @@ class Forge:
                                      "head_sha": sha, "body": body, "state": "open", "draft": draft,
                                      "merged_at": None}
         self.pull_ref(str(n), sha)
-        return f"{PR_URL}{n}"
+        return f"{pr_url()}{n}"
 
     def pr(self, ref: str) -> dict:
-        m = re.fullmatch(rf"(?:https://github\.com/{re.escape(REPO)}/pull/)?(\d+)/?", ref)
+        m = re.fullmatch(rf"(?:https://github\.com/{re.escape(repo_name())}/pull/)?(\d+)/?", ref)
         if not m:
-            raise Refused(f"{ref!r} is not a pull request of {REPO}")
+            raise Refused(f"{ref!r} is not a pull request of {repo_name()}")
         if m[1] not in self.state["prs"]:
-            raise Refused(f"no pull request #{m[1]} in {REPO}")
+            raise Refused(f"no pull request #{m[1]} in {repo_name()}")
         return self.state["prs"][m[1]]
 
     def fields(self, pr: dict, names: list[str]) -> dict:
@@ -166,7 +181,7 @@ class Forge:
             if name == "number":
                 out[name] = pr["number"]
             elif name == "url":
-                out[name] = f"{PR_URL}{pr['number']}"
+                out[name] = f"{pr_url()}{pr['number']}"
             elif name == "title":
                 out[name] = pr["title"]
             elif name == "body":
@@ -255,9 +270,11 @@ def api(forge: Forge, args: list[str]) -> str:
     method = option(args, "-X") or "GET"
     path = next((a for a in args[1:] if a.startswith("repos/")), "")
     fields = dict(f.split("=", 1) for i, f in enumerate(args) if i and args[i - 1] in ("-f", "-F"))
-    if method == "GET" and path == f"repos/{REPO}/stacks":
+    if method == "GET" and path == f"repos/{repo_name()}/stacks":
         return "[]"
-    m = re.fullmatch(rf"repos/{re.escape(REPO)}/pulls/(\d+)/merge-async", path)
+    if method == "GET" and path == f"repos/{repo_name()}/branches/main":
+        return json.dumps({"name": "main", "protected": False})
+    m = re.fullmatch(rf"repos/{re.escape(repo_name())}/pulls/(\d+)/merge-async", path)
     if method == "PUT" and m:
         if fields.get("merge_method") != "rebase":
             raise Refused("this repository merges by rebase: merge_method=rebase")
@@ -270,17 +287,28 @@ def api(forge: Forge, args: list[str]) -> str:
 def handle(forge: Forge, args: list[str]) -> str | int:
     """One call. Returns the text to print, or an exit code (after printing its own text)."""
     repo = option(args, "--repo") or option(args, "-R")
-    if repo and repo != REPO:
-        raise Refused(f"this fake forge answers for {REPO} only, not {repo}")
+    if repo and repo != repo_name():
+        raise Refused(f"this fake forge answers for {repo_name()} only, not {repo}")
     words = args[:2]
     if words == ["auth", "status"]:
         return ("github.com\n  Logged in to github.com account eval (fake forge)\n"
                 "  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'")
     if words == ["repo", "view"]:
         name = positional(args)
-        if name != REPO:
-            raise Refused(f"this fake forge answers for {REPO} only, not {name}")
-        return json.dumps({"defaultBranchRef": {"name": "main"}})
+        if name != repo_name():
+            raise Refused(f"this fake forge answers for {repo_name()} only, not {name}")
+        if forge.state.get("repo_missing"):
+            raise Refused(f"GraphQL: Could not resolve to a Repository with the name '{name}'.")
+        has_main = bool(git("--git-dir", forge.origin, "for-each-ref", "refs/heads/main"))
+        return json.dumps({"isPrivate": False, "defaultBranchRef": {"name": "main"} if has_main else None})
+    if words == ["repo", "create"]:
+        name = positional(args, 2)
+        if name != repo_name() or "--public" not in args:
+            raise Refused(f"this fake forge creates {repo_name()} as a public repository only")
+        if not forge.state.get("repo_missing"):
+            raise Refused(f"{name} already exists")
+        forge.state["repo_missing"] = False
+        return f"https://github.com/{name}"
     if words == ["pr", "create"]:
         title, base, head = option(args, "--title"), option(args, "--base") or "main", option(args, "--head")
         if not title or not head:
@@ -309,7 +337,7 @@ def handle(forge: Forge, args: list[str]) -> str | int:
                               for r, b in zip(rows, buckets)]))
         else:
             for r, b in zip(rows, buckets):
-                print(f"{r['name']}\t{b}\t{PR_URL}{pr['number']}/checks")
+                print(f"{r['name']}\t{b}\t{pr_url()}{pr['number']}/checks")
         return 8 if "pending" in buckets else 1 if "fail" in buckets else 0
     if words == ["pr", "merge"]:
         if "--rebase" not in args:
@@ -332,7 +360,7 @@ def handle(forge: Forge, args: list[str]) -> str | int:
                 pr[key] = option(args, flag)
         if "--body" in args or "--body-file" in args:
             pr["body"] = text_of(args, "--body", "--body-file")
-        return f"{PR_URL}{pr['number']}"
+        return f"{pr_url()}{pr['number']}"
     if words == ["release", "create"]:
         tag = positional(args)
         tags = git("--git-dir", forge.origin, "tag", "--list", tag)
@@ -340,7 +368,7 @@ def handle(forge: Forge, args: list[str]) -> str | int:
             raise Refused(f"tag {tag} is not on the origin")
         forge.state["releases"][tag] = {"tagName": tag, "name": option(args, "--title") or tag,
                                         "body": text_of(args, "--notes", "--notes-file")}
-        return f"https://github.com/{REPO}/releases/tag/{tag}"
+        return f"https://github.com/{repo_name()}/releases/tag/{tag}"
     if words == ["release", "list"]:
         names = (option(args, "--json") or "tagName").split(",")
         return json.dumps([{k: v[k] for k in names} for v in forge.state["releases"].values()])

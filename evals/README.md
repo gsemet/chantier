@@ -14,6 +14,27 @@ Copilot's report stays as it is.
 The scripted scenario (`just scenario`, no model, free) is not an eval: it tests the CLI's
 mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 
+## Prerequisites
+
+What a person needs to run a campaign, in one list; the sections below point here and do not
+repeat it. The `claude-planted` campaign needs only the first two items and Claude Desktop.
+
+- This repository cloned, and the chantier plugin installed from it, the session restarted:
+  `claude plugin marketplace add <this checkout>`, then `claude plugin install chantier@chantier`.
+- `uv` and `git`.
+- `gh` logged in (`gh auth status`) with the `workflow` scope (`gh auth refresh -s workflow`) and
+  git's credential helper set (`gh auth setup-git`), on an account that can push to the sandbox.
+- A sandbox of your own (`uv run --no-project python evals/kit/sandbox.py publish <you>/<name>`,
+  see [the sandbox](#the-sandbox)), or push rights on the maintainer's.
+- Claude Desktop, at the desk (not under Remote Control), for the start and its trust step.
+- The host's PR automations off: global Auto-fix and auto-archive on merge (see "A sandbox
+  campaign", "Preparation").
+
+The steps of a sandbox campaign, in order: the preparation (the automations off, no board left
+running, then `sandbox.py publish` the first time or `reset`, then `setup.py`); start the operator
+with the `prompt` line setup printed; the runbook's turns; the audit; `close --yes`; the cost; the
+report. Each is described under "A sandbox campaign".
+
 ## Campaigns
 
 | Campaign | What it covers | Cost | Last run |
@@ -38,32 +59,52 @@ failures.
 ## Run a campaign
 
 A campaign starts from a prompt in a chat. On Claude: a Code session of the Claude Desktop app.
-On Copilot: a chat of the Copilot app. The prompt is in the campaign's runbook. The sandbox
+On Copilot: a chat of the Copilot app. The prompt is in the campaign's runbook, and a sandbox
+campaign's `setup.py` prints it ready to paste. The sandbox
 campaigns (`full`, `real-foreman`, `real-direct`, `ticket-summary`, `copilot`) are described first, then the steps
 of the staged campaign, `claude-planted`.
 
 ### A sandbox campaign
 
 The text common to the five sandbox campaigns; each runbook refers to it. All the commands run
-from this checkout, with `uv`, `git` and `gh` (logged in to an account that can push to the
-sandbox).
+from this checkout, with the [prerequisites](#prerequisites) met.
 
-- **Preparation, before the run.** The user does it in a terminal; these commands prepare the run
+- **Preparation, before the run.** The user does it, in this order; these steps prepare the run
   and are not steps of it.
-  1. `uv run --no-project python evals/kit/sandbox.py reset`: read the plan, then the same with
+  1. **Turn the host's PR automations off**, in Claude Desktop (Settings > Code, or Settings >
+     Claude Code, by the app's version): **global Auto-fix off**, marked **unproved** (the
+     [official documentation](https://code.claude.com/docs/en/desktop.md#monitor-pull-request-status)
+     describes only the per-PR switch and no default for PRs opened later, and third-party reports
+     say the global toggle may not reach PRs of local sessions), and **auto-archive / auto-close on
+     PR merge or close off**, so the app does not archive a session when a run's PR merges. The
+     per-PR switch is the operator's own job during the run (see "Auto-fix during the run").
+  2. **No board left running from an earlier run:** stop any `chantier board` still running; its
+     port (8765 by default) in use made run 2's board fail. Check, on PowerShell,
+     `Get-NetTCPConnection -LocalPort 8765 -State Listen`; on POSIX,
+     `lsof -iTCP:8765 -sTCP:LISTEN`.
+  3. **The sandbox.** The first time, your own:
+     `uv run --no-project python evals/kit/sandbox.py publish <you>/<name>` (the plan; then the
+     same with `--yes`). It creates a public repository, pushes the base to its `main` and writes
+     `evals/kit/sandbox.local.json` (git-ignored) so the kit names it from then on; no `reset` is
+     needed after it. Every later run, and on the maintainer's sandbox:
+     `uv run --no-project python evals/kit/sandbox.py reset`, read the plan, then the same with
      `--yes`. This puts the sandbox back at its recorded base; it is the only force push on the
-     sandbox, and no runbook gives another. One run at a time on the sandbox: a reset ends any
-     other run.
-  2. `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`, with `<workspace>`
+     sandbox, and no runbook gives another. `reset` refuses a repository that is not a chantier
+     eval sandbox (no `main`, or a branch, tag or `main` whose history does not hold the recorded
+     base), so a misnamed real repository is safe. One run at a time on a sandbox: a reset ends
+     any other run. Each of these commands prints the repository it acts on, and where the name
+     was read, on its first line.
+  4. `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`, with `<workspace>`
      outside this repository, for example `../chantier-eval/<campaign>-<date>`. Setup refuses
      when the sandbox is not at its base, never resets and never pushes. It clones the sandbox
      into the workspace, runs `chantier init` and `uv sync --locked` there, places the campaign's
      frozen CRs in `.agents/changes/3-ready/`, writes `<workspace>.run.json` (the run's record)
-     and prints the campaign, the run, the prefix, the CRs placed and each batch's `open` line,
-     ready to paste (`--mode <stack|parallel|series>` is left to fill in for the quick
-     campaigns). The agents use the real `gh`. For `ticket-summary`, setup places no CR and
-     prints, instead of `open` lines, the issue's `gh issue create` line and the chat request's
-     file; it creates nothing on the forge.
+     and prints the campaign, the run, the prefix, the `workspace` (in the platform's own
+     spelling: use it when the app asks for the folder), the CRs placed and each batch's `open`
+     line, ready to paste (`--mode <stack|parallel|series>` is left to fill in for the quick
+     campaigns), and last the operator's `prompt` line. The agents use the real `gh`. For
+     `ticket-summary`, setup places no CR and prints, instead of `open` lines, the issue's `gh
+     issue create` line and the chat request's file; it creates nothing on the forge.
 - **The run's number and prefix.** The number is 1 plus the highest `<n>` among the sandbox's PR
   titles that start with `[eval <n> `. A run that opened no PR leaves its number free for the next
   one. The prefix is `[eval <run> <date> <campaign>]`, for example `[eval 4 2026-11-14 full]`.
@@ -72,13 +113,28 @@ sandbox).
   and the judge read the run's record, so the prefix is how a run's PRs are told apart from older
   ones left on the sandbox.
 - **The operator** is a new Code session of the Claude Desktop app opened on the workspace (not
-  under Remote Control: it starts the Foreman's sessions), started with the runbook's prompt, which
-  names the runbook by its absolute path in this checkout. It is the Chief of Staff and plays the
+  under Remote Control: it starts the Foreman's sessions), started with the `prompt` line setup
+  printed: the runbook's prompt, with the runbook named by its absolute path in this checkout
+  (the mode of the quick campaigns is the blank to fill: `stack`, `parallel` or `series`). Two
+  ways to start it worked on 2026-11-15: **from New session** in the app's Code tab, picking the
+  workspace folder (its native spelling, the `workspace` line setup printed; backslashes on
+  Windows), then pasting the `prompt` line; or **from a chantier session at the desk**, asking a
+  Claude Desktop session (for example the one in this checkout) to start a new session on the
+  workspace with the `prompt` line. **The trust step:** the first time, the app asks to trust the
+  new workspace folder. It can ask only while the Code tab shows that session at the desk: under
+  Remote Control it is refused. Answer it at the desk, then the session runs. On Copilot: a new
+  chat of the Copilot app opened on the workspace, with the `prompt` line (**unproved** until
+  the campaign's first run). The operator is the Chief of Staff and plays the
   user in full: the go after the plan, every merge, every answer, every approval, the release's
   confirmation, the injected CR, `pause` coming and the "close the batch". Nothing waits on the
   real user. `$CHANTIER` is `uv run --locked --project "<this checkout>" chantier`,
-  run from the workspace. The plugin must be installed from this checkout (see "Before you
-  start").
+  run from the workspace. The plugin must be installed from this checkout (see the
+  [prerequisites](#prerequisites)).
+- **Auto-fix during the run.** As soon as a PR of the run appears (an `ask ready`, a hand-back,
+  or the PR bound to its session), the operator turns that PR's Auto-fix monitor off with `mcp__ccd_pr__set_monitor`, only on the run's own sandbox PRs (a PR of the sandbox repository whose title starts with the run's prefix), never on another PR and never to arm one. It is what
+  real-direct run 3 of 2026-11-15 did after Auto-fix events arrived on a sandbox PR. When the tool
+  is refused or absent, the user turns the monitor off from the PR's menu (the three dots) in the
+  operator's Changes card, and the report records the refusal as a finding.
 - **A merge** is the user's, and the operator plays the user: `chief-of-staff.md`'s "Never merge"
   is about the real user's PRs, which an eval has none of. (The Foreman still merges the release
   PR itself, as the card says.) The operator merges with `uv run --no-project python <this
@@ -114,13 +170,16 @@ sandbox).
   ```
 
   then `$CHANTIER cost --explain` and `$CHANTIER cost --by cr` from the workspace. Then the
-  operator runs the `close` flow and `close --yes`. The audit prints the run's table, the facts,
+  operator runs the `close` flow and `close --yes`. The report's cost figure is the one in the
+  closed batch's record, `.agents/changes/5-archives/batches/batch-NN.md`, read after `close
+  --yes` (run 2's cost rose from $11.47 to $11.91 between the audit and the close). The audit prints the run's table, the facts,
   the checks, the judge (the hidden tests on each CR's PR head as the forge reports it, its head
   at merge once merged, which a stack's restack may have replaced since the CR's hand-back; the row
   names the head judged and, when it differs, the head the record holds; then `main`, and the
   release judge), the scorecard and the cost. It exits 1 on a failed check, an unknown rail or a judge `fail`;
   `not run` is not a failure.
-- **The report** goes in `results/<campaign>-<date>-run<n>.md`, written in a worktree of this
+- **The report** goes in `results/<campaign>-<date>-run<n>.md` (its cost figure is read from the
+  closed batch's record, as above), written in a worktree of this
   repository on its own branch, with its PR (the main checkout does not change during an eval).
   The sandbox is left as the run ends: its PRs and releases stay for inspection until the next
   reset.
@@ -141,27 +200,26 @@ The session that gets the prompt is the operator: it plays both the Chief of Sta
 chantier skill) and the user (it answers, merges and gives orders as the runbook says).
 ### Before you start
 
-- The chantier plugin installed from this checkout, and the session restarted:
-  `claude plugin marketplace add <this checkout>`, then `claude plugin install chantier@chantier`.
-  The plugin is read live from the checkout: during a run, change neither its files nor its
-  branch; other work goes in a worktree. This install is what reaches the workspace: the
+What the [prerequisites](#prerequisites) do not hold:
+
+- The plugin is read live from the checkout: during a run, change neither its files nor its
+  branch; other work goes in a worktree. The plugin install is what reaches the workspace: the
   workspace is outside this repository and does not read its `.claude/settings.json`.
-- `uv` and `git`. In the staged campaign the forge is local (`evals/kit/forge.py`, a fake `gh`
-  whose CI runs the long gate in a fresh clone): nothing reaches GitHub. `setup.py` puts it first
-  on the `PATH` of every session in the workspace, so the Drivers' own `gh pr create` and the
-  Foreman's `gh pr merge` reach it too. A sandbox campaign has no local forge: it needs `gh`
-  logged in.
-- On Claude Desktop, the go must be typed in the desktop app: under Remote Control, starting
-  the Foreman's session is refused.
-- On Claude Desktop, before a real campaign on the sandbox (`full`, `real-foreman`,
-  `real-direct`), turn Auto-fix off for the operator's session, as
+- In `claude-planted` the forge is local (`evals/kit/forge.py`, a fake `gh` whose CI runs the long
+  gate in a fresh clone): nothing reaches GitHub. `setup.py` puts it first on the `PATH` of every
+  session in the workspace, so the Drivers' own `gh pr create` and the Foreman's `gh pr merge`
+  reach it too. A sandbox campaign has no local forge: it needs `gh` logged in.
+- Auto-fix (Claude Desktop, a real campaign on the sandbox: `full`, `real-foreman`, `real-direct`):
+  its events skew the measured cost and the run's record, so it is turned off before the run
+  (global setting, **unproved**) and by the operator on each of the run's PRs, as the
+  [prerequisites](#prerequisites) and "Auto-fix during the run" say. The hosts card,
   [`skills/chantier/references/hosts/claude-code.md`](../skills/chantier/references/hosts/claude-code.md),
-  "Auto-fix events", says: its events skew the measured cost and the run's record. That section
-  marks the way to turn it off **unproved**, so this guide gives no path either.
+  "Auto-fix events", has the rule.
 - On Claude, for a sandbox campaign, `setup.py` writes the workspace's
-  `.claude/settings.local.json` (ignored by the sandbox's git) with the merge command's rule and,
-  for `full`, the release's tag push and `gh release create` for its versions: rules the user's
-  own settings may lack. Nothing else is allowed there.
+  `.claude/settings.local.json` (ignored by the sandbox's git) with the rules the user's own
+  settings may lack: the merge command's rule, `mcp__ccd_pr__set_monitor` for the operator's
+  Auto-fix switch (not for `ticket-summary`, which opens no PR) and, for `full`, the release's tag
+  push and `gh release create` for its versions. Nothing else is allowed there.
 
 ### The host's limits
 
@@ -290,7 +348,7 @@ completed after them, and committed with the campaigns' reports.
 
 | File | Role |
 | --- | --- |
-| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the release's tag push and GitHub release). For `ticket-summary`, the issue's `gh issue create` line and the chat request, with the two posting commands allowed |
+| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the operator's `set_monitor`, the release's tag push and GitHub release); its last line is the operator's `prompt`. For `ticket-summary`, the issue's `gh issue create` line and the chat request, with the two posting commands allowed |
 | [`kit/forge.py`](kit/forge.py) | The local forge, called as `gh`: PRs, CI in a fresh clone, CI-only contract tests |
 | [`kit/merge.py`](kit/merge.py) | `claude-planted`'s merge, on the local forge |
 | [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--sandbox` for the sandbox campaigns: also the run table, the real forge read-only and the judge |
@@ -303,8 +361,8 @@ completed after them, and committed with the campaigns' reports.
 | [`kit/sandbox-crs/`](kit/sandbox-crs/) | The frozen CRs of the sandbox campaigns (request, intent, answers, specification): 11 features and 2 releases |
 | [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
-| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`) `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or not all green) |
-| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), and the `ticket-summary` setup case (no CR placed, the issue line, no forge write); no model, no GitHub |
+| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`), `publish` (your own public sandbox, created, given the base and named in `kit/sandbox.local.json`), `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push; it refuses a repository whose history does not hold the base) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or not all green). It is the one reader of the sandbox's name: `kit/sandbox.local.json` (git-ignored), else `kit/sandbox.json` |
+| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), the `ticket-summary` setup case (no CR placed, the issue line, no forge write), the other sandbox (a `sandbox.local.json` naming another repository flows through setup, merge, the judge and the audit), `reset` refusing a foreign or an empty repository, `publish`, and the `prompt` lines of setup; no model, no GitHub, and never the checkout's own `sandbox.local.json` |
 | [`kit/sandbox_forge.py`](kit/sandbox_forge.py) | The sandbox's GitHub played locally, called as `gh`, for the dry run only |
 | [`kit/dry-run/`](kit/dry-run/) | The reference solution of the staged CR, `delete-item` (`delete-item.patch`) |
 
@@ -326,15 +384,27 @@ completed after them, and committed with the campaigns' reports.
 The eval campaigns run on a frozen project: `shelf`, a small reading list in Python, kept in
 [`kit/sandbox/`](kit/sandbox/) and published at
 [gsemet/chantier-eval-sandbox](https://github.com/gsemet/chantier-eval-sandbox) (public, `main`
-not protected). Its initial commit is the same everywhere, down to the SHA-1, and that SHA-1 is
-the recorded base in [`kit/sandbox.json`](kit/sandbox.json).
+not protected), the maintainer's. Its initial commit is the same everywhere, down to the SHA-1, and
+that SHA-1 is the recorded base in [`kit/sandbox.json`](kit/sandbox.json), which also names this
+repository. A person's own sandbox is named in `kit/sandbox.local.json`
+(`{"repository": "<owner>/<name>"}`, git-ignored, so it never dirties the checkout), which wins
+when it is there; a malformed one stops the command (exit 2), it never falls back to the
+maintainer's repository. No argument and no environment variable names the repository.
+
+- `uv run --no-project python evals/kit/sandbox.py publish <owner>/<name>` prints its plan and
+  changes nothing; with `--yes` it creates the public repository (or takes an existing one that is
+  public and empty), pushes the base to `main` (a plain push: it never force-pushes and refuses a
+  repository with history), checks `main` is the default branch and unprotected (a protected one
+  is reported, not changed), and writes `kit/sandbox.local.json`. It refuses when that file names
+  another repository: remove it yourself.
 
 - `uv run --no-project python evals/kit/sandbox.py build [<dest>]` builds that commit, and exits 2
   when its SHA-1 is not the recorded one. `just check` runs it as a structure test.
 - To change the project: edit `kit/sandbox/`, run `build --record`, and commit `sandbox.json` in
   the same PR, or `just check` is red. Once that PR is reviewed, run `reset --yes`.
 - `uv run --no-project python evals/kit/sandbox.py reset` prints what it would do and changes
-  nothing; `reset --yes` closes the open PRs, deletes the releases, tags and other branches, and
+  nothing; before the plan it refuses (exit 2, nothing changed) a repository with no `main`, or
+  whose `main`, another branch or a tag does not hold the recorded base. `reset --yes` closes the open PRs, deletes the releases, tags and other branches, and
   force-pushes the base to `main`. It compares branches and tags only: GitHub keeps
   `refs/pull/*` and no push can delete them.
 - `uv run --no-project python evals/kit/sandbox.py merge <pr>` merges a run's PR by rebase, for the
@@ -344,5 +414,5 @@ the recorded base in [`kit/sandbox.json`](kit/sandbox.json).
   stack. A PR in an open stack merges with every PR below it in that stack, in one merge, as on
   GitHub's page: each of them must pass the same refusals, or nothing is merged.
 
-Nothing else resets the sandbox: the repository is a constant of the script, and `reset` is
-the only force push.
+Nothing else resets the sandbox: one file names the repository, `reset` refuses what is not a
+chantier eval sandbox, and `reset` is the only force push.

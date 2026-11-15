@@ -13,6 +13,15 @@ Follow the sandbox campaign text in [the evals README](../README.md#a-sandbox-ca
 preparation, the run's number and prefix, the operator), with these differences: no batch is
 opened, no PR is merged, and setup places no frozen CR.
 
+## Start
+
+Setup prints the operator's `prompt` line last, with this checkout's path filled in (the template is
+`/chantier:chief-of-staff Run the chantier eval campaign ticket-summary: follow <this checkout>/evals/ticket-summary/RUNBOOK.md.`).
+Start the operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
+spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
+workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
+Remote Control (the evals README, "The operator").
+
 ## Setup, by the operator
 
 1. Prepare as the evals README's sandbox campaign text says, with
@@ -41,7 +50,8 @@ opened, no PR is merged, and setup places no frozen CR.
 
 ## At the end
 
-The operator closes the issue (the kit's step, not an agent's). The report goes in
+The operator closes the issue (the kit's step, not an agent's). The campaign opens no batch, so
+there is no closed-batch record to read a cost from; the report's cost is the audit's. The report goes in
 `evals/results/ticket-summary-<date>-run<n>.md`.
 
 The `## Issues References` section is proved by the batch campaigns as they run: the sandbox's

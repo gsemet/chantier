@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# A person's own eval sandbox (evals/kit/sandbox.py publish writes it)
+evals/kit/sandbox.local.json

@@ -31,6 +31,12 @@ Control), with the plugin installed from this checkout, the user types, with `<m
 /chantier:chief-of-staff foreman Run the chantier eval campaign real-foreman in <mode> mode: follow <this checkout>/evals/real-foreman/RUNBOOK.md.
 ```
 
+Setup prints this as its last line, the `prompt` line, with the path filled in. Start the
+operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
+spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
+workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
+Remote Control (the evals README, "The operator").
+
 That session is the operator: a Chief of Staff in Foreman mode, playing the user in full (Q7):
 the go after the plan, every merge, every answer. Nothing waits on the real user. The host's
 limits of the [evals README](../README.md#the-hosts-limits) hold: 10 messages per session, and
@@ -41,6 +47,11 @@ One new Foreman session per batch: `cost` counts a session's calls from the batc
 the session's context still costs each turn.
 
 ## The user's turns
+
+On each new PR of the run (a PR of the sandbox whose title starts with the run's prefix), the first
+act is to turn that PR's Auto-fix monitor off with `mcp__ccd_pr__set_monitor`; never on another PR,
+never to arm one. When the call is refused, turn it off from the PR's menu in the Changes card and
+record the refusal as a finding (the evals README, "Auto-fix during the run").
 
 1. The go once the plan is shown.
 2. Each `ask ready`: merge the PR with `uv run --no-project python <this
@@ -83,7 +94,9 @@ marked `by hand` there are read by hand, from `$CHANTIER log <cr>` (the rounds, 
 verifier's proof), the transcripts and a sample of the diffs read against each specification.
 
 Write the report, as the [evals README](../README.md#the-report) describes, in
-`results/real-foreman-<date>-run<n>.md`, with the scorecard, the cost and the steering share, in a
+`results/real-foreman-<date>-run<n>.md`, with the scorecard, the cost (read after `close --yes`
+from the closed batch's record, `.agents/changes/5-archives/batches/batch-NN.md`; the audit's cost
+and `cost --explain` stay before it) and the steering share, in a
 worktree of this repository on its own branch, and open its PR: the main checkout changes neither
 its files nor its branch during the eval.
 

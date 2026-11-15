@@ -22,6 +22,13 @@ preparation, the run's number and prefix, a merge, the audit), on Copilot, with:
 | CRs | `delete-item` |
 | Open | `$CHANTIER open 3-ready/delete-item --slots 1 --budget 3 --default-branch main` |
 
+## Start
+
+Setup prints the operator's `prompt` line last, with this checkout's path filled in (the template is
+`Run the chantier eval campaign copilot: follow <this checkout>/evals/copilot/RUNBOOK.md.`). Open a
+new chat of the Copilot app on the workspace and paste it. **Unproved:** this form has not been run
+on Copilot yet; the first run of the campaign proves it, and the report says what the app did.
+
 ## The user's turns
 
 1. Give the go once the plan is shown.
@@ -30,7 +37,9 @@ preparation, the run's number and prefix, a merge, the audit), on Copilot, with:
    merged CR-<n>` and send the line it prints.
 3. A `budget:` ask, as the README says (the raise is to `$5`: `$CHANTIER order budget --note 5`).
 4. Wait for `final <report>`, then "what did it cost?", run the audit (`audit.py <workspace>
-   --sandbox`), then `$CHANTIER close --yes`, and delete the `/every` heartbeat.
+   --sandbox`), then `$CHANTIER close --yes`, and delete the `/every` heartbeat. The report's cost figure is read
+after `close --yes`, from the closed batch's record `.agents/changes/5-archives/batches/batch-NN.md`;
+the audit's cost stays before it.
 
 ## Expected
 

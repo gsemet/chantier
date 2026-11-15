@@ -19,10 +19,17 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     audit-cos-prompt   a retro critic started with `chantier retro-critic for the Chief of Staff` passes J1 and J2; a first line of no known form, or a wrong card, still fails J1
     audit-claim-call   a `$C rules` in the shell call that claims the transcript passes J14; the same command in an earlier call still fails it
     audit-heredoc      `git -C <main checkout>` in a here-doc's text passes J26; `git checkout main`, and a move in a `bash <<'EOF'`, still fail it
+    other-sandbox      a `sandbox.local.json` naming another repository (a temporary one) flows through setup, merge, the judge and the audit, the fake forge answering for that name
+    reset-foreign      an origin whose `main`, or whose branch, does not hold the recorded base: `reset` and `reset --yes` refuse (exit 2), the refs unchanged
+    reset-empty        an empty origin: `reset` refuses and names `publish`
+    publish            an empty origin: the plan changes nothing; `--yes` pushes the base and writes `sandbox.local.json`; a second one is refused
+    setup-prompt       setup's last `prompt` line for each sandbox campaign, and the `set_monitor` rule of the Claude campaigns that open PRs
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
-staged transcripts. `sandbox.URL` is rebound to that repository in this process only; the fake `gh`
+staged transcripts. `sandbox.URL_OVERRIDE` is rebound to that repository in this process only, and
+`sandbox.LOCAL` to a file that does not exist (the checkout's own `sandbox.local.json`, if a person
+has one, is never read: the sandbox is the maintainer's unless a case names another); the fake `gh`
 is first on the PATH of this process and of every process it starts; GIT_ALLOW_PROTOCOL=file makes
 any git call that would reach a network URL fail. The CLI runs as `python -m chantier` in the root
 project's environment (the recipe's `uv run --locked`; the dev form is the one setup prints; the dry
@@ -40,7 +47,6 @@ import io
 import json
 import os
 import re
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -59,7 +65,8 @@ CLI = setup.CLI
 GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
-         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-claim-call", "audit-heredoc"]
+         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-claim-call", "audit-heredoc",
+         "other-sandbox", "reset-foreign", "reset-empty", "publish", "setup-prompt"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -109,6 +116,12 @@ def posix(path) -> str:
     return Path(path).as_posix()
 
 
+def merge_in_process(ws: Path, pr: str) -> tuple[int, str, str]:
+    """`sandbox.py merge <pr>` from the workspace, in this process: a process of its own would read
+    the checkout's real `sandbox.local.json`, which the dry run never does."""
+    return captured(sandbox.main, ["merge", pr, "--workspace", str(ws)])
+
+
 def captured(fn, *args):
     """Run an in-process tool of the kit: its return code (or Stop's), stdout and stderr."""
     out, err = io.StringIO(), io.StringIO()
@@ -128,7 +141,8 @@ def captured(fn, *args):
 def dry_environment(tmp: Path):
     """The dry run's processes: the fake `gh` first on the PATH, only the file protocol for git, no
     identity or credential of the user's. Restored at the end."""
-    saved, url = dict(os.environ), sandbox.URL
+    saved, kept = dict(os.environ), (sandbox.URL_OVERRIDE, sandbox.LOCAL)
+    sandbox.LOCAL = tmp / "no-kit" / "sandbox.local.json"  # absent: the maintainer's sandbox
     bin_dir = tmp / "bin"
     bin_dir.mkdir()
     script = HERE / "sandbox_forge.py"
@@ -152,13 +166,14 @@ def dry_environment(tmp: Path):
         "CHANTIER_CLAUDE_PROJECTS": str(tmp / "unused-projects"),
         "CHANTIER_SKILL_DIR": str(CLI.parents[1]), "CHANTIER_HOST": "claude",
         "CLAUDE_CODE_ENTRYPOINT": "claude-desktop", "CLAUDE_CODE_SESSION_ID": "uuid-chief",
+        "SANDBOX_FORGE_REPOSITORY": sandbox.repository(),  # the fake `gh` is a process of its own
     })
     try:
         yield
     finally:
         os.environ.clear()
         os.environ.update(saved)
-        sandbox.URL = url
+        sandbox.URL_OVERRIDE, sandbox.LOCAL = kept
 
 
 # one local sandbox -----------------------------------------------------------------------------------
@@ -182,7 +197,7 @@ class World:
         os.environ["CHANTIER_CLAUDE_PROJECTS"] = str(self.projects)
         os.environ["FAKE_GH_STATE"] = str(self.state)
         os.environ["SANDBOX_FORGE_ORIGIN"] = str(self.origin)
-        sandbox.URL = str(self.origin)
+        sandbox.URL_OVERRIDE = str(self.origin)
 
     def forge(self) -> sandbox_forge.Forge:
         return sandbox_forge.Forge(self.state, str(self.origin))
@@ -426,9 +441,9 @@ class Batch:
         self.w.git_origin("update-ref", f"refs/heads/{c['branch']}", moved, head)
         self.restacked[cr_id] = (head, moved)
         # the operator merges it, with the command setup printed, then records it (no epoch)
-        done = sh([*shlex.split(self.record["merge_command"]), self.pr_number(link)], cwd=self.ws)
-        need(re.search(r"merged PR #\d+", done.stdout), "the operator's merge prints `merged PR #<n>`",
-             done.stdout.strip())
+        code, out, err = merge_in_process(self.ws, self.pr_number(link))
+        need(code == 0 and re.search(r"merged PR #\d+", out), "the operator's merge prints `merged PR #<n>`",
+             (out + err).strip())
         self.cli(None, "order", "merged", cr_id)
         self.fast_forward(cr_id)  # the Foreman handles the operator's merge
         if self.features:
@@ -456,9 +471,10 @@ class Batch:
         self.cli(driver, "note", cr_id, "--draft", notes)
         if self.stale:
             self.tool(driver, ["gh", "pr", "checks", link], expect=(1,))
-            done = sh([*shlex.split(self.record["merge_command"]), self.pr_number(link)], cwd=self.ws,
-                      expect=(2,))
-            self.refused = done.stderr.strip()
+            code, _, err = merge_in_process(self.ws, self.pr_number(link))
+            if code != 2:
+                raise External(f"sandbox.py merge of the stale release PR exited {code}: {err.strip()[-300:]}")
+            self.refused = err.strip()
         else:
             self.tool(driver, ["gh", "pr", "checks", link])
         self.cli(driver, "handback", cr_id, "blocked", f"merge: {link}")
@@ -740,7 +756,7 @@ def case_merge_refused(run: Run) -> str:
     world = World(run.tmp, "refused", run.base())
     prefix = "[eval 1 2026-11-12 full]"
     world.ws.mkdir()
-    world.ws.with_name("ws.run.json").write_text(json.dumps({"prefix": prefix, "repository": sandbox.REPO}),
+    world.ws.with_name("ws.run.json").write_text(json.dumps({"prefix": prefix, "repository": sandbox.repository()}),
                                                  encoding="utf-8")
     plan = [("failed", f"{prefix} feat: a failed check", "not all green"),
             ("pending", f"{prefix} feat: a pending check", "pending"),
@@ -757,13 +773,12 @@ def case_merge_refused(run: Run) -> str:
                 forge.state["ci"][sha] = {"conclusion": "FAILURE" if kind == "failed" else "SUCCESS",
                                           "run": 0, "log": ""}
             numbers[kind] = link.rsplit("/", 1)[-1]
-    command = shlex.split(setup.merge_command())
     for kind, _, reason in plan:
-        done = sh([*command, numbers[kind]], cwd=world.ws, expect=(0, 1, 2, 4))
-        text = done.stderr.strip()
-        need(done.returncode == 2 and "refused:" in text and "nothing merged" in text and reason in text,
+        code, _, text = merge_in_process(world.ws, numbers[kind])
+        text = text.strip()
+        need(code == 2 and "refused:" in text and "nothing merged" in text and reason in text,
              f"the merge of the {kind} PR exits 2, `refused: ... {reason} ...; nothing merged`",
-             f"exit {done.returncode}: {text[-200:]}")
+             f"exit {code}: {text[-200:]}")
     states = json.loads(world.state.read_text(encoding="utf-8"))["prs"]
     need(all(p["state"] == "open" for p in states.values()), "each PR stays open on the forge",
          f"{[p['state'] for p in states.values()]}")
@@ -859,7 +874,7 @@ def case_ticket_summary_setup(run: Run) -> str:
          "`ticket-summary/issue.md`", record["issue"]["body"])
     lines = out.splitlines()
     issue = [line for line in lines if line.startswith("issue ")]
-    start = (f'issue     gh issue create --repo {sandbox.REPO} --title "{title}" --body-file ')
+    start = (f'issue     gh issue create --repo {sandbox.repository()} --title "{title}" --body-file ')
     need(len(issue) == 1 and issue[0].startswith(start) and "ticket-summary/issue.md" in issue[0],
          "one `issue` line with the `gh issue create` command for the frozen issue", f"{issue}")
     need(sum(1 for line in lines if line.startswith("chat ") and "chat-request.md" in line) == 1,
@@ -1023,7 +1038,171 @@ def case_audit_heredoc(run: Run) -> str:
             "a move in a `bash <<'EOF'` still fail it")
 
 
-FUNCTIONS = {"ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
+@contextlib.contextmanager
+def local_sandbox(tmp: Path, name: str, write: bool = True):
+    """A `sandbox.local.json` in a temporary kit folder (never the checkout's), naming `name`, and
+    the fake forge answering for that name. Restored at the end."""
+    folder = Path(tempfile.mkdtemp(prefix="kit-", dir=tmp))
+    saved = (sandbox.LOCAL, os.environ.get("SANDBOX_FORGE_REPOSITORY"))
+    sandbox.LOCAL = folder / "sandbox.local.json"
+    if write:
+        sandbox.LOCAL.write_text(json.dumps({"repository": name}) + "\n", encoding="utf-8")
+    os.environ["SANDBOX_FORGE_REPOSITORY"] = name
+    try:
+        yield folder
+    finally:
+        sandbox.LOCAL = saved[0]
+        os.environ["SANDBOX_FORGE_REPOSITORY"] = saved[1]
+
+
+def case_other_sandbox(run: Run) -> str:
+    name, mine = "someone/other-sandbox", sandbox.repository()
+    need(name != mine, "the case's sandbox is not the maintainer's", mine)
+    with local_sandbox(run.tmp, name):
+        world = World(run.tmp, "other", run.base())
+        record = set_up(world, reset_first=False)
+        first = record["setup_output"].splitlines()[0]
+        need(name in first and "sandbox.local.json" in first,
+             "setup's first line names the repository and `sandbox.local.json`", first)
+        need(record["repository"] == name, f"the run record's repository is {name}", record["repository"])
+        batch = Batch(world, record, features=False, stale_lock=False)
+        batch.play()
+        batch.write_transcripts()
+        wrong = [v for v in batch.links.values() if not v.startswith(f"https://github.com/{name}/pull/")]
+        need(batch.links and not wrong, f"the forge's PR links are {name}'s", f"{wrong}")
+        code, text = audit_process(world)
+        tail = [line for line in text.splitlines() if line.startswith(("- FAIL", "Judge:"))][-10:]
+        need(code == 0 and not failed_checks(text), f"the audit passes a run on {name}",
+             f"exit {code}", tail)
+        rows = judge_rows(text)
+        need(rows and not any(v.startswith("fail") for v in rows.values())
+             and any(v == "pass" for v in rows.values()),
+             "the judge's release row passes, none fails (`main` has no hidden test: not run)", f"{rows}")
+        need(audit.judge.is_sandbox(f"https://github.com/{name}")
+             and not audit.judge.is_sandbox(f"https://github.com/{mine}"),
+             f"the judge takes {name} for the sandbox, and not {mine}", "it did not")
+        code, out, err = merge_in_process(world.ws, f"https://github.com/{mine}/pull/1")
+        need(code == 2 and f"merge works on {name} only" in err,
+             "a link to the maintainer's repository is refused (exit 2)", f"exit {code}: {err.strip()}")
+        need(out.splitlines() and name in out.splitlines()[0] and "sandbox.local.json" in out.splitlines()[0],
+             "merge's first line names the repository and where it was read", out)
+    return (f"setup, the forge's links, the audit (exit 0) and the judge follow {name}; merge refuses a "
+            f"link to {mine}; the first line of setup and merge names the repository")
+
+
+def refs_unchanged(world: World, what: str) -> None:
+    before = world.refs()
+    for yes in (False, True):
+        code, out, err = world.reset(yes)
+        need(code == 2, f"`reset{' --yes' if yes else ''}` on {what} exits 2", f"exit {code}",
+             (out + err).splitlines()[-5:])
+        need("does not hold the recorded base" in err and "nothing changed" in err,
+             "it says the repository does not hold the recorded base, and nothing changed", err.strip())
+        need("plan" not in out, "it prints no plan", out[-200:])
+        need(world.refs() == before, "the origin's refs are unchanged", f"{world.refs()}")
+
+
+def case_reset_foreign(run: Run) -> str:
+    world = World(run.tmp, "foreign", run.base())
+    foreign = world.git_origin("commit-tree", f"{world.base}^{{tree}}", "-m", "foreign root")
+    world.git_origin("update-ref", "refs/heads/main", foreign)
+    refs_unchanged(world, "an origin whose main does not hold the base")
+    world.git_origin("update-ref", "refs/heads/main", world.base)
+    world.git_origin("update-ref", "refs/heads/foreign-branch", foreign)
+    refs_unchanged(world, "an origin with a branch that does not hold the base")
+    world.git_origin("update-ref", "-d", "refs/heads/foreign-branch")
+    world.git_origin("tag", "foreign-tag", foreign)
+    refs_unchanged(world, "an origin with a tag that does not hold the base")
+    return ("main, a branch and a tag that do not hold the base: `reset` and `reset --yes` exit 2 "
+            "(`does not hold the recorded base ...; nothing changed`), no plan, the refs unchanged")
+
+
+def case_reset_empty(run: Run) -> str:
+    world = World(run.tmp, "empty", run.base())
+    world.git_origin("update-ref", "-d", "refs/heads/main")
+    need(not world.refs(), "the origin is empty", f"{world.refs()}")
+    for yes in (False, True):
+        code, out, err = world.reset(yes)
+        need(code == 2 and "no main on" in err and "publish" in err,
+             f"`reset{' --yes' if yes else ''}` on an empty repository exits 2 and names `publish`",
+             f"exit {code}: {err.strip()}")
+        need(not world.refs(), "the origin is still empty", f"{world.refs()}")
+    return "an empty origin: `reset` and `reset --yes` exit 2, `no main on ...: publish the base first`, nothing pushed"
+
+
+def case_publish(run: Run) -> str:
+    name = "someone/own-sandbox"
+    with local_sandbox(run.tmp, name, write=False):
+        world = World(run.tmp, "publish", run.base())
+        world.git_origin("update-ref", "-d", "refs/heads/main")
+        with world.forge() as forge:
+            forge.state["repo_missing"] = True
+
+        def publish(*args):
+            return captured(sandbox.main, ["publish", *args])
+
+        def calls() -> list[list[str]]:
+            path = world.state.with_suffix(".calls")
+            return ([json.loads(line)["args"] for line in path.read_text(encoding="utf-8").splitlines()]
+                    if path.is_file() else [])
+
+        code, out, err = publish(name)
+        need(code == 0 and "plan only: nothing changed" in out and out.startswith("publish:") and name in out.splitlines()[0],
+             "the plan without --yes exits 0, names the repository on its first line and changes nothing",
+             f"exit {code}: {(out + err)[-300:]}")
+        need(not world.refs() and not sandbox.LOCAL.exists() and ["repo", "create", name, "--public"] not in calls(),
+             "nothing was pushed, written or created", f"{world.refs()}")
+        code, out, err = publish(name, "--yes")
+        need(code == 0, "`publish --yes` exits 0", f"exit {code}", (out + err).splitlines()[-5:])
+        need(world.refs().get("refs/heads/main") == world.base, "`main` is at the base", f"{world.refs()}")
+        need(["repo", "create", name, "--public"] in calls(), "the repository was created, public",
+             f"{calls()}")
+        need(json.loads(sandbox.LOCAL.read_text(encoding="utf-8")) == {"repository": name},
+             f"`sandbox.local.json` (the case's) names {name}", sandbox.LOCAL.read_text(encoding="utf-8"))
+        need(sandbox.repository() == name, "the kit now names it", sandbox.repository())
+        code, out, err = publish(name, "--yes")
+        need(code == 2 and "not empty" in err and world.refs().get("refs/heads/main") == world.base,
+             "a second `publish --yes` on the now non-empty origin is refused (exit 2)", f"exit {code}: {err.strip()}")
+        code, out, err = publish("someone/another", "--yes")
+        need(code == 2 and name in err and "someone/another" in err,
+             "another name is refused while `sandbox.local.json` names this one", f"exit {code}: {err.strip()}")
+    return (f"the plan changes nothing; `--yes` creates {name} (public), pushes the base to main and writes "
+            "`sandbox.local.json`; a second one, and another name, are refused (exit 2)")
+
+
+def case_setup_prompt(run: Run) -> str:
+    world = World(run.tmp, "prompt", run.base())
+    seen = []
+    for campaign in ("full", "real-foreman", "real-direct", "ticket-summary", "copilot"):
+        ws = world.root / f"ws-{campaign}"
+        code, out, err = captured(setup.sandbox_main, campaign, ws)
+        need(code == 0, f"`setup.py {campaign}` passes on a sandbox at its base", f"exit {code}",
+             (out + err).splitlines()[-10:])
+        lines = out.splitlines()
+        prompts = [line for line in lines if line.startswith("prompt ")]
+        need(len(prompts) == 1 and lines[-1] == prompts[0], f"{campaign}: one `prompt` line, the last",
+             f"{prompts}", lines[-4:])
+        text = prompts[0].split(None, 1)[1]
+        runbook = str(setup.ROOT / "evals" / campaign / "RUNBOOK.md")
+        runbook = f'"{runbook}"' if " " in runbook else runbook
+        need(runbook in text, f"{campaign}: the prompt holds the runbook's absolute path {runbook}", text)
+        blanks = re.findall(r"<[^>]*>", text)
+        want = ["<stack|parallel|series>"] if campaign in ("real-foreman", "real-direct") else []
+        need(blanks == want, f"{campaign}: nothing in angle brackets but {want or 'nothing'}", f"{blanks}: {text}")
+        need(f"eval campaign {campaign}" in text, f"{campaign}: the prompt names the campaign", text)
+        if campaign != "copilot":
+            rules = json.loads((ws / ".claude" / "settings.local.json").read_text(encoding="utf-8"))["permissions"]["allow"]
+            has = setup.MONITOR_RULE in rules
+            need(has == (campaign != "ticket-summary"),
+                 f"{campaign}: `{setup.MONITOR_RULE}` is allowed" + (" not" if campaign == "ticket-summary" else ""),
+                 f"{rules}")
+        seen.append(campaign)
+    return f"the last line of setup is the `prompt` line with the runbook's path ({', '.join(seen)}); the `set_monitor` rule is there except for ticket-summary"
+
+
+FUNCTIONS = {"other-sandbox": case_other_sandbox, "reset-foreign": case_reset_foreign,
+             "reset-empty": case_reset_empty, "publish": case_publish, "setup-prompt": case_setup_prompt,
+             "ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
              "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge,
              "audit-cos-prompt": case_audit_cos_prompt, "audit-claim-call": case_audit_claim_call,
