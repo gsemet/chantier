@@ -104,6 +104,13 @@ does a unit that is not in `UNITS` and a test that does not exist.
   its refusals (no request, a spent budget, its folder not opened) in pytest (unit: parallel,
   gates, qa-driver) (test:
   test_rail_refusals.py::test_order_qa_needs_a_request_and_a_budget_and_its_folder_is_not_opened);
+- the step a working CR is at: `round` recording `coder r1`, `phase` recording the inspector, a
+  gate with its detail, `ci`, in the CR's STATUS.json, the batch row, `chantier status` and
+  STATUS.md, the `phase` event outside the Progress steps, the step cleared by `handback` and
+  `take`; the read data of the board naming `phase` and `next_to_start` (none with the budget
+  spent); `phase` refusing a queued CR, a `review` with no detail and a detail
+  past 40 characters in pytest (unit: parallel, surface-board) (test:
+  test_rail_refusals.py::test_phase_refuses_a_queued_cr_a_review_with_no_detail_and_a_long_detail);
 - dropping a live CR (its processes stopped), adding an item, an order applied at once and
   marked done, a note on a ready CR that the Foreman sends back with a Driver, more rounds
   granted, `slots 0` as a hold (its usage line says "0 holds"), a wider budget, a ready CR taken

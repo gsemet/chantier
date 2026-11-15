@@ -810,13 +810,6 @@ def scenario(w: World) -> None:
           and "| gate scenario |" in (w.folder() / "STATUS.md").read_text(encoding="utf-8")
           and "**Step:** gate scenario" in (w.at(w.cr("CR-101")["path"]) / "STATUS.md").read_text(
               encoding="utf-8"), str(status))
-    before = w.cr("CR-101")
-    refused = [w.chantier("phase", "CR-103", "inspector", expect=2)[0],
-               w.chantier("phase", "CR-101", "nonsense", expect=2)[0],
-               w.chantier("phase", "CR-101", "review", expect=2)[0]]
-    check("`phase` on a queued CR, with an unknown word, and `review` with no detail: each exit 2, "
-          "the record unchanged", refused == [2, 2, 2] and w.cr("CR-101") == before
-          and "phase" not in w.cr("CR-103"), str(refused))
     events = [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text(
         encoding="utf-8").splitlines() if ln.strip()]
     check("the event `phase` is in `events.jsonl` and not in the CR's Progress steps",

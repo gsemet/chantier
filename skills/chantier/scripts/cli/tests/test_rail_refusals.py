@@ -72,6 +72,21 @@ def test_a_round_with_nothing_since_and_the_round_limit_are_refused_and_more_can
     assert (cr_of(repo, one)["round"], cr_of(repo, one)["rounds"]) == (ROUNDS + 1, ROUNDS + 1)
 
 
+def test_phase_refuses_a_queued_cr_a_review_with_no_detail_and_a_long_detail(
+    rails: tuple[Path, Chantier, list[str]],
+) -> None:
+    repo, chantier, (one, two) = rails
+    before = record(repo)
+    for args in (
+        (two, "inspector"),
+        (one, "review"),
+        (one, "gate", "x" * 41),
+    ):
+        assert chantier("phase", *args)[0] == EXIT_PRECONDITION, args
+    assert record(repo) == before and "phase" not in cr_of(repo, two)
+    assert chantier("phase", one, "review", "security")[0] == 0
+
+
 def test_slots_zero_holds_and_a_spent_budget_stops_the_next_driver_until_it_is_raised(
     rails: tuple[Path, Chantier, list[str]],
 ) -> None:

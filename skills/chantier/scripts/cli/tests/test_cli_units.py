@@ -2,7 +2,6 @@
 the sandbox checks.
 """
 
-import argparse
 import json
 import re
 import subprocess
@@ -16,8 +15,6 @@ from conftest import PLUGIN_ROOT, load_script
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
 from chantier.commands.crs import gate_passed, last_verdict
-from chantier.commands.driver import phase
-from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.ids import normalize_cr
 from chantier.core.records import BatchRecord, CrEntry, EventRecord
 from chantier.status.words import next_to_start, phase_text
@@ -168,13 +165,3 @@ def test_next_to_start_is_the_queued_cr_of_the_lowest_order_with_nothing_to_wait
     d = batch()
     d.crs[0].status = "merged"
     assert next_to_start(d) == "CR-2"
-
-
-def test_phase_refuses_a_missing_or_long_detail_with_exit_2() -> None:
-    for words in ([], ["x" * 41]):
-        ns = argparse.Namespace(
-            cr="CR-1", phase="review" if not words else "gate", detail=words, batch=None
-        )
-        with pytest.raises(ChantierError) as e:
-            phase(ns)
-        assert e.value.code == EXIT_PRECONDITION

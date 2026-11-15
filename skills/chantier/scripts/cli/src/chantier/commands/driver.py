@@ -229,7 +229,7 @@ def note(args: argparse.Namespace) -> list[str]:
 
 def phase(args: argparse.Namespace) -> list[str]:
     """A Driver records the step its CR is at, shown by the status, the board and the pane."""
-    repo = open_repo()
+    repo = Repo.find()
     detail = " ".join(args.detail).strip()
     if len(detail) > PHASE_DETAIL_MAX:
         raise ChantierError(
