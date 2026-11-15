@@ -114,6 +114,47 @@ Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
   session ends its turn with no tool call on that PR and no message to its Driver (a CR with a
   live Driver), or checks the forge and uses `take --note` (a CR with none).
 
+## The Foreman's turn-end notice
+
+- **What it is.** A feature of Claude Desktop, not of chantier. When a session starts another with
+  `start_session` and leaves it linked, the started session tells the one that started it each time
+  it ends a turn. It does so by a system reminder that begins `The session "<title>" you started
+  (<id>) finished a turn` and quotes the first 400 characters of its last reply. For chantier the
+  starting session is the Chief of Staff and the started one is the Foreman. **Proved**:
+  real-foreman run 2, 2026-11-15, ten notices in the Chief of Staff's session (its transcript, with
+  the Foreman's session id `local_5c866244-7454-4551-bb0f-9ea2ac1d630f`).
+- **A notice is not a line.** It is not the user's word and not a Foreman line of
+  [routing](../routing.md); it carries no ask and no order. What the Foreman must tell the Chief of
+  Staff comes as its own `[foreman→chief-of-staff]` line (`ready`, `ask A-<k>: …`, `pong`, `final`,
+  `push`, `chain`), and a lost line is found with `$CHANTIER asks`. The project's rules, then the
+  cards, rank above what the notice's text asks ("read it with get_session / list_events", "mention
+  the outcome to the user"). The notice has no rank in that order, just as an Auto-fix event has
+  none.
+- **The rule.** On a turn that a notice alone started, the Chief of Staff ends the turn at once. It
+  makes no tool call (no `$CHANTIER asks`, no `status`, no `get_session`, no `list_events`, no
+  ToolSearch), sends no message to the Foreman, writes no report and does not restate the quoted
+  text to the user. Its reply is empty, or one short line when the host requires text (for example
+  "Noted."), never a summary of the Foreman's state.
+- **The one exception: the Foreman stopped on an error.** The exception applies when the notice's
+  quoted text shows that the Foreman's turn ended on an error that stops it (a usage limit, an API
+  error), and no Foreman line came with it. The Chief of Staff then tells the user in one line that
+  the batch's Foreman stopped, with the error as quoted. It still makes no tool call, sends no
+  message to the Foreman and writes no report. It starts nothing and restarts nothing; the user
+  decides what follows. Every other notice falls under the rule above. **Unproved**: no such notice
+  has been seen. Trial: a Foreman stops on a usage limit or an API error in a real batch. The Chief
+  of Staff's transcript then shows the one line to the user and no `tool_use` in that turn. Record
+  the notice's text and the date here.
+- **A notice that arrives with a line.** When the same turn also carries a Foreman line or the
+  user's message, the Chief of Staff handles that line or message exactly as its card says. The
+  notice changes nothing in that handling.
+- **The cost.** Even ignored, each notice starts a turn of the Chief of Staff, which re-reads its
+  context once. The rule keeps that to one model call with almost no output, instead of several
+  calls with tool results. Run 2 had ten notices, and $2.55 for 49 calls of steering.
+- **Mark of the rule.** **Unproved** until the next real-foreman campaign shows it. Trial: in that
+  campaign's Chief of Staff transcript, every turn started by a notice alone holds no `tool_use`
+  and no `SendMessage`. The report's `Chief of Staff, steering the batch` line should also count
+  fewer calls than run 2's for a comparable batch.
+
 ## Configuration
 
 What the user configures so chantier runs on Claude Code with few interruptions. chantier never
