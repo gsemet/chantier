@@ -4206,10 +4206,21 @@ def stack_batch(w: World) -> None:
     wt = Path(w.cr(four)["worktree"])
     body = w.at(w.cr(four)["path"]) / "work" / "pr-body.md"
     old = w.sh("git", "rev-parse", "HEAD", cwd=wt)
-    for n in range(1, 50):  # the old head must hold a letter a-f in its first seven characters
-        if not old[:7].isdigit():
-            break
-        w.sh("git", "commit", "--quiet", "--amend", "-m", f"feat: stack3 try {n}", cwd=wt)
+    def commit_id(raw: bytes) -> str:  # the id git gives a commit object, with no process
+        return hashlib.sha1(b"commit %d\x00" % len(raw) + raw).hexdigest()
+
+    def write_commit(raw: bytes) -> None:
+        subprocess.run(["git", "hash-object", "-t", "commit", "-w", "--stdin"], cwd=wt, input=raw,
+                       check=True, capture_output=True)
+
+    if old[:7].isdigit():  # the old head must hold a letter a-f in its first seven characters
+        raw = subprocess.run(["git", "cat-file", "commit", "HEAD"], cwd=wt, check=True,
+                             capture_output=True).stdout
+        headers = raw.split(b"\n\n", 1)[0]
+        tries = [headers + f"\n\nfeat: stack3 try {n}\n".encode() for n in range(1, 50)]
+        raw = next(r for r in tries if not commit_id(r)[:7].isdigit())
+        write_commit(raw)
+        w.sh("git", "update-ref", "HEAD", commit_id(raw), cwd=wt)
         old = w.sh("git", "rev-parse", "HEAD", cwd=wt)
     body.write_text(f"## Test plan\n\nTested at {old[:7]} on the gate\ncarried from {old[:7]}\n"
                     f"STALE {old[:7]}\nNo hash here: deadbeefdeadbeef0000\n")
@@ -4225,9 +4236,14 @@ def stack_batch(w: World) -> None:
     _, out = w.chantier("ship", four, w.cr(four)["pr"])
     check("with the body fixed, `ship` names no line", not any("pr-body.md" in ln for ln in out), str(out))
     # a dangling commit whose first seven characters are digits: a token of digits is no commit
-    tree = f"{new_head}^{{tree}}"
-    digits = next((c for c in (w.sh("git", "commit-tree", tree, "-m", f"digits {i}", cwd=wt)
-                               for i in range(2000)) if c[:7].isdigit()), "")
+    tree = w.sh("git", "rev-parse", f"{new_head}^{{tree}}", cwd=wt)
+    who = "scenario <scenario@example.com> 1700000000 +0000"
+    cands = (f"tree {tree}\nauthor {who}\ncommitter {who}\n\ndigits {i}\n".encode()
+             for i in range(100000))
+    found = next((r for r in cands if commit_id(r)[:7].isdigit()), None)
+    digits = commit_id(found) if found else ""
+    if found:
+        write_commit(found)
     body.write_text(f"## Test plan\n\nPR {digits[:7]} and the date\nTested at {old[:7]} again\n")
     _, out = w.chantier("ship", four, w.cr(four)["pr"])
     named = [ln for ln in out if "pr-body.md" in ln]
@@ -7256,8 +7272,9 @@ def remove_tree(path: Path) -> str:
     left: list[str] = []
 
     def retry(func, name, *_):
-        for _try in range(5):
-            time.sleep(0.5)
+        for attempt in range(5):
+            if attempt:  # the first try is at once: a read-only file needs no wait
+                time.sleep(0.5)
             try:
                 os.chmod(name, 0o700)
                 func(name)
