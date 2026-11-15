@@ -3568,7 +3568,7 @@ def handback_proofs(w: World) -> None:
           "that reopens it", code == 2 and "is blocked" in w.last_stderr
           and f"take {cr} --note" in w.last_stderr and w.cr(cr)["status"] == "blocked",
           w.last_stderr)
-    w.chantier("agents", "set", cr, "drv-x")
+    w.chantier("agents", "set", cr, "drv-x", "--epoch", 1)
     commit(w, cr, "unblocked.py", "UNBLOCKED = 1\n")
     ship(w, cr, "feat: unblocked")
     code, _ = w.chantier("handback", cr, "ready", link, "--no-gate", rule, expect=2)

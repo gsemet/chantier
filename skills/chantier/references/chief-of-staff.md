@@ -971,7 +971,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   gaps. Where the project's rules ask for a screenshot of the board pane for a change to it and
   the gaps name it as missing, ask the user for one screenshot of the pane from a session
   running the PR's branch. On the user's file, `order note <cr> --note "evidence: <path of the
-  image>"`: the Foreman turns it into `take <cr> --note "evidence: <path>"`, and a Driver
+  image>"`: the Foreman turns it into `take <cr> --epoch <n> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
   ready again. In every mode, a `ready-to-merge` ask is offered to the
   user as mergeable now, on its own, with its gaps as above; a `pr-in-draft … on <base>: waits for
@@ -1048,7 +1048,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   it on, and its `heavy-ci <cr> <head7> green|red <checks>` ask is told to the user (a red result
   changes nothing by itself: the user decides).
 - **Dropping a CR from a stack:** on the user's word, `order drop <cr>` as today (the Foreman then
-  removes it from the stack with `take stack --note "drop: <cr>"`), then tell the
+  removes it from the stack with `take stack --epoch <n> --note "drop: <cr>"`), then tell the
   user that the CR's commits come out of the PRs above it, its PR is closed, its branch stays until
   `close`, and the PRs above it are PRs in draft (do not merge) until the next report's partial-stack
   line shows them ready to merge again. Nothing more is asked of the user.
