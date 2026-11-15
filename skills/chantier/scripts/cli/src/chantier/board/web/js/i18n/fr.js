@@ -15,7 +15,7 @@ export default {
   'project.head': 'Surface de planification · {n} projets',
   'project.all': 'Tous les projets',
   'project.all_sub': "vue d'ensemble · {n} PR à revoir",
-  'project.line': '{batch} · {state} · {n} en intake',
+  'project.line': '{batch} · {state} · {n} en inbox',
   'project.no_batch': 'pas de batch',
   'project.running': 'batch en cours',
   'stats.grill': 'au grill',
