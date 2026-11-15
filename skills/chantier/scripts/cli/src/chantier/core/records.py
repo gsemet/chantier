@@ -79,6 +79,9 @@ class CrEntry(Record):
     agent: str | None = None
     pr: str | None = None
     pr_draft: bool | None = None  # the forge's draft state, as whoever changed it recorded it
+    # the PR's base branch on the forge, as `ship` last read it; None when never read or the last
+    # read failed
+    pr_base: str | None = None
     head: str | None = None
     branch: str = ""
     worktree: str = ""

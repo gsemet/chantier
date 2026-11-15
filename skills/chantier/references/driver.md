@@ -208,10 +208,10 @@ defaults, not a gate.
   move as before. **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
   whose PR exists needs a long gate (a `rebase:` note, a restack, a taken-back CR, with a
   conflict resolved), turn the PR to draft if it is not one (`gh pr ready --undo`, `glab mr
-  update --draft`), push at once with `--force-with-lease`, `ship <cr> <link> --draft`, then
+  update --draft`), push at once with `--force-with-lease`, `ship <cr> <link>`, then
   start the long gate and the CI watch side by side, by the outcomes of the "CI" bullet (a red
   CR job stops the gate, a failed gate stops the watch). The PR leaves draft (`gh pr ready`,
-  `glab mr update --ready`, then `ship` without `--draft`) only once the gate has passed and
+  `glab mr update --ready`, then `ship`) only once the gate has passed and
   CI is green at that same head. A PR that does not exist yet still waits for its gate before
   its first push, unless the project chose `ci: beside_gate: true`. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
@@ -279,15 +279,21 @@ defaults, not a gate.
   references (role names included) and on Known gaps first, and fixes `pr-body.md` itself before
   posting. This is not a round and not a review: it replaces neither the Inspector's audit nor
   the Verifier's description pass. Then
-  `$CHANTIER ship <cr> <pr link> [--draft]` (`--draft` while the PR is a draft: the CLI records the
-  forge's draft state, so the word it prints never leads the forge): it records the PR at this head (the full SHA) and says what
+  `$CHANTIER ship <cr> <pr link>` (the CLI reads the PR's base and draft state from the forge and
+  records them; a failed read prints `base ? (not read from <link>: …)` and `draft not read`, and
+  the CR reads `PR in draft` until a `ship` reads the forge): it records the PR at this head (the full SHA) and says what
   is off (uncommitted changes, a head not pushed, no long gate passed at it; with the `ci: beside
   the long gate` line `ship` runs before the gate passes, so `off: no long gate passed at <sha>`
   is expected there and no slip, as it is for a PR already recorded after a rebase that needs a
   long gate (the early push), and `handback ready` still refuses a head with no passed long
   gate, unless the pass carries over a clean rebase). The PR's base is the
   `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
-  does.
+  does. Any change of a PR's base or draft state on the forge (`gh pr ready`, `gh pr ready
+  --undo`, `glab mr update --ready`, `glab mr update --draft`, a retarget) is followed by `ship
+  <cr> <link>`, so the record follows the forge (GitLab's `draft` field is unproved on a real
+  instance; trial: one `ship` of a draft MR and of a ready MR on a GitLab project, the recorded
+  draft state matching the forge; on GitHub Copilot unproved; trial: one Driver on Copilot that
+  turns its PR ready and runs `ship`, the CR reading `ready to merge`).
 - Commits: a PR merges by rebase with every commit of its branch, so each commit you make is a
   commit of the default branch. Every commit you make, a round's commit or a checkpoint (work set
   aside before a rebase, a commit before a gate, a commit after a `FIX-REQUIRED` round), has a
@@ -417,8 +423,8 @@ defaults, not a gate.
   CR's long gate validates the stack`, runs its gate as any CR does, and a fix its gate finds
   goes on the top PR or a PR above it; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
-  branch, then runs `ship <cr> <link>` again without `--draft` (a PR turned back to a draft is shipped
-  again with `--draft`); on another base it stays a draft (PR in draft) and the text after the link says so and what it
+  branch, then runs `ship <cr> <link>` again (as after any change of
+  draft state); on another base it stays a draft (PR in draft) and the text after the link says so and what it
   waits for: `handback <cr> ready <link> draft on <base>: waits for <what>`; when the body's
   Known gaps is not "None", the text ends with `gaps: <gap>; <gap>`, each gap the first sentence
   of its bullet as written in the posted body, in the body's order, none the body does not name
@@ -621,7 +627,7 @@ on the base `take` printed: a Driver still retargets nothing but on a `rebase:` 
 
 A CR taken (or a `note`) with `rebase: mode <mode>` (the batch switched mode with `order mode`; a
 stack was dissolved first by `forge-stack unstack` where it applied): put the PR to draft first
-(`gh pr ready --undo`, `glab mr update --draft`, `ship --draft`), rebase onto the base `take`
+(`gh pr ready --undo`, `glab mr update --draft`, `ship`), rebase onto the base `take`
 printed (parallel: the default branch, or the branch of its open dependency; series: its
 predecessor's branch, the bottom CR on the default branch), retarget the PR to it, push with
 `--force-with-lease`, `ship`, run the long gate and CI again at the new head, and hand back `ready`;

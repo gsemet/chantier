@@ -31,7 +31,15 @@ def release_merged(b: Batch, c: CrEntry) -> None:
     """The release PR is merged: that merge is the go for the rest of the procedure (the field
     `merged_pr`), which goes on with a new Driver; the next attempt opens a PR of its own."""
     c.append("notes", f"merged: {c.pr}")
-    b.touch(c, status="queued", pr=None, head=None, merged_pr=c.pr or "the release PR")
+    b.touch(
+        c,
+        status="queued",
+        pr=None,
+        pr_base=None,
+        pr_draft=None,
+        head=None,
+        merged_pr=c.pr or "the release PR",
+    )
 
 
 def release_go(b: Batch, c: CrEntry, action: str) -> tuple[str, str]:

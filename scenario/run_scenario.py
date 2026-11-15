@@ -335,6 +335,21 @@ def forge_base(w: World, link: str, base: str) -> None:
     w.gh_state.write_text(json.dumps(state))
 
 
+def forge_draft(w: World, link: str, draft: bool) -> None:
+    """What the Driver does on the forge (`pr ready`, `mr update --draft`): the PR at `link` is
+    now a draft, or out of draft."""
+    n = link.rstrip("/").rsplit("/", 1)[-1]
+    state = json.loads(w.gh_state.read_text())
+    if ARGS.forge == "github":
+        drafts = {int(x) for x in state.get("drafts", [])} - {int(n)}
+        state["drafts"] = sorted(drafts | ({int(n)} if draft else set()))
+    else:
+        state.setdefault("mrs", {}).setdefault(n, {"state": "opened", "target_branch": "main",
+                                                    "source_branch": "", "web_url": link})
+        state["mrs"][n]["draft"] = draft
+    w.gh_state.write_text(json.dumps(state))
+
+
 def forge_calls(w: World) -> list[list[str]]:
     """The calls the fake forge logged, in order."""
     log = w.root / "gh-state.json.calls"
@@ -4239,7 +4254,8 @@ def stack_batch(w: World) -> None:
 
 
 def base_from_pr(w: World) -> None:
-    note("\n## 13b. `take`, `handoff` and `ship` print a stacked CR's base as its PR has it on the forge")
+    note("\n## 13b. `take` and `handoff` print a stacked CR's base, `ship` reads and records any CR's "
+         "base, as its PR has it on the forge")
 
     def reads() -> int:
         """The PR reads the fake forge logged (a GET of one pull request or merge request)."""
@@ -4275,9 +4291,9 @@ def base_from_pr(w: World) -> None:
     check("`take --note` prints the same base on its `worktree:` line",
           worktree_line(out).endswith(f"base {w.cr(one)['branch']}"), worktree_line(out))
     _, out = w.chantier("ship", two, link)
-    check("`ship` prints the base of the PR it records, and the event keeps it",
-          f"(base {w.cr(one)['branch']}, head " in out[0] and ship_base(two)[-1] == w.cr(one)["branch"],
-          str(out))
+    check("`ship` prints the base of the PR it records, and the event and the CR keep it",
+          f"(base {w.cr(one)['branch']}, head " in out[0] and ship_base(two)[-1] == w.cr(one)["branch"]
+          and w.cr(two)["pr_base"] == w.cr(one)["branch"], str(out))
     forge_base(w, link, "main")
     _, out = w.chantier("handoff", two)
     check("a PR on the default branch is printed as the remote's default branch",
@@ -4292,9 +4308,15 @@ def base_from_pr(w: World) -> None:
     check("a forge that refuses the read: `handoff` exits 0 and prints `base ? (not read from <link>: …)`",
           shown in worktree_line(out) and "403" in worktree_line(out) and "\n" not in worktree_line(out),
           worktree_line(out))
+    held = w.cr(two)["pr_base"] is not None and w.cr(two)["pr_draft"] is not None
     _, out = w.chantier("ship", two, link)
-    check("`ship` on a refused read exits 0, prints `base ?` and keeps the event's base empty",
-          shown in out[0] and ship_base(two)[-1] == "", str(out))
+    check("`ship` on a refused read exits 0, prints `base ?` and `draft not read`, keeps the event's "
+          "base empty, and clears `pr_base` and `pr_draft` it held",
+          shown in out[0] and "draft not read" in out[0] and ship_base(two)[-1] == "" and held
+          and w.cr(two)["pr_base"] is None and w.cr(two)["pr_draft"] is None, str(out))
+    _, out = w.ready(two, link)
+    check("a CR handed back ready, after a failed read, reads `PR in draft`",
+          out[0].startswith(f"[driver {two}→foreman] hand-back PR in draft"), str(out))
     w.gh(pull_read_refused=False)
 
     # a parallel batch makes no forge read
@@ -4309,11 +4331,53 @@ def base_from_pr(w: World) -> None:
     driver_round(w, solo, "solo.py", "N = 0\n")
     before = reads()
     _, out = w.chantier("handoff", solo)
+    no_read = reads() == before and worktree_line(out).endswith("base origin/main")
     _, shipped = w.chantier("ship", solo, w.cr(solo)["pr"])
-    check("a CR of a parallel batch with a PR makes no forge read: `handoff` and `ship` print the "
-          "record's base", reads() == before and worktree_line(out).endswith("base origin/main")
-          and "(base main, head " in shipped[0], f"{worktree_line(out)} {shipped}")
+    check("a CR of a parallel batch with a PR: `handoff` makes no forge read and prints `base "
+          "origin/main`; `ship` makes exactly one read, prints `(base main, head …` and records "
+          "`pr_base` main", no_read and reads() == before + 1 and "(base main, head " in shipped[0]
+          and w.cr(solo)["pr_base"] == "main", f"{worktree_line(out)} {shipped}")
     w.env.pop("CHANTIER_BATCH", None)
+
+    # a parallel batch whose CR q was stacked by hand on p's branch: the record follows the forge
+    w.reset()
+    p_item, q_item = prepare_cr(w, "Base p")[1], prepare_cr(w, "Base q")[1]
+    w.start(str(p_item), str(q_item), "--slots", 3, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    p, q = (c["id"] for c in w.batch()["crs"])
+    for x, name in ((p, "p"), (q, "q")):
+        w.chantier("take", x, "--epoch", 0)
+        start_driver(w, x)
+        driver_round(w, x, f"hand_{name}.py", "N = 1\n")
+    pb, qlink, plink = w.cr(p)["branch"], w.cr(q)["pr"], w.cr(p)["pr"]
+    forge_base(w, qlink, pb)  # q's PR sits on p's branch, and is out of draft
+    forge_draft(w, plink, True)  # p's PR is a draft
+    w.chantier("ship", p, plink)
+    _, out = w.chantier("ship", q, qlink)
+    check("a PR stacked by hand: `ship` prints the forge's base and `out of draft`, records `pr_base` "
+          "and `pr_draft`, and the event keeps the base",
+          f"(base {pb}, head " in out[0] and out[0].endswith("out of draft)")
+          and w.cr(q)["pr_base"] == pb and w.cr(q)["pr_draft"] is False and ship_base(q)[-1] == pb,
+          str(out))
+    _, out = w.ready(q, qlink)
+    own_md = (w.state / w.cr(q)["path"] / "STATUS.md").read_text(encoding="utf-8")
+    check("handed back ready over a draft, it reads `PR in draft`, not `ready to merge`: the hand-back "
+          "line, its label and the `notify` text name the forge's base and the CR it waits for",
+          out[0].startswith(f"[driver {q}→foreman] hand-back PR in draft")
+          and f"waits on {pb}" in out[1] and f"waits for {p}" in drawn(w, q)[1]["label"]
+          and f"on {pb}, waits for {p}" in own_md, str(out))
+    forge_base(w, qlink, "main")
+    w.chantier("ship", q, qlink)
+    row = next(ln for ln in w.chantier("status")[1] if ln.startswith(q + " "))
+    check("once the forge puts it on the default branch, `ship` records `main` and it reads `ready to merge`",
+          w.cr(q)["pr_base"] == "main" and "ready to merge" in row, row)
+    forge_draft(w, plink, False)  # PR links repeat from batch to batch: leave the fake forge clean
+    w.env.pop("CHANTIER_BATCH", None)
+
+    # `ship --draft` is gone: the forge is the only source of the draft state
+    code, _ = w.chantier("ship", q, qlink, "--draft", expect=2)
+    check("`ship <cr> <link> --draft` exits 2 (an unknown option) and records nothing",
+          code == 2 and w.cr(q)["pr_draft"] is False and w.cr(q)["pr_base"] == "main", w.last_stderr)
 
 
 def forge_stack_cli(w: World) -> None:
@@ -5192,7 +5256,8 @@ def release(w: World) -> None:
           len(fm.started) == drivers + 1 and fm.started[-1].startswith(f"{rel} merged:")
           and "5-archives/" not in w.cr(rel)["path"]
           and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
-    check("the merged PR is not the next attempt's", w.cr(rel).get("pr") is None)
+    check("the merged PR is not the next attempt's: `pr`, `pr_base` and `pr_draft` are cleared",
+          all(w.cr(rel).get(k) is None for k in ("pr", "pr_base", "pr_draft")))
     merged_pr = w.cr(rel)["merged_pr"]
     for step in ("push tag v1.1.0", "publish v1.1.0"):
         code, out = w.chantier("release", "go", rel, "--note", step)
@@ -5871,11 +5936,21 @@ def ready_words(w: World) -> None:
     w.chantier("stack", a, b, c)
     for i, cr in enumerate((a, b, c)):
         driver_round(w, cr, f"words{i}.py", f"N = {i}\n")
-    _, out = w.chantier("ship", b, w.cr(b)["pr"], "--draft")
-    check("1. `ship --draft` records the PR as a draft and says so; `ship` alone records it out of draft",
+    forge_base(w, w.cr(b)["pr"], w.cr(a)["branch"])  # the stack driver put each PR on the one below
+    forge_base(w, w.cr(c)["pr"], w.cr(b)["branch"])
+    forge_draft(w, w.cr(b)["pr"], True)  # the forge holds b's PR as a draft
+    _, out = w.chantier("ship", b, w.cr(b)["pr"])
+    check("1. `ship` records the draft state the forge holds: b's draft, a's and c's out of draft",
           "draft)" in out[0] and "out of draft" not in out[0] and w.cr(b)["pr_draft"] is True
           and w.cr(a)["pr_draft"] is False and w.cr(c)["pr_draft"] is False,
           f"{out} {[x.get('pr_draft') for x in w.batch()['crs']]}")
+    forge_draft(w, w.cr(b)["pr"], False)
+    _, out = w.chantier("ship", b, w.cr(b)["pr"])
+    turned_ready = "out of draft" in out[0] and w.cr(b)["pr_draft"] is False
+    forge_draft(w, w.cr(b)["pr"], True)
+    _, out = w.chantier("ship", b, w.cr(b)["pr"])
+    check("1. the forge turns b ready: `ship` records out of draft; back to a draft: it records a draft",
+          turned_ready and "out of draft" not in out[0] and w.cr(b)["pr_draft"] is True, str(out))
 
     _, out = w.ready(a, w.cr(a)["pr"])
     check("2. a CR out of draft at the bottom is handed back `ready to merge`, in the line to the "
@@ -5915,6 +5990,7 @@ def ready_words(w: World) -> None:
           and all(ready_of(x) == "ready to merge" for x in (a, b, c)), str(out))
     for x in (a, b, c):
         icon_is(w, x, "🟢", "a stack ready to merge")
+    forge_draft(w, w.cr(b)["pr"], False)  # the stack driver turned them ready on the forge
     code, _ = w.chantier("stack", "--out-of-draft", "--draft", a, expect=1)
     check("5. `--out-of-draft` and `--draft` together are refused",
           code == 1 and "not both" in w.last_stderr, w.last_stderr)
@@ -5954,6 +6030,38 @@ def ready_words(w: World) -> None:
              if "\U0001f535" in p.read_text(encoding="utf-8")]
     check("no STATUS file draws the retired blue icon", stray == [], str(stray))
 
+    for cr in (b, c):  # PR links repeat from batch to batch: leave the fake forge clean
+        forge_base(w, w.cr(cr)["pr"], "main")
+
+    # a stack whose top PR the forge puts on a, not on b (the chain's neighbour)
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Forge a", "Forge b", "Forge c")]
+    w.start(*map(str, items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_words5", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    w.chantier("stack", a, b, c)
+    for i, cr in enumerate((a, b, c)):
+        driver_round(w, cr, f"forge{i}.py", f"N = {i}\n")
+    for cr in (a, b):
+        forge_draft(w, w.cr(cr)["pr"], True)
+        w.chantier("ship", cr, w.cr(cr)["pr"])
+    forge_base(w, w.cr(c)["pr"], w.cr(a)["branch"])
+    w.chantier("ship", c, w.cr(c)["pr"])
+    w.ready(c, w.cr(c)["pr"])
+    check("11. a stack's PR the forge puts on a, not b: with a and b drafts it waits for a, the CR its "
+          "forge base is on", f"waits for {a}" in drawn(w, c)[1]["label"]
+          and w.cr(c)["pr_base"] == w.cr(a)["branch"], str(drawn(w, c)[1]))
+    forge_draft(w, w.cr(a)["pr"], False)
+    w.chantier("ship", a, w.cr(a)["pr"])
+    w.ready(a, w.cr(a)["pr"])
+    check("11. with a out of draft and b a draft it waits for b (the chain's rule) and reads `PR in draft`",
+          f"waits for {b}" in drawn(w, c)[1]["label"] and ready_of(c) == "PR in draft", str(drawn(w, c)[1]))
+    for cr in (a, b):  # PR links repeat from batch to batch: leave the fake forge clean
+        forge_draft(w, w.cr(cr)["pr"], False)
+    forge_base(w, w.cr(c)["pr"], "main")
+
     # a release prepared on the stack's top CR reads its state like any CR
     w.reset()
     items = [prepare_cr(w, t)[1] for t in ("Words top", "Words release")]
@@ -5978,7 +6086,8 @@ def ready_words(w: World) -> None:
     (w.at(w.cr(rel)["path"]) / "work" / "pr-body.md").write_text(
         BODY.format(title=w.cr(rel)["title"], cr=rel))
     pr = open_pr(w, rel, "release: v1.9.0", base=w.cr(top)["branch"])
-    w.chantier("ship", rel, pr, "--draft")
+    forge_draft(w, pr, True)  # the forge holds the release PR as a draft
+    w.chantier("ship", rel, pr)
     _, out = w.chantier("handback", rel, "ready", f"{pr} waits for the merge")
     check("9. a prepared release whose PR is a draft is handed back `PR in draft`, naming the PR "
           "and what it waits on",
@@ -5990,6 +6099,8 @@ def ready_words(w: World) -> None:
     check("9. out of draft with the CR under it, the prepared release reads `ready to merge`",
           ready_of(rel) == "ready to merge" and "ready to merge" in out[0], str(out))
     icon_is(w, rel, "🟢", "a prepared release out of draft")
+    forge_draft(w, pr, False)  # PR links repeat from batch to batch: leave the fake forge clean
+    forge_base(w, pr, "main")
 
     # a parallel batch: a CR on another CR's branch is a PR in draft until that CR is merged
     w.reset()
@@ -6007,6 +6118,8 @@ def ready_words(w: World) -> None:
     w.chantier("take", q, "--epoch", 0)
     start_driver(w, q)
     driver_round(w, q, "words_q.py", "Q = 1\n")
+    forge_base(w, w.cr(q)["pr"], w.cr(p)["branch"])  # its PR sits on p's branch, as it starts
+    w.chantier("ship", q, w.cr(q)["pr"])
     _, out = w.ready(q, w.cr(q)["pr"])
     check("10. a CR on an open CR's branch, shipped out of draft, is still `PR in draft`: its base "
           "is not the default branch",
@@ -6014,6 +6127,8 @@ def ready_words(w: World) -> None:
           and f"waits for {p}" in drawn(w, q)[1]["label"], str(out))
     icon_is(w, q, "🟤", "a CR on an open CR's branch")
     w.chantier("order", "merged", p)
+    forge_base(w, w.cr(q)["pr"], "main")  # the forge retargets it; the Driver ships again
+    w.chantier("ship", q, w.cr(q)["pr"])
     check("10. once the CR under it is merged, it reads `ready to merge`",
           ready_of(q) == "ready to merge" and "ready to merge" in w.chantier("handoff", q)[1][0],
           str(drawn(w, q)[1]))

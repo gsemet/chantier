@@ -10,7 +10,7 @@ from pathlib import Path
 from chantier.commands.crs import batch_cr, cr_events, cr_worktree, short_head, work
 from chantier.commands.driver import context_line
 from chantier.commands.facts import stack_lines
-from chantier.commands.forge_base import is_stacked, read_base
+from chantier.commands.forge_base import read_state
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
@@ -20,7 +20,7 @@ from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.plugin_files import archive_path
-from chantier.stacks import chain, stack_base
+from chantier.stacks import chain
 
 VERDICTS = ("VERIFIED", "NOT VERIFIED")
 HISTORY_CHARS = 120
@@ -148,7 +148,7 @@ def ship(args: argparse.Namespace) -> list[str]:
     worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
     passed at this head."""
     repo = Repo.find()
-    batch, d, c = batch_cr(repo, args.cr, args.batch)
+    batch, _, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
     if "://" not in args.pr:
         raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
@@ -166,15 +166,12 @@ def ship(args: argparse.Namespace) -> list[str]:
     if not gate_passed(cr_events(repo, batch, c.id), head):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     off += _stale_body_shas(repo, c, wt, head)
-    base, shown = stack_base(d, c, repo), ""
-    if is_stacked(d, c):  # the PR's own base on the forge; a failed read leaves the base empty
-        read, shown = read_base(args.pr)
-        base = read or ""
-    draft = bool(args.draft)
+    # the PR's own base and draft state on the forge, one read; a failed read records neither
+    base, draft, shown = read_state(args.pr)
     with RenderedBatch(repo, batch, actor="driver") as b:
-        b.touch(b.cr(c.id), pr=args.pr, pr_draft=draft, head=head, archive_seen=seen)
-        b.log("ship", c.id, pr=args.pr, base=base, head=head, draft=draft, off=off)
-    state = "draft" if draft else "out of draft"
+        b.touch(b.cr(c.id), pr=args.pr, pr_base=base, pr_draft=draft, head=head, archive_seen=seen)
+        b.log("ship", c.id, pr=args.pr, base=base or "", head=head, draft=draft, off=off)
+    state = "draft not read" if draft is None else "draft" if draft else "out of draft"
     said = shown or f"base {base}"
     return [f"recorded {args.pr} ({said}, head {short}, {state})"] + [f"off: {x}" for x in off]
 
