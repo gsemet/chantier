@@ -251,7 +251,8 @@ visible in the PR's head, absent on main).
     tools installed there) are proved by CI alone; the specification names them.
 - With real agents, the [eval campaigns](evals/README.md): one quick campaign (`real-foreman`
   or `real-direct`, five frozen CRs on the sandbox) after a change to a role or the flow, in the
-  mode it touched; `full` and both quick campaigns before a release (they read the main checkout: run them before
+  mode it touched; `full` and both quick campaigns before a release, launched in the modes the release's claims
+  file (`evals/results/claims-vX.Y.Z.md`) names, the file completed with the reports (they read the main checkout: run them before
   the batch, or after the merge of everything under the version PR and before the user merges
   it); `claude-planted` after a
   change to how a batch handles

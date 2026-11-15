@@ -27,11 +27,14 @@ NOTES_FILE = "release-notes.md"
 TWEET_FILE = "tweet.md"
 VERSION_FILE = ROOT / "skills" / "chantier" / "scripts" / "cli" / "src" / "chantier" / "__init__.py"
 FIRST_NOTES_VERSION = (0, 8, 0)
+FIRST_CLAIMS_VERSION = (0, 9, 1)
 REPO = "https://github.com/gsemet/chantier"
 RELEASE_ASSETS = f"{REPO}/releases/download"
 INSTALL_LINK = f"{REPO}#install"
 TAG = re.compile(r"v((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))")
 IMAGE = re.compile(r'!\[[^\]]*\]\(([^)\s]+)[^)]*\)|<img\b[^>]*\bsrc="([^"]+)"')
+CONTRIBUTORS = re.compile(r"<details>[^\n]*For contributors.*?</details>", re.DOTALL)
+NOT_EXERCISED = re.compile(r"^- \*\*Not exercised by an eval\.\*\*", re.MULTILINE)
 POST = re.compile(r"^## (\S+)\s*$", re.MULTILINE)
 IMAGE_LINE = re.compile(r"^Image:\s*(.+?)\s*$", re.MULTILINE)
 
@@ -82,6 +85,13 @@ def validate_notes(notes: str, folder: Path, version: str) -> None:
         raise ValueError(f"The notes must start with a title naming version {minor}")
     for source in images(notes):
         local_image(source, folder)
+    if tuple(int(part) for part in version.split(".")) >= FIRST_CLAIMS_VERSION:
+        block = CONTRIBUTORS.search(notes)
+        if not block or not NOT_EXERCISED.search(block.group(0)):
+            raise ValueError(
+                'The notes must say, under For contributors, "- **Not exercised by an eval.** ..." '
+                "(docs/release-process.md)"
+            )
 
 
 def tweet_image(tweet: str, folder: Path) -> str:

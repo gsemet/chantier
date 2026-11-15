@@ -27,7 +27,8 @@ or invalid folder.
 
 They are written for a user of chantier from the commits since the previous tag
 (`git log --no-merges vPREVIOUS..HEAD`; chantier has no `CHANGELOG.md`) and from the
-specifications, PR descriptions and evidence of the CRs they come from. They contain no CR number
+specifications, PR descriptions and evidence of the CRs they come from, and from the release's
+claims file, `evals/results/claims-vX.Y.Z.md`. They contain no CR number
 or slug, no batch number and no path under `.agents/changes/`. The role names (Chief of Staff,
 Foreman, Driver) are product vocabulary and may be used. The structure, in order:
 
@@ -51,7 +52,12 @@ Foreman, Driver) are product vocabulary and may be used. The structure, in order
 4. **`## 🛠 Smaller changes`**: the smaller visible changes, one bullet each, with a bold lead.
 5. **Folded sections**: `<details><summary><b>🐞 All fixes</b></summary>`, then
    `<details><summary><b>🛠 For contributors</b></summary>` (tooling, tests, docs process, known
-   issues).
+   issues). It holds one bullet that starts `**Not exercised by an eval.**`, followed by each
+   claim of the claims file whose `Result` is not `exercised`, in the reader's words (no CR number
+   or slug), each marked "(proved by the scripted scenario)" when its result is `scenario only`;
+   when every claim was exercised, the bullet reads `**Not exercised by an eval.** None: every
+   change of this release came up in an eval run.` `scripts/release_notes.py --check` refuses
+   notes of 0.9.1 and later without that bullet.
 
 Every `feat:` and `fix:` commit since the previous tag appears exactly once: in a highlight, in
 Smaller changes or in All fixes.
