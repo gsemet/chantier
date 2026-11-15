@@ -88,7 +88,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   When the rules declare a long gate that covers this CR, send the CR back to a Driver with
   `take <cr> --note "long gate: <why the exemption does not hold>"`, with no ask. When the rules
   say nothing about a long gate, ask `question <cr> no long gate written down: <the Driver's
-  reason>`; an absent gate never means success. A release PR is never yours to merge,
+  reason>`; an absent gate never means success. A hand-back that says `long gate waived (O-<k>)`
+  is checked against the recorded order (`status` lists it; the CLI wrote it on this CR on the
+  user's word, `order waive`), not against the rules: it holds when the order is there and its
+  scope fits (`validated by CR-<top>'s gate`, or `follow-up <folder>`). The ask then carries
+  `long gate waived: validated by CR-<top>` or `long gate waived: follow-up <folder>`, as it
+  carries `no long gate: <reason>`. A hand-back that says it with no such order on the CR goes
+  back to its Driver with `take <cr> --note "long gate: no waiver recorded for this CR"`, with
+  no ask. Nothing about a waiver goes in a Driver's brief except what `take` prints (its
+  `gate:` line). A release PR is never yours to merge,
   except under the grant, once every other CR is merged or cancelled and its base is the default
   branch, after `$CHANTIER release go <cr> --note "merge <pr>"` says `go`; an approval never
   covers it. You merge a fix only under the grant (else it is an ordinary CR handed back), with the

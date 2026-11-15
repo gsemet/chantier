@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 from chantier.commands.crs import filed_fix, grant_line
 from chantier.commands.gate_run import stop_gate
-from chantier.commands.gate_slots import slot_of
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
 from chantier.commands.orders_release import (
     add_release,
@@ -17,9 +16,11 @@ from chantier.commands.orders_release import (
     refused,
     release_cr,
 )
+from chantier.commands.orders_waive import USAGE, stack_waiver, waive_cr, waive_stack
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import LIVE, CrEntry, read_events
+from chantier.gate_slots import slot_of
 from chantier.lifecycle.stages import trash_cr
 from chantier.rails import ENDED, is_release
 from chantier.rails_release import (
@@ -45,6 +46,8 @@ class Word:
     fix_for: str | None = None
     own: bool = False
     release: bool = False
+    follow_up: str | None = None
+    order_id: str = ""
 
 
 def target(w: Word) -> CrEntry:
@@ -89,7 +92,21 @@ def _add(w: Word) -> list[str]:
     declare_dependencies(b, [added])
     join_release(b, added)
     waits = f", after {', '.join(added.after)}" if added.after else ""
-    return [f"added {added.id}, queued{waits}"]
+    out = [f"added {added.id}, queued{waits}"]
+    standing = stack_waiver(b)
+    if standing is not None and added.kind not in {"release", "fix"}:
+        added.gate_waiver = standing.model_copy()
+        out.append(f"{added.id} joins the stack waiver {standing.order}: the top's gate validates")
+    return out
+
+
+def _waive(w: Word) -> list[str]:
+    """`order waive stack|<cr> --note <words> [--follow-up <folder>]`: the long gate waived, a
+    fact on each CR it covers; `--note -` withdraws it."""
+    note = _need_note(w, USAGE)
+    if w.cr_id == "stack":
+        return waive_stack(w.b, note, w.follow_up, w.order_id)
+    return waive_cr(w.b, target(w), note, w.follow_up, w.order_id)
 
 
 def _after_ids(w: Word) -> list[str]:
@@ -378,6 +395,7 @@ HANDLERS: dict[str, Callable[[Word], list[str]]] = {
     "grant": _grant,
     "confirm": _confirm,
     "mode": _mode,
+    "waive": _waive,
     "qa": _qa,
 }
 

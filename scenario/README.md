@@ -140,6 +140,16 @@ does a unit that is not in `UNITS` and a test that does not exist.
   whose SHA left the head's history after a rebase (`carried from` and `STALE` lines left out),
   and not taking a token of digits only for a commit (a dangling commit whose first seven
   characters are digits) (unit: stack);
+- a stack's long-gate waiver (`order waive stack`): a lower CR handed back ready with no gate and
+  no `--no-gate` while the top is refused without its own, `handoff` printing the two `gate:`
+  lines, `status`, `STATUS.md` and `STATUS.json` showing `waived → CR-k (#n)` and `validates …`,
+  an `order add` on top moving the validation to the new CR, `order waive stack --note -` making a
+  lower CR need its gate again while a CR already handed back keeps its waiver and the user's
+  words, and a waiver of one CR of the stack not withdrawn alone; the refusals (outside a stack,
+  a CR waiver with no `--follow-up` or a missing folder) and the `gate` object's states in pytest
+  (unit: stack) (test: test_gate_waiver_orders.py::test_a_stack_waiver_is_refused_outside_stack_mode)
+  (test: test_gate_waiver_orders.py::test_a_cr_waiver_needs_an_existing_backlog_folder)
+  (test: test_gate_view.py::test_the_state_of_a_gate_read_from_the_gate_events_at_the_head);
 - the three words of a ready CR (`ready locally`, `PR in draft`, `ready to merge`) with their
   icons 🟣, 🟤 and 🟢 in `status`, the STATUS files (`readiness`), `handoff` and the `stack` rows:
   `ship` and `ship --draft`, the hand-back line by word, a PR out of draft over a draft, `stack
@@ -209,7 +219,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the long gate's queue running the next merge first (a stack's bottom CR, arriving last, passes
   before the CR waiting; the holder is not stopped), and a long gate carried over a clean rebase
   (`handback` accepted with `gate_from` and no new gate; a conflicting rebase refused with `does
-  not carry`; the order and the old-git refusal in pytest) (unit: gates)
+  not carry`; `STATUS.md` then shows `carried from <sha7>`; the order and the old-git refusal in
+  pytest) (unit: gates)
   (test: test_gate_queue_order.py::test_the_queue_runs_the_next_merge_then_the_moved_then_arrival)
   (test: test_gate_carry.py::test_a_git_older_than_2_38_refuses_the_carry_and_says_so);
 - Claude cost by CR (one line in the main batch; the levels, the pages, the shares, the Chief of

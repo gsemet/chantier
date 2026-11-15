@@ -17,11 +17,13 @@ from chantier.core.records import (
     CrEntry,
     EventRecord,
     read_batch_json,
+    read_events,
     round_limit,
 )
 from chantier.core.repo import Repo
 from chantier.rails import held
 from chantier.stacks import ready_word
+from chantier.status.gate import gate_view
 from chantier.status.steps import steps
 from chantier.status.words import (
     ENDED,
@@ -134,7 +136,8 @@ def cr_view(
         "now": now_line,
         "next": next_line,
         "pr": {"url": pr, "number": int(number[1]) if number else None} if pr else None,
-        "steps": steps(c, events),
+        "gate": gate_view(repo, d, c, events),
+        "steps": steps(d, c, events),
         "documents": _documents(repo, c, folder),
         "branch": c.branch,
         "worktree": c.worktree,
@@ -153,7 +156,9 @@ def _priced(d: BatchRecord) -> bool:
     return d.spent_usd is not None and not unknown
 
 
-def _row(repo: Repo, d: BatchRecord, c: CrEntry, start: Path) -> dict[str, Any]:
+def _row(
+    repo: Repo, d: BatchRecord, c: CrEntry, start: Path, events: list[EventRecord]
+) -> dict[str, Any]:
     folder = repo.planning_path(c.path) if c.path else None
     silent = age_minutes(c.updated) if c.status in LIVE else None
     waiting = waits(d, c)
@@ -170,6 +175,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, start: Path) -> dict[str, Any]:
         "round": c.round,
         "branch": c.branch,
         "pr": c.pr,
+        "gate": gate_view(repo, d, c, events),
         "cost_usd": c.cost_usd,
         "cost_unpriced": c.cost_unpriced,
         "blocked": c.blocked_reason if c.status == "blocked" else None,
@@ -182,6 +188,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, start: Path) -> dict[str, Any]:
 
 
 def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
+    events = read_events(folder)
     return {
         "schema": SCHEMA,
         "updated": now(),
@@ -200,7 +207,7 @@ def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
         "heartbeat_stopped": d.heartbeat_stopped,  # the loop ended on purpose, when
         "paused": d.paused,
         "summary": d.summary,
-        "crs": [_row(repo, d, c, folder) for c in sorted(d.crs, key=lambda x: x.order)],
+        "crs": [_row(repo, d, c, folder, events) for c in sorted(d.crs, key=lambda x: x.order)],
     }
 
 
@@ -325,6 +332,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
     for folder in repo.batch_folders():
         d = read_batch_json(folder / "batch.json")
         v = batch_view(repo, d, folder)
+        events = read_events(folder)
         active = [c for c in sorted(d.crs, key=lambda x: x.order) if c.status not in ENDED]
         batches.append(
             {
@@ -339,7 +347,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
                 "heartbeat_stopped": v["heartbeat_stopped"],
                 "orders_pending": v["orders_pending"],
                 "slots": {"taken": len(held(d)), "total": d.slots},
-                "crs": [_row(repo, d, c, start) for c in active],
+                "crs": [_row(repo, d, c, start, events) for c in active],
             }
         )
     merged, merged_total = _past(paths["archives"], start)

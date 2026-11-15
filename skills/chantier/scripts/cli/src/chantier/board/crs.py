@@ -12,6 +12,7 @@ from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
 from chantier.stacks import READY_TO_MERGE, chain, ready_word, stack_base
+from chantier.status.gate import gate_view
 from chantier.status.words import next_to_start, phase_text, severity, state_label, waits
 
 
@@ -97,6 +98,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "description": description(folder) if folder else "",
         "chain_place": place.index(c.id) + 1 if c.id in place else None,
         "base": base,
+        "gate": gate_view(repo, d, c, events),
         # to review: the PR is out of draft and everything under it is (`ready_word`)
         "to_review": readiness == READY_TO_MERGE,
     }

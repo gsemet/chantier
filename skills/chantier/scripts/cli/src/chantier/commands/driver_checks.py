@@ -4,25 +4,25 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+from dataclasses import dataclass
 
 from chantier.commands.crs import (
     carry_check,
     cr_events,
     cr_worktree,
     dirty_files,
-    gate_passed,
     last_gate_pass,
     last_verdict,
-    same_head,
     short_head,
 )
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
-from chantier.core.records import LIVE, BatchRecord, CrEntry, EventRecord
+from chantier.core.heads import gate_passed, same_head
+from chantier.core.records import LIVE, BatchRecord, CrEntry, EventRecord, GateWaiver
 from chantier.core.repo import Repo
 from chantier.rails import ENDED
-from chantier.stacks import stack_base, top_cr
+from chantier.stacks import stack_base, top_cr, validating_cr, waived_gate
 
 
 def check_release_branch(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
@@ -121,11 +121,50 @@ def _gate_missing(repo: Repo, b: Batch, c: CrEntry, events: list[EventRecord]) -
     return text.replace("(gate", clause, 1), ""
 
 
+@dataclass
+class GateBasis:
+    """What let a ready hand-back pass its long gate, when it is not a pass at its own head: the
+    head of the pass carried over a clean rebase, or the waiver recorded for the CR."""
+
+    carried: str = ""
+    waiver: GateWaiver | None = None
+    validated_by: str = ""
+
+    def words(self) -> str:
+        """The waiver as the hand-back line and the event say it."""
+        w = self.waiver
+        if w is None:
+            return ""
+        why = (
+            f"validated by {self.validated_by}'s gate"
+            if self.validated_by
+            else (f"follow-up {w.follow_up}")
+        )
+        return f"long gate waived ({w.order}): {why}"
+
+    def event_keys(self) -> dict[str, str]:
+        """What the `handback` event records of the basis: the carried head, the waiver."""
+        w = self.waiver
+        carried = {"gate_from": self.carried} if self.carried else {}
+        if w is None:
+            return carried
+        return {
+            **carried,
+            "gate_waiver": w.order,
+            "gate_waiver_scope": w.scope,
+            "gate_waiver_words": self.words(),
+            "waiver_note": w.note,
+            **({"validated_by": self.validated_by} if self.validated_by else {}),
+            **({"follow_up": w.follow_up} if w.follow_up else {}),
+        }
+
+
 def handback_refusals(
     repo: Repo, b: Batch, c: CrEntry, no_gate: str | None, prepared: bool
-) -> str | None:
-    """A ready CR is shipped at the worktree's head, clean, pushed, gated and verified. The head
-    of the gate pass it carries over a clean rebase, if that is what let it pass."""
+) -> GateBasis:
+    """A ready CR is shipped at the worktree's head, clean, pushed, gated and verified. A CR
+    whose long gate is waived (`order waive`) and is not the stack's top needs no gate pass. The
+    basis that let it pass, if it is not a pass at its head."""
     events, head = cr_events(repo, b.id, c.id), c.head
     wt = cr_worktree(c)
     missing = []
@@ -150,9 +189,13 @@ def handback_refusals(
             f"{'at ' + short_head(pushed) if pushed else 'not pushed'}, not at "
             f"{short_head(head) or 'the shipped head'}: push, then `ship` again"
         )
-    carried = ""
-    if no_gate is None and not gate_passed(events, head):
-        text, carried = _gate_missing(repo, b, c, events)
+    basis = GateBasis()
+    waiver = waived_gate(b.record, c) if no_gate is None else None
+    if waiver is not None:
+        top = validating_cr(b.record, c)
+        basis = GateBasis(waiver=waiver, validated_by=top.id if top else "")
+    elif no_gate is None and not gate_passed(events, head):
+        text, basis.carried = _gate_missing(repo, b, c, events)
         if text:
             missing.append(text)
     if not prepared and last_verdict(events, head) != "VERIFIED":
@@ -162,7 +205,7 @@ def handback_refusals(
         )
     if missing:
         raise ChantierError("\n".join(missing), EXIT_PRECONDITION)
-    return carried or None
+    return basis
 
 
 def live_cr(b: Batch, cr: str, result: str = "") -> CrEntry:

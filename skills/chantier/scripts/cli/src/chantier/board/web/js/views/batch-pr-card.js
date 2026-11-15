@@ -1,10 +1,12 @@
 // The cards of the Batch's PR columns. A card is a link to the PR when its address is a web one,
 // else a plain box. The folder control opens the CR's folder and leaves the link alone.
-import { html } from '../core/dom.js';
+import { delegate, html } from '../core/dom.js';
 import { age, prNumber, safeUrl, usd } from '../core/format.js';
 import {
   baseOf,
   draftWhy,
+  gateLink,
+  gateWords,
   isFix,
   isRelease,
   mergedAt,
@@ -43,9 +45,38 @@ function place(c, batch, index, draft) {
 const folder = (c) =>
   html`<span class="fold" ${opener(crKey(c), 'fold-')} title="${t('pr.folder')}" aria-label="${t('pr.folder')}">${icon('folder')}</span>`;
 
+// The long gate's line: its words, and for a covered CR a link to the PR of the CR that validates
+// it. The card is a link already: the inner one is a span that `bindGateLinks` opens.
+function gateLine(c) {
+  const words = gateWords(c);
+  if (!words) return '';
+  const url = gateLink(c);
+  const text = url
+    ? html`<span class="gl" data-gate-pr="${url}" tabindex="0" role="link" title="${t('gate.open')}">${words}</span>`
+    : html`<span>${words}</span>`;
+  return html`<div class="gate"><span class="lbl">${t('gate.label')}</span>${text}</div>`;
+}
+
+// A click, or Enter, on a gate link opens the validating PR and leaves the card's own link alone.
+export function bindGateLinks(root) {
+  const go = (event, element) => {
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(element.dataset.gatePr, '_blank', 'noopener');
+  };
+  const offClick = delegate(root, 'click', '[data-gate-pr]', go);
+  const offKey = delegate(root, 'keydown', '[data-gate-pr]', (event, element) => {
+    if (event.key === 'Enter') go(event, element);
+  });
+  return () => {
+    offClick();
+    offKey();
+  };
+}
+
 function body(c, line, why, cost) {
   const second = why ? html`<span>${why}</span>` : '';
-  return html`<div class="nt">${c.title}</div><div class="nm"><span>${line}</span>${second}<span class="r">${cost}</span>${folder(c)}</div>`;
+  return html`<div class="nt">${c.title}</div><div class="nm"><span>${line}</span>${second}<span class="r">${cost}</span>${folder(c)}</div>${gateLine(c)}`;
 }
 
 // A PR to review or a draft; `index` is its place in the list as drawn.

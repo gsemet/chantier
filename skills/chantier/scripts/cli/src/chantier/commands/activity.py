@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from chantier.commands.cost.sessions import foreman_uuid
-from chantier.commands.gate_lock import gate_state
 from chantier.core.clock import age_minutes
 from chantier.core.errors import ChantierError
 from chantier.core.records import LIVE, BatchRecord, EventRecord, read_events
 from chantier.core.repo import Repo
 from chantier.costs.sessions import agent_records, idle_seconds
+from chantier.gate_queue import gate_state
 
 MAX_HOPS = 5  # parent links followed from a worker to its Driver
 

@@ -1,6 +1,23 @@
 // The contract of the CR board mod (hooks/register.tsx): the shapes of the
 // STATUS.json files it reads and of the state it keeps. Self-contained: no import.
 
+/** A CR's long gate, as `status/gate.py` builds it: the same words on every surface. */
+export type ChantierGate = {
+  state: 'none' | 'queued' | 'running' | 'passed' | 'carried' | 'failed' | 'waived' | 'exempt'
+  /** The pass, or the head a pass was carried from (seven characters); null with none. */
+  head: string | null
+  /** The `--no-gate` rule of an exempt CR, or the note of the order that waived the gate. */
+  waiver: string | null
+  /** The CR whose gate validates a covered CR, and its PR. */
+  validated_by: { cr: string; pr: string | null } | null
+  /** The backlog folder of the CR that runs the gate afterwards, for a waiver of one CR. */
+  follow_up: string | null
+  /** The CRs a waived stack leaves to this CR's gate (the stack's top); else empty. */
+  validates: string[]
+  /** The "Long gate" column's words. */
+  text: string
+}
+
 /** A CR row of a batch section: `status.py`'s `_row`. */
 export type ChantierRow = {
   cr: string
@@ -16,6 +33,8 @@ export type ChantierRow = {
   round: number
   branch: string | null
   pr: string | null
+  /** Absent from a STATUS.json written before the long gate was shown. */
+  gate?: ChantierGate
   cost_usd: number | null
   blocked: string | null
   silent_minutes: number | null
@@ -100,6 +119,7 @@ export type ChantierSheet = {
   next: string
   blocked: string | null
   pr: { url: string; number: number | null } | null
+  gate?: ChantierGate
   steps: ChantierStep[]
   documents: ChantierDocument[]
 }

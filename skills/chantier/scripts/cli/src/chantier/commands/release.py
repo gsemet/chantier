@@ -6,10 +6,10 @@ import argparse
 from pathlib import Path
 
 from chantier import procs
-from chantier.commands.gate_slots import mtime, slot_of
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
+from chantier.gate_slots import mtime, slot_of
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, trash_cr
 from chantier.rails import all_merged, spent_text

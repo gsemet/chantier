@@ -297,6 +297,16 @@ started.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
   Chief of Staff (`order`), what the Foreman needs the Chief of Staff to hear (`asks`), a
   Driver's end (`handback`). Each is written before it is sent: a lost message loses nothing.
+  A **long-gate waiver** is one such order, the user's word recorded by the Chief of Staff:
+  `order waive stack --note "<words>"` (a stack batch: one long gate on the top PR only; the CLI
+  writes the waiver on each open CR of the stack but the top, and on a CR added later) or
+  `order waive <cr> --note "<words>" --follow-up <backlog folder>` (one CR, with nothing in the
+  batch to validate it: the follow-up CR runs the gate on main, and exists first); `--note -`
+  withdraws it. It is a fact on each CR it covers, never a line in a brief: `take` and `handoff`
+  print its `gate:` line, `handback ready` skips the gate pass for a covered CR (the head, clean,
+  pushed and `VERIFIED` checks stay) and records the waiver in its event, and `status`,
+  `STATUS.md`, `STATUS.json`, the pane and the web board show each CR's long gate and which CR's
+  gate validates it.
 - **STATUS:** `STATUS.md` and `STATUS.json` in the planning folder (the index), in `4-batch/` and in each CR. A
   paused batch's `STATUS.md` is the exit report, its cost to date: `close` prices the
   batch up to now, with no end date taken from `pause`, and prints the final cost. If nothing can be priced
@@ -330,7 +340,9 @@ started.
   that is not merged or cancelled (a fix CR and the release CR do not count); in a parallel
   batch there is none by the record. A running gate is never stopped. A pass carries over a
   clean rebase, which the CLI checks with git (`handback ready` records `gate_from`); a
-  rebase with a conflict needs a new gate. `gate` is only for the long gate the project's
+  rebase with a conflict needs a new gate. Under a stack waiver the top of the stack is never
+  covered: its gate (or a carried pass) is the one that validates the lower CRs, and when a CR
+  joins on top the validation moves to it. `gate` is only for the long gate the project's
   rules name, and a short gate runs outside it. `gate` is refused (exit 2) only when a gate has held a slot, or its
   suite has run on, for over an hour; the refusal names that gate.
   `gate <cr> --stop` acts on the slot that names that CR: it stops that CR's running long gate (its suite and the slot's lock), records the run
@@ -340,7 +352,8 @@ started.
   VERIFIED` or `verdict <cr> "NOT VERIFIED"` at the head it verified; the last verdict at a head
   decides. `handback <cr> ready` needs both at the PR's head, committed, clean and pushed;
   `--no-gate "<the project's rule>"` waives the long gate check only, for a project whose rules
-  declare none or exempt this CR, and the steering session checks it.
+  declare none or exempt this CR, and the steering session checks it; a waiver is not a project
+  rule, so `--no-gate` is never its flag.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
   `cost`, `asks`, `pause`, `close`, `playbook` and `preflight`.
 

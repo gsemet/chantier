@@ -17,7 +17,7 @@ def register(sub: Subparsers) -> None:
     s.add_argument(
         "kind",
         help="add [--release], after, drop, merged, note, rounds, slots, budget, qa, "
-        "mode (any mode to any other); "
+        "mode (any mode to any other), waive stack|<cr> [--follow-up] (the long gate; --note - withdraws); "
         "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "
         "--epoch, add --fix-for --epoch",
     )
@@ -31,6 +31,11 @@ def register(sub: Subparsers) -> None:
         "confirm: the user's word to run the release procedure, once the other CRs are merged",
     )
     s.add_argument("--fix-for", help="add: the release CR this fix is for")
+    s.add_argument(
+        "--follow-up",
+        help="waive <cr>: the backlog folder (1-inbox, 2-backlog/P*, 3-ready) of the CR that "
+        "runs the long gate on main afterwards",
+    )
     s.add_argument(
         "--release",
         action="store_true",

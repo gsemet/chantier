@@ -23,7 +23,7 @@ from chantier.core.batch import (
 from chantier.core.batch_records import last_closed
 from chantier.core.clock import age_minutes, now
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import BatchRecord, CrEntry, round_limit
+from chantier.core.records import BatchRecord, CrEntry, EventRecord, read_events, round_limit
 from chantier.core.repo import Repo
 from chantier.history import last_closed_text
 from chantier.lifecycle.session import RenderedBatch
@@ -31,6 +31,7 @@ from chantier.lifecycle.stages import changes_lock
 from chantier.rails import held, not_priced, spent_text, usd_text, waits_all
 from chantier.rails_release import record_ask
 from chantier.stacks import state_word
+from chantier.status.gate import gate_view
 from chantier.status.words import phase_text, shape_word, steering_word
 
 
@@ -122,8 +123,9 @@ def _heartbeat_text(d: BatchRecord, prev: str | None) -> str:
     return text
 
 
-def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool) -> str:
+def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, events: list[EventRecord]) -> str:
     row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
+    row += f" | long gate {gate_view(repo, d, c, events)['text']}"
     if c.kind == "release":
         row += f" release{' ' + c.released if c.released else ''}"
         row += "".join(f" | draft {p}" for p in c.drafts[-2:])
@@ -158,6 +160,7 @@ def _order_lines(d: BatchRecord) -> list[str]:
                 + "; ".join(
                     f"{o.id} {o.kind}{' ' + o.cr if o.cr != '-' else ''}"
                     f"{' ' + o.note[:40] if o.note else ''}"
+                    f"{' follow-up ' + o.follow_up if o.follow_up else ''}"
                     for o in group
                 )
             )
@@ -196,7 +199,8 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     d = read_batch(repo, batch)
     lines = [_batch_line(d, _heartbeat_text(d, prev)), *_autosync_lines(repo)]
     lines.append(last_closed_text(last_closed(repo)))
-    lines += [_cr_row(repo, d, c, args.notes) for c in sorted(d.crs, key=lambda c: c.order)]
+    events = read_events(repo.batch_dir(batch))
+    lines += [_cr_row(repo, d, c, args.notes, events) for c in sorted(d.crs, key=lambda c: c.order)]
     lines += _order_lines(d)
     unread = sum(1 for a in d.asks if not a.read)
     if unread:

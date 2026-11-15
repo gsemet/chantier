@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from chantier.commands.crs import batch_cr, cr_events, cr_worktree, gate_passed, short_head, work
+from chantier.commands.crs import batch_cr, cr_events, cr_worktree, short_head, work
 from chantier.commands.driver import context_line
 from chantier.commands.facts import stack_lines
 from chantier.commands.forge_base import is_stacked, read_base
@@ -15,6 +15,7 @@ from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import git
+from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch

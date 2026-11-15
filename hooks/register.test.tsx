@@ -531,6 +531,39 @@ const REST = `batch-${BATCH}-rest-table`
 const batch = (over = {}) => ({ ...index().batches[0]!, ...over })
 const label = async (ui: any, key: string) => (await ui.find({ key }))?.props.label as string | undefined
 
+const gate = (over = {}) => ({
+  state: 'none',
+  head: null,
+  waiver: null,
+  validated_by: null,
+  follow_up: null,
+  validates: [],
+  text: '-',
+  ...over,
+})
+
+test('the board has a Long gate column, and the sheet a Long gate line, in the CLI words', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const covered = gate({ state: 'waived', validated_by: { cr: 'CR-2', pr: null }, text: 'waived → CR-2 (#12)' })
+  const top = gate({ state: 'passed', head: 'abc1234', validates: ['CR-1'], text: 'passed abc1234; validates CR-1' })
+  w.put(
+    INDEX,
+    index({ batches: [batch({ crs: [row({ gate: covered }), row({ cr: 'CR-2', title: 'Top change', gate: top })] })] }),
+  )
+  w.put(`${CR_DIR}/STATUS.json`, sheet({ gate: covered }))
+
+  await skill($)
+  const ui = await board($)
+  const table = await words(ui)
+  expect(table).toContain('| CR | Subject | State | PR | Long gate | Cost |')
+  expect(table).toContain('waived → CR-2 (#12)')
+  expect(table).toContain('passed abc1234; validates CR-1')
+  await ui.press({ key: REST, link: { href: `file://${CR_DIR}` } })
+  expect(await words(ui)).toContain('Long gate: waived → CR-2 (#12)')
+  await ui.unmount()
+})
+
 test('a paused batch is folded, with its cost on its title line', async ($, on) => {
   mock.clock(on)
   const w = world(on)

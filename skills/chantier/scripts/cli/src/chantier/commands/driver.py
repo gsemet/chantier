@@ -12,6 +12,7 @@ from chantier.commands.crs import (
     work,
 )
 from chantier.commands.driver_checks import (
+    GateBasis,
     check_release_branch,
     handback_args,
     handback_blocked,
@@ -178,9 +179,9 @@ def handback(args: argparse.Namespace) -> list[str]:
             ]
         if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
-        carried = handback_refusals(repo, b, c, no_gate, prepared)
+        basis = handback_refusals(repo, b, c, no_gate, prepared)
         said = (note, no_gate, prepared)
-        return _record_ready(repo, b, c, said, (carried, reason if was_blocked else ""))
+        return _record_ready(repo, b, c, said, (basis, reason if was_blocked else ""))
 
 
 def _record_ready(
@@ -188,19 +189,21 @@ def _record_ready(
     b: RenderedBatch,
     c: CrEntry,
     said: tuple[str, str | None, bool],
-    carried_reason: tuple[str | None, str],
+    basis_reason: tuple[GateBasis, str],
 ) -> list[str]:
     """The ready hand-back in the record; `reason` is the block it ends, when the CR was blocked,
-    and `carried` the head whose long gate a clean rebase carries."""
+    and `basis` the long gate's basis: a carried head, or a waiver."""
     note, no_gate, prepared = said
-    carried, reason = carried_reason
+    basis, reason = basis_reason
+    carried = basis.carried
+    keys = {"no_gate": no_gate} if no_gate is not None else {}
     b.log(
         "handback",
         c.id,
         result="ready",
         note=note,
-        **({"no_gate": no_gate} if no_gate is not None else {}),
-        **({"gate_from": carried} if carried else {}),
+        **keys,
+        **basis.event_keys(),
         **({"from_blocked": reason} if reason else {}),
     )
     if reason:
@@ -208,6 +211,8 @@ def _record_ready(
     b.touch(c, status="ready", **({"blocked_reason": None} if reason else {}))
     c.clear_phase()
     gate = f", no long gate: {no_gate}" if no_gate is not None else ""
+    if basis.waiver:
+        gate = f", {basis.words()}"
     if carried:
         base = stack_base(b.record, c, repo)
         gate = f", long gate carried from {short_head(carried)} (clean rebase onto {base})"

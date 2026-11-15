@@ -3,14 +3,24 @@
 import { html } from '../core/dom.js';
 import { title, usd } from '../core/format.js';
 import { stageWord } from '../model/grill.js';
-import { roundText } from '../model/semantics.js';
+import { gateLink, gateWords, roundText } from '../model/semantics.js';
 import { t, tn } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { stateTag, tag } from '../ui/parts.js';
 
-// The facts of a CR of the batch: its tag, state, round, cost and open dependencies.
+// The long gate's fact: its words, linking to the PR of the CR that validates a covered CR.
+function gateFact(c) {
+  const words = gateWords(c);
+  if (!words) return '';
+  const label = `${t('gate.label')}: ${words}`;
+  const url = gateLink(c);
+  if (!url) return html`<span class="lbl">${label}</span>`;
+  return html`<a class="lbl" href="${url}" target="_blank" rel="noopener" title="${t('gate.open')}">${label}</a>`;
+}
+
+// The facts of a CR of the batch: its tag, state, round, cost, long gate and open dependencies.
 const crFacts = (c, batch) =>
-  html`${tag('cr', c.cr)}${stateTag(c)}<span class="lbl">${t('card.round', { r: roundText(c, batch) })}</span><span class="lbl">${usd(c.cost_usd)}</span>${c.after?.length ? html`<span class="lbl">${t('panel.after', { n: c.after.length })}</span>` : ''}`;
+  html`${tag('cr', c.cr)}${stateTag(c)}<span class="lbl">${t('card.round', { r: roundText(c, batch) })}</span><span class="lbl">${usd(c.cost_usd)}</span>${gateFact(c)}${c.after?.length ? html`<span class="lbl">${t('panel.after', { n: c.after.length })}</span>` : ''}`;
 
 // The facts of an item of the backlog: its priority, slug and grill state.
 const itemFacts = (target) => {

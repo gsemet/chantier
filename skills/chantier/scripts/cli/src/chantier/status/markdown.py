@@ -70,12 +70,13 @@ def _rows_markdown(rows: list[dict[str, Any]]) -> list[str]:
 
     word = forge_word([r["pr"] for r in rows])
     return [
-        f"| CR | Subject | Status | Step | Branch | {word} | Cost |",
-        "| --- | --- | --- | --- | --- | --- | ---: |",
+        f"| CR | Subject | Status | Step | Branch | {word} | Long gate | Cost |",
+        "| --- | --- | --- | --- | --- | --- | --- | ---: |",
         *(
             f"| [{number(r)}]({r['specification']}) | {r['title']} | "
             f"[{r['label']}]({r['status']}) | {r.get('phase') or '-'} | `{r['branch'] or '-'}` | "
             f"{'[' + word + '](' + r['pr'] + ')' if r['pr'] else '-'} | "
+            f"{r['gate']['text'].replace('|', '/')} | "
             f"{'-' if r['cost_usd'] is None else _usd(r['cost_usd'], r['cost_unpriced'])} |"
             for r in rows
         ),

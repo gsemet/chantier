@@ -718,7 +718,15 @@ Only in the turn where the user gave the go:
    made by `$CHANTIER forge-stack create` (the chain of MRs, each on the one below; no extension to
    install, nothing to record in `brief.md`), at two MRs handed back ready, growing the same way, and that the
    user will merge it one MR at a time from the bottom, a middle MR folding into the one below;
-   unproved on GitLab (no real run yet). Re-read the seat first ([session-start](session-start.md)). The steering mode is
+   unproved on GitLab (no real run yet).
+   For a stack batch (here or at the go of a plan that proposes one), offer
+   the choice "one long gate on the top PR only": the lower PRs are ready to merge once CI is green,
+   the Verifier says VERIFIED and they are handed back; on a yes, record it with `$CHANTIER order
+   waive stack --note "<the user's words>"`. The user may say it during the run: record it the same
+   way, and `--note -` withdraws it. A waiver of one CR, or of every CR of a batch, is recorded
+   only one CR at a time with `order waive <cr> --note "<the user's words>" --follow-up <folder>`,
+   after filing the CR that runs the long gate on main (`$CHANTIER file`): never a note in a brief.
+   Re-read the seat first ([session-start](session-start.md)). The steering mode is
    **direct mode** (you steer the batch yourself, no Foreman session) or **Foreman mode** (a
    separate Foreman session), by these rules:
    - **The argument.** Only the invocation's first word counts, and only when it is exactly
@@ -840,7 +848,8 @@ prints none.
 - **The gates:** the CRs still to pass their long gate. Long gates run one at a time under one
   lock ([concepts](concepts.md), the long gate), so every CR's gate queues behind the others
   whatever the slots. A CR whose project rules exempt it from the long gate (`handback
-  --no-gate`) does not count.
+  --no-gate`) does not count, nor does a CR covered by a waiver (`order waive`); under a stack
+  waiver the stack's top counts, once.
 - **The two terms, and the floor.** The **lock term** is the gates times the long gate's time.
   The **chain term** is the depth times (the long gate's time plus one CI run's time), since a
   level cannot start before the one under it is handed back ready. The floor is the larger of the two; the
@@ -919,6 +928,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   $CHANTIER order budget --note 40
   $CHANTIER order mode --note parallel|series|stack   # any mode to any other, on the user's word
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
+  $CHANTIER order waive stack --note "<the user's words>"   # a stack: one long gate on the top PR only
+  $CHANTIER order waive CR-102 --note "<the user's words>" --follow-up <backlog folder>
+  $CHANTIER order waive stack --note -        # withdraws it (`waive CR-102 --note -` for a CR's own)
   $CHANTIER order approve <release-cr> --note "<the action>"
   $CHANTIER order grant <release-cr> --note "releases=<n> fixes=on|off budget=<usd>"
   $CHANTIER order confirm <release-cr> --note "<the user's word to run the release procedure>"   # once the other CRs are merged
@@ -1040,6 +1052,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   trains). A check
   that fails: no "ready to merge" to the user; send it back through the Foreman. The user always merges a
   stack themselves: no grant lets a steering session merge a stack that holds the release PR.
+  Under a stack waiver (`order waive stack`), the merge offer names the CR whose gate validates
+  the lower PRs (`status` shows it: `waived → CR-k`) and whether that gate passed at its head:
+  merging a lower PR before it passes leaves main with the failure if it fails.
   When you tell the user about a `stack-ready-to-merge` ask (partial or complete), add one clause in their
   language: heavy CI ran at the top PR's head only; merging a PR below it without heavy CI at its
   own head is their choice; heavy CI can be run on that head if they ask (the partial-stack line of

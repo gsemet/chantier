@@ -9,6 +9,7 @@ import type {
   ChantierIndex,
   ChantierPage,
   ChantierPast,
+  ChantierGate,
   ChantierRow,
   ChantierSheet,
 } from '../types'
@@ -834,14 +835,25 @@ export const register: Register = on => {
         p => showPath($, p),
       )
 
-    const CR_COLUMNS = ['CR', 'Subject', 'State', 'Step', 'PR', 'Cost']
+    const CR_COLUMNS = ['CR', 'Subject', 'State', 'Step', 'PR', 'Long gate', 'Cost']
     const PAST_COLUMNS = ['CR', 'Subject', 'State', 'PR', 'Cost']
+
+    /** The long gate's words, as `chantier status` and STATUS.md say them (built by the CLI). */
+    const gateCell = (g: ChantierGate | undefined) => cell(g?.text ?? '-')
 
     const Crs = (key: string, rows: ChantierRow[]) =>
       Table(
         key,
         CR_COLUMNS,
-        rows.map(r => [crCell(r.folder, r.cr), cell(r.title), stateCell(r), cell(r.phase ?? '-'), prCell(r.pr), money(r.cost_usd)]),
+        rows.map(r => [
+          crCell(r.folder, r.cr),
+          cell(r.title),
+          stateCell(r),
+          cell(r.phase ?? '-'),
+          prCell(r.pr),
+          gateCell(r.gate),
+          money(r.cost_usd),
+        ]),
         rows.map(r => r.folder),
       )
 
@@ -917,6 +929,7 @@ export const register: Register = on => {
             <Text bold>{`${s.cr} ${s.title}`}</Text>
             <Text>{`${s.label}  ${money(s.cost_usd)}`}</Text>
             {s.phase != null && <Text>{`Step: ${s.phase}`}</Text>}
+            <Text>{`Long gate: ${s.gate?.text ?? '-'}`}</Text>
             {s.steps.length === 0 ? (
               <Text dimColor>No step yet.</Text>
             ) : (

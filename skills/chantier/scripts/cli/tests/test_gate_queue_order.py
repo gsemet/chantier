@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from chantier.commands.gate_queue import MARK, ordered
+from chantier.gate_queue import MARK, ordered
 
 # (label, batch mode, CRs as (id, order, status, kind), tickets by arrival, marked, expected)
 ONE, TWO, THREE = "CR-1", "CR-2", "CR-3"
