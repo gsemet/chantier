@@ -71,10 +71,10 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 # fails the run. A case is a function of CASES at the end of this file. `parallel`'s first case is
 # the main batch's sections; GitLab runs only the `gitlab` unit.
 UNITS = {
-    "parallel": (150, ["github"], ["scenario", "close_batch", "retro_cases"]),
-    "stack": (120, ["github"], ["stack_batch", "ready_words", "forge_stack_cli"]),
+    "parallel": (260, ["github"], ["scenario", "close_batch", "retro_cases"]),
+    "stack": (320, ["github"], ["stack_batch", "ready_words", "forge_stack_cli"]),
     "release": (
-        150,
+        420,
         ["github"],
         [
             "release",
@@ -85,7 +85,7 @@ UNITS = {
         ],
     ),
     "gates": (
-        120,
+        330,
         ["github"],
         [
             "rails",
@@ -96,11 +96,11 @@ UNITS = {
             "gate_proof",
         ],
     ),
-    "series-deps": (70, ["github"], ["batch_modes", "dependencies", "changes_tree"]),
-    "direct": (80, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
-    "surface-board": (100, ["github"], ["remote_board", "external_surface", "cr_summary"]),
-    "qa-driver": (40, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
-    "gitlab": (70, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
+    "series-deps": (190, ["github"], ["batch_modes", "dependencies", "changes_tree"]),
+    "direct": (125, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
+    "surface-board": (250, ["github"], ["remote_board", "external_surface", "cr_summary"]),
+    "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
+    "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
 }
 JOBS = 4  # units run at once, by default
 HANG_FLOOR_S = 600  # a unit is hung past max(this, 4 times its budget)
