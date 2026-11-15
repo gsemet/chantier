@@ -34,29 +34,35 @@ runs one check more than Linux, in `release`: `close` on a folder in use, since 
 use does not stop a rename.
 
 Measured on 2026-11-15 on a Windows 11 machine (Ryzen 7 7800X3D, 16 logical cores), with other
-sessions running on it, so the machine was loaded and not quiet; one full run each, all checks
-passing:
+chantier sessions running their own scenario runs on it, so the machine was heavily loaded and not
+quiet; all checks passing in every run.
 
-| unit | budget (s) | `--jobs 4` (s) | `--jobs 8` (s) |
+The figure the 320 s budget of the `stack` unit is judged on is its solo time (`--unit stack`): three
+runs after the fix took 264.4 and 277.5 s on a lightly loaded machine and 381.0 s on a heavily loaded
+one (129 of 129 checks each), against 318.7 s before the fix. The budget is a margin of 15 to 20 percent
+over the lightly loaded times and is exceeded under heavy load, where it only warns. Two full runs with `--jobs 4`, under a
+heavier load than the first table of this section had:
+
+| unit | budget (s) | run A (s) | run B (s) |
 | --- | ---: | ---: | ---: |
-| parallel | 260 | 209.5 | 242.0 |
-| stack | 320 | 259.3 | 313.9 |
-| release | 420 | 332.9 | 354.0 |
-| gates | 400 | 262.3 | 283.2 |
-| series-deps | 260 | 154.5 | 193.2 |
-| direct | 125 | 100.0 | 122.5 |
-| surface-board | 250 | 201.6 | 235.9 |
-| qa-driver | 115 | 90.4 | 120.0 |
-| gitlab | 95 | 61.1 | 75.1 |
-| wall time | | 449.8 | 354.0 |
-| sum of the units | | 1671.6 | 1940.0 |
+| parallel | 260 | 274.7 | 245.1 |
+| stack | 320 | 440.2 | 510.8 |
+| release | 420 | 410.8 | 429.9 |
+| gates | 400 | 381.0 | 392.1 |
+| series-deps | 260 | 331.7 | 327.9 |
+| direct | 125 | 149.9 | 120.6 |
+| surface-board | 250 | 236.3 | 196.0 |
+| qa-driver | 115 | 166.0 | 131.9 |
+| gitlab | 95 | 92.0 | 67.5 |
+| wall time | | 606.2 | 642.7 |
+| sum of the units | | 2254.5 | 2421.8 |
 
-`--jobs 8` is faster by wall time (354 s against 450 s) but each unit runs slower, since the
-processes compete for the same disk and CPU; the longest unit, `release`, sets the floor. The
-budgets are these `--jobs 4` times plus about 25 percent, a loaded-machine figure. The target of
-under 300 s on a quiet machine and on Linux CI is not proven by this run: neither run came under
-300 s, and a quiet Linux machine, where a process starts much faster than on Windows, has to
-confirm it and lower the budgets.
+Under a full `--jobs 4` run on a loaded machine every unit is slower, since the processes compete
+for the same disk and CPU (`stack` took 440 to 511 s), and a unit over its budget only raises a
+warning. The `--jobs 8` rows of the earlier table predate the fix and were not re-measured. The
+target of under 300 s on a quiet machine and on Linux CI is not proven: no run came under 300 s
+except the solo `stack` runs, and a quiet Linux machine, where a process starts much faster than on
+Windows, has to confirm it and lower the budgets.
 
 In a unit, a scripted Foreman reads the batch's state and does what its card leaves it (fills the
 slots, asks, merges what the user allowed, cleans up, pauses); scripted Drivers create their
