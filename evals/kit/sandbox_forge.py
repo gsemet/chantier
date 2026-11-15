@@ -8,7 +8,8 @@ never reaches the network.
 
 What it keeps of GitHub: pull requests, with a `refs/pull/<n>/head` in the origin when one opens or
 its head moves (never deleted, as on GitHub); real checks (`uv run --locked pytest -q` on the PR's
-head in a fresh clone, once per commit; a head marked pending stays pending); a rebase merge that
+head in a fresh clone, once per commit; a head marked pending stays pending, one marked pending for its
+first k reads is pending for k reads of its rollup, then has its real checks); a rebase merge that
 does not wait for the checks (the repository has no branch protection); releases. It answers
 `auth status` (with the `workflow` scope), `repo view|create`, `pr create|view|list|checks|merge|close|edit`,
 `release create|list|view|delete`, and `api` for the stacks (none) and the asynchronous merge;
@@ -84,7 +85,7 @@ class Forge:
             raise Refused("the state stayed locked for a minute")
         self.lock = lock
         self.state = (json.loads(self.state_path.read_text(encoding="utf-8")) if self.state_path.exists()
-                      else {"next_pr": 1, "next_run": 1, "prs": {}, "ci": {}, "pending": [],
+                      else {"next_pr": 1, "next_run": 1, "prs": {}, "ci": {}, "pending": [], "pending_reads": {},
                             "releases": {}})
         return self
 
@@ -128,6 +129,10 @@ class Forge:
         """`statusCheckRollup` of the PR's head: run the tests there once; a pending head has none yet."""
         sha = self.head(pr)
         if sha in self.state["pending"]:
+            return [{"name": "pytest", "workflowName": "ci", "status": "IN_PROGRESS", "conclusion": ""}]
+        reads = self.state.setdefault("pending_reads", {})
+        if reads.get(sha, 0) > 0:
+            reads[sha] -= 1
             return [{"name": "pytest", "workflowName": "ci", "status": "IN_PROGRESS", "conclusion": ""}]
         if sha not in self.state["ci"]:
             self.state["ci"][sha] = self.run_ci(sha)
@@ -233,6 +238,11 @@ class Forge:
     def mark_pending(self, ref: str) -> None:
         """The checks of this PR's head never end (a campaign's CI that is still running)."""
         self.state["pending"].append(self.head(self.pr(ref)))
+
+    def mark_pending_for(self, ref: str, reads: int) -> None:
+        """The checks of this PR's head are pending for its first `reads` reads of the rollup (a
+        restack's CI that is still running), then are its real ones."""
+        self.state.setdefault("pending_reads", {})[self.head(self.pr(ref))] = reads
 
 
 # the command line ----------------------------------------------------------------------------------

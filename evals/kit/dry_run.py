@@ -11,7 +11,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     clean            nothing planted: every tool agrees the run followed the rules
     stray-merge      a PR of the run's prefix merged on the forge, outside the batch (audit C12)
     reset-leftover   a branch and a tag pushed back after the reset (setup refuses, reset plans them)
-    merge-refused    `sandbox.py merge` on a failed, a pending and an unprefixed PR (each refused)
+    merge-refused    `sandbox.py merge` on a failed and an unprefixed PR (refused at once), a forever-pending one (refused after the wait), a pending-then-green one (waited for, merged)
     stale-lock       a release that bumps the version and not `uv.lock` (checks, merge, audit J5, judge)
     force-tag-push   a Driver's `git push --force` / `-f` of a release tag (audit J4)
     plain-merge      the Foreman's `git merge origin/main`, with no `--ff-only` (audit J22)
@@ -760,6 +760,7 @@ def case_merge_refused(run: Run) -> str:
                                                  encoding="utf-8")
     plan = [("failed", f"{prefix} feat: a failed check", "not all green"),
             ("pending", f"{prefix} feat: a pending check", "pending"),
+            ("restacked", f"{prefix} feat: a restacked check", "pending"),
             ("unprefixed", "feat: no prefix", "prefix")]
     numbers = {}
     with world.forge() as forge:
@@ -769,20 +770,44 @@ def case_merge_refused(run: Run) -> str:
             link = forge.create(title, "main", kind, "", False)
             if kind == "pending":
                 forge.mark_pending(link)
+            elif kind == "restacked":
+                forge.state["ci"][sha] = {"conclusion": "SUCCESS", "run": 0, "log": ""}
+                forge.mark_pending_for(link, 2)
             else:
                 forge.state["ci"][sha] = {"conclusion": "FAILURE" if kind == "failed" else "SUCCESS",
                                           "run": 0, "log": ""}
             numbers[kind] = link.rsplit("/", 1)[-1]
-    for kind, _, reason in plan:
-        code, _, text = merge_in_process(world.ws, numbers[kind])
-        text = text.strip()
-        need(code == 2 and "refused:" in text and "nothing merged" in text and reason in text,
-             f"the merge of the {kind} PR exits 2, `refused: ... {reason} ...; nothing merged`",
+    for kind in ("failed", "unprefixed"):
+        reason = next(r for k, _, r in plan if k == kind)
+        code, out, err = merge_in_process(world.ws, numbers[kind])
+        text = err.strip()
+        need(code == 2 and "refused:" in text and "nothing merged" in text and reason in text
+             and "waiting" not in out + err,
+             f"the merge of the {kind} PR exits 2 at once, `refused: ... {reason} ...; nothing merged`",
              f"exit {code}: {text[-200:]}")
+    # the wait, with the bound patched small (the operator's line keeps the real one)
+    saved = sandbox.CHECKS_WAIT, sandbox.CHECKS_TRIES
+    sandbox.CHECKS_WAIT, sandbox.CHECKS_TRIES = 0.05, 4
+    try:
+        code, out, err = captured(sandbox.main, ["merge", numbers["pending"], "--workspace", str(world.ws)])
+        need(code == 2 and "refused:" in err and "pending" in err and "after waiting" in err
+             and "nothing merged" in err and "waiting for the checks of PR #" in out,
+             "the merge of the forever-pending PR waits, then exits 2, `refused: ... pending ... after "
+             "waiting ...; nothing merged`", f"exit {code}: {(out + err)[-200:]}")
+        code, out, err = captured(sandbox.main, ["merge", numbers["restacked"], "--workspace", str(world.ws)])
+        need(code == 0 and out.count("waiting for the checks of PR #") == 1
+             and f"merged PR #{numbers['restacked']}" in out,
+             "the merge of the pending-then-green PR prints `waiting for ...` once, then `merged PR #<n>`",
+             f"exit {code}: {(out + err)[-200:]}")
+    finally:
+        sandbox.CHECKS_WAIT, sandbox.CHECKS_TRIES = saved
     states = json.loads(world.state.read_text(encoding="utf-8"))["prs"]
-    need(all(p["state"] == "open" for p in states.values()), "each PR stays open on the forge",
-         f"{[p['state'] for p in states.values()]}")
-    return "a failed, a pending and an unprefixed PR: each merge exits 2 with `refused: ...; nothing merged` and its reason; all stay open"
+    need(states[numbers["restacked"]]["state"] == "merged", "the pending-then-green PR is merged on the forge",
+         states[numbers["restacked"]]["state"])
+    need(all(p["state"] == "open" for k, p in ((k, states[numbers[k]]) for k in numbers) if k != "restacked"),
+         "each other PR stays open on the forge", f"{[p['state'] for p in states.values()]}")
+    return ("a failed and an unprefixed PR: merge exits 2 at once, `refused: ...; nothing merged`; a forever-pending "
+            "PR: waits (bound patched small), then exits 2 `after waiting`; a pending-then-green PR: waits, then merges")
 
 
 def case_stale_lock(run: Run) -> str:

@@ -141,8 +141,9 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   checkout>/evals/kit/sandbox.py merge <n>` (the `merge` line `setup.py` prints), from the
   workspace, alone, never chained; it never uses a raw `gh pr merge`. The sandbox's `main` is not
   protected, so the forge refuses only a conflict; the merge command refuses a PR that is not
-  open, whose title lacks the run's prefix, or whose checks are not all green at its head (a
-  pending check included), and merges nothing then. A refused merge is reported as it is, and the
+  open, whose title lacks the run's prefix, or with a check finished and not green, and merges
+  nothing then; a pending check (as after a stack's restack) is waited for, up to the bound
+  (5 minutes), then refused, so the operator needs no `gh pr checks --watch` before a merge. A refused merge is reported as it is, and the
   steering session sees the PR not merged, as usual. Then `$CHANTIER order merged CR-<n>` and its
   line to the steering session. The workspace's main checkout does not stay at the base during a
   run: after each merge it records, the steering session fast-forwards it to the sandbox's `main`
@@ -361,7 +362,7 @@ completed after them, and committed with the campaigns' reports.
 | [`kit/sandbox-crs/`](kit/sandbox-crs/) | The frozen CRs of the sandbox campaigns (request, intent, answers, specification): 11 features and 2 releases |
 | [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
-| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`), `publish` (your own public sandbox, created, given the base and named in `kit/sandbox.local.json`), `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push; it refuses a repository whose history does not hold the base) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or not all green). It is the one reader of the sandbox's name: `kit/sandbox.local.json` (git-ignored), else `kit/sandbox.json` |
+| [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`), `publish` (your own public sandbox, created, given the base and named in `kit/sandbox.local.json`), `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push; it refuses a repository whose history does not hold the base) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or with a check finished and not green, and waits, for at most 5 minutes, for a pending check). It is the one reader of the sandbox's name: `kit/sandbox.local.json` (git-ignored), else `kit/sandbox.json` |
 | [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), the `ticket-summary` setup case (no CR placed, the issue line, no forge write), the other sandbox (a `sandbox.local.json` naming another repository flows through setup, merge, the judge and the audit), `reset` refusing a foreign or an empty repository, `publish`, and the `prompt` lines of setup; no model, no GitHub, and never the checkout's own `sandbox.local.json` |
 | [`kit/sandbox_forge.py`](kit/sandbox_forge.py) | The sandbox's GitHub played locally, called as `gh`, for the dry run only |
 | [`kit/dry-run/`](kit/dry-run/) | The reference solution of the staged CR, `delete-item` (`delete-item.patch`) |
@@ -412,7 +413,9 @@ maintainer's repository. No argument and no environment variable names the repos
   It merges through GitHub's asynchronous merge (`PUT .../pulls/<n>/merge-async`, then its
   result read until it is no longer pending), the only merge GitHub accepts for a PR in a native
   stack. A PR in an open stack merges with every PR below it in that stack, in one merge, as on
-  GitHub's page: each of them must pass the same refusals, or nothing is merged.
+  GitHub's page: each of them must pass the same refusals, or nothing is merged. A pending check
+  (after a stack's restack, the new head's CI) is waited for: `merge` prints `waiting for the
+  checks of PR #<n> ...` and reads again every 10 s, at most 31 reads (300 s in all), then refuses.
 
 Nothing else resets the sandbox: one file names the repository, `reset` refuses what is not a
 chantier eval sandbox, and `reset` is the only force push.

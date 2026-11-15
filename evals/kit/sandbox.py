@@ -13,6 +13,8 @@ a chantier eval sandbox (no `main`, or a ref whose history does not hold the rec
 `publish` creates a person's own public sandbox, pushes the base to it (a plain push to an empty
 repository) and writes `sandbox.local.json`. `merge` is how the operator, who plays the user,
 merges a run's PR: it is the kit's only merge, and `reset` stays the only force push.
+It refuses a PR not open, without the run's prefix, or with a check finished and not green; a check
+still pending (as after a stack's restack) is waited for, in at most `CHECKS_TRIES` reads `CHECKS_WAIT` s apart (so `(CHECKS_TRIES - 1) * CHECKS_WAIT` = 300 s).
 One file names the repository (`sandbox.local.json`, else `sandbox.json`); no argument or variable
 changes it, and `reset` refuses a repository whose history does not hold the recorded base.
 
@@ -52,6 +54,7 @@ SKIP_NAMES = {"shelf.json"}
 
 OK, USAGE, PRECONDITION, EXTERNAL = 0, 1, 2, 4
 MERGE_WAIT, MERGE_TRIES = 5, 60  # seconds between two reads of an asynchronous merge, and reads
+CHECKS_WAIT, CHECKS_TRIES = 10, 31  # seconds between two reads of a PR's pending checks, and reads
 
 
 class Stop(Exception):
@@ -516,6 +519,20 @@ def merge_refusal(view: dict, prefix: str) -> str | None:
     return None
 
 
+def checks_pending(view: dict, prefix: str) -> bool:
+    """The refusal of this view is one that waits: the PR is open, has the run's prefix, and its
+    checks are not finished (none failed or finished and not green; none at all, or one still
+    pending: a check run not `COMPLETED`, a status `PENDING` or `EXPECTED`)."""
+    if view.get("state") != "OPEN" or not str(view.get("title") or "").startswith(prefix + " "):
+        return False
+    rollup = view.get("statusCheckRollup") or []
+    pending = [x for x in rollup if str(x.get("status") or "COMPLETED") != "COMPLETED"
+               or str(x.get("state") or "") in ("PENDING", "EXPECTED")]
+    done = [x for x in rollup if x not in pending]
+    return all((x.get("conclusion") or x.get("state")) == "SUCCESS" for x in done) and (
+        not rollup or bool(pending))
+
+
 def pr_argument(text: str) -> str:
     """The PR number of `<n>` or of the sandbox's PR link."""
     if re.fullmatch(r"\d+", text):
@@ -543,17 +560,30 @@ def cmd_merge(args) -> int:
         raise not_workspace
     if run_record.get("repository") != repository():
         raise Stop(PRECONDITION, f"the run record names {run_record.get('repository')}, not {repository()}")
-    taken = merged_with(int(n))
-    views = {}
-    for m in taken:
-        views[m] = json.loads(gh("pr", "view", str(m), "--repo", repository(), "--json",
-                                 "number,state,title,headRefOid,statusCheckRollup"))
-        refusal = merge_refusal(views[m], run_record["prefix"])
-        if refusal:
-            if m != int(n):
-                refusal = f"PR #{n} is in a stack whose merge takes #{m}: {refusal}"
+    bound, waited = (CHECKS_TRIES - 1) * CHECKS_WAIT, False
+    for read in range(CHECKS_TRIES):
+        taken, views, refusal, waits = merged_with(int(n)), {}, None, False
+        for m in taken:
+            views[m] = json.loads(gh("pr", "view", str(m), "--repo", repository(), "--json",
+                                     "number,state,title,headRefOid,statusCheckRollup"))
+            refusal = merge_refusal(views[m], run_record["prefix"])
+            if refusal:
+                waits = checks_pending(views[m], run_record["prefix"])
+                if waits and read == CHECKS_TRIES - 1:
+                    refusal = re.sub(r"( at its head \w+)", rf"\1 after waiting {bound} s", refusal, count=1)
+                if m != int(n):
+                    refusal = f"PR #{n} is in a stack whose merge takes #{m}: {refusal}"
+                break
+        if not refusal:
+            break
+        if not waits or read == CHECKS_TRIES - 1:
             print(f"sandbox.py: refused: {refusal}; nothing merged", file=sys.stderr)
             return PRECONDITION
+        if not waited:
+            waited = True
+            print(f"waiting for the checks of PR #{m} at its head "
+                  f"{str(views[m].get('headRefOid') or '')[:7]} (up to {bound} s)", flush=True)
+        time.sleep(CHECKS_WAIT)
     sha = views[int(n)]["headRefOid"]
     result = merge_async(n, sha)
     said = " ".join(f"#{m}" for m in taken)
