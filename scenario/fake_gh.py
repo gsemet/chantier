@@ -79,6 +79,18 @@ elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks(/\d+)?"
     if "POST" in args:
         numbers = [int(a.split("=", 1)[1]) for a in args if a.startswith("pull_requests[]=")]
         taken = [n for s in stacks if s["open"] for n in s["pull_requests"] if n in numbers]
+        heads = state.get("heads", {})  # PR number -> its head branch, when the world names them
+        bases = state.get("bases", {})
+        broken = any(
+            str(n) in heads
+            and (i == 0 or str(numbers[i - 1]) in heads)
+            and bases.get(str(n), "main") != (heads.get(str(numbers[i - 1])) if i else "main")
+            for i, n in enumerate(numbers)
+        )
+        if broken:  # as GitHub did: a PR's base must be the previous PR's head
+            print("fake gh: HTTP 422: Pull requests must form a stack, where each PR's base ref is "
+                  "the previous PR's head ref", file=sys.stderr)
+            sys.exit(1)
         if state.get("stack_refused") or taken:
             print("fake gh: HTTP 422: pull request already in a stack" if taken
                   else "fake gh: HTTP 403: stacks are not allowed", file=sys.stderr)

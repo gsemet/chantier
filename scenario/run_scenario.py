@@ -4388,6 +4388,24 @@ def stack_batch(w: World) -> None:
     w.chantier("stack", one, two, three, four)
     w.chantier("order", "after", four, "--note", "-")
     fm.turn()
+    check("a CR taken once two are ready with a PR starts on the top of the stack's ready part, "
+          "recorded at its first take: its `handoff` prints that branch",
+          w.cr(four).get("start_on") == w.cr(three)["branch"]
+          and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
+          str(w.cr(four)))
+
+    def set_status(cr: str, status: str) -> str:
+        d = w.batch()
+        c = next(x for x in d["crs"] if x["id"] == cr)
+        was, c["status"] = c["status"], status
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+        return was
+    was = set_status(three, "cancelled")
+    on_main = any("base origin/main" in ln for ln in w.chantier("handoff", four)[1])
+    set_status(three, was)
+    check("the recorded start base falls back to the default branch while the CR that owns it is "
+          "cancelled, and is back with it (recorded, not recomputed)",
+          on_main and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]))
     driver_round(w, four, "stack3.py", "N = 3\n")
     w.ready(four, w.cr(four)["pr"])
 
@@ -4812,14 +4830,18 @@ def forge_stack_cli(w: World) -> None:
 
         # 1. two ready PRs, the release with none: the stack as it stands, the release to come
         record(**{a: links[a], b: links[b]})
+        # the forge refuses (HTTP 422) a stack whose PR is not on the previous PR's head
+        w.gh(heads={"201": branch(a), "202": branch(b), "203": branch(r)})
         code, out = w.chantier("forge-stack", "create", env=on_path)
         posts = stack_calls()
-        check("`forge-stack create` stacks the CRs that have a PR (the release has none): the stacks "
-              "endpoint once, `201 202` only, and the stack's link",
+        check("`forge-stack create` retargets the second PR onto the first's branch, then stacks the "
+              "CRs that have a PR (the release has none): the stacks endpoint once, `201 202` only, "
+              "the retarget line before the stack's link",
               code == 0 and len(posts) == 1 and [x for x in posts[0] if x.startswith("pull_requests[]")]
               == ["pull_requests[]=201", "pull_requests[]=202"] and "--hostname" not in posts[0]
-              and "repos/acme/demo/stacks" in posts[0] and out and out[0].startswith("stack #100 ")
-              and links[b] in out[0], f"{out} {posts}")
+              and "repos/acme/demo/stacks" in posts[0] and len(out) == 2
+              and out[0] == f"#202 base main -> {branch(a)}" and out[1].startswith("stack #100 ")
+              and links[b] in out[1], f"{out} {posts}")
         code, out = w.chantier("forge-stack", "show", env=on_path)
         check("`forge-stack show` on that stack names the commit the user may merge below, and the "
               "release as to come; it writes nothing",
@@ -4848,13 +4870,40 @@ def forge_stack_cli(w: World) -> None:
         new = w.batch()["crs"][-1]["id"]
         w.chantier("stack", a, b, new)
         record({new: "working"}, **{new: PR_LINK["github"] + "204"})
-        w.gh(drafts=[204])
+        w.gh(drafts=[204], heads={**gh_state()["heads"], "204": branch(new)})
+
+        def patches() -> int:
+            log = w.root / "gh-state.json.calls"
+            rows = [json.loads(x) for x in log.read_text().splitlines()] if log.exists() else []
+            return sum(1 for x in rows if "PATCH" in x and any(y.endswith("/pulls/204") for y in x))
+        # Run 2's case: the working CR's PR is on main, not on its place in the stack
+        edit_cr(new, pr_base="main")
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        _, rows = w.chantier("stack")
+        row = next((ln for ln in rows if ln.startswith(new + " ")), "")
+        check("a working CR whose PR is not on its place is left out of the stack as it stands: "
+              "`show` has it in `to come:`, `stack` ends its row with `not on its place` and the "
+              "note to send, and no PATCH touches its PR",
+              code == 0 and f"to come: {new} working, {r} queued" in out
+              and row.endswith(f"not on its place: its PR is on main; to come until its Driver "
+                               f"rebases (note rebase: stacked on {b})") and patches() == 0,
+              f"{out} {row}")
+        edit_cr(a, status="working", pr_base=branch(b))
+        for action in ("create", "rebuild"):
+            w.chantier("forge-stack", action, env=on_path, expect=2)
+            check(f"`forge-stack {action}` with the bottom CR working and its PR off its place is "
+                  "refused (exit 2), naming it",
+                  f"no PR placed at the bottom of the stack: {a} is working" in w.last_stderr
+                  and links[a] in w.last_stderr, w.last_stderr)
+        edit_cr(a, status="ready", pr_base=None)
+        edit_cr(new, pr_base=branch(b))  # its Driver rebased and `ship` read the new base
+        forge_base(w, PR_LINK["github"] + "204", branch(b))
         before = len(stack_calls())
         code, out = w.chantier("forge-stack", "rebuild", env=on_path)
         posts = stack_calls()[before:]
-        check("a CR joins as a draft: `rebuild` unstacks the stack, retargets the new PR onto the CR "
-              "below, stacks `201 202 204`, and prints the draft on top and what is to come",
-              code == 0 and out[0] == "unstacked #100" and f"#204 base main -> {branch(b)}" in out
+        check("a CR joins as a draft: `rebuild` unstacks the stack, stacks `201 202 204` (its PR is "
+              "on its place, nothing to retarget), and prints the draft on top and what is to come",
+              code == 0 and out[0] == "unstacked #100" and patches() == 0
               and len(posts) == 1 and [x for x in posts[0] if x.startswith("pull_requests[]")]
               == [f"pull_requests[]={n}" for n in (201, 202, 204)]
               and any("drafts on top #204" in x for x in out), str(out))
@@ -5263,14 +5312,17 @@ def batch_modes(w: World) -> None:
     check("after the switch, `take stack` works and `stack` accepts that order",
           code == 0 and out[0].startswith("the stack of batch") and code2 == 0
           and w.cr(x)["stacked"], str(out))
+    d = w.batch()
+    next(c for c in d["crs"] if c["id"] == x)["start_on"] = w.cr(y)["branch"]  # a recorded start base
+    (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
     code, out = w.chantier("order", "mode", "--note", "parallel")
     check("stack to parallel clears every place in the stack, and says to unstack first",
           code == 0 and not any(c.get("stacked") for c in w.batch()["crs"])
           and any("forge-stack unstack" in ln for ln in out), str(out))
     code, out = w.chantier("take", x, "--note", "rebase: mode parallel", "--epoch", 0)
     _, status = w.chantier("status")
-    check("stack to parallel: a CR that was stacked on another is taken back on the default branch, "
-          "no CR waits for a predecessor, the merged CR is unchanged",
+    check("stack to parallel: a CR that was stacked on another, or recorded a start base, is taken "
+          "back on the default branch, no CR waits for a predecessor, the merged CR is unchanged",
           code == 0 and any("base origin/main" in ln for ln in out)
           and not any("waits for" in ln for ln in status)
           and {k: w.cr(m).get(k) for k in kept} == kept, str(out) + str(status))

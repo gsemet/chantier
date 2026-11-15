@@ -147,7 +147,11 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_mode_switch.py::test_the_same_mode_and_an_unknown_one_are_refused_and_nothing_is_written);
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
   default branch, then stacked afterwards by `stack` (`ship` records the default branch before,
-  the CR under it after); a dependency changed with `order after` (refused on a CR not queued, an
+  the CR under it after); a CR taken once two are ready starting on the top of the ready part
+  (recorded at its first take, the default branch once its CR is cancelled or the batch leaves the
+  stack), a working PR off its place left out of the stack as it stands (`show`, `stack`, a
+  refusal at the bottom) and `forge-stack create` retargeting before it stacks (the fake forge
+  refuses, as GitHub does, a stack whose PR is not on the previous PR's head); a dependency changed with `order after` (refused on a CR not queued, an
   unknown CR or a cycle; the message names `stack` in a stack batch), a chain started on the ready
   CR's branch and undone by `--note -`; a stacked CR with an `after` taking its place in the
   stack as base (`stack` and `ship`), `stack` with no CR printing what `take stack` printed and

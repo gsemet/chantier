@@ -637,7 +637,8 @@ the read failed, so read the base on the forge yourself), rebase onto that branc
 keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`. A CR taken back
 `blocked` for a rebase, after the rebase, is handed back blocked with the same reason it had. A
 `note rebase: …` received while working: rebase before the next push, however many `rebase:`
-notes came since your last push: one rebase, onto the latest default branch. With a long gate of
+notes came since your last push: one rebase, onto the latest default branch (for the default
+branch's notes only; see the next paragraph for `stacked on`). With a long gate of
 the CR running, stop it (`gate <cr> --stop`) before that rebase. After a clean rebase run no
 new long gate and no new `verifier` (the pass and the verdict carry, checked by `handback ready`); after one with a conflict
 resolved, run the long gate at the new head with the early push (the "Early push" rule above);
@@ -645,6 +646,13 @@ CI runs at the new head either way. A note `rebase: stacked on <cr below>, witho
 changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dropped CR's branch>`, so the
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
+
+In a stack batch the `base` that `take` prints may be another CR's branch: the top of the stack's
+ready part, once the stack can form. Create the worktree on it and open the PR on it as a draft;
+that branch is the stack driver's, never rebased by you but on a note. A `note rebase: stacked on
+<cr below>` received while working: rebase onto that CR's branch (not the default branch), retarget
+your PR to it (`gh pr edit --base`, `glab mr update --target-branch`) while it is in no native
+stack, push with `--force-with-lease`, `ship`.
 
 A CR taken (or a `note`) with `rebase: mode <mode>` (the batch switched mode with `order mode`; a
 stack was dissolved first by `forge-stack unstack` where it applied): put the PR to draft first
@@ -686,13 +694,16 @@ with it complete (see [concepts](concepts.md), "Stack").
 **Ordering.** Name with `$CHANTIER stack <cr>…` every CR that `take stack` prints with a PR, in the
 stack's order: the ones ready to merge first (those already in the mergeable part in their place, then the
 newly ready in their place order), then the drafts (those already stacked in their place, then the
-newly joined in planned order). The CRs to come (no PR yet) are not named. A CR always sits above
+newly joined in planned order). The CRs to come (no PR yet) are not named, nor a row printed `not
+on its place` (it stays above, to come); a working CR already on its place stays right above the CR
+its PR sits on. A CR always sits above
 the ones it depends on; `stack` refuses an order that breaks it.
 
 **Who moves a branch.** A CR with no live Driver (handed back `ready`, or `blocked`) is rebased and pushed by you,
 as below. A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends
 its Driver `[foreman→driver <cr>] note rebase: stacked on <cr below>`; that Driver rebases once
-before its next push and `ship`s.
+before its next push and `ship`s. A CR printed `not on its place` is to come until its Driver
+rebases; the Foreman sends the note.
 
 Order the stack's CRs (`$CHANTIER stack <cr>…`, bottom first), rebase and push each PR on the one
 under it (each branch with the Push bullet's rewrite form, one command per branch, never a loop
@@ -715,10 +726,11 @@ CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$C
 the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`.
 
-**Making the stack.** Once two CRs are handed back ready with their PRs (ordered, restacked, pushed,
-`ship`ped, CI green at the top), create the native stack on the forge with the means your prompt
-names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the user declined the
-extension; the PRs bottom to top, the CRs with a draft PR on top as drafts. Then turn every PR of
+**Making the stack.** Once two CRs are handed back ready with their PRs, the moment the stack can form (ordered,
+restacked, pushed, `ship`ped, CI green at the top), create the native stack on the forge with the
+means your prompt names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the
+user declined the extension (it retargets the PRs of the stack as it stands whose base is not the
+record's, then creates the stack, in one command; never a retarget by hand); the PRs bottom to top, the CRs with a draft PR on top as drafts. The first take ends with the stack made, whatever a working CR is doing. Then turn every PR of
 the mergeable part ready (`gh pr ready`), not only the bottom one, and record them right after
 the forge command: `$CHANTIER stack --out-of-draft <cr>…` (refused for a CR not handed back `ready`
 and for one with a draft under it). A means that is not available as the prompt names it

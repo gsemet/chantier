@@ -103,6 +103,8 @@ class CrEntry(Record):
     rounds: int | None = None
     attempts: int = 0
     stacked: bool = False
+    # the branch a CR of a stack batch started on, fixed at its first `take` (see `start_base`)
+    start_on: str | None = None
     gate_waiver: GateWaiver | None = None
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
     phase_detail: str | None = None

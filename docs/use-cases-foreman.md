@@ -39,12 +39,12 @@ go.
 
 > "Build a stack of these three."
 
-Asked for, `open --mode stack`. The CRs run in parallel, each PR based on the default branch. The
-stack comes after: when every CR is handed back ready, a stack driver orders the stack, rebases and pushes each
+Asked for, `open --mode stack`. The CRs run in parallel, each PR based on the default branch until two are
+handed back ready. The stack is made then, and the CRs started after are built on it: a stack driver orders the stack, rebases and pushes each
 PR on the one below it, and heavy CI runs once at the top. It then makes one native stack on the
 forge (GitHub: the `gh stack` extension, which chantier recommends, else a chantier command over the
 REST API), reads it back, and you merge it in one action from the top PR or one PR at a time from the bottom, as you choose. A CR
-stands on another before that only by a dependency or a chain the Foreman decided, which you can
+stands on another before that moment only by a dependency or a chain the Foreman decided, which you can
 turn off while the CR is queued. After a partial merge you report, it restacks the rest on the default
 branch.
 

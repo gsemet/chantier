@@ -185,12 +185,15 @@ started.
   then moved by its Driver on a rebase note (`rebase: mode <mode>`), the Foreman and the stack
   driver acting as their cards say; a merged CR never changes (its record, PR, branch and folder).
   **Stack**: parallel, with a stack driver: every CR with no open
-  dependency starts at once, on the default branch; a CR with a dependency starts only once that
+  dependency starts at once, on the default branch until the stack can form (two CRs handed back
+  `ready` with a PR); from then on a CR started starts on the top of the stack's ready part (the
+  highest CR handed back `ready` with a PR), recorded at its first `take`, so its PR is already on
+  the stack; a CR with a dependency starts only once that
   dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
   open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
-  and the start base for any other). As soon as two PRs are handed back ready the stack driver makes the native
-  stack on the forge (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
+  and the start base for any other). As soon as two PRs are handed back ready (the moment the stack
+  can form) the stack driver makes the native stack on the forge, once (the `gh stack` extension, or `$CHANTIER forge-stack create` when the user
   declined the extension); each further CR joins on top as a draft when it has its PR
   (`$CHANTIER forge-stack rebuild`: unstack, then create); the PRs ready to merge come first in readiness
   order, a CR always above its dependencies; the user merges the mergeable part at any time, in
@@ -202,7 +205,8 @@ started.
   below it); unproved on GitLab. Merging a PR of the mergeable part "with those under it" in one
   action is GitHub's; on GitLab the MRs under it are merged first, one at a time from the bottom.
   **Stack as it stands:** the
-  bottom CRs of the stack with a PR, whatever their status. **Mergeable part:** those of it from
+  bottom CRs of the stack with a PR on its place, whatever their status (a working CR whose PR is
+  on another base than its place is to come until its Driver rebases). **Mergeable part:** those of it from
   the bottom while each CR is ready to merge; its commit is the head of its highest
   PR. **Drafts on top:** the CRs above it (PR in draft, or not ready). **To come:** the open CRs
   of the stack with no PR yet. **Stack ready to merge** means five checks hold on the forge
@@ -271,8 +275,9 @@ started.
   who drops the CR or changes it). A release's `after` is met by `ready` or `merged` in an
   ordered batch (stack, series), by `merged` in a parallel one; a cancelled CR never holds it
   back. The CR starts on the branch of its last dependency still open,
-  in the order of `after`, else on the default branch, in a stack too: a CR's start base and its
-  place in the stack are two things. A chain is an `after` with no real dependency, which the
+  in the order of `after`, else on the default branch, in a stack too until the stack can form,
+  then on the top of the stack's ready part: a CR's start base and its place in the stack are two
+  things. A chain is an `after` with no real dependency, which the
   Foreman decided, or the plan proposed and the user's go approved, for a queued CR; it ends with `order after <cr> --note -` while the CR is
   queued. `stack` refuses an order that puts a CR below one of its
   `after`. `order after <cr> --note "<ids|->"` replaces the `after` of a queued CR (exit 2 on a CR
