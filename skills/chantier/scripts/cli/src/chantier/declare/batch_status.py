@@ -37,7 +37,8 @@ def register(sub: Subparsers) -> None:
         sub,
         "asks",
         "chantier.commands.batch_status:asks",
-        "the Foreman's asks still unread; with text, record one",
+        "the Foreman's asks still unread; with text, record one "
+        "(a readiness ask marks the CR's earlier unread one read)",
         BATCH,
     )
     s.add_argument("text", nargs="*", help="the Foreman's own ask")

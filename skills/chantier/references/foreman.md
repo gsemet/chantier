@@ -323,7 +323,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready-to-merge <stack link> [partial stack] mergeable
   below <sha7> <cr>=<link>[ gaps: …]… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`. In the
   text of an ask, name a CR
-  by its number and slug together (`concepts.md`, "A CR's name").
+  by its number and slug together (`concepts.md`, "A CR's name"). A readiness ask (`ready-to-merge`,
+  `pr-in-draft`, `ready-locally` for a CR, `stack-ready-to-merge` for the stack) marks the earlier unread
+  one of the same CR (of the stack) read, logged "superseded by A-n": send the line it prints first, never
+  the earlier ask again; `question` and `blocked` asks are never superseded.
 - A `blocked waits: <what>` hand-back is not an ask for the user: when that thing lands, send the
   CR back to a Driver with `take <cr> --note`.
 - On an `order merged <dependency>` (the user's or your own), each CR handed back ready as a

@@ -6144,6 +6144,61 @@ def lost_messages(w: World) -> None:
     w.chantier("asks", "--read", "all")
     _, out = w.chantier("asks")
     check("an ask is read once", out == ["no unread ask"], str(out))
+    ask_supersedes(w, one, three)
+
+
+def ask_supersedes(w: World, one: str, three: str) -> None:
+    """CR-272: a readiness ask marks the earlier unread one of the same CR (of the stack) read."""
+    def unread() -> list[str]:
+        return [ln.split(":")[0] for ln in w.chantier("asks")[1] if ln.startswith("A-")]
+
+    def ask_id(out: list[str]) -> str:
+        return out[0].split("ask ")[1].split(":")[0]
+
+    _, out = w.chantier("asks", "ready-to-merge", one, "https://x/pr/1", "gaps:", "a")
+    first = ask_id(out)
+    _, out = w.chantier("asks", "ready-to-merge", one, "https://x/pr/1", "gaps:", "b")
+    second = ask_id(out)
+    check("a second readiness ask prints its line first, then the superseded one",
+          re.fullmatch(r"\[foreman→chief-of-staff\] ask A-\d+: ready-to-merge .*", out[0])
+          and out[1:] == [f"{first} superseded by {second} (marked read)"], str(out))
+    check("`asks` lists the second readiness ask and not the first", unread() == [second], str(unread()))
+    events = [json.loads(ln) for ln in (w.folder() / "events.jsonl").read_text("utf-8").splitlines()]
+    check("the `asks-read` event names the superseded ask and its successor",
+          any(e.get("kind") == "asks-read" and e.get("asks") == [first]
+              and e.get("superseded_by") == second for e in events)
+          and any(e.get("kind") == "ask" and e.get("ask") == second and e.get("cr") == one
+                  for e in events), str(events[-3:]))
+    _, out = w.chantier("asks", "pr-in-draft", one, "https://x/pr/1", "on", "main:", "waits", "for", "x")
+    third = ask_id(out)
+    check("a `pr-in-draft` supersedes a `ready-to-merge` of the same CR",
+          out[1:] == [f"{second} superseded by {third} (marked read)"] and unread() == [third], str(out))
+    w.chantier("asks", "--read", "all")
+    q = ask_id(w.chantier("asks", "question", one, "which?")[1])
+    bl = ask_id(w.chantier("asks", "blocked", one, "waits:", "x")[1])
+    w.chantier("asks", "ready-to-merge", one, "https://x/pr/1")
+    check("`question` and `blocked` stay unread under a readiness ask",
+          unread()[:2] == [q, bl], str(unread()))
+    rd = unread()[-1]
+    _, out = w.chantier("asks", "question", one, "again?")
+    check("a `question` supersedes nothing", len(out) == 1 and rd in unread(), str(out))
+    w.chantier("asks", "--read", "all")
+    a_one = ask_id(w.chantier("asks", "ready-to-merge", one, "https://x/pr/1")[1])
+    a_three = ask_id(w.chantier("asks", "ready-to-merge", three, "https://x/pr/3")[1])
+    check("a readiness ask for another CR leaves the first unread", unread() == [a_one, a_three], str(unread()))
+    w.chantier("asks", "ready-to-merge", one, "https://x/pr/1", "gaps:", "c")
+    check("the new ask for one CR leaves the other's unread", a_three in unread() and a_one not in unread(),
+          str(unread()))
+    w.chantier("asks", "--read", a_three)
+    before = {a["id"]: a["read"] for a in w.batch()["asks"]}
+    w.chantier("asks", "ready-to-merge", three, "https://x/pr/3", "gaps:", "d")
+    after = {a["id"]: a["read"] for a in w.batch()["asks"]}
+    check("an ask already read is not touched again", after[a_three] == before[a_three], str(after[a_three]))
+    w.chantier("asks", "--read", "all")
+    s1 = ask_id(w.chantier("asks", "stack-ready-to-merge", "https://x/pr/9", "one=https://x/pr/1")[1])
+    _, out = w.chantier("asks", "stack-ready-to-merge", "https://x/pr/9", "one=https://x/pr/1", "gaps:", "z")
+    check("a second `stack-ready-to-merge` supersedes the first",
+          out[1:] == [f"{s1} superseded by {ask_id(out)} (marked read)"], str(out))
 
 
 def fake_transcripts(w: World, d: dict) -> None:

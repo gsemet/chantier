@@ -8,6 +8,7 @@ from typing import Any
 from chantier.core.batch import Batch
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_BUDGET, EXIT_USAGE, ChantierError
+from chantier.core.ids import normalize_cr
 from chantier.core.records import AskRecord, CrEntry, ReleaseGrant
 from chantier.lifecycle.stages import done_cr
 from chantier.rails import ENDED, all_merged, check_budget, over_budget, pending_fixes
@@ -136,10 +137,36 @@ def check_grant(release: ReleaseGrant, budget: float | None) -> None:
         )
 
 
-def record_ask(b: Batch, text: str) -> str:
+CR_READINESS = ("ready-to-merge", "pr-in-draft", "ready-locally")
+STACK_READINESS = "stack-ready-to-merge"
+
+
+def readiness_key(text: str, crs: list[str]) -> tuple[str, str] | None:
+    """The family and key of a readiness ask: `("cr", "CR-261")` for a per-CR word naming a CR
+    of the batch, `("stack", "")` for the stack's; None for any other ask."""
+    words = text.split()
+    if words and words[0] == STACK_READINESS:
+        return ("stack", "")
+    if len(words) > 1 and words[0] in CR_READINESS:
+        cr = normalize_cr(words[1])
+        if cr in crs:
+            return ("cr", cr)
+    return None
+
+
+def record_ask(b: Batch, text: str) -> tuple[str, list[str]]:
     """What the Chief of Staff must hear stays in the state until it has read it, whatever
-    becomes of the message. Returns the ask's id."""
+    becomes of the message. A readiness ask marks the earlier unread one of the same CR (of the
+    stack) read. Returns the ask's id and the ids it superseded."""
     aid = f"A-{len(b.record.asks) + 1}"
+    crs = [c.id for c in b.record.crs]
+    key = readiness_key(text, crs)
+    old = [a for a in b.record.asks if key and not a.read and readiness_key(a.text, crs) == key]
+    for a in old:
+        a.read = now()
+    cr = key[1] or None if key else None
     b.record.append("asks", AskRecord(id=aid, text=text, sent=now(), read=None))
-    b.log("ask", None, ask=aid, text=text)
-    return aid
+    b.log("ask", cr, ask=aid, text=text)
+    if old:
+        b.log("asks-read", cr, asks=[a.id for a in old], superseded_by=aid)
+    return aid, [a.id for a in old]

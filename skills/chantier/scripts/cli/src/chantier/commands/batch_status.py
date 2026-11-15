@@ -217,8 +217,11 @@ def asks(args: argparse.Namespace) -> list[str]:
         repo, resolve_batch(repo, args.batch), actor="foreman" if text else "chief-of-staff"
     ) as b:
         if text:
-            aid = record_ask(b, text)
-            return [f"[foreman→chief-of-staff] ask {aid}: {text}"]
+            aid, old = record_ask(b, text)
+            return [
+                f"[foreman→chief-of-staff] ask {aid}: {text}",
+                *[f"{o} superseded by {aid} (marked read)" for o in old],
+            ]
         if args.read:
             hit = [a for a in b.record.asks if not a.read and (args.read in ("all", a.id))]
             if not hit and args.read != "all":
