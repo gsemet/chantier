@@ -80,7 +80,7 @@
 }
 
 .gs.specified::after {
-  content: "✓";
+  content: "\2713";
 }
 
 .gs.automatable {
@@ -89,17 +89,24 @@
 }
 
 .gs.automatable::after {
-  content: "⚡";
+  content: "\26A1";
 }
 
 .tri {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* the inbox and 3-ready hold one capped card; the backlog takes the rest of the width */
-  --pi-col: min(calc(var(--pi-w) + 2 * var(--space-3) + 2px), 30%);
+  /* The inbox and 3-ready hold one capped card, plus 14px for a group frame; the backlog takes the rest
+     of the width. Every card is --card-w wide: the cap, or what the 30% column leaves when it is
+     narrower, so a card is the same width in every column and in a group. */
+  --pi-col: min(calc(var(--pi-w) + 2 * var(--space-3) + 16px), 30%);
+  container-type: inline-size;
   grid-template-columns: minmax(0, var(--pi-col)) minmax(0, 1fr) minmax(0, var(--pi-col));
   gap: var(--space-3);
+}
+
+.tri > * {
+  --card-w: min(var(--pi-w), calc(30cqw - 2 * var(--space-3) - 16px));
 }
 
 .tcol {
@@ -181,7 +188,7 @@
 /* a backlog lane: capped cards side by side, as many per row as the lane holds */
 .tcol.lane .tbody {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--pi-w)), var(--pi-w)));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-w)), var(--card-w)));
   align-content: start;
   justify-content: start;
 }
@@ -246,6 +253,7 @@
 
   .tri > .tcol,
   .tri > .lanes {
+    --card-w: min(var(--pi-w), calc(86cqw - 2 * var(--space-3) - 16px));
     flex: 0 0 86%;
     scroll-snap-align: center;
   }
