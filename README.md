@@ -23,7 +23,8 @@ The construction site for your Software Factory.
   there to industrialise. Your `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's;
   the agent and model of each role, the skills it needs), are the only configuration. Everything
   chantier writes is Markdown and JSON in the planning folder: `.agents/changes/` in your project,
-  or the project's folder of an [external planning surface](docs/planning-modes.md).
+  or the project's folder of an [external planning surface](docs/planning-modes.md) (and, from the
+  board, a project's `chantier.yaml` in its planning surface).
 
 ## How Chantier works
 

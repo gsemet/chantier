@@ -280,7 +280,10 @@ def _write(ctx: Context, req: Request, project_id: str, op: Op) -> Reply:
             raise ChantierError("the body is a JSON object", EXIT_USAGE)
         body, status = op(project.repo, data)
     except ChantierError as e:
-        return as_json({"ok": False, "error": str(e)}, STATUS.get(e.code, 500))
+        refusal: dict[str, Any] = {"ok": False, "error": str(e)}
+        if e.code == EXIT_CONFLICT:
+            refusal["stale"] = True  # the file changed since the page read it
+        return as_json(refusal, STATUS.get(e.code, 500))
     except OSError as e:
         return as_json({"ok": False, "error": f"not written: {e}"}, 500)
     return as_json(body, status)
@@ -291,6 +294,14 @@ def _writer(op: Op) -> Callable[..., Reply]:
         return _write(ctx, req, project_id, op)
 
     return handler
+
+
+writer = _writer  # the other write routes of the board (`config_api`) are built the same way
+
+
+def project_of(ctx: Context, project_id: str) -> Project | None:
+    """The served project of that id, the list of projects read again first."""
+    return _project(ctx, project_id)
 
 
 def journal_of(ctx: Context, req: Request, project_id: str) -> Reply:

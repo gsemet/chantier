@@ -221,3 +221,6 @@ __marimo__/
 
 # A person's own eval sandbox (evals/kit/sandbox.py publish writes it)
 evals/kit/sandbox.local.json
+
+# The scenario's fake autosync logs its calls beside itself
+scenario/*.argv

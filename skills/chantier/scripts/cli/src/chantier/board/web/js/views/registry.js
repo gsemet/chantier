@@ -7,6 +7,7 @@ import { ALL } from '../core/router.js';
 import { itemsOf } from '../model/grill.js';
 import { crsOf } from '../model/semantics.js';
 import * as batch from './batch.js';
+import * as config from './config.js';
 import * as costs from './costs.js';
 import * as home from './home.js';
 import * as kanban from './kanban.js';
@@ -45,6 +46,7 @@ export const VIEWS = [
     module: costs,
     count: (state) => (state.data?.batch ? usd(state.data.batch.spent_usd) : null),
   },
+  { id: 'config', icon: 'config', word: 'nav.config', module: config },
 ];
 
 export const ids = () => VIEWS.map((v) => v.id);

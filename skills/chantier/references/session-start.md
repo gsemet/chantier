@@ -185,7 +185,8 @@ with one line: "new here? say init for a guided tour".
 - **Zero configuration:** the project's `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's), are the only configuration (I learn how it
   builds, tests and merges from it). Everything chantier writes is Markdown and JSON in
   the planning folder: `.agents/changes/` in the project, or the project's folder of an external
-  planning surface; and, on your yes, the allow rules in your Claude Code settings.
+  planning surface (and, from the board, a project's `chantier.yaml` in its planning surface);
+  and, on your yes, the allow rules in your Claude Code settings.
 - **Drivers and workers:** one Driver per CR runs short workers (Investigator, Coder, Inspector,
   Debugger, Verifier, Conflict resolver) in the CR's worktree, and commits, pushes, opens the
   PR and reads its CI with `git`, `gh` and `glab`. "Use my agent X as the coder" or "add a

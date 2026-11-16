@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from chantier.board import autosync_api, costs, files, guard, static, write_api
+from chantier.board import autosync_api, config_api, costs, files, guard, static, write_api
 from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
@@ -140,6 +140,7 @@ ROUTES: list[tuple[str, str, Handler]] = [
     ("POST", r"/api/projects/([^/]+)/costs/recompute", recompute),
     ("POST", r"/api/seats", seats),
     *write_api.ROUTES,
+    *config_api.ROUTES,
     *autosync_api.ROUTES,
 ]
 

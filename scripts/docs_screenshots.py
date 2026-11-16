@@ -153,6 +153,10 @@ def views(page: Page, url: str, size: str) -> None:
     shot(page, "triage", size)
     goto(page, url, "costs", "shop-api")
     shot(page, "costs", size)
+    goto(page, url, "config", "shop-api")
+    page.wait_for_selector('.config[data-key="config"]')
+    settle(page)
+    shot(page, "config", size)
     for step in EXTRA:
         step(page, url, size)
 

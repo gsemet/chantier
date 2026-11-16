@@ -20,6 +20,7 @@ scenario/results/<time>-<pid>/ (ignored by git).
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 import hashlib
 import html
 import http.client
@@ -7069,6 +7070,47 @@ def surface_autosync(w: SurfaceWorld) -> None:
             pass
 
 
+def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen: str) -> None:
+    """The board's Configuration page with a batch open: `PUT /config` writes the project folder's
+    file and says it applies at the next batch; the running batch keeps its frozen value; the board
+    commits nothing, the surface's autosync does."""
+    target = w.project / "chantier.yaml"
+    head = w.sh("git", "rev-parse", "HEAD", cwd=w.surface)
+    bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
+    try:
+        link = Link(bp.line())
+        code, _, view = jget(link.port, link, "/api/projects/demo/config")
+        check("the board's `GET /config` at a surface answers the view: writable, no file yet, "
+              "a batch open",
+              code == 200 and view.get("writable") is True and view.get("sha256") is None
+              and view.get("batch") == w.name, f"{code} {str(view)[:200]}")
+        change = {"host": "claude", "role": "coder", "key": "model", "value": "opus"}
+        code, _, raw = fetch(link.port, "/api/projects/demo/config", "PUT",
+                             {**link.cookie, "Content-Type": "application/json"},
+                             json.dumps({"changes": [change], "base_sha256": None}).encode("utf-8"))
+        answer = json.loads(raw.decode("utf-8") or "{}")
+        check("`PUT /config` with a batch open writes the project folder's file and answers "
+              "`applies at the next batch`",
+              code == 200 and answer.get("ok") is True and "applies at the next batch" in answer.get("lines", [])
+              and target.is_file(), f"{code} {answer.get('lines')} {answer.get('error')}")
+    finally:
+        bp.stop()
+    check("the running batch keeps the value it froze, and `playbook` prints the new one",
+          coder_line("--batch", w.name) == frozen
+          and "opus (claude-opus-5-5, Claude Opus 5.5) [surface project]" in coder_line(),
+          f"{coder_line()} / {coder_line('--batch', w.name)}")
+    check("the board committed nothing: the surface's HEAD did not move and the file waits",
+          w.sh("git", "rev-parse", "HEAD", cwd=w.surface) == head
+          and "projects/demo/chantier.yaml" in w.surface_files(), str(w.surface_files()))
+    subprocess.run([sys.executable, str(Path(__file__).with_name("fake_autosync.py")), "commit"],
+                   cwd=w.surface, check=True, capture_output=True)
+    check("the surface's autosync commits the file",
+          w.sh("git", "rev-parse", "HEAD", cwd=w.surface) != head
+          and "projects/demo/chantier.yaml" not in w.surface_files(), str(w.surface_files()))
+    target.unlink()
+    w.sh("git", "commit", "--quiet", "-am", "drop the configuration", cwd=w.surface)
+
+
 def external_surface(tmp: Path) -> None:
     note("\n## 20. A planning surface: the project's plans in a repository of their own")
     OPENED.clear()
@@ -7138,6 +7180,7 @@ def external_surface(tmp: Path) -> None:
           and coder_line("--batch", w.name) == frozen, f"{coder_line()} / {coder_line('--batch', w.name)}")
     for path, _ in layers:
         path.unlink(missing_ok=True)
+    surface_config_page(w, coder_line, frozen)
     code, _ = w.chantier("open", item2, "--direct", *FROM_AGENTS_MD, expect=None)
     check("a second open on the same project is refused", code != 0, w.last_stderr)
     # another project of the surface opens its own batch at once; the seat is one per project

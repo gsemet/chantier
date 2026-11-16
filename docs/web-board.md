@@ -63,6 +63,14 @@ Each change is written at once, with the CLI's own file and triage commands, in 
 
 What was spent against the budget, the sum of the CRs (the rest is the steering sessions), the average per active CR, one row per CR of the batch with its state and its cost, and the last merged CRs of all the batches. **Earlier batches** lists the closed batches, newest first (closing day, mode, CRs merged, cost against the budget); a click on a row unfolds its CRs. A record made after the fact shows a dash where it has no figure. The figures are those the batch recorded; **Recompute** makes the server read the transcripts again, with no agent turn. The costs of the CRs a batch has not yet priced read as a dash.
 
+### Configuration
+
+![The configuration: each role's agent and model, per host](web-board/config-pc.png)
+
+For each host (Claude Code, Copilot), one row per role: the agent and the model it has in the project's configuration file in the planning surface (`projects/<name>/chantier.yaml`), the value in effect and the layer it comes from, and how the role starts (the plugin's agent, a named agent, or a generic agent when the host cannot start a named agent on a chosen model). Choosing "inherited" removes the key from the file. Each change is judged first (a dry run) and written by **Save**, keeping the file's comments and its other keys; it applies at the next batch, never to a running one. The other settings are shown read-only, and with no planning surface the whole page is read-only.
+
+A value the code repository's own `chantier.yaml` overrides is still written to the surface's file, and its row says "overridden by <path>". The Copilot table shows each model's plans, from GitHub's tables; they refuse no model. A Copilot role with its own agent and a model is shown refused, with the CLI's line, and blocks nothing on the page.
+
 ## A CR's files
 
 ![A CR's folder in the side panel](web-board/panel-pc.png)

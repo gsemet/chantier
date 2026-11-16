@@ -10,6 +10,7 @@ export default {
   'nav.kanban': 'Kanban',
   'nav.batch': 'Batch',
   'nav.costs': 'Coûts',
+  'nav.config': 'Configuration',
   'nav.overview': 'Tous les projets',
   'project.change': 'Changer de projet',
   'project.head': 'Surface de planification · {n} projets',

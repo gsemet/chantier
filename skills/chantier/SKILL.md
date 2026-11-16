@@ -18,7 +18,8 @@ chantier-version: 0.10.0
 Nothing to install or set up but `uv`: the plugin ships the
 agents, the project's `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's), are the only configuration, and everything chantier writes goes
 to the planning folder (`.agents/changes/`, or the project's folder of an external surface), as
-plain JSON and Markdown, and, when the project asks for it, a CR's archive in its PR. In a
+plain JSON and Markdown (and the board's `chantier.yaml` edits), and, when the project asks for
+it, a CR's archive in its PR. In a
 planning surface, `$CHANTIER` also carries `--project <the project's folder>`.
 
 At startup read the common core, host core, role core, and wrapper named by

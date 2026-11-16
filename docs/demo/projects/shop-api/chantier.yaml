@@ -1,0 +1,6 @@
+# The demo project's agents: the coder runs on another Copilot model than its default.
+hosts:
+  copilot:
+    roles:
+      coder:
+        model: gpt-6.1-terra
