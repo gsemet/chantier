@@ -7,7 +7,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from chantier.board import autosync_api, config_api, costs, files, guard, static, write_api
+from chantier.board import autosync_api, config_api, costs, files, guard, prs, static, write_api
 from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
@@ -119,6 +119,15 @@ def recompute(ctx: Context, req: Request, project_id: str) -> Reply:
     return as_json({"computing": True, "now": clock.now()}, status=202)
 
 
+def prs_of(ctx: Context, req: Request, project_id: str) -> Reply:
+    """The batch's PRs read on the forge (the board's own read, read-only), against the record."""
+    project = _found(ctx, project_id)
+    if project is None:
+        return _unknown()
+    data, _ = _state_of(ctx, project, ask=False)
+    return as_json(prs.answer(ctx.reads, project.id, data))
+
+
 def seats(ctx: Context, req: Request) -> Reply:
     try:
         data = json.loads(req.body or b"{}")
@@ -137,6 +146,7 @@ ROUTES: list[tuple[str, str, Handler]] = [
     ("GET", r"/api/projects/([^/]+)/tree", tree),
     ("GET", r"/api/projects/([^/]+)/file", file),
     ("GET", r"/api/projects/([^/]+)/costs", costs_of),
+    ("GET", r"/api/projects/([^/]+)/prs", prs_of),
     ("POST", r"/api/projects/([^/]+)/costs/recompute", recompute),
     ("POST", r"/api/seats", seats),
     *write_api.ROUTES,

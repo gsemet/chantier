@@ -1,5 +1,6 @@
 // English words. A language is one file like this, registered in ../model/words.js.
 import board from './en-board.js';
+import prs from './en-prs.js';
 import write from './en-write.js';
 
 export default {
@@ -11,6 +12,7 @@ export default {
   'nav.batch': 'Batch',
   'nav.costs': 'Costs',
   'nav.config': 'Configuration',
+  'nav.prs': 'PRs',
   'nav.overview': 'All projects',
   'project.change': 'Change project',
   'project.head': 'Planning surface · {n} projects',
@@ -229,6 +231,7 @@ export default {
   'panel.doc': 'File',
   ...write,
   ...board,
+  ...prs,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'active',
   'autosync.state.stopped': 'stopped',

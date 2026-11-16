@@ -12,7 +12,7 @@ from typing import Any
 
 from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
-from chantier.commands.forge_stack_shared import Where
+from chantier.commands.forge_stack_shared import NOT_ONE_REPOSITORY, Where
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.repo import Repo
@@ -142,7 +142,7 @@ def unstack_rows(args: argparse.Namespace) -> tuple[list[dict[str, Any]], Where 
             continue
         host, owner, name, number = pr_parts(c.pr)
         if where not in (None, (host, owner, name)):
-            raise ChantierError("the batch's PRs are not all in one repository", EXIT_PRECONDITION)
+            raise ChantierError(NOT_ONE_REPOSITORY, EXIT_PRECONDITION)
         where = (host, owner, name)
         rows.append(
             {

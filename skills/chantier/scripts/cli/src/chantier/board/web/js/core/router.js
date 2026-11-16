@@ -52,6 +52,7 @@ const reset = {
   labelFilter: [],
   priorityFilter: [...FILTER_BUCKETS],
   historyOpen: [],
+  prs: null,
   journalOpen: false,
   journal: null,
   pending: [],

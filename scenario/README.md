@@ -267,6 +267,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   /api/autosync`, `start` refused while blocked, `stop` refused while stopped, a stale incident
   refused, an approval that runs `approve` then `start`; an in-project board has no autosync
   (unit: surface-board);
+- the board's PRs page (`GET /api/projects/<id>/prs`, the fake `gh` answering its one `api
+  graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
+  the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose
+  checks the forge has not computed (`being checked`, never `none`) told apart; every PR merged or
+  closed is `all_done`, a CR added after brings a new row; the folder and its git status unchanged
+  and no call but `api graphql` queries (unit: surface-board);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

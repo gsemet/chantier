@@ -28,7 +28,26 @@ elif args[:2] == ["pr", "merge"]:
         print("fake gh: not allowed to merge", file=sys.stderr)
         sys.exit(1)
     print(f"merged {args[2]}")
+elif args[:2] == ["api", "graphql"]:
+    # the board's PRs page: one query for many PRs (aliases `p<N>`). `prs` holds, by number, the
+    # fields to change from the default (open, not a draft, mergeable, into main, checks green)
+    query = next(a.split("=", 1)[1] for a in args if a.startswith("query="))
+    asked = [int(n) for n in re.findall(r"\bp(\d+): pullRequest", query)]
+    held = state.get("prs", {})
+
+    def node(number):
+        f = {"state": "OPEN", "isDraft": False, "mergeable": "MERGEABLE", "baseRefName": "main",
+             "mergedAt": None, "closedAt": None, "checks": "SUCCESS", **held.get(str(number), {})}
+        rollup = ({"state": f["checks"], "contexts": {"totalCount": 1}} if f["checks"] else None)
+        return {"state": f["state"], "isDraft": f["isDraft"], "mergeable": f["mergeable"],
+                "baseRefName": f["baseRefName"], "mergedAt": f["mergedAt"],
+                "closedAt": f["closedAt"],
+                "commits": {"nodes": [{"commit": {"statusCheckRollup": rollup}}]}}
+    repo = {f"p{n}": node(n) for n in asked}
+    repo["wf"] = {"entries": [{"name": "ci.yml"}]} if state.get("workflows", True) else None
+    print(json.dumps({"data": {"repository": repo}}))
 elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a) for a in args):
+
     # a PR's base: read (GET) and changed (PATCH, `-f base=<branch>`); the forge refuses the
     # change while the PR is in an open stack. `bases` holds the changed ones (default: main)
     path = next(a for a in args if re.fullmatch(r"repos/[^/]+/[^/]+/pulls/\d+", a))
