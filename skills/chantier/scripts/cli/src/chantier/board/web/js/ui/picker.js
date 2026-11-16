@@ -40,7 +40,7 @@ export function trigger(state, cls) {
   const project = current(state);
   const name = all ? surfaceName(state) : (project?.id ?? '…');
   const sub = all
-    ? html`<small class="pth sur" title="${surfacePath(state)}">${surfacePath(state)}</small><small class="sur">${t('project.head', { n: projectsOf(state).length })}</small>`
+    ? html`<small class="pth sur" title="${surfacePath(state)}">${surfacePath(state)}</small><small class="sur" title="${t('project.head', { n: projectsOf(state).length })}">${t('project.head', { n: projectsOf(state).length })}</small>`
     : html`<small>${project ? lineOf(project) : ''}</small>`;
   const caret = canPick(state) ? html`<span class="car">${icon('chev')}</span>` : '';
   const face = all ? html`<span class="mark all">${icon('overview')}</span>` : mark(name);
