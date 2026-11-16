@@ -42,6 +42,13 @@ def make_surface(parent: Path) -> Path:
     surface = parent / "surface"
     shutil.copytree(DEMO, surface)
     git = ("git", "-c", "core.autocrlf=false", "-c", "user.name=demo", "-c", "user.email=demo@example.com")
+    # The project's clone holds a chantier.yaml: the repository layer overrides one Copilot role.
+    clone = surface / "projects" / "shop-api" / ".repo"
+    clone.mkdir()
+    (clone / "chantier.yaml").write_text(
+        "hosts:\n  copilot:\n    roles:\n      debugger:\n        model: gpt-6.1-terra\n",
+        encoding="utf-8",
+    )
     run(*git, "init", "-q", "-b", "main", cwd=surface)
     run(*git, "add", "-A", cwd=surface)
     run(*git, "commit", "-q", "-m", "demo", cwd=surface)
@@ -156,7 +163,16 @@ def views(page: Page, url: str, size: str) -> None:
     goto(page, url, "config", "shop-api")
     page.wait_for_selector('.config[data-key="config"]')
     settle(page)
+    if size == "pc":
+        # The page scrolls inside its pane: show the Copilot section (its table, with the rows a
+        # repository file overrides, and its open list of models with their plans), in a taller view.
+        page.set_viewport_size({"width": SIZES["pc"]["width"], "height": 1500})
+        page.locator("details.catalog").evaluate("el => { el.open = true; }")
+        page.locator("section.host").nth(1).evaluate("el => el.scrollIntoView({block: 'start'})")
+        page.wait_for_timeout(300)
     shot(page, "config", size)
+    if size == "pc":
+        page.set_viewport_size(SIZES["pc"])
     for step in EXTRA:
         step(page, url, size)
 
