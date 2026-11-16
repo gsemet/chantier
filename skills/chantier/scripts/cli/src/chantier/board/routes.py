@@ -125,7 +125,7 @@ def prs_of(ctx: Context, req: Request, project_id: str) -> Reply:
     if project is None:
         return _unknown()
     data, _ = _state_of(ctx, project, ask=False)
-    return as_json(prs.answer(ctx.reads, project.id, data))
+    return as_json(prs.answer(ctx.reads, project.id, data, project.repo))
 
 
 def seats(ctx: Context, req: Request) -> Reply:

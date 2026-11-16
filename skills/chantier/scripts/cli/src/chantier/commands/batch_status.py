@@ -8,6 +8,7 @@ from typing import Any
 from chantier.autosync.lines import status_line
 from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import find_site
+from chantier.board import seen
 from chantier.commands.activity import activity
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
@@ -216,6 +217,32 @@ def _order_lines(d: BatchRecord) -> list[str]:
     return lines
 
 
+def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
+    """What the board saw merged on the forge that the record does not hold: one line per CR of
+    this batch, for the Chief of Staff. Nothing is written; an unreadable line is named."""
+    entries, bad = seen.read(repo.changes)
+    lines = [f"{seen.FILE}: line {n} unreadable" for n in bad]
+    open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
+    done: set[str] = set()
+    for e in entries:
+        cr = e.get("cr")
+        if e.get("kind") != "merged" or e.get("batch") != d.id or cr not in open_crs or cr in done:
+            continue
+        done.add(cr)
+        head = f"board saw merged: {cr} {e.get('pr')}"
+        at = e.get("merged_at")
+        if e.get("into_cr"):
+            lines.append(
+                f"{head} into {e['into_cr']}'s branch at {at}; for the Chief of Staff: not "
+                f"landed, tell the user, record nothing until {e['into_cr']} lands"
+            )
+        else:
+            lines.append(
+                f"{head} into {e.get('into')} at {at}; for the Chief of Staff: order merged {cr}"
+            )
+    return lines
+
+
 def _batch_line(d: BatchRecord, hb_text: str) -> str:
     queued = sum(1 for c in d.crs if c.status == "queued")
     return (
@@ -252,6 +279,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     events = read_events(repo.batch_dir(batch))
     lines += [_cr_row(repo, d, c, args.notes, events) for c in sorted(d.crs, key=lambda c: c.order)]
     lines += _order_lines(d)
+    lines += _seen_lines(repo, d)
     unread = sum(1 for a in d.asks if not a.read)
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")

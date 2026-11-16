@@ -616,6 +616,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     hand-back do not.
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
   host's reference says (every 30 minutes, and who arms it). No wake ever arriving is a stop.
+  A `board saw merged` line in `status` is the Chief of Staff's: do nothing with it, send no
+  message about it, and it is not an undone order for ending the heartbeat.
 - End the heartbeat, never your session (an idle session still receives an order), right after
   `pause`, and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the
   last wake and no order is undone: every Driver has ended, ready or blocked, for 30 minutes at

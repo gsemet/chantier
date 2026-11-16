@@ -132,6 +132,7 @@ IGNORED = (
     ".closing-*",
     "seat.json",
     "board-journal.jsonl",
+    "board-seen.jsonl",
     "/4-batch/batch.json",
     "/4-batch/events.jsonl",
     "/4-batch/brief.md",
