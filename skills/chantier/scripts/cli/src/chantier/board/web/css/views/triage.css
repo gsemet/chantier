@@ -96,7 +96,9 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
+  /* the inbox and 3-ready hold one capped card; the backlog takes the rest of the width */
+  --pi-col: min(calc(var(--pi-w) + 2 * var(--space-3) + 2px), 30%);
+  grid-template-columns: minmax(0, var(--pi-col)) minmax(0, 1fr) minmax(0, var(--pi-col));
   gap: var(--space-3);
 }
 
@@ -162,13 +164,26 @@
   font-size: var(--text-badge);
 }
 
+/* The padding and the opposite margin leave room for a hovered card's tilt and shadow, which would
+   otherwise make the scrolling body show a horizontal bar. */
 .tbody {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* a backlog lane: capped cards side by side, as many per row as the lane holds */
+.tcol.lane .tbody {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--pi-w)), var(--pi-w)));
+  align-content: start;
+  justify-content: start;
 }
 
 .lanes {
@@ -176,7 +191,8 @@
   flex-direction: column;
   gap: var(--space-2);
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .lanesh {
@@ -204,6 +220,12 @@
   color: var(--ink3);
   font-size: var(--text-small);
   text-align: center;
+}
+
+/* in a lane's grid, a group's frame and the drop zone span the whole row */
+.tcol.lane .tbody > .grpf,
+.tcol.lane .tbody > .dropzone {
+  grid-column: 1 / -1;
 }
 
 .rfoot {
