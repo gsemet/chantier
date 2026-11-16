@@ -7014,6 +7014,11 @@ def surface_autosync(w: SurfaceWorld) -> None:
             check("E2: stop is refused while the group is stopped",
                   code == 409 and body.get("code") == "stopped" and len(runs()) == before, str(body))
             code, body = post(link, "/api/autosync/start")
+            # the join is spawned after the reply and logged by the fake tool a moment later
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline and not (
+                    runs() and runs()[-1][:2] == ["join", "."]):
+                time.sleep(0.05)
             check("E2: start in the stopped state runs `start . --enable-only` and the group is active",
                   code == 200 and runs()[-2] == ["start", ".", "--enable-only"]
                   and runs()[-1][:2] == ["join", "."]
