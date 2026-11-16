@@ -46,3 +46,11 @@
 .pbtn small.sur {
   display: block;
 }
+
+/* the count line wraps instead of being cut: N stays readable at every width */
+.ws .who > small.sur:not(.pth),
+.pbtn .who > small.sur:not(.pth) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}

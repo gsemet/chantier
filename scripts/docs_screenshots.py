@@ -42,7 +42,15 @@ def make_surface(parent: Path) -> Path:
     """A copy of the demo, a git repository, and the autosync tool's state files."""
     surface = parent / "surface"
     shutil.copytree(DEMO, surface)
-    git = ("git", "-c", "core.autocrlf=false", "-c", "user.name=demo", "-c", "user.email=demo@example.com")
+    git = (
+        "git",
+        "-c",
+        "core.autocrlf=false",
+        "-c",
+        "user.name=demo",
+        "-c",
+        "user.email=demo@example.com",
+    )
     # The project's clone holds a chantier.yaml: the repository layer overrides one Copilot role.
     clone = surface / "projects" / "shop-api" / ".repo"
     clone.mkdir()
@@ -82,12 +90,32 @@ def start_board(surface: Path, home: Path) -> tuple[subprocess.Popen[str], str]:
     }
     (home / "no-transcripts").mkdir(parents=True, exist_ok=True)
     cli = ROOT / "skills" / "chantier" / "scripts" / "cli"
-    cmd = ["uv", "run", "--locked", "--project", str(ROOT), "chantier", "board",
-           "--host", "127.0.0.1", "--port", "0", "--clock", CLOCK]
+    cmd = [
+        "uv",
+        "run",
+        "--locked",
+        "--project",
+        str(ROOT),
+        "chantier",
+        "board",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "0",
+        "--clock",
+        CLOCK,
+    ]
     if not (ROOT / ".git").exists() or not cli.exists():
         raise SystemExit("run this from chantier's own checkout")
-    proc = subprocess.Popen(cmd, cwd=surface, env=env, stdout=subprocess.PIPE, text=True,
-                            encoding="utf-8", start_new_session=os.name != "nt")
+    proc = subprocess.Popen(
+        cmd,
+        cwd=surface,
+        env=env,
+        stdout=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        start_new_session=os.name != "nt",
+    )
     assert proc.stdout is not None
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
@@ -104,8 +132,9 @@ def start_board(surface: Path, home: Path) -> tuple[subprocess.Popen[str], str]:
 def stop(proc: subprocess.Popen[str]) -> None:
     """Stop the server and the processes it started (the launcher is not the server)."""
     if os.name == "nt":
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], check=False,
-                       capture_output=True)
+        subprocess.run(
+            ["taskkill", "/T", "/F", "/PID", str(proc.pid)], check=False, capture_output=True
+        )
     else:
         os.killpg(proc.pid, signal.SIGTERM)
     proc.wait(timeout=30)
@@ -146,9 +175,14 @@ def capture(url: str) -> None:
         try:
             for size, viewport in SIZES.items():
                 ctx = browser.new_context(
-                    viewport=viewport, locale="en-US", timezone_id="UTC",
-                    color_scheme="light", reduced_motion="reduce", device_scale_factor=1,
-                    is_mobile=size == "phone", has_touch=size == "phone",
+                    viewport=viewport,
+                    locale="en-US",
+                    timezone_id="UTC",
+                    color_scheme="light",
+                    reduced_motion="reduce",
+                    device_scale_factor=1,
+                    is_mobile=size == "phone",
+                    has_touch=size == "phone",
                 )
                 ctx.clock.set_fixed_time("2026-06-18T10:30:00Z")
                 ctx.route("**/api/board*", fix_surface_path)
@@ -208,7 +242,9 @@ def autosync(page: Page, url: str, size: str) -> None:
 
 def editor(page: Page, url: str, size: str) -> None:
     goto(page, url, "kanban", "shop-api")
-    page.locator('[data-open^="i:"][data-open*="saved-addresses"]').locator("visible=true").first.click()
+    page.locator('[data-open^="i:"][data-open*="saved-addresses"]').locator(
+        "visible=true"
+    ).first.click()
     page.wait_for_selector('[data-key^="file-"]', state="attached")
     page.locator('[data-file$="03-change-spec.md"]').locator("visible=true").first.click()
     page.locator('[data-key="edit-start"]').locator("visible=true").first.click()
