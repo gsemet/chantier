@@ -1,6 +1,6 @@
 """The text of the planning surface's project file, changed in place: a role's `agent` or `model`
-set or removed, the comments and the other keys kept, the file's byte-order mark and line ending
-kept. The checks and the write are `edit.py`'s."""
+set or removed, the comments and the other keys kept, the file's byte-order mark kept,
+the line endings LF. The checks and the write are `edit.py`'s."""
 
 from __future__ import annotations
 
@@ -89,8 +89,6 @@ def new_text(old: bytes | None, shown: str, changes: list[dict[str, Any]]) -> st
 
 
 def file_bytes(text: str, old: bytes | None) -> bytes:
-    """The text in UTF-8, in the file's own line endings and with its byte-order mark if it had
+    """The text in UTF-8 with LF line endings only, and with the file's byte-order mark if it had
     one."""
-    if old is not None and old.count(b"\r\n") * 2 > old.count(b"\n"):
-        text = text.replace("\n", "\r\n")
     return (BOM if old is not None and old.startswith(BOM) else b"") + text.encode("utf-8")
