@@ -1,0 +1,48 @@
+/* The picker's text and the paths of a project's line: they shrink, and a path too long for its place is cut with an ellipsis. */
+.ws .who,
+.menu .who {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws .who > *,
+.menu .who > b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws .mark,
+.menu .mark {
+  flex: none;
+}
+
+.pth {
+  display: block;
+  overflow: hidden;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pth i {
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* the phone's button hides its small lines; the surface's path and count stay */
+.pbtn .who {
+  min-width: 0;
+}
+
+.pbtn .who > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pbtn small.sur {
+  display: block;
+}

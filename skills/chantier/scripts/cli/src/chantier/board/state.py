@@ -23,7 +23,7 @@ from chantier.core.records import (
     read_batch_json,
     read_events,
 )
-from chantier.core.repo import RECORDS, Repo
+from chantier.core.repo import RECORDS, Repo, read_keyed
 from chantier.core.seat import read_seat
 from chantier.lifecycle.backlog import next_batch
 from chantier.lifecycle.stages import stage_layout
@@ -156,6 +156,16 @@ def project_state(
 
 def _entry(c: dict[str, Any]) -> dict[str, Any]:
     return {"cr": c["cr"], "title": c["title"], "pr": c["pr"]}
+
+
+def project_paths(repo: Repo) -> dict[str, str]:
+    """Where a surface's project is declared: its folder in the surface (`projects/<name>/`) and
+    its `repo:` as `checkout.yml` writes it (`.repo` when it has none). In-project: nothing."""
+    if repo.project_dir is None or repo.surface is None:
+        return {}
+    folder = repo.project_dir.relative_to(repo.surface).as_posix() + "/"
+    written = read_keyed(repo.project_dir / "checkout.yml").get("repo") or ".repo"
+    return {"folder": folder, "repo": written}
 
 
 def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:

@@ -9,17 +9,17 @@ For the other board, the pane in Claude Code, see [boards](boards.md). To start 
 
 ## The views
 
-The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects adds an **All projects** entry to the picker; a single project has none.
+The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects makes the picker's first entry the surface itself, by its name and its path, with "Planning surface · N projects" under them; a single project has no such entry.
 
 ![The project picker, open](web-board/picker-pc.png)
 
 The data refreshes by itself. The line under the bar says how old it is (`Data: 0 s ago`), or that the board is unreachable.
 
-### Home: all projects
+### Home: the planning surface
 
-![All projects: one line per project](web-board/home-pc.png)
+![The planning surface: one line per project](web-board/home-pc.png)
 
-With several projects, Home is the table of **All projects**: the batch of each (running or not), the CRs working, the PRs to review (ready to merge), a progress gauge, what was spent against the budget, and the numbers of the intake and the grill. A click on a line opens that project. All projects is read-only.
+With several projects, Home is the table of the surface (its name is the page's title): each project's line shows its folder in the surface and its code repository as its `checkout.yml` names it (`.repo` with no `repo:` line), then the batch (running or not), the CRs working, the PRs to review (ready to merge), a progress gauge, what was spent against the budget, and the numbers of the intake and the grill. A path too long for its place is cut, and shown whole when you hover it. A click on a line opens that project. The surface's Home is read-only.
 
 ### Home: a project
 
@@ -70,7 +70,7 @@ The place where you sort the backlog. Each item is a post-it, the same card as t
 - **The next batch is ready** records that you said so (`next-batch.json`, the time and the CRs then in `3-ready`). It decides nothing and opens nothing: the next batch opens after the running one closes, on your word to the Chief of Staff.
 - The button **✎ n writes since your last 'rescan'** lists what the board wrote. The board does not talk to the Chief of Staff: tell it "rescan" in the chat, then press **I said 'rescan' to the CoS**.
 
-Each change is written at once, with the CLI's own file and triage commands, in the backlog only: the inbox, the priorities, `3-ready`, the labels, the groups. All projects and a running batch's CRs are never written.
+Each change is written at once, with the CLI's own file and triage commands, in the backlog only: the inbox, the priorities, `3-ready`, the labels, the groups. The surface's Home and a running batch's CRs are never written.
 
 ### Costs
 
@@ -96,7 +96,7 @@ A click on a CR, a card, a row or a PR's folder icon opens its folder in a side 
 
 ![Editing a backlog item's specification](web-board/editor-pc.png)
 
-A backlog item's Markdown file has an **Edit** button (never a batch CR's, never in All projects). **Save** (or Ctrl+S) writes the file only if it is still the one you opened: if the Chief of Staff or another device changed it meanwhile, the board refuses and tells you, so that nothing is overwritten. Leaving the file, the item or the page with unsaved changes asks first.
+A backlog item's Markdown file has an **Edit** button (never a batch CR's, never on the surface's Home). **Save** (or Ctrl+S) writes the file only if it is still the one you opened: if the Chief of Staff or another device changed it meanwhile, the board refuses and tells you, so that nothing is overwritten. Leaving the file, the item or the page with unsaved changes asks first.
 
 ## A new idea
 
@@ -126,7 +126,7 @@ The page is in English or French; a button at the bottom of the bar switches it 
 
 ## Retaking the pictures
 
-`just docs-screenshots` copies `docs/demo/` to a temporary folder, starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
+`just docs-screenshots` copies `docs/demo/` to a temporary folder, starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. The surface's path is a temporary folder of the machine, so the script shows a made-up one (`/home/demo/planning-surface`) in its place. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
 
 ## Starting the board
 
@@ -139,8 +139,8 @@ the seat. It writes in the backlog only (the inbox, the priorities, `3-ready`), 
 file an idea, move items between those places, label and group them, edit an item's Markdown
 files, and declare the next batch ready (`next-batch.json`, the time and the CRs then in
 `3-ready`; it decides nothing). Every write lands in `board-journal.jsonl` (not committed); the
-"rescan" button empties it, to tell the Chief of Staff the backlog changed. All projects is
-read-only.
+"rescan" button empties it, to tell the Chief of Staff the backlog changed. The surface's Home
+(the overview of the projects) is read-only.
 
 - **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. Open it
   once: the board keeps the key in a cookie and takes it out of the address. The link is yours

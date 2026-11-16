@@ -38,7 +38,29 @@
   gap: 9px;
 }
 
+/* the paths never widen the first column: they take the width the name gives, then are cut */
+.overview .wtx {
+  flex: 1;
+  min-width: 0;
+}
+
+.overview .wnm {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.overview .wtx .pth {
+  width: 0;
+  min-width: 100%;
+}
+
+.overview .apth {
+  margin-top: 4px;
+}
+
 .overview .who .mark {
+  flex: none;
   width: 26px;
   height: 26px;
   border-radius: 7px;

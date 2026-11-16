@@ -15,14 +15,19 @@ import tomllib
 import urllib.error
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from batch_helpers import prepared
 from conftest import Chantier
 
 from chantier.autosync.site import AutosyncSite
-from chantier.board import address, autosync_tool
+from chantier.board import address, autosync_tool, routes
+from chantier.board.context import Context, Request
 from chantier.board.guard import NEEDS_KEY
+from chantier.board.key import KeyFile
+from chantier.board.projects import open_projects
+from chantier.board.seats import Seats
 from chantier.core.errors import EXIT_EXTERNAL
 
 CLI = Path(__file__).resolve().parents[1]
@@ -268,3 +273,48 @@ def test_the_probe_tells_a_board_behind_another_key_from_any_other_answer(
 
     monkeypatch.setattr(address, "_call", call)
     assert address.probe("127.0.0.1", 1, "k") == expected
+
+
+def _git_init(folder: Path) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(folder)], check=True)
+
+
+def _board_payload(root: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    monkeypatch.setenv("CHANTIER_ROOT", str(root))
+    monkeypatch.chdir(root)
+    projects = open_projects()
+    ctx = Context(projects, KeyFile(root / "key.json"), Seats(projects), "0", lambda: None)
+    body: dict[str, Any] = json.loads(routes.board(ctx, Request("GET", "/api/board", {}, {})).body)
+    return body
+
+
+def test_the_board_gives_a_surface_its_root_and_each_project_its_two_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    surface = tmp_path / "plans"
+    _git_init(surface)
+    for name in ("alpha", "beta"):
+        (surface / "projects" / name / "changes").mkdir(parents=True)
+    (surface / "projects" / "alpha" / "checkout.yml").write_text(
+        "repo: ../../../code/  # as written\n", encoding="utf-8"
+    )
+    got = _board_payload(surface, monkeypatch)
+    assert got["surface"] is True
+    assert got["served"] == surface.resolve().as_posix()
+    paths = {p["id"]: (p["folder"], p["repo"]) for p in got["projects"]}
+    assert paths == {
+        "alpha": ("projects/alpha/", "../../../code/"),
+        "beta": ("projects/beta/", ".repo"),
+    }
+
+
+def test_the_board_adds_no_path_to_an_in_project_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path / "solo")
+    (tmp_path / "solo" / ".agents" / "changes").mkdir(parents=True)
+    got = _board_payload(tmp_path / "solo", monkeypatch)
+    assert got["surface"] is False
+    (line,) = got["projects"]
+    assert "folder" not in line and "repo" not in line

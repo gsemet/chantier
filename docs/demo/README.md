@@ -15,7 +15,7 @@ copies it to a temporary folder, starts the web board on the copy and takes the 
 | --- | --- |
 | `shop-api` | a batch running in stack mode, with every state a CR can be in; an inbox, a backlog from P1 to P4 (P3 left empty), `3-ready`, a CR with sub-folders |
 | `mobile-app` | no batch running; an inbox; the last merged CRs in `5-archives/`; two closed batches, `batch-01` and `batch-02`, with their records in `5-archives/batches/` (the earlier batches of Home and Costs) |
-| `docs-portal` | a small project, for the "All projects" table |
+| `docs-portal` | a small project, for the surface's overview table |
 
 The record files a running batch keeps (`batch.json`, `events.jsonl`, `seat.json`) are kept here
 too, in the format the server reads. The capture script adds what git does not hold: it initialises
