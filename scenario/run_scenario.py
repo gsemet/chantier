@@ -7106,7 +7106,9 @@ def external_surface(tmp: Path) -> None:
           ".gitignore does not ignore summary.json",
           (item / "summary.json").is_file() and code == 2 and out[0] == "1 gap(s) in 2 CRs"
           and ignored == 1, str(out))
-    layers = [(w.surface / "chantier.yaml", "opus"), (w.project / "chantier.yaml", "sonnet"),
+    # (the Coder's shipped default is sonnet: a configured sonnet is dropped, so the surface's
+    # sonnet is no setting; the project folder's opus is the value that shows once the repository's goes)
+    layers = [(w.surface / "chantier.yaml", "sonnet"), (w.project / "chantier.yaml", "opus"),
               (w.work / "chantier.yaml", "haiku")]
     for path, model in layers:  # the three user layers: surface root, project folder, code repository
         path.write_text(f"hosts:\n  claude:\n    roles:\n      coder:\n        model: {model}\n", encoding="utf-8")
@@ -7132,7 +7134,7 @@ def external_surface(tmp: Path) -> None:
     layers[2][0].unlink()
     check("with the repository's file removed, `playbook` prints the project folder's value "
           "`[surface project]`; the batch still prints the frozen one",
-          "sonnet (claude-sonnet-5-5, Claude Sonnet 5.5) [surface project]" in coder_line()
+          "opus (claude-opus-5-5, Claude Opus 5.5) [surface project]" in coder_line()
           and coder_line("--batch", w.name) == frozen, f"{coder_line()} / {coder_line('--batch', w.name)}")
     for path, _ in layers:
         path.unlink(missing_ok=True)
