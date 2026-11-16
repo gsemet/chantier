@@ -1,6 +1,7 @@
 """The PRs page's server side: the batch's PRs read on the forge, judged against the record.
 
-The page reads only: it writes nothing in the record, the planning folder, git or the forge. A
+The page reads only: it writes nothing in the record, git or the forge, and nothing in the
+planning folder but one line in `board-seen.jsonl` for a merge the record does not hold. A
 read of the forge is kept for `TTL_S` seconds per project, whatever the number of pages open, and
 a failed read keeps the last good one with its time. The `Context` imports this module, so it
 never imports the `Context`."""
@@ -13,10 +14,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from chantier.board import forge_read
+from chantier.board import forge_read, seen
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.core import clock
 from chantier.core.errors import ChantierError
+from chantier.core.repo import Repo
 
 TTL_S = 10.0
 MERGED_NOT_RECORDED = "merged on the forge, not recorded yet: tell the Chief of Staff"
@@ -56,15 +58,17 @@ class ForgeReads:
 
     def get(
         self, key: str, links: list[str], load: Loader
-    ) -> tuple[dict[int, dict[str, Any]], str | None, str | None]:
-        """The forge's state of each PR by number, when it was read, and the error of the last
-        call (the state and time then are the last good read's, empty before any)."""
+    ) -> tuple[dict[int, dict[str, Any]], str | None, str | None, bool]:
+        """The forge's state of each PR by number, when it was read, the error of the last call
+        (the state and time then are the last good read's, empty before any), and whether this
+        call asked the forge (False: a kept read, which signals nothing)."""
         with self._lock(key):
             kept = self._entries.get(key)
             at = self._now()
-            if not (kept and kept.links == tuple(links) and at - kept.tried < self.ttl):
-                kept = self._entries[key] = self._call(kept, links, load, at)
-            return kept.forge, kept.read_at, kept.error
+            if kept and kept.links == tuple(links) and at - kept.tried < self.ttl:
+                return kept.forge, kept.read_at, kept.error, False
+            kept = self._entries[key] = self._call(kept, links, load, at)
+            return kept.forge, kept.read_at, kept.error, True
 
     @staticmethod
     def _call(kept: _Entry | None, links: list[str], load: Loader, at: float) -> _Entry:
@@ -155,9 +159,12 @@ def _in_order(batch: dict[str, Any]) -> list[dict[str, Any]]:
     return [c for c in [*first, *rest] if c["pr"]]
 
 
-def answer(reads: ForgeReads, key: str, state: dict[str, Any]) -> dict[str, Any]:
+def answer(
+    reads: ForgeReads, key: str, state: dict[str, Any], repo: Repo | None = None
+) -> dict[str, Any]:
     """The page's answer for a project whose record is `state`. With no batch, or no PR yet, the
-    forge is not asked."""
+    forge is not asked. With a `repo`, a merge the forge shows and the record does not is left as
+    one line in `board-seen.jsonl` (the only write)."""
     batch = state["batch"]
     out: dict[str, Any] = {
         "batch": batch["id"] if batch else None,
@@ -172,10 +179,14 @@ def answer(reads: ForgeReads, key: str, state: dict[str, Any]) -> dict[str, Any]
     withpr = _in_order(batch) if batch else []
     if not withpr:
         return out
-    forge, out["read_at"], out["error"] = reads.get(key, [c["pr"] for c in withpr], forge_read.read)
+    forge, out["read_at"], out["error"], fresh = reads.get(
+        key, [c["pr"] for c in withpr], forge_read.read
+    )
     branches = {c["branch"]: c["cr"] for c in batch["crs"] if c["branch"]}
     found = [(c, _number(c["pr"])) for c in withpr]
     rows = [row_of(c, forge[n], n, branches) for c, n in found if n in forge]
     out["rows"] = rows
+    if repo is not None and fresh and not out["error"]:
+        seen.signal(repo, batch["id"], rows)
     out["all_done"] = len(rows) == len(withpr) and all(r["state"] in DONE for r in rows)
     return out

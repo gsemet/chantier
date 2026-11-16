@@ -98,7 +98,11 @@ chantier is four things in one repository:
    never edits a batch and never messages an agent, one named exception, its PRs page: when that
    page asks, at most once every 10 s per project, while a PR of the batch is not done, plus one
    read when the page opens, it reads the forge, read-only, with the user's own `gh` or `glab`, on
-   its own (no agent asks it), and needs the network for that; takes its dependencies like the
+   its own (no agent asks it), and needs the network for that, and a second, from the same page:
+   when its forge read finds a PR merged that the record does not hold, it appends one line to
+   `board-seen.jsonl` (planning folder, never published), which `status` prints for the Chief of
+   Staff to record at its next `status`; the board itself records nothing and messages no agent;
+   takes its dependencies like the
    rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
    build step). It is also the CLI's one git exception: while it runs it joins the planning
    surface's own autosync group, which commits and pushes its writes; it commits nothing itself.

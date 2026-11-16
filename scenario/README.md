@@ -271,8 +271,14 @@ does a unit that is not in `UNITS` and a test that does not exist.
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose
   checks the forge has not computed (`being checked`, never `none`) told apart; every PR merged or
-  closed is `all_done`, a CR added after brings a new row; the folder and its git status unchanged
-  and no call but `api graphql` queries (unit: surface-board);
+  closed is `all_done`, a CR added after brings a new row; the folder (but `board-seen.jsonl`) and
+  its git status unchanged and no call but `api graphql` queries (unit: surface-board);
+- the merge the board signals (CR-303): the read that sees a PR merged on the fake forge and not
+  in the record leaves one line in `board-seen.jsonl` (once, ignored by git, the only file the
+  page writes); `status` prints `board saw merged: <cr> <pr> into <branch> at <time>; for the
+  Chief of Staff: order merged <cr>`, and so does the Foreman's heartbeat form (`status --refresh
+  --batch --epoch`) with the batch's orders unchanged; after `order merged` the line no longer
+  prints (unit: surface-board);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

@@ -1467,14 +1467,28 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
         code, _, got = jget(port, link, path)
         return got, ({r["cr"]: r for r in got.get("rows", [])} if code == 200 else {})
 
+    def kept() -> dict:
+        """The planning folder, but for the one file a read may write (CR-303's signal)."""
+        return {k: v for k, v in folder_state(w.state).items() if k != "board-seen.jsonl"}
+
     def untouched(note: str, then) -> tuple[dict, dict]:
-        folder = folder_state(w.state)
+        folder = kept()
         porcelain = w.sh("git", "status", "--porcelain", "--", ".agents/changes")
         found = then()
-        check(f"{note}: nothing was written in the planning folder, nor its git status",
-              folder_state(w.state) == folder
+        check(f"{note}: nothing was written in the planning folder but `board-seen.jsonl`, nor "
+              "its git status",
+              kept() == folder
               and w.sh("git", "status", "--porcelain", "--", ".agents/changes") == porcelain)
         return found
+
+    def seen_entries() -> list[dict]:
+        path = w.state / "board-seen.jsonl"
+        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                if path.is_file() else [])
+
+    def signal_lines(*args) -> list[str]:
+        w.chantier(*args, expect=None)
+        return [x for x in w.last_out if x.startswith("board saw merged")]
 
     record_pr(w, two, url(902))
     record_pr(w, three, url(903))
@@ -1507,7 +1521,25 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
           by[three]["conflicting"] and by[three]["checks"] == "failing"
           and by[four]["state"] == "draft" and by[four]["checking"] is True
           and by[four]["checks"] != "none", str((by[three], by[four])))
+    wanted = (f"board saw merged: {one} {shown} into main at 2026-11-16T10:00:00Z; "
+              f"for the Chief of Staff: order merged {one}")
+    check("the merge the board saw is one line of `board-seen.jsonl`, once, never published",
+          [(e["cr"], e["pr"], e["into"], e["into_cr"], e["merged_at"]) for e in seen_entries()]
+          == [(one, shown, "main", None, "2026-11-16T10:00:00Z")]
+          and w.sh("git", "check-ignore", ".agents/changes/board-seen.jsonl").strip() != "",
+          str(seen_entries()))
+    rows()
+    check("a second read of the same merge writes no second line", len(seen_entries()) == 1)
+    check("`status` prints the `board saw merged` line for the Chief of Staff",
+          signal_lines("status") == [wanted], str(w.last_out))
+    orders = w.batch()["orders"]
+    check("the Foreman's heartbeat `status --refresh --batch --epoch` prints it too and the "
+          "batch's orders are unchanged",
+          signal_lines("status", "--refresh", "--batch", w.batch()["id"], "--epoch", 1) == [wanted]
+          and w.batch()["orders"] == orders, str(w.last_out))
     code, _ = w.chantier("order", "merged", one, "--epoch", 1, expect=None)
+    check("`status` no longer prints the line once the merge is recorded, the file untouched",
+          code == 0 and signal_lines("status") == [] and len(seen_entries()) == 1, str(w.last_out))
     got, by = rows()
     check("`order merged` makes the disagreement go", code == 0 and by[one]["disagrees"] is None
           and by[one]["state"] == "merged", f"{code} {by.get(one)}")

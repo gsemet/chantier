@@ -7,23 +7,21 @@ own failures are tried with `subprocess.run` replaced."""
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from batch_helpers import changes, open_batch, record, write_record
 from conftest import Chantier
 
-from chantier.board import forge_read, prs, routes
+from chantier.board import fingerprint, forge_read, journal, prs, routes
 from chantier.board.context import Context, Request
 from chantier.board.key import KeyFile, key_path, load_or_create
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.commands.forge_stack_shared import NOT_ONE_REPOSITORY
+from chantier.core import files
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
 
@@ -140,7 +138,9 @@ def test_the_four_crs_are_read_in_one_call_and_judged_against_the_record(board: 
         "cr": a,
     }
     assert rows[d]["disagrees"] == prs.MERGED_NOT_RECORDED
-    assert board.planning() == before  # a read writes nothing
+    after = board.planning()  # a read writes nothing but the signal of the merge it sees
+    assert {k: v for k, v in after.items() if not k.endswith("board-seen.jsonl")} == before
+    assert sum(k.endswith("board-seen.jsonl") for k in after) == 1
 
 
 def test_a_paused_batch_is_read_as_a_running_one(board: Board) -> None:
@@ -215,137 +215,118 @@ def test_all_done_is_every_pr_merged_or_closed(board: Board, states: list[str], 
     assert board.get()[1]["all_done"] is done
 
 
-GH_NODE = {
-    "state": "OPEN",
-    "isDraft": False,
-    "mergeable": "MERGEABLE",
-    "baseRefName": "main",
-    "mergedAt": None,
-    "closedAt": None,
-}
+SEEN = "board-seen.jsonl"
+MERGED_AT = "2026-11-16T10:00:00Z"
 
 
-def rollup(state: str | None, total: int = 1) -> dict[str, Any]:
-    found = {"state": state, "contexts": {"totalCount": total}} if state else None
-    return {"commits": {"nodes": [{"commit": {"statusCheckRollup": found}}]}}
+def seen_lines(board: Board) -> list[dict[str, Any]]:
+    path = changes(board.repo) / SEEN
+    return [json.loads(x) for x in path.read_text("utf-8").splitlines()] if path.is_file() else []
 
 
-@pytest.mark.parametrize(
-    ("node", "workflows", "checking", "checks", "ready"),
-    [
-        ({**rollup("SUCCESS")}, True, False, "green", True),
-        (
-            {**rollup(None)},
-            True,
-            True,
-            "running",
-            False,
-        ),  # checks not started, a repo that has them
-        ({**rollup(None)}, False, False, "none", True),  # the forge says the repository has none
-        ({**rollup("SUCCESS", 0)}, False, False, "none", True),
-        ({**rollup("SUCCESS", 0)}, True, True, "running", False),
-        ({**rollup("PENDING")}, True, False, "running", False),
-        ({**rollup("FAILURE")}, True, False, "failing", False),
-        ({**rollup("SUCCESS"), "mergeable": "UNKNOWN"}, True, True, "green", False),
-        ({**rollup("SUCCESS"), "mergeable": "CONFLICTING"}, True, False, "green", False),
-        ({**rollup("SUCCESS"), "isDraft": True}, True, False, "green", False),
-        ({**rollup(None), "state": "MERGED"}, True, False, "none", False),  # done: never running
-        ({**rollup(None), "state": "CLOSED"}, True, False, "none", False),
-        (
-            {"commits": None},
-            True,
-            True,
-            "running",
-            False,
-        ),  # a read that cannot tell is never "none"
-    ],
-)
-def test_github_checks_not_started_are_being_checked_and_none_needs_the_forge_to_say_so(
-    node: dict[str, Any], workflows: bool, checking: bool, checks: str, ready: bool
+def status_lines(chantier: Chantier, form: str, batch: str) -> list[str]:
+    args = ("status",) if form == "direct" else ("status", "--refresh", "--batch", batch)
+    code, out, err = chantier(*args, *(() if form == "direct" else ("--epoch", 1)))
+    # a wake that cannot read the spend (no transcripts here) still prints the batch's lines
+    assert code == 0 or form == "heartbeat", err
+    return [x for x in out if x.startswith(("board saw merged", SEEN))]
+
+
+@pytest.mark.parametrize(("base", "into_cr"), [("main", None), ("chantier/b/cr-0", 0)])
+def test_a_merge_the_record_lacks_is_signalled_once_and_a_cached_read_writes_nothing(
+    board: Board, base: str, into_cr: int | None
 ) -> None:
-    found = forge_read.github_state({**GH_NODE, **node}, workflows)
-    assert (found["checking"], found["checks"]) == (checking, checks)
-    assert prs.ready_now({"to_review": True, "state": "ready"}, found) is ready
+    into = board.ids[into_cr] if into_cr is not None else None
+    board.forge = {FIRST + 1: {"state": "merged", "base": base, "merged_at": MERGED_AT}}
+    board.get()
+    (first,) = seen_lines(board)
+    assert {k: v for k, v in first.items() if k != "t"} == {
+        "kind": "merged",
+        "batch": record(board.repo)["id"],
+        "cr": board.ids[1],
+        "pr": LINK.format(FIRST + 1),
+        "into": base,
+        "into_cr": into,
+        "merged_at": MERGED_AT,
+    }
+    (changes(board.repo) / SEEN).unlink()
+    board.now = 5.0
+    board.get()  # a cached read writes nothing, even where the line is missing
+    assert seen_lines(board) == []
+    board.now, board.failure = 20.0, None
+    board.get()
+    board.now = 40.0
+    board.get()  # the same merge, read again: no second line
+    assert [{k: v for k, v in x.items() if k != "t"} for x in seen_lines(board)] == [
+        {k: v for k, v in first.items() if k != "t"}
+    ]
 
 
-@pytest.mark.parametrize(
-    ("node", "checking", "checks", "state"),
-    [
-        (
-            {"headPipeline": {"status": "SUCCESS"}, "detailedMergeStatus": "MERGEABLE"},
-            False,
-            "green",
-            "open",
-        ),
-        ({"headPipeline": None, "detailedMergeStatus": "MERGEABLE"}, True, "running", "open"),
-        (
-            {"headPipeline": {"status": "SUCCESS"}, "detailedMergeStatus": "CHECKING"},
-            True,
-            "green",
-            "open",
-        ),
-        ({"headPipeline": {"status": "FAILED"}, "draft": True}, False, "failing", "draft"),
-        ({"state": "merged", "headPipeline": None}, False, "none", "merged"),
-    ],
-)
-def test_gitlab_reads_the_same_words_and_never_says_none_for_an_open_mr_it_cannot_tell(
-    node: dict[str, Any], checking: bool, checks: str, state: str
+@pytest.mark.parametrize("case", ["closed", "open", "recorded"])
+def test_only_a_merge_the_record_lacks_is_signalled(board: Board, case: str) -> None:
+    if case == "recorded":
+        data = record(board.repo)
+        data["crs"][0]["status"] = "merged"
+        write_record(board.repo, data)
+    board.forge = {FIRST: {"state": "merged" if case == "recorded" else case}}
+    board.get()
+    assert seen_lines(board) == []
+
+
+@pytest.mark.parametrize("form", ["direct", "heartbeat"])
+def test_status_prints_the_signal_until_the_merge_is_recorded(
+    board: Board, chantier: Chantier, form: str
 ) -> None:
-    found = forge_read.gitlab_state({"state": "opened", "targetBranch": "main", **node})
-    assert (found["state"], found["checking"], found["checks"]) == (state, checking, checks)
+    cr = board.ids[0]
+    batch = record(board.repo)["id"]
+    board.forge = {FIRST: {"state": "merged", "merged_at": MERGED_AT}}
+    board.get()
+    assert status_lines(chantier, form, batch) == [
+        f"board saw merged: {cr} {LINK.format(FIRST)} into main at {MERGED_AT}; "
+        f"for the Chief of Staff: order merged {cr}"
+    ]
+    assert chantier("order", "merged", cr, "--epoch", 1)[0] == 0
+    assert status_lines(chantier, form, batch) == []
 
 
-def test_the_forge_argv_is_a_read_and_its_variables_are_not_in_the_query() -> None:
-    for gitlab in (False, True):
-        call = forge_read.argv("h.example", "own'er", 'na"me', [3, 12], gitlab)
-        query = next(a for a in call if a.startswith("query=")).lower()
-        assert call[:3] == ["api", "--hostname", "h.example"] and call[3] == "graphql"
-        assert query.startswith("query=query") and "mutation" not in query
-        assert not {"-X", "--method", "POST", "PATCH", "PUT", "DELETE"} & set(call)
-        assert "own'er" not in query and 'na"me' not in query
-
-
-def test_the_batch_must_sit_in_one_repository_and_nothing_is_read_otherwise(
-    monkeypatch: pytest.MonkeyPatch,
+def test_status_names_what_it_cannot_read_and_prints_only_the_open_crs_of_its_batch(
+    board: Board, chantier: Chantier
 ) -> None:
-    def never(*a: object, **k: object) -> None:
-        raise AssertionError("the forge was called")
+    a, b, c, d = board.ids
+    batch = record(board.repo)["id"]
+    data = record(board.repo)
+    data["crs"][1]["status"] = "cancelled"
+    write_record(board.repo, data)
 
-    monkeypatch.setattr(forge_read, "run", never)
-    with pytest.raises(ChantierError, match=NOT_ONE_REPOSITORY):
-        forge_read.read([LINK.format(1), "https://github.com/acme/other/pull/2"])
+    def entry(cr: str, **more: Any) -> str:
+        found = {"kind": "merged", "batch": batch, "cr": cr, "pr": "P", "into": "main"}
+        return json.dumps({**found, "into_cr": None, "merged_at": "t", **more})
+
+    lines = [
+        "not json",
+        entry(a, batch="batch-old"),
+        entry(b),
+        entry(c, into="chantier/b/cr-0", into_cr=a),
+        entry(c, into="chantier/b/cr-0", into_cr=a),
+    ]
+    (changes(board.repo) / SEEN).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert status_lines(chantier, "direct", batch) == [
+        f"{SEEN}: line 1 unreadable",
+        f"board saw merged: {c} P into {a}'s branch at t; for the Chief of Staff: not landed, "
+        f"tell the user, record nothing until {a} lands",
+    ]
+    assert d not in "".join(status_lines(chantier, "direct", batch))
 
 
-@pytest.mark.parametrize(
-    ("ran", "text"),
-    [
-        (None, "gh: not found on PATH"),
-        (subprocess.TimeoutExpired("gh", 20), "no answer in"),
-        (
-            SimpleNamespace(returncode=1, stdout="", stderr="HTTP 401\nbad  credentials"),
-            "HTTP 401 bad credentials",
-        ),
-        (SimpleNamespace(returncode=0, stdout="<html>", stderr=""), "not JSON"),
-        (
-            SimpleNamespace(
-                returncode=0, stdout='{"errors": [{"message": "no such PR"}]}', stderr=""
-            ),
-            "no such PR",
-        ),
-    ],
-)
-def test_the_runner_turns_every_failure_into_one_line(
-    monkeypatch: pytest.MonkeyPatch, ran: Any, text: str
+def test_the_signal_file_is_local_counted_by_no_one_and_moves_the_fingerprint(
+    board: Board,
 ) -> None:
-    monkeypatch.setattr(shutil, "which", lambda name: None if ran is None else "/bin/gh")
-
-    def run(*a: object, **k: object) -> Any:
-        if isinstance(ran, Exception):
-            raise ran
-        return ran
-
-    monkeypatch.setattr(subprocess, "run", run)
-    with pytest.raises(ChantierError) as raised:
-        forge_read.read([LINK.format(5)])
-    assert text in str(raised.value) and "\n" not in str(raised.value)
-    assert "query" not in str(raised.value)
+    repo = Repo.find(readonly=True)
+    root = changes(board.repo)
+    before = fingerprint.fingerprint(root)
+    board.forge = {FIRST: {"state": "merged"}}
+    board.get()
+    assert (root / SEEN).is_file() and fingerprint.fingerprint(root) != before
+    assert SEEN in files.IGNORED and SEEN in fingerprint.SINGLE
+    journal.rescan(repo)
+    assert (root / SEEN).is_file() and journal.since_rescan(root) == []

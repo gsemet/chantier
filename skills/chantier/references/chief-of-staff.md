@@ -27,7 +27,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
-| add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
+| add, drop, reorder, change a CR; "I merged #42", a `board saw merged` line in `status`; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
 | "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
@@ -1022,7 +1022,12 @@ CR-222 → CR-225 → CR-226 → CR-228."
   after its `ready-to-merge` line (or the `stack-ready-to-merge` line for a stack) has reached you, never on a
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
   its `ready-to-merge` line, record it as any merge (`order merged <cr>`: the user's merge is a fact) and
-  tell the Foreman in the same message; no reproach, no question.
+  tell the Foreman in the same message; no reproach, no question. A `board saw merged: <cr> …`
+  line in `status` is a merge the user made: record it like any merge, at the `status` that shows
+  it (`order merged <cr>`, then, in Foreman mode, send its line to the Foreman as for any order).
+  A line that says `into <other cr>'s branch` is not a merge to record: do not run `order merged`;
+  tell the user where the PR went (into `<other cr>`'s PR, not the default branch) and wait until
+  the PR under it lands; the line keeps printing until the CR is recorded merged.
 - **A series batch:** the CRs merge one by one, in order. On each `ready-to-merge` ask, tell the user which
   PR is next to merge (the bottom one, ready to merge on the default branch) and that the others are drafts
   waiting on it; quote each gap of the ask as above; when the user says it is merged,
