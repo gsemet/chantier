@@ -159,8 +159,12 @@ The same keys go under `hosts: copilot: roles:` for Copilot. A role is one of th
 what each role runs (the exact agent and model to pass, "Starting an agent" in
 [concepts](concepts.md)), or says there is no `chantier.yaml`; an invalid layer exits 2 with each
 problem and its line, and preflight's P12 fails: show the user the lines, never fix the file
-yourself. A host that cannot set a model when it starts an agent refuses a `model` (its
-reference, row "Models"): say so and offer the user's own agent that names the model. The
+yourself. A role starts one of four ways: the plugin's agent (nothing set); the user's own
+agent (`agent`); the plugin's agent with a model (`model`), where the host starts a named agent
+with a model (Claude Code), else a generic agent with the role's contract in its prompt; the user's
+own agent with a model, which Copilot refuses (its reference, row "Models at an agent's start"):
+say so and offer to name the model in the agent's own file. A role started generic runs with the
+caller's tools, not restricted: tell the user when you show the team. The
 `chantier` section of `AGENTS.md` keeps the extra review steps (any other name is a review step
 the CR Driver runs after the Inspector), the release pointer and the `planning:` line; when it
 still names an agent for a role, tell the user and offer to move it to `hosts.<host>.roles` in `chantier.yaml`. A running

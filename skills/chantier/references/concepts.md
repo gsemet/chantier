@@ -404,6 +404,10 @@ models the built-in table lacks, read by the CLI only when it prices, and `ci:` 
   reads a model name and works out which model it is: the CLI resolved it. No model printed: no
   model is passed and the agent file's model runs. Never an effort. The tool's parameter that
   takes the model is in the host's reference.
+- `agent=(generic)` printed: start the host's generic agent (the host reference's row "Start a
+  generic agent"), pass the model as printed, and put the printed contract lines after the opening
+  lines. Its tools are the caller's, not restricted; the card bounds what it does. A parent never
+  chooses it, it only follows what the CLI prints.
 - Who reads what: the Chief of Staff, for its own subagents (the Spec-writer, the Spec critic, the Demo
   explorer), `$CHANTIER playbook`; the Foreman (the Chief of Staff in direct mode), for a Driver,
   `$CHANTIER playbook --batch <batch>`; a Driver, for a worker, the `team:` lines of `take`,

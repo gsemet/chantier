@@ -156,7 +156,8 @@ def test_a_model_equal_to_its_agents_is_not_passed_unless_the_agent_is_set_too(
     )
     code, out, err = chantier("playbook", "--host", "copilot")  # with an agent: passed, refused
     assert code == EXIT_PRECONDITION
-    assert "chantier.yaml:5:" in err + "".join(out) and "cannot set a model" in err + "".join(out)
+    assert "chantier.yaml:5:" in err + "".join(out)
+    assert "cannot start a named agent with a model" in err + "".join(out)
     yaml.write_text(HEAD + A + "model: sonnet\n" + A + "agent: mine\n", encoding="utf-8")
     code, out, err = chantier("playbook")  # on Claude the model is passed beside the agent
     model = "sonnet (claude-sonnet-5-5, Claude Sonnet 5.5) [repository]"
@@ -177,7 +178,7 @@ def test_a_batch_opened_in_a_surface_keeps_its_configuration_when_a_surface_file
     saved = json.loads(next((surface.project / "changes").rglob("batch.json")).read_text("utf-8"))
     frozen = saved["playbook"]
     assert frozen["files"] == ["chantier.yaml"] and frozen["layers"]["ci"] == "surface"
-    assert frozen["roles"] == {"cr-driver": {"agent": "my-driver"}}
+    assert frozen["roles"] == {"cr-driver": {"agent": "my-driver", "start": "named"}}
     assert "prices" not in frozen and "price_layers" not in frozen
     root_file.write_text(HEAD + A + "agent: other-coder\n", encoding="utf-8")
     code, out, err = chantier("playbook", "--batch", saved["id"])

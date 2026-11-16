@@ -21,6 +21,7 @@ from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
+from chantier.plugin_files import read_playbook
 from chantier.rails import not_priced
 
 Line = tuple[
@@ -92,9 +93,33 @@ def _line_text(line: Line, mills: int, share: str | None, context: dict[str, str
     )
 
 
-def _explain_notes(rows: list[dict[str, Any]]) -> list[str]:
+GRILL_ROLES = ("spec-writer", "spec-critic")
+
+
+def _grill_notes(repo: Repo, host: str) -> list[str]:
+    """A Spec-writer or Spec critic the configuration read now starts as a generic agent, or as
+    the user's own agent, is not found by its agent type: say its spend is not on the grill line.
+    An invalid configuration gives no note (`playbook` and `preflight` report it)."""
+    made, problems = read_playbook(repo, host)
+    roles = {} if problems or not made else made.get("roles", {})
+    out = []
+    for role in GRILL_ROLES:
+        rec = roles.get(role, {})
+        if rec.get("start") == "generic" or (rec.get("start") == "named" and rec.get("agent")):
+            who = (
+                "a generic agent" if rec.get("start") == "generic" else f"your agent {rec['agent']}"
+            )
+            out.append(
+                f"Grill line: {role} starts as {who}, so its spend is counted with the Chief of "
+                "Staff's steering, not on the grill line"
+            )
+    return out
+
+
+def _explain_notes(rows: list[dict[str, Any]], repo: Repo, host: str) -> list[str]:
     n = sum(r.get("compactions", 0) for r in rows)
     return [
+        *_grill_notes(repo, host),
         EXPIRY_NOTE
         if all("models" in r for r in rows)
         else "Cache expiry: not measured on this host",
@@ -147,5 +172,5 @@ def cost(args: argparse.Namespace) -> list[str]:
     out += hints(sorted(un))
     out += chief
     if args.explain:
-        out += _explain_notes(rows)
+        out += _explain_notes(rows, repo, d.host)
     return list(dict.fromkeys(out))  # a model the Chief of Staff shares gets one hint

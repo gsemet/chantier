@@ -57,6 +57,24 @@ every layer: move it under `hosts.<host>.roles`.
 
 `skills` and `tools` list what the role needs, which preflight checks; they restrict nothing.
 
+### How a role starts
+
+A role starts one of four ways, from its `agent` and `model` (a model equal to the role's default
+counts as none):
+
+| You set | Claude Code | Copilot |
+| --- | --- | --- |
+| nothing | the plugin's agent, its file's model | the same |
+| `agent` only | your agent, its file's model | the same |
+| `model` only | the plugin's agent, with that model, its own tools | a generic agent with the role's contract in its prompt and that model |
+| `agent` and `model` | your agent, with that model | refused, with the reason: name the model in your agent's own file |
+
+A generic agent has the caller's tools, not restricted (`chantier playbook` says so); a role's tools
+change only by naming your own agent. Copilot starts a named agent with a model only once its eval
+probe shows it does (`evals/copilot/RUNBOOK.md`, "Models"). A Spec-writer or Spec critic started
+generic, or as your own agent, is counted with the Chief of Staff's steering, not on the grill line
+of `chantier cost` (`cost --explain` says so).
+
 ### The file's keys
 
 The file's other keys are `prices`, `board` (where [the web board](web-board.md) listens: `host`
@@ -71,9 +89,7 @@ identifier the CLI reference does not list is derived by that rule, unproved unt
 (for example `claude-opus-4.8-(fast-mode)`, likely not what Copilot takes,
 [copilot-session-usage#67](https://github.com/gsemet/copilot-session-usage/issues/67)). A short
 name such as `opus` can match several Copilot models and is then refused as ambiguous, with the
-matching identifiers: write the identifier. A host that cannot set a
-model when it starts an agent refuses a
-`model`. A required skill the Chief of Staff's session lacks is warned about, and the role works
+matching identifiers: write the identifier. A required skill the Chief of Staff's session lacks is warned about, and the role works
 without it. The role's contract is its card in the skill, so your agent only needs the tools the
 role uses. Extra review steps stay in a `chantier` section of your `AGENTS.md`:
 
@@ -107,8 +123,10 @@ agent file's.
 
 By default every role but the Spec-writer and the Spec critic runs Sonnet 5.5 on Claude Code. The roles that judge
 keep cards with goals and boundaries, not procedures. On a named trouble a task goes to a new
-agent on the escalation model (Opus 5.5 by default), and the report says so. On Copilot the models
-are its agent files' models: they set `model-policy: required`, so the file's model wins over a model
+agent on the escalation model (Opus 5.5 by default), and the report says so. On Copilot the agent files' models run when no
+model is passed; a model you set starts a generic agent until Copilot is proved to start a named
+agent with a model (the eval's probe). The agent files set `model-policy: required`, except the
+Coder's, which leaves it out for that probe: with the policy, the file's model wins over a model
 passed at the start
 ([CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#command-line-options));
 seen in the Copilot App in CR-296 (a Coder started with GPT-6.1 Sol ran on its file's GPT-5.6

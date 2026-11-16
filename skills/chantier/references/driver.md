@@ -61,7 +61,8 @@ defer the rest of this card until an action names it. These are the card's defau
   then the agent and the prompt of
   [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
   the role, and the worker's agent and model as the `team:` lines print them, passed as
-  printed (no model printed: none passed). Read those lines with `$CHANTIER handoff <cr>`, which
+  printed (no model printed: none passed; `agent=(generic)`: the generic agent with the printed
+  contract lines, concepts, "Starting an agent"). Read those lines with `$CHANTIER handoff <cr>`, which
   prints them and counts nothing, or keep the ones `take` printed in your prompt; `round` is run
   only to start a round, just before that round's Coder, never to read facts. A worker refused for its first line, or ended by a host failure, gets
   one new start of the same role with the same brief (a worker refused because its prompt names
