@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
+
+from chantier.playbook.copilot_catalog import CATALOG_FILE, normalise
 
 
 @dataclass(frozen=True)
@@ -14,22 +18,31 @@ class Model:
     start: str  # the value a start of an agent takes on this host
 
 
-# Seeded from the plugin's agent files (a test checks they cannot drift). A new role model reaches
-# the table by a release; a new model's price does not need one: a project sets it under `prices:`
-# in `chantier.yaml`, above the built-in `costs.PRICE`.
+def copilot_catalog() -> list[dict[str, Any]]:
+    """The Copilot models of `copilot-models.json`, with their status, clients and plans."""
+    try:
+        text = CATALOG_FILE.read_text(encoding="utf-8")
+        models: list[dict[str, Any]] = json.loads(text)["models"]
+    except (OSError, ValueError, KeyError) as error:
+        message = f"{CATALOG_FILE}: the Copilot model catalog is unreadable: {error}"
+        raise ImportError(message) from error
+    return models
+
+
+# Where each host's list comes from. Claude's: the plugin's agent files, by hand (a test checks
+# they cannot drift); a new role model reaches the table by a release, and a new model's price does
+# not need one: a project sets it under `prices:` in `chantier.yaml`, above the built-in
+# `costs.PRICE`. Copilot's: `copilot-models.json`, built by `just copilot-models` from GitHub's
+# tables (`github/docs`, `data/tables/copilot/`) and the Copilot CLI reference's "Supported
+# models", never edited by hand. An identifier with `in_cli_reference: false` there is derived by
+# the rule, unproved until the runtime's `listModels()`.
 MODELS = {
     "claude": (
         Model("claude-opus-5-5", "Claude Opus 5.5", "opus"),
         Model("claude-sonnet-5-5", "Claude Sonnet 5.5", "sonnet"),
         Model("claude-haiku-5-5", "Claude Haiku 5.5", "haiku"),
     ),
-    "copilot": (
-        Model("claude-opus-5.5", "Claude Opus 5.5", ""),
-        Model("claude-sonnet-5.5", "Claude Sonnet 5.5", ""),
-        Model("gpt-5.6-luna", "GPT-5.6 Luna", ""),
-        Model("gpt-6.1-sol", "GPT-6.1 Sol", ""),
-        Model("gpt-6.1-terra", "GPT-6.1 Terra", ""),
-    ),
+    "copilot": tuple(Model(m["id"], m["name"], "") for m in copilot_catalog()),
 }
 
 
@@ -41,11 +54,6 @@ SETS_MODEL_AT_START = {"claude": True, "copilot": False}
 # The model an escalated task starts on (concepts.md, "Escalation"): one per host, the same for
 # every role, kept next to MODELS so a release changes both. None where a start sets no model.
 ESCALATION = {"claude": "claude-opus-5-5", "copilot": None}
-
-
-def normalise(name: str) -> str:
-    """Lower case; every run of characters other than letters and digits becomes one `-`."""
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 def _shown(models: Iterable[Model]) -> str:

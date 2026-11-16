@@ -29,7 +29,15 @@ The file's other keys are `prices`, `board` (where [the web board](web-board.md)
 and `port`), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
 minutes on every approved round, off by default) and `long_gate` (how many long gates may run at once, [your gates](gates.md)). Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier
-(`chantier playbook` shows the result); the agents pass it as printed. A host that cannot set a
+(`chantier playbook` shows the result); the agents pass it as printed. On Copilot the names it
+knows are GitHub's own tables (`github/docs`, refreshed by `just copilot-models`): the identifier is
+the display name with each footnote marker (`[^...]`) and `(preview)` dropped, every other
+parenthetical kept, in lower case, each run of spaces made one `-`, dots kept, ends trimmed. An
+identifier the CLI reference does not list is derived by that rule, unproved until `listModels()`
+(for example `claude-opus-4.8-(fast-mode)`, likely not what Copilot takes,
+[copilot-session-usage#67](https://github.com/gsemet/copilot-session-usage/issues/67)). A short
+name such as `opus` can match several Copilot models and is then refused as ambiguous, with the
+matching identifiers: write the identifier. A host that cannot set a
 model when it starts an agent refuses a
 `model`. A required skill the Chief of Staff's session lacks is warned about, and the role works
 without it. The role's contract is its card in the skill, so your agent only needs the tools the
