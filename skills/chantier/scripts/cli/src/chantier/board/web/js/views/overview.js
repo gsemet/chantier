@@ -1,4 +1,4 @@
-// The Overview view (All projects): one line per project of the planning surface, a table on a
+// The Overview view (the surface): one line per project of the planning surface, a table on a
 // desktop and cards on a phone. A click on a line opens the project; a CR link opens its PR only.
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
@@ -6,7 +6,7 @@ import { delegate, html } from '../core/dom.js';
 import { age, safeUrl, usd } from '../core/format.js';
 import { t } from '../model/words.js';
 import { empty, live, mark, meter } from '../ui/parts.js';
-import { projectsOf } from '../ui/picker.js';
+import { pathsOf, projectsOf } from '../ui/picker.js';
 
 const none = '—';
 
@@ -43,7 +43,7 @@ const dataOf = (p, now) => {
 };
 
 const row = (p, now) =>
-  html`<tr data-project="${p.id}" tabindex="0" data-key="row-${p.id}"><td class="who">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}</td><td>${batchOf(p)}</td><td class="num">${workingOf(p)}</td><td>${p.to_review.length ? p.to_review.map(prLink) : none}</td><td>${progressOf(p)}</td><td class="num">${spentOf(p)}</td><td class="num">${p.inbox} · ${p.backlog}</td><td class="mut">${dataOf(p, now)}</td></tr>`;
+  html`<tr data-project="${p.id}" tabindex="0" data-key="row-${p.id}"><td class="who">${mark(p.id)}<div class="wtx"><div class="wnm"><b>${p.id}</b>${p.running ? live() : ''}</div>${pathsOf(p)}</div></td><td>${batchOf(p)}</td><td class="num">${workingOf(p)}</td><td>${p.to_review.length ? p.to_review.map(prLink) : none}</td><td>${progressOf(p)}</td><td class="num">${spentOf(p)}</td><td class="num">${p.inbox} · ${p.backlog}</td><td class="mut">${dataOf(p, now)}</td></tr>`;
 
 const head = ['project', 'batch', 'working', 'review', 'progress', 'spent', 'intake', 'data'].map(
   (k) =>
@@ -67,7 +67,7 @@ const sums = (p) => [
 ];
 
 const card = (p) =>
-  html`<div class="apc ${tintOf(p)}" data-project="${p.id}" tabindex="0" data-key="card-${p.id}"><div class="apt">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}<span class="mut">${p.batch ? p.batch.id : t('project.no_batch')}</span></div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div></div>`;
+  html`<div class="apc ${tintOf(p)}" data-project="${p.id}" tabindex="0" data-key="card-${p.id}"><div class="apt">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}<span class="mut">${p.batch ? p.batch.id : t('project.no_batch')}</span></div><div class="apth">${pathsOf(p)}</div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div></div>`;
 
 export function render(state) {
   const projects = projectsOf(state);

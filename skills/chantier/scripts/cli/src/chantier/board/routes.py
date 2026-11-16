@@ -12,7 +12,7 @@ from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
 from chantier.board.reply import Reply, as_json, matches, text
-from chantier.board.state import project_line, project_state
+from chantier.board.state import project_line, project_paths, project_state
 from chantier.core import clock
 from chantier.core.errors import ChantierError
 
@@ -53,7 +53,10 @@ def _unknown() -> Reply:
 
 def board(ctx: Context, req: Request) -> Reply:
     ctx.projects.refresh()
-    lines = [project_line(p.id, _state_of(ctx, p, ask=False)[0]) for p in ctx.projects.all()]
+    lines = [
+        {**project_line(p.id, _state_of(ctx, p, ask=False)[0]), **project_paths(p.repo)}
+        for p in ctx.projects.all()
+    ]
     return as_json(
         {
             "board": True,

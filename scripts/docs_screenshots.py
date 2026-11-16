@@ -23,13 +23,14 @@ import tempfile
 import time
 from pathlib import Path
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, Route, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 DEMO = ROOT / "docs" / "demo"
 OUT = ROOT / "docs" / "web-board"
 CLOCK = "2026-06-18T10:30:00Z"
 SIZES = {"pc": {"width": 1400, "height": 860}, "phone": {"width": 375, "height": 812}}
+SURFACE_SHOWN = "/home/demo/planning-surface"  # the surface's name and path in the pictures
 INCIDENT = "staged-0123456789abcdef0123"
 
 
@@ -129,6 +130,16 @@ def shot(page: Page, name: str, size: str) -> None:
     print(f"wrote docs/web-board/{name}-{size}.png")
 
 
+def fix_surface_path(route: Route) -> None:
+    """The board shows the surface's path, a temporary folder of this machine: the pictures show
+    this made-up path instead, the same on every run and revealing nothing of the machine. Only
+    `served` of the board's answer is replaced; the projects' paths are the demo's own."""
+    response = route.fetch()
+    body = response.json()
+    body["served"] = SURFACE_SHOWN
+    route.fulfill(response=response, json=body)
+
+
 def capture(url: str) -> None:
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
@@ -140,6 +151,7 @@ def capture(url: str) -> None:
                     is_mobile=size == "phone", has_touch=size == "phone",
                 )
                 ctx.clock.set_fixed_time("2026-06-18T10:30:00Z")
+                ctx.route("**/api/board*", fix_surface_path)
                 page = ctx.new_page()
                 views(page, url, size)
                 ctx.close()

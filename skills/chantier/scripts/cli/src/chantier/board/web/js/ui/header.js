@@ -4,12 +4,12 @@ import { ALL } from '../core/router.js';
 import { grillItems, handedCrs, inboxItems, progressCrs } from '../model/columns.js';
 import { t, tn } from '../model/words.js';
 import { entry } from '../views/registry.js';
-import { projectsOf } from './picker.js';
+import { projectsOf, surfaceName } from './picker.js';
 
 const figure = (n, word) => html`<span><b>${n}</b> ${t(word)}</span>`;
 const counted = (n, word) => html`<span><b>${n}</b> ${tn(word, n)}</span>`;
 
-// The figures of the whole surface, on All projects.
+// The figures of the whole surface, on the overview.
 function overall(state) {
   const projects = projectsOf(state);
   const sum = (pick) => projects.reduce((n, p) => n + pick(p), 0);
@@ -51,6 +51,7 @@ export function stats(state) {
   return state.data ? of(state.data) : t('stats.loading');
 }
 
-export const title = (state) => t(state.project === ALL ? 'nav.overview' : entry(state.view).word);
+export const title = (state) =>
+  state.project === ALL ? surfaceName(state) : t(entry(state.view).word);
 
 export const notice = (state) => (state.denied ? t('notice.key') : '');
