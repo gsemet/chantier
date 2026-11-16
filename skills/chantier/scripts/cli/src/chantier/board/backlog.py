@@ -28,7 +28,7 @@ def _plain(paragraph: str) -> str:
     return " ".join(paragraph.split())
 
 
-FRONTMATTER = re.compile(r"\A﻿?---[ \t]*\n.*?\n---[ \t]*(?:\n|\Z)", re.S)
+FRONTMATTER = re.compile(r"\A\ufeff?---[ \t]*\n(?:.*?\n)?---[ \t]*(?:\n|\Z)", re.S)
 
 
 def _first_paragraph(text: str) -> str:

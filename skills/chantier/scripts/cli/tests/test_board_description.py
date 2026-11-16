@@ -16,7 +16,8 @@ CASES = [
         "The text.",
         id="crlf",
     ),
-    pytest.param({"01-intent.md": "﻿" + FM + "\nThe text.\n"}, "The text.", id="bom"),
+    pytest.param({"01-intent.md": "\ufeff" + FM + "\nThe text.\n"}, "The text.", id="bom"),
+    pytest.param({"01-intent.md": "---\n---\nThe text.\n"}, "The text.", id="empty-frontmatter"),
     pytest.param(
         {"01-intent.md": FM + "\n# Only headings\n", "notes.md": "Next file."},
         "Next file.",
