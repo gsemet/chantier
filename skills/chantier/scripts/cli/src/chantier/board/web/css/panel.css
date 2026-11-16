@@ -37,7 +37,7 @@
 .panel .pbody {
   display: grid;
   flex: 1;
-  grid-template-columns: 210px 1fr;
+  grid-template-columns: 210px minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -163,13 +163,18 @@
   background: none;
 }
 
+/* a table wider than the file column scrolls sideways by itself, its cells never one word a line */
 .panel .doc table {
+  display: block;
+  max-width: 100%;
   margin: 10px 0;
+  overflow-x: auto;
   font-size: var(--text-small);
 }
 
 .panel .doc th,
 .panel .doc td {
+  min-width: 6em;
   padding: 5px 8px;
   vertical-align: top;
 }

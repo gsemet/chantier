@@ -58,11 +58,16 @@ const reset = {
   pending: [],
 };
 
+// A change of view closes the file panel (the project's change resets it with the rest).
+const closed = { panel: null, panelTree: null, panelFile: null, editing: null };
+
 function apply(place) {
-  const moved = place.project !== snapshot().project;
+  const now = snapshot();
+  const moved = place.project !== now.project;
+  const turned = place.view !== now.view;
   if (place.project) setPref(CHOSEN, place.project);
   if (place.project && place.project !== ALL) setPref(LAST, place.project);
-  update({ ...place, ...(moved ? reset : {}) });
+  update({ ...place, ...(turned ? closed : {}), ...(moved ? reset : {}) });
 }
 
 // The relative address of a place: it keeps the page's own address in front of the query.

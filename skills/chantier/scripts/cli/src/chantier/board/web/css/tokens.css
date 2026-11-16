@@ -151,6 +151,8 @@
   --radius: 12px;
   --side-width: 240px;
   --panel-width: 680px;
+  --panel-share: 45vw; /* the panel grows with a wide window, 680px as its floor */
+  --pi-w: 320px; /* the width of a Triage card, never wider */
   --bar-height: 62px;
   --phone-max: 760px;
 }

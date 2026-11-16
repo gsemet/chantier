@@ -2,6 +2,7 @@
 /* a Triage card is the Kanban's `.card`; `.pi` adds the pick-up: it tilts and lifts under the pointer */
 .pi {
   position: relative;
+  max-width: var(--pi-w);
   cursor: grab;
   transition:
     transform 0.12s ease,
@@ -71,9 +72,14 @@
   border: 1px dashed var(--edge-arrow);
   border-radius: var(--radius-m);
   padding: 6px;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--pi-w)), var(--pi-w)));
+  justify-content: start;
   gap: 6px;
+}
+
+.grpf > .gh {
+  grid-column: 1 / -1;
 }
 
 .grpf .gh {

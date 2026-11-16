@@ -228,7 +228,7 @@ th.num {
   z-index: 10;
   display: flex;
   flex-direction: column;
-  width: min(var(--panel-width), calc(100% - 28px));
+  width: min(max(var(--panel-width), var(--panel-share)), calc(100% - 28px));
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 14px;

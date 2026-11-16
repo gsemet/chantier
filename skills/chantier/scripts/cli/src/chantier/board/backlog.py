@@ -28,9 +28,14 @@ def _plain(paragraph: str) -> str:
     return " ".join(paragraph.split())
 
 
+FRONTMATTER = re.compile(r"\A﻿?---[ \t]*\n.*?\n---[ \t]*(?:\n|\Z)", re.S)
+
+
 def _first_paragraph(text: str) -> str:
-    """The first paragraph that is not a heading, an `issue:` line or a code fence."""
-    for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n")):
+    """The first paragraph that is not a heading, an `issue:` line or a code fence, after a
+    frontmatter at the very start of the text."""
+    text = FRONTMATTER.sub("", text.replace("\r\n", "\n"), count=1)
+    for block in re.split(r"\n\s*\n", text):
         first = block.strip().splitlines()[0] if block.strip() else ""
         if first and not first.startswith(("#", "```")) and not first.lower().startswith("issue:"):
             return _plain(block)
