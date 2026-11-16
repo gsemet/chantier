@@ -23,7 +23,7 @@ from chantier.core.repo import Repo
 from chantier.gate_queue import move_first
 from chantier.gate_slots import Slot, running_crs, slot_of
 from chantier.lifecycle.session import RenderedBatch
-from chantier.playbook.config import FILE, load_long_gate
+from chantier.playbook.layers import load_long_gate
 
 
 def _gate_stop(args: argparse.Namespace, repo: Repo, batch: str, wt: Path) -> tuple[list[str], int]:
@@ -66,8 +66,9 @@ def _gate_first(args: argparse.Namespace, repo: Repo, batch: str) -> tuple[list[
 
 
 def _parallel(repo: Repo) -> int:
-    """How many long gates may run at once, from the project's `chantier.yaml`, read at each run."""
-    parallel, problems = load_long_gate(repo.root / FILE)
+    """How many long gates may run at once, from the configuration's layers (`chantier.yaml`),
+    read at each run."""
+    parallel, problems = load_long_gate(repo)
     if problems:
         raise ChantierError(problems[0])
     return parallel

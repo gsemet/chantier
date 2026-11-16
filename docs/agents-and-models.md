@@ -6,16 +6,19 @@ How to run your own agents in a role, which model each role runs, and the no-fal
 
 Any role can run one of your agents, with a model of your choice and the skills it needs. Tell
 the Chief of Staff, and it writes them in an optional `chantier.yaml` at your project's root,
-shared with your team (with none, every role runs the plugin's agent):
+shared with your team (with none, every role runs the plugin's agent). Every role setting is per
+host: it goes under `hosts: claude: roles:` or `hosts: copilot: roles:`, never for all hosts:
 
 ```yaml
-roles:
-  coder:
-    agent: rust-coder
-    model: opus
-    skills: [jira]
-  cr-driver:
-    agent: my-driver
+hosts:
+  claude:
+    roles:
+      coder:
+        agent: rust-coder
+        model: opus
+        skills: [jira]
+      cr-driver:
+        agent: my-driver
 prices:                    # a model chantier has no price for yet, in $/MTok
   claude-example-6-0:
     input: 3
@@ -25,9 +28,40 @@ prices:                    # a model chantier has no price for yet, in $/MTok
     output: 15
 ```
 
+### The layers
+
+The configuration is read in four layers, weakest to strongest, and merged node by node:
+
+| Layer | File | When |
+| --- | --- | --- |
+| defaults | `config/chantier.defaults.yml` in the plugin (never edit it: a release changes it) | always |
+| surface | `chantier.yaml` at the [planning surface](planning-modes.md)'s root, for all its projects | external planning surface |
+| surface project | `projects/<name>/chantier.yaml` in the surface | external planning surface |
+| repository | `chantier.yaml` at the code repository's root | always |
+
+Each file may be `chantier.yaml` or `chantier.yml`, never both in one place (refused, with both
+paths). A layer carries only what it changes: a mapping merges key by key with the layers below, a
+value (a scalar, or a list such as `skills`) replaces the weaker one whole, and a `prices` entry is
+replaced whole. For example, the surface root sets the Coder's `model: opus` for every project, and
+one project's code repository sets `model: sonnet`: that project runs Sonnet, the others Opus.
+
+A stronger layer takes a weaker value back by writing `default` (`~` and `null` read the same) as
+the value. The surface root names `agent: my-coder`, one project's `chantier.yaml` writes
+`agent: default`, and that project runs the plugin's Coder. `model: default` brings back the
+shipped model, and `prices: <id>: default`, `board: default`, `ci: default`, `long_gate: default`
+and `hosts: copilot: roles: coder: default` do the same for what they name. No model and no agent
+can be named `default` (a quoted `"default"` is refused), and an empty value (`agent:` with nothing
+after it) is not a reset: it is refused. `chantier playbook` prints each value with its layer in
+brackets, and `[reset in <layer>]` for a value taken back. A top-level `roles` key is refused in
+every layer: move it under `hosts.<host>.roles`.
+
+`skills` and `tools` list what the role needs, which preflight checks; they restrict nothing.
+
+### The file's keys
+
 The file's other keys are `prices`, `board` (where [the web board](web-board.md) listens: `host`
 and `port`), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
-minutes on every approved round, off by default) and `long_gate` (how many long gates may run at once, [your gates](gates.md)). Only the `chantier` CLI reads this file: it refuses an unknown role, key or model, and an
+minutes on every approved round, off by default) and `long_gate` (how many long gates may run at once, [your gates](gates.md)). Only the `chantier` CLI reads these files: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier
 (`chantier playbook` shows the result); the agents pass it as printed. On Copilot the names it
 knows are GitHub's own tables (`github/docs`, refreshed by `just copilot-models`): the identifier is
@@ -53,6 +87,9 @@ A name that is not a built-in role becomes an extra review step: it runs after t
 approves and answers with the same verdict. A running batch keeps the team it started with.
 
 ## Models
+
+The default model of each role is in the plugin's `config/chantier.defaults.yml`, equal to its
+agent file's.
 
 | Role | Claude | Copilot |
 | --- | --- | --- |

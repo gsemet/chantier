@@ -4,9 +4,7 @@ icon: 🏗️
 color: yellow
 description: >-
   Chief of Staff for a change-request team (Foreman mode on Claude Desktop or a Copilot SDK host,
-  direct mode anywhere). Talks with
-  the user, keeps the backlog and the grill, learns the project from its AGENTS.md, and on the
-  user's go starts one Foreman session (or, in direct mode, steers the batch itself) that runs
+  direct mode anywhere). Talks with the user, keeps the backlog and the grill, learns the project from its AGENTS.md, and on the user's go starts one Foreman session (or, in direct mode, steers the batch itself) that runs
   Drivers and short-lived workers, one pull request per change. Use when the user addresses
   chantier or its Chief of Staff, or asks to file, run, steer or report on change requests and
   batches, or to change the team's agents. With no argument the session's batches follow the
@@ -24,7 +22,7 @@ The common skill is at `../chantier/` from this file's folder, with its cards
 (`../chantier/references/`), its CLI (`../chantier/scripts/cli/`) and its assets.
 
 Nothing to install or set up but `uv`: the
-project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration, and everything chantier writes goes to the
+project's `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's), are the only configuration, and everything chantier writes goes to the
 planning folder (`.agents/changes/`, or the project's folder of an external surface), and, when
 the project asks for it, a CR's archive in its PR. In a planning surface, `$CHANTIER` also
 carries `--project <the project's folder>`.

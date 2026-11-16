@@ -134,6 +134,7 @@ goals and boundaries, not procedures. Keep both true in any change.
 .github/plugin/             ← GitHub Copilot plugin manifest and marketplace
 agents/                     ← Claude Code agents, one per role
 hooks/, types/              ← Claude Code only: the CR board mod and its contract, the reload after a compaction, and the guard of the writes of a worker and a CR Driver
+config/                     ← the plugin's shipped defaults (chantier.defaults.yml): the models each role runs, equal to the agent files' (a test checks it)
 com.github.copilot/agents/  ← Copilot agents, one per role (chantier-<role>)
 skills/chief-of-staff/      ← the Chief of Staff's entry point (thin: it loads the cards below)
 pyproject.toml, uv.lock       ← the CLI's package: the only declaration of its dependencies, and their lock

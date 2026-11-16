@@ -18,7 +18,7 @@ The common skill is at `../chantier/` from this file's folder, with its cards
 (`../chantier/references/`), its CLI (`../chantier/scripts/cli/`) and its assets.
 
 Nothing to install or set up but `uv`: the
-project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration.
+project's `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's), are the only configuration.
 
 Read the common core, host core, role core and wrapper named by
 [startup-manifest.json](../chantier/references/startup-manifest.json). Read

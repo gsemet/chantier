@@ -1,4 +1,5 @@
-"""`chantier.yaml`: loading and validating the project's configuration."""
+"""`chantier.yaml`: reading and validating one layer of the configuration, and turning the merged
+layers (`layers.py`) into the values the commands use."""
 
 from __future__ import annotations
 
@@ -9,9 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from chantier.playbook.models import HOST_NAMES, SETS_MODEL_AT_START, resolve
-from chantier.playbook.yaml_subset import Node, YamlError, parse
+from chantier.playbook.yaml_subset import Node, YamlError, is_reset, parse
 
-FILE = "chantier.yaml"
+FILES = ("chantier.yaml", "chantier.yml")
+FILE = FILES[0]
 Bad = Callable[[int, str], None]
 
 
@@ -27,31 +29,120 @@ BOARD_KEYS = ("host", "port")
 HOST_FILES = {"claude": "claude-code", "copilot": "copilot"}
 
 
+ROLES_MOVED = (
+    '"roles" goes under a host: hosts: claude: roles: or hosts: copilot: roles: '
+    "(every role setting is per host)"
+)
+
+
 def default_agent(host: str, role: str) -> str:
     return f"chantier:{role}" if host == "claude" else f"chantier-{role}"
 
 
-def _read_tree(path: Path) -> tuple[Node | None, list[str]]:
-    """The file's tree, or the one problem that stops the reading."""
+def read_tree(path: Path, display: str) -> tuple[Node | None, list[str]]:
+    """One file's tree, or the one problem that stops the reading (`<display>:<line>: ...`)."""
     try:
         text = path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError) as e:
-        return None, [f"{FILE}:1: cannot read the file as UTF-8: {e}"]
+        return None, [f"{display}:1: cannot read the file as UTF-8: {e}"]
     try:
         tree = parse(text)
     except YamlError as e:
-        return None, [f"{FILE}:{e.line}: {e.message}"]
+        return None, [f"{display}:{e.line}: {e.message}"]
     if tree.kind != "map":
         return None, [
-            f"{FILE}:{tree.line}: the file is a mapping: `roles:` then one entry per role"
+            f"{display}:{tree.line}: the file is a mapping: `hosts:` then one entry per host"
         ]
     return tree, []
+
+
+def check(
+    tree: Node, roles_by_host: dict[str, list[str]], bad: Bad, only: str | None = None
+) -> None:
+    """One layer's keys, each checked alone: the shapes, the names, the values. A reset (a plain
+    `default`, `~` or `null`) is accepted where its key is. With `only`, that key alone."""
+    for key, (kline, node) in tree.value.items():
+        if only and key != only:
+            continue
+        if key == "roles":
+            bad(kline, ROLES_MOVED)
+        elif key == "hosts":
+            _hosts(node, kline, roles_by_host, bad)
+        elif key in _KEYED:
+            if not is_reset(node):
+                _KEYED[key](node, kline, bad)
+        else:
+            bad(
+                kline,
+                f'unknown key "{key}": the top-level keys are "hosts", "prices", "board", "ci" '
+                'and "long_gate"',
+            )
+
+
+def typed(
+    tree: Node,
+    bad: Bad,
+    only: str | None = None,
+    host: str | None = None,
+    roles: list[str] | None = None,
+) -> dict[str, Any]:
+    """The merged tree's keys as values: `prices`, `board`, `ci`, `long_gate`, and `roles` for
+    `host` (the plugin's `roles` of that host). Every key was checked in its own layer."""
+    out: dict[str, Any] = {}
+    for key, (kline, node) in tree.value.items():
+        if only and key != only:
+            continue
+        if key in _KEYED:
+            out[key] = _KEYED[key](node, kline, bad)
+        elif key == "hosts" and host:
+            found = node.value.get(host)
+            held = found[1].value.get("roles") if found else None
+            if held:
+                out["roles"] = _roles(held[1], held[0], host, roles or [], bad) or {}
+    return out
+
+
+def start_refusal(host: str, role: str) -> str | None:
+    """Why a configured model cannot be passed at the start on this host, or None."""
+    if SETS_MODEL_AT_START[host]:
+        return None
+    return (
+        f"{HOST_NAMES[host]} cannot set a model when it starts an agent "
+        f'(hosts/{HOST_FILES[host]}.md, "Models"): remove "model" for {role}, or '
+        "run the role with your own agent that names it"
+    )
+
+
+def _hosts(node: Node, kline: int, roles_by_host: dict[str, list[str]], bad: Bad) -> None:
+    """The `hosts` key: `<host>:` then `roles:`. Every host's roles are checked in every view."""
+    if is_reset(node):
+        return
+    if node.kind != "map" or not node.value:
+        bad(kline, '"hosts" holds one entry per host: `<host>:` then `roles:`')
+        return
+    for host, (hline, hnode) in node.value.items():
+        if host not in HOST_NAMES:
+            bad(hline, f'unknown host "{host}": one of {", ".join(HOST_NAMES)}')
+        elif is_reset(hnode):
+            continue
+        elif hnode.kind != "map" or not hnode.value:
+            bad(hline, f'host "{host}" holds its keys: `roles:`')
+        else:
+            _host(host, hnode, roles_by_host.get(host, []), bad)
+
+
+def _host(host: str, node: Node, roles: list[str], bad: Bad) -> None:
+    for key, (line, value) in node.value.items():
+        if key != "roles":
+            bad(line, f'host "{host}": unknown key "{key}": one of roles')
+        elif not is_reset(value):
+            _roles(value, line, host, roles, bad)
 
 
 def _roles(
     node: Node, kline: int, host: str, roles: list[str], bad: Bad
 ) -> dict[str, dict[str, Any]] | None:
-    """The `roles` key resolved, or None when it is wrong as a whole."""
+    """The `roles` key of a host resolved, or None when it is wrong as a whole."""
     if node.kind != "map" or not node.value:
         bad(kline, '"roles" holds one entry per role: `<role>:` then its keys')
         return None
@@ -62,59 +153,13 @@ def _roles(
     for role, (rline, rnode) in node.value.items():
         if role not in roles:
             bad(rline, f'role "{role}" is not one of the plugin\'s agents: {", ".join(roles)}')
+        elif is_reset(rnode):
+            continue
         elif rnode.kind != "map" or not rnode.value:
             bad(rline, f'role "{role}" is empty: set one of {", ".join(ROLE_KEYS)}')
         else:
             resolved[role] = _role(host, role, rnode, bad)
     return resolved
-
-
-def load(path: Path, host: str, roles: list[str]) -> tuple[dict[str, Any] | None, list[str]]:
-    """`(None, [])` when the file is absent; else the resolved playbook and the problems found
-    (each `chantier.yaml:<line>: ...`, in line order). `roles` are the plugin's, for this host."""
-    if not path.is_file():
-        return None, []
-    tree, stop = _read_tree(path)
-    if tree is None:
-        return None, stop
-    problems: list[tuple[int, str]] = []
-
-    def bad(line: int, message: str) -> None:
-        problems.append((line, message))
-
-    resolved: dict[str, dict[str, Any]] = {}
-    keyed: dict[str, Callable[[Node, int, Bad], dict[str, Any]]] = {
-        "prices": _prices,
-        "board": _board,
-        "ci": _ci,
-    }
-    got: dict[str, dict[str, Any]] = {}
-    for key, (kline, node) in tree.value.items():
-        if key == "roles":
-            resolved.update(_roles(node, kline, host, roles, bad) or {})
-        elif key == "long_gate":
-            _long_gate(node, kline, bad)
-        elif key in keyed:
-            got[key] = keyed[key](node, kline, bad)
-        else:
-            bad(
-                kline,
-                f'unknown key "{key}": the top-level keys are "roles", "prices", "board", "ci" '
-                'and "long_gate"',
-            )
-    problems.sort(key=lambda p: p[0])
-    lines = [f"{FILE}:{n}: {m}" for n, m in problems]
-    if lines:
-        return None, lines
-    out: dict[str, Any] = {
-        "file": FILE,
-        "host": host,
-        "roles": resolved,
-        "prices": got.get("prices", {}),
-    }
-    if got.get("ci"):
-        out["ci"] = got["ci"]
-    return out, lines
 
 
 CI_KEYS = ("beside_gate",)
@@ -129,6 +174,8 @@ def _ci(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
     for key, (line, value) in node.value.items():
         if key not in CI_KEYS:
             bad(line, f'ci: unknown key "{key}": one of {", ".join(CI_KEYS)}')
+        elif is_reset(value):
+            continue
         elif value.kind != "scalar" or value.value not in ("true", "false"):
             found = value.value if value.kind == "scalar" else value.kind
             bad(line, f'ci: "beside_gate" is true or false, found "{found}"')
@@ -194,6 +241,8 @@ def _prices(node: Node, kline: int, bad: Bad) -> dict[str, dict[str, Any]]:
         return {}
     out: dict[str, dict[str, Any]] = {}
     for model, (mline, mnode) in node.value.items():
+        if is_reset(mnode):
+            continue
         if mnode.kind != "map" or not mnode.value:
             bad(mline, f'prices: "{model}" is empty: set {", ".join(PRICE_NAMES)}')
             continue
@@ -212,6 +261,8 @@ def _board(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
     for key, (line, value) in node.value.items():
         if key not in BOARD_KEYS:
             bad(line, f'board: unknown key "{key}": one of {", ".join(BOARD_KEYS)}')
+        elif is_reset(value):
+            continue
         elif value.kind != "scalar" or not value.value.strip() or re.search(r"\s", value.value):
             bad(
                 line,
@@ -230,27 +281,6 @@ def _board(node: Node, kline: int, bad: Bad) -> dict[str, Any]:
 MAX_PORT = 65535
 
 
-def load_board(path: Path) -> tuple[dict[str, Any], list[str]]:
-    """The `board` key alone, for `chantier board`: `({}, [])` when there is none, else its keys
-    or the problems found in it (the roles are `playbook`'s to judge, not the board's)."""
-    if not path.is_file():
-        return {}, []
-    try:
-        tree = parse(path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeDecodeError) as e:
-        return {}, [f"{FILE}:1: cannot read the file as UTF-8: {e}"]
-    except YamlError as e:
-        return {}, [f"{FILE}:{e.line}: {e.message}"]
-    if tree.kind != "map":
-        return {}, [f"{FILE}:{tree.line}: the file is a mapping: `roles:` then one entry per role"]
-    problems: list[tuple[int, str]] = []
-    rec: dict[str, Any] = {}
-    if "board" in tree.value:
-        line, node = tree.value["board"]
-        rec = _board(node, line, lambda n, m: problems.append((n, m)))
-    return rec, [f"{FILE}:{n}: {m}" for n, m in sorted(problems)]
-
-
 def _long_gate(node: Node, kline: int, bad: Bad) -> int:
     """The `long_gate` key: how many long gates may run at once. 1 when `parallel` is absent."""
     if node.kind != "map" or not node.value:
@@ -260,6 +290,8 @@ def _long_gate(node: Node, kline: int, bad: Bad) -> int:
     for key, (line, value) in node.value.items():
         if key != "parallel":
             bad(line, f'long_gate: unknown key "{key}": one of parallel')
+        elif is_reset(value):
+            continue
         elif (
             value.kind != "scalar"
             or not re.fullmatch(r"[0-9]+", value.value)
@@ -272,29 +304,26 @@ def _long_gate(node: Node, kline: int, bad: Bad) -> int:
     return parallel
 
 
-def load_long_gate(path: Path) -> tuple[int, list[str]]:
-    """The `long_gate` key alone, for `chantier gate`: `(1, [])` when the file or the key is
-    absent, else the number of long gates at once or the problems found in the key."""
-    if not path.is_file():
-        return 1, []
-    try:
-        tree = parse(path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeDecodeError) as e:
-        return 1, [f"{FILE}:1: cannot read the file as UTF-8: {e}"]
-    except YamlError as e:
-        return 1, [f"{FILE}:{e.line}: {e.message}"]
-    if tree.kind != "map":
-        return 1, [f"{FILE}:{tree.line}: the file is a mapping: `roles:` then one entry per role"]
-    if "long_gate" not in tree.value:
-        return 1, []
-    problems: list[tuple[int, str]] = []
-    line, node = tree.value["long_gate"]
-    parallel = _long_gate(node, line, lambda n, m: problems.append((n, m)))
-    return parallel, [f"{FILE}:{n}: {m}" for n, m in sorted(problems)]
+_KEYED: dict[str, Callable[[Node, int, Bad], Any]] = {
+    "prices": _prices,
+    "board": _board,
+    "ci": _ci,
+    "long_gate": _long_gate,
+}
+
+RESET_TEXT = (
+    '"default" resets the value: write it plain, default; no agent or model is named "default"'
+)
+
+
+def _quoted_default(value: Node) -> bool:
+    return value.kind == "scalar" and not value.plain and value.value == "default"
 
 
 def _role_agent(role: str, kline: int, value: Node, bad: Bad) -> str | None:
-    if value.kind != "scalar" or not value.value.strip():
+    if _quoted_default(value):
+        bad(kline, RESET_TEXT)
+    elif value.kind != "scalar" or not value.value.strip():
         bad(kline, f'role "{role}": "agent" is one string')
     elif re.search(r"\s", value.value):
         bad(kline, f'role "{role}": agent "{value.value}" holds whitespace')
@@ -304,19 +333,15 @@ def _role_agent(role: str, kline: int, value: Node, bad: Bad) -> str | None:
 
 
 def _role_model(host: str, role: str, kline: int, value: Node, bad: Bad) -> dict[str, Any] | None:
+    if _quoted_default(value):
+        bad(kline, RESET_TEXT)
+        return None
     if value.kind != "scalar" or not value.value.strip():
         bad(kline, f'role "{role}": "model" is one string')
         return None
     found, why = resolve(host, value.value)
     if why:
         bad(kline, f'role "{role}": {why}')
-    elif not SETS_MODEL_AT_START[host]:
-        bad(
-            kline,
-            f"{HOST_NAMES[host]} cannot set a model when it starts an agent "
-            f'(hosts/{HOST_FILES[host]}.md, "Models"): remove "model" for {role}, or '
-            "run the role with your own agent that names it",
-        )
     elif found is not None:
         return {"id": found.id, "name": found.name, "start": found.start}
     return None
@@ -338,6 +363,8 @@ def _role(host: str, role: str, node: Node, bad: Bad) -> dict[str, Any]:
     for key, (kline, value) in node.value.items():
         if key not in ROLE_KEYS:
             bad(kline, f'role "{role}": unknown key "{key}": one of {", ".join(ROLE_KEYS)}')
+            continue
+        if is_reset(value):
             continue
         if key == "agent":
             got = _role_agent(role, kline, value, bad)

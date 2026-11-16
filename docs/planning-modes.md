@@ -49,6 +49,10 @@ several Chiefs of Staff's pushes (a later change). A surface can also name an au
   (`git -C <clone>`); no chantier session runs in it.
 - `project.md` is your prose. One fixed line is read: `- Archive in the PR: yes` or `no`
   (`yes` when absent).
+- The surface root and each project's folder may hold a `chantier.yaml` (or `chantier.yml`): the
+  configuration of all its projects, and of that project. The code repository's own `chantier.yaml`
+  is the strongest layer, and the plugin's shipped defaults the weakest (see
+  [your own agents and models](agents-and-models.md#the-layers)).
 - A tracker issue, when there is one, is a link inside the CR, not part of its folder's name.
 
 ## Pointing a project to its surface

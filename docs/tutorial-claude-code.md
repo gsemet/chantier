@@ -207,11 +207,13 @@ a `chantier` section of your `AGENTS.md`. A model and the skills a role needs go
 `chantier.yaml`:
 
 ```yaml
-roles:
-  coder:
-    agent: rust-coder
-    model: opus          # the CLI resolves it to the exact model, or refuses the name
-    skills: [jira]       # the Chief of Staff warns you if its session lacks it
+hosts:
+  claude:
+    roles:
+      coder:
+        agent: rust-coder
+        model: opus      # the CLI resolves it to the exact model, or refuses the name
+        skills: [jira]   # the Chief of Staff warns you if its session lacks it
 ```
 
 ```markdown

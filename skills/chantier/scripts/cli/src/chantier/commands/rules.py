@@ -10,7 +10,6 @@ from pathlib import Path
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook.config import FILE
 from chantier.playbook.lines import escalate_line, playbook_lines
 from chantier.plugin_files import (
     INSTRUCTIONS,
@@ -20,6 +19,7 @@ from chantier.plugin_files import (
     project_instructions,
     read_playbook,
     surface_instructions,
+    user_files,
 )
 
 MD_LINK = re.compile(r"\]\(([^)\s#]+\.md)(?:#[^)]*)?\)|^\[[^\]]+\]:\s*(\S+\.md)\s*$", re.M)
@@ -64,7 +64,8 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
         label = None
         if problems:
             return [
-                f"playbook: {FILE} is not valid ({len(problems)} problems)",
+                f"playbook: the configuration ({', '.join(user_files(repo)) or 'no user file'}) "
+                f"is not valid ({len(problems)} problems)",
                 *problems,
             ], EXIT_PRECONDITION
     lines = playbook_lines(made, host, plugin_roles(host), label)
