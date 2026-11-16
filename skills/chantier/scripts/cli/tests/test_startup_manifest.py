@@ -27,8 +27,13 @@ def _roles() -> dict[str, Path]:
     return roles
 
 
+def _lf_bytes(path: Path) -> bytes:
+    """The file's bytes in their LF form, so a CRLF checkout measures like a LF one."""
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
 def _section_span(path: Path, heading: str) -> tuple[int, int]:
-    lines = path.read_bytes().splitlines(keepends=True)
+    lines = _lf_bytes(path).splitlines(keepends=True)
     title = heading.encode("utf-8")
     try:
         start = next(i for i, line in enumerate(lines) if line.rstrip(b"\r\n") == title)
@@ -54,7 +59,7 @@ def _section_bytes(path: Path, heading: str) -> int:
 def _unique_startup_bytes(paths: list[Path], sections: list[dict[str, str]]) -> int:
     spans: dict[Path, list[tuple[int, int]]] = {}
     for path in paths:
-        spans.setdefault(path.resolve(), []).append((0, len(path.read_bytes())))
+        spans.setdefault(path.resolve(), []).append((0, len(_lf_bytes(path))))
     for section in sections:
         path = (PLUGIN_ROOT / section["file"]).resolve()
         spans.setdefault(path, []).append(_section_span(path, section["heading"]))
@@ -176,10 +181,11 @@ def test_empty_action_readings_are_rejected() -> None:
     assert all(manifest["actions"].values())
 
 
-def test_reading_union_counts_raw_bytes_and_nested_sections_once(tmp_path: Path) -> None:
+def test_reading_union_counts_lf_bytes_and_nested_sections_once(tmp_path: Path) -> None:
     path = tmp_path / "card.md"
     data = b"# Card\r\n\r\n## Core\r\n\xc3\xa9\r\n### Nested\r\nrules\r\n## Later\r\nend\r\n"
     path.write_bytes(data)
+    data = data.replace(b"\r\n", b"\n")
     core = {"file": str(path), "heading": "## Core"}
     nested = {"file": str(path), "heading": "### Nested"}
     assert _unique_startup_bytes([], [core, nested, core]) == len(
