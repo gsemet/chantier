@@ -45,6 +45,11 @@ def read_tree(path: Path, display: str) -> tuple[Node | None, list[str]]:
         text = path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeDecodeError) as e:
         return None, [f"{display}:1: cannot read the file as UTF-8: {e}"]
+    return parse_text(text, display)
+
+
+def parse_text(text: str, display: str) -> tuple[Node | None, list[str]]:
+    """A file's text as a tree, or the one problem that stops the reading."""
     try:
         tree = parse(text)
     except YamlError as e:

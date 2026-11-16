@@ -44,7 +44,9 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    stops for your approval before each irreversible action.
 
 The agents do the work, git and the forge included. The `chantier` Python CLI (`uv run`) is
-the frame beside them, in the planning folder (`.agents/changes/`, or an external surface), as plain JSON and Markdown: the CR lifecycle
+the frame beside them, in the planning folder (`.agents/changes/`, or an external surface), as
+plain JSON and Markdown (and, from the board, a project's `chantier.yaml` in its planning
+surface): the CR lifecycle
 (inbox, backlog, batch, archives, trash), the batch's limits (slots, budget, rounds, your word
 on an irreversible action), the record (each CR's branch and worktree names, its PR, the long
 gate's log, the cost, the `STATUS` files) and the lines that synchronise the team (orders, asks,

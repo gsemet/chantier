@@ -14,9 +14,11 @@
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
-  external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
-  when the project asks for it, and fast-forwards a clean main checkout after a merge it records,
-  the board keeps its key in the repository's git folder (`chantier/board.json`), and,
+  external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
+  external planning surface's project folder, from the board's Configuration page, and a CR's
+  cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
+  after a merge it records, the board keeps its key in the repository's git folder
+  (`chantier/board.json`), and,
   on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else
   there.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
@@ -31,9 +33,11 @@
   CLI tool comes from measured token-costly behaviour, never from speculation. One named
   exception: `chantier board`, the web board's server, for the user on this machine and the local
   network, behind a key in its URL: it serves the record and the planning folder's files, and it
-  edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) only
-  through the CLI's role-free commands; it never edits a batch and never messages an agent; it
-  takes its dependencies like the rest of the CLI and knows no role.
+  edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
+  each role's agent and model, per host, in the project's configuration file in the planning
+  surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
+  own reading, checking and writing of that file; it never edits a batch and never messages an
+  agent; it takes its dependencies like the rest of the CLI and knows no role.
 - The board's server is also the CLI's one git exception: it may serve without joining the
   planning surface's autosync group. Board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants. The board commits

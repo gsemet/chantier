@@ -82,15 +82,33 @@ def _stamp(node: Node, label: str, src: str) -> None:
             _stamp(item, label, src)
 
 
-def _read(
-    path: Path,
+def read_text(
+    text: str, shown: str, label: str, roles_by_host: dict[str, list[str]]
+) -> tuple[Node | None, list[str]]:
+    """A layer's text, not yet written, read and checked alone with the lines it would have."""
+    return _checked(config.parse_text(text, shown), shown, label, roles_by_host, None)
+
+
+def read_defaults(
+    defaults: Path | None, roles_by_host: dict[str, list[str]]
+) -> tuple[Node | None, list[str]]:
+    """The plugin's shipped defaults (None with no plugin), and the problems found in them."""
+    if defaults is None:
+        return None, []
+    if not defaults.is_file():
+        return None, [f"{DEFAULTS_DISPLAY}: the plugin's defaults file is missing"]
+    read = config.read_tree(defaults, DEFAULTS_DISPLAY)
+    return _checked(read, DEFAULTS_DISPLAY, "defaults", roles_by_host, None)
+
+
+def _checked(
+    read: tuple[Node | None, list[str]],
     shown: str,
     label: str,
     roles_by_host: dict[str, list[str]],
-    only: str | None = None,
+    only: str | None,
 ) -> tuple[Node | None, list[str]]:
-    """One file read and checked alone, its nodes stamped with the layer."""
-    tree, stop = config.read_tree(path, shown)
+    tree, stop = read
     if tree is None:
         return None, stop
     found: list[tuple[int, str]] = []
@@ -127,7 +145,7 @@ def read_user(
         if not found:
             continue
         shown = display(repo, found[0])
-        tree, bad = _read(found[0], shown, label, roles_by_host, only)
+        tree, bad = _checked(config.read_tree(found[0], shown), shown, label, roles_by_host, only)
         problems += bad
         if tree is not None:
             layers.append(Layer(label, found[0], shown, tree))
@@ -233,25 +251,15 @@ def load(
     resolved playbook (`files`, `host`, `roles`, `prices`, `ci`, and `layers`: for each value,
     the label of the layer that set it, and for each reset the layer) or the problems found.
     `defaults` is the plugin's shipped file, None with no plugin."""
-    problems: list[str] = []
-    defaults_tree = None
-    if defaults is not None:
-        if defaults.is_file():
-            defaults_tree, problems = _read(defaults, DEFAULTS_DISPLAY, "defaults", roles_by_host)
-        else:
-            problems.append(f"{DEFAULTS_DISPLAY}: the plugin's defaults file is missing")
+    defaults_tree, problems = read_defaults(defaults, roles_by_host)
     layers, found = read_user(repo, roles_by_host)
     problems += found
     if problems or not layers:
         return None, problems
-    merged = merge(layers)
-    sink = _sink(problems, "the merged configuration")
-    rest = config.typed(merged.tree, sink, host=host, roles=roles_by_host.get(host))
-    roles: dict[str, dict[str, Any]] = rest.get("roles", {})
-    nodes = _role_nodes(merged.tree, host)
-    problems += _model_problems(roles, nodes, host, defaults_tree)
-    if problems:
-        return None, problems
+    judged = judge(layers, host, roles_by_host, defaults_tree)
+    if judged.problems:
+        return None, judged.problems
+    merged, roles, nodes, rest = judged.merged, judged.roles, judged.nodes, judged.rest
     out: dict[str, Any] = {
         "files": merged.files,
         "host": host,
@@ -267,8 +275,45 @@ def load(
     return out, []
 
 
+@dataclass
+class Judged:
+    """The layers merged and judged for one host: the merged tree, the roles resolved (each with
+    its `start`), the role nodes, the other keys typed, the problems and, with `tolerate`, the
+    refused starts apart (role -> the line), which are then no problem."""
+
+    merged: Merged
+    roles: dict[str, dict[str, Any]]
+    nodes: dict[str, Node]
+    rest: dict[str, Any]
+    problems: list[str]
+    refusals: dict[str, str]
+
+
+def judge(
+    layers: list[Layer],
+    host: str,
+    roles_by_host: dict[str, list[str]],
+    defaults: Node | None,
+    tolerate: bool = False,
+) -> Judged:
+    """The user layers, weakest first, merged and judged for this host."""
+    problems: list[str] = []
+    merged = merge(layers)
+    sink = _sink(problems, "the merged configuration")
+    rest = config.typed(merged.tree, sink, host=host, roles=roles_by_host.get(host))
+    roles: dict[str, dict[str, Any]] = rest.get("roles", {})
+    nodes = _role_nodes(merged.tree, host)
+    refusals: dict[str, str] = {}
+    problems += _model_problems(roles, nodes, host, defaults, refusals if tolerate else None)
+    return Judged(merged, roles, nodes, rest, problems, refusals)
+
+
 def _model_problems(
-    roles: dict[str, dict[str, Any]], nodes: dict[str, Node], host: str, defaults: Node | None
+    roles: dict[str, dict[str, Any]],
+    nodes: dict[str, Node],
+    host: str,
+    defaults: Node | None,
+    refusals: dict[str, str] | None = None,
 ) -> list[str]:
     """Judge each configured role once merged, for this host alone, and record its `start`: a
     model equal to the plugin agent's own, with no agent set, is dropped (nothing to pass); then
@@ -292,7 +337,11 @@ def _model_problems(
             rec["start"] = "generic"
         elif why := config.start_refusal(host, role):
             node = nodes[role].value["model"][1]
-            problems.append(f"{node.src}:{node.line}: {why}")
+            line = f"{node.src}:{node.line}: {why}"
+            if refusals is None:
+                problems.append(line)
+            else:
+                refusals[role] = line
     return problems
 
 

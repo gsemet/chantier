@@ -3,7 +3,8 @@ dependency. It appends its arguments to `<its own name>.argv` (one JSON line per
 the state files the real tool would write in `<git dir>/ai-autosync/`:
 
 - `join` writes a participant file and stays until that file is deleted (or 90 s have passed);
-- `start` enables the group, `stop` disables it, `approve` records the incident it was given.
+- `start` enables the group, `stop` disables it, `approve` records the incident it was given;
+- `commit` commits every change of the git repository it runs in (the sync of a planning surface).
 """
 
 from __future__ import annotations
@@ -59,6 +60,10 @@ def main(argv: list[str]) -> int:
         reason = "started by user" if enabled else "stopped by user"
         put(state / "control.json", {"enabled": enabled, "reason": reason, "updated_at": time.time()})
         print(reason)
+    elif action == "commit":  # what the real tool does on its own: commit the surface's changes
+        subprocess.run(["git", "add", "-A"], check=True)
+        subprocess.run(["git", "commit", "--quiet", "-m", "autosync"], check=True)
+        print("committed")
     elif action == "approve":
         put(state / "approvals.json", {"approved": argv[2:]})
         print(f"approved {argv[2] if len(argv) > 2 else ''}")
