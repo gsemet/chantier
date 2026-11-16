@@ -4,14 +4,17 @@ is no shell and no free text in it."""
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from chantier.autosync.site import AutosyncSite
+from chantier.procs import alive_since
 
 TIMEOUT_S = 30
 INCIDENT = re.compile(r"(staged|secrets)-[0-9a-f]{20}")
@@ -62,40 +65,125 @@ def run_action(site: AutosyncSite, action: str, *args: str) -> ToolResult:
     return ToolResult(done.returncode, _last_line(done.stderr + "\n" + done.stdout))
 
 
-def spawn_join(site: AutosyncSite, owner_pid: int) -> subprocess.Popen[bytes]:
+def _existing_join(site: AutosyncSite, session_id: str) -> bool:
+    folder = site.state_dir / "participants"
+    for path in folder.glob("*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                continue
+            pid = int(data.get("pid", 0))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            continue
+        if pid > 0 and data.get("session_id") == session_id:
+            try:
+                recorded = float(data.get("since", path.stat().st_mtime))
+            except (OSError, TypeError, ValueError):
+                continue
+            if alive_since(pid, recorded, sys.platform == "win32"):
+                return True
+    return False
+
+
+def spawn_join(site: AutosyncSite, owner_pid: int) -> subprocess.Popen[bytes] | None:
     """Start the board's join, detached, once. `--harness generic` makes the participant follow
     the server's process only. The participant leaves by itself once that process ends. Its
-    output is discarded: the tool's state files say what it does."""
+    Both output pipes are captured by observe_join/watch_join for failure diagnostics."""
     argv = _argv(
         site,
         *("join", ".", "--owner-pid", str(owner_pid), "--harness", "generic"),
         *("--session-id", SESSION_ID),
     )
+    if _existing_join(site, SESSION_ID):
+        return None
     if sys.platform == "win32":
         return subprocess.Popen(
             argv,
             cwd=site.surface,
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
         )
     return subprocess.Popen(
         argv,
         cwd=site.surface,
         stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         start_new_session=True,
     )
 
 
-def watch_join(proc: subprocess.Popen[bytes], say: Callable[[str], None]) -> None:
-    """Say once if the join process fails before the server ends (a first `uv run` offline, say)."""
+def observe_join(proc: subprocess.Popen[bytes], timeout: float = 0.25) -> str | None:
+    """Return an exact early diagnostic, or None while a live join is watched.
+
+    The reader threads are deliberately started before the early wait.  A join can
+    print enough output to fill either pipe before it exits, so waiting on the
+    process without draining both streams can deadlock it.
+    """
+    _start_capture(proc)
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return None
+    return _diagnostic(proc)
+
+
+def watch_join(proc: subprocess.Popen[bytes], say: Callable[[str], None]) -> threading.Thread:
+    """Drain and report one exact diagnostic if a live join later fails."""
+    _start_capture(proc)
 
     def wait() -> None:
         code = proc.wait()
+        _join_readers(proc)
         if code:
-            say(f"board: autosync not joined: the join ended with exit code {code}")
+            say(f"board: autosync not joined: {_diagnostic(proc, code)}")
 
-    threading.Thread(target=wait, daemon=True).start()
+    watcher = threading.Thread(target=wait, daemon=True)
+    watcher.start()
+    return watcher
+
+
+def _start_capture(proc: subprocess.Popen[bytes]) -> None:
+    """Install idempotent background readers on both join pipes."""
+    state = getattr(proc, "_chantier_join_capture", None)
+    if state is not None:
+        return
+    output: dict[str, bytearray] = {"stdout": bytearray(), "stderr": bytearray()}
+    readers = []
+    for name, target in output.items():
+        stream = getattr(proc, name)
+        if stream is None:
+            continue
+        reader = threading.Thread(target=_read_pipe, args=(stream, target), daemon=True)
+        reader.start()
+        readers.append(reader)
+    proc._chantier_join_capture = output, readers  # type: ignore[attr-defined]
+
+
+def _read_pipe(stream: Any, target: bytearray) -> None:
+    for chunk in iter(stream.readline, b""):
+        target.extend(chunk)
+    stream.close()
+
+
+def _join_readers(proc: subprocess.Popen[bytes]) -> None:
+    state = getattr(proc, "_chantier_join_capture", None)
+    if state is not None:
+        for reader in state[1]:
+            reader.join()
+
+
+def _diagnostic(proc: subprocess.Popen[bytes], code: int | None = None) -> str:
+    _join_readers(proc)
+    output: dict[str, bytearray] = getattr(
+        proc, "_chantier_join_capture", ({"stdout": bytearray(), "stderr": bytearray()}, [])
+    )[0]
+    data = bytes(output.get("stderr", bytearray()) or output.get("stdout", bytearray()))
+    lines = data.decode(errors="replace").strip().splitlines()
+    return (
+        lines[-1]
+        if lines
+        else f"the join ended with exit code {proc.returncode if code is None else code}"
+    )

@@ -43,3 +43,6 @@ questions, which the Chief of Staff takes to the user.
 
 Reply in a few lines: the path of the specification, and the open questions if any. When the brief
 carried fixes from the spec critic, the reply names the fixes applied and those not, with why.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

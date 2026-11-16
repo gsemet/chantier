@@ -1,5 +1,8 @@
 # Session start
 
+This card is deferred action guidance. Startup reads only the common, host,
+role and wrapper entries in `startup-manifest.json`.
+
 Read by the router, the Chief of Staff and the Griller at the start of a session and at each
 skill invocation. The host's means (rename, list sessions, message, links) are in your host's
 reference: [Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md). Talk with the user
@@ -43,7 +46,7 @@ title, link). Then, by the skill invoked:
 
 | Invoked | Seat | Role and message |
 | --- | --- | --- |
-| `chief-of-staff` | none, or this session's own | Chief of Staff: `seat take`, rename, **start the board**, the introduction; no question |
+| `chief-of-staff` | none, or this session's own | Chief of Staff: take the free/own seat, then ask before starting the board; no redundant seat question |
 | `chief-of-staff` | another session, alive (the host says so), **no batch active** | Griller: the introduction ending with the message below and its one option, "become chief of staff" |
 | `chief-of-staff` | another session, alive, **a batch active** | ask once: the hand-over to this session ([chief-of-staff](chief-of-staff.md), "Handing the seat over") or only grilling CRs |
 | `chief-of-staff` | another session the host cannot tell, or that looks stopped | one line: "the Chief of Staff at <link> looks stopped; shall I take its place?"; on yes `seat take --over <id>`; never alone |
@@ -60,30 +63,31 @@ over.
 says how to tell; where it cannot, the seat's session "looks stopped". No activity date is ever
 taken as proof of life.
 
-**The board.** Right after `seat take` (and after every later `seat take` of this session,
-including a take-over and a hand-over received), the Chief of Staff runs `$CHANTIER board --seat
-<own session id>` in the background, by its host's means (the host's reference, "Run the board"),
+**The board.** Ask before starting `$CHANTIER board --seat <own session id>` in the background,
+explaining its persistent process and configured network exposure. A decline starts no server.
+After acceptance, use the host's means (the host's reference, "Run the board"),
 and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
 never start it.
 
-- `board on <URL> over ...`: one line to the user, once in the session, in their language: the
-  link (with its key), that it opens on this machine and, when the second line says so
-  (`board: listens on the local network ...`), on the local network, and that the link is theirs
-  only.
+- `board on <URL> over ...`: report the server-announced binding (the link and its key), not
+  verified local readiness. Local readiness is verified only by a successful probe such as
+  `GET /api/board` with the key; if no probe was run, say so. If the server announces a
+  non-loopback binding, say that LAN reachability is untested; do not claim that it opens
+  remotely. The link is theirs only.
 - `board already running at <URL>`: the same line, if not given yet in this session.
-- `board: autosync not joined: <reason>` (a second line of a fresh start on a surface with an
-  autosync): one line with the reason; the board serves anyway. The board joins only at a fresh
-  start, never on a reuse.
+- `board: autosync not joined: <reason>` (a second line when the board's explicit autosync
+  action fails): one line with the reason; the board serves anyway. Board launch itself joins
+  nothing.
 - `error: board not started: ...`, or a host that cannot run a background command: one line with
   the reason, then go on. The board never blocks the session, a preflight, a batch or a report.
 
 On a surface, `$CHANTIER board --seat <id>` keeps the `--project` that `$CHANTIER` holds.
 
-**The surface's autosync.** After the role is set (the Chief of Staff right after `seat take` and
-the board; a Griller once it is a Griller), and only in a surface whose rules name an autosync, run
-the surface's `status`, then join as its guidelines say, adding `--session-id <own session id>`,
+**The surface's autosync.** Joining is explicit opt-in, independent of board permission, and
+never stops another participant. Without participation follow the project's manual-sync rules.
+After opt-in, run its `status`, then join as its guidelines say, adding `--session-id <own session id>`,
 once per session. Do not join when `status` already lists a participant with this session's id. A
-reload joins nothing, like the board. A blocked or approval state met there: the Chief of Staff
+reload joins nothing. A blocked or approval state met there: the Chief of Staff
 handles it ([chief-of-staff](chief-of-staff.md)), and a Griller says it in one line and goes on. A
 failed join is reported by the session itself in one line to the user, with the reason, like a
 board that did not start; the `board: autosync not joined` line is the board server's own.
@@ -150,11 +154,11 @@ Examples: `[Battle] 💬 Chantier · CoS`, `[Battle] 💬 Chantier 17 · CoS`,
 
 ## 4. First turn: introduce chantier
 
-On your first turn in a session, after the start checks and before anything else, give the user
-this introduction in their language, in about ten lines, then answer their request. Once per
-session; skip it if the user says they know chantier, or if their first request is `init`: the
-[tour](init.md) covers it. When the project has no planning folder, end it with one line: "new
-here? say init for a guided tour". That line is the first-use tip; any other tip follows the Tips rule of the Chief of Staff's card.
+On your first turn in a session, after the start checks, give a short factual report in the
+user's language, then answer their request. Offer the detailed product introduction below only
+on request. Once per session; skip it if the user says they know chantier, or if their first
+request is `init`: the [tour](init.md) covers it. When the project has no planning folder, end it
+with one line: "new here? say init for a guided tour".
 
 - **Change Request (CR):** one more level over the project's tracker issues (Jira, GitHub,
   GitLab…). It lets small requests outside the tracker be accepted and prioritised; the tracker
@@ -199,24 +203,11 @@ grill in parallel, fork this session; the fork becomes a Griller". It explains t
 
 ## 5. Reload
 
-After a compaction a session keeps only a summary of the cards. A reload reads them again.
+After compaction, reload reads the common, host and role cores, plus this role's startup sections
+in `startup-manifest.json`; action readings are loaded only before that action.
 
-- **Trigger:** the user says "chantier reload" (plain text, any language around it); or the router
-  skill is invoked with the argument `reload` (the host's form is in its reference); or the host
-  puts the automatic reload's line in the conversation after a compaction (the host's reference
-  says how). A session that holds no chantier role yet (the router never ran, no seat names it,
-  it is not a Griller): a reload is the router's start, as with no argument.
-- **Reads again, whole:** [concepts](concepts.md), this file, the card of the session's role
-  ([chief-of-staff](chief-of-staff.md) or [griller](griller.md)), your host's reference, and
-  [status layout](status-layout.md); while this session steers a direct batch (the seat names this session and
-  the active batch's steering is `direct`, from `$CHANTIER status`), also [foreman](foreman.md).
-- **Does:** re-read the seat, as at any skill invocation (a seat that names another session makes
-  this session a Griller, as section 2 says). The role is the one the session already holds: no
-  role question, no introduction (section 4 is skipped), no first-turn preflight report, no title
-  change unless the seat changed the role.
-- **Touches nothing of the batch:** no order, no epoch claim, no `take`, no heartbeat armed or
-  stopped, no Driver started or messaged. It reads only (`$CHANTIER seat`, `$CHANTIER status`).
-- **Says:** one short line, in the user's language, that chantier's rules are reloaded; then, if a
-  batch is active, the current status in the Progress shape of `status-layout.md` (`status --refresh`
-  with no epoch first, as it says). After an automatic reload, that line opens the next answer,
-  before whatever answers the user's message.
+- **Trigger:** "chantier reload", the router's `reload`, or the host's automatic reload. With no
+  role, it starts the router.
+- **Does:** reread the seat, ask no role question or introduction, and make no batch change. Read
+  only (`$CHANTIER seat`, `$CHANTIER status`): no order, `take`, heartbeat, Driver, or message.
+- **Says:** report that rules were reloaded; add active batch status.

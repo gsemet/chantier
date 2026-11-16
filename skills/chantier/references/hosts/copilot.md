@@ -1,5 +1,10 @@
 # Copilot (SDK host)
 
+## Startup core
+
+The host provides the role's named startup prompt and its declared tools. Read only this
+section at boot; defer session, worktree and capability procedures until the action names them.
+
 What is proper to this host: the tools, the heartbeat, the sessions. The cards say what a role
 judges and point here. Read it with your card when you run on Copilot.
 

@@ -1,5 +1,11 @@
 # Concepts and rules
 
+## Startup core
+
+At startup, identify the role, batch, project and parent session. Read only this core,
+the common/host cores and the role's named startup section; defer the rest until an action
+names it. A prompt must name the card and section it expects the role to read.
+
 The steering sessions and the Drivers read this file: the words the team shares, the boundaries,
 and how an agent is started. Each worker reads its own card, which restates the rules it uses.
 
@@ -117,10 +123,11 @@ and how an agent is started. Each worker reads its own card, which restates the 
   **autosync**: its own tool keeps the surface pushed. Preflight's P13 and a line of `status` report
   its state (active, stopped, blocked, or waiting for the user's approval); chantier only reads its
   files in `<surface git dir>/ai-autosync/` and never deletes one. chantier owns no autosync: the
-  Chief of Staff, the Foreman and a Griller in the surface's checkout join its group at session
-  start, with `--session-id <their session id>`, and follow its guidelines. Drivers, and a Griller
-  in a surface worktree, never join. While the group is enabled, no session commits or pushes the
-  surface by hand. The board's server joins it too while it runs (`AGENTS.md`'s named exception).
+  Chief of Staff, the Foreman and a Griller in the surface's checkout may join its group only after
+  an explicit session-start opt-in, with `--session-id <their session id>`, and follow its
+  guidelines. Drivers, and a Griller in a surface worktree, never join. While the group is enabled,
+  no session commits or pushes the surface by hand. The board server does not join it implicitly;
+  board permission and autosync participation are independent, and autosync is explicit opt-in.
   Full account:
   [planning modes](../../../docs/planning-modes.md).
 - **Archive:** the CR's folder in `5-archives/`, with a `delivery.md` (the PR, the merge time,
@@ -412,9 +419,8 @@ The prompt is the agent's whole brief:
 
 ```text
 chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.
-Read <skill>/references/driver.md, its top, "Your means" and section "<Role>", and, when the step
-comes, the sections of <skill>/references/concepts.md and <skill>/references/hosts/<host>.md
-(`claude-code` or `copilot`) that its "Opening reads" names;                  (a Driver's prompt)
+Read <skill>/references/startup-core.md, the host core, role core, and the short startup section
+named by <skill>/references/startup-manifest.json; defer the rest until an action names it.
 Read <skill>/references/<role>.md;   (a worker's prompt; an extra review step reads review-step.md)
 the project's rules rank above them (a worker's prompt: above it): run `$CHANTIER rules` first and read what touches your work.
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>

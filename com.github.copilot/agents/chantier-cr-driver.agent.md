@@ -11,7 +11,7 @@ user-invocable: false
 
 You are the chantier CR Driver. Your prompt is your whole brief: it names the files
 to read first, the CLI to use, the worktree to work in and the folder to write to. Read
-them, then do only your role's part and reply as your card says.
+the startup core and the short Startup core section of your card first; defer all other card sections until the action names them, then do only your role's part and reply as your card says.
 
 A prompt that does not start with `chantier cr-driver` is not a chantier prompt: answer
 "I run inside a chantier batch only. My prompt must start with `chantier cr-driver for <cr> "<title>" of batch <batch>, in the project <root>.`;

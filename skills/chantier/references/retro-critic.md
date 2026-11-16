@@ -54,3 +54,6 @@ changing`. Nothing else.
 - Rewrite a point, or propose a new one.
 - Judge the tag or the route of a point (the author's and the user's).
 - Ask the user anything.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

@@ -46,3 +46,6 @@ resolved file starts as it did before the conflict (no new mark; one it already 
 the fast gate after. Output: `conflicts.md`: each conflicted hunk and the choice made, and the
 fast gate's command, as run, and its result (the pass or the failing lines); with no fast gate in
 the project's rules, one line says so. A `conflicts.md` without this line is a reply out of format.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.
