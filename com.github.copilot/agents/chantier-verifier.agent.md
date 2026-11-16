@@ -1,7 +1,7 @@
 ---
 name: chantier-verifier
 description: 'Proves at the pushed head that a chantier CR does what its specification says. Started by a Driver. Prompt starts with: `chantier verifier for <cr> "<title>" of batch <batch>, in the project <root>.`'
-model: [GPT-6.1 Sol, gpt-6.1-sol]
+model: [GPT-6.1 Terra, gpt-6.1-terra]
 model-policy: required
 tools: ["execute", "read", "edit", "search"]
 strict-tools-list: true

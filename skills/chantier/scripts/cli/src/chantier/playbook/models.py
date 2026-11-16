@@ -28,6 +28,7 @@ MODELS = {
         Model("claude-sonnet-5.5", "Claude Sonnet 5.5", ""),
         Model("gpt-5.6-luna", "GPT-5.6 Luna", ""),
         Model("gpt-6.1-sol", "GPT-6.1 Sol", ""),
+        Model("gpt-6.1-terra", "GPT-6.1 Terra", ""),
     ),
 }
 

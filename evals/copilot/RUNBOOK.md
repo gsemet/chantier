@@ -10,6 +10,7 @@ mechanics that differ from Claude, as cheaply as possible. About $1.
 - **The Driver and its workers:** the Driver runs in the background (`task`), starts each worker
   with a prompt written from its card and the facts `chantier round` prints, and ends with a
   hand-back.
+- **The models:** each role runs on its agent file's model, from the host's own record.
 - **The cost:** `chantier cost` measures the batch through copilot-session-usage, as a breakdown (`Agent <type>` lines).
 
 Follow the sandbox campaign text in [the evals README](../README.md#a-sandbox-campaign) (the
@@ -48,6 +49,30 @@ the audit's cost stays before it.
 - The audit runs before `close --yes` (it needs the batch folder).
 - The CR ends `merged` (in `4-batch/3-done/`, waiting for `close`), the batch `paused`; `chantier cost` prints the breakdown, an `Agent <type>` line per agent type.
 - The judge: the hidden tests of `delete-item` on the PR's head.
+
+## Models
+
+Run in the same Copilot App chat, before the batch's go or after `close --yes`. Supported hosts:
+the Copilot App (on the Copilot SDK) and the Copilot CLI.
+
+1. Ask the Chief of Staff to start, with `task` and no model, each plugin agent `chantier-<role>`
+   once (all fourteen), in this order, one at a time (each waits for its answer before the next
+   starts): cr-driver, stack-driver, qa-driver, release-driver, investigator, coder, inspector,
+   debugger, verifier, conflict-resolver, demo-explorer, spec-writer, spec-critic, retro-critic.
+   Each gets the prompt `model probe` and answers its refusal line (a prompt that is not
+   chantier's); that answer runs on the agent's model, so the host records it. About fourteen
+   short calls.
+2. Run `uv run --no-project python <this checkout>/evals/kit/copilot_models.py` on the Chief of
+   Staff's session and paste its output into the report.
+3. Where available, record the account's identifiers with
+   `copilot --silent -p "/model --list --json"` (it works only sometimes,
+   [copilot-cli#700](https://github.com/github/copilot-cli/issues/700)); a difference with the
+   agent files' identifiers (`gpt-5.6-luna` among them) is reported, not fixed in the run.
+4. When a role ran on another model than its file's, or the host printed an enforcement or
+   refusal message (a plan without the model included): the report names the role, the expected
+   identifier, the recorded one and the host's exact text. Nothing is worked around: the agent
+   file is not changed to follow the host, no override is passed. The finding goes to
+   `hosts/copilot.md` ("Models" rows) through an inbox CR, which the Chief of Staff offers the user.
 
 ## Still to fill in from a real run
 

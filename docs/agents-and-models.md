@@ -53,15 +53,21 @@ approves and answers with the same verdict. A running batch keeps the team it st
 | Stack and release drivers | Sonnet 5.5 | Claude Opus 5.5 |
 | CR driver | Sonnet 5.5 | Claude Sonnet 5.5 |
 | QA driver | Sonnet 5.5 | Claude Sonnet 5.5 |
-| Coder, Investigator, Debugger, Conflict resolver, Demo explorer | Sonnet 5.5 | GPT-5.6 Luna |
-| Inspector, Verifier | Sonnet 5.5 | GPT-6.1 Sol |
+| Coder | Sonnet 5.5 | GPT-6.1 Sol |
+| Investigator, Demo explorer | Sonnet 5.5 | GPT-5.6 Luna |
+| Inspector | Sonnet 5.5 | GPT-6.1 Sol |
+| Verifier, Debugger, Conflict resolver | Sonnet 5.5 | GPT-6.1 Terra |
 | Spec-writer | Opus 5.5 | Claude Opus 5.5 |
 | Spec critic | Opus 5.5 (Fable on request) | Claude Opus 5.5 |
 
 By default every role but the Spec-writer and the Spec critic runs Sonnet 5.5 on Claude Code. The roles that judge
 keep cards with goals and boundaries, not procedures. On a named trouble a task goes to a new
 agent on the escalation model (Opus 5.5 by default), and the report says so. On Copilot the models
-are its agent files' models.
+are its agent files' models: they set `model-policy: required`, so the file's model wins over a model
+passed at the start
+([CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#command-line-options));
+seen in the Copilot App in CR-296 (a Coder started with GPT-6.1 Sol ran on its file's GPT-5.6
+Luna).
 
 **No fallback:** if a host refuses a model, a tool or an agent, chantier stops and says so; it
 never picks a look-alike or a workaround.
