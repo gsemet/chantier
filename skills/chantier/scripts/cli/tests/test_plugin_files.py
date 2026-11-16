@@ -59,6 +59,8 @@ COPILOT_OPUS_ROLES = {
 
 CARDS = {**{r: "driver" for r in DRIVERS}, **{r: r for r in WORKERS}}
 
+STARTUP_LIMIT = 12_288
+
 
 def agent_file(role: str, host: str) -> Path:
     """The plugin installs one agent per role and host: `chantier:<role>` on Claude from
@@ -274,8 +276,7 @@ def test_four_skills_the_router_and_three_thin_ones_listed_by_copilot() -> None:
 
 
 def test_every_role_has_its_section_in_its_card() -> None:
-    """The contract a parent names in its prompt: a Driver's `driver.md`, section `<Role>`; a
-    worker's own card, `<role>.md`, titled `# <Role>`."""
+    """Every parent names a real role card and its role section."""
     for role in CHIEF_ROLES:
         assert (SKILL / "references" / f"{role}.md").is_file(), role
     for role, card in CARDS.items():

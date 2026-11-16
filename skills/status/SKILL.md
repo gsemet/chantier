@@ -12,7 +12,7 @@ description: >-
 
 chantier-version: 0.10.0
 
-`$CHANTIER` is the CLI, one launch in two modes, checked once at the session's start. The plugin root is the folder two levels above the common skill (`<plugin root>` = `<../chantier made absolute>/../..`, made absolute). If `<plugin root>/.git` exists (a folder or a file), this is chantier's own checkout, the dev mode: run `uv sync --locked --project "<plugin root>"` once, before the first `$CHANTIER` command (a sync that fails, os error 32 because another session's board or gate runs, or any uv error, is one line to the user with uv's text, and the session goes on), then `$CHANTIER` is `uv run --no-sync --project "<plugin root>" chantier`, the local code, live, with no fetch; only the steering session syncs, never a Foreman, a Driver or a worker. Otherwise it is a host's plugin copy, the plugin mode: `$CHANTIER` is `uvx --from "<plugin root>" chantier --skill "<../chantier made absolute>"`, the plugin's own folder, with no fetch.
+`$CHANTIER` is the CLI, one launch in two modes, checked once at the session's start. The plugin root is the folder two levels above the common skill (`<plugin root>` = `<../chantier made absolute>/../..`, made absolute). If `<plugin root>/.git` exists (a folder or a file), this is chantier's own checkout, the dev mode: run `uv sync --locked --project "<plugin root>"` once, before the first `$CHANTIER` command (a sync failure is reported with uv's exact diagnostic and role initialization stops; no upgrade, repair, substitute, or alternative route), then `$CHANTIER` is `uv run --no-sync --project "<plugin root>" chantier`, the local code, live, with no fetch; only the steering session syncs, never a Foreman, a Driver or a worker. Otherwise it is a host's plugin copy, the plugin mode: `$CHANTIER` is `uvx --from "<plugin root>" chantier --skill "<../chantier made absolute>"`, the plugin's own folder, with no fetch.
 
 The common skill is at `../chantier/` from this file's folder, with its cards
 (`../chantier/references/`), its CLI (`../chantier/scripts/cli/`) and its assets.
@@ -20,8 +20,11 @@ The common skill is at `../chantier/` from this file's folder, with its cards
 Nothing to install or set up but `uv`: the
 project's `AGENTS.md`, and an optional `chantier.yaml` at its root, are the only configuration.
 
-Read [status-layout](../chantier/references/status-layout.md) now, and nothing else of chantier: not the main
-skill, not the Chief of Staff's card, not the introduction. Then, for the active batch, or for
+Read the common core, host core, role core and wrapper named by
+[startup-manifest.json](../chantier/references/startup-manifest.json). Read
+[status-layout](../chantier/references/status-layout.md) only for the status action, and nothing
+else of chantier: not the main skill, not the Chief of Staff's card, not the introduction. Then, for
+the active batch, or for
 each active batch when there are several (`--batch <batch>`):
 
 1. `$CHANTIER status --refresh` with no epoch;
@@ -36,3 +39,6 @@ With no active batch, say so in one line and give the backlog count from
 `.agents/changes/STATUS.md`.
 
 You change nothing: no order, no heartbeat, no epoch, no file.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

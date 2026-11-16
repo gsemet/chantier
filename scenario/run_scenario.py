@@ -6991,32 +6991,23 @@ def surface_autosync(w: SurfaceWorld) -> None:
         check("E2: reading never deletes a participant file, a dead one included",
               (state / "participants" / f"{gone}.json").is_file() and mine.is_file(),
               str(list(state.rglob("*"))))
-        # the board at the surface joins on a fresh start, and acts on the user's click
+        # the board serves without joining autosync; autosync remains an explicit opt-in
         shutil.rmtree(state)
         bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
                        cwd=w.surface)
         try:
             link = Link(bp.line())
             joined = bp.line()
-            check("E2: the board starts and says it joins the surface's autosync",
-                  link.ok and "joining the surface's autosync" in (joined or ""), str(joined))
-            end = time.monotonic() + 90
-            api: dict = {}
-            while time.monotonic() < end:
-                api = jget(link.port, link, "/api/autosync")[2]
-                if api.get("participants"):
-                    break
-                time.sleep(0.5)
+            check("E2: the board starts without joining the surface's autosync",
+                  link.ok and joined is None, str(joined))
+            api = jget(link.port, link, "/api/autosync")[2]
             join = next((r for r in runs() if r[:1] == ["join"]), [])
-            check("E2: the join ran as `join . --owner-pid N --harness generic --session-id "
-                  "chantier-board`, and the group names the board server",
-                  len(join) == 8 and join[:3] == ["join", ".", "--owner-pid"] and join[3].isdigit()
-                  and join[4:] == ["--harness", "generic", "--session-id", "chantier-board"]
-                  and [m["name"] for m in api.get("participants", [])] == ["board"]
-                  and api.get("state") == "active", f"{join} {api}")
+            check("E2: the board does not create an autosync participant",
+                  not join and not api.get("participants") and api.get("state") != "active",
+                  f"{join} {api}")
             board = jget(link.port, link, "/api/board")[2]
-            check("E2: the same object rides on `GET /api/board`",
-                  board.get("autosync", {}).get("state") == "active", str(board.get("autosync")))
+            check("E2: the board reports autosync independently",
+                  board.get("autosync", {}).get("state") != "active", str(board.get("autosync")))
             before = len(runs())
             put("control.json", STOPPED)
             code, body = post(link, "/api/autosync/stop")
@@ -7024,7 +7015,8 @@ def surface_autosync(w: SurfaceWorld) -> None:
                   code == 409 and body.get("code") == "stopped" and len(runs()) == before, str(body))
             code, body = post(link, "/api/autosync/start")
             check("E2: start in the stopped state runs `start . --enable-only` and the group is active",
-                  code == 200 and runs()[-1] == ["start", ".", "--enable-only"]
+                  code == 200 and runs()[-2] == ["start", ".", "--enable-only"]
+                  and runs()[-1][:2] == ["join", "."]
                   and body.get("autosync", {}).get("state") == "active", f"{code} {body}")
             put("control.json", BLOCKED)
             before = len(runs())

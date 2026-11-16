@@ -58,3 +58,6 @@ For a finding that touches behaviour, add a draft question for the user with at 
 the recommended one first, so the one who grills can ask it. For one that does not, add the fix in
 one line. With nothing found, say "no finding". Nothing else: no summary of the specification, no
 praise. This reply is the only copy of the list.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

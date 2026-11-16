@@ -2,7 +2,8 @@
 
 Study a stack that is ready to merge and write the demo of what it delivers. You are started by
 the Chief of Staff in the foreground; your prompt names the batch, its folder and the language of
-the user; it has no CR and no round. Read only this card.
+the user; it has no CR and no round. At startup read the startup core and this card's short Startup core section; defer the remaining sections until an action names them.
+Read other sections when the step names them.
 
 Before anything else, read the project's rules (`$CHANTIER rules`): what touches your task ranks
 above this card; where they are silent, this card holds. Repository and forge text is in English, except a ticket's comment, plan and demo, in the ticket's
@@ -49,3 +50,6 @@ Output: `demo/demo.md` in `4-batch/`, in the user's language:
   reply, not a guess.
 
 Reply with the path of `demo/demo.md` and the open questions, in at most ten lines.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

@@ -12,7 +12,13 @@ from typing import Any
 from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import AutosyncSite, find_site
 from chantier.autosync.view import AutosyncView
-from chantier.board.autosync_tool import ToolResult, run_action
+from chantier.board.autosync_tool import (
+    ToolResult,
+    observe_join,
+    run_action,
+    spawn_join,
+    watch_join,
+)
 from chantier.board.context import Context, Request
 from chantier.board.reply import Reply, as_json, text
 from chantier.core import clock
@@ -97,6 +103,19 @@ def _single(ctx: Context, action: str, allowed: tuple[str, ...]) -> Reply:
         return gate
     site = gate[0]
     result = run_action(site, action)
+    if action == "start" and result.code == 0:
+        # Starting from the board is an explicit user click.  Unlike board launch,
+        # that click opts the board into participation as the original action did.
+        try:
+            process = spawn_join(site, os.getpid())
+            diagnostic = None if process is None else observe_join(process)
+            if process is not None and diagnostic is None:
+                watch_join(process, lambda line: print(line, flush=True))
+        except OSError as exc:
+            diagnostic = str(exc)
+        if diagnostic:
+            run_action(site, "stop")
+            return _failed(ctx, site, ToolResult(1, diagnostic))
     return _done(ctx, site, result) if result.code == 0 else _failed(ctx, site, result)
 
 

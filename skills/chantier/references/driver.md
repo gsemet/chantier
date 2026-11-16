@@ -12,15 +12,16 @@ The CLI keeps the CR's record and tells you what is off.
 You send every line to the steering session by the `Steering:` line of your prompt; a prompt
 without it is a `Needs:`-like gap: `note` it and use the host's reference row.
 
-Opening reads: you judge what you read whole and what you read by section. These are the card's
-defaults, not a gate.
+At startup read the startup core, the short `Startup core` section, and the project's rules;
+defer the rest of this card until an action names it. These are the card's defaults, not a gate.
 
 - **Whole, first:** the project's instruction file that `$CHANTIER rules` names first (the
   project's rules rank above every card). From the other files `rules` lists, only what touches a
   Driver's work: git, the branch, the gates, the PR, the forge, CI. Another role's card the list
   names and the project's docs for users are not opening reads.
-- **Whole:** this card's top, "Your means" and your own section ("CR driver", "Stack driver",
-  "QA driver" or "Release driver"). Another Driver's section is not read.
+- **Deferred:** "Your means" and the full role section ("CR driver", "Stack driver",
+  "QA driver" or "Release driver") are read before the action that needs them. Another Driver's
+  section is not read.
 - **Whole, or by part:** the specification. You need its goal, its scope and out of scope, its
   decisions and open points, and its evidence, to brief the workers, write `pr-body.md` and judge
   the Verifier's proof. The detail of "What changes" is the Coder's and the Inspector's to read:
@@ -994,3 +995,6 @@ inside the procedure and the grant, and ask for anything beyond them.
   `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
   infra:`. Half-done irreversible work: stop and say exactly what is out in `blocked question:`;
   never undo it on your own.
+## Startup core
+
+Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

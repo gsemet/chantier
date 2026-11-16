@@ -797,8 +797,9 @@ Only in the turn where the user gave the go:
    ```text
    chantier Foreman n°<n> of batch <batch>, for the Chief of Staff <your session id>.
    Your session title: <title>. Set it on yourself first.
-   Read <skill>/references/foreman.md, <skill>/references/hosts/<host>.md and
-   <skill>/references/concepts.md now and follow them.
+   Read <skill>/references/startup-core.md, <skill>/references/role-core.md and the named
+   startup sections of <skill>/references/foreman.md, <skill>/references/hosts/<host>.md and
+   <skill>/references/concepts.md now; defer every other section until its step names it.
    CLI: <$CHANTIER, exactly as your skill gives it> <command> --batch <batch>
    Repository: <this repository's absolute path>
    Team: <the lines of `$CHANTIER playbook`, as printed, and the review steps; or "the plugin's agents">
