@@ -1,7 +1,7 @@
 
 # The web board
 
-`chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch.
+`chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for its PRs page.
 
 The pictures on this page are taken from the real board by `just docs-screenshots`, on a made-up planning surface (`docs/demo/`, see [its README](demo/README.md)): three fictional projects, the clock fixed at 2026-06-18 10:30 UTC. Nothing in them is a real project.
 
@@ -37,6 +37,18 @@ The right column follows the batch's mode (stack, series or parallel, named in t
 
 - **PRs to review**: the PRs ready to merge now. In a stack, only a fix CR, which sits on the default branch outside the stack, is to review while the stack is not built and verified on the forge; the others are listed as **PRs in draft, not to merge yet**, with their place in the stack (1 is the bottom, not a merge order). A click on a PR opens it on the forge; the folder icon opens the CR's folder.
 - **Merged PRs**: for information, this batch's and the earlier batches'.
+
+### PRs
+
+The PRs of the batch as the forge says they are now, one row per CR that has a PR, in the merge order. A row shows the PR (a click opens it on the forge), the CR and its kind, the PR's state on the forge (open, draft, merged, closed), whether it conflicts, its checks (green, failing, running, none), and the CR's folder icon. The page only reads: it writes nothing, in the planning folder or on the forge.
+
+- **Ready to merge now** is both at once: the record says the CR is to review, and the forge says the PR is open, not a draft, with no conflict and its checks green (or none to run). The forge alone never makes a PR ready.
+- **Being checked by the forge**: the forge has not finished computing the PR's mergeability or has not started its checks yet. The page says so rather than "no checks".
+- **Merged**: the row names the branch the PR went into, and the CR whose branch it is when it is one.
+- **Merged on the forge, not recorded yet: tell the Chief of Staff**: the PR is merged but the record does not say so. Tell the Chief of Staff, who records it with `order merged`; the line goes once it is recorded. The same line style warns when the record says a CR is ready but the forge says draft, closed, conflicting or checks failing.
+- **Refresh**: the page reads the forge when it opens, then every 10 s while the page is visible and a PR is not done. The server keeps one read per project for 10 s, however many pages are open. It stops when every PR is merged or closed (a closed PR counts as done), and starts again when a new PR joins the batch.
+- **A forge error** (no login, no network, a hung call) shows as one line above the rows; the last good read stays on screen with its age.
+- **A paused batch** says so in the header; with no batch running the page says "No batch running" and names the last closed batch.
 
 ### Kanban
 
@@ -114,6 +126,8 @@ The page is in English or French; a button at the bottom of the bar switches it 
 `just docs-screenshots` copies `docs/demo/` to a temporary folder, starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
 
 ## Starting the board
+
+The board needs your own `gh` (GitHub) or `glab` (GitLab) login, and the network, for the PRs page only; every other view reads the planning folder.
 
 On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and

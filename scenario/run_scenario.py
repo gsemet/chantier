@@ -1440,6 +1440,98 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
           b"{}")[0] == 415)
 
 
+def forge_pr(w: World, link: str, **fields: object) -> None:
+    """What the forge holds of the PR at `link`, in GraphQL words (`state`, `isDraft`, `mergeable`,
+    `baseRefName`, `mergedAt`, `closedAt`, `checks`): the fake `gh` answers the board's PRs page."""
+    n = link.rstrip("/").rsplit("/", 1)[-1]
+    state = json.loads(w.gh_state.read_text())
+    state.setdefault("prs", {}).setdefault(n, {}).update(fields)
+    w.gh_state.write_text(json.dumps(state))
+
+
+def record_pr(w: World, cr: str, link: str) -> None:
+    """The record's own edit: the CR `cr` has the PR at `link` (what `ship` writes)."""
+    d = w.batch()
+    next(c for c in d["crs"] if c["id"] == cr)["pr"] = link
+    (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+
+def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str, str, str]) -> None:
+    """The PRs page (CR-302): the batch's PRs read on the forge against the record, read-only."""
+    one, two, three, four = ids
+    url = "https://github.com/acme/demo/pull/{}".format
+    path = f"/api/projects/{project}/prs"
+    first_call = len(forge_calls(w))
+
+    def rows() -> tuple[dict, dict]:
+        code, _, got = jget(port, link, path)
+        return got, ({r["cr"]: r for r in got.get("rows", [])} if code == 200 else {})
+
+    def untouched(note: str, then) -> tuple[dict, dict]:
+        folder = folder_state(w.state)
+        porcelain = w.sh("git", "status", "--porcelain", "--", ".agents/changes")
+        found = then()
+        check(f"{note}: nothing was written in the planning folder, nor its git status",
+              folder_state(w.state) == folder
+              and w.sh("git", "status", "--porcelain", "--", ".agents/changes") == porcelain)
+        return found
+
+    record_pr(w, two, url(902))
+    record_pr(w, three, url(903))
+    check("`GET prs` with no key answers 401", fetch(port, path)[0] == 401)
+    got, by = untouched("a read of the PRs", rows)
+    shown = w.cr(one)["pr"]
+    check("`GET prs` holds one row per CR with a PR, read on the forge, none with a PR missing",
+          {r["cr"] for r in got.get("rows", [])} == {one, two, three}
+          and got["batch"] == w.batch()["id"] and got["error"] is None and got["read_at"]
+          and got["all_done"] is False
+          and all(r["state"] == "open" and r["checks"] == "green" and not r["conflicting"]
+                  and not r["checking"] for r in by.values()), str(got))
+    to_review = {c["cr"]: c["to_review"]
+                 for c in jget(port, link, f"/api/projects/{project}/state")[2]["batch"]["crs"]}
+    check("a row has the PR, its CR and its title, and is ready now only when the record says the "
+          "CR is to review and the forge agrees",
+          by[one]["pr"] == shown and by[one]["title"] and "kind" in by[one]
+          and by[one]["ready_now"] is to_review[one] and not by[two]["ready_now"], str(by))
+    forge_pr(w, shown, state="MERGED", mergedAt="2026-11-16T10:00:00Z")
+    forge_pr(w, url(903), mergeable="CONFLICTING", checks="FAILURE")
+    record_pr(w, four, url(904))
+    forge_pr(w, url(904), isDraft=True, checks=None)
+    got, by = untouched("a second read", rows)
+    check("a PR merged on the forge and not in the record says so, with the branch it went into",
+          by[one]["state"] == "merged" and by[one]["merged_into"]["branch"] == "main"
+          and by[one]["disagrees"] == "merged on the forge, not recorded yet: tell the Chief of Staff"
+          and not got["all_done"], str(by[one]))
+    check("a conflicting PR, a draft and a PR with no check run yet are told apart; a check the "
+          "forge has not computed is `being checked`, never `none`",
+          by[three]["conflicting"] and by[three]["checks"] == "failing"
+          and by[four]["state"] == "draft" and by[four]["checking"] is True
+          and by[four]["checks"] != "none", str((by[three], by[four])))
+    code, _ = w.chantier("order", "merged", one, "--epoch", 1, expect=None)
+    got, by = rows()
+    check("`order merged` makes the disagreement go", code == 0 and by[one]["disagrees"] is None
+          and by[one]["state"] == "merged", f"{code} {by.get(one)}")
+    forge_pr(w, url(902), state="CLOSED", closedAt="2026-11-16T10:05:00Z")
+    forge_pr(w, url(903), state="MERGED", mergedAt="2026-11-16T10:06:00Z", mergeable="UNKNOWN")
+    forge_pr(w, url(905), state="MERGED", mergedAt="2026-11-16T10:07:00Z")
+    record_pr(w, four, url(905))
+    got, by = rows()
+    check("with every PR merged or closed the page says all done",
+          got["all_done"] is True and by[two]["state"] == "closed" and by[two]["closed_at"]
+          and by[three]["state"] == "merged" and by[four]["state"] == "merged", str(got))
+    _, out = w.chantier("order", "add", "--note", str(prepare_cr(w, "Board late arrival")[1]))
+    late = w.batch()["crs"][-1]["id"]
+    record_pr(w, late, url(906))
+    got, by = rows()
+    check("a CR added after the page was all done brings a new row, and the page is not all done",
+          late in by and by[late]["state"] == "open" and got["all_done"] is False, f"{out} {got}")
+    calls = forge_calls(w)[first_call:]
+    check("the page only read the forge: every call is an `api graphql` query, none a mutation",
+          bool(calls) and all(c[:2] == ["api", "graphql"]
+                              and not any(a == "-X" or a.startswith("query=mutation") for a in c)
+                              for c in calls), str(calls[:1]))
+
+
 def remote_board(w: World) -> None:
     note("\n## 16c. The remote board: the web board's server, behind a key")
     w.reset()
@@ -1672,6 +1764,7 @@ def remote_board(w: World) -> None:
               str(set(folder_state(w.state).items()) ^ set(before.items())))
         board_writes(w, port, link, base)
         lock.unlink()
+        board_prs(w, port, link, project, (one, two, three, four))
         # 8. a second board, a port held
         again = [sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port", str(port)]
         p = subprocess.run([*again, "--seat", "s-1"], cwd=w.work, env=w.env, capture_output=True,

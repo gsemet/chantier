@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 Where = tuple[str, str, str]
+NOT_ONE_REPOSITORY = "the batch's PRs are not all in one repository"
 
 
 def left(come: list[dict[str, Any]]) -> dict[int, str]:

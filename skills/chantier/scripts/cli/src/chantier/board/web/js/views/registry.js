@@ -12,6 +12,7 @@ import * as costs from './costs.js';
 import * as home from './home.js';
 import * as kanban from './kanban.js';
 import * as overview from './overview.js';
+import * as prs from './prs.js';
 import * as triage from './triage.js';
 
 export const VIEWS = [
@@ -38,6 +39,16 @@ export const VIEWS = [
     word: 'nav.batch',
     module: batch,
     count: (state) => state.data?.batch?.id ?? null,
+  },
+  {
+    id: 'prs',
+    icon: 'pr',
+    word: 'nav.prs',
+    module: prs,
+    count: (state) =>
+      state.data?.batch
+        ? crsOf(state.data.batch).filter((c) => c.pr && c.state !== 'merged').length
+        : null,
   },
   {
     id: 'costs',

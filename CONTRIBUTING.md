@@ -95,8 +95,11 @@ chantier is four things in one repository:
    write the prompts. One named exception among the tools: `board`, the web board's server, for
    the user on this machine and the local network, behind a key in its URL (it serves the record
    and the planning folder's files, edits the backlog only through the CLI's role-free commands,
-   never edits a batch and never messages an agent, takes its dependencies like the rest of the CLI
-   and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
+   never edits a batch and never messages an agent, one named exception, its PRs page: when that
+   page asks, at most once every 10 s per project, while a PR of the batch is not done, plus one
+   read when the page opens, it reads the forge, read-only, with the user's own `gh` or `glab`, on
+   its own (no agent asks it), and needs the network for that; takes its dependencies like the
+   rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
    build step). It is also the CLI's one git exception: while it runs it joins the planning
    surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
    A new CLI tool comes only from measured token-costly behaviour of the

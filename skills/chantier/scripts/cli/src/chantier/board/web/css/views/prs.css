@@ -1,0 +1,92 @@
+/* The PRs view: a header line, the forge's error, and one row per PR. */
+.prview .pvhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: var(--space-4) 0 var(--space-3);
+  color: var(--ink2);
+}
+
+.prview .pverr {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--tint-blocked-edge);
+  border-radius: var(--radius-m);
+  background: var(--tint-blocked-fill);
+  color: var(--red);
+}
+
+.prview .pvrows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.prview .pvrow {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--edge, var(--line));
+  border-radius: var(--radius-m);
+  background: var(--fill, var(--panel));
+}
+
+.prview .pvrow .top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-small);
+}
+
+.prview a.pvrow {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.prview .pvrow .top b {
+  font-size: 13px;
+}
+
+.prview .pvrow .fold {
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  color: var(--ink2);
+  cursor: pointer;
+}
+
+.prview .pvrow .fold .svgi {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
+.prview .pvrow .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.prview .pvrow .bad {
+  color: var(--red);
+}
+
+.prview .pvrow .ok {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.prview .pvrow .wait {
+  color: var(--amber);
+}
+
+.prview .pvrow .why {
+  margin-top: 4px;
+  color: var(--amber);
+  font-size: var(--text-small);
+  font-weight: 600;
+}

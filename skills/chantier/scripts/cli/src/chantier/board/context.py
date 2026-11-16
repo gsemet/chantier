@@ -10,6 +10,7 @@ from chantier.board.costs import Live
 from chantier.board.fingerprint import StateCache
 from chantier.board.key import KeyFile
 from chantier.board.projects import Project, Projects
+from chantier.board.prs import ForgeReads
 from chantier.board.seats import Seats
 
 
@@ -46,6 +47,7 @@ class Context:
     stop: Callable[[], None]
     cache: StateCache = field(default_factory=StateCache)
     last_push: LastPush = field(default_factory=LastPush)
+    reads: ForgeReads = field(default_factory=ForgeReads)  # the PRs page's forge reads
     _lives: dict[str, Live] = field(default_factory=dict[str, Live])
     _lock: threading.Lock = field(default_factory=threading.Lock)
 

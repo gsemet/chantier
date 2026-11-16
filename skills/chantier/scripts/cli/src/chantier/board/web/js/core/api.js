@@ -32,6 +32,9 @@ export const projectState = (id, etag) => get(`${base(id)}/state`, etag);
 
 export const costs = (id) => get(`${base(id)}/costs`);
 
+// The batch's PRs read on the forge (read-only; the server keeps a read for 10 s).
+export const prs = (id) => get(`${base(id)}/prs`);
+
 export const tree = (id, path) => get(`${base(id)}/tree?${withPath(path)}`);
 
 // A text file: its text, whether the server cut it, and the SHA-256 of its bytes (an editor sends

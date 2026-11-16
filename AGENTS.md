@@ -13,7 +13,7 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the board's PRs page (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
@@ -37,7 +37,10 @@
   each role's agent and model, per host, in the project's configuration file in the planning
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
   own reading, checking and writing of that file; it never edits a batch and never messages an
-  agent; it takes its dependencies like the rest of the CLI and knows no role.
+  agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project,
+  while a PR of the batch is not done, plus one read when the page opens, it reads the forge,
+  read-only, with the user's own `gh` or `glab`, on its own (no agent asks it), and needs the
+  network for that; it takes its dependencies like the rest of the CLI and knows no role.
 - The board's server is also the CLI's one git exception: it may serve without joining the
   planning surface's autosync group. Board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants. The board commits

@@ -1,5 +1,6 @@
 // Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../model/words.js.
 import board from './fr-board.js';
+import prs from './fr-prs.js';
 import write from './fr-write.js';
 
 export default {
@@ -9,6 +10,7 @@ export default {
   'nav.home': 'Home',
   'nav.kanban': 'Kanban',
   'nav.batch': 'Batch',
+  'nav.prs': 'PR',
   'nav.costs': 'Coûts',
   'nav.config': 'Configuration',
   'nav.overview': 'Tous les projets',
@@ -230,6 +232,7 @@ export default {
   'panel.doc': 'Fichier',
   ...write,
   ...board,
+  ...prs,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'actif',
   'autosync.state.stopped': 'arrêté',
