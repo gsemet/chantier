@@ -64,3 +64,7 @@
 - No fallback: no look-alike model, tool or agent and no workaround in the skill or the CLI; an
   agent judges freely within what it has.
 - Repository text in English. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## chantier
+
+- planning: https://github.com/gsemet/gsemet-foss-planning-surface, projects/chantier
