@@ -16,7 +16,12 @@ CODER = "coder: agent=chantier:coder model=(its file's)"
 PRICES = "prices:\n  mystery-model:\n"
 FOUR = "".join(f"    {k}: 1\n" for k in ("input", "cache_write_5m", "cache_write_1h", "cache_read"))
 FIVE = FOUR + "    output: 1\n"
-HEAD = "roles:\n  coder:\n"
+ROLES = "hosts:\n  claude:\n    roles:\n"
+HEAD = ROLES + "      coder:\n"
+COPILOT_HEAD = HEAD.replace("claude", "copilot")
+A = "        "  # a role's key
+DRIVER = ROLES + "      cr-driver:\n" + A + "agent: my-driver\n"
+OPUS = "opus (claude-opus-5-5, Claude Opus 5.5)"
 
 
 def team(out: list[str]) -> list[str]:
@@ -74,25 +79,25 @@ def test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch(
     host(monkeypatch)
     yaml = repo / "chantier.yaml"  # with a BOM, as a Windows editor writes it
     yaml.write_text(
-        "# the team\nroles:\n  coder:\n    model: opus\n    skills: [jira]\n"
-        "  cr-driver:\n    agent: my-driver  # my own\n",
+        "# the team\n" + ROLES + "      coder:\n        model: opus\n        skills: [jira]\n"
+        "      cr-driver:\n        agent: my-driver  # my own\n",
         encoding="utf-8-sig",
     )
-    opus = "model=opus (claude-opus-5-5, Claude Opus 5.5)"
-    coder = f"coder: agent=chantier:coder {opus} skills=jira"
+    opus = f"model={OPUS} [repository]"
+    coder = f"coder: agent=chantier:coder {opus} skills=jira [repository]"
     code, now, _ = chantier("playbook")
     assert code == 0 and now[0] == "playbook: chantier.yaml, valid, host claude"
-    assert coder in now and "cr-driver: agent=my-driver model=(its file's)" in now
+    assert coder in now and "cr-driver: agent=my-driver [repository] model=(its file's)" in now
     ids = open_batch(repo, chantier, monkeypatch, "Playbook set one", "Playbook set two")
     _, took, _ = chantier("take", ids[0], "--epoch", 1)
     assert record(repo)["playbook"]["roles"]["cr-driver"] == {"agent": "my-driver"}
-    want = "team: coder model=opus (claude-opus-5-5, Claude Opus 5.5) skills=jira"
-    assert team(took) == [want, "team: cr-driver agent=my-driver"]
+    want = f"team: coder model={OPUS} [repository] skills=jira [repository]"
+    assert team(took) == [want, "team: cr-driver agent=my-driver [repository]"]
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert now[-1] == ESCALATE and out[-1] == ESCALATE and "opened it" in out[0]
     kept = [ln for ln in now[1:] if " prompt, first line: " not in ln]
     assert [ln for ln in out[1:] if " prompt, first line: " not in ln] == kept
-    yaml.write_text("roles:\n  coder:\n    agent: other-coder\n", encoding="utf-8")
+    yaml.write_text(HEAD + A + "agent: other-coder\n", encoding="utf-8")
     _, took, _ = chantier("take", ids[1], "--epoch", 1)  # S3: the batch keeps its opening's
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert "other-coder" not in "".join(took + out) and "agent=my-driver" in "".join(team(took))
@@ -104,17 +109,17 @@ def test_ci_beside_the_gate_is_printed_recorded_and_kept_after_the_key_is_droppe
 ) -> None:
     host(monkeypatch)
     yaml = repo / "chantier.yaml"
-    yaml.write_text("ci:\n  beside_gate: true\nroles:\n  cr-driver:\n    agent: my-driver\n")
+    yaml.write_text("ci:\n  beside_gate: true\n" + DRIVER)
     code, out, _ = chantier("playbook")
     ids = open_batch(repo, chantier, monkeypatch, "Playbook ci one", "Playbook ci two")
     _, took, _ = chantier("take", ids[0], "--epoch", 1)
     _, shown, _ = chantier("handoff", ids[0])
     brief = next(changes(repo).rglob("brief.md")).read_text(encoding="utf-8")
-    assert code == 0 and len(ci_line(out)) == 1
+    assert code == 0 and len(ci_line(out)) == 1 and "(repository)" in ci_line(out)[0]
     assert record(repo)["playbook"]["ci"] == {"beside_gate": True}
     assert len(ci_line(took)) == 1 and len(ci_line(shown)) == 1
-    assert "CI beside the long gate: on" in brief
-    yaml.write_text("roles:\n  cr-driver:\n    agent: my-driver\n")
+    assert "CI beside the long gate: on (repository)" in brief
+    yaml.write_text(DRIVER)
     _, took, _ = chantier("take", ids[1], "--epoch", 1)
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert len(ci_line(took)) == 1 and len(ci_line(out)) == 1
@@ -122,10 +127,7 @@ def test_ci_beside_the_gate_is_printed_recorded_and_kept_after_the_key_is_droppe
 
 @pytest.mark.parametrize(
     "text",
-    [
-        "ci:\n  beside_gate: false\nroles:\n  cr-driver:\n    agent: my-driver\n",
-        "roles:\n  cr-driver:\n    agent: my-driver\n",
-    ],
+    ["ci:\n  beside_gate: false\n" + DRIVER, DRIVER],
     ids=["beside_gate false", "no ci key"],
 )
 def test_ci_is_off_by_default_and_prints_nothing(
@@ -142,17 +144,38 @@ def test_ci_is_off_by_default_and_prints_nothing(
     assert "CI beside the long gate" not in brief
 
 
+ROLES_MOVED = '"roles" goes under a host'
 REFUSALS = [
-    ("an unknown role", "roles:\n  codr:\n    agent: x\n", 2, "is not one of the plugin's agents"),
-    ("an unknown key", HEAD + "    colour: red\n", 3, 'unknown key "colour"'),
-    ("an empty role", HEAD, 2, "is empty"),
-    ("a tab", HEAD + "\tagent: x\n", 3, "a tab"),
-    ("an anchor", HEAD + "    agent: &a x\n", 3, "anchors"),
-    ("a duplicate key", HEAD + "    agent: x\n    agent: y\n", 4, "duplicate key"),
-    ("a flow mapping", HEAD + "    agent: {a: b}\n", 3, "flow mappings"),
-    ("a second document", "roles:\n  coder:\n    agent: x\n---\n", 4, "several documents"),
-    ("an unknown model", HEAD + "    model: opus 5.6\n", 3, "is unknown on Claude Code; known:"),
-    ("a model with no letter", HEAD + "    model: 5.5\n", 3, "name the model, not only"),
+    (
+        "an unknown role",
+        ROLES + "      codr:\n" + A + "agent: x\n",
+        4,
+        "is not one of the plugin's",
+    ),
+    ("an unknown key", HEAD + A + "colour: red\n", 5, 'unknown key "colour"'),
+    ("an empty role", HEAD, 4, "is empty"),
+    ("a tab", HEAD + "\tagent: x\n", 5, "a tab"),
+    ("an anchor", HEAD + A + "agent: &a x\n", 5, "anchors"),
+    ("a duplicate key", HEAD + A + "agent: x\n" + A + "agent: y\n", 6, "duplicate key"),
+    ("a flow mapping", HEAD + A + "agent: {a: b}\n", 5, "flow mappings"),
+    ("a second document", HEAD + A + "agent: x\n---\n", 6, "several documents"),
+    ("an unknown model", HEAD + A + "model: opus 5.6\n", 5, "is unknown on Claude Code; known:"),
+    ("a model with no letter", HEAD + A + "model: 5.5\n", 5, "name the model, not only"),
+    ("a top-level roles", "roles:\n  coder:\n    agent: x\n", 1, ROLES_MOVED),
+    ("roles: default", "roles: default\n", 1, ROLES_MOVED),
+    ("an unknown host", "hosts:\n  gemini:\n    roles:\n", 2, 'unknown host "gemini"'),
+    ("a host key", "hosts:\n  claude:\n    colour: red\n", 3, 'unknown key "colour"'),
+    ("a quoted default model", HEAD + A + 'model: "default"\n', 5, '"default" resets the value'),
+    ("a quoted default agent", HEAD + A + 'agent: "default"\n', 5, '"default" resets the value'),
+    ("an empty agent", HEAD + A + "agent:\n", 5, '"agent" is one string'),
+    (
+        "a reset under an unknown role",
+        ROLES + "      codr: default\n",
+        4,
+        "is not one of the plugin's",
+    ),
+    ("a reset under an unknown key", HEAD + A + "colour: default\n", 5, 'unknown key "colour"'),
+    ("a bad model of another host", COPILOT_HEAD + A + "model: gpt\n", 5, "ambiguous on Copilot"),
     ("a ci that is not a mapping", "ci: true\n", 1, '"ci" holds its keys'),
     ("an unknown key under ci", "ci:\n  colour: red\n", 2, 'ci: unknown key "colour"'),
     (
@@ -194,7 +217,7 @@ REFUSALS = [
 def test_open_refuses_a_bad_chantier_yaml_at_its_line_and_moves_nothing(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    host(monkeypatch)  # one repo for the 19 texts: each is refused, none moves the CR
+    host(monkeypatch)  # one repo for all the texts: each is refused, none moves the CR
     item = prepared(repo, chantier, "Playbook refused")
     for label, text, line, why in REFUSALS:
         (repo / "chantier.yaml").write_text(text, encoding="utf-8")
@@ -215,24 +238,26 @@ def test_playbook_and_preflight_name_the_problem_and_its_line(
     yaml.write_text(REFUSALS[0][1], encoding="utf-8")
     code, out, err = chantier("playbook")
     assert code == EXIT_PRECONDITION and any(
-        ln.startswith("chantier.yaml:2:") for ln in out + err.splitlines()
+        ln.startswith("chantier.yaml:4:") for ln in out + err.splitlines()
     )
     code, pre, _ = chantier("preflight")
     assert code == EXIT_PRECONDITION and pre[-1].endswith("start nothing")
-    assert any(ln.startswith("P12 FAIL chantier.yaml:2:") for ln in pre)
-    yaml.write_text(HEAD + "    model: gpt\n", encoding="utf-8")
+    assert any(ln.startswith("P12 FAIL chantier.yaml:4:") for ln in pre)
+    yaml.write_text(COPILOT_HEAD + A + "model: gpt\n", encoding="utf-8")
     code, out, err = chantier("playbook", "--host", "copilot")
     text = "".join(out) + err
     assert code == EXIT_PRECONDITION and "ambiguous" in text and "Luna" in text and "Sol" in text
-    yaml.write_text(HEAD + "    model: opus\n", encoding="utf-8")
+    yaml.write_text(COPILOT_HEAD + A + "model: opus\n", encoding="utf-8")
     code, out, err = chantier("playbook", "--host", "copilot")  # several Opus models: ambiguous
     text = "".join(out) + err
     assert code == EXIT_PRECONDITION and "ambiguous" in text
     assert all(i in text for i in ("claude-opus-4.8 ", "claude-opus-5 ", "claude-opus-5.5 "))
-    yaml.write_text(HEAD + "    model: claude-opus-5.5\n", encoding="utf-8")
+    yaml.write_text(COPILOT_HEAD + A + "model: claude-opus-5.5\n", encoding="utf-8")
     code, out, err = chantier("playbook", "--host", "copilot")  # a host that cannot set a model
     assert code == EXIT_PRECONDITION and any(
-        "cannot set a model when it starts an agent" in ln and 'hosts/copilot.md, "Models"' in ln
+        ln.startswith("chantier.yaml:5:")
+        and "cannot set a model when it starts an agent" in ln
+        and 'hosts/copilot.md, "Models"' in ln
         for ln in out + err.splitlines()
     )
 
@@ -241,7 +266,7 @@ def test_with_no_chantier_yaml_again_the_next_batch_records_nothing(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     yaml = repo / "chantier.yaml"
-    yaml.write_text(HEAD + "    skills: [jira]\n")
+    yaml.write_text(HEAD + A + "skills: [jira]\n")
     host(monkeypatch)
     yaml.unlink()
     open_batch(repo, chantier, monkeypatch, "Playbook none again")

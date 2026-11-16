@@ -29,13 +29,15 @@ def copilot_catalog() -> list[dict[str, Any]]:
     return models
 
 
-# Where each host's list comes from. Claude's: the plugin's agent files, by hand (a test checks
-# they cannot drift); a new role model reaches the table by a release, and a new model's price does
-# not need one: a project sets it under `prices:` in `chantier.yaml`, above the built-in
-# `costs.PRICE`. Copilot's: `copilot-models.json`, built by `just copilot-models` from GitHub's
-# tables (`github/docs`, `data/tables/copilot/`) and the Copilot CLI reference's "Supported
-# models", never edited by hand. An identifier with `in_cli_reference: false` there is derived by
-# the rule, unproved until the runtime's `listModels()`.
+# Where each host's list comes from. Each role's default model is in
+# `config/chantier.defaults.yml`, kept equal to the agent files by a test. Claude's list: by hand
+# (a test checks the agent files cannot drift from it); a new role model reaches the table by a
+# release, and a new model's price does not need one: a project sets it under `prices:` in
+# `chantier.yaml`, above the built-in `costs.PRICE`. Copilot's: `copilot-models.json`, built by
+# `just copilot-models` from GitHub's tables (`github/docs`, `data/tables/copilot/`) and the
+# Copilot CLI reference's "Supported models", never edited by hand. An identifier with
+# `in_cli_reference: false` there is derived by the rule, unproved until the runtime's
+# `listModels()`.
 MODELS = {
     "claude": (
         Model("claude-opus-5-5", "Claude Opus 5.5", "opus"),

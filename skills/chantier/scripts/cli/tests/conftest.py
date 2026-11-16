@@ -8,7 +8,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -81,6 +81,39 @@ def repo(repo_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     ):
         monkeypatch.delenv(var, raising=False)
     return work
+
+
+class Surface(NamedTuple):
+    root: Path  # the planning surface, a git repository: the session's folder
+    project: Path  # `projects/demo`, with its `checkout.yml`
+    clone: Path  # the project's code repository, `projects/demo/.repo`
+
+
+@pytest.fixture
+def surface(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Surface:
+    """A small external planning surface with one project `demo`, whose clone is a copy of `repo`
+    inside the project's folder; the session runs in the surface."""
+    root = tmp_path / "surface"
+    project = root / "projects" / "demo"
+    project.mkdir(parents=True)
+    (project / "checkout.yml").write_text("repo: .repo\nworktrees: ../../../wt\n")
+    clone = project / ".repo"
+    shutil.copytree(repo, clone)
+    sh("git", "init", "--quiet", "-b", "main", str(root))
+    sh("git", "add", "projects/demo/checkout.yml", cwd=root)
+    sh(
+        "git",
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@example.com",
+        "commit",
+        "-qm",
+        "init",
+        cwd=root,
+    )
+    monkeypatch.chdir(root)
+    return Surface(root.resolve(), project.resolve(), clone.resolve())
 
 
 @pytest.fixture

@@ -15,7 +15,8 @@ from chantier.board.guard import NEEDS_KEY
 from chantier.board.key import HEADER
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook.config import FILE, MAX_PORT, load_board
+from chantier.playbook.config import MAX_PORT
+from chantier.playbook.layers import load_board
 
 DEFAULT_HOST, DEFAULT_PORT = "0.0.0.0", 8765
 EVERYWHERE = ("0.0.0.0", "::", "")
@@ -24,7 +25,7 @@ EVERYWHERE = ("0.0.0.0", "::", "")
 def settings(repo: Repo, host: str | None, port: int | None) -> tuple[str, int]:
     """The address: the command's options, else `chantier.yaml`'s `board` key, else the default.
     Port 0 is the system's pick, from the option only."""
-    found, problems = load_board(repo.root / FILE)
+    found, problems = load_board(repo)
     if problems:
         raise ChantierError(problems[0])
     host = host or found.get("host") or DEFAULT_HOST

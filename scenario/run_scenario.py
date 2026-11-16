@@ -1757,10 +1757,23 @@ def remote_board(w: World) -> None:
                   code == 2 and problem and code_board == 2 and "chantier.yaml:3: board: " in w.last_stderr,
                   f"{out} / {w.last_stderr}")
         yaml.unlink()
+        side = w.work / "chantier.yml"  # `.yml` alone is read like `.yaml`
+        side.write_text("board:\n  host: 127.0.0.1\n  port: abc\n", encoding="utf-8")
+        code, out = w.chantier("playbook", expect=None)
+        check("`chantier.yml` alone is read like `chantier.yaml`: its problem names it, with its line",
+              code == 2 and "chantier.yml:3: board: " in "\n".join(out), str(out))
+        yaml.write_text("board:\n  host: 127.0.0.1\n", encoding="utf-8")
+        code, out = w.chantier("playbook", expect=None)
+        check("`chantier.yaml` and `chantier.yml` together exit 2, naming both",
+              code == 2 and "chantier.yaml and chantier.yml are both present: keep one" in "\n".join(out),
+              str(out))
+        side.unlink()
+        yaml.unlink()
     finally:
         for proc in procs:
             proc.stop()
         (w.work / "chantier.yaml").unlink(missing_ok=True)
+        (w.work / "chantier.yml").unlink(missing_ok=True)
         w.env.pop("CHANTIER_BATCH", None)
         for seat in ("s-5", "s-2", "s-1"):
             w.chantier("seat", "leave", seat, expect=None)
@@ -2413,7 +2426,7 @@ def unpriced_model(w: World, main: Path, name: str) -> None:
           and abs(float(re.search(r"\$(\d+\.\d{3}) over", out[0])[1]) - total - 0.006) <= 0.0016
           and f"over {calls + 2} model calls" in out[0], str(out))
     _, out = w.chantier("playbook")
-    check("`playbook` prints the `prices:` line", "prices: mystery-model (chantier.yaml, above the "
+    check("`playbook` prints the `prices:` line", "prices: mystery-model (repository, above the "
           "built-in table)" in out, str(out))
     yaml.write_text("prices:\n  mystery-model:\n    input: 1\n", encoding="utf-8")
     code, out = w.chantier("cost", "--batch", name, expect=2)
@@ -7093,11 +7106,36 @@ def external_surface(tmp: Path) -> None:
           ".gitignore does not ignore summary.json",
           (item / "summary.json").is_file() and code == 2 and out[0] == "1 gap(s) in 2 CRs"
           and ignored == 1, str(out))
+    layers = [(w.surface / "chantier.yaml", "opus"), (w.project / "chantier.yaml", "sonnet"),
+              (w.work / "chantier.yaml", "haiku")]
+    for path, model in layers:  # the three user layers: surface root, project folder, code repository
+        path.write_text(f"hosts:\n  claude:\n    roles:\n      coder:\n        model: {model}\n", encoding="utf-8")
     w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     check("the batch opens in the project's planning folder, the CR path is relative to it",
           w.batch()["crs"][0]["path"].startswith("4-batch/") and (w.state / "4-batch" / "batch.json").is_file()
           and not (w.work / ".agents").exists(), str(w.batch()["crs"][0]))
+    # the configuration in layers: the strongest value with its label, frozen at `open`, a reset, a removal
+    def coder_line(*args) -> str:
+        _, found = w.chantier("playbook", *args)
+        return next((ln for ln in found if ln.startswith("coder:")), "")
+    frozen = coder_line("--batch", w.name)
+    check("a surface root, a project folder and a code repository each set the Coder's model: `playbook` "
+          "prints the repository's with its label, and `open` froze it",
+          "haiku (claude-haiku-5-5, Claude Haiku 5.5) [repository]" in coder_line()
+          and "[repository]" in frozen and "claude-haiku-5-5" in frozen, f"{coder_line()} / {frozen}")
+    layers[2][0].write_text("hosts:\n  claude:\n    roles:\n      coder:\n        model: default\n",
+                            encoding="utf-8")
+    check("the repository's `model: default` takes the model back to its file's, `[reset in repository]`",
+          coder_line() == "coder: agent=chantier:coder model=(its file's) [reset in repository]"
+          and coder_line("--batch", w.name) == frozen, f"{coder_line()} / {coder_line('--batch', w.name)}")
+    layers[2][0].unlink()
+    check("with the repository's file removed, `playbook` prints the project folder's value "
+          "`[surface project]`; the batch still prints the frozen one",
+          "sonnet (claude-sonnet-5-5, Claude Sonnet 5.5) [surface project]" in coder_line()
+          and coder_line("--batch", w.name) == frozen, f"{coder_line()} / {coder_line('--batch', w.name)}")
+    for path, _ in layers:
+        path.unlink(missing_ok=True)
     code, _ = w.chantier("open", item2, "--direct", *FROM_AGENTS_MD, expect=None)
     check("a second open on the same project is refused", code != 0, w.last_stderr)
     # another project of the surface opens its own batch at once; the seat is one per project

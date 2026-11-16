@@ -4,7 +4,8 @@
 read `chantier.yaml` pay for the import). A short walk over its events builds the `Node` tree the
 validators in `config.py` read, and refuses what the subset leaves out: anchors, aliases and tags,
 block scalars, flow mappings, a list inside a list, a duplicate key, a tab in the indentation and
-several documents. Scalars stay text: no value is ever converted to a number or a boolean."""
+several documents. Scalars stay text: no value is ever converted to a number or a boolean, except
+that a plain `~` or `null` (outside a list) is a `null` node, kept apart from an empty value."""
 
 from __future__ import annotations
 
@@ -31,9 +32,24 @@ class YamlError(Exception):
 
 @dataclass
 class Node:
-    kind: str  # "scalar", "list", "map" or "null"
+    """One value of the tree. `kind` is "scalar", "list", "map" or "null": a plain `~` or `null`
+    is a null node holding that text, an empty value is a null node holding None, so the two are
+    told apart. `plain` is False for a quoted scalar. `layer` and `src` are set by the layers
+    reader: the label of the layer that wrote the node and the path of its file."""
+
+    kind: str
     line: int
     value: Any = None  # scalar: str; list: [Node]; map: {key: (key line, Node)}
+    plain: bool = True
+    layer: str = ""
+    src: str = ""
+
+
+def is_reset(node: Node) -> bool:
+    """A plain `default`, `~` or `null`: the value that takes a weaker layer's value back."""
+    return (node.kind == "null" and node.value is not None) or (
+        node.kind == "scalar" and node.plain and node.value == "default"
+    )
 
 
 def _strip_comment(s: str) -> str:
@@ -123,11 +139,14 @@ class _Walk:
                 _line(event),
                 "block scalars (`|`, `>`) are not accepted: write the value on the line",
             )
-        if not event.value and event.style is None:  # a plain, empty value
+        plain = event.style is None
+        if not event.value and plain:  # a plain, empty value
             if in_list:
                 raise YamlError(_line(event), "a list item needs a value on its line")
             return Node("null", line)
-        return Node("scalar", line, str(event.value))
+        if plain and event.value in ("~", "null") and not in_list:  # a plain null, not empty
+            return Node("null", line, str(event.value))
+        return Node("scalar", line, str(event.value), plain)
 
     def sequence(self, event: Any, in_list: bool) -> Node:
         if in_list:

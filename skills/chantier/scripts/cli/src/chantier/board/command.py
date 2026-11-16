@@ -25,7 +25,7 @@ from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
 from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
-from chantier.playbook.config import FILE, load_board
+from chantier.playbook.layers import load_board
 
 BEYOND = (
     "board: listens on the local network ({host}); the link holds its key: give it to the user "
@@ -128,7 +128,7 @@ def board(args: argparse.Namespace) -> list[str]:
         if args.seat and not register_seat(host, port, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
         return [f"board already running at {url(host, port, key)}"]
-    from_config = args.port is None and "port" in load_board(projects.home.root / FILE)[0]
+    from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
     link = url(host, sock.getsockname()[1], key)
     print(f"board on {link} over {projects.served.as_posix()}", flush=True)

@@ -9,9 +9,10 @@
 - A change to `hooks/` or `types/` passes `just mod` before its PR; the agent runs it itself, and
   one that cannot stops and says so, with no workaround.
 - `main` is protected: work on a branch, open a PR, merge by rebase when CI is green.
-- The plugin must work with no setup: the user's `AGENTS.md`, and an optional `chantier.yaml` at
-  the project's root, are the only configuration (with no `chantier.yaml` chantier runs as if it
-  were empty; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
+- The plugin must work with no setup: the user's `AGENTS.md`, and optional `chantier.yaml` (or
+  `chantier.yml`) files, at the project's root and, with an external planning surface, at the
+  surface's root and in the project's folder there, are the only configuration, above the plugin's
+  shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and a CR's cleaned archive in its PR
   when the project asks for it, and fast-forwards a clean main checkout after a merge it records,

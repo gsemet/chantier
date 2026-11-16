@@ -11,7 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook.config import FILE, load
+from chantier.playbook import layers
 
 if TYPE_CHECKING:
     from chantier.core.records import CrEntry
@@ -209,9 +209,15 @@ def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -
 
 
 def read_playbook(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[str]]:
-    """The project's `chantier.yaml`, resolved for this host: `(None, [])` when absent, else the
-    playbook, or the problems found."""
-    return load(repo.root / FILE, host, plugin_roles(host))
+    """The configuration in layers (the plugin's shipped defaults, then the user's `chantier.yaml`
+    files), resolved for this host: `(None, [])` when no user file is present, else the playbook,
+    or the problems found."""
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    return layers.load(repo, host, {h: plugin_roles(h) for h in HOSTS}, defaults)
+
+
+user_files = layers.user_files
 
 
 def agent_problems(host: str) -> list[str]:

@@ -20,8 +20,8 @@ The construction site for your Software Factory.
   frees. Direct mode is simpler to use remotely, from a phone; Foreman mode lets you grill future
   topics with the Chief of Staff naturally while the Foreman runs the batch.
 - **Respect the project's rules.** Your changes must be able to land without chantier: chantier is
-  there to industrialise. Your `AGENTS.md`, and an optional `chantier.yaml` at the project's root
-  (the agent and model of each role, the skills it needs), are the only configuration. Everything
+  there to industrialise. Your `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's;
+  the agent and model of each role, the skills it needs), are the only configuration. Everything
   chantier writes is Markdown and JSON in the planning folder: `.agents/changes/` in your project,
   or the project's folder of an [external planning surface](docs/planning-modes.md).
 
@@ -288,7 +288,7 @@ Talk to the Chief of Staff in plain language:
 | "add a security review with `sec-reviewer`" | a new review step the Driver runs after the Inspector |
 | "our long gate is `npm test`" | the Chief of Staff proposes the exact `AGENTS.md` lines and writes them on your yes (see [Your gates](docs/gates.md)) |
 | "which agents and models?" | the team: each role, its agent, its model (`chantier playbook`) |
-| "run the inspector on Opus" | a `model` for the role in `chantier.yaml`, which the CLI resolves to the exact model (or refuses an unknown or ambiguous name) |
+| "run the inspector on Opus" | a `model` for the role under `hosts.<host>.roles` in `chantier.yaml`, which the CLI resolves to the exact model (or refuses an unknown or ambiguous name) |
 
 ## More
 

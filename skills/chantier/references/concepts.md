@@ -392,8 +392,9 @@ and how an agent is started. Each worker reads its own card, which restates the 
 ## Starting an agent
 
 A parent starts an agent, by its host's means (the host's reference gives the tool and the
-agent's name). Which agent and which model come from the project's playbook, an optional
-`chantier.yaml` that only the CLI reads, validates and resolves (it may also carry `prices:` for
+agent's name). Which agent and which model come from the playbook, the configuration in layers
+(the plugin's defaults, then optional `chantier.yaml` files) that only the CLI reads, merges,
+validates and resolves (it may also carry `prices:` for
 models the built-in table lacks, read by the CLI only when it prices, and `ci:` with
 `beside_gate: true`, which the CLI prints as one `ci:` line):
 

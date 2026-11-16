@@ -30,7 +30,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | add, drop, reorder, change a CR; "I merged #42"; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
-| "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result | The project |
+| "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
 | "run CI beside the gate", "CI earlier", "push before the gate" | `ci: beside_gate: true` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it; it counts from the next batch, and it spends CI minutes on every approved round | The project |
 | "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
@@ -129,33 +129,41 @@ commands" of your host's reference):
 A brief (any prompt or message to an agent) states a past fact only with its source: a CR note,
 a file in the CR's folder, or an event in `events.jsonl`; a fact with no source is said as unknown.
 
-The team: every role runs the plugin's agent with its file's model unless the project's optional
-`chantier.yaml` (at its root) says otherwise. Only the CLI reads, validates and resolves it, and
-you edit it only on the user's word:
+The team: every role runs the plugin's agent with its file's model unless the configuration says
+otherwise. The configuration is in four layers, weakest to strongest: the plugin's shipped
+`config/chantier.defaults.yml` (never edited); with an external planning surface, the surface
+root's `chantier.yaml` (all its projects) and `projects/<name>/chantier.yaml`; then the code
+repository's `chantier.yaml` (`.yml` too, never both in one place). A layer carries only what it
+changes, merged node by node with the layers below it; `default` (or `~`, `null`; never empty,
+never quoted) written as a value takes a weaker layer's value back. Every role setting is per host.
+Only the CLI reads, validates and resolves it, and you edit a file only on the user's word, the code
+repository's or the surface's:
 
 ```yaml
-roles:
-  coder:
-    agent: rust-coder        # an agent id the host knows (its reference says where)
-    model: opus              # a name; the CLI resolves it to the exact model, or refuses it
-    skills: [jira]           # what the role needs
-  cr-driver:
-    agent: my-driver         # your own Driver; it keeps driver.md as its card
+hosts:
+  claude:
+    roles:
+      coder:
+        agent: rust-coder      # an agent id the host knows (its reference says where)
+        model: opus            # a name; the CLI resolves it to the exact model, or refuses it
+        skills: [jira]         # what the role needs
+      cr-driver:
+        agent: my-driver       # your own Driver; it keeps driver.md as its card
 long_gate:
   parallel: 2                # long gates that may run at once (1 when absent)
 ```
 
-A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,
+The same keys go under `hosts: copilot: roles:` for Copilot. A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,
 `investigator`, `coder`, `inspector`, `debugger`, `verifier`, `conflict-resolver`,
 `demo-explorer`, `spec-writer`, `spec-critic`, `retro-critic`); it keeps its card, whoever runs it. `$CHANTIER playbook` prints
 what each role runs (the exact agent and model to pass, "Starting an agent" in
-[concepts](concepts.md)), or says there is no `chantier.yaml`; an invalid file exits 2 with each
+[concepts](concepts.md)), or says there is no `chantier.yaml`; an invalid layer exits 2 with each
 problem and its line, and preflight's P12 fails: show the user the lines, never fix the file
 yourself. A host that cannot set a model when it starts an agent refuses a `model` (its
 reference, row "Models"): say so and offer the user's own agent that names the model. The
 `chantier` section of `AGENTS.md` keeps the extra review steps (any other name is a review step
 the CR Driver runs after the Inspector), the release pointer and the `planning:` line; when it
-still names an agent for a role, tell the user and offer to move it to `chantier.yaml`. A running
+still names an agent for a role, tell the user and offer to move it to `hosts.<host>.roles` in `chantier.yaml`. A running
 batch keeps the playbook it opened with (`open` records it). You pass the Foreman the lines
 of `$CHANTIER playbook` as printed, with the review steps.
 

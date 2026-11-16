@@ -95,7 +95,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   `context: <n> tokens (agent <id>)` from the end of a fake agent transcript, and `cost --by cr`
   showing the Driver's peak context and compactions on the CR's line (unit: parallel, gates)
   (test: test_rail_refusals.py::test_a_round_with_nothing_since_and_the_round_limit_are_refused_and_more_can_be_granted);
-- the optional `chantier.yaml`: none (the plugin's agents, no `team:` line), a valid one (the
+- the optional `chantier.yaml` (or `.yml`, never both), in layers (the surface root, the project's folder, the code repository; a plain `default` takes a weaker value back): none (the plugin's agents, no `team:` line), a valid one (the
   resolved model, recorded at `open`, printed by `take` and `playbook --batch`), kept by a running
   batch when the file changes, refused with its line and nothing moved (an unknown role or key, a
   tab, an anchor, a duplicate key, an unknown, ambiguous or version-only model name), and a model

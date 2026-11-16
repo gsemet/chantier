@@ -319,7 +319,7 @@ def check_no_price_is_a_floor_until_chantier_yaml_prices_it(
     both = world.cost()
     assert "at least" not in "\n".join(both) and f"over {TOTAL_CALLS + 2} model calls" in both[0]
     assert (
-        "prices: mystery-model (chantier.yaml, above the built-in table)"
+        "prices: mystery-model (repository, above the built-in table)"
         in world.chantier("playbook")[1]
     )
     yaml.write_text("prices:\n  mystery-model:\n    input: 1\n", encoding="utf-8")

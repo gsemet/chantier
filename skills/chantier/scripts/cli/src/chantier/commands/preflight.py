@@ -17,7 +17,6 @@ from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import default_branch, git
 from chantier.core.repo import Repo, SurfaceChoice
-from chantier.playbook.config import FILE
 from chantier.plugin_files import (
     INSTRUCTIONS,
     agent_problems,
@@ -162,9 +161,9 @@ def _check_playbook(r: _Report, repo: Repo, host: str) -> None:
     r.check(
         "P12",
         not problems,
-        f"{FILE} valid: {len(made['roles'])} roles configured"
+        f"{', '.join(made['files'])} valid: {len(made['roles'])} roles configured"
         if made
-        else f"no {FILE}: the plugin's agents and models",
+        else "no chantier.yaml: the plugin's agents and models",
         f"{problems[0] if problems else ''}"
         f"{f' (and {len(problems) - 1} more)' if len(problems) > 1 else ''}: "
         "run `$CHANTIER playbook`",
