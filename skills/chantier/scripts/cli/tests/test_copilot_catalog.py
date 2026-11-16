@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import PLUGIN_ROOT, load_script
 
 from chantier.playbook import copilot_catalog as cc
+from chantier.playbook.models import MODELS
 
 SHA_LENGTH = 40
 TABLES = {
@@ -52,6 +54,8 @@ def test_the_committed_catalog_is_what_the_committed_tables_build() -> None:
     built = cc.dump(cc.document(source))
     assert cc.CATALOG_FILE.read_bytes().decode("utf-8") == built
     assert len(source["commit"]) == SHA_LENGTH and "\r" not in built
+    assert all(m.start == m.id for m in MODELS["copilot"])  # a generic start takes the identifier
+    assert [m.start for m in MODELS["claude"]] == ["opus", "sonnet", "haiku"]
 
 
 def test_the_admission_rules_and_their_difference_lines(tmp_path: Path) -> None:
@@ -108,3 +112,35 @@ def test_the_agent_files_are_compared_with_the_catalog_and_never_written_to_it(
     )
     assert "gpt-sol-two" in lines[1] and "'Wrong'" in lines[1]
     assert "gpt-old" not in cc.dump(cc.document({}, tmp_path))
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("gpt-6.1-terra", 0, "ran the requested model"),
+        ("gpt-6.1-sol", 1, "ran gpt-6.1-sol, not the requested gpt-6.1-terra"),
+    ],
+)
+def test_the_eval_probe_reads_only_the_last_ended_event(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    case: tuple[str, int, str],
+) -> None:
+    ran, code, verdict = case
+    script = load_script("copilot_models", PLUGIN_ROOT / "evals" / "kit" / "copilot_models.py")
+    folder = tmp_path / "session-state" / "s1"
+    folder.mkdir(parents=True)
+    events = [
+        ("subagent.completed", "gpt-6.1-terra" if ran != "gpt-6.1-terra" else "gpt-6.1-sol"),
+        ("subagent.started", "gpt-6.1-luna"),
+        ("subagent.failed", ran),
+    ]
+    lines = [{"type": t, "data": {"model": m, "modelSelectionSource": "x"}} for t, m in events]
+    (folder / "events.jsonl").write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+    monkeypatch.setenv("COPILOT_HOME", str(tmp_path))
+    assert script.main(["--session", "s1", "--probe", "gpt-6.1-terra"]) == code
+    assert capsys.readouterr().out.splitlines() == [
+        f"subagent.failed: model={ran} firstDispatchedModel=absent modelSelectionSource=x",
+        verdict,
+    ]

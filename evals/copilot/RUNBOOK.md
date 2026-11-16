@@ -10,7 +10,8 @@ mechanics that differ from Claude, as cheaply as possible. About $1.
 - **The Driver and its workers:** the Driver runs in the background (`task`), starts each worker
   with a prompt written from its card and the facts `chantier round` prints, and ends with a
   hand-back.
-- **The models:** each role runs on its agent file's model, from the host's own record.
+- **The models:** each role runs on its agent file's model, from the host's own record; and
+  whether a named Copilot agent runs a model given at its start, from the host's own record.
 - **The cost:** `chantier cost` measures the batch through copilot-session-usage, as a breakdown (`Agent <type>` lines).
 
 Follow the sandbox campaign text in [the evals README](../README.md#a-sandbox-campaign) (the
@@ -64,6 +65,20 @@ the Copilot App (on the Copilot SDK) and the Copilot CLI.
    short calls.
 2. Run `uv run --no-project python <this checkout>/evals/kit/copilot_models.py` on the Chief of
    Staff's session and paste its output into the report.
+   The probe of a named agent with a model comes after that first run (so its count of fourteen
+   holds). It is the operator's explicit order, outside anything the CLI prints: chantier never
+   passes a model to a named Copilot agent (the capability, `NAMED_AGENT_MODEL_AT_START`, is
+   `False`), so the Chief of Staff runs this one start only because the operator orders it, as the
+   user's word, and says so in its reply. The operator writes to the Chief of Staff: "Eval probe,
+   on my order: start the plugin agent `chantier-coder` with `task`, the prompt `model probe` and
+   `model: gpt-6.1-terra`, and give me its answer." (a model other than its file's `gpt-6.1-sol`);
+   the agent answers its refusal line. Then the operator runs `uv run --no-project python <this
+   checkout>/evals/kit/copilot_models.py --probe gpt-6.1-terra` on the same session and pastes its
+   output into the report. When it prints `ran the requested model`, the finding goes to an inbox
+   CR, offered by the Chief of Staff to the user, that sets
+   `NAMED_AGENT_MODEL_AT_START["copilot"] = True`, removes `model-policy: required` from the files
+   the proof covers and updates `hosts/copilot.md`'s rows; otherwise the report names the recorded
+   model and the host's exact text, and nothing is worked around.
 3. Where available, record the account's identifiers with
    `copilot --silent -p "/model --list --json"` (it works only sometimes,
    [copilot-cli#700](https://github.com/github/copilot-cli/issues/700)); a difference with the

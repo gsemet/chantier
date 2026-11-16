@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from batch_helpers import FROM_AGENTS_MD, changes, host, open_batch, prepared, record
 from conftest import PLUGIN_ROOT, Chantier
+from cost_world import CostWorld, build
 
 from chantier.core.errors import EXIT_PRECONDITION
 
@@ -22,6 +23,14 @@ COPILOT_HEAD = HEAD.replace("claude", "copilot")
 A = "        "  # a role's key
 DRIVER = ROLES + "      cr-driver:\n" + A + "agent: my-driver\n"
 OPUS = "opus (claude-opus-5-5, Claude Opus 5.5)"
+TERRA = "gpt-6.1-terra (gpt-6.1-terra, GPT-6.1 Terra)"
+NOT_RESTRICTED = "tools=(the caller's, not restricted)"
+REFUSAL = (
+    'role "coder": Copilot cannot start a named agent with a model '
+    '(hosts/copilot.md, "Models at an agent\'s start"): remove "model" for coder under '
+    "hosts.copilot.roles, or name the model in your agent's own file"
+)
+REFUSAL_END = REFUSAL.rsplit(", ", 1)[1]
 
 
 def team(out: list[str]) -> list[str]:
@@ -90,7 +99,9 @@ def test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch(
     assert coder in now and "cr-driver: agent=my-driver [repository] model=(its file's)" in now
     ids = open_batch(repo, chantier, monkeypatch, "Playbook set one", "Playbook set two")
     _, took, _ = chantier("take", ids[0], "--epoch", 1)
-    assert record(repo)["playbook"]["roles"]["cr-driver"] == {"agent": "my-driver"}
+    roles = record(repo)["playbook"]["roles"]
+    assert roles["cr-driver"] == {"agent": "my-driver", "start": "named"}
+    assert roles["coder"]["start"] == "named"
     want = f"team: coder model={OPUS} [repository] skills=jira [repository]"
     assert team(took) == [want, "team: cr-driver agent=my-driver [repository]"]
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
@@ -253,12 +264,20 @@ def test_playbook_and_preflight_name_the_problem_and_its_line(
     assert code == EXIT_PRECONDITION and "ambiguous" in text
     assert all(i in text for i in ("claude-opus-4.8 ", "claude-opus-5 ", "claude-opus-5.5 "))
     yaml.write_text(COPILOT_HEAD + A + "model: claude-opus-5.5\n", encoding="utf-8")
-    code, out, err = chantier("playbook", "--host", "copilot")  # a host that cannot set a model
+    code, out, err = chantier("playbook", "--host", "copilot")  # a model, no agent: generic
+    assert code == 0, err
+    assert any(ln.startswith("coder: agent=(generic) model=claude-opus-5.5 (") for ln in out)
+    yaml.write_text(COPILOT_HEAD + A + "model: claude-opus-5.5\n" + A + "agent: mine\n", "utf-8")
+    code, out, err = chantier("playbook", "--host", "copilot")  # the user's agent, a model
     assert code == EXIT_PRECONDITION and any(
-        ln.startswith("chantier.yaml:5:")
-        and "cannot set a model when it starts an agent" in ln
-        and 'hosts/copilot.md, "Models"' in ln
+        ln.startswith("chantier.yaml:5:") and ln.endswith(REFUSAL_END) and REFUSAL in ln
         for ln in out + err.splitlines()
+    )
+    assert chantier("playbook", "--host", "claude")[0] == 0  # the Claude view of it is valid
+    host(monkeypatch, "copilot")
+    code, pre, _ = chantier("preflight")
+    assert code == EXIT_PRECONDITION and any(
+        ln.startswith("P12 FAIL chantier.yaml:5:") for ln in pre
     )
 
 
@@ -271,3 +290,88 @@ def test_with_no_chantier_yaml_again_the_next_batch_records_nothing(
     yaml.unlink()
     open_batch(repo, chantier, monkeypatch, "Playbook none again")
     assert "playbook" not in record(repo)
+
+
+FOUR_STARTS = [
+    ("claude", "model: opus\n", f"coder: agent=chantier:coder model={OPUS} [repository]"),
+    (
+        "claude",
+        "agent: mine\nmodel: opus\n",
+        f"coder: agent=mine [repository] model={OPUS} [repository]",
+    ),
+    (
+        "copilot",
+        "model: gpt-6.1-terra\n",
+        f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}",
+    ),
+    ("copilot", "agent: mine\n", "coder: agent=mine [repository] model=(its file's)"),
+]
+
+
+@pytest.mark.parametrize("case", FOUR_STARTS)
+def test_a_role_starts_the_plugin_agent_a_named_one_or_a_generic_one_per_host(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, case: tuple[str, str, str]
+) -> None:
+    host_name, keys, line = case
+    host(monkeypatch, host_name)
+    body = "".join(A + ln + "\n" for ln in keys.splitlines())
+    (repo / "chantier.yaml").write_text(HEAD.replace("claude", host_name) + body, encoding="utf-8")
+    code, out, err = chantier("playbook", "--host", host_name)
+    assert code == 0 and line in out, err
+
+
+def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(monkeypatch, "copilot")
+    (repo / "chantier.yaml").write_text(COPILOT_HEAD + A + "model: gpt-6.1-terra\n", "utf-8")
+    code, _, err = chantier("open", str(prepared(repo, chantier, "Generic coder")), *FROM_AGENTS_MD)
+    assert code == 0, err
+    monkeypatch.setenv("CHANTIER_BATCH", record(repo)["id"])
+    assert chantier("foreman", "set", "local_foreman_t", "--epoch", 1)[0] == 0
+    _, took, _ = chantier("take", record(repo)["crs"][0]["id"], "--epoch", 1)
+    assert record(repo)["playbook"]["roles"]["coder"]["start"] == "generic"
+    assert team(took) == [
+        f"team: coder agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}"
+    ]
+    heading = (
+        "coder contract (a generic agent: copy it unchanged, without the two leading spaces, "
+        "after the opening lines):"
+    )
+    agent = PLUGIN_ROOT / "com.github.copilot" / "agents" / "chantier-coder.agent.md"
+    body = agent.read_text(encoding="utf-8").split("\n---\n", 1)[1].strip("\n").splitlines()
+    at = took.index(heading)
+    assert took[at - 1].startswith("  the project's rules rank above it")
+    assert took[at + 1 : at + 1 + len(body)] == [f"  {ln}" for ln in body]
+    assert not any(
+        "contract (a generic agent" in ln for ln in took[:at] + took[at + 1 + len(body) :]
+    )
+    _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
+    assert f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}" in out
+
+
+@pytest.fixture
+def world(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> CostWorld:
+    return build(repo, chantier, monkeypatch, tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("keys", "note"),
+    [
+        (
+            "agent: mine\n",
+            "Grill line: spec-writer starts as your agent mine, so its spend is counted with the "
+            "Chief of Staff's steering, not on the grill line",
+        ),
+        ("model: sonnet\n", None),  # the plugin's own agent, another model: its type is kept
+    ],
+)
+def test_cost_explain_says_when_a_spec_agent_leaves_the_grill_line(
+    world: CostWorld, keys: str, note: str | None
+) -> None:
+    body = "".join(A + ln + "\n" for ln in keys.splitlines())
+    (world.repo / "chantier.yaml").write_text(ROLES + "      spec-writer:\n" + body, "utf-8")
+    out = world.cost("--explain")
+    assert [ln for ln in out if ln.startswith("Grill line:")] == ([note] if note else [])

@@ -2,7 +2,6 @@
 name: chantier-coder
 description: 'Implements one round of one chantier CR in its worktree; never commits. Started by a Driver. Prompt starts with: `chantier coder for <cr> "<title>" of batch <batch>, in the project <root>.`'
 model: [GPT-6.1 Sol, gpt-6.1-sol]
-model-policy: required
 tools: ["execute", "read", "edit", "search"]
 strict-tools-list: true
 user-invocable: false

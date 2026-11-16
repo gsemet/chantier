@@ -7143,7 +7143,27 @@ def external_surface(tmp: Path) -> None:
     # another project of the surface opens its own batch at once; the seat is one per project
     other = w.prepare("Other work", project="other")
     w.chantier("init", project="other")
-    _, out = w.chantier("open", other, "--direct", "--slots", 1, *FROM_AGENTS_MD, project="other")
+    # a model per role on each host: Copilot cannot start a named agent with a model
+    copilot = {"CHANTIER_HOST": "copilot", "COPILOT_AGENT_SESSION_ID": "uuid-chief"}
+    other_yaml = w.surface / "projects" / "other" / "chantier.yaml"
+    head = "hosts:\n  copilot:\n    roles:\n      coder:\n"
+    other_yaml.write_text(head + "        agent: my-coder\n        model: gpt-6.1-terra\n", encoding="utf-8")
+    code, out = w.chantier("open", other, "--direct", *FROM_AGENTS_MD, project="other", env=copilot,
+                           expect=None)
+    check("on Copilot, the user's own agent with a model is refused by `open` (exit 2, the line "
+          "named, the cause given) and nothing moved",
+          code == 2 and "cannot start a named agent with a model" in w.last_stderr + " ".join(out)
+          and "chantier.yaml:" in w.last_stderr + " ".join(out)
+          and not (w.surface / "projects" / "other" / "changes" / "4-batch" / "batch.json").exists(),
+          f"{code} {out} {w.last_stderr}")
+    other_yaml.write_text(head + "        model: gpt-6.1-terra\n", encoding="utf-8")
+    _, out = w.chantier("playbook", project="other", env=copilot)
+    check("on Copilot, a model with no agent starts a generic agent: `playbook` prints "
+          "`agent=(generic)` and the tools line",
+          any(ln.startswith("coder: agent=(generic) model=gpt-6.1-terra") and "tools=(the caller's, not "
+              "restricted)" in ln for ln in out), str(out))
+    _, out = w.chantier("open", other, "--direct", "--slots", 1, *FROM_AGENTS_MD, project="other",
+                        env=copilot)
     other_batch = out[0].split()[1]
     w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[remote] surface", "--link", "l")
     _, out = w.chantier("seat", "get", project="other")
@@ -7151,10 +7171,16 @@ def external_surface(tmp: Path) -> None:
           out == ["seat none"] and (w.project / "changes" / "seat.json").is_file(), str(out))
     w.chantier("seat", "leave", "sess-a")
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", other_batch, project="other")
-    code, out = w.chantier("take", "CR-101", "--epoch", 1, "--batch", other_batch, project="other")
+    code, out = w.chantier("take", "CR-101", "--epoch", 1, "--batch", other_batch, project="other",
+                           env=copilot)
     check("a project set to keep its archive out of the PR says so in the facts",
           "archive: not in the PR" in out and any(ln.startswith("clone: ") and "code2" in ln for ln in out),
           str(out))
+    check("`take` prints the generic Coder's contract after its opening lines, and the team line says "
+          "`agent=(generic)`",
+          any(ln.startswith("coder contract (a generic agent: copy it unchanged") for ln in out)
+          and any(ln.startswith("team: coder agent=(generic)") for ln in out), str(out))
+    other_yaml.unlink()
     shutil.rmtree(w.surface / "projects" / "other" / "changes" / "4-batch")
     # the demo batch, as a Driver of the project lives it
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1)

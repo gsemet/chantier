@@ -13,7 +13,12 @@ Then one row per role, in `ROLES` order, with the identifier its agent file
 `com.github.copilot/agents/chantier-<role>.agent.md` names and the one recorded. Exit 0 when every
 role is `ok`, else 1.
 
-    uv run --no-project python evals/kit/copilot_models.py [--session <id>]
+With `--probe <identifier>`, it reads only the last ended subagent event (`subagent.completed` or
+`subagent.failed`), prints its type and the three fields, then `ran the requested model` (exit 0)
+when its `model` equals the identifier, else `ran <model>, not the requested <identifier>` (or
+`no ended subagent event`) and exit 1.
+
+    uv run --no-project python evals/kit/copilot_models.py [--session <id>] [--probe <identifier>]
 """
 
 import argparse
@@ -22,6 +27,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -64,9 +70,30 @@ def session_file(session: str | None) -> Path:
     return max(folders, key=lambda p: p.stat().st_mtime) / "events.jsonl"
 
 
+def probe(ended: list[dict[str, Any]], wanted: str) -> int:
+    """The last ended subagent event only: did it run the requested model? 0 when it did."""
+    if not ended:
+        print("no ended subagent event")
+        return 1
+    event = ended[-1]
+    data = event.get("data") or {}
+    print(f"{event['type']}: " + " ".join(f"{f}={data.get(f, 'absent')}" for f in FIELDS))
+    ran = data.get("model")
+    if ran == wanted:
+        print("ran the requested model")
+        return 0
+    print(f"ran {ran or 'absent'}, not the requested {wanted}")
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--session", help="the session's id (default: the most recent)")
+    parser.add_argument(
+        "--probe",
+        metavar="IDENTIFIER",
+        help="check the last ended subagent event ran this model (a named agent started with it)",
+    )
     args = parser.parse_args(argv)
     path = session_file(args.session)
     if not path.is_file():
@@ -80,11 +107,13 @@ def main(argv: list[str] | None = None) -> int:
             continue
         if isinstance(event, dict) and event.get("type") in EVENTS:
             events.append(event)
+    ended = [e for e in events if e["type"] in ENDED]
+    if args.probe:
+        return probe(ended, args.probe)
     for event in events:
         data = event.get("data") or {}
         shown = " ".join(f"{f}={data.get(f, 'absent')}" for f in FIELDS)
         print(f"{event['type']}: {shown}; no agent field in the event")
-    ended = [e for e in events if e["type"] in ENDED]
     count_ok = len(ended) == len(ROLES)
     if not count_ok:
         print(f"{len(ended)} ended events for {len(ROLES)} roles")

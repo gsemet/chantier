@@ -163,16 +163,38 @@ CHIEF_SUBAGENT_LINE = re.compile(
 )
 
 
-def chief_prompt_lines(host: str, root: str, started_by: str | None = None) -> list[str]:
+FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
+
+
+def contract_lines(role: str, text: str, resolved: dict[str, Any] | None) -> list[str]:
+    """For a role the configuration starts as a generic agent (its model changed on a host that
+    cannot start a named agent with one), the plugin agent's file body, so the generic agent gets
+    the whole contract in its prompt, rebuilt here and written nowhere: a heading, then the body
+    after the frontmatter, each line indented by two spaces."""
+    if ((resolved or {}).get("roles", {}).get(role) or {}).get("start") != "generic":
+        return []
+    body = FRONTMATTER.sub("", text, count=1).strip("\n")
+    return [
+        f"{role} contract (a generic agent: copy it unchanged, without the two leading spaces, "
+        "after the opening lines):",
+        *(f"  {line}" for line in body.splitlines()),
+    ]
+
+
+def chief_prompt_lines(
+    host: str, root: str, started_by: str | None = None, resolved: dict[str, Any] | None = None
+) -> list[str]:
     """The first line of each agent the Chief of Staff starts with a `<root>` and no batch, read
     from the agent files' descriptions (`<role> prompt, first line: …`), `<root>` filled in;
-    with `started_by`, only the agents whose description says that parent starts them."""
+    with `started_by`, only the agents whose description says that parent starts them. A role the
+    playbook `resolved` starts generic gets its contract lines after its first line."""
     lines = []
     for p in _agent_files(host)[1]:
         text = p.read_text(encoding="utf-8")
         m = CHIEF_SUBAGENT_LINE.search(text)
         if m and (started_by is None or f"Started by the {started_by}" in text):
             lines.append(f"{m[2]} prompt, first line: {m[1].replace('<root>', root)}")
+            lines += contract_lines(m[2], text, resolved)
     return lines
 
 
@@ -183,10 +205,18 @@ WORKER_FIRST_LINE = re.compile(
 WORKER_CARD_LINE = re.compile(r"^Your card is `([^`]+)`", re.M)
 
 
-def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -> list[str]:
-    """The opening three lines of each worker's prompt (a Driver starts it), read from the agent
-    files: the description says `Started by a Driver.`, its first line holds `<cr> "<title>" of
-    batch <batch>` and its body names its card. The CLI knows no role."""
+def worker_prompt_lines(
+    host: str,
+    root: str,
+    cr: tuple[str, str],
+    batch: str,
+    resolved: dict[str, Any] | None = None,
+) -> list[str]:
+    """The opening three lines of each worker's prompt (a Driver starts it; `cr` is its id and
+    title), read from the agent files: the description says `Started by a Driver.`, its first
+    line holds `<cr> "<title>" of batch <batch>` and its body names its card. A role the
+    playbook `resolved` starts generic gets its contract lines after them. The CLI knows no
+    role."""
     lines: list[str] = []
     refs = f"{skill_dir().as_posix()}/references"
     for p in _agent_files(host)[1]:
@@ -195,7 +225,12 @@ def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -
         if "Started by a Driver." not in text or not first or not card:
             continue
         filled = first[1]
-        for key, value in (("<cr>", cr), ("<title>", title), ("<batch>", batch), ("<root>", root)):
+        for key, value in (
+            ("<cr>", cr[0]),
+            ("<title>", cr[1]),
+            ("<batch>", batch),
+            ("<root>", root),
+        ):
             filled = filled.replace(key, value)
         lines += [
             f"{first[2]} prompt, opening lines (copy them unchanged, without the two leading "
@@ -204,6 +239,7 @@ def worker_prompt_lines(host: str, root: str, cr: str, title: str, batch: str) -
             f"  Read {refs}/{card[1]};",
             "  the project's rules rank above it: run `$CHANTIER rules` first and read what "
             "touches your work.",
+            *contract_lines(first[2], text, resolved),
         ]
     return lines
 

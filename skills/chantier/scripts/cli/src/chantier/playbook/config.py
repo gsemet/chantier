@@ -9,7 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from chantier.playbook.models import HOST_NAMES, SETS_MODEL_AT_START, resolve
+from chantier.playbook.models import HOST_NAMES, NAMED_AGENT_MODEL_AT_START, resolve
 from chantier.playbook.yaml_subset import Node, YamlError, is_reset, parse
 
 FILES = ("chantier.yaml", "chantier.yml")
@@ -103,13 +103,13 @@ def typed(
 
 
 def start_refusal(host: str, role: str) -> str | None:
-    """Why a configured model cannot be passed at the start on this host, or None."""
-    if SETS_MODEL_AT_START[host]:
+    """Why the user's own agent cannot start with a model on this host, or None."""
+    if NAMED_AGENT_MODEL_AT_START[host]:
         return None
     return (
-        f"{HOST_NAMES[host]} cannot set a model when it starts an agent "
-        f'(hosts/{HOST_FILES[host]}.md, "Models"): remove "model" for {role}, or '
-        "run the role with your own agent that names it"
+        f'role "{role}": {HOST_NAMES[host]} cannot start a named agent with a model '
+        f'(hosts/{HOST_FILES[host]}.md, "Models at an agent\'s start"): remove "model" for '
+        f"{role} under hosts.{host}.roles, or name the model in your agent's own file"
     )
 
 

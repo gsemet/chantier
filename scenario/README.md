@@ -98,8 +98,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the optional `chantier.yaml` (or `.yml`, never both), in layers (the surface root, the project's folder, the code repository; a plain `default` takes a weaker value back): none (the plugin's agents, no `team:` line), a valid one (the
   resolved model, recorded at `open`, printed by `take` and `playbook --batch`), kept by a running
   batch when the file changes, refused with its line and nothing moved (an unknown role or key, a
-  tab, an anchor, a duplicate key, an unknown, ambiguous or version-only model name), and a model
-  on a host that cannot set one at a start; the `long_gate:` key refused with its line by `gate`,
+  tab, an anchor, a duplicate key, an unknown, ambiguous or version-only model name), the user's own
+  agent plus a model on a host that cannot start a named agent with one (refused), and a model with
+  no agent on that host (a generic agent: `agent=(generic)`, its contract printed by `take`); the `long_gate:` key refused with its line by `gate`,
   `playbook` and preflight P12 (test:
   test_playbook_config.py::test_open_refuses_a_bad_chantier_yaml_at_its_line_and_moves_nothing)
   (test: test_playbook_config.py::test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch)

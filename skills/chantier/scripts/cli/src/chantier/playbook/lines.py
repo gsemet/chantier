@@ -7,9 +7,17 @@ from typing import Any
 from chantier.playbook.config import FILE, default_agent
 from chantier.playbook.models import ESCALATION, MODELS
 
+GENERIC_AGENT = "(generic)"
+GENERIC_TOOLS = "(the caller's, not restricted)"
+
 
 def _model_text(model: dict[str, Any]) -> str:
     return f"{model['start']} ({model['id']}, {model['name']})"
+
+
+def _agent(rec: dict[str, Any]) -> str | None:
+    """The agent a role's record names: the generic agent when the role starts generic."""
+    return GENERIC_AGENT if rec.get("start") == "generic" else rec.get("agent")
 
 
 def _labelled(text: str, labels: dict[str, str], key: str) -> str:
@@ -24,7 +32,8 @@ def _fields(
     resets: dict[str, str] | None = None,
 ) -> str:
     """A role's keys, each followed by the layer that set it, or `reset in <layer>` when a layer
-    took the value back. A value no user layer set has no label."""
+    took the value back. A value no user layer set has no label. A role started generic prints
+    `agent=(generic)` and, after its model, that its tools are the caller's."""
     labels, resets = labels or {}, resets or {}
 
     def one(key: str, text: str) -> str:
@@ -37,6 +46,8 @@ def _fields(
         parts.append(one("model", f"model={_model_text(rec['model'])}"))
     elif unset_model:
         parts.append(one("model", "model=(its file's)"))
+    if rec.get("start") == "generic":
+        parts.append(f"tools={GENERIC_TOOLS}")
     for key in ("skills", "tools"):
         if rec.get(key):
             parts.append(one(key, f"{key}={','.join(rec[key])}"))
@@ -78,7 +89,7 @@ def playbook_lines(
             f"{role}: "
             + _fields(
                 rec,
-                rec.get("agent") or default_agent(host, role),
+                _agent(rec) or default_agent(host, role),
                 True,
                 {k: v for k, v in rec_labels(layers, role).items() if k in rec},
                 layers.get("resets", {}).get(role),
@@ -141,6 +152,6 @@ def team_lines(resolved: dict[str, Any] | None) -> list[str]:
         return []
     layers = resolved.get("layers", {})
     return [
-        f"team: {role} " + _fields(rec, rec.get("agent"), False, rec_labels(layers, role))
+        f"team: {role} " + _fields(rec, _agent(rec), False, rec_labels(layers, role))
         for role, rec in resolved.get("roles", {}).items()
     ]

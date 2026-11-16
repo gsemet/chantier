@@ -208,7 +208,9 @@ def test_both_hosts_give_a_role_the_same_body_and_their_own_frontmatter(role: st
     assert claude["model"] in CLAUDE_MODELS
     assert (claude["model"] == "claude-opus-5-5") == (role in CLAUDE_OPUS_ROLES)
     assert ("Opus" in copilot["model"]) == (role in COPILOT_OPUS_ROLES)
-    assert copilot["model-policy"] == "required" and copilot["user-invocable"] == "false"
+    # the Coder's file alone drops `model-policy: required`, for the eval's probe
+    assert copilot.get("model-policy") == (None if role == "coder" else "required")
+    assert copilot["user-invocable"] == "false"
     assert copilot["strict-tools-list"] == "true"
     assert (
         ("Agent" in claude["tools"])

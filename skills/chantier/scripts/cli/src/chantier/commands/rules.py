@@ -71,7 +71,8 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
     lines = playbook_lines(made, host, plugin_roles(host), label)
     # first lines to copy as printed: the Chief of Staff's all, the Foreman's (in a batch) only
     # those of the agents whose description says the Foreman starts them
-    lines += chief_prompt_lines(host, repo.root.as_posix(), "Foreman" if args.batch else None)
+    started_by = "Foreman" if args.batch else None
+    lines += chief_prompt_lines(host, repo.root.as_posix(), started_by, made)
     lines.append(escalate_line(host))
     return lines, 0
 

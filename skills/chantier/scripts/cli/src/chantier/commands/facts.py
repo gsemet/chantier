@@ -106,7 +106,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         lines
         + team_lines(d.playbook)
         + ci_lines(d.playbook)
-        + worker_prompt_lines(d.host, repo.root.as_posix(), c.id, c.title, batch)
+        + worker_prompt_lines(d.host, repo.root.as_posix(), (c.id, c.title), batch, d.playbook)
     )
 
 

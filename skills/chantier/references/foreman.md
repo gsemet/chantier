@@ -164,7 +164,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   driver, in this order: `take stack --epoch <n>`, its output in the stack driver's prompt, the start, then
   `agents set stack <id> --epoch <n>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
   `team:` line): its agent and model are passed as printed, with no model when none is printed
-  ("Starting an agent"), and the prompt starts with the role's first line, copied from "Starting
+  ("Starting an agent"), or the generic agent with the printed contract lines, and the prompt starts with the role's first line, copied from "Starting
   an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
   <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Every Driver's prompt you write, for each start and restart and whatever the Driver kind, holds the `Steering:` line of "Starting an agent" (you, and the host's means to reach you). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended, with its hand-back or without, before the CR's next `take`). When a Driver ends,

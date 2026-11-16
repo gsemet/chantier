@@ -21,7 +21,7 @@ from typing import Any
 
 from chantier.core.repo import Repo
 from chantier.playbook import config
-from chantier.playbook.models import resolve
+from chantier.playbook.models import NAMED_AGENT_MODEL_AT_START, resolve
 from chantier.playbook.yaml_subset import Node, is_reset
 
 DEFAULTS_DISPLAY = "config/chantier.defaults.yml"
@@ -270,17 +270,26 @@ def load(
 def _model_problems(
     roles: dict[str, dict[str, Any]], nodes: dict[str, Node], host: str, defaults: Node | None
 ) -> list[str]:
-    """Judge each configured model once merged, for this host alone: a model equal to the plugin
-    agent's own, with no agent set, is dropped (nothing to pass); else a host that cannot set a
-    model at the start refuses it, at the line of the layer that wrote it."""
+    """Judge each configured role once merged, for this host alone, and record its `start`: a
+    model equal to the plugin agent's own, with no agent set, is dropped (nothing to pass); then
+    `plugin` (the plugin's agent, no model passed), `named` (the user's agent, or the plugin's with
+    a model, on a host that starts a named agent with a model) or `generic` (a model, no agent, on
+    a host that cannot). The user's agent with a model on a host that cannot is refused, at the
+    line of the layer that wrote the model."""
     problems: list[str] = []
     for role, rec in list(roles.items()):
-        if "model" not in rec:
-            continue
-        if "agent" not in rec and rec["model"]["id"] == default_model(defaults, host, role):
+        if "agent" not in rec and rec.get("model", {}).get("id") == default_model(
+            defaults, host, role
+        ):
             del rec["model"]
-            if not rec:
-                del roles[role]
+        if not rec:
+            del roles[role]
+        elif "model" not in rec:
+            rec["start"] = "named" if "agent" in rec else "plugin"
+        elif NAMED_AGENT_MODEL_AT_START[host]:
+            rec["start"] = "named"
+        elif "agent" not in rec:
+            rec["start"] = "generic"
         elif why := config.start_refusal(host, role):
             node = nodes[role].value["model"][1]
             problems.append(f"{node.src}:{node.line}: {why}")
@@ -305,7 +314,10 @@ def _labels(
 ) -> dict[str, Any]:
     """The label of the layer behind each value, and of the reset behind each value taken back."""
     labels: dict[str, Any] = {
-        "roles": {r: {k: nodes[r].value[k][1].layer for k in rec} for r, rec in roles.items()},
+        "roles": {
+            r: {k: nodes[r].value[k][1].layer for k in rec if k != "start"}
+            for r, rec in roles.items()
+        },
         "resets": {},
     }
     for path, reset in merged.resets.items():

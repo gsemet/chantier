@@ -44,13 +44,17 @@ MODELS = {
         Model("claude-sonnet-5-5", "Claude Sonnet 5.5", "sonnet"),
         Model("claude-haiku-5-5", "Claude Haiku 5.5", "haiku"),
     ),
-    "copilot": tuple(Model(m["id"], m["name"], "") for m in copilot_catalog()),
+    "copilot": tuple(Model(m["id"], m["name"], m["id"]) for m in copilot_catalog()),
 }
 
 
-# Whether a start of an agent takes a model on this host: only what the host's reference marks
-# proved (hosts/claude-code.md, hosts/copilot.md, row "Models").
-SETS_MODEL_AT_START = {"claude": True, "copilot": False}
+# Whether this host starts a named agent with a model given at the start, so that model runs and
+# the agent keeps its file's tools: only what the host's reference marks proved
+# (hosts/claude-code.md, hosts/copilot.md, row "Models at an agent's start"). A host added later
+# declares its own value. Copilot's turns True once the eval's probe (evals/copilot/RUNBOOK.md,
+# "Models") shows a named agent ran the requested model, together with the removal of
+# `model-policy: required` from the agent files the proof covers. It is the one switch.
+NAMED_AGENT_MODEL_AT_START = {"claude": True, "copilot": False}
 
 
 # The model an escalated task starts on (concepts.md, "Escalation"): one per host, the same for
