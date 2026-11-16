@@ -225,6 +225,11 @@ def test_playbook_and_preflight_name_the_problem_and_its_line(
     text = "".join(out) + err
     assert code == EXIT_PRECONDITION and "ambiguous" in text and "Luna" in text and "Sol" in text
     yaml.write_text(HEAD + "    model: opus\n", encoding="utf-8")
+    code, out, err = chantier("playbook", "--host", "copilot")  # several Opus models: ambiguous
+    text = "".join(out) + err
+    assert code == EXIT_PRECONDITION and "ambiguous" in text
+    assert all(i in text for i in ("claude-opus-4.8 ", "claude-opus-5 ", "claude-opus-5.5 "))
+    yaml.write_text(HEAD + "    model: claude-opus-5.5\n", encoding="utf-8")
     code, out, err = chantier("playbook", "--host", "copilot")  # a host that cannot set a model
     assert code == EXIT_PRECONDITION and any(
         "cannot set a model when it starts an agent" in ln and 'hosts/copilot.md, "Models"' in ln

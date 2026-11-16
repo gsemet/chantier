@@ -11,7 +11,8 @@ import pytest
 from conftest import PLUGIN_ROOT, SKILL, load_script
 
 from chantier import __version__
-from chantier.playbook.models import MODELS, normalise, resolve
+from chantier.playbook.copilot_catalog import normalise
+from chantier.playbook.models import MODELS, resolve
 from chantier.plugin_files import cli_command, sync_command
 
 CLAUDE_MODELS = {"claude-sonnet-5-5", "claude-opus-5-5"}

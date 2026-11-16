@@ -36,6 +36,10 @@ scenario *args:
 eval-dry-run:
     {{run-cli}} evals/kit/dry_run.py
 
+# Refresh the Copilot model catalog from GitHub's tables (network; by hand, not in check)
+copilot-models *args:
+    {{run-cli}} scripts/copilot_models.py {{args}}
+
 # The mod's checks: `claude plugin validate .` then `claude plugin test .` (not part of check: CI has no claude)
 mod:
     uv run --no-project python scripts/mod.py

@@ -192,6 +192,7 @@ just check          # lint (ruff, mypy, the lock) and structure tests: run befor
 just test -k agent  # structure tests, with pytest arguments
 just scenario       # one whole batch, end to end, through the real CLI and a fake gh, then glab
 just eval-dry-run   # the eval kit, end to end on a local sandbox: reset, setup, a staged run, audit, judge
+just copilot-models # refresh the Copilot model catalog from GitHub's tables (network), then review the diff and its differences
 just mod            # the mod: claude plugin validate, then claude plugin test (needs a claude binary)
 ```
 
@@ -259,6 +260,9 @@ visible in the PR's head, absent on main).
   change to how a batch handles
   failures; `copilot` for a change to Copilot's mechanics. Each run commits its report, with the
   [scorecard](evals/SCORECARD.md) for the Claude campaigns.
+- Before a release, run `just copilot-models` and carry into the PR the differences that touch an
+  agent file's model; a model GitHub no longer lists that an agent file names makes `just check`
+  fail until the agent file changes.
 - `main` is protected: every change goes through a pull request, merged by rebase once CI
   (`just check` on Linux, macOS and Windows, and `just scenario` and `just eval-dry-run` on Linux) is green.
 

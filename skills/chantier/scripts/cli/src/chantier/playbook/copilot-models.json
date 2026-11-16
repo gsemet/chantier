@@ -1,0 +1,664 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "github/docs",
+    "commit": "84bdf4c88dcbd2402b0a2b3ab537c5a104e23a6a",
+    "date": "2026-11-16",
+    "files": {
+      "model-supported-clients.yml": "data/tables/copilot/model-supported-clients.yml",
+      "auto-model-selection.yml": "data/tables/copilot/auto-model-selection.yml",
+      "model-release-status.yml": "data/tables/copilot/model-release-status.yml",
+      "model-supported-plans.yml": "data/tables/copilot/model-supported-plans.yml",
+      "cli-supported-models.md": "content/copilot/reference/copilot-cli-reference/cli-command-reference.md"
+    }
+  },
+  "models": [
+    {
+      "id": "claude-fable-5",
+      "name": "Claude Fable 5",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-fable-5.1",
+      "name": "Claude Fable 5.1",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-fable-5.2",
+      "name": "Claude Fable 5.2",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-haiku-4.5",
+      "name": "Claude Haiku 4.5",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "claude-haiku-5.5",
+      "name": "Claude Haiku 5.5",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "claude-opus-4.8",
+      "name": "Claude Opus 4.8",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-opus-4.8-(fast-mode)",
+      "name": "Claude Opus 4.8 (fast mode)",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-opus-5",
+      "name": "Claude Opus 5",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-opus-5.5",
+      "name": "Claude Opus 5.5",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "claude-sonnet-4.6",
+      "name": "Claude Sonnet 4.6",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": false,
+        "business": false,
+        "enterprise": false
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-sonnet-5",
+      "name": "Claude Sonnet 5",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "claude-sonnet-5.5",
+      "name": "Claude Sonnet 5.5",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "name": "Gemini 3.8 Flash",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "gemini-4-argon",
+      "name": "Gemini 4 Argon",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gemini-4-carbon",
+      "name": "Gemini 4 Carbon",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gemini-4-hydrogen",
+      "name": "Gemini 4 Hydrogen",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "name": "GPT-5.3-Codex",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "name": "GPT-5.6 Luna",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "name": "GPT-5.6 Sol",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "name": "GPT-5.6 Terra",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gpt-6-astra",
+      "name": "GPT-6 Astra",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "gpt-6-luna",
+      "name": "GPT-6 Luna",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "gpt-6-sol",
+      "name": "GPT-6 Sol",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "gpt-6.1-sol",
+      "name": "GPT-6.1 Sol",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": false,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "gpt-6.1-terra",
+      "name": "GPT-6.1 Terra",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": true,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml",
+        "cli-supported-models.md"
+      ]
+    },
+    {
+      "id": "grok-4.5",
+      "name": "Grok 4.5",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "grok-4.6",
+      "name": "Grok 4.6",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "grok-4.7",
+      "name": "Grok 4.7",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "kimi-k3",
+      "name": "Kimi K3",
+      "release_status": "GA",
+      "cli": true,
+      "app": null,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    },
+    {
+      "id": "mai-code-1.1-flash",
+      "name": "MAI-Code-1.1-Flash",
+      "release_status": "GA",
+      "cli": true,
+      "app": true,
+      "plans": {
+        "pro": true,
+        "pro_plus": true,
+        "max": true,
+        "business": true,
+        "enterprise": true
+      },
+      "in_cli_reference": false,
+      "sources": [
+        "model-supported-clients.yml",
+        "auto-model-selection.yml",
+        "model-release-status.yml",
+        "model-supported-plans.yml"
+      ]
+    }
+  ],
+  "differences": [
+    "claude-fable-5: in the tables, not in the CLI reference's Supported models",
+    "claude-fable-5.1: in the tables, not in the CLI reference's Supported models",
+    "claude-fable-5.2: in the tables, not in the CLI reference's Supported models",
+    "claude-opus-4.8: in the tables, not in the CLI reference's Supported models",
+    "claude-opus-4.8-(fast-mode): in the tables, not in the CLI reference's Supported models",
+    "claude-opus-5: in the tables, not in the CLI reference's Supported models",
+    "claude-sonnet-4.6: in the tables, not in the CLI reference's Supported models",
+    "claude-sonnet-5: in the tables, not in the CLI reference's Supported models",
+    "gemini-4-argon: in the tables, not in the CLI reference's Supported models",
+    "gemini-4-carbon: in the tables, not in the CLI reference's Supported models",
+    "gemini-4-hydrogen: in the tables, not in the CLI reference's Supported models",
+    "gpt-5.6-luna: in the tables, not in the CLI reference's Supported models",
+    "gpt-5.6-sol: in the tables, not in the CLI reference's Supported models",
+    "gpt-5.6-terra: in the tables, not in the CLI reference's Supported models",
+    "gpt-6-sol: in the tables, not in the CLI reference's Supported models",
+    "gpt-6.1-sol: absent from model-supported-clients.yml, cli True and app True in auto-model-selection.yml",
+    "grok-4.5: in the tables, not in the CLI reference's Supported models",
+    "grok-4.6: in the tables, not in the CLI reference's Supported models",
+    "grok-4.7: in the tables, not in the CLI reference's Supported models",
+    "kimi-k3: in the tables, not in the CLI reference's Supported models",
+    "mai-code-1.1-flash: in the tables, not in the CLI reference's Supported models"
+  ]
+}

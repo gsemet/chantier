@@ -1,0 +1,12 @@
+{
+  "repository": "github/docs",
+  "commit": "84bdf4c88dcbd2402b0a2b3ab537c5a104e23a6a",
+  "date": "2026-11-16",
+  "files": {
+    "model-supported-clients.yml": "data/tables/copilot/model-supported-clients.yml",
+    "auto-model-selection.yml": "data/tables/copilot/auto-model-selection.yml",
+    "model-release-status.yml": "data/tables/copilot/model-release-status.yml",
+    "model-supported-plans.yml": "data/tables/copilot/model-supported-plans.yml",
+    "cli-supported-models.md": "content/copilot/reference/copilot-cli-reference/cli-command-reference.md"
+  }
+}
