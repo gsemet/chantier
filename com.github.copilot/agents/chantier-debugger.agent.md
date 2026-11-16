@@ -1,7 +1,7 @@
 ---
 name: chantier-debugger
 description: 'Finds and proves why a chantier CR''s check is red; hands over a diagnosis, not a fix. Started by a Driver. Prompt starts with: `chantier debugger for <cr> "<title>" of batch <batch>, in the project <root>.`'
-model: [GPT-5.6 Luna, gpt-5.6-luna]
+model: [GPT-6.1 Terra, gpt-6.1-terra]
 model-policy: required
 tools: ["execute", "read", "edit", "search"]
 strict-tools-list: true

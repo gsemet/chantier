@@ -239,6 +239,51 @@ def test_the_model_table_names_every_model_the_agent_files_name(host: str) -> No
         named = front["model"].strip("[]").split(", ")[-1]
         found, why = resolve(host, named)
         assert why is None and found is not None and found.id == named, (role, named, why)
+        if host == "copilot":
+            assert front["model"].strip("[]").split(", ")[0] == found.name, (role, found.name)
+
+
+@pytest.mark.parametrize(
+    ("change", "expect"),
+    [
+        ({}, "ok"),
+        ({5: "gpt-5.6-luna"}, "MISMATCH"),
+        ({5: None}, "not recorded"),
+        ("short", "unmatched (event count)"),
+    ],
+)
+def test_copilot_models_script_checks_each_role_on_a_fake_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    change: object,
+    expect: str,
+) -> None:
+    script = load_script("copilot_models", PLUGIN_ROOT / "evals" / "kit" / "copilot_models.py")
+    models: list[str | None] = [script.expected(r) for r in script.ROLES]
+    if isinstance(change, dict):
+        for i, m in change.items():
+            models[i] = m
+    else:
+        models = models[:-1]
+    folder = tmp_path / "session-state" / "s1"
+    folder.mkdir(parents=True)
+    lines = []
+    for m in models:
+        data = {"firstDispatchedModel": m, "modelSelectionSource": "x"}
+        if m:
+            data["model"] = m
+        lines += [
+            {"type": "subagent.started", "data": data},
+            {"type": "subagent.completed", "data": data},
+        ]
+    (folder / "events.jsonl").write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+    monkeypatch.setenv("COPILOT_HOME", str(tmp_path))
+    assert script.main(["--session", "s1"]) == (0 if expect == "ok" else 1)
+    out = capsys.readouterr().out
+    assert expect in out
+    event_lines = [ln for ln in out.splitlines() if ln.startswith("subagent.")]
+    assert event_lines and all("no agent field in the event" in ln for ln in event_lines)
 
 
 def test_the_model_table_names_no_model_twice_per_host() -> None:

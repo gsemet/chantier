@@ -20,6 +20,12 @@ With no argument it is the mode under Remote Control and on a host that cannot s
 session: `chantier status` prints "heartbeat N min" (since its last wake) or "heartbeat stopped"
 (a loop ended on purpose).
 
+On Copilot, chantier runs in the Copilot App (on the Copilot SDK, like Claude Desktop: the
+table's "Copilot SDK host", Foreman and direct mode) and in the Copilot CLI, in direct mode (a
+Copilot agent session in the terminal; the user's statement of 2026-11-16, unproved until a run).
+VS Code's local harness is not supported (it does not use the Copilot CLI or SDK); the Copilot
+harness in VS Code, arriving, uses them (unproved until a run).
+
 **Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
 settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
 the Foreman an action (starting a Release driver, say) until you allow it in that session: type

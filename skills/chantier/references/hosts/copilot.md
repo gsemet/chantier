@@ -26,8 +26,9 @@ fact.
 | Start the Spec-writer (Chief of Staff) | `task`, `mode: background`, `agent_type: chantier-spec-writer`; no model (as above), no effort |
 | Start the Spec critic (Chief of Staff, Griller) | `task`, `mode: background`, `agent_type: chantier-spec-critic`; no model (as above), no effort; Fable is not recorded on Copilot |
 | Start the Retro critic (Foreman, Chief of Staff) | `task`, `agent_type: chantier-retro-critic`; no model (as above), no effort; Fable is not recorded on Copilot |
-| Models | each plugin agent's file names its model (`[display name, id]`): Luna, Sol, Sonnet 5.5 or Opus 5.5 |
-| Models at an agent's start (capability, start value) | capability: none, unproved; no start value. A `model` in `chantier.yaml` is refused on this host, with the CLI's message "cannot set a model when it starts an agent". Trial that would settle it: start a plugin agent through `task` with a model passed, read the model its transcript shows, and record the parameter and the value it took here |
+| Models | each plugin agent's file names its model (`[display name, id]`), with `model-policy: required`: Luna, Sol, Terra, Sonnet 5.5 or Opus 5.5. The identifier is the display name in lower case, spaces as `-`, dots kept, as the CLI reference's "Supported models" lists them ([CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference)) |
+| Models at an agent's start (capability, start value) | capability: none; no start value. A `model` in `chantier.yaml` is refused on this host, with the CLI's message "cannot set a model when it starts an agent". Observed in the Copilot App (CR-296 rounds 5 and 6, 2026-11-16; record: the planning surface's `296-improve-skill-boot/work/handoff.md`, "Model evidence"): a plugin agent started through `task` with another model runs on its file's model, the host saying "Required model enforcement replaced requested model ..."; a generic agent took the model passed (`modelSelectionSource: explicit_override`). Documented, unproved here: the Copilot CLI's `--model` loses to an agent's `model-policy: required` ([CLI command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#command-line-options)) |
+| The model a role ran on | the steering session's `events.jsonl`, `subagent.started` and `subagent.completed`: `model`, `firstDispatchedModel`, `modelSelectionSource`, observed in CR-296 round 6 (record as above). `subagent.failed` carries `model` too, documented ([SDK custom agents](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/custom-agents)), not observed. Check: `evals/copilot/RUNBOOK.md`, "Models" |
 | Skills and tools of a session (what the Chief of Staff compares a role's needs with) | not known (unproved); trial: a `chantier.yaml` naming one skill that is installed and one that is not; the Chief of Staff names only the second |
 | Message a Driver | `write_agent` to the agent id |
 | Message the Chief of Staff | `send_message` to its session link |
@@ -44,6 +45,8 @@ fact.
 | Message another session of the user (hand-over, a Griller's line) | `send_message` to its link (unproved) |
 | A Griller in a worktree | its files sent as for a Griller on Claude Code (unproved) |
 | A session in a planning surface writing in the project's clone and worktrees (outside its folder) | the host must allow those folders (unproved); the remote finding is Claude Code's: not tried on Copilot |
+
+Known host issues: a `model` array once refused by the CLI ([copilot-cli#2133](https://github.com/github/copilot-cli/issues/2133)); an SDK-provided agent's model dropped at `session.create` ([copilot-sdk#1609](https://github.com/github/copilot-sdk/issues/1609)); an unknown identifier falling back silently ([copilot-sdk#2856](https://github.com/github/copilot-sdk/issues/2856)); sub-agents on another model than the session's with no sign, fixed in CLI v1.0.62 ([copilot-cli#3824](https://github.com/github/copilot-cli/issues/3824)).
 
 ## Heartbeat
 
