@@ -32,3 +32,5 @@ wakes and context (`chantier cost --summary`). The Chief of Staff's own session 
 its line shows two figures (since the batch opened, the whole session) and its context size; the whole-session figure covers the whole session and,
 in a direct batch, names its part in the batch's spend; and
 it is never in the batch's spend nor in its budget.
+
+`close` also keeps the same figures as data, `cost_receipt`, in the batch's record (`batch-NN.json`): the steering, one entry per Driver, the split and what is outside the budget. The web board's Costs page prints them as a receipt.

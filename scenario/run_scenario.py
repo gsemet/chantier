@@ -1877,6 +1877,11 @@ def remote_board(w: World) -> None:
               "the same transcripts",
               live.get("error") is None and live.get("spent_usd") is not None
               and abs(live["spent_usd"] - recorded["spent_usd"]) < 0.001, str(costs))
+        shown = live.get("receipt") or {}
+        check("the live figure carries the receipt: its split adds up to `spent_usd` within a cent",
+              shown.get("split")
+              and abs(sum(p["usd"] for p in shown["split"]) - live["spent_usd"]) <= 0.0101
+              and "steering" in shown and "drivers" in shown, str(shown))
         code, _, _ = fetch(port, f"{base}/costs/recompute", "POST",
                            {**json_head, "Origin": "http://evil.example"}, b"{}")
         check("a `POST` with a foreign `Origin` answers 403", code == 403, str(code))
@@ -3207,6 +3212,16 @@ def close_batch(w: World) -> None:
                   if c["result"] == "dropped")
           and all(c["pr"] and c["rounds"] is not None and c["cost_usd"] is not None
                   for c in rec["crs"] if c["result"] == "merged"), str(rec["crs"]))
+    receipt = rec.get("cost_receipt") or {}
+    split = receipt.get("split") or []
+    md_drivers = sorted(re.findall(r"Driver (\S+) with its workers: \$(\d+\.\d\d)", cost_part))
+    json_drivers = sorted((d["type"], f"{d['usd']:.2f}") for d in receipt.get("drivers", []))
+    check("`batch-NN.json` keeps the receipt's figures: a split that adds up to the cost within a "
+          "cent, a Steering line, and Driver lines that match the Driver lines of `## Cost`",
+          split and abs(sum(p["usd"] for p in split) - rec["cost_usd"]) <= 0.0101
+          and {p["part"] for p in split} >= {"steering", "drivers", "workers"}
+          and "usd" in receipt.get("steering", {}) and json_drivers == md_drivers
+          and ("outside" in receipt), f"{receipt} {md_drivers}")
     text = report_file.read_bytes()
     check("`batch-NN.md` holds the table, the cost lines and the retro's two pause sections byte "
           "for byte",
@@ -3257,7 +3272,8 @@ def opened_record(w: World) -> None:
           and rec["mode"] == d["mode"] and rec["steering"] == d["steering"]
           and rec["host"] == d["host"] and rec["budget_usd"] == d["budget_usd"]
           and rec["crs"] == [] and rec["closed"] is None and rec["cost_usd"] is None
-          and rec["report"] is None and "backfill" not in rec, str(rec))
+          and rec["report"] is None and "backfill" not in rec
+          and "cost_receipt" in rec and rec["cost_receipt"] is None, str(rec))
     ignored = (w.state / ".gitignore").read_text(encoding="utf-8").splitlines()
     check("`open` still writes `.batch-number`, and the record is published, not ignored",
           (w.state / ".batch-number").read_text().strip() == str(rec.get("number"))

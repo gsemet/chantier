@@ -73,9 +73,13 @@ Each change is written at once, with the CLI's own file and triage commands, in 
 
 ### Costs
 
-![The costs: totals and one row per CR](web-board/costs-pc.png)
+![The costs: the batch's receipt, the totals and one row per CR](web-board/costs-pc.png)
 
-What was spent against the budget, the sum of the CRs (the rest is the steering sessions), the average per active CR, one row per CR of the batch with its state and its cost, and the last merged CRs of all the batches. **Earlier batches** lists the closed batches, newest first (closing day, mode, CRs merged, cost against the budget); a click on a row unfolds its CRs. A record made after the fact shows a dash where it has no figure. The figures are those the batch recorded; **Recompute** makes the server read the transcripts again, with no agent turn. The costs of the CRs a batch has not yet priced read as a dash.
+The page shows the running batch's cost as a supermarket receipt, and, with no batch running, the newest closed batch's. On a wide screen the receipt (the ticket) stays on the left and the cards on the right; on a phone the ticket comes first, the Per CR table keeps the CR and its title and the figures follow.
+
+The ticket prints the batch, its state and how long it lasted, then the steering (the Foreman or the Chief of Staff, with its wakes and its average context), one line per Driver with its workers, a bar of the split between the steering, the Drivers and the workers, and, after a cut line, the total in large figures, the budget used, the average per CR and what lies outside the budget (the grill and the specifications, and the steering in a Foreman batch). Below a dashed rule come one line per CR, their sum and a barcode. The cards show the figures again (spent, budget, sum of the CRs, average), one row per CR of the batch, the last merged CRs of all the batches and **Earlier batches** (closing day, mode, CRs merged, cost against the budget; a click on a row unfolds its CRs). A figure the batch could not price reads "at least"; a record made after the fact shows a dash where it has no figure.
+
+A closed batch's ticket is the `cost_receipt` its record kept at close: final, it never changes. A closed record from before the receipt reads "roles not recorded". A running or paused batch with no live figure yet reads "not computed yet"; **Recompute** makes the server read the transcripts again, with no agent turn.
 
 ### Configuration
 

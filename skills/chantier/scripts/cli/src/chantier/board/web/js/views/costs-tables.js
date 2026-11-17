@@ -17,7 +17,7 @@ const byCost = (a, b) => (b.cost_usd ?? 0) - (a.cost_usd ?? 0);
 
 function crRow(c, batch, top) {
   const round = c.round ? html` <span class="mut">r${roundText(c, batch)}</span>` : '';
-  return html`<tr class="click" ${opener(crKey(c), 'cost-')}><td><b>${c.cr}</b> <span class="mut">${slug(c.folder)}</span></td><td class="hide-phone">${title(c.title)}</td><td>${stateTag(c)}${round}</td><td class="num">${usd(c.cost_usd)}</td><td class="hide-phone">${bar(c.cost_usd ?? 0, top, 'var(--blue)')}</td></tr>`;
+  return html`<tr class="click" ${opener(crKey(c), 'cost-')}><td><b>${c.cr}</b> <span class="mut">${slug(c.folder)}</span></td><td>${title(c.title)}</td><td class="hide-phone">${stateTag(c)}${round}</td><td class="num">${usd(c.cost_usd)}</td><td class="hide-phone">${bar(c.cost_usd ?? 0, top, 'var(--blue)')}</td></tr>`;
 }
 
 export function perCr(batch) {
@@ -25,8 +25,8 @@ export function perCr(batch) {
   const top = Math.max(0.01, ...rows.map((c) => c.cost_usd ?? 0));
   const cells = [
     ['costs.th_cr', ''],
-    ['costs.th_title', 'hide-phone'],
-    ['costs.th_state', ''],
+    ['costs.th_title', ''],
+    ['costs.th_state', 'hide-phone'],
     ['costs.th_cost', 'num'],
     ['', 'hide-phone bar'],
   ];

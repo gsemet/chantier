@@ -254,40 +254,64 @@ def _driver_line(k: str, v: list[Any]) -> str:
     )
 
 
-def _wakes(steer: str, mains: list[dict[str, Any]]) -> list[str]:
+def wake_figures(mains: list[dict[str, Any]]) -> dict[str, int] | None:
+    """The steering sessions' wakes, their average context and their peak; `None` when none."""
     n = sum(r.get("wakes", 0) for r in mains)
     if not n:
+        return None
+    return {
+        "wakes": n,
+        "context_avg": sum(r.get("wake_context", 0) for r in mains) // n,
+        "context_peak": max(r.get("peak_context", 0) for r in mains),
+    }
+
+
+def _wakes(steer: str, mains: list[dict[str, Any]]) -> list[str]:
+    w = wake_figures(mains)
+    if w is None:
         return []
     return [
-        f"{steer}: {n} wakes, context "
-        f"{sum(r.get('wake_context', 0) for r in mains) // n:,} tokens on average, "
-        f"{max(r.get('peak_context', 0) for r in mains):,} at its peak"
+        f"{steer}: {w['wakes']} wakes, context {w['context_avg']:,} tokens on average, "
+        f"{w['context_peak']:,} at its peak"
     ]
 
 
-def _split(rows: list[dict[str, Any]], steer: str, total: float, un: dict[str, Any]) -> str:
-    """The spend by kind: the steering session, the Drivers, the workers, as printed."""
+def split_parts(
+    rows: list[dict[str, Any]], steer: str, total: float, un: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """The spend by kind: the steering session, the Drivers, the workers (or the agents not
+    told apart), each part's dollars apportioned in cents so they add up to the total."""
     entries = breakdown(rows)
     kinds = [
         (
             name,
+            part,
             sum(e["usd"] for e in entries if e["kind"] == kind),
             sum_unpriced([r for e in entries if e["kind"] == kind for r in e["rows"]]),
         )
-        for name, kind in (
-            (steer, "Foreman"),
-            ("Drivers", "Driver"),
-            ("workers", "Worker"),
-            ("agents, Driver or worker not measured", "Agent"),
+        for name, part, kind in (
+            (steer, "steering", "Foreman"),
+            ("Drivers", "drivers", "Driver"),
+            ("workers", "workers", "Worker"),
+            ("agents, Driver or worker not measured", "agents", "Agent"),
         )
     ]
-    kinds = [k for k in kinds if k[1] or k[2] or k[0] in (steer, "Drivers", "workers")]
-    parts = [usd for _, usd, _ in kinds]
-    cents = apportion(parts, round(total * 100))
-    shares = apportion(parts, 100) if total else [0] * len(parts)
+    kinds = [k for k in kinds if k[2] or k[3] or k[0] in (steer, "Drivers", "workers")]
+    usd = [k[2] for k in kinds]
+    cents = apportion(usd, round(total * 100))
+    shares = apportion(usd, 100) if total else [0] * len(usd)
+    return [
+        {"name": name, "part": part, "usd": c / 100, "unpriced": kun, "share": s}
+        for (name, part, _, kun), c, s in zip(kinds, cents, shares, strict=False)
+    ]
+
+
+def _split(rows: list[dict[str, Any]], steer: str, total: float, un: dict[str, Any]) -> str:
+    """The spend by kind, as printed."""
     return ", ".join(
-        f"{name} {usd_text(c / 100, kun)} ({'not measured' if un else f'{s}%'})"
-        for (name, _, kun), c, s in zip(kinds, cents, shares, strict=False)
+        f"{p['name']} {usd_text(p['usd'], p['unpriced'])} "
+        f"({'not measured' if un else str(p['share']) + '%'})"
+        for p in split_parts(rows, steer, total, un)
     )
 
 

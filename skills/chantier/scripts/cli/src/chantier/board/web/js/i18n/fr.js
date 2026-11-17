@@ -1,5 +1,6 @@
 // Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../model/words.js.
 import board from './fr-board.js';
+import costs from './fr-costs.js';
 import prs from './fr-prs.js';
 import write from './fr-write.js';
 
@@ -190,25 +191,6 @@ export default {
   'prs.place': 'place dans la stack, 1 = le bas ; pas un ordre de merge',
   'prs.order': 'ordre de merge recommandé',
   'prs.merged_ago': 'mergée il y a {age}',
-  'costs.computed': 'Dernier calcul : il y a {age}',
-  'costs.never': 'Pas encore calculé',
-  'costs.recompute': '↻ Recalculer',
-  'costs.recomputing': 'recalcul…',
-  'costs.note': "le serveur relit les transcripts : aucun tour d'agent",
-  'costs.spent': 'Dépensé ({batch})',
-  'costs.budget': 'Budget',
-  'costs.used': '{n} % utilisé',
-  'costs.sum': 'Somme des CRs',
-  'costs.rest': 'le reste : le steering',
-  'costs.avg': 'Coût moyen par CR actif',
-  'costs.avg_sub': '{n} CRs avec un coût',
-  'costs.per_cr': 'Par CR, {batch}',
-  'costs.last_merged': 'Derniers CRs mergés',
-  'costs.th_cr': 'CR',
-  'costs.th_title': 'Titre',
-  'costs.th_state': 'État',
-  'costs.th_cost': 'Coût',
-  'costs.th_batch': 'Batch',
   'overview.project': 'Projet',
   'overview.batch': 'Batch',
   'overview.working': 'En cours',
@@ -239,6 +221,7 @@ export default {
   ...write,
   ...board,
   ...prs,
+  ...costs,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'actif',
   'autosync.state.stopped': 'arrêté',
