@@ -8,11 +8,12 @@ from pathlib import Path
 from chantier.commands.closing import record_pause
 from chantier.core.batch import read_batch
 from chantier.core.clock import now
+from chantier.core.endblockers import end_blockers
 from chantier.core.git import branch_exists, refusal
 from chantier.core.records import CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
-from chantier.rails import all_merged, end_blockers
+from chantier.rails import all_merged
 
 PAUSE = "`chantier pause --epoch <n>`"
 
