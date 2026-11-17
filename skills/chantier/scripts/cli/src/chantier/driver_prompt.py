@@ -8,7 +8,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.plugin_files import _agent_files, contract_lines, skill_dir
+from chantier.plugin_files import (
+    _agent_files,
+    contract_lines,
+    recorded_escalation,
+    skill_dir,
+)
 
 if TYPE_CHECKING:
     from chantier.core.records import BatchRecord
@@ -134,7 +139,7 @@ def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> l
         f"  Read {refs}/{row.card};",
         "  the project's rules rank above them: run `$CHANTIER rules` first and read what "
         "touches your work.",
-        *contract_lines(row.role, row.text, d.playbook),
+        *contract_lines(row.role, row.text, d.playbook, recorded_escalation(d)),
         f"  CLI ($CHANTIER): {block.cli}",
         *(f"  {line}" for line in block.middle),
         *([f"  writes: {block.writes}"] if row.writes and block.writes else []),
