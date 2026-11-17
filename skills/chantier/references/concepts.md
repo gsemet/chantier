@@ -247,17 +247,20 @@ and how an agent is started. Each worker reads its own card, which restates the 
   the default branch, silently, and it goes on growing (one restack for one merge action of the user, none when the whole stack merged). Each CR is named a branch
   `chantier/<batch>/<cr>-<slug>` and a worktree `<repo>.worktrees/<batch>-<cr>` (`<worktrees>/<batch>-<cr>` from `checkout.yml` in
   external mode): its Driver
-  creates them, the Foreman removes a merged CR's, the Chief of Staff a dropped CR's on the
-  user's word.
+  creates them; a merged CR's are removed by the CLI at the batch's end (the end of its last
+  CR), or by the steering session when the CLI kept them; the Chief of Staff removes a dropped
+  CR's on the user's word.
 - **Batch lifecycle:** three states, and only these words: **running**, **paused**, **closed**.
   1. **Running:** `open` creates the batch, running. Its CRs are taken by Drivers on the free
      slots, worked, handed back, merged by the user, or dropped.
   2. **Complete:** every CR is merged or cancelled. The CLI removes each merged CR's worktree
      and branch (one whose agent is still held, or that git refuses, is kept and named) and runs
      `pause` itself: the batch is **paused**. With a note, a QA or a stack Driver pending, it
-     says `not paused` and the steering session runs `pause` once they are done.
+     says `not paused` and the steering session runs `pause` once they are done; it removes the
+     worktrees the CLI kept once their Driver has ended.
   3. **Paused:** nothing runs. The cost to date has been computed and shown, and the steering
-     session writes, after the pause, the batch's retro for this pause (`4-batch/retro.md`: each problem met
+     session writes, after the pause (and, when the CLI paused the batch, with its retro critic,
+     before `final`; in direct mode, before the close offer), the batch's retro for this pause (`4-batch/retro.md`: each problem met
      with its long-term fix, one line each, tagged `project` or `chantier`), which the Chief of
      Staff offers to the user before any close: the `project` points as inbox items, the `chantier`
      ones as an issue on chantier's repository (`close` writes it into the batch's
@@ -267,8 +270,9 @@ and how an agent is started. Each worker reads its own card, which restates the 
      `order add` adds them, any number, and the batch stays paused; the first `take` (or an
      `order qa`) sets it running again, and it pauses again at the end with the cost to date,
      which has grown.
-  4. **Closed:** only on the user's word ("close the batch"): the `close` flow (the check and the
-     final cost from `close` without `--yes`, then `close --yes` on the user's yes in that turn).
+  4. **Closed:** only on the user's word: the close is offered at the pause, unprompted, once the
+     retro critic has handed back (the check and the final cost from `close` without `--yes`),
+     then `close --yes` on the user's yes in that turn.
      Until then, a paused batch stays paused, however long.
 
   The same in both steerings. On a *running* direct batch `order add` queues the CR (taken
