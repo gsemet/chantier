@@ -41,7 +41,14 @@ def load_or_create(repo: Repo, new: bool = False) -> str:
         return read_key(path)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     key = secrets.token_urlsafe(32)
-    write_json(path, {"key": key, "created": clock.now()})
+    kept = {}
+    if path.is_file():  # `--new-key` replaces the key only: the running board's record stays
+        try:
+            old = json.loads(read_text(path))
+            kept = old if isinstance(old, dict) else {}
+        except (OSError, ValueError):
+            kept = {}
+    write_json(path, {**kept, "key": key, "created": clock.now()})
     os.chmod(path, 0o600)
     return key
 

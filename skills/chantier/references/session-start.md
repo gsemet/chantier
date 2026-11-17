@@ -74,7 +74,14 @@ never start it.
   `GET /api/board` with the key; if no probe was run, say so. If the server announces a
   non-loopback binding, say that LAN reachability is untested; do not claim that it opens
   remotely. The link is theirs only.
-- `board already running at <URL>`: the same line, if not given yet in this session.
+- `board already running at <URL>`: the same line, if not given yet in this session. One board
+  serves a planning surface (or a repository), on whatever port: a second session's `board --seat
+  <id>` registers its seat on it and prints this line.
+- `error: board not started: chantier board <v> (PID <n>) already serves this surface ...` or
+  `... holds this surface at <host>:<port> and does not answer ...`: one line to the user with the
+  version, the PID and the stop command as printed. Never stop it yourself and never start one on
+  another port to get round it: the user decides, then you run `board --seat <id>` again on the
+  user's word.
 - `board: autosync not joined: <reason>` (a second line when the board's explicit autosync
   action fails): one line with the reason; the board serves anyway. Board launch itself joins
   nothing.

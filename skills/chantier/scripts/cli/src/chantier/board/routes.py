@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Callable
 from typing import Any
@@ -62,6 +63,7 @@ def board(ctx: Context, req: Request) -> Reply:
             "board": True,
             "version": ctx.version,
             "surface": ctx.projects.surface_mode,
+            "pid": os.getpid(),
             "served": ctx.projects.served.as_posix(),
             "served_origin": origin_of(ctx.projects.served),
             "seats": ctx.seats.count(),

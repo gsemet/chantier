@@ -40,7 +40,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
 | "start autosync", "stop autosync" (a surface with an autosync) | the surface script's `start . --enable-only` (a join first if this session is not a member) or `stop .`, from the surface's root; never `approve` | With a planning surface |
-| "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>` | [session-start](session-start.md) |
+| "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
 | "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); without autosync, commit the planning folder by hand; tell the user what moved and whether the next batch is declared ready | [session-start](session-start.md) |
 
 ## Hard rules
@@ -355,8 +355,11 @@ the CR is written in the CR's folder; your memory is never a CR's place (decisio
 **With a planning surface** ([concepts](concepts.md)): the surface's own rules win for its sync,
 its `AGENTS.md` first. Without sync rules there, commit and push the surface after each step that
 changes it (a file, a grill answer, a specification, `open`, a merge recorded, `close`) and, in a
-batch, at each hand-back you hear: explicit paths (`git add -- <path>`), a plain push to the
-default branch, a rebase on a rejected push, never a force push. A clone missing at
+batch, at each hand-back you hear: stage only this project's folder or paths inside it
+(`git add -- projects/<name>/...`), never `git add -A`, `git add .` nor a wider folder (another
+session on the same surface may have its own files unstaged there; a file outside the project's
+folder, the surface's own `AGENTS.md` or its root `chantier.yaml`, only by its own path); then
+commit, `git pull --rebase --autostash` and `git push` to the default branch, never a force push. A clone missing at
 `checkout.yml`'s path (`preflight` fails naming it) is cloned on the user's word. Outside
 contributors submit a CR by a PR on the surface, which the user reviews and merges on the forge;
 a CR so merged into `1-inbox` or `2-backlog/P<n>` is read like any other. Never touch the
@@ -366,8 +369,8 @@ A surface with an autosync (P13, `status`; [concepts](concepts.md)) is kept push
 
 - **Enabled:** commit or push nothing by hand. `uv run scripts/ai-autosync-git.py sync .`, from
   the surface's root, publishes at once when a step needs it.
-- **Stopped by the user, or no autosync:** today's rule above (by hand, explicit paths, a plain
-  push, a rebase on a rejected push, never a force push).
+- **Stopped by the user, or no autosync:** the rule above (by hand, only this project's folder,
+  `git pull --rebase --autostash`, `git push`, never a force push).
 - **Blocked** (the `status` line, P13, the Foreman's ask, the board, or the user): the reason says
   what. When upstream moved, integrate as the surface's rules say (chantier's own: a rebase, no
   change discarded, never a force push), then `start . --enable-only`. When something else blocks
@@ -700,7 +703,8 @@ Only in the turn where the user gave the go:
    question of "The project" was not asked yet in this session, ask it, and act on the answer
    before the plan; if it was asked and the user said no, repeat in one line what is still
    missing, with no question; then go on, P10 never blocks the go (it names the capabilities it
-   did not check); and P12 (`chantier.yaml`, absent or valid). You warn the
+   did not check); and P12 (`chantier.yaml`, absent or valid); P14 lists the other batches on this
+   surface and their Drivers, informational, never a warning or a failure. You warn the
    user of each skill or tool the playbook names and your session lacks. You check P2 (the
    session tools of your host's reference load), P3 (the go is in the user's own message of this turn), P9 (`gh auth status`
    or `glab auth status` is logged in to the remote's host) and that a person is at the
@@ -717,7 +721,8 @@ Only in the turn where the user gave the go:
    no real dependency (for a wait on the same lines: the two CRs, number and slug once `open`
    numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
    Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (4 unless you say
-   otherwise); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
+   otherwise), and, on a surface, the other batches of P14 (project, batch, steering, Drivers), so
+   the user picks the slots knowing the machine's load (no cap is proposed or applied); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user may merge in one action from its top PR, or one PR at a time from

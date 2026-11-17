@@ -5,12 +5,14 @@ from __future__ import annotations
 
 import argparse
 import errno
+import os
 import socket
 import sys
 from collections.abc import Callable
 from typing import Any
 
 from chantier import __version__
+from chantier.board import running
 from chantier.board.address import (
     is_loopback,
     probe,
@@ -98,12 +100,54 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
         pass
     finally:
         sock.close()
+        running.remove(key_path(projects.home), os.getpid())
 
 
-def _running(projects: Projects, host: str, port: int, key: str) -> bool:
-    """A board of this folder, behind this key, already answers there."""
+def _another_version(version: object, pid: object, link: str, stop: str) -> ChantierError:
+    return _not_started(
+        f"chantier board {version} (PID {pid}) already serves this surface at {link}; this is "
+        f"chantier {__version__}: to replace it, stop it ({stop}), then run board again"
+    )
+
+
+def _silent(run: dict[str, Any]) -> ChantierError:
+    return _not_started(
+        f"a chantier board {run.get('version')} (PID {run['pid']}) holds this surface at "
+        f"{run['host']}:{run['port']} and does not answer: stop it "
+        f"({running.stop_command(run['pid'])}), then run board again"
+    )
+
+
+def _recorded(projects: Projects, run: dict[str, Any], key: str) -> tuple[str, int]:
+    """The board the record names, which a live process holds: its address when it answers as
+    this version over this folder; a refusal otherwise. Nothing is signalled."""
+    host, port = run["host"], run["port"]
+    found = probe(host, port, key)
+    if not isinstance(found, dict) or found.get("served") != projects.served.as_posix():
+        raise _silent(run)
+    if found.get("version") != __version__:
+        raise _another_version(
+            found.get("version"), run["pid"], url(host, port, key), running.stop_command(run["pid"])
+        )
+    return host, port
+
+
+def _answering(projects: Projects, host: str, port: int, key: str) -> tuple[str, int] | None:
+    """No record: a board of this folder, behind this key, that answers at the configured
+    address. An older version is refused, its PID from its answer or looked up."""
     found = probe(host, port, key) if port else None
-    return isinstance(found, dict) and found.get("served") == projects.served.as_posix()
+    if not isinstance(found, dict) or found.get("served") != projects.served.as_posix():
+        return None
+    if found.get("version") == __version__:
+        return host, port
+    pid = found.get("pid") or running.find_pid(port)
+    stop = (
+        running.stop_command(pid)
+        if pid
+        else f"stop it from the session that started it, or end the process that listens on "
+        f"port {port}"
+    )
+    raise _another_version(found.get("version"), pid or "unknown", url(host, port, key), stop)
 
 
 def board(args: argparse.Namespace) -> list[str]:
@@ -124,13 +168,17 @@ def board(args: argparse.Namespace) -> list[str]:
     seats = Seats(projects)
     if args.seat:
         seats.add(projects.home_id, args.seat)
-    if _running(projects, host, port, key):
-        if args.seat and not register_seat(host, port, key, projects.home_id, args.seat):
+    run = running.live(key_path(projects.home))
+    there = _recorded(projects, run, key) if run else _answering(projects, host, port, key)
+    if there:
+        if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
-        return [f"board already running at {url(host, port, key)}"]
+        return [f"board already running at {url(*there, key)}"]
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
-    link = url(host, sock.getsockname()[1], key)
+    bound = sock.getsockname()[1]
+    running.write(key_path(projects.home), host, bound, __version__, projects.served.as_posix())
+    link = url(host, bound, key)
     print(f"board on {link} over {projects.served.as_posix()}", flush=True)
     if not is_loopback(host):
         print(BEYOND.format(host=host), flush=True)

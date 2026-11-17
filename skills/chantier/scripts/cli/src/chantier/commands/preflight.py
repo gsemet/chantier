@@ -17,6 +17,7 @@ from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.files import read_text
 from chantier.core.git import default_branch, git
 from chantier.core.repo import Repo, SurfaceChoice
+from chantier.core.surface_batches import other_batches
 from chantier.plugin_files import (
     INSTRUCTIONS,
     agent_problems,
@@ -242,6 +243,8 @@ def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
     if repo.external:
         _check_surface(r, repo)
     _check_autosync(r, repo)
+    if repo.external:
+        r.lines.append(f"P14 ok   {other_batches(repo) or 'no other batch on this surface'}")
 
 
 def preflight(args: argparse.Namespace) -> tuple[list[str], int]:

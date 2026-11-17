@@ -130,6 +130,8 @@ and how an agent is started. Each worker reads its own card, which restates the 
   guidelines. Drivers, and a Griller in a surface worktree, never join. While the group is enabled,
   no session commits or pushes the surface by hand. The board server does not join it implicitly;
   board permission and autosync participation are independent, and autosync is explicit opt-in.
+  Several sessions may work one surface on one machine: each stages only its own project's folder,
+  one board serves the surface, and `preflight` (P14) and `status` list the other batches.
   Full account:
   [planning modes](../../../docs/planning-modes.md).
 - **Archive:** the CR's folder in `5-archives/`, with a `delivery.md` (the PR, the merge time,

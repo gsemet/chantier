@@ -69,6 +69,10 @@ refused send is reported, never sent another way ([routing](routing.md)).
 You run in the surface's checkout, on its default branch, and write in the planning folder
 directly, on the surface's own sync rules ([concepts](concepts.md), "Planning surface"). With an autosync
 (P13), join its group as the surface's guidelines say, with `--session-id <your own session id>`.
+Where you commit by hand in that checkout, stage only this project's folder or paths inside it
+(`git add -- projects/<name>/...`), never `git add -A`, `git add .` nor a wider folder, then
+`git pull --rebase --autostash` and `git push`: another session on the surface may have files
+unstaged there.
 
 ## In a worktree
 

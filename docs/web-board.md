@@ -149,7 +149,10 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   once: the board keeps the key in a cookie and takes it out of the address. The link is yours
   only; whoever has it reads the planning folder. `chantier board --new-key` replaces the key
   and the old link stops working. The key lives in the repository's git folder
-  (`chantier/board.json`), so it survives restarts and is never pushed.
+  (`chantier/board.json`), so it survives restarts and is never pushed. While the board runs,
+  the same file holds its record next to the key (`running`: PID, address, port, version): one
+  board serves a planning surface, on whatever port, so a second session finds it and gets its
+  link instead of starting another.
 - **The local network.** By default the board listens on every address of the machine
   (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
   off any network you do not trust. On Windows, the first start asks the firewall for permission:
@@ -171,5 +174,10 @@ board:
   <checkout>`; never `uvx --from <checkout>`.
 - **When it stops.** With Ctrl-C, or by itself once no session that registered a seat holds it any
   more. A second `chantier board` on the same address says the board is already running and
-  prints the same link. A port held by something else stops the start with the port named
+  prints the same link. Two refusals leave the board alone and tell you what to do
+  yourself: a board of another chantier version already serves the surface, or one holds it and
+  does not answer. Each prints one line with the version, the PID and the command that stops it
+  (`taskkill /PID <pid> /T /F` on Windows, `kill <pid>` elsewhere); chantier never stops it for
+  you. The record of a board that was killed is ignored once its process is gone. A port held by
+  something else stops the start with the port named
   and the way out (the running board's link when it is chantier's behind the same key, else `--port`).

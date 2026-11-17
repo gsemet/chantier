@@ -27,6 +27,7 @@ from chantier.core.endblockers import end_blockers
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, read_events, round_limit
 from chantier.core.repo import Repo
+from chantier.core.surface_batches import other_batches
 from chantier.history import last_closed_text
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
@@ -289,6 +290,11 @@ def _autosync_lines(repo: Repo) -> list[str]:
     return [status_line(read_view(site, names_of([repo])))]
 
 
+def _other_batches_lines(repo: Repo) -> list[str]:
+    line = other_batches(repo)
+    return [line] if line else []
+
+
 def status(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = Repo.find()
     batch = resolve_batch(repo, args.batch, paused=not (args.refresh or args.stop_heartbeat))
@@ -298,7 +304,11 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     elif args.refresh:
         extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
-    lines = [_batch_line(d, _heartbeat_text(d, prev)), *_autosync_lines(repo)]
+    lines = [
+        _batch_line(d, _heartbeat_text(d, prev)),
+        *_autosync_lines(repo),
+        *_other_batches_lines(repo),
+    ]
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     events = read_events(repo.batch_dir(batch))

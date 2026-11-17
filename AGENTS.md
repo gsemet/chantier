@@ -17,8 +17,9 @@
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, the board keeps its key in the repository's git folder
-  (`chantier/board.json`), and removes the merged CRs' worktrees and branches at a batch's end (below), and,
+  after a merge it records, the board keeps its key, and while it serves its PID, address and version,
+  in the repository's git folder (`chantier/board.json`), and removes the merged CRs' worktrees and
+  branches at a batch's end (below), and,
   on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else
   there.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
