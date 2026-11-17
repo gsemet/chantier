@@ -57,11 +57,6 @@ MODELS = {
 NAMED_AGENT_MODEL_AT_START = {"claude": True, "copilot": False}
 
 
-# The model an escalated task starts on (concepts.md, "Escalation"): one per host, the same for
-# every role, kept next to MODELS so a release changes both. None where a start sets no model.
-ESCALATION = {"claude": "claude-opus-5-5", "copilot": None}
-
-
 def _shown(models: Iterable[Model]) -> str:
     return ", ".join(f"{m.id} ({m.name})" for m in models)
 

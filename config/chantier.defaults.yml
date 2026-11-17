@@ -6,6 +6,10 @@
 #
 # One model per plugin role on each host: the exact identifier the role's agent file declares.
 #
+# `escalation` is the model a role starts on when a CR escalates (concepts.md, "Escalation"). Only
+# a role that carries one here may set it in a chantier.yaml. On a host that cannot start a named
+# agent with a model (Copilot), the escalated role starts as a generic agent with that model.
+#
 # The `timing` block of each host: the steering session's wake, the prompt cache's TTL and the
 # CI re-runs. The values are what the cards said before the configuration held them. A column
 # overrides the general value of its host; a setting a column never reads is not set under it.
@@ -22,12 +26,15 @@ hosts:
     roles:
       coder:
         model: claude-sonnet-5-5
+        escalation: claude-opus-5-5
       conflict-resolver:
         model: claude-sonnet-5-5
+        escalation: claude-opus-5-5
       cr-driver:
         model: claude-sonnet-5-5
       debugger:
         model: claude-sonnet-5-5
+        escalation: claude-opus-5-5
       demo-explorer:
         model: claude-sonnet-5-5
       inspector:
@@ -56,12 +63,15 @@ hosts:
     roles:
       coder:
         model: gpt-6.1-sol
+        escalation: claude-opus-5.5
       conflict-resolver:
         model: gpt-6.1-terra
+        escalation: claude-opus-5.5
       cr-driver:
         model: claude-sonnet-5.5
       debugger:
         model: gpt-6.1-terra
+        escalation: claude-opus-5.5
       demo-explorer:
         model: gpt-5.6-luna
       inspector:

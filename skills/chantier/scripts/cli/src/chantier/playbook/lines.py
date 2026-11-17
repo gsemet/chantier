@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from chantier.playbook.config import FILE, default_agent
-from chantier.playbook.models import ESCALATION, HOST_NAMES, MODELS
+from chantier.playbook.models import HOST_NAMES
 
 GENERIC_AGENT = "(generic)"
 GENERIC_TOOLS = "(the caller's, not restricted)"
@@ -13,6 +13,13 @@ GENERIC_TOOLS = "(the caller's, not restricted)"
 
 def _model_text(model: dict[str, Any]) -> str:
     return f"{model['start']} ({model['id']}, {model['name']})"
+
+
+def _escalation_text(entry: dict[str, Any]) -> str:
+    """An escalation as printed: the model as `_model_text` gives it, and `(generic)` when the
+    escalated role starts as a generic agent."""
+    text = _model_text(entry)
+    return f"{text} (generic)" if entry.get("mode") == "generic" else text
 
 
 def _agent(rec: dict[str, Any]) -> str | None:
@@ -56,6 +63,17 @@ def _fields(
     return " ".join(parts)
 
 
+def _escalated(fields: str, escalation: dict[str, Any] | None) -> str:
+    """A role's fields followed by its `escalation` (an entry of the map, with its layer when a
+    user layer set it)."""
+    if not escalation:
+        return fields
+    text = f"escalation={_escalation_text(escalation)}"
+    if escalation.get("layer"):
+        text = f"{text} [{escalation['layer']}]"
+    return f"{fields} {text}".strip()
+
+
 def _files(resolved: dict[str, Any]) -> str:
     """The user files read, weakest first; a record from before the layers has one `file`."""
     return ", ".join(resolved.get("files") or [resolved.get("file") or FILE])
@@ -71,9 +89,14 @@ def _layer_names(resolved: dict[str, Any], key: str) -> str:
 
 
 def playbook_lines(
-    resolved: dict[str, Any] | None, host: str, roles: list[str], recorded: str | None = None
+    resolved: dict[str, Any] | None,
+    host: str,
+    roles: list[str],
+    recorded: str | None = None,
+    escalation: dict[str, Any] | None = None,
 ) -> list[str]:
-    """The playbook, one line per role of the plugin, then one per need."""
+    """The playbook, one line per role of the plugin, then one per need. A role with an
+    `escalation` (the effective map) prints it after its model."""
     if resolved is None:
         head = "playbook: no chantier.yaml, the plugin's agents and models"
     elif recorded:
@@ -87,12 +110,15 @@ def playbook_lines(
         rec = configured.get(role, {})
         lines.append(
             f"{role}: "
-            + _fields(
-                rec,
-                _agent(rec) or default_agent(host, role),
-                True,
-                {k: v for k, v in rec_labels(layers, role).items() if k in rec},
-                layers.get("resets", {}).get(role),
+            + _escalated(
+                _fields(
+                    rec,
+                    _agent(rec) or default_agent(host, role),
+                    True,
+                    {k: v for k, v in rec_labels(layers, role).items() if k in rec},
+                    layers.get("resets", {}).get(role),
+                ),
+                (escalation or {}).get(role),
             )
         )
     if resolved and resolved.get("prices"):
@@ -120,15 +146,11 @@ def rec_labels(layers: dict[str, Any], role: str) -> dict[str, str]:
     return found
 
 
-def escalate_line(host: str) -> str:
-    """The escalation model of the host, one for every role, or that there is none."""
-    entry = ESCALATION.get(host)
-    found = next((m for m in MODELS[host] if m.id == entry), None) if entry else None
-    return (
-        f"escalate: {_model_text({'start': found.start, 'id': found.id, 'name': found.name})}"
-        if found
-        else "escalate: (none on this host)"
-    )
+def escalate_line(escalation: dict[str, Any] | None) -> str:
+    """The escalation of each role that has one on the host, or that there is none."""
+    if not escalation:
+        return "escalate: (none on this host)"
+    return "escalate: " + "; ".join(f"{r} {_escalation_text(e)}" for r, e in escalation.items())
 
 
 def ci_lines(resolved: dict[str, Any] | None) -> list[str]:
@@ -152,9 +174,21 @@ def team_lines(resolved: dict[str, Any] | None) -> list[str]:
         return []
     layers = resolved.get("layers", {})
     return [
-        f"team: {role} " + _fields(rec, _agent(rec), False, rec_labels(layers, role))
+        f"team: {role} "
+        + _escalated(
+            _fields(rec, _agent(rec), False, rec_labels(layers, role)),
+            _team_escalation(rec, layers, role),
+        )
         for role, rec in resolved.get("roles", {}).items()
     ]
+
+
+def _team_escalation(
+    rec: dict[str, Any], layers: dict[str, Any], role: str
+) -> dict[str, Any] | None:
+    """The escalation a user layer set on a configured role, with that layer's label."""
+    held = rec.get("escalation")
+    return {**held, "layer": rec_labels(layers, role).get("escalation")} if held else None
 
 
 SECONDS_PER_MINUTE = 60

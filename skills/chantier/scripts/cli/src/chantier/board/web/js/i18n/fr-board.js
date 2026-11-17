@@ -44,6 +44,10 @@ export default {
   'config.th_role': 'Rôle',
   'config.th_agent': 'Agent',
   'config.th_model': 'Modèle',
+  'config.th_escalation': 'Escalade',
+  'config.esc_generic': "agent générique : le modèle d'escalade est donné au démarrage",
+  'config.esc_not_applied':
+    "l'escalade livrée ne s'applique pas : ce rôle porte votre propre agent, qui n'est jamais remplacé",
   'config.th_start': 'Démarre comme',
   'config.inherited': 'hérité',
   'config.effective': 'en vigueur :',

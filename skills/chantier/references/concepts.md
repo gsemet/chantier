@@ -569,28 +569,48 @@ it, and [foreman](foreman.md) and [chief-of-staff](chief-of-staff.md) point to i
 ## Escalation
 
 An agent's model is fixed when it starts. Escalation is a **new** agent for the same task,
-started with the escalation model that `$CHANTIER playbook` (or `playbook --batch <batch>`)
-printed on its `escalate:` line, passed as printed like any model. It is never a change of a
-running agent's model, never a retry of the same agent, and never a model typed from memory
-(rule 2). It happens only on one of five triggers, seen by the parent named for each:
+started with the escalation model that the role's `escalation` setting names in the
+configuration, as `$CHANTIER playbook` (or `playbook --batch <batch>`) prints it: on its
+`escalate:` line, or as `escalation=` on a `team:` line. It is passed as printed like any model;
+a printed generic start is started as "Starting an agent" says for `agent=(generic)`. It is never
+a change of a running agent's model, never a retry of the same agent, and never a model typed
+from memory (rule 2). It happens only on one of four triggers, seen by the parent named for each.
+
+- **Who escalates.** Only the roles that write code: `coder`, `debugger` and `conflict-resolver`.
+  The Drivers never escalate: blocked twice escalates the next rounds' Coder, a failed restack its
+  `conflict-resolver`. The judging agents (`inspector`, `verifier`, `investigator`,
+  `spec-writer`, `spec-critic`, `retro-critic`, `demo-explorer`) never escalate: a new one of them
+  runs on its own model.
 
 | Trigger | Who sees it | The new agent on the escalation model |
 | --- | --- | --- |
-| A CR blocked twice: two hand-backs `blocked` of the same CR that show trouble in the work (`refused`, `infra:` after its re-runs, `driver ended twice`, `stopped`). A hand-back that waits on the user or on another thing never counts (`question:`, `approval:`, `merge:`, `waits:`, `fix:`, `budget:`), nor does `rounds:`, which has its own trigger below; a Driver stopped from outside never counts either (it is no hand-back, and it does not make `driver ended twice`) | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next CR Driver, with `take <cr> --note "escalate: blocked twice: <reasons>"` |
-| The rounds used up with the Inspector still `FIX-REQUIRED` | the CR Driver hands back `blocked rounds:` as always; the round limit stays the user's (`order rounds`): escalation never grants a round | once the user grants more rounds, the CR's next Driver is told `escalate: rounds` and starts the Coder of each new round on the escalation model |
+| The rounds used up: a `blocked rounds:` hand-back, whatever the round's failure (a red CI job, a gate broken after a rebase, a Verifier `NOT VERIFIED`, an Inspector `FIX-REQUIRED`) | the CR Driver hands back `blocked rounds:` as always; the round limit stays the user's (`order rounds`): escalation never grants a round | once the user grants more rounds, the CR's next Driver is told `escalate: rounds` and starts the Coder of each new round on the coder's escalation model |
+| A CR blocked twice, for other reasons: two hand-backs `blocked` of the same CR that show trouble in the work: `refused`, `infra:` after its re-runs, `driver ended twice`, `stopped`, `rounds:` and `fix:` (a `question:`, `approval:`, `merge:`, `waits:`, `budget:` never counts; a Driver stopped from outside never counts either: it is no hand-back, and it does not make `driver ended twice`), when the row above has not already escalated it | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next Driver is told `take <cr> --note "escalate: blocked twice: <reasons>"` and starts the Coder of each new round on the coder's escalation model. A CR with no rounds (a release CR, a QA order's CR, whose `fix:` has no Coder to escalate): blocked twice goes straight to the user's question of "Once per CR, then the user" |
 | A red check the Debugger could not explain (its `diagnosis.md` names no cause with evidence) | the Driver that started it (CR or stack) | a new `debugger` on the same check, given the first `diagnosis.md` |
-| A conflict the resolver could not settle (it stopped with no resolution, other than "two product intents in conflict", which stays a question for the user) | the Driver that started it (CR or stack) | a new `conflict-resolver` on the same rebase, given the first `conflicts.md` |
-| A restack that failed (the stack driver's `anomaly` on rebasing or pushing the stack, not a red check that needs code) | the Foreman | the next stack driver, `take stack` started on the escalation model |
+| A conflict the resolver could not settle (other than "two product intents in conflict", which stays a question for the user) | the Driver that started it (CR or stack) | a new `conflict-resolver` on the same rebase, given the first `conflicts.md` |
+
+A Debugger whose explained fix fails again, and a stack driver's red check that needs code (sent
+as `anomaly` to the Foreman, then worked in the CR's rounds), need no row of their own: they end
+in the CR's hand-backs, which the first two rows count. A failed restack is the fourth row: the
+stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's model.
 
 - **Said, never silent.** Before it starts the escalated agent, the parent records
   `$CHANTIER note <cr> "escalated: <trigger>; <role> on <model as printed>"` (for the stack, on
   each CR concerned). The Foreman's retro (`4-batch/retro.md`) gives one line per escalation and
   its outcome. `cost` already shows the model of each transcript.
-- **Once per trigger and per task.** If the escalated agent fails the same way, the existing
-  route applies (hand-back `blocked`, then the ask to the Chief of Staff): it never escalates
-  again and never swaps back. The parent knows from the CR's `escalated:` note.
-- **No escalation printed** (`escalate: (none on this host)`): the trigger takes the existing
-  route, and the note says `no escalation on this host`. It is not a stop and not a look-alike.
+- **Once per CR, then the user.** A CR that holds an `escalated:` note made for that CR (its
+  rounds' Coder, its own `debugger` or `conflict-resolver`) never escalates again and never swaps
+  back. An `escalated:` note written on each CR of the stack for a stack-wide escalation (the
+  stack driver's `conflict-resolver` on a restack) does not count for it. If such a CR fails again
+  (a new `blocked` hand-back that counts for either of the first two rows, or its escalated
+  `debugger` or `conflict-resolver` failing the same way), the Foreman (the Chief of Staff in
+  direct mode) does not `take` it again: the CR stays `blocked` and goes up to the Chief of Staff
+  as a question for the user, with the options one more round, drop it, another approach. No
+  further round without the user's answer. A CR with no rounds blocked twice takes this same ask
+  at once. The parent knows from the CR's `escalated:` note.
+- **No escalation printed** (`escalate: (none on this host)`, or no `escalation=` for that
+  role): the trigger takes the existing route, and the note says `no escalation on this host`.
+  It is not a stop and not a look-alike.
 
 ## Rules
 

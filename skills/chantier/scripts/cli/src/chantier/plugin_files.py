@@ -11,7 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook import layers, timing
+from chantier.playbook import escalation, layers, timing
 
 if TYPE_CHECKING:
     from chantier.core.records import CrEntry
@@ -294,6 +294,34 @@ def recorded_timing(record: Any) -> dict[str, Any] | None:
     defaults = root / "config" / "chantier.defaults.yml" if root else None
     tree, _ = layers.read_defaults(defaults, {h: plugin_roles(h) for h in HOSTS})
     return timing.timing_from([], tree).get(record.host) if tree else None
+
+
+def read_escalation(repo: Repo, host: str) -> tuple[dict[str, Any], list[str]]:
+    """The escalation of each role on this host, from the shipped defaults and the user's files
+    (the defaults alone with no user file), or the problems found."""
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    roles_by_host = {h: plugin_roles(h) for h in HOSTS}
+    defaults_tree, problems = layers.read_defaults(defaults, roles_by_host)
+    found, more = layers.read_user(repo, roles_by_host)
+    problems += more
+    if problems:
+        return {}, problems
+    judged = layers.judge(found, host, roles_by_host, defaults_tree) if found else None
+    if judged and judged.problems:
+        return {}, judged.problems
+    return escalation.escalation_map(defaults_tree, judged, host), []
+
+
+def recorded_escalation(record: Any) -> dict[str, Any]:
+    """The escalation a batch opened with; a record with none runs the shipped defaults'."""
+    if record.escalation is not None:
+        held: dict[str, Any] = record.escalation
+        return held
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    tree, _ = layers.read_defaults(defaults, {h: plugin_roles(h) for h in HOSTS})
+    return escalation.escalation_map(tree, None, record.host)
 
 
 user_files = layers.user_files

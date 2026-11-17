@@ -1,9 +1,8 @@
 """The configuration as the board's Configuration page shows and edits it, role-free: `config_view`
-reads the layers (`layers.py`) and says, for each host and each role, the value of `agent` and
-`model` in each layer, the one that applies, the layer behind it, how the role starts and whether
-the code repository's file overrides what the page writes; `edit_surface_file` changes each
-role's `agent` and `model` in the planning surface's `projects/<name>/chantier.yaml` after the same
-reading and checks, and writes that one file, keeping its other keys and its comments."""
+reads the layers (`layers.py`) and says, for each host and role, the value of `agent`, `model` and
+`escalation` in each layer, the one that applies, its layer, how the role starts and whether the
+repository's file overrides what the page writes; `edit_surface_file` changes those keys in the
+surface's `projects/<name>/chantier.yaml`, keeping its other keys and comments."""
 
 from __future__ import annotations
 
@@ -16,12 +15,12 @@ from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, C
 from chantier.core.files import retry, write_bytes
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import changes_lock
-from chantier.playbook import config, edit_text, layers, models, timing, timing_check
+from chantier.playbook import config, edit_text, escalation, layers, models, timing, timing_check
 from chantier.playbook.lines import GENERIC_AGENT, minutes
 from chantier.playbook.yaml_subset import Node, is_reset
 from chantier.plugin_files import HOSTS, plugin_role_descriptions, plugin_roles, plugin_root
 
-KEYS = ("agent", "model")
+KEYS = ("agent", "model", "escalation")
 PROJECT_LABEL = "surface project"
 LABELS = ("defaults", "surface", PROJECT_LABEL, "repository")
 READ_ONLY = (
@@ -158,6 +157,8 @@ def _row(
             "effective": model,
             "layer": model_layer,
         },
+        "escalation": escalation.row(host, role, node, defaults, judged.refusals)
+        | {"layers": _by_layer(defaults, user, ("hosts", host, "roles", role, "escalation"))},
         "overridden_by": where,
         "overridden_keys": keys,
         "start": start,
@@ -197,7 +198,8 @@ def _host(
 
 
 def _flat(node: Node, path: tuple[str, ...]) -> list[dict[str, str]]:
-    """The merged tree's leaves, each with its layer, but each role's `agent` and `model`."""
+    """The merged tree's leaves, each with its layer, but each role's `agent`, `model` and
+    `escalation`."""
     if node.kind == "map":
         return [
             leaf for key, (_, child) in node.value.items() for leaf in _flat(child, (*path, key))
@@ -372,11 +374,11 @@ def _refuse_early(repo: Repo, target: Target | None) -> Target:
 def edit_surface_file(
     repo: Repo, changes: object, base_sha256: str | None, dry_run: bool
 ) -> dict[str, Any]:
-    """Set (a text) or remove (None) each role's `agent` or `model` for a host in the project's
-    file of the planning surface, and return the view the file then gives. Refuses, writing
-    nothing, with a reason: no surface, a file that changed since it was read, both file names, a
-    value the checks refuse (the problem lines, the file named, the line numbers the new text
-    would have). With `dry_run` it writes nothing."""
+    """Set (a text) or remove (None) each role's `agent`, `model` or `escalation` for a host in
+    the project's file of the planning surface, and return the view the file then gives. Refuses,
+    writing nothing, with a reason: no surface, a file that changed since it was read, both file
+    names, a value the checks refuse (the problem lines, the file named, the line numbers the new
+    text would have). With `dry_run` it writes nothing."""
     wanted = _shape(changes)
     target = _refuse_early(repo, _writable(repo))
     roles_by_host = _roles_by_host()

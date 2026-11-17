@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from chantier.commands.crs import grant_line
 from chantier.commands.opening_record import (
@@ -31,7 +32,7 @@ from chantier.lifecycle.stages import (
     stage_layout,
 )
 from chantier.playbook.lines import ci_lines, ci_source, timing_text
-from chantier.plugin_files import detect_host, read_playbook, read_timing
+from chantier.plugin_files import detect_host, read_escalation, read_playbook, read_timing
 from chantier.rails import ENDED, alone, check_no_open_batch, is_release
 
 
@@ -264,13 +265,22 @@ def _short(p: Path | str) -> str:
     return str(p).replace("\\", "/").split("changes/")[-1]
 
 
+def _read_configuration(repo: Repo, host: str) -> tuple[Any, Any, Any]:
+    """The playbook, the timing and the escalation to freeze in the record; all the problems
+    found, each once, stop the opening."""
+    team, problems = read_playbook(repo, host)
+    timing, more = read_timing(repo, host)
+    escalation, extra = read_escalation(repo, host)
+    more = [*more, *(p for p in extra if p not in problems and p not in more)]
+    if problems or more:
+        raise ChantierError("\n".join([*problems, *more]), EXIT_PRECONDITION)
+    return team, timing, escalation
+
+
 def open_batch(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     host = detect_host()
-    team, problems = read_playbook(repo, host)  # before any folder moves
-    timing, more = read_timing(repo, host)
-    if problems or more:
-        raise ChantierError("\n".join([*problems, *more]), EXIT_PRECONDITION)
+    team, timing, escalation = _read_configuration(repo, host)  # before any folder moves
     settings = open_settings(repo, args)
     repo.config.update(settings)
     paths = stage_layout(repo)
@@ -290,6 +300,7 @@ def open_batch(args: argparse.Namespace) -> list[str]:
     if team:  # a running batch keeps the playbook it opened with
         # the prices are read live at each pricing, not frozen with the roles
         data.playbook = {k: v for k, v in team.items() if k not in ("prices", "price_layers")}
+    data.escalation = escalation  # likewise the escalation, even with no user file
     data.timing = timing  # a running batch keeps the timing it opened with, whatever the files
     with changes_lock(repo):
         check_no_open_batch(repo)

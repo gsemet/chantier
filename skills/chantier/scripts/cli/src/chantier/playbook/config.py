@@ -18,7 +18,7 @@ FILE = FILES[0]
 Bad = Callable[[int, str], None]
 
 
-ROLE_KEYS = ("agent", "model", "skills", "tools")
+ROLE_KEYS = ("agent", "model", "escalation", "skills", "tools")
 
 
 PRICE_NAMES = ("input", "cache_write_5m", "cache_write_1h", "cache_read", "output")
@@ -108,13 +108,14 @@ def typed(
     return out
 
 
-def start_refusal(host: str, role: str) -> str | None:
-    """Why the user's own agent cannot start with a model on this host, or None."""
+def start_refusal(host: str, role: str, key: str = "model") -> str | None:
+    """Why the user's own agent cannot start with a model (or an escalation) on this host, or
+    None."""
     if NAMED_AGENT_MODEL_AT_START[host]:
         return None
     return (
         f'role "{role}": {HOST_NAMES[host]} cannot start a named agent with a model '
-        f'(hosts/{HOST_FILES[host]}.md, "Models at an agent\'s start"): remove "model" for '
+        f'(hosts/{HOST_FILES[host]}.md, "Models at an agent\'s start"): remove "{key}" for '
         f"{role} under hosts.{host}.roles, or name the model in your agent's own file"
     )
 
@@ -342,12 +343,16 @@ def _role_agent(role: str, kline: int, value: Node, bad: Bad) -> str | None:
     return None
 
 
-def _role_model(host: str, role: str, kline: int, value: Node, bad: Bad) -> dict[str, Any] | None:
+def _role_model(
+    host: str, role: str, key: str, at: tuple[int, Node], bad: Bad
+) -> dict[str, Any] | None:
+    """A role's `model` or `escalation` (`at`: its line and node): one model of the host's table."""
+    kline, value = at
     if _quoted_default(value):
         bad(kline, RESET_TEXT)
         return None
     if value.kind != "scalar" or not value.value.strip():
-        bad(kline, f'role "{role}": "model" is one string')
+        bad(kline, f'role "{role}": "{key}" is one string')
         return None
     found, why = resolve(host, value.value)
     if why:
@@ -378,8 +383,8 @@ def _role(host: str, role: str, node: Node, bad: Bad) -> dict[str, Any]:
             continue
         if key == "agent":
             got = _role_agent(role, kline, value, bad)
-        elif key == "model":
-            got = _role_model(host, role, kline, value, bad)
+        elif key in ("model", "escalation"):
+            got = _role_model(host, role, key, (kline, value), bad)
         else:
             got = _role_list(role, key, kline, value, bad)
         if got is not None:

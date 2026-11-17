@@ -41,7 +41,7 @@
   `--force`), then pauses the batch; it does nothing else in git. Second, `chantier board`, the web board's server, for the user on this machine and the local
   network, behind a key in its URL: it serves the record and the planning folder's files, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
-  each role's agent and model, per host, in the project's configuration file in the planning
+  each role's agent, model and escalation, per host, in the project's configuration file in the planning
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
   own reading, checking and writing of that file; it never edits a batch and never messages an
   agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project,

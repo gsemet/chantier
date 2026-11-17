@@ -4,6 +4,7 @@ resets, the shipped defaults, and what a running batch keeps."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,15 @@ RESET_LINE = (
     "model=(its file's) [reset in repository]"
 )
 PORT = 8123
+
+
+def plain(result: tuple[int, list[str], str]) -> tuple[int, list[str], str]:
+    """A `playbook` run with each role line cut before its escalation, which these tests leave to
+    test_playbook_config.py."""
+    code, out, err = result
+    return code, [re.sub(r" escalation=.*$", "", ln) for ln in out], err
+
+
 DEFAULTS = PLUGIN_ROOT / "config" / "chantier.defaults.yml"
 
 
@@ -49,7 +59,8 @@ def test_the_shipped_defaults_give_each_role_the_model_its_agent_file_declares(
     roles = held["roles"][1].value
     assert sorted(roles) == sorted(ROLES) == sorted(plugin_roles(host_name))  # one per agent file
     for role, (_, node) in roles.items():
-        assert set(node.value) == {"model"} and not is_reset(node.value["model"][1])  # no reset
+        assert set(node.value) in ({"model"}, {"model", "escalation"})
+        assert not any(is_reset(n) for _, n in node.value.values())  # no reset
         declared = _front(agent_file(role, host_name))[0]["model"].strip("[]").split(", ")[-1]
         assert node.value["model"][1].value == declared, role
 
@@ -61,7 +72,7 @@ def test_the_layers_merge_in_order_and_each_value_names_its_layer(
     put(surface.root / "chantier.yaml", "model: opus\nskills: [a, b]\nagent: root-coder")
     put(surface.project / "chantier.yaml", "skills: [jira]\nagent: project-coder")
     put(surface.clone / "chantier.yaml", "agent: repo-coder")
-    code, out, err = chantier("playbook")
+    code, out, err = plain(chantier("playbook"))
     files = "chantier.yaml, projects/demo/chantier.yaml, projects/demo/.repo/chantier.yaml"
     assert code == 0, err
     assert out[0] == f"playbook: {files}, valid, host claude"
@@ -105,7 +116,7 @@ def test_a_plain_default_tilde_or_null_takes_a_value_back_and_the_print_says_whe
     put(surface.root / "chantier.yaml", root)
     put(surface.project / "chantier.yaml", project)
     put(surface.clone / "chantier.yaml", clone)
-    code, out, err = chantier("playbook")
+    code, out, err = plain(chantier("playbook"))
     assert code == 0, err
     assert line in out, (label, out)
     assert ("reset in" in " ".join(out)) == (line == RESET_LINE), label
@@ -119,7 +130,7 @@ def test_both_file_names_in_one_place_are_refused_with_both_paths(
     folder = getattr(surface, where)
     for name in ("chantier.yaml", "chantier.yml"):
         put(folder / name, "agent: x")
-    code, out, err = chantier("playbook")
+    code, out, err = plain(chantier("playbook"))
     shown = folder.relative_to(surface.root).as_posix()
     paths = [f"{shown}/{n}" if shown != "." else n for n in ("chantier.yaml", "chantier.yml")]
     assert code == EXIT_PRECONDITION
@@ -131,12 +142,12 @@ def test_a_yml_file_alone_is_read_and_a_problem_names_the_file_it_is_in(
 ) -> None:
     host(monkeypatch)
     put(surface.project / "chantier.yml", "agent: project-coder")
-    code, out, err = chantier("playbook")
+    code, out, err = plain(chantier("playbook"))
     assert code == 0 and out[0] == "playbook: projects/demo/chantier.yml, valid, host claude", err
     assert "coder: agent=project-coder [surface project] model=(its file's)" in out
     (surface.project / "chantier.yml").unlink()
     put(surface.project / "chantier.yaml", "colour: red")
-    code, out, err = chantier("playbook")
+    code, out, err = plain(chantier("playbook"))
     assert code == EXIT_PRECONDITION
     assert any(ln.startswith("projects/demo/chantier.yaml:5: ") for ln in out + err.splitlines())
     _, pre, _ = chantier("preflight")
@@ -149,21 +160,25 @@ def test_a_model_equal_to_its_agents_is_not_passed_unless_the_agent_is_set_too(
     host(monkeypatch)
     yaml = repo / "chantier.yaml"
     yaml.write_text(COPILOT_CODER + A + "model: gpt-6.1-sol\n", encoding="utf-8")
-    code, out, err = chantier("playbook", "--host", "copilot")  # the file's own: accepted, silent
+    code, out, err = plain(
+        chantier("playbook", "--host", "copilot")
+    )  # the file's own: accepted, silent
     assert code == 0 and "coder: agent=chantier-coder model=(its file's)" in out, err
     yaml.write_text(
         COPILOT_CODER + A + "model: gpt-6.1-sol\n" + A + "agent: mine\n", encoding="utf-8"
     )
-    code, out, err = chantier("playbook", "--host", "copilot")  # with an agent: passed, refused
+    code, out, err = plain(
+        chantier("playbook", "--host", "copilot")
+    )  # with an agent: passed, refused
     assert code == EXIT_PRECONDITION
     assert "chantier.yaml:5:" in err + "".join(out)
     assert "cannot start a named agent with a model" in err + "".join(out)
     yaml.write_text(HEAD + A + "model: sonnet\n" + A + "agent: mine\n", encoding="utf-8")
-    code, out, err = chantier("playbook")  # on Claude the model is passed beside the agent
+    code, out, err = plain(chantier("playbook"))  # on Claude the model is passed beside the agent
     model = "sonnet (claude-sonnet-5-5, Claude Sonnet 5.5) [repository]"
     assert code == 0 and f"coder: agent=mine [repository] model={model}" in out, err
     yaml.write_text(HEAD + A + "model: sonnet\n", encoding="utf-8")
-    assert "coder: agent=chantier:coder model=(its file's)" in chantier("playbook")[1]
+    assert "coder: agent=chantier:coder model=(its file's)" in plain(chantier("playbook"))[1]
 
 
 def test_a_batch_opened_in_a_surface_keeps_its_configuration_when_a_surface_file_changes(
@@ -181,7 +196,7 @@ def test_a_batch_opened_in_a_surface_keeps_its_configuration_when_a_surface_file
     assert frozen["roles"] == {"cr-driver": {"agent": "my-driver", "start": "named"}}
     assert "prices" not in frozen and "price_layers" not in frozen
     root_file.write_text(HEAD + A + "agent: other-coder\n", encoding="utf-8")
-    code, out, err = chantier("playbook", "--batch", saved["id"])
+    code, out, err = plain(chantier("playbook", "--batch", saved["id"]))
     assert code == 0 and "opened it" in out[0], err
     assert "cr-driver: agent=my-driver [surface] model=(its file's)" in out
     assert "other-coder" not in "".join(out) and len(ci_line(out)) == 1
@@ -227,6 +242,6 @@ def test_a_prices_entry_is_replaced_whole_and_a_reset_model_is_accepted_on_copil
         COPILOT_CODER + A + "model: gpt-5.6-luna\n", encoding="utf-8"
     )
     (surface.project / "chantier.yaml").write_text(COPILOT_CODER + A + "model: default\n", "utf-8")
-    code, out, err = chantier("playbook", "--host", "copilot")  # reset: no model, accepted
+    code, out, err = plain(chantier("playbook", "--host", "copilot"))  # reset: no model, accepted
     assert code == 0, err
     assert "coder: agent=chantier-coder model=(its file's) [reset in surface project]" in out

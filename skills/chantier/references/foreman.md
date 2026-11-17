@@ -183,10 +183,14 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   or series batch the CLI already puts the next merge's gate first (the first CR of the order
   not merged or cancelled), so `--first` is not needed for it. Never for another reason, nor at
   a Driver's request alone.
-- Escalation ([concepts](concepts.md), "Escalation"): a CR blocked twice, or a restack that
-  failed, goes to a new Driver on the escalation model that `playbook --batch` prints
-  (`take <cr> --note "escalate: ..."`); you record it with `note` and give it one line in the
-  retro.
+- Escalation ([concepts](concepts.md), "Escalation"): two routes, each to a new Driver told
+  `take <cr> --note "escalate: ..."`, whose rounds' Coder starts on the escalation model that
+  `playbook --batch` prints: a CR blocked twice on trouble in the work (`escalate: blocked twice:
+  <reasons>`; `rounds:` and `fix:` count), and the user's grant of more rounds after `blocked
+  rounds:` (`escalate: rounds`). You record it with `note` and give it one line in the retro.
+  Once per CR, then the user: a CR that holds an `escalated:` note for itself and fails again
+  stays `blocked` and goes up as a question (one more round, drop it, another approach). A CR
+  with no rounds blocked twice goes to that question at once.
 - An `order qa`: `status` names its folder in the inbox. The order already holds its slot (it is
   refused when none is free), so start a `qa-driver` on it at once, from the skeleton `order qa` printed, which the Chief of Staff sends with the order's line, copied whole, its `Steering:` means filled in. It holds no CR back, but its slot stays taken until `order
   done`. Record its agent id with `$CHANTIER agents set O-<k> <id> --epoch <n>` (the order's id,
@@ -314,7 +318,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask;
   - `hand-back blocked context: …` (or an end with no hand-back and no `activity`): neither an
     anomaly nor an ask: `agents set stack - --epoch <n>`, `take stack --note "resume: <its text>" --epoch <n>`, a new stack
-    driver on the batch's model; a failed restack stays an escalation;
+    driver on the batch's model; a failed restack is the stack driver's `conflict-resolver` on the
+    escalation model, the stack driver keeping the batch's model;
   - `anomaly <cr> conflict: stacked on <cr>: <files>`: before the five checks,
     `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"` (the CR is `working`,
     its draft no check 4 failure; its Driver rebases, the CR turns ready to merge at a later take);
