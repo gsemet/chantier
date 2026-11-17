@@ -5,8 +5,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from chantier.commands.cost.breakdown import _steers, breakdown, split_parts, wake_figures
-from chantier.commands.cost.pricing import sum_unpriced
+from chantier.commands.cost.breakdown import (
+    _steers,
+    apportion,
+    breakdown,
+    split_parts,
+    wake_figures,
+)
+from chantier.commands.cost.pricing import sum_unpriced, unpriced_of
 from chantier.commands.cost.sessions import _Chief, chief_outside
 from chantier.core.records import BatchRecord
 
@@ -44,6 +50,34 @@ def cost_receipt(
             for k, v in sorted(by_driver.items(), key=lambda kv: -kv[1][1])
             if k != "foreman" and measured
         ],
-        "split": [{"part": p["part"], "usd": p["usd"], "unpriced": p["unpriced"]} for p in parts],
+        "split": [
+            {"part": p["part"], "usd": p["usd"], "calls": p["calls"], "unpriced": p["unpriced"]}
+            for p in parts
+        ],
+        "models": _models(rows, total),
         **chief_outside(d, chief),
     }
+
+
+def _models(rows: list[dict[str, Any]], total: float) -> list[dict[str, Any]]:
+    """One entry per model of the rows, by dollars then id; the dollars apportioned in cents to
+    add up to the rows' total. A model with only calls not priced comes last, with no dollars."""
+    found: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        for m, v in (r.get("by_model") or {}).items():
+            e = found.setdefault(m, {"calls": 0, "usd": 0.0, "unpriced": 0})
+            e["calls"] += v["calls"]
+            e["usd"] += v["usd"]
+        for m, n in unpriced_of(r).items():
+            found.setdefault(m, {"calls": 0, "usd": 0.0, "unpriced": 0})["unpriced"] += n
+    ids = sorted(found, key=lambda m: (not found[m]["calls"], -found[m]["usd"], m))
+    cents = apportion([found[m]["usd"] for m in ids], round(total * 100))
+    return [
+        {
+            "model": m,
+            "calls": found[m]["calls"],
+            "usd": c / 100,
+            "unpriced": found[m]["unpriced"],
+        }
+        for m, c in zip(ids, cents, strict=True)
+    ]

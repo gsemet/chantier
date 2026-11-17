@@ -142,11 +142,15 @@ def _rows(session: str, output: str) -> list[dict[str, Any]]:
                 "calls": 0,
                 "usd": 0.0,
                 "estimated": 0,
+                "by_model": {},
             },
         )
         row["calls"] += c.get("llm_calls") or 1
         row["usd"] += c["estimated_usd"]
         row["estimated"] += c.get("cost_source") == "estimated"
+        m = row["by_model"].setdefault(c.get("model") or "?", {"calls": 0, "usd": 0.0})
+        m["calls"] += c.get("llm_calls") or 1
+        m["usd"] += c["estimated_usd"]
     if not rows:
         raise ChantierError(
             f"copilot-session-usage found no priced call for session {session}", EXIT_EXTERNAL

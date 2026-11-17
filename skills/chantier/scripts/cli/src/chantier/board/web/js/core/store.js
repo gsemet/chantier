@@ -25,6 +25,7 @@ const data = {
   prs: null, // PRs: the last answer of GET api/projects/{id}/prs, kept across a failed read
   copying: false, // Costs: the receipt is being copied as an image
   recomputing: false, // Costs: a recompute was asked and its figure has not arrived
+  spendBy: 'model', // Costs: the card's switch, by 'model' or by 'role'
   selection: [], // Triage: the slugs selected
   labelFilter: [], // Triage: the labels that filter the post-its
   priorityFilter: [...FILTER_BUCKETS], // Kanban: the buckets shown (all on at the start)
