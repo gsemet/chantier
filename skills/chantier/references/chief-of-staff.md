@@ -1211,13 +1211,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
     on Copilot); "I merged #<n>"; "more rounds for CR-<n>"; "run a QA on <what>"; in remote, "board on my phone" (the link
     again, and its PRs page, the live view of the batch's PRs; on the user's word, `board.host: 127.0.0.1` in `chantier.yaml` keeps the board on this
     machine).
-  - End of a batch: "close the batch"; "add <slug> to this batch"; "why did it cost that?";
+  - End of a batch: "add <slug> to this batch"; "why did it cost that?";
     "release v<x.y.z>"; "run what is in 3-ready", when that folder holds CRs.
   - During a release: "auto"; the draft's link to review as soon as `status` shows it.
 - **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
-  report with the cost to date: the Foreman has removed the merged CRs' worktrees and branches,
-  paused the batch, and stays idle. The Foreman wrote the retro of the batch in `4-batch/retro.md`
-  before its `final` (a section for this pause: one line per problem met, `- [<tag>] <problem>:
+  report with the cost to date: the CLI removed the merged CRs' worktrees and branches and paused the
+  batch when the last CR ended (a `kept:` or `not removed:` line names a leftover, which `close`
+  names too), and the Foreman stays idle. The Foreman wrote the retro of the batch in `4-batch/retro.md`
+  after the pause and before its `final` (a section for this pause: one line per problem met, `- [<tag>] <problem>:
   <long-term fix>`, the tag `project` or `chantier`); read it. Give the Completion report, with
   its Retro offered by route, each point numbered:
   - A `project` point: on the user's word for it, `$CHANTIER file "<the point>"` files it in
@@ -1481,8 +1482,9 @@ these differences.
     to grill gets one line besides being noted: "to grill in parallel, fork this session; the
     fork becomes a Griller" (the fork is the user's step; explain it, never do it).
   - A paused batch is not running: all of this lifts at the pause.
-- **The pause.** Once every CR is merged or cancelled, remove the merged CRs' worktrees and
-  branches (your Foreman's work in direct mode), write the batch's retro in `4-batch/retro.md`
+- **The pause.** Once every CR is merged or cancelled, the CLI removes the merged CRs' worktrees
+  and branches and pauses the batch itself (`paused <batch>`; with `not paused: <causes>`, finish
+  those, then run `$CHANTIER pause --epoch <n>`). Then write the batch's retro in `4-batch/retro.md`
   (a section headed with the date and the CRs it covers: one line per problem met with its
   long-term fix, `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as
   `foreman.md` defines it, a cause on both sides being two lines; what went wrong or slowly, from
@@ -1491,12 +1493,13 @@ these differences.
   `<command>` (<capability>): <the table row or rule to fix>`; never rewrite an earlier section;
   a release's retro is named by reference, not copied), after running the `retro-critic` exactly
   as `foreman.md` ("The retro critic") says (the section holds the kept points only, the dropped
-  ones go to `4-batch/retro-dropped.md`), then run `$CHANTIER pause --epoch <n>`:
-  the batch is paused. Give the
+  ones go to `4-batch/retro-dropped.md`). Give the
   Completion report, with its Retro offered as the Foreman-mode pause says (each point numbered,
-  by route, on the user's word, before any `close`). Grill the inbox ideas with the user and, on their word,
+  by route, on the user's word, before any `close`), then, unprompted, offer the close: the
+  retro and its critic come first, then you say the batch is complete and offer `$CHANTIER
+  close`, which names what it removes and is run with `--yes` only on the user's yes. Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
-  running again, and `pause` runs again at the end. `close` stays the
+  running again, and the batch pauses again at its end. `close` stays the
   user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session
   files as something that runs, not your own.
 - **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:

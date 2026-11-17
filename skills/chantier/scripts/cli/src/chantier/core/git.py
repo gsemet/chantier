@@ -32,3 +32,21 @@ def default_branch(root: Path, remote: str = "origin") -> str | None:
     """The remote's recorded HEAD branch, if Git knows it."""
     head = git("symbolic-ref", "--short", f"refs/remotes/{remote}/HEAD", cwd=root, check=False)
     return head.removeprefix(f"{remote}/") if head else None
+
+
+def branch_exists(branch: str, cwd: Path | str | None = None) -> bool:
+    """A read: whether the local branch exists."""
+    if not branch:
+        return False
+    return bool(
+        git("rev-parse", "--verify", "--quiet", f"refs/heads/{branch}", cwd=cwd, check=False)
+    )
+
+
+def refusal(*args: str, cwd: Path | str | None = None) -> str | None:
+    """Run git; None when it succeeded, else its message on one line (nothing is forced)."""
+    try:
+        git(*args, cwd=cwd)
+    except ChantierError as e:
+        return " ".join(str(e).removeprefix(f"git {' '.join(args)}: ").split())
+    return None

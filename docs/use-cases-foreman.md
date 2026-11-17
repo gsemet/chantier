@@ -98,8 +98,8 @@ the Foreman's: it prices the batch from it.
 
 ## When the batch is paused, and when you close it
 
-When every CR is merged or cancelled, the Foreman removes the merged CRs' worktrees and branches
-and pauses the batch. You get the Completion report: the cost to date, what the batch did not
+When every CR is merged or cancelled, the CLI removes the merged CRs' worktrees and branches
+and pauses the batch, and the Foreman writes the retro. You get the Completion report: the cost to date, what the batch did not
 prove, and what is for you. The batch is **paused**: nothing runs, and it stays paused, however
 long, until you say so.
 

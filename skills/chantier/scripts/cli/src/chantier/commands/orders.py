@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
+from chantier.commands.endpause import end_of_batch
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
 from chantier.commands.orders_merged import stop_before_merge
 from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
@@ -53,6 +54,15 @@ def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
     if kind in CR_ORDERS and (not args.cr or args.cr == "-"):
         raise ChantierError(
             "order rounds <cr> --note <n>" if kind == "rounds" else f"order {kind} <cr>",
+            EXIT_USAGE,
+        )
+
+
+def _check_own(args: argparse.Namespace, own: bool) -> None:
+    if own and args.kind != "merged" and not (args.kind == "add" and args.fix_for):
+        raise ChantierError(
+            "only `order merged` and `order add --fix-for` take --epoch: the "
+            "Foreman's own merge or fix",
             EXIT_USAGE,
         )
 
@@ -216,12 +226,7 @@ def order(args: argparse.Namespace) -> list[str]:
     note = _normalise_args(args, note)
 
     own = args.epoch is not None
-    if own and args.kind != "merged" and not (args.kind == "add" and args.fix_for):
-        raise ChantierError(
-            "only `order merged` and `order add --fix-for` take --epoch: the "
-            "Foreman's own merge or fix",
-            EXIT_USAGE,
-        )
+    _check_own(args, own)
     actor = "foreman" if own else "chief-of-staff"
     stopped = stop_before_merge(repo, args, actor) if args.kind == "merged" else None
     fresh: list[str] = []
@@ -238,9 +243,13 @@ def order(args: argparse.Namespace) -> list[str]:
         reopened = _reopen(b, args.kind)
         cr = _qa_folder(repo, b, note) if qa_row else args.cr
         req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}", stopped)
-        effect = reopened + apply_order(_word(b, args, req))
+        w = _word(b, args, req)
+        effect = reopened + apply_order(w)
         oid = _record_order(b, args, req)
         skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
+        batch_id = b.id
+    if w.ended:  # the batch's last CR ended: the locks are released
+        effect += end_of_batch(repo, batch_id, f"order {oid}")
     if own:
         return [*effect, *fresh]
     target = f" {cr}" if cr and cr != "-" else ""

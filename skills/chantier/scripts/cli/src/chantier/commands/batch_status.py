@@ -29,7 +29,15 @@ from chantier.core.repo import Repo
 from chantier.history import last_closed_text
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
-from chantier.rails import held, not_priced, spent_text, usd_text, waits_all
+from chantier.rails import (
+    all_merged,
+    end_blockers,
+    held,
+    not_priced,
+    spent_text,
+    usd_text,
+    waits_all,
+)
 from chantier.rails_release import record_ask
 from chantier.stacks import state_word
 from chantier.status.gate import gate_view
@@ -257,6 +265,17 @@ def _batch_line(d: BatchRecord, hb_text: str) -> str:
     )
 
 
+def _unpaused_line(d: BatchRecord) -> list[str]:
+    """A running batch whose CRs are all merged or cancelled: the automatic pause was blocked."""
+    if d.status != "running" or not d.crs or not all_merged(d):
+        return []
+    causes = end_blockers(d)
+    return [
+        "every CR is merged or cancelled, not paused: "
+        f"{'; '.join(causes) or 'nothing'}; `chantier pause --epoch <n>`"
+    ]
+
+
 def _autosync_lines(repo: Repo) -> list[str]:
     """The surface's autosync, one line, when its rules name one and its script is there."""
     site = find_site(repo)
@@ -275,6 +294,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         extra, code, prev = _refresh(repo, batch, args.epoch)
     d = read_batch(repo, batch)
     lines = [_batch_line(d, _heartbeat_text(d, prev)), *_autosync_lines(repo)]
+    lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     events = read_events(repo.batch_dir(batch))
     lines += [_cr_row(repo, d, c, args.notes, events) for c in sorted(d.crs, key=lambda c: c.order)]

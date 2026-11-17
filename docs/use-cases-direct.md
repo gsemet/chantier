@@ -62,8 +62,8 @@ gives a number back). The orders that add work to a running batch do not, as abo
 
 ## When the batch is paused, and when you close it
 
-When every CR is merged or cancelled, the Chief of Staff removes the merged CRs' worktrees and
-branches, then pauses the batch, and gives you the Completion report: the cost to date, what the
+When every CR is merged or cancelled, the CLI removes the merged CRs' worktrees and
+branches and pauses the batch, and the Chief of Staff gives you the Completion report: the cost to date, what the
 batch did not prove, the inbox ideas ready for a grill. Now it can grill, with you, in this
 session.
 

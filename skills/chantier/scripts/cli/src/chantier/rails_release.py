@@ -11,20 +11,18 @@ from chantier.core.errors import EXIT_BUDGET, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
 from chantier.core.records import AskRecord, CrEntry, ReleaseGrant
 from chantier.lifecycle.stages import done_cr
-from chantier.rails import ENDED, all_merged, check_budget, over_budget, pending_fixes
+from chantier.rails import ENDED, check_budget, over_budget, pending_fixes
 
 MAX_GRANTED_FIXES = 3
 
 
 def merge_done(b: Batch, c: CrEntry) -> list[str]:
     """The PR is merged: the folder goes to `3-done`, where it stays until `close` archives it.
-    Returns what the Foreman should hear."""
+    Returns what the Foreman should hear; the end of the batch's last CR is the caller's
+    (`endpause.end_of_batch`, once its locks are released)."""
     done_cr(b, c)
     b.touch(c, status="merged")
-    lines = [f"merged {c.id}: moved to 3-done"]
-    if all_merged(b.record):
-        lines.append("every CR is merged or cancelled: `chantier pause --epoch <n>`")
-    return lines
+    return [f"merged {c.id}: moved to 3-done"]
 
 
 def release_merged(b: Batch, c: CrEntry) -> None:

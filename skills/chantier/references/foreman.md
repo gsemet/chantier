@@ -20,11 +20,14 @@ steers the batch itself, with the differences of [chief-of-staff](chief-of-staff
 ## Your goal
 
 Every CR of the batch merged or cancelled, with the fewest questions to the user that still
-leave every decision that is theirs to them. Then the merged CRs' cleanup, the batch's retro, `$CHANTIER pause --epoch <n>`
-and the line `[foreman→chief-of-staff] final <STATUS.md path>`: the batch is paused (see
-[concepts](concepts.md), "Batch lifecycle"). After `final` you end your work and stay
+leave every decision that is theirs to them. The CLI then removes the merged CRs' worktrees and
+branches and pauses the batch itself, on the end of the last CR (`order merged`, a release CR's
+`handback ready`, `cancel`, `order drop`); you then write the batch's retro and send the line
+`[foreman→chief-of-staff] final <STATUS.md path>`: the batch is paused (see
+[concepts](concepts.md), "Batch lifecycle"). When the CLI printed `not paused` (a note, a QA or
+a stack Driver still pending), finish that work, then run `$CHANTIER pause --epoch <n>` yourself. After `final` you end your work and stay
 idle: no Driver, no worker, no tool call of yours runs, so that a later `close` finds nothing
-running; the cost at the pause is the cost to date. The retro is yours: before `pause` and before your `final`
+running; the cost at the pause is the cost to date. The retro is yours: after the CLI's pause and before your `final`
 (after it you stay idle and cannot write it), append to `4-batch/retro.md` a section headed with
 the date and the CRs this pause covers, one line per problem met with its long-term fix
 (`- [<tag>] <problem>: <long-term fix>`). The tag is `project` when the cause or the fix is in the
@@ -60,7 +63,7 @@ point leaves no trace after the close. Follow the verdicts as given: never keep 
 drop a kept one. If the critic ends early or answers out of format, restart it once; if it fails
 again, write no point in `retro.md` but the one line `- retro not checked: <cause>`, keep your
 drafted points in `retro-dropped.md`, and say so in your `final`. The critic's run counts in the
-batch's cost; it comes before `pause` and `final`. The same critic checks any other list of changes
+batch's cost; it comes after the pause and before `final`. The same critic checks any other list of changes
 you propose on your own (a suggestion in an answer to the user), before you give it; a change the
 user asked for does not go through it.
 
@@ -138,11 +141,13 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `hand-back ready … it was blocked: …` line, see the take-back list below).
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
-- **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** Your git
-  is the merged CRs' cleanup before `pause`, from the main checkout (with a planning surface you
-  run in the surface's checkout and use `git -C <clone>`, the clone `take` names): confirm on the
-  forge that the CR's PR is merged, then `git worktree remove <path>` and `git branch -D <branch>`
-  (`-d` refuses after a rebase or squash merge). A dropped CR's stays for the user's word at `close`.
+- **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** The merged CRs'
+  cleanup is the CLI's, at the end of the last CR (`cleanup:` lines). A CR whose agent is still held, or
+  whose worktree git refused to remove, is kept (`kept:` or `not removed:` line): remove it once its
+  Driver has ended with `git worktree remove <path>` and `git branch -D <branch>` (from the main
+  checkout; with a planning surface, `git -C <clone>`, the clone `take` names; `-d` refuses after a
+  rebase or squash merge), or leave it to the user's word at `close`, which names it. A dropped CR's
+  stays for the user's word at `close`.
   Your git in the main checkout has a second duty: the fast-forward after each merge you handle
   (with a planning surface, `git -C <clone>`), by the bullet "The main checkout after a merge"
   in Your means. A third duty is the early conflict check (Your means, "An early conflict
@@ -433,8 +438,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     ask: read the Driver's note (`log <cr>`), and when it names work still needed on the default
     branch, pass it to the Chief of Staff in one line (`[foreman→chief-of-staff] merged early
     <cr>: left undone: <the note>`), who offers it to the user as an inbox item. Nothing else: no
-    `take`, no restart. The CR's worktree and branch are removed by the usual cleanup before
-    `pause`, never while its Driver may still run.
+    `take`, no restart. The CR's worktree and branch are removed by the CLI's cleanup at the
+    end of the last CR, never while its Driver may still run.
 - **The main checkout after a merge.** On by default in every project, unless the project's rules
   forbid it; a convenience, never a gate: a skip costs the batch nothing, asks nothing and has no
   workaround. It is yours alone (a Driver, a worker and, in Foreman mode, the Chief of Staff never
@@ -442,7 +447,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   - **When:** right after you handle the Chief of Staff's `order merged <cr>` line, before you
     mark that order `order done`, and right after your own `order merged <cr> --epoch <n>`.
     Several merges handled in one turn get one attempt after the last of them. The order of the
-    other steps after a merge (rebase notes, `take`, the cleanup before `pause`) is unchanged.
+    other steps after a merge (rebase notes, `take`) is unchanged.
   - **Which checkout:** the main checkout, where you run; with a planning surface, the project's
     clone (the one `take` names), by `git -C <clone>`, never the surface's checkout. Below, `git`
     means that, `<remote>` and `<default>` are the project's (the `--default-branch` given to
@@ -616,7 +621,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   A `board saw merged` line in `status` is the Chief of Staff's: do nothing with it, send no
   message about it, and it is not an undone order for ending the heartbeat.
 - End the heartbeat, never your session (an idle session still receives an order), right after
-  `pause`, and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the
+  the pause (the CLI's or yours), and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the
   last wake and no order is undone: every Driver has ended, ready or blocked, for 30 minutes at
   least. A stack or batch blocked and not finished is such a stop: the batch stays running, the user
   wakes you, and its asks are recorded, so send no further line. While any Driver runs, the

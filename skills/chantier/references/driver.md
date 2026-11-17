@@ -1049,7 +1049,9 @@ work: stop").
   `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as the Foreman's retro
   defines it in `foreman.md`.
 - [ ] `$CHANTIER handback <cr> ready <release link or tag>`, then the host's hand-back, as "Your
-  means" orders it (its first line is the line `handback` printed).
+  means" orders it (its first line is the line `handback` printed). When this release CR is the
+  batch's last, `handback` also prints the merged CRs' `cleanup:` lines and `paused <batch>`: the
+  CLI paused the batch; say nothing more about it.
 
 ## Startup core
 

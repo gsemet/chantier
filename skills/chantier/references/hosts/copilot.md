@@ -54,7 +54,8 @@ Known host issues: a `model` array once refused by the CLI ([copilot-cli#2133](h
 In direct mode there is no Foreman chat: the Chief of Staff runs the same `/every` in its own session (unproved).
 Otherwise the Chief of Staff arms it: on the Foreman's `ready <batch>`, it sends the Foreman chat `/every
 4m chantier status --refresh --batch <batch> --epoch <n>`. The Foreman cannot end `/every`. At
-the pause the Chief of Staff tells the user to delete the `/every` in the Foreman chat. The Foreman
+every pause, the automatic one (when the last CR ends) included, the Chief of Staff tells the user
+to delete the `/every` in the Foreman chat (in direct mode, in its own session). The Foreman
 also ends its heartbeat when every Driver has ended for 30 minutes (nothing can move): the Chief
 of Staff then tells the user to delete the `/every`, and arms it again with the next order it
 sends the Foreman. Whoever ends the heartbeat (the Foreman, or in direct mode the Chief of Staff)
