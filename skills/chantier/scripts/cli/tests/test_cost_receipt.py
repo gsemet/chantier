@@ -109,3 +109,23 @@ def test_the_text_lines_are_the_ones_printed_before_the_receipt() -> None:
         "a chief line",
         "Not counted: compaction calls, which leave no record (about $0.12 each)",
     ]
+
+
+@pytest.mark.parametrize("unpriced_only", [False, True])
+def test_the_models_are_by_cost_add_up_in_cents_and_the_split_counts_the_priced_calls(
+    unpriced_only: bool,
+) -> None:
+    by_model = {"a": {"calls": 3, "usd": 0.333}, "b": {"calls": 2, "usd": 0.333}}
+    rows = [
+        main(10.0, by_model={"m-big": {"calls": 10, "usd": 10.0}}),
+        row("d1", "cr-driver", 0.666, 5, parent=None, by_model=by_model),
+        row("w1", "coder", 0.0, 0, parent="d1", unpriced={"zz": 4} if unpriced_only else {}),
+    ]
+    got = cost_receipt(record("direct"), rows, BY_DRIVER, chief())
+    models = got["models"]
+    assert [m["model"] for m in models] == ["m-big", "a", "b", *(["zz"] if unpriced_only else [])]
+    assert sum(round(m["usd"] * 100) for m in models) == total_cents(rows)
+    assert all(set(m) == {"model", "calls", "usd", "unpriced"} for m in models)
+    if unpriced_only:
+        assert models[-1] == {"model": "zz", "calls": 0, "usd": 0.0, "unpriced": 4}
+    assert sum(p["calls"] for p in got["split"]) == sum(r["calls"] for r in rows)

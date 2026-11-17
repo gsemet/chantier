@@ -143,6 +143,28 @@
   --shadow-ticket-edge: drop-shadow(0 3px 2px rgb(22 24 29 / 6%));
   --ticket-width: 420px;
 
+  /* the Costs card "Where the money went": one colour per model in cost order (cycling after
+     eight), the Chief of Staff's grey, the hatch of the unspent rest, the over-budget mark */
+  --m1: #d96c4a;
+  --m2: #3a7bd5;
+  --m3: #1f9d8b;
+  --m4: #8b6bd8;
+  --m5: #d9a32e;
+  --m6: #c4488a;
+  --m7: #5b8c3a;
+  --m8: #6b7a90;
+  --spend-chief: #a3a7af;
+  --spend-hatch: #d6d9de;
+  --spend-hatch-bg: #f6f7f8;
+  --spend-over: var(--bad-ink);
+
+  /* the providers' marks (Lobe Icons, see js/ui/logos-LICENSE.txt); the mono marks use the ink */
+  --logo-anthropic: #d97757;
+  --logo-google-blue: #3186ff;
+  --logo-google-green: #08b962;
+  --logo-google-red: #f94543;
+  --logo-google-yellow: #fabc12;
+
   /* shadows */
   --shadow-card: 0 1px 2px rgb(16 24 40 / 4%), 0 8px 24px -10px rgb(16 24 40 / 14%);
   --shadow-card-soft: 0 1px 2px rgb(16 24 40 / 3%), 0 6px 18px -10px rgb(16 24 40 / 10%);

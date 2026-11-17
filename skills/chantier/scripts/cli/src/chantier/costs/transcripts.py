@@ -156,8 +156,9 @@ def _new_row() -> dict[str, Any]:
         "timed": 0,
         "expired": 0,
         "untimed": 0,
-        "unpriced": {},
-    }  # model id -> calls of a model with no price
+        "unpriced": {},  # model id -> calls of a model with no price
+        "by_model": {},
+    }  # model id -> priced calls and dollars
 
 
 def _add(row: dict[str, Any], c: dict[str, Any]) -> None:
@@ -171,6 +172,9 @@ def _add(row: dict[str, Any], c: dict[str, Any]) -> None:
         for k, v in zip(("w5m", "w1h", "read", "out"), t[1:], strict=False):
             row[k] += v
         row["usd"] += sum(c["parts"])
+        m = row["by_model"].setdefault(c["model"], {"calls": 0, "usd": 0.0})
+        m["calls"] += 1
+        m["usd"] += sum(c["parts"])
         row["usd_in"] += c["parts"][0]
         row["usd_write"] += c["parts"][1] + c["parts"][2]
         row["usd_read"] += c["parts"][3]

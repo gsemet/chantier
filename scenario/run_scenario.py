@@ -3278,6 +3278,14 @@ def close_batch(w: World) -> None:
           and {p["part"] for p in split} >= {"steering", "drivers", "workers"}
           and "usd" in receipt.get("steering", {}) and json_drivers == md_drivers
           and ("outside" in receipt), f"{receipt} {md_drivers}")
+    models = receipt.get("models")
+    check("`batch-NN.json` keeps the receipt's models, adding up to the cost within a cent, and "
+          "the calls of each split part",
+          isinstance(models, list) and models
+          and all(isinstance(m, dict) and {"model", "calls", "usd", "unpriced"} <= set(m)
+                  for m in models)
+          and abs(sum(m["usd"] for m in models) - rec["cost_usd"]) <= 0.0101
+          and all("calls" in p for p in split), f"{models} {split}")
     text = report_file.read_bytes()
     check("`batch-NN.md` holds the table, the cost lines and the retro's two pause sections byte "
           "for byte",

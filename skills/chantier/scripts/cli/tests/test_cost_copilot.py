@@ -225,3 +225,18 @@ def test_uv_runs_the_usage_script_with_no_inherited_index_but_offline_and_proxy_
     assert child is not None and all(name not in child for name in indexes)
     assert child.get("UV_OFFLINE") == "1" and child.get("HTTPS_PROXY") == "http://127.0.0.1:9"
     assert child.get("SSL_CERT_FILE") == env["SSL_CERT_FILE"]
+
+
+def test_a_copilot_row_keeps_its_calls_and_dollars_by_model_and_has_no_models_key() -> None:
+    lines = [
+        {**call(None, 1.0), "model": "gpt-5.6-luna", "llm_calls": 2},
+        {**call(None, 0.5), "model": "claude-opus-5-5"},
+        {**call(None, 0.25), "model": None},
+    ]
+    (row,) = costs._rows("uuid-foreman", "\n".join(json.dumps(c) for c in lines))
+    assert row["by_model"] == {
+        "gpt-5.6-luna": {"calls": 2, "usd": 1.0},
+        "claude-opus-5-5": {"calls": 1, "usd": 0.5},
+        "?": {"calls": 1, "usd": 0.25},
+    }
+    assert "models" not in row

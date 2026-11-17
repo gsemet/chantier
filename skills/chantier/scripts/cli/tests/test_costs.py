@@ -256,3 +256,24 @@ def test_a_loose_use_after_the_window_does_not_move_the_calls_inside_it(tmp_path
     since = usage(transcript, window[0], reading=Reading(split=True, steering=window))
     assert (inside["calls"], inside["grill"]["calls"]) == (1, 0)
     assert since["grill"]["calls"] == 1 and since["calls"] == 1  # the later call: loose, grill
+
+
+def test_a_row_keeps_its_priced_calls_and_dollars_by_model(tmp_path: Path) -> None:
+    lines = []
+    for mid, model in (
+        ("m1", "claude-sonnet-5-5"),
+        ("m2", "claude-opus-5-5"),
+        ("m3", "claude-sonnet-5-5"),
+    ):
+        r = record(model)
+        r["message"]["id"] = mid
+        lines.append(json.dumps(r))
+    transcript = tmp_path / "session.jsonl"
+    transcript.write_text("\n".join(lines) + "\n")
+    row = session_costs(transcript)[0]
+    assert {m: v["calls"] for m, v in row["by_model"].items()} == {
+        "claude-sonnet-5-5": 2,
+        "claude-opus-5-5": 1,
+    }
+    assert sum(v["usd"] for v in row["by_model"].values()) == pytest.approx(row["usd"])
+    assert row["by_model"]["claude-sonnet-5-5"]["usd"] == pytest.approx(2 * 0.022)

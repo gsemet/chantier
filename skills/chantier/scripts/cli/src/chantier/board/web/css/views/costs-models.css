@@ -1,0 +1,173 @@
+/* The Costs card "Where the money went": the head with its by model / by role switch, one line,
+   a stacked bar from $0 to the budget (the unspent rest hatched), the axis, then one row per
+   model or role and the Chief of Staff's grey row under a rule. Type sizes, radii and spacing come
+   from the tokens; the 2 px gap between segments is the one value outside the scale. */
+.costs .spend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius-m);
+  background: var(--panel);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.spend .sp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.spend .sp-title {
+  margin: 0;
+  font-size: var(--text);
+  font-weight: 600;
+}
+
+/* the segmented control: one button pressed, the other plain */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--chip);
+}
+
+.seg button {
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: var(--shadow-card-soft);
+}
+
+.spend .sp-line {
+  margin: 0;
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.spend .sp-bar {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  height: var(--space-5);
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--spend-hatch-bg);
+}
+
+.spend .sp-bar i {
+  flex: var(--g) 1 0;
+  min-width: 2px;
+  background: var(--c);
+}
+
+.spend .sp-bar i.hatch {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--spend-hatch) 0 2px,
+    var(--spend-hatch-bg) 2px 6px
+  );
+}
+
+/* a thin vertical mark at the budget, when the spend went over it */
+.spend .sp-bar b.over {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--at);
+  width: 2px;
+  background: var(--spend-over);
+}
+
+.spend .sp-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: calc(-1 * var(--space-2));
+  color: var(--ink3);
+  font-size: var(--text-badge);
+}
+
+.spend .sp-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.spend .sp-row {
+  display: grid;
+  grid-template-columns: var(--space-3) var(--space-4) 1fr auto auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line2);
+  font-size: var(--text);
+}
+
+.spend .sp-row:last-child {
+  border-bottom: 0;
+}
+
+.spend .sp-row.chief {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.spend .sw {
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--c, var(--spend-chief));
+}
+
+.spend .sp-logo {
+  display: inline-flex;
+  width: var(--space-4);
+  height: var(--space-4);
+  color: var(--ink);
+}
+
+.spend .logo {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+
+.spend .sp-v {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.spend .sp-n,
+.spend .sp-usd {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.spend .sp-n {
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.spend .sp-usd {
+  min-width: 64px;
+  font-weight: 600;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .spend .sp-name {
+    min-width: 0;
+  }
+}

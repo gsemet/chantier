@@ -1,7 +1,7 @@
 // The Costs view: the batch's receipt on the left, and on its right the cards: when the figures
-// were computed (the Recompute button), four figures, the batch's CRs by cost, the earlier batches
-// and the last merged CRs. The batch shown is the one the navigator chose; by default the running
-// one, else the last closed one.
+// were computed (the Recompute button), four figures, where the money went (by model or role),
+// the batch's CRs by cost, the earlier batches and the last merged CRs. The batch shown is the one
+// the navigator chose; by default the running one, else the last closed one.
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
 import { delegate, html } from '../core/dom.js';
@@ -14,6 +14,7 @@ import { empty, kpi, meter } from '../ui/parts.js';
 import { recomputeCosts } from './costs-action.js';
 import { bindHistory, historyBlock } from './costs-history.js';
 import { copyReceipt } from './costs-image.js';
+import { bindSpendBy, spendCard } from './costs-models.js';
 import { lasted, receipt } from './costs-receipt.js';
 import { lastMerged, perCr } from './costs-tables.js';
 
@@ -103,7 +104,7 @@ export function render(state) {
   if (!r) {
     return html`<div class="costs">${empty(t('batch.none'))}${historyBlock(state)}${merged}</div>`;
   }
-  const side = html`<div class="cside">${ageLine(r, state)}${figures(r)}${perCr(rowsOf(state, r))}${historyBlock(state)}${merged}</div>`;
+  const side = html`<div class="cside">${ageLine(r, state)}${figures(r)}${spendCard(r, state)}${perCr(rowsOf(state, r))}${historyBlock(state)}${merged}</div>`;
   return html`<div class="costs"><div class="cwrap">${receipt(r)}${side}</div></div>`;
 }
 
@@ -112,6 +113,7 @@ export function mount(root) {
     delegate(root, 'click', '[data-copy-receipt]', () => copyReceipt(root)),
     bindOpen(root),
     bindHistory(root),
+    bindSpendBy(root),
     delegate(root, 'click', '[data-recompute]', () => recomputeCosts()),
   ];
   return () => {

@@ -288,6 +288,7 @@ def split_parts(
             part,
             sum(e["usd"] for e in entries if e["kind"] == kind),
             sum_unpriced([r for e in entries if e["kind"] == kind for r in e["rows"]]),
+            sum(e["calls"] for e in entries if e["kind"] == kind),
         )
         for name, part, kind in (
             (steer, "steering", "Foreman"),
@@ -301,8 +302,8 @@ def split_parts(
     cents = apportion(usd, round(total * 100))
     shares = apportion(usd, 100) if total else [0] * len(usd)
     return [
-        {"name": name, "part": part, "usd": c / 100, "unpriced": kun, "share": s}
-        for (name, part, _, kun), c, s in zip(kinds, cents, shares, strict=False)
+        {"name": name, "part": part, "usd": c / 100, "unpriced": kun, "share": s, "calls": n}
+        for (name, part, _, kun, n), c, s in zip(kinds, cents, shares, strict=False)
     ]
 
 
