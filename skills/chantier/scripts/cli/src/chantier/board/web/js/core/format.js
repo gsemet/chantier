@@ -42,8 +42,19 @@ export function hhmm(iso) {
   return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-// "#41" from a PR's address, else empty.
-export const prNumber = (url) => (url ? `#${String(url).split('/').pop()}` : '');
+// A link only for an http(s) address; anything else is no link and gives null.
+export const safeUrl = (url) => (/^https?:\/\//i.test(url ?? '') ? url : null);
+
+// A GitLab merge request, told from the shape of its link (never from its host).
+export const isMergeRequest = (url) => !!safeUrl(url) && /\/-\/merge_requests\/\d+/.test(url);
+
+// "#41" for a PR, "!41" for a merge request, from its address; else empty.
+export function prNumber(url) {
+  if (!url) return '';
+  const found = /\/(?:merge_requests|pull)\/(\d+)/.exec(String(url));
+  const n = found ? found[1] : String(url).split('/').pop();
+  return `${isMergeRequest(url) ? '!' : '#'}${n}`;
+}
 
 // "visualization-backend" from a folder "…/2-actives/225-visualization-backend".
 export const slug = (folder) => (folder ?? '').split('/').pop().replace(/^\d+-/, '');
@@ -54,9 +65,6 @@ export const title = (text) => String(text ?? '').replace(/^(Change Specificatio
 // A share of a whole as a percentage in [0, 100]; zero when the whole is zero.
 export const percent = (part, whole) =>
   whole > 0 ? Math.min(100, Math.max(0, (part / whole) * 100)) : 0;
-
-// A link only for an http(s) address; anything else is no link and gives null.
-export const safeUrl = (url) => (/^https?:\/\//i.test(url ?? '') ? url : null);
 
 // A project's colour is one of the palette's marks, picked from its name.
 export const markOf = (id) => [...id].reduce((sum, c) => sum + c.codePointAt(0), 0) % 6;

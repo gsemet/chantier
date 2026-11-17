@@ -86,6 +86,8 @@ export default {
   'base.not_stacked': ' · not stacked yet',
   'pr.draft': 'PR in draft, do not merge',
   'pr.open': 'open the PR',
+  'mr.open': 'open the MR',
+  'issue.open': 'open the issue',
   'pr.folder': "open the CR's folder",
   'gate.label': 'Long gate',
   'gate.queued': 'queued',

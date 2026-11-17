@@ -86,6 +86,8 @@ export default {
   'base.not_stacked': ' · pas encore empilée',
   'pr.draft': 'PR en draft, ne pas merger',
   'pr.open': 'ouvrir la PR',
+  'mr.open': 'ouvrir la MR',
+  'issue.open': 'ouvrir le ticket',
   'pr.folder': 'ouvrir le dossier du CR',
   'gate.label': 'Gate longue',
   'gate.queued': 'en file',

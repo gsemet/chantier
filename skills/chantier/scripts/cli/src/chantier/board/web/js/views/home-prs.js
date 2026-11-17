@@ -1,14 +1,21 @@
 // Home, the open PRs block, and under it the blocked CRs with their reason.
 import { html } from '../core/dom.js';
-import { prNumber } from '../core/format.js';
+import { isMergeRequest, prNumber, safeUrl } from '../core/format.js';
 import { crsOf } from '../model/semantics.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { opener } from '../ui/open.js';
 import { stateTag } from '../ui/parts.js';
 
-const prRow = (c) =>
-  html`<div class="x" ${opener(crKey(c), 'pr-')}>${stateTag(c)}<b>${c.cr}</b><span class="ell">${c.title}</span><span class="r">${prNumber(c.pr)}</span></div>`;
+// The row is a link to the PR or MR (a box when it has no web address); the CR's number inside it
+// opens the CR's folder and leaves the link alone.
+function prRow(c) {
+  const inner = html`${stateTag(c)}<b ${opener(crKey(c), 'pr-')} title="${t('pr.folder')}">${c.cr}</b><span class="ell">${c.title}</span><span class="r">${prNumber(c.pr)}</span>`;
+  const url = safeUrl(c.pr);
+  if (!url) return html`<div class="x">${inner}</div>`;
+  const words = isMergeRequest(url) ? t('mr.open') : t('pr.open');
+  return html`<a class="x" href="${url}" target="_blank" rel="noopener" data-key="prl-${c.cr}" title="${words}">${inner}</a>`;
+}
 
 const blockedRow = (c) =>
   html`<div class="x" ${opener(crKey(c), 'bl-')}><b>${c.cr}</b><span class="ell">${c.blocked ?? ''}</span></div>`;
