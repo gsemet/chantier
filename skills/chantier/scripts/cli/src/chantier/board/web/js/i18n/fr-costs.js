@@ -23,6 +23,7 @@ export default {
   'costs.receipt_state_closed': 'clos',
   'costs.receipt_state_running': 'en cours',
   'costs.receipt_state_paused': 'en pause',
+  'costs.receipt_stamp': 'PAS FINI',
   'costs.receipt_merged': '{n}/{total} mergés',
   'costs.receipt_now': 'maintenant',
   'costs.receipt_steering': 'Steering',

@@ -153,6 +153,10 @@ function detail(r) {
   return html`<div class="rule" aria-hidden="true"></div><div class="eyebrow">${t('costs.receipt_detail')}</div><div class="r-crs">${lines}</div><div class="sum"><span>${t('costs.receipt_sum')}</span><b>${money(r.sum)}</b></div>${restLine(r)}`;
 }
 
+// The red stamp of a batch that is not closed, so its ticket is not taken for a final receipt.
+const stamp = (r) =>
+  r.stateName === 'closed' ? '' : html`<div class="stamp">${t('costs.receipt_stamp')}</div>`;
+
 export function receipt(r) {
-  return html`<section class="ticket" aria-label="${t('costs.receipt_label', { batch: r.id })}">${head(r)}${groups(r)}${split(r)}<div class="cut" aria-hidden="true"></div><div class="total"><span class="label">${t('costs.receipt_total')}</span><span class="big">${money(r.total, r.unpriced)}</span></div>${foot(r)}${detail(r)}<div class="code" aria-hidden="true"></div><div class="thanks">${tn('costs.receipt_thanks', r.prs)}</div></section>`;
+  return html`<section class="ticket" aria-label="${t('costs.receipt_label', { batch: r.id })}">${stamp(r)}${head(r)}${groups(r)}${split(r)}<div class="cut" aria-hidden="true"></div><div class="total"><span class="label">${t('costs.receipt_total')}</span><span class="big">${money(r.total, r.unpriced)}</span></div>${foot(r)}${detail(r)}<div class="code" aria-hidden="true"></div><div class="thanks">${tn('costs.receipt_thanks', r.prs)}</div></section>`;
 }

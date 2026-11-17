@@ -18,6 +18,7 @@ const SHEETS = [
   'css/base.css',
   'css/components.css',
   'css/views/costs-receipt.css',
+  'css/views/costs-stamp.css',
 ];
 const FONTS = [
   ['400', 'fonts/Inter-Regular.woff2'],
