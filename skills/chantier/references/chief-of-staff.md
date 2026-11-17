@@ -103,7 +103,8 @@ commands" of your host's reference):
   a batch without the grant. A Griller does not ask or write: it reports the P10 line and says that the Chief of Staff asks.
 - **On the yes.** Add exactly those rules to `permissions.allow`. Merge with what is there: never
   replace, never remove, add no duplicate. Create the file or the keys when absent, and keep the
-  file valid JSON. Then run `$CHANTIER preflight` again and say what P10 says now. Add in one line
+  file valid JSON. Then run `$CHANTIER preflight` again and say what P10 says now. Say also that a Driver's force push was refused once with these rules set
+  (batch-23); a refused one comes to you, and you run it when it is legitimate. Add in one line
   that whether this running session picks up the change is unproved: a session or agent started
   afterwards reads it.
 - **On a no.** Say once, per capability, what will stop: for every batch, a Driver's force push
@@ -1159,7 +1160,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   3. Legitimate: from the main checkout, without changing its branch or touching its files:
      `git push --force-with-lease=<branch>:<expected> <remote> <local sha>:refs/heads/<branch>`,
      one command per branch, never a loop or a script, even for a whole restack; answer `pushed
-     <branch>`. The user hears nothing at the time: your next report has a line
+     <branch>`. The user hears nothing at the time, even when the Driver's push was refused with the allow
+     rules set (batch-23): a legitimate push is never a question for the user: your next report has a line
      for it (`status-layout.md`, "Progress").
   4. Not legitimate: push nothing and tell the user at once, in the report's shape (the question
      is the **For you:** line, no tip): the CR (number and slug), the branch, the expected and
