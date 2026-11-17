@@ -25,8 +25,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification and, on an impactful CR, the `spec-critic` checks it. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
 | a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](#starting-a-batch)) | Starting a batch |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
-| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route) | While it runs |
-| "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
+| the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route), then the close offered at once, unprompted (next row) | While it runs |
+| the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42", a `board saw merged` line in `status`; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
@@ -1241,7 +1241,16 @@ CR-222 → CR-225 → CR-226 → CR-228."
     points are in `retro-dropped.md` on request. The routes below apply to the kept points only.
 
   Offer the Retro before any `close`, which writes `4-batch/retro.md` into the batch's record,
-  `5-archives/batches/batch-NN.md`.
+  `5-archives/batches/batch-NN.md`. Then, in the same turn, offer the close at once, unprompted,
+  after the Completion report and the Retro: run `$CHANTIER close --batch <batch>` (the check, no
+  `--yes`), show the bilan, the final cost, what goes, and its line of worktrees and branches to
+  remove, which names the merged CRs' leftovers beside the dropped CRs' whatever `final` said
+  (with why each was kept, from `final` or the cleanup lines), and ask "close the batch?";
+  `close --yes` only on the user's yes, as the Closing bullet says. The close is offered after
+  `final`, never before: the Foreman's retro critic must have handed back.
+  In Foreman mode your own `order merged <cr>` or `order drop <cr>` of the last CR prints the
+  pause: still send its line to the Foreman (it cancels its armed wake, runs the fast-forward, the
+  retro with its critic, and `final`), and wait for `final` before the close offer.
   New work for the paused batch is `order add`, once per CR: the batch stays paused until the
   Foreman's first `take`; send the Foreman the usual order once all are added, and it pauses again
   at the end. Where the heartbeat is yours (the host's reference says),
@@ -1297,8 +1306,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   routes meet, and the Completion report's "For you" says, in one line: "This project is
   chantier: its `chantier` points are filed here as inbox items, like the project's; say 'as an
   issue' for a point to go to GitHub instead." The default is the inbox.
-- **Closing:** only on the user's word ("close the batch"). `$CHANTIER close --batch <batch>`
-  without `--yes` is the check and prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
+- **Closing:** `--yes` only on the user's word (their yes to the close offered at the pause, or
+  "close the batch"). `$CHANTIER close --batch <batch>` without `--yes` is the check and prices
+  the final cost; it is also run unprompted at the pause, to offer the close, and only once the
+  retro critic has handed back (below). It refuses, naming each cause, while a CR is not merged or cancelled,
   an order is open, a stack agent is recorded, or an agent the batch holds (an id `agents set`
   recorded and `-` did not clear, or the current Foreman) has a transcript that shows it still runs
   (a tool call with no result, or a step under way: the CLI reads the end of each transcript,
@@ -1338,9 +1349,11 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `.json`), and touches nothing. To know which batch the project is at, run `status`: its second
   line names the last closed batch. Show the user the bilan, the final Cost section and that
   list, and ask. Only on their yes,
-  in that turn: `close --batch <batch> --yes`, then the dropped CRs' worktrees and branches
-  yourself, from the main checkout (`git -C <clone>` with a planning surface; `git worktree remove
-  --force <path>`, `git branch -D <branch>`, as listed).
+  in that turn: `close --batch <batch> --yes`, then every entry of its line of worktrees and
+  branches to remove, the dropped CRs' and the merged CRs' leftovers alike, yourself, from the
+  main checkout (`git -C <clone>` with a planning surface; `git worktree remove --force <path>`,
+  `git branch -D <branch>`, as listed; for a folder git no longer knows, `git worktree prune` once
+  it is deleted, then `git branch -D <branch>`).
 - **Recovery:** a stale heartbeat says something only while a CR is `working`; with none, the
   Foreman has stopped waking, as it should. "Heartbeat stopped" is a loop ended on purpose. After a break, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
@@ -1481,10 +1494,15 @@ these differences.
     that arrives while the batch runs is filed in the inbox at once (`file`, no grill). A request
     to grill gets one line besides being noted: "to grill in parallel, fork this session; the
     fork becomes a Griller" (the fork is the user's step; explain it, never do it).
-  - A paused batch is not running: all of this lifts at the pause.
-- **The pause.** Once every CR is merged or cancelled, the CLI removes the merged CRs' worktrees
-  and branches and pauses the batch itself (`paused <batch>`; with `not paused: <causes>`, finish
-  those, then run `$CHANTIER pause --epoch <n>`). Then write the batch's retro in `4-batch/retro.md`
+  - A paused batch is not running: all of this lifts at the pause. When the CLI paused the batch,
+    your retro and its retro critic still run after the pause and before the close offer; what
+    lifts at the pause does not lift them.
+- **The pause.** The end of the last CR (your `order merged <cr> --epoch <n>`, `cancel`,
+  `order drop`, a release Driver's `handback released`) removes the merged CRs' worktrees and
+  branches whose Driver has ended and pauses the batch (`paused <batch>`). When it prints
+  `every CR is merged or cancelled, not paused: <causes>`, do what blocks it, then the cleanup
+  and `$CHANTIER pause --epoch <n>` as before. Then, in the same turn: cancel the armed wake (as
+  the host's reference says), run the fast-forward of the main checkout, and write the batch's retro in `4-batch/retro.md`
   (a section headed with the date and the CRs it covers: one line per problem met with its
   long-term fix, `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as
   `foreman.md` defines it, a cause on both sides being two lines; what went wrong or slowly, from
@@ -1495,9 +1513,14 @@ these differences.
   as `foreman.md` ("The retro critic") says (the section holds the kept points only, the dropped
   ones go to `4-batch/retro-dropped.md`). Give the
   Completion report, with its Retro offered as the Foreman-mode pause says (each point numbered,
-  by route, on the user's word, before any `close`), then, unprompted, offer the close: the
-  retro and its critic come first, then you say the batch is complete and offer `$CHANTIER
-  close`, which names what it removes and is run with `--yes` only on the user's yes. Grill the inbox ideas with the user and, on their word,
+  by route, on the user's word, before any `close`), then, once your retro critic has handed
+  back, offer the close at once, unprompted: run `$CHANTIER close --batch <batch>` (the check, no
+  `--yes`), show the bilan, the final cost, what goes, and its line of worktrees and branches to
+  remove, which names the merged CRs' leftovers beside the dropped CRs' (with why each was kept,
+  from the `cleanup:` lines when the session still has them), and ask "close the batch?";
+  `close --yes` only on the user's yes, as the Closing bullet says, and on the same yes remove
+  every entry of that line, merged and dropped alike (`git worktree prune` for a folder git no
+  longer knows). Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
   running again, and the batch pauses again at its end. `close` stays the
   user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session

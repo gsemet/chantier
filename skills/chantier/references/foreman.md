@@ -443,7 +443,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - **The main checkout after a merge.** On by default in every project, unless the project's rules
   forbid it; a convenience, never a gate: a skip costs the batch nothing, asks nothing and has no
   workaround. It is yours alone (a Driver, a worker and, in Foreman mode, the Chief of Staff never
-  do it), by git (the CLI runs none).
+  do it), by git; the CLI runs no fast-forward (it removes, at the batch's end, only the merged
+  CRs' worktrees and branches). For the last merge the order is already marked done by the
+  pause; the fast-forward still runs right after it, with its `main checkout:` note.
   - **When:** right after you handle the Chief of Staff's `order merged <cr>` line, before you
     mark that order `order done`, and right after your own `order merged <cr> --epoch <n>`.
     Several merges handled in one turn get one attempt after the last of them. The order of the

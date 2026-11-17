@@ -62,7 +62,9 @@ prompt that ends in an interval makes `/loop` take its fixed-interval mode (seen
 run 1, 2026-11-12). Each wake is scheduled with `ScheduleWakeup`, 30 minutes (1800 seconds) after
 the last. It ends the
 heartbeat, never its session, with `ScheduleWakeup` `stop: true` (after `chantier status
---stop-heartbeat --batch <batch> --epoch <n>`, which `pause` already does): right after the pause (the CLI's),
+--stop-heartbeat --batch <batch> --epoch <n>`, which every pause already does): right after the pause,
+the steering session's own or the automatic one (the record alone does not stop the wake, and a
+later wake's `status --refresh` resets it),
 and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the last wake
 and no order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
 Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.

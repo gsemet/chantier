@@ -131,7 +131,8 @@ the pause (the cost to date):
     numbers), which `chantier` points to draft as an issue (by their numbers; several may go in
     one issue; when the project is chantier itself, the one line the Chief of Staff card gives),
     the inbox ideas ready for a grill (each by its slug), and, if it fits, an
-    invitation to add other CRs to this batch later or to close it ("close the batch"); the
+    invitation to add other CRs to this batch later, and the close, which the Chief of Staff
+    offers next, unprompted ("close the batch?"); the
     Retro is offered before the close, which writes `4-batch/retro.md` into `5-archives/batches/batch-NN.md` (only a Tips line can
     follow it, see below).
 
