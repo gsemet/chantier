@@ -986,16 +986,28 @@ inside the procedure and the grant, and ask for anything beyond them.
   refusal with its exact text (rule 7) as `handback blocked approval: publish: <the exact
   command>` and try nothing else: the steering session gives the user the command ("the
   publication is yours") and never runs it without their word.
-- A release out: `$CHANTIER release published <cr> --note "<version> <link>"`, the procedure's
-  checks and any watch of the deploys it names (a package registry, pages), then `<work
-  folder>/retro.md` (what went wrong or slowly, the long-term fix for each,
-  one line `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as the Foreman's
-  retro defines it in `foreman.md`) and `handback ready <release link or tag>`.
 - A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
   line, then steps, expected, actual), then
   `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
   infra:`. Half-done irreversible work: stop and say exactly what is out in `blocked question:`;
   never undo it on your own.
+
+### Release driver: the end
+
+Once the release is out (the procedure's publication step done), every item below, in this order,
+before the host's hand-back: the run is not over while one is undone, and none waits for a word
+from the steering session or the user, except as the bullets above already require (a go the
+procedure itself asks for: `handback blocked approval: <step>`; a failure: "Half-done irreversible
+work: stop").
+
+- [ ] `$CHANTIER release published <cr> --note "<version> <link>"`.
+- [ ] The procedure's checks, and any watch of the deploys it names (a package registry, pages).
+- [ ] `<work folder>/retro.md`: what went wrong or slowly, the long-term fix for each, one line
+  `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as the Foreman's retro
+  defines it in `foreman.md`.
+- [ ] `$CHANTIER handback <cr> ready <release link or tag>`, then the host's hand-back, as "Your
+  means" orders it (its first line is the line `handback` printed).
+
 ## Startup core
 
 Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.
