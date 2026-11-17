@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from batch_helpers import host, open_batch, record, write_record
+from batch_helpers import FROM_AGENTS_MD, host, open_batch, prepared, record, write_record
 from conftest import PLUGIN_ROOT, Chantier
 from test_playbook_config import (
     COPILOT_HEAD,
@@ -130,3 +130,31 @@ def test_defaults_that_carry_no_escalation_print_none_on_this_host(
     code, out, err = chantier("playbook")
     assert code == 0, err
     assert out[-1] == "escalate: (none on this host)"
+
+
+@pytest.mark.parametrize("user", ["", A + "escalation: gpt-6.1-sol\n"], ids=["shipped", "user"])
+def test_a_generic_escalation_prints_the_contract_with_or_without_a_user_file(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, user: str
+) -> None:
+    host(monkeypatch, "copilot")
+    if user:
+        (repo / "chantier.yaml").write_text(COPILOT_HEAD + user, encoding="utf-8")
+    code, _, err = chantier("open", str(prepared(repo, chantier, "Esc coder")), *FROM_AGENTS_MD)
+    assert code == 0, err
+    assert record(repo)["escalation"]["coder"]["mode"] == "generic"
+    assert ("playbook" in record(repo)) == bool(user)
+    monkeypatch.setenv("CHANTIER_BATCH", record(repo)["id"])
+    assert chantier("foreman", "set", "local_foreman_t", "--epoch", 1)[0] == 0
+    crid = record(repo)["crs"][0]["id"]
+    heading = (
+        "coder contract (a generic agent: copy it unchanged, without the two leading spaces, "
+        "after the opening lines):"
+    )
+    for args, want in (
+        (("take", crid, "--epoch", 1), [heading, f"  {heading}"]),  # the Driver's copy, once
+        (("round", crid), [heading]),
+        (("handoff", crid), [heading]),
+    ):
+        code, out, err = chantier(*args)
+        assert code == 0, err
+        assert [ln for ln in out if "coder contract (a generic" in ln] == want, args

@@ -189,15 +189,25 @@ CHIEF_SUBAGENT_LINE = re.compile(
 FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
 
 
-def contract_lines(role: str, text: str, resolved: dict[str, Any] | None) -> list[str]:
+def _generic(entry: Any) -> bool:
+    return isinstance(entry, dict) and entry.get("mode") == "generic"
+
+
+def contract_lines(
+    role: str,
+    text: str,
+    resolved: dict[str, Any] | None,
+    escalated: dict[str, Any] | None = None,
+) -> list[str]:
     """For a role the configuration starts as a generic agent (its model changed on a host that
     cannot start a named agent with one), or whose escalation model is applied as a generic agent
-    (its escalation `mode` is `generic`), the plugin agent's file body, so the generic agent gets
-    the whole contract in its prompt, rebuilt here and written nowhere: a heading, then the body
-    after the frontmatter, each line indented by two spaces; printed once per role."""
+    (its escalation `mode` is `generic`, in the playbook `resolved` or in the escalation map
+    `escalated`, which holds the shipped defaults' entries too), the plugin agent's file body, so
+    the generic agent gets the whole contract in its prompt, rebuilt here and written nowhere: a
+    heading, then the body after the frontmatter, each line indented by two spaces; printed once
+    per role."""
     rec = (resolved or {}).get("roles", {}).get(role) or {}
-    escalation = rec.get("escalation")
-    generic_escalation = isinstance(escalation, dict) and escalation.get("mode") == "generic"
+    generic_escalation = _generic(rec.get("escalation")) or _generic((escalated or {}).get(role))
     if rec.get("start") != "generic" and not generic_escalation:
         return []
     body = FRONTMATTER.sub("", text, count=1).strip("\n")
@@ -209,20 +219,24 @@ def contract_lines(role: str, text: str, resolved: dict[str, Any] | None) -> lis
 
 
 def chief_prompt_lines(
-    host: str, root: str, started_by: str | None = None, resolved: dict[str, Any] | None = None
+    host: str,
+    root: str,
+    started_by: str | None = None,
+    resolved: dict[str, Any] | None = None,
+    escalated: dict[str, Any] | None = None,
 ) -> list[str]:
     """The first line of each agent the Chief of Staff starts with a `<root>` and no batch, read
     from the agent files' descriptions (`<role> prompt, first line: …`), `<root>` filled in;
     with `started_by`, only the agents whose description says that parent starts them. A role the
-    playbook `resolved` starts generic, or escalates as a generic agent, gets its contract lines
-    after its first line."""
+    playbook `resolved` starts generic, or that escalates as a generic agent (`resolved` or the
+    escalation map `escalated`), gets its contract lines after its first line."""
     lines = []
     for p in _agent_files(host)[1]:
         text = p.read_text(encoding="utf-8")
         m = CHIEF_SUBAGENT_LINE.search(text)
         if m and (started_by is None or f"Started by the {started_by}" in text):
             lines.append(f"{m[2]} prompt, first line: {m[1].replace('<root>', root)}")
-            lines += contract_lines(m[2], text, resolved)
+            lines += contract_lines(m[2], text, resolved, escalated)
     return lines
 
 
@@ -233,21 +247,17 @@ WORKER_FIRST_LINE = re.compile(
 WORKER_CARD_LINE = re.compile(r"^Your card is `([^`]+)`", re.M)
 
 
-def worker_prompt_lines(
-    host: str,
-    root: str,
-    cr: tuple[str, str],
-    batch: str,
-    resolved: dict[str, Any] | None = None,
-) -> list[str]:
+def worker_prompt_lines(root: str, cr: tuple[str, str], batch: str, record: Any) -> list[str]:
     """The opening three lines of each worker's prompt (a Driver starts it; `cr` is its id and
-    title), read from the agent files: the description says `Started by a Driver.`, its first
-    line holds `<cr> "<title>" of batch <batch>` and its body names its card. A role the
-    playbook `resolved` starts generic, or escalates as a generic agent, gets its contract lines
-    after them. The CLI knows no role."""
+    title), read from the agent files of the batch `record`'s host: the description says
+    `Started by a Driver.`, its first line holds `<cr> "<title>" of batch <batch>` and its body
+    names its card. A role the record's playbook starts generic, or that escalates as a generic
+    agent (its playbook or its escalation map, the shipped defaults' included), gets its contract
+    lines after them. The CLI knows no role."""
     lines: list[str] = []
     refs = f"{skill_dir().as_posix()}/references"
-    for p in _agent_files(host)[1]:
+    resolved, escalated = record.playbook, recorded_escalation(record)
+    for p in _agent_files(record.host)[1]:
         text = p.read_text(encoding="utf-8")
         first, card = WORKER_FIRST_LINE.search(text), WORKER_CARD_LINE.search(text)
         if "Started by a Driver." not in text or not first or not card:
@@ -267,7 +277,7 @@ def worker_prompt_lines(
             f"  Read {refs}/{card[1]};",
             "  the project's rules rank above it: run `$CHANTIER rules` first and read what "
             "touches your work.",
-            *contract_lines(first[2], text, resolved),
+            *contract_lines(first[2], text, resolved, escalated),
         ]
     return lines
 
