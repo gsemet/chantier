@@ -125,6 +125,16 @@ reports it and never replaces it:
 - **The Chief of Staff** never runs `approve`, even on your word in the chat; it shows you the
   incident and waits for your click on the board or your own terminal.
 
+## Two sessions on one surface
+
+Several Chief of Staff sessions may work one surface on one machine (two projects, two batches).
+Each stages only its own project's folder (`git add -- projects/<name>/...`, never `-A`), then
+`git pull --rebase --autostash` and `git push`: the other session's unstaged files stay
+untouched. One board serves the surface, whatever the port. `preflight` (P14) and `status` list the
+other batches of the surface (project, batch, state, steering, and how many Drivers each runs), so
+a session picks its slots knowing the machine's load; there is no cap and no message between
+sessions. Only the projects of the same surface are seen.
+
 ## Outside contributors
 
 They submit a CR, into `1-inbox` or a priority of `2-backlog`, only by a pull request on the

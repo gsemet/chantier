@@ -272,6 +272,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   /api/autosync`, `start` refused while blocked, `stop` refused while stopped, a stale incident
   refused, an approval that runs `approve` then `start`; an in-project board has no autosync
   (unit: surface-board);
+- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `/api/board` answers its `pid`, `board.json` holds the `running` record while the board runs and no more once it has stopped, the key staying (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
 - the board's PRs page (`GET /api/projects/<id>/prs`, the fake `gh` answering its one `api
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose

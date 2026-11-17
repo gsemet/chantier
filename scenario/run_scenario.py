@@ -817,8 +817,9 @@ def scenario(w: World) -> None:
     home = w.root / "home"  # a home of its own: the developer's settings are not read
     homes = {"HOME": str(home), "USERPROFILE": str(home)}
     code, out = w.chantier("preflight", env=homes)
-    check("preflight passes on Claude Desktop with no setup", code == 0
-          and out[-1] == "preflight passed")
+    check("preflight passes on Claude Desktop with no setup, and an in-project repository has no "
+          "P14 line", code == 0 and out[-1] == "preflight passed"
+          and not any(ln.startswith("P14") for ln in out), str(out))
     p5 = next((ln for ln in out if ln.startswith("P5")), "")
     check("preflight's P5 line holds the `--no-sync` and sync sentence on Windows only",
           ("dev mode on Windows: $CHANTIER runs --no-sync; sync with uv sync --locked --project "
@@ -1901,18 +1902,6 @@ def remote_board(w: World) -> None:
         check("a second `board` on the same address says it is running, with the same link, exit 0",
               p.returncode == 0 and p.stdout.strip()
               == f"board already running at http://127.0.0.1:{port}/?k={link.key}", p.stdout + p.stderr)
-        with socket.socket() as held:
-            held.bind(("127.0.0.1", 0))
-            held.listen()
-            busy = held.getsockname()[1]
-            p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1",
-                                "--port", str(busy)], cwd=w.work, env=w.env, capture_output=True,
-                               text=True, encoding="utf-8", timeout=30)
-        check("a port held by another program exits 4 with one `board not started` line naming the port"
-              " and `--port`",
-              p.returncode == 4 and len(p.stderr.strip().splitlines()) == 1
-              and p.stderr.startswith("error: board not started: ") and not p.stdout.strip()
-              and f"port {busy}" in p.stderr and "--port" in p.stderr, p.stderr)
         # 9. the seat moves: the board stops by itself, a new one has the same link
         w.chantier("seat", "take", "s-2", "--over", "s-1")
         check("when the seat moves the board stops by itself, exit 0", exits(first) == 0)
@@ -1930,12 +1919,29 @@ def remote_board(w: World) -> None:
         fetch(port, "/api/board", headers=link.cookie)  # the board checks its seats at each request
         check("the seat moving from s-2 to s-3 keeps the board running",
               second.p.poll() is None and fetch(port, "/api/board", headers=link.cookie)[0] == 200)
-        # a board with no seat starts its watch at its first seat, whenever it comes
-        late = board("board", "--host", "127.0.0.1", "--port", 0)
-        late_link = Link(late.line())
+        # one board per repository, whatever the port: `--port 0` with a live board reuses it
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+                            "0"], cwd=w.work, env=w.env, capture_output=True, text=True,
+                           encoding="utf-8", timeout=30)
+        check("a second `board --port 0` with a live board of the repository prints `board already "
+              "running at` its link, exit 0, and starts none",
+              p.returncode == 0
+              and p.stdout.strip() == f"board already running at http://127.0.0.1:{port}/?k={link.key}",
+              p.stdout + p.stderr)
+        check("the live board's record in `board.json` names its PID, port and version, and "
+              "`/api/board` answers the same PID",
+              json.loads(key_file.read_text(encoding="utf-8")).get("running", {}).get("port") == port
+              and json.loads(key_file.read_text(encoding="utf-8"))["running"]["pid"]
+              == jget(port, link, "/api/board")[2].get("pid"), key_file.read_text(encoding="utf-8"))
         w.chantier("seat", "take", "s-4", "--over", "s-3")
         check("the board whose seats are gone stops by itself, with no request of ours",
               exits(second) == 0)
+        check("a board that stops removes its record from `board.json`, the key stays",
+              "running" not in json.loads(key_file.read_text(encoding="utf-8"))
+              and json.loads(key_file.read_text(encoding="utf-8"))["key"] == link.key)
+        # a board with no seat starts its watch at its first seat, whenever it comes
+        late = board("board", "--host", "127.0.0.1", "--port", 0)
+        late_link = Link(late.line())
         p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
                             str(late_link.port), "--seat", "s-4"], cwd=w.work, env=w.env,
                            capture_output=True, text=True, encoding="utf-8", timeout=30)
@@ -1943,6 +1949,19 @@ def remote_board(w: World) -> None:
         check("a board that had no seat takes its first over `POST /api/seats`, then stops by itself "
               "when that session goes",
               late_link.ok and p.returncode == 0 and exits(late) == 0, p.stdout + p.stderr)
+        # a port held by another program, with no live board to reuse
+        with socket.socket() as held:
+            held.bind(("127.0.0.1", 0))
+            held.listen()
+            busy = held.getsockname()[1]
+            p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1",
+                                "--port", str(busy)], cwd=w.work, env=w.env, capture_output=True,
+                               text=True, encoding="utf-8", timeout=30)
+        check("a port held by another program exits 4 with one `board not started` line naming the port"
+              " and `--port`",
+              p.returncode == 4 and len(p.stderr.strip().splitlines()) == 1
+              and p.stderr.startswith("error: board not started: ") and not p.stdout.strip()
+              and f"port {busy}" in p.stderr and "--port" in p.stderr, p.stderr)
         # 10. a wider address says so; the clock
         wide = board("board", "--host", "0.0.0.0", "--port", 0)
         head, warning = wide.line(), wide.line()
@@ -7785,6 +7804,16 @@ def external_surface(tmp: Path) -> None:
     check("two projects of one surface each run a batch, and the seat is one per project",
           out == ["seat none"] and (w.project / "changes" / "seat.json").is_file(), str(out))
     w.chantier("seat", "leave", "sess-a")
+    # the other batches of the surface: each session sees the other project's batch, no cap
+    _, out = w.chantier("status", project="demo")
+    check("`status --project demo` holds the other batch of the surface: project, batch, state, "
+          "steering and its Drivers",
+          f"other batches on this surface: other {other_batch} running, steering direct (the Chief of "
+          "Staff), 0 Drivers" in out, str(out))
+    code, out = w.chantier("preflight", project="other")
+    check("`preflight --project other` holds a P14 line naming demo's batch and still passes",
+          code == 0 and any(ln.startswith("P14 ok") and f"demo {w.name} running" in ln for ln in out)
+          and out[-1] == "preflight passed", str(out))
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", other_batch, project="other")
     code, out = w.chantier("take", "CR-101", "--epoch", 1, "--batch", other_batch, project="other",
                            env=copilot)
@@ -7841,6 +7870,16 @@ def external_surface(tmp: Path) -> None:
     try:
         link = Link(bp.line())
         check("`board` at a surface starts with the link and its key", link.ok, str(link.over))
+        w.chantier("seat", "take", "sess-b", "--env", "remote", "--title", "[remote] other", "--link",
+                   "l", project="other")
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--project", "other", "--host",
+                            "127.0.0.1", "--port", "0", "--seat", "sess-b"], cwd=w.surface, env=w.env,
+                           capture_output=True, text=True, encoding="utf-8", timeout=30)
+        check("a second session's `board --project other --port 0 --seat <id>` prints `board already "
+              "running at` the same link, exit 0, and `/api/board` answers its PID",
+              p.returncode == 0 and p.stdout.strip() == f"board already running at http://127.0.0.1:{link.port}/?k={link.key}"
+              and isinstance(jget(link.port, link, "/api/board")[2].get("pid"), int),
+              p.stdout + p.stderr)
         code, _, api = jget(link.port, link, "/api/board")
         names = sorted(p["id"] for p in api.get("projects", []))
         check("the surface's board serves both projects (`surface: true`, two lines)",
@@ -7857,6 +7896,7 @@ def external_surface(tmp: Path) -> None:
             check(f"the surface's board refuses {label} through a `..` path", code == 404, str(code))
     finally:
         bp.stop()
+        w.chantier("seat", "leave", "sess-b", project="other", expect=None)
     # the Driver's round: a change, the long gate, a PR without the archive, then with it
     w.chantier("round", cr, "--note", "edit surface.py")
     commit(w, cr, "surface.py", "SURFACE = True\n")
