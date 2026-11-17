@@ -83,7 +83,7 @@ The ticket prints the batch, its state and how long it lasted, then the steering
 
 **Copy as image** (above the cards, next to Recompute) puts the ticket in the clipboard as a PNG, with the board's font and without the button; it works for a running and for a closed batch. A browser allows it on a secure origin only: on `127.0.0.1` or `localhost`. From another machine of the network, over plain http, the button is greyed and its tooltip (on hover and on focus) says so and links to the same page at the board's 127.0.0.1 address; a browser without the clipboard's image support greys it too. There is no download.
 
-A closed batch's ticket is the `cost_receipt` its record kept at close: final, it never changes. A closed record from before the receipt reads "roles not recorded". A running or paused batch with no live figure yet reads "not computed yet"; **Recompute** makes the server read the transcripts again, with no agent turn.
+A closed batch's ticket is the `cost_receipt` its record kept at close: final, it never changes. A batch that is not closed (running, paused) carries a red "NOT FINISHED" stamp on its ticket and on its copied image, so it is not taken for a final receipt. A closed record from before the receipt reads "roles not recorded". A running or paused batch with no live figure yet reads "not computed yet"; **Recompute** makes the server read the transcripts again, with no agent turn.
 
 ### Configuration
 

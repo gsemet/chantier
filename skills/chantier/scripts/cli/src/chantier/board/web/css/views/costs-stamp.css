@@ -1,0 +1,33 @@
+/* The red "NOT FINISHED" stamp on the Costs ticket of a batch that is not closed. */
+.ticket .stamp {
+  --stamp-tilt: -12deg;
+  --stamp-ink: 0.8;
+  --stamp-border: var(--space-1);
+  position: absolute;
+  top: calc(var(--space-5) * 5 + var(--space-2));
+  right: var(--space-5);
+  padding: var(--space-1) var(--space-3);
+  border: var(--stamp-border) double var(--bad-ink);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--bad-ink);
+  font-size: var(--title);
+  font-weight: 800;
+  letter-spacing: var(--caption-spacing);
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: var(--stamp-ink);
+  transform: rotate(var(--stamp-tilt));
+  z-index: 1;
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .ticket .stamp {
+    top: calc(var(--space-5) * 4 + var(--space-4));
+    right: var(--space-3);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text);
+  }
+}
