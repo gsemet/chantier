@@ -561,8 +561,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     heartbeat's `activity` line covers it (`gate running`, `gate queued`, an age). Only `Agent
     "<name>" finished`, or a host refusal, is an end.
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
-    shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (30
-    minutes). A line
+    shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (the
+    steering wake, 30 minutes by default). A line
     `not measured` or a row `no Driver recorded` is read for what it says, never as activity. A
     project's `AGENTS.md` ranks above this threshold.
   - **Proof of death**, one of three: the host refuses a message to the agent because it no
@@ -655,13 +655,14 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     itself count: a death by the host (a new epoch, all Drivers lost at one wake), a Driver stopped
     from outside and a `context:` hand-back do not.
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
-  host's reference says (every 30 minutes, and who arms it). No wake ever arriving is a stop.
+  host's reference says (at the steering wake of the batch's `timing:` line, and who arms it). No wake ever arriving is a stop.
   A `board saw merged` line in `status` is the Chief of Staff's: do nothing with it, send no
   message about it, and it is not an undone order for ending the heartbeat.
 - End the heartbeat, never your session (an idle session still receives an order), right after
-  the pause (the CLI's or yours), and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the
-  last wake and no order is undone: every Driver has ended, ready or blocked, for 30 minutes at
-  least. A stack or batch blocked and not finished is such a stop: the batch stays running, the user
+  the pause (the CLI's or yours), and on the first wake that sees no Driver of any kind (CR, stack,
+  QA, release) run for 30 minutes or more, whatever the wake's interval, and no order is undone:
+  every Driver has ended, ready or blocked, for 30 minutes at least. The 30 minutes do not follow
+  the wake. A stack or batch blocked and not finished is such a stop: the batch stays running, the user
   wakes you, and its asks are recorded, so send no further line. While any Driver runs, the
   heartbeat goes on. An order's line or a `ping` starts a turn; if it leaves a Driver running,
   arm the heartbeat again. The host's reference says how it ends, and when it is not yours to end.

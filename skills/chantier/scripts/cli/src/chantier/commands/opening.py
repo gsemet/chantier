@@ -30,8 +30,8 @@ from chantier.lifecycle.stages import (
     prepared_cr,
     stage_layout,
 )
-from chantier.playbook.lines import ci_lines, ci_source
-from chantier.plugin_files import detect_host, read_playbook
+from chantier.playbook.lines import ci_lines, ci_source, timing_text
+from chantier.plugin_files import detect_host, read_playbook, read_timing
 from chantier.rails import ENDED, alone, check_no_open_batch, is_release
 
 
@@ -238,6 +238,7 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
         + (f"- Release grant: {grant_line(release)}\n" if release else "")
         + instructions
         + ".\n"
+        + f"- Timing: {timing_text(data.timing, host)}\n"
         "- Team (who runs which role):\n"
         + (
             f"- CI beside the long gate: on ({ci_source(data.playbook)}).\n"
@@ -267,8 +268,9 @@ def open_batch(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     host = detect_host()
     team, problems = read_playbook(repo, host)  # before any folder moves
-    if problems:
-        raise ChantierError("\n".join(problems), EXIT_PRECONDITION)
+    timing, more = read_timing(repo, host)
+    if problems or more:
+        raise ChantierError("\n".join([*problems, *more]), EXIT_PRECONDITION)
     settings = open_settings(repo, args)
     repo.config.update(settings)
     paths = stage_layout(repo)
@@ -288,6 +290,7 @@ def open_batch(args: argparse.Namespace) -> list[str]:
     if team:  # a running batch keeps the playbook it opened with
         # the prices are read live at each pricing, not frozen with the roles
         data.playbook = {k: v for k, v in team.items() if k not in ("prices", "price_layers")}
+    data.timing = timing  # a running batch keeps the timing it opened with, whatever the files
     with changes_lock(repo):
         check_no_open_batch(repo)
         with RenderedBatch(repo, None, actor="chief-of-staff", create=data) as b:

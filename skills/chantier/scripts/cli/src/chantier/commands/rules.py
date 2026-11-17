@@ -10,7 +10,7 @@ from pathlib import Path
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook.lines import escalate_line, playbook_lines
+from chantier.playbook.lines import escalate_line, playbook_lines, timing_lines, timing_warnings
 from chantier.plugin_files import (
     INSTRUCTIONS,
     chief_prompt_lines,
@@ -18,6 +18,8 @@ from chantier.plugin_files import (
     plugin_roles,
     project_instructions,
     read_playbook,
+    read_timing,
+    recorded_timing,
     surface_instructions,
     user_files,
 )
@@ -56,11 +58,13 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = Repo.find()
     if args.batch:
         d = read_batch(repo, resolve_batch(repo, args.batch))
-        made, host = d.playbook, d.host
+        made, host, timing = d.playbook, d.host, recorded_timing(d)
         label = d.id or args.batch
     else:
         host = detect_host(args.host)
         made, problems = read_playbook(repo, host)
+        timing, more = read_timing(repo, host)
+        problems += [p for p in more if p not in problems]
         label = None
         if problems:
             return [
@@ -69,6 +73,7 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
                 *problems,
             ], EXIT_PRECONDITION
     lines = playbook_lines(made, host, plugin_roles(host), label)
+    lines += timing_lines(timing, host) + timing_warnings(timing, host)
     # first lines to copy as printed: the Chief of Staff's all, the Foreman's (in a batch) only
     # those of the agents whose description says the Foreman starts them
     started_by = "Foreman" if args.batch else None

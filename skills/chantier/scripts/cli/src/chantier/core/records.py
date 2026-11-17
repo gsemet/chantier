@@ -188,6 +188,7 @@ class BatchRecord(Record):
     crs: list[CrEntry] = []
     release: ReleaseGrant | None = None
     playbook: dict[str, Any] | None = None
+    timing: dict[str, Any] | None = None
     paused: str | None = None
     summary: list[str] = []
     closing: bool = False

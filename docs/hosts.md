@@ -6,8 +6,11 @@ For Foreman mode:
 
 | Host | Nested session | Foreman heartbeat |
 | --- | --- | --- |
-| Claude Desktop | `start_session`, left linked | 30 minutes |
-| Copilot SDK host | `create_session` + `send_message` | 4 minutes (`/every`) |
+| Claude Desktop | `start_session`, left linked | the configured steering wake (30 minutes by default) |
+| Copilot SDK host | `create_session` + `send_message` | the configured steering wake (4 minutes by default, `/every`) |
+
+The heartbeat stops on the first wake that sees no Driver run for 30 minutes or more, whatever the
+wake's interval. The settings are `hosts.<host>.timing` ([your agents and models](agents-and-models.md)).
 
 Foreman mode refuses every other host (a VS Code tab, the terminal, ...): with no argument the
 batches are direct mode there, and a forced `foreman` is refused with the reason. An unattended run and a linked worktree are refused in both modes, with no

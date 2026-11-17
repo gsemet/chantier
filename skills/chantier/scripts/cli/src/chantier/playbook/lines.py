@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from chantier.playbook.config import FILE, default_agent
-from chantier.playbook.models import ESCALATION, MODELS
+from chantier.playbook.models import ESCALATION, HOST_NAMES, MODELS
 
 GENERIC_AGENT = "(generic)"
 GENERIC_TOOLS = "(the caller's, not restricted)"
@@ -155,3 +155,67 @@ def team_lines(resolved: dict[str, Any] | None) -> list[str]:
         f"team: {role} " + _fields(rec, _agent(rec), False, rec_labels(layers, role))
         for role, rec in resolved.get("roles", {}).items()
     ]
+
+
+SECONDS_PER_MINUTE = 60
+TIMING_WORDS = {
+    "steering_wake": "steering wake",
+    "cache_ttl": "cache TTL",
+    "ci_reruns": "CI re-runs",
+}
+
+
+def minutes(seconds: int) -> str:
+    """A duration as the CLI prints it: `30 min`, or `1 min 30 s` when not whole minutes."""
+    whole, rest = divmod(seconds, SECONDS_PER_MINUTE)
+    return f"{whole} min {rest} s" if rest else f"{whole} min"
+
+
+def _timing_entry(setting: str, entry: dict[str, Any]) -> str:
+    value = str(entry["value"]) if setting == "ci_reruns" else minutes(entry["value"])
+    text = f"{TIMING_WORDS[setting]} {value}"
+    return text if entry["layer"] == "defaults" else f"{text} [{entry['layer']}]"
+
+
+def _timing_rows(timing: dict[str, Any], host: str) -> list[tuple[str, dict[str, Any]]]:
+    """Each printed row of a host: its name and the settings it reads, in a fixed order. A
+    Copilot host also has `other models`: the general values."""
+    name = HOST_NAMES[host]
+    rows: list[tuple[str, dict[str, Any]]] = []
+    for column, settings in timing["columns"].items():
+        label = f"{column} models" if host == "copilot" else column
+        rows.append((f"{name} {label}", {s: e for s, e in settings.items() if e is not None}))
+    if host == "copilot":
+        rows.append((f"{name} other models", {s: e for s, e in timing["general"].items() if e}))
+    return rows
+
+
+def timing_lines(timing: dict[str, Any] | None, host: str) -> list[str]:
+    """One `timing:` line per column of the host, with the settings that column reads, each
+    followed by the layer that set it (none for a shipped default)."""
+    if not timing:
+        return []
+    return [
+        f"timing: {name}: " + ", ".join(_timing_entry(s, e) for s, e in settings.items())
+        for name, settings in _timing_rows(timing, host)
+    ]
+
+
+def timing_warnings(timing: dict[str, Any] | None, host: str) -> list[str]:
+    """One line for each column whose steering wake is longer than its cache TTL."""
+    if not timing:
+        return []
+    out = []
+    for name, settings in _timing_rows(timing, host):
+        wake, ttl = settings.get("steering_wake"), settings.get("cache_ttl")
+        if wake and ttl and wake["value"] > ttl["value"]:
+            out.append(
+                f"timing: {name}: steering wake {minutes(wake['value'])} is above the cache TTL "
+                f"{minutes(ttl['value'])}: each wake starts cold"
+            )
+    return out
+
+
+def timing_text(timing: dict[str, Any] | None, host: str) -> str:
+    """The timing lines on one line, for the brief."""
+    return "; ".join(line.removeprefix("timing: ") for line in timing_lines(timing, host))

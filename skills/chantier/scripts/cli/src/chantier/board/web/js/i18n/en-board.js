@@ -67,4 +67,18 @@ export default {
   'config.save': 'Save',
   'config.cancel': 'Cancel',
   'config.unreadable': 'The configuration could not be read just now.',
+  'config.tab_models': 'Models',
+  'config.tab_timing': 'Timing',
+  'config.leg_default': 'shipped default',
+  'config.leg_set': 'set in chantier.yaml',
+  'config.th_setting': 'Setting',
+  'config.not_used': 'not used',
+  'config.timing_steering_wake': 'Steering wake',
+  'config.timing_steering_wake.text':
+    'how often the Foreman or Chief of Staff wakes while it waits',
+  'config.timing_cache_ttl': 'Prompt cache TTL',
+  'config.timing_cache_ttl.text': 'the wake stays under it, to keep the cache warm',
+  'config.timing_ci_reruns': 'CI re-runs max',
+  'config.timing_ci_reruns.text': 're-runs of a CI job failed on the infrastructure',
+  'config.timing_unreadable': 'The timing could not be read: the shipped defaults are missing.',
 };

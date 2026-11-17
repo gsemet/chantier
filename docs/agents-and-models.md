@@ -49,7 +49,9 @@ A stronger layer takes a weaker value back by writing `default` (`~` and `null` 
 the value. The surface root names `agent: my-coder`, one project's `chantier.yaml` writes
 `agent: default`, and that project runs the plugin's Coder. `model: default` brings back the
 shipped model, and `prices: <id>: default`, `board: default`, `ci: default`, `long_gate: default`
-and `hosts: copilot: roles: coder: default` do the same for what they name. No model and no agent
+and `hosts: copilot: roles: coder: default` do the same for what they name; so does a timing
+setting's `default` (`hosts: claude: timing: session: cache_ttl: default`, or `timing: default`
+for the whole block), which brings back the shipped value. No model and no agent
 can be named `default` (a quoted `"default"` is refused), and an empty value (`agent:` with nothing
 after it) is not a reset: it is refused. `chantier playbook` prints each value with its layer in
 brackets, and `[reset in <layer>]` for a value taken back. A top-level `roles` key is refused in
@@ -76,6 +78,23 @@ generic, or as your own agent, is counted with the Chief of Staff's steering, no
 of `chantier cost` (`cost --explain` says so).
 
 ### The file's keys
+
+`hosts.<host>.timing` sets three settings: `steering_wake` (how often the Foreman, or the Chief of
+Staff in direct mode, wakes to refresh the status), `cache_ttl` (how long the host's prompt cache
+keeps a prefix; the CLI warns when a wake is longer than it, as each wake then starts cold) and
+`ci_reruns` (how many times a Driver re-runs a CI job that failed on the infrastructure, 0 or
+more). Durations are `<n>s`, `<n>m` or `<n>h`, at least one minute. Written directly under
+`timing:`, a setting is the general value; under a column it is that column's. Claude Code's
+columns are `subagent` (a Driver: reads `cache_ttl` and `ci_reruns`) and `session` (the Foreman or
+the Chief of Staff: reads `steering_wake` and `cache_ttl`); Copilot's are `claude` and `gpt`, the
+model family, each reading all three, and the general value serves every other model. A setting
+under a column that does not read it is refused. Bounds: on Claude Code `steering_wake` is at most
+60 minutes; on Copilot a duration is whole minutes. The shipped defaults are today's behaviour:
+Claude Code `steering_wake` 30m, `cache_ttl` 1h for a session and 5m for a subagent, `ci_reruns` 1;
+Copilot `steering_wake` 4m, `cache_ttl` 5m, `ci_reruns` 1. A column's value beats the general one
+within a layer, and a stronger layer beats a weaker one, whatever the key. `chantier playbook`
+prints the result as `timing:` lines; a running batch keeps the timing it opened with. The
+[web board](web-board.md)'s Configuration page has a Timing tab for it.
 
 The file's other keys are `prices`, `board` (where [the web board](web-board.md) listens: `host`
 and `port`), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI

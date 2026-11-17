@@ -9,8 +9,17 @@ import { paint } from '../core/paint.js';
 import { snapshot } from '../core/store.js';
 import { t } from '../model/words.js';
 import { empty } from '../ui/parts.js';
+import { tabAddress, tabOf, tabs, timingTab } from './config-timing.js';
 
-const local = { project: null, view: null, pending: [], lines: [], saved: [], failed: false };
+const local = {
+  project: null,
+  view: null,
+  pending: [],
+  lines: [],
+  saved: [],
+  failed: false,
+  tab: 'models',
+};
 
 const redraw = (root) => paint(root, render(snapshot()));
 
@@ -151,8 +160,10 @@ export function render() {
   if (local.failed) return html`<div class="config">${empty(t('config.unreadable'))}</div>`;
   const view = local.view;
   if (!view) return html`<div class="config">${empty(t('stats.loading'))}</div>`;
+  if (local.tab === 'timing')
+    return html`<div class="config" data-key="config">${tabs(local.tab)}${banner(view)}${timingTab(view)}</div>`;
   const blocks = Object.entries(view.hosts).map(([id, host]) => hostBlock(id, host, view.writable));
-  return html`<div class="config" data-key="config">${banner(view)}${actions()}${blocks}${others(view)}</div>`;
+  return html`<div class="config" data-key="config">${tabs(local.tab)}${banner(view)}${actions()}${blocks}${others(view)}</div>`;
 }
 
 // The answer of a refused write: the board's text, or its status when it said nothing.
@@ -220,9 +231,15 @@ export function mount(root, state) {
   local.lines = [];
   local.saved = [];
   local.view = null;
+  local.tab = tabOf(location.hash);
   load(root, state.project);
   const offs = [
     delegate(root, 'change', '[data-field]', (_, el) => change(root, el)),
+    delegate(root, 'click', '[data-tab]', (_, el) => {
+      local.tab = el.dataset.tab;
+      history.replaceState(null, '', tabAddress(local.tab));
+      redraw(root);
+    }),
     delegate(root, 'click', '[data-save]', () => save(root)),
     delegate(root, 'click', '[data-cancel]', async () => {
       local.pending = [];

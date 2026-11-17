@@ -23,11 +23,12 @@ from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import cr_directory
-from chantier.playbook.lines import ci_lines, team_lines
+from chantier.playbook.lines import ci_lines, team_lines, timing_lines
 from chantier.plugin_files import (
     archive_path,
     cli_command,
     project_instructions,
+    recorded_timing,
     skill_dir,
     worker_prompt_lines,
 )
@@ -108,6 +109,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         lines
         + team_lines(d.playbook)
         + ci_lines(d.playbook)
+        + timing_lines(recorded_timing(d), d.host)
         + worker_prompt_lines(d.host, repo.root.as_posix(), (c.id, c.title), batch, d.playbook)
     )
 

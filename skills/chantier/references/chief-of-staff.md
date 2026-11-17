@@ -32,6 +32,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
 | "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
 | "run CI beside the gate", "CI earlier", "push before the gate" | `ci: beside_gate: true` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it; it counts from the next batch, and it spends CI minutes on every approved round | The project |
+| "wake the Foreman every X", "the cache TTL", "CI re-runs", "timing" | `hosts.<host>.timing` in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show it (and its warnings); it counts from the next batch | The project |
 | "add a <kind> review" | the `chantier` section of `AGENTS.md`, on the user's word | The project |
 | "I restarted the app", "resume" | liveness check; on the user's word, preflight and a new Foreman | While it runs |
 | a stack is ready to merge, or "demo" | offer a demo; on a yes, the `demo-explorer`, then guide the user through each change | Subagents and the demo |
@@ -814,7 +815,7 @@ Only in the turn where the user gave the go:
    <skill>/references/concepts.md now; defer every other section until its step names it.
    CLI: <$CHANTIER, exactly as your skill gives it> <command> --batch <batch>
    Repository: <this repository's absolute path>
-   Team: <the lines of `$CHANTIER playbook`, as printed, and the review steps; or "the plugin's agents">
+   Team: <the lines of `$CHANTIER playbook`, as printed (its `timing:` lines and any TTL warning too), and the review steps; or "the plugin's agents">
    Needs: <only if a role needs skills or tools: as printed>
    (the Foreman reads `$CHANTIER playbook --batch <batch>` itself to start a Driver)
    ```
@@ -1255,8 +1256,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   Foreman's first `take`; send the Foreman the usual order once all are added, and it pauses again
   at the end. Where the heartbeat is yours (the host's reference says),
   tell the user to delete it in the Foreman chat at the pause, and again when the Foreman ends it
-  because every Driver has ended for 30 minutes (nothing can move); arm it again with the next
-  order you send the Foreman.
+  on the first wake that sees no Driver run for 30 minutes or more (nothing can move); arm it
+  again with the next order you send the Foreman, at the wake `hosts/copilot.md` reads from the
+  batch's `timing:` lines.
 - **Any other list of changes you propose on your own.** Before proposing, on your own
   initiative, changes to chantier or to the project (a retro after a release or a closed batch, a
   report's suggestions, an answer to a question such as "are the workers useful?", even a single

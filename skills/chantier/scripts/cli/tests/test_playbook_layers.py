@@ -45,7 +45,7 @@ def test_the_shipped_defaults_give_each_role_the_model_its_agent_file_declares(
     assert not found and set(tree.value) == {"hosts"}  # valid, and nothing else
     assert set(tree.value["hosts"][1].value) == {"claude", "copilot"}
     held = tree.value["hosts"][1].value[host_name][1].value
-    assert set(held) == {"roles"}
+    assert set(held) == {"roles", "timing"}
     roles = held["roles"][1].value
     assert sorted(roles) == sorted(ROLES) == sorted(plugin_roles(host_name))  # one per agent file
     for role, (_, node) in roles.items():

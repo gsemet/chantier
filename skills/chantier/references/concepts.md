@@ -409,7 +409,8 @@ agent's name). Which agent and which model come from the playbook, the configura
 (the plugin's defaults, then optional `chantier.yaml` files) that only the CLI reads, merges,
 validates and resolves (it may also carry `prices:` for
 models the built-in table lacks, read by the CLI only when it prices, and `ci:` with
-`beside_gate: true`, which the CLI prints as one `ci:` line):
+`beside_gate: true`, which the CLI prints as one `ci:` line, and `hosts.<host>.timing`, which the
+CLI prints as `timing:` lines):
 
 - The parent passes the agent and, when one is printed, the model, exactly as `$CHANTIER` printed
   them (`playbook`, `playbook --batch`, or the `team:` lines of `take`, `round` and `handoff`):
@@ -567,7 +568,7 @@ running agent's model, never a retry of the same agent, and never a model typed 
 
 | Trigger | Who sees it | The new agent on the escalation model |
 | --- | --- | --- |
-| A CR blocked twice: two hand-backs `blocked` of the same CR that show trouble in the work (`refused`, `infra:` after its one re-run, `driver ended twice`, `stopped`). A hand-back that waits on the user or on another thing never counts (`question:`, `approval:`, `merge:`, `waits:`, `fix:`, `budget:`), nor does `rounds:`, which has its own trigger below; a Driver stopped from outside never counts either (it is no hand-back, and it does not make `driver ended twice`) | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next CR Driver, with `take <cr> --note "escalate: blocked twice: <reasons>"` |
+| A CR blocked twice: two hand-backs `blocked` of the same CR that show trouble in the work (`refused`, `infra:` after its re-runs, `driver ended twice`, `stopped`). A hand-back that waits on the user or on another thing never counts (`question:`, `approval:`, `merge:`, `waits:`, `fix:`, `budget:`), nor does `rounds:`, which has its own trigger below; a Driver stopped from outside never counts either (it is no hand-back, and it does not make `driver ended twice`) | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next CR Driver, with `take <cr> --note "escalate: blocked twice: <reasons>"` |
 | The rounds used up with the Inspector still `FIX-REQUIRED` | the CR Driver hands back `blocked rounds:` as always; the round limit stays the user's (`order rounds`): escalation never grants a round | once the user grants more rounds, the CR's next Driver is told `escalate: rounds` and starts the Coder of each new round on the escalation model |
 | A red check the Debugger could not explain (its `diagnosis.md` names no cause with evidence) | the Driver that started it (CR or stack) | a new `debugger` on the same check, given the first `diagnosis.md` |
 | A conflict the resolver could not settle (it stopped with no resolution, other than "two product intents in conflict", which stays a question for the user) | the Driver that started it (CR or stack) | a new `conflict-resolver` on the same rebase, given the first `conflicts.md` |

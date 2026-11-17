@@ -16,8 +16,8 @@ from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, C
 from chantier.core.files import retry, write_bytes
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import changes_lock
-from chantier.playbook import config, edit_text, layers, models
-from chantier.playbook.lines import GENERIC_AGENT
+from chantier.playbook import config, edit_text, layers, models, timing, timing_check
+from chantier.playbook.lines import GENERIC_AGENT, minutes
 from chantier.playbook.yaml_subset import Node, is_reset
 from chantier.plugin_files import HOSTS, plugin_roles, plugin_root
 
@@ -200,8 +200,56 @@ def _flat(node: Node, path: tuple[str, ...]) -> list[dict[str, str]]:
         ]
     if path[:1] == ("hosts",) and path[-1] in KEYS:
         return []
+    if path[:1] == ("hosts",) and path[2:3] == ("timing",):
+        return []  # the Timing tab shows it
     value = ", ".join(n.value for n in node.value) if node.kind == "list" else node.value
     return [{"path": ".".join(path), "value": str(value), "layer": node.layer}] if value else []
+
+
+TIMING_COLUMN_WORDS = {
+    "subagent": "Subagent",
+    "session": "Session",
+    "claude": "Claude models",
+    "gpt": "GPT models",
+}
+
+
+def _timing_cell(setting: str, entry: dict[str, Any] | None) -> dict[str, Any]:
+    """A cell of the Timing tab: the value that applies, the layer (and file) behind it and
+    whether it is the shipped default, or `not_used`."""
+    if entry is None:
+        return {"not_used": True}
+    value = entry["value"]
+    return {
+        "value": value,
+        "text": str(value) if setting == "ci_reruns" else minutes(value),
+        "layer": entry["layer"],
+        "src": entry["src"],
+        "default": entry["layer"] == "defaults",
+    }
+
+
+def _timing_view(user: list[layers.Layer], defaults: Node | None) -> dict[str, Any] | None:
+    """The timing of each host for the page: its columns, then for each setting its cell per
+    column and the general value. None when the defaults are not readable."""
+    if defaults is None:
+        return None
+    found = timing.timing_from(user, defaults)
+    out: dict[str, Any] = {}
+    for host, one in found.items():
+        columns = list(one["columns"])
+        out[host] = {
+            "name": models.HOST_NAMES[host],
+            "columns": [{"id": c, "name": TIMING_COLUMN_WORDS[c]} for c in columns],
+            "settings": {
+                s: {
+                    "general": _timing_cell(s, one["general"][s]),
+                    "columns": {c: _timing_cell(s, one["columns"][c][s]) for c in columns},
+                }
+                for s in timing_check.TIMING_SETTINGS
+            },
+        }
+    return out
 
 
 def _batch(repo: Repo) -> str | None:
@@ -228,6 +276,7 @@ def _view(
     assert last is not None
     return {
         "hosts": hosts,
+        "timing": _timing_view(user, defaults),
         "others": _flat(last.merged.tree, ()),
         "files": [
             {"label": "defaults", "path": layers.DEFAULTS_DISPLAY},
