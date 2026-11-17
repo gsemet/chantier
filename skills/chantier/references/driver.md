@@ -26,7 +26,9 @@ defer the rest of this card until an action names it. These are the card's defau
   decisions and open points, and its evidence, to brief the workers, write `pr-body.md` and judge
   the Verifier's proof. The detail of "What changes" is the Coder's and the Inspector's to read:
   they read the specification themselves (their prompt names it). Read that detail when a brief
-  or a judgment needs it.
+  or a judgment needs it. One thing you do read there: the list of file edits (each file the
+  specification names, with the change to make there, card edits included). You copy it into each
+  Coder's prompt as a checklist (see the round step in "CR driver").
 - **By section, when the step comes:**
   - [concepts](concepts.md): "Starting an agent" before the first worker's start, "Escalation"
     only when one of its triggers arises, a rule or a word of "Words" when a link of this card
@@ -200,6 +202,18 @@ defer the rest of this card until an action names it. These are the card's defau
   stop only one you started, by its id (a running long gate is stopped with `gate <cr> --stop`,
   never by ending the `gate` command, which leaves its suite running). A command the host may refuse runs alone, never chained
   with routine steps.
+- **Before the first push:** run the project's fast gate again, in the worktree, at the rebased
+  committed head you are about to push, with any extra pre-push check the project's rules name
+  (`$CHANTIER rules`) for the kind of change the CR is. The Coder ran the fast gate on the round's
+  base, and the rebase may have changed what it checks. These are short gates: you run them
+  yourself, one command per call, never through `gate`. A failure is a round: a `coder` with the
+  failing lines in its prompt, then the reviews, then these checks again at the new head before
+  the push. Record each result with `$CHANTIER note <cr> "before first push at <sha7>: <command>:
+  pass"` (one note per command, or one note naming each). When the rules name no fast gate and no
+  pre-push check, there is nothing to run and no note. The step holds whichever way the first push
+  happens: before `gate` runs; before the push when the long gate is a pipeline job; before the
+  push with the `ci: beside the long gate` line. It is not a third gate, and the long gate stays
+  as it is.
 - The long gate, the project's command, before the first push and the PR (with the `ci: beside
   the long gate` line, at the head you pushed, started right after `ship`, while CI runs; the
   "CI" bullet gives that order): `$CHANTIER gate <cr> "<command>"
@@ -578,7 +592,13 @@ rounds, your own reading of the code is an `investigator` or a `debugger`, not y
 Before round 1,
 when the code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
 investigator's report, which you validate and correct): with no investigator, you write it
-yourself. Each round: a `coder` with the brief, then you write or update `pr-body.md`, then an
+yourself. Each round: a `coder` with the brief (and, when the specification names files, the
+checklist: the list of file edits it gives in "What changes", each file with the change, card
+edits included, copied into the Coder's prompt, one line per edit; in the prompt only, the `--note`
+of `round` stays the one-line brief, which the CLI logs as the step line; from round 2 on, only the
+items the previous `r<n>.md` mark `open` or leave unmarked, plus the items a review sent back; a
+specification that names no file gives none; the Inspector and the Verifier read the specification
+themselves), then you write or update `pr-body.md`, then an
 `inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
 included) and `pr-body.md`, and each review step your `Team:` lists, in order; `FIX-REQUIRED` is
 the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (written
@@ -592,9 +612,10 @@ same contents; a file touched after the review means a new `inspector` on the ne
 commit), then commit (stage the files the
 round changed by name, `git -C <worktree> add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above), check
 `git -C <worktree> diff --stat <commit> -- <paths>` against the reviewed state is empty and the tree is clean, and record
-`note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase, the long gate (a
+`note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase, the checks before
+the first push (see "Your means"), the long gate (a
 failure is a round), push, the PR, `ship`, CI (with the `ci: beside the long gate` line: rebase,
-push, the PR, `ship`, then the long gate and CI side by side, a failure of either that is the
+the checks before the first push, push, the PR, `ship`, then the long gate and CI side by side, a failure of either that is the
 CR's being a round and a red CI job stopping the gate first), then a `verifier` at the pushed
 head (with the line, once the gate passed and CI is judged green), given the plan
 (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence

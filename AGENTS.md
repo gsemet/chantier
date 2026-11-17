@@ -1,6 +1,9 @@
 # AGENTS.md
 
 - Run `just check` before you hand back; it must pass on Linux, macOS and Windows.
+- Before a CR's first push, its Driver runs `just check` in the worktree, at the rebased head it
+  pushes; for a change under the CLI's `src/` (`skills/chantier/scripts/cli/src/`) or the eval kit
+  (`evals/kit/`) it also runs `just eval-dry-run` there. A cards-only change does not owe it.
 - The long gate is the pipeline's `just scenario (ubuntu-latest)` job, green at the PR's head: a
   change to the CLI, the cards or the scenario passes it before its PR; a change to the docs or the
   eval kit alone needs none. Windows coverage: in each batch, the CR on top of the stack also
