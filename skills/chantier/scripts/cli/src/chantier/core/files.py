@@ -19,6 +19,19 @@ else:
 
 _T = TypeVar("_T")
 LOCK_TIMEOUT_S = 30
+FRONTMATTER = re.compile(r"\A\ufeff?---[ \t]*\n(?:.*?\n)?---[ \t]*(?:\n|\Z)", re.S)
+HEADING_LINE = re.compile(r"#{1,6} (.*)")
+
+
+def markdown_title(text: str) -> str:
+    """A document's title: its first heading after a leading front matter, else its first
+    non-blank line without its `#`s, else an empty string."""
+    lines = FRONTMATTER.sub("", text.replace("\r\n", "\n"), count=1).split("\n")
+    for line in lines:
+        found = HEADING_LINE.match(line)
+        if found:
+            return found[1].strip()
+    return next((ln.lstrip("# ").strip() for ln in lines if ln.strip()), "")
 
 
 def try_lock(f: IO[str]) -> bool:

@@ -51,6 +51,7 @@ from chantier.stacks import (
     stack_base,
     start_on_for,
 )
+from chantier.status.views import shown_title
 
 
 def _reopen(b: Batch) -> list[str]:
@@ -97,7 +98,8 @@ def _cr_driver_block(repo: Repo, batch: str, c: CrEntry, facts: list[str]) -> Dr
     writes = cr_directory(repo, c).as_posix()
     if archive := archive_path(repo, c):
         writes += f"; {Path(c.worktree, archive).as_posix()}/"
-    fill = {"<cr>": c.id, "<title>": c.title, "<batch>": batch, "<root>": repo.root.as_posix()}
+    title = shown_title(c.title, cr_directory(repo, c))
+    fill = {"<cr>": c.id, "<title>": title, "<batch>": batch, "<root>": repo.root.as_posix()}
     return DriverBlock(fill, facts[1].removeprefix("cli: "), facts[2:], writes)
 
 

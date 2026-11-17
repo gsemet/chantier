@@ -28,6 +28,7 @@ from chantier.core.repo import Repo
 from chantier.history import close_markdown, close_record, release_retro_line, stopped_agents
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import STATE_FOLDERS, archive_name, stage_layout
+from chantier.status.views import shown_title
 from chantier.status.write import write_final_pages
 
 
@@ -118,8 +119,22 @@ def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
     """`batch-NN.json` and `batch-NN.md` as `close` writes them, the CRs at their archives."""
     by_cr = cost_groups(k.repo, k.batch, k.rows, "cr")
     closed = now()
+    titled = record.model_copy(
+        update={
+            "crs": [
+                c.model_copy(
+                    update={
+                        "title": shown_title(
+                            c.title, k.repo.planning_path(c.path) if c.path else None
+                        )
+                    }
+                )
+                for c in record.crs
+            ]
+        }
+    )
     final = {
-        **close_record(record, closed, sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr),
+        **close_record(titled, closed, sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr),
         "cost_receipt": k.receipt,
         **stopped_agents(k.stopped, closed),
     }

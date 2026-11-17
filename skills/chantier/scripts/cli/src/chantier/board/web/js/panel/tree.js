@@ -39,7 +39,7 @@ export function groups(list) {
 }
 
 const button = (file, open) =>
-  html`<button type="button" class="${file.dir ? 'ind' : ''}${file.path === open ? ' on' : ''}" data-file="${file.path}" data-key="file-${file.path}"${file.path === open ? html` aria-current="true"` : ''}><span class="ic">${icon(iconOf(file))}</span><span class="nm">${file.name}</span><span class="sz">${size(file.size)}</span></button>`;
+  html`<button type="button" class="${file.dir ? 'nested' : ''}${file.path === open ? ' on' : ''}" data-file="${file.path}" data-key="file-${file.path}"${file.path === open ? html` aria-current="true"` : ''}><span class="ic">${icon(iconOf(file))}</span><span class="fname">${file.name}</span><span class="sz">${size(file.size)}</span></button>`;
 
 const section = (dir, open) =>
   html`<div class="dir">${dir.name}/ · ${dir.files.length}</div>${dir.files.map((f) => button(f, open))}`;

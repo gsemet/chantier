@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.core.files import is_lock, read_text
+from chantier.core.files import FRONTMATTER, is_lock, read_text
 from chantier.status.views import spec_state
 from chantier.summaries.view import summary_view
 
@@ -26,9 +26,6 @@ def _plain(paragraph: str) -> str:
     for pattern, repl in MARKS:
         paragraph = pattern.sub(repl, paragraph)
     return " ".join(paragraph.split())
-
-
-FRONTMATTER = re.compile(r"\A\ufeff?---[ \t]*\n(?:.*?\n)?---[ \t]*(?:\n|\Z)", re.S)
 
 
 def _first_paragraph(text: str) -> str:

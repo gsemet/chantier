@@ -13,6 +13,7 @@ from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
 from chantier.stacks import READY_TO_MERGE, chain, ready_word, stack_base
 from chantier.status.gate import gate_view
+from chantier.status.views import shown_title
 from chantier.status.words import next_to_start, phase_text, severity, state_label, waits
 
 
@@ -73,7 +74,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "phase": phase_text(c),
         "next_to_start": c.id == next_to_start(d),
         "cr": c.id,
-        "title": subject(c.title),
+        "title": subject(shown_title(c.title, folder)),
         "folder": repo.rel(folder) if folder else None,
         "state": c.status,
         "label": state_label(repo, d, c, waiting),
