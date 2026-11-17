@@ -17,6 +17,7 @@ from chantier.commands.crs import (
     short_head,
 )
 from chantier.commands.forge_base import stacked_read
+from chantier.commands.forge_stack_gitlab import GITLAB_LINK
 from chantier.core.errors import ChantierError
 from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, ReleaseGrant, round_limit
@@ -40,6 +41,7 @@ from chantier.stacks import (
     validating_cr,
     waived_gate,
 )
+from chantier.status.gate import pr_number
 
 
 def _ref(repo: Repo, branch: str) -> str:
@@ -232,11 +234,22 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
     `stack` with no CR print)."""
     crs = chain(d)
     return [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"] + [
-        f"{x.id} {state_word(d, x, repo)} worktree {x.worktree} branch {x.branch} "
+        f"{x.id} {stack_label(x)} worktree {x.worktree} branch {x.branch} "
         f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'} head {short_head(x.head) or '-'} "
         f"{_last_restack(x)}{_off_place_tail(d, x, repo)}"
         for x in crs
     ]
+
+
+def stack_label(c: CrEntry) -> str:
+    """A stack row's label: the CR's recorded status, then, with a PR, its draft flag as last
+    recorded and its number (`ready, PR draft (#251)`)."""
+    if not c.pr:
+        return c.status
+    flag = "draft not read" if c.pr_draft is None else "draft" if c.pr_draft else "out of draft"
+    gl = GITLAB_LINK.match(c.pr)
+    ref = f"!{gl[3]}" if gl else pr_number(c.pr)
+    return f"{c.status}, PR {flag}" + (f" ({ref})" if ref else "")
 
 
 def _off_place_tail(d: BatchRecord, c: CrEntry, repo: Repo) -> str:

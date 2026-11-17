@@ -14,7 +14,9 @@ and how an agent is started. Each worker reads its own card, which restates the 
 - **Pull request (PR):** a merge request on GitLab.
 - **Ready (the status):** the CR's stored status `ready` in `batch.json`: its Driver handed it back
   (`handback <cr> ready <link>`). It is a token the rails and old records read; the CLI derives
-  from it the three words below, and no person reads `ready` alone.
+  from it the three words below, and no person reads `ready` alone, but in one place: the stack rows of `take stack` and `stack`
+  show it with the PR's draft flag (`ready, PR draft (#251)`), for the stack driver, which makes the
+  stack from it. The three derived words stay everywhere else.
 - **Ready to merge** (🟢): a CR handed back `ready` whose PR is out of draft on the forge (the CLI
   records it: `ship` reads it from the forge, `stack --out-of-draft`, never ahead of the forge) and, in a
   stack batch, with every CR under it ready to merge too; outside a stack its PR's base on the

@@ -721,8 +721,9 @@ it stands on the forge, its mergeable part ready to merge and the drafts on top;
 with it complete (see [concepts](concepts.md), "Stack").
 
 **Ordering.** Name with `$CHANTIER stack <cr>…` every CR that `take stack` prints with a PR, in the
-stack's order: the ones ready to merge first (those already in the mergeable part in their place, then the
-newly ready in their place order), then the drafts (those already stacked in their place, then the
+stack's order, by the row labels: first the CRs handed back ready (`ready, …`: those already in the
+mergeable part in their place, then the newly ready in their place order), then the CRs with a PR
+that are not handed back ready (`working, …`, `blocked, …`: those already stacked in their place, then the
 newly joined in planned order). The CRs to come (no PR yet) are not named, nor a row printed `not
 on its place` (it stays above, to come); a working CR already on its place stays right above the CR
 its PR sits on. A CR always sits above
@@ -755,11 +756,11 @@ CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$C
 the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`.
 
-**Making the stack.** Once two CRs are handed back ready with their PRs, the moment the stack can form (ordered,
+**Making the stack.** Once two CRs are handed back ready with their PRs (the rows' `ready`, whatever the draft flag), the moment the stack can form (ordered,
 restacked, pushed, `ship`ped, CI green at the top), create the native stack on the forge with the
 means your prompt names: the `gh stack` extension, or `$CHANTIER forge-stack create` when the
 user declined the extension (it retargets the PRs of the stack as it stands whose base is not the
-record's, then creates the stack, in one command; never a retarget by hand); the PRs bottom to top, the CRs with a draft PR on top as drafts. The first take ends with the stack made, whatever a working CR is doing. Then turn every PR of
+record's, then creates the stack, in one command; never a retarget by hand); the PRs bottom to top, the CRs not handed back ready on top, as drafts; the CRs handed back ready form the mergeable part, turned ready after the stack is made. The first take ends with the stack made, whatever a working CR is doing. Then turn every PR of
 the mergeable part ready (`gh pr ready`), not only the bottom one, and record them right after
 the forge command: `$CHANTIER stack --out-of-draft <cr>…` (refused for a CR not handed back `ready`
 and for one with a draft under it). A means that is not available as the prompt names it
@@ -814,8 +815,13 @@ Green and checked: `[stack→foreman] hand-back ready to merge <stack
 link> <cr>=<link>…`.
 
 The stack is what your prompt gives from `take stack`, each CR with its base (the state computes
-it: the CR under it, the first on the default branch). `$CHANTIER stack` with no CR prints it
-again at any time and changes nothing. You never run `take stack`: the Foreman runs it and passes
+it: the CR under it, the first on the default branch). Each row's label is the CR's hand-back
+state and, after a comma, its PR's draft flag as last recorded (`ship`, `stack
+--out-of-draft|--draft`): `ready, PR draft (#251)`. A CR is handed back ready when its label starts
+with `ready`, whatever its PR's draft flag; a PR still a draft is yours to turn ready, never a
+reason to wait. In the rows, the mergeable part is the run from the bottom of rows that read
+`ready, PR out of draft (…)`, and "ready to merge" in this section means a CR of that run.
+`$CHANTIER stack` with no CR prints it again at any time and changes nothing. You never run `take stack`: the Foreman runs it and passes
 its output. Merged CRs are gone from it, moved to `3-done` at once and alone,
 while the stack lives. After a partial merge what remains is a new stack of the same batch, and
 one restack for what remains, whatever the number of CRs one merge action of the user merged: on
