@@ -69,6 +69,10 @@ not run it): a missing one is `blocking`.
 missing test, a broken gate, a part of the specification missed. Style the project has no rule
 on goes to `minor`. You cannot judge: `FIX-REQUIRED` with one blocking item saying so.
 
+When the specification or your prompt names a host and default matrix ([concepts](concepts.md),
+"Words"), each cell needs a test or a check in the diff that runs its real flow. A cell with
+none, or one tested only on a record or configuration shape built by hand, is `blocking`.
+
 On a CR's round, read `<work folder>/pr-body.md` with the diff and audit it against the
 project's PR template and rules, else against [pr-template](pr-template.md) (its audit list); when
 the CR was grilled it also reads the CR's `02-answers.md` (in the CR's folder, the parent of the work

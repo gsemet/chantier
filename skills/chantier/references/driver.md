@@ -601,13 +601,17 @@ rounds, your own reading of the code is an `investigator` or a `debugger`, not y
 Before round 1,
 when the code is unfamiliar, an `investigator`. You answer for the CR's evidence plan (the end of the
 investigator's report, which you validate and correct): with no investigator, you write it
-yourself. Each round: a `coder` with the brief (and, when the specification names files, the
+yourself; a specification that names no host and default matrix ([concepts](concepts.md), "Words")
+while the CR plainly depends on the host or on shipped defaults gets one in the plan, written by
+you. Each round: a `coder` with the brief (and, when the specification names files, the
 checklist: the list of file edits it gives in "What changes", each file with the change, card
 edits included, copied into the Coder's prompt, one line per edit; in the prompt only, the `--note`
 of `round` stays the one-line brief, which the CLI logs as the step line; from round 2 on, only the
 items the previous `r<n>.md` mark `open` or leave unmarked, plus the items a review sent back; a
 specification that names no file gives none; the Inspector and the Verifier read the specification
-themselves), then you write or update `pr-body.md`, then an
+themselves; when the specification or the evidence plan names a matrix, the checklist also carries
+one line per cell from round 1 (the cell, the result it must show, the real flow that proves it),
+and the Inspector's prompt carries the whole matrix every round), then you write or update `pr-body.md`, then an
 `inspector` on the round's diff (the worktree against the base, uncommitted and untracked files
 included) and `pr-body.md`, and each review step your `Team:` lists, in order; `FIX-REQUIRED` is
 the next round. A `FIX-REQUIRED` whose blocking items are all on `pr-body.md` (written
@@ -621,12 +625,21 @@ same contents; a file touched after the review means a new `inspector` on the ne
 commit), then commit (stage the files the
 round changed by name, `git -C <worktree> add -- <paths>`, never `git add -A` or `.`, with a message as in "Commits" above), check
 `git -C <worktree> diff --stat <commit> -- <paths>` against the reviewed state is empty and the tree is clean, and record
-`note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, rebase, the checks before
+`note <cr> "r<n> approved at <head from the JSON>, committed as <sha>"`, then, while the CR has
+never been pushed and has a matrix, `$CHANTIER phase <cr> verifier matrix probe` and a `verifier`
+whose `Note:` says `matrix probe` and gives the matrix (its reply is checked as a Verifier's, with
+`Head:` equal to the committed head, but its `Proof:` names `<work folder>/verifier/matrix-r<n>.md`;
+no `verify.md` or `verdict` is expected from it), and `$CHANTIER note <cr> "matrix probe
+<VERIFIED|NOT VERIFIED> at <sha7>"`: `NOT VERIFIED` is the next round (`$CHANTIER round`, the failed
+cells in its brief; past the limit, `blocked rounds:` as for any round), `VERIFIED` goes on, then
+rebase, the checks before
 the first push (see "Your means"), the long gate (a
 failure is a round), push, the PR, `ship`, CI (with the `ci: beside the long gate` line: rebase,
 the checks before the first push, push, the PR, `ship`, then the long gate and CI side by side, a failure of either that is the
 CR's being a round and a red CI job stopping the gate first), then a `verifier` at the pushed
-head (with the line, once the gate passed and CI is judged green), given the plan
+head (with the line, once the gate passed and CI is judged green), given the plan (and, with a
+matrix, the last `matrix-r<n>.md` as its previous judgment, with the move: the committed head to the
+pushed head, the old and new base)
 (it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence
 in Deliverables and the Test plan boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
