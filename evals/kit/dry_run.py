@@ -531,7 +531,8 @@ class Batch:
                 if Path(c["worktree"]).is_dir():
                     self.tool(f, ["git", "worktree", "remove", c["worktree"]])
                 self.tool(f, ["git", "branch", "-D", c["branch"]])
-        self.cli(f, "pause", "--epoch", EPOCH)
+        if self.data()["status"] != "paused":  # the CLI pauses the batch itself at its last end
+            self.cli(f, "pause", "--epoch", EPOCH)
 
     def write_transcripts(self) -> None:
         slug = re.sub(r"[^A-Za-z0-9]", "-", str(self.ws))
