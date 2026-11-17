@@ -848,7 +848,8 @@ const compacting = (on: On, seen: any[] = []) =>
     return { messages: SUMMARY }
   })
 const LONG = [{ role: 'user' as const, text: 'A LONG TALK', toolUses: [] }]
-const RELOAD = 'chantier reload (automatic, after a compaction)'
+const TAIL = ' in a chantier session; after this compaction, call your chantier skill again with the argument reload.'
+const RELOAD = { cos: `You are the Chief of Staff${TAIL}`, griller: `You are the Griller${TAIL}`, router: `You are${TAIL}` }
 
 test('a compaction of a session that loaded a role skill ends with the reload line, manual or auto', async ($, on) => {
   mock.clock(on)
@@ -861,9 +862,28 @@ test('a compaction of a session that loaded a role skill ends with the reload li
     const out: any = await ($.session.compact as any)({ messages: LONG, trigger })
     expect(out.skip).toBeUndefined()
     expect(out.messages[0].text).toBe('SUMMARY')
-    expect(out.messages[out.messages.length - 1].text).toContain(RELOAD)
+    expect(out.messages[out.messages.length - 1].text).toBe(RELOAD.cos)
   }
 })
+
+for (const [loads, expected] of [
+  [['chantier', 'griller'], RELOAD.griller],
+  [['griller', 'chief-of-staff', 'griller'], RELOAD.griller],
+  [['chantier'], RELOAD.router],
+] as const) {
+  test(`a compaction after loading ${loads.join(', ')} names the last role`, async ($, on) => {
+    mock.clock(on)
+    const w = world(on)
+    w.put(INDEX, index())
+    compacting(on)
+    for (const skill of loads) await $.skill.prompt({ skill: `chantier:${skill}`, text: 'THE PROMPT' })
+
+    const out: any = await ($.session.compact as any)({ messages: LONG, trigger: 'auto' })
+    const last = out.messages[out.messages.length - 1].text
+    expect(last).toBe(expected)
+    expect(last).not.toContain('chantier:')
+  })
+}
 
 test('a session that loaded no role skill, or only another, gets its compaction unchanged', async ($, on) => {
   mock.clock(on)

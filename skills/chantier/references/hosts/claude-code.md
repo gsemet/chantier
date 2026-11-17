@@ -23,7 +23,7 @@ Each behaviour carries a mark:
 | Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-sonnet-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | the start: proved, every batch started from Claude Desktop (v0.3 on); with this model: **unproved** until seen. Trial: batch-11, where the Foreman was switched to Sonnet 5.5 after its `ready` (CR-174), then the first batch started with this row: the transcript shows `claude-sonnet-5-5`, and `effort: "medium"` is accepted with it. Record the date once seen |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
 | Set a session's own title (the Chief of Staff, a Griller, the Foreman) | `set_session_title` | proved for a Chief of Staff's own session, 2026-11-08 (Battlestation, a session renamed itself); the Foreman's case stays unproved: the trial is a Foreman that sets its title and `get_session("self")` shows it |
-| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [foreman|direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`): a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling (only the first word of `chief-of-staff` counts) is unproved until a session shows it, and the reload's until a reload runs; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
+| The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [foreman|direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`), `/chantier:chief-of-staff reload`, `/chantier:griller reload`: a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling (only the first word of `chief-of-staff` counts) is unproved until a session shows it, and the reload's until a reload runs; the argument `reload` of the two role skills is unproved until seen, its trial the one of "Reload after a compaction"; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
 | Load another skill (the router) | the host's Skill tool | unproved until the router runs; trial: `/chantier:chantier` in a session with no Chief of Staff, answer a role, see the skill load |
 | List the sessions and their state; is the seat's session alive | the session tools found in the `mcp__ccd_session__` set: the exact tool and its states are not recorded | unproved; trial: two sessions on one repository, one stopped, list both and record the states |
 | Message another session of the user (hand-over, a Griller's line) | `SendMessage` to its session id | proved for the Chief of Staff's session (the row above); between two sessions of the user, unproved; trial: a Griller's `ready` line to the Chief of Staff's session |
@@ -485,18 +485,22 @@ trial settles the recommendation and records the cap.
 The plugin's mod hooks the engine's `session.compact` event. After every compaction of the main
 conversation, manual (`/compact`) or automatic, of a session that loaded the `chantier`,
 `chief-of-staff` or `griller` skill, it adds one message to the compacted conversation: the
-automatic reload's line, which makes the model follow `session-start.md`, "5. Reload", and open
-its next answer with one line saying chantier's rules were reloaded. It does not rely on the
+role line ("You are the <role> in a chantier session; after this compaction, call your chantier
+skill again with the argument reload."; the router's line, "You are in a chantier session; ...",
+when no role), the role being the last role skill loaded. The skill then reads the seat and
+follows `session-start.md`, "5. Reload" (loading the other role's skill when the seat says so),
+and the answer opens with one line saying chantier's rules were reloaded. It does not rely on the
 summary or on the model noticing. It never vetoes a compaction, and it leaves a subagent's own
 compaction alone (a Driver's, a worker's). The `status` skill does not count as a role.
 
 The contract is the engine's own (`claude-code/index.d.ts`: the hook's `next(e)` resolves
 `{ messages }`, to which the mod adds its message), checked 2026-11-10 against the engine's types
 as they stood on 2026-11-06. **Unproved** until seen in a session; trial: a Chief of Staff session,
-`/compact`, then the next answer opens with the reload line and the cards are read (tool calls
-visible). The mod is Claude Code's only (`CONTRIBUTING.md`): the automatic reload exists only
+`/compact`, then the next turn calls a chantier skill with `reload` (Skill tool call visible:
+record which one the model picked, the role's or the router) and the answer opens with the
+reloaded line. The mod is Claude Code's only (`CONTRIBUTING.md`): the automatic reload exists only
 where the plugin's mod loads. The manual reload ("chantier reload", or `/chantier:chantier
-reload`) works everywhere, and is what a session without the mod has.
+reload`, `/chantier:chief-of-staff reload`, `/chantier:griller reload`) works everywhere, and is what a session without the mod has.
 
 ## The write guard
 

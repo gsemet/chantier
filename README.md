@@ -275,7 +275,7 @@ Talk to the Chief of Staff in plain language:
 | "become chief of staff" (`/chief-of-staff`) | this session takes the seat: the one session that opens and runs batches in the repository |
 | "you are a griller" (`/griller`) | this session refines the inbox and the backlog, never opens a batch; the Chief of Staff picks up what it files |
 | "status?" (`/chantier:status`) | the progress report: the table of CRs, their state, their PR and the cost; it changes nothing |
-| "chantier reload" (`/chantier:chantier reload`) | the session reads chantier's rules again, typically after a compaction; on Claude Code the plugin also does it by itself at every compaction |
+| "chantier reload" (`/chantier:chantier reload`, `/chantier:chief-of-staff reload`, `/chantier:griller reload`) | the session reads chantier's rules again, typically after a compaction; on Claude Code the plugin also tells the session, at every compaction, to call its role skill again with `reload` |
 | "file this idea" | a CR folder in the inbox; it can be refined at any stage |
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background; on an impactful CR the spec critic checks it after |

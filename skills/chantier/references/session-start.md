@@ -215,11 +215,13 @@ grill in parallel, fork this session; the fork becomes a Griller". It explains t
 
 ## 5. Reload
 
-After compaction, reload reads the common, host and role cores, plus this role's startup sections
-in `startup-manifest.json`; action readings are loaded only before that action.
+After compaction, reload reads the manifest's common, host and role cores and this role's startup
+sections only.
 
-- **Trigger:** "chantier reload", the router's `reload`, or the host's automatic reload. With no
-  role, it starts the router.
-- **Does:** reread the seat, ask no role question or introduction, and make no batch change. Read
-  only (`$CHANTIER seat`, `$CHANTIER status`): no order, `take`, heartbeat, Driver, or message.
-- **Says:** report that rules were reloaded; add active batch status.
+- **Trigger:** "chantier reload", the argument `reload` of a role skill or the router, or the
+  host's automatic reload. With no role, it starts the router.
+- **Does:** read `$CHANTIER seat`: it names this session, the role is the Chief of Staff, else
+  the Griller. If that is not the called skill's, load the other skill with `reload` (one hop; the
+  router with no role reloads itself). No role question, introduction or batch change. Read only
+  (`$CHANTIER seat`, `$CHANTIER status`): no order, `take`, heartbeat, Driver, message or `uv sync`.
+- **Says:** rules reloaded, the active batch status, a free seat.
