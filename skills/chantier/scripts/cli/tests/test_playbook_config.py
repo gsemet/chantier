@@ -10,6 +10,7 @@ from conftest import PLUGIN_ROOT, Chantier
 from cost_world import CostWorld, build
 
 from chantier.core.errors import EXIT_PRECONDITION
+from chantier.plugin_files import contract_lines
 
 PROMPTERS = ("retro-critic", "spec-critic", "spec-writer")
 ESCALATE = "escalate: " + "; ".join(
@@ -367,6 +368,9 @@ def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
     assert [ln for ln in took if "contract (a generic agent" in ln] == [heading, f"  {heading}"]
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert has(out, f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}")
+    for mode, want in (("generic", [heading, "  b"]), ("named", [])):  # a named start escalating
+        rec = {"start": "named", "escalation": {"mode": mode}}
+        assert contract_lines("coder", "---\nx: 1\n---\nb", {"roles": {"coder": rec}}) == want
 
 
 @pytest.fixture

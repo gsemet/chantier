@@ -191,10 +191,14 @@ FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
 
 def contract_lines(role: str, text: str, resolved: dict[str, Any] | None) -> list[str]:
     """For a role the configuration starts as a generic agent (its model changed on a host that
-    cannot start a named agent with one), the plugin agent's file body, so the generic agent gets
+    cannot start a named agent with one), or whose escalation model is applied as a generic agent
+    (its escalation `mode` is `generic`), the plugin agent's file body, so the generic agent gets
     the whole contract in its prompt, rebuilt here and written nowhere: a heading, then the body
-    after the frontmatter, each line indented by two spaces."""
-    if ((resolved or {}).get("roles", {}).get(role) or {}).get("start") != "generic":
+    after the frontmatter, each line indented by two spaces; printed once per role."""
+    rec = (resolved or {}).get("roles", {}).get(role) or {}
+    escalation = rec.get("escalation")
+    generic_escalation = isinstance(escalation, dict) and escalation.get("mode") == "generic"
+    if rec.get("start") != "generic" and not generic_escalation:
         return []
     body = FRONTMATTER.sub("", text, count=1).strip("\n")
     return [
@@ -210,7 +214,8 @@ def chief_prompt_lines(
     """The first line of each agent the Chief of Staff starts with a `<root>` and no batch, read
     from the agent files' descriptions (`<role> prompt, first line: …`), `<root>` filled in;
     with `started_by`, only the agents whose description says that parent starts them. A role the
-    playbook `resolved` starts generic gets its contract lines after its first line."""
+    playbook `resolved` starts generic, or escalates as a generic agent, gets its contract lines
+    after its first line."""
     lines = []
     for p in _agent_files(host)[1]:
         text = p.read_text(encoding="utf-8")
@@ -238,8 +243,8 @@ def worker_prompt_lines(
     """The opening three lines of each worker's prompt (a Driver starts it; `cr` is its id and
     title), read from the agent files: the description says `Started by a Driver.`, its first
     line holds `<cr> "<title>" of batch <batch>` and its body names its card. A role the
-    playbook `resolved` starts generic gets its contract lines after them. The CLI knows no
-    role."""
+    playbook `resolved` starts generic, or escalates as a generic agent, gets its contract lines
+    after them. The CLI knows no role."""
     lines: list[str] = []
     refs = f"{skill_dir().as_posix()}/references"
     for p in _agent_files(host)[1]:
