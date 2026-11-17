@@ -101,3 +101,5 @@ P1 and P2 only (`chief-of-staff.md`, "Starting a batch"), unproved.
 
 The Foreman is started by `create_session`. A refused start is reported with its exact text.
 Nothing else is recorded here about Copilot's sessions.
+
+A Driver stopped from outside on Copilot is unproved; the card's rule (`foreman.md`, "A Driver stopped from outside") holds when the host says the Driver was stopped.

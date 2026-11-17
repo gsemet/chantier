@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from chantier.commands.cost.sessions import foreman_uuid
-from chantier.core.clock import age_minutes
+from chantier.core.clock import FORMAT, age_minutes
 from chantier.core.errors import ChantierError
 from chantier.core.records import LIVE, BatchRecord, EventRecord, read_events
 from chantier.core.repo import Repo
 from chantier.costs.sessions import agent_records, idle_seconds
+from chantier.costs.stopped import agents_stopped
 from chantier.gate_queue import gate_state
 
 MAX_HOPS = 5  # parent links followed from a worker to its Driver
@@ -27,13 +30,43 @@ def _event_ages(events: list[EventRecord]) -> tuple[dict[str, float], dict[str, 
     return last, owner
 
 
-def _targets(d: BatchRecord) -> list[tuple[str, str]]:
-    """(key, label) of what works: each live CR, the stack driver, each open QA order with an
-    agent."""
-    targets = [(c.id, c.id) for c in d.crs if c.status in LIVE]
+def stopped_text(agent: str) -> str:
+    return f"Driver {agent} stopped from outside, no hand-back recorded"
+
+
+def stopped_agents(repo: Repo, d: BatchRecord, events: list[EventRecord]) -> set[str]:
+    """Claude: the recorded agents of the batch (a working CR's Driver, the stack driver, a open QA
+    order's agent) the host reports stopped (`agents_stopped`), one backward pass for all. An agent
+    with no `agent` event is not asked. Nothing is written."""
+    if d.host == "copilot":
+        return set()
+    asked = {c.agent for c in d.crs if c.status == "working" and c.agent}
+    asked |= {a for a in (d.stack_agent, *(o.agent for o in d.orders if not o.done)) if a}
+    starts: dict[str, datetime] = {}
+    for e in events:
+        if e.kind == "agent" and e.agent in asked and e.t:
+            try:
+                starts[e.agent] = datetime.strptime(e.t, FORMAT).replace(tzinfo=UTC)
+            except ValueError:
+                continue
+    if not starts:
+        return set()
+    try:
+        sessions = foreman_uuid(d)
+    except ChantierError:
+        return set()
+    return {a for a, v in agents_stopped(repo.session_root, sessions, starts).items() if v}
+
+
+def _targets(d: BatchRecord) -> list[tuple[str, str, str | None]]:
+    """(key, label, agent id) of what works: each live CR, the stack driver, each open QA order
+    with an agent."""
+    targets = [(c.id, c.id, c.agent) for c in d.crs if c.status in LIVE]
     if d.stack_agent:
-        targets.append(("stack", "stack"))
-    targets += [(o.id, f"{o.id} qa") for o in d.orders if o.kind == "qa" and not o.done and o.agent]
+        targets.append(("stack", "stack", d.stack_agent))
+    targets += [
+        (o.id, f"{o.id} qa", o.agent) for o in d.orders if o.kind == "qa" and not o.done and o.agent
+    ]
     return targets
 
 
@@ -73,11 +106,15 @@ def activity(repo: Repo, d: BatchRecord) -> list[str]:
     cannot be read is `not measured`. A long gate is `gate running` when the lock names the CR
     and its command or suite is still the process the lock recorded (a dead or reused pid is a
     stale lock), and `gate queued behind <cr>` (bare `gate queued` when it is next) when a live
-    ticket of the queue names it. This only reads: it deletes no ticket."""
-    last, owner = _event_ages(read_events(repo.batch_dir(d.id)))
+    ticket of the queue names it. A recorded agent the host reports stopped (`stopped_agents`)
+    adds ` | Driver <id> stopped from outside, no hand-back recorded`.
+    This only reads: it deletes no ticket."""
+    events = read_events(repo.batch_dir(d.id))
+    last, owner = _event_ages(events)
     targets = _targets(d)
     if not targets:
         return []
+    stopped = stopped_agents(repo, d, events)
     try:
         sessions = foreman_uuid(d)
     except ChantierError:
@@ -90,8 +127,9 @@ def activity(repo: Repo, d: BatchRecord) -> list[str]:
         session_min = min(ages) / 60 if ages else None
     else:
         records = agent_records(repo.session_root, sessions)
-    out = []
-    for key, label in targets:
+    out: list[str] = []
+    for key, label, agent in targets:
+        start = len(out)
         word = f"activity {label}"
         mine = [last[key]] if key in last else []
         if state := gate_state(repo, key):
@@ -102,4 +140,6 @@ def activity(repo: Repo, d: BatchRecord) -> list[str]:
             out.append(f"{word} not measured")
         else:
             out.append(f"{word} {min([*mine, session_min]):.0f} min (session-level)")
+        if agent in stopped:
+            out[start] += f" | {stopped_text(agent)}"
     return out

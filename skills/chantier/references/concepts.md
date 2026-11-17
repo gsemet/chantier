@@ -473,7 +473,8 @@ agent whose prompt does not start with its role's first line answers "I run insi
 batch only. My prompt must start with `<its first line>`; a message to me gets this same answer:
 start a new agent with that line." and stops. A refused agent answers every later message with
 that same answer and does nothing else, whatever the message holds (on Claude Code a message
-resumes a stopped agent with its context; the refusal holds there too). The parent starts one new
+resumes an agent that ended its turn, with its context, not one the host stopped (a `killed` task),
+which the host refuses to resume; the refusal holds there too). The parent starts one new
 agent with that line, never a message to the refused one and never a variant. Each agent's
 `description` ends with "Prompt starts with:" and its first line. The first lines:
 
@@ -502,11 +503,14 @@ refuse a subagent's Write of such a file ([host's reference](hosts/claude-code.m
 **An agent that ends before its part is done.** This holds for every parent and every agent (a
 Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a Demo explorer).
 
-- Each such end is restarted **once**, from the recorded state (`handoff`, `log`, the CR's notes,
+- Each such end is restarted **once** (except a Driver stopped from outside, restarted at each such
+  stop as `foreman.md`'s "A Driver stopped from outside" says, which counts toward nothing; other
+  agents and other causes keep "once"), from the recorded state (`handoff`, `log`, the CR's notes,
   the worktree's commits, the folder's files), and the parent records why first: for a CR,
   `$CHANTIER note <cr> "restart: <cause>"`; for a spec-writer or a spec critic, the line of `work/specifying`; for a retro critic, the cause in
   the parent's own words in its turn (there is no CR to `note`).
-- The causes, one word each: `host failure: <the host's exact text>` (an API error, an overloaded
+- The causes, one word each: `stopped from outside: <the host's text>` (the host stopped the agent: its `task_status` `killed`
+  record or its refusal of a message), `host failure: <the host's exact text>` (an API error, an overloaded
   or refused service, a network error the host reports as the agent's end, not the agent's own
   words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, plus those `foreman.md` already names
   (`context`, a proven death, a new epoch, a silent end).
@@ -563,7 +567,7 @@ running agent's model, never a retry of the same agent, and never a model typed 
 
 | Trigger | Who sees it | The new agent on the escalation model |
 | --- | --- | --- |
-| A CR blocked twice: two hand-backs `blocked` of the same CR that show trouble in the work (`refused`, `infra:` after its one re-run, `driver ended twice`, `stopped`). A hand-back that waits on the user or on another thing never counts (`question:`, `approval:`, `merge:`, `waits:`, `fix:`, `budget:`), nor does `rounds:`, which has its own trigger below | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next CR Driver, with `take <cr> --note "escalate: blocked twice: <reasons>"` |
+| A CR blocked twice: two hand-backs `blocked` of the same CR that show trouble in the work (`refused`, `infra:` after its one re-run, `driver ended twice`, `stopped`). A hand-back that waits on the user or on another thing never counts (`question:`, `approval:`, `merge:`, `waits:`, `fix:`, `budget:`), nor does `rounds:`, which has its own trigger below; a Driver stopped from outside never counts either (it is no hand-back, and it does not make `driver ended twice`) | the Foreman (in direct mode the Chief of Staff), from `log <cr>` and the hand-backs | the CR's next CR Driver, with `take <cr> --note "escalate: blocked twice: <reasons>"` |
 | The rounds used up with the Inspector still `FIX-REQUIRED` | the CR Driver hands back `blocked rounds:` as always; the round limit stays the user's (`order rounds`): escalation never grants a round | once the user grants more rounds, the CR's next Driver is told `escalate: rounds` and starts the Coder of each new round on the escalation model |
 | A red check the Debugger could not explain (its `diagnosis.md` names no cause with evidence) | the Driver that started it (CR or stack) | a new `debugger` on the same check, given the first `diagnosis.md` |
 | A conflict the resolver could not settle (it stopped with no resolution, other than "two product intents in conflict", which stays a question for the user) | the Driver that started it (CR or stack) | a new `conflict-resolver` on the same rebase, given the first `conflicts.md` |

@@ -4040,6 +4040,69 @@ def driver_liveness(w: World) -> None:
           not flagged(one, f"agent-{one}"), "flagged")
     check("`status` writes no event for the flag",
           events.read_text("utf-8") == log_before, "status logged")
+    def task_status(agent, status, ago=0):
+        at = datetime.now(timezone.utc) - timedelta(seconds=ago)
+        with chief.open("a", encoding="utf-8") as f:
+            f.write(json.dumps({"type": "attachment", "timestamp": at.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+                                "attachment": {"type": "task_status", "taskId": agent,
+                                               "status": status}}) + "\n")
+
+    def stopped(cr, agent):
+        _, o = w.chantier("status")
+        return any(ln.startswith(f"{cr} ") and f"Driver {agent} stopped from outside, no hand-back "
+                   "recorded" in ln for ln in o)
+
+    task_status(f"agent-{one}", "killed")
+    check("status flags a working CR whose recorded agent the host reports stopped (a `killed` "
+          "`task_status` record), and not as `ended`",
+          stopped(one, f"agent-{one}") and not flagged(one, f"agent-{one}"), "no flag")
+    task_status(f"agent-{one}", "running")
+    check("a later `task_status` record for the agent clears the flag (the last record decides)",
+          not stopped(one, f"agent-{one}"), "still flagged")
+    task_status(f"agent-{two}", "killed")
+    check("a `killed` record for another agent flags nothing on this CR",
+          not stopped(one, f"agent-{one}") and stopped(two, f"agent-{two}"), "wrong flag")
+    task_status(f"agent-{one}", "killed", ago=3600)
+    check("a `killed` record older than the agent's `agent` event flags nothing (the scan's bound)",
+          not stopped(one, f"agent-{one}"), "flagged")
+    check("`status` writes no event for the stopped flag",
+          events.read_text("utf-8") == log_before, "status logged")
+    w.chantier("agents", "set", "stack", "agent-stack", "--epoch", 1)
+
+    def stack_flagged():
+        _, o = w.chantier("status", "--refresh", "--epoch", 1, expect=None)
+        return any(ln.startswith("activity stack ") and "Driver agent-stack stopped from outside, "
+                   "no hand-back recorded" in ln for ln in o)
+
+    task_status("agent-stack", "killed")
+    check("`status --refresh` flags the stack driver's `activity stack` line when the host reports "
+          "it stopped", stack_flagged(), "no flag")
+    with chief.open("a", encoding="utf-8") as f:  # a record with no timestamp, then a stamped one
+        f.write(json.dumps({"type": "attachment", "attachment": {
+            "type": "task_status", "taskId": "agent-stack", "status": "killed"}}) + "\n")
+    task_status("agent-stack", "running")
+    check("a later timestamped record overrides an earlier record with no timestamp",
+          not stack_flagged(), "still flagged")
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    rounds = w.cr(one)["round"]
+    w.chantier("agents", "set", one, "-", "--epoch", 1)
+    task_status(f"agent-{one}", "killed")
+    _, out = w.chantier("status")
+    check("after `agents set <cr> -` the row shows `no Driver recorded` and no stopped flag",
+          any(ln.startswith(f"{one} working") and "no Driver recorded" in ln for ln in out)
+          and not any("stopped from outside" in ln for ln in out if ln.startswith(one)), str(out))
+    code, _ = w.chantier("take", one, "--note", "resume: stopped from outside: x", "--epoch", 1)
+    check("the restart `take` after an outside stop is accepted, no round counted",
+          code == 0 and w.cr(one)["round"] == rounds, w.last_stderr)
+    w.chantier("agents", "set", one, f"agent-{one}-s2", "--epoch", 1)
+    task_status(f"agent-{one}-s2", "killed")
+    check("a second Driver's `killed` record flags it", stopped(one, f"agent-{one}-s2"), "no flag")
+    w.chantier("agents", "set", one, "-", "--epoch", 1)
+    code, _ = w.chantier("take", one, "--note", "resume: stopped from outside: x", "--epoch", 1)
+    check("a second outside stop is restarted the same way: accepted, no round counted, no block",
+          code == 0 and w.cr(one)["round"] == rounds and w.cr(one)["status"] == "working",
+          w.last_stderr)
+    w.chantier("agents", "set", one, f"agent-{one}-s3", "--epoch", 1)
     (sub / f"agent-agent-{three}.jsonl").write_text(tool_line("SubagentHandback") + "\n",
                                                     encoding="utf-8")
     w.chantier("handback", three, "blocked", "question: x")
