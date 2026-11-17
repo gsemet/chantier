@@ -32,10 +32,23 @@ Ground rules:
   and the rest is carried, saying so. A clean rebase that leaves the CR's patch unchanged, proved
   by git, touches no judgment; CI at the new head still runs.
 - Never claim a check you did not run. A test, a smoke run or a probe of the board's write paths
-  (`chantier board`'s edits of the backlog, and the role-free CLI commands it calls) points at a
-  scratch planning folder (a fresh temporary folder, or one under the worktree's test fixtures),
-  never at the project's live planning folder (`.agents/changes/`, or the planning surface's), and
-  removes it at its end.
+  (`chantier board`'s edits of the backlog, and the role-free CLI commands it calls) never points
+  at the project's live planning folder (`.agents/changes/`, or the planning surface's). The
+  project's own tests keep their fixtures and tmp folders as they are. A throwaway you make
+  yourself (a scratch planning folder, a probe project, a hand-run smoke run) goes under the
+  `scratch:` folder your Driver's brief gives (`<CR folder>/work/scratch`), never a temporary
+  folder or any other path outside your prompt's `writes:` folders, and you remove it at your end
+  (it is inside your writes). The scratch project is its own git repository: run `git init
+  <scratch project>` before anything else there, and before any chantier command. Every `chantier`
+  or `chantier board` call aimed at it names it: `--project <the scratch project's folder>` (a
+  scratch planning surface), or the call runs with the scratch repository as its working folder and
+  no `--project` and no `CHANTIER_ROOT` that points elsewhere. Never use the prompt's `$CHANTIER`
+  line as printed there: it names the live project.
+- A path under the scratch folder that is too long for Windows (a write, a `git` command or a tool
+  failing on its length) is a stop: report it to your Driver with the exact error text, as for any
+  refusal; no shorter folder outside your `writes:` folders, no other workaround. The claim that
+  needed the scratch project is then not proved, and the verdict follows the rule above for
+  evidence that cannot be captured.
 - Never commit, push, rebase or merge. Run no `sleep` and no background shell. Never run
   `git stash` (the stash is shared by every worktree) and never stop a process by name or pattern
   (`pkill`, `killall`).
@@ -125,8 +138,10 @@ on Linux and macOS) and the last part of the home folder's path (they can differ
 The *home folder* is its full path (`C:\Users\<name>`, `/Users/<name>`, `/home/<name>`) in any
 form on screen (either slash, `~` expanded, inside a longer path such as a temporary folder under
 it). A *made-up path* holds neither, wherever the image shows a local path (planning folder,
-worktree, file, prompt, window title); how you get it is yours (a scratch folder at a neutral
-location, a made-up folder name, `~`, `user`). *The look*: open the image as an image and look for
+worktree, file, prompt, window title); how you get it is yours (a made-up folder name, `~`,
+`user`). The scratch project under `work/scratch` sits under the user's home folder, so a capture
+of it shows the user's paths: rewrite them to made-up paths in the capture (for example in a text
+output before rendering it, or with `~` or `user`). *The look*: open the image as an image and look for
 both; it passes once neither shows. Give each capture the look, as you already open it for what it
 claims; one that fails is captured again with made-up paths before it is kept in
 `<work folder>/verifier/evidence/` (which is pushed with the planning folder); one you cannot

@@ -70,8 +70,9 @@ defer the rest of this card until an action names it. These are the card's defau
   the brief stays the same), `$CHANTIER note <cr> "restart: <cause>"`
   first, no `round`; a second refusal of the same start, a model included, is `handback blocked
   refused <exact text>`, never retried without the model. Every worker's prompt holds
-  `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
-  printed them (`worktree:` and `folder:`); a CR Driver's own prompt holds `writes: <CR folder>`
+  the `writes:` line of the `worker writes line` that `take`, `round` or `handoff` printed,
+  copied unchanged (never put together from `worktree:` or `folder:`, whose values carry text
+  after the path); a CR Driver's own prompt holds `writes: <CR folder>`
   (and `; <absolute archive path>` when `take` prints one; [concepts](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/concepts.md), "A Driver's prompt"): you write your notes, `pr-body.md`, your large
   outputs and the archive, nothing else. A Driver and its workers write nothing in the repository's
   git folder (`.git/info/exclude`, `.git/config`, `.git/hooks`), by any tool or shell command; git's
@@ -154,7 +155,7 @@ defer the rest of this card until an action names it. These are the card's defau
     line, the rules line), never retyped, shortened or rephrased, a follow-up start (a new head,
     a rebase, a description pass) included;
   - `CLI ($CHANTIER): …`;
-  - `writes: <worktree>; <CR folder>`;
+  - the `writes:` line of the `worker writes line`, copied unchanged;
   - `Note: …`, and `Needs: …` when the `team:` line prints one.
 - Escalation ([concepts](concepts.md), "Escalation"): only when one of its triggers arises, read
   the `escalate:` line of `$CHANTIER playbook --batch <batch>`, as printed.
@@ -335,7 +336,8 @@ defer the rest of this card until an action names it. These are the card's defau
   `/Users/<name>`, `/home/<name>`) in any form on screen (either slash, `~` expanded, inside a
   longer path such as a temporary folder under it). A *made-up path* holds neither, wherever the
   image shows a local path (planning folder, worktree, file, prompt, window title); how you get it
-  is yours (a scratch folder at a neutral location, a made-up folder name, `~`, `user`). *The
+  is yours (a made-up folder name, `~`, `user`; a scratch project under `work/scratch` sits under
+  the user's home folder, so rewrite its paths in the capture, or do not keep it). *The
   look*: open the image as an image (not its file name) and look for both; it passes once neither
   shows. *Keeping* an image is writing it anywhere in the planning folder (a CR's `evidence/` or
   `work/`, a QA work folder's `evidence/`), which is pushed with the surface. An *upload* is any
@@ -556,8 +558,10 @@ redirection, `Set-Content`, `sed -i`, an interpreter's inline code): the guard r
 sees, and the rule holds for what it does not. Every change the CR makes goes
 through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
 
-A CR that touches the board's write paths carries the scratch-folder rule of [coder](coder.md)
-(the same in [verifier](verifier.md)) in each Coder's and Verifier's brief, and the evidence plan names the scratch folder its runs use.
+A CR that touches the board's write paths carries, in each Coder's brief, the scratch-folder rule
+of [coder](coder.md); in each Verifier's brief, the `scratch:` folder and the rule of
+[verifier](verifier.md) for it (its own repository, every call naming it); and the evidence plan
+names the scratch folder each role's runs use.
 
 Your worktree's work is never discarded by you: no `git reset --hard`, `git checkout -- <path>`,
 `git restore`, `git clean`, and no deletion of a file in the worktree. `git rebase --abort` is

@@ -86,7 +86,7 @@ and how an agent is started. Each worker reads its own card, which restates the 
   `evidence/` and `work/`. Kept out by design: secrets, personal data, and large binaries that are
   not the retained prototype (a dataset, a video above the forge's limits: the folder names where
   it is); the batch's own files and raw logs (already gitignored; a raw log stays in `work/gates/`
-  or a `*.log` file); the agent's memory and the host's settings (`~/.claude/`), never a CR's
+  or a `*.log` file; a Verifier's scratch project stays in `work/scratch/`); the agent's memory and the host's settings (`~/.claude/`), never a CR's
   place. What only the conversation holds (a subagent's reply, an inline visualization, a pasted
   image) is lost unless an agent writes it in the folder: writing it is the agent's job.
 
@@ -106,7 +106,8 @@ and how an agent is started. Each worker reads its own card, which restates the 
   the default) or `<surface>/projects/<name>/changes/` (external). A CR's folder, the stages, the
   STATUS files and the seat are in it. Its `.gitignore`, written by the CLI, keeps the batch's own
   files (`batch.json`, `events.jsonl`, `brief.md`, STATUS, locks, `.batch-number`, `seat.json`) and
-  the detailed logs (`work/gates/`, `*.log`) out of git: a raw log goes in such a file, never in a
+  the detailed logs (`work/gates/`, `*.log`) and the Verifier's scratch folder (`work/scratch/`)
+  out of git: a raw log goes in such a file, never in a
   published one. The rest of a CR's folder is pushed with the surface. So are the batches' records:
   each batch leaves `5-archives/batches/batch-NN.json` (for a UI; written by `open` as `running`,
   completed by `close`) and `batch-NN.md` (for a person: the Completion table, the cost, the retro).
@@ -447,7 +448,7 @@ the project's rules rank above them (a worker's prompt: above it): run `$CHANTIE
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
-writes: <worktree>; <CR folder>   (a worker's prompt: worktree first; a Driver's: see "A Driver's prompt"; for a CR Driver, its CR folder, then the absolute archive path)
+writes: <worktree>; <CR folder>
 Steering: <who steers> <how to reach it>   (a Driver's prompt only: CR, stack, release and QA driver)
 Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt, where "A Driver's prompt" says so: who runs which worker)
 Needs: skills <…>; tools <…>            (only when the playbook gives the role some, as printed)
@@ -456,6 +457,11 @@ Note: <why the CR is with it, or the round's brief>
 
 `take`, `round` and `handoff` print a worker's first three lines (the first line, the `Read` line
 and the rules line) under `<role> prompt, opening lines:`, to copy unchanged.
+
+The `writes:` line: a worker's holds the worktree first, then the CR folder; a Driver's is in "A
+Driver's prompt" (for a CR Driver, its CR folder, then the absolute archive path). Every entry on
+a `writes:` line is a bare absolute path with nothing after it. A worker's line is copied from
+the `worker writes line` that `take`, `round` or `handoff` printed.
 
 A Driver's prompt holds the `Steering:` line: the steering session (the Foreman, or the Chief of
 Staff in direct mode) and the means of the host's reference row "A Driver messages its steering
@@ -554,7 +560,7 @@ it, and [foreman](foreman.md) and [chief-of-staff](chief-of-staff.md) point to i
   `writes:` and `Team:` only where the table says so.
 - `writes: none` means the prompt has **no** `writes:` line: the guard would refuse the Driver's
   worktree writes ([host's reference](hosts/claude-code.md)).
-- Every path on a `writes:` line is absolute: the CR folder as `folder:` prints it, and the archive
+- Every path on a `writes:` line is absolute and bare (nothing after it): the CR folder as `folder:` prints it, and the archive
   as `<worktree>/<archive path>`.
 - `take`, `take stack` and `order qa` print this skeleton, filled in where they can. The steering
   session copies it whole and fills in each `<...>` left. It adds no template line the skeleton

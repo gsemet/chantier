@@ -2,6 +2,7 @@
 `order qa` print from it."""
 
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -41,6 +42,23 @@ def _skeleton(out: list[str], role: str) -> list[str]:
     while end < len(out) and out[end].startswith("  "):
         end += 1
     return out[start:end]
+
+
+def _worker_writes_line_and_scratch(out: list[str], block: list[str]) -> None:
+    """The facts print a bare `writes:` line for the workers and the Verifier's scratch folder."""
+    facts = next(ln for ln in out if ln.startswith("folder: "))
+    folder = facts.removeprefix("folder: ").removesuffix(" (work/, evidence/)")
+    heading = "worker writes line (copy it unchanged, without the two leading spaces, into each "
+    at = next(i for i, ln in enumerate(out) if ln.startswith(heading))
+    assert out[at + 1].startswith("  writes: ") and "(" not in out[at + 1]
+    assert [ln for ln in out if ln.lstrip().startswith("writes:")].count(out[at + 1]) == 1
+    worktree, cr_folder = out[at + 1].removeprefix("  writes: ").split("; ")
+    assert Path(worktree).is_absolute() and Path(cr_folder).is_absolute() and cr_folder == folder
+    wt_line = next(ln for ln in out if ln.startswith("worktree: "))
+    assert wt_line.removeprefix("worktree: ").split(" branch ")[0].replace("\\", "/") == worktree
+    scratch = out[out.index(facts) + 1]
+    assert scratch == f"scratch: {folder}/work/scratch"
+    assert f"    {out[at + 1].strip()}" in block
 
 
 @pytest.mark.parametrize("which", ["change", "release", "stack", "qa"])
@@ -84,6 +102,8 @@ def test_the_commands_print_each_drivers_prompt_skeleton_without_a_writes_line_f
     if which == "change":
         folder = next(ln for ln in out if ln.startswith("folder: ")).split(" (")[0]
         assert writes == [f"  writes: {folder.removeprefix('folder: ')}"]
+        _worker_writes_line_and_scratch(out, block)
+        assert [ln[2:] for ln in block if ln[2:].startswith("writes:")] == [writes[0][2:]]
     else:
         assert not writes
     if which == "stack":
@@ -113,3 +133,51 @@ def test_a_driver_role_with_no_agent_file_is_refused_before_anything_is_recorded
     assert code == EXIT_PRECONDITION and missing in err and "out of step" in err
     after = (record(repo), sorted(p.name for p in (changes(repo) / "1-inbox").glob("*")))
     assert after == before
+
+
+def test_a_round_prints_the_bare_worker_writes_line_and_the_template_line_holds_no_parenthesis(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    open_batch(repo, chantier, monkeypatch, "One")
+    assert chantier("take", "CR-101", "--note", "why", "--epoch", 1)[0] == 0
+    _, out, _ = chantier("round", "CR-101", "--note", "round 1")
+    at = next(i for i, ln in enumerate(out) if ln.startswith("worker writes line ("))
+    worktree, folder = out[at + 1].removeprefix("  writes: ").split("; ")
+    assert out[at + 1].startswith("  writes: ") and "(" not in out[at + 1]
+    assert Path(worktree).is_absolute() and Path(folder).is_absolute()
+    assert f"scratch: {folder}/work/scratch" in out
+    template = (SKILL / "references" / "concepts.md").read_text(encoding="utf-8")
+    assert [ln for ln in template.splitlines() if ln.startswith("writes: <worktree>")] == [
+        "writes: <worktree>; <CR folder>"
+    ]
+
+
+def test_the_planning_folder_ignores_a_scratch_project_and_a_call_there_leaves_the_live_one_alone(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    open_batch(repo, chantier, monkeypatch, "One")
+    live = changes(repo)
+    assert "**/work/scratch/" in (live / ".gitignore").read_text(encoding="utf-8").splitlines()
+    scratch = live / "4-batch" / "2-actives" / "101-one" / "work" / "scratch" / "probe"
+    scratch.mkdir(parents=True)
+    (scratch / "f.txt").write_text("x", encoding="utf-8")
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", str(scratch / "f.txt")], cwd=repo, check=False
+    )
+    assert ignored.returncode == 0
+
+    def snapshot() -> dict[str, bytes]:
+        return {
+            p.relative_to(live).as_posix(): p.read_bytes()
+            for p in live.rglob("*")
+            if p.is_file() and "scratch" not in p.relative_to(live).parts
+        }
+
+    before = snapshot()
+    subprocess.run(["git", "init", "--quiet", str(scratch)], check=True)
+    monkeypatch.chdir(scratch)
+    code, _, err = chantier("file", "probe")
+    assert code == 0, err
+    assert (scratch / ".agents" / "changes" / "1-inbox").is_dir()
+    assert any(p.is_file() for p in (scratch / ".agents" / "changes" / "1-inbox").rglob("*"))
+    assert snapshot() == before

@@ -505,7 +505,8 @@ folders. That agent's Write, Edit or NotebookEdit outside every folder is refuse
 message `refused: <path> is outside the folders this agent may write in (<folder>; <folder>);
 write there`; a relative path is read against the folder it runs in. On Windows a Git Bash drive path (`/c/Users/...`) is read as its drive form (`C:/Users/...`), for Write, Edit, NotebookEdit and the shell targets alike. The arguments of a
 `tool.call` sit flat beside `tool` (`file_path` for Write and Edit, `notebook_path` for
-NotebookEdit), and the mod reads nothing else.
+NotebookEdit), and the mod reads nothing else. An entry is a bare absolute path: the guard reads
+anything after it as part of the folder's name, so every write is refused.
 
 The same agent's Bash or PowerShell call is judged by the same rule, on the write forms the mod
 can see with a target path: a redirection `>` or `>>`, `tee`, `sed -i`, `perl -i`, `cp`, `mv`,
