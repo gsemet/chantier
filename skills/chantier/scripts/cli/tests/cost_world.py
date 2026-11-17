@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -11,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import open_batch, record, write_record
+from batch_helpers import host, open_batch, record, write_record
 from conftest import Chantier
 
 CALL_USD = {"in": 20, "cache_read": 4000, "cache_write_1h": 6000}  # micro-dollars of one call
@@ -103,7 +104,43 @@ def money(line: str) -> float:
 CostFixture = Callable[[], CostWorld]
 
 
+def slug(folder: Path) -> str:
+    return "".join(ch if ch.isalnum() else "-" for ch in str(folder.resolve()))
+
+
 def build(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> CostWorld:
+    """The world, built once per pytest process (so once per xdist worker) and copied into each
+    test's repository: what it holds, the batch's record, the transcripts and their times, is the
+    same for every test; the paths and the environment are the test's own."""
+    # the pytest base folder is the process's own (a worker has its own): the template lives there
+    template = tmp_path.parent / "cost-world-template"
+    if not template.is_dir():
+        world = _build(repo, chantier, monkeypatch, tmp_path)
+        shutil.copytree(repo, template / "proj")
+        shutil.copytree(world.projects, template / "claude-projects")
+        (template / "built-in").write_text(str(repo.resolve()), encoding="utf-8")
+        return world
+    built_in = (template / "built-in").read_text(encoding="utf-8")
+    # the repository's own `.git` is the test's (no command of the world commits)
+    shutil.copytree(
+        template / "proj", repo, ignore=shutil.ignore_patterns(".git"), dirs_exist_ok=True
+    )
+    for status in (repo / ".agents").rglob("STATUS.*"):  # the only files that name the folder
+        text = status.read_text(encoding="utf-8")
+        status.write_bytes(text.replace(built_in, str(repo.resolve())).encode("utf-8"))
+    projects = tmp_path / "claude-projects"
+    shutil.copytree(template / "claude-projects", projects)
+    (projects / slug(Path(built_in))).rename(projects / slug(repo))
+    monkeypatch.setenv("CHANTIER_CLAUDE_PROJECTS", str(projects))
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-chief")
+    host(monkeypatch)
+    monkeypatch.setenv("CHANTIER_BATCH", record(repo)["id"])
+    return CostWorld(repo, chantier, projects, [c["id"] for c in record(repo)["crs"]])
+
+
+def _build(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> CostWorld:
     projects = tmp_path / "claude-projects"

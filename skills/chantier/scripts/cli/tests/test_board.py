@@ -248,9 +248,14 @@ def test_join_drains_large_output_without_deadlock() -> None:
 
 
 def test_a_held_port_is_refused_with_the_port_and_the_way_out(
-    repo: Path, chantier: Chantier
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     prepared(repo, chantier, "Board one")
+
+    def never_answers(*_a: object, **_k: object) -> None:
+        raise TimeoutError("timed out")  # what `_call` raises after its 2 s on a silent port
+
+    monkeypatch.setattr(address, "_call", never_answers)
     with socket.socket() as held:
         held.bind(("127.0.0.1", 0))
         held.listen()
