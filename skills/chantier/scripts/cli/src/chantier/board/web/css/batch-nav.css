@@ -1,0 +1,56 @@
+/* The batch navigator, next to the title of the Costs and Batch pages: two ghost arrows around the
+   batch's id, and a "Latest" pill when the page is not on the latest batch. */
+.batchnav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.batchnav[hidden] {
+  display: none;
+}
+
+.batchnav .bn-id {
+  color: var(--ink2);
+  font-family: inherit;
+  font-size: var(--text-stat);
+  font-weight: 500;
+}
+
+.batchnav .bn-arrow {
+  border: 0;
+  border-radius: var(--radius-nav);
+  background: transparent;
+  padding: 0 var(--space-2);
+  color: var(--ink2);
+  font-size: var(--title);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.batchnav .bn-arrow:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.batchnav .bn-arrow:disabled {
+  color: var(--ink3);
+  cursor: default;
+}
+
+.batchnav .bn-pill {
+  margin-left: var(--space-2);
+  border: 0;
+  border-radius: 99px;
+  background: var(--accent-tint-2);
+  padding: 1px 10px;
+  color: var(--accent);
+  font-size: var(--text-badge);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .batchnav {
+    flex-basis: 100%;
+  }
+}

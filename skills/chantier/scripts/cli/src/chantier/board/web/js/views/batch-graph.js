@@ -31,20 +31,28 @@ function mergedBand(c, now) {
   return html`<span>${t('prs.merged_ago', { age: age(mergedAt(c), now) })}</span>${line}`;
 }
 
+// A CR of a closed record: its folder, title, badge, rounds, cost and "PR"; no opener, no phase.
+const recordedNode = (c) =>
+  html`<div class="node card" data-id="${c.cr}" data-key="node-${c.cr}" tabindex="0"><div class="row-tags"><span class="tag cr">${c.cr}</span><span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div><div class="nm">${c.round == null ? '' : html`<span>r${c.round}</span>`}${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+
 const node = (c, batch, now) =>
   html`<div class="node card" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span>${mergedBand(c, now)}</div></div>`;
 
-const level = (rows, i, batch, now) => {
+const level = (rows, i, draw) => {
   const head = i === 0 ? t('batch.no_dep') : t('batch.level', { i });
-  return html`<div class="lvl"><div class="lvlh">${head}</div>${rows.map((c) => node(c, batch, now))}</div>`;
+  return html`<div class="lvl"><div class="lvlh">${head}</div>${rows.map(draw)}</div>`;
 };
 
 // "States and arrows": a grey pill that opens a tooltip on hover and on focus.
 const legend = () =>
   html`<div class="lgrow"><span class="lgpill" tabindex="0" aria-describedby="lgtip">${t('batch.legend')}<span class="tip" id="lgtip" role="tooltip">${STATE_ORDER.map((s) => html`<span class="k">${stateIcon(s)}${t(`state.${s}`)}</span>`)}<span class="k an">${t('batch.arrow')}</span></span></span><span class="lghint">${t('batch.legend_hint')}</span></div>`;
 
-export const graphBlock = (batch, now) =>
-  html`${legend()}<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(batch.crs).map((rows, i) => level(rows, i, batch, now))}</div></div><p class="note">${t('batch.hover')}</p>`;
+// The graph of the live batch's rows, or of a closed record's (`recorded`: rows from `recordRows`).
+export function graphBlock(rows, batch, now, recorded = false) {
+  const draw = recorded ? recordedNode : (c) => node(c, batch, now);
+  const hint = recorded ? '' : html`<p class="note">${t('batch.hover')}</p>`;
+  return html`${legend()}<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(rows).map((r, i) => level(r, i, draw))}</div></div>${hint}`;
+}
 
 const TAIL = 12; // the last, straight stretch of an arrow, along which its head points
 

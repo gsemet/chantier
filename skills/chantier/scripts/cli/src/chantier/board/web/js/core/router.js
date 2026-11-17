@@ -1,11 +1,12 @@
-// The address is the state of the page: ?p=<project>&v=<view>, and the browser's history. With
-// the store, this module is the only one that writes the URL.
+// The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
+// Costs and Batch views), and the browser's history. With the store, this module is the only one that writes the URL.
 import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
 
 export const ALL = '*';
 const LAST = 'last';
 const CHOSEN = 'project';
 const rules = { views: ['home'], overview: ['home'] };
+const BATCH_VIEWS = ['costs', 'batch']; // the views the batch navigator moves through
 
 // The views the page knows, and those that stay on "All projects" (the registry says which).
 export function configure(views, overview) {
@@ -28,16 +29,19 @@ export function resolve(projects, search = location.search) {
   const wanted = [asked.get('p'), pref(CHOSEN)].find(
     (id) => ids.includes(id) || (many && id === ALL),
   );
-  return { project: wanted ?? lastOf(ids), view: known(asked.get('v')) };
+  const view = known(asked.get('v'));
+  const batch = BATCH_VIEWS.includes(view) ? asked.get('b') || null : null;
+  return { project: wanted ?? lastOf(ids), view, batch };
 }
 
 // A view that "All projects" does not show opens on the last real project.
 function settle(place) {
   const ids = (snapshot().board?.projects ?? []).map((p) => p.id);
+  const next = place.project === ALL ? { ...place, batch: null } : place;
   if (place.project === ALL && !rules.overview.includes(place.view)) {
-    return { ...place, project: lastOf(ids) };
+    return { ...next, project: lastOf(ids) };
   }
-  return place;
+  return next;
 }
 
 const reset = {
@@ -67,21 +71,38 @@ function apply(place) {
   const turned = place.view !== now.view;
   if (place.project) setPref(CHOSEN, place.project);
   if (place.project && place.project !== ALL) setPref(LAST, place.project);
-  update({ ...place, ...(turned ? closed : {}), ...(moved ? reset : {}) });
+  const { project, view, batch } = place;
+  update({
+    project,
+    view,
+    batchId: batch ?? null,
+    ...(turned ? closed : {}),
+    ...(moved ? reset : {}),
+  });
 }
 
 // The relative address of a place: it keeps the page's own address in front of the query.
 export const href = (place) =>
-  `?${new URLSearchParams({ p: place.project ?? '', v: place.view ?? 'home' })}`;
+  `?${new URLSearchParams({
+    p: place.project ?? '',
+    v: place.view ?? 'home',
+    ...(place.batch ? { b: place.batch } : {}),
+  })}`;
+
+// The chosen batch after a move: kept (or set by `place.batch`) between Costs and Batch of the
+// same project, cleared by any other view or project. `undefined` keeps the current one.
+function batchOf(place, now, project, view) {
+  if (project !== now.project || !BATCH_VIEWS.includes(view)) return null;
+  return place.batch === undefined ? now.batchId : place.batch;
+}
 
 let here = null; // the address the page last settled on
 
 export function go(place, { replace = false } = {}) {
   const now = snapshot();
-  const next = settle({
-    project: place.project ?? now.project,
-    view: known(place.view ?? now.view),
-  });
+  const project = place.project ?? now.project;
+  const view = known(place.view ?? now.view);
+  const next = settle({ project, view, batch: batchOf(place, now, project, view) });
   if (replace) history.replaceState(null, '', href(next));
   else history.pushState(null, '', href(next));
   here = location.href;

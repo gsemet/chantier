@@ -15,6 +15,7 @@ from chantier import __version__
 from chantier.board import running
 from chantier.board.address import (
     is_loopback,
+    local_url,
     probe,
     register_seat,
     settings,
@@ -91,7 +92,9 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
     def stop() -> None:
         box[0].should_exit = True
 
-    ctx = Context(projects, KeyFile(key_path(projects.home)), seats, __version__, stop)
+    ctx = Context(
+        projects, KeyFile(key_path(projects.home)), seats, __version__, stop, sock.getsockname()[:2]
+    )
     box.append(make_server(ctx))
     seats.arm(stop)
     try:
@@ -173,13 +176,18 @@ def board(args: argparse.Namespace) -> list[str]:
     if there:
         if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
             raise _not_started("the board already running there did not take the seat")
-        return [f"board already running at {url(*there, key)}"]
+        lines = [f"board already running at {url(*there, key)}"]
+        if local := local_url(*there, key):
+            lines.append(f"on this machine: {local}")
+        return lines
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
     bound = sock.getsockname()[1]
     running.write(key_path(projects.home), host, bound, __version__, projects.served.as_posix())
     link = url(host, bound, key)
     print(f"board on {link} over {projects.served.as_posix()}", flush=True)
+    if local := local_url(host, bound, key):
+        print(f"on this machine: {local}", flush=True)
     if not is_loopback(host):
         print(BEYOND.format(host=host), flush=True)
     _run(projects, seats, sock)

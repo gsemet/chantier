@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from chantier.board import autosync_api, config_api, costs, files, guard, prs, static, write_api
+from chantier.board.address import local_url
 from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
@@ -23,6 +24,11 @@ UNREADABLE = "the record could not be read just now"
 
 def _etag(print_: str) -> str:
     return f'"{print_[:32]}"'
+
+
+def _local_url(ctx: Context) -> str | None:
+    """The 127.0.0.1 link of a board that listens on every address (the key as it is now)."""
+    return local_url(*ctx.bound, ctx.key.current()) if ctx.bound else None
 
 
 def _state_of(ctx: Context, project: Project, ask: bool) -> tuple[dict[str, Any], str]:
@@ -66,6 +72,7 @@ def board(ctx: Context, req: Request) -> Reply:
             "pid": os.getpid(),
             "served": ctx.projects.served.as_posix(),
             "served_origin": origin_of(ctx.projects.served),
+            "local_url": _local_url(ctx),
             "seats": ctx.seats.count(),
             "projects": lines,
             "autosync": autosync_api.payload(ctx),

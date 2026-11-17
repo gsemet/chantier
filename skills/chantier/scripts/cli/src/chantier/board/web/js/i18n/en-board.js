@@ -81,4 +81,8 @@ export default {
   'config.timing_ci_reruns': 'CI re-runs max',
   'config.timing_ci_reruns.text': 're-runs of a CI job failed on the infrastructure',
   'config.timing_unreadable': 'The timing could not be read: the shipped defaults are missing.',
+  'batchnav.label': 'Batches',
+  'batchnav.prev': 'Previous batch',
+  'batchnav.next': 'Next batch',
+  'batchnav.latest': 'Latest',
 };

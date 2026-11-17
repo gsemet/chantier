@@ -46,6 +46,8 @@ def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
         "rounds": c.round,
         "cost_usd": round(cost[1], 4) if cost else None,
         "cost_unpriced": cost[2] if cost else {},
+        "order": c.order,
+        "after": list(c.after),
     }
 
 

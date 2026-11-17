@@ -94,6 +94,8 @@ def test_the_frame_is_shipped_with_the_package() -> None:
         "js/main.js",
         "js/core/store.js",
         "js/views/registry.js",
+        "js/ui/batch-nav.js",
+        "css/batch-nav.css",
         "css/tokens.css",
         "css/shell.css",
         "js/i18n/en.js",
@@ -104,6 +106,7 @@ def test_the_frame_is_shipped_with_the_package() -> None:
     ):
         assert (web / name).is_file(), name
     assert "font-src 'self'" in reply.HTML_POLICY
+    assert "img-src 'self' data:" in reply.HTML_POLICY  # the source the image copy was proved with
 
 
 def test_board_does_not_join_autosync_implicitly() -> None:

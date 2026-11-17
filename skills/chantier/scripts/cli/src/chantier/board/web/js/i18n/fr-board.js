@@ -82,4 +82,8 @@ export default {
   'config.timing_ci_reruns.text': "relances d'un job de CI tombé sur l'infrastructure",
   'config.timing_unreadable':
     'Les délais sont illisibles : les valeurs par défaut livrées sont absentes.',
+  'batchnav.label': 'Batches',
+  'batchnav.prev': 'Batch précédent',
+  'batchnav.next': 'Batch suivant',
+  'batchnav.latest': 'Dernier',
 };

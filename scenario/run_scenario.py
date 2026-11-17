@@ -3114,6 +3114,10 @@ def close_batch(w: World) -> None:
     retro_bytes = ("# Retro\n\n## Pause 1\n\n- problem one, long-term fix one\n\n"
                    "## Pause 2\n\n- problem two, long-term fix two\n").encode()
     retro.write_bytes(retro_bytes)
+    waiter, waited = (w.batch()["crs"][i]["id"] for i in (1, 0))
+    d_wait = w.batch()
+    next(c for c in d_wait["crs"] if c["id"] == waiter)["after"] = [waited]
+    (folder / "batch.json").write_text(json.dumps(d_wait, indent=2))
     d0 = w.batch()
     crs_before = sorted(c["id"] for c in d0["crs"])
     opened, mode, steering = d0["created"], d0["mode"], d0["steering"]
@@ -3231,6 +3235,16 @@ def close_batch(w: World) -> None:
                   if c["result"] == "dropped")
           and all(c["pr"] and c["rounds"] is not None and c["cost_usd"] is not None
                   for c in rec["crs"] if c["result"] == "merged"), str(rec["crs"]))
+    order_ids = [c["cr"] for c in rec["crs"]]
+    after_before = {c["id"]: list(c.get("after", [])) for c in d0["crs"]}
+    check("its CRs carry an integer `order` and an `after` list, as the batch left them, sorted "
+          "by `order`",
+          all(isinstance(c.get("order"), int) and isinstance(c.get("after"), list)
+              for c in rec["crs"])
+          and [c["order"] for c in rec["crs"]] == sorted(c["order"] for c in rec["crs"])
+          and {c["cr"]: c["after"] for c in rec["crs"]} == {i: after_before[i] for i in order_ids}
+          and any(c["after"] == [waited] for c in rec["crs"] if c["cr"] == waiter),
+          str(rec["crs"]))
     receipt = rec.get("cost_receipt") or {}
     split = receipt.get("split") or []
     md_drivers = sorted(re.findall(r"Driver (\S+) with its workers: \$(\d+\.\d\d)", cost_part))

@@ -38,6 +38,34 @@
   cursor: default;
 }
 
+/* the tooltip of a greyed button: a span that wraps it, opened by hover and by focus */
+.costs .tipwrap {
+  position: relative;
+  display: inline-block;
+}
+
+.costs .tipwrap .tip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 4;
+  display: none;
+  width: max-content;
+  max-width: 300px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--panel);
+  box-shadow: var(--shadow-menu);
+  font-size: var(--text-small);
+}
+
+.costs .tipwrap:hover .tip,
+.costs .tipwrap:focus .tip,
+.costs .tipwrap:focus-within .tip {
+  display: block;
+}
+
 .costs .kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

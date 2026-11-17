@@ -33,6 +33,8 @@ A project's Home answers "what needs me?": five tiles (**To review**, the PRs re
 
 The batch in four figures (the slots, the CRs working, the CRs handed back ready, what was spent), then the CRs as boxes in levels, "Level 1", "Level 2" and so on: a CR sits in the level below the CRs it waits for, and an arrow goes from a CR to the one that waits for it. Each CR stays in one place for its whole life, merged ones included. The state is a badge in the CR's top right corner, its icon and word in the state's colour: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged; its legend is in the "States and arrows" tooltip. Hover a CR to see what it waits for and what waits for it; a click opens its folder.
 
+The same navigator sits next to the title. On a closed batch the page draws the record: four figures (CRs merged out of the total, the dropped ones, the rounds, spent against the budget), the mode, and the graph of its CRs in levels with its arrows, each CR carrying its badge (merged or cancelled), its rounds, its cost and "PR"; there is no PR column and a click opens nothing. The crumb shows the batch's id with a grey "closed" chip. A batch closed since this change keeps each CR's `order` and `after` in its record, so its graph is complete. For an older batch the board reads the `depends.json` the archived CR folders still hold: a line above the graph says "Dependencies from the archived CR folders only" (those set during the batch were not kept) or, when nothing can be read, "Dependencies not recorded for this batch: no arrow".
+
 The right column is one column, the PRs to review then the drafts, and follows the batch's mode (stack, series or parallel, named in the bar under the numbers):
 
 - **PRs to review**: the PRs ready to merge now. In a stack, only a fix CR, which sits on the default branch outside the stack, is to review while the stack is not built and verified on the forge; the others are listed as **PRs in draft, not to merge yet**, with their place in the stack (1 is the bottom, not a merge order). A click on a PR opens it on the forge; the folder icon opens the CR's folder.
@@ -75,9 +77,11 @@ Each change is written at once, with the CLI's own file and triage commands, in 
 
 ![The costs: the batch's receipt, the totals and one row per CR](web-board/costs-pc.png)
 
-The page shows the running batch's cost as a supermarket receipt, and, with no batch running, the newest closed batch's. On a wide screen the receipt (the ticket) stays on the left and the cards on the right; on a phone the ticket comes first, the Per CR table keeps the CR and its title and the figures follow.
+The page shows the cost of the batch the navigator chose as a supermarket receipt; by default the running batch's, and, with no batch running, the newest closed batch's. The navigator sits next to the title, on this page and on the Batch page: `‹ batch-04 ›` moves to the previous and the next batch (greyed on the first and on the last), and a **Latest** pill, shown when the page is not on the last batch, goes back to it. The batch shown is in the address (`&b=batch-04`), so a link opens the same batch; it stays between Costs and Batch, and any other view or project drops it. An unknown `b` shows the latest batch. A record that is neither closed nor the running batch (an abandoned one) is not in the navigator. On a wide screen the receipt (the ticket) stays on the left and the cards on the right; on a phone the ticket comes first, the Per CR table keeps the CR and its title and the figures follow.
 
 The ticket prints the batch, its state and how long it lasted, then the steering (the Foreman or the Chief of Staff, with its wakes and its average context), one line per Driver with its workers, a bar of the split between the steering, the Drivers and the workers, and, after a cut line, the total in large figures, the budget used, the average per CR and what lies outside the budget (the grill and the specifications, and the steering in a Foreman batch). Below a dashed rule come one line per CR, their sum and a barcode. The cards show the figures again (spent, budget, sum of the CRs, average), one row per CR of the batch, the last merged CRs of all the batches and **Earlier batches** (closing day, mode, CRs merged, cost against the budget; a click on a row unfolds its CRs). A figure the batch could not price reads "at least"; a record made after the fact shows a dash where it has no figure.
+
+**Copy as image** (above the cards, next to Recompute) puts the ticket in the clipboard as a PNG, with the board's font and without the button; it works for a running and for a closed batch. A browser allows it on a secure origin only: on `127.0.0.1` or `localhost`. From another machine of the network, over plain http, the button is greyed and its tooltip (on hover and on focus) says so and links to the same page at the board's 127.0.0.1 address; a browser without the clipboard's image support greys it too. There is no download.
 
 A closed batch's ticket is the `cost_receipt` its record kept at close: final, it never changes. A closed record from before the receipt reads "roles not recorded". A running or paused batch with no live figure yet reads "not computed yet"; **Recompute** makes the server read the transcripts again, with no agent turn.
 
@@ -145,7 +149,11 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
 "rescan" button empties it, to tell the Chief of Staff the backlog changed. The surface's Home
 (the overview of the projects) is read-only.
 
-- **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. Open it
+- **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. When the
+  board listens on every address (the default), it prints a second line,
+  `on this machine: http://127.0.0.1:<port>/?k=<key>` (same key): open that one on the machine
+  that runs the board, where the Costs page's image copy works (a browser allows it on a secure
+  origin only). Open it
   once: the board keeps the key in a cookie and takes it out of the address. The link is yours
   only; whoever has it reads the planning folder. `chantier board --new-key` replaces the key
   and the old link stops working. The key lives in the repository's git folder
