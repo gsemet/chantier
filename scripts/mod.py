@@ -19,7 +19,13 @@ def of_process(pid: str) -> str | None:
     if not pid.isdigit():
         return None
     if os.name == "nt":
-        cmd = ["powershell.exe", "-NoLogo", "-NoProfile", "-Command", f"(Get-Process -Id {pid}).Path"]
+        cmd = [
+            "powershell.exe",
+            "-NoLogo",
+            "-NoProfile",
+            "-Command",
+            f"(Get-Process -Id {pid}).Path",
+        ]
     elif sys.platform == "linux":
         link = Path(f"/proc/{pid}/exe")
         return str(link.resolve()) if link.exists() else None
@@ -39,7 +45,10 @@ def find_claude() -> str | None:
 def main() -> int:
     claude = find_claude()
     if claude is None:
-        print("just mod: no claude binary found (not on the PATH, and CLAUDE_PID names no process)", file=sys.stderr)
+        print(
+            "just mod: no claude binary found (not on the PATH, and CLAUDE_PID names no process)",
+            file=sys.stderr,
+        )
         return 1
     print(f"just mod: using {claude}", flush=True)
     for step in ("validate", "test"):
