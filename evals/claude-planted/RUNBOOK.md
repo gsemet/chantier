@@ -48,7 +48,7 @@ Then follow the common steps in [the evals README](../README.md#run-a-campaign),
 
 | Step | Value |
 | --- | --- |
-| Setup | `uv run --no-project python evals/kit/setup.py claude-planted <workspace>` |
+| Setup | `uv run --no-project python evals/kit/setup.py claude-planted <workspace>` (a new folder inside the eval root) |
 | CRs | A `add-priority`, B `done-unknown-id`, C `list-json`, D `delete-command` (CI contract), E `export-csv` (question), F `stats-command` (round limit), R `release-v0-2-0` (the release), V `version-option` (R's fix) |
 | Open | `$CHANTIER open 2-backlog/P1/<A> 2-backlog/P1/<B> 2-backlog/P1/<C> 2-backlog/P1/<R> --mode parallel --release 4 --slots 3 --budget 25 --default-branch main`, each `<X>` the slug of its folder in `.agents/changes/2-backlog/P1/`; the team (the project's two review steps) comes from the `chantier` section of the fixture's `AGENTS.md`, in the Foreman's prompt |
 

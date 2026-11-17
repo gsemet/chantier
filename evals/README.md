@@ -17,7 +17,7 @@ mechanics and lives in [`scenario/`](../scenario/run_scenario.py).
 ## Prerequisites
 
 What a person needs to run a campaign, in one list; the sections below point here and do not
-repeat it. The `claude-planted` campaign needs only the first two items and Claude Desktop.
+repeat it. The `claude-planted` campaign needs only the first two items and the Claude Desktop and eval root item; setup refuses every campaign without a valid eval root file.
 
 - This repository cloned, and the chantier plugin installed from it, the session restarted:
   `claude plugin marketplace add <this checkout>`, then `claude plugin install chantier@chantier`.
@@ -26,7 +26,14 @@ repeat it. The `claude-planted` campaign needs only the first two items and Clau
   git's credential helper set (`gh auth setup-git`), on an account that can push to the sandbox.
 - A sandbox of your own (`uv run --no-project python evals/kit/sandbox.py publish <you>/<name>`,
   see [the sandbox](#the-sandbox)), or push rights on the maintainer's.
-- Claude Desktop, at the desk (not under Remote Control), for the start and its trust step.
+- Claude Desktop, and an **eval root**: one folder outside this repository, named in
+  `evals/kit/eval-root.local.json` (git-ignored, written by you: `{"root": "C:/Users/<user>/chantier-eval"}`).
+  Trust it once, at the desk: open a Code session on that folder in Claude Desktop and answer the
+  app's trust question. chantier never grants or edits that trust. Every workspace is created
+  inside the eval root (setup refuses any other), so a workspace asks for no new trust (unproved
+  until the trial in "The operator" reports). A Foreman campaign (`real-foreman`, `full`) still
+  needs the desk, to start the Foreman and type the go; only the campaigns with no Foreman
+  (`real-direct`, `ticket-summary`, `claude-planted`) start from the phone.
 - The host's PR automations off: global Auto-fix and auto-archive on merge (see "A sandbox
   campaign", "Preparation").
 
@@ -95,7 +102,11 @@ from this checkout, with the [prerequisites](#prerequisites) met.
      any other run. Each of these commands prints the repository it acts on, and where the name
      was read, on its first line.
   4. `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`, with `<workspace>`
-     outside this repository, for example `../chantier-eval/<campaign>-<date>`. Setup refuses
+     a new folder inside the eval root (see the [prerequisites](#prerequisites)), for example
+     `<eval root>/<campaign>-<date>`. Setup refuses any other workspace, and a missing or
+     malformed `evals/kit/eval-root.local.json`, before it creates anything: a workspace inside the
+     trusted root does not ask for trust (unproved until the trial reports, below), so the
+     operator's session can start from Remote Control. Setup refuses
      when the sandbox is not at its base, never resets and never pushes. It clones the sandbox
      into the workspace, runs `chantier init` and `uv sync --locked` there, places the campaign's
      frozen CRs in `.agents/changes/3-ready/`, writes `<workspace>.run.json` (the run's record)
@@ -112,17 +123,25 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   anyway: each frozen CR copied into the workspace says so in its "Eval run" section. The audit
   and the judge read the run's record, so the prefix is how a run's PRs are told apart from older
   ones left on the sandbox.
-- **The operator** is a new Code session of the Claude Desktop app opened on the workspace (not
-  under Remote Control: it starts the Foreman's sessions), started with the `prompt` line setup
+- **The operator** is a new Code session of the Claude Desktop app opened on the workspace (at the
+  desk for a Foreman campaign: it starts the Foreman's sessions), started with the `prompt` line setup
   printed: the runbook's prompt, with the runbook named by its absolute path in this checkout
-  (the mode of the quick campaigns is the blank to fill: `stack`, `parallel` or `series`). Two
-  ways to start it worked on 2026-11-15: **from New session** in the app's Code tab, picking the
+  (the mode of the quick campaigns is the blank to fill: `stack`, `parallel` or `series`). Three
+  ways to start it; the first two worked on 2026-11-15: **from New session** in the app's Code tab, picking the
   workspace folder (its native spelling, the `workspace` line setup printed; backslashes on
   Windows), then pasting the `prompt` line; or **from a chantier session at the desk**, asking a
   Claude Desktop session (for example the one in this checkout) to start a new session on the
-  workspace with the `prompt` line. **The trust step:** the first time, the app asks to trust the
-  new workspace folder. It can ask only while the Code tab shows that session at the desk: under
-  Remote Control it is refused. Answer it at the desk, then the session runs. On Copilot: a new
+  workspace with the `prompt` line; or **away from the desk**, for a campaign with no Foreman
+  only (**unproved** until the trial below reports): from the phone, under Remote Control, start a
+  new Code session on the workspace folder and paste the `prompt` line. The session must be on the
+  workspace's main checkout, not a worktree of it. **The trust step:** a workspace inside the
+  trusted eval root does not ask for trust (unproved until the trial reports); a folder outside it
+  would ask, and only at the desk, which is why setup refuses it. A Foreman campaign is started at
+  the desk. The trial (the first `real-direct` run after this change): from the phone, before
+  `preflight`, the operator runs `git rev-parse --git-dir`, `git rev-parse --git-common-dir` and
+  `git rev-parse --show-toplevel`; the first two must be the same folder and the top level the
+  workspace, else it is a Fail. The report quotes the output and records how the session was
+  created from the phone (the app, the screen, the choices made). On Copilot: a new
   chat of the Copilot app opened on the workspace, with the `prompt` line (**unproved** until
   the campaign's first run). The operator is the Chief of Staff and plays the
   user in full: the go after the plan, every merge, every answer, every approval, the release's
@@ -241,14 +260,19 @@ Claude Desktop sets these and no setting changes them: a campaign is written to 
   another tool: the limit is the host's, and a refusal is reported.
 - **Starting the Foreman** needs a line typed in the desktop app (see above). From a phone, the
   user starts the session and pastes the Foreman's prompt; the Foreman claims its epoch itself.
+  The trusted eval root removes only the trust step. It does not lift the host's rule that a
+  session started or driven under Remote Control cannot start another session, so a Foreman
+  campaign needs the desk, to start the Foreman and type the go. See the hosts card's "Classes of
+  session" table, row "Desktop, driven by Remote Control"
+  ([hosts/claude-code.md](../skills/chantier/references/hosts/claude-code.md)).
 
 ### The steps
 
 These steps are for `claude-planted`.
 
-1. **Stage** the workspace next to this checkout, for example
-   `../chantier-eval/<campaign>-<date>`: `uv run --no-project python evals/kit/setup.py
-   <campaign> <workspace>`.
+1. **Stage** the workspace inside the
+   eval root, for example `<eval root>/<campaign>-<date>` (setup refuses any other workspace):
+   `uv run --no-project python evals/kit/setup.py <campaign> <workspace>`.
 2. **Be the Chief of Staff** in that workspace: load the chantier skill, run its CLI from the
    workspace (`$CHANTIER` is `uv run --locked --project "<this checkout>" chantier`),
    and start the batch as `chief-of-staff.md` says (preflight, plan, go), with the `open`
@@ -349,7 +373,7 @@ completed after them, and committed with the campaigns' reports.
 
 | File | Role |
 | --- | --- |
-| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace. `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the operator's `set_monitor`, the release's tag push and GitHub release); its last line is the operator's `prompt`. For `ticket-summary`, the issue's `gh issue create` line and the chat request, with the two posting commands allowed |
+| [`kit/setup.py`](kit/setup.py) | Sets up a campaign's workspace, and refuses one that is not inside the eval root named in `kit/eval-root.local.json` (git-ignored; also refused: no file, a malformed file; nothing is created). `claude-planted`: the project, a bare origin, the local forge, the CRs. A sandbox campaign: a clone of the sandbox at its base, the frozen CRs, the run's number and prefix, `<workspace>.run.json`, and on Claude the workspace's ignored `.claude/settings.local.json` (the merge, the operator's `set_monitor`, the release's tag push and GitHub release); its last line is the operator's `prompt`. For `ticket-summary`, the issue's `gh issue create` line and the chat request, with the two posting commands allowed |
 | [`kit/forge.py`](kit/forge.py) | The local forge, called as `gh`: PRs, CI in a fresh clone, CI-only contract tests |
 | [`kit/merge.py`](kit/merge.py) | `claude-planted`'s merge, on the local forge |
 | [`kit/audit.py`](kit/audit.py) | What happened to each CR, the agent tree, one PASS/FAIL line per check, each naming its rail, and the scorecard; `--sandbox` for the sandbox campaigns: also the run table, the real forge read-only and the judge |
@@ -363,7 +387,7 @@ completed after them, and committed with the campaigns' reports.
 | [`kit/sandbox-judge/`](kit/sandbox-judge/) | The hidden tests of the feature CRs: never copied to a workspace, never pushed to the sandbox |
 | [`kit/sandbox/`](kit/sandbox/) | `shelf`, the sandbox project, the source of the sandbox's initial commit |
 | [`kit/sandbox.py`](kit/sandbox.py) | `build` (the deterministic initial commit, its SHA-1 recorded in `kit/sandbox.json`), `publish` (your own public sandbox, created, given the base and named in `kit/sandbox.local.json`), `reset` (the sandbox back at that commit, comparing branches and tags only; the only force push; it refuses a repository whose history does not hold the base) and `merge` (the operator's merge of a run's PR, which refuses a PR not open, without the run's prefix or with a check finished and not green, and waits, for at most 5 minutes, for a pending check). It is the one reader of the sandbox's name: `kit/sandbox.local.json` (git-ignored), else `kit/sandbox.json` |
-| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), the `ticket-summary` setup case (no CR placed, the issue line, no forge write), the other sandbox (a `sandbox.local.json` naming another repository flows through setup, merge, the judge and the audit), `reset` refusing a foreign or an empty repository, `publish`, and the `prompt` lines of setup; no model, no GitHub, and never the checkout's own `sandbox.local.json` |
+| [`kit/dry_run.py`](kit/dry_run.py) | The dry run (`just eval-dry-run`): reset, setup, a staged run, audit and judge, on a local sandbox, with its planted faults (a stray merge, a leftover after the reset, a refused merge, a stale `uv.lock`; the audit's own detectors, each with its planted breach: a retro critic's `for the Chief of Staff` first line, a rules read in the claim's own shell call, a here-doc's text holding a git move), the `eval-root` case (setup refuses a workspace outside the eval root, with no file and with a malformed one; inside, the same allow rules and no trust entry), the `ticket-summary` setup case (no CR placed, the issue line, no forge write), the other sandbox (a `sandbox.local.json` naming another repository flows through setup, merge, the judge and the audit), `reset` refusing a foreign or an empty repository, `publish`, and the `prompt` lines of setup; no model, no GitHub, and never the checkout's own `sandbox.local.json` or `eval-root.local.json` |
 | [`kit/sandbox_forge.py`](kit/sandbox_forge.py) | The sandbox's GitHub played locally, called as `gh`, for the dry run only |
 | [`kit/dry-run/`](kit/dry-run/) | The reference solution of the staged CR, `delete-item` (`delete-item.patch`) |
 

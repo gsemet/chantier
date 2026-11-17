@@ -19,13 +19,14 @@ Setup prints the operator's `prompt` line last, with this checkout's path filled
 `/chantier:chief-of-staff Run the chantier eval campaign ticket-summary: follow <this checkout>/evals/ticket-summary/RUNBOOK.md.`).
 Start the operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
-workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
-Remote Control (the evals README, "The operator").
+workspace with it. The workspace is inside the trusted eval root, so the app does not ask to
+trust it (setup refuses a workspace outside it; **unproved** until the trial reports). This campaign has no Foreman, so it can start
+from the phone, under Remote Control: see the evals README, "The operator".
 
 ## Setup, by the operator
 
 1. Prepare as the evals README's sandbox campaign text says, with
-   `uv run --no-project python evals/kit/setup.py ticket-summary <workspace>`.
+   `uv run --no-project python evals/kit/setup.py ticket-summary <workspace>` (a new folder inside the eval root).
 2. Run the `issue` line setup printed (the frozen issue, its title with the run's prefix); note
    its number `<n>`.
 3. File a CR from it (`$CHANTIER file`, with the `issue: <link>` line under the title of

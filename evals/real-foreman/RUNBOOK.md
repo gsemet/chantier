@@ -11,7 +11,7 @@ CR, the audit, the report) is in [the evals README](../README.md#a-sandbox-campa
 
 | | |
 | --- | --- |
-| Setup | `uv run --no-project python evals/kit/setup.py real-foreman <workspace>` (after `sandbox.py reset --yes`, see the README) |
+| Setup | `uv run --no-project python evals/kit/setup.py real-foreman <workspace>` (a new folder inside the eval root, after `sandbox.py reset --yes`, see the README) |
 | CRs | `delete-item`, `edit-item`, `status-filter`, `json-api`, `stats-page`: frozen and specified, no grill, no release |
 | Open | `$CHANTIER open 3-ready/delete-item 3-ready/edit-item 3-ready/status-filter 3-ready/json-api 3-ready/stats-page --mode <mode> --slots 3 --budget 20 --default-branch main` (`setup.py` prints it) |
 | Mode | chosen at launch: `stack`, `parallel` or `series`; the same 5 CRs in every mode |
@@ -34,8 +34,9 @@ Control), with the plugin installed from this checkout, the user types, with `<m
 Setup prints this as its last line, the `prompt` line, with the path filled in. Start the
 operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
-workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
-Remote Control (the evals README, "The operator").
+workspace with it. This campaign needs the desk, to start the Foreman and type the go, and the eval
+root does not change that (the evals README, "The host's limits"). The workspace is inside the trusted eval
+root, so the app does not ask to trust it (setup refuses a workspace outside it; **unproved** until the trial reports).
 
 That session is the operator: a Chief of Staff in Foreman mode, playing the user in full (Q7):
 the go after the plan, every merge, every answer. Nothing waits on the real user. The host's

@@ -13,7 +13,7 @@ judge on every CR and on both releases.
 
 | | |
 | --- | --- |
-| Setup | `uv run --no-project python evals/kit/setup.py full <workspace>` (after `sandbox.py reset --yes`, see the README) |
+| Setup | `uv run --no-project python evals/kit/setup.py full <workspace>` (a new folder inside the eval root, after `sandbox.py reset --yes`, see the README) |
 | Batch 1 | `delete-item`, `edit-item`, `status-filter`, `json-api`, `stats-page`, `csv-export`, `item-notes`, `title-search`, then `release-v0-2-0` (item 9, the last); `item-rating` is added during it. Four slots, budget $40 |
 | Batch 2 | `sort-list`, `duplicate-url`, then `release-v0-3-0` (item 3, the last). Four slots, budget $15 |
 | Mode | parallel; the Foreman steers |
@@ -37,8 +37,9 @@ Foreman mode, playing the user in full. One new Foreman session per batch.
 Setup prints this as its last line, the `prompt` line, with the path filled in. Start the
 operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
-workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
-Remote Control (the evals README, "The operator").
+workspace with it. This campaign needs the desk, to start the Foreman and type the go, and the eval
+root does not change that (the evals README, "The host's limits"). The workspace is inside the trusted eval
+root, so the app does not ask to trust it (setup refuses a workspace outside it; **unproved** until the trial reports).
 
 ## Batch 1
 

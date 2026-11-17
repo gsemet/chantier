@@ -28,6 +28,13 @@ operator's session (the mode of the quick campaigns stays a blank to fill).
 ticket-less chat request, and allows the two posting commands (`gh issue comment`, `gh issue
 artifact create`) in place of the merge. It creates nothing on the forge: the operator runs the line.
 
+The workspace is inside the user's trusted eval root: one absolute folder outside this repository,
+named in `evals/kit/eval-root.local.json` (git-ignored, written by the user: `{"root": "<folder>"}`).
+Setup refuses any other workspace, and a missing or malformed file, before it creates anything; the
+first lines it prints name the root and the file. The user trusts the root once in Claude Desktop, at
+the desk: a workspace inside it asks for no new trust. Setup never writes, reads or changes a host's
+trust or security setting; the root file holds a path and grants nothing.
+
 Exit codes: 0 ok, 1 usage, 2 precondition, 4 external (git, gh or uv failed). Standard library only.
 """
 from __future__ import annotations
@@ -47,6 +54,7 @@ import sandbox  # noqa: E402  (the sandbox's repository, its survey helpers, its
 
 ROOT = HERE.parents[1]
 CLI = ROOT / "skills" / "chantier" / "scripts" / "cli"  # the package's folder: its source is `src/`
+EVAL_ROOT_FILE = HERE / "eval-root.local.json"  # git-ignored: the user's trusted eval root
 IGNORE = shutil.ignore_patterns(".venv", "__pycache__", ".pytest_cache", "tasks.json")
 REVIEWS = {
     "docs-review": ("chantier-eval-docs-reviewer", "every new or changed CLI command or option "
@@ -110,6 +118,48 @@ def sandbox_crs(spec: dict) -> list[str]:
 
 def inside(path: Path, folder: Path) -> bool:
     return path == folder or folder in path.parents
+
+
+# the eval root ------------------------------------------------------------------------------------
+
+
+def read_eval_root() -> Path:
+    """The user's eval root from `EVAL_ROOT_FILE`, resolved. A missing or malformed file stops setup:
+    no fallback, nothing created."""
+    path = EVAL_ROOT_FILE
+    if not path.exists():
+        raise sandbox.Stop(PRECONDITION, f"{path} is missing: write the user's trusted eval root in it, "
+                                         f'one absolute folder outside this repository, for example '
+                                         f'{{"root": "C:/Users/<user>/chantier-eval"}}')
+    try:
+        root = json.loads(path.read_text(encoding="utf-8"))["root"]
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise sandbox.Stop(PRECONDITION, f'{path} is not JSON or has no `root` ({error!r}): write '
+                                         f'{{"root": "<absolute folder>"}}') from None
+    if not isinstance(root, str) or not root.strip() or not Path(root).is_absolute():
+        raise sandbox.Stop(PRECONDITION, f"{path}: `root` must be an absolute folder, not {root!r}")
+    return Path(root).resolve()
+
+
+def require_eval_root(dest: Path) -> Path:
+    """Refuse a workspace that is not strictly inside the eval root; return the root."""
+    root = read_eval_root()
+    if dest.resolve() == root or root not in dest.resolve().parents:
+        raise sandbox.Stop(PRECONDITION, f"workspace {dest} is not inside the eval root {root} (read from "
+                                         f"{EVAL_ROOT_FILE}): the workspace must be inside the trusted "
+                                         "eval root")
+    return root
+
+
+def start(argv: list[str]) -> int:
+    """Setup's entry: the eval root check first, for every campaign, then the campaign."""
+    dest = Path(argv[1]).resolve()
+    root = require_eval_root(dest)
+    if "batches" in CAMPAIGNS[argv[0]]:
+        return sandbox_main(argv[0], dest)
+    print(f"eval root {root}   (from {EVAL_ROOT_FILE.name}; the workspace is inside it)", flush=True)
+    main(argv[0], dest)
+    return OK
 
 
 # the staged campaign ------------------------------------------------------------------------------
@@ -284,6 +334,8 @@ def open_lines(spec: dict, campaign: str) -> list[str]:
 def sandbox_main(campaign: str, dest: Path) -> int:
     spec = CAMPAIGNS[campaign]
     sandbox.announce(f"setup {campaign}")
+    print(f"eval root {read_eval_root()}   (from {EVAL_ROOT_FILE.name}; the workspace is inside it)",
+          flush=True)
     # 1. preconditions: nothing is created before they pass
     if dest.exists():
         raise sandbox.Stop(PRECONDITION, f"{dest} already exists")
@@ -370,9 +422,7 @@ if __name__ == "__main__":
     if sys.argv[1] not in CAMPAIGNS:
         raise SystemExit(f"campaign: one of {', '.join(CAMPAIGNS)}")
     try:
-        if "batches" in CAMPAIGNS[sys.argv[1]]:
-            sys.exit(sandbox_main(sys.argv[1], Path(sys.argv[2]).resolve()))
-        main(sys.argv[1], Path(sys.argv[2]).resolve())
+        sys.exit(start(sys.argv[1:]))
     except sandbox.Stop as stop:
         print(f"setup.py: {stop}", file=sys.stderr)
         sys.exit(stop.code)

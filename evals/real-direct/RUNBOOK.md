@@ -8,7 +8,7 @@ follows. The text common to the sandbox campaigns is in
 
 | | |
 | --- | --- |
-| Setup | `uv run --no-project python evals/kit/setup.py real-direct <workspace>` (after `sandbox.py reset --yes`, see the README) |
+| Setup | `uv run --no-project python evals/kit/setup.py real-direct <workspace>` (a new folder inside the eval root, after `sandbox.py reset --yes`, see the README) |
 | CRs | the same 5 frozen CRs as real-foreman |
 | Open | the real-foreman line plus `--direct`: `$CHANTIER open <the five CRs> --mode <mode> --slots 3 --budget 20 --default-branch main --direct` (`setup.py` prints it) |
 | Mode | chosen at launch, as in real-foreman |
@@ -26,8 +26,9 @@ of `stack`, `parallel`, `series` and `<this checkout>` its absolute path:
 Setup prints this as its last line, the `prompt` line, with the path filled in. Start the
 operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
-workspace with it. The app asks to trust the new folder, and can ask only at the desk, not under
-Remote Control (the evals README, "The operator").
+workspace with it. The workspace is inside the trusted eval root, so the app does not ask to
+trust it (setup refuses a workspace outside it; **unproved** until the trial reports). This campaign has no Foreman, so it can start
+from the phone, under Remote Control: see the evals README, "The operator".
 
 From a terminal, in the workspace, the equivalent is:
 
