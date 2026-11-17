@@ -25,6 +25,19 @@
   margin-bottom: var(--space-4);
 }
 
+.costs .hbar,
+.costs .kpi .meter i {
+  background: var(--accent);
+}
+
+.costs td.num {
+  text-align: right;
+}
+
+.costs .kpi {
+  padding: 12px 14px;
+}
+
 .costs tr.click {
   cursor: pointer;
 }

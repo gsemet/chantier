@@ -1,92 +1,73 @@
 /* The design tokens: every colour, size and face the board uses. No other file holds a colour. */
 :root {
-  /* palette */
-  --bg: #eef0f3;
+  /* surfaces and ink: white page, hairlines, three greys of ink */
+  --bg: #fff;
   --panel: #fff;
-  --side: #f7f7f8;
-  --line: #e6e7ea;
-  --line2: #eeeff1;
-  --ink: #16181d;
-  --ink2: #454a58;
-  --ink3: #666b78;
+  --side: #fff;
+  --line: #ececef;
+  --line2: #eff0f2;
+  --card-line: #ebecef;
+  --card-hover: #d6d9de;
+  --ink: #1a1c21;
+  --ink2: #545862;
+  --ink3: #868a94;
   --white: #fff;
-  --blue: #3b6fe0;
-  --green: #2fa86b;
-  --red: #d6455d;
-  --amber: #d98a1c;
-  --violet: #8b5cf6;
-  --brown: #9a6b3f;
-  --grey: #9aa0ab;
-  --chip: #f3f4f6;
-  --hover: #eceef1;
-  --hover-soft: #f3f4f6;
-  --link: #2a62c9;
+  --chip: #f2f3f5;
+  --chip-2: #eceef1;
+  --pill: #f1f2f4;
+  --hover: #f6f7f8;
+  --hover-soft: #f6f7f8;
+  --band: #f6f7f8;
+  --band-line: #eff0f2;
+  --caption: #8d919a;
+  --count: #a3a7af;
+  --sep: #c4c7cd;
   --selection: #d6e2fa;
   --scroll: #cdd1d8;
   --warn-ink: #8a5208;
-  --ok-ink: #1f7a4b;
+  --bad-ink: #c03552;
 
-  /* a state is a tinted 1px border and a very light fill */
-  --tint-working-edge: #cddcf6;
-  --tint-working-fill: #f7faff;
-  --tint-blocked-edge: #f1cfcf;
-  --tint-blocked-fill: #fff8f8;
-  --tint-ready-edge: #cbe9d7;
-  --tint-ready-fill: #f6fcf8;
-  --tint-merged-edge: #e0d5f3;
-  --tint-merged-fill: #fbf9ff;
-  --tint-queued-edge: #e0e3e8;
-  --tint-queued-fill: #fbfbfc;
-  --tint-waits-edge: #f1dcb8;
-  --tint-waits-fill: #fffaf2;
-  --tint-draft-edge: #e6d5c3;
-  --tint-draft-fill: #fcf9f5;
-  --tint-local-edge: #ddd0f7;
-  --tint-local-fill: #faf8ff;
+  /* the one accent, deep teal, its two shades for a split bar, its tints for a pill or a badge */
+  --accent: #1d5c63;
+  --accent-dark: #123d42;
+  --accent-mid: #5f8d93;
+  --accent-light: #8fb6ba;
+  --accent-tint: #e9f1f1;
+  --accent-tint-2: #e7f0f0;
+  --link: var(--accent);
 
-  /* the tags' pairs */
-  --tag-working-fill: #e8effd;
-  --tag-working-ink: #2f5fc7;
-  --tag-blocked-fill: #fde8ec;
-  --tag-blocked-ink: #c03552;
-  --tag-ready-fill: #e3f6ec;
-  --tag-ready-ink: #1f7a4b;
-  --tag-draft-fill: #f3e8dc;
-  --tag-draft-ink: #7a4b1f;
-  --tag-local-fill: #efe9fe;
-  --tag-local-ink: #5b2a9e;
-  --tag-waits-fill: #fdf0df;
-  --tag-waits-ink: #8a5208;
-  --tag-queued-fill: #f0f0f2;
-  --tag-queued-ink: #6a6f7c;
+  /* a state: one colour, for its icon, dot or badge only */
+  --state-blocked: #d14b5e;
+  --state-working: #4a76d9;
+  --state-ready: #2f9e6b;
+  --state-draft: #a77b4f;
+  --state-local: #8b6bd8;
+  --state-waits: #d08a1f;
+  --state-queued: #a3a7af;
+  --state-merged: #2a7a55;
+  --red: var(--state-blocked);
+  --blue: var(--state-working);
+  --green: var(--state-ready);
+  --brown: var(--state-draft);
+  --violet: var(--state-local);
+  --amber: var(--state-waits);
+  --grey: var(--state-queued);
+  --ok-ink: var(--state-merged);
 
-  --tag-cr-fill: #efe9fe;
-  --tag-cr-ink: #6d43d6;
-
-  /* the views: bars, arrows, halos, the modes */
+  /* the views: bars, arrows, halos, the Batch graph's dotted grid */
   --queued-bar: #c9cdd6;
   --edge-line: #c7ccd6;
   --edge-arrow: #aab1bf;
   --halo: #dbe5fb;
-  --mode-stack: #2f6fdf;
-  --mode-series: #c07a12;
-  --mode-parallel: #2e9d62;
-  --col-fill: #f6f7f9;
-  --row-hover: #fafbfc;
+  --grid-bg: #fcfcfd;
+  --grid-dot: #dfe2e7;
+  --col-fill: #fbfbfc;
+  --row-hover: #f6f7f8;
 
   /* Triage: the post-its by grill state, the next-batch indicator, the column over a drag */
   --gs-grill-rest: #f3e2c4;
-  --ind-ok-fill: #eefaf3;
-  --ind-ok-edge: #bfe8d1;
-  --ind-ok-ink: #1f6b44;
-  --ind-no-fill: #fff6ec;
-  --ind-no-edge: #f3d6ad;
-  --ind-no-ink: #8a5410;
-  --drop-fill: #eef3fd;
-  --drop-edge: #b9cdf6;
-  --ready-fill: #f3faf6;
-  --ready-edge: #d3eedf;
-  --note-fill: #e8effd;
+  --drop-fill: var(--accent-tint);
+  --drop-edge: var(--accent-light);
 
   /* the labels' six colours, in the order of the project's sorted labels */
   --label-0: #2a56b8;
@@ -122,9 +103,11 @@
   --autosync-wa-ink: #7a4a0c;
 
   /* shadows */
-  --shadow-menu: 0 8px 24px rgb(20 24 31 / 12%);
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 4%), 0 8px 24px -10px rgb(16 24 40 / 14%);
+  --shadow-card-soft: 0 1px 2px rgb(16 24 40 / 3%), 0 6px 18px -10px rgb(16 24 40 / 10%);
+  --shadow-menu: 0 10px 30px rgb(16 24 40 / 12%);
+  --shadow-head: 0 1px 8px rgb(16 24 40 / 6%);
   --shadow-panel: -14px 0 40px rgb(15 18 28 / 14%);
-  --ring-nav: 0 0 0 1px var(--line);
   --shadow-note: 0 1px 1px rgb(0 0 0 / 6%), 0 3px 8px rgb(30 30 50 / 7%);
   --shadow-note-hover: 0 6px 16px rgb(30 30 50 / 12%);
   --shadow-float: 0 10px 30px rgb(0 0 0 / 25%);
@@ -132,12 +115,16 @@
 
   /* type */
   --font:
-    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+    "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+    sans-serif;
   --mono: ui-monospace, consolas, monospace;
   --text: 14px;
   --text-small: 12px;
   --text-badge: 11px;
-  --title: 30px;
+  --title: 24px;
+  --title-spacing: -0.02em;
+  --caption-spacing: 0.08em;
+  --text-stat: 13px;
   --title-phone: 24px;
 
   /* space and shape */
@@ -148,11 +135,16 @@
   --space-5: 24px;
   --radius-s: 6px;
   --radius-m: 9px;
-  --radius: 12px;
-  --side-width: 240px;
+  --radius: 16px;
+  --radius-card: 14px;
+  --radius-nav: 8px;
+  --side-width: 248px;
   --panel-width: 680px;
   --panel-share: 45vw; /* the panel grows with a wide window, 680px as its floor */
   --pi-w: 320px; /* the width of a Triage card, never wider */
   --bar-height: 62px;
+  --crumb-height: 58px;
+  --nav-height: 36px;
+  --gap-main: 32px;
   --phone-max: 760px;
 }

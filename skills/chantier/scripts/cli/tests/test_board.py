@@ -22,7 +22,7 @@ from batch_helpers import prepared
 from conftest import Chantier
 
 from chantier.autosync.site import AutosyncSite
-from chantier.board import address, autosync_tool, routes
+from chantier.board import address, autosync_tool, reply, routes
 from chantier.board.context import Context, Request
 from chantier.board.guard import NEEDS_KEY
 from chantier.board.key import KeyFile
@@ -98,8 +98,12 @@ def test_the_frame_is_shipped_with_the_package() -> None:
         "css/shell.css",
         "js/i18n/en.js",
         "js/i18n/fr.js",
+        "fonts/Inter-Regular.woff2",
+        "fonts/Inter-Medium.woff2",
+        "fonts/OFL.txt",
     ):
         assert (web / name).is_file(), name
+    assert "font-src 'self'" in reply.HTML_POLICY
 
 
 def test_board_does_not_join_autosync_implicitly() -> None:
@@ -323,3 +327,28 @@ def test_the_board_adds_no_path_to_an_in_project_folder(
     assert got["surface"] is False
     (line,) = got["projects"]
     assert "folder" not in line and "repo" not in line
+
+
+@pytest.mark.parametrize(
+    ("remote", "served"),
+    [
+        ("https://github.com/owner/repo.git", "https://github.com/owner/repo.git"),
+        ("https://user:s3cret@github.com/owner/repo.git", "https://github.com/owner/repo.git"),
+        ("ssh://git@github.com/owner/repo.git", "ssh://github.com/owner/repo.git"),
+        ("", ""),
+    ],
+)
+def test_the_board_gives_each_project_its_repository_path_and_its_origin(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, remote: str, served: str
+) -> None:
+    _git_init(tmp_path / "solo")
+    (tmp_path / "solo" / ".agents" / "changes").mkdir(parents=True)
+    if remote:
+        subprocess.run(
+            ["git", "-C", str(tmp_path / "solo"), "remote", "add", "origin", remote], check=True
+        )
+    got = _board_payload(tmp_path / "solo", monkeypatch)
+    (line,) = got["projects"]
+    assert line["repo_path"] == (tmp_path / "solo").resolve().as_posix()
+    assert line["origin"] == served
+    assert got["served_origin"] == served

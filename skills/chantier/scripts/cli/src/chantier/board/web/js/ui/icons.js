@@ -28,10 +28,30 @@ const PATHS = {
   lang: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
 };
 
+// One small outline per state, drawn in the state's colour (`stateIcon` in ui/parts.js).
+const RING = '<circle cx="12" cy="12" r="9"/>';
+const STATES = {
+  working: '<path d="M21 12a9 9 0 1 1-3.2-6.9"/>',
+  draft: '<circle cx="12" cy="12" r="9" stroke-dasharray="1.2 3.6"/>',
+  ready: `${RING}<path d="m8 12.5 3 3 5-6"/>`,
+  waits: `${RING}<path d="M12 7v5l3 2"/>`,
+  merged:
+    '<circle cx="7" cy="5" r="2"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="12" r="2"/><path d="M7 7v10M7 8c0 3 3 4 8 4"/>',
+  blocked: `${RING}<path d="M5.6 18.4 18.4 5.6"/>`,
+  queued: `${RING.replace('r="9"', 'r="3"')}`,
+  local: `${RING}<circle cx="12" cy="12" r="2.5"/>`,
+};
+
 export const iconNames = () => Object.keys(PATHS);
 
 // The icon `name`, or an empty one for a name the set does not know.
 export const icon = (name) =>
   raw(
     `<svg class="svgi" viewBox="0 0 24 24" aria-hidden="true">${PATHS[name] ?? PATHS.blank}</svg>`,
+  );
+
+// The glyph of a state (a name the set does not know reads as queued).
+export const stateGlyph = (state) =>
+  raw(
+    `<svg class="svgi" viewBox="0 0 24 24" aria-hidden="true">${STATES[state] ?? STATES.queued}</svg>`,
   );

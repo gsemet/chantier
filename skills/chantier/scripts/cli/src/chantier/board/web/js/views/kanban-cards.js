@@ -1,7 +1,7 @@
 // The cards of the Kanban for a CR of the batch and for a merged one (the item's card is shared with
 // Triage: ui/item-card.js). Each has empty `place` elements that a later change fills, and opens
 // its folder.
-import { html, vars } from '../core/dom.js';
+import { html } from '../core/dom.js';
 import { slug, title, usd } from '../core/format.js';
 import { roundLimit, roundText, vstate } from '../model/semantics.js';
 import { crKey, doneKey, isOpenKey, itemKey } from '../model/targets.js';
@@ -9,16 +9,15 @@ import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { files, itemCard } from '../ui/item-card.js';
 import { opener } from '../ui/open.js';
-import { nextTag, stateColor, stateTag } from '../ui/parts.js';
+import { nextTag, stateIcon } from '../ui/parts.js';
 
-// One bar per round of the CR's limit; the rounds taken are filled with the state's colour.
+// One bar per round of the CR's limit; the rounds taken are filled with the accent.
 function bars(c, batch) {
   const total = roundLimit(c, batch) || Math.max(c.round, 1);
-  const color = stateColor(c);
-  const cells = Array.from({ length: total }, (_, i) => {
-    const on = i < c.round;
-    return html`<i class="${on ? 'on' : ''}" data-vars="${vars({ '--c': color })}"></i>`;
-  });
+  const cells = Array.from(
+    { length: total },
+    (_, i) => html`<i class="${i < c.round ? 'on' : ''}"></i>`,
+  );
   return html`<div class="bars">${cells}</div>`;
 }
 
@@ -45,5 +44,5 @@ export function crCard(state, c) {
   const deps = c.after?.length
     ? html`<span>${icon('dep')} ${t('card.deps', { n: c.after.length })}</span>`
     : '';
-  return html`<div class="card st-${vstate(c)}${sel}" ${opener(key)}><div class="row-tags"><span class="tag cr">${c.cr}</span>${stateTag(c)}${nextTag(c)}<span class="lbl">${slug(c.folder)}</span><span class="place"></span></div><div class="ttl">${title(c.title)}</div><div class="desc">${c.description ?? ''}</div>${bars(c, batch)}<div class="meta">${c.phase ? html`<span class="step" title="${t('step')}">${c.phase}</span>` : ''}<span>${t('card.round', { r: roundText(c, batch) })}</span>${files(c.files)}${deps}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+  return html`<div class="card${sel}" ${opener(key)}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span><span class="place"></span></div><div class="ttl">${title(c.title)}</div><div class="desc">${c.description ?? ''}</div>${bars(c, batch)}<div class="meta">${c.phase ? html`<span class="step" title="${t('step')}">${c.phase}</span>` : ''}<span>${t('card.round', { r: roundText(c, batch) })}</span>${files(c.files)}${deps}<span class="r"><span title="${t(`state.${vstate(c)}`)}">${stateIcon(c)}</span>${usd(c.cost_usd)}</span></div></div>`;
 }

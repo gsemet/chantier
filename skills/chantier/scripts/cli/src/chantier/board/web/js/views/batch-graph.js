@@ -1,11 +1,13 @@
-// The batch graph: the CRs in levels, grouped by state, with an arrow from a CR to the one that
-// waits for it. The arrows are an SVG layer measured from the nodes and redrawn after every paint
-// and on a resize. A hover (or a focus) lights a CR, what it waits for and what waits for it.
+// The batch graph: the CRs in levels, each CR in its place for its whole life (its level, then the
+// record's order), with an arrow from a CR to the one that waits for it. The arrows are an SVG
+// layer measured from the nodes and redrawn after every paint, on a resize and once the font is
+// loaded. A hover (or a focus) lights a CR, what it waits for and what waits for it.
 import { $, $$, delegate, html, setHtml } from '../core/dom.js';
-import { slug, title, usd } from '../core/format.js';
+import { age, slug, title, usd } from '../core/format.js';
 import {
-  groupByState,
+  gateWords,
   levels,
+  mergedAt,
   related,
   roundText,
   STATE_ORDER,
@@ -15,26 +17,39 @@ import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
-import { dot, nextTag, stateColor } from '../ui/parts.js';
+import { nextTag, stateIcon } from '../ui/parts.js';
 
-const node = (c, batch) =>
-  html`<div class="node st-${vstate(c)}" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span></div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+// The badge in a node's top right corner: the state's icon and word, both in the state's colour.
+const badge = (c) =>
+  html`<span class="sb ${vstate(c)}">${stateIcon(c)}${t(`state.${vstate(c)}`)}</span>`;
 
-const group = (g, batch) =>
-  html`<div class="grp"><div class="gh">${dot(stateColor(g.state))}${t(`state.${g.state}`)} · ${g.rows.length}</div>${g.rows.map((c) => node(c, batch))}</div>`;
+// What a merged CR's band adds: when it merged and, when the record holds it, the long gate.
+function mergedBand(c, now) {
+  if (c.state !== 'merged') return '';
+  const gate = gateWords(c);
+  const line = gate ? html`<span class="gate">${t('gate.label')}: ${gate}</span>` : '';
+  return html`<span>${t('prs.merged_ago', { age: age(mergedAt(c), now) })}</span>${line}`;
+}
 
-const level = (rows, i, batch) => {
-  const head = i === 0 ? t('batch.no_dep') : t('batch.level', { i, j: i - 1 });
-  return html`<div class="lvl"><div class="lvlh">${head}</div>${groupByState(rows).map((g) => group(g, batch))}</div>`;
+const node = (c, batch, now) =>
+  html`<div class="node card" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span>${mergedBand(c, now)}</div></div>`;
+
+const level = (rows, i, batch, now) => {
+  const head = i === 0 ? t('batch.no_dep') : t('batch.level', { i });
+  return html`<div class="lvl"><div class="lvlh">${head}</div>${rows.map((c) => node(c, batch, now))}</div>`;
 };
 
+// "States and arrows": a grey pill that opens a tooltip on hover and on focus.
 const legend = () =>
-  html`<div class="legend">${STATE_ORDER.map((s) => html`<span class="k">${dot(stateColor(s))}${t(`state.${s}`)}</span>`)}<span class="k">${t('batch.arrow')}</span></div>`;
+  html`<div class="lgrow"><span class="lgpill" tabindex="0" aria-describedby="lgtip">${t('batch.legend')}<span class="tip" id="lgtip" role="tooltip">${STATE_ORDER.map((s) => html`<span class="k">${stateIcon(s)}${t(`state.${s}`)}</span>`)}<span class="k an">${t('batch.arrow')}</span></span></span><span class="lghint">${t('batch.legend_hint')}</span></div>`;
 
-export const graphBlock = (batch) =>
-  html`${legend()}<div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(batch.crs).map((rows, i) => level(rows, i, batch))}</div><p class="note">${t('batch.hover')}</p>`;
+export const graphBlock = (batch, now) =>
+  html`${legend()}<div class="gscroll"><div class="graph" data-key="graph"><svg class="edges" aria-hidden="true"></svg>${levels(batch.crs).map((rows, i) => level(rows, i, batch, now))}</div></div><p class="note">${t('batch.hover')}</p>`;
 
-// One arrow, from the right edge of a CR to the left edge of the one that waits for it.
+const TAIL = 12; // the last, straight stretch of an arrow, along which its head points
+
+// One arrow, from the right edge of a CR to the left edge of the one that waits for it: a curve
+// that ends level, then a short straight segment that ends on the card's edge, where the head is.
 function path(graph, from, to) {
   const g = graph.getBoundingClientRect();
   const a = from.getBoundingClientRect();
@@ -43,13 +58,14 @@ function path(graph, from, to) {
   const y1 = a.top + a.height / 2 - g.top;
   const x2 = b.left - g.left;
   const y2 = b.top + b.height / 2 - g.top;
-  const mid = (x1 + x2) / 2;
-  const d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2 - 6},${y2}`;
+  const tail = Math.min(TAIL, Math.max(4, (x2 - x1) / 3));
+  const mid = (x1 + x2 - tail) / 2;
+  const d = `M${x1},${y1} C${mid},${y1} ${mid},${y2} ${x2 - tail},${y2} L${x2},${y2}`;
   return html`<path data-from="${from.dataset.id}" data-to="${to.dataset.id}" d="${d}" marker-end="url(#ar)"></path>`;
 }
 
 const marker = () =>
-  html`<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head" d="M0,0 L10,5 L0,10 z"></path></marker></defs>`;
+  html`<defs><marker id="ar" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="head" d="M0,0 L10,5 L0,10 z"></path></marker></defs>`;
 
 let lit = null;
 

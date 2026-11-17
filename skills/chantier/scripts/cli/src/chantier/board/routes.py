@@ -12,7 +12,7 @@ from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
 from chantier.board.projects import Project
 from chantier.board.reply import Reply, as_json, matches, text
-from chantier.board.state import project_line, project_paths, project_state
+from chantier.board.state import origin_of, project_line, project_paths, project_state
 from chantier.core import clock
 from chantier.core.errors import ChantierError
 
@@ -63,6 +63,7 @@ def board(ctx: Context, req: Request) -> Reply:
             "version": ctx.version,
             "surface": ctx.projects.surface_mode,
             "served": ctx.projects.served.as_posix(),
+            "served_origin": origin_of(ctx.projects.served),
             "seats": ctx.seats.count(),
             "projects": lines,
             "autosync": autosync_api.payload(ctx),

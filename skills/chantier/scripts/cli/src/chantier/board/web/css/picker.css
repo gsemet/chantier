@@ -1,0 +1,177 @@
+/* The project picker: a borderless button (the name shrinks to an ellipsis before a centred chevron)
+   and its light menu (mark, name, and the batch with its percent while one runs). */
+.project {
+  position: relative;
+}
+
+.ws,
+.pbtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-nav);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+button.ws:hover,
+button.pbtn:hover {
+  background: var(--hover);
+}
+
+.pbtn {
+  width: auto;
+  max-width: 100%;
+  padding: 5px var(--space-2);
+}
+
+.ws .who,
+.pbtn .who,
+.menu .who {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws .who > *,
+.pbtn .who > *,
+.menu .who > b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws .who > b,
+.pbtn .who > b,
+.menu .who > b {
+  font-weight: 500;
+}
+
+.ws small,
+.pbtn small,
+.menu small {
+  display: block;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.pbtn .who > small {
+  display: none;
+}
+
+.pbtn .who > small.sur {
+  display: block;
+}
+
+.pbtn .who > small.pth {
+  display: none;
+}
+
+.project.phone {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.ws .mark,
+.pbtn .mark,
+.menu .mark {
+  flex: none;
+  border-radius: var(--radius-nav);
+}
+
+.ws .car,
+.pbtn .car {
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-left: var(--space-2);
+  color: var(--ink3);
+}
+
+.mark.all {
+  background: var(--ink);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 8;
+  width: max(100%, 260px);
+  max-height: 60vh;
+  overflow: auto;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-menu);
+}
+
+.menu .cap {
+  padding: 6px 8px;
+  color: var(--caption);
+  font-size: var(--text-badge);
+  font-weight: 500;
+  letter-spacing: var(--caption-spacing);
+  text-transform: uppercase;
+}
+
+.menu .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-nav);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.menu .row:hover {
+  background: var(--hover);
+}
+
+.menu .row.on {
+  background: var(--pill);
+}
+
+.menu .row .ok {
+  margin-left: auto;
+  color: var(--ink2);
+}
+
+.menu .mark {
+  width: 28px;
+  height: 28px;
+}
+
+/* a path too long for its place is cut with an ellipsis (All projects' table and cards) */
+.pth {
+  display: block;
+  overflow: hidden;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pth i {
+  font-style: normal;
+  font-weight: 500;
+}
+
+/* the surface's path and count under its name: the count wraps instead of being cut */
+.ws .who > small.sur:not(.pth),
+.pbtn .who > small.sur:not(.pth) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}

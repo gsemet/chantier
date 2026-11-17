@@ -34,7 +34,7 @@
   max-height: 100%;
   padding: var(--space-2);
   overflow: auto;
-  border: 1px solid var(--line2);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--col-fill);
 }
@@ -54,7 +54,7 @@
 .kanban .colh .c {
   padding: 0 6px;
   border-radius: var(--radius-s);
-  background: var(--line2);
+  background: var(--chip-2);
   color: var(--ink2);
   font-size: var(--text-small);
 }
@@ -84,7 +84,7 @@
 .kanban .meta .step {
   min-width: 0;
   overflow: hidden;
-  font-weight: 600;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -99,11 +99,11 @@
   flex: 1;
   height: 4px;
   border-radius: 2px;
-  background: var(--line2);
+  background: var(--chip-2);
 }
 
 .kanban .bars i.on {
-  background: var(--c, var(--grey));
+  background: var(--accent);
 }
 
 @media (max-width: 760px) {

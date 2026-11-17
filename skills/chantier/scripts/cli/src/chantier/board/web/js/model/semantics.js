@@ -179,12 +179,6 @@ export function levels(rows) {
   return cols;
 }
 
-// A level's CRs grouped by state, in the graph's order; empty groups left out.
-export const groupByState = (rows) =>
-  STATE_ORDER.map((state) => ({ state, rows: rows.filter((c) => vstate(c) === state) })).filter(
-    (g) => g.rows.length,
-  );
-
 // A CR, its dependencies and its dependants: what a hover lights.
 export function related(rows, id) {
   const ids = new Set([id]);

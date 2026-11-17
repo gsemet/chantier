@@ -1,7 +1,7 @@
 // The cards of the Batch's PR columns. A card is a link to the PR when its address is a web one,
 // else a plain box. The folder control opens the CR's folder and leaves the link alone.
 import { delegate, html } from '../core/dom.js';
-import { age, prNumber, safeUrl, usd } from '../core/format.js';
+import { prNumber, safeUrl, usd } from '../core/format.js';
 import {
   baseOf,
   draftWhy,
@@ -9,9 +9,7 @@ import {
   gateWords,
   isFix,
   isRelease,
-  mergedAt,
   placeOf,
-  vstate,
 } from '../model/semantics.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
@@ -21,7 +19,7 @@ import { opener } from '../ui/open.js';
 // The card's outer element: a link, or a box when the PR has no web address.
 function shell(c, cls, inner) {
   const url = safeUrl(c.pr);
-  const names = `prc ${cls} st-${vstate(c)}`;
+  const names = `prc card ${cls}`;
   if (!url) return html`<div class="${names}">${inner}</div>`;
   return html`<a class="${names}" href="${url}" target="_blank" rel="noopener" title="${t('pr.open')}">${inner}</a>`;
 }
@@ -54,7 +52,7 @@ function gateLine(c) {
   const text = url
     ? html`<span class="gl" data-gate-pr="${url}" tabindex="0" role="link" title="${t('gate.open')}">${words}</span>`
     : html`<span>${words}</span>`;
-  return html`<div class="gate"><span class="lbl">${t('gate.label')}</span>${text}</div>`;
+  return html`<span class="gate"><span class="lbl">${t('gate.label')}</span>${text}</span>`;
 }
 
 // A click, or Enter, on a gate link opens the validating PR and leaves the card's own link alone.
@@ -76,7 +74,7 @@ export function bindGateLinks(root) {
 
 function body(c, line, why, cost) {
   const second = why ? html`<span>${why}</span>` : '';
-  return html`<div class="nt">${c.title}</div><div class="nm"><span>${line}</span>${second}<span class="r">${cost}</span>${folder(c)}</div>${gateLine(c)}`;
+  return html`<div class="nt">${c.title}</div><div class="nm"><span>${line}</span>${second}<span class="r">${cost}${folder(c)}</span>${gateLine(c)}</div>`;
 }
 
 // A PR to review or a draft; `index` is its place in the list as drawn.
@@ -88,19 +86,4 @@ export function prCard(c, batch, index, draft) {
     draft ? 'draft' : '',
     html`${top}${body(c, baseOf(c, batch).text, why, usd(c.cost_usd))}`,
   );
-}
-
-// A PR of this batch that is merged.
-export function mergedCard(c, now) {
-  const top = html`<div class="top"><b>${prNumber(c.pr)}</b><span class="tag cr">${c.cr}</span>${kindTag(c)}</div>`;
-  const line = t('prs.merged_ago', { age: age(mergedAt(c), now) });
-  return shell(c, 'mrg', html`${top}${body(c, line, '', usd(c.cost_usd))}`);
-}
-
-// A PR of an earlier batch: the row the board's merged list gives.
-export function earlierCard(m) {
-  const url = safeUrl(m.pr);
-  const inner = html`<div class="top"><b>${prNumber(m.pr)}</b><span class="tag cr">${m.cr}</span><span class="r">${m.batch}</span></div><div class="nt">${m.title}</div>`;
-  if (!url) return html`<div class="prc mrg st-merged">${inner}</div>`;
-  return html`<a class="prc mrg st-merged" href="${url}" target="_blank" rel="noopener">${inner}</a>`;
 }

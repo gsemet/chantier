@@ -15,7 +15,7 @@
 
 .home .block {
   min-width: 0;
-  padding: 14px var(--space-4);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
@@ -35,7 +35,7 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0 0 10px;
-  font-size: var(--text);
+  font-size: 13.5px;
 }
 
 .home h3 {
@@ -52,7 +52,7 @@
   margin-left: auto;
   border: 0;
   background: none;
-  color: var(--blue);
+  color: var(--accent);
   font-size: var(--text-small);
   font-weight: 400;
 }
@@ -92,7 +92,7 @@
 
 .home .mini b {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .home .mini .late {
@@ -111,7 +111,7 @@
   gap: var(--space-2);
   padding: 6px var(--space-2);
   border: 1px solid var(--line2);
-  border-radius: var(--space-2);
+  border-radius: var(--radius-nav);
   font-size: 12.5px;
 }
 
@@ -183,18 +183,15 @@
 }
 
 .home .feed .ic.ok {
-  background: var(--tag-ready-fill);
-  color: var(--tag-ready-ink);
+  color: var(--ok-ink);
 }
 
 .home .feed .ic.ko {
-  background: var(--tag-blocked-fill);
-  color: var(--tag-blocked-ink);
+  color: var(--bad-ink);
 }
 
 .home .feed .ic.pr {
-  background: var(--tag-cr-fill);
-  color: var(--tag-cr-ink);
+  color: var(--accent);
 }
 
 .home .pipe {
@@ -214,10 +211,10 @@
 
 .home .pipe .bar {
   display: flex;
-  height: 10px;
+  height: 6px;
   overflow: hidden;
-  border-radius: 5px;
-  background: var(--chip);
+  border-radius: 3px;
+  background: var(--chip-2);
 }
 
 .home .pipe .bar i {
@@ -227,20 +224,8 @@
 
 .home .pipe .n {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: 500;
   text-align: right;
-}
-
-.home .kpi.hot b {
-  color: var(--red);
-}
-
-.home .kpi.go b {
-  color: var(--ok-ink);
-}
-
-.home .kpi.calm b {
-  color: var(--ink3);
 }
 
 @media (max-width: 760px) {

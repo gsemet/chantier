@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
     <title>chantier board</title>
+    <link rel="stylesheet" href="css/fonts.css" />
     <link rel="stylesheet" href="css/tokens.css" />
     <link rel="stylesheet" href="css/base.css" />
     <link rel="stylesheet" href="css/shell.css" />
-    <link rel="stylesheet" href="css/paths.css" />
+    <link rel="stylesheet" href="css/sidebar.css" />
+    <link rel="stylesheet" href="css/picker.css" />
+    <link rel="stylesheet" href="css/crumbs.css" />
     <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/tags.css" />
+    <link rel="stylesheet" href="css/cards.css" />
     <link rel="stylesheet" href="css/widgets.css" />
     <link rel="stylesheet" href="css/panel.css" />
     <link rel="stylesheet" href="css/dialog.css" />
@@ -21,11 +26,13 @@
     <link rel="stylesheet" href="css/views/postit.css" />
     <link rel="stylesheet" href="css/views/kanban.css" />
     <link rel="stylesheet" href="css/views/batch.css" />
+    <link rel="stylesheet" href="css/views/batch-graph.css" />
     <link rel="stylesheet" href="css/views/batch-prs.css" />
     <link rel="stylesheet" href="css/views/prs.css" />
     <link rel="stylesheet" href="css/views/costs.css" />
     <link rel="stylesheet" href="css/views/config.css" />
     <link rel="stylesheet" href="css/views/overview.css" />
+    <link rel="stylesheet" href="css/views/home-project.css" />
   </head>
   <body>
     <div class="app">
@@ -34,24 +41,26 @@
         <div class="sec" id="views-label"></div>
         <nav id="side-nav" aria-labelledby="views-label"></nav>
         <div class="foot">
+          <div class="sec" id="sync-label" hidden></div>
           <div class="aswrap" id="autosync-side"></div>
           <div id="heard"></div>
           <button class="lang" id="lang" type="button" data-lang></button>
         </div>
       </aside>
       <main class="main">
-        <header class="head">
-          <div>
-            <div class="phonebar">
-              <div class="project phone" id="project-phone"></div>
-              <div class="aswrap asph" id="autosync-phone"></div>
-            </div>
-            <h1 id="title">chantier board</h1>
-            <div class="stats" id="stats"></div>
-            <div class="notice" id="notice" role="status" hidden></div>
+        <header class="head" id="head">
+          <nav class="crumbs" id="crumbs" aria-label="breadcrumb"></nav>
+          <div class="phonebar">
+            <div class="project phone" id="project-phone"></div>
+            <div class="aswrap asph" id="autosync-phone"></div>
           </div>
           <button class="btn pri newbtn" id="new" type="button" data-new hidden></button>
         </header>
+        <div class="titlerow">
+          <h1 id="title">chantier board</h1>
+          <div class="stats" id="stats"></div>
+        </div>
+        <div class="notice" id="notice" role="status" hidden></div>
         <div class="view" id="view"></div>
       </main>
     </div>

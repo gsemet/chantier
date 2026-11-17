@@ -3,7 +3,7 @@ import { html } from '../core/dom.js';
 import { age, usd } from '../core/format.js';
 import { counts, heartbeat, steeringWord } from '../model/semantics.js';
 import { t } from '../model/words.js';
-import { dot, meter, stateColor, tag } from '../ui/parts.js';
+import { dot, meter, stateIcon, tag } from '../ui/parts.js';
 
 const PARTS = [
   ['merged', 'home.merged'],
@@ -15,7 +15,17 @@ const PARTS = [
   ['queued', 'home.queued'],
 ];
 
-const colorOf = (state) => (state === 'queued' ? 'var(--queued-bar)' : stateColor(state));
+// The batch meter reads in the accent's shades; a blocked CR keeps its state's red.
+const SHADES = {
+  merged: 'var(--accent-dark)',
+  ready: 'var(--accent)',
+  draft: 'var(--accent-mid)',
+  local: 'var(--accent-light)',
+  working: 'var(--ink3)',
+  blocked: 'var(--state-blocked)',
+  queued: 'var(--queued-bar)',
+};
+const colorOf = (state) => SHADES[state];
 
 function bar(batch) {
   const c = counts(batch);
@@ -36,7 +46,7 @@ function sign(batch, now) {
 function figures(batch, now) {
   const beat = sign(batch, now);
   const who = batch.steering === 'direct' ? 'home.sign_cos' : 'home.sign_foreman';
-  const spent = meter([{ n: batch.spent_usd ?? 0, color: 'var(--blue)' }], batch.budget_usd);
+  const spent = meter([{ n: batch.spent_usd ?? 0, color: 'var(--accent)' }], batch.budget_usd);
   const opened = batch.created ? t('time.ago', { age: age(batch.created, now) }) : '—';
   return html`<div class="mini"><div><small>${t('home.spent')}</small><b>${usd(batch.spent_usd)}</b> <span class="mut">/ ${usd(batch.budget_usd)}</span>${spent}</div><div><small>${t('home.slots')}</small><b>${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}</b></div><div><small>${t(who)}</small><b class="${beat.late ? 'late' : ''}">${beat.text}</b></div><div><small>${t('home.opened')}</small><b>${opened}</b></div></div>`;
 }
@@ -47,6 +57,6 @@ export function batchBlock(state) {
     return html`<section class="block wide"><h2>${t('batch.batch')}</h2><div class="empty">${t('home.no_batch')}</div></section>`;
   }
   const running = batch.state === 'running';
-  const head = html`<h2>${batch.id} ${tag(running ? 'working' : 'queued', batch.state)}<span class="sub">${t(`mode.${batch.mode}`)} · ${steeringWord(batch)}</span><button class="more" type="button" data-go="batch">${t('home.see_batch')}</button></h2>`;
+  const head = html`<h2>${batch.id} ${tag('st', html`${stateIcon(running ? 'working' : 'queued')}${batch.state}`)}<span class="sub">${t(`mode.${batch.mode}`)} · ${steeringWord(batch)}</span><button class="more" type="button" data-go="batch">${t('home.see_batch')}</button></h2>`;
   return html`<section class="block wide">${head}${bar(batch)}${figures(batch, state.now)}</section>`;
 }
