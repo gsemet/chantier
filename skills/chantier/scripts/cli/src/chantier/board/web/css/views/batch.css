@@ -122,6 +122,11 @@
   font-size: var(--text-small);
 }
 
+/* a closed batch has no PR column */
+.batch .bwrap.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (max-width: 760px) {
   .batch .bhead {
     grid-template-columns: 1fr 1fr;

@@ -1,11 +1,12 @@
 // The Batch view: four figures, the mode strip, the graph of the CRs by dependency and the PR
 // column. The graph's arrows are measured, so they are drawn in `after` and on a resize.
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup;
-//   after(root, state) runs after each paint.
+//   after(root) runs after each paint.
 
 import { html } from '../core/dom.js';
 import { usd } from '../core/format.js';
 import { snapshot } from '../core/store.js';
+import { mergedOf, recordRows, shownRecord, totalOf } from '../model/history.js';
 import { counts, modeWords, steeringWord } from '../model/semantics.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
@@ -38,13 +39,38 @@ function modeBand(batch) {
   return html`<div class="mode"><span class="mb">${words.name} · ${steeringWord(batch)}</span><span>${words.text}</span><span class="ms">${switches}</span></div>`;
 }
 
-export function render(state) {
-  const batch = state.data.batch;
-  if (!batch) return empty(t('batch.none'));
-  return html`<div class="batch">${figures(batch)}${modeBand(batch)}<div class="bwrap"><div class="gcol">${graphBlock(batch, state.now)}</div>${prsBlock(state)}</div></div>`;
+// A closed record's figures: merged of the total, the dropped ones, the rounds summed, spent against
+// the budget; from the record only.
+function recordFigures(rec) {
+  const rounds = (rec.crs ?? []).reduce((n, c) => n + (c.rounds ?? 0), 0);
+  const spent = meter([{ n: rec.cost_usd ?? 0, color: 'var(--accent)' }], rec.budget_usd);
+  return html`<div class="bhead">${kpi({ label: t('batch.rec_merged'), value: `${mergedOf(rec)}/${totalOf(rec)}`, sub: t('batch.rec_merged_sub', { n: totalOf(rec) }) })}${kpi({ label: t('batch.rec_dropped'), value: totalOf(rec) - mergedOf(rec), sub: t('state.cancelled') })}${kpi({ label: t('batch.rec_rounds'), value: rounds, sub: t('batch.rec_rounds_sub') })}${kpi({ label: t('batch.spent'), value: usd(rec.cost_usd), extra: spent, sub: t('batch.of_budget', { budget: usd(rec.budget_usd) }) })}</div>`;
 }
 
-const rowsNow = () => snapshot().data?.batch?.crs ?? [];
+const DEPS_LINE = { archives: 'batch.deps_partial', none: 'batch.deps_none' };
+
+// The Batch page on a closed batch: its graph from the record, with its arrows; no PR column.
+function recorded(rec, state) {
+  const line = DEPS_LINE[rec.after_source];
+  const note = line ? html`<p class="note">${t(line)}</p>` : '';
+  const mode = rec.mode ? modeBand(rec) : '';
+  return html`<div class="batch">${recordFigures(rec)}${mode}<div class="bwrap one"><div class="gcol">${note}${graphBlock(recordRows(rec), rec, state.now, true)}</div></div></div>`;
+}
+
+export function render(state) {
+  const record = shownRecord(state.data, state.batchId);
+  if (record) return recorded(record, state);
+  const batch = state.data.batch;
+  if (!batch) return empty(t('batch.none'));
+  return html`<div class="batch">${figures(batch)}${modeBand(batch)}<div class="bwrap"><div class="gcol">${graphBlock(batch.crs, batch, state.now)}</div>${prsBlock(state)}</div></div>`;
+}
+
+// The rows the page draws now: a closed record's, or the live batch's.
+function rowsNow() {
+  const { data, batchId } = snapshot();
+  const record = shownRecord(data, batchId);
+  return record ? recordRows(record) : (data?.batch?.crs ?? []);
+}
 
 // The arrows follow the layout: a resize redraws them, once per frame.
 export function mount(root) {
@@ -66,6 +92,6 @@ export function mount(root) {
   };
 }
 
-export function after(root, state) {
-  if (state.data.batch) drawEdges(root, state.data.batch.crs);
+export function after(root) {
+  drawEdges(root, rowsNow());
 }

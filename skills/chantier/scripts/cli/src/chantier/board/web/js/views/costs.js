@@ -1,26 +1,66 @@
 // The Costs view: the batch's receipt on the left, and on its right the cards: when the figures
 // were computed (the Recompute button), four figures, the batch's CRs by cost, the earlier batches
-// and the last merged CRs. The batch shown is the running one, else the last closed one.
+// and the last merged CRs. The batch shown is the one the navigator chose; by default the running
+// one, else the last closed one.
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
 import { delegate, html } from '../core/dom.js';
 import { age } from '../core/format.js';
+import { href } from '../core/router.js';
 import { money, receiptOf } from '../model/receipt.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter } from '../ui/parts.js';
 import { recomputeCosts } from './costs-action.js';
 import { bindHistory, historyBlock } from './costs-history.js';
+import { copyReceipt } from './costs-image.js';
 import { lasted, receipt } from './costs-receipt.js';
 import { lastMerged, perCr } from './costs-tables.js';
 
+// Whether this page can copy an image: a secure origin, and a browser with the clipboard's `write`.
+const canCopy = () =>
+  window.isSecureContext &&
+  typeof navigator.clipboard?.write === 'function' &&
+  typeof ClipboardItem !== 'undefined';
+
+// The 127.0.0.1 address of the same page, when the board gives one.
+function localPage(state) {
+  const base = state.board?.local_url;
+  if (!base) return null;
+  const place = { project: state.project, view: state.view, batch: state.batchId };
+  return { link: `${base}&${href(place).slice(1)}`, host: new URL(base).host };
+}
+
+// The tooltip of the greyed button: a span that wraps it (a disabled button gets no pointer
+// events), opened by hover and by focus.
+function whyNot(state) {
+  if (!window.isSecureContext) {
+    const page = localPage(state);
+    if (!page) return t('costs.copy_insecure_nolink');
+    const [before, after] = t('costs.copy_insecure', { link: '{link}' }).split('{link}');
+    return html`${before}<a href="${page.link}">${page.host}</a>${after}`;
+  }
+  return t('costs.copy_unsupported');
+}
+
+function copyButton(state) {
+  const busy = state.copying;
+  const label = busy ? t('costs.copying') : t('costs.copy_image');
+  if (canCopy()) {
+    return html`<button class="btn" type="button" data-copy-receipt data-key="copy-receipt" ${busy ? 'disabled' : ''}>${label}</button>`;
+  }
+  return html`<span class="tipwrap" tabindex="0" data-key="copy-receipt-tip"><button class="btn" type="button" data-copy-receipt data-key="copy-receipt" disabled>${label}</button><span class="tip" role="tooltip">${whyNot(state)}</span></span>`;
+}
+
 function ageLine(r, state) {
-  if (!r.live) return html`<div class="age"><span>${t('costs.final')}</span></div>`;
+  if (!r.live) {
+    return html`<div class="age"><span>${t('costs.final')}</span>${copyButton(state)}</div>`;
+  }
   const busy = r.computing;
   const when = age(state.data.batch.cost_at, state.now);
   const text = when ? t('costs.computed', { age: when }) : t('costs.never');
   const label = busy ? t('costs.recomputing') : t('costs.recompute');
-  return html`<div class="age"><span>${text}</span><button class="btn${busy ? '' : ' pri'}" type="button" data-recompute data-key="recompute" ${busy ? 'disabled' : ''}>${label}</button><span class="note">${t('costs.note')}</span></div>`;
+  return html`<div class="age"><span>${text}</span><button class="btn${busy ? '' : ' pri'}" type="button" data-recompute data-key="recompute" ${busy ? 'disabled' : ''}>${label}</button>${copyButton(state)}<span class="note">${t('costs.note')}</span></div>`;
 }
 
 // What is outside the budget, in the money words: unknown, a dash, or the amount.
@@ -69,6 +109,7 @@ export function render(state) {
 
 export function mount(root) {
   const offs = [
+    delegate(root, 'click', '[data-copy-receipt]', () => copyReceipt(root)),
     bindOpen(root),
     bindHistory(root),
     delegate(root, 'click', '[data-recompute]', () => recomputeCosts()),

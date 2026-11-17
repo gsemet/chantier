@@ -3,6 +3,7 @@
 import { html } from '../core/dom.js';
 import { ALL } from '../core/router.js';
 import { grillItems, handedCrs, inboxItems, progressCrs } from '../model/columns.js';
+import { shownRecord } from '../model/history.js';
 import { t, tn } from '../model/words.js';
 import { entry } from '../views/registry.js';
 import { stateIcon } from './parts.js';
@@ -61,17 +62,27 @@ export const notice = (state) => (state.denied ? t('notice.key') : '');
 
 const sepc = html`<span class="sepc" aria-hidden="true">/</span>`;
 
+// The batch the Batch page shows, as { id, word, icon }: a closed record has the grey "closed" chip,
+// the running or paused batch its own state.
+function shownBatchChip(state) {
+  const closed = shownRecord(state.data, state.batchId);
+  if (closed) return { id: closed.batch, word: 'state.closed', icon: 'queued' };
+  const batch = state.data?.batch;
+  if (!batch) return null;
+  const icon = batch.state === 'running' ? 'working' : 'queued';
+  return { id: batch.id, word: `state.${icon}`, icon };
+}
+
 // The breadcrumb: the project (or the surface), then the view; on the Batch view the batch's id and
 // a grey chip with its state.
 export function crumbs(state) {
   const all = state.project === ALL;
   const first = all ? surfaceName(state) : state.project;
   const page = t(entry(state.view).word);
-  const batch = !all && state.view === 'batch' ? state.data?.batch : null;
-  if (batch) {
-    const shown = batch.state === 'running' ? 'working' : 'queued';
-    const chip = html`<span class="chip ${shown}">${stateIcon(shown)}${t(`state.${shown}`)}</span>`;
-    return html`<span>${first}</span>${sepc}<span>${page}</span>${sepc}<span class="cur">${batch.id}</span>${chip}`;
+  const shown = !all && state.view === 'batch' ? shownBatchChip(state) : null;
+  if (shown) {
+    const chip = html`<span class="chip ${shown.icon}">${stateIcon(shown.icon)}${t(shown.word)}</span>`;
+    return html`<span>${first}</span>${sepc}<span>${page}</span>${sepc}<span class="cur">${shown.id}</span>${chip}`;
   }
   return html`<span>${first}</span>${sepc}<span class="cur">${page}</span>`;
 }

@@ -75,6 +75,14 @@ def _loopback_of(host: str) -> str:
     return {"0.0.0.0": "127.0.0.1", "": "127.0.0.1", "::": "::1"}.get(host, host)
 
 
+def local_url(host: str, port: int, key: str) -> str | None:
+    """The 127.0.0.1 (or `[::1]`) link, with the key, when the board listens on every address
+    and its main link is not already a loopback one; None otherwise."""
+    if host not in EVERYWHERE or is_loopback(reachable(host)):
+        return None
+    return f"{_base(host, port)}/?k={key}"
+
+
 def _base(host: str, port: int) -> str:
     return f"http://{_bracket(_loopback_of(host))}:{port}"
 

@@ -40,7 +40,7 @@ export default {
   'costs.receipt_outside': 'Hors budget',
   'costs.receipt_grill': 'grill et spécifications',
   'costs.receipt_chief_steer': 'Chief of Staff, steering',
-  'costs.receipt_detail': 'Détail · par CR',
+  'costs.receipt_detail': 'Détail · par Change Request',
   'costs.receipt_sum': 'Somme des CRs',
   'costs.receipt_rest_any': 'le reste, {x} : le steering et les agents hors CR',
   'costs.receipt_rest_steer': 'le reste, {x} : le steering',
@@ -60,4 +60,12 @@ export default {
   'costs.th_state': 'État',
   'costs.th_cost': 'Coût',
   'costs.th_batch': 'Batch',
+  'costs.copy_image': 'Copier en image',
+  'costs.copying': 'copie…',
+  'costs.copied': 'Ticket copié en image',
+  'costs.copy_failed': "L'image n'a pas pu être copiée : {error}",
+  'costs.copy_insecure': 'La copie en image ne marche que sur cette machine, à {link}',
+  'costs.copy_insecure_nolink':
+    'La copie en image ne marche que sur cette machine, à une adresse 127.0.0.1',
+  'costs.copy_unsupported': 'Ce navigateur ne sait pas copier une image',
 };

@@ -1,11 +1,13 @@
 // The Costs receipt, as one plain object built from the page's data. Pure, no DOM.
 //   receiptOf(state) is null when there is no batch to show (no batch runs, no closed record).
-// The batch shown is the running or paused one, else the newest closed record (`data.history`).
+// The batch shown is the one the navigator chose; by default the running or paused one, else the
+// newest closed record (`data.history`).
 // `figures` says which of three receipts it is: the figures are there ('figures'), a running or
 // paused batch has no usable live figure ('pending'), a closed record predates `cost_receipt`
 // ('unrecorded').
 
 import { usd } from '../core/format.js';
+import { closedBatches } from './history.js';
 import { t } from './words.js';
 
 const MINUTE_MS = 60000;
@@ -29,8 +31,14 @@ export const driverName = (type) => String(type ?? '').replace(/^[^:]*:/, '');
 // The steering session's name: the label up to its first comma.
 export const steeringName = (label) => String(label ?? '').split(',')[0];
 
-// The running batch, else the newest closed record, as { live, rec }; null with neither.
-export function shownBatch(data) {
+// The chosen closed record; with none chosen (or an unknown id, or the live batch's), the running
+// batch, else the newest closed record, as { live, rec }; null with neither.
+export function shownBatch(data, chosen = null) {
+  const picked =
+    chosen && chosen !== data?.batch?.id
+      ? closedBatches(data).find((r) => r.batch === chosen)
+      : null;
+  if (picked) return { live: false, rec: picked };
   if (data?.batch) return { live: true, rec: data.batch };
   const closed = (data?.history ?? []).find((r) => r.state === 'closed');
   return closed ? { live: false, rec: closed } : null;
@@ -108,7 +116,7 @@ function countsOf(crs, total, sum) {
 
 export function receiptOf(state) {
   const data = state.data;
-  const shown = shownBatch(data);
+  const shown = shownBatch(data, state.batchId);
   if (!shown) return null;
   const { rec, live } = shown;
   const crs = crLines(rec, live).sort(byCost);

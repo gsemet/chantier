@@ -8,6 +8,7 @@ const data = {
   board: null, // GET api/board: the projects of the surface, one line each
   project: null, // the id of the project shown, or '*' for All projects
   view: 'home',
+  batchId: null, // Costs and Batch: the batch the navigator chose (its id), or null for the latest
   data: null, // GET api/projects/{id}/state: the project's record
   etag: null,
   now: null, // the server's instant, from its last answer
@@ -22,6 +23,7 @@ const data = {
   editing: null, // the panel's Markdown editor: { path, original, draft, base, saving, error }
   autosync: { open: false, busy: false, error: '' }, // the autosync panel: open, a call running, its error
   prs: null, // PRs: the last answer of GET api/projects/{id}/prs, kept across a failed read
+  copying: false, // Costs: the receipt is being copied as an image
   recomputing: false, // Costs: a recompute was asked and its figure has not arrived
   selection: [], // Triage: the slugs selected
   labelFilter: [], // Triage: the labels that filter the post-its

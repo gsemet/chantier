@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board import crs
+from chantier.board.archived import recovered_after
 from chantier.board.backlog import backlog_items
 from chantier.board.journal import since_rescan
 from chantier.core.batch import apply_batch_settings
@@ -130,9 +131,11 @@ def _history(changes: Path) -> list[Any]:
     out = []
     for path in files:
         try:
-            out.append(json.loads(read_text(path)))
+            record = json.loads(read_text(path))
         except (OSError, ValueError):
             continue
+        closed = isinstance(record, dict) and record.get("state") == "closed"
+        out.append(recovered_after(changes, record) if closed else record)
     return out
 
 

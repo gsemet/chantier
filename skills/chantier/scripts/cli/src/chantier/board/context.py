@@ -45,6 +45,7 @@ class Context:
     seats: Seats
     version: str
     stop: Callable[[], None]
+    bound: tuple[str, int] | None = None  # the address the board listens on
     cache: StateCache = field(default_factory=StateCache)
     last_push: LastPush = field(default_factory=LastPush)
     reads: ForgeReads = field(default_factory=ForgeReads)  # the PRs page's forge reads

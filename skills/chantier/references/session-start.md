@@ -73,8 +73,12 @@ never start it.
   verified local readiness. Local readiness is verified only by a successful probe such as
   `GET /api/board` with the key; if no probe was run, say so. If the server announces a
   non-loopback binding, say that LAN reachability is untested; do not claim that it opens
-  remotely. The link is theirs only.
-- `board already running at <URL>`: the same line, if not given yet in this session. One board
+  remotely. The link is theirs only. When the board prints a second line, `on this machine:
+  http://127.0.0.1:<port>/?k=...`, give the user both links, the 127.0.0.1 one named as the one
+  where the Costs page's "Copy as image" works (a browser allows an image copy on a secure origin
+  only; the LAN link is plain http).
+- `board already running at <URL>`: the same line (and the same second line, when it follows), if
+  not given yet in this session. One board
   serves a planning surface (or a repository), on whatever port: a second session's `board --seat
   <id>` registers its seat on it and prints this line.
 - `error: board not started: chantier board <v> (PID <n>) already serves this surface ...` or

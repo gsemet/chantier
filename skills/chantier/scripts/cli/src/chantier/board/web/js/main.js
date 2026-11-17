@@ -12,6 +12,7 @@ import { nextLanguage, pick, setLanguage, t } from './model/words.js';
 import { afterPanel, bindPanel, closePanel, panelMarkup, syncPanel } from './panel/panel.js';
 import { dot, pill } from './ui/autosync.js';
 import { bindAutosync } from './ui/autosync-events.js';
+import { navigator } from './ui/batch-nav.js';
 import { bottomBar } from './ui/bottombar.js';
 import { bindScroll, crumbs, notice, stats, title } from './ui/header.js';
 import { show } from './ui/host.js';
@@ -35,9 +36,19 @@ function drawFrame(state) {
   paint($('#project-phone'), [trigger(state, 'pbtn'), menu(state)]);
   paint($('#title'), title(state));
   paint($('#stats'), stats(state));
+  paintNav(state);
   paint($('#bottom-nav'), bottomBar(state));
   paint($('#new'), t('new.button'));
   $('#new').hidden = state.project === ALL || !state.data;
+}
+
+// The batch navigator, hidden where the page has none.
+function paintNav(state) {
+  const nav = $('#batch-nav');
+  const markup = navigator(state);
+  nav.setAttribute('aria-label', t('batchnav.label'));
+  paint(nav, markup);
+  nav.hidden = !markup;
 }
 
 function drawNotice(state) {
@@ -95,6 +106,12 @@ function listenToFrame() {
       const toAll = el.dataset.project === ALL && !overviewIds().includes(snapshot().view);
       go(toAll ? { project: ALL, view: overviewIds()[0] } : { project: el.dataset.project });
     }),
+  );
+  delegate(
+    body,
+    'click',
+    '[data-batch-go]',
+    guarded((_, el) => go({ batch: el.dataset.batchGo || null })),
   );
   delegate(
     body,
