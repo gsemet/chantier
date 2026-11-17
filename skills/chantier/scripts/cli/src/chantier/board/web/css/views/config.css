@@ -52,6 +52,14 @@
   font-weight: 500;
 }
 
+.config .role .desc {
+  color: var(--ink3);
+  font-size: var(--text-small);
+  font-weight: 400;
+  margin-top: 2px;
+  max-width: 360px;
+}
+
 .config .eff {
   display: inline-block;
   margin-top: 4px;

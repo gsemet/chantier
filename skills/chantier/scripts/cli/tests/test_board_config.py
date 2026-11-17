@@ -118,7 +118,7 @@ def test_the_configuration_is_written_or_refused_through_the_cli(
 
 
 def test_a_dry_run_and_a_stale_hash_write_nothing_and_the_view_shows_resets_and_plans(
-    surface: Surface, monkeypatch: pytest.MonkeyPatch
+    surface: Surface, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _put_file(surface.project, TOWARDS.replace("sol", "terra"))
     _put_file(surface.clone, RESETS)
@@ -134,6 +134,22 @@ def test_a_dry_run_and_a_stale_hash_write_nothing_and_the_view_shows_resets_and_
     by_id = {m["id"]: m for m in view["hosts"]["copilot"]["catalog"]}
     assert (by_id[ids[0]]["plans"], by_id[ids[1]]["plans"]) == (plans, None)
     assert all("plans" not in m for m in view["hosts"]["claude"]["catalog"])
+    coder = (
+        "Implements one round of one chantier CR in its worktree; never commits. "
+        "Started by a Driver."
+    )
+    for host in ("claude", "copilot"):
+        shown = [r["description"] for r in view["hosts"][host]["roles"]]
+        assert all(shown) and not any("Prompt starts with" in d for d in shown)
+        assert _row(view, host, "coder")["description"] == coder
+    # an agent file with no description: its row shows null and the view still answers 200
+    plugin = tmp_path / "plugin"
+    (plugin / "agents").mkdir(parents=True)
+    (plugin / "agents" / "coder.md").write_text("---\nname: coder\n---\nbody\n", encoding="utf-8")
+    monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(plugin))
+    code, bare = call("GET")
+    assert code == OK and _row(bare, "claude", "coder")["description"] is None
+    monkeypatch.delenv("CHANTIER_PLUGIN_ROOT")
     path = surface.project / "chantier.yaml"
     before = path.read_bytes()
     body = {"changes": [_change("coder", "model", None)], "base_sha256": view["sha256"]}

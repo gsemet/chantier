@@ -114,7 +114,7 @@ function roleRow(hostId, host, row, writable) {
   const over = row.overridden_by
     ? html`<div class="over">${t('config.overridden', { path: row.overridden_by })}</div>`
     : '';
-  return html`<tr data-host="${hostId}" data-role="${row.role}"><td class="role">${row.role}</td><td>${agentCell(row, writable)}${inherited(row, 'agent')}<div class="eff">${t('config.effective')} ${effective(row, 'agent')}</div></td><td>${modelCell(host, row, writable)}${inherited(row, 'model')}<div class="eff">${t('config.effective')} ${effective(row, 'model')}</div>${over}</td><td class="start${row.refusal ? ' bad' : ''}">${startWord(row)}</td></tr>`;
+  return html`<tr data-host="${hostId}" data-role="${row.role}"><td class="role">${row.role}${row.description ? html`<div class="desc">${row.description}</div>` : ''}</td><td>${agentCell(row, writable)}${inherited(row, 'agent')}<div class="eff">${t('config.effective')} ${effective(row, 'agent')}</div></td><td>${modelCell(host, row, writable)}${inherited(row, 'model')}<div class="eff">${t('config.effective')} ${effective(row, 'model')}</div>${over}</td><td class="start${row.refusal ? ' bad' : ''}">${startWord(row)}</td></tr>`;
 }
 
 function hostBlock(hostId, host, writable) {
