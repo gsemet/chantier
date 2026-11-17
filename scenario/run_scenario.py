@@ -1965,6 +1965,8 @@ def remote_board(w: World) -> None:
         # 10. a wider address says so; the clock
         wide = board("board", "--host", "0.0.0.0", "--port", 0)
         head, warning = wide.line(), wide.line()
+        if (warning or "").startswith("on this machine: "):  # printed when the main link is not loopback
+            warning = wide.line()
         check("an address beyond this machine prints the second line, the link in the first",
               Link(head).ok and (warning or "").startswith("board: listens on the local network (0.0.0.0)"),
               f"{head} / {warning}")
