@@ -79,7 +79,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   the user merges it and the Chief of Staff records it. A hand-back that says its PR stays a
   draft keeps that text in the ask. A hand-back that ends with `gaps: …` keeps it too, as the
   Driver wrote it (after `no long gate: <reason>` or the draft text when present): `ready-to-merge <cr>
-  <link> gaps: …` (or `pr-in-draft …`). You invent no gap and drop none; a gap you see yourself and the body lacks
+  <link> gaps: …` (or `pr-in-draft …`). When the hand-back report or a `note` says an image that
+  showed the user's username or home folder was uploaded and replaced, or that the user's
+  screenshot was not uploaded for it, relay that part with the ask. You invent no gap and drop none; a gap you see yourself and the body lacks
   sends the CR back to a Driver (`take <cr> --note "gaps: <what is missing from Known gaps>"`),
   with no ask. An order note `evidence: <path>` (the user's screenshot of the board pane, where
   the project's rules ask for one) becomes `take <cr> --note "evidence: <path>"`. A hand-back

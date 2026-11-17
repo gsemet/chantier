@@ -327,6 +327,32 @@ defer the rest of this card until an action names it. These are the card's defau
   other forge. A file its CLI cannot upload stays in `work/`, and the description names it in
   its Internal references section. A taken-back note `evidence: <path>` is an image to attach the
   same way: remove the matching bullet from Known gaps, run the description pass, hand back ready.
+  No image shows the user's username or home folder; every image you keep or upload shows made-up
+  paths. Terms: the *user's username* is both the login name of the machine you run on
+  (`$env:USERNAME` on Windows, `$USER` on Linux and macOS) and the last part of the home folder's
+  path (they can differ; check both). The *home folder* is its full path (`C:\Users\<name>`,
+  `/Users/<name>`, `/home/<name>`) in any form on screen (either slash, `~` expanded, inside a
+  longer path such as a temporary folder under it). A *made-up path* holds neither, wherever the
+  image shows a local path (planning folder, worktree, file, prompt, window title); how you get it
+  is yours (a scratch folder at a neutral location, a made-up folder name, `~`, `user`). *The
+  look*: open the image as an image (not its file name) and look for both; it passes once neither
+  shows. *Keeping* an image is writing it anywhere in the planning folder (a CR's `evidence/` or
+  `work/`, a QA work folder's `evidence/`), which is pushed with the surface. An *upload* is any
+  way an image leaves the machine for the forge: `gh pr edit --attach` or another forge CLI's
+  attach, a release asset, a push of a commit that adds or changes an image. Give each image the
+  look before you keep it and again before each upload; keep or upload it only once it passes. An
+  image of yours that fails is captured again with made-up paths; the Verifier's that fails is
+  asked again of the Verifier; none is kept or uploaded meanwhile. The user's own screenshot (the
+  taken-back `evidence: <path>`) gets the look before the upload: when it fails, do not upload it
+  or copy it into the planning folder, keep its Known gap (the PR's Known gaps still quotes it),
+  and say why (it shows the username or the home folder) in a `note` and in your hand-back
+  report. A leak found after an upload (your description pass, or the Verifier's `NOT VERIFIED`
+  on it): replace the image in the description with a clean capture (made-up paths, given the
+  look) and say in a `note` and in your hand-back report that the old one was uploaded (the PR,
+  which image, at which SHA); a removed attachment can stay reachable on the forge, so the user
+  is told. When the leaked image is the user's own screenshot, remove it from the description,
+  put the Known gap back, and say so in the same `note` and report. Nothing about the leak goes
+  in the public PR.
 - The archive in the PR: when `take` or `handoff` prints `archive: in the PR at <path>`, before
   each `handback <cr> ready` write the cleaned archive in your worktree at that path and commit
   it with the change: `intake/`, `evidence/`, `01-intent.md`, `02-answers.md`,
@@ -337,7 +363,8 @@ defer the rest of this card until an action names it. These are the card's defau
   when it is above 1 MB (up to 10 MB); when `02-answers.md` records a decision on a very big
   folder, follow it. No other version and no `experiments/` go in the PR's archive (they stay in
   the planning folder's `5-archives/`); with no retained prototype named, nothing from
-  `prototypes/` goes in. A retained prototype above 10 MB with no recorded decision stays out of
+  `prototypes/` goes in. Each image added or changed in the archive passes the look (The
+  evidence, above) before the commit; one that fails stays out until it passes. A retained prototype above 10 MB with no recorded decision stays out of
   the archive: say it in a `note`, and name it in the PR's Known gaps ("retained prototype not in
   the archive: too big, no decision recorded"), so the ready line quotes it and the Chief of Staff
   asks the user. The same Known gap names a folder that grew very big during the batch. `ship`
@@ -909,7 +936,9 @@ your own, under the same worktrees folder (`git -C <main checkout> fetch <remote
 <repo>.worktrees/<folder name> <remote>/<default branch>`), removed at your end. Reproduce before
 reporting. Everything goes in the folder: `04-result.md`, one finding per bullet (steps, expected,
 actual; "No findings." without bullets), proof in `evidence/` (commands, output, screenshots),
-long tests and whatever else helps. End with `[qa→foreman] qa done <folder> <n> findings`.
+long tests and whatever else helps. Each screenshot kept in `evidence/` shows made-up paths and
+passes the look (Your means, The evidence) before it is kept; one that fails is captured again,
+and one that cannot be is not kept: `04-result.md` says so in the finding it belonged to. End with `[qa→foreman] qa done <folder> <n> findings`.
 
 ## Release driver
 
@@ -943,7 +972,10 @@ inside the procedure and the grant, and ask for anything beyond them.
   `STATUS.md`, the board, CLI output) and from `report.md` and `conversation.md` in the release
   CR's folder when the Chief of Staff wrote them; a docs diagram only when the release CR's
   specification names it. Their images are anonymised before they leave the machine, and the
-  thread is never posted by an agent.
+  thread is never posted by an agent. Each capture you keep in the work folder or in the folder
+  the procedure commits passes the look (Your means, The evidence) before it is kept, and again
+  before each upload (a release asset, a push of the release folder's images), on top of
+  release-template's reading of each image and its wider list.
 - When the procedure opens a version PR, its body carries, under the PR's own description, a `---`
   rule, the release notes, a `---` rule, then the announcement thread under a heading that says it
   is a draft the user posts themselves (no agent posts it). Both are the draft files' text,
@@ -961,7 +993,7 @@ inside the procedure and the grant, and ask for anything beyond them.
   file the procedure committed and pushed with the version PR's branch) is shown from there; one
   not yet on the forge, or that the forge cannot take, is named in prose (`<file name>: <what it
   shows>`). Every image is anonymised before it leaves the machine, as
-  [release-template](release-template.md) says. The body never links a local path.
+  [release-template](release-template.md) says, with the look. The body never links a local path.
 - When the whole does not fit the forge's body limit (the forge's own, read from its error or its
   docs), the body keeps what fits in that order (description, notes, thread) and names each part
   left out by its path in the PR's branch or the work folder, with a line saying the body is not

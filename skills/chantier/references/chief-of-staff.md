@@ -1013,7 +1013,11 @@ CR-222 → CR-225 → CR-226 → CR-228."
   gap of the ask next to the PR's link, in the user's language; with none, say nothing about
   gaps. Where the project's rules ask for a screenshot of the board pane for a change to it and
   the gaps name it as missing, ask the user for one screenshot of the pane from a session
-  running the PR's branch. On the user's file, `order note <cr> --note "evidence: <path of the
+  running the PR's branch, with made-up paths: no username and no home folder in it. When the
+  Driver's report says the user's screenshot was not uploaded because it showed one, say so and ask
+  for a new one the same way. When a Driver's `note` or hand-back report (relayed with the ask) says
+  an image that showed the username or home folder was uploaded and replaced, tell the user: the
+  PR, the image, and that the old attachment may stay reachable on the forge. Do nothing more. On the user's file, `order note <cr> --note "evidence: <path of the
   image>"`: the Foreman turns it into `take <cr> --epoch <n> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
   ready again. In every mode, a `ready-to-merge` ask is offered to the
@@ -1050,7 +1054,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   On any such ask, partial or complete, before you tell the user the stack is mergeable, apply the
   plain ask's gap rule (the bullet above) to each CR of the mergeable part: quote its gaps next to
   its link, in the user's language; where the project's rules ask for a screenshot of the board
-  pane and a gap names it as missing, ask the user for that screenshot in the same message, naming
+  pane and a gap names it as missing, ask the user for that screenshot (with made-up paths, and tell of an uploaded leak, as in the
+  bullet above) in the same message, naming
   the PR and which PRs are below and above it, before the sentence that says the stack can be
   merged. The user decides; the evidence route stays (`order note <cr> --note "evidence: <path>"`).
   All hold: with `to come: …`, tell the user the stack is mergeable up to its last PR ready to merge (in one

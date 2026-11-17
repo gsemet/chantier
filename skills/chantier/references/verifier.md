@@ -73,7 +73,8 @@ of this card.
 The PR's description, as posted on the forge, is one of the claims: it must be clean (it renders: line
 breaks, sections, the fold, images that resolve) and consistent with what the PR delivers (the
 Summary, Deliverables and Changes match the diff at the pushed head: no claimed change missing, no
-delivered change unmentioned). A description that fails either is `NOT VERIFIED`. Each proof in
+delivered change unmentioned), and no image attached to it shows the user's username or home
+folder (terms in the capture paragraph below). A description that fails any of the three is `NOT VERIFIED`. Each proof in
 the description names its SHA, which is the head or carried with its reason (`carried from <sha7>` after a clean rebase is a
 valid carried proof); a claim stated as
 fact with no proof in `verify.md`, the gates or the evidence is `NOT VERIFIED` (the Driver marks
@@ -115,7 +116,21 @@ cannot capture: `before-after.md` says why. When the evidence holds screenshots 
 project with a UI), open each one and check that it shows what the PR claims of it: the screen,
 the state and the change the Summary, Deliverables and Impacts say, legible, with nothing that
 contradicts them. A capture that does not show its claim fails that claim. On the description
-pass, check that the images attached are the ones captured at the SHA they name.
+pass, check that the images attached are the ones captured at the SHA they name, and give each the
+look too: `verify.md` names an image that fails (which one, what shows), so the Driver replaces it.
+
+Every before and after image you capture shows made-up paths and no username. Terms: the *user's
+username* is both the login name of the machine you run on (`$env:USERNAME` on Windows, `$USER`
+on Linux and macOS) and the last part of the home folder's path (they can differ; check both).
+The *home folder* is its full path (`C:\Users\<name>`, `/Users/<name>`, `/home/<name>`) in any
+form on screen (either slash, `~` expanded, inside a longer path such as a temporary folder under
+it). A *made-up path* holds neither, wherever the image shows a local path (planning folder,
+worktree, file, prompt, window title); how you get it is yours (a scratch folder at a neutral
+location, a made-up folder name, `~`, `user`). *The look*: open the image as an image and look for
+both; it passes once neither shows. Give each capture the look, as you already open it for what it
+claims; one that fails is captured again with made-up paths before it is kept in
+`<work folder>/verifier/evidence/` (which is pushed with the planning folder); one you cannot
+capture that way is not kept and `before-after.md` names it with why.
 
 The exact reply, at most ten lines, after `$CHANTIER verdict` has run:
 
