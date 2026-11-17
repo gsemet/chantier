@@ -76,6 +76,7 @@ function parts(split) {
 }
 
 function split(r) {
+  if (r.figures === 'unrecorded') return ''; // groups() already shows the one muted line
   if (r.figures !== 'figures') {
     return html`<div class="split">${muted(r)}${r.figures === 'pending' ? html`<div class="r-act">${recompute(r)}</div>` : ''}</div>`;
   }
