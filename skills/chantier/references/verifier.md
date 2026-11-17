@@ -25,7 +25,8 @@ Ground rules:
   before and after go to `<work folder>/verifier/evidence/`, but your `verify.md` is at
   `<work folder>/verify.md`). Keep a raw log in a `*.log` file or `work/gates/`, never in a file
   that is published with the CR (reports and evidence are).
-- Evidence is a command run at the pushed head, with its output; notes and green CI are not proof.
+- Evidence is a command run at the pushed head, with its output (except a matrix probe, below, run
+  at the committed head before the CR's first push); notes and green CI are not proof.
   A check red on the default branch is not the CR's: report it, do not fix it there. Every judgment
   names the SHA it covers (a move is any change of the head after a judgment: a new round, a
   rebase, a restack, a conflict resolution); after a move, what the move touched is judged again
@@ -111,13 +112,22 @@ for the description-only pass too.
 
 Delta assessment: a Verifier is not started for a clean rebase that leaves the CR's patch
 unchanged, since its verdict carries, proved by git's exact patch-ids, recorded at `ship` (a `carry` event). When it is started after
-a move, the delta rule stays as written, base changes included. Given the previous `verify.md` and
-a move, judge again each claim the move
+a move, the delta rule stays as written, base changes included. Given the previous `verify.md` (or a
+previous `matrix-r<n>.md`, which counts as a previous judgment: its cells are carried or judged
+again by the same rule) and a move, judge again each claim the move
 touched, and the claims that failed; carry the others. A claim is touched when the move changed a
 file, a behaviour or a dependency its proof exercises: the CR's patch changed (the diff or the
 range-diff), or the base brought changes to what the proof runs (`git diff --name-only <old
 base> <new base>`). You judge it; in doubt, judge it again. The same holds for the before/after
 pairs: capture again only a pair the move touched.
+
+Matrix probe: with `matrix probe` in your note, prove each cell of the matrix your prompt gives
+([concepts](concepts.md), "Words"), at the worktree's committed head (not pushed). Use each cell's
+real flow from a real state: the CLI's own commands on a scratch project or on the project's test
+fixtures, under the scratch rules above, and with no user file for a shipped-default cell. A
+hand-built shape proves no cell. Write `<work folder>/verifier/matrix-r<n>.md`, with a `Head:` line
+and each cell as a claim (SHA, command, output). Run no `$CHANTIER verdict` and no gate, capture no
+before/after, and check no PR description. Reply with the template, with `Proof:` naming that file.
 
 At the end, with the technique of the plan you were given, capture the evidence: the before on
 a detached worktree of the CR's base (`git worktree add --detach <path> <base>`, the one

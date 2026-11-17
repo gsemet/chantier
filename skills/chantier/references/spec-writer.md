@@ -33,6 +33,9 @@ A rich specification holds:
   absent there that the local machine has: caches, tools, credentials, network state), the
   evidence that proves the job before the push as the project's rules ask for it, and which of
   those differences only the job's first CI run can prove.
+- When what the CR changes depends on the host or on a shipped default versus a configured value:
+  its host and default matrix ([concepts](concepts.md), "Words"), in the evidence, one line per
+  cell. Name no matrix when there is no such dependency.
 - The evidence that proves it: the checks and the scenario steps.
 - Self-containment: a Driver needs nothing else to implement it.
 

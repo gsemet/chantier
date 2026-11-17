@@ -144,6 +144,13 @@ and how an agent is started. Each worker reads its own card, which restates the 
   `prototypes/` ([driver](driver.md)).
 - **Change Specification:** what the CR changes, complete and self-contained: a reader with only
   this file knows what to do. By default `03-change-spec.md`.
+- **Host and default matrix:** the cases a CR must prove one by one, because what it changes
+  behaves differently on each host (Claude Code, Copilot) or with a shipped default and with a
+  value the user configured. There is one cell per combination that applies, including a host's
+  refusal where one exists. Each cell gives the result it must show and the real flow that proves
+  it: the CLI's own commands from a real state, with no user file for a shipped-default cell. A
+  record or configuration shape built by hand, which the real flow does not produce, proves no
+  cell. The specification names the matrix in its evidence. A CR with neither dependency has none.
 - **Lifecycle:** the folder moves, it is never copied: `1-inbox/` (filed) → `2-backlog/P1…P4/`
   (the user prioritized it) → `3-ready/` (waiting for the next batch) →
   `4-batch/1-pending/<number>-<slug>/` (in the batch, not started) → `2-actives/` (taken by a
@@ -638,7 +645,8 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    before its part is done"); it never does the child's work. A fresh child per round. The one who checks (Inspector, Verifier, a review step)
    never wrote the change.
 4. **Whoever owns a live agent is the only one who stops or messages it.**
-5. **Evidence is a command run at the pushed head, with its output.** Notes and green CI are
+5. **Evidence is a command run at the pushed head, with its output** (except a matrix probe, run at the committed head before the CR's
+   first push: [verifier](verifier.md)). Notes and green CI are
    not proof. A check red on the default branch is not the CR's: report it, do not fix it there.
    Every judgment names the SHA it covers; after a move, what the move touched is judged again and
    the rest is carried, saying so. A clean rebase that leaves the CR's patch unchanged, proved by
