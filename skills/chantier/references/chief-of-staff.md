@@ -1037,9 +1037,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
   tell the Foreman in the same message; no reproach, no question. A `board saw merged: <cr> …`
   line in `status` is a merge the user made: record it like any merge, at the `status` that shows
   it (`order merged <cr>`, then, in Foreman mode, send its line to the Foreman as for any order).
-  A line that says `into <other cr>'s branch` is not a merge to record: do not run `order merged`;
-  tell the user where the PR went (into `<other cr>`'s PR, not the default branch) and wait until
-  the PR under it lands; the line keeps printing until the CR is recorded merged.
+  A line that says `landed with <other cr>` is a merge to record, like the `into <branch>` one:
+  the board read the PR merged into `<other cr>`'s branch and that CR's PR on the default branch
+  at the same time or later (`order merged <cr>`, then the Foreman's line in Foreman mode). Only
+  a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user
+  where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
+  it lands (the board then writes a second line, `landed with`); the line keeps printing until
+  the CR is recorded merged. One exception, on GitLab: a fold (`forge-stack show` prints `folded
+  into <cr below>`) is recorded at once by the fold rule below, whatever the board's line says.
 - **A series batch:** the CRs merge one by one, in order. On each `ready-to-merge` ask, tell the user which
   PR is next to merge (the bottom one, ready to merge on the default branch) and that the others are drafts
   waiting on it; quote each gap of the ask as above; when the user says it is merged,
