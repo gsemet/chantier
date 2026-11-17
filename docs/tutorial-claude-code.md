@@ -230,7 +230,8 @@ By default the spec-writer and the spec critic run on Opus 5.5 (what a specifica
 driver and the workers on Sonnet 5.5; run your own session (the Chief of Staff) on Opus 5.5. On a
 named trouble (a CR blocked twice, the rounds used up with the Inspector still asking for fixes, a
 red check nobody could explain, a conflict nobody could settle, a restack that failed) the task goes
-to a new agent on the escalation model (Opus 5.5 by default), and the report says so.
+to a new agent on the role's escalation model (Opus 5.5 by default), once per CR and then the user,
+and the report says so.
 
 None of them needs a 1M-token context. The plugin's agents compact at 200,000 tokens
 (`autoCompactWindow` in their files). The Foreman is a session of its own, which chantier cannot

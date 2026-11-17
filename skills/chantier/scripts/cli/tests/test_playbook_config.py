@@ -5,14 +5,21 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from batch_helpers import FROM_AGENTS_MD, changes, host, open_batch, prepared, record
+from batch_helpers import FROM_AGENTS_MD, changes, has, host, open_batch, prepared, record
 from conftest import PLUGIN_ROOT, Chantier
 from cost_world import CostWorld, build
 
 from chantier.core.errors import EXIT_PRECONDITION
 
 PROMPTERS = ("retro-critic", "spec-critic", "spec-writer")
-ESCALATE = "escalate: opus (claude-opus-5-5, Claude Opus 5.5)"
+ESCALATE = "escalate: " + "; ".join(
+    f"{role} opus (claude-opus-5-5, Claude Opus 5.5)"
+    for role in ("coder", "conflict-resolver", "debugger")
+)
+OPUS_COPILOT = "claude-opus-5.5 (claude-opus-5.5, Claude Opus 5.5) (generic)"
+ESCALATE_COPILOT = "escalate: " + "; ".join(
+    f"{role} {OPUS_COPILOT}" for role in ("coder", "conflict-resolver", "debugger")
+)
 CODER = "coder: agent=chantier:coder model=(its file's)"
 PRICES = "prices:\n  mystery-model:\n"
 FOUR = "".join(f"    {k}: 1\n" for k in ("input", "cache_write_5m", "cache_write_1h", "cache_read"))
@@ -46,7 +53,7 @@ def test_with_no_chantier_yaml_playbook_prints_the_plugin_agents(
 ) -> None:
     host(monkeypatch)
     code, out, _ = chantier("playbook")
-    assert code == 0 and out[0].startswith("playbook: no chantier.yaml") and CODER in out
+    assert code == 0 and out[0].startswith("playbook: no chantier.yaml") and has(out, CODER)
     assert out[-1] == ESCALATE
     assert "stack-driver: agent=chantier:stack-driver model=(its file's)" in out
     assert "release-driver: agent=chantier:release-driver model=(its file's)" in out
@@ -57,7 +64,7 @@ def test_with_no_chantier_yaml_playbook_prints_the_plugin_agents(
     for who, line in zip(PROMPTERS, prompts, strict=True):
         assert line.startswith(f"{who} prompt, first line: chantier {who} for the Chief of Staff, ")
         assert "in the project " in line and "proj" in line and line.endswith(".")
-    assert chantier("playbook", "--host", "copilot")[1][-1] == "escalate: (none on this host)"
+    assert chantier("playbook", "--host", "copilot")[1][-1] == ESCALATE_COPILOT
     for role in ("stack-driver", "release-driver"):
         agent = (PLUGIN_ROOT / "agents" / f"{role}.md").read_text(encoding="utf-8")
         assert "model: claude-sonnet-5-5" in agent
@@ -73,7 +80,7 @@ def test_with_no_chantier_yaml_open_records_nothing_and_take_prints_no_team(
     _, shown, _ = chantier("handoff", ids[1])
     code, out, _ = chantier("playbook", "--batch", record(repo)["id"], "--host", "copilot")
     assert "playbook" not in record(repo) and not team(took) and not team(shown)
-    assert code == 0 and out[0].startswith("playbook: no chantier.yaml") and CODER in out
+    assert code == 0 and out[0].startswith("playbook: no chantier.yaml") and has(out, CODER)
     prompts = [
         ln for ln in out if " prompt, first line: " in ln
     ]  # the Foreman's: the retro critic's only
@@ -96,7 +103,7 @@ def test_a_valid_file_is_resolved_recorded_and_kept_by_the_running_batch(
     coder = f"coder: agent=chantier:coder {opus} skills=jira [repository]"
     code, now, _ = chantier("playbook")
     assert code == 0 and now[0] == "playbook: chantier.yaml, valid, host claude"
-    assert coder in now and "cr-driver: agent=my-driver [repository] model=(its file's)" in now
+    assert has(now, coder) and "cr-driver: agent=my-driver [repository] model=(its file's)" in now
     ids = open_batch(repo, chantier, monkeypatch, "Playbook set one", "Playbook set two")
     _, took, _ = chantier("take", ids[0], "--epoch", 1)
     roles = record(repo)["playbook"]["roles"]
@@ -172,6 +179,19 @@ REFUSALS = [
     ("a second document", HEAD + A + "agent: x\n---\n", 6, "several documents"),
     ("an unknown model", HEAD + A + "model: opus 5.6\n", 5, "is unknown on Claude Code; known:"),
     ("a model with no letter", HEAD + A + "model: 5.5\n", 5, "name the model, not only"),
+    (
+        "an escalation on a role whose defaults carry none",
+        ROLES + "      inspector:\n" + A + "escalation: opus\n",
+        5,
+        "set only on a role whose shipped defaults carry one: coder, conflict-resolver, debugger",
+    ),
+    ("an unknown escalation", HEAD + A + "escalation: opus 5.6\n", 5, "is unknown on Claude Code"),
+    (
+        "a quoted default escalation",
+        HEAD + A + 'escalation: "default"\n',
+        5,
+        '"default" resets the value',
+    ),
     ("a top-level roles", "roles:\n  coder:\n    agent: x\n", 1, ROLES_MOVED),
     ("roles: default", "roles: default\n", 1, ROLES_MOVED),
     ("an unknown host", "hosts:\n  gemini:\n    roles:\n", 2, 'unknown host "gemini"'),
@@ -317,7 +337,7 @@ def test_a_role_starts_the_plugin_agent_a_named_one_or_a_generic_one_per_host(
     body = "".join(A + ln + "\n" for ln in keys.splitlines())
     (repo / "chantier.yaml").write_text(HEAD.replace("claude", host_name) + body, encoding="utf-8")
     code, out, err = chantier("playbook", "--host", host_name)
-    assert code == 0 and line in out, err
+    assert code == 0 and has(out, line), err
 
 
 def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
@@ -346,7 +366,7 @@ def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
     # the Driver's skeleton copies the facts, the coder's contract with them, once
     assert [ln for ln in took if "contract (a generic agent" in ln] == [heading, f"  {heading}"]
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
-    assert f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}" in out
+    assert has(out, f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}")
 
 
 @pytest.fixture

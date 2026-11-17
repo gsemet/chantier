@@ -1417,7 +1417,11 @@ lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `pause`, `c
 these differences.
 
 - **Escalation.** The Foreman's escalation triggers ([concepts](concepts.md), "Escalation") are
-  yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`.
+  yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`. The two rounds
+  routes are yours too (`escalate: rounds` after the user's grant of more rounds,
+  `escalate: blocked twice`), once per CR, then the user; a CR with no rounds blocked twice goes
+  straight to the user's question. A restack that fails runs the stack driver's
+  `conflict-resolver` on the escalation model, the stack driver keeping the batch's model.
 
 - **Your title.** At `open --direct`, rename yourself `[<code>] 💬 Project · CoS (Batch <nn>)`;
   after `close --yes`, back to `[<code>] 💬 Project · CoS`

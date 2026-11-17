@@ -160,7 +160,8 @@ defer the rest of this card until an action names it. These are the card's defau
   - the `writes:` line of the `worker writes line`, copied unchanged;
   - `Note: …`, and `Needs: …` when the `team:` line prints one.
 - Escalation ([concepts](concepts.md), "Escalation"): only when one of its triggers arises, read
-  the `escalate:` line of `$CHANTIER playbook --batch <batch>`, as printed.
+  the role's `escalation=` on the `team:` line first, then the `escalate:` line of
+  `$CHANTIER playbook --batch <batch>`, as printed.
 - `$CHANTIER phase <cr> <phase> [detail]` before each step, as it starts, so the board and the
   pane show it: `investigator` before the investigator, `inspector` before the round's inspector,
   `review <name>` before each review step of `Team:`, `rebase`, `gate <name>` before `gate`, `pr`
@@ -642,8 +643,9 @@ that lists no check gives no such bullet; the "no CI" rule says what to write th
 
 Escalation applies to the CR driver as to any parent ([concepts](concepts.md), "Escalation"): a
 `debugger` that explains no red check, or a `conflict-resolver` that settles no conflict, gets a
-second one on the escalation model; a note `escalate: rounds` means each new round's `coder` starts
-on it.
+second one on the escalation model. A note `escalate: rounds` or `escalate: blocked twice: ...`
+means each new round's `coder` starts on the coder's escalation model; you keep your own model.
+You never escalate yourself.
 
 A move is any change of the head after a judgment: a new round, a rebase, a restack, a conflict
 resolution. A clean rebase that leaves the CR's patch unchanged is a move that touches no

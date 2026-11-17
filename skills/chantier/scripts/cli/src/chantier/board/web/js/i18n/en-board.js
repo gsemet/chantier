@@ -44,6 +44,10 @@ export default {
   'config.th_role': 'Role',
   'config.th_agent': 'Agent',
   'config.th_model': 'Model',
+  'config.th_escalation': 'Escalation',
+  'config.esc_generic': 'generic agent: the escalation model is given at the start',
+  'config.esc_not_applied':
+    'the shipped escalation does not apply: this role carries your own agent, which is never replaced',
   'config.th_start': 'Starts as',
   'config.inherited': 'inherited',
   'config.effective': 'in effect:',

@@ -7,6 +7,7 @@ import hashlib
 import pytest
 from conftest import Surface
 
+from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
 from chantier.playbook import edit
 
@@ -56,3 +57,24 @@ def test_the_surface_file_edit_writes_lf_onto_a_crlf_file(surface: Surface, bom:
     reset = [{"host": "copilot", "role": "coder", "key": "model", "value": None}]
     edit.edit_surface_file(repo, reset, view["sha256"], False)  # the new hash is the disk's
     assert "model:" not in path.read_text(encoding="utf-8")
+
+
+def test_the_config_view_carries_the_escalation_of_a_role_that_has_one_and_writes_it(
+    surface: Surface,
+) -> None:
+    path = surface.project / "chantier.yaml"
+    repo = Repo.find(project="demo", readonly=True)
+    view = edit.config_view(repo)
+    rows = {r["role"]: r for r in view["hosts"]["claude"]["roles"]}
+    assert rows["coder"]["escalation"]["allowed"] and not rows["inspector"]["escalation"]["allowed"]
+    assert rows["coder"]["escalation"]["effective"]["id"] == "claude-opus-5-5"
+    assert rows["coder"]["escalation"]["layer"] == "defaults"
+    change = [{"host": "claude", "role": "coder", "key": "escalation", "value": "sonnet"}]
+    view = edit.edit_surface_file(repo, change, view["sha256"], False)
+    assert "escalation: sonnet" in path.read_text(encoding="utf-8")
+    row = next(r for r in view["hosts"]["claude"]["roles"] if r["role"] == "coder")
+    assert row["escalation"]["effective"]["id"] == "claude-sonnet-5-5"
+    assert row["escalation"]["layer"] == "surface project"
+    bad = [{"host": "claude", "role": "inspector", "key": "escalation", "value": "opus"}]
+    with pytest.raises(ChantierError, match="set only on a role whose shipped defaults"):
+        edit.edit_surface_file(repo, bad, view["sha256"], False)

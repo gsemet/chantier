@@ -17,8 +17,10 @@ from chantier.plugin_files import (
     detect_host,
     plugin_roles,
     project_instructions,
+    read_escalation,
     read_playbook,
     read_timing,
+    recorded_escalation,
     recorded_timing,
     surface_instructions,
     user_files,
@@ -59,12 +61,14 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
     if args.batch:
         d = read_batch(repo, resolve_batch(repo, args.batch))
         made, host, timing = d.playbook, d.host, recorded_timing(d)
+        escalation = recorded_escalation(d)
         label = d.id or args.batch
     else:
         host = detect_host(args.host)
         made, problems = read_playbook(repo, host)
         timing, more = read_timing(repo, host)
-        problems += [p for p in more if p not in problems]
+        escalation, extra = read_escalation(repo, host)
+        problems += [p for p in [*more, *extra] if p not in problems]
         label = None
         if problems:
             return [
@@ -72,13 +76,13 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
                 f"is not valid ({len(problems)} problems)",
                 *problems,
             ], EXIT_PRECONDITION
-    lines = playbook_lines(made, host, plugin_roles(host), label)
+    lines = playbook_lines(made, host, plugin_roles(host), label, escalation)
     lines += timing_lines(timing, host) + timing_warnings(timing, host)
     # first lines to copy as printed: the Chief of Staff's all, the Foreman's (in a batch) only
     # those of the agents whose description says the Foreman starts them
     started_by = "Foreman" if args.batch else None
     lines += chief_prompt_lines(host, repo.root.as_posix(), started_by, made)
-    lines.append(escalate_line(host))
+    lines.append(escalate_line(escalation))
     return lines, 0
 
 

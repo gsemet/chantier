@@ -57,6 +57,8 @@ after it) is not a reset: it is refused. `chantier playbook` prints each value w
 brackets, and `[reset in <layer>]` for a value taken back. A top-level `roles` key is refused in
 every layer: move it under `hosts.<host>.roles`.
 
+`escalation` names the model a new agent of that role starts on after a named trouble.
+Only `coder`, `debugger` and `conflict-resolver` carry one.
 `skills` and `tools` list what the role needs, which preflight checks; they restrict nothing.
 
 ### How a role starts
@@ -141,8 +143,9 @@ agent file's.
 | Spec critic | Opus 5.5 (Fable on request) | Claude Opus 5.5 |
 
 By default every role but the Spec-writer and the Spec critic runs Sonnet 5.5 on Claude Code. The roles that judge
-keep cards with goals and boundaries, not procedures. On a named trouble a task goes to a new
-agent on the escalation model (Opus 5.5 by default), and the report says so. On Copilot the agent files' models run when no
+keep cards with goals and boundaries, not procedures. On a named trouble a coding task goes to a new
+agent on the role's `escalation` model (Opus 5.5 by default, set per role in the configuration),
+once per CR and then the user, and the report says so. On Copilot the agent files' models run when no
 model is passed; a model you set starts a generic agent until Copilot is proved to start a named
 agent with a model (the eval's probe). The agent files set `model-policy: required`, except the
 Coder's, which leaves it out for that probe: with the policy, the file's model wins over a model

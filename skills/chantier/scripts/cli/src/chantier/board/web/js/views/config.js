@@ -1,4 +1,4 @@
-// The Configuration view: the roles of each host with their agent and model, editable in the
+// The Configuration view: the roles of each host with their agent, model and escalation, editable in the
 // planning surface's project file, and the rest of the configuration read-only. A change is judged
 // by a dry run first (the server's answer shows the refusals), then written by Save.
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
@@ -34,8 +34,8 @@ async function load(root, project) {
   redraw(root);
 }
 
-const options = (host, row) => {
-  const current = mine(row, 'model');
+const options = (host, row, key) => {
+  const current = mine(row, key);
   const known = host.catalog.some((m) => m.id === current);
   const list = [...host.catalog.map((m) => ({ id: m.id, label: modelLabel(m) }))];
   if (current && !known) list.push({ id: current, label: current });
@@ -91,16 +91,30 @@ function inherited(row, key) {
   return lines.map((l) => html`<div class="inh">${l}</div>`);
 }
 
-function modelCell(host, row, writable) {
-  const value = mine(row, 'model') ?? '';
-  const choices = options(host, row);
+function modelCell(host, row, writable, key = 'model') {
+  const value = mine(row, key) ?? '';
+  const choices = options(host, row, key);
   const items = [
     html`<option value=""${value === '' ? ' selected' : ''}>${t('config.inherited')}</option>`,
     ...choices.map(
       (c) => html`<option value="${c.id}"${c.id === value ? ' selected' : ''}>${c.label}</option>`,
     ),
   ];
-  return html`<select data-field data-key="model" ${writable ? '' : 'disabled'}>${items}</select>`;
+  return html`<select data-field data-key="${key}" ${writable ? '' : 'disabled'}>${items}</select>`;
+}
+
+// The escalation cell: only on a row whose shipped defaults carry one (the page names no role).
+// It starts generic where the host cannot start a named agent with a model, and on such a host a
+// role with the user's own agent does not escalate (a value written there is refused).
+function escalationCell(host, row, writable) {
+  const esc = row.escalation;
+  if (!esc.allowed) return html`<td class="esc"></td>`;
+  const notes = [];
+  if (!host.named_agent_model_at_start) notes.push(t('config.esc_generic'));
+  if (!esc.applies) notes.push(t('config.esc_not_applied'));
+  const lines = notes.map((n) => html`<div class="inh">${n}</div>`);
+  const bad = esc.refusal ? html`<div class="note bad">${esc.refusal}</div>` : '';
+  return html`<td class="esc">${modelCell(host, row, writable, 'escalation')}${inherited(row, 'escalation')}<div class="eff">${t('config.effective')} ${effective(row, 'escalation')}</div>${lines}${bad}</td>`;
 }
 
 function agentCell(row, writable) {
@@ -114,7 +128,7 @@ function roleRow(hostId, host, row, writable) {
   const over = row.overridden_by
     ? html`<div class="over">${t('config.overridden', { path: row.overridden_by })}</div>`
     : '';
-  return html`<tr data-host="${hostId}" data-role="${row.role}"><td class="role">${row.role}${row.description ? html`<div class="desc">${row.description}</div>` : ''}</td><td>${agentCell(row, writable)}${inherited(row, 'agent')}<div class="eff">${t('config.effective')} ${effective(row, 'agent')}</div></td><td>${modelCell(host, row, writable)}${inherited(row, 'model')}<div class="eff">${t('config.effective')} ${effective(row, 'model')}</div>${over}</td><td class="start${row.refusal ? ' bad' : ''}">${startWord(row)}</td></tr>`;
+  return html`<tr data-host="${hostId}" data-role="${row.role}"><td class="role">${row.role}${row.description ? html`<div class="desc">${row.description}</div>` : ''}</td><td>${agentCell(row, writable)}${inherited(row, 'agent')}<div class="eff">${t('config.effective')} ${effective(row, 'agent')}</div></td><td>${modelCell(host, row, writable)}${inherited(row, 'model')}<div class="eff">${t('config.effective')} ${effective(row, 'model')}</div>${over}</td>${escalationCell(host, row, writable)}<td class="start${row.refusal ? ' bad' : ''}">${startWord(row)}</td></tr>`;
 }
 
 function hostBlock(hostId, host, writable) {
@@ -126,7 +140,7 @@ function hostBlock(hostId, host, writable) {
     hostId === 'copilot'
       ? html`<details class="catalog"><summary>${t('config.copilot_models')}</summary><ul>${host.catalog.map((m) => html`<li>${modelLabel(m)}</li>`)}</ul></details>`
       : '';
-  return html`<section class="host"><h2>${host.name}</h2><div class="cap">${note}</div><div class="scroll"><table><thead><tr><th>${t('config.th_role')}</th><th>${t('config.th_agent')}</th><th>${t('config.th_model')}</th><th>${t('config.th_start')}</th></tr></thead><tbody>${rows}</tbody></table></div>${plans}</section>`;
+  return html`<section class="host"><h2>${host.name}</h2><div class="cap">${note}</div><div class="scroll"><table><thead><tr><th>${t('config.th_role')}</th><th>${t('config.th_agent')}</th><th>${t('config.th_model')}</th><th>${t('config.th_escalation')}</th><th>${t('config.th_start')}</th></tr></thead><tbody>${rows}</tbody></table></div>${plans}</section>`;
 }
 
 function others(view) {

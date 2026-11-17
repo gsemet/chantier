@@ -58,3 +58,8 @@ def open_batch(
     if seat:
         assert chantier("foreman", "set", "local_foreman_t", "--epoch", 1)[0] == 0
     return [c["id"] for c in record(repo)["crs"]]
+
+
+def has(out: list[str], line: str) -> bool:
+    """A role line, whatever escalation ends it."""
+    return any(ln == line or ln.startswith(f"{line} escalation=") for ln in out)

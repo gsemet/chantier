@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.repo import Repo
-from chantier.playbook import config
-from chantier.playbook.models import NAMED_AGENT_MODEL_AT_START, resolve
+from chantier.playbook import config, escalation
+from chantier.playbook.models import NAMED_AGENT_MODEL_AT_START
 from chantier.playbook.yaml_subset import Node, is_reset
 
 DEFAULTS_DISPLAY = "config/chantier.defaults.yml"
@@ -229,15 +229,7 @@ def merge(layers: list[Layer]) -> Merged:
 
 def default_model(defaults: Node | None, host: str, role: str) -> str | None:
     """The identifier the defaults layer gives a role on a host, resolved, or None."""
-    if defaults is None:
-        return None
-    node = defaults
-    for key in ("hosts", host, "roles", role, "model"):
-        if node.kind != "map" or key not in node.value:
-            return None
-        node = node.value[key][1]
-    found, _ = resolve(host, node.value) if node.kind == "scalar" else (None, None)
-    return found.id if found else None
+    return escalation.default_key(defaults, host, role, "model")
 
 
 def _sink(problems: list[str], where: str) -> config.Bad:
@@ -302,8 +294,9 @@ def judge(
     sink = _sink(problems, "the merged configuration")
     rest = config.typed(merged.tree, sink, host=host, roles=roles_by_host.get(host))
     roles: dict[str, dict[str, Any]] = rest.get("roles", {})
-    nodes = _role_nodes(merged.tree, host)
+    nodes = escalation.role_nodes(merged.tree, host)
     refusals: dict[str, str] = {}
+    problems += escalation.carry_problems(merged.tree, defaults)
     problems += _model_problems(roles, nodes, host, defaults, refusals if tolerate else None)
     return Judged(merged, roles, nodes, rest, problems, refusals)
 
@@ -323,6 +316,7 @@ def _model_problems(
     line of the layer that wrote the model."""
     problems: list[str] = []
     for role, rec in list(roles.items()):
+        problems += escalation.escalation_problems(role, rec, nodes, host, refusals)
         if "agent" not in rec and rec.get("model", {}).get("id") == default_model(
             defaults, host, role
         ):
@@ -343,15 +337,6 @@ def _model_problems(
             else:
                 refusals[role] = line
     return problems
-
-
-def _role_nodes(tree: Node, host: str) -> dict[str, Node]:
-    node = tree
-    for key in ("hosts", host, "roles"):
-        if node.kind != "map" or key not in node.value:
-            return {}
-        node = node.value[key][1]
-    return {role: child for role, (_, child) in node.value.items()}
 
 
 def _labels(
