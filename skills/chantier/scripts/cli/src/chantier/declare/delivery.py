@@ -29,6 +29,12 @@ def register(sub: Subparsers) -> None:
     )
     s.add_argument("cr")
     s.add_argument("pr", help="the PR link")
+    s.add_argument(
+        "--conflict",
+        action="store_true",
+        help="the rebase this ship follows resolved a conflict (whoever resolved it): no pass and "
+        "no verdict from before carries, here or later; the ship event records `conflict: true`",
+    )
 
     s = add_command(
         sub,

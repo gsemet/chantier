@@ -13,9 +13,9 @@ Two checks guard every change, in any project. You declare them in your `AGENTS.
   as many at once as your `chantier.yaml` allows (one by default, see below); when more wait,
   the CR you merge next goes first in a stack or series batch, then those the Foreman moved
   first, then arrival order. `handback ready` requires it passed at the PR's head (or carried
-  over a clean rebase, which the CLI checks with git), and the Verifier's `VERIFIED` there. Both
-  carry over a clean rebase that leaves the patch unchanged, which the CLI checks with git. CI
-  still runs at the new head. One command may serve as both gates. The fast gate is never run
+  over a clean rebase), and the Verifier's `VERIFIED` there. Both carry over a clean rebase that
+  leaves the patch unchanged: `ship` proves it with git, by the exact patch-ids of the CR's own
+  commits, and records it. CI still runs at the new head. One command may serve as both gates. The fast gate is never run
   through `chantier gate`.
 
 Declare them with one line each, the exact commands, one command per item, never chained with

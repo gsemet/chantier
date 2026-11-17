@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from chantier.commands.carry import head_base
 from chantier.commands.crs import (
     batch_cr,
     cr_events,
+    cr_worktree,
     short_head,
     work,
 )
@@ -272,7 +274,8 @@ def _record_ready(
     if basis.waiver:
         gate = f", {basis.words()}"
     vcarried = basis.verdict_carried
-    how = f"(clean rebase onto {stack_base(b.record, c, repo)})"
+    onto = head_base(repo, b.record, c, cr_worktree(c), str(c.head))
+    how = f"(clean rebase onto {onto.branch if onto else stack_base(b.record, c, repo)})"
     if carried and carried == vcarried:
         gate = f", long gate and verdict carried from {short_head(carried)} {how}"
     else:

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier import procs
+from chantier.commands.carry import base_keys, head_base
 from chantier.commands.crs import batch_cr, cr_worktree, dirty_files, short_head, work
 from chantier.commands.gate_lock import LongGateLock
 from chantier.commands.gate_run import run_write, stop_asked, stop_gate
@@ -85,13 +86,16 @@ class _Gate:
     log: Path
     run: str
     start: str  # the full SHA, before the first command
+    base: dict[str, str]  # the `base` key every event of the run records, or none
 
     def note(self, text: str) -> None:
         with open(self.log, "a", encoding="utf-8") as f:
             f.write(text)
 
     def record(self, **fields: Any) -> RunRecord:
-        return RunRecord(cr=self.cr, run=self.run, head=self.start, log=str(self.log), **fields)
+        return RunRecord(
+            cr=self.cr, run=self.run, head=self.start, log=str(self.log), **self.base, **fields
+        )
 
 
 def _spawn(cmd: str, g: _Gate) -> subprocess.Popen[bytes]:
@@ -147,8 +151,9 @@ def _finish_stopped(g: _Gate, ran: list[tuple[str, int]], stopped: str) -> tuple
                 head=g.start,
                 command=cmd,
                 run=g.run,
+                **g.base,
             )
-        b.log("gate", g.cr, result="stopped", head=g.start, command=stopped, run=g.run)
+        b.log("gate", g.cr, result="stopped", head=g.start, command=stopped, run=g.run, **g.base)
     return [f"STOPPED {stopped} at {short_head(g.start)}: no pass", f"log {g.log}"], EXIT_EXTERNAL
 
 
@@ -171,9 +176,9 @@ def _log_results(g: _Gate, ran: list[tuple[str, int]], end: str) -> None:
     with RenderedBatch(g.repo, g.batch, actor="driver") as b:
         for cmd, rc in ran:
             result = "fail" if rc else "moved" if moved else "pass"
-            b.log("gate", g.cr, result=result, head=g.start, command=cmd, run=g.run)
+            b.log("gate", g.cr, result=result, head=g.start, command=cmd, run=g.run, **g.base)
         if moved:
-            b.log("gate", g.cr, result="moved", head=end, command=ran[-1][0], run=g.run)
+            b.log("gate", g.cr, result="moved", head=end, command=ran[-1][0], run=g.run, **g.base)
 
 
 def _finish(g: _Gate, ran: list[tuple[str, int]]) -> tuple[list[str], int]:
@@ -224,7 +229,7 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     `--stop` stops this CR's running gate (its suite and the lock): recorded `stopped`, no pass,
     no failure; the stopped gate exits 4; nothing else of the CR changes."""
     repo = Repo.find()
-    batch, _, c = batch_cr(repo, args.cr, args.batch)
+    batch, data, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
     if args.first:
         return _gate_first(args, repo, batch)
@@ -244,7 +249,8 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     stamped = time.strftime("%Y%m%d-%H%M%S")
     log = logdir / f"{stamped}.log"
     # the events of this invocation share the run id
-    g = _Gate(repo, args.cr, batch, wt, log, f"{stamped}-{os.getpid()}", start)
+    on = base_keys(head_base(repo, data, c, wt, start))  # read once, at the gate's start
+    g = _Gate(repo, args.cr, batch, wt, log, f"{stamped}-{os.getpid()}", start, on)
     g.note(f"gate {c.id} branch {c.branch} head {start}\n")  # before any waiting note
     with LongGateLock(repo, args.cr, log, parallel) as lock:
         lock.slot.stop.unlink(missing_ok=True)  # a stale ask is not this gate's

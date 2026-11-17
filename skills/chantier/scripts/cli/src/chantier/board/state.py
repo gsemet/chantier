@@ -57,6 +57,7 @@ EVENT_KINDS = (
     "gate",
     "verdict",
     "ship",
+    "carry",
     "handback",
     "ask",
     "order",

@@ -378,8 +378,10 @@ and how an agent is started. Each worker reads its own card, which restates the 
   then arrival order. The next merge is, in a stack or series batch, the first CR of the order
   that is not merged or cancelled (a fix CR and the release CR do not count); in a parallel
   batch there is none by the record. A running gate is never stopped. A pass carries over a
-  clean rebase, which the CLI checks with git (`handback ready` records `gate_from`), and so does
-  the Verifier's verdict (`verdict_from`); a rebase with a conflict needs a new gate. Under a stack waiver the top of the stack is never
+  clean rebase, which the CLI proves with git by the exact patch-ids of the CR's own commits
+  above the base it was judged on, and records at `ship` (a `carry` event with `gate_from`); so
+  does the Verifier's verdict (`verdict_from`), recorded at the same `ship`; a rebase with a conflict, shipped with `ship
+  --conflict`, needs a new gate. Under a stack waiver the top of the stack is never
   covered: its gate (or a carried pass) is the one that validates the lower CRs, and when a CR
   joins on top the validation moves to it. `gate` is only for the long gate the project's
   rules name, and a short gate runs outside it. `gate` is refused (exit 2) only when a gate has held a slot, or its
@@ -392,7 +394,7 @@ and how an agent is started. Each worker reads its own card, which restates the 
   decides. `verdict <cr> VERIFIED` is refused (exit 2) unless `work/verify.md` in the CR's folder
   has a `Head:` line naming the full SHA of the head it records; `NOT VERIFIED` is not.
   `handback <cr> ready` needs both at the PR's head (or carried to it over a clean rebase, proved by
-  git), committed, clean and pushed;
+  git with the patch-ids of the CR's own commits), committed, clean and pushed;
   `--no-gate "<the project's rule>"` waives the long gate check only, for a project whose rules
   declare none, exempt this CR, or name a pipeline job as the long gate, and the steering session checks it; a waiver is not a project
   rule, so `--no-gate` is never its flag.
@@ -635,7 +637,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    not proof. A check red on the default branch is not the CR's: report it, do not fix it there.
    Every judgment names the SHA it covers; after a move, what the move touched is judged again and
    the rest is carried, saying so. A clean rebase that leaves the CR's patch unchanged, proved by
-   git, touches no judgment; CI at the new head still runs.
+   git's exact patch-ids, recorded at `ship` (the same, commit by commit), touches no judgment; CI at the new head still runs.
 6. **Never merge without the user's word.** The user merges the ordinary PRs. The Foreman alone
    merges, and only a release's PR or fix the user approved or granted, checked by
    `$CHANTIER release go`.

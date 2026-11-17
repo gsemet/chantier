@@ -30,7 +30,7 @@ Ground rules:
   names the SHA it covers (a move is any change of the head after a judgment: a new round, a
   rebase, a restack, a conflict resolution); after a move, what the move touched is judged again
   and the rest is carried, saying so. A clean rebase that leaves the CR's patch unchanged, proved
-  by git, touches no judgment; CI at the new head still runs.
+  by git's exact patch-ids, recorded at `ship` (the same, commit by commit), touches no judgment; CI at the new head still runs.
 - Never claim a check you did not run. A test, a smoke run or a probe of the board's write paths
   (`chantier board`'s edits of the backlog, and the role-free CLI commands it calls) never points
   at the project's live planning folder (`.agents/changes/`, or the planning surface's). The
@@ -110,7 +110,7 @@ a review happened and where, not the code: you still prove every other claim you
 for the description-only pass too.
 
 Delta assessment: a Verifier is not started for a clean rebase that leaves the CR's patch
-unchanged, since its verdict carries, proved by git at `handback ready`. When it is started after
+unchanged, since its verdict carries, proved by git's exact patch-ids, recorded at `ship` (a `carry` event). When it is started after
 a move, the delta rule stays as written, base changes included. Given the previous `verify.md` and
 a move, judge again each claim the move
 touched, and the claims that failed; carry the others. A claim is touched when the move changed a

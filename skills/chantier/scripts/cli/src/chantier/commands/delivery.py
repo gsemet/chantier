@@ -7,7 +7,15 @@ import re
 import subprocess
 from pathlib import Path
 
-from chantier.commands.crs import batch_cr, cr_events, cr_worktree, short_head, work
+from chantier.commands.carry import base_keys, head_base, ship_carry
+from chantier.commands.crs import (
+    batch_cr,
+    carry_at,
+    cr_events,
+    cr_worktree,
+    short_head,
+    work,
+)
 from chantier.commands.driver import context_line
 from chantier.commands.facts import stack_lines
 from chantier.commands.forge_base import read_state
@@ -39,7 +47,7 @@ def verdict(args: argparse.Namespace) -> list[str]:
             EXIT_USAGE,
         )
     try:
-        batch, _, c = batch_cr(repo, args.cr, args.batch)
+        batch, d, c = batch_cr(repo, args.cr, args.batch)
     except ChantierError as e:
         raise ChantierError(str(e), EXIT_PRECONDITION) from e
     wt = cr_worktree(c)
@@ -58,8 +66,9 @@ def verdict(args: argparse.Namespace) -> list[str]:
                 f"for the head {short_head(head)} it records: {reason}",
                 EXIT_PRECONDITION,
             )
+    judged_on = base_keys(head_base(repo, d, c, wt, head))
     with RenderedBatch(repo, batch, actor="driver") as b:
-        b.log("verdict", c.id, result=result, head=head)
+        b.log("verdict", c.id, result=result, head=head, **judged_on)
     return [f"verdict {c.id} {result} at {short_head(head)}"]
 
 
@@ -148,7 +157,7 @@ def ship(args: argparse.Namespace) -> list[str]:
     worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
     passed at this head."""
     repo = Repo.find()
-    batch, _, c = batch_cr(repo, args.cr, args.batch)
+    batch, d, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
     if "://" not in args.pr:
         raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
@@ -163,17 +172,35 @@ def ship(args: argparse.Namespace) -> list[str]:
         )
         if not seen:
             off.append(f"archive missing from the PR at {where}")
-    if not gate_passed(cr_events(repo, batch, c.id), head):
+    events = cr_events(repo, batch, c.id)
+    conflict = bool(args.conflict)
+    carry, carry_lines = ({}, []) if conflict else ship_carry(repo, d, c, head, events)
+    if not (
+        gate_passed(events, head) or carry_at(events, head, "gate_from") or "gate_from" in carry
+    ):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     off += _stale_body_shas(repo, c, wt, head)
     # the PR's own base and draft state on the forge, one read; a failed read records neither
     base, draft, shown = read_state(args.pr)
     with RenderedBatch(repo, batch, actor="driver") as b:
         b.touch(b.cr(c.id), pr=args.pr, pr_base=base, pr_draft=draft, head=head, archive_seen=seen)
-        b.log("ship", c.id, pr=args.pr, base=base or "", head=head, draft=draft, off=off)
+        b.log(
+            "ship",
+            c.id,
+            pr=args.pr,
+            base=base or "",
+            head=head,
+            draft=draft,
+            off=off,
+            **({"conflict": True} if conflict else {}),
+        )
+        if carry:
+            b.log("carry", c.id, **carry)
     state = "draft not read" if draft is None else "draft" if draft else "out of draft"
     said = shown or f"base {base}"
-    return [f"recorded {args.pr} ({said}, head {short}, {state})"] + [f"off: {x}" for x in off]
+    return [f"recorded {args.pr} ({said}, head {short}, {state})", *carry_lines] + [
+        f"off: {x}" for x in off
+    ]
 
 
 def stack(args: argparse.Namespace) -> list[str]:

@@ -101,6 +101,7 @@ UNITS = {
             "gate_proof",
             "gate_next_merge",
             "gate_carry",
+            "gate_carry_stack",
         ],
     ),
     "series-deps": (260, ["github"], ["batch_modes", "dependencies", "early_conflict",
@@ -4710,6 +4711,27 @@ def gate_carry(w: World) -> None:
     ship(w, clean, "feat: carried")  # fetch, a clean rebase onto the moved main, push, record
     new = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
     link = w.cr(clean)["pr"]
+    carry = events("carry", clean)
+    gate_ev, verdict_ev = events("gate", clean)[-1], events("verdict", clean)[-1]
+    check(
+        "after a clean rebase and a `ship`, one `carry` event holds the new head, the base and "
+        "`gate_from` and `verdict_from` of the judged head; the gate and the verdict events "
+        "carry the `base` they sat on",
+        len(carry) == 1
+        and carry[0]["head"] == new
+        and carry[0]["gate_from"] == old
+        and carry[0]["verdict_from"] == old
+        and bool(carry[0]["base"])
+        and bool(gate_ev.get("base"))
+        and bool(verdict_ev.get("base")),
+        str(carry),
+    )
+    status_md = (w.folder() / "STATUS.md").read_text("utf-8")
+    check(
+        "before any hand-back, `STATUS.md` shows `carried from <sha7>` in the CR's long gate column",
+        f"carried from {old[:7]}" in status_md,
+        status_md[-400:],
+    )
     _, facts = w.chantier("handoff", clean)
     boxes = [ln for ln in facts if ln.lstrip().startswith("[x]")]
     check(
@@ -4736,11 +4758,20 @@ def gate_carry(w: World) -> None:
         str(out),
     )
     note(f"12f ready line: {out[0]}")
-    status_md = (w.folder() / "STATUS.md").read_text("utf-8")
+    # the restack after the hand-back: the main moves again, the ready CR is rebased and shipped
+    land(w, "main", ("moved2.txt", "main moved again\n"))
+    ship(w, clean, "feat: carried")
+    again = w.sh("git", "rev-parse", "HEAD", cwd=wt(clean))
+    last = events("carry", clean)[-1]
     check(
-        "after that hand-back `STATUS.md` shows `carried from <sha7>` in the CR's long gate column",
-        f"carried from {old[:7]}" in status_md,
-        status_md[-400:],
+        "a `ready` CR rebased and shipped again: a `carry` at the new head, the CR stays `ready`, "
+        "and a `carry` with `verdict_from` stands at the final head, which the eval kit's C7 rule "
+        "reads",
+        again != new
+        and last["head"] == again
+        and bool(last.get("verdict_from"))
+        and w.cr(clean)["status"] == "ready",
+        str(last),
     )
     # a conflict resolved by hand: the pass at the old head does not carry
     land(w, "main", ("clash.py", "MAIN = 1\n"))
@@ -4772,7 +4803,7 @@ def gate_carry(w: World) -> None:
         w.cr(clash)["branch"],
         cwd=wc,
     )
-    w.chantier("ship", clash, w.cr(clash)["pr"])
+    w.chantier("ship", clash, w.cr(clash)["pr"], "--conflict")
     code, _ = w.chantier("handback", clash, "ready", w.cr(clash)["pr"], expect=2)
     check(
         "a rebase with a resolved conflict: `handback ready` is refused, `no long gate passed` and "
@@ -4782,7 +4813,9 @@ def gate_carry(w: World) -> None:
         and code == 2
         and "no long gate passed at" in w.last_stderr
         and "no verdict VERIFIED at" in w.last_stderr
-        and w.last_stderr.count("does not carry: the replay conflicts") == 2
+        and w.last_stderr.count("does not carry: the rebase resolved a conflict") == 2
+        and not events("carry", clash)
+        and events("ship", clash)[-1].get("conflict") is True
         and w.cr(clash)["status"] != "ready"
         and not events("handback", clash),
         w.last_stderr,
@@ -4805,6 +4838,55 @@ def gate_carry(w: World) -> None:
     w.env.pop("CHANTIER_BATCH", None)
     w.reset()
 
+
+def gate_carry_stack(w: World) -> None:
+    note("\n## 12g. CR-316's shape: a pass carries over a restack onto a rewritten branch")
+    items = [prepare_cr(w, t)[1] for t in ("Carry under", "Carry over")]
+    w.reset()
+    w.start(*map(str, items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman12g", "--epoch", 1)
+    Foreman(w, epoch=1).turn()
+    under, over = (c["id"] for c in w.batch()["crs"])
+    w.chantier("take", "stack", "--epoch", 1)
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+
+    def log():
+        return list(map(json.loads, (w.folder() / "events.jsonl").read_text("utf-8").splitlines()))
+
+    for cr, name in ((under, "under.py"), (over, "over.py")):
+        commit(w, cr, name, "CR = 1\n")
+        ship(w, cr, f"feat: {name}")
+        w.chantier("gate", cr, GATE)
+        w.verified(cr)
+    old = w.sh("git", "rev-parse", "HEAD", cwd=Path(w.cr(over)["worktree"]))
+    w.chantier("stack", under, over)
+    wu, wo = Path(w.cr(under)["worktree"]), Path(w.cr(over)["worktree"])
+    w.sh("git", "commit", "--quiet", "--amend", "-m", "feat: under, rewritten", cwd=wu)
+    w.sh("git", "push", "--quiet", "--force-with-lease", "origin", w.cr(under)["branch"], cwd=wu)
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wo)
+    w.sh("git", "rebase", "--quiet", f"origin/{w.cr(under)['branch']}", cwd=wo)
+    w.sh("git", "push", "--quiet", "--force-with-lease", "origin", w.cr(over)["branch"], cwd=wo)
+    tip = w.sh("git", "rev-parse", f"origin/{w.cr(under)['branch']}", cwd=wo)
+    link = w.cr(over)["pr"]
+    w.chantier("ship", over, link)
+    gates = len([e for e in log() if e["kind"] == "gate" and e["cr"] == over])
+    w.chantier("handback", over, "ready", link)
+    carry = [e for e in log() if e["kind"] == "carry" and e["cr"] == over]
+    check(
+        "a CR gated and verified on one branch, then moved onto the branch of the CR under it "
+        "(rewritten): `ship` records a `carry` with that branch's tip as `base`, and `handback "
+        "ready` is accepted with no new gate and no new verdict",
+        len(carry) == 1
+        and carry[0]["gate_from"] == old
+        and carry[0]["verdict_from"] == old
+        and carry[0]["base"] == tip
+        and w.cr(over)["status"] == "ready"
+        and gates == len([e for e in log() if e["kind"] == "gate" and e["cr"] == over]),
+        str(carry),
+    )
+    w.env.pop("CHANTIER_BATCH", None)
+    w.reset()
 
 
 def restore_cr(w: World) -> None:
@@ -8287,6 +8369,7 @@ CASES = {
     "gate_proof": gate_proof,
     "gate_next_merge": gate_next_merge,
     "gate_carry": gate_carry,
+    "gate_carry_stack": gate_carry_stack,
     "batch_modes": batch_modes,
     "dependencies": dependencies,
     "early_conflict": early_conflict,
