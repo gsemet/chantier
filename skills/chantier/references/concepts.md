@@ -169,13 +169,19 @@ and how an agent is started. Each worker reads its own card, which restates the 
   `take` sets it running again, `pause` runs again at the end, and is refused on a batch already paused;
   on a running direct batch `order add` queues the CR too, taken when a slot frees, and `order qa`
   is refused; `order qa` on a paused batch sets it running at once; see **Batch lifecycle**). `close` refuses while anything
-  runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, an agent of the
-  Foreman, or the Foreman itself, whose transcript shows it still runs (a tool call with no
-  result, or a step under way; on a direct batch the Chief of Staff's own transcript is not
-  read, its subagents are), or a transcript that cannot be read (on Copilot, a session file
-  written in the last 5 minutes; `not measured` refuses). The CLI reads the end of each
-  transcript, never the file's age. An agent that stopped without its hand-back passes only on
-  the user's word (`close --stopped <name>`), recorded in the batch's record. A batch has one of three **modes**, set by
+  runs, on a reopened batch too: a CR not merged or cancelled, an open order, a stack agent, or an
+  agent the batch holds (one `agents set` recorded and `-` did not clear, or the current Foreman),
+  whose transcript shows it still runs (a tool call with no result, or a step under way; on a
+  direct batch the Chief of Staff's own transcript is not read, its subagents are), or cannot be
+  read (a held id with no transcript cannot be read: the way out is `agents set <cr> - --epoch
+  <n>`; on Copilot, a session file written in the last 5 minutes; `not measured` refuses). The
+  CLI reads the end of each transcript, never the file's age. The session's other subagents
+  (grill, spec, critics, Drivers already replaced, a Driver's own subagents) and the replaced
+  Foremans never block: those still running or unreadable are listed apart, and their calls are
+  counted in the final cost only up to now. The steering session offers or runs `close` only
+  after its retro critic has handed back. A held agent that stopped without its hand-back passes
+  only on the user's word (`close --stopped <name>`, a held agent only), recorded in the batch's
+  record. A batch has one of three **modes**, set by
   `open --mode parallel|series|stack` and shown by `status`. **Parallel** (the default, when the
   user names none): every CR with no open dependency starts from the default branch at once and
   its PR is on the default branch; a CR with a dependency starts only once that dependency is

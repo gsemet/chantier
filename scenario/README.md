@@ -310,12 +310,17 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_cost_reading.py::test_the_levels_the_pages_the_pause_and_a_relay);
 - closing on the user's word: `close` refusing, with and without `--yes`, a CR not merged, an
   open order, a stack agent, a Foreman whose last call waits on a tool (its file aged 10
-  minutes), an agent whose last record is a tool's result, an agent whose last line is cut
-  JSON, a missing Foreman transcript, and a Copilot session file written in the last 5 minutes
-  or whose time is not measured; passing an agent that handed back or ended its turn though
-  its file was just written; `--stopped` passing a running agent on its stem or its bare id
-  (writing nothing without `--yes`), refused for an unknown name, an ended agent or a
-  transcript that cannot be read, and never past another running agent or a record cause; a
+  minutes), a held agent (a CR's or a QA order's `agent`) whose last record is a tool's result
+  or whose last line is cut JSON, a held id with no transcript (cleared by `agents set <cr> -`),
+  the current Foreman of two recorded, a missing Foreman transcript, and a Copilot session file
+  written in the last 5 minutes or whose time is not measured; passing an agent that handed back
+  or ended its turn though its file was just written; passing, with the unrecorded subagents
+  that run or cannot be read (and a held Driver's own subagent, an earlier Foreman's main
+  transcript) listed apart under a heading and never judged, ended ones not listed; `--stopped`
+  passing a held running agent on its stem or its bare id (writing nothing without `--yes`), the
+  current Foreman's session id, refused for a subagent the batch does not hold, an earlier
+  Foreman's session id, an unknown name, an ended agent, a transcript that cannot be read and the
+  stack agent, and never past another held running agent or a record cause; a
   pricing failure refused the same way; the declaration kept in the record
   (`stopped_agents`), under Cost in `batch-NN.md` and in what `close --yes` prints, and absent
   from a record closed without the flag; a reopened batch named as such; then the final cost

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from chantier.commands.batch_status import record_costs
 from chantier.commands.close_archive import Closing, archive_and_delete, batch_files, final_rows
@@ -22,6 +23,9 @@ from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, stage_layout
 from chantier.rails import check_idle
 from chantier.status.write import write_dashboard
+
+if TYPE_CHECKING:
+    from chantier.costs.sessions import Ending
 
 
 def pause(args: argparse.Namespace) -> list[str]:
@@ -114,10 +118,29 @@ def _held(batch: str, folder: Path) -> None:
         )
 
 
+def _apart_lines(batch: str, apart: list[Ending]) -> list[str]:
+    """The other transcripts that run or cannot be read: a heading and one line each, none when
+    there are none."""
+    if not apart:
+        return []
+    head = (
+        f"not agents of {batch}, not judged (no word needed; their calls are counted only "
+        f"up to now): {len(apart)}"
+    )
+    return [head, *[f"- {e.text()}" for e in apart]]
+
+
 def _closing(
-    repo: Repo, batch: str, folder: Path, d: BatchRecord, stopped: list[Rec]
+    repo: Repo,
+    batch: str,
+    folder: Path,
+    d: BatchRecord,
+    idle: tuple[list[Rec], list[Ending]],
 ) -> tuple[Closing, list[str]]:
-    """What `close` acts on, and the lines it prints after those of the `Closing`."""
+    """What `close` acts on, and the lines it prints after those of the `Closing`; `idle`: the
+    agents declared stopped, and the other transcripts that run or cannot be read, listed apart
+    and never judged."""
+    stopped, apart = idle
     done = stage_layout(repo)["done"]
     archived = [
         (c, cr_directory(repo, c)) for c in d.crs if c.path and cr_directory(repo, c).parent == done
@@ -150,6 +173,7 @@ def _closing(
         "the dropped CRs, to remove on the same word where they still exist "
         f"(`git {'-C ' + repo.clone.as_posix() + ' ' if repo.external else ''}"
         f"worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}",
+        *_apart_lines(batch, apart),
         "final cost, up to now (nothing runs):",
         *summary,
     ]
@@ -168,26 +192,31 @@ def close(args: argparse.Namespace) -> tuple[list[str], int]:
     call in the whole batch). Calls of a model with no price do not refuse it: the final cost is a
     floor, printed with the calls not priced.
 
-    Whether anything runs is read from the batch's record and from the end of each Claude
-    transcript of the Foreman's session tree, never from a file's age: an agent that handed back
-    has ended, one that waits on a tool call or has a step under way runs, and a transcript that
-    cannot be read refuses; each refusal names the agent and the file. An agent that stopped
-    without its hand-back (an app restart, the user's stop) reads as running: `--stopped NAME`
-    (repeatable), on the user's word only, passes it. It is refused for a name that is not a
-    running agent of the batch. Nothing else is passed. With `--yes` the declaration is kept in
-    the batch's record (`stopped_agents` in `batch-NN.json`, a line under Cost in `batch-NN.md`)."""
+    Whether anything runs is read from the batch's record and from the end of the Claude
+    transcripts of the agents the batch holds (the current Foreman, and each id `agents set`
+    recorded and did not clear), never from a file's age: an agent that handed back has ended, one
+    that waits on a tool call or has a step under way runs, and a transcript that cannot be read
+    (a held id with no transcript included) refuses; each refusal names the agent and the file.
+    The session's other subagents (grill, spec, critics, Drivers already replaced, a Driver's own
+    subagents) and the replaced Foremans never block: those still running or unreadable are
+    listed apart before the final cost, which counts their calls only up to now. An agent held
+    that stopped without its hand-back (an app restart, the user's stop) reads as running:
+    `--stopped NAME` (repeatable), on the user's word only, passes it. It is refused for a name
+    that is not a running held agent. Nothing else is passed. With `--yes` the declaration is kept
+    in the batch's record (`stopped_agents` in `batch-NN.json`, a line under Cost in
+    `batch-NN.md`); the listed transcripts are never recorded."""
     repo = Repo.find()
     stopped = args.stopped or []
     with changes_lock(repo):
         batch, folder, d = _close_target(
             repo, args.batch or os.environ.get("CHANTIER_BATCH"), stopped
         )
+        stopped_endings, apart = check_idle(repo, d, stopped)
         declared = [
-            {"agent": e.name, "transcript": str(e.path), "cause": e.cause}
-            for e in check_idle(repo, d, stopped)
+            {"agent": e.name, "transcript": str(e.path), "cause": e.cause} for e in stopped_endings
         ]
         _held(batch, folder)
-        k, tail = _closing(repo, batch, folder, d, declared)
+        k, tail = _closing(repo, batch, folder, d, (declared, apart))
         if not args.yes:
             return [*k.preview(), *tail, "ask the user, then `chantier close --yes`"], 0
         archive_and_delete(k)
