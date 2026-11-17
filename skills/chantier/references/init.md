@@ -68,8 +68,11 @@ getting started here, phrases to say, the glossary.
    improve, each with its impact on the team when missing. A rule (a gate, the merge method, the
    commit convention) is proposed as the exact `AGENTS.md` text, written only on the user's yes,
    section by section. Check the two gates in particular: whether the project's rules declare a
-   fast gate (run after every round) and a long gate (run once before the PR, which `handback
-   ready` requires), or no long gate, or exemptions. When one is missing, propose the exact lines,
+   fast gate (run after every round, and again by the Driver before the CR's first push; an extra
+   pre-push check may be declared too) and a long gate (run once before the PR, which `handback
+   ready` requires), or no long gate, or exemptions. Offer the exact pre-push line, for example
+   "- Before the first push, for a change under `src/`: `<cmd>`.", only when the project has a
+   check too slow for every round and too important to leave to CI. When one is missing, propose the exact lines,
    for example "- Fast gate (after each change): `<cmd>`." and "- Long gate (before a pull
    request): `<cmd>`.", one command per item, never chained with `&&` or `;`; the impact when
    missing: a long gate the Driver cannot run is a `--no-gate` the steering session must

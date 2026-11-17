@@ -6,7 +6,9 @@ Two checks guard every change, in any project. You declare them in your `AGENTS.
 
 - **The fast gate** (a short check): what the Coder runs after every round, and the Inspector may
   run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
-  change.
+  change. The Driver also runs it once more before the CR's first push, at the rebased head. Your
+  project may also name an extra pre-push check in its `AGENTS.md`: it runs at the same time and
+  the same way (one command per item, never through `chantier gate`).
 - **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
   as many at once as your `chantier.yaml` allows (one by default, see below); when more wait,
   the CR you merge next goes first in a stack or series batch, then those the Foreman moved
@@ -23,6 +25,7 @@ way on every OS):
 ```markdown
 - Fast gate (after each change): `npm run lint`, `npm test -- --changed`.
 - Long gate (before a pull request): `npm test`.
+- Before the first push, for a change under `src/`: `<cmd>`.
 - A change to the docs alone needs no long gate.
 ```
 

@@ -246,7 +246,9 @@ visible in the PR's head, absent on main).
   evaluate the batch workflow: run `just scenario` ([scenario/](scenario/README.md)) when you
   change it; CI runs it too, on Linux. A new check goes to a unit or to pytest, as
   [Adding a case](scenario/README.md#adding-a-case) says. A change to the eval kit
-  (`evals/kit/`) runs `just eval-dry-run`, as [Changing the kit](evals/README.md#changing-the-kit) says.
+  (`evals/kit/`) runs `just eval-dry-run`, as [Changing the kit](evals/README.md#changing-the-kit) says. So does a change under the CLI's
+  `src/` (`skills/chantier/scripts/cli/src/`), before its first push; a cards-only change does not
+  owe it.
 - A change that adds a CI job to `.github/workflows/`, or changes the steps of one, runs that
   job's steps once on the local machine before the push, in the workflow's order, with
   `UV_CACHE_DIR` set to a new empty folder (the same folder for every step of that run, outside

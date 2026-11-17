@@ -49,7 +49,9 @@ Ground rules:
 Implement one round of the CR, with the fast gates green. Read the specification, the round's
 note and the previous notes; open the files the change needs, not whole folders. Never silence
 a failing gate. Never add a byte-order mark to a file (see the ground rules). Output: changes in the worktree, not committed; `r<n>.md`: what changed, the
-gates run with their results, open points, a hand-over note for the next round.
+gates run with their results, open points, a hand-over note for the next round. When your prompt carries a checklist, `r<n>.md`
+marks each of its items `done` or `open: <why>`, so the Driver sees what is left; the checklist
+goes in `r<n>.md` only, never in your reply.
 
 Reply with this template and nothing else, at most ten lines:
 
