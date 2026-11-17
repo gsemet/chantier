@@ -4964,7 +4964,21 @@ def stack_batch(w: World) -> None:
         return [e["base"] for e in events if e["kind"] == "ship" and e["cr"] == cr]
     check("before `stack`, `ship` records the default branch for every independent CR",
           all(ship_bases(c)[-1] == "main" for c in (one, two, three)), str(ship_bases(two)))
+
+    def trigger() -> list[str]:  # the `stack: take stack now:` lines of `status`
+        return [ln for ln in w.chantier("status")[1] if ln.startswith("stack: take stack now:")]
+    due = trigger()
+    check("`status` prints one `stack: take stack now:` line naming the ready CRs in order when "
+          "the first stack is due (CR-337)",
+          due == [f"stack: take stack now: {one}, {two}, {three} ready with a PR, no stack made "
+                  "yet (`take stack --epoch <n>`)"], str(due))
+    w.chantier("agents", "set", "stack", "agent-stack", "--epoch", 1)
+    held = trigger()
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    check("with a stack driver recorded the line is absent; with none it is back", not held
+          and len(trigger()) == 1, str(held))
     w.chantier("stack", one, two, three)
+    check("after `stack` marks the CRs the trigger line is absent", not trigger(), str(trigger()))
     forge_base(w, w.cr(two)["pr"], w.cr(one)["branch"])  # the stack driver retargets the PRs
     forge_base(w, w.cr(three)["pr"], w.cr(two)["branch"])
     w.chantier("ship", three, w.cr(three)["pr"])
@@ -5088,6 +5102,8 @@ def stack_batch(w: World) -> None:
           w.cr(one)["status"] == "merged" and "/3-done/" in w.cr(one)["path"]
           and (w.state / w.cr(two)["path"]).is_dir() and d["status"] == "running"
           and all(w.cr(c)["status"] == "ready" for c in (two, three, four)), str(out))
+    check("after the step records a merge the trigger line stays absent: a stack was made once",
+          not trigger(), str(trigger()))
     _, out = w.chantier("take", "stack", "--epoch", 1)
     check("what remains forms another stack: the first now stands on the default branch",
           out[0].endswith(f"{two} → {three} → {four}")
