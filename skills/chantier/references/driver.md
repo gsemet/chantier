@@ -268,7 +268,8 @@ defer the rest of this card until an action names it. These are the card's defau
   command's one re-run above is not the `timing:` line's. This is the same rule for a single command.
 - Push: a plain `git -C <worktree> push -u <remote> <branch>` when the remote branch is an ancestor
   of your head, `git -C <worktree> push --force-with-lease -u <remote> <branch>` only for a rewrite
-  (a rebase).
+  (a rebase). `<branch>` is your own CR's branch, the one your `take` / `handoff` prints, never
+  another CR's (the stack driver restacks the stack's branches by its own rule, below).
   Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
   --body-file <work folder>/pr-body.md`, `glab mr create --draft` with the form below), a Release
   driver opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
