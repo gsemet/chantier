@@ -237,24 +237,7 @@ def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
     entries, bad = seen.read(repo.changes)
     lines = [f"{seen.FILE}: line {n} unreadable" for n in bad]
     open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
-    done: set[str] = set()
-    for e in entries:
-        cr = e.get("cr")
-        if e.get("kind") != "merged" or e.get("batch") != d.id or cr not in open_crs or cr in done:
-            continue
-        done.add(cr)
-        head = f"board saw merged: {cr} {e.get('pr')}"
-        at = e.get("merged_at")
-        if e.get("into_cr"):
-            lines.append(
-                f"{head} into {e['into_cr']}'s branch at {at}; for the Chief of Staff: not "
-                f"landed, tell the user, record nothing until {e['into_cr']} lands"
-            )
-        else:
-            lines.append(
-                f"{head} into {e.get('into')} at {at}; for the Chief of Staff: order merged {cr}"
-            )
-    return lines
+    return lines + seen.lines(entries, d.id, open_crs)
 
 
 def _batch_line(d: BatchRecord, hb_text: str) -> str:

@@ -12,6 +12,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from chantier.board import forge_read, seen
@@ -148,7 +149,39 @@ def row_of(
         "why": why_not(c, f),
         "merged_at": f["merged_at"],
         "closed_at": f["closed_at"],
+        "landed_with": None,  # `answer` fills it once all rows of the read are built
     }
+
+
+def _instant(text: Any) -> datetime | None:
+    """An ISO 8601 time the forge gave as an instant (UTC when it names no zone), else None."""
+    if not isinstance(text, str):
+        return None
+    try:
+        t = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=UTC)
+
+
+def landed_with(row: dict[str, Any], by_cr: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """For a row merged into the branch of another CR of the batch: `{"cr", "at"}` of the CR whose
+    PR reached a branch that is no CR's, when each PR of the chain is merged on the forge at the
+    same time as the one it carries or later. None for a merge into no CR's branch, a base not
+    merged, merged before this PR, a missing time, a missing row or a cycle."""
+    into = row.get("merged_into") or {}
+    cur, since, walked = into.get("cr"), _instant(row.get("merged_at")), {row["cr"]}
+    while cur is not None and since is not None and cur not in walked:
+        walked.add(cur)
+        base = by_cr.get(cur)
+        at = _instant(base.get("merged_at")) if base else None
+        if not base or base.get("state") != "merged" or at is None or at < since:
+            return None
+        cur_into = (base.get("merged_into") or {}).get("cr")
+        if cur_into is None:
+            return {"cr": cur, "at": base["merged_at"]}
+        cur, since = cur_into, at
+    return None
 
 
 def _in_order(batch: dict[str, Any]) -> list[dict[str, Any]]:
@@ -185,6 +218,9 @@ def answer(
     branches = {c["branch"]: c["cr"] for c in batch["crs"] if c["branch"]}
     found = [(c, _number(c["pr"])) for c in withpr]
     rows = [row_of(c, forge[n], n, branches) for c, n in found if n in forge]
+    by_cr = {r["cr"]: r for r in rows}
+    for r in rows:
+        r["landed_with"] = landed_with(r, by_cr)
     out["rows"] = rows
     if repo is not None and fresh and not out["error"]:
         seen.signal(repo, batch["id"], rows)
