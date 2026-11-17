@@ -23,13 +23,16 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     reset-foreign      an origin whose `main`, or whose branch, does not hold the recorded base: `reset` and `reset --yes` refuse (exit 2), the refs unchanged
     reset-empty        an empty origin: `reset` refuses and names `publish`
     publish            an empty origin: the plan changes nothing; `--yes` pushes the base and writes `sandbox.local.json`; a second one is refused
+    eval-root          setup refuses a workspace outside the eval root (exit 2, the root and the file named, nothing created), with no `eval-root.local.json`, and with a malformed one; a workspace inside goes through with the same allow rules as before and no trust entry
     setup-prompt       setup's last `prompt` line for each sandbox campaign, and the `set_monitor` rule of the Claude campaigns that open PRs
 
 Everything lives in one temporary folder, removed at the end unless --keep: a bare repository that
 stands for the sandbox's origin, the workspace, the fake forge's state (`sandbox_forge.py`) and the
 staged transcripts. `sandbox.URL_OVERRIDE` is rebound to that repository in this process only, and
 `sandbox.LOCAL` to a file that does not exist (the checkout's own `sandbox.local.json`, if a person
-has one, is never read: the sandbox is the maintainer's unless a case names another); the fake `gh`
+has one, is never read: the sandbox is the maintainer's unless a case names another); `setup.EVAL_ROOT_FILE`
+to a temporary `eval-root.local.json` naming the temporary folder, so every workspace is inside the eval
+root and the checkout's own `eval-root.local.json` is never read; the fake `gh`
 is first on the PATH of this process and of every process it starts; GIT_ALLOW_PROTOCOL=file makes
 any git call that would reach a network URL fail. The CLI runs as `python -m chantier` in the root
 project's environment (the recipe's `uv run --locked`; the dev form is the one setup prints; the dry
@@ -66,7 +69,7 @@ GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
          "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-claim-call", "audit-heredoc",
-         "other-sandbox", "reset-foreign", "reset-empty", "publish", "setup-prompt"]
+         "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
 EPOCH = "1"
@@ -141,8 +144,10 @@ def captured(fn, *args):
 def dry_environment(tmp: Path):
     """The dry run's processes: the fake `gh` first on the PATH, only the file protocol for git, no
     identity or credential of the user's. Restored at the end."""
-    saved, kept = dict(os.environ), (sandbox.URL_OVERRIDE, sandbox.LOCAL)
+    saved, kept = dict(os.environ), (sandbox.URL_OVERRIDE, sandbox.LOCAL, setup.EVAL_ROOT_FILE)
     sandbox.LOCAL = tmp / "no-kit" / "sandbox.local.json"  # absent: the maintainer's sandbox
+    setup.EVAL_ROOT_FILE = tmp / "eval-root.local.json"  # never the checkout's: the temporary folder is the root
+    setup.EVAL_ROOT_FILE.write_bytes((json.dumps({"root": str(tmp)}) + chr(10)).encode("utf-8"))
     bin_dir = tmp / "bin"
     bin_dir.mkdir()
     script = HERE / "sandbox_forge.py"
@@ -173,7 +178,7 @@ def dry_environment(tmp: Path):
     finally:
         os.environ.clear()
         os.environ.update(saved)
-        sandbox.URL_OVERRIDE, sandbox.LOCAL = kept
+        sandbox.URL_OVERRIDE, sandbox.LOCAL, setup.EVAL_ROOT_FILE = kept
 
 
 # one local sandbox -----------------------------------------------------------------------------------
@@ -1225,7 +1230,55 @@ def case_setup_prompt(run: Run) -> str:
     return f"the last line of setup is the `prompt` line with the runbook's path ({', '.join(seen)}); the `set_monitor` rule is there except for ticket-summary"
 
 
-FUNCTIONS = {"other-sandbox": case_other_sandbox, "reset-foreign": case_reset_foreign,
+def case_eval_root(run: Run) -> str:
+    world = World(run.tmp, "root", run.base())
+    root = run.tmp / "eval-root"
+    outside = run.tmp / "elsewhere" / "ws"
+    saved = setup.EVAL_ROOT_FILE
+    try:
+        setup.EVAL_ROOT_FILE = run.tmp / "root-case" / "eval-root.local.json"
+        setup.EVAL_ROOT_FILE.parent.mkdir()
+        before = world.refs()
+        # (b) no file: refused, the file named, the line to write shown, nothing created
+        code, out, err = captured(setup.start, ["real-direct", str(root / "ws")])
+        need(code == 2 and "eval-root.local.json" in err and '"root"' in err,
+             "with no `eval-root.local.json`, setup exits 2, names the file and shows the line", f"exit {code}: {err.strip()}")
+        need(not (root / "ws").exists(), "nothing is created on that refusal", "the workspace exists")
+        # (c) malformed: refused, the file named
+        setup.EVAL_ROOT_FILE.write_text("{not json", encoding="utf-8")
+        code, out, err = captured(setup.start, ["real-direct", str(root / "ws")])
+        need(code == 2 and "eval-root.local.json" in err, "a malformed file is refused (exit 2), named",
+             f"exit {code}: {err.strip()}")
+        need(not (root / "ws").exists(), "nothing is created on that refusal", "the workspace exists")
+        # (a) outside the root: refused, the root and the file named, nothing created
+        setup.EVAL_ROOT_FILE.write_text(json.dumps({"root": str(root)}), encoding="utf-8")
+        for campaign, where in (("real-direct", outside), ("claude-planted", outside), ("real-direct", root)):
+            code, out, err = captured(setup.start, [campaign, str(where)])
+            need(code == 2 and str(root) in err and "eval-root.local.json" in err and "inside the trusted eval root" in err,
+                 f"{campaign}: a workspace outside the root (or the root itself) is refused (exit 2), the root and the file named",
+                 f"exit {code}: {err.strip()}")
+        need(not outside.exists() and not outside.parent.exists() and not root.exists(),
+             "nothing is created on a refusal: no folder, no clone", "a folder exists")
+        need(world.refs() == before, "the sandbox is untouched", f"{world.refs()}")
+        # (d) inside the root: goes through, the same allow rules as before, no trust entry
+        root.mkdir()
+        ws = root / "real-direct-1"
+        code, out, err = captured(setup.start, ["real-direct", str(ws)])
+        need(code == 0, "a workspace inside the root goes through", f"exit {code}: {(out + err)[-400:]}")
+        need(out.splitlines()[1].startswith("eval root ") and "eval-root.local.json" in out.splitlines()[1],
+             "the first lines name the root and the file", out[:300])
+        text = (ws / ".claude" / "settings.local.json").read_text(encoding="utf-8")
+        data = json.loads(text)
+        need(list(data) == ["permissions"] and list(data["permissions"]) == ["allow"]
+             and data["permissions"]["allow"] == setup.allow_rules(setup.CAMPAIGNS["real-direct"])
+             and not re.search(r"trust", text, re.I),
+             "`settings.local.json` holds the allow rules and no trust entry", text)
+    finally:
+        setup.EVAL_ROOT_FILE = saved
+    return "setup refuses a workspace outside the eval root, a missing and a malformed file (exit 2, nothing created); inside, it passes with the allow rules and no trust entry"
+
+
+FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "reset-foreign": case_reset_foreign,
              "reset-empty": case_reset_empty, "publish": case_publish, "setup-prompt": case_setup_prompt,
              "ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
