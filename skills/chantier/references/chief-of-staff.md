@@ -27,7 +27,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route) | While it runs |
 | "close the batch" | `$CHANTIER close` (refused while anything runs; it prices the final cost), show the bilan and that cost, ask; `close --yes` only on the user's yes | While it runs |
-| add, drop, reorder, change a CR; "I merged #42", a `board saw merged` line in `status`; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (in direct mode, do what it needs yourself) | While it runs |
+| add, drop, reorder, change a CR; "I merged #42", a `board saw merged` line in `status`; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
 | "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
@@ -934,7 +934,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
   and marks it done; `status` shows the orders still open, those the CLI applied apart from
-  those nothing has touched. A CR is named `CR-104` or `104`; a second drop of a dropped CR, and
+  those nothing has touched. For `order qa`, send the order's line and the `qa-driver prompt`
+  block it printed, together, as printed. A CR is named `CR-104` or `104`; a second drop of a dropped CR, and
   a note on a cancelled one, are refused (exit 2).
 
   ```bash
@@ -1415,10 +1416,12 @@ these differences.
   compactions since the batch opened.
 - **The Drivers.** You start them, several in parallel on the free slots, in the background, and
   hear their hand-backs, as the Foreman's card says, including its check of a `no long gate`
-  hand-back. "Never message a Driver" does not hold for the Drivers of a batch you steer. Start a
-  QA driver as the Foreman's card says and record its agent id with `agents set O-<k> <id> --epoch
-  <n>`. Every Driver's prompt you write holds the `Steering:` line of [concepts](concepts.md),
-  "Starting an agent" (you, and the host's means to reach you).
+  hand-back. "Never message a Driver" does not hold for the Drivers of a batch you steer. Start each
+  Driver from the skeleton `take` (or `take stack`) printed, copied whole, each `<…>` filled in (the
+  `Steering:` means from the host's reference); add no `writes:` line the skeleton does not print,
+  and drop none it prints ([concepts](concepts.md), "A Driver's prompt"). Start a QA driver from the
+  skeleton `order qa` printed, as the Foreman's card says, and record its agent id with `agents set
+  O-<k> <id> --epoch <n>`.
 - **A stack batch.** The Foreman's check of the five checks of a stack ready to merge
   ([foreman](foreman.md), "The five checks") is yours; one check, read on the forge
   (`$CHANTIER forge-stack show`), is enough before you tell the user the stack is ready to merge. Inserting

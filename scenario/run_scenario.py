@@ -184,6 +184,62 @@ def check(label: str, ok: bool, detail: str = "") -> None:
         print(f"FAIL {label}: {detail}")
 
 
+def prompt_block(out: list[str], role: str) -> list[str]:
+    """A Driver's skeleton in a command's output: its heading, then the indented lines."""
+    at = next((i for i, ln in enumerate(out) if ln.startswith(f"{role} prompt (")), None)
+    if at is None:
+        return []
+    end = at + 1
+    while end < len(out) and out[end].startswith("  "):
+        end += 1
+    return out[at:end]
+
+
+def check_driver_skeleton(w, target: str, out: list[str]) -> None:
+    """After a `take`, the skeleton of the CR's Driver: no `writes:` line for a release or stack
+    driver and the stack rows in the stack driver's; for any other CR one `writes:` line naming
+    the CR's folder, with an absolute archive path when `take` printed an `archive:` line."""
+    kind = "stack" if target == "stack" else w.cr(target).get("kind", "change")
+    role = {"stack": "stack-driver", "release": "release-driver"}.get(kind, "cr-driver")
+    block = prompt_block(out, role)
+    writes = [ln for ln in block if ln.startswith("  writes:")]
+    label = f"`take {target}` prints the {role} prompt, copied whole"
+    if role != "cr-driver":
+        rows = (
+            [ln for ln in out[: out.index(block[0])] if ln.startswith(("the stack of", "CR-"))]
+            if block and role == "stack-driver"
+            else []
+        )
+        check(
+            f"{label}, with no `writes:` line" + (" and the stack's rows" if rows else ""),
+            bool(block)
+            and not writes
+            and (role != "stack-driver" or (rows and all(f"  {ln}" in block for ln in rows))),
+            str(block),
+        )
+        return
+    folder = next(
+        (ln.split(" (")[0].removeprefix("folder: ") for ln in out if ln.startswith("folder: ")),
+        None,
+    )
+    archive = next(
+        (ln.split(" at ", 1)[1] for ln in out if ln.startswith("archive: in the PR at ")), None
+    )
+    paths = writes[0].removeprefix("  writes: ").split("; ") if writes else []
+    check(
+        f"{label}, with one `writes:` line: the CR folder"
+        + (", then the absolute archive path" if archive else ""),
+        bool(block)
+        and len(writes) == 1
+        and paths[:1] == [folder]
+        and (
+            archive is None
+            or (len(paths) == 2 and Path(paths[1]).is_absolute() and paths[1].endswith(archive))
+        ),
+        str(block),
+    )
+
+
 class World:
     def __init__(self, root: Path):
         self.root = root
@@ -483,6 +539,7 @@ class Foreman:
         if code:
             return code
         self.facts = facts
+        check_driver_skeleton(self.w, target, facts)
         self.started.append(f"{target} {note_}" if note_ else target)
         self.w.chantier("agents", "set", target, f"agent-{len(self.started)}",
                         "--epoch", self.epoch)
@@ -4631,7 +4688,8 @@ def stack_batch(w: World) -> None:
     _, again = w.chantier("stack")
     check("`stack` with no CR prints the lines `take stack` printed plus a last `context:` line, "
           "and writes nothing (`batch.json`, `events.jsonl`)",
-          again[:-1] == out and again[-1].startswith("context:")
+          again[:-1] == out[:out.index(prompt_block(out, "stack-driver")[0])]
+          and again[-1].startswith("context:")
           and all((w.folder() / n).read_bytes() == v for n, v in kept.items()),
           str(again))
     code, _ = w.chantier("order", "after", four, "--note", two, expect=2)
@@ -5151,7 +5209,8 @@ def forge_stack_cli(w: World) -> None:
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     check("insertion: a CR added to the stack batch and ordered below the release CR sits there in "
           "`take stack`, the release CR still last",
-          listed and listed[0].endswith(" → ".join(order)) and listed[-1].startswith(f"{r} "),
+          listed and listed[0].endswith(" → ".join(order))
+          and listed[listed.index(prompt_block(listed, "stack-driver")[0]) - 1].startswith(f"{r} "),
           str(listed))
     check("`take stack` prints the rows with no `context:` line (its agent has not started yet)",
           not any(ln.startswith("context:") for ln in listed), str(listed))
@@ -6020,10 +6079,11 @@ def release_on_stack(w: World) -> None:
     _, listed = w.chantier("take", "stack", "--epoch", 1)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     top = w.cr(b)["branch"]
+    rows = listed[:listed.index(prompt_block(listed, "stack-driver")[0])]
     check("3. once stacked, `take stack` lists the release last, with the top CR's branch "
           "as its base",
-          listed[0].endswith(f"{a} → {b} → {r}") and listed[-1].startswith(f"{r} queued")
-          and f"base {top}" in listed[-1], str(listed))
+          listed[0].endswith(f"{a} → {b} → {r}") and rows[-1].startswith(f"{r} queued")
+          and f"base {top}" in rows[-1], str(listed))
     on_branch(w, r, top)
     code = fm.take(r)
     check("3. the release is taken, and its facts print `base` = the top CR's branch",
@@ -6200,6 +6260,15 @@ def qa_on_head(w: World) -> None:
           out[0] == f"[chief-of-staff→foreman] order O-2: qa {shown} try the export on a phone"
           and "/1-inbox/qa-" in folder.as_posix()
           and "phone" in (folder / "intake/request.md").read_text(encoding="utf-8"), str(out))
+    qa_prompt = prompt_block(out, "qa-driver")
+    check(
+        "`order qa` prints the qa-driver prompt after its `QA folder:` line, with no `writes:` line",
+        bool(qa_prompt)
+        and out.index(qa_prompt[0]) > 1
+        and not any(ln.startswith("  writes:") for ln in qa_prompt)
+        and f"  QA folder: {shown}; order O-2" in qa_prompt,
+        str(out),
+    )
     fm.turn()
     check("the Foreman starts a QA driver on the folder, and the CR goes on without it",
           fm.qa == [shown] and fm.started == [cr] and w.cr(cr)["status"] == "working",

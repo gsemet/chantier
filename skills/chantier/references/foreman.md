@@ -164,11 +164,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   working CR without `--note`, and on any CR whose agent id is still recorded: `agents set <cr> - --epoch <n>`
   first. `take stack` for the stack
   driver, in this order: `take stack --epoch <n>`, its output in the stack driver's prompt, the start, then
-  `agents set stack <id> --epoch <n>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>` (`take stack` prints no
-  `team:` line): its agent and model are passed as printed, with no model when none is printed
-  ("Starting an agent"), or the generic agent with the printed contract lines, and the prompt starts with the role's first line, copied from "Starting
-  an agent", unchanged (the stack driver's: `chantier stack-driver for the stack of batch
-  <batch>, in the project <root>.`). A refused start is fixed by a new start with that line. A CR Driver's prompt holds `writes: <the take's folder:>` (and `; <the take's archive path>` when `take` prints `archive: in the PR at <path>`), as its own line; a stack, release or QA driver gets none. Every Driver's prompt you write, for each start and restart and whatever the Driver kind, holds the `Steering:` line of "Starting an agent" (you, and the host's means to reach you). Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
+  `agents set stack <id> --epoch <n>`; the stack driver never runs `take stack`. To start a Driver, read `$CHANTIER playbook --batch <batch>`: its agent and model are passed as printed, with no model when none is printed
+  ("Starting an agent"), or the generic agent with the printed contract lines. Its prompt is the skeleton `take` (or `take stack`) printed, copied whole, each `<…>` filled in (the `Steering:` means from the host's reference); add no `writes:` line the skeleton does not print, and drop none it prints; see [concepts](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/concepts.md), "A Driver's prompt". A refused start is fixed by a new start with the skeleton's first line. Record each agent's id with `$CHANTIER agents set <cr>|stack <id> --epoch <n>` (`-`
   when it ended, with its hand-back or without, before the CR's next `take`). When a Driver ends,
   read its row in `status` before `agents set <cr> -`: a row showing `ended, no hand-back
   recorded` takes "A Driver that ended with no hand-back recorded" first, with the id still
@@ -185,9 +182,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   (`take <cr> --note "escalate: ..."`); you record it with `note` and give it one line in the
   retro.
 - An `order qa`: `status` names its folder in the inbox. The order already holds its slot (it is
-  refused when none is free), so start a `qa-driver` on it at once (copy the first line, `chantier qa-driver for
-  <folder> of batch <batch>, in the project <root>.`, then the card, the CLI, the default branch and
-  the user's note in its prompt). It holds no CR back, but its slot stays taken until `order
+  refused when none is free), so start a `qa-driver` on it at once, from the skeleton `order qa` printed, which the Chief of Staff sends with the order's line, copied whole, its `Steering:` means filled in. It holds no CR back, but its slot stays taken until `order
   done`. Record its agent id with `$CHANTIER agents set O-<k> <id> --epoch <n>` (the order's id,
   as `order qa` printed it), so `cost` gives it its own Driver line. On its `qa done`: `order
   done`, and the ask `qa <folder> <n> findings`.

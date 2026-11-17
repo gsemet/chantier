@@ -72,7 +72,7 @@ defer the rest of this card until an action names it. These are the card's defau
   refused <exact text>`, never retried without the model. Every worker's prompt holds
   `writes: <worktree>; <CR folder>`, the two absolute paths as `take`, `round` or `handoff`
   printed them (`worktree:` and `folder:`); a CR Driver's own prompt holds `writes: <CR folder>`
-  (and `; <archive path>` when `take` prints one): you write your notes, `pr-body.md`, your large
+  (and `; <absolute archive path>` when `take` prints one; [concepts](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/concepts.md), "A Driver's prompt"): you write your notes, `pr-body.md`, your large
   outputs and the archive, nothing else. A Driver and its workers write nothing in the repository's
   git folder (`.git/info/exclude`, `.git/config`, `.git/hooks`), by any tool or shell command; git's
   own commands write there as git does. A file to ignore is ignored by the worktree's own files (a

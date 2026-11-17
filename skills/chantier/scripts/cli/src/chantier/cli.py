@@ -111,7 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return e.code
     lines, code = result if isinstance(result, tuple) else (result, 0)
-    if args.cmd not in FULL_OUTPUT and len(lines) > MAX_LINES:
+    full = args.cmd in FULL_OUTPUT or (args.cmd == "order" and args.kind == "qa")  # a prompt
+    if not full and len(lines) > MAX_LINES:
         lines = [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
     if lines:  # `board` printed its own lines while it served
         print("\n".join(lines))

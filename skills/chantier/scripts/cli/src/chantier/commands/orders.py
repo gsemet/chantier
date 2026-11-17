@@ -8,15 +8,18 @@ from dataclasses import dataclass
 from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
 from chantier.commands.orders_merged import stop_before_merge
 from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
+from chantier.core import git
 from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
 from chantier.core.records import LIVE, OrderRecord
 from chantier.core.repo import Repo
+from chantier.driver_prompt import DriverBlock, DriverRow, driver_prompt_lines, driver_row
 from chantier.lifecycle.filing import new_request, shown
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
+from chantier.plugin_files import cli_command
 from chantier.rails import check_budget, check_slot
 
 ORDER_KINDS = {*HANDLERS, "done"}
@@ -86,6 +89,39 @@ def _qa_folder(repo: Repo, b: Batch, note: str) -> str:
             "a QA folder of this minute exists: try again in a minute",
         ),
     )
+
+
+def _qa_row(repo: Repo, b: Batch) -> tuple[DriverRow, str]:
+    """The QA driver's table row and the project's default branch, both checked before any state
+    changes: the configured one, else the remote's; never a guess."""
+    if b.record.steering == "direct" and b.record.status != "paused":
+        raise ChantierError(
+            "a running direct batch takes no QA: order it once the batch is paused "
+            "(`pause --epoch <n>`)",
+            EXIT_PRECONDITION,
+        )
+    row = driver_row(b.record.host, "order qa")
+    branch = repo.config["default_branch"] or git.default_branch(repo.root, repo.config["remote"])
+    if not branch:
+        raise ChantierError(
+            "order qa: the project's default branch is unknown (set `default_branch` in the "
+            "project's configuration, or give the remote a HEAD)",
+            EXIT_PRECONDITION,
+        )
+    return row, branch
+
+
+def _qa_skeleton(repo: Repo, b: Batch, qa_row: tuple[DriverRow, str], req: _Req) -> list[str]:
+    """The QA driver's prompt block, after the order's `QA folder:` line."""
+    row, branch = qa_row
+    fill = {"<folder>": req.cr, "<batch>": b.id, "<root>": repo.root.as_posix()}
+    block = DriverBlock(
+        fill,
+        f"{cli_command(repo)} <command> --batch {b.id}",
+        [f"QA folder: {req.cr}; order {req.oid}", f"default branch: {branch}"],
+        note=req.note,
+    )
+    return driver_prompt_lines(row, b.record, block)
 
 
 @dataclass
@@ -198,24 +234,23 @@ def order(args: argparse.Namespace) -> list[str]:
         RenderedBatch(repo, resolve_batch(repo, args.batch), actor=actor) as b,
     ):
         check_epoch(b, args.epoch)
-        if args.kind == "qa" and b.record.steering == "direct" and b.record.status != "paused":
-            raise ChantierError(
-                "a running direct batch takes no QA: order it once the batch is paused "
-                "(`pause --epoch <n>`)",
-                EXIT_PRECONDITION,
-            )
-        cr = args.cr
+        qa_row = _qa_row(repo, b) if args.kind == "qa" else None  # before any state changes
         reopened = _reopen(b, args.kind)
-        if args.kind == "qa":
-            cr = _qa_folder(repo, b, note)
+        cr = _qa_folder(repo, b, note) if qa_row else args.cr
         req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}", stopped)
         effect = reopened + apply_order(_word(b, args, req))
         oid = _record_order(b, args, req)
+        skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
     if own:
         return [*effect, *fresh]
     target = f" {cr}" if cr and cr != "-" else ""
     text = f" {note}" if note else ""
-    return [f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}", *effect, *fresh]
+    return [
+        f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}",
+        *effect,
+        *skeleton,
+        *fresh,
+    ]
 
 
 def _order_done(repo: Repo, args: argparse.Namespace) -> list[str]:
