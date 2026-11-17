@@ -9,7 +9,7 @@ from chantier.autosync.lines import status_line
 from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import find_site
 from chantier.board import seen
-from chantier.commands.activity import activity
+from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
@@ -179,7 +179,10 @@ def _ended_unrecorded(repo: Repo, d: BatchRecord, agent: str | None) -> bool:
     return agent_handed_back(repo.session_root, sessions, agent) is True
 
 
-def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, events: list[EventRecord]) -> str:
+def _cr_row(
+    repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, seen: tuple[list[EventRecord], set[str]]
+) -> str:
+    events, stopped = seen
     row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
     row += f" | long gate {gate_view(repo, d, c, events)['text']}"
     if c.kind == "release":
@@ -194,6 +197,8 @@ def _cr_row(repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, events: list[Ev
         row += f" | waits for {', '.join(waits)}"
     if c.status == "working" and not c.agent:
         row += " | no Driver recorded"
+    elif c.status == "working" and c.agent in stopped:
+        row += f" | {stopped_text(c.agent)}"
     elif c.status == "working" and _ended_unrecorded(repo, d, c.agent):
         row += f" | Driver {c.agent} ended, no hand-back recorded"
     if c.status == "blocked" and c.blocked_reason:
@@ -297,7 +302,11 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     events = read_events(repo.batch_dir(batch))
-    lines += [_cr_row(repo, d, c, args.notes, events) for c in sorted(d.crs, key=lambda c: c.order)]
+    stopped = stopped_agents(repo, d, events)
+    lines += [
+        _cr_row(repo, d, c, args.notes, (events, stopped))
+        for c in sorted(d.crs, key=lambda c: c.order)
+    ]
     lines += _order_lines(d)
     lines += _seen_lines(repo, d)
     unread = sum(1 for a in d.asks if not a.read)

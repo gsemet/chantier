@@ -162,7 +162,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   with an agent id: the age of its last event or session record, `gate running`, `gate queued
   behind <cr>`, or `not measured`; a CR with no agent recorded shows `no Driver recorded` in its row; a working CR whose recorded Driver
   called the host's hand-back with no `handback` recorded shows `Driver <id> ended, no hand-back
-  recorded` (Claude Code only)); `handoff <cr>`
+  recorded`, and one the host reports stopped (the `task_status` `killed` record of a compaction
+  snapshot) shows `Driver <id> stopped from outside, no hand-back recorded` (Claude Code only)); `handoff <cr>`
   and `log <cr>` for a CR's story.
 - `$CHANTIER take <cr> [--note "<why>"] --epoch <n>`: the CR is a Driver's; it prints the facts
   for the prompt ([concepts](concepts.md), "Starting an agent"). It is refused (exit 2) on a
@@ -564,9 +565,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     minutes). A line
     `not measured` or a row `no Driver recorded` is read for what it says, never as activity. A
     project's `AGENTS.md` ranks above this threshold.
-  - **Proof of death**, one of two: the host refuses a message to the agent because it no
+  - **Proof of death**, one of three: the host refuses a message to the agent because it no
     longer exists (dead at once); or a `[foreman→driver <cr>] ping` to a suspect gets no `pong` by
-    the next wake.
+    the next wake; or the host says the Driver was stopped, read at once, with no ping round and no
+    message first. On Claude Code that is exactly two things: the stop a compaction snapshot reports
+    (the `task_status` `killed` record, which the session sees as `Task "<name>" (<id>) was
+    stopped.`, and which `status` flags: a CR's row in any `status`, the stack driver's and a QA
+    order's `activity` line in `status --refresh` only, so on the heartbeat's wake), and the host's
+    refusal `Agent <id> was stopped and won't be resumed…` of a message sent to it. Never try to
+    resume such a Driver by a message: the host refuses it (proved, batch-22).
   - **A `pong` proves a Driver alive, not that it moves:** one with no new round, head or note for
     3 hours gets `stop`.
   - **After an app restart, at a new epoch:** Drivers are background children of the steering
@@ -594,6 +601,32 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     `context: host asked the hand-back …` is named "a turn ended early", with what the Driver
     waited for, never "out of context"; the second-`context:` ask counts only real context ends (no
     `host asked the hand-back` in the text).
+  - **A Driver stopped from outside** (any Driver kind: CR, release, stack, QA order):
+    - **Which stops:** only a stop the steering session did not make itself. Its own stop by the
+      host's means (a switch to Foreman mode, a drop, the user's stop or
+      hold, the `stop` after a `pong` with no progress for 3 hours) is never restarted by this rule;
+      each of those keeps its own path. A stop the user makes in the app is from outside.
+    - **Keeping its own stops apart:** the snapshot record does not say who stopped the agent, and a
+      compaction may come after the steering session's own stop. So when the steering session stops
+      a Driver itself and does not restart it at once by the restart path, it clears the id it
+      recorded for it in the same turn (`agents set <cr> - --epoch <n>`, or `agents set stack -` /
+      `agents set <O-k> -` for the stack driver or a QA order), after a `note <cr> "stopped: <why>"`
+      for a CR. The `status` flag names only a recorded agent, so it never shows for the steering
+      session's own stop; and a refusal to a message to an agent it no longer has recorded is not
+      this rule.
+    - **What it does:** it takes the restart path at once (`agents set <cr> - --epoch <n>`,
+      `handoff <cr>`, `take <cr> --note "resume: stopped from outside: <the host's text>" --epoch
+      <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`; for the stack, `take stack --note …`
+      as in its existing restart). It is covered by the batch's go: no ask, no question to the user,
+      no wait for the user's word. The host's words "only launch a new agent if the user explicitly
+      asks" are answered by that go.
+    - **Counting:** it is the host's doing, like a death by the host: it counts neither toward
+      `driver ended twice` nor toward "blocked twice" in Escalation, and it is restarted at each
+      such stop, however many (no "second stop" ask, unlike a second host failure).
+    - **Said in the report:** your next report names each such restart: the CR, "stopped from
+      outside", the time of the stop, and the new Driver's agent id. In Foreman mode your report
+      line to the Chief of Staff carries it, and the Chief of Staff gives it in its report to the
+      user.
   - **A host failure:** a Driver (CR, stack, release, QA) whose end carries the host's error
     rather than a hand-back takes the restart path at once, with no ping round (the host's error is
     the proof it ended). It is not a silent
@@ -612,12 +645,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     - when it records none by the next heartbeat wake, or the host refuses the message: `agents set
       <cr> - --epoch <n>`, then the restart path with `--note "resume: ended with no hand-back
       recorded: <its report's first line>"`. This counts as a silent end ("A silent end"). A resume
-      that records the hand-back counts as nothing;
+      that records the hand-back counts as nothing. A refusal that says the Driver was stopped
+      (`Agent <id> was stopped and won't be resumed…`) is the outside stop: it goes to "A Driver
+      stopped from outside", with its note `resume: stopped from outside: <the host's text>`, and
+      counts as nothing; any other refusal keeps this rule;
     - never record the hand-back yourself: `handback` is the Driver's.
   - **A silent end** (a task that ends with no hand-back) takes the restart path. A second silent
     end on one CR is `handback <cr> blocked driver ended twice`. Only silent ends of the Driver
-    itself count: a death by the host (a new epoch, all Drivers lost at one wake) and a `context:`
-    hand-back do not.
+    itself count: a death by the host (a new epoch, all Drivers lost at one wake), a Driver stopped
+    from outside and a `context:` hand-back do not.
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
   host's reference says (every 30 minutes, and who arms it). No wake ever arriving is a stop.
   A `board saw merged` line in `status` is the Chief of Staff's: do nothing with it, send no

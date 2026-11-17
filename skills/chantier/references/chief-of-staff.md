@@ -1363,7 +1363,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`); stop orphan processes with
   `$CHANTIER cancel`." A Driver whose id was cleared with `agents set <cr> -` (an app restart,
   a Driver stopped from outside, a context restart) and a Foreman replaced by a new one are never
-  a blocker at `close`: their transcripts are listed apart and need no `--stopped`.
+  a blocker at `close`: their transcripts are listed apart and need no `--stopped`. In a direct
+  batch, a Driver stopped from outside is restarted by you with no question to the user
+  ([foreman](foreman.md), "A Driver stopped from outside"), and when you stop a Driver yourself
+  and do not restart it at once, you clear its recorded id in the same turn.
 - **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.
 
