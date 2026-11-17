@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -18,6 +19,11 @@ from chantier.core import git as git_module
 SKILL = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = SKILL.parents[1]
 Chantier = Callable[..., tuple[int, list[str], str]]
+SEEDED_COMMON_DIRS: dict[str, str] = {}  # folder -> its git common dir, for the `repo` copies
+
+
+def _key(folder: Path | str | None) -> str:
+    return os.path.normcase(os.path.realpath(folder or os.getcwd()))
 
 
 def load_script(name: str, path: Path) -> ModuleType:
@@ -65,6 +71,9 @@ def repo(repo_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     work = tmp_path / "proj"
     shutil.copytree(repo_template, work)
     monkeypatch.chdir(work)
+    # a plain copy keeps its own `.git`: `chantier` answers that without a git process, while
+    # nothing moves it (a test that makes a worktree or moves the folder asks the real git)
+    monkeypatch.setitem(SEEDED_COMMON_DIRS, _key(work), str(work / ".git"))
     monkeypatch.setenv("CHANTIER_SKILL_DIR", str(SKILL))
     monkeypatch.setenv("CHANTIER_PLUGIN_ROOT", str(PLUGIN_ROOT))
     # the user's own agents live in the home folder: keep the real one out of the tests
@@ -89,16 +98,16 @@ class Surface(NamedTuple):
     clone: Path  # the project's code repository, `projects/demo/.repo`
 
 
-@pytest.fixture
-def surface(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Surface:
-    """A small external planning surface with one project `demo`, whose clone is a copy of `repo`
-    inside the project's folder; the session runs in the surface."""
-    root = tmp_path / "surface"
+@pytest.fixture(scope="session")
+def surface_template(repo_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The external planning surface every `surface` test starts from, built once per session
+    (and per worker): a git repository with one project `demo`, whose clone is a copy of the
+    template repository inside the project's folder."""
+    root = tmp_path_factory.mktemp("surface-template") / "surface"
     project = root / "projects" / "demo"
     project.mkdir(parents=True)
     (project / "checkout.yml").write_text("repo: .repo\nworktrees: ../../../wt\n")
-    clone = project / ".repo"
-    shutil.copytree(repo, clone)
+    shutil.copytree(repo_template, project / ".repo")
     sh("git", "init", "--quiet", "-b", "main", str(root))
     sh("git", "add", "projects/demo/checkout.yml", cwd=root)
     sh(
@@ -112,8 +121,23 @@ def surface(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Surf
         "init",
         cwd=root,
     )
+    return root
+
+
+@pytest.fixture
+def surface(
+    repo: Path, surface_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Surface:
+    """A small external planning surface with one project `demo`, whose clone is a copy of `repo`
+    inside the project's folder; the session runs in the surface."""
+    root = tmp_path / "surface"
+    shutil.copytree(surface_template, root)
     monkeypatch.chdir(root)
-    return Surface(root.resolve(), project.resolve(), clone.resolve())
+    return Surface(
+        root.resolve(),
+        (root / "projects" / "demo").resolve(),
+        (root / "projects" / "demo" / ".repo").resolve(),
+    )
 
 
 @pytest.fixture
@@ -128,7 +152,9 @@ def chantier(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
     def git_cached(*args: str, cwd: Path | None = None, **kw: Any) -> str:
         if args[:3] != ("rev-parse", "--path-format=absolute", "--git-common-dir"):
             return str(real_git(*args, cwd=cwd, **kw))
-        key = str(cwd)
+        key = _key(cwd)
+        if key in SEEDED_COMMON_DIRS and (Path(SEEDED_COMMON_DIRS[key]) / "HEAD").is_file():
+            return SEEDED_COMMON_DIRS[key]
         if key not in asked:
             asked[key] = str(real_git(*args, cwd=cwd, **kw))
         return asked[key]
