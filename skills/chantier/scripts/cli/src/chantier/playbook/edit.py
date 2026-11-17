@@ -19,7 +19,7 @@ from chantier.lifecycle.stages import changes_lock
 from chantier.playbook import config, edit_text, layers, models, timing, timing_check
 from chantier.playbook.lines import GENERIC_AGENT, minutes
 from chantier.playbook.yaml_subset import Node, is_reset
-from chantier.plugin_files import HOSTS, plugin_roles, plugin_root
+from chantier.plugin_files import HOSTS, plugin_role_descriptions, plugin_roles, plugin_root
 
 KEYS = ("agent", "model")
 PROJECT_LABEL = "surface project"
@@ -184,11 +184,15 @@ def _host(
 ) -> tuple[dict[str, Any], layers.Judged]:
     judged = layers.judge(user, host, roles_by_host, defaults, tolerate=True)
     problems += [p for p in judged.problems if p not in problems]
+    descriptions = plugin_role_descriptions(host)
     return {
         "name": models.HOST_NAMES[host],
         "named_agent_model_at_start": models.NAMED_AGENT_MODEL_AT_START[host],
         "catalog": _catalog(host),
-        "roles": [_row(host, r, user, defaults, judged) for r in roles_by_host[host]],
+        "roles": [
+            {**_row(host, r, user, defaults, judged), "description": descriptions.get(r)}
+            for r in roles_by_host[host]
+        ],
     }, judged
 
 

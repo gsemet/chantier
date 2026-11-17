@@ -158,6 +158,29 @@ def plugin_roles(host: str) -> list[str]:
     ]
 
 
+def plugin_role_descriptions(host: str) -> dict[str, str]:
+    """Each role of the plugin's agents for this host mapped to its agent file's `description`
+    (frontmatter), cut before its `Prompt starts with:` sentence. A file with no frontmatter, no
+    description or one that does not parse gives no entry."""
+    from ruamel.yaml import YAML
+    from ruamel.yaml.error import YAMLError
+
+    found: dict[str, str] = {}
+    for role, path in zip(plugin_roles(host), _agent_files(host)[1], strict=True):
+        m = FRONTMATTER.match(path.read_text(encoding="utf-8"))
+        if not m:
+            continue
+        try:
+            data = YAML(typ="safe", pure=True).load(m[0][4:-4])
+        except YAMLError:
+            continue
+        value = data.get("description") if isinstance(data, dict) else None
+        text = value.split("Prompt starts with:")[0].strip() if isinstance(value, str) else ""
+        if text:
+            found[role] = text
+    return found
+
+
 CHIEF_SUBAGENT_LINE = re.compile(
     r"Prompt starts with: `(chantier ([a-z-]+) for the Chief of Staff, in the project <root>\.)`"
 )
