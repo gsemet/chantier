@@ -9,7 +9,7 @@ For the other board, the pane in Claude Code, see [boards](boards.md). To start 
 
 ## The views
 
-The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects makes the picker's first entry the surface itself, by its name and its path, with "Planning surface · N projects" under them; a single project has no such entry.
+The breadcrumb at the top names where you are, and stays in place when the page scrolls. The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects makes the picker's first entry the surface itself, by its name and its path, with "Planning surface · N projects" under them; a single project has no such entry.
 
 ![The project picker, open](web-board/picker-pc.png)
 
@@ -29,14 +29,13 @@ A project's Home answers "what needs me?": five tiles (**To review**, the PRs re
 
 ### Batch
 
-![The batch: levels, PRs to review, PRs in draft and merged PRs](web-board/batch-pc.png)
+![The batch: levels, PRs to review and PRs in draft](web-board/batch-pc.png)
 
-The batch in a few numbers (its id, the slots, the CRs working, the CRs handed back ready, the cost against the budget), then the CRs as boxes in levels: a CR sits one level after the CRs it waits for, and an arrow goes from a CR to the one that waits for it. The colour is the state: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged. Hover a CR to see what it waits for and what waits for it; a click opens its folder.
+The batch in four figures (the slots, the CRs working, the CRs handed back ready, what was spent), then the CRs as boxes in levels, "Level 1", "Level 2" and so on: a CR sits in the level below the CRs it waits for, and an arrow goes from a CR to the one that waits for it. Each CR stays in one place for its whole life, merged ones included. The state is a badge in the CR's top right corner, its icon and word in the state's colour: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged; its legend is in the "States and arrows" tooltip. Hover a CR to see what it waits for and what waits for it; a click opens its folder.
 
-The right column follows the batch's mode (stack, series or parallel, named in the bar under the numbers):
+The right column is one column, the PRs to review then the drafts, and follows the batch's mode (stack, series or parallel, named in the bar under the numbers):
 
 - **PRs to review**: the PRs ready to merge now. In a stack, only a fix CR, which sits on the default branch outside the stack, is to review while the stack is not built and verified on the forge; the others are listed as **PRs in draft, not to merge yet**, with their place in the stack (1 is the bottom, not a merge order). A click on a PR opens it on the forge; the folder icon opens the CR's folder.
-- **Merged PRs**: for information, this batch's and the earlier batches'.
 
 ### PRs
 

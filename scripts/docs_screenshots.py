@@ -161,11 +161,16 @@ def shot(page: Page, name: str, size: str) -> None:
 
 def fix_surface_path(route: Route) -> None:
     """The board shows the surface's path, a temporary folder of this machine: the pictures show
-    this made-up path instead, the same on every run and revealing nothing of the machine. Only
-    `served` of the board's answer is replaced; the projects' paths are the demo's own."""
+    this made-up path instead, the same on every run and revealing nothing of the machine. In the
+    board's answer, `served`, `served_origin` and each project's `repo_path` and `origin` are
+    replaced; the projects' `folder` and `repo` are the demo's own, relative."""
     response = route.fetch()
     body = response.json()
     body["served"] = SURFACE_SHOWN
+    body["served_origin"] = "https://github.com/demo/planning-surface"
+    for project in body.get("projects", []):
+        project["repo_path"] = f"/home/demo/{project['id']}"
+        project["origin"] = f"https://github.com/demo/{project['id']}"
     route.fulfill(response=response, json=body)
 
 
