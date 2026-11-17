@@ -66,6 +66,6 @@ const row = (project, state) =>
 export function menu(state) {
   if (!state.menu || !canPick(state)) return '';
   const projects = projectsOf(state);
-  const all = html`<button class="row${state.project === ALL ? ' on' : ''}" type="button" data-project="${ALL}" role="menuitem"><span class="mark all">${icon('overview')}</span><span class="who"><b>${surfaceName(state)}</b></span>${state.project === ALL ? ok() : ''}</button>`;
-  return html`<div class="menu" role="menu"><div class="cap">${t('project.head', { n: projects.length })}</div>${all}${projects.map((p) => row(p, state))}</div>`;
+  const all = html`<button class="row sfc${state.project === ALL ? ' on' : ''}" type="button" data-project="${ALL}" role="menuitem"><span class="mark all">${icon('overview')}</span><span class="who"><b>${surfaceName(state)}</b><small>${t('project.overview', { n: projects.length })}</small></span>${state.project === ALL ? ok() : ''}</button>`;
+  return html`<div class="menu" role="menu">${all}<div class="sep" role="separator"></div>${projects.map((p) => row(p, state))}</div>`;
 }

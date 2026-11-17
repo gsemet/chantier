@@ -112,13 +112,17 @@ button.pbtn:hover {
   box-shadow: var(--shadow-menu);
 }
 
-.menu .cap {
-  padding: 6px 8px;
-  color: var(--caption);
-  font-size: var(--text-badge);
-  font-weight: 500;
-  letter-spacing: var(--caption-spacing);
-  text-transform: uppercase;
+.menu .sep {
+  margin: 4px 2px;
+  border-top: 1px solid var(--line);
+}
+
+.menu .row:not(.sfc) {
+  padding-left: calc(8px + var(--space-2));
+}
+
+.menu .row:not(.sfc) .who > b {
+  font-weight: 400;
 }
 
 .menu .row {
