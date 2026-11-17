@@ -13,7 +13,7 @@ import { afterPanel, bindPanel, closePanel, panelMarkup, syncPanel } from './pan
 import { dot, pill } from './ui/autosync.js';
 import { bindAutosync } from './ui/autosync-events.js';
 import { bottomBar } from './ui/bottombar.js';
-import { notice, stats, title } from './ui/header.js';
+import { bindScroll, crumbs, notice, stats, title } from './ui/header.js';
 import { show } from './ui/host.js';
 import { menu, trigger } from './ui/picker.js';
 import { heard, languageButton, navigation, projectSide } from './ui/sidebar.js';
@@ -24,8 +24,11 @@ const RETRY_MS = 5000;
 function drawFrame(state) {
   paint($('#project-side'), projectSide(state));
   paint($('#views-label'), t('nav.views'));
+  paint($('#crumbs'), crumbs(state));
   paint($('#side-nav'), navigation(state));
   paint($('#autosync-side'), pill(state));
+  paint($('#sync-label'), t('nav.sync'));
+  $('#sync-label').hidden = !$('#autosync-side').firstElementChild;
   paint($('#autosync-phone'), dot(state));
   paint($('#heard'), heard(state));
   paint($('#lang'), languageButton());
@@ -44,7 +47,12 @@ function drawNotice(state) {
   element.hidden = !text;
 }
 
+let shownKey = null;
+
 function draw(state) {
+  const key = `${state.project}|${state.view}`;
+  if (key !== shownKey) $('.main').scrollTop = 0;
+  shownKey = key;
   drawFrame(state);
   drawNotice(state);
   show($('#view'), state);
@@ -138,6 +146,7 @@ async function boot() {
 setLanguage(pick(new URLSearchParams(location.search).get('lang')));
 configure(ids(), overviewIds());
 listenToFrame();
+bindScroll($('.main'), $('#head'));
 subscribe(draw);
 draw(snapshot());
 boot();

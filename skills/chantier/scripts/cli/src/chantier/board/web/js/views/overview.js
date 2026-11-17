@@ -7,6 +7,7 @@ import { age, safeUrl, usd } from '../core/format.js';
 import { t } from '../model/words.js';
 import { empty, live, mark, meter } from '../ui/parts.js';
 import { pathsOf, projectsOf } from '../ui/picker.js';
+import { surfaceBlock } from './home-project.js';
 
 const none = '—';
 
@@ -29,7 +30,7 @@ const workingOf = (p) =>
 
 const progressOf = (p) =>
   p.total
-    ? html`<div class="mbar">${meter([{ n: p.merged, color: 'var(--violet)' }], p.total)}</div><small class="mut">${t('overview.merged', { a: p.merged, b: p.total })}</small>`
+    ? html`<div class="mbar">${meter([{ n: p.merged, color: 'var(--accent)' }], p.total)}</div><small class="mut">${t('overview.merged', { a: p.merged, b: p.total })}</small>`
     : none;
 
 // The spend, with "/ budget" under it.
@@ -50,10 +51,6 @@ const head = ['project', 'batch', 'working', 'review', 'progress', 'spent', 'int
     html`<th class="${['working', 'spent', 'intake'].includes(k) ? 'num' : ''}">${t(`overview.${k}`)}</th>`,
 );
 
-// The card's tint: green when a PR waits for review, blue when a batch runs, grey otherwise.
-const tintOf = (p) => (p.to_review.length ? 'st-ready' : p.running ? 'st-working' : 'st-queued');
-
-// A word with its count in bold: "2 PRs to review" with the 2 in <b>.
 const counted = (key, n) => {
   const [before, after] = t(key, { n: '\u0001' }).split('\u0001');
   return html`${before}<b>${n}</b>${after}`;
@@ -67,12 +64,12 @@ const sums = (p) => [
 ];
 
 const card = (p) =>
-  html`<div class="apc ${tintOf(p)}" data-project="${p.id}" tabindex="0" data-key="card-${p.id}"><div class="apt">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}<span class="mut">${p.batch ? p.batch.id : t('project.no_batch')}</span></div><div class="apth">${pathsOf(p)}</div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div></div>`;
+  html`<div class="apc card" data-project="${p.id}" tabindex="0" data-key="card-${p.id}"><div class="apt">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}<span class="mut">${p.batch ? p.batch.id : t('project.no_batch')}</span></div><div class="band"><div class="apth">${pathsOf(p)}</div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div></div></div>`;
 
 export function render(state) {
   const projects = projectsOf(state);
   if (!projects.length) return empty(t('stats.loading'));
-  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(card)}</div><p class="note">${t('overview.note')}</p></div>`;
+  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(card)}</div><p class="note">${t('overview.note')}</p><div class="blocks">${surfaceBlock(state)}</div></div>`;
 }
 
 // A PR link opens the PR only: the click does not reach the line that opens the project.

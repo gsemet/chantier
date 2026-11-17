@@ -29,7 +29,7 @@
 }
 
 .emsg {
-  color: var(--tag-blocked-ink);
+  color: var(--bad-ink);
   font-size: var(--text-small);
 }
 

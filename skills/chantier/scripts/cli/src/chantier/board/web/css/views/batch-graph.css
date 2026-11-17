@@ -1,0 +1,146 @@
+/* The Batch graph: a dotted grid, one column per level, white nodes, the arrows between them. */
+.batch .gscroll {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--grid-bg);
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.batch .graph {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 90px;
+  min-width: max-content;
+  padding: var(--space-4) var(--space-4) 30px;
+}
+
+.batch .lvl {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 300px;
+}
+
+.batch .lvlh {
+  margin-bottom: -2px;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.batch .node {
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
+}
+
+.batch .node .row-tags {
+  flex-wrap: nowrap;
+}
+
+.batch .node .tag,
+.batch .node .sb {
+  flex: none;
+}
+
+.batch .node .lbl {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* the state badge: the icon and the word in the state's colour, on white, top right */
+.batch .node .sb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--panel);
+  color: var(--c, var(--state-queued));
+  font-size: var(--text-badge);
+  font-weight: 500;
+}
+
+.batch .node.dim {
+  opacity: 0.28;
+}
+
+.batch .node.hl {
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 2px var(--halo);
+}
+
+.batch .nt {
+  display: -webkit-box;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.batch .np {
+  margin-top: var(--space-1);
+  overflow: hidden;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch .nm .gate {
+  flex-basis: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch svg.edges {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.batch svg.edges path {
+  fill: none;
+  stroke: var(--edge-line);
+  stroke-width: 1.4;
+  transition:
+    stroke 0.15s,
+    opacity 0.15s;
+}
+
+.batch svg.edges path.hl {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.batch svg.edges path.dim {
+  opacity: 0.15;
+}
+
+.batch svg.edges .head {
+  fill: var(--edge-arrow);
+  stroke: none;
+}
+
+@media (max-width: 760px) {
+  .batch .graph {
+    gap: 50px;
+  }
+
+  .batch .lvl {
+    width: 250px;
+  }
+}

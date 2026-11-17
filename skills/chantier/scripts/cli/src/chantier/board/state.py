@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from chantier.board.journal import since_rescan
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
 from chantier.core.files import read_text
+from chantier.core.git import git
 from chantier.core.records import (
     BatchRecord,
     BatchSettings,
@@ -158,14 +160,35 @@ def _entry(c: dict[str, Any]) -> dict[str, Any]:
     return {"cr": c["cr"], "title": c["title"], "pr": c["pr"]}
 
 
+_ORIGINS: dict[str, tuple[float, str]] = {}
+_ORIGIN_TTL = 30.0  # seconds: the board is polled, `git` runs once in a while
+_USERINFO = re.compile(r"^([a-z][a-z0-9+.-]*://)[^/@]*@")
+
+
+def origin_of(root: Path) -> str:
+    """The `origin` remote's URL of the repository at `root` (read from its config, no network),
+    with the user and password of a `scheme://` URL removed; empty with no such remote. Kept for
+    a short while, the page polls."""
+    key = str(root)
+    seen = _ORIGINS.get(key)
+    if seen and time.monotonic() - seen[0] < _ORIGIN_TTL:
+        return seen[1]
+    url = git("remote", "get-url", "origin", cwd=root, check=False) if root.is_dir() else ""
+    url = _USERINFO.sub(lambda m: m.group(1), url, count=1)  # a token or a password stays here
+    _ORIGINS[key] = (time.monotonic(), url)
+    return url
+
+
 def project_paths(repo: Repo) -> dict[str, str]:
-    """Where a surface's project is declared: its folder in the surface (`projects/<name>/`) and
-    its `repo:` as `checkout.yml` writes it (`.repo` when it has none). In-project: nothing."""
+    """Where a project is: its repository's absolute path and its `origin` URL; and, in a surface,
+    its folder in the surface (`projects/<name>/`) and its `repo:` as `checkout.yml` writes it
+    (`.repo` when it has none)."""
+    where = {"repo_path": repo.root.as_posix(), "origin": origin_of(repo.root)}
     if repo.project_dir is None or repo.surface is None:
-        return {}
+        return where
     folder = repo.project_dir.relative_to(repo.surface).as_posix() + "/"
     written = read_keyed(repo.project_dir / "checkout.yml").get("repo") or ".repo"
-    return {"folder": folder, "repo": written}
+    return {"folder": folder, "repo": written, **where}
 
 
 def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:

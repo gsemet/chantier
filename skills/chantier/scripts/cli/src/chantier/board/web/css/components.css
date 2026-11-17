@@ -36,7 +36,7 @@
   border-radius: var(--radius-m);
   background: var(--mark-0);
   color: var(--white);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .pbtn .mark {
@@ -58,126 +58,33 @@
   border-radius: 50%;
 }
 
-.tag {
-  font-size: var(--text-small);
-  padding: 1px 7px;
-  border-radius: 5px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.tag.badge {
-  font-size: var(--text-badge);
-}
-
-.tag.working {
-  background: var(--tag-working-fill);
-  color: var(--tag-working-ink);
-}
-
-.tag.blocked {
-  background: var(--tag-blocked-fill);
-  color: var(--tag-blocked-ink);
-}
-
-.tag.ready,
-.tag.merged {
-  background: var(--tag-ready-fill);
-  color: var(--tag-ready-ink);
-}
-
-.tag.draft {
-  background: var(--tag-draft-fill);
-  color: var(--tag-draft-ink);
-}
-
-.tag.local {
-  background: var(--tag-local-fill);
-  color: var(--tag-local-ink);
-}
-
-.tag.waits {
-  background: var(--tag-waits-fill);
-  color: var(--tag-waits-ink);
-}
-
-.tag.queued {
-  background: var(--tag-queued-fill);
-  color: var(--tag-queued-ink);
-}
-
 .btn {
   border: 1px solid var(--line);
   background: var(--panel);
-  border-radius: var(--space-2);
+  border-radius: var(--radius-nav);
   padding: 7px var(--space-3);
   color: var(--ink);
 }
 
+.btn:hover {
+  background: var(--hover);
+}
+
 .btn.pri {
-  background: var(--ink);
+  background: var(--accent);
   color: var(--white);
-  border-color: var(--ink);
+  border-color: var(--accent);
+  font-weight: 500;
 }
 
-/* a card: an edge or a shadow, never both, never inside another card */
-.card {
-  background: var(--fill, var(--panel));
-  border: 1px solid var(--edge, var(--line));
-  border-radius: 10px;
-  padding: 11px var(--space-3);
-}
-
-.card.lifted {
-  border-color: transparent;
-  box-shadow: var(--shadow-menu);
-}
-
-.st-working {
-  --edge: var(--tint-working-edge);
-  --fill: var(--tint-working-fill);
-}
-
-.st-blocked {
-  --edge: var(--tint-blocked-edge);
-  --fill: var(--tint-blocked-fill);
-}
-
-.st-ready {
-  --edge: var(--tint-ready-edge);
-  --fill: var(--tint-ready-fill);
-}
-
-.st-draft {
-  --edge: var(--tint-draft-edge);
-  --fill: var(--tint-draft-fill);
-}
-
-.st-local {
-  --edge: var(--tint-local-edge);
-  --fill: var(--tint-local-fill);
-}
-
-.st-merged {
-  --edge: var(--tint-merged-edge);
-  --fill: var(--tint-merged-fill);
-}
-
-.st-queued,
-.st-cancelled {
-  --edge: var(--tint-queued-edge);
-  --fill: var(--tint-queued-fill);
-}
-
-.st-waits {
-  --edge: var(--tint-waits-edge);
-  --fill: var(--tint-waits-fill);
+.btn.pri:hover {
+  background: var(--accent-dark);
 }
 
 .tbl {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 6px 10px;
+  padding: 6px 12px;
   overflow: auto;
 }
 
@@ -211,7 +118,7 @@ th.num {
 
 .empty {
   border: 1px dashed var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   padding: 28px;
   color: var(--ink2);
   text-align: center;
@@ -231,7 +138,7 @@ th.num {
   width: min(max(var(--panel-width), var(--panel-share)), calc(100% - 28px));
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-panel);
   transform: translateX(calc(100% + 30px));
   transition: transform 0.25s ease;

@@ -1,10 +1,11 @@
 // The project picker: the button that names the project shown, and the menu it opens. The menu
-// lists the planning surface first (its name and path), then each project of it.
+// lists the planning surface first (its name), then each project of it.
 import { html } from '../core/dom.js';
+import { percent } from '../core/format.js';
 import { ALL } from '../core/router.js';
 import { t } from '../model/words.js';
 import { icon } from './icons.js';
-import { live, mark } from './parts.js';
+import { mark } from './parts.js';
 
 export const projectsOf = (state) => state.board?.projects ?? [];
 
@@ -27,11 +28,10 @@ export const pathsOf = (project) =>
     ? ''
     : html`<span class="pth" title="${project.folder}"><i>${t('project.folder')}</i> ${project.folder}</span><span class="pth" title="${project.repo}"><i>${t('project.repo')}</i> ${project.repo}</span>`;
 
-// A project's line: its batch and state, and how many items wait in its intake.
+// A project's line: its batch and state, or the no-batch words.
 export function lineOf(project) {
-  if (!project.batch) return `${t('project.no_batch')} · ${project.inbox} ${t('stats.inbox')}`;
-  const state = project.running ? t('project.running') : project.batch.state;
-  return t('project.line', { batch: project.batch.id, state, n: project.inbox });
+  if (!project.batch) return t('project.no_batch');
+  return t('project.line', { batch: project.batch.id, state: project.batch.state });
 }
 
 // The button: the project's mark, its name and a line, and a caret when there is a menu.
@@ -52,13 +52,20 @@ export function trigger(state, cls) {
 // The check mark of the current line.
 const ok = () => html`<span class="ok">${icon('check')}</span>`;
 
+// The menu's second line, only while a batch runs: the batch and the share of its CRs merged, as
+// Home's batch meter counts them.
+const progress = (project) =>
+  project.running
+    ? html`<small>${t('project.pct', { batch: project.batch.id, p: Math.round(percent(project.merged, project.total)) })}</small>`
+    : '';
+
 const row = (project, state) =>
-  html`<button class="row${project.id === state.project ? ' on' : ''}" type="button" data-project="${project.id}" role="menuitem">${mark(project.id)}<span class="who"><b>${project.id}</b>${project.running ? live() : ''}<small>${lineOf(project)}</small>${pathsOf(project)}</span>${project.id === state.project ? ok() : ''}</button>`;
+  html`<button class="row${project.id === state.project ? ' on' : ''}" type="button" data-project="${project.id}" role="menuitem">${mark(project.id)}<span class="who"><b>${project.id}</b>${progress(project)}</span>${project.id === state.project ? ok() : ''}</button>`;
 
 // The open menu, or nothing.
 export function menu(state) {
   if (!state.menu || !canPick(state)) return '';
   const projects = projectsOf(state);
-  const all = html`<button class="row${state.project === ALL ? ' on' : ''}" type="button" data-project="${ALL}" role="menuitem"><span class="mark all">${icon('overview')}</span><span class="who"><b>${surfaceName(state)}</b><small class="pth" title="${surfacePath(state)}">${surfacePath(state)}</small></span>${state.project === ALL ? ok() : ''}</button>`;
+  const all = html`<button class="row${state.project === ALL ? ' on' : ''}" type="button" data-project="${ALL}" role="menuitem"><span class="mark all">${icon('overview')}</span><span class="who"><b>${surfaceName(state)}</b></span>${state.project === ALL ? ok() : ''}</button>`;
   return html`<div class="menu" role="menu"><div class="cap">${t('project.head', { n: projects.length })}</div>${all}${projects.map((p) => row(p, state))}</div>`;
 }

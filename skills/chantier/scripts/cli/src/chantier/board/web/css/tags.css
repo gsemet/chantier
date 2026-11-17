@@ -1,0 +1,113 @@
+/* Tags, chips, labels and the state icons: neutral grey, no border. The only colours are the
+   accent (the CR id, 3-ready) and a state's own, in its icon. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border-radius: var(--radius-s);
+  background: var(--chip-2);
+  color: var(--ink2);
+  font-size: var(--text-small);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tag.badge {
+  font-size: var(--text-badge);
+}
+
+/* the CR id: the accent, medium, no fill */
+.tag.cr {
+  padding: 0;
+  background: none;
+  color: var(--accent);
+}
+
+.tag.pri-3-ready {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+/* the CR's slug, or a quiet fact beside a tag */
+.lbl {
+  max-width: 170px;
+  padding: 0 6px;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  background: var(--chip);
+  color: var(--ink2);
+  font-size: var(--text-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* a label: a grey chip with a small square in the label's colour before the word */
+.lab {
+  --lc: var(--label-5);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 7px;
+  border-radius: var(--radius-s);
+  background: var(--chip);
+  color: var(--ink2);
+  font-size: var(--text-badge);
+}
+
+.lab::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--lc);
+}
+
+/* a state's icon: an outline in the state's colour */
+.si {
+  display: inline-flex;
+  flex: none;
+  color: var(--c, var(--state-queued));
+}
+
+.si .svgi {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+  vertical-align: 0;
+}
+
+.si.working,
+.sb.working {
+  --c: var(--state-working);
+}
+
+.si.blocked,
+.sb.blocked {
+  --c: var(--state-blocked);
+}
+
+.si.ready,
+.sb.ready {
+  --c: var(--state-ready);
+}
+
+.si.draft,
+.sb.draft {
+  --c: var(--state-draft);
+}
+
+.si.local,
+.sb.local {
+  --c: var(--state-local);
+}
+
+.si.waits,
+.sb.waits {
+  --c: var(--state-waits);
+}
+
+.si.merged,
+.sb.merged {
+  --c: var(--state-merged);
+}

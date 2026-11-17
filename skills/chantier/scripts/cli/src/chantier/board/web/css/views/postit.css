@@ -16,7 +16,7 @@
 
 /* selected: a check mark in the top row and the card held lifted, no outline */
 .card.pi.sel {
-  border-color: var(--edge, var(--line));
+  border-color: var(--card-line);
   box-shadow: var(--shadow-note-hover);
 }
 
@@ -40,15 +40,12 @@
   pointer-events: none;
 }
 
-.pi.chg::after {
-  content: "modified";
-  position: absolute;
-  top: -7px;
-  right: 8px;
-  background: var(--tag-working-fill);
-  color: var(--tag-working-ink);
-  border-radius: 9px;
+.pi .chgm {
+  margin-left: auto;
   padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--accent-tint);
+  color: var(--accent);
   font-size: var(--text-badge);
 }
 
@@ -70,7 +67,7 @@
 
 .grpf {
   border: 1px dashed var(--edge-arrow);
-  border-radius: var(--radius-m);
+  border-radius: var(--radius-card);
   padding: 6px;
   /* a card's width plus the frame's border and padding, so a group's members are as wide as a loose card */
   min-width: calc(var(--card-w) + 14px);
@@ -138,22 +135,11 @@
   background: var(--dark-button-hover);
 }
 
-/* labels: a tinted word in the label's colour */
+/* labels: the grey chip with its coloured square is in tags.css */
 .labs {
   display: inline-flex;
   gap: 4px;
   flex-wrap: wrap;
-}
-
-.lab {
-  --lc: var(--label-5);
-  display: inline-block;
-  border: 0;
-  border-radius: 9px;
-  padding: 1px 8px;
-  font-size: var(--text-badge);
-  color: var(--lc);
-  background: color-mix(in srgb, var(--lc) 12%, var(--panel));
 }
 
 .lfil {
@@ -174,8 +160,8 @@
 }
 
 .lbtn.on {
-  color: var(--white);
-  background: var(--lc);
+  background: var(--accent-tint);
+  color: var(--accent);
 }
 
 .lclr {

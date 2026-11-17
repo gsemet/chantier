@@ -1,224 +1,85 @@
-/* The shell: the sidebar, the project menu, the header, the view area, the phone's bottom bar. */
+/* The shell: the grid, the main area with its sticky breadcrumb bar and page title, the phone's bar. */
 .app {
   display: grid;
   grid-template-columns: var(--side-width) 1fr;
   height: 100vh;
 }
 
-.side {
-  background: var(--side);
-  border-right: 1px solid var(--line);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.project {
-  position: relative;
-}
-
-.ws {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  width: 100%;
-  padding: var(--space-2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  color: var(--ink);
-  text-align: left;
-}
-
-button.ws:hover {
-  border-color: var(--scroll);
-}
-
-.ws small,
-.menu small {
-  display: block;
-  color: var(--ink3);
-  font-size: var(--text-small);
-}
-
-.ws .car {
-  margin-left: auto;
-  color: var(--ink3);
-}
-
-.mark.all {
-  background: var(--ink);
-}
-
-.menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 8;
-  width: max(100%, 280px);
-  max-height: 60vh;
-  overflow: auto;
-  padding: 6px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-menu);
-}
-
-.menu .cap {
-  padding: 6px 8px;
-  color: var(--ink3);
-  font-size: var(--text-small);
-}
-
-.menu .row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: var(--radius-m);
-  background: none;
-  color: var(--ink);
-  text-align: left;
-}
-
-.menu .row:hover {
-  background: var(--hover);
-}
-
-.menu .row.on {
-  background: var(--hover-soft);
-}
-
-.menu .row .ok {
-  margin-left: auto;
-  color: var(--ink2);
-}
-
-.menu .mark {
-  width: 28px;
-  height: 28px;
-}
-
-.sec {
-  margin: var(--space-4) 6px var(--space-1);
-  color: var(--ink2);
-  font-size: var(--text-small);
-  font-weight: 600;
-}
-
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: var(--space-2) 9px;
-  border: 0;
-  border-radius: var(--space-2);
-  background: none;
-  color: var(--ink2);
-  text-align: left;
-}
-
-.nav:hover {
-  background: var(--hover);
-}
-
-.nav.on {
-  background: var(--panel);
-  color: var(--ink);
-  box-shadow: var(--ring-nav);
-}
-
-.nav .n {
-  margin-left: auto;
-  color: var(--ink3);
-  font-size: var(--text-small);
-}
-
-.nav .ic {
-  display: grid;
-  place-items: center;
-  width: 18px;
-}
-
-.side .foot {
-  margin-top: auto;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
-  color: var(--ink3);
-  font-size: var(--text-small);
-  line-height: 1.6;
-}
-
-.lang {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  background: var(--panel);
-  color: var(--ink2);
-  font-size: var(--text-small);
-  padding: 1px var(--space-2);
-  margin-top: var(--space-1);
-}
-
+/* the main area scrolls; the breadcrumb bar sticks to its top, a light shadow once it has scrolled */
 .main {
-  background: var(--panel);
-  padding: var(--space-5) 28px;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--panel);
 }
 
 .head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  flex: none;
   gap: var(--space-3);
+  min-height: var(--crumb-height);
+  padding: 0 var(--gap-main);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 }
 
-.head h1 {
+.head.scrolled {
+  box-shadow: var(--shadow-head);
+}
+
+.titlerow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  flex: none;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-5) var(--gap-main) 0;
+}
+
+.titlerow h1 {
   margin: 0;
   font-size: var(--title);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  letter-spacing: var(--title-spacing);
 }
 
 .stats {
-  margin-top: 6px;
-  color: var(--ink2);
   display: flex;
-  gap: 14px;
   flex-wrap: wrap;
+  gap: var(--space-1) 14px;
+  color: var(--ink3);
+  font-size: var(--text-stat);
 }
 
 .stats b {
-  color: var(--ink);
+  color: var(--ink2);
+  font-weight: 500;
 }
 
 .notice {
-  margin-top: var(--space-2);
-  color: var(--tag-blocked-ink);
-  background: var(--tint-blocked-fill);
-  border: 1px solid var(--tint-blocked-edge);
+  align-self: flex-start;
+  margin: var(--space-3) var(--gap-main) 0;
+  color: var(--state-blocked);
+  border: 1px solid var(--line);
   border-radius: var(--radius-m);
   padding: 6px 10px;
   font-size: var(--text-small);
 }
 
 .view {
-  flex: 1;
+  flex: 1 0 auto;
   min-height: 0;
-  overflow: auto;
+  padding: var(--space-4) var(--gap-main) var(--space-5);
 }
 
 /* the phone's project button and bottom bar exist on the phone only */
-.project.phone,
+.phonebar,
 .bnav {
   display: none;
 }
@@ -233,37 +94,40 @@ button.ws:hover {
   }
 
   .main {
-    padding: 14px var(--space-3) var(--bar-height);
+    padding-bottom: var(--bar-height);
   }
 
-  .head h1 {
+  .head {
+    padding: 0 var(--space-3);
+    min-height: 0;
+  }
+
+  .crumbs {
+    display: none;
+  }
+
+  .phonebar {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    padding: var(--space-2) 0;
+  }
+
+  .titlerow {
+    padding: var(--space-4) var(--space-3) 0;
+  }
+
+  .titlerow h1 {
     font-size: var(--title-phone);
   }
 
-  .project.phone {
-    display: block;
-    margin-bottom: var(--space-2);
+  .notice {
+    margin: var(--space-2) var(--space-3) 0;
   }
 
-  .pbtn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-m);
-    background: var(--panel);
-    color: var(--ink);
-    padding: 5px 9px;
-    font-size: 13px;
-  }
-
-  .pbtn .car {
-    margin-left: auto;
-    color: var(--ink3);
-  }
-
-  .pbtn small {
-    display: none;
+  .view {
+    padding: var(--space-3);
   }
 
   .bnav {
@@ -292,5 +156,6 @@ button.ws:hover {
 
   .bnav button.on {
     color: var(--ink);
+    font-weight: 500;
   }
 }

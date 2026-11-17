@@ -7,7 +7,7 @@
 .config .note.bad,
 .config .start.bad,
 .config .over {
-  color: var(--red);
+  color: var(--bad-ink);
 }
 
 .config .note.ok {
@@ -27,6 +27,14 @@
 
 .config .scroll {
   overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 4px 12px;
+}
+
+.config th {
+  font-size: var(--text-small);
 }
 
 .config table {
@@ -41,7 +49,15 @@
 }
 
 .config .role {
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.config .eff {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--chip-2);
 }
 
 .config .bar {
@@ -65,4 +81,14 @@
 .config .inh {
   color: var(--ink3);
   font-size: var(--text-small);
+}
+
+.config select,
+.config input[type="text"] {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-nav);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
 }

@@ -10,10 +10,10 @@ const ROWS = ['inbox', 'P1', 'P2', 'P3', 'P4', '3-ready'];
 const LAST_MERGED = 4;
 
 const COLORS = {
-  spec: 'var(--green)',
-  grill: 'var(--amber)',
+  spec: 'var(--accent)',
+  grill: 'var(--accent-light)',
   raw: 'var(--queued-bar)',
-  auto: 'var(--violet)',
+  auto: 'var(--accent-dark)',
 };
 
 const WORDS = { spec: 'pipe.specified', grill: 'pipe.grill', raw: 'pipe.raw', auto: 'pipe.auto' };

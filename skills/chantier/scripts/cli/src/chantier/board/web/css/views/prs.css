@@ -11,23 +11,36 @@
 .prview .pverr {
   margin-bottom: var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--tint-blocked-edge);
-  border-radius: var(--radius-m);
-  background: var(--tint-blocked-fill);
-  color: var(--red);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--bad-ink);
 }
 
 .prview .pvrows {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
 }
 
 .prview .pvrow {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--edge, var(--line));
-  border-radius: var(--radius-m);
-  background: var(--fill, var(--panel));
+  padding: 10px var(--space-4);
+  border-bottom: 1px solid var(--line2);
+}
+
+.prview .pvrow:last-child {
+  border-bottom: 0;
+}
+
+.prview a.pvrow:hover {
+  background: var(--hover);
+}
+
+.prview .pvrow .si {
+  margin-right: 4px;
+  vertical-align: -3px;
 }
 
 .prview .pvrow .top {
@@ -51,6 +64,7 @@
   margin-left: auto;
   padding: 0 6px;
   border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: var(--radius-s);
   color: var(--ink2);
   cursor: pointer;
@@ -72,21 +86,21 @@
 }
 
 .prview .pvrow .bad {
-  color: var(--red);
+  color: var(--bad-ink);
 }
 
 .prview .pvrow .ok {
-  color: var(--green);
-  font-weight: 600;
+  color: var(--ok-ink);
+  font-weight: 500;
 }
 
 .prview .pvrow .wait {
-  color: var(--amber);
+  color: var(--warn-ink);
 }
 
 .prview .pvrow .why {
   margin-top: 4px;
-  color: var(--amber);
+  color: var(--bad-ink);
   font-size: var(--text-small);
-  font-weight: 600;
+  font-weight: 500;
 }

@@ -13,6 +13,7 @@ import { backlogBlock } from './home-backlog.js';
 import { batchBlock } from './home-batch.js';
 import { activityBlock } from './home-feed.js';
 import { historyBlock } from './home-history.js';
+import { projectBlock } from './home-project.js';
 import { prsBlock } from './home-prs.js';
 
 const reviewTile = (state) => {
@@ -77,7 +78,7 @@ const writtenTile = (state) => {
 export const TILES = [reviewTile, waitingTile, grillTile, nextTile, writtenTile];
 
 export const render = (state) =>
-  html`<div class="home"><div class="tiles">${TILES.map((tile) => tile(state))}</div><div class="blocks">${batchBlock(state)}${prsBlock(state)}${activityBlock(state)}${backlogBlock(state)}${historyBlock(state)}</div></div>`;
+  html`<div class="home"><div class="tiles">${TILES.map((tile) => tile(state))}</div><div class="blocks">${batchBlock(state)}${prsBlock(state)}${activityBlock(state)}${backlogBlock(state)}${historyBlock(state)}${projectBlock(state)}</div></div>`;
 
 // A CR row opens its folder; a PR link opens the PR only.
 export function mount(root) {

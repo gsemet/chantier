@@ -1,0 +1,93 @@
+/* The sidebar: white with a hairline, section captions, the views as rows, the foot. */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) 14px;
+  background: var(--side);
+  border-right: 1px solid var(--line);
+}
+
+.sec {
+  margin: var(--space-4) var(--space-2) var(--space-1);
+  color: var(--caption);
+  font-size: var(--text-badge);
+  font-weight: 500;
+  letter-spacing: var(--caption-spacing);
+  text-transform: uppercase;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: var(--nav-height);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-nav);
+  background: none;
+  color: var(--ink2);
+  text-align: left;
+}
+
+.nav .svgi {
+  color: var(--ink3);
+}
+
+.nav:hover {
+  background: var(--hover);
+}
+
+.nav.on {
+  background: var(--pill);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.nav.on .svgi {
+  color: var(--ink);
+}
+
+.nav .n {
+  margin-left: auto;
+  color: var(--count);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+
+.nav .ic {
+  display: grid;
+  place-items: center;
+  width: 18px;
+}
+
+.side .foot {
+  margin-top: auto;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+
+.side .foot .sec {
+  margin-left: var(--space-1);
+}
+
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--panel);
+  color: var(--ink2);
+  font-size: var(--text-small);
+  padding: 1px var(--space-2);
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 760px) {
+  .side {
+    display: none;
+  }
+}

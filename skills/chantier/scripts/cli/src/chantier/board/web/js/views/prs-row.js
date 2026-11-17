@@ -5,9 +5,12 @@ import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
-import { tag } from '../ui/parts.js';
+import { stateIcon, tag } from '../ui/parts.js';
 
 const TAGS = { open: 'queued', draft: 'draft', merged: 'merged', closed: 'blocked' };
+
+// The checks' icon, as a state's: green is ready, failing is blocked, running waits.
+const CHECK_ICON = { green: 'ready', failing: 'blocked', running: 'waits' };
 
 const folder = (row) =>
   html`<span class="fold" ${opener(crKey(row), 'pv-')} title="${t('pr.folder')}" aria-label="${t('pr.folder')}">${icon('folder')}</span>`;
@@ -18,9 +21,10 @@ const kind = (row) => (row.kind ? tag('rel', t(`kind.${row.kind}`)) : '');
 // never "none".
 function checks(row) {
   if (row.state === 'merged' || row.state === 'closed') return '';
-  if (row.checking) return html`<span class="wait">${t('pv.checking')}</span>`;
+  if (row.checking) return html`<span class="wait">${stateIcon('waits')}${t('pv.checking')}</span>`;
   const cls = row.checks === 'failing' ? 'bad' : '';
-  return html`<span class="${cls}">${t(`pv.checks.${row.checks}`)}</span>`;
+  const mark = CHECK_ICON[row.checks];
+  return html`<span class="${cls}">${mark ? stateIcon(mark) : ''}${t(`pv.checks.${row.checks}`)}</span>`;
 }
 
 const conflict = (row) => {
@@ -75,10 +79,10 @@ const readAt = (readTime, now) =>
 // CR's folder, as on the Batch view.
 export function prRow(row, now, readTime) {
   const number = html`<b>${prNumber(row.pr)}</b>`;
-  const top = html`<div class="top">${number}<span class="tag cr">${row.cr}</span>${kind(row)}${tag(TAGS[row.state] ?? 'queued', t(`pv.state.${row.state}`))}${folder(row)}</div>`;
+  const top = html`<div class="top">${number}<span class="tag cr">${row.cr}</span>${kind(row)}${tag('st', html`${stateIcon(TAGS[row.state] ?? 'queued')}${t(`pv.state.${row.state}`)}`)}${folder(row)}</div>`;
   const facts = html`<div class="facts">${conflict(row)}${checks(row)}${into(row)}${readyNow(row)}${when(row, now)}${readAt(readTime, now)}</div>`;
   const inner = html`${top}<div class="nt">${row.title}</div>${facts}${disagreement(row)}`;
-  const names = `pvrow st-${TAGS[row.state] ?? 'queued'}`;
+  const names = 'pvrow';
   const url = safeUrl(row.pr);
   if (!url) return html`<div class="${names}" data-key="pv-${row.cr}">${inner}</div>`;
   return html`<a class="${names}" data-key="pv-${row.cr}" href="${url}" target="_blank" rel="noopener" title="${t('pr.open')}">${inner}</a>`;

@@ -1,0 +1,41 @@
+/* The breadcrumb bar: grey parents, the page in ink, lighter separators, the batch's state chip. */
+.crumbs {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 10px;
+  min-width: 0;
+  color: var(--ink3);
+  white-space: nowrap;
+}
+
+.crumbs .cur {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.crumbs .sepc {
+  color: var(--sep);
+}
+
+.crumbs .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  background: var(--chip);
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.newbtn {
+  margin-left: auto;
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  .crumbs {
+    display: none;
+  }
+}

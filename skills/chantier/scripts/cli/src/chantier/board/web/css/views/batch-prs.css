@@ -1,18 +1,12 @@
-/* The Batch view's PR columns: to review and drafts on the left, merged on the right. */
-.batch .prs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
-}
-
+/* The Batch view's PR column: the PRs to review, then the drafts. */
 .batch .prcol {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 10px;
+  gap: 8px;
+  padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--tint-queued-fill);
+  background: var(--col-fill);
 }
 
 .batch .prcol h3 {
@@ -20,7 +14,7 @@
   align-items: center;
   gap: 6px;
   margin: 0 0 2px;
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 .batch .prcol h3 .c {
@@ -36,22 +30,23 @@
 }
 
 .batch .none {
-  padding: 10px var(--space-2);
+  padding: var(--space-1) 2px;
   color: var(--ink3);
   font-size: var(--text-small);
+  line-height: 1.5;
 }
 
 .batch .prsub {
   margin-top: 6px;
   color: var(--ink3);
   font-size: var(--text-small);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .batch .stackrail {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   margin-left: var(--space-2);
   padding-left: var(--space-2);
   border-left: 2px dashed var(--line);
@@ -59,21 +54,12 @@
 
 .batch .prc {
   display: block;
-  padding: var(--space-2) 10px;
-  border: 1px solid var(--edge, var(--line));
-  border-radius: var(--radius-m);
-  background: var(--fill, var(--panel));
   color: inherit;
   text-decoration: none;
-  transition: box-shadow 0.15s;
-}
-
-.batch .prc:hover {
-  border-color: color-mix(in srgb, var(--edge, var(--line)), var(--ink) 22%);
 }
 
 .batch .prc.draft {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .batch .prc .top {
@@ -87,11 +73,6 @@
   font-size: 13px;
 }
 
-.batch .prc .top .r {
-  margin-left: auto;
-  color: var(--ink3);
-}
-
 .batch .prc .pos {
   margin-left: auto;
   padding: 1px 6px;
@@ -99,19 +80,18 @@
   background: var(--ink);
   color: var(--white);
   font-size: var(--text-small);
-  font-weight: 700;
+  font-weight: 500;
 }
 
-.batch .prc .nm {
-  flex-wrap: wrap;
+.batch .prc .nt {
+  margin-top: 6px;
 }
 
 .batch .prc .gate {
   display: flex;
+  flex-basis: 100%;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
-  font-size: var(--text-small);
   color: var(--ink2);
 }
 
@@ -124,6 +104,7 @@
   padding: 0 6px;
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
+  background: var(--panel);
   color: var(--ink2);
   cursor: pointer;
 }
@@ -136,7 +117,6 @@
 
 @media (max-width: 760px) {
   .batch .prs {
-    grid-template-columns: 1fr;
     order: -1;
   }
 }
