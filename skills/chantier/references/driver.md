@@ -774,7 +774,12 @@ creates the stack again and reads it back (the drafts are a line to act on, not 
 GitLab it only retargets, there is nothing to unstack. Never retarget a PR by hand: a PR's base
 cannot change while it is stacked, and on GitLab `forge-stack` retargets, though GitLab would
 allow it by hand. A `rebuild` refused (by the forge or the permission check) is an `anomaly` with
-the exact text, as above; no other means.
+the exact text, as above; no other means, except one: when its error ends with the line `stack #<n>
+is dissolved and no stack replaces it yet: run `forge-stack create``, run `$CHANTIER forge-stack
+create` yourself and go on as after a `rebuild` (a `create` refused is an `anomaly` with the exact
+text). The line `… the stack's state is unknown: run `forge-stack show`` gets no exception: it
+stays an `anomaly` with the exact text; before you raise it you may run `forge-stack show` (a read)
+and quote its output in the anomaly, without carrying on from it.
 
 **A CR that joins** (it has a PR, a draft): order it on top (`stack`), have it rebased (see "Who
 moves a branch"), then `$CHANTIER forge-stack rebuild` (unstack, retarget, create; on GitLab, retarget). The PRs below

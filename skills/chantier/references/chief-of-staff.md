@@ -1074,7 +1074,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   one restack at most, silently: no ask follows it, and none when the whole stack merged; the release CR's merge starts the
   release procedure, as today). An `anomaly` of the stack driver or the Foreman on a refused
   `$CHANTIER forge-stack rebuild` reaches the user as an ask with the exact text; on the user's
-  yes, run `$CHANTIER forge-stack rebuild` yourself (no raw `gh api`). On GitLab (unproved; trial: one run
+  yes, run yourself the command the refusal's last line names (`$CHANTIER forge-stack create`
+  after the line `… is dissolved and no stack replaces it yet`, `$CHANTIER forge-stack show` after
+  the line `… the stack's state is unknown`), or `$CHANTIER forge-stack rebuild` when it names none
+  (no raw `gh api`). On GitLab (unproved; trial: one run
   on a GitLab project), `forge-stack show` reads the same checks on the chain and names the commit
   the same way; tell the user the stack is mergeable one MR at a time from the bottom up to the MR
   of the commit named, never "in one action from that MR"; that each next MR is mergeable once

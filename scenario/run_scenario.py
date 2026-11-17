@@ -5220,8 +5220,12 @@ def forge_stack_cli(w: World) -> None:
              bases={"205": "main", "202": "elsewhere", "204": branch(b), "203": branch(new)},
              patch_refused=True)
         w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
-        check("a `rebuild` stopped by the forge prints what was done and the forge's exact text (exit 4)",
+        gone_line = ("stack #150 is dissolved and no stack replaces it yet: run "
+                     "`forge-stack create`")
+        check("a `rebuild` stopped by the forge prints what was done, the forge's exact text and, "
+              "last, that the stack is dissolved and `forge-stack create` is next (exit 4)",
               "unstacked #150" in w.last_stderr and "HTTP 403" in w.last_stderr
+              and w.last_stderr.strip().splitlines()[-1] == gone_line
               and gh_state()["bases"]["202"] == "elsewhere", w.last_stderr)
         w.gh(patch_refused=False)
         code, out = w.chantier("forge-stack", "rebuild", env=on_path)
@@ -5238,12 +5242,61 @@ def forge_stack_cli(w: World) -> None:
         check("a `rebuild` whose stack stays open after five unstack tries exits 4 and names the "
               "stack and the tries",
               len(open_now) == 1 and f"stack #{open_now[0]} is still open after 5 unstack tries"
-              in stuck and "the forge reads it back with #" in stuck, stuck)
+              in stuck and "the forge reads it back with #" in stuck
+              and "is dissolved" not in stuck and "state is unknown" not in stuck, stuck)
         w.gh(unstack_ignored=False, next_stack=200)  # numbers apart from the one seeded in 3.
         code, out = w.chantier("forge-stack", "rebuild", env=on_path)
         check("with the forge answering again, the next `rebuild` unstacks it and completes",
               code == 0 and f"unstacked #{open_now[0]}" in out
               and any(ln.startswith("stack #") for ln in out), str(out))
+        # 3c. the forge's empty unstack reply is a success; a refusal after it says `create`
+        planned_prs = {201, 202, 203, 204, 205}
+
+        def open_holding() -> list[int]:
+            return [s["number"] for s in gh_state()["stacks"]
+                    if s["open"] and planned_prs & set(s["pull_requests"])]
+
+        held_now = open_holding()
+        w.gh(unstack_empty=True)
+        code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+        made = open_holding()
+        check("with the forge's unstack reply empty (2xx, no body), `rebuild` still completes: it "
+              "unstacks, creates a stack and reads it back, one open stack holds the PRs",
+              code == 0 and len(held_now) == 1 and f"unstacked #{held_now[0]}" in out
+              and any(ln.startswith("stack #") for ln in out)
+              and (any(" ready" in ln for ln in out) or any(ln.startswith("check 4") for ln in out))
+              and len(made) == 1 and made != held_now, str(out))
+        w.gh(stack_refused=True)
+        w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
+        refused = w.last_stderr
+        said = refused.strip().splitlines()
+        cut = [refused.find(x) for x in (f"unstacked #{made[0]}", "HTTP 403: stacks are not allowed")]
+        check("a `rebuild` whose create call is refused after the unstack: what was done, the "
+              "forge's text, then last the dissolved line naming `forge-stack create` (exit 4)",
+              len(made) == 1 and 0 <= cut[0] < cut[1]
+              and said[-1] == f"stack #{made[0]} is dissolved and no stack replaces it yet: run "
+              "`forge-stack create`", refused)
+        w.gh(stack_refused=False)
+        code, out = w.chantier("forge-stack", "create", env=on_path)
+        check("`forge-stack create` after the dissolved line: exit 0 and one open stack holds the PRs",
+              code == 0 and len(open_holding()) == 1, str(out))
+        # 3d. a create call the forge accepted whose reply cannot be read: `show` is next
+        made = open_holding()
+        w.gh(create_unreadable=True)
+        w.chantier("forge-stack", "rebuild", env=on_path, expect=4)
+        unreadable = w.last_stderr
+        cut = [unreadable.find(x) for x in (f"unstacked #{made[0]}", "not JSON")]
+        check("a `rebuild` whose create reply cannot be read: what was done, `not JSON`, then last the "
+              "unknown-state line naming `forge-stack show`, and no dissolved line (exit 4)",
+              len(made) == 1 and 0 <= cut[0] < cut[1]
+              and unreadable.strip().splitlines()[-1] == "the forge accepted the create call but "
+              "its reply cannot be read, so the stack's state is unknown: run `forge-stack show`"
+              and "is dissolved" not in unreadable, unreadable)
+        w.gh(unstack_empty=False, create_unreadable=False)
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("`forge-stack show` after the unknown-state line: the stack the fake made is read "
+              "back, one open stack holds the PRs",
+              code == 0 and len(open_holding()) == 1 and open_holding() != made, str(out))
         # 4. refused on a GitLab link
         record(**{b: PR_LINK["gitlab"] + "202"})
         code, _ = w.chantier("forge-stack", "rebuild", env=on_path, expect=2)

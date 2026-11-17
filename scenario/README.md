@@ -190,6 +190,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (unstack, retarget, one new stack bottom to top, the release on top), after a partial merge
   (the first PR left to the default branch), stopped by a forge refusal and run again, stopped by
   a stack that stays open after five unstack tries (exit 4, `unstack_ignored`) and run again,
+  the forge's empty unstack reply (`unstack_empty`: `rebuild` completes), the dissolved line on a
+  failure after the unstack (its absence after the five tries) and `create` run after it, the
+  unknown-state line when the create reply cannot be read (`create_unreadable`) and `show` run
+  after it,
   idempotent with drafts as a line to act on, and refused on a GitLab link mixed into a GitHub
   stack (not all in one repository), on a link of neither shape, on a parallel batch and with no
   PR at the bottom of the stack; a dropped CR's PR still held by the forge's stack (`check 2: …

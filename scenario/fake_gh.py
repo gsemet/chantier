@@ -84,6 +84,8 @@ elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks/\d+/uns
     if not found[0]["pull_requests"]:
         found[0]["open"] = False  # dissolved when none is left
     json.dump(state, open(state_path, "w"))
+    if state.get("unstack_empty"):  # dissolves the stack and answers 2xx with an empty body
+        sys.exit(0)
     print(json.dumps(found[0]))
 elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks(/\d+)?", a) for a in args):
     # the stacks endpoint: create (POST, pull_requests[] bottom to top), list and read; the stacks
@@ -118,6 +120,9 @@ elif args[:1] == ["api"] and any(re.fullmatch(r"repos/[^/]+/[^/]+/stacks(/\d+)?"
         state["next_stack"] = n + 1
         stacks.append({"number": n, "open": True, "pull_requests": numbers})
         json.dump(state, open(state_path, "w"))
+        if state.get("create_unreadable"):  # creates the stack, answers a reply that is no JSON
+            print("<html>")
+            sys.exit(0)
         print(json.dumps(shown(stacks[-1])))
     elif path.endswith("/stacks"):
         print(json.dumps([shown(s) for s in stacks]))
