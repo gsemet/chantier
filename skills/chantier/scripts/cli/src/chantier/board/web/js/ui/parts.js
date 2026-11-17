@@ -18,7 +18,7 @@ export const stateIcon = (s) => {
 // The tag of a CR's state: its icon and its word in grey ink. A queued CR held by its
 // dependencies reads "waits".
 export const stateTag = (c, opts) =>
-  tag('st', html`${stateIcon(c)}${t(`state.${vstate(c)}`)}`, opts);
+  tag(`st ${vstate(c)}`, html`${stateIcon(c)}${t(`state.${vstate(c)}`)}`, opts);
 
 // The tag of the CR the batch would start next, in the queued grey; nothing for another.
 export const nextTag = (c) => (c.next_to_start ? tag('queued', t('card.next')) : '');

@@ -54,7 +54,7 @@
   min-width: 0;
 }
 
-/* the state badge: the icon and the word in the state's colour, on white, top right */
+/* the state badge: the icon and the word in the state's colour, on its tint, top right */
 .batch .node .sb {
   display: inline-flex;
   align-items: center;
@@ -67,6 +67,38 @@
   color: var(--c, var(--state-queued));
   font-size: var(--text-badge);
   font-weight: 500;
+}
+
+.batch .node .sb.queued {
+  background: var(--state-queued-tint);
+}
+
+.batch .node .sb.working {
+  background: var(--state-working-tint);
+}
+
+.batch .node .sb.blocked {
+  background: var(--state-blocked-tint);
+}
+
+.batch .node .sb.ready {
+  background: var(--state-ready-tint);
+}
+
+.batch .node .sb.draft {
+  background: var(--state-draft-tint);
+}
+
+.batch .node .sb.local {
+  background: var(--state-local-tint);
+}
+
+.batch .node .sb.waits {
+  background: var(--state-waits-tint);
+}
+
+.batch .node .sb.merged {
+  background: var(--state-merged-tint);
 }
 
 .batch .node.dim {

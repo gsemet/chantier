@@ -29,6 +29,14 @@
   font-size: var(--text-small);
 }
 
+.crumbs .chip.working {
+  background: var(--state-working-tint);
+}
+
+.crumbs .chip.queued {
+  background: var(--state-queued-tint);
+}
+
 .newbtn {
   margin-left: auto;
   flex: none;

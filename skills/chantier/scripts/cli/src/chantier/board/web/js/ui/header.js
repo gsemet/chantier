@@ -70,7 +70,7 @@ export function crumbs(state) {
   const batch = !all && state.view === 'batch' ? state.data?.batch : null;
   if (batch) {
     const shown = batch.state === 'running' ? 'working' : 'queued';
-    const chip = html`<span class="chip">${stateIcon(shown)}${t(`state.${shown}`)}</span>`;
+    const chip = html`<span class="chip ${shown}">${stateIcon(shown)}${t(`state.${shown}`)}</span>`;
     return html`<span>${first}</span>${sepc}<span>${page}</span>${sepc}<span class="cur">${batch.id}</span>${chip}`;
   }
   return html`<span>${first}</span>${sepc}<span class="cur">${page}</span>`;

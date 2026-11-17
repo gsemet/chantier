@@ -78,6 +78,18 @@
   padding: var(--space-4) var(--gap-main) var(--space-5);
 }
 
+/* the Kanban fills the main area's height: the page does not scroll, the board's own scrollbar sits
+   at the window's bottom and each column scrolls alone */
+.main:has(.kanban) {
+  overflow-y: hidden;
+}
+
+.view:has(> .kanban) {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
 /* the phone's project button and bottom bar exist on the phone only */
 .phonebar,
 .bnav {

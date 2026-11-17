@@ -62,6 +62,37 @@
   border-color: var(--card-hover);
 }
 
+/* an item of a priority bucket: a 3px left border in the priority's teal, whichever the view and
+   whatever the card's other looks (selected, hovered, dragged) */
+.card.pri-P1,
+.card.pri-P2,
+.card.pri-P3,
+.card.pri-P4 {
+  border-left: 3px solid var(--pri-c);
+}
+
+/* the selected, picked-up or hovered card keeps the left border's colour (more specific than
+   their own border-color) */
+.card:is(.pri-P1, .pri-P2, .pri-P3, .pri-P4):is(.sel, .pi, .lifted, [data-open]:hover) {
+  border-left-color: var(--pri-c);
+}
+
+.card.pri-P1 {
+  --pri-c: var(--pri-1);
+}
+
+.card.pri-P2 {
+  --pri-c: var(--pri-2);
+}
+
+.card.pri-P3 {
+  --pri-c: var(--pri-3);
+}
+
+.card.pri-P4 {
+  --pri-c: var(--pri-4);
+}
+
 .card.sel {
   border-color: var(--accent);
   box-shadow:

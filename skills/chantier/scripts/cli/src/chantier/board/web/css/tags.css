@@ -1,5 +1,6 @@
-/* Tags, chips, labels and the state icons: neutral grey, no border. The only colours are the
-   accent (the CR id, 3-ready) and a state's own, in its icon. */
+/* Tags, chips, labels and the state icons: neutral grey, no border. The exceptions: a state chip,
+   on its state's tint with the state's colour in its icon, and a priority chip, on its priority's
+   teal; the CR id and 3-ready keep the accent. */
 .tag {
   display: inline-flex;
   align-items: center;
@@ -27,6 +28,27 @@
 .tag.pri-3-ready {
   background: var(--accent-tint);
   color: var(--accent);
+}
+
+/* the priorities: a gradient of the accent, P1 dark to P4 pale */
+.tag.pri-P1 {
+  background: var(--pri-1);
+  color: var(--white);
+}
+
+.tag.pri-P2 {
+  background: var(--pri-2);
+  color: var(--white);
+}
+
+.tag.pri-P3 {
+  background: var(--pri-3);
+  color: var(--accent-dark);
+}
+
+.tag.pri-P4 {
+  background: var(--pri-4);
+  color: var(--accent-dark);
 }
 
 /* the CR's slug, or a quiet fact beside a tag */
@@ -110,4 +132,38 @@
 .si.merged,
 .sb.merged {
   --c: var(--state-merged);
+}
+
+/* a state chip or badge: the state's tint behind its icon and its word */
+.tag.st.working {
+  background: var(--state-working-tint);
+}
+
+.tag.st.blocked {
+  background: var(--state-blocked-tint);
+}
+
+.tag.st.ready {
+  background: var(--state-ready-tint);
+}
+
+.tag.st.draft {
+  background: var(--state-draft-tint);
+}
+
+.tag.st.local {
+  background: var(--state-local-tint);
+}
+
+.tag.st.waits {
+  background: var(--state-waits-tint);
+}
+
+.tag.st.merged {
+  background: var(--state-merged-tint);
+}
+
+.tag.st.queued,
+.tag.queued {
+  background: var(--state-queued-tint);
 }

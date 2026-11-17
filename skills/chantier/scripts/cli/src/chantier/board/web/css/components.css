@@ -34,8 +34,8 @@
   width: 34px;
   height: 34px;
   border-radius: var(--radius-m);
-  background: var(--mark-0);
-  color: var(--white);
+  background: var(--mark-0-tint);
+  color: var(--mark-0);
   font-weight: 500;
 }
 
@@ -158,27 +158,33 @@ th.num {
   }
 }
 
-/* a project's mark takes one of the palette's colours */
+/* a project's mark: the letter in one of the palette's colours, on its pale tint */
 .mark[data-mark="0"] {
-  background: var(--mark-0);
+  background: var(--mark-0-tint);
+  color: var(--mark-0);
 }
 
 .mark[data-mark="1"] {
-  background: var(--mark-1);
+  background: var(--mark-1-tint);
+  color: var(--mark-1);
 }
 
 .mark[data-mark="2"] {
-  background: var(--mark-2);
+  background: var(--mark-2-tint);
+  color: var(--mark-2);
 }
 
 .mark[data-mark="3"] {
-  background: var(--mark-3);
+  background: var(--mark-3-tint);
+  color: var(--mark-3);
 }
 
 .mark[data-mark="4"] {
-  background: var(--mark-4);
+  background: var(--mark-4-tint);
+  color: var(--mark-4);
 }
 
 .mark[data-mark="5"] {
-  background: var(--mark-5);
+  background: var(--mark-5-tint);
+  color: var(--mark-5);
 }
