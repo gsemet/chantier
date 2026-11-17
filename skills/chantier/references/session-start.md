@@ -130,23 +130,23 @@ machine's code in front: a phone shows about 25 characters of a title. Its parts
 - **Project**, after a space: the repository's folder name, or, in a surface, the project's folder
   in it, capitalised (`Chantier`).
 - **Batch number:** only for a session that steers a batch (the Foreman, the Chief of Staff in
-  direct mode), after the project with a space, on two digits as in the batch's id (`Chantier 17`).
+  direct mode), last, in parentheses after a space as `(Batch <nn>)`, on two digits as in the batch's id (`(Batch 17)`).
 - **Role:** `CoS` for the Chief of Staff, `Griller`, `Foreman`. A Griller adds its subject once
   known, after the role: a few of the user's words, not a slug.
-- **Separator:** ` · ` (space, U+00B7, space) between the project (with its batch number), the role
+- **Separator:** ` · ` (space, U+00B7, space) between the project, the role
   and a Griller's subject.
 
 | Session | Title |
 | --- | --- |
 | Chief of Staff | `[<code>] 💬 Project · CoS` |
-| Chief of Staff steering a direct batch, from `open --direct` (or from the hand-over) until the batch is closed, then back to the line above | `[<code>] 💬 Project <nn> · CoS` |
+| Chief of Staff steering a direct batch, from `open --direct` (or from the hand-over) until the batch is closed, then back to the line above | `[<code>] 💬 Project · CoS (Batch <nn>)` |
 | Griller | `[<code>] 💬 Project · Griller` |
 | Griller, once its subject is known | `[<code>] 💬 Project · Griller · <subject>` |
-| Foreman, given in its prompt ([chief-of-staff](chief-of-staff.md)) | `[<code>] ⚙️ Project <nn> · Foreman` |
+| Foreman, given in its prompt ([chief-of-staff](chief-of-staff.md)) | `[<code>] ⚙️ Project · Foreman (Batch <nn>)` |
 
-Examples: `[Battle] 💬 Chantier · CoS`, `[Battle] 💬 Chantier 17 · CoS`,
+Examples: `[Battle] 💬 Chantier · CoS`, `[Battle] 💬 Chantier · CoS (Batch 17)`,
 `[Battle] 💬 Chantier · Griller`, `[Battle] 💬 Chantier · Griller · landing page`,
-`[Battle] ⚙️ Chantier 17 · Foreman`, `[Mac] ⚙️ Chantier 06 · Foreman`,
+`[Battle] ⚙️ Chantier · Foreman (Batch 17)`, `[Mac] ⚙️ Chantier · Foreman (Batch 06)`,
 `[Remote] 💬 Chantier · CoS`.
 
 - The title given to `seat take --title` is the session's current title; take the seat again

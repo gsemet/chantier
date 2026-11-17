@@ -821,8 +821,8 @@ Only in the turn where the user gave the go:
    ```
 
    `<skill>` is the common `chantier` skill's absolute folder; `<host>` is `claude-code` or
-   `copilot`. `<title>` is `[<code>] ⚙️ Project <nn> · Foreman` ([session-start](session-start.md),
-   "Titles"), `<nn>` the batch's number on two digits, e.g. `[Battle] ⚙️ Chantier 17 · Foreman`; a later Foreman of the same
+   `copilot`. `<title>` is `[<code>] ⚙️ Project · Foreman (Batch <nn>)` ([session-start](session-start.md),
+   "Titles"), `<nn>` the batch's number on two digits, e.g. `[Battle] ⚙️ Chantier · Foreman (Batch 17)`; a later Foreman of the same
    batch has the same title. Start the session as your host's reference says, in a session fit
    for a Foreman (its table of classes); the Foreman claims its epoch itself, after its worktree
    check. Where the
@@ -1412,7 +1412,7 @@ these differences.
 - **Escalation.** The Foreman's escalation triggers ([concepts](concepts.md), "Escalation") are
   yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`.
 
-- **Your title.** At `open --direct`, rename yourself `[<code>] 💬 Project <nn> · CoS`;
+- **Your title.** At `open --direct`, rename yourself `[<code>] 💬 Project · CoS (Batch <nn>)`;
   after `close --yes`, back to `[<code>] 💬 Project · CoS`
   ([session-start](session-start.md), "Titles").
 - **Your number as Foreman.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
