@@ -25,7 +25,7 @@ With several projects, Home is the table of the surface (its name is the page's 
 
 ![A project's Home](web-board/project-pc.png)
 
-A project's Home answers "what needs me?": five tiles (**To review**, the PRs ready to merge; **Waiting for you**, the CRs that are blocked; **In grill**, the items being grilled or specified; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs, the pipeline of the backlog, the recent activity of the batch (with no batch running, it names the last closed one), the last merged CRs and the five latest closed batches, one line each, with a link to the costs.
+A project's Home answers "what needs me?": five tiles (**To review**, the PRs ready to merge; **Waiting for you**, the CRs that are blocked; **In grill**, the items being grilled or specified; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs (a row opens its PR or MR on the forge, and its CR number opens the CR's folder), the pipeline of the backlog, the recent activity of the batch (with no batch running, it names the last closed one), the last merged CRs and the five latest closed batches, one line each, with a link to the costs.
 
 ### Batch
 
@@ -99,7 +99,7 @@ A value the code repository's own `chantier.yaml` overrides is still written to 
 
 ![A CR's folder in the side panel](web-board/panel-pc.png)
 
-A click on a CR, a card, a row or a PR's folder icon opens its folder in a side panel: the tree of its files on the left (sub-folders such as `intake/`, `evidence/` and `work/` included), the file on the right. Markdown is drawn, other text is shown as text, images are shown, and a file the page cannot show (too large, or another type) offers a download. The panel reads the planning folder only.
+A click on a CR, a card, a row or a PR's folder icon opens its folder in a side panel: the tree of its files on the left (sub-folders such as `intake/`, `evidence/` and `work/` included), the file on the right. Markdown is drawn, other text is shown as text, images are shown, and a file the page cannot show (too large, or another type) offers a download. A web link or URL of the drawn Markdown opens in a new tab; the facts row links the CR's PR or MR and a backlog item's issue, and an MR's number is `!n`. The panel reads the planning folder only.
 
 ### Editing a Markdown file
 

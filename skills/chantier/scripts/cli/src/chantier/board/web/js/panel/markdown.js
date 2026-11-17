@@ -1,7 +1,9 @@
 // The small Markdown renderer of the panel: headings, paragraphs, lists, tables, fenced code,
 // inline code, bold and links. Every piece of text is escaped first; the only markup in the
-// output is the tags written here. A link shows underlined and does not navigate.
+// output is the tags written here. A link whose address is a web one (a Markdown link, an autolink,
+// a bare URL) opens in a new tab; any other link target shows underlined and does not navigate.
 import { esc, raw } from '../core/dom.js';
+import { safeUrl } from '../core/format.js';
 
 const FENCE = /^\s*```/;
 const ROW = /^\s*\|/;
@@ -12,12 +14,56 @@ const HEADING = /^(#{1,6}) (.*)/;
 // A heading of the file sits under the panel's own `h2`: `#` is drawn as an `h3`, down to `h6`.
 const levelOf = (hashes) => Math.min(hashes.length + 2, 6);
 
-// Inline marks on already escaped text.
-const inline = (text) =>
-  esc(text)
+// A Markdown link, an autolink or a bare URL, in escaped text: one alternative matches, so no URL
+// is linked twice and no link holds another.
+const LINKS =
+  /\[([^\]]+)\]\(((?:[^()]|\([^()]*\))+)\)|&lt;(https?:\/\/.+?)&gt;|https?:\/\/(?:(?!&lt;|&gt;|&quot;|&#39;|<)\S)+/gi;
+
+const anchor = (url, label) =>
+  `<a href="${url}" target="_blank" rel="noopener" title="${url}">${label}</a>`;
+
+// A bare URL loses the punctuation that ends a sentence, and a `)` no `(` opens.
+function bare(found) {
+  let url = found;
+  let tail = '';
+  while (url.length > 1) {
+    const last = url.slice(-1);
+    const entity = /&#?\w+;$/.test(url);
+    const close = last === ')' && !url.includes('(');
+    if (entity || !(close || '.,;:!?'.includes(last))) break;
+    url = url.slice(0, -1);
+    tail = last + tail;
+  }
+  return anchor(url, url) + tail;
+}
+
+const bold = (text) => text.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+
+// A link's target loses an optional ` "title"` suffix (already escaped).
+const bareTarget = (target) => target.replace(/\s+&quot;.*?&quot;\s*$/, '');
+
+function link(found, label, target, auto) {
+  if (auto) return anchor(auto, auto);
+  if (label === undefined) return bare(found);
+  const url = bareTarget(target);
+  return safeUrl(url) ? anchor(url, bold(label)) : `<u>${bold(label)}</u>`;
+}
+
+// Inline marks on already escaped text. The links are cut out first, so the bold marks never touch
+// a URL; the inline code is left alone by the links and the bold marks.
+function inline(text) {
+  const held = [];
+  const hold = (...args) => `\uE000${held.push(link(...args)) - 1}\uE000`;
+  return esc(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<u>$1</u>');
+    .split(/(<code>.*?<\/code>)/)
+    .map((part, i) =>
+      i % 2
+        ? part
+        : bold(part.replace(LINKS, hold)).replace(/\uE000(\d+)\uE000/g, (_, n) => held[n]),
+    )
+    .join('');
+}
 
 const startsBlock = (line) =>
   FENCE.test(line) || ROW.test(line) || ITEM.test(line) || HEADING.test(line) || !line.trim();

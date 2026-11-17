@@ -8,10 +8,10 @@ import { openPanel } from '../panel/panel.js';
 
 async function open(event, element) {
   const state = snapshot();
-  const target = targetFor(state, element.dataset.open);
-  if (!target) return;
   event.preventDefault();
   event.stopPropagation();
+  const target = targetFor(state, element.dataset.open);
+  if (!target) return;
   if (await confirmLeave()) openPanel(state, target);
 }
 
