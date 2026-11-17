@@ -262,8 +262,9 @@ defer the rest of this card until an action names it. These are the card's defau
   <command>: <exact error>`. A refusal (an HTTP 4xx, a denied permission, a protected branch, a
   failed lease) is not an infrastructure failure: it keeps its own routes (`blocked refused`, the
   force-push route, a failed lease examined), with no re-run. The CI rule (an infrastructure
-  failure gets one re-run) is about a CI job, and the Release driver's "On the infrastructure"
-  is about a step of the procedure; both stay. This is the same rule for a single command.
+  failure gets at most the CI re-runs of your `timing:` line) is about a CI job, and the Release
+  driver's "On the infrastructure" is about a step of the procedure; both stay, and the remote
+  command's one re-run above is not the `timing:` line's. This is the same rule for a single command.
 - Push: a plain `git -C <worktree> push -u <remote> <branch>` when the remote branch is an ancestor
   of your head, `git -C <worktree> push --force-with-lease -u <remote> <branch>` only for a rewrite
   (a rebase).
@@ -373,7 +374,8 @@ defer the rest of this card until an action names it. These are the card's defau
   Staff asks the user (no `git add -f`). `archive: not in the PR`: nothing to add.
 - Logs: a raw log goes in `work/gates/` or a `*.log` file, never in a file that is published with
   the CR.
-- CI: while CI runs, do everything that does not need its result first: `pr-body.md` and the
+- CI: the `timing:` line you read is, on Claude Code, the `subagent` one; on Copilot, the line of
+  your model's family, else `other models`. While CI runs, do everything that does not need its result first: `pr-body.md` and the
   description as far as they can go, the archive's `delivery.md`, your notes. Then one long wait:
   the forge's watch in a background shell (`gh pr checks <pr> --watch`, `glab ci status
   --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
@@ -381,9 +383,12 @@ defer the rest of this card until an action names it. These are the card's defau
   it when no check is listed). Read the result yourself (`gh pr
   checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
-  failure gets one re-run, and a failure the CR does not touch that passes on its re-run is a
+  failure gets at most the CI re-runs of your `timing:` line (1 by default; 0: none), each at the
+  same head, and a failure the CR does not touch that passes on a re-run is a
   flake: a `note` names the test, the run and the symptom, for the Chief of Staff to file; the rest is a round, with a `debugger` first when the cause is not
-  plain. Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
+  plain. Once the re-runs are used up and the job is still red on the infrastructure, end with
+  `handback <cr> blocked infra: CI <job> red on the infrastructure after <n> re-runs` (the stack
+  driver: `[stack→foreman] anomaly <cr> infra: …`). Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit). What you say about CI follows these rules, for every
   Driver that pushes (a stack driver opens no PR: "the PR" is the one whose branch it pushed, the
@@ -404,8 +409,8 @@ defer the rest of this card until an action names it. These are the card's defau
       `$CHANTIER gate <cr> --stop` (recorded `stopped`: no pass, not a round), a `note` naming
       the job and the head, `gh run view <run> --log-failed > <work folder>/ci-<run>.log`, a
       `debugger` on it, the next round.
-    - An infrastructure failure, or a job also red on the default branch: its rule above (one
-      re-run, or a note). The gate is not stopped, its result still counts.
+    - An infrastructure failure, or a job also red on the default branch: its rule above (the
+      `timing:` line's re-runs, or a note). The gate is not stopped, its result still counts.
     - The gate fails first: a round, as today. Stop the CI watch's shell you started, by its
       id; CI at that head no longer counts.
     - The gate passes first: go on waiting for CI. CI is green first: go on waiting for the
@@ -919,8 +924,8 @@ conflict: stacked on <cr below>: <files>`.
 **Heavy CI on a head.** A note `heavy CI: <cr>` (the user asked for it): run the project's heavy
 CI at that PR's pushed head by the means the project's rules give (a re-run, a label, a workflow
 dispatch); when the forge already ran it at that head, only read the result. Judge it as the CI
-bullet says (the head first, a skipped job is never green, one re-run for an infrastructure
-failure), note it in that form (`CI: gh pr checks <n> at <head7>: …`), and name it in your
+bullet says (the head first, a skipped job is never green, the `timing:` line's re-runs for an
+infrastructure failure), note it in that form (`CI: gh pr checks <n> at <head7>: …`), and name it in your
 hand-back as `heavy CI <cr> at <head7>: green|red <checks>`. A red result changes nothing by
 itself.
 

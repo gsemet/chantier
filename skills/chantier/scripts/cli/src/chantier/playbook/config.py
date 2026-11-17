@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.playbook.models import HOST_NAMES, NAMED_AGENT_MODEL_AT_START, resolve
+from chantier.playbook.timing_check import check_timing
 from chantier.playbook.yaml_subset import Node, YamlError, is_reset, parse
 
 FILES = ("chantier.yaml", "chantier.yml")
@@ -131,17 +132,21 @@ def _hosts(node: Node, kline: int, roles_by_host: dict[str, list[str]], bad: Bad
         elif is_reset(hnode):
             continue
         elif hnode.kind != "map" or not hnode.value:
-            bad(hline, f'host "{host}" holds its keys: `roles:`')
+            bad(hline, f'host "{host}" holds its keys: `roles:` and `timing:`')
         else:
             _host(host, hnode, roles_by_host.get(host, []), bad)
 
 
 def _host(host: str, node: Node, roles: list[str], bad: Bad) -> None:
     for key, (line, value) in node.value.items():
-        if key != "roles":
-            bad(line, f'host "{host}": unknown key "{key}": one of roles')
-        elif not is_reset(value):
+        if key not in ("roles", "timing"):
+            bad(line, f'host "{host}": unknown key "{key}": one of roles, timing')
+        elif is_reset(value):
+            continue
+        elif key == "roles":
             _roles(value, line, host, roles, bad)
+        else:
+            check_timing(host, value, line, bad)
 
 
 def _roles(

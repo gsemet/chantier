@@ -11,7 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook import layers
+from chantier.playbook import layers, timing
 
 if TYPE_CHECKING:
     from chantier.core.records import CrEntry
@@ -251,6 +251,26 @@ def read_playbook(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[st
     root = plugin_root()
     defaults = root / "config" / "chantier.defaults.yml" if root else None
     return layers.load(repo, host, {h: plugin_roles(h) for h in HOSTS}, defaults)
+
+
+def read_timing(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[str]]:
+    """The timing of this host, resolved from the shipped defaults and the user's files (the
+    defaults alone with no user file), or the problems found. None with no plugin."""
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    found, problems = timing.load_timing(repo, {h: plugin_roles(h) for h in HOSTS}, defaults)
+    return (found or {}).get(host), problems
+
+
+def recorded_timing(record: Any) -> dict[str, Any] | None:
+    """The timing a batch opened with; a record with none runs the plugin's shipped defaults."""
+    if record.timing:
+        held: dict[str, Any] = record.timing
+        return held
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    tree, _ = layers.read_defaults(defaults, {h: plugin_roles(h) for h in HOSTS})
+    return timing.timing_from([], tree).get(record.host) if tree else None
 
 
 user_files = layers.user_files

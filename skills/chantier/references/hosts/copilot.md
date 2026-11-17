@@ -39,6 +39,8 @@ fact.
 | Preflight P2 | `create_session` and `send_message` load |
 | Ask the user a series of questions (grill, specification) | the host's question tool, at most 5 questions per call, at most 4 options per question (the general rule), the reference opening each question's text. The tool's exact name and whether it has its own free answer are not recorded here. Mark: the user's statement (2026-11-14, CR-250 answer 10), unproved; trial: one call with 5 questions on Copilot, all 5 shown, the tool's name and its free answer recorded |
 | Run the board | the host's background shell with the command `$CHANTIER board --seat <id>`, its first lines read from the output, stopped with the host's stop of a background shell (unproved; trial: a Chief of Staff starts it, `GET /api/board` with the key answers from the machine, the output shows the start line). If the host has no background command, the Chief of Staff gives the one line of `session-start.md` and goes on: no workaround |
+| Prompt cache TTL (the `cache_ttl` default, `5m`) | not known | unproved. Trial: a Copilot session's record that shows how long its prompt cache keeps a prefix (a cached read after a pause of known length, and a cold one after a longer pause); record the date and the models |
+| `/every` in whole minutes | the CLI refuses a Copilot duration that is not whole minutes | proved: `/every 4m` (the heartbeat today); unproved: another value. Trial: `/every` armed with a configured value other than 4 minutes, its wakes arriving at that interval; then a form in seconds, to learn whether `/every` takes it, before the rule moves |
 | The board when the session ends | whether the host ends a background command when the session ends (unproved; trial: start the board, end the session, ask `GET /api/board` with the key). Until proved, the board stops when the seat moves (the CLI) |
 | The skills | the same four, same names: `skills/chantier` (the router), `skills/chief-of-staff`, `skills/griller`, `skills/status`, declared in `.github/plugin/plugin.json`; how Copilot passes the argument `foreman` or `direct`, or the argument `reload`, is not known (unproved) |
 | Set a session's own title (the Chief of Staff, a Griller) | when the host offers a way; else nothing (unproved) |
@@ -51,12 +53,16 @@ Known host issues: a `model` array once refused by the CLI ([copilot-cli#2133](h
 
 ## Heartbeat
 
-In direct mode there is no Foreman chat: the Chief of Staff runs the same `/every` in its own session (unproved).
+In direct mode there is no Foreman chat: the Chief of Staff runs the same `/every` in its own session (unproved), its wake read from the
+batch's `timing: Copilot other models:` line.
 Otherwise the Chief of Staff arms it: on the Foreman's `ready <batch>`, it sends the Foreman chat `/every
-4m chantier status --refresh --batch <batch> --epoch <n>`. The Foreman cannot end `/every`. At
+<steering wake> chantier status --refresh --batch <batch> --epoch <n>`, the wake read from the
+batch's `timing: Copilot <family> models:` line for the family of the model it started the Foreman
+with, else from `timing: Copilot other models:`, written in `/every`'s form (`4m` by default). The Foreman cannot end `/every`. At
 every pause, the automatic one (when the last CR ends) included, the Chief of Staff tells the user
 to delete the `/every` in the Foreman chat (in direct mode, in its own session). The Foreman
-also ends its heartbeat when every Driver has ended for 30 minutes (nothing can move): the Chief
+also ends its heartbeat on the first wake that sees no Driver run for 30 minutes or more, whatever
+the wake's interval (nothing can move): the Chief
 of Staff then tells the user to delete the `/every`, and arms it again with the next order it
 sends the Foreman. Whoever ends the heartbeat (the Foreman, or in direct mode the Chief of Staff)
 first records it with `chantier status --stop-heartbeat --batch <batch> --epoch <n>` (`pause`

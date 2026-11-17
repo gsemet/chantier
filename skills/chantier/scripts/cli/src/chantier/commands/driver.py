@@ -30,8 +30,8 @@ from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
-from chantier.playbook.lines import team_lines
-from chantier.plugin_files import archive_path, cli_command
+from chantier.playbook.lines import team_lines, timing_lines
+from chantier.plugin_files import archive_path, cli_command, recorded_timing
 from chantier.rails import (
     all_merged,
     check_budget,
@@ -78,6 +78,7 @@ def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str) -> list[str
     reopened = _reopen(b)
     b.log("take", None, note=note)
     head, *rows = stack_lines(repo, batch, d)
+    rows += timing_lines(recorded_timing(d), d.host)  # after the CR rows, as `take <cr>` prints
     block = DriverBlock(
         {"<batch>": batch, "<root>": repo.root.as_posix()},
         f"{cli_command(repo)} <command> --batch {batch}",

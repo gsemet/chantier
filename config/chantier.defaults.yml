@@ -5,8 +5,20 @@
 # It changes only by a release, together with the agent files, which a test keeps equal to it.
 #
 # One model per plugin role on each host: the exact identifier the role's agent file declares.
+#
+# The `timing` block of each host: the steering session's wake, the prompt cache's TTL and the
+# CI re-runs. The values are what the cards said before the configuration held them. A column
+# overrides the general value of its host; a setting a column never reads is not set under it.
+# `cache_ttl` is measured once (Claude Code, 2026-11-17) or unproved (Copilot): see the hosts'
+# cards. The Claude Code `steering_wake` is general: only the session column reads it.
 hosts:
   claude:
+    timing:
+      steering_wake: 30m
+      cache_ttl: 5m
+      ci_reruns: 1
+      session:
+        cache_ttl: 1h
     roles:
       coder:
         model: claude-sonnet-5-5
@@ -37,6 +49,10 @@ hosts:
       verifier:
         model: claude-sonnet-5-5
   copilot:
+    timing:
+      steering_wake: 4m
+      cache_ttl: 5m
+      ci_reruns: 1
     roles:
       coder:
         model: gpt-6.1-sol

@@ -15,7 +15,7 @@ export const STATE_ORDER = [
   'queued',
   'merged',
 ];
-export const HEARTBEAT_LATE_MIN = 15;
+export const HEARTBEAT_MARGIN_MIN = 5;
 const MINUTE_MS = 60000;
 
 export const isOpen = (c) => Boolean(c) && !CLOSED.includes(c.state);
@@ -207,7 +207,8 @@ export function counts(batch) {
 // user's to answer: they stay in the Batch view.
 export const waitingForYou = (batch) => byState(batch, 'blocked').length;
 
-// The heartbeat: `stopped`, else the minutes since it, and whether that is late.
+// The heartbeat: `stopped`, else the minutes since it, and whether that is late: more than the
+// batch's steering wake and a margin.
 export function heartbeat(batch, nowIso) {
   if (batch.heartbeat_stopped) return { stopped: true, minutes: null, late: false };
   if (!batch.heartbeat || !nowIso) return { stopped: false, minutes: null, late: false };
@@ -215,7 +216,8 @@ export function heartbeat(batch, nowIso) {
     0,
     Math.round((Date.parse(nowIso) - Date.parse(batch.heartbeat)) / MINUTE_MS),
   );
-  return { stopped: false, minutes, late: minutes > HEARTBEAT_LATE_MIN };
+  const wake = batch.steering_wake_min;
+  return { stopped: false, minutes, late: wake != null && minutes > wake + HEARTBEAT_MARGIN_MIN };
 }
 
 // Who steers: the Foreman, or the Chief of Staff when the batch is direct.

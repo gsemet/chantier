@@ -44,6 +44,8 @@ Each behaviour carries a mark:
 | Ask the user a series of questions (grill, specification) | the host's question tool (`AskUserQuestion`), at most 4 questions per call, at most 4 options per question, plus the tool's own free answer ("Other"); the reference opens each question's text (the tool's short header field, if used, does not need to hold it). Remote Control relays the same tool: the user sees the same 4-question form on the phone. Under Remote Control the form shows above the conversation and the text written before it is read by scrolling up: the text is written before every call all the same | the figures: the user's statements (2026-11-14, CR-250 answers 5 and 11), unproved; trials: one call with 4 questions shown and a fifth refused; the same series from the phone under Remote Control, all 4 shown. The scrolling: observed by the user, 2026-11-14 (CR-250 answer 17) |
 | Run the board | `Bash` with `run_in_background: true` and the command `$CHANTIER board --seat <id>`; its first lines are read from the background task's output; stopped with the host's stop of a background shell | unproved; trial: a Chief of Staff starts it, `GET /api/board` with the key answers from the machine, and the output shows the start line |
 | Trust of a workspace inside a trusted folder | a folder the user has trusted once in Claude Desktop at the desk covers every new folder created inside it later, so a session started on such a folder from Remote Control does not ask for trust | unproved; trial: the first `real-direct` run after the eval root change, started from the phone on `<eval root>/real-direct-<date>`; the operator's `git rev-parse --git-dir`, `--git-common-dir` and `--show-toplevel` before `preflight` (evals README, "The operator"); on Pass the row is marked proved, with the date and the machine, on Fail it records what was seen |
+| Prompt cache TTL (the `cache_ttl` defaults) | a session's cache writes are 1-hour (`cache_creation.ephemeral_1h_input_tokens` in its transcript's usage), a subagent's 5-minute (`ephemeral_5m_input_tokens`) | measured once, 2026-11-17, one account; unproved in general. Trial: on another account, or after a host update, one session and one subagent each write the cache, and their transcripts' `cache_creation` fields show the same split; record the date and the account's kind |
+| Steering wake bound (60 minutes) | the CLI refuses a `steering_wake` over 60 minutes | proved: 30 minutes (real-direct run 1, 2026-11-12); unproved: any other value up to 60. Trial: a batch with `session: steering_wake: 60m` whose Foreman's transcript shows a `ScheduleWakeup` of 3600 seconds and a wake about an hour later; then one over 60 minutes, to learn whether the host accepts it, before the bound moves |
 | The board when the session ends | whether the host ends a background command when the session ends (closed, or stopped) | unproved; trial: start the board, end the session, ask `GET /api/board` with the key. Until proved, the board stops when the seat moves (the CLI), which does not depend on it |
 
 "Proved, same" means seen in use in every batch since v0.3, with no dated trial kept: re-prove a
@@ -59,14 +61,15 @@ Chief of Staff, and to a hand-over's.
 The Foreman (in direct mode the Chief of Staff, in its own session) runs the `/loop` skill in dynamic mode. The loop's prompt is the command `chantier status
 --refresh --batch <batch> --epoch <n>` alone, with no interval in it (no "every 30m", no other): a
 prompt that ends in an interval makes `/loop` take its fixed-interval mode (seen in real-direct
-run 1, 2026-11-12). Each wake is scheduled with `ScheduleWakeup`, 30 minutes (1800 seconds) after
-the last. It ends the
+run 1, 2026-11-12). Each wake is scheduled with `ScheduleWakeup`, the steering wake of the
+`timing: Claude Code session:` line of `chantier playbook --batch <batch>`, in seconds, after the
+last (30 minutes, 1800 seconds, by default). It ends the
 heartbeat, never its session, with `ScheduleWakeup` `stop: true` (after `chantier status
 --stop-heartbeat --batch <batch> --epoch <n>`, which every pause already does): right after the pause,
 the steering session's own or the automatic one (the record alone does not stop the wake, and a
 later wake's `status --refresh` resets it),
-and on a wake where no Driver of any kind (CR, stack, QA, release) has run since the last wake
-and no order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
+and on the first wake that sees no Driver of any kind (CR, stack, QA, release) run for 30 minutes
+or more, whatever the wake's interval, and no order is undone. An order's line or a `ping` starts a turn; if it leaves a Driver running, the
 Foreman arms the heartbeat again. No wake ever arriving is a stop. Proved: same.
 
 ## Auto-fix events

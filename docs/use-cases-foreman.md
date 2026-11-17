@@ -175,6 +175,6 @@ is kept.
 ## On GitHub Copilot
 
 Everything above works in a Copilot agent session the same way, with two differences: the
-Foreman's heartbeat runs every four minutes through `/every` (the Chief of Staff arms it, and asks
+Foreman's heartbeat runs at the configured steering wake (four minutes by default) through `/every` (the Chief of Staff arms it, and asks
 you to delete it when the batch is paused); and your own agents are named by their file in
 `.github/agents/` or `~/.copilot/agents/`.

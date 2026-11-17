@@ -195,6 +195,12 @@ def prompt_block(out: list[str], role: str) -> list[str]:
     return out[at:end]
 
 
+def stack_take_rows(out: list[str]) -> list[str]:
+    """`take stack`'s chain line and CR rows: before the skeleton, with no `timing:` line."""
+    at = next((i for i, ln in enumerate(out) if ln.startswith("stack-driver prompt (")), len(out))
+    return [ln for ln in out[:at] if not ln.startswith("timing: ")]
+
+
 def check_driver_skeleton(w, target: str, out: list[str]) -> None:
     """After a `take`, the skeleton of the CR's Driver: no `writes:` line for a release or stack
     driver and the stack rows in the stack driver's; for any other CR one `writes:` line naming
@@ -4945,10 +4951,15 @@ def stack_batch(w: World) -> None:
     _, again = w.chantier("stack")
     check("`stack` with no CR prints the lines `take stack` printed plus a last `context:` line, "
           "and writes nothing (`batch.json`, `events.jsonl`)",
-          again[:-1] == out[:out.index(prompt_block(out, "stack-driver")[0])]
+          again[:-1] == stack_take_rows(out)
           and again[-1].startswith("context:")
           and all((w.folder() / n).read_bytes() == v for n, v in kept.items()),
           str(again))
+    timing = [ln for ln in out if ln.startswith("timing: ")]
+    check("`take stack` prints the `timing:` lines (lines only) right after the CR rows, and "
+          "`stack` prints none",
+          timing and out.index(timing[0]) == len(stack_take_rows(out))
+          and not any(ln.startswith("timing: ") for ln in again), str(out))
     code, _ = w.chantier("order", "after", four, "--note", two, expect=2)
     check("`order after` on a ready CR in a stack batch is refused, and the message names `stack`",
           code == 2 and "not queued" in w.last_stderr and "`stack`" in w.last_stderr, w.last_stderr)
@@ -5468,7 +5479,7 @@ def forge_stack_cli(w: World) -> None:
     check("insertion: a CR added to the stack batch and ordered below the release CR sits there in "
           "`take stack`, the release CR still last",
           listed and listed[0].endswith(" → ".join(order))
-          and listed[listed.index(prompt_block(listed, "stack-driver")[0]) - 1].startswith(f"{r} "),
+          and stack_take_rows(listed)[-1].startswith(f"{r} "),
           str(listed))
     check("`take stack` prints the rows with no `context:` line (its agent has not started yet)",
           not any(ln.startswith("context:") for ln in listed), str(listed))
@@ -6342,7 +6353,7 @@ def release_on_stack(w: World) -> None:
     _, listed = w.chantier("take", "stack", "--epoch", 1)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     top = w.cr(b)["branch"]
-    rows = listed[:listed.index(prompt_block(listed, "stack-driver")[0])]
+    rows = stack_take_rows(listed)
     check("3. once stacked, `take stack` lists the release last, with the top CR's branch "
           "as its base",
           listed[0].endswith(f"{a} → {b} → {r}") and rows[-1].startswith(f"{r} queued")
@@ -7688,8 +7699,11 @@ def external_surface(tmp: Path) -> None:
     # sonnet is no setting; the project folder's opus is the value that shows once the repository's goes)
     layers = [(w.surface / "chantier.yaml", "sonnet"), (w.project / "chantier.yaml", "opus"),
               (w.work / "chantier.yaml", "haiku")]
+    timing = "    timing:\n      session:\n        steering_wake: 20m\n        cache_ttl: 1h\n"
     for path, model in layers:  # the three user layers: surface root, project folder, code repository
-        path.write_text(f"hosts:\n  claude:\n    roles:\n      coder:\n        model: {model}\n", encoding="utf-8")
+        extra = timing if path.parent == w.project else ""  # the timing settings: the project folder's
+        path.write_text(f"hosts:\n  claude:\n    roles:\n      coder:\n        model: {model}\n{extra}",
+                        encoding="utf-8")
     w.start(item, "--direct", "--slots", 1, *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
     check("the batch opens in the project's planning folder, the CR path is relative to it",
@@ -7700,6 +7714,12 @@ def external_surface(tmp: Path) -> None:
         _, found = w.chantier("playbook", *args)
         return next((ln for ln in found if ln.startswith("coder:")), "")
     frozen = coder_line("--batch", w.name)
+    session = ("timing: Claude Code session: steering wake 20 min [surface project], "
+               "cache TTL 60 min [surface project]")
+    check("the project folder's timing prints `[surface project]`, the brief and `playbook --batch` carry it",
+          session in w.chantier("playbook")[1] and session in w.chantier("playbook", "--batch", w.name)[1]
+          and "- Timing: Claude Code subagent: cache TTL 5 min, CI re-runs 1; " + session[len("timing: "):]
+          in (w.folder() / "brief.md").read_text(encoding="utf-8"), "")
     check("a surface root, a project folder and a code repository each set the Coder's model: `playbook` "
           "prints the repository's with its label, and `open` froze it",
           "haiku (claude-haiku-5-5, Claude Haiku 5.5) [repository]" in coder_line()
@@ -7769,6 +7789,8 @@ def external_surface(tmp: Path) -> None:
     cr = w.batch()["crs"][0]["id"]
     c = w.cr(cr)
     facts = fm.facts
+    check("`take` prints the timing the batch opened with, though the project's file is gone",
+          session in facts and not (w.project / "chantier.yaml").exists(), str(facts))
     cli_line = next((ln for ln in facts if ln.startswith("cli:")), "")
     archive_line = next((ln for ln in facts if ln.startswith("archive: ")), "")
     check("the facts carry `cli:` with --project, the clone and the archive path",

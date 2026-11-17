@@ -67,4 +67,19 @@ export default {
   'config.save': 'Enregistrer',
   'config.cancel': 'Annuler',
   'config.unreadable': 'La configuration est illisible pour le moment.',
+  'config.tab_models': 'Modèles',
+  'config.tab_timing': 'Délais',
+  'config.leg_default': 'défaut livré',
+  'config.leg_set': 'défini dans chantier.yaml',
+  'config.th_setting': 'Réglage',
+  'config.not_used': 'non utilisé',
+  'config.timing_steering_wake': 'Réveil de pilotage',
+  'config.timing_steering_wake.text':
+    "à quel rythme le Foreman ou le Chief of Staff se réveille pendant qu'il attend",
+  'config.timing_cache_ttl': 'Durée de vie du cache de prompt',
+  'config.timing_cache_ttl.text': 'le réveil reste en dessous, pour garder le cache chaud',
+  'config.timing_ci_reruns': 'Relances de CI max',
+  'config.timing_ci_reruns.text': "relances d'un job de CI tombé sur l'infrastructure",
+  'config.timing_unreadable':
+    'Les délais sont illisibles : les valeurs par défaut livrées sont absentes.',
 };

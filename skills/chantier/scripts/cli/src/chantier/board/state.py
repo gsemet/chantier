@@ -29,6 +29,7 @@ from chantier.core.repo import RECORDS, Repo, read_keyed
 from chantier.core.seat import read_seat
 from chantier.lifecycle.backlog import next_batch
 from chantier.lifecycle.stages import stage_layout
+from chantier.plugin_files import recorded_timing
 from chantier.rails import held
 from chantier.status.views import batch_view, dashboard_view
 
@@ -46,6 +47,7 @@ VIEW_KEYS = (
     "orders_pending",
 )
 EVENTS_SHOWN = 40
+SECONDS_PER_MINUTE = 60
 EVENT_KINDS = (
     "open",
     "add",
@@ -84,6 +86,22 @@ def _events(events: list[EventRecord]) -> list[dict[str, Any]]:
     return out
 
 
+def steering_wake_min(d: BatchRecord) -> int | None:
+    """The batch's steering wake in minutes, from the timing it opened with (the shipped defaults
+    of the running plugin when the record has none). On Claude Code the session column's; on
+    Copilot the longest of the columns' and the general value, so the late mark is never early."""
+    timing = recorded_timing(d)
+    if not timing:
+        return None
+    if d.host == "claude":
+        found = [timing["columns"]["session"].get("steering_wake")]
+    else:
+        found = [timing["general"].get("steering_wake")]
+        found += [c.get("steering_wake") for c in timing["columns"].values()]
+    seconds = [e["value"] for e in found if e]
+    return max(seconds) // SECONDS_PER_MINUTE if seconds else None
+
+
 def _batch(repo: Repo, d: BatchRecord, folder: Path, events: list[EventRecord]) -> dict[str, Any]:
     view = batch_view(repo, d, folder)
     rows = crs.cr_rows(repo, d, events)
@@ -94,6 +112,7 @@ def _batch(repo: Repo, d: BatchRecord, folder: Path, events: list[EventRecord]) 
         "created": d.created,
         "default_branch": repo.config["default_branch"],
         "max_rounds": (d.settings or BatchSettings()).max_rounds,
+        "steering_wake_min": steering_wake_min(d),
         "slots": {"taken": len(held(d)), "total": d.slots},
         "cost_at": costs[-1] if costs else None,
         "crs": rows,
