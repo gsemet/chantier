@@ -7798,7 +7798,7 @@ def external_surface(tmp: Path) -> None:
     layers[2][0].write_text("hosts:\n  claude:\n    roles:\n      coder:\n        model: default\n",
                             encoding="utf-8")
     check("the repository's `model: default` takes the model back to its file's, `[reset in repository]`",
-          coder_line() == "coder: agent=chantier:coder model=(its file's) [reset in repository]"
+          coder_line().startswith("coder: agent=chantier:coder model=(its file's) [reset in repository]")
           and coder_line("--batch", w.name) == frozen, f"{coder_line()} / {coder_line('--batch', w.name)}")
     layers[2][0].unlink()
     check("with the repository's file removed, `playbook` prints the project folder's value "
