@@ -90,10 +90,12 @@ export const href = (place) =>
   })}`;
 
 // The chosen batch after a move: kept (or set by `place.batch`) between Costs and Batch of the
-// same project, cleared by any other view or project. `undefined` keeps the current one.
-function batchOf(place, now, project, view) {
-  if (project !== now.project || !BATCH_VIEWS.includes(view)) return null;
-  return place.batch === undefined ? now.batchId : place.batch;
+// same project, cleared by any other view or project. `undefined` keeps the current one; a batch
+// the place names (the address read at first load) holds, whatever the page showed before.
+export function batchOf(place, now, project, view) {
+  if (!BATCH_VIEWS.includes(view)) return null;
+  if (place.batch !== undefined) return place.batch;
+  return project === now.project ? now.batchId : null;
 }
 
 let here = null; // the address the page last settled on

@@ -21,8 +21,9 @@ function when(iso) {
   });
 }
 
-// "10 h 56 min" from minutes.
+// "10 h 56 min" from minutes; "—" when the length is unknown.
 export function lasted(minutes) {
+  if (minutes == null) return '—';
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   if (!hours) return t('time.min', { n: rest });
@@ -33,8 +34,15 @@ export function lasted(minutes) {
 
 function head(r) {
   const pill = `${t(`costs.receipt_state_${r.stateName}`)} · ${t('costs.receipt_merged', { n: r.merged, total: r.crs.length })}`;
-  const end = r.closed ? when(r.closed) : t('costs.receipt_now');
-  return html`<div class="r-head"><div><div class="eyebrow">${t('costs.receipt_eyebrow', { project: r.project })}</div><div class="brand">${r.id}</div><span class="pill">${pill}</span></div><div class="meta">${r.mode}, ${r.steering}<br />${when(r.opened)} → ${end}<br />${lasted(r.minutes)}</div></div>`;
+  return html`<div class="r-head"><div><div class="eyebrow">${t('costs.receipt_eyebrow', { project: r.project })}</div><div class="brand">${r.id}</div><span class="pill">${pill}</span></div><div class="meta">${r.mode}, ${r.steering}${dates(r)}</div></div>`;
+}
+
+// The dates and length lines of the head; an old record with no dates shows neither.
+function dates(r) {
+  const start = when(r.opened);
+  const end = r.stateName === 'closed' ? when(r.closed) : t('costs.receipt_now');
+  const span = start || end ? html`<br />${start || '—'} → ${end || '—'}` : '';
+  return html`${span}${r.minutes == null ? '' : html`<br />${lasted(r.minutes)}`}`;
 }
 
 const recompute = (r) =>

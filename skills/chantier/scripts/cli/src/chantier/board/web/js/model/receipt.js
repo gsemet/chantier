@@ -83,6 +83,12 @@ function outsideOf(receipt, figures) {
   return { kind: 'value', usd: sum, unpriced: unpricedOf(...parts), out };
 }
 
+// The batch's length in minutes; null when a date is missing (an old record).
+function minutesOf(from, to) {
+  const span = Date.parse(to ?? '') - Date.parse(from ?? '');
+  return Number.isFinite(span) ? Math.max(0, Math.round(span / MINUTE_MS)) : null;
+}
+
 function headOf(shown, state) {
   const { rec, live } = shown;
   const name = live ? rec.state : 'closed';
@@ -93,14 +99,7 @@ function headOf(shown, state) {
     steering: rec.steering,
     opened: live ? rec.created : rec.opened,
     closed: live ? null : rec.closed,
-    minutes: Math.max(
-      0,
-      Math.round(
-        (Date.parse((live ? state.now : rec.closed) ?? '') -
-          Date.parse((live ? rec.created : rec.opened) ?? '')) /
-          MINUTE_MS,
-      ),
-    ),
+    minutes: minutesOf(live ? rec.created : rec.opened, live ? state.now : rec.closed),
   };
 }
 
