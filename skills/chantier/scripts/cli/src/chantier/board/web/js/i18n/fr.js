@@ -18,6 +18,7 @@ export default {
   'nav.overview': 'Tous les projets',
   'project.change': 'Changer de projet',
   'project.head': 'Surface de planification · {n} projets',
+  'project.overview': "vue d'ensemble · {n} projets",
   'project.folder': 'dossier',
   'project.repo': 'repo',
   'project.line': '{batch} · {state}',

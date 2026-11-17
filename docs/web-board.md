@@ -9,7 +9,7 @@ For the other board, the pane in Claude Code, see [boards](boards.md). To start 
 
 ## The views
 
-The breadcrumb at the top names where you are, and stays in place when the page scrolls. The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects makes the picker's first entry the surface itself, by its name and its path, with "Planning surface · N projects" under them; a single project has no such entry.
+The breadcrumb at the top names where you are, and stays in place when the page scrolls. The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects opens the picker's menu with the surface as its header: the grid icon, its name in bold and "overview · N projects" under it. A click on that header opens the overview from any page. A line follows, then the projects, slightly indented; a single project has no such header.
 
 ![The project picker, open](web-board/picker-pc.png)
 

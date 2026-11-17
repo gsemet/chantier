@@ -92,7 +92,8 @@ function listenToFrame() {
     '[data-project]',
     guarded((_, el) => {
       update({ menu: false });
-      go({ project: el.dataset.project });
+      const toAll = el.dataset.project === ALL && !overviewIds().includes(snapshot().view);
+      go(toAll ? { project: ALL, view: overviewIds()[0] } : { project: el.dataset.project });
     }),
   );
   delegate(

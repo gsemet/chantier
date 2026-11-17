@@ -18,6 +18,7 @@ export default {
   'nav.overview': 'All projects',
   'project.change': 'Change project',
   'project.head': 'Planning surface · {n} projects',
+  'project.overview': 'overview · {n} projects',
   'project.folder': 'folder',
   'project.repo': 'repo',
   'project.line': '{batch} · {state}',
