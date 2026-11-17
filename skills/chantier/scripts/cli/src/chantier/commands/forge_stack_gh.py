@@ -27,7 +27,13 @@ UNSTACK_TRIES = 5
 NEITHER = "forge-stack reads GitHub pull requests and GitLab merge requests: {what} is neither"
 
 
-def gh(args: list[str], host: str) -> Any:
+class Unreadable(ChantierError):
+    """The forge accepted a call (`gh api` exit 0) but its reply cannot be read."""
+
+
+def gh(args: list[str], host: str, *, empty_ok: bool = False) -> Any:
+    """One `gh api` call, its reply read as JSON. With `empty_ok`, an empty reply of an accepted
+    call (a 2xx) is `None`, not an error."""
     exe = shutil.which("gh")
     if not exe:
         raise ChantierError(
@@ -41,10 +47,12 @@ def gh(args: list[str], host: str) -> Any:
         raise ChantierError(
             f"gh api {' '.join(args)}: {p.stderr.strip() or p.stdout.strip()}", EXIT_EXTERNAL
         )
+    if empty_ok and not p.stdout.strip():
+        return None
     try:
         return json.loads(p.stdout)
     except ValueError as e:
-        raise ChantierError(
+        raise Unreadable(
             f"gh api {' '.join(args)}: not JSON: {p.stdout.strip()[:200]}", EXIT_EXTERNAL
         ) from e
 
@@ -103,7 +111,8 @@ def unstack(
     outside = [n for n in held if n not in planned]
     for _ in range(UNSTACK_TRIES):  # until the forge reads it back as gone or not open
         fields = [x for n in held for x in ("-F", f"pull_requests[]={n}")]
-        gh(["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack", *fields], host)
+        post = ["-X", "POST", f"repos/{owner}/{name}/stacks/{s['number']}/unstack", *fields]
+        gh(post, host, empty_ok=True)
         now = [
             t for t in stacks(host, owner, name) if t.get("number") == s["number"] and t.get("open")
         ]

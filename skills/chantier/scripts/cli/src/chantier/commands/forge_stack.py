@@ -10,6 +10,7 @@ from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.crs import short_head
 from chantier.commands.forge_stack_gh import (
     PR_LINK,
+    Unreadable,
     gh,
     pr_parts,
     retarget,
@@ -132,7 +133,7 @@ def _make(rows: list[dict[str, Any]], host: str, owner: str, name: str) -> tuple
     made = gh(["-X", "POST", f"repos/{owner}/{name}/stacks", *fields], host)
     number = made.get("number") if isinstance(made, dict) else None
     if number is None:
-        raise ChantierError(
+        raise Unreadable(
             f"gh api: the forge answered no stack number: {json.dumps(made)[:200]}", EXIT_EXTERNAL
         )
     return number, (
@@ -151,19 +152,39 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
         return gitlab.make(rows, come, where)
     host, owner, name = where
     done: list[str] = []
+    gone: list[int] = []  # the stacks this run unstacked
+    unstacked = False  # the unstack phase is over
+    making = False  # the create call is the phase that raised
     try:
         planned = {r["number"] for r in rows}
         for s in stacks(host, owner, name):
             held = {p["number"] for p in s.get("pull_requests", [])}
             if s.get("open") and planned & held:
                 done.append(unstack(s, planned, where, left(come), dropped))
+                gone.append(s["number"])
+        unstacked = True
         retarget(rows, where, done)
+        making = True
         number, line = _make(rows, host, owner, name)
         done.append(line)
     except ChantierError as e:
         if e.code != EXIT_EXTERNAL:
             raise
-        raise ChantierError("\n".join([*done, str(e)]), e.code) from e
+        lines = [*done, str(e)]
+        if unstacked and making and isinstance(e, Unreadable):
+            lines.append(
+                "the forge accepted the create call but its reply cannot be read, so the "
+                "stack's state is unknown: run `forge-stack show`"
+            )
+        elif unstacked and gone:
+            said = " ".join(f"#{n}" for n in gone)
+            lines.append(
+                f"stack {said} is dissolved and no stack replaces it yet: run `forge-stack create`"
+                if len(gone) == 1
+                else f"stacks {said} are dissolved and no stack replaces them yet: "
+                "run `forge-stack create`"
+            )
+        raise ChantierError("\n".join(lines), e.code) from e
     args.stack = number
     lines, code = _show(args)
     drafts = "check 4: still a draft"

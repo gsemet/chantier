@@ -4,9 +4,11 @@ the sandbox checks.
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -15,6 +17,8 @@ from conftest import PLUGIN_ROOT, load_script
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
 from chantier.commands.crs import last_verdict, last_verdict_head
+from chantier.commands.forge_stack_gh import Unreadable, gh
+from chantier.core.errors import EXIT_EXTERNAL, ChantierError
 from chantier.core.heads import gate_passed
 from chantier.core.ids import normalize_cr
 from chantier.core.records import BatchRecord, CrEntry, EventRecord
@@ -171,3 +175,28 @@ def test_next_to_start_is_the_queued_cr_of_the_lowest_order_with_nothing_to_wait
     d = batch()
     d.crs[0].status = "merged"
     assert next_to_start(d) == "CR-2"
+
+
+@pytest.mark.parametrize(
+    ("empty_ok", "ran", "expected"),
+    [
+        (True, SimpleNamespace(returncode=0, stdout="", stderr=""), None),
+        (True, SimpleNamespace(returncode=0, stdout="\n  ", stderr=""), None),
+        (True, SimpleNamespace(returncode=0, stdout='{"number": 1}', stderr=""), {"number": 1}),
+        (True, SimpleNamespace(returncode=0, stdout="<html>", stderr=""), "not JSON"),
+        (False, SimpleNamespace(returncode=0, stdout="", stderr=""), "not JSON"),
+        (True, SimpleNamespace(returncode=1, stdout="", stderr="HTTP 404"), "HTTP 404"),
+    ],
+)
+def test_gh_reads_an_empty_reply_only_when_asked(
+    monkeypatch: pytest.MonkeyPatch, empty_ok: bool, ran: Any, expected: Any
+) -> None:
+    monkeypatch.setattr(shutil, "which", lambda name: "/bin/gh")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: ran)
+    if not isinstance(expected, str):
+        assert gh(["-X", "POST", "x"], "github.com", empty_ok=empty_ok) == expected
+        return
+    with pytest.raises(ChantierError) as raised:
+        gh(["-X", "POST", "x"], "github.com", empty_ok=empty_ok)
+    assert expected in str(raised.value) and raised.value.code == EXIT_EXTERNAL
+    assert isinstance(raised.value, Unreadable) == (ran.returncode == 0)
