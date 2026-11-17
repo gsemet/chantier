@@ -23,6 +23,7 @@ from chantier.core.batch import (
 )
 from chantier.core.batch_records import last_closed
 from chantier.core.clock import age_minutes, now
+from chantier.core.endblockers import end_blockers
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, read_events, round_limit
 from chantier.core.repo import Repo
@@ -31,7 +32,6 @@ from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import (
     all_merged,
-    end_blockers,
     held,
     not_priced,
     spent_text,
