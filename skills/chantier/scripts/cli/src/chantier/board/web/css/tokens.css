@@ -3,7 +3,9 @@
   /* surfaces and ink: white page, hairlines, three greys of ink */
   --bg: #fff;
   --panel: #fff;
-  --side: #fff;
+  --side: #f6f9f9;
+  --side-line: #e3eced;
+  --side-hover: #edf3f3;
   --line: #ececef;
   --line2: #eff0f2;
   --card-line: #ebecef;
@@ -34,9 +36,17 @@
   --accent-light: #8fb6ba;
   --accent-tint: #e9f1f1;
   --accent-tint-2: #e7f0f0;
+  --accent-line: #d2e3e4;
   --link: var(--accent);
 
-  /* a state: one colour, for its icon, dot or badge only */
+  /* the priorities: a gradient of the accent, P1 dark to P4 pale */
+  --pri-1: #1d5c63;
+  --pri-2: #4a7e83;
+  --pri-3: #88acb0;
+  --pri-4: #cfe2e3;
+
+  /* a state: one colour, for its icon, dot or badge; its tint, below, is the background of a chip or
+   badge that shows that state, and nowhere else */
   --state-blocked: #d14b5e;
   --state-working: #4a76d9;
   --state-ready: #2f9e6b;
@@ -53,6 +63,16 @@
   --amber: var(--state-waits);
   --grey: var(--state-queued);
   --ok-ink: var(--state-merged);
+
+  /* the states' tints: the pale of each state's hue, for the chip or badge of that state only */
+  --state-working-tint: #e7eefb;
+  --state-ready-tint: #e4f4ec;
+  --state-blocked-tint: #fbe7ea;
+  --state-waits-tint: #fbf0de;
+  --state-merged-tint: #e3f1ea;
+  --state-draft-tint: #f4eee8;
+  --state-local-tint: #f0ecfa;
+  --state-queued-tint: var(--chip);
 
   /* the views: bars, arrows, halos, the Batch graph's dotted grid */
   --queued-bar: #c9cdd6;
@@ -84,13 +104,19 @@
   --dark-ink: #fff;
   --dark-ink-soft: #c9ccd4;
 
-  /* the project's marks (an id picks one) */
-  --mark-0: #c8401f;
-  --mark-1: #2f6f9f;
-  --mark-2: #5b7a2a;
-  --mark-3: #7a4aa8;
-  --mark-4: #a8691f;
-  --mark-5: #1f7a74;
+  /* the project's marks (an id picks one), each off the states' hues, with its pale tint */
+  --mark-0: #a02e78;
+  --mark-1: #1a6c88;
+  --mark-2: #3a7222;
+  --mark-3: #8a3aa8;
+  --mark-4: #666c12;
+  --mark-5: #1a736d;
+  --mark-0-tint: #f2e2ec;
+  --mark-1-tint: #dfeaee;
+  --mark-2-tint: #e3ebe0;
+  --mark-3-tint: #efe3f3;
+  --mark-4-tint: #eaeade;
+  --mark-5-tint: #dfebeb;
 
   /* the surface's autosync: the pill's states, and its two boxes */
   --autosync-active: #23805a;

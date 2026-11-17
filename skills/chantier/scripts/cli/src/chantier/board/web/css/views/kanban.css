@@ -1,8 +1,9 @@
-/* The Kanban view: five columns of cards; on a phone the columns snap one at a time. */
+/* The Kanban view: seven columns of cards; on a phone the columns snap one at a time. */
 .kanban {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
 }
 
 .kanban .filters {
@@ -43,7 +44,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px 6px 4px;
+  margin-bottom: var(--space-1);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-m);
+  background: var(--accent-tint);
 }
 
 .kanban .colh h2 {

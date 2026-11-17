@@ -55,6 +55,8 @@
 
 .costs .kpi {
   padding: 12px 14px;
+  border-color: var(--accent-line);
+  background: var(--accent-tint);
 }
 
 .costs tr.click {

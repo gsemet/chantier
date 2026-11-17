@@ -24,6 +24,10 @@ button.pbtn:hover {
   background: var(--hover);
 }
 
+.side button.pbtn:hover {
+  background: var(--side-hover);
+}
+
 .pbtn {
   width: auto;
   max-width: 100%;
@@ -95,6 +99,7 @@ button.pbtn:hover {
 
 .mark.all {
   background: var(--ink);
+  color: var(--white);
 }
 
 .menu {
