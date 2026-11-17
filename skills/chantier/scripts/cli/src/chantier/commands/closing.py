@@ -11,7 +11,8 @@ from chantier.commands.batch_status import record_costs
 from chantier.commands.close_archive import Closing, archive_and_delete, batch_files, final_rows
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE
-from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
+from chantier.commands.cost.receipt import cost_receipt
+from chantier.commands.cost.sessions import chief_line, chief_read, cost_rows, foreman_uuid
 from chantier.core.batch import check_epoch, require_epoch, resolve_batch
 from chantier.core.batch_records import Rec, check_closable, number_of, read_retro
 from chantier.core.clock import now
@@ -177,12 +178,10 @@ def _closing(
     dropped = _to_remove(repo, d)
     check_closable(repo, number_of(batch))
     rows = final_rows(repo, batch, d)
+    by_driver = cost_groups(repo, batch, rows, "driver")
+    chief = chief_read(repo, d)  # the Chief of Staff's transcripts, read once
     summary = cost_summary(
-        d,
-        rows,
-        cost_groups(repo, batch, rows, "cr"),
-        cost_groups(repo, batch, rows, "driver"),
-        chief_line(repo, d),
+        d, rows, cost_groups(repo, batch, rows, "cr"), by_driver, chief_line(repo, d, chief)
     )
     k = Closing(
         repo,
@@ -195,6 +194,7 @@ def _closing(
         read_retro(folder),
         summary,
         stopped,
+        cost_receipt(d, rows, by_driver, chief),
     )
     tail = [
         "the dropped CRs and the merged CRs' leftovers, to remove on the same word where they "

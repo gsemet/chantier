@@ -1,6 +1,7 @@
 // The live costs laid over the recorded ones, so every view shows the same figures. Pure.
 // The record keeps the costs of the last `status --refresh`; the board also prices the transcripts
-// in memory (`data.live`). When that figure is good, it replaces the recorded spend and the CRs'.
+// in memory (`data.live`). When that figure is good, it replaces the recorded spend and the CRs', and brings the
+// receipt's figures (`cost_receipt`).
 
 const usable = (live) => Boolean(live) && !live.error && live.spent_usd != null;
 
@@ -15,6 +16,8 @@ export function withLive(data) {
     batch: {
       ...data.batch,
       spent_usd: live.spent_usd,
+      unpriced: live.unpriced ?? data.batch.unpriced,
+      cost_receipt: live.receipt ?? null,
       cost_at: live.at ?? data.batch.cost_at,
       crs,
     },

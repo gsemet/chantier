@@ -1,0 +1,299 @@
+/* The Costs receipt: a modern ticket on warm paper, a scalloped bottom edge, a scissors cut line
+   before a large total, a dashed rule, then the per-CR detail and a barcode. */
+.ticket {
+  position: sticky;
+  top: 20px;
+  width: var(--ticket-width);
+  flex: none;
+  align-self: flex-start;
+  padding: 28px 30px 22px;
+  border-radius: var(--radius);
+  background-color: var(--paper);
+  background-image: var(--paper-grain);
+  box-shadow: var(--shadow-ticket);
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -9px;
+  left: 0;
+  height: 10px;
+  background:
+    radial-gradient(circle at 7px 0, var(--paper) 6.5px, transparent 7px) 0 0 / 14px 10px repeat-x;
+  filter: var(--shadow-ticket-edge);
+}
+
+.ticket .eyebrow {
+  color: var(--ink3);
+  font-size: var(--text-badge);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ticket .r-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.ticket .brand {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.ticket .meta {
+  color: var(--ink3);
+  font-size: var(--text-small);
+  line-height: 1.4;
+  text-align: right;
+}
+
+.ticket .pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 99px;
+  background: var(--accent-tint-2);
+  color: var(--accent);
+  font-size: var(--text-badge);
+  font-weight: 500;
+}
+
+.ticket .r-grp {
+  margin-top: 18px;
+}
+
+.ticket .r-grp h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 4px;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.ticket .d {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ticket .d1 {
+  background: var(--accent-dark);
+}
+
+.ticket .d2 {
+  background: var(--accent);
+}
+
+.ticket .d3 {
+  background: var(--accent-light);
+}
+
+.ticket .ln {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.ticket .ln:last-child {
+  border-bottom: 0;
+}
+
+.ticket .ln small,
+.ticket .tfoot small {
+  display: block;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.ticket .amt,
+.ticket .slg b,
+.ticket .sum b {
+  font-weight: 500;
+}
+
+.ticket .split {
+  margin-top: var(--space-4);
+}
+
+.ticket .sbar {
+  display: flex;
+  height: 8px;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.ticket .sbar i {
+  display: block;
+  flex: var(--w, 1) 1 0;
+}
+
+.ticket .slg {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px var(--space-3);
+  margin-top: 6px;
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.ticket .r-act {
+  margin-top: var(--space-2);
+}
+
+.ticket .cut {
+  position: relative;
+  height: 22px;
+  margin: 20px -30px 14px;
+}
+
+.ticket .cut::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 10px;
+  background:
+    radial-gradient(circle at 5px 5px, var(--paper-cut) 3.2px, transparent 3.8px) 0 0 / 14px 10px
+    repeat-x;
+  transform: translateY(-50%);
+}
+
+.ticket .cut::after {
+  content: "\2702";
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  padding: 0 4px;
+  background: var(--paper);
+  color: var(--paper-scissors);
+  font-size: 13px;
+  transform: translateY(-52%);
+}
+
+.ticket .total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ticket .total .label {
+  color: var(--ink2);
+  font-size: var(--text-stat);
+}
+
+.ticket .total .big {
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.ticket .tfoot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px var(--space-4);
+  margin-top: 6px;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.ticket .rule {
+  margin: 18px 0 14px;
+  border-top: 1.5px dashed var(--paper-rule);
+}
+
+.ticket .r-crs {
+  margin-top: 6px;
+}
+
+.ticket .r-cr {
+  display: grid;
+  grid-template-columns: 62px 1fr auto;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-size: var(--text-stat);
+}
+
+.ticket .tfoot b,
+.ticket .r-cr b {
+  color: var(--ink2);
+  font-size: var(--text-small);
+  font-weight: 500;
+}
+
+.ticket .r-cr .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticket .sum {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--paper-sum);
+  font-size: var(--text-stat);
+}
+
+.ticket .rest {
+  margin: 2px 0 0;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.ticket .code {
+  height: 26px;
+  margin-top: var(--space-4);
+  border-radius: 3px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--paper-ink) 0 2px,
+      transparent 2px 5px,
+      var(--paper-ink) 5px 8px,
+      transparent 8px 18px,
+      var(--paper-ink) 18px 20px,
+      transparent 20px 22px
+    )
+    0 0 / 22px 100%;
+  opacity: 0.8;
+}
+
+.ticket .thanks {
+  margin-top: var(--space-2);
+  color: var(--ink3);
+  font-size: var(--text-badge);
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .ticket {
+    position: relative;
+    top: 0;
+    width: auto;
+    padding: 22px 20px 18px;
+  }
+
+  .ticket .cut {
+    margin-right: -20px;
+    margin-left: -20px;
+  }
+
+  .ticket .total .big {
+    font-size: 34px;
+  }
+}

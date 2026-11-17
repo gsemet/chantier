@@ -39,6 +39,39 @@
                                       }
                 }
             ],
+    "cost_receipt":  {
+                         "steering":  {
+                                          "label":  "Foreman, steering the batch",
+                                          "usd":  2.6,
+                                          "calls":  140,
+                                          "unpriced":  {},
+                                          "wakes":  6,
+                                          "context_avg":  52000
+                                      },
+                         "drivers":  [
+                                         {
+                                             "type":  "driver",
+                                             "usd":  2.3,
+                                             "calls":  210,
+                                             "unpriced":  {}
+                                         },
+                                         {
+                                             "type":  "qa-driver",
+                                             "usd":  0.85,
+                                             "calls":  64,
+                                             "unpriced":  {}
+                                         }
+                                     ],
+                         "split":  [
+                                       { "part":  "steering", "usd":  2.6, "unpriced":  {} },
+                                       { "part":  "drivers", "usd":  3.15, "unpriced":  {} },
+                                       { "part":  "workers", "usd":  10.5, "unpriced":  {} }
+                                   ],
+                         "outside":  {
+                                         "grill":  { "usd":  1.9, "calls":  410, "unpriced":  {} },
+                                         "steering":  { "usd":  0.7, "calls":  95, "unpriced":  {} }
+                                     }
+                     },
     "report":  null,
     "backfill":  null
 }

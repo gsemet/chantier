@@ -209,7 +209,7 @@ def views(page: Page, url: str, size: str) -> None:
     shot(page, "kanban", size)
     goto(page, url, "triage", "shop-api")
     shot(page, "triage", size)
-    goto(page, url, "costs", "shop-api")
+    goto(page, url, "costs", "mobile-app")
     shot(page, "costs", size)
     goto(page, url, "config", "shop-api")
     page.wait_for_selector('.config[data-key="config"]')

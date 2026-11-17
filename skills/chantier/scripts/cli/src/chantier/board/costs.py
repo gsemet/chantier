@@ -10,7 +10,8 @@ from typing import Any
 
 from chantier.commands.cost.breakdown import cost_groups
 from chantier.commands.cost.pricing import sum_unpriced
-from chantier.commands.cost.sessions import cost_rows, foreman_uuid
+from chantier.commands.cost.receipt import cost_receipt
+from chantier.commands.cost.sessions import chief_read, cost_rows, foreman_uuid
 from chantier.core import clock
 from chantier.core.errors import ChantierError
 from chantier.core.records import read_batch_json
@@ -32,6 +33,9 @@ def compute(repo: Repo) -> dict[str, Any]:
         "spent_usd": sum(r["usd"] for r in rows),
         "unpriced": sum_unpriced(rows),
         "per_cr": {k: {"calls": v[0], "usd": v[1], "unpriced": v[2]} for k, v in groups.items()},
+        "receipt": cost_receipt(
+            d, rows, cost_groups(repo, d.id, rows, "driver"), chief_read(repo, d)
+        ),
         "at": clock.now(),
         "error": None,
     }
@@ -43,6 +47,7 @@ def _failed(e: Exception) -> dict[str, Any]:
         "spent_usd": None,
         "unpriced": {},
         "per_cr": {},
+        "receipt": None,
         "at": clock.now(),
         "error": line if isinstance(e, ChantierError) else f"{type(e).__name__}: {line}",
     }
@@ -63,7 +68,12 @@ class Live:
         with self._lock:
             if self._result is None and not self._computing:
                 return None
-            kept = self._result or {"spent_usd": None, "unpriced": {}, "per_cr": {}}
+            kept = self._result or {
+                "spent_usd": None,
+                "unpriced": {},
+                "per_cr": {},
+                "receipt": None,
+            }
             return {"at": None, "error": None, **kept, "computing": self._computing}
 
     def mark(self) -> str:

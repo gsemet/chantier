@@ -46,6 +46,7 @@ class Closing:
     retro: str | None
     summary: list[str]
     stopped: list[Rec] = field(default_factory=list)
+    receipt: Rec | None = None  # the receipt's figures, kept in the record as `cost_receipt`
 
     def preview(self) -> list[str]:
         """The lines `close` prints about what it does: the files that go, the CRs archived,
@@ -119,6 +120,7 @@ def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
     closed = now()
     final = {
         **close_record(record, closed, sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr),
+        "cost_receipt": k.receipt,
         **stopped_agents(k.stopped, closed),
     }
     return final, close_markdown(final, k.summary, k.retro, release_retro_line(k.repo, record))

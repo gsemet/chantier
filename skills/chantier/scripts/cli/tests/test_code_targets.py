@@ -115,7 +115,10 @@ def test_the_web_frame_has_small_scripts_and_both_word_files_share_their_keys() 
         lang: set(
             re.findall(
                 r"^\s*'([\w.]+)':",
-                (web / "js" / "i18n" / f"{lang}.js").read_text(encoding="utf-8"),
+                "\n".join(  # the language's file and the files merged into it (`en-costs.js`...)
+                    path.read_text(encoding="utf-8")
+                    for path in sorted((web / "js" / "i18n").glob(f"{lang}*.js"))
+                ),
                 re.M,
             )
         )

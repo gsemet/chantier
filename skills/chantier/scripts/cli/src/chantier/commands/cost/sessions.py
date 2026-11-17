@@ -180,27 +180,57 @@ def _chief_lines(c: _Chief) -> list[str]:
     return lines
 
 
-def chief_line(repo: Repo, d: BatchRecord) -> list[str]:
-    """The Chief of Staff's session, priced apart from the spend and the budget, in the lines
-    that add up: what it spent since the batch opened, steering and grilling apart, and the whole
-    session, steering window included, with the part of it in the batch's spend named in a
-    parenthesis. What a direct batch's steering row holds is that row's, never counted twice in
-    the steering line."""
+def chief_read(repo: Repo, d: BatchRecord) -> _Chief | str:
+    """The Chief of Staff's sessions of the batch, summed, read once; the cause (a string) when
+    nothing can be measured."""
     chiefs = chief_sessions(d)
     if d.host == "copilot":
-        return _chief_unknown("not measured on this host")
+        return "not measured on this host"
     if not chiefs:
-        return _chief_unknown("no Chief of Staff transcript recorded")
+        return "no Chief of Staff transcript recorded"
     prices = price_table(repo, d.host)
     c = _Chief()
     for uuid in chiefs:  # every Chief of Staff session of the batch, summed
         try:
             parts = _chief_session(repo, d, uuid, prices)
         except ChantierError as e:
-            return _chief_unknown(str(e))
+            return str(e)
         _absorb(c, *parts)
+    return c
+
+
+def chief_line(repo: Repo, d: BatchRecord, read: _Chief | str | None = None) -> list[str]:
+    """The Chief of Staff's session, priced apart from the spend and the budget, in the lines
+    that add up: what it spent since the batch opened, steering and grilling apart, and the whole
+    session, steering window included, with the part of it in the batch's spend named in a
+    parenthesis. What a direct batch's steering row holds is that row's, never counted twice in
+    the steering line. `read` is `chief_read`'s, when the caller already has it."""
+    c = chief_read(repo, d) if read is None else read
+    if isinstance(c, str):
+        return _chief_unknown(c)
     unpriced = add_unpriced(add_unpriced(dict(c.steer.unpriced), c.grill.unpriced), c.whole_un)
     return _chief_lines(c) + hints(sorted(unpriced))
+
+
+def _outside_part(p: _Part) -> dict[str, Any]:
+    return {"usd": round(p.usd, 4), "calls": p.calls, "unpriced": dict(p.unpriced)}
+
+
+def chief_outside(d: BatchRecord, read: _Chief | str) -> dict[str, Any]:
+    """The parts of the Chief of Staff's session outside the budget, as data: `outside` (the
+    grill, and the steering in a Foreman batch; `None` when nothing can be measured) and, then,
+    `outside_unknown` with the cause. Never a $0.00 for what is not measured."""
+    if isinstance(read, str):
+        return {"outside": None, "outside_unknown": read}
+    steer = read.steer
+    steering: dict[str, Any] | None
+    if d.steering == "direct" or (not steer.held() and read.inside_calls):
+        steering = None  # a direct batch's steering is its Steering line, inside the budget
+    elif not steer.held() and read.untimed:
+        steering = {"usd": None, "calls": 0, "unpriced": {}, "unknown": "calls without a time"}
+    else:
+        steering = _outside_part(steer)
+    return {"outside": {"grill": _outside_part(read.grill), "steering": steering}}
 
 
 def _transcripts(d: BatchRecord) -> str:

@@ -1,4 +1,20 @@
-/* The Costs view: the age line with its button, four figures, two tables with a bar per cost. */
+/* The Costs view: the receipt on the left, and on its right the age line with its button, four
+   figures and the tables with a bar per cost; one column on a phone, the receipt first. */
+.costs .cwrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding-top: var(--space-2);
+}
+
+.costs .cside {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
 .costs .age {
   display: flex;
   flex-wrap: wrap;
@@ -6,6 +22,10 @@
   gap: 10px;
   margin: var(--space-4) 0 var(--space-3);
   color: var(--ink2);
+}
+
+.costs .cside .age {
+  margin: 0;
 }
 
 .costs .age .note {
@@ -22,7 +42,6 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
 }
 
 .costs .hbar,
@@ -60,6 +79,16 @@
 }
 
 @media (max-width: 760px) {
+  .costs .cwrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+  }
+
+  .costs .cside .age .note {
+    display: none;
+  }
+
   .costs .kpis {
     grid-template-columns: 1fr 1fr;
   }

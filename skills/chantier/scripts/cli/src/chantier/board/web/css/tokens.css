@@ -102,6 +102,21 @@
   --autosync-wa-fill: #fff6ec;
   --autosync-wa-ink: #7a4a0c;
 
+  /* the Costs receipt: warm paper with a faint grain, its lines, its shadows and its width */
+  --paper: #fffefb;
+  --paper-line: #efefe9;
+  --paper-rule: #d9dbe0;
+  --paper-sum: #e6e7ea;
+  --paper-cut: #dfe2e7;
+  --paper-scissors: #b0b3ba;
+  --paper-ink: #2a2c31;
+  --paper-grain:
+    repeating-linear-gradient(0deg, rgb(120 110 90 / 2.5%) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(120 110 90 / 2%) 0 1px, transparent 1px 4px);
+  --shadow-ticket: 0 1px 2px rgb(22 24 29 / 6%), 0 12px 28px rgb(22 24 29 / 10%);
+  --shadow-ticket-edge: drop-shadow(0 3px 2px rgb(22 24 29 / 6%));
+  --ticket-width: 420px;
+
   /* shadows */
   --shadow-card: 0 1px 2px rgb(16 24 40 / 4%), 0 8px 24px -10px rgb(16 24 40 / 14%);
   --shadow-card-soft: 0 1px 2px rgb(16 24 40 / 3%), 0 6px 18px -10px rgb(16 24 40 / 10%);
