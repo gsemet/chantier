@@ -211,7 +211,7 @@ improves the procedure, which stays written and maintained in the project.
 On any device, `chantier board` serves the CR board as a web page: the live batches, what waits
 for you, the backlog and the merged CRs, and it lets you triage the backlog from your phone.
 
-![The web board: a batch in stack mode, its CRs by level, the PRs to review and the merged PRs](docs/web-board/batch-pc.png)
+![The web board: a batch in stack mode, its CRs by level, the PRs to review and the drafts](docs/web-board/batch-pc.png)
 
 *The web board with a batch running, on a made-up project.* On Claude Code, a read-only pane shows
 the same record beside it; open it with `/chantier-board`, or by loading the Chief of Staff. See

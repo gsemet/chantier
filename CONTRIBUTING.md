@@ -315,7 +315,8 @@ in the `justfile`) and `tests/test_code_targets.py` enforce:
   Biome has no such rule), every colour in `css/tokens.css` and a computed width or colour passed as
   a custom property.
 - **Page:** no inline script or style, no `style=` and no `on...=` attribute, no resource loaded
-  from outside (the policy allows `self` only), every link, script and import relative and inside
+  from outside (the policy allows `self` only; the page loads its own font from `web/fonts/`,
+  `font-src 'self'`, and no font from outside), every link, script and import relative and inside
   `web/`, `innerHTML` set in `js/core/dom.js` only.
 - **Words:** one file per language under `js/i18n/`, the same keys in each (a test checks it); a
   language is added by one file and one line in `js/model/words.js`.
