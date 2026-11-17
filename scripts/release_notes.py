@@ -12,6 +12,7 @@
 The notes, the announcement thread and their images live in
 `docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. See docs/release-process.md.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,7 +43,12 @@ IMAGE_LINE = re.compile(r"^Image:\s*(.+?)\s*$", re.MULTILINE)
 FIXED = [
     ("home path", re.compile(r"[A-Za-z]:[\\/]+Users[\\/]|/Users/[^/\s]|/home/[^/\s]")),
     ("email", re.compile(r"[\w.+-]+@(?!example\.(?:com|org)\b)[\w-]+(?:\.[\w-]+)+")),
-    ("uuid", re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}(?![0-9a-fA-F])")),
+    (
+        "uuid",
+        re.compile(
+            r"(?<![0-9a-fA-F])[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}(?![0-9a-fA-F])"
+        ),
+    ),
 ]
 
 
@@ -98,7 +104,9 @@ def tweet_image(tweet: str, folder: Path) -> str:
     """The one image of the thread; checks the posts on the way."""
     version_posts = POST.findall(tweet)
     if version_posts != ["1/", "2/", "3/"]:
-        raise ValueError(f"{TWEET_FILE} must hold ## 1/, ## 2/ and ## 3/ in order, found {version_posts}")
+        raise ValueError(
+            f"{TWEET_FILE} must hold ## 1/, ## 2/ and ## 3/ in order, found {version_posts}"
+        )
     parts = POST.split(tweet)
     # parts: [head, name1, body1, name2, body2, name3, body3]
     bodies = {parts[i]: parts[i + 1] for i in range(1, len(parts), 2)}
@@ -134,7 +142,10 @@ def git_value(key: str) -> str:
 def local_patterns() -> list[tuple[str, re.Pattern[str]]]:
     """Values proper to this machine: the home folder's name, the git identity."""
     values = [("home folder name", Path.home().name)]
-    values += [("git user name", git_value("user.name")), ("git user email", git_value("user.email"))]
+    values += [
+        ("git user name", git_value("user.name")),
+        ("git user email", git_value("user.email")),
+    ]
     return [
         (kind, re.compile(rf"(?<!\w){re.escape(value)}(?!\w)", re.IGNORECASE))
         for kind, value in values
@@ -220,7 +231,9 @@ def scan(files: list[Path]) -> int:
 
 def main() -> int:
     """Run exactly one mode."""
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--prepare", metavar="TAG")
     parser.add_argument("--scan", nargs="+", type=Path, metavar="FILE")

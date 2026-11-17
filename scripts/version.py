@@ -12,6 +12,7 @@
 The current version is read from the CLI (`__version__`); every other file must agree with it,
 or nothing is written.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,8 +42,10 @@ TARGETS: list[tuple[Path, str, int]] = [
     (ROOT / ".github" / "plugin" / "marketplace.json", rf'^ +"version": "{V}",?$', 2),
 ]
 TARGETS += [(p, rf"^# chantier-agent: {V}$", 1) for p in sorted((ROOT / "agents").glob("*.md"))]
-TARGETS += [(p, rf"^# chantier-agent: {V}$", 1)
-            for p in sorted((ROOT / "com.github.copilot" / "agents").glob("*.agent.md"))]
+TARGETS += [
+    (p, rf"^# chantier-agent: {V}$", 1)
+    for p in sorted((ROOT / "com.github.copilot" / "agents").glob("*.agent.md"))
+]
 
 
 def current() -> str:
@@ -105,8 +108,13 @@ def main() -> int:
         print(old)
         return 0
     if args.cmd == "check-tag":
-        subject = subprocess.run(["git", "log", "-1", "--format=%s", "origin/main"], cwd=ROOT,
-                                 capture_output=True, text=True, encoding="utf-8").stdout.strip()
+        subject = subprocess.run(
+            ["git", "log", "-1", "--format=%s", "origin/main"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        ).stdout.strip()
         expected = f"release: v{old}"
         if subject != expected:
             print(f'just tag: origin/main is "{subject}", expected "{expected}"', file=sys.stderr)
