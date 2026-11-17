@@ -1298,30 +1298,41 @@ CR-222 → CR-225 → CR-226 → CR-228."
   issue' for a point to go to GitHub instead." The default is the inbox.
 - **Closing:** only on the user's word ("close the batch"). `$CHANTIER close --batch <batch>`
   without `--yes` is the check and prices the final cost: it refuses, naming each cause, while a CR is not merged or cancelled,
-  an order is open, a stack agent is recorded, an agent of the Foreman, or the Foreman itself,
-  has a transcript that shows it still runs (a tool call with no result, or a step under way: the
-  CLI reads the end of each transcript, never the file's age), or a transcript cannot be read
-  (missing, cut or undecodable; on Copilot, a session file written in the last 5 minutes, and
-  `not measured` refuses too). It refuses too, with or without `--yes` and naming the cause, when nothing at
+  an order is open, a stack agent is recorded, or an agent the batch holds (an id `agents set`
+  recorded and `-` did not clear, or the current Foreman) has a transcript that shows it still runs
+  (a tool call with no result, or a step under way: the CLI reads the end of each transcript,
+  never the file's age), or a transcript cannot be read (missing, cut or undecodable; a held id
+  with no transcript found too; on Copilot, a session file written in the last 5 minutes, and
+  `not measured` refuses too). The session's other subagents (grill, spec, critics, Drivers
+  already replaced, a Driver's own subagents) and the replaced Foremans never block: the ones
+  still running or unreadable are listed apart in the check's output, need no question to the
+  user and no `--stopped`, and their calls are counted in the final cost only up to now. Offer or
+  run `close` (the check or `--yes`) only after the steering session's retro critic has handed
+  back: in Foreman mode after the Foreman's `final` (which comes after its critic's reply,
+  `foreman.md`); in direct mode after your own retro critic of the pause has handed back. A retro
+  critic still running is not judged by `close`, so this rule is what keeps its calls in the
+  final cost. It refuses too, with or without `--yes` and naming the cause, when nothing at
   all can be priced (no priced call in the batch; no Foreman transcript recorded, which leaves the
   batch no way through `close`). A model with no price does not refuse it: the final cost is a
   floor (`at least`) with its calls not priced, and the CLI says which id to add under `prices:`
   in `chantier.yaml`. On a batch set running again by a `take` or `order qa`, it names what
   runs (or says `pause --epoch <n>` comes first). Report a refusal to the user with its cause, do not retry in
-  a loop, and do not `close --yes`. When the refusal names an agent that still runs, wait for that
+  a loop, and do not `close --yes`. When the refusal names a held agent that still runs, wait for that
   agent's hand-back (its notification), then run `close` again, never on a timer. When you know
   the agent will not hand back, or the user says so, ask the user: ways to know are an app restart
   that cut it, the user's stop, or its hand-back that already reached you while its transcript
   reads as running. In the question quote each agent's name, cause and file, as the refusal gives
   them; ask the agent itself only as a last resort (a finished subagent cannot be messaged). On
   the user's yes, in that turn, run `close --batch <batch> --stopped <name> ...` (the check; the
-  name is the subagent's file stem, `agent-<id>`, or an earlier Foreman's session id), show the
+  name is the held agent's file stem, `agent-<id>`, or the current Foreman's session id), show the
   bilan with its "declared stopped" lines and ask for the close as above; on that second yes run
   `close --batch <batch> --stopped <name> ... --yes`. Never pass `--stopped` without the user's
   yes for each named agent, and never to get past a transcript that cannot be read: the CLI
-  refuses a name that is not a running agent of the batch, and keeps the declaration in the
-  batch's record. A Driver run from another session of the user's is not in what
-  it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to
+  refuses a name that is not a running held agent, and keeps the declaration in the
+  batch's record. A held agent the refusal says cannot be read with no transcript found: tell the
+  user, and clear it with `agents set <cr> - --epoch <n>` only once it is known not to run (a
+  Driver of another session of the user's: on the user's word); never `--stopped`. A Driver run
+  from another session of the user's is not in what it reads, so ask the user when you know of one. When it passes it prints the final cost and what goes (the batch's own files; each `3-done` CR moves to
   `5-archives`), where the retro and the record go (`5-archives/batches/batch-NN.md` and
   `.json`), and touches nothing. To know which batch the project is at, run `status`: its second
   line names the last closed batch. Show the user the bilan, the final Cost section and that
@@ -1336,9 +1347,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch each
   CR still working by the restart path (`agents set <cr> - --epoch <n>`, `handoff`, `take <cr>
   --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`); stop orphan processes with
-  `$CHANTIER cancel`." The old Foreman's session and its Drivers stay in the batch's
-  transcripts and read as running at `close`: that is the case for `close --stopped`, on the
-  user's yes.
+  `$CHANTIER cancel`." A Driver whose id was cleared with `agents set <cr> -` (an app restart,
+  a Driver stopped from outside, a context restart) and a Foreman replaced by a new one are never
+  a blocker at `close`: their transcripts are listed apart and need no `--stopped`.
 - **Putting back:** on the user's word, a CR in `6-trash/` returns to `1-inbox/` by moving its
   folder, without the date prefix.
 

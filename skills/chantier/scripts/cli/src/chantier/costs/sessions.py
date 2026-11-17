@@ -134,11 +134,13 @@ class Ending:
     path: Path
     state: str
     cause: str = ""
+    missing: bool = False  # a held agent whose file is nowhere: no path to print
 
     def text(self) -> str:
         """The cause line `close` prints for a transcript that runs or cannot be read."""
         verb = "still runs" if self.state == "running" else "cannot be read"
-        return f"{self.label} {verb}: {self.cause} ({self.path})"
+        where = "" if self.missing else f" ({self.path})"
+        return f"{self.label} {verb}: {self.cause}{where}"
 
 
 def _lines_from_end(path: Path) -> Iterator[bytes]:
@@ -237,23 +239,6 @@ def transcript_state(path: Path) -> tuple[str, str]:
         return "unreadable", "the file is missing"
     except (OSError, UnicodeError) as e:
         return "unreadable", f"{type(e).__name__}: {e}"
-
-
-def transcript_endings(
-    root: Path, sessions: list[str], own: list[str] | None = None
-) -> list[Ending]:
-    """Claude: the state of the Foreman's transcript(s) and of every `subagents/agent-*.jsonl`
-    beside each, whatever the agent's type (see `transcript_state`). `own`: the sessions that ask
-    (a direct batch's Chief of Staff): their main file is skipped, their subagents are read."""
-    own = own or []
-    found: list[Ending] = []
-    for session in sessions:
-        main = transcript_path(root, session)
-        if session not in own:
-            found.append(Ending(f"transcript {session}", session, main, *transcript_state(main)))
-        for f in sorted((main.with_suffix("") / "subagents").glob("agent-*.jsonl")):
-            found.append(Ending(f"transcript {session} {f.stem}", f.stem, f, *transcript_state(f)))
-    return found
 
 
 def agent_records(root: Path, sessions: list[str]) -> dict[str, tuple[str | None, float | None]]:

@@ -2318,6 +2318,7 @@ def direct_batch(w: World) -> None:
           and "transcript uuid-chief cannot" not in w.last_stderr, w.last_stderr)
     driver.write_text(driver_kept, encoding="utf-8")
     os.utime(chief, None)
+    clear_agents(w)
     code, out = w.chantier("close", "--batch", w.name, "--yes")
     check("`close` is not blocked by the Chief of Staff's own fresh transcript", code == 0
           and not (w.folder() / "batch.json").exists(), str(out))
@@ -2524,6 +2525,16 @@ def runs(f: Path, kept: str) -> None:
     """The agent's transcript `kept`, then a tool's result with no assistant record after it: it
     reads as still running, whatever the file's age. `kept` alone makes it ended."""
     f.write_text(kept + call_line("Bash") + result_line(), encoding="utf-8")
+
+
+def clear_agents(w: World) -> None:
+    """The Foreman's `agents set <cr> -` for every CR and order at the batch's end: `close` judges
+    the agents the batch still holds, and one with no transcript cannot be read."""
+    state = w.folder() / "batch.json"
+    d = json.loads(state.read_text(encoding="utf-8"))
+    state.write_text(json.dumps({
+        **d, "crs": [{**c, "agent": None} for c in d["crs"]],
+        "orders": [{**o, "agent": None} for o in d["orders"]]}), encoding="utf-8")
 
 
 def priced_foreman(w: World) -> None:
@@ -2753,9 +2764,14 @@ def close_refusals(w: World) -> None:
     later["timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     main.write_text(main.read_text() + json.dumps(later) + "\n")
 
-    # close refuses, naming the cause, with and without --yes
-    base = state.read_text()
-    d = json.loads(base)
+    # close refuses, naming the cause, with and without --yes. The batch holds no agent: each CR's
+    # and order's `agent` is cleared (`agents set <cr> -`, as a Foreman does at a merge); a test
+    # holds one by writing it into the record, as `agents set <cr> <id>` would
+    d = json.loads(state.read_text())
+    d["crs"] = [{**c, "agent": None} for c in d["crs"]]
+    d["orders"] = [{**o, "agent": None} for o in d["orders"]]
+    base = json.dumps(d)
+    state.write_text(base)
 
     def refused(label: str, text: str | tuple, change: dict | None = None, env: dict | None = None,
                 flags: tuple = ()) -> None:
@@ -2771,6 +2787,24 @@ def close_refusals(w: World) -> None:
                   and (w.folder() / "batch.json").is_file(), w.last_stderr)
         state.write_text(base)
 
+    def owns(*ids: str) -> dict:
+        """The record where the first CRs hold these agent ids (`agents set <cr> <id>`)."""
+        return {"crs": [{**c, "agent": ids[i] if i < len(ids) else None}
+                        for i, c in enumerate(d["crs"])]}
+
+    def closes(change: dict | None, *flags: str) -> list[str]:
+        """`close` (no --yes) on the record with `change`, which must pass; the record put back."""
+        state.write_text(json.dumps({**d, **(change or {})}))
+        code, out = w.chantier("close", "--batch", name, *flags)
+        state.write_text(base)
+        return out
+
+    def bare(f: Path) -> str:
+        return f.stem.removeprefix("agent-")
+
+    heading = (f"not agents of {name}, not judged (no word needed; their calls are counted only "
+               "up to now): ")
+
     # the transcripts' ends, never their ages (the files are just written, or aged 10 minutes)
     hint = "close --stopped <name> for each"
     foreman_kept = main.read_text()
@@ -2781,71 +2815,180 @@ def close_refusals(w: World) -> None:
              str(main), hint))
     main.write_text(foreman_kept)
     age_sessions(w)
-    first, second = sorted(sub.glob("agent-*.jsonl"))[:2]
+    files = sorted(sub.glob("agent-*.jsonl"))
+    first, second, third = files[:3]
     kept, kept2 = first.read_text(), second.read_text()
+    hold1 = owns(bare(first))
+    # 1. a held agent (a CR's `agent`) that reads as running refuses, naming it and its file
     runs(first, kept)
-    refused("an agent whose last record is a tool's result with no answer",
+    runs(second, kept2)
+    refused("a held agent whose last record is a tool's result with no answer",
             (f"transcript uuid-foreman {first.stem} still runs",
-             "its last record is a tool's result with no answer yet", str(first), hint))
-    # 3. the hand-back and its result, the file just written: nothing runs
+             "its last record is a tool's result with no answer yet", str(first), hint), hold1)
+    state.write_text(json.dumps({**d, **hold1}))
+    w.chantier("close", "--batch", name, expect=2)
+    check("the refusal of a held agent does not list the other transcripts",
+          second.stem not in w.last_stderr and "not agents of" not in w.last_stderr, w.last_stderr)
+    state.write_text(base)
+    # 2. the same transcript, its CR's agent cleared: close passes, lists it apart, declares nothing
+    # 3. an unrecorded subagent that runs and one whose last line is cut: listed; an ended one is not
+    # (a line cut in the middle is not used here: the final cost's pricing refuses any cut record
+    # of the session, whoever it belongs to, and the spec leaves the pricing unchanged)
+    second.write_text(json.dumps({"type": "system"}) + "\n", encoding="utf-8")
+    out = closes(None)
+    at = [i for i, ln in enumerate(out) if ln.startswith("not agents of")]
+    cost = [i for i, ln in enumerate(out) if ln.startswith("Total: ")]
+    check("`close` with the agent's CR cleared passes, prints the final cost, and lists the agent "
+          "that runs and the one unreadable apart under a heading (not judged, no word needed, calls "
+          "counted only up to now), the ended one not listed, nothing declared stopped",
+          at and cost and at[0] < cost[0] and out[at[0]] == heading + "2"
+          and any(ln.startswith(f"- transcript uuid-foreman {first.stem} still runs: ")
+                  and ln.endswith(f"({first})") for ln in out)
+          and any(ln.startswith(f"- transcript uuid-foreman {second.stem} cannot be read: ")
+                  and ln.endswith(f"({second})") for ln in out)
+          and third.stem not in "\n".join(out)
+          and not any(ln.startswith("declared stopped") for ln in out), str(out))
+    second.write_text(kept2, encoding="utf-8")
+    # 3. a batch whose other transcripts all ended prints no heading; a held agent that ended passes
     first.write_text(kept + call_line("SubagentHandback") + result_line(), encoding="utf-8")
-    code, out = w.chantier("close", "--batch", name)
-    check("`close` passes an agent that handed back, though its file was just written, and prints "
-          "the final cost", code == 0 and any(ln.startswith("Total: ") for ln in out), str(out))
-    # 4. a turn ended with a plain message
+    out = closes(hold1)
+    check("`close` passes a held agent that handed back, though its file was just written, and "
+          "prints the final cost, with no heading when every other transcript ended",
+          any(ln.startswith("Total: ") for ln in out)
+          and not any(ln.startswith("not agents of") for ln in out), str(out))
     first.write_text(kept + turn_line("assistant", {"type": "text", "text": "done"}, "end_turn"),
                      encoding="utf-8")
-    code, out = w.chantier("close", "--batch", name)
-    check("`close` passes an agent whose last record is an `end_turn` message", code == 0
-          and any(ln.startswith("Total: ") for ln in out), str(out))
-    # 5. a cut last line cannot be read, and the flag does not pass it
+    out = closes(hold1)
+    check("`close` passes a held agent whose last record is an `end_turn` message", any(
+        ln.startswith("Total: ") for ln in out) and not any(
+        ln.startswith("not agents of") for ln in out), str(out))
+    # 11. a held agent's cut last line cannot be read, and the flag does not pass it
     first.write_text(kept + '{"type": "assistant", "mess', encoding="utf-8")
-    refused("an agent whose last line is cut JSON",
+    refused("a held agent whose last line is cut JSON",
             (f"transcript uuid-foreman {first.stem} cannot be read",
-             "its last line is not complete JSON", str(first)))
-    refused("`--stopped` of a transcript that cannot be read",
-            (f"close --stopped {first.stem}: its transcript cannot be read ({first})",),
+             "its last line is not complete JSON", str(first)), hold1)
+    refused("`--stopped` of a held transcript that cannot be read",
+            (f"close --stopped {first.stem}: its transcript cannot be read ({first})",), hold1,
             flags=("--stopped", first.stem))
     first.write_text(kept, encoding="utf-8")
-    # 6. a recorded Foreman transcript that is missing
+    # a recorded Foreman transcript that is missing
     gone = main.with_name("uuid-gone.jsonl")
     refused("a recorded Foreman transcript that is missing",
             ("transcript uuid-gone cannot be read", "the file is missing", str(gone)),
             {"foreman_transcript": "uuid-gone", "foreman_transcripts": ["uuid-gone"]})
-    # 7. --stopped, on a running agent
+    # 8. --stopped, on a held agent that runs (the stem and the bare id)
     runs(first, kept)
     shelf = [w.folder(), w.state / "5-archives" / "batches"]
-    for given in (first.stem, first.stem.removeprefix("agent-")):
+    state.write_text(json.dumps({**d, **hold1}))
+    for given in (first.stem, bare(first)):
         before = [tree_bytes(p) for p in shelf]
         code, out = w.chantier("close", "--batch", name, "--stopped", given)
         at = [i for i, ln in enumerate(out) if ln.startswith("declared stopped")]
         cost = [i for i, ln in enumerate(out) if ln.startswith("Total: ")]
-        check(f"`close --stopped {given}` (no --yes) passes the agent the user declared stopped, "
-              "says so before the cost, and writes nothing",
+        check(f"`close --stopped {given}` (no --yes) passes the held agent the user declared "
+              "stopped, says so before the cost, and writes nothing",
               code == 0 and [tree_bytes(p) for p in shelf] == before and at and cost
               and out[at[0]].startswith(f"declared stopped on the user's word: {first.stem}: ")
               and str(first) in out[at[0]] and at[0] < cost[0], str(out))
-    refused("`--stopped` of a name that is not in the batch",
-            (f"close --stopped nobody: no transcript of {name} by that name; still running: "
-             f"{first.stem}",), flags=("--stopped", "nobody"))
-    refused("`--stopped` of an agent whose transcript shows it ended",
-            (f"close --stopped {second.stem}: its transcript shows it ended; drop the flag",),
-            flags=("--stopped", second.stem))
+    state.write_text(base)
+    # 9. `--stopped` of a subagent the batch does not hold, of an unknown name, of an ended one
     runs(second, kept2)
-    refused("two running agents with one named, the other one",
-            (f"transcript uuid-foreman {second.stem} still runs", str(second), hint),
-            flags=("--stopped", first.stem))
+    refused("`--stopped` of a subagent the batch does not hold",
+            (f"close --stopped {second.stem}: not an agent {name} holds; it does not block close, "
+             "drop the flag",), hold1, flags=("--stopped", second.stem))
+    refused("`--stopped` of a name that is not in the batch, naming the held running agents only",
+            (f"close --stopped nobody: no transcript of {name} by that name; still running: "
+             f"{first.stem}. Nothing was deleted.",), hold1, flags=("--stopped", "nobody"))
     second.write_text(kept2, encoding="utf-8")
-    refused("an open order, though the running agent is named", "order O-99 (qa) is open",
-            {"orders": d["orders"] + [{"id": "O-99", "kind": "qa", "cr": "-", "note": "x",
-                                       "sent": d["created"], "done": None}]},
+    refused("`--stopped` of a held agent whose transcript shows it ended",
+            (f"close --stopped {second.stem}: its transcript shows it ended; drop the flag",),
+            owns(bare(first), bare(second)), flags=("--stopped", second.stem))
+    # 10. two held agents that run, one named: the other one refuses
+    runs(second, kept2)
+    refused("two held running agents with one named, the other one",
+            (f"transcript uuid-foreman {second.stem} still runs", str(second), hint),
+            owns(bare(first), bare(second)), flags=("--stopped", first.stem))
+    second.write_text(kept2, encoding="utf-8")
+    refused("an open order, though the held running agent is named", "order O-99 (qa) is open",
+            {**hold1, "orders": d["orders"] + [{"id": "O-99", "kind": "qa", "cr": "-", "note": "x",
+                                                "sent": d["created"], "done": None}]},
             flags=("--stopped", first.stem))
+    # 4. a held QA order agent (the order done, its `agent` still set) that runs refuses
+    refused("a held QA order's agent that reads as running",
+            (f"transcript uuid-foreman {first.stem} still runs", str(first)),
+            {"orders": d["orders"] + [{"id": "O-98", "kind": "qa", "cr": "-", "note": "x",
+                                       "sent": d["created"], "done": d["created"],
+                                       "agent": bare(first)}]})
+    # 5. the current Foreman (the last recorded) blocks, an earlier one is listed apart
+    early = main.with_name("uuid-earlier-foreman.jsonl")
+    two = {"foreman_transcripts": ["uuid-earlier-foreman", "uuid-foreman"],
+           "foreman_transcript": "uuid-foreman"}
+    first.write_text(kept, encoding="utf-8")
+    early.write_text(foreman_kept + call_line("Bash"), encoding="utf-8")
+    age_sessions(w)
+    out = closes(two)
+    check("an earlier Foreman's main transcript that runs does not refuse `close`: it is listed "
+          "apart",
+          any(ln == heading + "1" for ln in out)
+          and any(ln.startswith("- transcript uuid-earlier-foreman still runs: ") for ln in out)
+          and any(ln.startswith("Total: ") for ln in out), str(out))
+    refused("`--stopped` of an earlier Foreman's session id", (
+        f"close --stopped uuid-earlier-foreman: not an agent {name} holds",), two,
+            flags=("--stopped", "uuid-earlier-foreman"))
+    main.write_text(foreman_kept + call_line("Bash"))
+    age_sessions(w)
+    refused("the current Foreman (the last recorded) that reads as running",
+            ("transcript uuid-foreman still runs", "its tool call Bash has no result yet",
+             str(main), hint), two)
+    out = closes(two, "--stopped", "uuid-foreman")
+    check("`--stopped <current session id>` passes the current Foreman and says so",
+          any(ln.startswith("declared stopped on the user's word: uuid-foreman: ") for ln in out)
+          and any(ln.startswith("- transcript uuid-earlier-foreman still runs: ") for ln in out),
+          str(out))
+    main.write_text(foreman_kept)
+    early.unlink()
+    age_sessions(w)
+    # 6. a held Driver that ended, with a subagent of its own that runs: passes, the child is listed
+    drv, kid = sub / "agent-drv-9.jsonl", sub / "agent-kid-9.jsonl"
+    meta = sub / "agent-kid-9.meta.json"
+    drv.write_text(kept + call_line("SubagentHandback") + result_line(), encoding="utf-8")
+    runs(kid, kept)
+    meta.write_text(json.dumps({"parentAgentId": "drv-9"}))
+    out = closes(owns("drv-9"))
+    check("a held Driver that ended passes `close`, and its own subagent that runs is listed apart",
+          any(ln == heading + "1" for ln in out)
+          and any(ln.startswith(f"- transcript uuid-foreman {kid.stem} still runs: ") for ln in out)
+          and not any(ln.startswith("declared stopped") for ln in out), str(out))
+    runs(drv, kept)
+    refused("a held Driver that runs, though its own subagent is not judged",
+            (f"transcript uuid-foreman {drv.stem} still runs", hint), owns("drv-9"))
+    for f in (drv, kid, meta):
+        f.unlink()
+    # 7. a held id with no transcript file cannot be read; `agents set <cr> -` is the way out
+    ghost = {"crs": [{**c, "agent": "ghost-1"} if i == 0 else c for i, c in enumerate(d["crs"])]}
+    cr0 = d["crs"][0]["id"]
+    refused("a held id with no transcript, naming `agents set <cr> - --epoch <n>`",
+            (f"transcript of ghost-1 ({cr0}) cannot be read: no transcript found",
+             f"agents set {cr0} - --epoch <n>"), ghost)
+    refused("`--stopped` of a held id with no transcript",
+            ("close --stopped ghost-1: its transcript cannot be read (no transcript found)",),
+            ghost, flags=("--stopped", "ghost-1"))
+    state.write_text(json.dumps({**d, **ghost}))
+    w.chantier("agents", "set", cr0, "-", "--epoch", 2)
+    code, out = w.chantier("close", "--batch", name)
+    check("after `agents set <cr> -` the held id with no transcript no longer refuses `close`",
+          code == 0 and any(ln.startswith("Total: ") for ln in out), str(out))
+    state.write_text(base)
+    # 12. the record causes, unchanged
     first.write_text(kept, encoding="utf-8")
     crs = [{**c, "status": "ready"} if i == 0 else c for i, c in enumerate(d["crs"])]
     refused("a CR that is not merged", f"{d['crs'][0]['id']} is ready", {"crs": crs})
     refused("an open order", "order O-99 (qa) is open", {"orders": d["orders"] + [
         {"id": "O-99", "kind": "qa", "cr": "-", "note": "x", "sent": d["created"], "done": None}]})
     refused("a stack agent", "stack agent agent-stack is recorded", {"stack_agent": "agent-stack"})
+    refused("`--stopped` of the stack agent, which no flag passes",
+            ("the stack agent is a record cause no flag passes",),
+            {"stack_agent": "agent-stack"}, flags=("--stopped", "agent-stack"))
     # a model with no price does not refuse the close: its calls are counted apart, the cost is a floor
     original, aged = main.read_text(), main.stat()
     call = json.dumps({"type": "assistant", "message": {
@@ -2961,9 +3104,15 @@ def close_batch(w: World) -> None:
     report_file.unlink()
     # one agent stopped without its hand-back: the user's word passes it, and the record keeps it
     slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
-    stopped = sorted((w.root / "claude-projects" / slug / "uuid-foreman" / "subagents")
-                     .glob("agent-*.jsonl"))[0]
+    files = sorted((w.root / "claude-projects" / slug / "uuid-foreman" / "subagents")
+                   .glob("agent-*.jsonl"))
+    stopped, apart = files[0], files[1]
     runs(stopped, stopped.read_text(encoding="utf-8"))
+    runs(apart, apart.read_text(encoding="utf-8"))  # a subagent the batch never recorded: listed
+    held = w.batch()
+    (folder / "batch.json").write_text(json.dumps({**held, "crs": [
+        {**c, "agent": stopped.stem.removeprefix("agent-")} if i == 0 else c
+        for i, c in enumerate(held["crs"])]}))  # `agents set <cr> <id>`: the one held agent
     _, out = w.chantier("close", "--batch", name, "--stopped", stopped.stem, "--yes")
     check("`close --yes` deletes the batch's own files, keeps the empty state folders, and "
           "repeats what is left to remove",
@@ -2993,6 +3142,13 @@ def close_batch(w: World) -> None:
           and f"- Declared stopped on the user's word: {stopped.stem} ({entry.get('cause')})"
           in cost_part and any(ln.startswith(said) and str(stopped) in ln for ln in out),
           f"{rec.get('stopped_agents')} {out}")
+    listed = [ln for ln in out if ln.startswith("not agents of")]
+    check("`close --yes` lists the unrecorded running subagent apart, before the cost, and keeps "
+          "only the declared one in `stopped_agents`",
+          len(listed) == 1 and listed[0].endswith(": 1")
+          and any(ln.startswith(f"- transcript uuid-foreman {apart.stem} still runs: ") for ln in out)
+          and apart.stem not in json.dumps(rec.get("stopped_agents"))
+          and apart.stem not in cost_part, str(out))
     check("`batch-NN.json` is closed with its dates, its shape and the final cost the close printed",
           rec["schema"] == 1 and rec["state"] == "closed" and rec["closed"]
           and rec["opened"] == opened and rec["mode"] == mode and rec["steering"] == steering
@@ -4495,6 +4651,7 @@ def restore_cr(w: World) -> None:
           and w.cr(y)["status"] == "cancelled" and w.cr(y)["branch"] in out[1], str(out))
     w.chantier("pause", "--epoch", 1)
     priced_foreman(w)
+    clear_agents(w)
     code, out = w.chantier("close")
     check("after restoring a cancelled CR of a paused batch, `close` (without `--yes`) still runs",
           code == 0 and out[-1].startswith("ask the user"), str(out))
@@ -4708,6 +4865,7 @@ def stack_batch(w: World) -> None:
         priced_foreman(w)
     check("the stack merged piece by piece: the batch pauses, then closes",
           fm.paused and w.batch()["status"] == "paused"
+          and clear_agents(w) is None
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
           and not (w.folder() / "batch.json").exists())
     w.env.pop("CHANTIER_BATCH", None)
@@ -6336,6 +6494,7 @@ def changes_tree(w: World) -> None:
     fm.turn()
     priced_foreman(w)
     age_sessions(w)
+    clear_agents(w)
     stray = w.state / "4-batch" / "2-actives" / "stray"
     stray.mkdir()
     code, _ = w.chantier("close", "--batch", w.name, "--yes", expect=2)
@@ -6940,6 +7099,7 @@ def release_merge_on_approval(w: World) -> None:
     check("the batch pauses", fm.paused)
     last = w.folder()
     priced_foreman(w)
+    clear_agents(w)
     if sys.platform == "win32":  # elsewhere a file in use does not stop a rename
         with open(last / "STATUS.md", encoding="utf-8"):
             code, _ = w.chantier("close", "--batch", w.name, "--yes", expect=None)
@@ -7602,6 +7762,7 @@ def external_surface(tmp: Path) -> None:
             "input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 0}}}) + "\n")
     (w.folder() / "retro.md").write_text("# Retro\n\n## Pause 1\n\n- one, fix one\n", encoding="utf-8")
     before_close = (w.at(w.cr(cr)["path"]) / "summary.json").read_text(encoding="utf-8")
+    clear_agents(w)
     w.chantier("close", "--batch", w.name, "--yes")
     archives = list((w.state / "5-archives").glob("*-101-*"))
     check("`close` puts the merged CR in 5-archives with its delivery.md, the gate log staying off the surface's git",
