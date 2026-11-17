@@ -61,8 +61,13 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
 
 
 def _worker_opening_lines(out: list[str], repo: Path) -> None:
-    """`take` prints each worker's opening lines, the Verifier's exactly, and none for a Driver."""
-    opening = [i for i, ln in enumerate(out) if " prompt, opening lines (copy them" in ln]
+    """`take` prints each worker's opening lines, the Verifier's exactly, and, after them, the
+    Driver's skeleton (which copies them, indented)."""
+    opening = [
+        i
+        for i, ln in enumerate(out)
+        if " prompt, opening lines (copy them" in ln and not ln.startswith(" ")
+    ]
     roles = ["coder", "conflict-resolver", "debugger", "inspector", "investigator", "verifier"]
     assert [out[i].split()[0] for i in opening] == roles
     batch = next(ln for ln in out if ln.startswith("cli: ")).rsplit("--batch ", 1)[1]
@@ -122,6 +127,14 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     )
 
 
+def _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(out: list[str]) -> None:
+    archive = next(ln for ln in out if ln.startswith("archive: in the PR at ")).split(" at ")[1]
+    folder = next(ln for ln in out if ln.startswith("folder: ")).split(" (")[0][len("folder: ") :]
+    writes = next(ln for ln in out if ln.startswith("  writes: ")).removeprefix("  writes: ")
+    assert writes.startswith(f"{folder}; ") and writes.endswith(archive)
+    assert Path(writes.split("; ")[1]).is_absolute()
+
+
 def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -164,6 +177,7 @@ def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clea
         ln.startswith("worktree: ") and "/wt/batch-01-CR-101" in ln.replace("\\", "/") for ln in out
     )
     assert any(ln.startswith("archive: in the PR at .agents/changes/5-archives/") for ln in out)
+    _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(out)
     shown = sh("git", "status", "--porcelain", "-uall", cwd=surface).splitlines()
     assert shown and all(ln.startswith("?? projects/demo/changes/") for ln in shown)
     local = ("batch.json", "events.jsonl", "STATUS", ".lock", ".batch-number", "seat.json")
@@ -200,6 +214,9 @@ def test_a_direct_batch_is_recorded_shown_and_queues_added_work(
         err
     )  # taken at a free slot
     assert chantier("order", "note", "101", "--note", "hello")[0] == 0  # a bare number is a CR
+    code, out, err = chantier("take", "CR-101", "--epoch", 0)
+    assert code == 0, err
+    assert any(ln.startswith("  Steering: the Chief of Staff") for ln in out)
 
 
 def test_a_foreman_batch_takes_added_work_and_a_direct_preflight_leaves_out_p2(

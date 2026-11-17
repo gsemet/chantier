@@ -343,9 +343,8 @@ def test_a_copilot_batch_records_a_generic_start_and_take_prints_its_contract(
     at = took.index(heading)
     assert took[at - 1].startswith("  the project's rules rank above it")
     assert took[at + 1 : at + 1 + len(body)] == [f"  {ln}" for ln in body]
-    assert not any(
-        "contract (a generic agent" in ln for ln in took[:at] + took[at + 1 + len(body) :]
-    )
+    # the Driver's skeleton copies the facts, the coder's contract with them, once
+    assert [ln for ln in took if "contract (a generic agent" in ln] == [heading, f"  {heading}"]
     _, out, _ = chantier("playbook", "--batch", record(repo)["id"])
     assert f"coder: agent=(generic) model={TERRA} [repository] {NOT_RESTRICTED}" in out
 

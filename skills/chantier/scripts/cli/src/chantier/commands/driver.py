@@ -26,8 +26,11 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.phases import PHASE_DETAIL_MAX
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
+from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
 from chantier.lifecycle.session import RenderedBatch
-from chantier.lifecycle.stages import changes_lock, done_cr, start_cr
+from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
+from chantier.playbook.lines import team_lines
+from chantier.plugin_files import archive_path, cli_command
 from chantier.rails import (
     all_merged,
     check_budget,
@@ -69,11 +72,29 @@ def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str) -> list[str
             "that ended: `agents set stack - --epoch <n>` first (a stack driver "
             "reads the stack with `stack`, which changes nothing)"
         )
+    row = driver_row(d.host, "take stack")  # before any state changes
     check_budget(d)
     reopened = _reopen(b)
     b.log("take", None, note=note)
     head, *rows = stack_lines(repo, batch, d)
-    return [head, *reopened, *rows]
+    block = DriverBlock(
+        {"<batch>": batch, "<root>": repo.root.as_posix()},
+        f"{cli_command(repo)} <command> --batch {batch}",
+        [head, *rows],
+        team=team_lines(d.playbook),
+        note=note,
+    )
+    return [head, *reopened, *rows, *driver_prompt_lines(row, d, block)]
+
+
+def _cr_driver_block(repo: Repo, batch: str, c: CrEntry, facts: list[str]) -> DriverBlock:
+    """The CR Driver's block: the facts after the `cli:` line, and `writes:` the CR folder then,
+    when `take` prints an archive path, the archive in the CR's worktree, both absolute."""
+    writes = cr_directory(repo, c).as_posix()
+    if archive := archive_path(repo, c):
+        writes += f"; {Path(c.worktree, archive).as_posix()}/"
+    fill = {"<cr>": c.id, "<title>": c.title, "<batch>": batch, "<root>": repo.root.as_posix()}
+    return DriverBlock(fill, facts[1].removeprefix("cli: "), facts[2:], writes)
 
 
 def take(args: argparse.Namespace) -> list[str]:
@@ -95,6 +116,7 @@ def take(args: argparse.Namespace) -> list[str]:
         if args.cr == "stack":
             return [*_take_stack(repo, b, batch, args.note), *fresh]
         c = b.cr(args.cr)
+        row = driver_row(d.host, "take <cr>", c.kind)  # before any state changes
         check_take(d, c, args.note)
         if c.status != "working":
             check_release_branch(repo, d, c)
@@ -114,7 +136,16 @@ def take(args: argparse.Namespace) -> list[str]:
             )  # the archive's name, kept from the first take
         work(repo, c).mkdir(parents=True, exist_ok=True)
         facts = cr_facts(repo, batch, d, c)
-    return [f"took {c.id} ({len(held(d))} of {d.slots} slots held)", *reopened, *facts, *fresh]
+        block = _cr_driver_block(repo, batch, c, facts)
+        block.team, block.note = team_lines(d.playbook), args.note
+        skeleton = driver_prompt_lines(row, d, block)
+    return [
+        f"took {c.id} ({len(held(d))} of {d.slots} slots held)",
+        *reopened,
+        *facts,
+        *skeleton,
+        *fresh,
+    ]
 
 
 def round_(args: argparse.Namespace) -> list[str]:

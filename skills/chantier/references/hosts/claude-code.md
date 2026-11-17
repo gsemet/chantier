@@ -492,8 +492,8 @@ reload`) works everywhere, and is what a session without the mod has.
 
 The plugin's mod also hooks `agent.spawn` and `tool.call`. It reads one line of a spawn's
 prompt, `writes: <absolute folder>; <absolute folder>` (a worker's prompt holds it, with the
-worktree first and the CR folder second; a CR Driver's holds its CR folder, then the archive path
-when `take` prints one: `concepts.md`, "Starting an agent"). It knows no role
+worktree first and the CR folder second; a CR Driver's holds its CR folder, then the absolute archive path
+when `take` prints one: `concepts.md`, "A Driver's prompt"). It knows no role
 and no card wording. A spawn whose prompt holds the line starts in the first folder (the mod
 rewrites the spawn's `cwd`, except on a resume), and the mod records its agent id with the
 folders. That agent's Write, Edit or NotebookEdit outside every folder is refused, with the one

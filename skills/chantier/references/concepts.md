@@ -389,7 +389,7 @@ and how an agent is started. Each worker reads its own card, which restates the 
   forge (`gh pr checks <pr>` on GitHub; `glab ci status --branch <branch>` on GitLab, unproved).
   The Copilot host's path is unproved.
   Output is ten lines at most, except `status`, `take`, `round`, `handoff`, `rules`, `log`,
-  `cost`, `asks`, `pause`, `close`, `playbook` and `preflight`.
+  `cost`, `asks`, `pause`, `close`, `playbook`, `preflight` and `order qa`.
 
 ## Starting an agent
 
@@ -433,9 +433,9 @@ the project's rules rank above them (a worker's prompt: above it): run `$CHANTIE
 CLI ($CHANTIER): <the `cli:` line of `take`, `round` or `handoff`>
 <the other lines `take`, `round` or `handoff` printed: the specification, the folder, the worktree
 and its base, the PR, the rounds, the grant, the notes>
-writes: <worktree>; <CR folder>   (a worker's prompt: worktree first; a CR Driver's: its CR folder, then the archive path when `take` prints one)
+writes: <worktree>; <CR folder>   (a worker's prompt: worktree first; a Driver's: see "A Driver's prompt"; for a CR Driver, its CR folder, then the absolute archive path)
 Steering: <who steers> <how to reach it>   (a Driver's prompt only: CR, stack, release and QA driver)
-Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt: who runs which worker)
+Team: <the `team:` lines, as printed, then the review steps>   (a Driver's prompt, where "A Driver's prompt" says so: who runs which worker)
 Needs: skills <…>; tools <…>            (only when the playbook gives the role some, as printed)
 Note: <why the CR is with it, or the round's brief>
 ```
@@ -518,6 +518,29 @@ The Retro critic is a subagent of the Foreman or of the Chief of Staff: it reads
 [`retro-critic.md`](retro-critic.md), its brief gives the points and the files that carry their
 evidence, it writes nothing and takes no slot. Its cost counts in the batch when a batch's steering
 session starts it.
+
+### A Driver's prompt
+
+This table is the only source of which template lines each Driver's prompt holds. The CLI reads
+it, and [foreman](foreman.md) and [chief-of-staff](chief-of-staff.md) point to it.
+
+| Driver | Started after | Card | `writes:` | `Team:` |
+| --- | --- | --- | --- | --- |
+| `cr-driver` | `take <cr>`, a CR of kind `change` or `fix` | `driver.md` | the CR folder, then the absolute archive path when `take` prints one | yes |
+| `release-driver` | `take <cr>`, a CR of kind `release` | `driver.md` | none | none |
+| `stack-driver` | `take stack` | `driver.md` | none | yes |
+| `qa-driver` | `order qa` | `driver.md` | none | none |
+
+- Every Driver's prompt holds the opening lines, `CLI ($CHANTIER):`, the lines its command printed
+  for it, `Steering:`, `Needs:` when the playbook gives the role some, and `Note:`. It holds
+  `writes:` and `Team:` only where the table says so.
+- `writes: none` means the prompt has **no** `writes:` line: the guard would refuse the Driver's
+  worktree writes ([host's reference](hosts/claude-code.md)).
+- Every path on a `writes:` line is absolute: the CR folder as `folder:` prints it, and the archive
+  as `<worktree>/<archive path>`.
+- `take`, `take stack` and `order qa` print this skeleton, filled in where they can. The steering
+  session copies it whole and fills in each `<...>` left. It adds no template line the skeleton
+  does not print and drops none it prints.
 
 ## Escalation
 
