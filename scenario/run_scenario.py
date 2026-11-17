@@ -575,6 +575,8 @@ class Foreman:
         if code:
             self.ask_once((cr, "refused", err), f"refused {cr} {err}")
             return
+        if self.w.cr(cr).get("agent"):  # the Driver ended: its id is cleared, as the card asks
+            self.w.chantier("agents", "set", cr, "-", "--epoch", self.epoch)
         self.w.chantier("order", "merged", cr, "--epoch", self.epoch)
         self.fast_forward(cr)
         self.ask(f"merged {cr} {c['pr']}")
@@ -634,6 +636,14 @@ class Foreman:
         merged = [o for o in d["orders"] if not o["done"] and o["kind"] == "merged"]
         if merged:  # the user's merges: one attempt after the last, before any `order done`
             self.fast_forward(merged[-1]["cr"])
+        elif d["status"] == "paused" and not self.paused and d["crs"] \
+                and all(c["status"] in ENDED for c in d["crs"]):
+            # the CLI paused the batch at the last merge, which it recorded as done: the last
+            # merge's fast-forward still runs, on the paused batch
+            last = [c for c in d["crs"] if c["status"] == "merged"
+                    and not any(n.startswith("main checkout:") for n in c.get("notes", []))]
+            if last:
+                self.fast_forward(max(last, key=lambda c: c["merged_at"] or "")["id"])
         for o in d["orders"]:
             if not o["done"]:
                 self.do_order(d, o)
@@ -679,11 +689,14 @@ class Foreman:
             elif c.get("kind") != "release":
                 self.ask(f"refused {c['id']} {self.w.last_stderr}")
         d = self.w.batch()
-        if d["status"] != "paused" and d["crs"] and all(c["status"] in ENDED for c in d["crs"]) \
+        if d["crs"] and all(c["status"] in ENDED for c in d["crs"]) \
                 and all(o["done"] for o in d["orders"]):
-            self.remove_merged()
-            self.w.chantier("pause", "--epoch", self.epoch)
-            self.paused = True
+            if d["status"] == "paused":  # the CLI paused it at the last end and cleaned
+                self.paused = True
+            else:  # the CLI did not (its line says what blocked): the Foreman's own pause
+                self.remove_merged()
+                self.w.chantier("pause", "--epoch", self.epoch)
+                self.paused = True
 
     def early_conflicts(self, d: dict, c: dict) -> None:
         """foreman.md, "An early conflict check (parallel batch)": the new ready CR against each
@@ -1184,7 +1197,28 @@ def scenario(w: World) -> None:
     (w.work / "ratelimit.py").write_text("MINE = True\n")
     land(w, w.cr("CR-105")["branch"])
     head2 = w.sh("git", "rev-parse", "HEAD")
-    w.chantier("order", "merged", "CR-105")
+    for cr_id in ("CR-101", "CR-102", "CR-104", "CR-105"):  # each Driver ended: its id is cleared
+        if w.cr(cr_id).get("agent"):
+            w.chantier("agents", "set", cr_id, "-", "--epoch", fm.epoch)
+    leftover = Path(w.cr("CR-101")["worktree"]) / "wip.txt"  # git refuses to remove this worktree
+    leftover.write_text("uncommitted\n")
+    _, last_out = w.chantier("order", "merged", "CR-105")
+    d = w.batch()
+    check("the last `order merged` pauses the batch, and prints the cleanup and the pause",
+          d["status"] == "paused" and d["paused"] and all(o["done"] for o in d["orders"])
+          and any(ln.startswith("paused batch-") for ln in last_out)
+          and not any("pause --epoch" in ln and "not paused" in ln for ln in last_out)
+          and any(ln.startswith("next: the retro") for ln in last_out), str(last_out))
+    check("it removed the merged worktrees and branches; the cancelled one stays, and the one "
+          "with an uncommitted file is kept with its branch, a `not removed` line saying so",
+          all(Path(c["worktree"]).exists() == (c["status"] == "cancelled" or c["id"] == "CR-101")
+              for c in d["crs"])
+          and not any(w.sh("git", "branch", "--list", c["branch"]) for c in d["crs"]
+                      if c["status"] == "merged" and c["id"] != "CR-101")
+          and w.sh("git", "branch", "--list", w.cr("CR-101")["branch"])
+          and any(ln.startswith("cleanup: CR-101 worktree") and "not removed:" in ln
+                  for ln in last_out)
+          and any(ln.startswith("kept: remove them") for ln in last_out), str(last_out))
     fm.turn()
     check("refused with an untracked file in the way: HEAD has not moved, the file is intact, "
           "the note names it",
@@ -1223,13 +1257,8 @@ def scenario(w: World) -> None:
               or g[:2] == ("merge-tree", "--write-tree") for g in fm.git_main)
           and any(g[0] == "merge" for g in fm.git_main), str(sorted({g[0] for g in fm.git_main})))
     local.unlink()
-    check("the last merge makes the Foreman pause the batch", fm.paused)
+    check("the Foreman saw the CLI's pause", fm.paused)
     d = w.batch()
-    check("the Foreman removed the merged worktrees and branches; the cancelled one stays",
-          d["status"] == "paused" and all(
-              Path(c["worktree"]).exists() == (c["status"] == "cancelled") for c in d["crs"])
-          and not any(w.sh("git", "branch", "--list", c["branch"]) for c in d["crs"]
-                      if c["status"] == "merged"))
     check("merged CR folders wait intact in 3-done until the close",
           all(re.search(r"4-batch/3-done/\d{3}-", c["path"])
               and (w.state / c["path"] / "03-change-spec.md").is_file()
@@ -2011,10 +2040,10 @@ def seat_handover(w: World) -> None:
     code, _ = w.chantier("cost")
     check("`cost` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
           w.last_stderr)
-    w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1, env=b_env)
-    code, _ = w.chantier("pause", "--epoch", 1, env=b_env)
-    check("`pause` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
-          w.last_stderr)
+    code, _ = w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1, env=b_env)
+    check("the automatic pause at the last cancel prices two Chief of Staff sessions, blocked by "
+          "neither's file", code == 0 and w.batch()["status"] == "paused"
+          and not w.batch()["summary"][0].startswith("Spent: unknown"), w.last_stderr)
     code, _ = w.chantier("close", "--batch", w.name, "--yes", env=b_env)
     check("`close` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
           w.last_stderr)
@@ -2207,7 +2236,9 @@ def direct_batch(w: World) -> None:
     driver_round(w, cr, "direct.py", "DIRECT = True\n")
     w.ready(cr, w.cr(cr)["pr"])
     fm.turn()
-    w.chantier("order", "merged", cr)
+    w.chantier("order", "merged", cr, "--epoch", fm.epoch)  # the steering session's own merge
+    check("in a direct batch the steering session's `order merged --epoch` of the last CR pauses",
+          w.batch()["status"] == "paused", str(w.batch()["status"]))
     fm.turn()
     check("a direct batch runs from open to the pause", fm.paused and w.batch()["status"] == "paused",
           str(w.batch()["status"]))
@@ -2737,7 +2768,10 @@ def close_refusals(w: World) -> None:
           and any("was paused: running again" in ln for ln in out) and w.cr(new)["status"] == "working",
           str(out))
     main.write_text(main.read_text().replace(MYSTERY_CALL, ""))  # the later steps price as before
+    w.chantier("order", "note", "--note", "the user's word, not yet read")  # holds the pause
     w.chantier("cancel", new, "--epoch", 2)
+    check("the last cancel, with a note order pending, does not pause the batch",
+          w.batch()["status"] == "running", str(w.batch()["status"]))
     for o in w.batch()["orders"]:
         if not o["done"]:
             w.chantier("order", "done", o["id"], "--epoch", 2)
@@ -3043,7 +3077,7 @@ def close_refusals(w: World) -> None:
 
 def close_batch(w: World) -> None:
     note("\n## 11b. Closing the batch, on the user's word")
-    folder, dropped = w.folder(), w.cr("CR-103")
+    folder, dropped, merged_left = w.folder(), w.cr("CR-103"), w.cr("CR-101")
     name = w.name
     close_refusals(w)
     retro = folder / "retro.md"
@@ -3061,7 +3095,10 @@ def close_batch(w: World) -> None:
           code == 0 and (folder / "batch.json").is_file() and Path(dropped["worktree"]).is_dir()
           and any(folder.name in ln for ln in out) and "--yes" in out[-1]
           and len(list((folder / "3-done").iterdir())) == 4
-          and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out), str(out))
+          and any(dropped["worktree"] in ln and dropped["branch"] in ln for ln in out)
+          and any("CR-101 (merged) worktree" in ln and "CR-103 (dropped) worktree" in ln
+                  for ln in out)
+          and not any("CR-102 (merged)" in ln for ln in out), str(out))
     batches = w.state / "5-archives" / "batches"
     record_file, report_file = batches / f"{w.name}.json", batches / f"{w.name}.md"
     retro_lines = [ln for ln in out if ln.startswith("retro:")]
@@ -3190,11 +3227,13 @@ def close_batch(w: World) -> None:
           not any("batches" in str(e.get("path")) for e in index["merged"])
           and index["merged_total"] == len(cr_archives), str(index["merged_total"]))
     # the Chief of Staff removes it on the same word, with git
-    w.sh("git", "worktree", "remove", "--force", dropped["worktree"])
-    w.sh("git", "branch", "-D", dropped["branch"])
-    check("the dropped CR's worktree and branch are gone by the Chief of Staff's hands",
-          not Path(dropped["worktree"]).exists()
-          and not w.sh("git", "branch", "--list", dropped["branch"]))
+    for left in (dropped, merged_left):
+        w.sh("git", "worktree", "remove", "--force", left["worktree"])
+        w.sh("git", "branch", "-D", left["branch"])
+    check("the dropped CR's and the merged CR's leftover worktrees and branches are gone by the "
+          "Chief of Staff's hands",
+          not any(Path(c["worktree"]).exists() or w.sh("git", "branch", "--list", c["branch"])
+                  for c in (dropped, merged_left)))
     board = (w.state / "STATUS.md").read_text(encoding="utf-8")
     check("the archives and the trash stay, and the board forgets the batch",
           name not in board and "No batch." in board
@@ -3242,8 +3281,7 @@ def retro_cases(w: World) -> None:
               str(head[:2]))
         number = int(w.batch()["crs"][0]["id"].removeprefix("CR-"))
         w.chantier("foreman", "set", "local_foreman_retro", "--epoch", 1)
-        w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1)
-        w.chantier("pause", "--epoch", 1)
+        w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1)  # the last end: paused
         priced_foreman(w)
         age_sessions(w)
         retro = w.folder() / "retro.md"
@@ -4649,7 +4687,6 @@ def restore_cr(w: World) -> None:
           code == 0 and back.is_dir() and not path.exists() and len(out) == 2
           and f"formerly {y} of {w.name}" in (back / "01-intent.md").read_text("utf-8")
           and w.cr(y)["status"] == "cancelled" and w.cr(y)["branch"] in out[1], str(out))
-    w.chantier("pause", "--epoch", 1)
     priced_foreman(w)
     clear_agents(w)
     code, out = w.chantier("close")
@@ -5978,7 +6015,8 @@ def release(w: World) -> None:
     w.chantier("release", "published", rel, "--note", "v1.1.0 https://forge.example/v1.1.0")
     _, out = w.chantier("handback", rel, "ready", "https://forge.example/v1.1.0")
     check("a released CR moves to 3-done, and the batch can pause",
-          "/3-done/" in w.cr(rel)["path"] and "chantier pause" in out[1], str(out))
+          "/3-done/" in w.cr(rel)["path"] and any(ln.startswith("paused batch-") for ln in out)
+          and w.batch()["status"] == "paused", str(out))
     fm.turn()
     check("the release done, the batch pauses", fm.paused, str(fm.asked))
     calls = (w.root / "gh-state.json.calls").read_text()
@@ -6016,13 +6054,17 @@ def granted_fixes(w: World) -> None:
           and spec.read_text() == files[0].read_text(), str(fix))
     w.chantier("order", "add", "--note", files[3], "--fix-for", rel)
     check("past three, a fix is the user's go", len(w.batch()["crs"]) == 5)
-    for c in w.batch()["crs"]:
-        if c["status"] != "cancelled":  # a second drop is refused
-            w.chantier("order", "drop", c["id"])
+    still = [c for c in w.batch()["crs"] if c["status"] != "cancelled"]  # a second drop is refused
+    for c in still[:-1]:
+        w.chantier("order", "drop", c["id"])
     _, out = w.chantier("status")
     check("`status` tells an order the CLI applied from one nothing has touched",
           any(ln.startswith("orders the CLI applied") and "order done" in ln and "O-" in ln
               for ln in out), str(out))
+    _, out = w.chantier("order", "drop", still[-1]["id"])
+    check("the drop of the last CR pauses the batch, its applied orders ended",
+          w.batch()["status"] == "paused" and all(o["done"] for o in w.batch()["orders"])
+          and any(ln.startswith("paused batch-") for ln in out), str(out))
     dropped = next(c for c in w.batch()["crs"] if c["status"] == "cancelled")
     count = len(w.batch()["orders"])
     code, _ = w.chantier("order", "drop", dropped["id"], expect=2)

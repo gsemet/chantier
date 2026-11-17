@@ -19,6 +19,7 @@ from chantier.commands.driver_checks import (
     handback_refusals,
     live_cr,
 )
+from chantier.commands.endpause import end_of_batch
 from chantier.commands.facts import cr_facts, stack_lines
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
@@ -198,10 +199,20 @@ def context_line(repo: Repo, d: BatchRecord, agent: str | None) -> str:
 
 def handback(args: argparse.Namespace) -> list[str]:
     """A Driver's end, in the state first: `ready <link>` or `blocked <reason>`. Prints the line
-    to send the Foreman, and what the state did with it."""
+    to send the Foreman, and what the state did with it; a release that ends the batch's last CR
+    cleans and pauses the batch, once the locks are released."""
     repo = Repo.find()
     note = " ".join(args.note).strip()
     no_gate = handback_args(args, note)
+    ended: list[str] = []
+    lines = _handback_locked(repo, args, (note, no_gate), ended)
+    return [*lines, *(end_of_batch(repo, ended[0], f"handback {args.cr}") if ended else [])]
+
+
+def _handback_locked(
+    repo: Repo, args: argparse.Namespace, said_args: tuple[str, str | None], ended: list[str]
+) -> list[str]:
+    note, no_gate = said_args
     with (
         changes_lock(repo),
         RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b,
@@ -220,15 +231,9 @@ def handback(args: argparse.Namespace) -> list[str]:
             b.log("handback", args.cr, result=args.result, note=note)
             done_cr(b, c)
             b.touch(c, status="merged")
-            return [
-                line,
-                f"{args.cr} released, in 3-done"
-                + (
-                    "; every CR is merged or cancelled: `chantier pause --epoch <n>`"
-                    if all_merged(b.record)
-                    else ""
-                ),
-            ]
+            if all_merged(b.record):
+                ended.append(b.id)
+            return [line, f"{args.cr} released, in 3-done"]
         if not c.pr:
             raise ChantierError(f"{args.cr}: ready means a PR recorded (`chantier ship`)")
         basis = handback_refusals(repo, b, c, no_gate, prepared)

@@ -40,6 +40,9 @@ FULL_OUTPUT = {
     "asks",
     "close",
     "pause",
+    "order",  # the end of the last CR prints its cleanup and the pause
+    "handback",
+    "cancel",
     "rules",
     "log",
     "status",

@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from chantier import procs
+from chantier.commands.endpause import end_of_batch
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
@@ -120,7 +121,8 @@ def cancel(args: argparse.Namespace) -> list[str]:
         trash_cr(b, c)
         b.touch(c, status="cancelled", agent=None)
         b.log("cancel", args.cr, killed=killed, path=c.path)
-        done = all_merged(b.record)
-    return [f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}"] + (
-        ["every CR is merged or cancelled: `chantier pause --epoch <n>`"] if done else []
-    )
+        done, batch_id = all_merged(b.record), b.id
+    return [
+        f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}",
+        *(end_of_batch(repo, batch_id, f"cancel {args.cr}") if done else []),
+    ]

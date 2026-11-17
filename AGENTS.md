@@ -18,7 +18,7 @@
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
   after a merge it records, the board keeps its key in the repository's git folder
-  (`chantier/board.json`), and,
+  (`chantier/board.json`), and removes the merged CRs' worktrees and branches at a batch's end (below), and,
   on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else
   there.
 - `agents/` (Claude Code) and `com.github.copilot/agents/` (Copilot) are hand-written, one file
@@ -30,8 +30,11 @@
   agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line.
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools. The agents do the work, git and the forge included; a new
-  CLI tool comes from measured token-costly behaviour, never from speculation. One named
-  exception: `chantier board`, the web board's server, for the user on this machine and the local
+  CLI tool comes from measured token-costly behaviour, never from speculation. Two named
+  exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
+  `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
+  (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
+  `--force`), then pauses the batch; it does nothing else in git. Second, `chantier board`, the web board's server, for the user on this machine and the local
   network, behind a key in its URL: it serves the record and the planning folder's files, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
   each role's agent and model, per host, in the project's configuration file in the planning
@@ -44,10 +47,10 @@
   the record does not hold, it appends one line to `board-seen.jsonl` (planning folder, never
   published), which `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent; it takes its dependencies like the rest of the CLI and knows no role.
-- The board's server is also the CLI's one git exception: it may serve without joining the
-  planning surface's autosync group. Board and autosync permissions are independent; autosync
-  participation is explicit opt-in and does not stop other participants. The board commits
-  nothing itself. The rest of the CLI keeps no git write.
+- The CLI has two named git exceptions: the board's server, which may serve without joining the
+  planning surface's autosync group (board and autosync permissions are independent; autosync
+  participation is explicit opt-in and does not stop other participants; the board commits
+  nothing itself), and the batch's end cleanup (above). The rest of the CLI keeps no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a

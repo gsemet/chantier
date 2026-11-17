@@ -252,11 +252,12 @@ and how an agent is started. Each worker reads its own card, which restates the 
 - **Batch lifecycle:** three states, and only these words: **running**, **paused**, **closed**.
   1. **Running:** `open` creates the batch, running. Its CRs are taken by Drivers on the free
      slots, worked, handed back, merged by the user, or dropped.
-  2. **Complete:** every CR is merged or cancelled. The steering session (the Foreman, or the
-     Chief of Staff in direct mode) removes each merged CR's worktree and branch, from the main
-     checkout, then runs `pause`: the batch is **paused**.
+  2. **Complete:** every CR is merged or cancelled. The CLI removes each merged CR's worktree
+     and branch (one whose agent is still held, or that git refuses, is kept and named) and runs
+     `pause` itself: the batch is **paused**. With a note, a QA or a stack Driver pending, it
+     says `not paused` and the steering session runs `pause` once they are done.
   3. **Paused:** nothing runs. The cost to date has been computed and shown, and the steering
-     session has written the batch's retro for this pause (`4-batch/retro.md`: each problem met
+     session writes, after the pause, the batch's retro for this pause (`4-batch/retro.md`: each problem met
      with its long-term fix, one line each, tagged `project` or `chantier`), which the Chief of
      Staff offers to the user before any close: the `project` points as inbox items, the `chantier`
      ones as an issue on chantier's repository (`close` writes it into the batch's

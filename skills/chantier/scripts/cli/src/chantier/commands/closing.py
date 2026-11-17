@@ -16,6 +16,7 @@ from chantier.core.batch import check_epoch, require_epoch, resolve_batch
 from chantier.core.batch_records import Rec, check_closable, number_of, read_retro
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.git import branch_exists
 from chantier.core.ids import normalize_batch
 from chantier.core.records import LIVE, BatchRecord, read_batch_json
 from chantier.core.repo import Repo
@@ -26,6 +27,34 @@ from chantier.status.write import write_dashboard
 
 if TYPE_CHECKING:
     from chantier.costs.sessions import Ending
+
+
+def record_pause(repo: Repo, b: RenderedBatch, trigger: str) -> list[str]:
+    """The one place a pause is recorded, whoever pauses (`pause --epoch <n>`, or the end of the
+    batch's last CR): the cost to date computed and recorded, the record set `paused`, a `pause`
+    event naming its trigger. Returns the cost summary."""
+    paused = now()
+    try:
+        rows = cost_rows(repo, b.record, b.record.host, foreman_uuid(b.record))
+        record_costs(repo, b, rows)
+        summary = [
+            *cost_summary(
+                b.record,
+                rows,
+                cost_groups(repo, b.id, rows, "cr"),
+                cost_groups(repo, b.id, rows, "driver"),
+                chief_line(repo, b.record),
+            ),
+            TO_DATE,
+        ]
+    except ChantierError as e:  # never a false $0.00
+        summary = [f"Spent: unknown ({e})"]
+    b.record.status = "paused"
+    b.record.paused = paused
+    b.record.summary = summary
+    b.record.heartbeat_stopped = paused
+    b.log("pause", None, trigger=trigger)
+    return summary
 
 
 def pause(args: argparse.Namespace) -> list[str]:
@@ -43,7 +72,6 @@ def pause(args: argparse.Namespace) -> list[str]:
                 "`order add` adds work, the first `take` sets it running again, "
                 "then `pause --epoch <n>` runs again"
             )
-        paused = now()
         live_ids = [c.id for c in b.record.crs if c.status in LIVE]
         pending = [o.id for o in b.record.orders if not o.done]
         queued = [c.id for c in b.record.crs if c.status == "queued"]
@@ -57,26 +85,7 @@ def pause(args: argparse.Namespace) -> list[str]:
                 "`order done <O-k> --epoch <n>`), "
                 f"stack driver {b.record.stack_agent or 'none'}"
             )
-        try:
-            rows = cost_rows(repo, b.record, b.record.host, foreman_uuid(b.record))
-            record_costs(repo, b, rows)
-            summary = [
-                *cost_summary(
-                    b.record,
-                    rows,
-                    cost_groups(repo, batch, rows, "cr"),
-                    cost_groups(repo, batch, rows, "driver"),
-                    chief_line(repo, b.record),
-                ),
-                TO_DATE,
-            ]
-        except ChantierError as e:  # never a false $0.00
-            summary = [f"Spent: unknown ({e})"]
-        b.record.status = "paused"
-        b.record.paused = paused
-        b.record.summary = summary
-        b.record.heartbeat_stopped = paused
-        b.log("pause", None)
+        summary = record_pause(repo, b, "pause --epoch")
     return [f"paused {batch}: cost to date below", f"report: {b.dir / 'STATUS.md'}", *summary]
 
 
@@ -130,6 +139,26 @@ def _apart_lines(batch: str, apart: list[Ending]) -> list[str]:
     return [head, *[f"- {e.text()}" for e in apart]]
 
 
+def _to_remove(repo: Repo, d: BatchRecord) -> list[str]:
+    """The dropped CRs' worktrees and branches, and what still exists of the merged CRs'."""
+    clone = repo.clone if repo.external else repo.root
+    dropped = [
+        f"{c.id} (dropped) worktree {c.worktree} branch {c.branch}"
+        for c in d.crs
+        if c.status == "cancelled"
+    ]
+    for c in d.crs:  # a merged CR's leftovers: the worktree folder, the branch, what still exists
+        if c.status != "merged":
+            continue
+        left = [
+            *([f"worktree {c.worktree}"] if c.worktree and Path(c.worktree).exists() else []),
+            *([f"branch {c.branch}"] if branch_exists(c.branch, clone) else []),
+        ]
+        if left:
+            dropped.append(f"{c.id} (merged) {' '.join(left)}")
+    return dropped
+
+
 def _closing(
     repo: Repo,
     batch: str,
@@ -145,9 +174,7 @@ def _closing(
     archived = [
         (c, cr_directory(repo, c)) for c in d.crs if c.path and cr_directory(repo, c).parent == done
     ]
-    dropped = [
-        f"{c.id} worktree {c.worktree} branch {c.branch}" for c in d.crs if c.status == "cancelled"
-    ]
+    dropped = _to_remove(repo, d)
     check_closable(repo, number_of(batch))
     rows = final_rows(repo, batch, d)
     summary = cost_summary(
@@ -170,9 +197,10 @@ def _closing(
         stopped,
     )
     tail = [
-        "the dropped CRs, to remove on the same word where they still exist "
-        f"(`git {'-C ' + repo.clone.as_posix() + ' ' if repo.external else ''}"
-        f"worktree remove --force`, `git branch -D`): {'; '.join(dropped) or 'none'}",
+        "the dropped CRs and the merged CRs' leftovers, to remove on the same word where they "
+        f"still exist (`git {'-C ' + repo.clone.as_posix() + ' ' if repo.external else ''}"
+        "worktree remove --force`, `git branch -D`; for a folder git no longer knows, "
+        f"`git worktree prune` once it is deleted): {'; '.join(dropped) or 'none'}",
         *_apart_lines(batch, apart),
         "final cost, up to now (nothing runs):",
         *summary,

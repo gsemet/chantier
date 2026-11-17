@@ -23,7 +23,7 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import LIVE, CrEntry
 from chantier.gate_slots import slot_of
 from chantier.lifecycle.stages import trash_cr
-from chantier.rails import ENDED, is_release
+from chantier.rails import ENDED, all_merged, is_release
 from chantier.rails_release import (
     check_grant,
     check_granted_fix,
@@ -50,6 +50,7 @@ class Word:
     follow_up: str | None = None
     order_id: str = ""
     stopped: list[str] | None = None  # `order merged`: the line of a gate stopped before the locks
+    ended: bool = False  # set by the handler: this order ended the batch's last CR
 
 
 def target(w: Word) -> CrEntry:
@@ -174,6 +175,7 @@ def _drop(w: Word) -> list[str]:
         raise ChantierError(f"{cr_id} is already dropped: {c.path}", EXIT_PRECONDITION)
     trash_cr(b, c)
     b.touch(c, status="cancelled")
+    w.ended = all_merged(b.record)
     return [f"dropped {cr_id}: {c.path}"]
 
 
@@ -217,7 +219,8 @@ def _merged(w: Word) -> list[str]:
     stopped = w.stopped or _stop_gate(b, cr_id)
     if c.kind != "release":
         lines = merge_done(b, c)
-        return [lines[0], *stopped, *lines[1:]]
+        w.ended = all_merged(b.record)
+        return [lines[0], *stopped]
     release_merged(b, c)
     return [f"merged {cr_id}: the procedure goes on with a new Release driver", *stopped]
 
