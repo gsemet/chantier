@@ -19,8 +19,9 @@ const TITLE = 'CR board'
 const COMMAND = 'chantier-board'
 const PANE_SKILLS = ['chantier', 'chief-of-staff']
 const ROLE_SKILLS = ['chantier', 'chief-of-staff', 'griller']
-const RELOAD_LINE =
-  'chantier reload (automatic, after a compaction): follow session-start.md, "5. Reload"; start your next answer with one line saying the rules of chantier were reloaded.'
+const WHO: Record<string, string> = { 'chief-of-staff': 'the Chief of Staff', griller: 'the Griller' }
+const reloadLine = (role: string) =>
+  `You are ${role in WHO ? `${WHO[role]} in` : 'in'} a chantier session; after this compaction, call your chantier skill again with the argument reload.`
 const SCHEMA = 3
 const EVERY_MS = 15000
 const SILENT_MINUTES = 40
@@ -48,7 +49,7 @@ const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, ba
 const feed = atom({ plugin: 'chantier', key: 'feed' } as const, { views: [], note: null }, { shape: 'feed-2' })
 const pages = atom({ plugin: 'chantier', key: 'pages' } as const, [], { shape: 'pages-1' })
 const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape: 'turned-1' })
-// The chantier role skills this session loaded: a compaction of such a session gets the reload line.
+// The chantier role skills this session loaded: a compaction of such a session gets the reload message, naming the last one loaded.
 const roles = atom({ plugin: 'chantier', key: 'roles' } as const, [], { shape: 'roles-1' })
 const checkedAt = atom({ plugin: 'chantier', key: 'checkedAt' } as const, null, { shape: 'checked-1' })
 // The agents this session started with a `writes:` line (agent id -> where it may write and runs); it survives a reload.
@@ -706,7 +707,7 @@ export const register: Register = on => {
   on('skill.prompt', async ($, e, next) => {
     const result = await next(e)
     const name = e.skill.split(':').pop() ?? ''
-    if (ROLE_SKILLS.includes(name)) await update($, roles, list => (list.includes(name) ? list : [...list, name]))
+    if (ROLE_SKILLS.includes(name)) await update($, roles, list => [...list.filter(n => n !== name), name])
     if (!PANE_SKILLS.includes(name)) return result
     try {
       await open($)
@@ -717,14 +718,16 @@ export const register: Register = on => {
   })
 
   // The automatic reload: after a compaction of the main loop (`/compact` or the threshold) of a
-  // session that loaded a chantier role skill, one message carries the reload line into the
+  // session that loaded a chantier role skill, one message carries the reload message into the
   // compacted conversation. A subagent's compaction and a plugin's are left alone; it never skips.
   on('session.compact', async ($, e, next) => {
     const result = await next(e)
     if (result.skip !== undefined || e.agentId !== undefined) return result
     if (e.trigger !== 'manual' && e.trigger !== 'auto') return result
-    if ((await read($, roles)).length === 0) return result
-    return { ...result, messages: [...result.messages, { role: 'user' as const, text: RELOAD_LINE, toolUses: [] }] }
+    const list = await read($, roles)
+    if (list.length === 0) return result
+    const role = [...list].reverse().find(n => n !== 'chantier') ?? 'chantier'
+    return { ...result, messages: [...result.messages, { role: 'user' as const, text: reloadLine(role), toolUses: [] }] }
   })
 
   on('session.start', async ($, e, next) => {
