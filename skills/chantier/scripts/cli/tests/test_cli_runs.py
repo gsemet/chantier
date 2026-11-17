@@ -130,7 +130,10 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
 def _the_cr_drivers_writes_hold_the_folder_then_the_absolute_archive(out: list[str]) -> None:
     archive = next(ln for ln in out if ln.startswith("archive: in the PR at ")).split(" at ")[1]
     folder = next(ln for ln in out if ln.startswith("folder: ")).split(" (")[0][len("folder: ") :]
-    writes = next(ln for ln in out if ln.startswith("  writes: ")).removeprefix("  writes: ")
+    heading = next(i for i, ln in enumerate(out) if ln.startswith("cr-driver prompt ("))
+    writes = next(ln for ln in out[heading:] if ln.startswith("  writes: ")).removeprefix(
+        "  writes: "
+    )
     assert writes.startswith(f"{folder}; ") and writes.endswith(archive)
     assert Path(writes.split("; ")[1]).is_absolute()
 

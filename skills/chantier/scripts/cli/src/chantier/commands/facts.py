@@ -82,22 +82,10 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         f"project instructions: {found.as_posix() if found else 'none'}",
         f"specification: {(folder / c.specification).as_posix()}",
         f"folder: {folder.as_posix()} (work/, evidence/)",
+        f"scratch: {(folder / 'work' / 'scratch').as_posix()}",
         f"worktree: {c.worktree} branch {c.branch} {_base_of(d, c, repo)}"
         + ("" if made else "; not created yet: a Driver creates it first"),
-        *(
-            [f"clone: {repo.clone.as_posix()} (`git -C` it to create the worktree)"]
-            if repo.external
-            else []
-        ),
-        *(
-            [
-                f"archive: in the PR at {archive_path(repo, c)}"
-                if archive_path(repo, c)
-                else "archive: not in the PR"
-            ]
-            if repo.external
-            else []
-        ),
+        *_external_lines(repo, c),
         f"PR: {c.pr or 'none'}; head {short_head(c.head) or '-'}",
         f"rounds: {c.round} of {round_limit(d, c)}",
     ]
@@ -111,7 +99,23 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         + ci_lines(d.playbook)
         + timing_lines(recorded_timing(d), d.host)
         + worker_prompt_lines(d.host, repo.root.as_posix(), (c.id, c.title), batch, d.playbook)
+        + [
+            "worker writes line (copy it unchanged, without the two leading spaces, into each "
+            "worker's prompt):",
+            f"  writes: {Path(c.worktree).as_posix()}; {folder.as_posix()}",
+        ]
     )
+
+
+def _external_lines(repo: Repo, c: CrEntry) -> list[str]:
+    """The clone and the archive, which only an external planning surface has."""
+    if not repo.external:
+        return []
+    path = archive_path(repo, c)
+    return [
+        f"clone: {repo.clone.as_posix()} (`git -C` it to create the worktree)",
+        f"archive: in the PR at {path}" if path else "archive: not in the PR",
+    ]
 
 
 def _status_lines(d: BatchRecord, c: CrEntry) -> list[str]:

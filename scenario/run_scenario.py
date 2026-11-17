@@ -201,6 +201,24 @@ def stack_take_rows(out: list[str]) -> list[str]:
     return [ln for ln in out[:at] if not ln.startswith("timing: ")]
 
 
+def check_worker_writes_line(w, cr: str, out: list[str], label: str) -> None:
+    """After a `take` or a `round`, the worker `writes:` line is bare: no parenthetical, two
+    absolute paths, the CR's worktree first, then its folder; the Verifier's scratch folder
+    follows `folder:` inside that folder."""
+    at = next((i for i, ln in enumerate(out) if ln.lstrip().startswith("worker writes line (")), -1)
+    line = out[at + 1].strip() if at >= 0 and at + 1 < len(out) else ""
+    paths = line.removeprefix("writes: ").split("; ")
+    folder = next((ln.split(" (")[0].removeprefix("folder: ") for ln in out
+                   if ln.startswith("folder: ")), "")
+    scratch = [ln for ln in out if ln.startswith("scratch: ")]
+    check(f"`{label}` prints the worker `writes:` line bare (no parenthetical), worktree first, "
+          "both paths absolute, and the scratch folder inside the CR folder",
+          line.startswith("writes: ") and "(" not in line and len(paths) == 2
+          and all(Path(p).is_absolute() for p in paths)
+          and paths[0] == Path(w.cr(cr)["worktree"]).as_posix() and paths[1] == folder
+          and scratch == [f"scratch: {folder}/work/scratch"], str(out))
+
+
 def check_driver_skeleton(w, target: str, out: list[str]) -> None:
     """After a `take`, the skeleton of the CR's Driver: no `writes:` line for a release or stack
     driver and the stack rows in the stack driver's; for any other CR one `writes:` line naming
@@ -955,6 +973,7 @@ def scenario(w: World) -> None:
           vi >= 0 and fm.facts[vi + 1].startswith("  chantier verifier for CR-10")
           and "references/verifier.md;" in fm.facts[vi + 2]
           and fm.facts[vi + 2].startswith("  Read "), str(fm.facts))
+    check_worker_writes_line(w, fm.started[-1], fm.facts, "take " + fm.started[-1])
     code, _ = w.chantier("take", "CR-103", "--epoch", 1, expect=2)
     check("a third Driver is refused: no free slot", code == 2 and "no free slot" in w.last_stderr)
     check("a taken CR is working", w.cr("CR-101")["status"] == "working")
@@ -970,6 +989,7 @@ def scenario(w: World) -> None:
     check("`round` counts the round and prints the facts", w.cr("CR-101")["round"] == 1
           and out[0] == "round 1 of 3 for CR-101" and any(ln == "rounds: 1 of 3" for ln in out),
           str(out))
+    check_worker_writes_line(w, "CR-101", out, "round CR-101")
     sheet = lambda cr: json.loads((w.at(w.cr(cr)["path"]) / "STATUS.json").read_text(encoding="utf-8"))
     row = lambda cr: next(r for r in json.loads((w.folder() / "STATUS.json").read_text(
         encoding="utf-8"))["crs"] if r["cr"] == cr)
