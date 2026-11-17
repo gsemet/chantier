@@ -171,7 +171,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (test: test_gate_waiver_orders.py::test_a_cr_waiver_needs_an_existing_backlog_folder)
   (test: test_gate_view.py::test_the_state_of_a_gate_read_from_the_gate_events_at_the_head);
 - the three words of a ready CR (`ready locally`, `PR in draft`, `ready to merge`) with their
-  icons 🟣, 🟤 and 🟢 in `status`, the STATUS files (`readiness`), `handoff` and the `stack` rows:
+  icons 🟣, 🟤 and 🟢 in `status`, the STATUS files (`readiness`) and `handoff`, and the `stack` and
+  `take stack` rows: the hand-back state and the PR's draft flag (`ready, PR draft (#n)`):
   `ship` reading the draft state from the forge, the hand-back line by word (for `PR in draft`, its PR's draft state and the CR (and PR) it waits
   on), a PR out of draft over a draft, `stack
   --out-of-draft` refused over a draft (nothing written) or on a CR that is working, `stack

@@ -4873,6 +4873,9 @@ def forge_stack_cli(w: World) -> None:
         new = w.batch()["crs"][-1]["id"]
         w.chantier("stack", a, b, new)
         record({new: "working"}, **{new: PR_LINK["gitlab"] + "204"})
+        check("GitLab: a `stack` row names the MR as `(!<n>)`",
+              any(x.startswith(f"{new} working, PR ") and "(!204) worktree" in x
+                  for x in w.chantier("stack")[1]), str(w.chantier("stack")[1]))
         num = {a: 201, b: 202, new: 204, r: 203}
         base = {a: "main", b: branch(a), new: branch(b), r: branch(new)}
 
@@ -6478,6 +6481,9 @@ def ready_words(w: World) -> None:
           out[1].endswith(f"out of draft on the forge; it waits on {b} ({bpr})")
           and "waits on main" not in out[1], str(out))
     edit_cr(b, drop=("pr",))
+    check("4. a CR handed back ready with no PR reads `ready` alone in the `stack` rows",
+          any(ln.startswith(f"{b} ready worktree") for ln in w.chantier("stack")[1]),
+          str(w.chantier("stack")[1]))
     edit_cr(c, status="working")  # handed back again, the record as a Driver leaves it
     _, out = w.ready(c, cpr)
     check("4. a CR waited on with no PR recorded reads `(no PR yet)`",
@@ -6493,9 +6499,17 @@ def ready_words(w: World) -> None:
           and f"its PR {cpr} is of unknown draft state (draft not read: ship {c} {cpr}); "
               f"it waits on {b} ({bpr})" in out[1], str(out))
     w.chantier("ship", c, cpr)
-    check("4. `status` and the `stack` rows read the same word",
-          "PR in draft" in row(c) and any(ln.startswith(f"{c} PR in draft worktree")
-                                          for ln in w.chantier("stack")[1]), row(c))
+    def pr_n(cr: str) -> str:
+        return "#" + re.search(r"(\d+)/?$", w.cr(cr)["pr"])[1]
+
+    edit_cr(c, pr_draft=False)  # c is out of draft over b's draft
+    stack_rows = w.chantier("stack")[1]
+    check("4. `status` reads the derived word; the `stack` rows read the hand-back state and the "
+          "PR's draft flag",
+          "PR in draft" in row(c)
+          and any(ln.startswith(f"{c} ready, PR out of draft ({pr_n(c)}) worktree") for ln in stack_rows)
+          and any(ln.startswith(f"{b} ready, PR draft ({pr_n(b)}) worktree") for ln in stack_rows),
+          f"{row(c)} {stack_rows}")
 
     kept = {n: (w.folder() / n).read_bytes() for n in ("batch.json", "events.jsonl")}
     code, _ = w.chantier("stack", "--out-of-draft", c, expect=2)
@@ -6517,6 +6531,16 @@ def ready_words(w: World) -> None:
     check("6. a CR taken back for a round: the PR above it falls back to `PR in draft`",
           fm.take(b, "round: a change") == 0 and w.cr(b)["status"] == "working", str(w.cr(b)))
     icon_is(w, c, "🟤", "the CR above a CR taken back")
+
+    def cr_rows(lines: list[str]) -> list[str]:
+        ids = tuple(x["id"] + " " for x in w.batch()["crs"])
+        return [ln for ln in lines if ln.startswith(ids) and " worktree " in ln]
+
+    rows = cr_rows(w.chantier("stack")[1])
+    check("6. the `stack` row of a CR taken back reads `working, PR …`, and `take stack` prints "
+          "the same CR rows",
+          any(ln.startswith(f"{b} working, PR ") for ln in rows)
+          and rows == cr_rows(w.chantier("take", "stack", "--epoch", 1)[1]), str(rows))
     check("6. `readiness` of the CR above follows, and it waits for the CR taken back",
           ready_of(c) == "PR in draft" and ready_of(a) == "ready to merge"
           and f"waits for {b}" in drawn(w, c)[1]["label"], str(drawn(w, c)[1]))
