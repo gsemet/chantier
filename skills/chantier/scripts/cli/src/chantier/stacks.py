@@ -90,21 +90,6 @@ def stack_forms(b_data: BatchRecord) -> bool:
     return len(ready) >= FORMING
 
 
-def ready_top(b_data: BatchRecord, c: CrEntry) -> CrEntry | None:
-    """The top of the stack's ready part: the highest CR of the chain, other than `c`, handed back
-    `ready` with a PR; None before the stack can form."""
-    if not stack_forms(b_data):
-        return None
-    return next(
-        (
-            x
-            for x in reversed(chain(b_data))
-            if x.id != c.id and _alone(x) and x.status == "ready" and x.pr
-        ),
-        None,
-    )
-
-
 def _open_after(b_data: BatchRecord, c: CrEntry) -> list[CrEntry]:
     """The dependencies of `c` still open, in the order of `after`."""
     found = {x.id: x for x in b_data.crs}
@@ -112,12 +97,19 @@ def _open_after(b_data: BatchRecord, c: CrEntry) -> list[CrEntry]:
 
 
 def start_on_for(b_data: BatchRecord, c: CrEntry) -> str | None:
-    """The branch a CR taken from `queued` in a stack batch is to start on, to record on it: the
-    top of the stack's ready part once the stack can form; None for any other CR."""
+    """The branch a CR taken from `queued` in a stack batch is to start on, to record on it: for a
+    CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
+    earlier CR of the batch (lower `order`, not ended, not a fix, not a release) that has a PR,
+    else None (the default branch). None in a parallel or series batch and for any other CR."""
     if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c):
         return None
-    top = ready_top(b_data, c)
-    return top.branch if top else None
+    earlier = [
+        x
+        for x in b_data.crs
+        if x.id != c.id and _alone(x) and x.status not in ENDED and x.order < c.order and x.pr
+    ]
+    nearest = max(earlier, key=lambda x: x.order, default=None)
+    return nearest.branch if nearest else None
 
 
 def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:

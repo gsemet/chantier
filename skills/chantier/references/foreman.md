@@ -270,10 +270,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   (`--mode stack`, or a batch switched to a stack by `order mode`): until the first stack is made it runs like
   a parallel batch with chains: each CR handed back `ready` on the default branch is an ordinary
   `ready-to-merge` ask (the user may merge it now), and a merge is handled by the rebase notes below, not
-  by a restack. The stack grows from the bottom:
+  by a restack; a CR based on another CR's branch hands back `PR in draft`. The stack grows from the bottom:
   - **The first take,** the moment the stack can form: as soon as two CRs are handed back `ready`
-    with a PR (and neither depends on an open CR not ready). From then on `take` starts every new
-    CR on the stack (the top of its ready part), recorded at its first take.
+    with a PR (and neither depends on an open CR not ready). `take` starts every new CR on the
+    nearest earlier CR with a PR (the CLI computes it; you choose nothing), recorded at its first take.
   - **Each later take,** one for everything that happened while no stack driver ran: a CR got its
     first PR (`status` shows it; it joins), a working CR rebased onto its place (its `ship` reads
     the new base; it joins like a CR that got its first PR), a CR of the stack was handed back `ready` (it turns
@@ -286,6 +286,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     printed `not on its place`, send that CR's Driver `[foreman→driver <cr>] note rebase: stacked
     on <cr below>` (the CR the row's `base` names; [driver](driver.md), "Stack driver"). Never hold
     the take for it: the CR joins at a later take.
+  - **The final-order take:** once every non-release CR of the stack has handed back (`ready` or
+    `blocked`), none `working`, and none `queued` that could start (a queued CR whose dependency is
+    blocked or cancelled does not count: it stays out of the stack), and before `take <release>`:
+    `take stack --note "final order" --epoch <n>` (a running stack driver gets `[foreman→stack] note
+    final order` instead, after its current work). The release's take then follows as today (`take
+    stack` first, then `take <release>`). The ask that follows the end run's hand-back names each
+    such queued CR left out (with its unmet dependency), beside the one-time ask for a cancelled
+    dependency. A CR that goes back to a Driver after the final-order take (a new round, a
+    `rebase:`) makes it due again once that CR hands back.
   - **Deliver by a time:** on the order note `deliver by <time>`, until the time, free slots go
     first to the CRs that can join the mergeable part by then: those closest to being handed back `ready` whose
     dependencies are already in it or ready to merge, short chains before long ones; a CR that cannot be
