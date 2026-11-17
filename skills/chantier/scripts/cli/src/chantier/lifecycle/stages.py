@@ -12,7 +12,7 @@ from pathlib import Path
 from chantier.core.batch import Batch, move_directory
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import read_text, try_lock, unlock, write_file
+from chantier.core.files import markdown_title, read_text, try_lock, unlock, write_file
 from chantier.core.records import CrEntry, read_batch_json
 from chantier.core.repo import Repo
 
@@ -115,9 +115,7 @@ def prepared_cr(repo: Repo, item: str, paths: dict[str, Path]) -> PreparedCR:
     in_ready = _check_place(directory, paths)
     specification = _specification(specification, directory, supplied, in_ready)
     text = _spec_text(specification)
-    title = next(
-        (line.lstrip("# ").strip() for line in text.splitlines() if line.strip()), directory.name
-    )
+    title = markdown_title(text) or directory.name
     return PreparedCR(directory, specification, title)
 
 

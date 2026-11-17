@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.clock import age_minutes, now
-from chantier.core.files import read_text
+from chantier.core.files import markdown_title, read_text
 from chantier.core.records import (
     LIVE,
     SUMMARY_FILE,
@@ -120,7 +120,7 @@ def cr_view(
         "schema": SCHEMA,
         "updated": now(),
         "cr": c.id,
-        "title": c.title,
+        "title": shown_title(c.title, folder),
         "batch": d.id,
         "in_batch": in_batch,
         "state": c.status,
@@ -164,7 +164,7 @@ def _row(
     waiting = waits(d, c)
     return {
         "cr": c.id,
-        "title": c.title,
+        "title": shown_title(c.title, folder),
         "state": c.status,
         "severity": severity(c),
         "step": step(c),
@@ -216,11 +216,18 @@ def _title(folder: Path) -> str:
     for name in TITLE_FILES:
         path = folder / name
         if path.is_file():
-            text = read_text(path, "replace")
-            line = next((ln for ln in text.splitlines() if ln.strip()), "")
-            if line:
-                return line.lstrip("# ").strip()
+            title = markdown_title(read_text(path, "replace"))
+            if title:
+                return title
     return folder.name
+
+
+def shown_title(recorded: str, folder: Path | None) -> str:
+    """A CR's recorded title, unless it is empty or a front matter's fence (`---`, recorded by an
+    older `open`): then the folder's own title, when the folder is known."""
+    if recorded and recorded.strip() != "---":
+        return recorded
+    return _title(folder) if folder is not None and folder.is_dir() else recorded
 
 
 def spec_state(folder: Path) -> str | None:
@@ -291,7 +298,7 @@ def _past(stage: Path, start: Path) -> tuple[list[dict[str, Any]], int]:
         out.append(
             {
                 "cr": s.get("cr"),
-                "title": s.get("title") or _title(folder),
+                "title": shown_title(s.get("title") or "", folder),
                 "state": s.get("state"),
                 "batch": s.get("batch"),
                 "pr": pr.get("url") if isinstance(pr, dict) else pr,
@@ -315,7 +322,7 @@ def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
             out.append(
                 {
                     "cr": c.id,
-                    "title": c.title,
+                    "title": shown_title(c.title, where),
                     "state": c.status,
                     "batch": d.id,
                     "pr": c.pr,

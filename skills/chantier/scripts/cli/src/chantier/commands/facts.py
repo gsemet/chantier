@@ -43,6 +43,7 @@ from chantier.stacks import (
     waived_gate,
 )
 from chantier.status.gate import pr_number
+from chantier.status.views import shown_title
 
 
 def _ref(repo: Repo, branch: str) -> str:
@@ -74,8 +75,9 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
     found = project_instructions(repo)
     skill = skill_dir().as_posix()
     made = Path(c.worktree).is_dir()
+    title = shown_title(c.title, folder)
     lines = [
-        f'{c.id} "{c.title}" ({c.kind}) {state_word(d, c, repo)} in batch {batch} ({d.mode})',
+        f'{c.id} "{title}" ({c.kind}) {state_word(d, c, repo)} in batch {batch} ({d.mode})',
         f"cli: {cli_command(repo)} <command> --batch {batch}",
         f"cards: {skill}/references/ (driver.md, concepts.md; each worker's own card, named in "
         "its opening lines); the project's rules rank above them: `rules`",
@@ -98,7 +100,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         + team_lines(d.playbook)
         + ci_lines(d.playbook)
         + timing_lines(recorded_timing(d), d.host)
-        + worker_prompt_lines(repo.root.as_posix(), (c.id, c.title), batch, d)
+        + worker_prompt_lines(repo.root.as_posix(), (c.id, title), batch, d)
         + [
             "worker writes line (copy it unchanged, without the two leading spaces, into each "
             "worker's prompt):",

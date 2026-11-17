@@ -155,8 +155,14 @@
 }
 
 .lbtn {
+  border: 0;
   cursor: pointer;
+  font: inherit;
   font-size: var(--text-small);
+}
+
+.lbtn[data-pf]::before {
+  content: none;
 }
 
 .lbtn.on {

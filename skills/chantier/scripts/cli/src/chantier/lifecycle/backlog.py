@@ -11,7 +11,7 @@ from pathlib import Path
 
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import inside, read_json, retry, write_bytes, write_json
+from chantier.core.files import inside, markdown_title, read_json, retry, write_bytes, write_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
 from chantier.lifecycle.stages import (
@@ -36,7 +36,7 @@ def idea_slug(text: str, slug: str | None = None) -> str:
     non-empty line); refused when the text is empty or the slug is not one."""
     if not text.strip():
         raise ChantierError("the request is empty", EXIT_USAGE)
-    title = next(line.lstrip("# ").strip() for line in text.splitlines() if line.strip())
+    title = markdown_title(text)
     slug = slug or slugify(title)
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,80}", slug):
         raise ChantierError("CR slug: lowercase letters, digits and hyphens", EXIT_USAGE)
