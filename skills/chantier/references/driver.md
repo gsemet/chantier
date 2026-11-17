@@ -717,9 +717,10 @@ changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dr
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
 
-In a stack batch the `base` that `take` prints may be another CR's branch: the top of the stack's
-ready part, once the stack can form. Create the worktree on it and open the PR on it as a draft;
-that branch is the stack driver's, never rebased by you but on a note. A `note rebase: stacked on
+In a stack batch the `base` that `take` prints may be another CR's branch: the nearest earlier CR
+of the batch that has a PR. Create the worktree on that base and no other, never on a branch with
+no PR (the PR's base is the `base` that `take` printed, never another), and open the PR on it as a
+draft; that branch is the stack driver's, never rebased by you but on a note. A `note rebase: stacked on
 <cr below>` received while working: rebase onto that CR's branch (not the default branch), retarget
 your PR to it (`gh pr edit --base`, `glab mr update --target-branch`) while it is in no native
 stack, push with `--force-with-lease`, `ship` (`--conflict` by the rule above).
@@ -768,7 +769,17 @@ that are not handed back ready (`working, …`, `blocked, …`: those already st
 newly joined in planned order). The CRs to come (no PR yet) are not named, nor a row printed `not
 on its place` (it stays above, to come); a working CR already on its place stays right above the CR
 its PR sits on. A CR always sits above
-the ones it depends on; `stack` refuses an order that breaks it.
+the ones it depends on; `stack` refuses an order that breaks it. Outside the final-order take, the
+CRs already stacked keep their relative order but for that move.
+
+**The final-order take** (a take whose note is `final order`). Order every CR of the stack with a PR
+by the Ordering rule (the CRs handed back `ready` first, then the `blocked`, a CR always above its
+dependencies, as `stack` enforces), free to move any CR. Rebase each moved CR on the one under it
+and push each branch with the Push bullet's rewrite form (`git -C <worktree> push
+--force-with-lease -u <remote> <branch>`, one command per branch), `ship` each moved CR, run
+`forge-stack rebuild` (or `create` if no stack is on the forge yet), read it back with
+`forge-stack show` (the five checks), turn the mergeable part ready and `stack --out-of-draft`;
+then hand back as today. One linear native stack is its end.
 
 **Who moves a branch.** A CR with no live Driver (handed back `ready`, or `blocked`) is rebased and pushed by you,
 as below. A `working` CR's branch is its Driver's: you never rebase or push it. The Foreman sends

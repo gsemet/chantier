@@ -203,10 +203,9 @@ and how an agent is started. Each worker reads its own card, which restates the 
   then moved by its Driver on a rebase note (`rebase: mode <mode>`), the Foreman and the stack
   driver acting as their cards say; a merged CR never changes (its record, PR, branch and folder).
   **Stack**: parallel, with a stack driver: every CR with no open
-  dependency starts at once, on the default branch until the stack can form (two CRs handed back
-  `ready` with a PR); from then on a CR started starts on the top of the stack's ready part (the
-  highest CR handed back `ready` with a PR), recorded at its first `take`, so its PR is already on
-  the stack; a CR with a dependency starts only once that
+  dependency starts at once, on the nearest earlier CR of the batch (by order) that already has a
+  PR, else on the default branch, recorded at its first `take` (a branch with no PR is never a
+  base), so its PR is already on the stack; a CR with a dependency starts only once that
   dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
   open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
   previous one (`stack` marks the CRs it orders; `ship` records a stacked CR's place in the stack,
@@ -215,7 +214,13 @@ and how an agent is started. Each worker reads its own card, which restates the 
   declined the extension); each further CR joins on top as a draft when it has its PR
   (`$CHANTIER forge-stack rebuild`: unstack, then create); the PRs ready to merge come first in readiness
   order, a CR always above its dependencies; the user merges the mergeable part at any time, in
-  one action from its top PR or one PR at a time from the bottom, the release commit last. On
+  one action from its top PR or one PR at a time from the bottom, the release commit last. The
+  stack-driver runs during the batch keep the stack current (made at two PRs ready, a CR that
+  joins on top, a newly ready CR moved below the drafts, a restack after a merge at once, as
+  today); one run at the batch's end, once every non-release CR has handed back (`ready` or
+  `blocked`) and before the release's take, sets the final order, free to move any CR: one linear
+  native stack on the forge. A queued CR whose dependency is blocked or cancelled does not hold
+  that run back. The user may merge a ready CR on the default branch at any time before it. On
   GitHub, a chain of PRs based on each other is not a stack. On GitHub a stack is the forge's
   native stacked-PR stack; on GitLab, which has none, it is the chain of MRs `forge-stack` makes
   and checks, each targeting the one below, the first on the default branch, MRs ready to merge below and
@@ -298,8 +303,8 @@ and how an agent is started. Each worker reads its own card, which restates the 
   who drops the CR or changes it). A release's `after` is met by `ready` or `merged` in an
   ordered batch (stack, series), by `merged` in a parallel one; a cancelled CR never holds it
   back. The CR starts on the branch of its last dependency still open,
-  in the order of `after`, else on the default branch, in a stack too until the stack can form,
-  then on the top of the stack's ready part: a CR's start base and its place in the stack are two
+  in the order of `after`, else, in a stack, on the nearest earlier CR of the batch that has a PR,
+  else on the default branch: a CR's start base and its place in the stack are two
   things. A chain is an `after` with no real dependency, which the
   Foreman decided, or the plan proposed and the user's go approved, for a queued CR; it ends with `order after <cr> --note -` while the CR is
   queued. `stack` refuses an order that puts a CR below one of its

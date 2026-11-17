@@ -5000,8 +5000,9 @@ def stack_batch(w: World) -> None:
     w.chantier("stack", one, two, three, four)
     w.chantier("order", "after", four, "--note", "-")
     fm.turn()
-    check("a CR taken once two are ready with a PR starts on the top of the stack's ready part, "
-          "recorded at its first take: its `handoff` prints that branch",
+    check("a CR taken once two are ready with a PR starts on the nearest earlier CR with a PR "
+          "(here the top of the ready part), recorded at its first take: its `handoff` prints "
+          "that branch",
           w.cr(four).get("start_on") == w.cr(three)["branch"]
           and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
           str(w.cr(four)))
@@ -5132,6 +5133,80 @@ def stack_batch(w: World) -> None:
           and clear_agents(w) is None
           and w.chantier("close", "--batch", w.name.removeprefix("batch-"), "--yes")[0] == 0
           and not (w.folder() / "batch.json").exists())
+    w.env.pop("CHANTIER_BATCH", None)
+    stack_start_base(w)
+
+
+def stack_start_base(w: World) -> None:
+    """The start base of a CR taken in a stack batch: the nearest earlier CR with a PR."""
+    note("\n## 13-bis. A stack CR starts on the nearest earlier CR with a PR")
+    w.reset()
+    items = [prepare_cr(w, f"Start base {x}")[1] for x in "abcdefg"]
+    w.start(*map(str, items), "--mode", "stack", "--slots", 6, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman13", "--epoch", 1)
+    a, b, c, d, e, f, g = (x["id"] for x in w.batch()["crs"])
+
+    def edit(cr: str, **fields: object) -> None:
+        data = w.batch()
+        next(x for x in data["crs"] if x["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(data, indent=2))
+
+    def based(cr: str, branch: str | None) -> bool:
+        """The `handoff` base of `cr` is `branch` (the default branch for None)."""
+        want = f"base {branch or 'origin/main'}"
+        return any(want in ln for ln in w.chantier("handoff", cr)[1])
+
+    def link(cr: str) -> str:
+        return PR_LINK[ARGS.forge] + str(300 + int(cr.removeprefix("CR-")))
+
+    edit(g, kind="release")
+    edit(e, kind="fix")
+    edit(f, after=[b])
+    edit(d, pr=link(d), status="queued")  # a later CR with a PR: it counts for nobody before it
+    w.chantier("take", a, "--epoch", 1)
+    check("a CR taken while no earlier CR has a PR (a later one having one does not count) "
+          "starts on the default branch, no `start_on` recorded",
+          "start_on" not in w.cr(a) and based(a, None), str(w.cr(a)))
+    edit(a, pr=link(a))  # a is working, a draft: its PR is open
+    w.chantier("take", b, "--epoch", 1)
+    check("a CR taken while an earlier CR is working with a PR, no two being ready, starts on "
+          "that CR's branch (the old rule gave the default branch)",
+          w.cr(b).get("start_on") == w.cr(a)["branch"] and based(b, w.cr(a)["branch"]), str(w.cr(b)))
+    w.chantier("take", c, "--epoch", 1)
+    check("a CR taken while the CR right before it has no PR and an earlier one has starts on "
+          "the earlier one with the PR",
+          w.cr(c).get("start_on") == w.cr(a)["branch"] and based(c, w.cr(a)["branch"]), str(w.cr(c)))
+    edit(b, pr=link(b))
+    edit(c, pr=link(c), status="cancelled")
+    edit(a, status="merged")
+    edit(d, pr=None)
+    w.chantier("take", d, "--epoch", 1)
+    check("an earlier CR with a PR that is cancelled or merged is skipped: the nearest one left "
+          "with a PR is the base",
+          w.cr(d).get("start_on") == w.cr(b)["branch"] and based(d, w.cr(b)["branch"]), str(w.cr(d)))
+    w.chantier("take", e, "--epoch", 1)
+    check("a fix CR starts on the default branch; a release starts on the top CR's branch",
+          "start_on" not in w.cr(e) and based(e, None) and based(g, w.cr(f)["branch"]),
+          str(w.cr(e)))
+    edit(b, status="ready")
+    w.chantier("take", f, "--epoch", 1)
+    check("a CR with an open `after` still starts on its dependency's branch, no `start_on` "
+          "recorded",
+          "start_on" not in w.cr(f) and based(f, w.cr(b)["branch"]), str(w.cr(f)))
+    w.reset()
+    x_item, y_item = (prepare_cr(w, t)[1] for t in ("Parallel start x", "Parallel start y"))
+    w.start(str(x_item), str(y_item), *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman13", "--epoch", 1)
+    x, y = (k["id"] for k in w.batch()["crs"])
+    w.chantier("take", x, "--epoch", 1)
+    edit(x, pr=link(x))
+    w.chantier("take", y, "--epoch", 1)
+    check("in a parallel batch a CR taken while an earlier CR has a PR still starts on the "
+          "default branch", w.batch()["mode"] == "parallel" and "start_on" not in w.cr(y)
+          and based(y, None), str(w.cr(y)))
+    w.reset()
     w.env.pop("CHANTIER_BATCH", None)
 
 
