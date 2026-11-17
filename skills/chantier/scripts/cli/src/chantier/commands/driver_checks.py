@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 
+from chantier.commands.carry import carry_reason, head_base
 from chantier.commands.crs import (
-    carry_check,
+    Judged,
+    carry_at,
+    conflict_cut,
     cr_events,
     cr_worktree,
     dirty_files,
-    last_gate_pass,
+    judged_gate,
+    judged_verdict,
     last_verdict,
-    last_verdict_head,
     short_head,
 )
 from chantier.core.batch import Batch
@@ -23,7 +27,7 @@ from chantier.core.heads import gate_passed, same_head
 from chantier.core.records import LIVE, BatchRecord, CrEntry, EventRecord, GateWaiver
 from chantier.core.repo import Repo
 from chantier.rails import ENDED
-from chantier.stacks import stack_base, top_cr, validating_cr, waived_gate
+from chantier.stacks import top_cr, validating_cr, waived_gate
 
 
 def check_release_branch(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
@@ -103,20 +107,48 @@ def handback_blocked(b: Batch, c: CrEntry, note: str, line: str) -> list[str]:
     return [line, f"{cr} blocked; the Foreman asks the Chief of Staff"]
 
 
+CONFLICT = "the rebase resolved a conflict"
+
+
+def _voided(
+    events: list[EventRecord], kind: str, judged: Callable[[list[EventRecord]], Judged | None]
+) -> Judged | None:
+    """What a `ship --conflict` cut off, when nothing of `kind` was judged after it."""
+    cut = conflict_cut(events)
+    if cut < 0 or any(e.kind == kind for e in events[cut + 1 :]):
+        return None
+    return judged(events[:cut])
+
+
+def _carry_why(repo: Repo, b: Batch, c: CrEntry, j: Judged | None, what: str) -> tuple[str, str]:
+    """(the judged head to name, the reason it does not carry to the CR's head), or (its original
+    head, "") when it carries."""
+    if j is None:
+        return "", ""
+    wt = cr_worktree(c)
+    why = carry_reason(wt, j, str(c.head), head_base(repo, b.record, c, wt, str(c.head)), what)
+    return (j.head, why) if why else (j.origin, "")
+
+
 def _gate_missing(repo: Repo, b: Batch, c: CrEntry, events: list[EventRecord]) -> tuple[str, str]:
     """The refusal for a head with no gate pass, and the head of the pass that carries to it
-    (a clean rebase of the gated commits, proved by git); the first is empty when one carries."""
+    (the CR's own commits have the same exact patch-ids, proved by git); the first is empty when
+    one carries."""
     head = c.head
+    if done := carry_at(events, head, "gate_from"):
+        return "", str(done.gate_from)
     text = (
         f"refused: no long gate passed at {head or 'any head'} (gate "
         f'{c.id} "<cmd>"..., or --no-gate "<the project\'s rule>")'
     )
-    g = last_gate_pass(events)
-    if not g or not head:
+    j = judged_gate(events)
+    voided = _voided(events, "gate", judged_gate) if j is None else None
+    if not (j or voided) or not head:
         return text, ""
-    base = f"{repo.config['remote']}/{stack_base(b.record, c, repo)}"
-    why = carry_check(cr_worktree(c), base, head, g)
-    if why is None:
+    g, why = (
+        _carry_why(repo, b, c, j, "pass") if j else (voided.head, CONFLICT) if voided else ("", "")
+    )
+    if not why:
         return "", g
     clause = f"(the pass at {short_head(g)} does not carry: {why}) (gate"
     return text.replace("(gate", clause, 1), ""
@@ -129,14 +161,22 @@ def _verdict_missing(
     to it (a clean rebase of the verified commits, proved by git); the first is empty when one
     carries."""
     head = c.head
+    if done := carry_at(events, head, "verdict_from"):
+        return "", str(done.verdict_from)
     last = last_verdict(events, head) or "none"
     text = f"refused: no verdict VERIFIED at {head or 'any head'} (the last verdict there: {last})"
-    v = last_verdict_head(events)
-    if not v or not head:
+    j = judged_verdict(events)
+    voided = _voided(events, "verdict", judged_verdict) if j is None else None
+    if not (j or voided) or not head:
         return text, ""
-    base = f"{repo.config['remote']}/{stack_base(b.record, c, repo)}"
-    why = carry_check(cr_worktree(c), base, head, v)
-    if why is None:
+    v, why = (
+        _carry_why(repo, b, c, j, "verdict")
+        if j
+        else (voided.head, CONFLICT)
+        if voided
+        else ("", "")
+    )
+    if not why:
         return "", v
     clause = f"(the verdict VERIFIED at {short_head(v)} does not carry: {why}) (the last"
     return text.replace("(the last", clause, 1), ""

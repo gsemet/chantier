@@ -16,7 +16,7 @@ from conftest import PLUGIN_ROOT, load_script
 
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
-from chantier.commands.crs import last_verdict, last_verdict_head
+from chantier.commands.crs import carry_at, last_gate_pass, last_verdict, last_verdict_head
 from chantier.commands.forge_stack_gh import Unreadable, gh
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
 from chantier.core.heads import gate_passed
@@ -200,3 +200,38 @@ def test_gh_reads_an_empty_reply_only_when_asked(
         gh(["-X", "POST", "x"], "github.com", empty_ok=empty_ok)
     assert expected in str(raised.value) and raised.value.code == EXIT_EXTERNAL
     assert isinstance(raised.value, Unreadable) == (ran.returncode == 0)
+
+
+def _ev(kind: str, **keys: Any) -> EventRecord:
+    return EventRecord(t="t", actor="driver", kind=kind, **keys)
+
+
+def test_a_carry_is_a_judged_head_and_a_later_not_verified_blocks_it() -> None:
+    gate = _ev("gate", result="pass", head="a", run="1", base="m")
+    ok = _ev("verdict", result="VERIFIED", head="a", base="m")
+    carry = _ev("carry", head="b", base="n", gate_from="a", verdict_from="a")
+    other = _ev("carry", head="b", base="n", gate_from="a")
+    assert carry_at([gate, carry], "b") is carry
+    assert carry_at([gate, carry, other], "b") is other  # the last one
+    assert carry_at([gate, carry, other], "b", "verdict_from") is carry
+    assert carry_at([gate, carry], "c") is None
+    assert last_gate_pass([gate, ok, carry]) == "b"
+    assert last_verdict_head([gate, ok, carry]) == "b"
+    assert last_verdict_head([ok, carry, _ev("verdict", result="NOT VERIFIED", head="b")]) is None
+    assert last_verdict_head([ok, carry, _ev("verdict", result="NOT VERIFIED", head="a")]) is None
+    # a carry is not a pass or a verdict of the head's own
+    assert not gate_passed([gate, carry], "b") and last_verdict([ok, carry], "b") is None
+
+
+def test_a_ship_with_a_conflict_voids_every_judged_head_and_carry_before_it() -> None:
+    gate = _ev("gate", result="pass", head="a", run="1", base="m")
+    ok = _ev("verdict", result="VERIFIED", head="a", base="m")
+    carry = _ev("carry", head="b", base="n", gate_from="a", verdict_from="a")
+    ship = _ev("ship", head="c", conflict=True)
+    log = [gate, ok, carry, ship]
+    assert last_gate_pass(log) is None and last_verdict_head(log) is None
+    assert carry_at(log, "b") is None and carry_at(log, "c") is None
+    later = _ev("carry", head="d", base="n", gate_from="c")
+    assert carry_at([*log, later], "d") is later  # a judgment after the conflict can carry
+    fresh = _ev("gate", result="pass", head="c", run="2", base="n")
+    assert last_gate_pass([*log, fresh]) == "c"

@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from chantier.commands.crs import carry_at
 from chantier.core.heads import gate_passed, same_head
 from chantier.core.records import LIVE, BatchRecord, CrEntry, EventRecord
 from chantier.core.repo import Repo
@@ -118,6 +119,8 @@ def gate_view(
         g["state"] = "running" if state.startswith("gate running") else "queued"
     elif c.head and gate_passed(mine, c.head):
         g.update(state="passed", head=c.head[:7])
+    elif c.head and (carried := carry_at(mine, c.head, "gate_from")):
+        g.update(state="carried", head=str(carried.gate_from)[:7])
     elif handed is not None and handed.gate_from:
         g.update(state="carried", head=str(handed.gate_from)[:7])
     elif c.head and any(e.kind == "gate" and same_head(e.head, c.head) for e in mine):

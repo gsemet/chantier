@@ -11,6 +11,15 @@ from chantier.status.words import ENDED
 AHEAD = ("Shipped", "Handed back")
 
 
+def _carried_note(e: EventRecord) -> str:
+    """What a `carry` event carried, and from which head."""
+    gate, verdict = e.gate_from, e.verdict_from
+    if gate and gate == verdict:
+        return f"long gate and verdict from {str(gate)[:7]}"
+    parts = (("long gate", gate), ("verdict", verdict))
+    return " and ".join(f"{w} from {str(s)[:7]}" for w, s in parts if s)
+
+
 def step_entries(
     e: EventRecord, d: BatchRecord, c: CrEntry, out: list[dict[str, Any]]
 ) -> list[tuple[str, str, str]]:
@@ -24,6 +33,7 @@ def step_entries(
         "gate": ("Long gate", result, head),
         "verdict": ("Verdict", result, head),
         "ship": ("Shipped", "", e.pr if e.pr is not None else ""),
+        **({"carry": ("Carried", "", _carried_note(e))} if kind == "carry" else {}),
     }
     if kind in plain:
         return [plain[kind]]

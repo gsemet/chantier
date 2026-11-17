@@ -236,6 +236,7 @@ class RunRecord(Record):
     log: str = ""
     command: str = ""
     pg: int | None = None
+    base: str | None = None
 
 
 class RestoredRecord(Record):

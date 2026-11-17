@@ -244,11 +244,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (test: test_rail_refusals.py::test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_epoch);
 - the long gate's queue running the next merge first (a stack's bottom CR, arriving last, passes
   before the CR waiting; the holder is not stopped), and a long gate and a verdict carried over a clean rebase
-  (`handback` accepted with `gate_from` and `verdict_from`, no new gate and no new verdict; a conflicting rebase refused with `does
-  not carry`; `STATUS.md` then shows `carried from <sha7>`; the order and the old-git refusal in
+  (`ship` logs a `carry` event and `STATUS.md` shows `carried from <sha7>`; `handback` accepted with `gate_from` and `verdict_from`, no new gate and no new verdict; a restack of a ready CR carries again; CR-316's shape, a restack onto a rewritten branch of the CR under it, carries; a rebase resolved by hand, shipped with `--conflict`, is refused with `does not carry: the rebase resolved a conflict`; the old-git refusal and the patch-id cases in
   pytest) (unit: gates)
   (test: test_gate_queue_order.py::test_the_queue_runs_the_next_merge_then_the_moved_then_arrival)
-  (test: test_gate_carry.py::test_a_git_older_than_2_38_refuses_the_carry_and_says_so);
+  (test: test_gate_carry.py::test_a_git_older_than_2_39_refuses_the_carry_and_says_so);
 - Claude cost by CR (one line in the main batch; the levels, the pages, the shares, the Chief of
   Staff's lines, an unpriced model and the audit in pytest); Copilot cost breakdown (`Agent
   <type>` lines) and by CR, estimated calls, updates and failures (unit: parallel) (test:

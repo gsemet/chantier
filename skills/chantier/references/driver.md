@@ -224,11 +224,19 @@ defer the rest of this card until an action names it. These are the card's defau
   or cancelled, a fix CR and the release CR excepted), then those the Foreman moved first, then
   arrival order; a running gate is never stopped. After a rebase with no conflict that leaves the
   CR's patch unchanged, run no long gate and no `verifier`: the pass and the Verifier's verdict
-  at the head before the rebase carry, and `handback ready` checks both with git (the replay of
-  the gated commits onto the base is clean and gives the head's tree) and records `gate_from`
-  and `verdict_from`; a rebase that resolved a conflict, or any commit added or edited, is gated
-  again and gets a `verifier` given the move (the hand-back refuses with `does not carry:
-  <why>`). The CLI reads no forge: you read CI at the new head, which must be green. **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
+  at the head before the rebase carry, and `ship` checks both with git (the exact `git patch-id
+  --verbatim` of each of the CR's own commits, oldest first, is the same on the base the judged
+  head sat on and on the base the new head sits on, and no merge commit is among them), logs a
+  `carry` event with `gate_from` and `verdict_from`, and prints `carried:` (or `off:` with the
+  reason); `handback ready` reads that event and records the same keys. Any commit added or
+  edited is gated again and gets a `verifier` given the move (the hand-back refuses with `does
+  not carry: <why>`). **The `ship --conflict` rule, stated once:** any `ship` after a rebase
+  during which a conflict was resolved takes `--conflict`, whoever resolved it (a
+  `conflict-resolver`, or you) and whoever runs the `ship` (a CR's Driver, the stack driver, the
+  release Driver), for a rebase of any reason (a `rebase:` note, `stacked on`, a mode switch, a
+  restack, an insertion, a drop). `ship <cr> <link> --conflict` records `conflict: true` and
+  voids every pass, verdict and carry recorded before it, at that head and any earlier one, so the
+  CR is gated and verified again; the same head shipped again without the flag clears nothing. The CLI reads no forge: you read CI at the new head, which must be green. **Early push** (every batch, no `chantier.yaml` key): when a rebase of a CR
   whose PR exists needs a long gate (a `rebase:` note, a restack, a taken-back CR, with a
   conflict resolved), turn the PR to draft if it is not one (`gh pr ready --undo`, `glab mr
   update --draft`), push at once with `--force-with-lease`, `ship <cr> <link>`, then
@@ -682,12 +690,12 @@ branch>` (a `conflict-resolver` for a conflict that needs only resolving; one th
 a round), retarget the PR to the default branch if it was elsewhere (`gh pr edit --base`, `glab mr
 update --target-branch`), push with `--force-with-lease` (a refused one goes up as written
 above), `ship`, read CI (red is a round). After a clean rebase (no conflict, the patch
-unchanged), run no long gate and no `verifier`: the pass and the verdict carry, which
-`handback ready` checks with git and records as `gate_from` and `verdict_from`. Mark each proof of
+unchanged), run no long gate and no `verifier`: the pass and the verdict carry, which `ship`
+records (`carried:`). Mark each proof of
 `pr-body.md` whose SHA left the head's history (the Test plan items, the `Verified at` box, the
 evidence captions) as `carried from <sha7>`, as `ship`'s `off: pr-body.md line <n> names …`
 lines guide, run the pre-post audit and post the file. With a conflict resolved, run the long
-gate at the new head with the early push: the PR goes to draft and is pushed at once, the long
+gate at the new head (`ship --conflict`, above) with the early push: the PR goes to draft and is pushed at once, the long
 gate and the CI watch run side by side by the rules of the "CI" bullet, and the PR leaves draft
 once both passed at that head. The `verifier`, given the move, judges again what it touched
 before `handback ready`: only after a resolved conflict or a refused carry. Green, no conflict, on
@@ -702,8 +710,8 @@ keep the PR a draft and `handback ready <link> draft on <base>: waits for <cr>`.
 notes came since your last push: one rebase, onto the latest default branch (for the default
 branch's notes only; see the next paragraph for `stacked on`). With a long gate of
 the CR running, stop it (`gate <cr> --stop`) before that rebase. After a clean rebase run no
-new long gate and no new `verifier` (the pass and the verdict carry, checked by `handback ready`); after one with a conflict
-resolved, run the long gate at the new head with the early push (the "Early push" rule above);
+new long gate and no new `verifier` (the pass and the verdict carry, recorded at `ship`); after one with a conflict
+resolved (`ship --conflict`, above), run the long gate at the new head with the early push (the "Early push" rule above);
 CI runs at the new head either way. A note `rebase: stacked on <cr below>, without <dropped cr>`
 changes the rebase command only: `git -C <worktree> rebase --onto <base> <the dropped CR's branch>`, so the
 dropped commits leave the branch; the rest is the rule above. A series CR's PR opens, as a draft,
@@ -714,15 +722,15 @@ ready part, once the stack can form. Create the worktree on it and open the PR o
 that branch is the stack driver's, never rebased by you but on a note. A `note rebase: stacked on
 <cr below>` received while working: rebase onto that CR's branch (not the default branch), retarget
 your PR to it (`gh pr edit --base`, `glab mr update --target-branch`) while it is in no native
-stack, push with `--force-with-lease`, `ship`.
+stack, push with `--force-with-lease`, `ship` (`--conflict` by the rule above).
 
 A CR taken (or a `note`) with `rebase: mode <mode>` (the batch switched mode with `order mode`; a
 stack was dissolved first by `forge-stack unstack` where it applied): put the PR to draft first
 (`gh pr ready --undo`, `glab mr update --draft`, `ship`), rebase onto the base `take`
 printed (parallel: the default branch, or the branch of its open dependency; series: its
 predecessor's branch, the bottom CR on the default branch), retarget the PR to it, push with
-`--force-with-lease`, `ship`, read CI at the new head (the long gate and a `verifier` only when
-the carry does not hold), and hand back `ready`;
+`--force-with-lease`, `ship` (`--conflict` by the rule above), read CI at the new head (the long gate and a `verifier` only when
+the carry does not hold: `ship`'s `off: … does not carry` line), and hand back `ready`;
 the PR leaves draft once it is ready to merge, as any CR of that mode (a series PR above the bottom
 stays a draft). A clean rebase and green CI start no new `coder` round and no new `verifier`.
 
@@ -777,8 +785,8 @@ either: a conflict goes to a `conflict-resolver`, code to an `anomaly`, and you 
 worktree's work with `git reset --hard` (a `conflict-resolver`, or `git rebase --abort`). You open
 no PR (a CR with none is an anomaly). A PR you move stays a draft (`gh pr ready --undo`,
 `glab mr update --draft`) while the stack is being made or changed. A clean restack (no conflict)
-runs no new long gate and no new `verifier`: the CR's pass and verdict carry over it, which
-`handback ready` checks with git when that CR is handed back at the new head. Each CR keeps its
+runs no new long gate and no new `verifier`: the CR's pass and verdict carry over it, which each
+moved CR's `ship` records (read it in that CR's `carried:` or `off:` line). Each CR keeps its
 own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as in
 [concepts](concepts.md), "Escalation". A conflict that only needs resolving: a `conflict-resolver`; one that needs
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
@@ -870,8 +878,8 @@ one restack for what remains, whatever the number of CRs one merge action of the
      (`conflict-resolver`, or "A conflict that needs code").
   3. Push every moved branch right after the last rebase, back to back, once each with
      `--force-with-lease` (a refused one goes up as above; one command per branch, never a loop or
-     a script), so the forge starts every PR's CI at once; then `ship` each one once: `ship`
-     records the new base. Pushing a branch and waiting for its CI before rebasing the next one is
+     a script), so the forge starts every PR's CI at once; then `ship` each one once (`--conflict`
+     by the rule of the long-gate bullet): `ship` records the new base and the carry. Pushing a branch and waiting for its CI before rebasing the next one is
      what this pass avoids.
   4. One CI wait for all of them (heavy CI once at the top), the proofs each move touched judged
      again as above, then one `$CHANTIER forge-stack rebuild` (no manual retarget: it retargets
@@ -889,7 +897,7 @@ on top. A CR with an `after` (its dependencies) stands, once `stack` has ordered
 in the stack, as `take stack` prints, and `stack` refuses an order that puts it below one
 of them; a dependency sent back to a Driver is yours to restack. The release CR is the top piece:
 `take stack` lists it last. Restack it like any PR above (rebase onto the CR under it, push with
-`--force-with-lease`, `ship`); its checks run again, and no `verifier` and no `inspector` is
+`--force-with-lease`, `ship`, `--conflict` by the rule of the long-gate bullet); its checks run again, and no `verifier` and no `inspector` is
 started for it (it has no verdict). A release with no PR yet is no anomaly: it is to come, and
 joins like any CR when it has its PR. Its PR stays a draft on top until its CR is handed back `ready` and the
 checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix CR is not in the stack. The batch stays running until its last CR ends.
@@ -903,8 +911,8 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    may have done it already: check it on the forge).
 2. Order the stack with the new CR at the place named (`$CHANTIER stack <cr>…`, bottom first; the
    release CR stays last), rebase the new PR on the one under it and each PR above on the one
-   under it, push with `--force-with-lease`, `ship` each one moved (fix the PR body lines `ship`
-   names as stale, as above); the proofs a move touched are judged again as above (`verifier`,
+   under it, push with `--force-with-lease`, `ship` each one moved (`--conflict` by the rule of the
+   long-gate bullet; fix the PR body lines `ship` names as stale, as above); the proofs a move touched are judged again as above (`verifier`,
    `inspector`), a clean restack carrying the verdict.
 3. Update the stack on the forge: `$CHANTIER forge-stack rebuild` (it dissolves the stack,
    retargets the PRs, creates it again and reads it back).
@@ -926,11 +934,11 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    rebase. Skip a `working` CR: its Driver does it, on the Foreman's note. A conflict that only
    needs resolving goes to a `conflict-resolver`; one that needs code goes the way "A conflict
    that needs code" says.
-3. Push each moved branch with `--force-with-lease`, one command per branch, and `ship` each one.
-   Judge again the proofs each move touched (a `verifier` given the move, and an `inspector` when
-   the patch changed, always after a `conflict-resolver`); a drop's `rebase --onto` changes the
-   commit count, so it never carries and a `verifier` is due. Fix the PR body lines `ship` names as
-   stale.
+3. Push each moved branch with `--force-with-lease`, one command per branch, and `ship` each one
+   (`--conflict` by the rule of the long-gate bullet). Judge again the proofs each move touched (a
+   `verifier` given the move, and an `inspector` when the patch changed, always after a
+   `conflict-resolver`); a drop carries when the CR's own commits are unchanged, as `ship` says
+   (`carried:` or `off:`). Fix the PR body lines `ship` names as stale.
 4. Heavy CI at the top. Then `$CHANTIER forge-stack rebuild`: it unstacks the stack that still
    holds the dropped CR's PR, and names that PR apart (`it also held #n of <cr>, dropped: close
    it`).
@@ -960,8 +968,8 @@ itself.
 **Recording a restack.** Before a take's first rebase, run `$CHANTIER stack`: its `head` values
 are the old heads. After each CR you move is rebased, pushed and `ship`ped, record `$CHANTIER note
 <cr> "restack: on <cr below or default branch> <its head7>, head <new head7>"`. After its proofs
-are judged, record `$CHANTIER note <cr> "restack: judged at <head7>"` (an `inspector`'s approval
-keeps its own note). A `working` CR carries no `restack:` note from you. After each CR, read the
+are judged, or after a `carried:` line (the carry is the judgment), record `$CHANTIER note <cr>
+"restack: judged at <head7>"` (an `inspector`'s approval keeps its own note). A `working` CR carries no `restack:` note from you. After each CR, read the
 `context:` line of `$CHANTIER stack`: at 130,000 tokens or more, send `[stack→foreman] hand-back
 blocked context: <where it stopped, what is next>` and end (the Driver's context rule, applied to
 you); at `context: not measured`, go on.

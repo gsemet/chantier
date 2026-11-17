@@ -5,20 +5,20 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from chantier.commands.carry import carry_reason, head_base
 from chantier.commands.crs import (
     batch_cr,
-    carry_check,
+    carry_at,
     cr_events,
     cr_worktree,
     grant_line,
-    last_gate_pass,
+    judged_gate,
+    judged_verdict,
     last_verdict,
-    last_verdict_head,
     short_head,
 )
 from chantier.commands.forge_base import stacked_read
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
-from chantier.core.errors import ChantierError
 from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
@@ -171,18 +171,25 @@ def _carried_lines(
     head = c.head
     if not head or not (c.worktree and Path(c.worktree).is_dir()):
         return "", ""
-    base = stack_base(d, c, repo)
-    ref = f"{repo.config['remote']}/{base}"
+    wt = cr_worktree(c)
+    mine = head_base(repo, d, c, wt, head)
+    base = mine.branch if mine else stack_base(d, c, repo)
     out = []
-    for g, have in (
-        (last_gate_pass(events), gate_passed(events, head)),
-        (last_verdict_head(events), last_verdict(events, head) == "VERIFIED"),
+    for key, j, have in (
+        ("gate_from", judged_gate(events), gate_passed(events, head)),
+        ("verdict_from", judged_verdict(events), last_verdict(events, head) == "VERIFIED"),
     ):
-        try:
-            ok = g and not have and carry_check(cr_worktree(c), ref, head, g) is None
-        except ChantierError:  # a ref git cannot read: nothing is proved, the box stays open
-            ok = False
-        out.append(f"carried from {short_head(g)} (clean rebase onto {base})" if ok else "")
+        done = carry_at(events, head, key)
+        if done and not have:
+            out.append(
+                f"carried from {short_head(str(getattr(done, key)))} (clean rebase onto {base})"
+            )
+            continue
+        what = "pass" if key == "gate_from" else "verdict"
+        ok = j is not None and not have and carry_reason(wt, j, head, mine, what) is None
+        out.append(
+            f"carried from {short_head(j.origin)} (clean rebase onto {base})" if ok and j else ""
+        )
     return out[0], out[1]
 
 

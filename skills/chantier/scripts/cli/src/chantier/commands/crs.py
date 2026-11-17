@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
+from typing import NamedTuple
 
 from chantier.core.batch import Batch, find_cr_batch, read_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -64,18 +65,74 @@ def dirty_files(wt: Path) -> str:
     return git("status", "--porcelain", "--untracked-files=normal", cwd=wt)
 
 
-MERGE_TREE_GIT = (2, 38)  # `git merge-tree --write-tree` needs it
+PATCH_ID_GIT = (2, 39)  # `git patch-id --verbatim` needs it
 
 
-def last_gate_pass(events: list[EventRecord]) -> str | None:
-    """The head of the CR's latest passed long gate, or None."""
+class Judged(NamedTuple):
+    """A head a long gate pass or a verdict stands at, for a carry: the head, the base it was
+    judged on (None when the event recorded none), and the original judged head it chains from."""
+
+    head: str
+    base: str | None
+    origin: str
+
+
+def conflict_cut(events: list[EventRecord]) -> int:
+    """The index of the CR's last `ship` that resolved a conflict, else -1. What was judged or
+    carried before it never carries again."""
+    cut = -1
+    for i, e in enumerate(events):
+        if e.kind == "ship" and e.conflict:
+            cut = i
+    return cut
+
+
+def carry_at(
+    events: list[EventRecord], head: str | None, key: str | None = None
+) -> EventRecord | None:
+    """The last `carry` event recorded at a head (with `key`, when given), or None; None as well
+    when a `ship --conflict` is at or after it."""
+    cut = conflict_cut(events)
+    found = None
+    for i, e in enumerate(events):
+        if e.kind == "carry" and same_head(e.head, head) and (key is None or getattr(e, key)):
+            found = e if i > cut else None
+    return found
+
+
+def judged_gate(events: list[EventRecord]) -> Judged | None:
+    """The head of the CR's latest passed long gate, or the latest head a pass was carried to,
+    with the base it was judged on; None before the last `ship --conflict`."""
+    events = events[conflict_cut(events) + 1 :]
     seen: list[str] = []
     for e in reversed(events):
+        if e.kind == "carry" and e.head and e.gate_from:
+            return Judged(str(e.head), e.base, str(e.gate_from))
         if e.kind == "gate" and e.head and e.head not in seen:
             seen.append(e.head)
             if gate_passed(events, e.head):
-                return str(e.head)
+                return Judged(str(e.head), e.base, str(e.head))
     return None
+
+
+def judged_verdict(events: list[EventRecord]) -> Judged | None:
+    """The head of the CR's latest verdict when the last verdict there is VERIFIED, or the
+    latest head a verdict was carried to; None when a later NOT VERIFIED, at a later head or at
+    the same one, blocks it, and before the last `ship --conflict`."""
+    events = events[conflict_cut(events) + 1 :]
+    for e in reversed(events):
+        if e.kind == "carry" and e.head and e.verdict_from:
+            return Judged(str(e.head), e.base, str(e.verdict_from))
+        if e.kind == "verdict" and e.head:
+            ok = last_verdict(events, e.head) == "VERIFIED"
+            return Judged(str(e.head), e.base, str(e.head)) if ok else None
+    return None
+
+
+def last_gate_pass(events: list[EventRecord]) -> str | None:
+    """The head of the CR's latest passed long gate (or carried pass), or None."""
+    j = judged_gate(events)
+    return j.head if j else None
 
 
 def git_version() -> tuple[int, ...]:
@@ -84,37 +141,72 @@ def git_version() -> tuple[int, ...]:
     return tuple(int(x) for x in m[1].split(".")) if m else ()
 
 
-def _replay(wt: Path, base: str, g: str, mb: str) -> str | None:
-    """The tree of g's commits replayed onto base (`git merge-tree`), None on a conflict."""
-    p = subprocess.run(
-        ["git", "merge-tree", "--write-tree", "--merge-base", mb, base, g],
+def _readable(wt: Path, ref: str) -> None:
+    if not git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", cwd=wt, check=False):
+        raise ChantierError(
+            f"{short_head(ref) if re.fullmatch('[0-9a-f]{40}', ref) else ref} cannot be read"
+        )
+
+
+def _patch_ids(wt: Path, base: str, head: str) -> list[str]:
+    """The exact patch-ids (`git patch-id --verbatim`) of `base..head`'s commits, oldest first.
+    Git computes them; the diff text is never compared here."""
+    log = subprocess.run(
+        ["git", "log", "--reverse", "-p", "--no-merges", "--format=commit %H", f"{base}..{head}"],
         cwd=wt,
         capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
         check=False,
     )
-    return (p.stdout.splitlines() or [""])[0].strip() if p.returncode == 0 else None
+    ids = subprocess.run(
+        ["git", "patch-id", "--verbatim"],
+        cwd=wt,
+        input=log.stdout,
+        capture_output=True,
+        check=False,
+    )
+    return [
+        ln.split()[0] for ln in ids.stdout.decode("utf-8", "replace").splitlines() if ln.strip()
+    ]
 
 
-def carry_check(wt: Path, base: str, head: str, g: str) -> str | None:
-    """Why the long gate that passed at `g` does not carry to `head` on `base`, or None when it
-    carries: replaying g's commits onto base is clean and gives exactly the head's tree, with as
-    many commits. Git does the proof (`merge-tree`), not the Driver's word; no other method."""
+def _merges(wt: Path, base: str, head: str) -> bool:
+    return bool(git("rev-list", "--merges", f"{base}..{head}", cwd=wt, check=False))
+
+
+def _unproved(g: Judged, head: str, head_base: str | None, what: str) -> str | None:
+    """The reason nothing can be proved before git is asked: an old git, a base not recorded."""
     have = git_version()
-    if have < MERGE_TREE_GIT:
-        need = ".".join(map(str, MERGE_TREE_GIT))
+    if have < PATCH_ID_GIT:
+        need = ".".join(map(str, PATCH_ID_GIT))
         got = ".".join(map(str, have)) or "?"
-        return f"git {got} is older than {need}: no merge-tree to prove it"
-    mb = git("merge-base", g, base, cwd=wt, check=False)
-    tree = _replay(wt, base, g, mb) if mb else None
-    if tree is None:
-        return "the replay conflicts"
-    same_patch = tree == git("rev-parse", f"{head}^{{tree}}", cwd=wt) and git(
-        "rev-list", "--count", f"{mb}..{g}", cwd=wt
-    ) == git("rev-list", "--count", f"{base}..{head}", cwd=wt)
-    return None if same_patch else "the rebase changed the patch"
+        return f"git {got} is older than {need}: no patch-id --verbatim to prove it"
+    if not g.base and what == "verdict":
+        return f"the verdict VERIFIED at {short_head(g.head)} recorded no base: verify again"
+    if not g.base:
+        return f"the pass at {short_head(g.head)} recorded no base: run the long gate again"
+    if not head_base:
+        return f"{short_head(head)} sits on none of its base branches: no base to prove it"
+    return None
+
+
+def carry_check(
+    wt: Path, g: Judged, head: str, head_base: str | None, what: str = "pass"
+) -> str | None:
+    """Why the long gate pass (or the verdict, `what`) judged at `g` does not carry to `head` on
+    `head_base`, or None when it carries: the CR's own commits (above its base) have the same
+    exact patch-ids, in order. Git does the proof, not the Driver's word; no other method. A ref
+    git cannot read raises a ChantierError."""
+    why = _unproved(g, head, head_base, what)
+    if why or not (g.base and head_base):
+        return why
+    for ref in (g.base, g.head, head_base, head):
+        _readable(wt, ref)
+    if _merges(wt, g.base, g.head):
+        return f"a merge commit in {short_head(g.head)}'s commits"
+    if _merges(wt, head_base, head):
+        return f"a merge commit in {short_head(head)}'s commits"
+    same = _patch_ids(wt, g.base, g.head) == _patch_ids(wt, head_base, head)
+    return None if same else "the rebase changed the patch"
 
 
 def last_verdict(events: list[EventRecord], head: str | None) -> str | None:
@@ -124,13 +216,11 @@ def last_verdict(events: list[EventRecord], head: str | None) -> str | None:
 
 
 def last_verdict_head(events: list[EventRecord]) -> str | None:
-    """The head of the CR's latest verdict, when the last verdict there is VERIFIED, else None: a
-    later NOT VERIFIED, at a later head or at the same one, blocks any carry from an older one."""
-    heads = [e.head for e in events if e.kind == "verdict" and e.head]
-    if not heads:
-        return None
-    head = str(heads[-1])
-    return head if last_verdict(events, head) == "VERIFIED" else None
+    """The head of the CR's latest verdict (or carried verdict), when the last verdict there is
+    VERIFIED, else None: a later NOT VERIFIED, at a later head or at the same one, blocks any
+    carry from an older one."""
+    j = judged_verdict(events)
+    return j.head if j else None
 
 
 def grant_line(release: ReleaseGrant) -> str:
