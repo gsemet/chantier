@@ -11,7 +11,7 @@ from chantier.rails import ENDED, series_predecessor
 READY_LOCALLY = "ready locally"
 PR_IN_DRAFT = "PR in draft"
 READY_TO_MERGE = "ready to merge"
-FORMING = 2  # the CRs handed back ready with a PR from which the stack can form
+FORMING = 2  # the ready CRs with a PR that make the first stack due (`stack_due`)
 
 
 def chain(b_data: BatchRecord) -> list[CrEntry]:
@@ -83,17 +83,43 @@ def _alone(c: CrEntry) -> bool:
     return c.kind not in {"release", "fix"}
 
 
-def stack_forms(b_data: BatchRecord) -> bool:
-    """The moment the stack can form: two CRs or more of the stack, the release and a fix CR
-    aside, are handed back `ready` with a PR."""
-    ready = [x for x in chain(b_data) if _alone(x) and x.status == "ready" and x.pr]
-    return len(ready) >= FORMING
-
-
 def _open_after(b_data: BatchRecord, c: CrEntry) -> list[CrEntry]:
     """The dependencies of `c` still open, in the order of `after`."""
     found = {x.id: x for x in b_data.crs}
     return [found[i] for i in c.after if i in found and found[i].status not in ENDED]
+
+
+def stack_due(b_data: BatchRecord) -> list[CrEntry]:
+    """The CRs that make the batch's first stack due, in `chain` order, else []. Due: a running
+    stack batch, no stack driver recorded, no CR of the batch (merged and cancelled included)
+    placed by `stack`, and `FORMING` CRs or more of the chain, the release and a fix aside,
+    `ready` with a PR and with every open dependency `ready` too."""
+    d = b_data
+    if d.mode != "stack" or d.status != "running" or d.stack_agent:
+        return []
+    if any(x.stacked for x in d.crs):
+        return []
+    due = [
+        x
+        for x in chain(d)
+        if _alone(x)
+        and x.status == "ready"
+        and x.pr
+        and all(y.status == "ready" for y in _open_after(d, x))
+    ]
+    return due if len(due) >= FORMING else []
+
+
+def stack_line(b_data: BatchRecord) -> list[str]:
+    """The `status` line that says the batch's first `take stack` is due; [] when it is not."""
+    due = stack_due(b_data)
+    if not due:
+        return []
+    ids = ", ".join(x.id for x in due)
+    return [
+        f"stack: take stack now: {ids} ready with a PR, no stack made yet "
+        "(`take stack --epoch <n>`)"
+    ]
 
 
 def start_on_for(b_data: BatchRecord, c: CrEntry) -> str | None:

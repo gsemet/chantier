@@ -146,6 +146,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_mode_switch.py::test_to_a_stack_the_ready_cr_go_first_in_the_order_they_became_ready);
 - `order mode` refusing the mode the batch already has and an unknown one, nothing written (test:
   test_mode_switch.py::test_the_same_mode_and_an_unknown_one_are_refused_and_nothing_is_written);
+- a stack batch's first `take stack` made due: `status` prints one `stack: take stack now: <crs> ready
+  with a PR, ...` line while two CRs or more are ready with a PR and none was ever stacked, with no
+  stack driver (absent with one recorded, after `stack` marks the CRs, and after a merge is recorded;
+  a reminder only) (unit: stack) (test: test_stack_due.py::test_the_first_stack_is_due);
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
   default branch, then stacked afterwards by `stack` (`ship` records the default branch before,
   the CR under it after); a CR starting on the nearest earlier CR with a PR (a working one too; a branch with no PR, a

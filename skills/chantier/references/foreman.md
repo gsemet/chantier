@@ -273,7 +273,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   by a restack; a CR based on another CR's branch hands back `PR in draft`. The stack grows from the bottom:
   - **The first take,** the moment the stack can form: as soon as two CRs are handed back `ready`
     with a PR (and neither depends on an open CR not ready). `take` starts every new CR on the
-    nearest earlier CR with a PR (the CLI computes it; you choose nothing), recorded at its first take.
+    nearest earlier CR with a PR (the CLI computes it; you choose nothing), recorded at its first take. While it is due, `status` prints `stack: take stack now: <crs> ...`; that line
+    is the trigger: take it in the same turn you read it (this rule stays the reference; the line only
+    reminds it, and only for the batch's first stack).
   - **Each later take,** one for everything that happened while no stack driver ran: a CR got its
     first PR (`status` shows it; it joins), a working CR rebased onto its place (its `ship` reads
     the new base; it joins like a CR that got its first PR), a CR of the stack was handed back `ready` (it turns
@@ -347,7 +349,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     record is already changed, the order is in `status`): no CR already started is stopped, a merged
     CR is never touched, a fix CR stays outside every shape. Read the new order from `status`, then
     by target:
-    - *to a stack:* with two CRs or more handed back `ready` with a PR, the first `take stack` (the
+    - *to a stack:* with two CRs or more handed back `ready` with a PR, the first `take stack` (the same `status` line names it; the
       stack driver orders the CRs from the record's order, rebases and pushes each PR on the one
       below, puts each PR it moves to draft, `forge-stack create`, turns the mergeable part ready); a
       `working` CR's Driver gets `[foreman→driver <cr>] note rebase: stacked on <cr below>`; the
