@@ -42,7 +42,7 @@ def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
         "title": c.title,
         "result": "merged" if c.status == "merged" else "dropped",
         "archive": archive_of(c),
-        "pr": c.pr,
+        "pr": c.shown_pr(),
         "rounds": c.round,
         "cost_usd": round(cost[1], 4) if cost else None,
         "cost_unpriced": cost[2] if cost else {},

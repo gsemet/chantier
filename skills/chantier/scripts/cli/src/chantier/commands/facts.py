@@ -88,7 +88,7 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         f"worktree: {c.worktree} branch {c.branch} {_base_of(d, c, repo)}"
         + ("" if made else "; not created yet: a Driver creates it first"),
         *_external_lines(repo, c),
-        f"PR: {c.pr or 'none'}; head {short_head(c.head) or '-'}",
+        f"PR: {_shown_pr(c)}; head {short_head(c.head) or '-'}",
         f"rounds: {c.round} of {round_limit(d, c)}",
     ]
     lines += _status_lines(d, c)
@@ -244,13 +244,22 @@ def handoff(args: argparse.Namespace) -> list[str]:
     return cr_facts(repo, batch, d, c)
 
 
+def _shown_pr(c: CrEntry) -> str:
+    """The CR's PR for an agent: the link, marked `(merged)` when it is the release PR its merge
+    recorded, else `none`."""
+    shown = c.shown_pr()
+    if not shown:
+        return "none"
+    return shown if c.pr else f"{shown} (merged)"
+
+
 def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
     """The stack as it stands: the chain line, then one line per CR (what `take stack` and
     `stack` with no CR print)."""
     crs = chain(d)
     return [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"] + [
         f"{x.id} {stack_label(x)} worktree {x.worktree} branch {x.branch} "
-        f"base {_stack_ref(d, x, repo)} PR {x.pr or 'none'} head {short_head(x.head) or '-'} "
+        f"base {_stack_ref(d, x, repo)} PR {_shown_pr(x)} head {short_head(x.head) or '-'} "
         f"{_last_restack(x)}{_off_place_tail(d, x, repo)}"
         for x in crs
     ]

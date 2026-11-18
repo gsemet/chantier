@@ -185,7 +185,7 @@ def _cr_row(
     repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, seen: tuple[list[EventRecord], set[str]]
 ) -> str:
     events, stopped = seen
-    row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.pr or '-'}"
+    row = f"{c.id} {state_word(d, c, repo)} r{c.round}/{round_limit(d, c)} {c.shown_pr() or '-'}"
     row += f" | long gate {gate_view(repo, d, c, events)['text']}"
     if c.kind == "release":
         row += f" release{' ' + c.released if c.released else ''}"

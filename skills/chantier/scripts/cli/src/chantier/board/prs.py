@@ -101,7 +101,8 @@ def why_not(c: dict[str, Any], f: dict[str, Any]) -> str | None:
     on the forge, not in the record), or `draft`, `closed`, `conflicting`, `failing` (ready in the
     record, not on the forge)."""
     if f["state"] == "merged":
-        return "merged" if c["state"] != "merged" else None
+        # a release PR already merged is in the record as `pr_merged`, whatever the CR's state
+        return "merged" if c["state"] != "merged" and not c.get("pr_merged") else None
     if not c["to_review"]:
         return None
     if f["state"] in ("draft", "closed"):

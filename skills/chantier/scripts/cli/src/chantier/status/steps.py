@@ -46,7 +46,7 @@ def step_entries(
         return [*([("Long gate", says, "")] if says else []), ("Handed back", "", "")]
     merged = kind == "order" and e.order_kind == "merged"
     if merged and not any(s["name"] == "Merged" for s in out):
-        return [("Merged", "", c.pr or "")]
+        return [("Merged", "", c.shown_pr() or "")]
     return []
 
 

@@ -114,7 +114,7 @@ def cr_view(
     waiting = waits(d, c)
     now_line, next_line = _now_next(repo, d, c, waiting)
     silent = age_minutes(c.updated) if c.status in LIVE else None
-    pr = c.pr
+    pr = c.shown_pr()
     number = re.search(r"(\d+)/?$", pr or "")
     return {
         "schema": SCHEMA,
@@ -174,7 +174,7 @@ def _row(
         "waits": waiting,
         "round": c.round,
         "branch": c.branch,
-        "pr": c.pr,
+        "pr": c.shown_pr(),
         "gate": gate_view(repo, d, c, events),
         "cost_usd": c.cost_usd,
         "cost_unpriced": c.cost_unpriced,
@@ -325,7 +325,7 @@ def _done_rows(repo: Repo, start: Path) -> list[dict[str, Any]]:
                     "title": shown_title(c.title, where),
                     "state": c.status,
                     "batch": d.id,
-                    "pr": c.pr,
+                    "pr": c.shown_pr(),
                     "cost_usd": c.cost_usd,
                     "when": c.merged_at,
                     "path": _link(where, start),

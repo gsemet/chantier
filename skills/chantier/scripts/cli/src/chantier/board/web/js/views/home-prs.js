@@ -1,7 +1,7 @@
 // Home, the open PRs block, and under it the blocked CRs with their reason.
 import { html } from '../core/dom.js';
 import { isMergeRequest, prNumber, safeUrl } from '../core/format.js';
-import { crsOf } from '../model/semantics.js';
+import { crsOf, openPr } from '../model/semantics.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { opener } from '../ui/open.js';
@@ -22,7 +22,7 @@ const blockedRow = (c) =>
 
 export function prsBlock(state) {
   const rows = crsOf(state.data.batch);
-  const prs = rows.filter((c) => c.pr && c.state !== 'merged');
+  const prs = rows.filter(openPr);
   const blocked = rows.filter((c) => c.state === 'blocked');
   const list = prs.length ? prs.map(prRow) : html`<div class="none">${t('home.none')}</div>`;
   const stuck = blocked.length
