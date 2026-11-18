@@ -121,7 +121,7 @@ chantier is four things in one repository:
    `.agents/changes/STATUS.json`. `hooks/hooks.json` names `register.tsx`, which
    hooks `skill.prompt`, `session.compact` (the automatic reload), the `/chantier-board` command
    and the `cr-board` pane, and guards the writes of a worker and a CR Driver (`agent.spawn` and
-   `tool.call`: it starts an agent whose prompt holds a `writes:` line in its first folder and
+   `tool.call`: it starts an agent whose prompt holds a `writes:` line in its first folder (a CR Driver in its worktree, or in the project's root before the worktree exists) and
    refuses its Write, Edit or NotebookEdit outside the folders named, and the Bash or PowerShell
    writes it can see; what it cannot see, such as an interpreter's inline code, is left to the
    cards); `types/index.d.ts`

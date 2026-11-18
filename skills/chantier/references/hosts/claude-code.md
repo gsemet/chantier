@@ -35,6 +35,9 @@ Each behaviour carries a mark:
 | Message the Chief of Staff | `SendMessage` to its session id | proved, same |
 | A Driver messages its steering session (the Foreman; in direct mode the Chief of Staff, which is `main` there) | `SendMessage` to `main` | proved, same; in direct mode the same mechanism, unproved until a direct batch runs |
 | Stop a Driver | `TaskStop` | proved, same; after its own `TaskStop` with no restart at once, the steering session clears the recorded id (`foreman.md`, "A Driver stopped from outside") |
+| A CR Driver's start folder | the mod's, as "The write guard" says | unproved; trial: the first CR Driver of the batch after the merge runs `pwd` (or `Get-Location`) and gets its worktree, or the main checkout or the clone on a first take |
+| Stop a background task of one's own (a shell, a monitor) | `TaskStop` with the id its start returned (`Bash` or `PowerShell` with `run_in_background: true`, or `Monitor`); the Driver agents list `TaskStop` in their tools for it | unproved; trial: a CR Driver of the first batch after the merge stops its CI watch when its gate fails first, or a task before its hand-back, and its transcript shows the `TaskStop` call and no notification from that task after it |
+| Stop an ended Driver that wakes again (`foreman.md`, "An ended Driver that wakes again") | `TaskStop` with the Driver's agent id, as "Stop a Driver" | the stop: proved, same as "Stop a Driver"; whether it also ends the background tasks that Driver left running: unproved; trial: the next such stop, then no task notification from that Driver's tasks in the steering transcript |
 | Stop another session (a Foreman not answering, on the user's yes) | `mcp__ccd_session_mgmt__stop_session` with the session's id | unproved. Trial: the first switch to direct mode with a Foreman not answering, the Foreman's session shown stopped afterwards. From Remote Control: unproved |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
 | Start the Retro critic (Foreman, Chief of Staff) | `Agent`, `subagent_type: chantier:retro-critic`; the `model` parameter only when `$CHANTIER playbook` printed one or the user asked for Fable; no effort | the agent: unproved until a retro is cut this way. Trial: the first pause after the merge, the Foreman's transcript showing the agent and its model; Fable through the `model` parameter: unproved |
@@ -509,8 +512,12 @@ The plugin's mod also hooks `agent.spawn` and `tool.call`. It reads one line of 
 prompt, `writes: <absolute folder>; <absolute folder>` (a worker's prompt holds it, with the
 worktree first and the CR folder second; a CR Driver's holds its CR folder, then the absolute archive path
 when `take` prints one: `concepts.md`, "A Driver's prompt"). It knows no role
-and no card wording. A spawn whose prompt holds the line starts in the first folder (the mod
-rewrites the spawn's `cwd`, except on a resume), and the mod records its agent id with the
+and no card wording. A spawn whose prompt holds the line starts in the first folder,
+except a spawn whose prompt also holds a `worktree:` line (a CR Driver's). That one starts in
+that worktree, or, while the worktree does not exist yet, in the project's root its first line
+names (the main checkout, or the project's clone with a planning surface). With neither, it
+starts in its parent's folder, still guarded, with the board's note. The mod rewrites the
+spawn's `cwd`, except on a resume. The mod records its agent id with the
 folders. That agent's Write, Edit or NotebookEdit outside every folder is refused, with the one
 message `refused: <path> is outside the folders this agent may write in (<folder>; <folder>);
 write there`; a relative path is read against the folder it runs in. On Windows a Git Bash drive path (`/c/Users/...`) is read as its drive form (`C:/Users/...`), for Write, Edit, NotebookEdit and the shell targets alike. The arguments of a

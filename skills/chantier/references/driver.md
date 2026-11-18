@@ -198,6 +198,20 @@ defer the rest of this card until an action names it. These are the card's defau
   --abort`, `merge --abort`), and `note` it; anything else left in the main checkout goes to the
   steering session as it is, by an `anomaly` (stack driver) or a `blocked question:` hand-back,
   never cleaned by force.
+- Your folder and your background tasks ([concepts](concepts.md), rule 8). On Claude Code a CR
+  Driver starts in its worktree, or, before the worktree exists, in the project's root (the main
+  checkout, or the project's clone); never in its CR folder. Read and write the CR folder's files
+  by the absolute paths your prompt names (`folder:`, `specification:`): a relative path lands
+  where you run. Change no shell's folder into a CR folder, and name targets (`git -C <worktree>`,
+  absolute paths, `gh … --repo`, `glab … -R`). Keep the id of each background task you start (the
+  long gate's shell, the CI watch, a host monitor). Stop each one by that id, with the host's stop
+  of a background task (your host's reference, "Tools"), as soon as its result is read or no
+  longer counts. Before every `$CHANTIER handback`, ready or blocked, whatever the reason
+  (`context:` and `waits: push` included), stop every one still running, except the shell that
+  runs `$CHANTIER gate`. A long gate still running is left to finish: the CLI records its result
+  for the next Driver. Stop only what waits on it or reads it besides that shell. When that
+  gate's end wakes you after your hand-back, send nothing and end your turn. A task left running
+  wakes you after your hand-back, and a re-sent hand-back wakes the steering session for nothing.
 - The worktree is your first step: `git -C <main checkout> fetch <remote> <default branch>`, then
   `git -C <main checkout> worktree add -b <branch> <path> <base>` (with a planning surface, from
   the clone that `take` names: `git -C <clone>`), with the names your prompt gives. An
@@ -497,7 +511,8 @@ defer the rest of this card until an action names it. These are the card's defau
     check listed at abc1234 (gh pr checks 12, two looks, the second a minute after the push)`. The
     PR body's CI box says the same in the template's words
     ([pr-template](pr-template.md)).
-- Your end comes in this order: first `$CHANTIER handback <cr> …`; once the CLI accepted it, the
+- Your end comes in this order: first your background tasks stopped (the "Your folder and your
+  background tasks" bullet above), then `$CHANTIER handback <cr> …`; once the CLI accepted it, the
   host's hand-back, whose first line is the line `handback` printed (`[driver <cr>→foreman]
   hand-back …`), unchanged. A hand-back the CLI refused is never followed by the host's hand-back
   until a `handback` (ready or blocked) is accepted. Never call the host's hand-back with no
@@ -599,7 +614,7 @@ defer the rest of this card until an action names it. These are the card's defau
   "CR driver" section says). Any other note received after your hand-back, with no `taken
   back:`, is not work to start: pass it to the steering session as the refused line above.
   `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: stop a long gate of yours that
-  is running (`gate <cr> --stop`), then `handback blocked stopped`; when the steering session's
+  is running (`gate <cr> --stop`) and every other background task of yours, then `handback blocked stopped`; when the steering session's
   stop comes with a switch of mode (to Foreman or to direct mode), the note says so.
 
 ## CR driver
@@ -1155,6 +1170,7 @@ work: stop").
 - [ ] `<work folder>/retro.md`: what went wrong or slowly, the long-term fix for each, one line
   `- [<tag>] <problem>: <long-term fix>`, the tag `project` or `chantier` as the Foreman's retro
   defines it in `foreman.md`.
+- [ ] Every background task of yours stopped (a deploy watch included), as "Your means", "Your folder and your background tasks", says.
 - [ ] `$CHANTIER handback <cr> ready <release link or tag>`, then the host's hand-back, as "Your
   means" orders it (its first line is the line `handback` printed). When this release CR is the
   batch's last, `handback` also prints the merged CRs' `cleanup:` lines and `paused <batch>`: the

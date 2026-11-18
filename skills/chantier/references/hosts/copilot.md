@@ -35,6 +35,8 @@ fact.
 | Message the Chief of Staff | `send_message` to its session link |
 | A Driver's hand-back to its steering session (the Foreman; in direct mode the Chief of Staff) | the Driver's final answer; in direct mode it returns to the Chief of Staff that started the Driver: unproved |
 | Stop a Driver | `write_agent` `[foreman→driver <cr>] stop` |
+| A Driver's start folder | the host's; no mod moves it (unproved; trial: a Copilot CR Driver runs its first shell and records the folder) |
+| Stop a background task of one's own | the host's stop of a background shell, within the agent's `execute` tool set (unproved; trial: a Copilot CR Driver stops its CI watch before its hand-back and the host's events show no output from it afterwards) |
 | Agent ids of the project | a file in `.github/agents/` or `~/.copilot/agents/` |
 | Preflight P2 | `create_session` and `send_message` load |
 | Ask the user a series of questions (grill, specification) | the host's question tool, at most 5 questions per call, at most 4 options per question (the general rule), the reference opening each question's text. The tool's exact name and whether it has its own free answer are not recorded here. Mark: the user's statement (2026-11-14, CR-250 answer 10), unproved; trial: one call with 5 questions on Copilot, all 5 shown, the tool's name and its free answer recorded |

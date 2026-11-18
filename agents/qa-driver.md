@@ -3,7 +3,7 @@ name: qa-driver
 description: 'Uses the project''s head as its user would and leaves its findings in a work folder. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier qa-driver for <folder> of batch <batch>, in the project <root>.`'
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
-tools: Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor
+tools: Bash, PowerShell, Read, Write, Grep, Glob, SendMessage, Monitor, TaskStop
 background: true
 ---
 # chantier-agent: 0.12.0

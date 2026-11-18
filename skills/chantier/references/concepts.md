@@ -488,7 +488,7 @@ reference's means is not introduced: the id is in the line for the record only (
 Driver to its own parent session by id is unproved).
 
 On Claude Code the plugin starts an agent whose prompt holds the `writes:` line in its first
-folder and refuses its Write, Edit or NotebookEdit outside the folders named, and judges a Bash or PowerShell write it can see the same way; a prompt without
+folder (a CR Driver, whose prompt also holds `worktree:`, in that worktree, or in the project's root while the worktree does not exist yet: never in its CR folder) and refuses its Write, Edit or NotebookEdit outside the folders named, and judges a Bash or PowerShell write it can see the same way; a prompt without
 the line is not guarded; a role that needs other folders, or fewer, gets its own line from the
 card that starts it.
 
@@ -673,6 +673,22 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    (except two bounded waits, each once: the one before a second CI look that [driver](driver.md), `CI:`,
    names, and the one after a `pending` answer of GitHub's asynchronous merge, a single `sleep` of at
    most 30 seconds then one read, at most once per merge: [foreman](foreman.md), "Merging on GitHub").
+   For a Driver and the steering session (the workers keep their cards' ground rules): a
+   background task is a background shell or a host monitor (a tool that streams a command's output
+   to its owner). A task that waits on a file or on another task's output (`until grep …; do sleep
+   …; done`) is a polling loop. No shell call changes its folder (`cd`, `Set-Location`, `pushd`,
+   alone or chained before a command) into a CR folder (any stage). The steering session's never
+   changes it into a worktree either. A Driver's shells run from the folder it starts in (its
+   worktree on Claude Code). Name the target instead: `git -C <worktree>`, absolute paths,
+   `gh … --repo <owner>/<name>`, `glab … -R <owner>/<name>`. Whoever starts a background task
+   stops it by its id, with the host's stop of a background task, once its result is read or no
+   longer counts (the board keeps `session-start.md`'s start and stop rules; only the
+   current-folder rule applies to it). The shell that runs `$CHANTIER gate` is the gate itself: it
+   ends when the gate ends and records its result, and it is stopped only with `gate <cr> --stop`.
+   The reasons: on Windows a process whose current folder is inside a folder keeps that folder from
+   being moved or removed (WinError 32), so a CR's move between stages or a worktree's removal
+   fails; and a task left running wakes its owner each time it reports. [driver](driver.md) and
+   [foreman](foreman.md) say when each role stops its tasks.
    `git -C <worktree>` is accepted
    for any git command; the push rule is unchanged (plain when the remote branch is an ancestor,
    `--force-with-lease` after a rewrite).

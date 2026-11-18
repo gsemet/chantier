@@ -528,7 +528,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   that stopped merging included) is run by the Driver that handed it back:
   - Note the Driver's agent id first (`status`; it may be the same read as the one before the
     note, so do not run it twice), then `agents set <cr> - --epoch <n>`: `take` refuses a CR
-    with an agent recorded.
+    with an agent recorded. When no id is recorded (the Driver was stopped after its hand-back, "An ended Driver that
+    wakes again"), `take <cr> --note "resume: <the take's note>" --epoch <n>` and start a new CR Driver
+    from the skeleton it prints, then `agents set <cr> <id> --epoch <n>`; the resume steps below do not
+    apply.
   - The `take` comes next: it holds the slot, or makes the CR wait for one like a queued CR when
     none is free.
   - Then resume that Driver (the agent id you noted): send
@@ -571,12 +574,25 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     exact text>"`.
 - **A lost Driver** (a CR's, the release's, the stack's or a QA order's: the rule covers every
   kind, and holds in a direct batch, whose Chief of Staff reads this card).
-  - **A Driver waiting on its own background work** has not ended. A Driver that ends its turn
+  - **A Driver waiting on its own background work** has not ended while its CR is `working` (a hand-back already recorded: "An ended Driver that wakes again"). A Driver that ends its turn
     while its own background work runs (the long gate, a CI watch) is allowed to. On Claude Code the
     host says `Agent "<name>" is waiting on its own background work`: send it no message and no
     ping, and do not run `agents set -`. It wakes on its own when that work ends, and the
     heartbeat's `activity` line covers it (`gate running`, `gate queued`, an age). Only `Agent
     "<name>" finished`, or a host refusal, is an end.
+  - **An ended Driver that wakes again.** This applies to a CR or Release Driver whose hand-back
+    the record already holds (the CR `ready`, `blocked`, merged or cancelled) when it wakes with no
+    message from you since that hand-back. The signs: its hand-back line comes a second time;
+    another line from it answers nothing you sent; or the host's notice says it is waiting on its
+    own background work while `status` shows no `gate running` and no `gate queued` for that CR.
+    With a gate running, leave it alone: that shell is its long gate, and it ends on its own. A
+    background task it left running woke it. Do not act on the line again, since the record holds
+    the hand-back. Stop that Driver by the host's means (your host's reference, "Stop a Driver"),
+    then `$CHANTIER note <cr> "stopped: leftover background work after its hand-back"`, then
+    `agents set <cr> - --epoch <n>`, in the same turn, as "Keeping its own stops apart" asks for
+    your own stops. It is not a restart and not a silent end, and it counts toward nothing. A
+    Driver still recorded on a `blocked` CR that answers your note (a `waits:` that landed, a
+    `question:` answered to it) is not concerned: that is the note's answer.
   - **Suspect:** a working CR (or the stack driver, or an open QA order) whose `activity` line
     shows no activity, no `gate running` and no `gate queued` for one full heartbeat interval (the
     steering wake, 30 minutes by default). A line
@@ -690,7 +706,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   wakes you, and its asks are recorded, so send no further line. While any Driver runs, the
   heartbeat goes on. An order's line or a `ping` starts a turn; if it leaves a Driver running,
   arm the heartbeat again. The host's reference says how it ends, and when it is not yours to end.
-  When you end it, record the stop first: `chantier status --stop-heartbeat --batch <batch> --epoch
+  Before you end it, no background task of yours is left running ([concepts](concepts.md),
+  rule 8): stop each by its id. When you end it, record the stop first: `chantier status --stop-heartbeat --batch <batch> --epoch
   <n>` (`pause` records it itself); `status` then says "heartbeat stopped", and your next wake
   clears it. Where ending it is yours, it means cancelling the armed wake: say the heartbeat
   stopped only once you have cancelled it; where it is not, say who ends it, as the host's
@@ -730,7 +747,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   Foreman owns the batch: stop at once.
 
 How you start, message and stop a Driver, and message the Chief of Staff, is your host's
-reference. Keep each turn short: never wait inside a call, never run a long command; a turn ends when
+reference. Keep each turn short: never wait inside a call, never run a long command; start
+no background task of your own to wait for anything (a file, a task's output, a Driver, CI). A
+Driver's line, the host's notice about a Driver, an order and the heartbeat wake you. Stop a task
+of yours found running at once, by its id, with the host's stop of a background task; change no
+shell's folder into a CR folder or a worktree; a turn ends when
 `status` shows nothing you can act on. Who talks to whom: [routing](routing.md).
 ## Startup core
 

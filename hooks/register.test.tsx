@@ -1090,10 +1090,12 @@ const refusal = (path: string, folders = `${WT}; ${FOLDER}`) =>
   `refused: ${path} is outside the folders this agent may write in (${folders}); write there`
 
 /** The engine beneath the hooks: a spawn that answers an id, a tool that answers; `seen` holds the spawns it got. */
-function guardWorld(on: On, answer: 'ok' | 'deny' = 'ok', broken = false) {
+function guardWorld(on: On, answer: 'ok' | 'deny' = 'ok', broken = false, exist: string[] = []) {
   const seen: any[] = []
   let k = 0
-  world(on).put(INDEX, index())
+  const w = world(on)
+  w.put(INDEX, index())
+  for (const p of exist) w.dirs.set(p, [])
   on('agent.spawn', (_, e: any) => {
     seen.push(e)
     return (answer === 'ok' ? { model: 'm', agentId: `agent-${++k}` } : { deny: 'no' }) as any
@@ -1255,6 +1257,42 @@ test('the spawn reaches the engine in the first folder, and a relative path is r
   expect(seen[0].prompt).toBe(WORKER_PROMPT)
   expect((await write($, agentId, 'Write', 'src/a.py')).deny).toBeUndefined()
   expect((await write($, agentId, 'Write', '../outside.py')).deny).toContain('refused:')
+})
+
+const TREE_LINE = `worktree: ${WT} branch chantier/b/cr-5 base origin/main`
+const CR_FIRST = `chantier cr-driver for CR-5 "T" of batch b, in the project ${ROOT}.`
+const treePrompt = (first = CR_FIRST) => `${first}\n${TREE_LINE}\nfolder: ${FOLDER}\nwrites: ${FOLDER}`
+
+test('a CR driver whose worktree exists starts in it, and a relative path is read against it', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on, 'ok', false, [WT, ROOT])
+  const { agentId } = await spawn($, treePrompt(), { cwd: '/elsewhere' })
+  expect(seen[0].cwd).toBe(WT)
+  expect((await write($, agentId, 'Write', `${FOLDER}/work/a.md`)).deny).toBeUndefined()
+  expect((await write($, agentId, 'Write', 'a.md')).deny).toContain('refused:')
+})
+
+test('a CR driver whose worktree does not exist yet starts in the project\'s root', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on, 'ok', false, [ROOT])
+  await spawn($, treePrompt(), { cwd: '/elsewhere' })
+  expect(seen[0].cwd).toBe(ROOT)
+})
+
+test('a CR driver with no worktree and no root to read starts in its parent\'s folder, guarded, with a note', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on)
+  const { agentId } = await spawn($, treePrompt('chantier cr-driver for CR-5 "T" of batch b.'), { cwd: '/elsewhere' })
+  expect(seen[0].cwd).toBe('/elsewhere')
+  expect((await write($, agentId, 'Write', `${ROOT}/a.py`)).deny).toContain('refused:')
+  expect(await said($)).toContain('started guarded, in its parent\'s folder')
+})
+
+test('a worker with a worktree line keeps starting in its worktree', async ($, on) => {
+  mock.clock(on)
+  const seen = guardWorld(on, 'ok', false, [WT, ROOT])
+  await spawn($, `${WORKER_PROMPT}\n${TREE_LINE}`, { cwd: ROOT })
+  expect(seen[0].cwd).toBe(WT)
 })
 
 test('a prompt with no writes line is not guarded and its folder is not rewritten', async ($, on) => {
