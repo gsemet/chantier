@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "limit": 12288,
+  "limit": 12544,
   "manifest": "skills/chantier/references/startup-manifest.json",
   "hosts": {
     "claude": {

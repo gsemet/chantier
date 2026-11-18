@@ -450,7 +450,7 @@ CLI prints as `timing:` lines):
   start) is reported with its exact text (rule 7): never retried without the model, never with
   another one.
 - When the playbook gives the role skills or tools, the prompt gets a `Needs:` line, as printed.
-  An agent that does not have one of them says so in a note and does its part without it (rule
+  An agent that does not have one of them says so in a note and does its part without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`) (rule
   2).
 
 The prompt is the agent's whole brief:
@@ -642,7 +642,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    never an estimate. Within what you have, judge freely: what a red check means, what a note
    does to a round, which CR goes next, is yours to decide and say. A skill or tool the playbook
    says a role needs and the session lacks is not a stop: the Chief of Staff warns the user, the
-   role says so in a note and works without it, never reaching the same thing by another means.
+   role says so in a note and works without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`), never reaching the same thing by another means.
 3. **Each role does only its own part.** A parent restarts a failing child once (see "An agent that ends
    before its part is done"); it never does the child's work. A fresh child per round. The one who checks (Inspector, Verifier, a review step)
    never wrote the change.
