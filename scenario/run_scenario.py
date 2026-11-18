@@ -5098,15 +5098,26 @@ def stack_batch(w: World) -> None:
         w.sh("git", "update-ref", "HEAD", commit_id(raw), cwd=wt)
         old = w.sh("git", "rev-parse", "HEAD", cwd=wt)
     body.write_text(f"## Test plan\n\nTested at {old[:7]} on the gate\ncarried from {old[:7]}\n"
-                    f"STALE {old[:7]}\nNo hash here: deadbeefdeadbeef0000\n")
+                    f"STALE {old[:7]}\nNo hash here: deadbeefdeadbeef0000\n"
+                    f"Verified at {old[:7]} (carried from {old[:7]})\n"
+                    f"![after at {old[:7]}](https://github.com/acme/demo/blob/{old}/a.png?raw=true)"
+                    f" carried from {old[:7]}\n"
+                    f'STALE <img src="https://raw.githubusercontent.com/acme/demo/{old}/b.png">\n')
     w.sh("git", "commit", "--quiet", "--amend", "-m", "feat: stack3, amended", cwd=wt)
     new_head = w.sh("git", "rev-parse", "HEAD", cwd=wt)
     _, out = w.chantier("ship", four, w.cr(four)["pr"])
     named = [ln for ln in out if "pr-body.md" in ln]
-    check("`ship` names the PR body line whose SHA left the head's history; `carried from`, `STALE` "
-          "and a token that is no commit are not named",
-          len(named) == 1 and named[0].startswith("off: pr-body.md line 3 names " + old[:7])
-          and f"not in {new_head[:7]}'s history" in named[0], str(out))
+    check("`ship` names four PR body lines: line 3, the stale claimed SHA on a `Verified at ... "
+          "(carried from ...)` line, a Markdown image and an HTML image on a `STALE` line, both "
+          "linked into the old head; the SHA after `carried from`, the `STALE` text and a token "
+          "that is no commit are not named",
+          len(named) == 4
+          and named[0].startswith("off: pr-body.md line 3 names " + old[:7])
+          and named[1].startswith("off: pr-body.md line 7 names " + old[:7])
+          and named[2].startswith("off: pr-body.md line 8 shows an image from " + old[:7])
+          and "attach it with the forge's CLI" in named[2]
+          and named[3].startswith("off: pr-body.md line 9 shows an image from " + old[:7])
+          and all(f"not in {new_head[:7]}'s history" in ln for ln in named), str(out))
     body.write_text(f"## Test plan\n\nTested at {new_head[:7]} on the gate\n")
     _, out = w.chantier("ship", four, w.cr(four)["pr"])
     check("with the body fixed, `ship` names no line", not any("pr-body.md" in ln for ln in out), str(out))

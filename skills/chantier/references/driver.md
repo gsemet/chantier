@@ -373,6 +373,11 @@ defer the rest of this card until an action names it. These are the card's defau
   other forge. A file its CLI cannot upload stays in `work/`, and the description names it in
   its Internal references section. A taken-back note `evidence: <path>` is an image to attach the
   same way: remove the matching bullet from Known gaps, run the description pass, hand back ready.
+  An image linked into a commit of the CR's branch is not an upload; one found after a move
+  (`ship`'s `off: pr-body.md line <n> shows an image from …`) is attached by you with the forge's
+  CLI, using the same image file (from `work/`, or from `git show <old>:<path>` while the commit
+  is still local), before the PR turns ready; it is captured again only when a Verifier is due
+  anyway (a conflict, a refused carry).
   No image shows the user's username or home folder; every image you keep or upload shows made-up
   paths. Terms: the *user's username* is both the login name of the machine you run on
   (`$env:USERNAME` on Windows, `$USER` on Linux and macOS) and the last part of the home folder's
@@ -684,7 +689,7 @@ never a message to the Verifier that replied), the PR turned
 ready when its base is the default branch, then `handback ready <pr link>`. The last edit of the
 PR body comes before that description pass; any later edit runs the pass again before the PR
 turns ready, never in the same command as the edit. One exception: after a carried verdict, the
-edit that only changes SHA marks to `carried from <sha7>` (below) needs no description pass.
+edit that only changes SHA marks to `at <head7> (carried from <sha7>)` (below) needs no description pass.
 
 A gap you judge left, whether in a note, a hand-back or a reply to the steering session, is
 written in Known gaps of `pr-body.md` first; a gap said anywhere else and absent from the body is
@@ -730,7 +735,7 @@ clean); a move's pass needs no second note, its `head` is the moved head. A
 box of `pr-body.md` and of the posted description is filled or updated only from a recorded note,
 citing the SHA it holds for the reviewed state at the PR's head (the round's `committed as <sha>`,
 or the move's head). A box whose pass is not recorded stays unchecked; a pass carried over a clean
-rebase is `carried from <sha7>`, the `<sha7>` of the note.
+rebase is `at <head7> (carried from <sha7>)`, the `<sha7>` of the note.
 
 A CR taken with the note `rebase: <cr> merged` and no open dependency or predecessor left (also
 a CR with no dependency at all, in a parallel batch): fetch, rebase onto `origin/<default
@@ -741,8 +746,9 @@ above), `ship`, read CI (red is a round). After a clean rebase (no conflict, the
 unchanged), run no long gate and no `verifier`: the pass and the verdict carry, which `ship`
 records (`carried:`). Mark each proof of
 `pr-body.md` whose SHA left the head's history (the Test plan items, the `Verified at` box, the
-evidence captions) as `carried from <sha7>`, as `ship`'s `off: pr-body.md line <n> names …`
-lines guide, run the pre-post audit and post the file. With a conflict resolved, run the long
+evidence captions) as `at <new head7> (carried from <sha7>)`, as `ship`'s `off: pr-body.md line <n> names …`
+lines guide, and attach the image files `ship` names as the evidence bullet says (no long gate, no
+Verifier: the rule above stands), run the pre-post audit and post the file. With a conflict resolved, run the long
 gate at the new head (`ship --conflict`, above) with the early push: the PR goes to draft and is pushed at once, the long
 gate and the CI watch run side by side by the rules of the "CI" bullet, and the PR leaves draft
 once both passed at that head. The `verifier`, given the move, judges again what it touched
@@ -851,7 +857,7 @@ own evidence plan. A `debugger` or a `conflict-resolver` that fails escalates as
 code, or a red check: `[stack→foreman] anomaly <cr> <text>`. For each PR it moves: when the move
 changed a CR's patch (a `conflict-resolver` ran, or the carry is refused), start a `verifier` with that CR's previous `verify.md` and the move, and an `inspector` when the
 CR's patch changed. An `inspector`'s `APPROVE` is recorded on that CR first (`$CHANTIER note <cr>
-"move <old7>..<new7> (restack) inspector approved at <head>"`); then update the PR's Test plan SHAs (carried, or judged again) with `gh pr edit
+"move <old7>..<new7> (restack) inspector approved at <head>"`); then update the PR body's SHAs (the Test plan, the `Verified at` box, the evidence captions and image links; carried, or judged again) with `gh pr edit
 --body-file` / `glab mr update` with the file form of the Push bullet (unproved there), the Review box citing only a recorded note, as for
 the CR driver. A touched proof you cannot judge again stays
 marked stale in the PR and is an `anomaly`.
@@ -949,7 +955,8 @@ a restack. On GitLab, the forge may already have retargeted the next MR to the d
 the merged MR's source branch was deleted: `rebuild` then retargets nothing for it, which is no
 anomaly (unproved; trial: one run on a GitLab project). A middle MR merged on GitLab is a folded
 CR, below (the Foreman's `take` for it comes first). After a restack, `ship` names the lines of
-`work/pr-body.md` whose SHA left the head's history (`off: pr-body.md line <n> names …`): fix
+`work/pr-body.md` whose SHA left the head's history (`off: pr-body.md line <n> names …`) and the images (`shows an
+image from …`), attached as the evidence bullet says: fix
 them (carried, or judged again, as above), post the file (`gh pr edit --body-file`), and run
 `ship` again until no such line remains, before the PRs turn ready. A CR added by `order add` is
 on top. A CR with an `after` (its dependencies) stands, once `stack` has ordered it, at its place

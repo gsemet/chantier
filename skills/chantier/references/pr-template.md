@@ -75,7 +75,9 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   - a Mermaid `sequenceDiagram` of one real flow, before and after when the order is the fix;
   - a before/after tree or table (files moved or split, sizes, settings);
   - before/after screenshots for a visible change, its main visual, side by side, attached as
-    [driver](driver.md) says (the forge's own CLI);
+    [driver](driver.md) says (the forge's own CLI); a link into a commit of the CR's branch
+    (`/blob/<sha>/`, `raw.githubusercontent.com/.../<sha>/`, GitLab's `/-/raw/<sha>/`) is not an
+    upload: a restack drops that commit and the forge may delete it;
   - a 5 to 15 line code sketch of the new interface, message or registration a contributor will
     reuse, with `...` for the rest.
 
@@ -87,7 +89,9 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   not in the text. With nothing visible: one line, e.g. "No visual change".
 - Each proof names the SHA it covers (seven characters): the Test plan items, and the captions of
   the before/after visuals in Deliverables (before at the base's SHA, after at the head's). A
-  proof carried over a move says so (`carried from <sha7>`); a clean rebase carries every proof whose patch it left unchanged. A proof the head has moved past, not
+  proof carried over a move says so (`at <head7> (carried from <sha7>)`: it names the head it now
+  stands at and the SHA it came from; only the SHA after `carried from` may lie outside the head's
+  history, and `ship` names any other); a clean rebase carries every proof whose patch it left unchanged. A proof the head has moved past, not
   yet judged again, is marked `STALE (judged at <sha7>, head now <sha7>)`. A claim in Summary,
   Deliverables, Changes or Impacts with no proof (no test, no gate, no Verifier claim, no
   evidence) starts with `**UNVERIFIED:**`, or is narrowed to what is proven; it is never left as a
@@ -193,7 +197,7 @@ say here in one line what they show. With nothing visible, one line, e.g. "No vi
 - [ ] Local gates at `<sha7>`: <!-- the commands run and their results -->
 - [ ] Evidence: before at `<sha7>`, after at `<sha7>` <!-- or why there is none -->
 - [ ] Review: approved at `<sha7>` <!-- the SHA of the pass recorded in the CR's notes; unchecked until it is -->
-- [ ] Verified at `<sha7>` <!-- claims carried from an earlier SHA say so -->
+- [ ] Verified at `<sha7>` <!-- a claim carried from an earlier SHA reads `at <head7> (carried from <sha7>)` -->
 - [ ] CI green at `<sha7>` <!-- or, checked, "No CI: no check listed at <sha7>" when the forge lists no check at the head after two looks; never deleted, never "CI green" then -->
 
 ## Internal references
