@@ -91,28 +91,50 @@ def _verify_note_gap(note: Path, head: str) -> str | None:
 
 def _stale_body_shas(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
     """The lines of the posted PR body (`work/pr-body.md`) that name a commit of the worktree
-    which is not in the new head's history (a restack made it stale). A line marked `STALE` or
-    `carried from` is the template's own mark and is left out. Read-only git."""
+    which is not in the new head's history (a restack made it stale). Per line, the images first,
+    on every line (`STALE` and `carried from` lines included): the target of a Markdown image
+    (up to the first space or `)`) or the `src` of an HTML `<img>` that holds such a commit gives
+    one "shows an image from" line, and no other for that line. Then the text, the image URLs
+    removed: a line holding `STALE` is left out (the template's own mark), and the SHA right
+    after `carried from` (spaces, at most one backtick) is exempt by position, being the SHA the
+    proof came from; the same SHA elsewhere on the line is still checked. Read-only git."""
     body = work(repo, c) / "pr-body.md"
     if not body.is_file():
         return []
     found = []
     for n, line in enumerate(read_text(body).splitlines(), 1):
-        if "STALE" in line or "carried from" in line:
-            continue
-        tok = _stale_token(line, wt, head)
+        text = line.strip()
+        if len(text) > HISTORY_CHARS:
+            text = text[: HISTORY_CHARS - 3] + "..."
+        urls = _IMAGE_MD.findall(line) + _IMAGE_HTML.findall(line)
+        tok = _stale_token(" ".join(urls), wt, head) if urls else None
         if tok:
-            text = line.strip()
-            if len(text) > HISTORY_CHARS:
-                text = text[: HISTORY_CHARS - 3] + "..."
+            found.append(
+                f"pr-body.md line {n} shows an image from {tok[:7]}, not in "
+                f"{short_head(head)}'s history: attach it with the forge's CLI: {text}"
+            )
+            continue
+        if "STALE" in line:
+            continue
+        stripped = line
+        for url in urls:
+            stripped = stripped.replace(url, " ")
+        stripped = _CARRIED_FROM.sub("carried from ", stripped)
+        tok = _stale_token(stripped, wt, head)
+        if tok:
             found.append(
                 f"pr-body.md line {n} names {tok[:7]}, not in {short_head(head)}'s history: {text}"
             )
     return found
 
 
+_IMAGE_MD = re.compile(r"!\[[^\]]*\]\(\s*<?([^\s)]+)")
+_IMAGE_HTML = re.compile(r"<img\b[^>]*?\bsrc\s*=\s*[\"']([^\"']+)", re.IGNORECASE)
+_CARRIED_FROM = re.compile(r"carried from[ \t]*`?[0-9a-f]{7,40}\b")
+
+
 def _stale_token(line: str, wt: Path, head: str) -> str | None:
-    """The first commit the line names that exists in the worktree and is not in the head. A token
+    """The first commit the text names that exists in the worktree and is not in the head. A token
     of digits only (a PR number, a date) is not read as a commit."""
     for tok in dict.fromkeys(re.findall(r"\b(?=[0-9a-f]{0,39}[a-f])[0-9a-f]{7,40}\b", line)):
         if not git("rev-parse", "--verify", "--quiet", f"{tok}^{{commit}}", cwd=wt, check=False):

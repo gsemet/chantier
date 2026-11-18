@@ -162,7 +162,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   CR's branch and undone by `--note -`; a stacked CR with an `after` taking its place in the
   stack as base (`stack` and `ship`), `stack` with no CR printing what `take stack` printed and
   writing nothing with a stack driver recorded, and `ship` naming the `work/pr-body.md` lines
-  whose SHA left the head's history after a rebase (`carried from` and `STALE` lines left out),
+  whose SHA left the head's history after a rebase (the SHA after `carried from` and the text of `STALE` lines left out; an image, Markdown or HTML, linked into a commit outside the head named on any line, `STALE` lines included),
   and not taking a token of digits only for a commit (a dangling commit whose first seven
   characters are digits) (unit: stack);
 - a stack's long-gate waiver (`order waive stack`): a lower CR handed back ready with no gate and
