@@ -9,8 +9,8 @@ from chantier.stacks import (
     PR_IN_DRAFT,
     READY_LOCALLY,
     READY_TO_MERGE,
+    draft_clause,
     draft_waits,
-    pr_base_of,
     ready_word,
 )
 
@@ -151,11 +151,9 @@ def notify(repo: Repo, d: BatchRecord, c: CrEntry, pr: str) -> tuple[str, str]:
         return f"Ready to merge: {pr} waits for the user's merge.", "The merge, then the archive."
     if word == READY_LOCALLY:
         return "Ready locally: no PR yet.", "Its PR."
-    base = pr_base_of(d, c, repo)
-    return (
-        f"PR in draft: {pr} on {base}, waits for {draft_waits(d, c, repo)}.",
-        "Ready to merge once what is under it is and the PR is out of draft.",
-    )
+    clause = draft_clause(d, c, repo, c.kind == "release" and bool(c.pr))
+    out = "" if c.pr_draft is False else " and the PR is out of draft"
+    return f"PR in draft: {clause}.", f"Ready to merge once what is under it is{out}."
 
 
 def no_start(d: BatchRecord) -> str:

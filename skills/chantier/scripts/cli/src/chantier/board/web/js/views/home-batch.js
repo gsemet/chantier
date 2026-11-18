@@ -2,6 +2,7 @@
 import { html } from '../core/dom.js';
 import { age, usd } from '../core/format.js';
 import { counts, heartbeat, noCrYet, steeringFactoryWord } from '../model/semantics.js';
+import { spentAge } from '../model/spend-age.js';
 import { t } from '../model/words.js';
 import { dot, meter, stateIcon, tag } from '../ui/parts.js';
 
@@ -51,9 +52,10 @@ function figures(batch, now) {
   const spent = none
     ? ''
     : meter([{ n: batch.spent_usd ?? 0, color: 'var(--accent)' }], batch.budget_usd);
+  const old = spentAge(batch, now);
   const figure = none ? t('batch.spent_none_yet') : usd(batch.spent_usd);
   const opened = batch.created ? t('time.ago', { age: age(batch.created, now) }) : '—';
-  return html`<div class="mini"><div><small>${t('home.spent')}</small><b>${figure}</b> <span class="mut">/ ${usd(batch.budget_usd)}</span>${spent}</div><div><small>${t('home.slots')}</small><b>${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}</b></div><div><small>${t(who)}</small><b class="${beat.late ? 'late' : ''}">${beat.text}</b></div><div><small>${t('home.opened')}</small><b>${opened}</b></div></div>`;
+  return html`<div class="mini"><div><small>${t('home.spent')}</small><b>${figure}</b> <span class="mut">/ ${usd(batch.budget_usd)}</span>${spent}${old ? html`<small class="mut">${old}</small>` : ''}</div><div><small>${t('home.slots')}</small><b>${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}</b></div><div><small>${t(who)}</small><b class="${beat.late ? 'late' : ''}">${beat.text}</b></div><div><small>${t('home.opened')}</small><b>${opened}</b></div></div>`;
 }
 
 export function batchBlock(state) {

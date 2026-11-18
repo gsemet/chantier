@@ -3187,12 +3187,15 @@ def close_refusals(w: World) -> None:
     d = w.batch()
     check("a `take` is refused (exit 5) on the spend read from the transcripts, not on the stored "
           "figure; `status` shows the refreshed figure, `, 0 min old`, and the batch's STATUS.json "
-          "has `spent_at`",
+          "and the index's entry of that batch (the pane's source) have the same `spent_at`",
           code == 5 and "budget spent" in refused and w.cr(new)["status"] == "queued"
           and d["spent_usd"] > 1 and d["spent_at"]
           and re.search(r" spent \$\d+\.\d\d of \$0\.5, 0 min old", shown[0])
           and json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["spent_at"]
-          == d["spent_at"], f"{code} {refused} {shown[0]}")
+          == d["spent_at"]
+          and [b["spent_at"] for b in json.loads((w.state / "STATUS.json").read_text(
+              encoding="utf-8"))["batches"] if b["batch"] == name] == [d["spent_at"]],
+          f"{code} {refused} {shown[0]}")
     state.write_text(held)
     # the steering takes it, without --batch: the CR is found in a paused batch, which runs again
     unpriced_model(w, main, name)  # a call of a model with no price is in the transcript now
@@ -5172,6 +5175,19 @@ def gate_carry(w: World) -> None:
         str(out),
     )
     note(f"12f ready line: {out[0]}")
+    own_sheet = json.loads((w.at(w.cr(clean)["path"]) / "STATUS.json").read_text(encoding="utf-8"))
+    names = [(x["name"], x["verdict"]) for x in own_sheet["steps"]]
+    carried = f"carried from {old[:7]}"
+    check(
+        "the clean CR's steps hold `Verdict | carried from <old7>` after the `Long gate` carried step "
+        "and before `Handed back`, in STATUS.json and in STATUS.md",
+        ("Long gate", carried) in names
+        and names.index(("Verdict", carried)) == names.index(("Long gate", carried)) + 1
+        and names[names.index(("Verdict", carried)) + 1][0] == "Handed back"
+        and f"- [x] Verdict {carried}" in (w.at(w.cr(clean)["path"]) / "STATUS.md").read_text(
+            encoding="utf-8"),
+        str(names),
+    )
     # the restack after the hand-back: the main moves again, the ready CR is rebased and shipped
     land(w, "main", ("moved2.txt", "main moved again\n"))
     ship(w, clean, "feat: carried")
@@ -5843,12 +5859,16 @@ def base_from_pr(w: World) -> None:
     _, out = w.ready(q, qlink)
     own_md = (w.state / w.cr(q)["path"] / "STATUS.md").read_text(encoding="utf-8")
     check("handed back ready over a draft, it reads `PR in draft`, not `ready to merge`: the hand-back "
-          "line, its label and the `notify` text name the forge's base and the CR it waits for",
+          "line, its label and the `notify` text name the CR it waits for; the now line takes the "
+          "ready line's wording and the next line names only what is still missing",
           out[0].startswith(f"[driver {q}→foreman] hand-back PR in draft")
           and out[1] == f"{q} PR in draft: its PR {qlink} is out of draft on the forge; "
                         f"it waits on {p} ({plink})"
           and f"waits on {pb}" not in out[1] and f"waits for {p}" in drawn(w, q)[1]["label"]
-          and f"on {pb}, waits for {p}" in own_md, str(out))
+          and f"on {pb}, waits for {p}" not in own_md
+          and f"**Now:** PR in draft: {out[1].split(' PR in draft: ', 1)[1]}." in own_md
+          and "**Next:** Ready to merge once what is under it is." in own_md
+          and "the PR is out of draft" not in own_md, str(out))
     forge_base(w, qlink, "main")
     w.chantier("ship", q, qlink)
     row = next(ln for ln in w.chantier("status")[1] if ln.startswith(q + " "))

@@ -47,6 +47,8 @@ export type ChantierBatch = {
   folder: string
   state: string
   spent_usd: number | null
+  /** UTC time of the last write of spent_usd; absent from an older file. */
+  spent_at?: string | null
   budget_usd: number | null
   /** The CRs the batch ever held, ended ones included; absent from an older STATUS.json. */
   crs_total?: number

@@ -43,7 +43,10 @@ def step_entries(
         # handed back with no long gate pass of its own: the exemption, the waiver or the
         # carried pass is shown, in the words of the "Long gate" column
         says = event_step(d, e)
-        return [*([("Long gate", says, "")] if says else []), ("Handed back", "", "")]
+        carried = (
+            [("Verdict", f"carried from {str(e.verdict_from)[:7]}", "")] if e.verdict_from else []
+        )
+        return [*([("Long gate", says, "")] if says else []), *carried, ("Handed back", "", "")]
     merged = kind == "order" and e.order_kind == "merged"
     if merged and not any(s["name"] == "Merged" for s in out):
         return [("Merged", "", c.shown_pr() or "")]

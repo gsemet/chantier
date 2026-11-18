@@ -1033,7 +1033,9 @@ export const register: Register = on => {
       const key = scope + 'batch-' + b.folder
       const shown = b.state !== 'paused' // a paused batch is folded, its cost still on the title line
       const why = waiting.filter(r => r.blocked !== null)
-      return Section(key, shown, `${b.batch}  ${spent}${budget}${noCr ? ' · paused, no CR yet' : ' ' + gauge(b.spent_usd, b.budget_usd)}`, () => noCr ? (
+      const spentAge = minutesSince(b.spent_at ?? null, now)
+      const spentOld = b.spent_usd == null ? '' : spentAge === null ? ' · age unknown' : ` · ${spentAge} min old`
+      return Section(key, shown, `${b.batch}  ${spent}${budget}${noCr ? ' · paused, no CR yet' : ' ' + gauge(b.spent_usd, b.budget_usd)}${spentOld}`, () => noCr ? (
         <Box flexDirection="column" paddingLeft={2}>
           <Text dimColor>No CR yet.</Text>
         </Box>

@@ -21,7 +21,7 @@ nothing and runs no process but `git rev-parse`, to find the main checkout from 
 ### How to read it
 
 At the top, a header line: `5 live · 0 waiting for you · checked 3s ago, every 15 s`: when the pane last checked, and its period. Under it, each batch has a
-line (its id, its cost against its budget, a gauge), its unread asks, its slots and its shape (`Slots 3/3, 0
+line (its id, its cost against its budget, a gauge, and how old that cost is: `12 min old`), its unread asks, its slots and its shape (`Slots 3/3, 0
 free · parallel`). Then "Waiting for you" and "In progress", with the columns CR, Subject, State, Step, PR and Cost. The Step is what a working CR's Driver is doing (`coder r2`, `gate scenario`, `CI`), or "waits for the user" on a blocked one; the web board also marks the next CR to start.
 The state says the state, the step and the round: `working Round 1/3`, `working CI 2/3`,
 `🟢 ready to merge Notify 1/3`, `🟤 PR in draft, waits for …`, `🟣 ready locally Notify 1/3`, `queued`. Then Backlog, Merged (n of m) and Trashed (n of m). Press a CR for its

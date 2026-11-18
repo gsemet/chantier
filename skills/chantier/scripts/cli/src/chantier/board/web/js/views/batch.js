@@ -18,6 +18,7 @@ import {
   STATE_ORDER,
   steeringFactoryWord,
 } from '../model/semantics.js';
+import { spentAge } from '../model/spend-age.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter, stateIcon } from '../ui/parts.js';
@@ -79,10 +80,11 @@ const slotsSub = (batch, c) => {
   return next ? t('batch.queued_next', { q: queued, cr: next.cr }) : queued;
 };
 
-function figures(batch) {
+function figures(batch, now) {
+  const old = spentAge(batch, now);
   const c = counts(batch);
   const spent = meter([{ n: batch.spent_usd ?? 0, color: 'var(--accent)' }], batch.budget_usd);
-  return html`<div class="bhead">${kpi({ label: t('batch.slots'), value: `${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}`, sub: slotsSub(batch, c) })}${kpi({ label: t('batch.working'), value: c.working, sub: t('batch.blocked', { n: c.blocked }) })}${kpi({ label: t('batch.handed_ready'), value: c.ready, sub: t('batch.review_merged', { a: c.review, b: c.merged }) })}${kpi({ label: t('batch.spent'), value: usd(batch.spent_usd), extra: spent, sub: t('batch.of_budget', { budget: usd(batch.budget_usd) }) })}</div>`;
+  return html`<div class="bhead">${kpi({ label: t('batch.slots'), value: `${batch.slots?.taken ?? 0}/${batch.slots?.total ?? 0}`, sub: slotsSub(batch, c) })}${kpi({ label: t('batch.working'), value: c.working, sub: t('batch.blocked', { n: c.blocked }) })}${kpi({ label: t('batch.handed_ready'), value: c.ready, sub: t('batch.review_merged', { a: c.review, b: c.merged }) })}${kpi({ label: t('batch.spent'), value: usd(batch.spent_usd), extra: spent, sub: t('batch.of_budget', { budget: usd(batch.budget_usd) }) + (old ? ` · ${old}` : '') })}</div>`;
 }
 
 // The strip names the mode and the steering ("Stack · Foreman"), its sentence, and the three modes.
@@ -126,7 +128,7 @@ export function render(state) {
   }
   const graph = state.batchTab === 'graph';
   const panel = graph ? graphBlock(batch.crs, batch, state.now) : lazyTab(state);
-  return html`<div class="batch">${figures(batch)}${modeBand(batch)}<div class="bwrap"><div class="gcol">${legend()}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div>${prsBlock(state)}</div></div>`;
+  return html`<div class="batch">${figures(batch, state.now)}${modeBand(batch)}<div class="bwrap"><div class="gcol">${legend()}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div>${prsBlock(state)}</div></div>`;
 }
 
 // The rows the page draws now: a closed record's, or the live batch's.

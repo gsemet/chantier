@@ -754,6 +754,25 @@ for (const [total, empty] of [[0, true], [2, false]] as const) {
   })
 }
 
+test('a batch title line shows the spend age, says it is unknown, or shows none without a spend', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
+  const w = world(on)
+  const cases: [object, string[], string[]][] = [
+    [{ spent_at: '2026-11-06T09:48:00Z' }, ['12 min old'], ['age unknown']],
+    [{}, ['age unknown'], ['min old']],
+    [{ spent_usd: null }, [], ['min old', 'age unknown']],
+  ]
+  for (const [over, has, hasNot] of cases) {
+    w.put(INDEX, index({ batches: [batch({ state: 'paused', ...over })] }))
+    await skill($)
+    const ui = await board($)
+    const title = (await label(ui, `fold-batch-${BATCH}`)) as string
+    for (const x of has) expect(title).toContain(x)
+    for (const x of hasNot) expect(title).not.toContain(x)
+    await ui.unmount()
+  }
+})
+
 test('a row draws its severity icon once, in the State column', async ($, on) => {
   mock.clock(on)
   const w = world(on)
