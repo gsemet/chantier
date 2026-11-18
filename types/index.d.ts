@@ -154,8 +154,8 @@ export type ChantierFeed = {
 declare module 'claude-code' {
   interface PluginState {
     chantier: {
-      /** Where the files are, found once at opening. */
-      site: Shaped<{ root: string | null; error: string | null }>
+      /** Where the files are (every project of a surface), found at opening and at Refresh; `unseated` is the line said when no seat names the session. */
+      site: Shaped<{ root: string | null; bases: { name: string | null; dir: string }[]; error: string | null; unseated: string | null; sid: { id: string | null; error: string | null } | null }>
       feed: Shaped<ChantierFeed>
       pages: Shaped<ChantierPage[]>
       /** Sections turned from their default (batches open, the rest folded). */

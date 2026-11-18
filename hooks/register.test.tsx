@@ -100,6 +100,8 @@ function world(on: On, cwd = ROOT) {
   let gitStdout = `${ROOT}/.git\n`
   let gitExit = 0
   let gitDeny: string | null = null
+  let sessionId = 'sess-1'
+  let idDeny: string | null = null
   let isOpen = false
   let mtime = 1
   const put = (path: string, value: unknown) =>
@@ -108,6 +110,7 @@ function world(on: On, cwd = ROOT) {
   on('skill.prompt', (_, e) => ({ text: e.text }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: cwd }))
+  on('session.id', () => (idDeny !== null ? { deny: idDeny } : { value: sessionId }))
   on('process.run', (_, e) => {
     calls.run.push({ argv: e.argv, cwd: n(String(e.init?.cwd)) })
     if (gitDeny !== null) return { deny: gitDeny }
@@ -161,6 +164,12 @@ function world(on: On, cwd = ROOT) {
     },
     refuseGit: (reason: string) => {
       gitDeny = reason
+    },
+    setId: (id: string) => {
+      sessionId = id
+    },
+    refuseId: (reason: string) => {
+      idDeny = reason
     },
   }
 }
@@ -267,10 +276,160 @@ test('a planning surface shows one section per project, each read from its own f
   expect(text).toContain('other')
   expect(text).toContain('1 live')
   expect(text).toContain('4 live')
+  expect(text).toContain(NO_SEAT)
   const links = (await ui.findAll({ type: 'Markdown' })).map((m: any) => m.props.text).join('\n')
   expect(links).toContain(`${ROOT}/projects/demo/changes/4-batch/2-actives/01-first`)
   await ui.unmount()
 })
+const NO_SEAT = 'No seat names this session: showing every project.'
+
+/** A surface of `demo` and `other`, each with a STATUS.json of its own (1 and 4 live). */
+function surface(w: ReturnType<typeof world>) {
+  w.dirs.set(`${ROOT}/projects`, ['demo', 'other'])
+  for (const name of ['demo', 'other']) {
+    w.dirs.set(`${ROOT}/projects/${name}`, ['changes'])
+    w.dirs.set(`${ROOT}/projects/${name}/changes`, [])
+  }
+  w.put(`${ROOT}/projects/demo/changes/STATUS.json`, index())
+  w.put(`${ROOT}/projects/other/changes/STATUS.json`, index({ active_crs: 4 }))
+}
+const SEAT_OF = (name: string) => `${ROOT}/projects/${name}/changes/seat.json`
+const BATCH_OF = (name: string) => `${ROOT}/projects/${name}/changes/4-batch/batch.json`
+
+const MATCHES: [string, string, object][] = [
+  ['seat session', 'seat', { session: 'sess-1' }],
+  ['seat transcript', 'seat', { transcript: 'sess-1' }],
+  ['batch foreman', 'batch', { foreman: 'sess-1' }],
+  ['batch foreman_transcript', 'batch', { foreman_transcript: 'sess-1' }],
+  ['batch foreman_transcripts', 'batch', { foreman_transcripts: ['x', 'sess-1'] }],
+  ['batch chief_transcript', 'batch', { chief_transcript: 'sess-1' }],
+  ['batch chief_transcripts', 'batch', { chief_transcripts: ['sess-1'] }],
+]
+for (const [name, file, body] of MATCHES) {
+  test(`the session id in ${name} keeps only that project, with no line`, async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  surface(w)
+  w.put((file === 'seat' ? SEAT_OF : BATCH_OF)('demo'), body)
+  w.put(SEAT_OF('other'), { session: 'someone-else' })
+  w.put(BATCH_OF('other'), { foreman: 'someone-else' })
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('1 live')
+  expect(text).not.toContain('4 live')
+  expect(text).not.toContain('No seat names')
+  expect(w.calls.stat).not.toContain(`${ROOT}/projects/other/changes/STATUS.json`)
+  await ui.unmount()
+  })
+}
+
+test('two projects that name the session are both drawn, with no line', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  surface(w)
+  w.put(SEAT_OF('demo'), { session: 'sess-1' })
+  w.put(BATCH_OF('other'), { chief_transcripts: ['sess-1'] })
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('1 live')
+  expect(text).toContain('4 live')
+  expect(text).not.toContain('No seat names')
+  await ui.unmount()
+})
+
+test('a session id that cannot be read shows every project, with the error', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  surface(w)
+  w.put(SEAT_OF('demo'), { session: 'sess-1' })
+  w.refuseId('session.id is not allowed here')
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('4 live')
+  expect(text).toContain("This session's id cannot be read (")
+  expect(text).toContain('session.id is not allowed here')
+  await ui.unmount()
+})
+
+test('a single project with no status and no match says it, in the one-line view', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.dirs.set(`${ROOT}/projects`, ['demo'])
+  w.dirs.set(`${ROOT}/projects/demo`, ['changes'])
+  w.dirs.set(`${ROOT}/projects/demo/changes`, [])
+
+  await skill($)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('No chantier status here')
+  expect(text).toContain(NO_SEAT)
+  await ui.unmount()
+})
+
+test('a seat written after opening is followed by the next check, which reads no file that did not change', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  surface(w)
+
+  await skill($)
+  let ui = await board($)
+  expect(await words(ui)).toContain(NO_SEAT)
+  await ui.unmount()
+
+  await clock.advance(15000)
+  const reads = w.calls.read.length
+  await clock.advance(15000)
+  expect(w.calls.read.length).toBe(reads)
+
+  w.put(SEAT_OF('demo'), { session: 'sess-1' })
+  await clock.advance(15000)
+  ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('1 live')
+  expect(text).not.toContain('4 live')
+  expect(text).not.toContain('No seat names')
+  await ui.unmount()
+})
+
+test('a periodic check keeps the seated project alone from the id held in the site atom, as after a plugin reload', async ($, on) => {
+  const clock = mock.clock(on)
+  const w = world(on)
+  surface(w)
+  w.put(SEAT_OF('demo'), { session: 'sess-1' })
+
+  await skill($)
+  // The id is held with the site, not in the module: a reload that resets the module loses nothing. Here
+  // the session no longer answers, so a check that read it again would show every project.
+  w.refuseId('session gone')
+  await clock.advance(15000)
+  await clock.advance(15000)
+  const ui = await board($)
+  const text = await words(ui)
+  expect(text).toContain('1 live')
+  expect(text).not.toContain('4 live')
+  expect(text).not.toContain('No seat names')
+  expect(text).not.toContain('cannot be read')
+  await ui.unmount()
+})
+
+test('a session in the project itself reads no seat and draws no line', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  w.put(INDEX, index())
+
+  await skill($)
+  const ui = await board($)
+  expect(await words(ui)).not.toContain('No seat names')
+  expect(w.calls.stat.filter(p => p.endsWith('/seat.json') || p.endsWith('/batch.json'))).toEqual([])
+  await ui.unmount()
+})
+
 test('a process that is refused is said in one line, with its error', async ($, on) => {
   mock.clock(on)
   const w = world(on)
