@@ -795,24 +795,25 @@ def push(w: World, cr_id: str) -> None:
     w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", c["branch"], cwd=wt)
 
 
-def ship(w: World, cr_id: str, title: str) -> None:
-    """The Driver writes the PR body, pushes, opens or updates the PR itself, then records it."""
+def ship(w: World, cr_id: str, title: str, base: str = "main") -> None:
+    """The Driver writes the PR body, pushes, opens or updates the PR itself, then records it.
+    `base` is the branch a new PR targets: the CR under it, for a CR that carries its commits."""
     c = w.cr(cr_id)
     body = w.at(c["path"]) / "work" / "pr-body.md"
     body.parent.mkdir(exist_ok=True)
     push(w, cr_id)
     first = cr_id not in OPENED
     body.write_text(BODY.format(title=c["title"], cr=cr_id))
-    link = OPENED.setdefault(cr_id, open_pr(w, cr_id, title) if first else c["pr"])
+    link = OPENED.setdefault(cr_id, open_pr(w, cr_id, title, base) if first else c["pr"])
     w.chantier("ship", cr_id, link)
 
 
-def driver_round(w: World, cr_id: str, filename: str, content: str) -> None:
+def driver_round(w: World, cr_id: str, filename: str, content: str, base: str = "main") -> None:
     """A round counted, a Coder's change, then the Driver's commit, long gate and ship."""
     w.chantier("round", cr_id, "--note", f"edit {filename}")
     commit(w, cr_id, filename, content)
     w.chantier("gate", cr_id, GATE)
-    ship(w, cr_id, f"feat: {filename.removesuffix('.py')}")
+    ship(w, cr_id, f"feat: {filename.removesuffix('.py')}", base)
 
 
 def prepare_cr(w: World, title: str, priority: str = "P1") -> tuple[Path, Path]:
@@ -4877,6 +4878,7 @@ def gate_carry_stack(w: World) -> None:
     w.sh("git", "push", "--quiet", "--force-with-lease", "origin", w.cr(over)["branch"], cwd=wo)
     tip = w.sh("git", "rev-parse", f"origin/{w.cr(under)['branch']}", cwd=wo)
     link = w.cr(over)["pr"]
+    forge_base(w, link, w.cr(under)["branch"])  # the stack driver retargets the PR with the CR
     w.chantier("ship", over, link)
     gates = len([e for e in log() if e["kind"] == "gate" and e["cr"] == over])
     w.chantier("handback", over, "ready", link)
@@ -6560,6 +6562,7 @@ def restack(w: World, cr_id: str, under: str) -> None:
     w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
     w.sh("git", "rebase", "--quiet", f"origin/{w.cr(under)['branch']}", cwd=wt)
     w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", c["branch"], cwd=wt)
+    forge_base(w, c["pr"], w.cr(under)["branch"])  # the PR sits on the branch of the CR under it
     w.chantier("ship", cr_id, c["pr"])
 
 
@@ -6753,7 +6756,7 @@ def release_on_stack(w: World) -> None:
     fm.turn()
     code, _ = w.chantier("take", r, "--epoch", 1, expect=2)
     refused = code == 2 and two in w.last_stderr
-    driver_round(w, two, "series2.py", "S = 2\n")
+    driver_round(w, two, "series2.py", "S = 2\n", base=w.cr(one)["branch"])
     w.ready(two, w.cr(two)["pr"])
     on_branch(w, r, w.cr(two)["branch"])
     check("13. in a series, the release waits for the CRs, then starts on the second CR's branch",
