@@ -28,6 +28,7 @@ NOTES_FILE = "release-notes.md"
 TWEET_FILE = "tweet.md"
 VERSION_FILE = ROOT / "skills" / "chantier" / "scripts" / "cli" / "src" / "chantier" / "__init__.py"
 FIRST_NOTES_VERSION = (0, 8, 0)
+MIN_IDENTITY_LENGTH = 3
 FIRST_CLAIMS_VERSION = (0, 9, 1)
 REPO = "https://github.com/gsemet/chantier"
 RELEASE_ASSETS = f"{REPO}/releases/download"
@@ -120,7 +121,7 @@ def tweet_image(tweet: str, folder: Path) -> str:
 def validate_tweet(tweet: str, folder: Path, version: str) -> str:
     """Check the thread's shape and links; return its image."""
     image = tweet_image(tweet, folder)
-    bodies = dict(zip(*[iter(POST.split(tweet)[1:])] * 2))
+    bodies = dict(zip(*[iter(POST.split(tweet)[1:])] * 2, strict=False))
     if f"{REPO}/releases/tag/v{version}" not in bodies["2/"]:
         raise ValueError(f"Post 2 of {TWEET_FILE} must link {REPO}/releases/tag/v{version}")
     if INSTALL_LINK not in bodies["3/"]:
@@ -149,7 +150,7 @@ def local_patterns() -> list[tuple[str, re.Pattern[str]]]:
     return [
         (kind, re.compile(rf"(?<!\w){re.escape(value)}(?!\w)", re.IGNORECASE))
         for kind, value in values
-        if len(value) >= 3
+        if len(value) >= MIN_IDENTITY_LENGTH
     ]
 
 
@@ -209,7 +210,7 @@ def prepare(tag: str, output: Path, assets: Path) -> None:
         raise ValueError(f"Missing {tweet_path.relative_to(ROOT).as_posix()}")
     thread_image = validate_tweet(tweet_path.read_text(encoding="utf-8"), folder, number)
     assets.mkdir(parents=True, exist_ok=True)
-    sources = list(dict.fromkeys(images(notes) + [thread_image]))
+    sources = list(dict.fromkeys([*images(notes), thread_image]))
     for source in sources:
         shutil.copy(folder / source, assets / source)
     output.parent.mkdir(parents=True, exist_ok=True)

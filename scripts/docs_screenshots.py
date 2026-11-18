@@ -146,7 +146,7 @@ def settle(page: Page) -> None:
 
 
 def goto(page: Page, url: str, view: str, project: str) -> None:
-    base = url.split("#")[0]
+    base = url.split("#", 1)[0]
     sep = "&" if "?" in base else "?"
     page.goto(f"{base}{sep}p={project}&v={view}&lang=en")
     page.wait_for_selector("[data-key]", state="attached")
@@ -221,7 +221,8 @@ def views(page: Page, url: str, size: str) -> None:
     settle(page)
     if size == "pc":
         # The page scrolls inside its pane: show the Copilot section (its table, with the rows a
-        # repository file overrides, and its open list of models with their plans), in a taller view.
+        # repository file overrides, and its open list of models with their plans), in a taller
+        # view.
         page.set_viewport_size({"width": SIZES["pc"]["width"], "height": 1500})
         page.locator("details.catalog").evaluate("el => { el.open = true; }")
         page.locator("section.host").nth(1).evaluate("el => el.scrollIntoView({block: 'start'})")
