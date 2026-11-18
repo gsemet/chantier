@@ -2245,6 +2245,7 @@ def remote_board(w: World) -> None:
               and late.p.poll() is None
               and fetch(late_link.port, "/api/board", headers=late_link.cookie)[0] == 200,
               p.stdout + p.stderr)
+        late.stop()  # the next checks expect no live board
         # a port held by another program, with no live board to reuse
         with socket.socket() as held:
             held.bind(("127.0.0.1", 0))
