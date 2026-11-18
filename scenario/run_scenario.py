@@ -2593,6 +2593,8 @@ def status_files(w: World) -> None:
           "blocked reason, silent time and folder, relative to .agents/changes/ in the batch's file too",
           index["schema"] == 3 and rows
           and all({"heartbeat", "orders_pending"} <= set(b) for b in index["batches"])
+          and [b["mode"] for b in index["batches"] if b["batch"] == w.name]
+          == [json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))["mode"]]
           and all({"blocked", "silent_minutes", "folder"} <= set(r) for r in rows + own)
           and all((w.state / r["folder"] / "STATUS.json").is_file()
                   for r in rows + own if r["folder"]), str(rows[:1]))
@@ -6163,7 +6165,9 @@ def batch_modes(w: World) -> None:
     check("`order mode --note stack` turns a series into a stack at once, and logs it",
           code == 2 and f"waits for {b} queued" in waits_err and w.batch()["mode"] == "stack" and w.batch()["orders"][-1]["kind"] == "mode"
           and w.batch()["orders"][-1]["applied"]
-          and any('"kind": "mode"' in ln for ln in (w.folder() / "events.jsonl").read_text().splitlines()),
+          and any('"kind": "mode"' in ln for ln in (w.folder() / "events.jsonl").read_text().splitlines())
+          and [b["mode"] for b in json.loads((w.state / "STATUS.json").read_text(encoding="utf-8"))["batches"]
+               if b["batch"] == w.name] == ["stack"],
           str(out))
     code, out = w.chantier("take", c, "--epoch", 0)
     check("after the switch, a queued CR is taken at once, on the default branch",

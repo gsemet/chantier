@@ -890,6 +890,39 @@ test('a batch header shows its slots, and nothing when the index has none', asyn
   await old.unmount()
 })
 
+test('a batch header ends its slots line with the batch shape, and says unknown when it is null or odd', async ($, on) => {
+  mock.clock(on)
+  const w = world(on)
+  const slots = { taken: 0, total: 3 }
+  for (const [mode, word] of [
+    ['parallel', 'parallel'],
+    ['series', 'series'],
+    ['stack', 'stack'],
+    [null, 'unknown'],
+    ['weird', 'unknown'],
+  ] as const) {
+    w.put(INDEX, index({ batches: [batch({ slots, mode })] }))
+    await skill($)
+    const ui = await board($)
+    expect(await words(ui)).toContain(`Slots 0/3, 3 free · ${word}`)
+    await ui.unmount()
+  }
+
+  w.put(INDEX, index({ batches: [batch({ mode: 'stack' })] }))
+  await skill($)
+  const alone = await board($)
+  expect(await words(alone)).toContain('stack')
+  expect(await words(alone)).not.toContain('Slots')
+  await alone.unmount()
+
+  w.put(INDEX, index({ batches: [batch({ slots })] }))
+  await skill($)
+  const old = await board($)
+  expect(await words(old)).toContain('Slots 0/3, 3 free')
+  expect(await words(old)).not.toContain('free ·')
+  await old.unmount()
+})
+
 test('a live batch whose Foreman is silent for long says so', async ($, on) => {
   mock.clock(on, { now: Date.parse('2026-11-06T10:00:00Z') })
   const w = world(on)

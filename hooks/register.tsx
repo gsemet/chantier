@@ -1003,8 +1003,15 @@ export const register: Register = on => {
       return Section(key, shown, `${b.batch}  ${spent}${budget} ${gauge(b.spent_usd, b.budget_usd)}`, () => (
         <Box flexDirection="column" rowGap={1} paddingLeft={2}>
           {b.asks_unread > 0 && <Text>{`${b.asks_unread} unread ask${b.asks_unread === 1 ? '' : 's'}`}</Text>}
-          {b.slots && (
-            <Text>{`Slots ${b.slots.taken}/${b.slots.total}, ${Math.max(0, b.slots.total - b.slots.taken)} free`}</Text>
+          {(b.slots || b.mode !== undefined) && (
+            <Text>
+              {[
+                b.slots ? `Slots ${b.slots.taken}/${b.slots.total}, ${Math.max(0, b.slots.total - b.slots.taken)} free` : null,
+                b.mode !== undefined ? (b.mode === 'stack' || b.mode === 'series' || b.mode === 'parallel' ? b.mode : 'unknown') : null,
+              ]
+                .filter(x => x !== null)
+                .join(' · ')}
+            </Text>
           )}
           {isSilent && <Text>{`Foreman silent for ${age} min`}</Text>}
           {Section(key + '-waiting', true, `Waiting for you (${waiting.length})`, () =>
