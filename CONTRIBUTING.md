@@ -86,7 +86,8 @@ chantier is four things in one repository:
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the planning folder (the target repository's `.agents/changes/`, or the project's
    folder of an external planning surface, plus its own `.gitignore`, and the board's key in the
-   git folder, and the forge hub's lock and record, `chantier/hub.lock` and `chantier/hub.json`),
+   git folder, and the forge hub's lock and record, `chantier/hub.lock` and `chantier/hub.json`, and each watcher's
+   lock, `chantier/watch-<project>/<session>.lock`),
    as plain JSON and
    Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
    `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`

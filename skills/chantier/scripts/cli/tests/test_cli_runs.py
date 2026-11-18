@@ -93,7 +93,7 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     folder = _prepared(repo, chantier)
     code, _, err = chantier("open", str(folder), *FROM_AGENTS_MD)
     assert code == 0, err
-    assert chantier("status")[1][-1].startswith("CR-101 queued")
+    assert any(x.startswith("CR-101 queued") for x in chantier("status")[1])
     # the CLI names the branch and the worktree; the Driver creates them
     assert not (repo.parent / f"{repo.name}.worktrees").exists()
     assert sh("git", "branch", "--list", "chantier/*", cwd=repo) == ""
@@ -105,10 +105,10 @@ def test_the_plugin_runs_with_no_setup_and_writes_only_in_the_planning_folder(
     _worker_opening_lines(out, repo)
     _, out, _ = chantier("round", "CR-101", "--note", "round 1")
     assert out[0] == "round 1 of 3 for CR-101"
-    assert chantier("status")[1][-1].startswith("CR-101 working r1/3")
+    assert chantier("status")[1][-2].startswith("CR-101 working r1/3")
     code, _, err = chantier("round", "CR-101")  # nothing happened since round 1: refused
     assert code == EXIT_PRECONDITION and "nothing happened since" in err
-    assert chantier("status")[1][-1].startswith("CR-101 working r1/3")
+    assert chantier("status")[1][-2].startswith("CR-101 working r1/3")
     for i in range(2):
         chantier("note", "CR-101", f"note {i}")
         assert chantier("round", "CR-101")[0] == 0
@@ -188,7 +188,7 @@ def test_a_byte_order_mark_from_windows_powershell_is_read_through(
     batch = repo / ".agents" / "changes" / "4-batch" / "batch.json"
     batch.write_bytes(b"\xef\xbb\xbf" + batch.read_bytes())
     code, out, err = chantier("status")
-    assert code == 0 and out[-1].startswith("CR-101 queued"), err
+    assert code == 0 and any(x.startswith("CR-101 queued") for x in out), err
     assert chantier("take", "CR-101", "--epoch", 0)[0] == 0
     assert not batch.read_bytes().startswith(b"\xef\xbb\xbf")  # written back without the mark
 

@@ -219,7 +219,8 @@ does a unit that is not in `UNITS` and a test that does not exist.
   gitlab);
 - direct mode: `preflight --direct` and `open --direct` (a session id needed), `order add` and
   `order qa` refused, a direct batch from `open` to the pause, two CRs added to the paused batch,
-  which stays paused until the first `take`, then paused again, and `close` (priced with one
+  which stays paused until the first `take` (its output ends with the `watch: not running` line,
+  not indented, after the Driver prompt block), then paused again, and `close` (priced with one
   `Chief of Staff, steering the batch` row that keeps a turn which only names or reads a
   specification, a grill and specifications line and a whole-session line that holds the
   steering window and names it, `close` not blocked by the Chief of Staff's own transcript but by a Driver
@@ -299,17 +300,22 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the forge hub and `chantier watch` (CR-358), on a two-project surface with the fake `gh`, the
   test seam `CHANTIER_HUB_TEST_TIMES` shortening the cycle and the quiet, the watchers background
   processes:
-  - `status` of a running batch prints `forge hub: none running` and `watch: chantier watch --after
-    <n>`, right after the `last closed:` line (the second line stays that one); `--after` past the journal's end exits 1 (unit: surface-board) (test:
+  - `status` of a running batch with no watcher prints `forge hub: none running` and, as its last
+    line, `watch: not running: for the Chief of Staff, start in the background: <command>` (the
+    command ends `watch --after 0`, no `--batch`); while watchers of the session run, it prints
+    `watch: chantier watch --after <n>` and no `not running` line; after a watcher's end it ends
+    with the line again; a paused batch prints no `watch:` line; `--after` past the journal's end exits 1 (unit: surface-board) (test:
     test_forge_hub.py::test_watch_refusals,
-    test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
+    test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version,
+    test_watcher_autostart.py::test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs);
   - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, `hub.json`
     names one PID and a read per project, `status` names that PID, and each cycle makes one `api
     graphql` call per project with an open PR, never two hubs' worth (unit: surface-board) (test:
     test_forge_hub.py::test_one_watcher_holds_the_hub_lock_and_the_next_takes_it,
     test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
   - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
-    `watch: cursor 1; next: ...`, the merge written once (`by: hub`); B's watcher keeps running,
+    `watch: <batch> still running: for the Chief of Staff, start again in the background now:
+    <command> watch --after 1`, the merge written once (`by: hub`); B's watcher keeps running,
     takes the lock and the next cycles still read the forge (unit: surface-board) (test:
     test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
     test_forge_hub.py::test_a_watcher_ends_twenty_seconds_after_the_last_event);
@@ -326,6 +332,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   - A's batch paused (every CR merged or dropped): A's watcher ends with `no running batch`, a PR
     merged then writes no line for A and the hub reads none of its PRs; `watch` with no running
     batch exits 2 (unit: surface-board) (test: test_forge_hub.py::test_watch_refusals);
+  - while the session's watchers run, `status` holds `watch: chantier watch --after <n>` and no `not
+    running` line; once A's watcher ended on its merge and before it restarts, `status` ends with
+    the line again, with the journal's last seq; A's paused batch prints no `watch:` line (unit:
+    surface-board);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
     is unchanged by the hub, a forge error lands in `hub.json` and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:

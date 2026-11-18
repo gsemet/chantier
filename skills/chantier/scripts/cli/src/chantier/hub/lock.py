@@ -4,7 +4,10 @@
 holder exits or dies, so no stale lock exists. `hub.json` is kept while the lock is held: the
 holder's `pid`, `version`, `started` and, per project, `read_at` (the last good read), `error` (the
 last failed read's one line, or null) and `error_at`. A record whose process is not alive since
-`started` is no record."""
+`started` is no record.
+
+Each watcher also holds `watch-<project>/<session>.lock`, the same way: `watchers` lists the
+sessions whose watcher of a project runs now."""
 
 from __future__ import annotations
 
@@ -20,17 +23,18 @@ from chantier.core.files import read_text, try_lock, unlock, write_json
 
 LOCK = "hub.lock"
 RECORD = "hub.json"
+WATCHER_SUFFIX = ".lock"
 
 
 def folder(git_dir: Path) -> Path:
     return git_dir / "chantier"
 
 
-class HubLock:
-    """One handle on the hub lock: `acquire` wins it or not, at once; `release` lets it go."""
+class _FileLock:
+    """One handle on a lock file: `acquire` wins it or not, at once; `release` lets it go."""
 
-    def __init__(self, git_dir: Path) -> None:
-        self.path = folder(git_dir) / LOCK
+    def __init__(self, path: Path) -> None:
+        self.path = path
         self._file: IO[str] | None = None
 
     @property
@@ -55,6 +59,48 @@ class HubLock:
                 unlock(f)
             finally:
                 f.close()
+
+
+class HubLock(_FileLock):
+    """The hub's lock."""
+
+    def __init__(self, git_dir: Path) -> None:
+        super().__init__(folder(git_dir) / LOCK)
+
+
+class WatcherLock(_FileLock):
+    """A watcher's lock, one file per project and session; its name is the record, nothing is
+    written in it, and it is left in place when the watcher ends."""
+
+    def __init__(self, git_dir: Path, project: str, session: str) -> None:
+        super().__init__(watcher_folder(git_dir, project) / f"{session}{WATCHER_SUFFIX}")
+
+
+def watcher_folder(git_dir: Path, project: str) -> Path:
+    return folder(git_dir) / f"watch-{project}"
+
+
+def watchers(git_dir: Path, project: str) -> list[str]:
+    """The sessions that hold a watcher's lock of this project now. The probe opens each existing
+    lock file and tries the lock: taken means no watcher holds it, so it lets go at once. It
+    creates no file and no folder."""
+    here = watcher_folder(git_dir, project)
+    if not here.is_dir():
+        return []
+    found: list[str] = []
+    for path in sorted(here.glob(f"*{WATCHER_SUFFIX}")):
+        try:
+            f = path.open("r+")
+        except OSError:
+            continue
+        try:
+            if try_lock(f):
+                unlock(f)
+            else:
+                found.append(path.name[: -len(WATCHER_SUFFIX)])
+        finally:
+            f.close()
+    return found
 
 
 def _read(path: Path) -> dict[str, Any]:

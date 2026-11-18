@@ -1761,8 +1761,13 @@ def forge_hub(w: World) -> None:
         return (f"forge saw merged: {cr} {url(number)} into main at {at}; "
                 f"for the Chief of Staff: order merged {cr}")
 
+    cli_form = (f'uv run --no-sync --project "{SKILL.parents[1].resolve().as_posix()}" chantier '
+                f'--project "{(sw.surface / "projects" / "demo").resolve().as_posix()}"')
+    not_running = "watch: not running: for the Chief of Staff, start in the background: "
+
     def cursor(n: int) -> str:
-        return f"watch: cursor {n}; next: chantier watch --after {n}"
+        return ("watch: " + f"{a_batch} still running: for the Chief of Staff, start again in the "
+                f"background now: {cli_form} watch --after {n}")
 
     sw.chantier("init")
     sw.chantier("init", project="other")
@@ -1785,8 +1790,11 @@ def forge_hub(w: World) -> None:
               if (folder(p) / "4-batch" / f).is_file()}
     setup[0] = len(forge_calls(sw))
     _, out = sw.chantier("status", expect=None)
-    check("`status` of a running batch names the hub (none yet) and the `watch` command to run",
-          "forge hub: none running" in out and "watch: chantier watch --after 0" in out, str(out))
+    check("`status` of a running batch with no watcher names the hub (none yet) and ends with the "
+          "`watch: not running` line and the command to run, no `watch: chantier watch` line",
+          "forge hub: none running" in out and bool(out)
+          and out[-1] == f"{not_running}{cli_form} watch --after 0" and "--batch" not in out[-1]
+          and not any(x.startswith("watch: chantier watch") for x in out), str(out))
     sw.chantier("watch", "--after", 5, expect=1)
     check("`watch --after` past the journal's end exits 1", "past the journal's end" in sw.last_stderr,
           sw.last_stderr)
@@ -1814,6 +1822,10 @@ def forge_hub(w: World) -> None:
         _, out = sw.chantier("status", expect=None)
         check("`status` names the hub's PID while it runs",
               any(x.startswith(f"forge hub: PID {first_hub},") for x in out), str(out))
+        check("while the session's watchers run, `status` holds `watch: chantier watch --after` and "
+              "no `watch: not running` line",
+              any(x.startswith("watch: chantier watch --after ") for x in out)
+              and not any(x.startswith("watch: not running") for x in out), str(out))
         sets = [asked(c) for c in graphql()]
         check("each cycle makes one `api graphql` call per project with an open PR: every call names "
               "one project's PRs, and no more than one hub's worth were made",
@@ -1830,6 +1842,10 @@ def forge_hub(w: World) -> None:
               [(e["seq"], e["by"], e["kind"], e["cr"]) for e in entries] == [(1, "hub", "merged", a[0])]
               and sw.sh("git", "check-ignore", "projects/demo/changes/forge-journal.jsonl",
                         cwd=sw.surface).strip() != "", str(entries))
+        _, out = sw.chantier("status", expect=None)
+        check("after A's watcher ended and before it is restarted, `status` ends with the "
+              "`watch: not running` line and the journal's last seq",
+              bool(out) and out[-1] == f"{not_running}{cli_form} watch --after 1", str(out[-2:]))
         check("B's watcher keeps running and takes the lock",
               until(lambda: record().get("pid") not in (None, first_hub)) and wb.p.poll() is None, str(record()))
         reached = reads("other")
@@ -1902,6 +1918,9 @@ def forge_hub(w: World) -> None:
         check("A's watcher ends with `no running batch` when its batch is paused",
               batch("demo")["status"] == "paused" and bool(got)
               and got[-1] == "watch: no running batch in demo; ended", f"{batch('demo')['status']} {got}")
+        _, out = sw.chantier("status", expect=None)
+        check("`status` of A's paused batch holds no `watch:` line",
+              not any(x.startswith("watch:") for x in out), str(out))
         wb = watcher("other")
         wb.line()
         merged(915, "2026-11-16T10:04:00Z")
@@ -2629,6 +2648,11 @@ def direct_batch(w: World) -> None:
           "that `take`", "was paused: running again" in "\n".join(fm.facts)
           and "reopen" in kinds and kinds[::-1].index("take") < kinds[::-1].index("reopen"),
           str(kinds[-8:]))
+    check("that `take` ends with the `watch: not running` line, not indented, after the Driver "
+          "prompt block", bool(fm.facts) and fm.facts[-1].startswith(
+              "watch: not running: for the Chief of Staff, start in the background: ")
+          and " watch --after " in fm.facts[-1] and "--batch" not in fm.facts[-1]
+          and sum(x.startswith("watch: not running") for x in fm.facts) == 1, str(fm.facts[-3:]))
     for cr_n, name in ((cr2, "direct2.py"), (cr3, "direct3.py")):
         if cr_n not in fm.started:
             fm.turn()

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from chantier import __version__
 from chantier.autosync.lines import status_line
 from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import find_site
@@ -30,7 +29,9 @@ from chantier.core.records import BatchRecord, CrEntry, EventRecord, read_events
 from chantier.core.repo import Repo
 from chantier.core.surface_batches import other_batches
 from chantier.history import last_closed_text
-from chantier.hub import journal, lock
+from chantier.hub import journal
+from chantier.hub.autostart import not_running_line
+from chantier.hub.lines import watch_lines
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import (
@@ -244,29 +245,6 @@ def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
     return lines
 
 
-def _watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
-    """With a running batch, the hub's line and the command that starts the watcher."""
-    if d.status != "running":
-        return []
-    last = journal.last_seq(journal.read(repo.changes)[0])
-    return [_hub_line(repo), f"watch: chantier watch --after {last}"]
-
-
-def _hub_line(repo: Repo) -> str:
-    """The forge hub of this surface on this machine: its PID and its last read of this project."""
-    record = lock.live(repo.git_dir)
-    if record is None:
-        return "forge hub: none running"
-    mine = (record.get("projects") or {}).get((repo.project_dir or repo.root).name) or {}
-    line = f"forge hub: PID {record['pid']}, last read {mine.get('read_at') or 'none yet'}"
-    if mine.get("error"):
-        line += (
-            f"; last read failed at {mine.get('error_at') or 'an unknown time'}: {mine['error']}"
-        )
-    other = lock.other_version(record, __version__)
-    return f"{line}; hub is chantier {other}" if other else line
-
-
 def _batch_line(d: BatchRecord, hb_text: str) -> str:
     queued = sum(1 for c in d.crs if c.status == "queued")
     return (
@@ -323,7 +301,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     lines += factory_lines(repo, d)
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
-    lines += _watch_lines(repo, d)
+    lines += watch_lines(repo, d)
     events = read_events(repo.batch_dir(batch))
     stopped = stopped_agents(repo, d, events)
     lines += [
@@ -336,7 +314,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     unread = sum(1 for a in d.asks if not a.read)
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")
-    return lines + extra, code
+    return lines + extra + not_running_line(repo, d.status), code
 
 
 def asks(args: argparse.Namespace) -> list[str]:

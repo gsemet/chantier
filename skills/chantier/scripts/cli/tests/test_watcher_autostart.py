@@ -1,0 +1,198 @@
+"""The line that tells the Chief of Staff to start its watcher, the lock that says whether one
+runs, and the cut that keeps the line last."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from pathlib import Path
+
+import pytest
+from batch_helpers import FROM_AGENTS_MD, host, open_batch, prepared, record, write_record
+from conftest import Chantier
+
+from chantier import cli
+from chantier.core.repo import Repo
+from chantier.hub import autostart, journal, lock
+from chantier.hub.watch import Watch
+from chantier.plugin_files import cli_command
+
+ME, OTHER = "s-me", "s-other"
+VAR = "CLAUDE_CODE_SESSION_ID"
+LINE = "watch: not running: for the Chief of Staff, start in the background: "
+
+
+def test_watchers_lists_the_held_locks_of_one_project(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = Repo.find()
+    folder = found.git_dir / "chantier"
+    assert lock.watchers(found.git_dir, "p") == [] and not folder.exists()  # no file created
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv(VAR, ME)
+    w = Watch(found, 0)
+    w.project = "p"
+    w.own = lock.WatcherLock(found.git_dir, "p", w.session)
+    w.elect()
+    other = lock.WatcherLock(found.git_dir, "q", ME)
+    assert other.acquire() and w.session == ME
+    assert lock.watchers(found.git_dir, "p") == [ME]  # a held lock of another project is not listed
+    assert lock.watchers(found.git_dir, "q") == [ME]
+    other.release()
+    w.close()
+    assert lock.watchers(found.git_dir, "p") == []
+    assert (folder / "watch-p" / f"{ME}.lock").is_file()  # left in place
+
+
+def test_a_watcher_that_lost_its_lock_to_a_probe_takes_it_at_its_next_poll(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    found = Repo.find()
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv(VAR, ME)
+    probe = lock.WatcherLock(found.git_dir, Watch(found, 0).project, ME)
+    assert probe.acquire()
+    w = Watch(found, 0)
+    w.elect()
+    assert not w.own.held
+    probe.release()
+    w.poll(0.0)
+    assert w.own.held
+    w.close()
+
+
+@pytest.mark.parametrize(("raw", "key"), [("a-1", "a-1"), ("a/../b", "ab"), ("", "none")])
+def test_the_session_key_keeps_letters_digits_and_dashes(
+    monkeypatch: pytest.MonkeyPatch, raw: str, key: str
+) -> None:
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv(VAR, raw)
+    assert autostart.session_key() == key
+
+
+Setup = Callable[[Path, Chantier, pytest.MonkeyPatch], Callable[[], list[str]]]
+
+
+def _open(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    folder = prepared(repo, chantier, "Alpha")
+    return lambda: chantier("open", str(folder), *FROM_AGENTS_MD)[1]
+
+
+def _paused(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> None:
+    data = record(repo)
+    data["status"] = "paused"
+    write_record(repo, data)
+
+
+def _take(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    cr = open_batch(repo, chantier, mp, "Alpha")[0]
+    _paused(repo, chantier, mp)
+    return lambda: chantier("take", cr, "--epoch", 1)[1]
+
+
+def _order_qa(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    folder = prepared(repo, chantier, "Alpha")
+    assert chantier("open", str(folder), "--direct", *FROM_AGENTS_MD)[0] == 0
+    mp.setenv("CHANTIER_BATCH", record(repo)["id"])
+    _paused(repo, chantier, mp)
+
+    def run() -> list[str]:
+        code, out, err = chantier("order", "qa", "--note", "test it")
+        assert code == 0, err
+        return out
+
+    return run
+
+
+def _transcript(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    open_batch(repo, chantier, mp, "Alpha", seat=False)
+    assert chantier("foreman", "set", "s-foreman", "--epoch", 1)[0] == 0
+    assert chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)[0] == 0
+    assert chantier("foreman", "set", ME, "--epoch", 2)[0] == 0
+    return lambda: chantier("foreman", "transcript", ME, "--epoch", 2)[1]
+
+
+def _status(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    open_batch(repo, chantier, mp, "Alpha")
+    return lambda: chantier("status")[1]
+
+
+SETUPS: dict[str, Setup] = {
+    "open": _open,
+    "take": _take,
+    "order-qa": _order_qa,
+    "transcript": _transcript,
+    "status": _status,
+}
+
+
+@pytest.mark.parametrize("who", ["none", "mine", "other"])
+@pytest.mark.parametrize("command", SETUPS)
+def test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, command: str, who: str
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setenv(VAR, ME)
+    run = SETUPS[command](repo, chantier, monkeypatch)
+    found = Repo.find()
+    journal.append(
+        found,
+        [
+            journal.red_event("b", "CR-1", "P", "c" * 40),
+            journal.red_event("b", "CR-1", "P", "d" * 40),
+        ],
+        "hub",
+    )
+    watchers: list[Watch] = []
+    if who != "none":
+        monkeypatch.setenv(VAR, ME if who == "mine" else OTHER)
+        w = Watch(found, 0)
+        w.start_line()
+        watchers.append(w)
+        monkeypatch.setenv(VAR, ME)
+    out = run()
+    for w in watchers:
+        w.close()
+    last = f"{LINE}{cli_command(found)} watch --after 2"
+    if who == "mine":
+        assert not any(x.startswith("watch: not running") for x in out)
+    else:
+        assert out[-1] == last and "--batch" not in last
+        assert sum(x.startswith("watch: not running") for x in out) == 1
+    if command == "status":
+        mine = "watch: chantier watch --after 2"
+        assert (mine in out) == (who == "mine")
+        theirs = (
+            f"watch: session {OTHER} runs a watcher too; its end wakes that session, not this one"
+        )
+        assert (theirs in out) == (who == "other")
+
+
+def test_some_outputs_print_no_line(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setenv(VAR, ME)
+    cr = open_batch(repo, chantier, monkeypatch, "Alpha")[0]
+    nothing = "watch: not running"
+    assert not any(x.startswith(nothing) for x in chantier("take", cr, "--epoch", 1)[1])
+    extra = prepared(repo, chantier, "Beta")
+    _paused(repo, chantier, monkeypatch)
+    code, out, err = chantier("order", "add", "--note", str(extra))
+    assert code == 0, err
+    assert not any(x.startswith(nothing) for x in out)
+    assert not any(x.startswith(nothing) for x in chantier("status")[1])
+
+
+TWELVE = [f"line {i}" for i in range(12)]
+
+
+@pytest.mark.parametrize("trigger", [True, False])
+def test_the_ten_line_cut_keeps_the_watcher_line_last(trigger: bool) -> None:
+    lines = [*TWELVE[:-1], LINE + "x"] if trigger else TWELVE
+    got = cli.cut(lines)
+    assert len(got) == cli.MAX_LINES
+    if trigger:
+        assert got[-2] == "… 3 more lines"
+        assert got[-1] == LINE + "x" and got[:8] == lines[:8]
+    else:
+        assert got[-1] == "… 3 more lines" and got[:9] == lines[:9]

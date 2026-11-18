@@ -30,7 +30,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | the Foreman's `ready <batch>` at a factory batch's pause | the progress and completion report; no retro, no close offer: the batch waits for its next ready CR | While it runs |
 | the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42", a `forge saw merged` line in `status` or at a watcher's end; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
-| a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](#the-watcher), then start it again | While it runs |
+| a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](#the-watcher); its last line `watch: <batch> still running: …` names the restart: run the printed command as is: no flag added (on the session's yes already given) | While it runs |
+| a `watch: not running` line in any output (`open`, `take`, `order qa`, `foreman transcript`, `status`) | start the watcher now in the background, by the host's means, on the session's yes (asked once per session): run the printed command as is: no flag added; after the user's no in this session, ignore the line | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
 | "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
@@ -915,6 +916,14 @@ Only in the turn where the user gave the go:
    may allow one, for that batch only: pass their words to the Foreman as they wrote them, and
    never turn them into a rule.
 
+5. **Start the watcher.** When `open` ends with `watch: not running: …`, start it now in the
+   background, by the host's means, on the session's yes (the first time in the session, ask as
+   [session-start](session-start.md) says): run the printed command as is: no flag added. A batch
+   opened paused (`open` with no CR) prints no such line: it comes with the first `take` that sets
+   the batch running (direct mode: your own `take`; Foreman mode: the Foreman's `take`, which the
+   Foreman ignores, so the line reaches you at your next `status`, your next report or the next
+   Foreman message you act on).
+
 ### The floor
 
 The least time the batch can take, counted from facts, never a prediction: extra rounds, a
@@ -1277,15 +1286,21 @@ CR-222 → CR-225 → CR-226 → CR-228."
   that waits for the user stays unread until the user has heard it. At each report, `asks` lists
   what is still unread: each one is relayed or acted on in that turn. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
-- **The watcher** (`$CHANTIER watch --after <n>`, in the background; the user's yes once per
+- **The watcher** (the command the CLI prints, in the background; the user's yes once per
   session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
   It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and ends 20 s
   after the last new one, or with `no running batch`; its end starts your turn.
-  - *When it starts*, with the session's yes, when no watcher of this session runs and `status`
-    shows a running batch: once the batch runs (Starting a batch, after `open`); at a session
-    start or a reload; after a paused batch resumes; after the switch to direct mode; and after
-    each watcher end, with the `--after <seq>` of its last line (else the `watch:` line of
-    `status`). A watcher that ends with `no running batch` is not started again.
+  - *When it starts:* the CLI prints `watch: not running: for the Chief of Staff, start in the
+    background: <command>` when the batch runs and no watcher of this session runs (after `open`,
+    the `take` or `order qa` that sets a paused batch running, the switch to direct mode,
+    `status` at a session start, a reload or any time). Start it at once, on the session's yes:
+    run the printed command as is: no flag added. In Foreman mode the resuming `take` is the
+    Foreman's, so the line reaches you at your next `status` (your next report, or the next
+    Foreman message you act on). A watcher of another session, which `status` names, does not
+    wake you: start your own. After a watcher's end: its last line `watch: <batch> still
+    running: …` prints the restart: run the printed command as is: no flag added. A watcher that
+    ends with `no running batch` is not started again; a paused batch prints no line (a factory
+    batch at its pause included); the line returns once the batch runs again.
   - *A watcher's end:* read its output. A `forge saw merged … order merged <cr>` line, on this
     path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
     state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default
@@ -1297,7 +1312,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
     precedence. A `forge saw checks red` line: tell the user (the CR, the PR, the head), record
     nothing; in Foreman mode send the Foreman `checks red <cr> <pr> at <head7>`. Then one message
     to the user with what was recorded and told (the report format), and start the watcher again
-    as above.
+    from its last line.
   - *Never:* start a second watcher in the same session while one runs; stop another session's
     watcher; start one after the user's no in this session.
 - **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".
@@ -1731,7 +1746,8 @@ these differences.
   7. **Claim.** `$CHANTIER foreman set <your session id> --epoch <n+1>` (`n` from `foreman get`),
      then `$CHANTIER foreman transcript <your transcript id> --epoch <n+1>`; the output's
      steering line confirms the switch. No such line: stop and tell the user (the batch is still
-     a Foreman batch at Foreman n°<n+1>). Then, as after any claim of yours: `$CHANTIER rules`
+     a Foreman batch at Foreman n°<n+1>). If the output ends with `watch: not running: …`, start
+     the watcher now (run the printed command as is: no flag added). Then, as after any claim of yours: `$CHANTIER rules`
      and the rule files, your title `[<code>] 💬 Project · CoS (Batch <nn>)`, and your heartbeat,
      as this section says. The old Foreman's number is stale: any command it still sends is
      refused (exit 3) and it stops.
@@ -1767,7 +1783,8 @@ Rules only; the models judge the rest.
   Foreman `chief-of-staff <own session id>` ([routing](routing.md)).
 - The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
   seat moves; the new one starts its own at its `seat take`. The old one stops its watcher (the
-  host's stop of a background task, by its id); the new one asks for and starts its own.
+  host's stop of a background task, by its id); the new one starts its own from the line of its
+  `status` (another session's watcher, the old one's included, does not count; its `status` names it).
 - With no batch active, the hand-over is the seat alone: `seat take --over` on the user's word.
 
 ## Subagents and the demo

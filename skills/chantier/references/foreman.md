@@ -787,7 +787,9 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   the first CR arms it.
   A `forge saw merged` line in `status`, and the `forge hub:` and `watch:` lines, are the Chief of
   Staff's: do nothing with them, send no message about them, and they are not an undone order for
-  ending the heartbeat.
+  ending the heartbeat. The `watch: not running` line in any output, `take`'s and `order qa`'s
+  included, is the same: the CLI prints it outside the Driver prompt block, not indented: never
+  copy it into a Driver's prompt nor relay it with the block.
 - A `checks red <cr> <pr> at <head7>` line from the Chief of Staff (a red CI on a PR ready to
   merge): record nothing and start no Driver on it. When the CR's Driver is live, send it the line
   as a `note`; with none, do nothing more.

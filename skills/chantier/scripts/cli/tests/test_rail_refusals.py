@@ -293,10 +293,11 @@ def test_the_chief_of_staff_claiming_a_foreman_batch_makes_it_direct(
         return
     assert (
         state == "direct"
-        and len(out) == len(["transcript", "steering"])
+        and len(out) == len(["transcript", "steering", "watch"])
         and out[0] == "transcript uuid-chief"
     )
     assert out[1].startswith("steering direct:") and "epoch" not in out[1]
+    assert out[2].startswith("watch: not running:")
     assert [(e["steering"], e["transcript"]) for e in steering] == [("direct", "uuid-chief")]
     assert " steering direct (the Chief of Staff) " in chantier("status")[1][0]
     assert chantier("status", "--refresh", "--epoch", 1)[0] == EXIT_CONFLICT  # the old number
