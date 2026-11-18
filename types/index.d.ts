@@ -52,6 +52,7 @@ export type ChantierBatch = {
   heartbeat: string | null
   orders_pending: number
   slots?: { taken: number; total: number }
+  mode?: string | null // the batch's shape: stack, series or parallel
   crs: ChantierRow[]
 }
 

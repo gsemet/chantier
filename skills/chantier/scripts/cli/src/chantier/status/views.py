@@ -356,6 +356,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
                 "heartbeat_stopped": v["heartbeat_stopped"],
                 "orders_pending": v["orders_pending"],
                 "slots": {"taken": len(held(d)), "total": d.slots},
+                "mode": v["mode"],
                 "crs": [_row(repo, d, c, start, events) for c in active],
             }
         )
