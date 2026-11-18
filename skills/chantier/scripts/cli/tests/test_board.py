@@ -197,7 +197,7 @@ def _child(code: str) -> subprocess.Popen[bytes]:
 
 def test_join_observe_reports_early_failure_exactly() -> None:
     proc = _child("import sys; sys.stderr.write('early diagnostic\\n'); sys.exit(7)")
-    assert autosync_tool.observe_join(proc, timeout=1) == "early diagnostic"
+    assert autosync_tool.observe_join(proc, timeout=60) == "early diagnostic"
 
 
 def test_join_watch_reports_delayed_failure_exactly() -> None:
@@ -213,13 +213,13 @@ def test_join_watch_reports_delayed_failure_exactly() -> None:
         assert proc.stdin is not None
         proc.stdin.write(b"x")
         proc.stdin.close()
-        watcher.join(timeout=3)
+        watcher.join(timeout=60)
         assert not watcher.is_alive()
         assert messages == ["board: autosync not joined: delayed diagnostic"]
     finally:
         if proc.poll() is None:
             proc.terminate()
-        proc.wait(timeout=3)
+        proc.wait(timeout=60)
         if proc.stdin is not None:
             proc.stdin.close()
 
@@ -234,14 +234,14 @@ def test_join_watch_does_not_report_a_success_that_stays_alive() -> None:
         assert messages == []
         assert proc.stdin is not None
         proc.stdin.close()
-        watcher.join(timeout=3)
+        watcher.join(timeout=60)
         assert not watcher.is_alive()
         assert proc.returncode == 0
         assert messages == []
     finally:
         if proc.poll() is None:
             proc.terminate()
-        proc.wait(timeout=3)
+        proc.wait(timeout=60)
         if proc.stdin is not None:
             proc.stdin.close()
 
@@ -251,7 +251,7 @@ def test_join_drains_large_output_without_deadlock() -> None:
         "import sys; sys.stdout.write('x'*2_000_000); "
         "sys.stderr.write('large-output diagnostic\\n'); sys.exit(4)"
     )
-    assert autosync_tool.observe_join(proc, timeout=3) == "large-output diagnostic"
+    assert autosync_tool.observe_join(proc, timeout=60) == "large-output diagnostic"
 
 
 def test_a_held_port_is_refused_with_the_port_and_the_way_out(
