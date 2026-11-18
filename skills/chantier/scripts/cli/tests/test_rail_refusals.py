@@ -303,3 +303,23 @@ def test_the_chief_of_staff_claiming_a_foreman_batch_makes_it_direct(
     code, out, err = chantier("take", "CR-101", "--epoch", 2)
     assert code == 0, err
     assert any(ln.startswith("  Steering: the Chief of Staff") for ln in out)
+
+
+@pytest.mark.parametrize("granted", [False, True])
+def test_the_release_prs_merge_go_depends_on_the_grant_alone_and_spends_no_approval(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, granted: bool
+) -> None:
+    (rel,) = open_batch(repo, chantier, monkeypatch, "Release v1", args=("--budget", 10))
+    pr = "https://example.com/pr/9"
+    crs = [
+        {**c, "kind": "release", "status": "ready", "pr": pr, "approvals": ["tag v1"]}
+        for c in record(repo)["crs"]
+    ]
+    grant = {"autonomous": 1, "published": 0, "fixes": False, "cr": rel} if granted else None
+    write_record(repo, {**record(repo), "crs": crs, "release": grant})
+    code, out, _ = chantier("release", "go", rel, "--note", f"merge {pr}")
+    if granted:
+        assert code == 0 and "without asking" in out[0]
+    else:
+        assert code == EXIT_PRECONDITION and out[0].startswith("no: the release PR")
+    assert cr_of(repo, rel)["approvals"] == ["tag v1"]

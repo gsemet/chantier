@@ -21,7 +21,8 @@ def release(args: argparse.Namespace) -> tuple[list[str], int]:
     """The release CR's attempts and its irreversible actions: none before every other CR is
     merged and the release PR is merged (the user's, or the steering session's under the grant);
     then the merge is the go, else each one is approved by the user, or allowed by the grant the
-    user gave, within the budget. A fix's merge is an action too:
+    user gave, within the budget. While the release PR is recorded and not merged, `go` answers
+    from the grant alone (`merge` with none) and spends no approval. A fix's merge is an action too:
     `go` on the fix CR, under the grant alone."""
     repo = Repo.find()
     batch = find_cr_batch(repo, args.cr, args.batch)
