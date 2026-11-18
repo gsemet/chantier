@@ -609,15 +609,21 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     failure, `--note "resume: host failure: <exact text>"`), a new Driver, `agents set
     <cr> <id> --epoch <n>`. No round is counted and no second slot is taken; the budget applies (a
     refusal with exit 5 is a `budget` ask).
-  - **A hand-back `blocked context: …`** (the Driver's context reached the threshold, or the host asked its hand-back early: its text
+  - **A hand-back `blocked context: …`** (the Driver's context reached the threshold, or the host asked its hand-back early, or the Driver stopped at its pushed-head
+    `VERIFIED` for the closing step (`context: closing: …`): its text
     says which): restart a fresh Driver on
     that CR before any queued CR (a blocked CR holds no slot, so it takes the next free one):
     `agents set <cr> - --epoch <n>`, then `take <cr> --note "resume: context" --epoch <n>`, no
     round, no ask. A second `context:` on the same CR with no new head, round or note since the
     first is an ask: `question <cr> driver out of context twice`. In a report or a retro, a
     `context: host asked the hand-back …` is named "a turn ended early", with what the Driver
-    waited for, never "out of context"; the second-`context:` ask counts only real context ends (no
-    `host asked the hand-back` in the text).
+    waited for, never "out of context". A text that starts `context: closing:` goes through the
+    same restart path with the note `resume: closing`: `agents set <cr> - --epoch <n>`, then
+    `take <cr> --note "resume: closing" --epoch <n>`, then a new CR Driver, then `agents set <cr>
+    <id> --epoch <n>`. No round is counted, no ask is made, and it goes before any queued CR. A
+    report or a retro calls it "the closing step", never "out of context". The second-`context:`
+    ask counts only real context ends (no `host asked the hand-back` and no `closing:` in the
+    text).
   - **A Driver stopped from outside** (any Driver kind: CR, release, stack, QA order):
     - **Which stops:** only a stop the steering session did not make itself. Its own stop by the
       host's means (a switch to Foreman mode, a drop, the user's stop or
