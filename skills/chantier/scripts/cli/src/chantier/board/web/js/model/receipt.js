@@ -72,7 +72,8 @@ function restOf(total, sum, receipt) {
 
 const unpricedOf = (...parts) => Object.assign({}, ...parts.map((p) => p?.unpriced ?? {}));
 
-// The Outside-the-budget cell: the grill and the specifications, the steering in a Foreman batch.
+// The Outside-the-budget cell: the grill and the specifications, the Chief of Staff's
+// steering outside its claim windows.
 function outsideOf(receipt, figures) {
   if (figures !== 'figures') return { kind: 'none' };
   const out = receipt.outside;

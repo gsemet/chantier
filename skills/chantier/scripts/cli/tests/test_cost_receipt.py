@@ -3,14 +3,21 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from chantier.commands.cost.breakdown import cost_summary
 from chantier.commands.cost.receipt import cost_receipt
-from chantier.commands.cost.sessions import _Chief, _Part, chief_outside
+from chantier.commands.cost.sessions import (
+    STEER_OUT,
+    _Chief,
+    _Part,
+    chief_line,
+    chief_outside,
+)
 from chantier.core.records import BatchRecord
+from chantier.core.repo import Repo
 
 
 def row(agent: str, kind: str, usd: float, calls: int, **fields: Any) -> dict[str, Any]:
@@ -70,21 +77,43 @@ def test_with_no_parent_link_no_driver_line_and_an_agents_part() -> None:
     assert sum(round(p["usd"] * 100) for p in got["split"]) == total_cents(agents)
 
 
+UNKNOWN: dict[str, Any] = {
+    "usd": None,
+    "calls": 0,
+    "unpriced": {},
+    "unknown": "calls without a time",
+}
+FIGURE: dict[str, Any] = {"usd": 2.5, "calls": 3, "unpriced": {}}
+TWO_FIFTY = "$2.50 since the batch opened (3 calls)"
+
+
+@pytest.mark.parametrize("steering", ["direct", "foreman"])
 @pytest.mark.parametrize(
-    ("steering", "read", "steering_part"),
+    ("read", "steering_part", "text"),
     [
-        ("direct", chief(inside=4, steer=0), None),
-        ("foreman", chief(), {"usd": 2.5, "calls": 3, "unpriced": {}}),
-        ("foreman", chief(inside=4), {"usd": 2.5, "calls": 3, "unpriced": {}}),
+        (chief(), FIGURE, TWO_FIFTY),  # held outside the windows, none inside
+        (chief(inside=4), FIGURE, TWO_FIFTY),  # held outside, some inside
+        (
+            _Chief(steer=_Part(), grill=_Part(93, 5.1, {}), inside_calls=4, untimed=2),
+            UNKNOWN,
+            "unknown (2 calls without a time",
+        ),
+        (chief(inside=4, steer=0), None, None),  # nothing outside, all in the batch's spend
     ],
 )
-def test_the_steering_is_outside_the_budget_in_a_foreman_batch_only(
-    steering: str, read: _Chief, steering_part: dict[str, Any] | None
+def test_the_steering_outside_the_budget_is_the_texts_whatever_the_batch_steering(
+    steering: str, read: _Chief, steering_part: dict[str, Any] | None, text: str | None
 ) -> None:
-    got = chief_outside(record(steering), read)
+    d = record(steering)
+    got = chief_outside(read)
     assert got["outside"]["grill"] == {"usd": 5.1, "calls": 93, "unpriced": {}}
     assert got["outside"]["steering"] == steering_part
     assert "outside_unknown" not in got
+    lines = [ln for ln in chief_line(cast("Repo", None), d, read) if ln.startswith(STEER_OUT)]
+    if text is None:
+        assert lines == []
+    else:
+        assert len(lines) == 1 and text in lines[0]
 
 
 def test_a_chief_of_staff_that_cannot_be_measured_is_null_with_its_cause_never_zero() -> None:

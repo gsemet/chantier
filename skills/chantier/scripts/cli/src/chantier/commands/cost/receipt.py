@@ -26,7 +26,9 @@ def cost_receipt(
     """Steering, Drivers, the split and what is outside the budget. `split` adds up to the
     rows' total in cents. `drivers` is empty where a Driver cannot be told from a worker (no
     parent link). `chief` is `chief_read`'s: a string (the cause) when the Chief of Staff's
-    session cannot be measured, then `outside` is `None` beside `outside_unknown`."""
+    session cannot be measured, then `outside` is `None` beside `outside_unknown`; `outside`
+    holds the grill and the Chief of Staff's steering outside its claim windows,
+    as the text's line."""
     total = sum(r["usd"] for r in rows)
     un = sum_unpriced(rows)
     mains = [r for r in rows if r["agent"] == "main"]
@@ -55,7 +57,7 @@ def cost_receipt(
             for p in parts
         ],
         "models": _models(rows, total),
-        **chief_outside(d, chief),
+        **chief_outside(chief),
     }
 
 
