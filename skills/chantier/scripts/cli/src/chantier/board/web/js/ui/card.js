@@ -3,11 +3,12 @@
 //   as        'div' (default), 'section' or 'a' (with `href`: it opens in a new tab)
 //   classes   page hooks (`pi`, `node`...), `attrs`: markup of attributes (opener, drag, data-*)
 //   variants  names of card.css variants: sel, pick-up, picked, drag, pending, dim, highlight,
-//             draft, flush, compact, clamp
+//             draft, flush, compact, clamp, paper (the Batch time card)
 //   priority  a bucket: its chip is first in the top row; `picked` puts the check mark after it
 //   top       the rest of the top row; `title` (in a `heading` tag when it is one), `labels`,
 //             `desc` (shown when given, even empty), `body` (a free block)
 //   meta      the band's left items, `end` its right-aligned end, `foot` what follows the end
+//   stamps    a paper card's rubber stamps: `{ kind, text }`, kind merged, ready, working or rework
 import { html, raw, textOf } from '../core/dom.js';
 import { icon } from './icons.js';
 import { priorityChip } from './parts.js';
@@ -31,6 +32,8 @@ function band({ meta, end, foot }) {
   return html`<div class="card-meta">${meta}${last}${foot}</div>`;
 }
 
+const stamp = ({ kind, text }) => html`<span class="card-stamp card-stamp-${kind}">${text}</span>`;
+
 function heading({ title, tag }) {
   if (!given(title)) return '';
   return html`${raw(`<${tag} class="card-title">`)}${title}${raw(`</${tag}>`)}`;
@@ -46,7 +49,7 @@ export function card(parts = {}) {
   const link = as === 'a' ? html` href="${href}" target="_blank" rel="noopener"` : '';
   const text = desc === null ? '' : html`<div class="card-desc">${desc}</div>`;
   const block = given(body) ? html`<div class="card-body">${body}</div>` : '';
-  const inner = html`${topRow(parts)}${heading({ title: parts.title, tag })}${labels}${text}${block}${band(parts)}`;
+  const inner = html`${topRow(parts)}${heading({ title: parts.title, tag })}${labels}${text}${block}${band(parts)}${(parts.stamps ?? []).map(stamp)}`;
   return html`${raw(`<${as}`)} class="${names}"${link} ${attrs}>${inner}${raw(`</${as}>`)}`;
 }
 

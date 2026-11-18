@@ -189,6 +189,13 @@ export function related(rows, id) {
   return ids;
 }
 
+// The arrows of the graph and of the Gantt: `[from, to]` for each declared dependency whose row is
+// there (`to` waits for `from`). Only `after`, never the stack base.
+export function edges(rows) {
+  const found = new Set(rows.map((c) => c.cr));
+  return rows.flatMap((c) => (c.after ?? []).filter((d) => found.has(d)).map((d) => [d, c.cr]));
+}
+
 // The CRs and counts the Home and Batch figures need.
 export function counts(batch) {
   const n = (state) =>

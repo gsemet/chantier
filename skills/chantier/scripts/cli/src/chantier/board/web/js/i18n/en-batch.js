@@ -1,0 +1,28 @@
+// English words of the Batch page's tabs: the tabs, the burst, the Gantt and the time cards.
+// Merged into en.js.
+export default {
+  'batch.tab_graph': 'Graph',
+  'batch.tab_gantt': 'Gantt',
+  'batch.tab_cards': 'Time cards',
+  'batch.tabs': 'Views of the batch',
+  'batch.tab_loading': 'Loading the view…',
+  'batch.tab_failed': 'This view could not be loaded. Open the tab again to retry.',
+  'batch.times_none': "This batch's record keeps no times.",
+  'batch.changed_ago': 'Changed state {age} ago',
+  'batch.gantt_now': 'now',
+  'batch.gantt_not_started': 'Not started',
+  'batch.gantt_span': '{from} – {to}',
+  'timecard.title': 'TIME CARD',
+  'timecard.number': 'No. {n}',
+  'timecard.coder': 'coder',
+  'timecard.insp': 'insp',
+  'timecard.verifier': 'verifier',
+  'timecard.verified': 'VERIFIED',
+  'timecard.unverified': 'NOT VERIFIED',
+  'timecard.no_pr': 'no PR',
+  'timecard.rounds': '{n} rd',
+  'timecard.merged': 'MERGED',
+  'timecard.ready': 'READY',
+  'timecard.working': 'WORKING',
+  'timecard.reworked': 'REWORKED ×{n}',
+};

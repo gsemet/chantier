@@ -1,40 +1,51 @@
 {"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "open", "cr": null, "crs": ["CR-141", "CR-142", "CR-143", "CR-144", "CR-145", "CR-146", "CR-147", "CR-148", "CR-149"]}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-141", "title": "Change Specification: Order totals use the tax rules of the delivery country", "path": "4-batch/3-done/141-order-tax-rules"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-142", "title": "Change Specification: The cart keeps its items across sessions", "path": "4-batch/2-actives/142-persistent-cart"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-143", "title": "Change Specification: Product search ranks in-stock items first", "path": "4-batch/2-actives/143-search-in-stock-first"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-144", "title": "Change Specification: Payment webhooks retry with a back-off", "path": "4-batch/2-actives/144-webhook-backoff"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-145", "title": "Change Specification: The checkout page shows delivery dates", "path": "4-batch/2-actives/145-delivery-dates"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-146", "title": "Change Specification: Move the payment provider integration to its v3 API", "path": "4-batch/2-actives/146-payment-api-v3"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-147", "title": "Change Specification: Export the orders list as a CSV file", "path": "4-batch/1-pending/147-admin-csv-export"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-148", "title": "Change Specification: Email receipts are localised", "path": "4-batch/1-pending/148-localised-receipts"}
-{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-149", "title": "Change Specification: Fix: stock goes negative after a cancelled order", "path": "4-batch/2-actives/149-negative-stock-fix"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-141", "title": "Change Specification: Order totals use the tax rules of the delivery country", "path": "4-batch/3-done/141-order-tax-rules", "origin": "1-inbox/order-tax-rules"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-142", "title": "Change Specification: The cart keeps its items across sessions", "path": "4-batch/2-actives/142-persistent-cart", "origin": "2-backlog/P2/persistent-cart"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-143", "title": "Change Specification: Product search ranks in-stock items first", "path": "4-batch/2-actives/143-search-in-stock-first", "origin": "2-backlog/P1/search-in-stock-first"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-144", "title": "Change Specification: Payment webhooks retry with a back-off", "path": "4-batch/2-actives/144-webhook-backoff", "origin": "2-backlog/P1/webhook-backoff"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-145", "title": "Change Specification: The checkout page shows delivery dates", "path": "4-batch/2-actives/145-delivery-dates", "origin": "3-ready/delivery-dates"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-146", "title": "Change Specification: Move the payment provider integration to its v3 API", "path": "4-batch/2-actives/146-payment-api-v3", "origin": "2-backlog/P2/payment-api-v3"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-147", "title": "Change Specification: Export the orders list as a CSV file", "path": "4-batch/1-pending/147-admin-csv-export", "origin": "2-backlog/P3/admin-csv-export"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-148", "title": "Change Specification: Email receipts are localised", "path": "4-batch/1-pending/148-localised-receipts", "origin": "2-backlog/P4/localised-receipts"}
+{"t": "2026-06-18T07:42:10Z", "actor": "chief-of-staff", "kind": "add", "cr": "CR-149", "title": "Change Specification: Fix: stock goes negative after a cancelled order", "path": "4-batch/2-actives/149-negative-stock-fix", "origin": "1-inbox/negative-stock-fix"}
 {"t": "2026-06-18T07:43:02Z", "actor": "foreman", "kind": "foreman", "cr": null, "session": "local_7c1d92aa-3b40-4e55-9d63-1f2a8c4b5e07", "epoch": 1}
 {"t": "2026-06-18T07:50:12Z", "actor": "chief-of-staff", "kind": "order", "cr": null, "order": "O-1", "order_kind": "budget", "note": "120"}
 {"t": "2026-06-18T07:55:20Z", "actor": "foreman", "kind": "take", "cr": "CR-141"}
 {"t": "2026-06-18T08:03:44Z", "actor": "driver", "kind": "round", "cr": "CR-141", "round": 1, "note": "round 1: the rates table and the totals"}
 {"t": "2026-06-18T08:05:10Z", "actor": "foreman", "kind": "take", "cr": "CR-142"}
 {"t": "2026-06-18T08:09:05Z", "actor": "foreman", "kind": "take", "cr": "CR-143"}
+{"t": "2026-06-18T08:12:44Z", "actor": "driver", "kind": "phase", "cr": "CR-141", "phase": "inspector"}
 {"t": "2026-06-18T08:20:00Z", "actor": "foreman", "kind": "take", "cr": "CR-146"}
 {"t": "2026-06-18T08:31:09Z", "actor": "driver", "kind": "round", "cr": "CR-141", "round": 2, "note": "round 2: the receipt shows the rate"}
+{"t": "2026-06-18T08:40:09Z", "actor": "driver", "kind": "phase", "cr": "CR-141", "phase": "inspector"}
 {"t": "2026-06-18T08:44:50Z", "actor": "driver", "kind": "round", "cr": "CR-142", "round": 1, "note": "round 1: the server-side cart"}
 {"t": "2026-06-18T08:52:30Z", "actor": "driver", "kind": "gate", "cr": "CR-141", "result": "pass", "head": "a1f03c9d2e7b45668e0f19b3c4d5a6e7f8091a2b", "command": "just check"}
+{"t": "2026-06-18T08:53:50Z", "actor": "driver", "kind": "phase", "cr": "CR-142", "phase": "inspector"}
 {"t": "2026-06-18T08:55:02Z", "actor": "driver", "kind": "ship", "cr": "CR-141", "pr": "https://github.com/example/shop-api/pull/12", "base": "main", "head": "a1f03c9d2e7b45668e0f19b3c4d5a6e7f8091a2b"}
+{"t": "2026-06-18T08:56:17Z", "actor": "driver", "kind": "phase", "cr": "CR-141", "phase": "verifier"}
 {"t": "2026-06-18T09:02:17Z", "actor": "driver", "kind": "verdict", "cr": "CR-141", "result": "VERIFIED", "head": "a1f03c9d2e7b45668e0f19b3c4d5a6e7f8091a2b"}
 {"t": "2026-06-18T09:03:00Z", "actor": "driver", "kind": "handback", "cr": "CR-141", "result": "ready", "note": "https://github.com/example/shop-api/pull/12"}
 {"t": "2026-06-18T09:12:40Z", "actor": "chief-of-staff", "kind": "order", "cr": "CR-141", "order": "O-4", "order_kind": "merged", "note": "https://github.com/example/shop-api/pull/12"}
 {"t": "2026-06-18T09:20:10Z", "actor": "foreman", "kind": "take", "cr": "CR-145"}
 {"t": "2026-06-18T09:24:31Z", "actor": "driver", "kind": "round", "cr": "CR-142", "round": 2, "note": "round 2: merge the guest cart at sign-in"}
 {"t": "2026-06-18T09:30:00Z", "actor": "chief-of-staff", "kind": "order", "cr": "CR-145", "order": "O-2", "order_kind": "rounds", "note": "3"}
+{"t": "2026-06-18T09:33:31Z", "actor": "driver", "kind": "phase", "cr": "CR-142", "phase": "inspector"}
 {"t": "2026-06-18T09:35:00Z", "actor": "foreman", "kind": "take", "cr": "CR-144"}
 {"t": "2026-06-18T09:41:12Z", "actor": "driver", "kind": "round", "cr": "CR-143", "round": 1, "note": "round 1: ranking by stock, then by relevance"}
 {"t": "2026-06-18T09:49:02Z", "actor": "driver", "kind": "round", "cr": "CR-145", "round": 1, "note": "round 1: the date from the carrier's lead time"}
+{"t": "2026-06-18T09:50:12Z", "actor": "driver", "kind": "phase", "cr": "CR-143", "phase": "inspector"}
 {"t": "2026-06-18T09:50:44Z", "actor": "driver", "kind": "ship", "cr": "CR-142", "pr": "https://github.com/example/shop-api/pull/14", "base": "main", "head": "b27d4e1f90a8c3562d7e84f1a0b9c8d7e6f5a4b3"}
+{"t": "2026-06-18T09:51:30Z", "actor": "driver", "kind": "phase", "cr": "CR-142", "phase": "verifier"}
 {"t": "2026-06-18T09:57:30Z", "actor": "driver", "kind": "verdict", "cr": "CR-142", "result": "VERIFIED", "head": "b27d4e1f90a8c3562d7e84f1a0b9c8d7e6f5a4b3"}
+{"t": "2026-06-18T09:58:02Z", "actor": "driver", "kind": "phase", "cr": "CR-145", "phase": "inspector"}
 {"t": "2026-06-18T09:58:12Z", "actor": "driver", "kind": "handback", "cr": "CR-142", "result": "ready", "note": "https://github.com/example/shop-api/pull/14"}
 {"t": "2026-06-18T09:58:40Z", "actor": "driver", "kind": "round", "cr": "CR-144", "round": 1, "note": "round 1: the retry schedule"}
+{"t": "2026-06-18T09:58:55Z", "actor": "driver", "kind": "phase", "cr": "CR-143", "phase": "verifier"}
 {"t": "2026-06-18T10:01:20Z", "actor": "driver", "kind": "ship", "cr": "CR-143", "pr": "https://github.com/example/shop-api/pull/15", "base": "CR-142", "head": "c38e5f2a01b9d4673e8f95a2b1c0d9e8f7a6b5c4"}
 {"t": "2026-06-18T10:04:55Z", "actor": "driver", "kind": "verdict", "cr": "CR-143", "result": "VERIFIED", "head": "c38e5f2a01b9d4673e8f95a2b1c0d9e8f7a6b5c4"}
 {"t": "2026-06-18T10:05:31Z", "actor": "driver", "kind": "handback", "cr": "CR-143", "result": "ready", "note": "https://github.com/example/shop-api/pull/15"}
+{"t": "2026-06-18T10:07:30Z", "actor": "driver", "kind": "phase", "cr": "CR-149", "phase": "verifier"}
+{"t": "2026-06-18T10:07:40Z", "actor": "driver", "kind": "phase", "cr": "CR-144", "phase": "inspector"}
 {"t": "2026-06-18T10:08:18Z", "actor": "driver", "kind": "round", "cr": "CR-145", "round": 2, "note": "round 2: working days and holidays"}
 {"t": "2026-06-18T10:09:40Z", "actor": "driver", "kind": "round", "cr": "CR-146", "round": 1, "note": "round 1: payments on v3, refunds open"}
 {"t": "2026-06-18T10:10:00Z", "actor": "foreman", "kind": "take", "cr": "CR-149"}
@@ -43,7 +54,12 @@
 {"t": "2026-06-18T10:13:30Z", "actor": "driver", "kind": "verdict", "cr": "CR-149", "result": "VERIFIED", "head": "e5a07b4c23d1f6895a0bb7c4d3e2f1a0b9c8d7e6"}
 {"t": "2026-06-18T10:14:48Z", "actor": "driver", "kind": "handback", "cr": "CR-149", "result": "ready", "note": "https://github.com/example/shop-api/pull/17"}
 {"t": "2026-06-18T10:15:09Z", "actor": "driver", "kind": "ship", "cr": "CR-144", "pr": "https://github.com/example/shop-api/pull/16", "base": "CR-143", "head": "d49f6a3b12c0e5784f9aa6b3c2d1e0f9a8b7c6d5"}
+{"t": "2026-06-18T10:16:09Z", "actor": "driver", "kind": "pr-draft", "cr": "CR-144", "draft": true}
+{"t": "2026-06-18T10:17:18Z", "actor": "driver", "kind": "phase", "cr": "CR-145", "phase": "inspector"}
+{"t": "2026-06-18T10:18:40Z", "actor": "driver", "kind": "phase", "cr": "CR-146", "phase": "inspector"}
 {"t": "2026-06-18T10:20:30Z", "actor": "chief-of-staff", "kind": "note", "cr": "CR-145", "note": "the user: the express date must not promise Sunday"}
 {"t": "2026-06-18T10:26:15Z", "actor": "driver", "kind": "round", "cr": "CR-145", "round": 3, "note": "round 3: the cut-off hour, last round"}
 {"t": "2026-06-18T10:27:50Z", "actor": "driver", "kind": "round", "cr": "CR-144", "round": 2, "note": "round 2: the admin list of given-up webhooks"}
 {"t": "2026-06-18T10:28:40Z", "actor": "foreman", "kind": "heartbeat", "cr": null}
+{"t": "2026-06-18T10:35:15Z", "actor": "driver", "kind": "phase", "cr": "CR-145", "phase": "inspector"}
+{"t": "2026-06-18T10:36:50Z", "actor": "driver", "kind": "phase", "cr": "CR-144", "phase": "inspector"}

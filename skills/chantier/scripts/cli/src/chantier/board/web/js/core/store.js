@@ -9,6 +9,7 @@ const data = {
   project: null, // the id of the project shown, or '*' for All projects
   view: 'home',
   batchId: null, // Costs and Batch: the batch the navigator chose (its id), or null for the latest
+  batchTab: 'graph', // Batch: the open tab, `graph`, `gantt` or `cards` (the address's `t=`)
   data: null, // GET api/projects/{id}/state: the project's record
   etag: null,
   now: null, // the server's instant, from its last answer

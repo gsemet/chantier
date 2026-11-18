@@ -80,6 +80,73 @@
   stroke: none;
 }
 
+/* the burst of a CR that changed state in the last ten minutes: it plays once, in the state's colour */
+.batch .spark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  animation: burst 0.9s ease-out 1;
+}
+
+.batch .spark .svgi {
+  width: 14px;
+  height: 14px;
+}
+
+.batch .spark.blocked {
+  color: var(--state-blocked);
+}
+
+.batch .spark.working {
+  color: var(--state-working);
+}
+
+.batch .spark.ready {
+  color: var(--state-ready);
+}
+
+.batch .spark.draft {
+  color: var(--state-draft);
+}
+
+.batch .spark.local {
+  color: var(--state-local);
+}
+
+.batch .spark.waits {
+  color: var(--state-waits);
+}
+
+.batch .spark.queued {
+  color: var(--state-queued);
+}
+
+.batch .spark.merged {
+  color: var(--state-merged);
+}
+
+@keyframes burst {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-60deg);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.4) rotate(10deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .batch .spark {
+    animation: none;
+  }
+}
+
 @media (max-width: 760px) {
   .batch .graph {
     gap: var(--space-off-50);
