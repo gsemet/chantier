@@ -111,7 +111,7 @@ def batch_markdown(v: dict[str, Any]) -> str:
     lines = [
         f"# {v['batch']}: {v['state']}",
         "",
-        f"Updated {v['updated']} · {who} · {shape} · "
+        f"Updated {v['updated']} · {who} · {shape}{' · factory: on' if v.get('factory') else ''} · "
         f"spent {_budget(v, True) if v['priced'] else ('none yet' if _no_cr(v) else 'unknown')}"
         f"{' (to date)' if v['paused'] and v['priced'] else ''} · "
         f"{v['asks_unread']} asks unread · "

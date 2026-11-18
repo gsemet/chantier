@@ -114,6 +114,8 @@ takes new CRs, either steering
 ```md
 stays paused, however long,
 until you say “close the batch”
+a factory batch: no close offered;
+it waits for its next ready CR
 ```
 
 ## Paused to running
@@ -130,6 +132,10 @@ the first take (or order qa)
 new CRs join it, any number; the first take sets it running again; it pauses again at the end, the cost to date grown
 ```
 
+```md
+or, in a factory batch, triage --ready
+```
+
 ## Paused to closed
 
 ```md
@@ -139,6 +145,12 @@ new CRs join it, any number; the first take sets it running again; it pauses aga
 ```md
 the check,
 then your yes
+```
+
+```md
+a factory batch:
+order factory off,
+then the retro and the close
 ```
 
 ## Closed

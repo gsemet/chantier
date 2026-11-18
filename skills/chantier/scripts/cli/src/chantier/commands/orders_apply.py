@@ -7,6 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from chantier.commands.crs import filed_fix, grant_line
+from chantier.commands.factory import set_factory, switch_factory
 from chantier.commands.gate_run import stop_gate, stopped_line
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
 from chantier.commands.orders_release import (
@@ -89,7 +90,15 @@ def _add(w: Word) -> list[str]:
         b.touch(rel)
         return [f"added {fix.id} (fix for {w.fix_for}), queued"]
     if w.release:
-        return add_release(b, w.note)
+        out = add_release(b, w.note)
+        if b.record.factory:
+            name = b.record.release.cr if b.record.release else "the release CR"
+            set_factory(b, False, f"release CR {name} joined")
+            out.append(
+                f"factory off: the release CR {name} joined; {b.id} ends after the release "
+                "as an ordinary batch; after its close, open a new factory batch"
+            )
+        return out
     check_release_open(b)
     added = add_cr(b, w.note)
     declare_dependencies(b, [added])
@@ -309,6 +318,10 @@ def _confirm(w: Word) -> list[str]:
     return [f"{cr_id}: the user's word to run the release procedure is recorded: {note}"]
 
 
+def _factory(w: Word) -> list[str]:
+    return switch_factory(w.b, w.cr_id, w.note)
+
+
 MODES = ("parallel", "series", "stack")
 
 
@@ -367,6 +380,7 @@ HANDLERS: dict[str, Callable[[Word], list[str]]] = {
     "mode": _mode,
     "waive": _waive,
     "qa": _qa,
+    "factory": _factory,
 }
 
 

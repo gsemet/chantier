@@ -69,10 +69,20 @@ user asked for does not go through it.
 
 An order that adds work leaves the paused batch paused: your first `take` sets it running again,
 and `pause` again at the end (`pause` on a paused batch is refused). A batch born paused with no
-CR (`open` given none) is the same paused batch: after your claim, the brief and the rules, send
+CR (`open` given none) is the same paused batch (so is a factory batch at its pause, see below): after your claim, the brief and the rules, send
 `[foreman→chief-of-staff] ready <batch>` and wait. There is no Driver to start, no retro, no `final`
 and no `pause`: you are ready, not done. The first order's line starts your turn, and your first
 `take` sets the batch running.
+
+In a factory batch (`status` says `factory: on`), the end of the last CR pauses the batch, but you
+write no retro and send no `final`: send `[foreman→chief-of-staff] ready <batch>` and wait for the
+next order, ready, not done; your first `take` sets the batch running again. The retro and `final`
+come once the batch is no longer a factory (`order factory off`, or a release CR joining) and every
+CR has ended; its retro section is headed with the date and the CRs since the last section of
+`4-batch/retro.md` (all the batch's CRs when there is none). An `add` order whose event says
+`origin: "triage --ready"` is an ordinary `add`; a `factory` order is done at once by the CLI: send
+no `order done` for it. Arm no heartbeat while a factory batch is paused; the turn of your first
+`take` arms it (the rule of a batch born paused with no CR).
 
 ## The user's boundaries
 

@@ -33,29 +33,31 @@ def events(repo: Path) -> list[dict[str, object]]:
 @pytest.mark.parametrize(
     "case",
     [
-        (("--direct",), "series", "claim the batch, then `take`"),
-        ((), "stack", "then start the Foreman"),
-        (("--budget", 9, "--slots", 2), "parallel", "then start the Foreman"),
+        (("--direct",), "series"),
+        ((), "stack"),
+        (("--budget", 9, "--slots", 2), "parallel"),
     ],
 )
 def test_open_with_no_cr_is_born_paused(
     repo: Path,
     chantier: Chantier,
     monkeypatch: pytest.MonkeyPatch,
-    case: tuple[tuple[object, ...], str, str],
+    case: tuple[tuple[object, ...], str],
 ) -> None:
-    flags, mode, next_step = case
+    flags, mode = case
     code, out, err = empty(repo, chantier, monkeypatch, "--mode", mode, *flags)
     assert code == 0, err
     data = record(repo)
     assert data["status"] == "paused" and data["crs"] == [] and data["paused"]
     assert data["spent_usd"] is None and data["foreman_transcripts"] == []
-    assert data["mode"] == mode
+    assert data["mode"] == mode and data["factory"] is True
     kinds = [(e["kind"], e.get("trigger")) for e in events(repo)]
     assert kinds[-2:] == [("open", None), ("pause", "open, no CR")]
-    assert "none yet" in (changes(repo) / "4-batch" / "brief.md").read_text("utf-8")
-    assert "no CR, paused" in out[0]
-    assert f"`order add --note <folder> --batch {data['id']}`" in out[1] and next_step in out[1]
+    brief = (changes(repo) / "4-batch" / "brief.md").read_text("utf-8")
+    assert "none yet" in brief and "Factory: on." in brief
+    assert "no CR, paused" in out[0] and out[0].endswith(", factory")
+    assert "`triage <folder> --ready` joins it on its own (factory)" in out[1]
+    assert "start the Foreman (direct mode: steer it yourself)" in out[1]
     # a second open, with or without a CR, names the empty batch
     item = prepared(repo, chantier, "Second")
     for more in ((), (str(item),)):
@@ -92,8 +94,8 @@ def test_an_order_joins_the_empty_batch_and_the_first_take_sets_it_running(
     monkeypatch.setenv("CHANTIER_BATCH", batch)
     status = chantier("status")[1]
     line = next(x for x in status if x.startswith(batch))
-    assert "spent none yet" in line and line.endswith("no CR yet")
-    assert f"no CR yet: `order add --note <folder> --batch {batch}` joins one" in status
+    assert "spent none yet" in line and line.endswith("no CR yet") and " factory: on " in line
+    assert "no CR yet: `triage <folder> --ready` joins one on its own" in status
     assert "unknown" not in line and "$0.00" not in line
     md = (changes(repo) / "4-batch" / "STATUS.md").read_text("utf-8")
     assert "spent none yet" in md and "- No CR yet." in md
@@ -125,20 +127,23 @@ def steer(repo: Path, chantier: Chantier, tmp_path: Path) -> None:
     assert chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)[0] == 0
 
 
-@pytest.mark.parametrize("steered", [True, False])
+@pytest.mark.parametrize("case", [(True, False), (False, False), (True, True)])
 def test_close_of_a_batch_that_never_held_a_cr(
     repo: Path,
     chantier: Chantier,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    steered: bool,
+    case: tuple[bool, bool],  # (steered, factory turned off first)
 ) -> None:
+    steered, off = case
     monkeypatch.setenv("CHANTIER_CLAUDE_PROJECTS", str(tmp_path / "claude-projects"))
     assert empty(repo, chantier, monkeypatch)[0] == 0
     batch = record(repo)["id"]
     monkeypatch.setenv("CHANTIER_BATCH", batch)
     if steered:
         steer(repo, chantier, tmp_path)
+    if off:  # the done `factory` order is no cause to refuse the close
+        assert chantier("order", "factory", "off", "--note", "the user's word")[0] == 0
     code, preview, err = chantier("close")
     assert code == 0, err
     assert "0 CRs move from 3-done" in " ".join(preview)
@@ -183,5 +188,8 @@ def test_the_board_words_of_a_batch_with_no_cr_are_shipped(language: str) -> Non
     web = Path(__file__).resolve().parents[1] / "src" / "chantier" / "board" / "web" / "js"
     words = (web / "i18n" / f"{language}-batch.js").read_text("utf-8")
     assert "'batch.no_cr_yet'" in words and "'batch.spent_none_yet'" in words
+    assert "'batch.no_cr_yet_factory'" in words and "'batch.factory_on'" in words
     for view in ("batch.js", "home-batch.js"):
-        assert "noCrYet(" in (web / "views" / view).read_text("utf-8")
+        text = (web / "views" / view).read_text("utf-8")
+        assert "noCrYet(" in text and "batch.no_cr_yet_factory" in text
+        assert "steeringFactoryWord(" in text

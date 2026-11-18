@@ -238,6 +238,10 @@ export function heartbeat(batch, nowIso) {
 export const steeringWord = (batch) =>
   batch.steering === 'direct' ? t('steering.direct') : t('steering.foreman');
 
+// The steering word, then " · factory: on" when the batch is a factory.
+export const steeringFactoryWord = (batch) =>
+  batch.factory ? `${steeringWord(batch)} · ${t('batch.factory_on')}` : steeringWord(batch);
+
 // The mode's words: its name and its sentence.
 export const modeWords = (mode) => ({ name: t(`mode.${mode}`), text: t(`mode.${mode}.text`) });
 

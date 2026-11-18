@@ -197,6 +197,7 @@ def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
         "state": d.status,
         "mode": d.mode,
         "steering": d.steering,
+        "factory": d.factory,
         "spent_usd": d.spent_usd,
         "spent_at": d.spent_at,
         "budget_usd": d.budget_usd,
