@@ -81,7 +81,7 @@ and how an agent is started. Each worker reads its own card, which restates the 
   Each holds a `README.md` of a few lines: what the version tries, the command that runs it again
   (its server command, its port) and what it needs. A script that belongs to one version (its
   snapshot generator, its data builder) goes in that version's folder, not in `experiments/`. Names
-  in `experiments/` follow the advice for subagent files below (a numbered name such as
+  in `experiments/` follow the rule for subagent files below (a numbered name such as
   `01-benchmark.md`). `prototypes/` and `experiments/` are not covered files of a summary, like
   `evidence/` and `work/`. Kept out by design: secrets, personal data, and large binaries that are
   not the retained prototype (a dataset, a video above the forge's limits: the folder names where
@@ -521,9 +521,12 @@ conversation. When it is for no CR yet, its brief names a folder it writes to, a
 of it, the Chief of Staff moves what it kept into that CR's folder. It never implements: no commit,
 no push, no PR, nothing in a CR's worktree.
 
-Tell every subagent that writes a file not to start a `.md` name with `report`, `summary`,
-`findings` or `analysis`, and to prefer a numbered name such as `04-result.md`: the host may
-refuse a subagent's Write of such a file ([host's reference](hosts/claude-code.md)).
+Every file a subagent writes takes a number prefix (`04-result.md`, `04-report.md`), except a
+name a card fixes (`03-change-spec.md`, `delivery.md`, `STATUS.md`, `retro.md`, the `work/` files
+the cards name), which the probe of 2026-11-10 accepted. The parent that starts a subagent tells
+it so. The host refuses some unprefixed names (`report`, `summary`, `findings`, `analysis`, a
+`.md` file) on the name alone ([host's reference](hosts/claude-code.md)): it is not the auto-mode
+classifier, and no allow rule fixes it.
 
 **An agent that ends before its part is done.** This holds for every parent and every agent (a
 Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a Demo explorer).

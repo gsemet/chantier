@@ -52,6 +52,14 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
   another tool, a workaround or an estimate. Within what you have, judge freely. A skill or tool
   the playbook says a role needs and your session lacks is not a stop: warn the user, the role
   works without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`) ("Required skills and tools" under The project).
+- **A refusal is said before it is met.** When what the user asks will be refused by a rule (this
+  card, the project's rules, the host's reference) or by the CLI, say so at once, in the turn the
+  user asks, before any try, in the user's language, in three parts: what is refused; why the rule
+  exists; what the user can do now, each alternative with its condition as "Offering options"
+  says (only what they can do from where they are). A refusal already met is said the same way,
+  its exact text first (concepts rule 7 holds). Never try the refused action to see; never offer a
+  workaround the rules forbid ("No fallback" holds). The known refusals:
+  [Refusals to say before they are met](#refusals-to-say-before-they-are-met).
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
 - **Only the user starts work.** Start the Foreman (or begin steering) only in the turn where the user gave the go.
   Never start a backlog item the user did not choose. Never merge: the user does, and the
@@ -1462,6 +1470,22 @@ The checklist: what an option needs, and why. Each host's reference gives the co
 | A host feature (a scheduled wake, start a session, a monitor) | the host to have it in this session | no fallback: say it is missing, offer no look-alike |
 | Work in the main checkout | no eval running, a session on the main checkout | the project's rules (an eval leaves the main checkout untouched); fail fast |
 
+### Refusals to say before they are met
+
+This applies the Hard rule "A refusal is said before it is met": when the user asks for one of
+these, say the three parts at once, in the user's language, before any try.
+
+| What the user asks | What is refused | Why | What the user can do now |
+| --- | --- | --- | --- |
+| **A.** A new idea, a grill or a QA while a direct batch runs | You do not grill while you steer (the grill waits for the pause), and `order qa` is refused until the pause. Not refused: a CR already grilled and specified, which `order add` queues at once (taken when a slot frees), and filing or triaging the idea now | In direct mode this session steers the batch; the limit protects that steering's attention (and the user's), and Foreman mode exists for this dynamism | Grill it now in a Griller session (`/chantier:griller`, or a fork of this session on Remote Control), then `order add` queues it here; or file it now and grill it at the pause; or switch to Foreman mode ("Switching to Foreman mode", where the checklist allows it), where this session grills while a Foreman steers and a QA may be ordered at any time |
+| **B.** A new CR while the batch has a release CR | Before the release starts: not refused, but the release then waits for the new CR and the user's word on its procedure is voided (asked again). Once the release has started: `order add` is refused | A started release ships the work under it; what it ships must not change under it | Before it starts: add the CR and give the procedure word again, or keep the CR for the next batch so the release is not delayed. Once started: a fix of the release (`order add --fix-for <release-cr>`) if it belongs to this release, else the next batch (filed and grilled meanwhile). Also say: a batch with a release CR pauses only once the release has ended, so the pause, and in direct mode the grill it opens, comes later; a CR kept for the pause misses that release |
+| **C.** A subagent's file named `report...`, `summary...`, `findings...` or `analysis...` (`.md`), on Claude Code | Refused by the host itself, on the file name, before any permission check: not the auto-mode classifier and not a permission rule, so no allow rule and no setting fixes it | The host wants a subagent to return such content as text | Nothing for the user to set; the file takes a number prefix (`04-report.md`), as concepts says ("Starting an agent"). Say this when the user asks why a subagent's file has a number, or when such a refusal is met |
+| **D.** "Close the batch" while something still runs | `close` (with or without `--yes`) while a CR is not merged or cancelled, an order is open, a stack agent or a held agent still runs or cannot be read; on Copilot, an agent whose session file was written in the last 5 minutes counts as running | `close` deletes the batch's own files and prices its final cost; work still running would be cut off and left out of that cost | Wait for the running agent's end (the refusal names it), then `close` again; on Copilot, wait until 5 minutes after its last write; a held agent that has ended and has no transcript: `agents set <cr> - --epoch <n>` on the user's word; a CR left open: merge it, or drop it (`order drop`) on the user's word |
+| **E.** The word to run the release procedure while other CRs are open | `order confirm <release-cr>` while another CR of the batch (fixes aside) is not merged or cancelled, or while the release PR is not merged | The word covers exactly what the release ships; a CR merged or added after it would change that (an `order add` voids a word given before) | Merge or drop the open CRs first, then give the word; or give it with the merge go of the release PR, as the ready ask requires |
+| **F.** A batch (or `order add`) with a CR that has no specification | `open` and `order add` refuse a CR folder with no `03-change-spec.md` ("missing Change Specification: ...; grill the CR first"), except a CR in `3-ready` with `intake/request.md` (automatable: the request is its specification) | A Driver works from the specification alone; without one it would guess the user's intent | Grill it and have the spec-writer write the specification (in direct mode while a batch runs, in a Griller, row A); or, when the CR is automatable, `triage --ready` it on the user's word so its request serves as specification |
+| **G.** More work on a CR past its round limit | `round` once a CR has used its rounds (three unless granted; "round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)"); the CR comes back blocked | The limit caps what a CR that does not converge may spend before the user looks at it | Read the blocked CR's question, then grant more rounds (`order rounds <cr> --note <n>`), change or split the CR, or drop it |
+| **H.** A model with no price | Nothing is refused: `close` still runs and the cost is a floor; the budget check uses that floor | chantier prices only models it knows a rate for, and never estimates one | Add the model's price under `prices:` in `chantier.yaml` (exact model id, $/MTok, `docs/agents-and-models.md`), on the user's word; until then every figure is a floor and the budget may be passed unseen. Say it when the user picks such a model, not only when the cost report's not-priced line appears |
+
 The Tips bullet of "While it runs" and the "For you" block follow this section.
 
 ## Steering a batch yourself
@@ -1565,8 +1589,10 @@ these differences.
     the demo.
   - Any other request is noted word for word and handed back when the batch completes; an idea
     that arrives while the batch runs is filed in the inbox at once (`file`, no grill). A request
-    to grill gets one line besides being noted: "to grill in parallel, fork this session; the
-    fork becomes a Griller" (the fork is the user's step; explain it, never do it).
+    to grill, or to order a QA, gets at once, besides being noted, the three-part answer of row A
+    in [Refusals to say before they are met](#refusals-to-say-before-they-are-met): what is
+    refused, why, and the ways (a Griller session, or a fork of this one, is the user's step:
+    explain it, never do it).
   - A paused batch is not running: all of this lifts at the pause. When the CLI paused the batch,
     your retro and its retro critic still run after the pause and before the close offer; what
     lifts at the pause does not lift them.

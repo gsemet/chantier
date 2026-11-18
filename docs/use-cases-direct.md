@@ -18,9 +18,10 @@ A direct batch has the same lifecycle as a Foreman batch: **running**, **paused*
 on your word only (see [the life of a batch](use-cases.md#the-life-of-a-batch)). It is less
 dynamic while it runs, in two ways.
 
-**The running batch is strict.** No CR joins it while it runs: `order add` and `order qa` are
-refused. The exception is a release: a release CR and its fixes are accepted. Once the batch is
-paused, it takes any number of new CRs, like any paused batch, and the first one to start sets it running again.
+**What joins the running batch.** A CR already grilled and specified joins it: `order add`
+queues it, and it is taken when a slot frees. `order qa` is refused until the pause. A release CR
+and its fixes join as ever. Once the batch is paused, it takes any number of new CRs, like any
+paused batch, and the first one to start sets it running again.
 
 **No grill in the same session.** While the batch runs, the Chief of Staff, busy steering,
 answers only:
@@ -36,7 +37,8 @@ answers only:
   grilled enough; the spec critic stays open with it, and its questions wait for the pause.
 
 It does not grill, and it does not touch the running batch from backlog work. Any other request is noted word for word and handed back when the batch completes. An idea you
-raise meanwhile is filed in the inbox at once, without a grill.
+raise meanwhile is filed in the inbox at once, without a grill. When you ask for a grill, the
+Chief of Staff says this limit, its reason and the Griller way at once.
 
 To grill meanwhile, open a Griller (`/chantier:griller`, or a fork in remote: see
 [the how-to](use-cases.md#a-chief-of-staff-and-grillers-in-remote)). It grills, files and
@@ -58,7 +60,7 @@ the previous one's branch, and a stack driver makes one native stack afterwards,
 
 The orders of Foreman mode that act on the batch itself work the same: drop a CR, a note on a CR,
 "I merged #42", more rounds, slots or budget, and a hold ("Hold" sets the slots to 0, "Resume"
-gives a number back). The orders that add work to a running batch do not, as above.
+gives a number back). `order qa` does not, as above.
 
 ## When the batch is paused, and when you close it
 
@@ -111,8 +113,7 @@ batch can switch back to direct mode on your word; see "Switch to direct mode" i
 ## Make a release
 
 A release works as in [Foreman mode](use-cases-foreman.md#make-a-release), with two differences.
-A release CR joins a running direct batch, as does a fix of it, since the running batch is strict
-about everything else. The release's own PR is yours to merge, last; the steering session, the
+A release CR joins a running direct batch, as does a fix of it. The release's own PR is yours to merge, last; the steering session, the
 Chief of Staff here, merges it only under your grant, once every other CR of the batch is merged
 or cancelled. An approval never lets it.
 
