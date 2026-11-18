@@ -47,6 +47,17 @@ defer the rest of this card until an action names it. These are the card's defau
   of it.
 - **A Driver started again** (a `resume:`, `rebase:`, `context:` or other `Note:`):
   `$CHANTIER handoff <cr>` and `log <cr>` first, then only what the note's step needs.
+  - `resume: closing` (the CR's earlier Driver stopped at its pushed-head `VERIFIED`): after
+    `handoff <cr>` and `log <cr>`, read `pr-body.md`, `work/verify.md` and the evidence files it
+    names; read [pr-template.md](pr-template.md) before the first body edit. Do not open the
+    specification, `investigation.md`, the `r<n>.md` notes or the diff. Then carry out the
+    `next:` of the `closing:` note, in its order: the evidence in Deliverables and the Test plan
+    boxes (`gh pr edit --body-file`), the pre-post audit and the post, the short `verifier` pass
+    on the posted description alone, the PR turned ready when its base is the default branch then
+    `ship <cr> <link>`, and `handback ready <link>` with the gaps that the body's Known gaps hold.
+    A step outside the closing (a red check, a move, a review item on the code, a `rebase:` note)
+    brings back the card's usual rules and reads. A Driver whose `log` holds a `closing:` note
+    never hands off for the closing again.
 - A rule you did not read still binds you. When a step is not in what you have read, read the
   section that covers it before you act, never after.
 
@@ -126,8 +137,9 @@ defer the rest of this card until an action names it. These are the card's defau
   <where it stopped, what is next>`, before the host compacts or ends you (the host compacted
   agents carrying 200,000 from about 162,000 tokens, see the host's reference, "Compacting", and
   130,000 leaves room for several steps, the note and the hand-back). Hand back `blocked context:`
-  only when the last `context:` line read 130,000 or more; a Driver that stops for any other reason
-  names that reason, never `context:`. Never end your turn to wait for a child: a child runs in the
+  only when the last `context:` line read 130,000 or more, or for the closing hand-off of "CR
+  driver" (`context: closing: …`); a Driver that stops for any other reason
+  names that reason, never `context:` (the closing hand-off of "CR driver" excepted). Never end your turn to wait for a child: a child runs in the
   foreground, and its reply is the result of the call that started it. Ending the turn while your own long gate or CI watch runs in a background shell is allowed and
   needs no message: the host tells the steering session that you are waiting on your own work. The
   one turn end that waits
@@ -513,7 +525,9 @@ defer the rest of this card until an action names it. These are the card's defau
   the forge and the CR (and PR) it waits on, and asks for no change on the forge: it is no reason
   to turn the PR to draft or ready, to retarget it, or to stop; the hand-back is done) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
-  `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`): it writes the state and prints the line to send the
+  `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`, or
+  `context: closing: VERIFIED at <sha7>; next: <what is left>`, the CR driver's closing hand-off):
+  it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
   `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5: `round` is
   refused once the budget is spent, and the budget is checked before the round limit, so with
@@ -540,7 +554,8 @@ defer the rest of this card until an action names it. These are the card's defau
   decide: the CR shows 🟠, and the steering session takes it back when that thing lands. A
   Driver whose context is ending first records its state with `$CHANTIER note <cr> "…"`, then
   `handback <cr> blocked context: <where it stopped, what is next>`: the steering session restarts
-  a fresh Driver from it.
+  a fresh Driver from it. The CR driver's closing hand-off, `context: closing: …`, is the same
+  hand-back, made at the pushed-head `VERIFIED` (see "CR driver").
 - A force push the host refuses (any Driver that pushes): the Chief of Staff judges it and runs
   it for you, without the user's word in the normal case.
   This holds for a CR Driver and the Release driver (both hand back with `handback <cr>`); the
@@ -648,8 +663,20 @@ CR's being a round and a red CI job stopping the gate first), then a `verifier` 
 head (with the line, once the gate passed and CI is judged green), given the plan (and, with a
 matrix, the last `matrix-r<n>.md` as its previous judgment, with the move: the committed head to the
 pushed head, the old and new base)
-(it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round), then the evidence
-in Deliverables and the Test plan boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
+(it records its own `verdict`; you run none for it; `NOT VERIFIED` is a round). When that
+`verifier` replies `VERIFIED`, your prompt's `Note:` is not `resume: closing` and `log <cr>` holds
+no `closing: VERIFIED at` note yet, you stop and hand off. Any claim the Verifier could not prove
+is already `UNVERIFIED` or narrowed in `pr-body.md` before the note. Record one note that holds
+everything the closing needs: `$CHANTIER note <cr> "closing: VERIFIED at <sha7>; PR <link>; base
+<branch>; pr-body.md posted at <sha7 or not yet>; evidence: <the files verify.md names>;
+UNVERIFIED: <claims or none>; next: evidence in Deliverables, Test plan boxes, pre-post audit and
+post, description pass, PR ready then `ship <cr> <link>`, `handback ready <link>` with the body's
+gaps"`. Then run `$CHANTIER handback <cr> blocked context: closing: VERIFIED at <sha7>; next:
+<what is left>` and end your run. Besides `context: host asked the hand-back …`, the closing
+hand-off is the only `context:` hand-back that needs no `context:` line at 130,000 or more; it
+always happens, whatever the context size. A matrix probe's `VERIFIED` and a verdict carried by
+`ship` do not trigger it. The closing Driver (a fresh one, `Note: resume: closing`) does the
+rest: the evidence in Deliverables and the Test plan boxes updated (`gh pr edit --body-file` again; the boxes and the captions carry the SHAs of the
 [PR template](pr-template.md), and a claim the Verifier could not prove is marked `UNVERIFIED` or
 narrowed in `pr-body.md` before the description pass), then, once the description is final, a
 short `verifier` pass on the posted description alone (`NOT VERIFIED` is fixed in the description, then checked again by a new short `verifier` start,
@@ -1129,3 +1156,4 @@ work: stop").
 ## Startup core
 
 Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.
+A `Note: resume: closing` reads only the CR's notes, as the opening reading rules list.

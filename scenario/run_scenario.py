@@ -4249,6 +4249,21 @@ def driver_liveness(w: World) -> None:
     check("a fresh Driver takes it back with the note, the round unchanged",
           code == 0 and w.cr(two)["status"] == "working" and w.cr(two)["round"] == rounds,
           w.last_stderr)
+    code, out = w.chantier("handback", two, "blocked",
+                           "context: closing: VERIFIED at abc1234; next: description pass")
+    check("`handback blocked context: closing:` leaves the CR blocked and prints the closing-step "
+          "line, not the out-of-context or ask line",
+          code == 0 and w.cr(two)["status"] == "blocked"
+          and w.cr(two)["blocked_reason"].startswith("context: closing:")
+          and any("for the closing step" in ln for ln in out)
+          and not any("out of context" in ln or "asks the Chief of Staff" in ln for ln in out),
+          str(out))
+    rounds = w.cr(two)["round"]
+    w.chantier("agents", "set", two, "-", "--epoch", 1)
+    code, _ = w.chantier("take", two, "--note", "resume: closing", "--epoch", 1)
+    check("a fresh Driver takes the closing step back with `resume: closing`, the round unchanged",
+          code == 0 and w.cr(two)["status"] == "working" and w.cr(two)["round"] == rounds,
+          w.last_stderr)
     cards = HERE.parent / "skills" / "chantier" / "references"
     foreman = (cards / "foreman.md").read_text(encoding="utf-8")
     driver = (cards / "driver.md").read_text(encoding="utf-8")
@@ -4256,7 +4271,9 @@ def driver_liveness(w: World) -> None:
           "`context:` case and what counts toward `ended twice`; driver.md lists `context:`",
           all(s in foreman for s in ("**Suspect:**", "**Proof of death**", "new Foreman epoch",
                                      "blocked context: …", "driver ended twice", "do not."))
-          and "`context: <where it stopped" in driver)
+          and "`context: <where it stopped" in driver
+          and "`resume: closing`" in driver and "`context: closing:" in driver
+          and "resume: closing" in foreman)
 
 
 def handback_proofs(w: World) -> None:
