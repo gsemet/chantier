@@ -134,29 +134,20 @@ function readBlock(lines, at) {
   return line.trim() ? readParagraph(lines, at) : ['', at + 1];
 }
 
-const KEY_VALUE = /^(\w[\w.-]*):(.*)$/;
-
-// A leading front matter: `---` (after an optional BOM), then `key: value` lines, then `---`.
-// Returns `[markup, next]`; without a closing line there is none (`['', 0]`). A line that is not
-// `key: value` joins the previous value, a blank line is skipped.
+// A leading front matter is hidden: `---` (after an optional BOM, trailing spaces or tabs allowed),
+// then any lines, then a closing `---` line. Returns the index of the first line after it, or 0
+// when there is none (no closing line: the text is drawn whole).
 function readFrontMatter(lines) {
-  if (!/^\ufeff?---\s*$/.test(lines[0] ?? '')) return ['', 0];
-  const end = lines.findIndex((line, i) => i > 0 && /^---\s*$/.test(line));
-  if (end < 0) return ['', 0];
-  const pairs = [];
-  for (const line of lines.slice(1, end)) {
-    const pair = KEY_VALUE.exec(line);
-    if (pair) pairs.push([pair[1], pair[2].trim()]);
-    else if (line.trim() && pairs.length) pairs[pairs.length - 1][1] += ` ${line.trim()}`;
-  }
-  const rows = pairs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${inline(v)}</dd>`).join('');
-  return [rows ? `<dl class="fm">${rows}</dl>` : '', end + 1];
+  if (!/^\ufeff?---[^\S\n]*$/.test(lines[0] ?? '')) return 0;
+  const end = lines.findIndex((line, i) => i > 0 && /^---[^\S\n]*$/.test(line));
+  return end < 0 ? 0 : end + 1;
 }
 
 // The markup of a Markdown text, ready to be drawn.
 export function renderMarkdown(text) {
   const lines = String(text ?? '').split(/\r?\n/);
-  let [out, at] = readFrontMatter(lines);
+  let at = readFrontMatter(lines);
+  let out = '';
   while (at < lines.length) {
     const [markup, next] = readBlock(lines, at);
     out += markup;
