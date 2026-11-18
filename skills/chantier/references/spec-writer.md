@@ -36,6 +36,11 @@ A rich specification holds:
 - When what the CR changes depends on the host or on a shipped default versus a configured value:
   its host and default matrix ([concepts](concepts.md), "Words"), in the evidence, one line per
   cell. Name no matrix when there is no such dependency.
+- When a check guards a shipped file (a card, a stylesheet, a script, a page, a hook, a default
+  configuration, a template: it asserts that file's content), the evidence says that the check
+  reads that file from the repository as it ships, at the head under test, not a copy or a text
+  the test prepares. A prepared text is only for a case the shipped file cannot hold (a refusal,
+  a broken input), named as such and paired with a check on the shipped file.
 - The evidence that proves it: the checks and the scenario steps.
 - Self-containment: a Driver needs nothing else to implement it.
 
