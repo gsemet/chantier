@@ -872,6 +872,8 @@ prints none.
   whatever the slots. A CR whose project rules exempt it from the long gate (`handback
   --no-gate`) does not count, nor does a CR covered by a waiver (`order waive`); under a stack
   waiver the stack's top counts, once.
+  Under a rule that asks the top for a local run, the batch's top (or the stack's top) counts,
+  once, whatever its exemption or waiver, unless a waiver's words name that gate.
 - **The two terms, and the floor.** The **lock term** is the gates times the long gate's time.
   The **chain term** is the depth times (the long gate's time plus one CI run's time), since a
   level cannot start before the one under it is handed back ready. The floor is the larger of the two; the
@@ -1021,7 +1023,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **A plain `ready-to-merge <cr> <link> gaps: …` ask (or `pr-in-draft <cr> <link> on <base>: waits
   for <what> gaps: …`):** when you tell the user the PR is ready to merge, quote each
   gap of the ask next to the PR's link, in the user's language; with none, say nothing about
-  gaps. Where the project's rules ask for a screenshot of the board pane for a change to it and
+  gaps.
+  In a project whose rules ask the stack's top for a local run, the ask of a batch's top with no
+  stack carries `local gate <cr> at <sha7>: …`: quote it in the user's language before you say the
+  PR can be merged. `passed`: say the local gate ran and passed at that head. `not run` or
+  `failed` (a `deliver by` time): say the project's rule asks that gate at that head before the
+  merge and it has not passed there; merging anyway is the user's choice, recorded as any merge
+  (`order merged`), never questioned or refused.
+  Where the project's rules ask for a screenshot of the board pane for a change to it and
   the gaps name it as missing, ask the user for one screenshot of the pane from a session
   running the PR's branch, with made-up paths: no username and no home folder in it. When the
   Driver's report says the user's screenshot was not uploaded because it showed one, say so and ask
@@ -1031,7 +1040,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   image>"`: the Foreman turns it into `take <cr> --epoch <n> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
   ready again. In every mode, a `ready-to-merge` ask is offered to the
-  user as mergeable now, on its own, with its gaps as above; a `pr-in-draft … on <base>: waits for
+  user as mergeable now, on its own, with its gaps as above (except that, under that rule, once the last open non-release CRs are all ready together and the last of them in `status`'s order is the batch's top, offer the others as mergeable only together with that top or before it, and say so); a `pr-in-draft … on <base>: waits for
   <cr>` ask is not: say it is a PR in draft, do not merge, and what it waits for. Say "you can merge" (or any equivalent) about a PR only
   after its `ready-to-merge` line (or the `stack-ready-to-merge` line for a stack) has reached you, never on a
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
@@ -1046,7 +1055,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user
   where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
   it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until
-  the CR is recorded merged. One exception, on GitLab: a fold (`forge-stack show` prints `folded
+  the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's end), record `order merged` for the others first and the batch's top last.
+  One exception, on GitLab: a fold (`forge-stack show` prints `folded
   into <cr below>`) is recorded at once by the fold rule below, whatever the line says.
 - **A series batch:** the CRs merge one by one, in order. On each `ready-to-merge` ask, tell the user which
   PR is next to merge (the bottom one, ready to merge on the default branch) and that the others are drafts

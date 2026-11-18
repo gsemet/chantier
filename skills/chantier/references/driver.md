@@ -281,7 +281,23 @@ defer the rest of this card until an action names it. These are the card's defau
   the rule; a red run of that job is a red CI job, a round. A rebase needs no gate carry: the job
   runs again at the pushed head. (GitLab and Copilot: unproved.) A rule that also asks the stack's
   top for a local run is met by that CR's Driver with `$CHANTIER gate` as any long gate, and that
-  CR hands back with no `--no-gate`. `gate` stops at the first failure, keeps the log and records the pass at that head. It
+  CR hands back with no `--no-gate`.
+  In a batch with no stack on the forge, the top is the batch's last open CR other than a release
+  CR (every other non-release CR merged or cancelled; a fix CR counts; a one-CR batch's CR from
+  the start), or, when the last open non-release CRs are all handed back ready and no other CR is
+  working or queued, the last of them in `status`'s order: before the `ship` that precedes your
+  ready hand-back, and so before you take the PR out of draft (the hand-back bullet's order:
+  `ship`, `gh pr ready`, `ship` again, `handback`), read a plain `$CHANTIER status` (no
+  `--refresh`, no `--epoch`); when your CR is that top once it is handed back, run the local gate
+  at your pushed head unless a pass or a carried pass is already there (`ship`'s `carried:` line),
+  in your worktree, clean, before the PR turns out of draft, and hand back with no `--no-gate`. A
+  `take` note that says `long gate: the batch's top runs <command> locally` (alone, or after
+  `rebase: <cr> merged; ` in the same note) asks the same run at the head you push after that
+  `take` (the rebased head). A failure there is a round, as for any long gate. When your CR is not
+  the top, hand back as the project's rules say (`--no-gate "<the rule>"` for a pipeline job); if
+  it becomes the top later, the steering session sends it back for the run. A Release driver is
+  never the top and runs no local gate for this rule.
+  `gate` stops at the first failure, keeps the log and records the pass at that head. It
   is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
@@ -529,7 +545,14 @@ defer the rest of this card until an action names it. These are the card's defau
   the long gate, then hand back again without `--no-gate`; a CR whose `take` or `handoff` prints
   `gate: waived (O-<k>, …)` runs no long gate and hands back with no `--no-gate`: the CLI
   reads the recorded waiver and prints `long gate waived (O-<k>): validated by CR-<top>'s gate`
-  (or `follow-up <folder>`) in the line to send; the stack's top, whose `gate:` line says `this
+  (or `follow-up <folder>`) in the line to send;
+  under a rule that asks the top for a local run, a waived CR that is the top (the stack's top, or
+  the batch's top as the long-gate bullet says) still runs `$CHANTIER gate` at its pushed head
+  before it takes its PR out of draft for its ready hand-back, unless the waiver's words name that
+  gate: read them in `$CHANTIER status`'s order list (`O-<k> waive <cr> <note>`), or, when the
+  order is no longer listed or its note is cut, in your CR's `STATUS.json` (`gate.waiver`); it
+  still hands back with no `--no-gate`;
+  the stack's top, whose `gate:` line says `this
   CR's long gate validates the stack`, runs its gate as any CR does, and a fix its gate finds
   goes on the top PR or a PR above it; just before
   it, a CR Driver turns the PR ready, `gh pr ready`, `glab mr update --ready`, if its base is the default
