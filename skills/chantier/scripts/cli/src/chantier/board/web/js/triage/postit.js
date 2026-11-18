@@ -1,5 +1,5 @@
 // One Triage card: the Kanban's item card (ui/item-card.js) with Triage's extras added to it: a check
-// mark when selected, the late-summary clock and the "modified" mark in the top row, the origin badge and the "open"
+// mark when picked, the late-summary clock and the "modified" mark in the top row, the origin badge and the "open"
 // button in the band, the mark "pending", and the attributes the drag and the selection need.
 // Pure: it returns markup from an item and a context; `bind` code lives in selection.js and drag.js.
 import { html } from '../core/dom.js';
@@ -37,14 +37,15 @@ export function postit(item, ctx) {
   const slug = item.item;
   const sel = ctx.selected.includes(slug);
   const busy = ctx.pending.includes(slug);
-  const classes = ` pi${sel ? ' sel' : ''}${ctx.modified.has(slug) ? ' chg' : ''}${busy ? ' pend' : ''}`;
+  const classes = `pi${ctx.modified.has(slug) ? ' chg' : ''}`;
+  const variants = ['pick-up', sel && 'picked', busy && 'pending'];
   const label = `${slug}, ${item.title ?? ''}${sel ? `, ${t('postit.selected')}` : ''}`;
   const attrs = html`draggable="${!busy}" tabindex="0" role="group" aria-label="${label}" aria-busy="${busy}" data-slug="${slug}" data-key="pi-${slug}" title="${t(`postit.${stageOf(item)}`)}"`;
-  const lead = sel ? html`<span class="chk" aria-hidden="true">${icon('check')}</span>` : '';
   return itemCard(item, ctx.column, ctx.labels, {
     classes,
+    variants,
     attrs,
-    lead,
+    picked: sel,
     badges: html`${late(item)}${modified(ctx.modified.has(slug))}`,
     foot: html`${origin(item)}${openButton(item, slug)}`,
   });

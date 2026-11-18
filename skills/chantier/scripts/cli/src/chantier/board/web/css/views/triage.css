@@ -15,8 +15,8 @@
 }
 
 .ind {
-  border-radius: 999px;
-  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  padding: var(--space-off-3) var(--space-off-10);
   background: var(--chip-2);
   color: var(--ink2);
   font-size: var(--text-small);
@@ -43,7 +43,7 @@
 .legend2 span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-off-5);
 }
 
 /* the grill mark: a dashed circle, a part-filled one, a green tick, a violet bolt */
@@ -52,7 +52,7 @@
   place-items: center;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
   font-size: var(--text-badge);
   line-height: 1;
   flex: none;
@@ -107,125 +107,32 @@
   --card-w: min(var(--pi-w), calc(30cqw - 2 * var(--space-3) - 16px));
 }
 
-.tcol {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: var(--col-fill);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--space-3);
-  gap: var(--space-2);
-}
-
-.tcol.over,
-.tbody .over,
 .grpf.over {
   background: var(--drop-fill);
   border-color: var(--drop-edge);
 }
 
-.colh {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.colh h2 {
-  margin: 0;
-  font-size: var(--text);
-  font-weight: 500;
-}
-
-.colh .c {
-  color: var(--ink3);
-  font-size: var(--text-small);
-}
-
-.colh .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--grey);
-}
-
 .scs {
   display: flex;
-  gap: 6px;
+  gap: var(--space-off-6);
   margin-left: auto;
 }
 
 .sc {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-off-3);
   color: var(--ink2);
   font-size: var(--text-badge);
-}
-
-/* The padding and the opposite margin leave room for a hovered card's tilt and shadow, which would
-   otherwise make the scrolling body show a horizontal bar. */
-.tbody {
-  flex: 1;
-  min-height: 0;
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
-  padding: var(--space-2) var(--space-3);
-  overflow-x: hidden;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-/* a backlog lane: capped cards side by side, as many per row as the lane holds */
-.tcol.lane .tbody {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-w)), var(--card-w)));
-  align-content: start;
-  justify-content: start;
-}
-
-.lanes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.lanesh {
-  color: var(--ink2);
-  font-size: var(--text-small);
-}
-
-.tcol.lane {
-  flex: none;
-}
-
-/* an empty lane is a thin strip */
-.tcol.lane.empty {
-  padding: 6px var(--space-3);
-}
-
-.tcol.lane.empty .tbody {
-  display: none;
 }
 
 .dropzone {
   border: 1px dashed var(--line);
   border-radius: var(--radius-card);
-  padding: 10px;
+  padding: var(--space-off-10);
   color: var(--ink3);
   font-size: var(--text-small);
   text-align: center;
-}
-
-/* in a lane's grid, a group's frame and the drop zone span the whole row */
-.tcol.lane .tbody > .grpf,
-.tcol.lane .tbody > .dropzone {
-  grid-column: 1 / -1;
 }
 
 .rfoot {
@@ -244,8 +151,7 @@
     scroll-snap-type: x mandatory;
   }
 
-  .tri > .tcol,
-  .tri > .lanes {
+  .tri > .column {
     --card-w: min(var(--pi-w), calc(86cqw - 2 * var(--space-3) - 16px));
     flex: 0 0 86%;
     scroll-snap-align: center;

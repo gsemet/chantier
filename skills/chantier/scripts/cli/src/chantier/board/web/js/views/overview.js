@@ -5,6 +5,7 @@
 import { delegate, html } from '../core/dom.js';
 import { age, safeUrl, usd } from '../core/format.js';
 import { t, tf } from '../model/words.js';
+import { card } from '../ui/card.js';
 import { empty, live, mark, meter } from '../ui/parts.js';
 import { pathsOf, projectsOf, sharedForge } from '../ui/picker.js';
 import { surfaceBlock } from './home-project.js';
@@ -64,14 +65,19 @@ const sums = (p) => [
   counted(p.forge, 'overview.card_intake', p.inbox),
 ];
 
-const card = (p) =>
-  html`<div class="apc card" data-project="${p.id}" tabindex="0" data-key="card-${p.id}"><div class="apt">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}<span class="mut">${p.batch ? p.batch.id : t('project.no_batch')}</span></div><div class="band"><div class="apth">${pathsOf(p)}</div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div></div></div>`;
+const projectCard = (p) =>
+  card({
+    classes: 'apc',
+    attrs: html`data-project="${p.id}" tabindex="0" data-key="card-${p.id}"`,
+    body: html`<div class="apt">${mark(p.id)}<b>${p.id}</b>${p.running ? live() : ''}<span class="mut">${p.batch ? p.batch.id : t('project.no_batch')}</span></div>`,
+    meta: html`<div class="apth">${pathsOf(p)}</div><div class="aps">${sums(p).map((s) => html`<span>${s}</span>`)}</div>`,
+  });
 
 export function render(state) {
   const projects = projectsOf(state);
   if (!projects.length) return empty(t('stats.loading'));
   const forge = sharedForge(projects);
-  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head(forge)}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(card)}</div><p class="note">${tf(forge, 'overview.note')}</p><div class="blocks">${surfaceBlock(state)}</div></div>`;
+  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head(forge)}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(projectCard)}</div><p class="note">${tf(forge, 'overview.note')}</p><div class="blocks">${surfaceBlock(state)}</div></div>`;
 }
 
 // A PR link opens the PR only: the click does not reach the line that opens the project.

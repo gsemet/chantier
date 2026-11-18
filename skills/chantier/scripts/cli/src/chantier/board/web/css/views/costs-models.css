@@ -30,7 +30,7 @@
 /* the segmented control: one button pressed, the other plain */
 .seg {
   display: inline-flex;
-  padding: 2px;
+  padding: var(--space-off-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-s);
   background: var(--chip);
@@ -62,10 +62,10 @@
 .spend .sp-bar {
   position: relative;
   display: flex;
-  gap: 2px;
+  gap: var(--space-off-2);
   height: var(--space-5);
   overflow: hidden;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   background: var(--spend-hatch-bg);
 }
 

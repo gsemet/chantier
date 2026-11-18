@@ -1,7 +1,7 @@
 // The columns of Triage: the Inbox, the Backlog column with its rows P1 to P4, and 3-ready with its
-// foot. A group is a dashed frame with its handle, its count and "undo", before the loose post-its.
+// foot, all built by ui/column.js. A group is a dashed frame with its handle, its count and "undo", before the loose post-its.
 // Pure: markup from the record and a context (see postit.js), nothing bound here.
-import { html, vars } from '../core/dom.js';
+import { html } from '../core/dom.js';
 import {
   DOTS,
   groupsIn,
@@ -12,6 +12,8 @@ import {
   stateCounts,
 } from '../model/triage.js';
 import { t } from '../model/words.js';
+import { column as column_, lane } from '../ui/column.js';
+import { priorityChip } from '../ui/parts.js';
 import { mark, postit } from './postit.js';
 
 const name = (column) => (column === 'inbox' ? t('priority.inbox') : column);
@@ -32,11 +34,11 @@ function frame(group, ctx) {
   return html`<div class="grpf" data-gid="${group.name}">${handle}${group.members.map((i) => postit(i, ctx))}</div>`;
 }
 
+// What a column or a lane holds: the groups, the loose post-its and the drop zone.
 function body(column, items, ctx) {
   const { groups, loose } = groupsIn(items);
-  const lane = LANES.includes(column);
-  const drop = items.length ? '' : t(lane ? 'triage.empty_row' : 'triage.drop');
-  return html`<div class="tbody">${groups.map((g) => frame(g, ctx))}${loose.map((i) => postit(i, ctx))}<div class="dropzone">${drop}</div></div>`;
+  const drop = items.length ? '' : t(LANES.includes(column) ? 'triage.empty_row' : 'triage.drop');
+  return html`${groups.map((g) => frame(g, ctx))}${loose.map((i) => postit(i, ctx))}<div class="dropzone">${drop}</div>`;
 }
 
 // The foot of 3-ready: the counts, the button, and the running batch's line.
@@ -56,17 +58,46 @@ function readyFoot(ctx) {
   return html`<div class="rfoot">${summary}<button type="button" class="btn pri" data-ready="next"${ready.length && !done ? '' : ' disabled'}>${label}</button><small>${line}</small></div>`;
 }
 
+// The Inbox and 3-ready, one column each (the latter with its foot).
 export function column(backlog, key, base) {
   const ctx = { ...base, column: key };
   const items = shownIn(backlog, key, ctx.filter);
-  const lane = LANES.includes(key);
-  const classes = `tcol${key === READY ? ' rdy' : ''}${lane ? ' lane' : ''}${lane && !items.length ? ' empty' : ''}`;
-  const head = html`<div class="colh"><span class="dot" data-vars="${vars({ '--c': DOTS[key] })}"></span><h2>${name(key)}</h2><span class="c">${items.length}</span>${counts(items)}</div>`;
-  const foot = key === READY ? readyFoot(ctx) : '';
-  return html`<section class="${classes}" data-col="${key}" aria-label="${name(key)}">${head}${body(key, items, ctx)}${foot}</section>`;
+  return column_({
+    drop: key,
+    label: name(key),
+    name: name(key),
+    color: DOTS[key],
+    count: items.length,
+    states: counts(items),
+    sub: t(key === READY ? 'kanban.ready_sub' : 'triage.inbox_sub'),
+    body: body(key, items, ctx),
+    foot: key === READY ? readyFoot(ctx) : '',
+  });
 }
 
-// The central "Backlog" column: the rows P1 to P4, up is more urgent.
+// A lane of the Backlog column: its priority chip, its counts, its post-its.
+function laneOf(backlog, key, base) {
+  const ctx = { ...base, column: key };
+  const items = shownIn(backlog, key, ctx.filter);
+  return lane({
+    drop: key,
+    label: key,
+    chip: priorityChip(key),
+    count: items.length,
+    states: counts(items),
+    body: body(key, items, ctx),
+    empty: !items.length,
+  });
+}
+
+// The central "Backlog" column: one column, the rows P1 to P4 in its body, up is more urgent.
 export function lanes(backlog, ctx) {
-  return html`<div class="lanes"><div class="lanesh">${t('triage.backlog')} <span>${t('triage.urgent')}</span></div>${LANES.map((k) => column(backlog, k, ctx))}</div>`;
+  return column_({
+    label: t('triage.backlog'),
+    name: t('triage.backlog'),
+    color: DOTS.backlog,
+    hint: t('triage.urgent'),
+    sub: t('triage.backlog_sub'),
+    body: html`${LANES.map((k) => laneOf(backlog, k, ctx))}`,
+  });
 }

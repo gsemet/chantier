@@ -40,9 +40,9 @@
 .batchnav .bn-pill {
   margin-left: var(--space-2);
   border: 0;
-  border-radius: 99px;
+  border-radius: var(--radius-pill);
   background: var(--accent-tint-2);
-  padding: 1px 10px;
+  padding: var(--space-off-1) var(--space-off-10);
   color: var(--accent);
   font-size: var(--text-badge);
   font-weight: 500;

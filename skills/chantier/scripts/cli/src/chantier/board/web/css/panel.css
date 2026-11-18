@@ -1,13 +1,20 @@
 /* The file panel: its head, the folder's tree and the rendered file. The panel's own shell (the
    slide-in, the phone's full screen) is in components.css. */
 .panel > .ph {
-  padding: var(--space-4) 20px var(--space-3);
+  padding: var(--space-4) var(--space-off-20) var(--space-3);
   border-bottom: 1px solid var(--line);
+}
+
+.panel .ph .row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-off-6);
 }
 
 .panel .ph h2 {
   margin: var(--space-2) 0 0;
-  font-size: 18px;
+  font-size: var(--text-off-18);
   line-height: 1.3;
 }
 
@@ -21,13 +28,13 @@
   width: 30px;
   height: 30px;
   border: 0;
-  border-radius: var(--space-2);
+  border-radius: var(--radius-nav);
   background: var(--chip);
   color: var(--ink2);
 }
 
 .panel .ph .path {
-  margin-top: 6px;
+  margin-top: var(--space-off-6);
   color: var(--ink3);
   font-family: var(--mono);
   font-size: var(--text-small);
@@ -42,14 +49,14 @@
 }
 
 .panel .tree {
-  padding: 10px 6px;
+  padding: var(--space-off-10) var(--space-off-6);
   border-right: 1px solid var(--line);
   overflow: auto;
   font-size: var(--text-small);
 }
 
 .panel .tree .dir {
-  padding: var(--space-2) var(--space-2) 3px;
+  padding: var(--space-2) var(--space-2) var(--space-off-3);
   color: var(--ink3);
   font-weight: 500;
 }
@@ -57,9 +64,9 @@
 .panel .tree button {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-off-6);
   width: 100%;
-  padding: 5px var(--space-2);
+  padding: var(--space-off-5) var(--space-2);
   overflow: hidden;
   border: 0;
   border-radius: var(--radius-s);
@@ -78,7 +85,7 @@
 }
 
 .panel .tree .nested {
-  padding-left: 20px;
+  padding-left: var(--space-off-20);
 }
 
 .panel .tree .fname {
@@ -95,9 +102,9 @@
 
 .panel .doc {
   min-width: 0;
-  padding: 14px 22px 40px;
+  padding: var(--space-off-14) var(--space-off-22) var(--space-off-40);
   overflow: auto;
-  font-size: 13.5px;
+  font-size: var(--text-off-13-5);
   line-height: 1.55;
 }
 
@@ -108,7 +115,7 @@
 }
 
 .panel .doc .info {
-  margin-bottom: 10px;
+  margin-bottom: var(--space-off-10);
   color: var(--ink3);
   font-family: var(--mono);
   font-size: var(--text-small);
@@ -122,7 +129,7 @@
 .panel .doc .fm {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px var(--space-3);
+  gap: var(--space-off-2) var(--space-3);
   margin: 0 0 var(--space-3);
   font-size: var(--text-small);
   overflow-wrap: anywhere;
@@ -147,33 +154,33 @@
 .panel .doc h4,
 .panel .doc h5,
 .panel .doc h6 {
-  margin: 20px 0 6px;
-  font-size: 14px;
+  margin: var(--space-off-20) 0 var(--space-off-6);
+  font-size: var(--text);
 }
 
 .panel .doc .md-h1 {
   margin-top: 0;
-  font-size: 18px;
+  font-size: var(--text-off-18);
 }
 
 .panel .doc .md-h2 {
-  font-size: 15.5px;
+  font-size: var(--text-off-15-5);
 }
 
 .panel .doc p,
 .panel .doc ul,
 .panel .doc ol {
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 
 .panel .doc code {
-  padding: 0 4px;
-  border-radius: 4px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-off-4);
   background: var(--chip);
 }
 
 .panel .doc pre {
-  padding: 10px;
+  padding: var(--space-off-10);
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-m);
@@ -191,7 +198,7 @@
 .panel .doc table {
   display: block;
   max-width: 100%;
-  margin: 10px 0;
+  margin: var(--space-off-10) 0;
   overflow-x: auto;
   font-size: var(--text-small);
 }
@@ -199,7 +206,7 @@
 .panel .doc th,
 .panel .doc td {
   min-width: 6em;
-  padding: 5px 8px;
+  padding: var(--space-off-5) var(--space-2);
   vertical-align: top;
 }
 

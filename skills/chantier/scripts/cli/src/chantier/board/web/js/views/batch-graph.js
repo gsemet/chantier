@@ -15,6 +15,7 @@ import {
 } from '../model/semantics.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
+import { card, cardMark } from '../ui/card.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
 import { nextTag, stateIcon } from '../ui/parts.js';
@@ -32,11 +33,32 @@ function mergedBand(c, now) {
 }
 
 // A CR of a closed record: its folder, title, badge, rounds, cost and "PR"; no opener, no phase.
+const deps = (c) => (c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : '');
+const prMark = (c) => (c.pr ? html`<span>${t('pr.tag')}</span>` : '');
+
 const recordedNode = (c) =>
-  html`<div class="node card" data-id="${c.cr}" data-key="node-${c.cr}" tabindex="0"><div class="row-tags"><span class="tag cr">${c.cr}</span><span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div><div class="nm">${c.round == null ? '' : html`<span>r${c.round}</span>`}${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>${t('pr.tag')}</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+  card({
+    classes: 'node',
+    variants: ['compact'],
+    attrs: html`data-id="${c.cr}" data-key="node-${c.cr}" tabindex="0"`,
+    top: html`<span class="tag cr">${c.cr}</span><span class="lbl">${slug(c.folder)}</span>${badge(c)}`,
+    title: title(c.title),
+    meta: html`${c.round == null ? '' : html`<span>r${c.round}</span>`}${deps(c)}${prMark(c)}`,
+    end: usd(c.cost_usd),
+  });
 
 const node = (c, batch, now) =>
-  html`<div class="node card" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>${t('pr.tag')}</span>` : ''}<span class="r">${usd(c.cost_usd)}</span>${mergedBand(c, now)}</div></div>`;
+  card({
+    classes: 'node',
+    variants: ['compact'],
+    attrs: html`data-id="${c.cr}" ${opener(crKey(c), 'node-')}`,
+    top: html`<span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${badge(c)}`,
+    title: title(c.title),
+    body: c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : '',
+    meta: html`<span>r${roundText(c, batch)}</span>${deps(c)}${prMark(c)}`,
+    end: usd(c.cost_usd),
+    foot: mergedBand(c, now),
+  });
 
 const level = (rows, i, draw) => {
   const head = i === 0 ? t('batch.no_dep') : t('batch.level', { i });
@@ -82,8 +104,8 @@ export function light(root, rows, id) {
   lit = id;
   const near = id ? related(rows, id) : null;
   for (const n of $$('.node', root)) {
-    n.classList.toggle('dim', Boolean(near) && !near.has(n.dataset.id));
-    n.classList.toggle('hl', Boolean(near) && near.has(n.dataset.id) && n.dataset.id !== id);
+    cardMark(n, 'dim', Boolean(near) && !near.has(n.dataset.id));
+    cardMark(n, 'highlight', Boolean(near) && near.has(n.dataset.id) && n.dataset.id !== id);
   }
   for (const e of $$('svg.edges path[data-from]', root)) {
     const on = id && (e.dataset.from === id || e.dataset.to === id);

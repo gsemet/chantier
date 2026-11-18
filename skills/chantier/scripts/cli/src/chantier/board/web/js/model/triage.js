@@ -10,11 +10,8 @@ export const COLUMNS = ['inbox', ...LANES, READY];
 // The colour dot of each column (a token).
 export const DOTS = {
   inbox: 'var(--grey)',
-  P1: 'var(--red)',
-  P2: 'var(--amber)',
-  P3: 'var(--blue)',
-  P4: 'var(--grey)',
-  [READY]: 'var(--green)',
+  backlog: 'var(--brown)',
+  [READY]: 'var(--violet)',
 };
 
 const LABEL_COLORS = 6;

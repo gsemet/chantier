@@ -1,0 +1,283 @@
+# The board's design rules
+
+The rules every page of the board follows, and the features no design pass may lose. Any change
+under `skills/chantier/scripts/cli/src/chantier/board/web/` reads this file first and keeps it true
+(`AGENTS.md` says the same). `css/tokens.css` is the single source of every value; this file holds
+the rules and a table of the tokens, and a test (`tests/test_board_design.py`, in `just check`)
+fails when the table and `tokens.css` disagree.
+
+## Rules
+
+- **Tokens.** Every colour, radius, spacing and type size is a token of `css/tokens.css`; a sheet
+  names it through `var()` and writes no literal. A margin, a padding or a gap takes a `space`
+  token, or a `size` token for a frame's offset (`--bar-height`); a radius takes a `radius` token;
+  a font size a `type` token. Allowed as they are: `0`, `auto`, `inherit`, `initial`, `unset`, and
+  `calc()` of tokens with unitless numbers (a negative margin is `calc(-1 * var(--space-2))`). A
+  custom property declared in a view sheet holds an angle, an opacity or a width, never a value of
+  those kinds (test).
+- **No side accent border.** No element has a border on its left or right side only, by any means
+  (a `border-left`, `border-right` or `border-inline*` declaration, a one-side inset shadow, a
+  pseudo-element bar), above all one that follows a rounded corner. One exception: a plain
+  straight separator between two regions of a page (the sidebar's edge, the drawer tree's edge,
+  the Batch stack rail): `1px solid` in a separator colour (`--line`, `--side-line`), on an element
+  with no radius, never on a component. A card shows its priority with the priority chip (test).
+- **Components.** A component (card, column, chip) is styled in its own sheet only, with its
+  variants. A page's sheet only lays components out (its grid or flex container, gaps, and on a
+  component only placement and size: `grid-*`, `flex*`, `order`, `*-self`, `width`, `min-width`,
+  `max-width`, `height`, `min-height`, `max-height`, `overflow*`, `scroll-snap-*`, `margin*`), and
+  never restyles one (test).
+- **One card, one column, one chip.** Every card is built by `js/ui/card.js` (test): a hairline all
+  around, no side accent, the priority chip, when the item has a priority, first in its top row at
+  the top left. Every board column (Triage, Kanban) is built by `js/ui/column.js`: a light area, a
+  hairline, a plain head (dot, name, count) and a one-line grey sub-line saying what it holds; a
+  column that appears on both pages has the same dot colour on both. The chip lives in
+  `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
+  every card that has a priority (inbox, P1 to P4, 3-ready); a chip used as a filter toggle is the
+  same chip, filled when on, outlined grey when off, the same size in both states.
+- **Words.** Every string the board shows goes through the i18n keys (`t()`, `tn()`), in every
+  language file; data (titles, slugs, file contents) is shown as it is.
+- **The reference look.** This file describes the column, the card and the chip in words only; no
+  picture ships in the package, and a pull request's screenshots are the visual record.
+
+## Tokens
+
+One row per custom property of `css/tokens.css`, in its order. Kind: `colour`, `space`, `radius`,
+`type`, `shadow`, `font`, `size` or `other`.
+
+| Token                  | Value                                                                                                                                                                   | Kind   | Use                                                             |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------- |
+| `--bg`                 | `#fff`                                                                                                                                                                  | colour | page and panel surface                                          |
+| `--panel`              | `#fff`                                                                                                                                                                  | colour | page and panel surface                                          |
+| `--side`               | `#f6f9f9`                                                                                                                                                               | colour | sidebar fill, its edge, its hover                               |
+| `--side-line`          | `#e3eced`                                                                                                                                                               | colour | sidebar fill, its edge, its hover                               |
+| `--side-hover`         | `#edf3f3`                                                                                                                                                               | colour | sidebar fill, its edge, its hover                               |
+| `--line`               | `#ececef`                                                                                                                                                               | colour | hairlines (--line, --side-line are the separator colours)       |
+| `--line2`              | `#eff0f2`                                                                                                                                                               | colour | hairlines (--line, --side-line are the separator colours)       |
+| `--card-line`          | `#ebecef`                                                                                                                                                               | colour | hairlines (--line, --side-line are the separator colours)       |
+| `--card-hover`         | `#d6d9de`                                                                                                                                                               | colour | hairlines (--line, --side-line are the separator colours)       |
+| `--ink`                | `#1a1c21`                                                                                                                                                               | colour | text ink, three greys                                           |
+| `--ink2`               | `#545862`                                                                                                                                                               | colour | text ink, three greys                                           |
+| `--ink3`               | `#868a94`                                                                                                                                                               | colour | text ink, three greys                                           |
+| `--white`              | `#fff`                                                                                                                                                                  | colour | white                                                           |
+| `--chip`               | `#f2f3f5`                                                                                                                                                               | colour | chip and pill fills                                             |
+| `--chip-2`             | `#eceef1`                                                                                                                                                               | colour | chip and pill fills                                             |
+| `--pill`               | `#f1f2f4`                                                                                                                                                               | colour | chip and pill fills                                             |
+| `--hover`              | `#f6f7f8`                                                                                                                                                               | colour | hover and band fills                                            |
+| `--hover-soft`         | `#f6f7f8`                                                                                                                                                               | colour | hover and band fills                                            |
+| `--band`               | `#f6f7f8`                                                                                                                                                               | colour | hover and band fills                                            |
+| `--band-line`          | `#eff0f2`                                                                                                                                                               | colour | hover and band fills                                            |
+| `--caption`            | `#8d919a`                                                                                                                                                               | colour | caption, count and separator greys                              |
+| `--count`              | `#a3a7af`                                                                                                                                                               | colour | caption, count and separator greys                              |
+| `--sep`                | `#c4c7cd`                                                                                                                                                               | colour | caption, count and separator greys                              |
+| `--selection`          | `#d6e2fa`                                                                                                                                                               | colour | text selection, scrollbar                                       |
+| `--scroll`             | `#cdd1d8`                                                                                                                                                               | colour | text selection, scrollbar                                       |
+| `--warn-ink`           | `#8a5208`                                                                                                                                                               | colour | warning, error and ok ink                                       |
+| `--bad-ink`            | `#c03552`                                                                                                                                                               | colour | warning, error and ok ink                                       |
+| `--accent`             | `#1d5c63`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--accent-dark`        | `#123d42`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--accent-mid`         | `#5f8d93`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--accent-light`       | `#8fb6ba`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--accent-tint`        | `#e9f1f1`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--accent-tint-2`      | `#e7f0f0`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--accent-line`        | `#d2e3e4`                                                                                                                                                               | colour | the accent, deep teal, and its shades                           |
+| `--link`               | `var(--accent)`                                                                                                                                                         | colour | the accent, deep teal, and its shades                           |
+| `--pri-1`              | `#1d5c63`                                                                                                                                                               | colour | priority ramp, P1 dark to P4 pale                               |
+| `--pri-2`              | `#4a7e83`                                                                                                                                                               | colour | priority ramp, P1 dark to P4 pale                               |
+| `--pri-3`              | `#88acb0`                                                                                                                                                               | colour | priority ramp, P1 dark to P4 pale                               |
+| `--pri-4`              | `#cfe2e3`                                                                                                                                                               | colour | priority ramp, P1 dark to P4 pale                               |
+| `--state-blocked`      | `#d14b5e`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-working`      | `#4a76d9`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-ready`        | `#2f9e6b`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-draft`        | `#a77b4f`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-local`        | `#8b6bd8`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-waits`        | `#d08a1f`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-queued`       | `#a3a7af`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--state-merged`       | `#2a7a55`                                                                                                                                                               | colour | a state's colour, for its icon, dot or badge                    |
+| `--red`                | `var(--state-blocked)`                                                                                                                                                  | colour | a state's colour by its hue name                                |
+| `--blue`               | `var(--state-working)`                                                                                                                                                  | colour | a state's colour by its hue name                                |
+| `--green`              | `var(--state-ready)`                                                                                                                                                    | colour | a state's colour by its hue name                                |
+| `--brown`              | `var(--state-draft)`                                                                                                                                                    | colour | a state's colour by its hue name                                |
+| `--violet`             | `var(--state-local)`                                                                                                                                                    | colour | a state's colour by its hue name                                |
+| `--amber`              | `var(--state-waits)`                                                                                                                                                    | colour | a state's colour by its hue name                                |
+| `--grey`               | `var(--state-queued)`                                                                                                                                                   | colour | a state's colour by its hue name                                |
+| `--ok-ink`             | `var(--state-merged)`                                                                                                                                                   | colour | warning, error and ok ink                                       |
+| `--state-working-tint` | `#e7eefb`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-ready-tint`   | `#e4f4ec`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-blocked-tint` | `#fbe7ea`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-waits-tint`   | `#fbf0de`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-merged-tint`  | `#e3f1ea`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-draft-tint`   | `#f4eee8`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-local-tint`   | `#f0ecfa`                                                                                                                                                               | colour | tint of a state, for its chip or badge only                     |
+| `--state-queued-tint`  | `var(--chip)`                                                                                                                                                           | colour | tint of a state, for its chip or badge only                     |
+| `--queued-bar`         | `#c9cdd6`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--edge-line`          | `#c7ccd6`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--edge-arrow`         | `#aab1bf`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--halo`               | `#dbe5fb`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--grid-bg`            | `#fcfcfd`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--grid-dot`           | `#dfe2e7`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--col-fill`           | `#fbfbfc`                                                                                                                                                               | colour | bars, arrows, halos and the Batch graph's grid; the column fill |
+| `--row-hover`          | `#f6f7f8`                                                                                                                                                               | colour | hover and band fills                                            |
+| `--gs-grill-rest`      | `#f3e2c4`                                                                                                                                                               | colour | Triage: grill-state post-its, the column over a drag            |
+| `--drop-fill`          | `var(--accent-tint)`                                                                                                                                                    | colour | Triage: grill-state post-its, the column over a drag            |
+| `--drop-edge`          | `var(--accent-light)`                                                                                                                                                   | colour | Triage: grill-state post-its, the column over a drag            |
+| `--label-0`            | `#2a56b8`                                                                                                                                                               | colour | a project label's colour, by its place                          |
+| `--label-1`            | `#8f5400`                                                                                                                                                               | colour | a project label's colour, by its place                          |
+| `--label-2`            | `#1c6e44`                                                                                                                                                               | colour | a project label's colour, by its place                          |
+| `--label-3`            | `#7440c0`                                                                                                                                                               | colour | a project label's colour, by its place                          |
+| `--label-4`            | `#b02f4b`                                                                                                                                                               | colour | a project label's colour, by its place                          |
+| `--label-5`            | `#515867`                                                                                                                                                               | colour | a project label's colour, by its place                          |
+| `--dark`               | `#16181d`                                                                                                                                                               | colour | dark surfaces: the selection bar, the toast                     |
+| `--dark-button`        | `#2c2f37`                                                                                                                                                               | colour | dark surfaces: the selection bar, the toast                     |
+| `--dark-button-hover`  | `#3a3e48`                                                                                                                                                               | colour | dark surfaces: the selection bar, the toast                     |
+| `--dark-ink`           | `#fff`                                                                                                                                                                  | colour | dark surfaces: the selection bar, the toast                     |
+| `--dark-ink-soft`      | `#c9ccd4`                                                                                                                                                               | colour | dark surfaces: the selection bar, the toast                     |
+| `--mark-0`             | `#a02e78`                                                                                                                                                               | colour | a project's mark colour                                         |
+| `--mark-1`             | `#1a6c88`                                                                                                                                                               | colour | a project's mark colour                                         |
+| `--mark-2`             | `#3a7222`                                                                                                                                                               | colour | a project's mark colour                                         |
+| `--mark-3`             | `#8a3aa8`                                                                                                                                                               | colour | a project's mark colour                                         |
+| `--mark-4`             | `#666c12`                                                                                                                                                               | colour | a project's mark colour                                         |
+| `--mark-5`             | `#1a736d`                                                                                                                                                               | colour | a project's mark colour                                         |
+| `--mark-0-tint`        | `#f2e2ec`                                                                                                                                                               | colour | pale tint of a project mark                                     |
+| `--mark-1-tint`        | `#dfeaee`                                                                                                                                                               | colour | pale tint of a project mark                                     |
+| `--mark-2-tint`        | `#e3ebe0`                                                                                                                                                               | colour | pale tint of a project mark                                     |
+| `--mark-3-tint`        | `#efe3f3`                                                                                                                                                               | colour | pale tint of a project mark                                     |
+| `--mark-4-tint`        | `#eaeade`                                                                                                                                                               | colour | pale tint of a project mark                                     |
+| `--mark-5-tint`        | `#dfebeb`                                                                                                                                                               | colour | pale tint of a project mark                                     |
+| `--autosync-active`    | `#23805a`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-stopped`   | `#8b909c`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-blocked`   | `#c03552`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-approval`  | `#b86e0c`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-ko-fill`   | `#fff4f5`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-ko-ink`    | `#9c2a41`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-wa-fill`   | `#fff6ec`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--autosync-wa-ink`    | `#7a4a0c`                                                                                                                                                               | colour | the surface's autosync pill and boxes                           |
+| `--paper`              | `#fffefb`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-line`         | `#efefe9`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-rule`         | `#d9dbe0`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-sum`          | `#e6e7ea`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-cut`          | `#dfe2e7`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-scissors`     | `#b0b3ba`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-ink`          | `#2a2c31`                                                                                                                                                               | colour | the Costs receipt's paper, lines and ink                        |
+| `--paper-grain`        | `repeating-linear-gradient(0deg, rgb(120 110 90 / 2.5%) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgb(120 110 90 / 2%) 0 1px, transparent 1px 4px)` | other  | the receipt's faint grain                                       |
+| `--shadow-ticket`      | `0 1px 2px rgb(22 24 29 / 6%), 0 12px 28px rgb(22 24 29 / 10%)`                                                                                                         | shadow | a shadow of a surface                                           |
+| `--shadow-ticket-edge` | `drop-shadow(0 3px 2px rgb(22 24 29 / 6%))`                                                                                                                             | shadow | a shadow of a surface                                           |
+| `--ticket-width`       | `420px`                                                                                                                                                                 | size   | the receipt's width                                             |
+| `--m1`                 | `#d96c4a`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m2`                 | `#3a7bd5`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m3`                 | `#1f9d8b`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m4`                 | `#8b6bd8`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m5`                 | `#d9a32e`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m6`                 | `#c4488a`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m7`                 | `#5b8c3a`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--m8`                 | `#6b7a90`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
+| `--spend-chief`        | `#a3a7af`                                                                                                                                                               | colour | the Costs card's chief grey, hatch and over-budget mark         |
+| `--spend-hatch`        | `#d6d9de`                                                                                                                                                               | colour | the Costs card's chief grey, hatch and over-budget mark         |
+| `--spend-hatch-bg`     | `#f6f7f8`                                                                                                                                                               | colour | the Costs card's chief grey, hatch and over-budget mark         |
+| `--spend-over`         | `var(--bad-ink)`                                                                                                                                                        | colour | the Costs card's chief grey, hatch and over-budget mark         |
+| `--logo-anthropic`     | `#d97757`                                                                                                                                                               | colour | a provider's mark                                               |
+| `--logo-google-blue`   | `#3186ff`                                                                                                                                                               | colour | a provider's mark                                               |
+| `--logo-google-green`  | `#08b962`                                                                                                                                                               | colour | a provider's mark                                               |
+| `--logo-google-red`    | `#f94543`                                                                                                                                                               | colour | a provider's mark                                               |
+| `--logo-google-yellow` | `#fabc12`                                                                                                                                                               | colour | a provider's mark                                               |
+| `--shadow-card`        | `0 1px 2px rgb(16 24 40 / 4%), 0 8px 24px -10px rgb(16 24 40 / 14%)`                                                                                                    | shadow | a shadow of a surface                                           |
+| `--shadow-card-soft`   | `0 1px 2px rgb(16 24 40 / 3%), 0 6px 18px -10px rgb(16 24 40 / 10%)`                                                                                                    | shadow | a shadow of a surface                                           |
+| `--shadow-menu`        | `0 10px 30px rgb(16 24 40 / 12%)`                                                                                                                                       | shadow | a shadow of a surface                                           |
+| `--shadow-head`        | `0 1px 8px rgb(16 24 40 / 6%)`                                                                                                                                          | shadow | a shadow of a surface                                           |
+| `--shadow-panel`       | `-14px 0 40px rgb(15 18 28 / 14%)`                                                                                                                                      | shadow | a shadow of a surface                                           |
+| `--shadow-note`        | `0 1px 1px rgb(0 0 0 / 6%), 0 3px 8px rgb(30 30 50 / 7%)`                                                                                                               | shadow | a shadow of a surface                                           |
+| `--shadow-note-hover`  | `0 6px 16px rgb(30 30 50 / 12%)`                                                                                                                                        | shadow | a shadow of a surface                                           |
+| `--shadow-float`       | `0 10px 30px rgb(0 0 0 / 25%)`                                                                                                                                          | shadow | a shadow of a surface                                           |
+| `--shadow-dialog`      | `0 0 0 1px rgb(20 24 31 / 6%), 0 10px 30px rgb(0 0 0 / 12%)`                                                                                                            | shadow | a shadow of a surface                                           |
+| `--font`               | `"Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif`                                                                 | font   | the board's faces                                               |
+| `--mono`               | `ui-monospace, consolas, monospace`                                                                                                                                     | font   | the board's faces                                               |
+| `--text`               | `14px`                                                                                                                                                                  | type   | a type size                                                     |
+| `--text-small`         | `12px`                                                                                                                                                                  | type   | a type size                                                     |
+| `--text-badge`         | `11px`                                                                                                                                                                  | type   | a type size                                                     |
+| `--title`              | `24px`                                                                                                                                                                  | type   | a type size                                                     |
+| `--title-spacing`      | `-0.02em`                                                                                                                                                               | type   | letter spacing                                                  |
+| `--caption-spacing`    | `0.08em`                                                                                                                                                                | type   | letter spacing                                                  |
+| `--text-stat`          | `13px`                                                                                                                                                                  | type   | a type size                                                     |
+| `--title-phone`        | `24px`                                                                                                                                                                  | type   | a type size                                                     |
+| `--space-1`            | `4px`                                                                                                                                                                   | space  | margin, padding and gap                                         |
+| `--space-2`            | `8px`                                                                                                                                                                   | space  | margin, padding and gap                                         |
+| `--space-3`            | `12px`                                                                                                                                                                  | space  | margin, padding and gap                                         |
+| `--space-4`            | `16px`                                                                                                                                                                  | space  | margin, padding and gap                                         |
+| `--space-5`            | `24px`                                                                                                                                                                  | space  | margin, padding and gap                                         |
+| `--radius-s`           | `6px`                                                                                                                                                                   | radius | a corner radius                                                 |
+| `--radius-m`           | `9px`                                                                                                                                                                   | radius | a corner radius                                                 |
+| `--radius`             | `16px`                                                                                                                                                                  | radius | a corner radius                                                 |
+| `--radius-card`        | `14px`                                                                                                                                                                  | radius | a corner radius                                                 |
+| `--radius-nav`         | `8px`                                                                                                                                                                   | radius | a corner radius                                                 |
+| `--side-width`         | `248px`                                                                                                                                                                 | size   | a frame's size                                                  |
+| `--panel-width`        | `680px`                                                                                                                                                                 | size   | a frame's size                                                  |
+| `--panel-share`        | `45vw`                                                                                                                                                                  | size   | a frame's size                                                  |
+| `--pi-w`               | `320px`                                                                                                                                                                 | size   | a frame's size                                                  |
+| `--bar-height`         | `62px`                                                                                                                                                                  | size   | a frame's size                                                  |
+| `--crumb-height`       | `58px`                                                                                                                                                                  | size   | a frame's size                                                  |
+| `--nav-height`         | `36px`                                                                                                                                                                  | size   | a frame's size                                                  |
+| `--gap-main`           | `32px`                                                                                                                                                                  | space  | the gap between a page's main regions                           |
+| `--phone-max`          | `760px`                                                                                                                                                                 | size   | a frame's size                                                  |
+
+### Off-scale values, kept as they were
+
+Each is the exact value a sheet used before every length was a token, named for it. Folding them
+into the scale is a design change of its own.
+
+| Token             | Value    | Kind   | Use                     |
+| ----------------- | -------- | ------ | ----------------------- |
+| `--space-off-1`   | `1px`    | space  | margin, padding and gap |
+| `--space-off-2`   | `2px`    | space  | margin, padding and gap |
+| `--space-off-3`   | `3px`    | space  | margin, padding and gap |
+| `--space-off-5`   | `5px`    | space  | margin, padding and gap |
+| `--space-off-6`   | `6px`    | space  | margin, padding and gap |
+| `--space-off-7`   | `7px`    | space  | margin, padding and gap |
+| `--space-off-9`   | `9px`    | space  | margin, padding and gap |
+| `--space-off-10`  | `10px`   | space  | margin, padding and gap |
+| `--space-off-14`  | `14px`   | space  | margin, padding and gap |
+| `--space-off-18`  | `18px`   | space  | margin, padding and gap |
+| `--space-off-20`  | `20px`   | space  | margin, padding and gap |
+| `--space-off-22`  | `22px`   | space  | margin, padding and gap |
+| `--space-off-23`  | `23px`   | space  | margin, padding and gap |
+| `--space-off-28`  | `28px`   | space  | margin, padding and gap |
+| `--space-off-30`  | `30px`   | space  | margin, padding and gap |
+| `--space-off-40`  | `40px`   | space  | margin, padding and gap |
+| `--space-off-50`  | `50px`   | space  | margin, padding and gap |
+| `--space-off-90`  | `90px`   | space  | margin, padding and gap |
+| `--radius-off-2`  | `2px`    | radius | a corner radius         |
+| `--radius-off-3`  | `3px`    | radius | a corner radius         |
+| `--radius-off-4`  | `4px`    | radius | a corner radius         |
+| `--radius-off-7`  | `7px`    | radius | a corner radius         |
+| `--radius-off-10` | `10px`   | radius | a corner radius         |
+| `--radius-pill`   | `999px`  | radius | a corner radius         |
+| `--radius-round`  | `50%`    | radius | a corner radius         |
+| `--text-off-12-5` | `12.5px` | type   | a type size             |
+| `--text-off-13-5` | `13.5px` | type   | a type size             |
+| `--text-off-15`   | `15px`   | type   | a type size             |
+| `--text-off-15-5` | `15.5px` | type   | a type size             |
+| `--text-off-16`   | `16px`   | type   | a type size             |
+| `--text-off-17`   | `17px`   | type   | a type size             |
+| `--text-off-18`   | `18px`   | type   | a type size             |
+| `--text-off-22`   | `22px`   | type   | a type size             |
+| `--text-off-34`   | `34px`   | type   | a type size             |
+| `--text-off-40`   | `40px`   | type   | a type size             |
+
+## Components
+
+The classes in backticks; a trailing `-*` is a prefix.
+
+| Component | Sheet                       | Builder           | Classes                         |
+| --------- | --------------------------- | ----------------- | ------------------------------- |
+| card      | `css/components/card.css`   | `js/ui/card.js`   | `card`, `card-*`                |
+| column    | `css/components/column.css` | `js/ui/column.js` | `column`, `column-*`            |
+| chip      | `css/components/chip.css`   | `js/ui/parts.js`  | `tag`, `lbl`, `lab`, `si`, `sb` |
+
+## Protected features
+
+No design pass removes, flattens or restyles these; a change to one is a change request of its own,
+on the user's word.
+
+- The Costs page's paper receipt: warm paper, grain, perforation, scissors
+  (`css/views/costs-receipt.css`, the `--paper-*` tokens).
+- Its red "NOT FINISHED" / "PAS FINI" stamp on a batch that is not closed
+  (`css/views/costs-stamp.css`).
+- The receipt's "Copy as image", which carries both (`js/views/costs-image.js`).

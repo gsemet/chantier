@@ -8,7 +8,7 @@
 .pbtn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-off-10);
   min-width: 0;
   width: 100%;
   padding: var(--space-2);
@@ -31,7 +31,7 @@ button.pbtn:hover {
 .pbtn {
   width: auto;
   max-width: 100%;
-  padding: 5px var(--space-2);
+  padding: var(--space-off-5) var(--space-2);
 }
 
 .ws .who,
@@ -110,7 +110,7 @@ button.pbtn:hover {
   width: max(100%, 260px);
   max-height: 60vh;
   overflow: auto;
-  padding: 6px;
+  padding: var(--space-off-6);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -118,12 +118,12 @@ button.pbtn:hover {
 }
 
 .menu .sep {
-  margin: 4px 2px;
+  margin: var(--space-1) var(--space-off-2);
   border-top: 1px solid var(--line);
 }
 
 .menu .row:not(.sfc) {
-  padding-left: calc(8px + var(--space-2));
+  padding-left: calc(var(--space-2) + var(--space-2));
 }
 
 .menu .row:not(.sfc) .who > b {
@@ -133,9 +133,9 @@ button.pbtn:hover {
 .menu .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-off-10);
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--space-off-6) var(--space-2);
   border: 0;
   border-radius: var(--radius-nav);
   background: none;

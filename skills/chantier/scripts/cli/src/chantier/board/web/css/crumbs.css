@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   flex: 1;
-  gap: 10px;
+  gap: var(--space-off-10);
   min-width: 0;
   color: var(--ink3);
   white-space: nowrap;
@@ -21,8 +21,8 @@
 .crumbs .chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
+  gap: var(--space-off-6);
+  padding: var(--space-off-2) var(--space-2);
   border-radius: var(--radius-s);
   background: var(--chip);
   color: var(--ink2);

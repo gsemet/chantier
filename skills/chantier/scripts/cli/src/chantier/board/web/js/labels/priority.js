@@ -6,14 +6,16 @@ import { delegate, html } from '../core/dom.js';
 import { snapshot, update } from '../core/store.js';
 import { FILTERED } from '../model/columns.js';
 import { t } from '../model/words.js';
-
-const nameOf = (bucket) => (bucket === 'inbox' ? t('priority.inbox') : bucket);
+import { priorityChip } from '../ui/parts.js';
 
 export function priorityRow(state) {
   const on = state.priorityFilter;
-  const buttons = FILTERED.map(
-    (b) =>
-      html`<button type="button" class="lab lbtn${on.includes(b) ? ' on' : ''}" aria-pressed="${on.includes(b)}" data-pf="${b}" data-key="pf-${b}">${nameOf(b)}</button>`,
+  const buttons = FILTERED.map((b) =>
+    priorityChip(b, {
+      button: true,
+      on: on.includes(b),
+      attrs: html`data-pf="${b}" data-key="pf-${b}"`,
+    }),
   );
   return html`<div class="lfil" role="group" aria-label="${t('priority.title')}"><span class="lt">${t('priority.title')}</span>${buttons}</div>`;
 }

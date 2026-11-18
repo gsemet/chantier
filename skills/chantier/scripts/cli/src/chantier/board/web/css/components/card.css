@@ -1,0 +1,184 @@
+/* The card, the one every page builds with js/ui/card.js: a white body with a hairline all around, no
+   side accent, then a grey band at the bottom for the metadata. The state shows in an icon, a badge
+   or a variant below, never in a tint; the priority shows in its chip at the top left. */
+.card {
+  position: relative;
+  display: block;
+  padding: var(--space-off-10) var(--space-3);
+  overflow: hidden;
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s;
+}
+
+a.card {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* a clickable card: the edge darkens on hover */
+.card[data-open]:hover {
+  border-color: var(--card-hover);
+}
+
+/* the top row: the priority chip first, at the top left, then the others */
+.card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-off-6);
+}
+
+.card-check {
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.card-check .svgi {
+  width: 14px;
+  height: 14px;
+}
+
+.card-title {
+  display: -webkit-box;
+  margin-top: var(--space-off-6);
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 1.3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.card-desc {
+  display: -webkit-box;
+  margin-top: var(--space-1);
+  overflow: hidden;
+  color: var(--ink2);
+  font-size: var(--text-small);
+  line-height: 1.4;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* the band: the card's metadata, flush with the card's edges and bottom */
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  margin: var(--space-off-10) calc(-1 * var(--space-3)) calc(-1 * var(--space-off-10));
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--band-line);
+  background: var(--band);
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.card-meta > * {
+  white-space: nowrap;
+}
+
+.card-meta .svgi {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
+.card-end {
+  display: inline-flex;
+  gap: var(--space-off-6);
+  align-items: center;
+  margin-left: auto;
+}
+
+/* the variants, picked by the builder's options */
+
+/* the open card: an accent hairline all around and the tint ring */
+.card-sel {
+  border-color: var(--accent);
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 2px var(--accent-tint);
+}
+
+/* Triage's post-it: it tilts and lifts under the pointer; held, it stays lifted with a check mark */
+.card-pick-up {
+  cursor: grab;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.card-pick-up:hover {
+  transform: rotate(-0.6deg);
+  box-shadow: var(--shadow-note-hover);
+}
+
+.card-picked,
+.card-picked[data-open]:hover {
+  border-color: var(--card-line);
+  box-shadow: var(--shadow-note-hover);
+}
+
+.card-drag {
+  opacity: 0.45;
+}
+
+.card-pending {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* the Batch page: dimmed or lit while a CR is lit; the PR card of a draft */
+.card-dim {
+  opacity: 0.28;
+}
+
+.card-highlight {
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 2px var(--halo);
+}
+
+.card-draft {
+  opacity: 0.85;
+}
+
+/* a card with no padding of its own: its body draws to the edges (a table) */
+.card-flush {
+  padding: 0;
+}
+
+/* a title of two lines (the PR card's, the graph node's) */
+.card-clamp .card-title,
+.card-compact .card-title {
+  -webkit-line-clamp: 2;
+}
+
+/* the graph's node: a top row that does not wrap, dimmed and lit with a fade */
+.card-compact {
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
+}
+
+.card-compact .card-title {
+  margin-top: var(--space-1);
+}
+
+.card-compact .card-top {
+  flex-wrap: nowrap;
+}
+
+.card-compact .tag,
+.card-compact .sb {
+  flex: none;
+}
+
+.card-compact .lbl {
+  flex: 0 1 auto;
+  min-width: 0;
+}

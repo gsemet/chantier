@@ -9,6 +9,8 @@ export default {
   'toast.network': 'The board could not be reached: nothing was written.',
 
   'triage.backlog': 'Backlog',
+  'triage.inbox_sub': '1-inbox: filed',
+  'triage.backlog_sub': '2-backlog: P1 to P4',
   'triage.urgent': '↑ more urgent · drag a post-it up or down',
   'triage.empty_row': 'empty: drop a post-it here',
   'triage.drop': 'drop here',

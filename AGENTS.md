@@ -74,6 +74,8 @@
 - During an eval the main checkout does not change, neither its files nor its branch: any other
   work goes in a worktree. An eval's workspace is outside this repository: it does not read
   `.claude/settings.json` and gets the plugin from the user's own install.
+- A change under `skills/chantier/scripts/cli/src/chantier/board/web/` reads its `DESIGN.md` first and
+  keeps it true.
 - A change to what the CR board pane draws (`hooks/register.tsx`'s pane, or the `STATUS.json`
   fields of `status.py` that the pane shows) carries, in its PR's Deliverables, one screenshot of
   the pane from a real Claude Code session running the PR's head, captioned with the head's SHA
