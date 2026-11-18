@@ -5317,9 +5317,10 @@ def empty_batch(w: World) -> None:
           and "no CR, paused" in out[0], str(out))
     w.env["CHANTIER_BATCH"] = w.name
     code, out = w.chantier("status")
+    mine = next((ln for ln in out if ln.startswith(w.name)), "")
     check("`status` says `spent none yet` and `no CR yet` for it, never $0.00",
-          code == 0 and any("spent none yet" in ln and ln.endswith("no CR yet") for ln in out)
-          and not any("$0.00" in ln for ln in out), str(out))
+          code == 0 and "spent none yet" in mine and mine.endswith("no CR yet")
+          and "$0.00" not in mine, str(out))
     code, out = w.chantier("order", "add", "--note", str(item), "--batch", w.name)
     check("`order add --note` joins a CR to the empty batch, which stays paused",
           code == 0 and w.batch()["status"] == "paused" and len(w.batch()["crs"]) == 1, str(out))
