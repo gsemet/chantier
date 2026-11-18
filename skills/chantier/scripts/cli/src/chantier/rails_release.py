@@ -44,11 +44,16 @@ def release_go(b: Batch, c: CrEntry, action: str) -> tuple[str, str]:
     """Spend what allows one irreversible action: `go` and why, `budget`, `fix` (a fix of this
     release is not merged), `merge` (the other CRs of the batch are not all merged or cancelled,
     which nothing lifts, or the release PR is recorded and not merged, which only the grant
-    lifts: the steering session's merge), or `ask`. After the merge, the release PR's merge (or
+    lifts: the steering session's merge), or `ask`. While the release PR is recorded and not
+    merged, the answer depends on the grant alone: with none, `merge`; with one, `go` on the
+    grant's why, and no approval is read or spent. After the merge, the release PR's merge (or
     the user's word to run a procedure with no release PR) is the go; a `go` is for that
     action, in that Driver: the log keeps it, the CR does not."""
     grant = b.record.release or ReleaseGrant()
     granted = grant.autonomous > grant.published
+    granted_why = (
+        f"the user allowed {grant.autonomous} releases without asking; {grant.published} published"
+    )
     if over_budget(b.record):
         b.log("release-go", c.id, action=action, result="budget")
         return "budget", ""
@@ -68,7 +73,9 @@ def release_go(b: Batch, c: CrEntry, action: str) -> tuple[str, str]:
     if c.pr and not granted:
         b.log("release-go", c.id, action=action, result="merge", pr=c.pr)
         return "merge", f"the release PR {c.pr} is the user's to merge"
-    if c.merged_pr:
+    if c.pr:  # the grant alone answers for the PR's merge: an approval stays
+        why = granted_why
+    elif c.merged_pr:
         why = f"the release PR {c.merged_pr} was merged"
     elif c.procedure:
         why = f"the user's word to run the release procedure: {c.procedure}"
@@ -76,10 +83,7 @@ def release_go(b: Batch, c: CrEntry, action: str) -> tuple[str, str]:
         why = f"the user approved: {c.approvals[0]}"
         c.approvals = c.approvals[1:]
     elif granted:
-        why = (
-            f"the user allowed {grant.autonomous} releases without asking; "
-            f"{grant.published} published"
-        )
+        why = granted_why
     else:
         b.log("release-go", c.id, action=action, result="ask")
         return "ask", ""

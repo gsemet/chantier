@@ -1134,7 +1134,8 @@ inside the procedure and the grant, and ask for anything beyond them.
   Exit 2 or 5: hand back as it prints, with the drafts' paths. `release go` answers `merge`
   until the release PR is merged, whatever the approvals say. Under a grant ("auto"), it answers
   `go` for the steering session's merge of the release PR and for the steps the procedure asks a
-  go for; the announcement thread stays a draft, never posted.
+  go for; the announcement thread stays a draft, never posted. The merge go under a grant spends
+  no approval for it.
 - The base is the one `take` printed (the top CR's branch in an ordered batch, the default
   branch otherwise). A new attempt (no attempt yet, a `fix merged:` note, or `redo: <cr> <why>`)
   starts on that base: the worktree as above, or `git -C <worktree> fetch` and `git -C <worktree> reset --hard <base>`, then
@@ -1190,14 +1191,25 @@ inside the procedure and the grant, and ask for anything beyond them.
   user's word only).
 - A release PR merged (you see it on the forge, `gh pr view <pr>` or the forge's equivalent the
   host card names, and `release go` answers `go` because of the merge) needs no further go from
-  chantier: go on through the procedure to its end. Where the procedure itself asks for a go,
-  `handback blocked approval: <step>`. The publication step (for this project, `CONTRIBUTING.md`
-  "Release" step 5, `gh release create … --verify-tag --notes-file …`) is yours once `release go`
-  answers `go`, when the host lets it through (its rule is offered only under a release grant;
-  without it the host asks or its classifier judges). When the host refuses it, report the
-  refusal with its exact text (rule 7) as `handback blocked approval: publish: <the exact
-  command>` and try nothing else: the steering session gives the user the command ("the
-  publication is yours") and never runs it without their word.
+  chantier.
+  - A step after the merge waits for the user's word when the procedure, the release CR's
+    specification or the take note holds it for the user's approval.
+  - Each such step that an approval names runs without a hand-back. The approvals are in
+    `handoff`'s `approvals unused:` line, the `approved:` notes and the take note; under a grant
+    they are there too (the merge under the grant spends none).
+  - A `wait: <step>: ...` note later than the approval of the same step is stronger: that step is
+    held as if never approved (`approvals unused:` still lists it: the CLI keeps no withdrawal).
+  - Run the procedure's steps in its order, approved ones included. At the first held step that no
+    approval names, `handback blocked approval: <that step>[; <each later held step with no
+    approval>]`; name the steps already run in a `note`. A later held step that is already
+    approved is not asked again.
+  - The publication step (for this project, `CONTRIBUTING.md`
+    "Release" step 5, `gh release create … --verify-tag --notes-file …`) is yours once `release go`
+    answers `go`, when the host lets it through (its rule is offered only under a release grant;
+    without it the host asks or its classifier judges). When the host refuses it, report the
+    refusal with its exact text (rule 7) as `handback blocked approval: publish: <the exact
+    command>` and try nothing else: the steering session gives the user the command ("the
+    publication is yours") and never runs it without their word.
 - A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
   line, then steps, expected, actual), then
   `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked

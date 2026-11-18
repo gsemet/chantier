@@ -340,7 +340,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   user's word (`order confirm`); a change of content under a prepared release; a fix CR that stops every `go` until it merges and a new attempt, and
   a grant (the Foreman merging the fix and the release PR with the forge's CLI after `release
   go`, recorded with `order merged --epoch`; a merge the forge refuses; the budget; the number of
-  releases) (unit: release);
+  releases); an approval recorded while the release PR waits for its merge takes no Driver, is
+  not spent by a merge under the grant, and the Driver started at the merge sees it (`approvals
+  unused:`); a `wait:` note recorded right after the merge leaves the take at the merge reading
+  `merged:` (unit: release);
 - the event log, and the forge's call log: only the agents called it (unit: parallel);
 - a paused batch: `pause` printing the cost to date (the whole summary, not cut), recorded with a
   to-date line and one total in `STATUS.md`, a second `pause` refused, `order add` leaving it

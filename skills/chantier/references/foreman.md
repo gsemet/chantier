@@ -297,7 +297,19 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - A Release driver takes the release CR once the others are handed back ready (ordered batch; in a stack,
   once the stack driver has stacked them: `take stack` first, then `take <release>`) or merged
   (parallel batch); there is no confirmation to ask. On the merge of the release PR (`order
-  merged`), start the Release driver again at once. A release handed back `blocked waits: …,
+  merged`), start the Release driver again at once. The take note names the steps the user approved
+  before the merge, from the `approvals unused:` line of `$CHANTIER handoff <release-cr>` (read it
+  after every line of the relay): `take <release-cr> --note "merged: <pr>; approved before the
+  merge: <step>; <step>; the other irreversible steps wait for the user's word"`; with no approval,
+  the note says the steps wait for the user's word. A step with a `wait: <step>: ...` note later
+  than its approval (the CR's notes, in `handoff`; the Chief of Staff records them right after
+  `order merged`, in the same relay) is named as held, not approved: `... approved before the
+  merge: <step>; held (wait): <step>; ...`. Under the grant, your own `release go <cr> --note
+  "merge <pr>"` spends no approval, so the list is the same whoever merged. An `order approve` on
+  a release CR handed back `ready` whose release PR waits for its merge is not work for a Driver:
+  mark it `order done` at once and do not take the CR (the PR stays as it is, ready); the approval
+  waits in the record for the Driver started at `order merged`. An `order approve` on a release CR
+  that is `blocked approval:` keeps the take with the note. A release handed back `blocked waits: …,
   then the user's word…`: once the others are merged, ask the Chief of Staff (`[foreman→chief-of-staff]
   release <cr>: the batch is merged; run the release procedure?`) and take it back on `order
   confirm`. When a CR under a prepared release changes, read `log <cr>`: a move with no change

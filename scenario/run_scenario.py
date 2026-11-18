@@ -619,6 +619,9 @@ class Foreman:
             self.w.chantier("cancel", c["id"], "--epoch", self.epoch)
         elif o["kind"] == "note" and c and c["status"] in LIVE:
             self.messages.append(f"{c['id']} {o['note']}")
+        elif o["kind"] == "approve" and c and c.get("kind") == "release" \
+                and c["status"] == "ready":
+            pass  # the word waits in the record for the Driver the merge starts: no take
         elif o["kind"] in ("note", "rounds", "approve", "grant") and c \
                 and c["status"] in {"ready", "blocked"} \
                 and not (c.get("blocked_reason") or "").startswith(("fix:", "merge:")):
@@ -641,7 +644,7 @@ class Foreman:
             reason = c.get("blocked_reason") or ""
             if c["status"] == "queued":
                 last = next((n for n in reversed(c.get("notes") or [])
-                             if not n.startswith("main checkout:")), "")
+                             if not n.startswith(("main checkout:", "wait:"))), "")
                 out.append((c, last if last.startswith(BACK_NOTES) else None, None))
             elif c["status"] == "blocked" and reason.startswith("fix:"):
                 fixes = [x for x in d["crs"] if x.get("fix_for") == c["id"]]
@@ -652,6 +655,9 @@ class Foreman:
                           and o["kind"] in ("note", "rounds", "approve", "grant")), None)
                 if o is None and reason.startswith("budget"):
                     o = next((o for o in pending if o["kind"] == "budget"), None)
+                if o and o["kind"] == "approve" and c.get("kind") == "release" \
+                        and c["status"] == "ready":
+                    o = None  # done at once by do_order, never a take
                 if o and not reason.startswith(("fix:", "merge:")):
                     out.append((c, f"{o['kind']}: {o['note']}", o))
         return out
@@ -6707,8 +6713,14 @@ def release(w: World) -> None:
           code == 2 and out[0].startswith("no: the release PR") and "user's to merge" in out[0],
           str(out))
     for o in w.batch()["orders"]:
-        if not o["done"]:
+        if not o["done"] and o["kind"] != "approve":
             w.chantier("order", "done", o["id"], "--epoch", 1)
+    drivers = len(fm.started)
+    fm.turn()
+    check("an approval recorded while the release PR waits takes no Driver: the Foreman marks it "
+          "done and the release stays `ready`",
+          len(fm.started) == drivers and w.cr(rel)["status"] == "ready"
+          and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
     w.chantier("order", "grant", rel, "--note", "releases=1 fixes=on budget=20")
     w.chantier("order", "done", w.batch()["orders"][-1]["id"], "--epoch", 1)
     w.gh(merge_refused=True)
@@ -6728,6 +6740,14 @@ def release(w: World) -> None:
     check("the merged PR is not the next attempt's: `pr`, `pr_base` and `pr_draft` are cleared",
           all(w.cr(rel).get(k) is None for k in ("pr", "pr_base", "pr_draft")))
     merged_pr = w.cr(rel)["merged_pr"]
+    events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text().splitlines()]
+    merge_go = [e for e in events if e["kind"] == "release-go" and e["cr"] == rel
+                and e.get("result") == "go" and e["action"].startswith("merge")]
+    check("the Foreman's merge go under the grant spends no approval: the one recorded before "
+          "the grant is still there, and the go's why is the grant's",
+          len(w.cr(rel)["approvals"]) == 1
+          and merge_go and "without asking" in merge_go[-1]["why"]
+          and "the user approved" not in merge_go[-1]["why"], str(merge_go))
     for step in ("push tag v1.1.0", "publish v1.1.0"):
         code, out = w.chantier("release", "go", rel, "--note", step)
         check(f"the merge is the go for `{step}`, with no approval",
@@ -7085,17 +7105,53 @@ def release_on_stack(w: World) -> None:
 
     w.chantier("order", "merged", a)
     w.chantier("order", "merged", b)
-    w.chantier("order", "approve", r, "--note", tag)
     w.chantier("release", "go", r, "--note", tag, expect=2)  # the refusal is checked in `release`
     w.chantier("order", "grant", r, "--note", "releases=1 budget=5")
     code, out = w.chantier("release", "go", r, "--note", tag)
-    check("9. under a grant (`releases=1 budget=5`) it answers `go`",
-          code == 0 and out[0].startswith("go:"), str(out))
+    check("9. under a grant (`releases=1 budget=5`) it answers `go` on the grant's word, and "
+          "spends no approval",
+          code == 0 and out[0].startswith("go:") and "without asking" in out[0]
+          and w.cr(r)["approvals"] == [tag], str(out))
     w.chantier("order", "grant", r, "--note", "releases=0 fixes=off budget=5")
     settle(w)
 
-    w.chantier("order", "merged", r)
+    # the post-merge word, asked with the merge go: no grant live, the release PR waits
+    publish = "publish v1.8.0"
+    code, _ = w.chantier("order", "approve", r, "--note", publish, expect=None)
+    check("14. a second `order approve` is accepted while the release PR waits for its merge",
+          code == 0 and w.cr(r)["approvals"] == [tag, publish], str(w.cr(r)["approvals"]))
+    drivers = len(fm.started)
     fm.turn()
+    check("14. the Foreman starts no Driver for it: the release stays `ready`, its PR recorded, "
+          "the orders done",
+          len(fm.started) == drivers and w.cr(r)["status"] == "ready" and w.cr(r)["pr"] == pr
+          and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
+    code, out = w.chantier("release", "go", r, "--note", f"merge the release PR {pr}", expect=2)
+    check("14. with no grant, `release go` still answers `merge`",
+          code == 2 and out[0].startswith("no: the release PR"), str(out))
+    redo = fm.take(r, "redo: a check")
+    w.chantier("release", "start", r)
+    _, handoff = w.chantier("handoff", r)
+    check("14. a redo before the merge keeps both approvals, which `handoff` still lists",
+          redo == 0 and w.cr(r)["approvals"] == [tag, publish]
+          and any(f"approvals unused: {tag}; {publish}" in ln for ln in handoff), str(handoff))
+    w.sh("git", "fetch", "--quiet", "origin", cwd=wt)
+    w.chantier("gate", r, GATE)
+    w.sh("git", "push", "--quiet", "--force-with-lease", "-u", "origin", w.cr(r)["branch"], cwd=wt)
+    w.chantier("ship", r, pr)
+    w.chantier("handback", r, "ready", f"{pr} draft on {top}: waits for the merge")
+    settle(w)
+
+    w.chantier("order", "merged", r)
+    w.chantier("order", "note", r, "--note", f"wait: {publish}: user, 2026-11-18: 'wait'")
+    fm.turn()
+    check("14. the Driver started at the merge gets facts that carry both approvals, and "
+          "a `wait:` note recorded right after the merge leaves the take reading `merged:`",
+          fm.started[-1].startswith(f"{r} merged:")
+          and f"approvals unused: {tag}; {publish}" in " ".join(fm.facts)
+          and [n.split(":")[0] for n in w.cr(r)["notes"] if n.startswith(("approved:", "wait:"))][-2:]
+          == ["approved", "wait"]
+          and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
     steps = [w.chantier("release", "go", r, "--note", s)[1][0] for s in ("push the tag", "publish")]
     check("10. `order merged` puts the release back to `queued`, taken by a new Driver; "
           "`release go` answers `go` naming the merged PR for two steps, with no grant",

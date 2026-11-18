@@ -1040,7 +1040,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   image>"`: the Foreman turns it into `take <cr> --epoch <n> --note "evidence: <path>"`, and a Driver
   attaches the image in Deliverables, removes the gap, runs the description pass and hands back
   ready again. In every mode, a `ready-to-merge` ask is offered to the
-  user as mergeable now, on its own, with its gaps as above (except that, under that rule, once the last open non-release CRs are all ready together and the last of them in `status`'s order is the batch's top, offer the others as mergeable only together with that top or before it, and say so); a `pr-in-draft … on <base>: waits for
+  user as mergeable now, on its own, with its gaps as above (for the release PR, the same message asks the post-merge word, Releases) (except that, under that rule, once the last open non-release CRs are all ready together and the last of them in `status`'s order is the batch's top, offer the others as mergeable only together with that top or before it, and say so); a `pr-in-draft … on <base>: waits for
   <cr>` ask is not: say it is a PR in draft, do not merge, and what it waits for. Say "you can merge" (or any equivalent) about a PR only
   after its `ready-to-merge` line (or the `stack-ready-to-merge` line for a stack) has reached you, never on a
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
@@ -1102,7 +1102,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   action from that PR, or one PR at a time from the bottom, per the paragraph above), the drafts on
   top and the CRs still to come named (number and slug), and that the top goes on while they
   merge: it grows silently, and its state is in each report. The `stack-ready-to-merge` with no `to come:`
-  says the stack is complete: it can be merged in one action from its top PR (the link), or one PR
+  says the stack is complete (when its top is the release PR, the same message asks the post-merge word, Releases): it can be merged in one action from its top PR (the link), or one PR
   at a time from the bottom, as they like, with the release commit last, quoting each CR's gaps of
   the ask in the user's language (none: say nothing about gaps). Both name the commit, in the
   user's language ("partial stack mergeable below <sha7>", "stack partielle mergeable en dessous
@@ -1740,7 +1740,47 @@ the release joins the batch, and refresh them at each Progress report until the 
 prepared the release PR. In the filing grill, ask whether a docs diagram should be shown in the
 notes; only the user's yes puts one in, named in the release CR's specification. The user merges
 the release PR (with the whole stack in an ordered batch, from the bottom up); record each merge
-with `order merged`; that merge starts the release procedure. With no release PR in the
+with `order merged`; that merge starts the release procedure.
+
+The post-merge word is asked with the merge go:
+
+- When: the release PR is offered to the user to merge, at the `ready-to-merge <release-cr>` ask
+  (a parallel or series batch), or at the complete `stack-ready-to-merge` whose top is the release
+  PR (a stack batch).
+- What the ready line adds: in that same message, ask the user's word for each irreversible step
+  the project's release procedure runs after the merge, each named on its own (for chantier:
+  CONTRIBUTING.md "Release" step 4, `just tag`, and step 5, `gh release create vX.Y.Z
+  --verify-tag ...`). The user may answer yes to all, yes to some, or nothing.
+- What it leaves out: never the merge itself, which stays the user's, and never the announcement,
+  which stays the user's and is never an agent's step.
+- Recording a yes: before `order merged`, one `$CHANTIER order approve <release-cr> --note
+  "<step>: user, <YYYY-MM-DD>: '<the user's words>'"` per step. When the user answers and merges
+  in one message, the approvals come first, then `order merged`. In Foreman mode, send all the
+  lines to the Foreman in one message.
+- No word at the ready ask: nothing is recorded and today's path stays. The Release driver started
+  at the merge hands back `blocked approval: <step>`, the approval ask follows, and the answer is
+  `order approve`.
+- A release redone before its merge (a `redo: <cr> <why>`, or a new attempt after a fix): the yes
+  already recorded still holds (it covers the steps after the merge; the user's merge stays their
+  review of the content), and nothing is recorded again. The next ready line for the version PR
+  names the steps already approved (for example "already approved: `just tag`, `gh release
+  create`"), read from the `approvals unused:` line of `$CHANTIER handoff <release-cr>`, and asks
+  only for the steps with no yes yet, so the user can still say "wait".
+- A "wait" on an approved step, said before the merge: write it at once in the release CR's
+  `02-answers.md`, one line with the date, the user's words and the step. It is not an order and not
+  a take (an `order note` on a ready CR is a take, and the Driver would restart before the merge).
+  Then close the summary gap that the file's change opens ("A CR's summary"). When you record
+  `order merged <release-cr>`, read that file; right after the merge, in the same relay (and the
+  same message to the Foreman), record one note per step: `$CHANTIER order note <release-cr> --note
+  "wait: <step>: user, <YYYY-MM-DD>: '<the user's words>'"`.
+- A "wait" said after the merge is recorded the same way, as an `order note ... "wait: ..."`, at
+  once.
+- "auto": the "auto" tip and the approval question's "auto" answer stay as they are. Under a live
+  grant, the steering session merges and there is no ready line to the user. Approvals already
+  recorded before an "auto" stay whole: the grant's merge go spends none, so the Driver started at
+  the merge still sees them. The post-merge steps go under the grant anyway.
+
+With no release PR in the
 procedure: once the other CRs are merged, ask the user whether to run the release procedure; the
 yes is `$CHANTIER order confirm <release-cr> --note "<the user's word>"`. `order add` stays
 refused once the release has started (a fix, `--fix-for`, accepted for urgent fixes, or the next
@@ -1754,7 +1794,8 @@ CR's end), offer "auto" as the "during a release" tip: one line with the exact w
 "auto" to let this release merge its release PR and run the irreversible steps of the procedure
 without asking; the announcement stays a draft for you." On an approval ask (`ask ... blocked <release-cr> approval:
 <action>`), the question to the user lists "auto" among its answers, beside approving that one
-action (`order approve`): part of the question, not a tip, so it holds when tips are off. On
+action (`order approve`, before or after the merge; `order confirm` stays only for a procedure
+with no release PR): part of the question, not a tip, so it holds when tips are off. On
 "auto" (the user's own word, in any language):
 1. `$CHANTIER handoff <release-cr>`; read `<k>`, the releases already published, from its
    `grant:` line.
