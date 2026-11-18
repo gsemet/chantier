@@ -143,7 +143,7 @@ in its own session. You will see that session in the sidebar; you never need to 
 direct mode, which the plan names, with the reason, when the session is under Remote Control, when
 a Foreman session cannot start, or when you forced it, no Foreman starts: the Chief of Staff steers the batch itself and, while it does, answers only
 "status?", "what did it cost?", your answers to a blocked CR and orders on the batch. Direct mode
-is less dynamic (no CR joins a running batch, and that session holds no grill) but has the same
+is less dynamic (that session holds no grill and orders no QA while the batch runs; a CR grilled elsewhere still joins it) but has the same
 lifecycle: running, paused, closed on your word.
 
 ## 6. Follow and steer

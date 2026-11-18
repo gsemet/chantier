@@ -386,7 +386,9 @@ and chantier does not do them unasked. Each with why:
   `report-format.md`, `summary.md`, `analysis.md`; accepted `04-result.md`, `04-report.md`,
   `04-summary.md`, `04-findings.md`, `04-analysis.md`, `status-layout.md`, `progress-report.md`
   and the other chantier names (`delivery.md`, `STATUS.md`, `retro.md`, `work/` files, ...).
-  Name a subagent's file with a number first, such as `04-result.md`.
+  Name a subagent's file with a number first, such as `04-result.md` (the rule: concepts,
+  "Starting an agent"); this is the host's own rule on the name, before the auto-mode classifier
+  and any permission check.
 
 ### Auto mode
 
