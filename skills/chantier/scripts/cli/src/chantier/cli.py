@@ -28,6 +28,7 @@ from chantier.declare import (
     rules,
     seat,
     summary,
+    validate,
     watch,
 )
 
@@ -51,6 +52,7 @@ FULL_OUTPUT = {
     "playbook",
     "preflight",
     "watch",
+    "validate",
 }
 
 
@@ -88,6 +90,7 @@ def _parser() -> argparse.ArgumentParser:
         closing,
         cost,
         summary,
+        validate,
         watch,
     ):
         module.register(sub)

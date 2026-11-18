@@ -20,7 +20,7 @@ from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import changes_lock, cr_folders, cr_stage, stage_layout
 from chantier.summaries import store
 from chantier.summaries.edit import change_group, change_labels, label_set, one_line
-from chantier.summaries.gaps import Gap, gap_of
+from chantier.summaries.gaps import gap_line, gap_of
 from chantier.summaries.origin import issue_url, origin_of
 from chantier.summaries.sources import checksums, covered_files
 
@@ -36,25 +36,6 @@ def _cr_folder(repo: Repo, paths: dict[str, Path], item: str) -> Path:
     return folder
 
 
-def _gap_line(repo: Repo, gap: Gap) -> str:
-    path = repo.rel(gap.folder)  # the form `summary set` reads: relative to the planning folder
-    if gap.kind == "no summary":
-        return (
-            f"{path}: no summary → summary set {path} "
-            '--title "<title>" --summary "<the CR\'s state now>"'
-        )
-    if gap.kind == "unreadable":
-        return (
-            f"{path}: summary.json unreadable ({gap.error}) → repair or remove it, "
-            f"then summary set {path} …"
-        )
-    files = ", ".join(f"{c.path} {c.how}" for c in gap.changes)
-    return (
-        f'{path}: summary late ({files}) → read them, then summary set {path} --summary "<…>" '
-        "or --unchanged"
-    )
-
-
 def lint(args: argparse.Namespace) -> tuple[list[str], int] | list[str]:
     """The gaps, one line each with the command that closes it; nothing is written."""
     repo = Repo.find()
@@ -64,7 +45,7 @@ def lint(args: argparse.Namespace) -> tuple[list[str], int] | list[str]:
     gaps = [gap for f in crs if (gap := gap_of(f))]
     if not gaps:
         return [f"no gap ({len(crs)} CRs)"]
-    return [f"{len(gaps)} gap(s) in {len(crs)} CRs", *(_gap_line(repo, g) for g in gaps)], 2
+    return [f"{len(gaps)} gap(s) in {len(crs)} CRs", *(gap_line(repo, g) for g in gaps)], 2
 
 
 def _require_fields(current: CrSummary, title: str | None, text: str | None, same: bool) -> None:
