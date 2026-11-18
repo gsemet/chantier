@@ -6,8 +6,9 @@ The CR board in Claude Code, a read-only pane over the planning folder, and the 
 
 ### What it is
 
-A Claude Code mod (early access): a read-only pane over the planning folder's `STATUS.json` (one
-section per project in a surface). It shows the live batches, the backlog (and `3-ready`), and the
+A Claude Code mod (early access): a read-only pane over the planning folder's `STATUS.json` (in a surface,
+the projects whose seat or current batch, as its Foreman or Chief of Staff, names this session, else
+every project under a line saying no seat names it). It shows the live batches, the backlog (and `3-ready`), and the
 merged and trashed CRs. Nothing of it on Copilot, and the pane is not shown in a Remote Control view
 ([anthropics/claude-code#99217](https://github.com/anthropics/claude-code/issues/99217)). It writes
 nothing and runs no process but `git rev-parse`, to find the main checkout from a worktree.
@@ -24,7 +25,7 @@ line (its id, its cost against its budget, a gauge), its unread asks and its slo
 free`). Then "Waiting for you" and "In progress", with the columns CR, Subject, State, Step, PR and Cost. The Step is what a working CR's Driver is doing (`coder r2`, `gate scenario`, `CI`), or "waits for the user" on a blocked one; the web board also marks the next CR to start.
 The state says the state, the step and the round: `working Round 1/3`, `working CI 2/3`,
 `🟢 ready to merge Notify 1/3`, `🟤 PR in draft, waits for …`, `🟣 ready locally Notify 1/3`, `queued`. Then Backlog, Merged (n of m) and Trashed (n of m). Press a CR for its
-sheet and its documents. The pane checks every 15 seconds while open and reads a file again only when it changed. A **Refresh** button at the top of the pane (in every view) checks at once: it reads the files again, even unchanged ones, and looks for the planning folders again (a project added to a surface, a `.agents/changes/` created after opening), keeping the page shown and the folds. It does not refresh the batch's cost or record: that moves when the steering session refreshes the status.
+sheet and its documents. The pane checks every 15 seconds while open and reads a file again only when it changed. A **Refresh** button at the top of the pane (in every view) checks at once: it reads the files again, even unchanged ones, and looks for the planning folders again (a project added to a surface, a `.agents/changes/` created after opening), and for the projects that name this session again (a seat taken after opening; the 15 s check looks too), keeping the page shown and the folds. It does not refresh the batch's cost or record: that moves when the steering session refreshes the status.
 
 ### A batch in pictures
 

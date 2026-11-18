@@ -1,5 +1,6 @@
 // The CR board: a read-only pane over the planning folder's `STATUS.json`: the project's
-// `.agents/changes/`, or, in a planning surface, one section per `projects/<name>/changes/`.
+// `.agents/changes/`, or, in a planning surface, the `projects/<name>/changes/` whose seat or current
+// batch names this session, else one section per project.
 // It writes nothing and runs no process but `git rev-parse`. See README.md.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface as Engine, Register } from 'claude-code'
@@ -45,7 +46,7 @@ const newView = (b: Base): View => ({ dir: b.dir, name: b.name, index: null, mti
 
 // Change a tag when the shape of its value changes: it declines what an earlier
 // version stored, which outlives a reload.
-const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, bases: [], error: null }, { shape: 'site-2' })
+const site = atom({ plugin: 'chantier', key: 'site' } as const, { root: null, bases: [], error: null, unseated: null, sid: null }, { shape: 'site-4' })
 const feed = atom({ plugin: 'chantier', key: 'feed' } as const, { views: [], note: null }, { shape: 'feed-2' })
 const pages = atom({ plugin: 'chantier', key: 'pages' } as const, [], { shape: 'pages-1' })
 const turned = atom({ plugin: 'chantier', key: 'turned' } as const, [], { shape: 'turned-1' })
@@ -170,17 +171,97 @@ async function findBases($: Engine, root: string): Promise<Base[]> {
   return found.length > 0 ? found : [own]
 }
 
-async function findRoot($: Engine): Promise<{ root: string | null; bases: Base[]; error: string | null }> {
+// This session's id, read at opening and at Refresh and kept in the site atom (a plugin reload keeps it);
+// a refusal is kept, to be said.
+type Sid = { id: string | null; error: string | null }
+
+async function readSessionId($: Engine): Promise<Sid> {
+  try {
+    return { id: String(await $.session.id()), error: null }
+  } catch (err) {
+    return { id: null, error: message(err) }
+  }
+}
+
+// What a project's seat and batch record name, by file: read again only when the modification time changed.
+const SEAT = 'seat.json'
+const BATCH_RECORD = '4-batch/batch.json'
+const SEAT_IDS = ['session', 'transcript']
+const BATCH_IDS = ['foreman', 'foreman_transcript', 'chief_transcript']
+const BATCH_LISTS = ['foreman_transcripts', 'chief_transcripts']
+const named = new Map<string, { mtime: number; ids: string[] }>()
+
+function idsIn(data: unknown, fields: string[], lists: string[]): string[] {
+  if (data === null || typeof data !== 'object') return []
+  const d = data as Record<string, unknown>
+  const out: string[] = []
+  for (const k of fields) if (typeof d[k] === 'string') out.push(d[k] as string)
+  for (const k of lists) {
+    const v = d[k]
+    if (Array.isArray(v) && v.every(x => typeof x === 'string')) out.push(...(v as string[]))
+  }
+  return out
+}
+
+async function idsOf($: Engine, path: string, fields: string[], lists: string[], force: boolean): Promise<string[]> {
+  let mtime: number
+  try {
+    mtime = (await $.fs.stat(path)).mtimeMs
+  } catch {
+    named.delete(path)
+    return []
+  }
+  const known = named.get(path)
+  if (!force && known && known.mtime === mtime) return known.ids
+  let ids: string[] = []
+  try {
+    ids = idsIn(await readJson($, path), fields, lists)
+  } catch {
+    // a file that does not parse names nobody
+  }
+  named.set(path, { mtime, ids })
+  return ids
+}
+
+/** On a surface, the projects whose seat or current batch names this session (all of them, with the line to say it, when none does). */
+async function choose($: Engine, bases: Base[], sid: Sid | null, force: boolean): Promise<{ kept: Base[]; unseated: string | null }> {
+  if (bases.every(b => b.name === null)) return { kept: bases, unseated: null }
+  if (force) named.clear()
+  const mine: Base[] = []
+  const id = sid?.id ?? null
+  if (id !== null) {
+    for (const b of bases) {
+      const ids = [
+        ...(await idsOf($, b.dir + '/' + SEAT, SEAT_IDS, [], force)),
+        ...(await idsOf($, b.dir + '/' + BATCH_RECORD, BATCH_IDS, BATCH_LISTS, force)),
+      ]
+      if (ids.includes(id)) mine.push(b)
+    }
+  }
+  if (mine.length > 0) return { kept: mine, unseated: null }
+  const err = sid?.error ?? null
+  return {
+    kept: bases,
+    unseated: err === null ? 'No seat names this session: showing every project.' : `This session's id cannot be read (${err}): showing every project.`,
+  }
+}
+
+type Site = { root: string | null; bases: Base[]; error: string | null; unseated: string | null; sid: Sid | null }
+
+async function findRoot($: Engine): Promise<{ site: Site; kept: Base[] }> {
   const cwd = slash(await $.session.cwd())
   let out: { exitCode: number; stdout: string }
   try {
     out = await $.process.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd })
   } catch (err) {
-    return { root: null, bases: [], error: `Cannot look for the main checkout: ${message(err)}` }
+    return { site: { root: null, bases: [], error: `Cannot look for the main checkout: ${message(err)}`, unseated: null, sid: null }, kept: [] }
   }
   // Not a repository: the session's folder.
   const root = out.exitCode !== 0 ? clean(cwd) : parentOf(out.stdout.trim())
-  return { root, bases: await findBases($, root), error: null }
+  const bases = await findBases($, root)
+  const sid = bases.some(b => b.name !== null) ? await readSessionId($) : null
+  const { kept, unseated } = await choose($, bases, sid, true)
+  return { site: { root, bases, error: null, unseated, sid }, kept }
 }
 
 const isMissing = (err: unknown) => /ENOENT|ENOTDIR|no such file|not found|does not exist/i.test(message(err))
@@ -282,6 +363,21 @@ async function checkPage($: Engine, force: boolean): Promise<void> {
   await update($, pages, list => list.map((p, i) => (i === list.length - 1 && p.path === top.path ? fresh : p)))
 }
 
+/** The views of `kept`: one still kept keeps its state, a new one starts, a dropped one goes. */
+const viewsOf = (kept: Base[], old: View[]): View[] => kept.map((b: Base) => old.find((v: View) => v.dir === b.dir) ?? newView(b))
+
+/** At each periodic check: chooses again among all the projects (the session's id is not read again). Returns the kept projects, or null when the site holds one planning folder. */
+async function rechoose($: Engine, where: Site): Promise<Base[] | null> {
+  if (!where.bases.some(b => b.name !== null)) return null
+  // An id the atom does not hold (never read, or lost) is read again; a known one is not.
+  const sid = where.sid ?? (await readSessionId($))
+  const { kept, unseated } = await choose($, where.bases, sid, false)
+  if (unseated !== where.unseated || sid !== where.sid) await update($, site, s => ({ ...s, unseated, sid }))
+  const before = (await read($, feed)).views.map((v: View) => v.dir).join('\n')
+  if (before !== kept.map(b => b.dir).join('\n')) await update($, feed, f => ({ ...f, views: viewsOf(kept, f.views) }))
+  return kept
+}
+
 let timer: { cancel: () => void } | null = null
 
 async function check($: Engine, opts: { force?: boolean } = {}): Promise<void> {
@@ -289,7 +385,8 @@ async function check($: Engine, opts: { force?: boolean } = {}): Promise<void> {
   try {
     const where = await read($, site)
     if (where.root === null) return
-    for (const b of where.bases) await checkIndex($, b.dir, force)
+    const kept = force ? null : await rechoose($, where)
+    for (const b of kept ?? (await read($, feed)).views) await checkIndex($, b.dir, force)
     await checkPage($, force)
   } catch (err) {
     await update($, feed, f => ({ ...f, note: `Could not check the files: ${message(err)}` }))
@@ -299,9 +396,9 @@ async function check($: Engine, opts: { force?: boolean } = {}): Promise<void> {
 }
 
 async function begin($: Engine): Promise<void> {
-  const where = await findRoot($)
+  const { site: where, kept } = await findRoot($)
   await update($, site, () => where)
-  await update($, feed, f => ({ ...f, views: where.bases.map(newView) }))
+  await update($, feed, f => ({ ...f, views: kept.map(newView) }))
   await update($, pages, () => [])
   if (timer === null) timer = $.clock.every(EVERY_MS, () => void check($))
   await check($)
@@ -309,12 +406,9 @@ async function begin($: Engine): Promise<void> {
 
 /** A press of Refresh: looks for the planning folders again (a view still found keeps its state, a new folder gets one, a lost one drops), then checks at once, reading every file again. The pages, the folds and the timer stay. */
 async function refresh($: Engine): Promise<void> {
-  const where = await findRoot($)
+  const { site: where, kept } = await findRoot($)
   await update($, site, () => where)
-  await update($, feed, f => ({
-    ...f,
-    views: where.bases.map((b: Base) => f.views.find((v: View) => v.dir === b.dir) ?? newView(b)),
-  }))
+  await update($, feed, f => ({ ...f, views: viewsOf(kept, f.views) }))
   await check($, { force: true })
 }
 
@@ -790,20 +884,23 @@ export const register: Register = on => {
       </Box>
     )
     /** A view of one line of text, the button above it. */
-    const Alone = (text: unknown) => (
+    const Alone = (text: unknown, withLine = false) => (
       <Box flexDirection="column">
         {Bar()}
+        {withLine && unseated}
         {text}
       </Box>
     )
 
+    // The no-seat line: the board view only, never over a CR page.
+    const unseated = where.unseated === null ? null : <Text key="unseated" dimColor>{where.unseated}</Text>
     if (where.error !== null) return Alone(<Text>{where.error}</Text>)
     if (where.root === null) return Alone(<Text dimColor>Looking for the chantier files...</Text>)
     const views: View[] = f.views
     if (views.length === 1) {
       const only = views[0] as View
-      if (only.fatal !== null) return Alone(<Text>{only.fatal}</Text>)
-      if (only.missing !== null) return Alone(<Text>{`No chantier status here: ${only.missing} not found.`}</Text>)
+      if (only.fatal !== null) return Alone(<Text>{only.fatal}</Text>, true)
+      if (only.missing !== null) return Alone(<Text>{`No chantier status here: ${only.missing} not found.`}</Text>, true)
     }
 
     const root = where.root
@@ -1054,6 +1151,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" rowGap={1}>
         {Bar()}
+        {unseated}
         {views.length === 1 ? Board(views[0] as View) : (
           <Box flexDirection="column" rowGap={2}>
             {views.map(Board)}
