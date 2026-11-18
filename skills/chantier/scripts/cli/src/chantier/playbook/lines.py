@@ -235,6 +235,27 @@ def timing_lines(timing: dict[str, Any] | None, host: str) -> list[str]:
     ]
 
 
+def _limit_text(name: str, entry: dict[str, Any] | None) -> str:
+    if entry is None or entry.get("value") is None:
+        return f"{name}: not set"
+    text = f"{name} {entry['value']}"
+    return text if entry["layer"] == "defaults" else f"{text} [{entry['layer']}]"
+
+
+def limits_line(limits: dict[str, Any], markers: list[str]) -> str:
+    """The `limits:` line: how many CRs are specified at once (and the `work/specifying` markers
+    counted against it, by CR folder), then the slots of a new batch, each followed by the layer
+    that set it (none for a shipped default); `at the limit` when the markers reach the limit."""
+    parallel = limits.get("specifying.parallel")
+    unset = not parallel or parallel["value"] is None
+    first = _limit_text("specifying parallel" if unset else "specifying", parallel)
+    held = f"markers {len(markers)}" + (f" ({', '.join(markers)})" if markers else "")
+    line = f"limits: {first}, {held}; {_limit_text('batch slots', limits.get('batch.slots'))}"
+    if parallel and parallel["value"] is not None and len(markers) >= parallel["value"]:
+        line += "; specifying at the limit"
+    return line
+
+
 def timing_warnings(timing: dict[str, Any] | None, host: str) -> list[str]:
     """One line for each column whose steering wake is longer than its cache TTL."""
     if not timing:

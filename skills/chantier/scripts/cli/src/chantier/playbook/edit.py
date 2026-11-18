@@ -2,7 +2,8 @@
 reads the layers (`layers.py`) and says, for each host and role, the value of `agent`, `model` and
 `escalation` in each layer, the one that applies, its layer, how the role starts and whether the
 repository's file overrides what the page writes; `edit_surface_file` changes those keys in the
-surface's `projects/<name>/chantier.yaml`, keeping its other keys and comments."""
+surface's `projects/<name>/chantier.yaml`, keeping its other keys and comments. It also gives the
+two limits of the Limits tab."""
 
 from __future__ import annotations
 
@@ -15,8 +16,16 @@ from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, C
 from chantier.core.files import retry, write_bytes
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import changes_lock
-from chantier.playbook import config, edit_text, escalation, layers, models, timing, timing_check
-from chantier.playbook.lines import GENERIC_AGENT, minutes
+from chantier.playbook import (
+    config,
+    edit_text,
+    edit_views,
+    escalation,
+    layers,
+    models,
+)
+from chantier.playbook.limits_check import LIMIT_KEYS
+from chantier.playbook.lines import GENERIC_AGENT
 from chantier.playbook.yaml_subset import Node, is_reset
 from chantier.plugin_files import HOSTS, plugin_role_descriptions, plugin_roles, plugin_root
 
@@ -208,54 +217,10 @@ def _flat(node: Node, path: tuple[str, ...]) -> list[dict[str, str]]:
         return []
     if path[:1] == ("hosts",) and path[2:3] == ("timing",):
         return []  # the Timing tab shows it
+    if ".".join(path) in LIMIT_KEYS:
+        return []  # the Limits tab shows it
     value = ", ".join(n.value for n in node.value) if node.kind == "list" else node.value
     return [{"path": ".".join(path), "value": str(value), "layer": node.layer}] if value else []
-
-
-TIMING_COLUMN_WORDS = {
-    "subagent": "Subagent",
-    "session": "Session",
-    "claude": "Claude models",
-    "gpt": "GPT models",
-}
-
-
-def _timing_cell(setting: str, entry: dict[str, Any] | None) -> dict[str, Any]:
-    """A cell of the Timing tab: the value that applies, the layer (and file) behind it and
-    whether it is the shipped default, or `not_used`."""
-    if entry is None:
-        return {"not_used": True}
-    value = entry["value"]
-    return {
-        "value": value,
-        "text": str(value) if setting == "ci_reruns" else minutes(value),
-        "layer": entry["layer"],
-        "src": entry["src"],
-        "default": entry["layer"] == "defaults",
-    }
-
-
-def _timing_view(user: list[layers.Layer], defaults: Node | None) -> dict[str, Any] | None:
-    """The timing of each host for the page: its columns, then for each setting its cell per
-    column and the general value. None when the defaults are not readable."""
-    if defaults is None:
-        return None
-    found = timing.timing_from(user, defaults)
-    out: dict[str, Any] = {}
-    for host, one in found.items():
-        columns = list(one["columns"])
-        out[host] = {
-            "name": models.HOST_NAMES[host],
-            "columns": [{"id": c, "name": TIMING_COLUMN_WORDS[c]} for c in columns],
-            "settings": {
-                s: {
-                    "general": _timing_cell(s, one["general"][s]),
-                    "columns": {c: _timing_cell(s, one["columns"][c][s]) for c in columns},
-                }
-                for s in timing_check.TIMING_SETTINGS
-            },
-        }
-    return out
 
 
 def _batch(repo: Repo) -> str | None:
@@ -282,7 +247,8 @@ def _view(
     assert last is not None
     return {
         "hosts": hosts,
-        "timing": _timing_view(user, defaults),
+        "timing": edit_views.timing_view(user, defaults),
+        "limits": edit_views.limits_view(user, defaults),
         "others": _flat(last.merged.tree, ()),
         "files": [
             {"label": "defaults", "path": layers.DEFAULTS_DISPLAY},
@@ -313,9 +279,22 @@ def config_view(repo: Repo) -> dict[str, Any]:
 # --- writing ------------------------------------------------------------------------------------
 
 
+def _limit_one(one: dict[str, Any]) -> None:
+    value = one.get("value")
+    if isinstance(value, bool) or not (value is None or isinstance(value, (int, float, str))):
+        raise ChantierError(
+            f"'value' of {one['key']} is a whole number, or null to inherit", EXIT_USAGE
+        )
+
+
 def _one(one: object) -> None:
     if not isinstance(one, dict):
-        raise ChantierError("each change is {host, role, key, value}", EXIT_USAGE)
+        raise ChantierError(
+            "each change is {host, role, key, value} or {key, value} for a limit", EXIT_USAGE
+        )
+    if "host" not in one and "role" not in one and one.get("key") in LIMIT_KEYS:
+        _limit_one(one)
+        return
     if one.get("host") not in HOSTS:
         raise ChantierError(f"'host' is one of {', '.join(HOSTS)}", EXIT_USAGE)
     if one.get("key") not in KEYS:
@@ -328,10 +307,12 @@ def _one(one: object) -> None:
 
 
 def _shape(changes: object) -> list[dict[str, Any]]:
-    """The changes' shape: a list of `{host, role, key, value}` (a 400 otherwise); a value named
-    `default` is refused (409)."""
+    """The changes' shape: a list of `{host, role, key, value}` or, for a limit, `{key, value}`
+    (a 400 otherwise); a value named `default` is refused (409)."""
     if not isinstance(changes, list) or not changes:
-        raise ChantierError("'changes' is a list of {host, role, key, value}", EXIT_USAGE)
+        raise ChantierError(
+            "'changes' is a list of {host, role, key, value} or {key, value}", EXIT_USAGE
+        )
     for one in changes:
         _one(one)
     if any(one.get("value") == "default" for one in changes):
@@ -374,7 +355,8 @@ def _refuse_early(repo: Repo, target: Target | None) -> Target:
 def edit_surface_file(
     repo: Repo, changes: object, base_sha256: str | None, dry_run: bool
 ) -> dict[str, Any]:
-    """Set (a text) or remove (None) each role's `agent`, `model` or `escalation` for a host in
+    """Set (a text) or remove (None) each role's `agent`, `model` or `escalation` for a host, or a
+    limit (`specifying.parallel`, `batch.slots`: a whole number), in
     the project's file of the planning surface, and return the view the file then gives. Refuses,
     writing nothing, with a reason: no surface, a file that changed since it was read, both file
     names, a value the checks refuse (the problem lines, the file named, the line numbers the new

@@ -9,6 +9,7 @@ import { paint } from '../core/paint.js';
 import { snapshot } from '../core/store.js';
 import { t } from '../model/words.js';
 import { empty } from '../ui/parts.js';
+import { limitChange, limitsTab, mineOf } from './config-limits.js';
 import { tabAddress, tabOf, tabs, timingTab } from './config-timing.js';
 
 const local = {
@@ -176,6 +177,8 @@ export function render() {
   if (!view) return html`<div class="config">${empty(t('stats.loading'))}</div>`;
   if (local.tab === 'timing')
     return html`<div class="config" data-key="config">${tabs(local.tab)}${banner(view)}${timingTab(view)}</div>`;
+  if (local.tab === 'limits')
+    return html`<div class="config" data-key="config">${tabs(local.tab)}${banner(view)}${actions()}${limitsTab(view)}</div>`;
   const blocks = Object.entries(view.hosts).map(([id, host]) => hostBlock(id, host, view.writable));
   return html`<div class="config" data-key="config">${tabs(local.tab)}${banner(view)}${actions()}${blocks}${others(view)}</div>`;
 }
@@ -209,6 +212,12 @@ const isStale = (res) => !res.ok && res.status === 409 && res.data?.stale === tr
 
 // After a refused edit the field shows the value the page still holds, not the refused one.
 function showKept(root, change) {
+  if (!change.host) {
+    const el = root.querySelector(`[data-limit="${change.key}"]`);
+    const limit = local.view.limits?.[change.key];
+    if (el && limit) el.value = mineOf(limit) ?? '';
+    return;
+  }
   const row = local.view.hosts[change.host]?.roles.find((r) => r.role === change.role);
   const tr = [...root.querySelectorAll('tr[data-role]')].find(
     (r) => r.dataset.host === change.host && r.dataset.role === change.role,
@@ -249,6 +258,12 @@ export function mount(root, state) {
   load(root, state.project);
   const offs = [
     delegate(root, 'change', '[data-field]', (_, el) => change(root, el)),
+    delegate(root, 'change', '[data-limit]', (_, el) =>
+      judge(root, limitChange(el.dataset.limit, el.value)),
+    ),
+    delegate(root, 'click', '[data-inherit]', (_, el) =>
+      judge(root, limitChange(el.dataset.inherit, '')),
+    ),
     delegate(root, 'click', '[data-tab]', (_, el) => {
       local.tab = el.dataset.tab;
       history.replaceState(null, '', tabAddress(local.tab));

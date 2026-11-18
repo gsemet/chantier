@@ -216,7 +216,7 @@ REFUSALS = [
         2,
         'ci: "beside_gate" is true or false, found "maybe"',
     ),
-    ("an unknown top-level key", "colour: red\n", 1, '"ci" and "long_gate"'),
+    ("an unknown top-level key", "colour: red\n", 1, '"long_gate", "specifying" and "batch"'),
     ("a price missing", PRICES + FOUR, 2, "missing output"),
     (
         "a price that is not a number",

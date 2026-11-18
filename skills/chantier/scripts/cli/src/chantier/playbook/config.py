@@ -9,6 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from chantier.playbook.limits_check import batch_key, specifying_key
 from chantier.playbook.models import HOST_NAMES, NAMED_AGENT_MODEL_AT_START, resolve
 from chantier.playbook.timing_check import check_timing
 from chantier.playbook.yaml_subset import Node, YamlError, is_reset, parse
@@ -80,8 +81,8 @@ def check(
         else:
             bad(
                 kline,
-                f'unknown key "{key}": the top-level keys are "hosts", "prices", "board", "ci" '
-                'and "long_gate"',
+                f'unknown key "{key}": the top-level keys are "hosts", "prices", "board", "ci", '
+                '"long_gate", "specifying" and "batch"',
             )
 
 
@@ -320,6 +321,8 @@ _KEYED: dict[str, Callable[[Node, int, Bad], Any]] = {
     "board": _board,
     "ci": _ci,
     "long_gate": _long_gate,
+    "specifying": specifying_key,
+    "batch": batch_key,
 }
 
 RESET_TEXT = (

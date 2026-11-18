@@ -1,8 +1,8 @@
 """The forge journal: `forge-journal.jsonl` at the planning folder's root, one JSON line per forge
 event of a project's batch. It is local (ignored by git) and append-only; chantier never
-truncates it. The forge hub (`by: "hub"`) and the board's PRs page (`by: "board"`) are its
-writers; `chantier status` and `chantier watch` its readers. Nothing here records anything in a
-batch: a line is a signal the Chief of Staff reads.
+truncates it. The forge hub (`by: "hub"`), the board's PRs page and its Configuration page
+(`by: "board"`) are its writers; `chantier status` and `chantier watch` its readers. Nothing here
+records anything in a batch: a line is a signal the Chief of Staff reads.
 
 Every line carries `seq` (1 for the first line, then the highest readable `seq` plus one), `t`,
 `by` and `kind`:
@@ -13,6 +13,12 @@ Every line carries `seq` (1 for the first line, then the highest readable `seq` 
   read finds it landed with its base.
 - `checks-red`: `batch`, `cr`, `pr`, `head` (the PR head's commit SHA). Written once per batch,
   CR and head: a new red head after a fix gives a new line, the same head read again none.
+
+- `config`: `key` (a dotted path into the configuration: `batch.slots` or `specifying.parallel`),
+  `old` and `new` (the effective values before and after the save, all layers included) and
+  `batch` (the batch running or paused at the save, or null). Written by the board's
+  Configuration page, once per limit whose effective value a save changed. It wakes a watcher as
+  a merge does. A line has its own key, with `t`: two saves make two lines.
 
 Every append runs under the project's lifecycle lock, reads the file, assigns `seq` and skips a
 line already there, whoever wrote the first. An unreadable line is skipped, never rewritten."""
@@ -60,6 +66,8 @@ def last_seq(entries: list[dict[str, Any]]) -> int:
 
 def _key(e: dict[str, Any]) -> tuple[Any, ...]:
     """What makes two lines the same event."""
+    if e.get("kind") == "config":
+        return ("config", e.get("key"), e.get("old"), e.get("new"), e.get("t"))
     if e.get("kind") == "checks-red":
         return ("checks-red", e.get("batch"), e.get("cr"), e.get("head"))
     return ("merged", e.get("batch"), e.get("cr"), bool(e.get("landed_with")))
@@ -102,11 +110,12 @@ def append(repo: Repo, events: list[dict[str, Any]], by: str) -> list[dict[str, 
         seq = last_seq(entries)
         written: list[dict[str, Any]] = []
         for event in events:
-            if _key(event) in seen:
+            line = {"seq": seq + 1, "t": clock.now(), "by": by, **event}
+            if _key(line) in seen:
                 continue
-            seen.add(_key(event))
+            seen.add(_key(line))
             seq += 1
-            written.append({"seq": seq, "t": clock.now(), "by": by, **event})
+            written.append(line)
         if written:
             text = "".join(
                 json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in written
@@ -140,13 +149,46 @@ def red_text(e: dict[str, Any]) -> str:
     )
 
 
+def config_text(e: dict[str, Any]) -> str:
+    """The line a `config` event is told by: the limit that changed on the board, and what
+    happens to the batch."""
+    head = f"config changed on the board: {e.get('key')} {e.get('old')} -> {e.get('new')}"
+    if e.get("key") != "batch.slots":
+        return head
+    if e.get("batch"):
+        return f"{head}; {e['batch']} keeps {e.get('old')} until an order slots"
+    return f"{head}; from the next open (no batch)"
+
+
 def event_text(e: dict[str, Any]) -> str:
-    return red_text(e) if e.get("kind") == "checks-red" else merged_text(e)
+    if e.get("kind") == "checks-red":
+        return red_text(e)
+    return config_text(e) if e.get("kind") == "config" else merged_text(e)
 
 
-def lines(entries: list[dict[str, Any]], batch: str, open_crs: set[str]) -> list[str]:
+def _slots_line(entries: list[dict[str, Any]], batch: str, orders: list[Any]) -> list[str]:
+    """The newest `batch.slots` line, when it is this batch's and no order of kind `slots` has a
+    time strictly after its own; else none. Stamps are whole seconds: an order of the same second
+    does not hide the line (a line shown too long costs one `order slots`, a line hidden too soon
+    is a lost signal)."""
+    found = [e for e in entries if e.get("kind") == "config" and e.get("key") == "batch.slots"]
+    if not found:
+        return []
+    newest = max(found, key=lambda e: (e.get("t") or "", e.get("seq") or 0))
+    if newest.get("batch") != batch:
+        return []
+    if any(o.kind == "slots" and (o.sent or "") > (newest.get("t") or "") for o in orders):
+        return []
+    return [config_text(newest)]
+
+
+def lines(
+    entries: list[dict[str, Any]], batch: str, open_crs: set[str], orders: list[Any]
+) -> list[str]:
     """The `status` lines for the Chief of Staff, one per open CR of `batch`: the `merged` entry
-    that says the PR landed wins, else the first. A `checks-red` entry is never listed."""
+    that says the PR landed wins, else the first. A `checks-red` entry is never listed. Then the
+    newest `batch.slots` `config` line of the batch while no `order slots` is recorded after it;
+    no line for the other limit or key."""
     chosen: dict[str, dict[str, Any]] = {}
     for e in entries:
         cr = e.get("cr")
@@ -154,4 +196,4 @@ def lines(entries: list[dict[str, Any]], batch: str, open_crs: set[str]) -> list
             continue
         if cr not in chosen or (e.get("landed_with") and not chosen[cr].get("landed_with")):
             chosen[cr] = e
-    return [merged_text(e) for e in chosen.values()]
+    return [*(merged_text(e) for e in chosen.values()), *_slots_line(entries, batch, orders)]

@@ -340,6 +340,19 @@ does a unit that is not in `UNITS` and a test that does not exist.
     is unchanged by the hub, a forge error lands in `hub.json` and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:
     test_forge_hub.py::test_a_forge_error_lands_in_the_hub_record_not_in_the_journal);
+- the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `PUT /config` writes
+  the project folder's file and says, role-free, `slots 4 -> 6: <batch> keeps <n> until an order
+  slots` and `specifying 4 -> 1: from the next start`, with no `applies at the next batch` line;
+  each save writes one `config` line in the forge journal (`by: board`) and a running `chantier
+  watch` ends on it with the `config changed on the board` line; `status` prints the slots line once
+  and the specifying one never, and no longer after an `order slots`; with `specifying.parallel` 1
+  and a `work/specifying` marker, `playbook` prints `limits:` with `[surface project]`, `markers 1
+  (<slug>)` and `specifying at the limit`; `open` with no `--slots` takes the project folder's
+  `batch.slots` and names `[surface project]` (unit: surface-board) (test:
+  test_limits.py::test_the_board_saves_a_limit_keeps_comments_journals_one_line_and_removes_it,
+  test_limits.py::test_a_put_of_both_limits_and_a_role_edit_writes_two_lines_and_status_follows_the_orders,
+  test_limits.py::test_open_and_the_playbook_take_the_limits_from_the_layers,
+  test_forge_hub.py::test_a_config_line_ends_the_watcher_and_is_told_in_its_form);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

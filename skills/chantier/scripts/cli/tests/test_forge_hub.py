@@ -304,6 +304,37 @@ def test_a_watcher_ends_twenty_seconds_after_the_last_event(
         assert w.lines(NO_BATCH)[-1] == f"watch: no running batch in {found.root.name}; ended"
 
 
+CONFIGS = [
+    ({"key": "batch.slots", "old": 4, "new": 6, "batch": "batch-01"},
+     "config changed on the board: batch.slots 4 -> 6; batch-01 keeps 4 until an order slots"),
+    ({"key": "batch.slots", "old": 4, "new": 6, "batch": None},
+     "config changed on the board: batch.slots 4 -> 6; from the next open (no batch)"),
+    ({"key": "specifying.parallel", "old": 4, "new": 6, "batch": "batch-01"},
+     "config changed on the board: specifying.parallel 4 -> 6"),
+    ({"key": "specifying.parallel", "old": 4, "new": 2, "batch": None},
+     "config changed on the board: specifying.parallel 4 -> 2"),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("event", "text"), CONFIGS, ids=["slots", "slots-none", "up", "down"])
+def test_a_config_line_ends_the_watcher_and_is_told_in_its_form(
+    repo: Path, event: dict[str, Any], text: str
+) -> None:
+    folder = repo / ".agents" / "changes" / "4-batch"
+    folder.mkdir(parents=True)
+    data = {"id": "batch-01", "status": "running", "crs": []}
+    (folder / "batch.json").write_text(json.dumps(data), encoding="utf-8")
+    found = Repo.find()
+    w = Watch(found, 0, __version__)
+    journal.append(found, [{"kind": "config", **event}], "board")
+    ended = next(((t, r) for t in range(60) if (r := w.poll(float(t)))), None)
+    w.close()
+    assert ended == (int(QUIET), EVENTS)
+    again = "still running: for the Chief of Staff, start again in the background now: "
+    last = f"watch: batch-01 {again}{watch_command(found, 1)}"
+    assert w.lines(EVENTS) == [text, last]
+
+
 def test_watch_refusals(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> None:
     code, _, err = chantier("watch")
     assert code == EXIT_PRECONDITION and "watch: no running batch in" in err

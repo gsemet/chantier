@@ -8498,8 +8498,73 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
               "`applies at the next batch`",
               code == 200 and answer.get("ok") is True and "applies at the next batch" in answer.get("lines", [])
               and target.is_file(), f"{code} {answer.get('lines')} {answer.get('error')}")
+        # the two limits: a save moves one `config` line of the forge journal; a running watcher ends
+        # on it, `status` carries the slots one until an `order slots` follows
+        held = w.batch()["slots"]
+        quick = {"CHANTIER_HUB_TEST_TIMES": "1:4"}  # the watcher ends 4 s after the last event
+
+        def save(limit: list, sha: str) -> tuple[int, dict]:
+            body = json.dumps({"changes": limit, "base_sha256": sha}).encode("utf-8")
+            code, _, raw = fetch(link.port, "/api/projects/demo/config", "PUT",
+                                 {**link.cookie, "Content-Type": "application/json"}, body)
+            return code, json.loads(raw.decode("utf-8") or "{}")
+
+        def ended(proc: BoardProc) -> list[str]:
+            try:
+                proc.p.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                return ["(still running)"]
+            got = []
+            while (x := proc.line(2)) is not None:
+                got.append(x)
+            return got
+
+        watch = BoardProc(w, "--project", "demo", "watch", cwd=w.surface, env=quick)
+        try:
+            watch.line()  # its start line
+            code, saved = save([{"key": "batch.slots", "value": 6}], answer["sha256"])
+            kept = f"{w.name} keeps {held} until an order slots"
+            check("`PUT /config` of `batch.slots` says what happens to the batch, with no "
+                  "`applies at the next batch` line",
+                  code == 200 and f"slots 4 -> 6: {kept}" in saved.get("lines", [])
+                  and "applies at the next batch" not in saved.get("lines", []),
+                  f"{code} {saved.get('lines')} {saved.get('error')}")
+            told = f"config changed on the board: batch.slots 4 -> 6; {w.name} keeps 4 until an order slots"
+            got = ended(watch)
+            check("a running `chantier watch` ends with the `config changed on the board` line and its cursor",
+                  got == [told, "watch: cursor 1; next: chantier watch --after 1"], str(got))
+        finally:
+            watch.stop()
+        # the specifying limit at 1 with a `work/specifying` marker present
+        (w.project / "changes" / "1-inbox" / "marker-cr" / "work").mkdir(parents=True)
+        (w.project / "changes" / "1-inbox" / "marker-cr" / "work" / "specifying").write_text("", "utf-8")
+        watch = BoardProc(w, "--project", "demo", "watch", "--after", 1, cwd=w.surface, env=quick)
+        try:
+            watch.line()
+            code, saved = save([{"key": "specifying.parallel", "value": 1}], saved["sha256"])
+            check("`PUT /config` of `specifying.parallel` says it applies from the next start",
+                  code == 200 and "specifying 4 -> 1: from the next start" in saved.get("lines", []),
+                  f"{code} {saved.get('lines')} {saved.get('error')}")
+            got = ended(watch)
+            check("the watcher ends with the `specifying.parallel 4 -> 1` line",
+                  got == ["config changed on the board: specifying.parallel 4 -> 1",
+                          "watch: cursor 2; next: chantier watch --after 2"], str(got))
+        finally:
+            watch.stop()
     finally:
         bp.stop()
+    check("`status` prints the slots change once, the specifying one never",
+          told in w.chantier("status")[1] and not any("specifying.parallel" in x for x in w.chantier("status")[1]),
+          str(w.chantier("status")[1]))
+    time.sleep(1.1)  # the stamps are whole seconds: the order is sent after the save
+    w.chantier("order", "slots", "--note", "6")
+    check("after an `order slots`, `status` no longer prints the line",
+          told not in w.chantier("status")[1], str(w.chantier("status")[1]))
+    play = " ".join(w.chantier("playbook")[1])
+    check("`playbook` prints the limits with the project folder's label, the marker and `at the limit`",
+          "batch slots 6 [surface project]" in play
+          and "specifying 1 [surface project], markers 1 (marker-cr)" in play
+          and "specifying at the limit" in play, play)
     check("the running batch keeps the value it froze, and `playbook` prints the new one",
           coder_line("--batch", w.name) == frozen
           and "opus (claude-opus-5-5, Claude Opus 5.5) [surface project]" in coder_line(),
@@ -8621,15 +8686,16 @@ def external_surface(tmp: Path) -> None:
           and "chantier.yaml:" in w.last_stderr + " ".join(out)
           and not (w.surface / "projects" / "other" / "changes" / "4-batch" / "batch.json").exists(),
           f"{code} {out} {w.last_stderr}")
-    other_yaml.write_text(head + "        model: gpt-6.1-terra\n", encoding="utf-8")
+    other_yaml.write_text("batch:\n  slots: 1\n" + head + "        model: gpt-6.1-terra\n", encoding="utf-8")
     _, out = w.chantier("playbook", project="other", env=copilot)
     check("on Copilot, a model with no agent starts a generic agent: `playbook` prints "
           "`agent=(generic)` and the tools line",
           any(ln.startswith("coder: agent=(generic) model=gpt-6.1-terra") and "tools=(the caller's, not "
               "restricted)" in ln for ln in out), str(out))
-    _, out = w.chantier("open", other, "--direct", "--slots", 1, *FROM_AGENTS_MD, project="other",
-                        env=copilot)
+    _, out = w.chantier("open", other, "--direct", *FROM_AGENTS_MD, project="other", env=copilot)
     other_batch = out[0].split()[1]
+    check("`open` with no `--slots` takes `batch.slots` from the project folder's file and names its "
+          "layer", ", 1 slots [surface project]," in out[0], str(out))
     w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[remote] surface", "--link", "l")
     _, out = w.chantier("seat", "get", project="other")
     check("two projects of one surface each run a batch, and the seat is one per project",

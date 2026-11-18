@@ -48,7 +48,11 @@ def register(sub: Subparsers) -> None:
         help="path to a prepared CR folder or specification; none opens the batch paused, "
         "with no CR (`order add` joins CRs to it)",
     )
-    s.add_argument("--slots", type=int, default=4)
+    s.add_argument(
+        "--slots",
+        type=int,
+        help="the Drivers that run at once; default: batch.slots of the configuration",
+    )
     s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
     s.add_argument(
         "--mode",

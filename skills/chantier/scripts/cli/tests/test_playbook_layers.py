@@ -52,7 +52,11 @@ def test_the_shipped_defaults_give_each_role_the_model_its_agent_file_declares(
     found: list[tuple[int, str]] = []
     roles_by_host = {h: plugin_roles(h) for h in ("claude", "copilot")}
     config.check(tree, roles_by_host, lambda n, m: found.append((n, m)))
-    assert not found and set(tree.value) == {"hosts"}  # valid, and nothing else
+    assert not found and set(tree.value) == {
+        "hosts",
+        "specifying",
+        "batch",
+    }  # valid, and nothing else
     assert set(tree.value["hosts"][1].value) == {"claude", "copilot"}
     held = tree.value["hosts"][1].value[host_name][1].value
     assert set(held) == {"roles", "timing"}

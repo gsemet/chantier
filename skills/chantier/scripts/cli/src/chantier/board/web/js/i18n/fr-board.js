@@ -73,6 +73,19 @@ export default {
   'config.unreadable': 'La configuration est illisible pour le moment.',
   'config.tab_models': 'Modèles',
   'config.tab_timing': 'Délais',
+  'config.tab_limits': 'Limites',
+  'config.limits.parallel': 'CR spécifiés en même temps',
+  'config.limits.parallel.text':
+    'le plus de CR en cours de spécification en même temps sur le projet',
+  'config.limits.slots': "Slots d'un nouveau batch",
+  'config.limits.slots.text':
+    'un batch en cours garde ses slots tant que le Chief of Staff ne commande pas de changement',
+  'config.limits.inherit': 'reprendre la valeur héritée',
+  'config.limits.unset': 'non défini',
+  'config.limits.overridden':
+    "écrasé par {path} : un enregistrement ici ne change rien tant que cette ligne n'est pas retirée",
+  'config.limits.unreadable':
+    'Les limites sont illisibles : les valeurs par défaut livrées sont absentes.',
   'config.leg_default': 'défaut livré',
   'config.leg_set': 'défini dans chantier.yaml',
   'config.th_setting': 'Réglage',

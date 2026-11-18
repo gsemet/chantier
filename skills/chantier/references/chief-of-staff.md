@@ -165,6 +165,10 @@ hosts:
         agent: my-driver       # your own Driver; it keeps driver.md as its card
 long_gate:
   parallel: 2                # long gates that may run at once (1 when absent)
+specifying:
+  parallel: 2                # CRs specified at once on the project (4 by default, 1 or more)
+batch:
+  slots: 6                   # the slots `open` gives a new batch with no --slots (4 by default, 0 or more)
 ```
 
 The same keys go under `hosts: copilot: roles:` for Copilot. A role is one of the plugin's agents (`cr-driver`, `stack-driver`, `qa-driver`, `release-driver`,
@@ -324,7 +328,13 @@ On the user's word that a CR is grilled enough, write `work/specifying` in its f
 the time and the agent id) and start the `spec-writer` in the background (you or a Griller
 starts it), at any time, a batch running or not; its prompt names the card and the CR folder, and
 its first line is the one `$CHANTIER playbook` prints (`spec-writer prompt, first line: …`), or
-the Spec-writer's line of "Starting an agent": copy the first line, unchanged. `work/specifying` is the guard of one spec-writer per CR: write
+the Spec-writer's line of "Starting an agent": copy the first line, unchanged. The project sets how many CRs
+are specified at once (`specifying.parallel`, 4 unless a `chantier.yaml` or the board's Configuration page, Limits tab,
+says otherwise): `$CHANTIER playbook` prints it in its `limits:` line (`specifying <n>, markers <m> (<CR folders>)`), the `m` CRs
+being those with a `work/specifying` in the inbox, `2-backlog/P1`..`P4` or `3-ready`. When `m` has reached `n`
+(`specifying at the limit` ends the line), start no new spec-writer: tell the user which CRs are being specified, and start
+that one when one of them is shown or dropped; a user's `specifying.parallel` of 1 means one CR at a time. A critic or a next
+run on a CR whose marker exists is no new CR and is not counted twice. `work/specifying` is the guard of one spec-writer per CR: write
 it before the start (the time), add the agent id once started, and while it exists start no
 spec-writer on that CR. A first-line refusal ends that agent: replace the line with `<time> <new
 agent id> restart: refused first line` and start one new spec-writer by copying that line, no
@@ -464,7 +474,8 @@ spec-writer's next run narrows the specification to what stays. The Griller foll
      agent started on it (the critic, the spec-writer's next run) replaces its line with `<time>
      <agent id> <role>`; no other spec-writer or critic starts while it exists; remove it when the
      last of them ends. A refused first line or a host failure: restart once, as for a
-     spec-writer.
+     spec-writer. This marker is also what the `limits:` line counts, so a CR waits for its
+     turn by the limit above, never by a marker you leave behind.
   3. Sort its findings. Each one that touches behaviour (scope, behaviour, risk: what the user
      would decide) becomes a question for the user; each other one (a record fix, a wrong name, a
      dropped decision, an old rule left standing, an inconsistency whose answer is already
@@ -770,8 +781,8 @@ Only in the turn where the user gave the go:
 2. **Show the plan:** the CRs (the `3-ready` ones first) and what each one waits for, with the reason of any queue that is
    no real dependency (for a wait on the same lines: the two CRs, number and slug once `open`
    numbered them, else the slug, the file and the lines both edit, for instance "README.md, the
-   Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (4 unless you say
-   otherwise), and, on a surface, the other batches of P14 (project, batch, steering, Drivers), so
+   Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (the `batch slots` of the `limits:` line of `$CHANTIER playbook`: 4 unless a `chantier.yaml` or the board's Configuration page sets it, or you say
+   otherwise; `open` takes it when you pass no `--slots`, and refuses a configured 0), and, on a surface, the other batches of P14 (project, batch, steering, Drivers), so
    the user picks the slots knowing the machine's load (no cap is proposed or applied); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
    the batch. A go given before any CR is ready makes an **empty batch**: its plan shows the
    mode, slots, budget, the team and who steers, and says for the floor and the delivery time
@@ -1288,7 +1299,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   reference says how): a refused send is reported, never sent another way.
 - **The watcher** (the command the CLI prints, in the background; the user's yes once per
   session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
-  It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and ends 20 s
+  It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and the limits saved on the board (`config changed on the board`), and ends 20 s
   after the last new one, or with `no running batch`; its end starts your turn.
   - *When it starts:* the CLI prints `watch: not running: for the Chief of Staff, start in the
     background: <command>` when the batch runs and no watcher of this session runs (after `open`,
@@ -1312,7 +1323,13 @@ CR-222 → CR-225 → CR-226 → CR-228."
     precedence. A `forge saw checks red` line: tell the user (the CR, the PR, the head), record
     nothing; in Foreman mode send the Foreman `checks red <cr> <pr> at <head7>`. Then one message
     to the user with what was recorded and told (the report format), and start the watcher again
-    from its last line.
+    from its last line. A `config changed on the board: batch.slots <old> -> <new>; <batch> keeps <n> until an
+    order slots` line (also in `status`, until an `order slots` follows it): the user changed the
+    slots on the board for the next batch, the running one keeps its own; tell the user and offer
+    `order slots --note <new>` for the running batch, send nothing before their word. A
+    `config changed on the board: specifying.parallel ...` line is told as it stands and changes
+    nothing in the batch; the next spec-writer start reads the new limit. A paused batch has no
+    watcher: its `status` is where the line shows.
   - *Never:* start a second watcher in the same session while one runs; stop another session's
     watcher; start one after the user's no in this session.
 - **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".

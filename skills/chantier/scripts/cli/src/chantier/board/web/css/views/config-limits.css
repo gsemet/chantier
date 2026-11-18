@@ -1,0 +1,37 @@
+/* The Configuration view's Limits tab: one row per limit, its words on the left, its input, the
+   control to inherit and the value in effect on the right. */
+.config .limits {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-3) 0;
+}
+
+.config .lrow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.config .lrow small {
+  display: block;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.config input[type="number"] {
+  width: 100%;
+  max-width: 140px;
+  padding: var(--space-off-5) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-nav);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+
+@media (max-width: 760px) {
+  .config .lrow {
+    grid-template-columns: 1fr;
+  }
+}

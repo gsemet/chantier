@@ -7,12 +7,12 @@ import { t } from '../model/words.js';
 import { card } from '../ui/card.js';
 import { empty } from '../ui/parts.js';
 
-export const TABS = ['models', 'timing'];
+export const TABS = ['models', 'timing', 'limits'];
 const SETTINGS = ['steering_wake', 'cache_ttl', 'ci_reruns'];
-const HASH = { models: '', timing: '#timing' };
+const HASH = { models: '', timing: '#timing', limits: '#limits' };
 
-// The tab the address names: Models unless its fragment says Timing.
-export const tabOf = (hash) => (hash === HASH.timing ? 'timing' : 'models');
+// The tab the address names: Models unless its fragment says Timing or Limits.
+export const tabOf = (hash) => TABS.find((id) => HASH[id] && HASH[id] === hash) ?? 'models';
 
 // The address of a tab, keeping the page's own path and query.
 export const tabAddress = (tab) => `${location.pathname}${location.search}${HASH[tab]}`;

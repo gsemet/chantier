@@ -1,6 +1,7 @@
 """The text of the planning surface's project file, changed in place: a role's `agent` or `model`
-set or removed, the comments and the other keys kept, the file's byte-order mark kept,
-the line endings LF. The checks and the write are `edit.py`'s."""
+or one of the two limits (`specifying.parallel`, `batch.slots`) set or removed, the comments and
+the other keys kept, the file's byte-order mark kept, the line endings LF.
+The checks and the write are `edit.py`'s."""
 
 from __future__ import annotations
 
@@ -18,10 +19,19 @@ def _is_map(node: object) -> bool:
     return isinstance(node, Mapping)
 
 
-def _walk(data: Any, change: dict[str, Any]) -> list[Any] | None:
-    """The maps from the root down to the role's, or None where one is missing."""
+def _path(change: dict[str, Any]) -> list[str]:
+    """The keys from the root to the one a change sets: a role's `hosts.<host>.roles.<role>.<key>`,
+    or a limit's dotted `key` (`batch.slots`)."""
+    if "host" in change:
+        return ["hosts", change["host"], "roles", change["role"], change["key"]]
+    return str(change["key"]).split(".")
+
+
+def _walk(data: Any, names: list[str]) -> list[Any] | None:
+    """The maps from the root down to the one that holds the last key, or None where one is
+    missing."""
     chain = [data]
-    for key in ("hosts", change["host"], "roles", change["role"]):
+    for key in names[:-1]:
         found = chain[-1].get(key) if _is_map(chain[-1]) else None
         if not _is_map(found):
             return None
@@ -31,11 +41,11 @@ def _walk(data: Any, change: dict[str, Any]) -> list[Any] | None:
 
 def _remove(data: Any, change: dict[str, Any]) -> None:
     """The key out of the file, and every map it leaves empty; a role's own reset stays."""
-    chain = _walk(data, change)
-    if chain is None or change["key"] not in chain[-1]:
+    names = _path(change)
+    chain = _walk(data, names)
+    if chain is None or names[-1] not in chain[-1]:
         return
-    del chain[-1][change["key"]]
-    names = ("hosts", change["host"], "roles", change["role"])
+    del chain[-1][names[-1]]
     for depth in range(len(chain) - 1, 0, -1):
         if chain[depth]:
             break
@@ -45,12 +55,13 @@ def _remove(data: Any, change: dict[str, Any]) -> None:
 def _set(data: Any, change: dict[str, Any]) -> None:
     from ruamel.yaml.comments import CommentedMap
 
+    names = _path(change)
     node = data
-    for key in ("hosts", change["host"], "roles", change["role"]):
+    for key in names[:-1]:
         if not _is_map(node.get(key)):  # absent, or a reset the new value replaces
             node[key] = CommentedMap()
         node = node[key]
-    node[change["key"]] = change["value"]
+    node[names[-1]] = change["value"]
 
 
 def _yaml() -> Any:

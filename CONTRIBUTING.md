@@ -104,6 +104,8 @@ chantier is four things in one repository:
    when its forge read finds a PR merged that the record does not hold, it appends one line to
    `forge-journal.jsonl` (planning folder, never published), which `status` prints for the Chief of
    Staff to record at its next `status`; the board itself records nothing and messages no agent;
+   a save of a limit (`specifying.parallel`, `batch.slots`) on its Configuration page also appends one
+   `config` line to that journal, which `status` and the watcher carry to the Chief of Staff;
    takes its dependencies like the
    rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
    build step).

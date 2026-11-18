@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.repo import Repo
-from chantier.playbook import config, escalation
+from chantier.playbook import config, escalation, limits_check
 from chantier.playbook.models import NAMED_AGENT_MODEL_AT_START
 from chantier.playbook.yaml_subset import Node, is_reset
 
@@ -98,7 +98,10 @@ def read_defaults(
     if not defaults.is_file():
         return None, [f"{DEFAULTS_DISPLAY}: the plugin's defaults file is missing"]
     read = config.read_tree(defaults, DEFAULTS_DISPLAY)
-    return _checked(read, DEFAULTS_DISPLAY, "defaults", roles_by_host, None)
+    tree, problems = _checked(read, DEFAULTS_DISPLAY, "defaults", roles_by_host, None)
+    if tree is not None and (lacking := limits_check.missing_limits(tree)):
+        return None, [f"{DEFAULTS_DISPLAY}:1: {m}" for m in lacking]
+    return tree, problems
 
 
 def _checked(

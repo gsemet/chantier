@@ -38,6 +38,7 @@ from chantier.plugin_files import (
     detect_host,
     own_transcript,
     read_escalation,
+    read_limits,
     read_playbook,
     read_timing,
 )
@@ -277,25 +278,44 @@ def _short(p: Path | str) -> str:
     return str(p).replace("\\", "/").split("changes/")[-1]
 
 
-def _read_configuration(repo: Repo, host: str) -> tuple[Any, Any, Any]:
-    """The playbook, the timing and the escalation to freeze in the record; all the problems
-    found, each once, stop the opening."""
+def _read_configuration(repo: Repo, host: str) -> tuple[Any, Any, Any, Any]:
+    """The playbook, the timing and the escalation to freeze in the record, and the limits;
+    all the problems found, each once, stop the opening."""
     team, problems = read_playbook(repo, host)
     timing, more = read_timing(repo, host)
     escalation, extra = read_escalation(repo, host)
-    more = [*more, *(p for p in extra if p not in problems and p not in more)]
+    limits, last = read_limits(repo)
+    more = [*more, *(p for p in [*extra, *last] if p not in problems and p not in more)]
     if problems or more:
         raise ChantierError("\n".join([*problems, *more]), EXIT_PRECONDITION)
-    return team, timing, escalation
+    return team, timing, escalation, limits
+
+
+def _slots_from(args: argparse.Namespace, limits: dict[str, Any]) -> str:
+    """`batch.slots` set on `args` when no `--slots`; the label of the layer that set it."""
+    if args.slots is not None:
+        return ""
+    entry = limits.get("batch.slots") or {}
+    if entry.get("value") is None:
+        raise ChantierError(
+            "open: no batch.slots: no plugin defaults file and no chantier.yaml sets it; "
+            "give --slots <n>"
+        )
+    if entry["value"] == 0:
+        raise ChantierError(
+            f"open: batch.slots is 0 in {entry['src']}: give --slots <n> or set it on the board"
+        )
+    args.slots = entry["value"]
+    return "" if entry["layer"] == "defaults" else f" [{entry['layer']}]"
 
 
 def _empty_lines(
-    repo: Repo, b: Batch, args: argparse.Namespace, shape: tuple[str, Any, Path]
+    repo: Repo, b: Batch, args: argparse.Namespace, shape: tuple[str, Any, Path, str]
 ) -> list[str]:
     """The output of an `open` with no CR: the batch is born paused, and what comes next."""
-    host, data, brief = shape
+    host, data, brief, where = shape
     return [
-        f"opened {b.id} on {host}: no CR, paused, {args.slots} slots, "
+        f"opened {b.id} on {host}: no CR, paused, {args.slots} slots{where}, "
         f"{data.mode}, steering {data.steering}, factory",
         f"next: complete the brief {shown(repo, brief)}, then start the Foreman (direct mode: "
         f"steer it yourself); {FACTORY_NEXT}",
@@ -333,7 +353,8 @@ def _freeze_rules(data: Any, team: Any, escalation: Any, timing: Any) -> None:
 def open_batch(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     host = detect_host()
-    team, timing, escalation = _read_configuration(repo, host)  # before any folder moves
+    team, timing, escalation, limits = _read_configuration(repo, host)  # before any folder moves
+    where = _slots_from(args, limits)
     settings = open_settings(repo, args)
     repo.config.update(settings)
     paths = stage_layout(repo)
@@ -360,9 +381,9 @@ def open_batch(args: argparse.Namespace) -> list[str]:
             if not b.record.crs:
                 record_born_paused(b)
     if not args.items:
-        return _empty_lines(repo, b, args, (host, data, brief))
+        return _empty_lines(repo, b, args, (host, data, brief, where))
     lines = [
-        f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots, "
+        f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots{where}, "
         f"{data.mode}, steering {data.steering}" + (", factory" if data.factory else "")
     ]
     # the next step comes before the CR list: past ten lines it is the list that is cut
