@@ -22,7 +22,8 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   the release judge on a release; it marks no rail. Exit 1 on a failed check, an unknown rail or
   a judge `fail`; `not run` is not a failure. A batch steered in direct mode (`steering: direct`
   in `batch.json`) is read from the Chief of Staff's transcript, from its claim on; the agents it
-  started outside the batch are listed apart and not audited.
+  started outside the batch are listed apart and not audited, except a QA driver it started, which
+  is a Driver of the batch and audited as one.
 - Claude: the steering session's transcript and every subagent under it
   (`subagents/agent-*.jsonl` and `.meta.json`); each agent's parent is found through the
   `tool_use` id that started it. Only what the batch did counts: the agents whose first record is
@@ -35,7 +36,10 @@ if a check fails, or names a rail that `SCORECARD.md` does not hold. It reads; i
   The steering session's commands count from the shell call that made its claim (`foreman
   transcript <uuid>`), that call included. A prompt `chantier <role> for the Chief of Staff`
   (the Retro critic, the Spec-writer, the Demo explorer...) is a Chief-of-Staff subagent: audited
-  by its own card, with no rules line asked and outside the review steps.
+  by its own card, with no rules line asked and outside the review steps. A prompt `chantier
+  qa-driver for <folder> of batch <batch>, in the project <root>.` is the QA driver's: its `what`
+  is its QA folder, as written, and it is audited as a Driver (its detached worktree and its
+  writes inside its QA folder are lawful).
 - Copilot: not written yet. It is to be filled in from a real Copilot run, with the host's own
   log analysis tool; until then the audit says so and checks only what every host shares, with no
   rail ids and no scorecard.
@@ -62,6 +66,8 @@ HANDBACK_WORDS = ("question:", "approval:", "merge:", "fix:", "infra:", "budget:
 CHIEF = "the Chief of Staff"  # `chantier <role> for the Chief of Staff[ of batch <batch>], in the project <root>.`
 PROMPT = re.compile(rf"^chantier (?P<role>[a-z][a-z0-9-]*) for (?P<what>CR-\d+|the stack|{CHIEF})\b")
 WORKERS = {"investigator", "coder", "inspector", "debugger", "verifier", "conflict-resolver"}
+# the QA driver's first line: `what` is its QA folder, as written (spaces allowed)
+QA_PROMPT = re.compile(r"^chantier (?P<role>qa-driver) for (?P<what>.+?) of batch \S+?, in the project")
 DRIVERS = {"cr-driver", "stack-driver", "qa-driver", "release-driver"}
 READ_ONLY = {"inspector", "investigator", "debugger", "verifier"}  # write only their notes
 # the CLI, however it is called: `uv run … chantier` or `uvx --from … chantier`, the old script, or a variable holding the call (`$c`, `$env:CHANTIER`,
@@ -115,7 +121,16 @@ def lawful_worktree(role: str, command: str, match: re.Match) -> bool:
     """A `git worktree add` the cards allow: the Verifier's detached one (verifier.md), judged on its
     own arguments, from the end of the match to the next command separator."""
     own = re.split(r"[;&|\n]", command[match.end():], maxsplit=1)[0]
-    return role == "verifier" and DETACHED.search(own) is not None
+    return role in ("verifier", "qa-driver") and DETACHED.search(own) is not None
+
+
+def in_folder(written: str, folder: str) -> bool:
+    """A written path is the QA folder or below it: a relative folder matches as a run of path
+    segments, an absolute one as a prefix (`/`-separated, lowered)."""
+    w, f = written.replace("\\", "/").lower().rstrip("/"), folder.replace("\\", "/").lower().rstrip("/")
+    if re.match(r"([a-z]:)?/", f):
+        return w == f or w.startswith(f + "/")
+    return f"/{f}/" in f"/{w}/"
 
 
 OWN_FILES = ("/work/", "/evidence/")  # a worker's notes and proof, in the CR's folder
@@ -275,7 +290,7 @@ class Agent:
                         self.tools.append((b.get("name"), b.get("input") or {}))
                         self.when.append(str(r.get("timestamp") or ""))
                         self.spawned[b.get("id")] = b.get("input") or {}
-        match = PROMPT.match(self.prompt)
+        match = PROMPT.match(self.prompt) or QA_PROMPT.match(self.prompt)
         self.role = match["role"] if match else None
         self.what = match["what"] if match else None
         self.parent = None
@@ -483,7 +498,8 @@ def load_agents(data: dict, projects: Path, check: Checks) -> tuple[list, list, 
         # what the Chief of Staff started for itself (a Spec-writer, an explorer, a Griller's work)
         # is not a batch agent: listed apart, never audited as one
         outside = [a for a in agents if a.parent in steering
-                   and (a.role is None or a.what not in crids | {"the stack"})]
+                   and (a.role is None or a.what not in crids | {"the stack"})
+                   and a.role != "qa-driver"]
         agents = [a for a in agents if a not in outside]
     return steering, agents, earlier, outside
 
@@ -568,6 +584,7 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
                                                 for m in GIT_WORKTREE_ADD.finditer(c))]
             check(not trees, f"{a.id[:10]} ({a.role}) creates no worktree"
                   + (" but its detached one of the base" if a.role == "verifier"
+                     else " but its detached one of the default branch" if a.role == "qa-driver"
                      else ": the Driver did"), "J3")
         if a.role in READ_ONLY | reviews:
             outside_files = [w for w in a.writes()
@@ -582,6 +599,7 @@ def claude_checks(data: dict, loaded: tuple, check: Checks) -> None:
             # the Release driver writes what the procedure says (a changelog), never the code
             code = [w for w in a.writes() + a.shell_writes()
                     if not any(own in w.replace("\\", "/") for own in OWN_FILES)
+                    and not (a.role == "qa-driver" and in_folder(w, a.what))
                     and (a.role != "release-driver" or re.search(r"[/\\](src|tests)[/\\]", w))]
             code = sorted({path_of(w, {}) for w in code})  # one path written by a tool and the shell
             check(not code, f"{a.id[:10]} ({a.role}) writes no code itself"
