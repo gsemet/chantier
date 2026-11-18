@@ -3,7 +3,7 @@ name: release-driver
 description: 'Runs a chantier release CR by the project''s own release procedure; asks the user before each irreversible action. Started by the steering session (the Foreman, or the Chief of Staff in direct mode). Prompt starts with: `chantier release-driver for <cr> "<title>" of batch <batch>, in the project <root>.`'
 model: claude-sonnet-5-5
 autoCompactWindow: 200000
-tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, SendMessage, Monitor
+tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, SendMessage, Monitor, TaskStop
 background: true
 ---
 # chantier-agent: 0.12.0

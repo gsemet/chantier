@@ -704,6 +704,22 @@ function writesOf(prompt: unknown): { folders: string[] } | { why: string } | nu
   return { folders }
 }
 
+/** The absolute folder of the first `worktree: <path> branch <branch>` line of a prompt (a CR Driver's); null for none. */
+function worktreeOf(prompt: unknown): string | null {
+  if (typeof prompt !== 'string') return null
+  const m = /^\s*worktree:\s+(.+?)\s+branch\s/m.exec(prompt)
+  const path = m?.[1]
+  return path !== undefined && isAbsolute(path) ? path : null
+}
+
+/** The project's root a prompt's first line names (`..., in the project <root>.`); null when it cannot be read or is not absolute. */
+function rootOf(prompt: unknown): string | null {
+  if (typeof prompt !== 'string') return null
+  const m = /, in the project (.+)\.\s*$/.exec(prompt.split('\n')[0] ?? '')
+  const path = m?.[1]?.trim()
+  return path !== undefined && isAbsolute(path) ? path : null
+}
+
 /** The board's note: the last one stands. It never throws. */
 async function say($: Engine, text: string): Promise<void> {
   try {
@@ -726,8 +742,23 @@ export const register: Register = on => {
         if (found !== null && 'why' in found) note = `Write guard: could not read the writes: line of an agent's prompt (${found.why}); the agent started unguarded and unmoved.`
         else if (found !== null) {
           const first = found.folders[0] as string
-          place = { folders: found.folders, cwd: slash(first) }
-          input = { ...e, cwd: first }
+          const tree = worktreeOf(e.prompt)
+          let start: string | null = first
+          if (tree !== null) {
+            const root = rootOf(e.prompt)
+            if (await $.fs.exists(tree)) start = tree
+            else if (root !== null && (await $.fs.exists(root))) start = root
+            else {
+              start = null
+              note = `Write guard: the worktree ${tree} does not exist and the project's root could not be read; the agent started guarded, in its parent's folder.`
+            }
+          }
+          if (start !== null) {
+            place = { folders: found.folders, cwd: slash(start) }
+            input = { ...e, cwd: start }
+          } else {
+            place = { folders: found.folders, cwd: slash(typeof e.cwd === 'string' ? e.cwd : first) }
+          }
         }
       }
     } catch (err) {
