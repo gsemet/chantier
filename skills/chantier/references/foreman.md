@@ -321,11 +321,11 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   and the `stack-ready-to-merge` asks (with the commit and the `to come:` tail) the same. On its `hand-back ready to merge <stack link>
   <cr>=<link>…`, read the stack on the forge before anything else, the five checks (below), then:
   - the first stack made: `$CHANTIER asks "stack-ready-to-merge <stack link> partial stack mergeable below
-    <sha7> <cr>=<link> gaps: …… to come: <cr> <cr>…"` (the `<cr>=<link>` pairs: the mergeable part,
+    <sha7> merge <cr> <link> <cr>=<link> gaps: …… to come: <cr> <cr>…"` (`merge <cr> <link>`: the highest PR of the mergeable part, the PR whose head is `<sha7>`; the `<cr>=<link>` pairs: the mergeable part,
     each CR's gaps after its link as in the complete form below; to
     come: the drafts on top and the CRs with no PR; `<sha7>` as `forge-stack show` printed it);
   - the stack complete: `$CHANTIER asks "stack-ready-to-merge <stack link> mergeable below <sha7>
-    <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
+    merge <cr> <link> <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
   - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask;
   - `hand-back blocked context: …` (or an end with no hand-back and no `activity`): neither an
     anomaly nor an ask: `agents set stack - --epoch <n>`, `take stack --note "resume: <its text>" --epoch <n>`, a new stack
@@ -403,7 +403,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
   note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready-to-merge <stack link> [partial stack] mergeable
-  below <sha7> <cr>=<link>[ gaps: …]… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`, `conflict <cr> with <cr>[, <cr>…]: <paths>; switch to a
+  below <sha7> merge <cr> <link> <cr>=<link>[ gaps: …]… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`, `conflict <cr> with <cr>[, <cr>…]: <paths>; switch to a
   stack?`. In the
   text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name"). A readiness ask (`ready-to-merge`,

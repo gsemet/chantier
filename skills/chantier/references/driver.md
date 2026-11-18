@@ -326,7 +326,15 @@ defer the rest of this card until an action names it. These are the card's defau
   <cr> <link>`, so the record follows the forge (GitLab's `draft` field is unproved on a real
   instance; trial: one `ship` of a draft MR and of a ready MR on a GitLab project, the recorded
   draft state matching the forge; on GitHub Copilot unproved; trial: one Driver on Copilot that
-  turns its PR ready and runs `ship`, the CR reading `ready to merge`).
+  turns its PR ready and runs `ship`, the CR reading `ready to merge`). `ship` refuses, and
+  records nothing, a PR on the default branch and out of draft whose head carries the head of
+  another CR of the batch not recorded merged and with a PR (`… carries CR-x (<link>): merging it
+  would merge them too …`). The first step is always the same: draft, then `ship`. Put the PR
+  back to draft (`gh pr ready --undo`, `glab mr update --draft`) and `ship` again, which records
+  the PR in draft so the CR no longer reads mergeable; then, if the PR is to stay on the default
+  branch, rebase it onto it without those commits, push, and `ship` again. If the CR named is
+  already merged on the forge, `ship` again once `status` shows it merged. For the stack driver
+  it means a PR moved without first going to draft, as the stack driver section asks.
 - Commits: a PR merges by rebase with every commit of its branch, so each commit you make is a
   commit of the default branch. Every commit you make, a round's commit or a checkpoint (work set
   aside before a rebase, a commit before a gate, a commit after a `FIX-REQUIRED` round), has a

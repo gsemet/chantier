@@ -1071,7 +1071,13 @@ CR-222 → CR-225 → CR-226 → CR-228."
   bullet above) in the same message, naming
   the PR and which PRs are below and above it, before the sentence that says the stack can be
   merged. The user decides; the evidence route stays (`order note <cr> --note "evidence: <path>"`).
-  All hold: with `to come: …`, tell the user the stack is mergeable up to its last PR ready to merge (in one
+  All hold: first tell the user the one PR to merge, by the ask's `merge <cr> <link>` (its number
+  and link): on GitHub, merging that PR merges those under it in one action; one PR at a time from
+  the bottom stays their choice. Tell them that no other PR of the batch is to be merged while the
+  stack stands, except the PR of a CR that is not in the stack order (a fix CR) whose latest
+  readiness ask names it; a PR of a draft on top, of a CR to come, or of a CR in the stack order
+  handed back on its own is not to be merged; a merge they make anyway is recorded as any merge.
+  Then, with `to come: …`, tell the user the stack is mergeable up to its last PR ready to merge (in one
   action from that PR, or one PR at a time from the bottom, per the paragraph above), the drafts on
   top and the CRs still to come named (number and slug), and that the top goes on while they
   merge: it grows silently, and its state is in each report. The `stack-ready-to-merge` with no `to come:`
@@ -1093,7 +1099,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   (no raw `gh api`). On GitLab (unproved; trial: one run
   on a GitLab project), `forge-stack show` reads the same checks on the chain and names the commit
   the same way; tell the user the stack is mergeable one MR at a time from the bottom up to the MR
-  of the commit named, never "in one action from that MR"; that each next MR is mergeable once
+  of the commit named (the same MR as the ask's `merge` part), never "in one action from that MR"; that each next MR is mergeable once
   GitLab shows it so (retargeted to the default branch and its pipeline green; when GitLab says it
   needs a rebase, chantier's restack brings it); and that an MR merged directly in the middle
   folds into the MR below it, its change reaching the default branch when that MR merges. To bring

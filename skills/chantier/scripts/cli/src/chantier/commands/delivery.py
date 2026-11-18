@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from chantier.commands.carry import base_keys, head_base, ship_carry
+from chantier.commands.carry import _ancestor, base_keys, head_base, ship_carry
 from chantier.commands.crs import (
     batch_cr,
     carry_at,
@@ -152,10 +152,50 @@ def _off_worktree(repo: Repo, c: CrEntry, wt: Path, head: str) -> list[str]:
     return off
 
 
+def _foreign_crs(repo: Repo, d: BatchRecord, c: CrEntry, wt: Path, head: str) -> list[CrEntry]:
+    """The other CRs of the batch whose commits the head carries: not recorded merged, with a PR
+    recorded, whose recorded head or remote branch tip is an ancestor of the head and not of the
+    remote default branch. Read-only git."""
+    remote = repo.config["remote"]
+    main = git(
+        "rev-parse", "--verify", "--quiet", f"{remote}/{repo.config['default_branch']}",
+        cwd=wt, check=False,
+    )  # fmt: skip
+    found = []
+    for o in d.crs:
+        if o.id == c.id or o.status == "merged" or not o.pr:
+            continue
+        refs = [o.head] if o.head else []
+        tip = git("rev-parse", "--verify", "--quiet", f"{remote}/{o.branch}", cwd=wt, check=False)
+        if tip:
+            refs.append(tip)
+        if any(_ancestor(wt, r, head) and not (main and _ancestor(wt, r, main)) for r in refs):
+            found.append(o)
+    return found
+
+
+def _refuse_foreign(
+    foreign: list[CrEntry], c: CrEntry, pr: str, base: str | None, head: str
+) -> None:
+    """Refuse a PR on the default branch, out of draft, whose head carries other CRs' commits."""
+    if foreign:
+        raise ChantierError(
+            f"{c.id}: {pr} is on {base} and out of draft, but its head {short_head(head)} "
+            "carries "
+            + ", ".join(f"{o.id} ({o.pr})" for o in foreign)
+            + ": merging it would merge them too. First put the PR back to draft and ship "
+            "again (it then reads PR in draft); then, if it is to stay on "
+            f"{base}, rebase it onto {base} without their commits, push, and ship again. "
+            "If " + ", ".join(o.id for o in foreign) + " is already merged on the forge, "
+            "ship again once `status` shows it merged",
+            EXIT_PRECONDITION,
+        )
+
+
 def ship(args: argparse.Namespace) -> list[str]:
-    """The Driver pushed and opened or updated the PR itself; this records the link at the
-    worktree's head and says what is off: an uncommitted change, a head not pushed, no long gate
-    passed at this head."""
+    """Record the PR the Driver pushed at the worktree's head and say what is off (uncommitted
+    change, head not pushed, no long gate). Refuse, recording nothing, an out-of-draft PR on
+    the default branch whose head carries another CR's commits: draft it first, ship again."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
     wt = cr_worktree(c)
@@ -180,8 +220,9 @@ def ship(args: argparse.Namespace) -> list[str]:
     ):
         off.append(f"no long gate passed at {short} (`chantier gate`)")
     off += _stale_body_shas(repo, c, wt, head)
-    # the PR's own base and draft state on the forge, one read; a failed read records neither
-    base, draft, shown = read_state(args.pr)
+    base, draft, shown = read_state(args.pr)  # the PR's base and draft on the forge, one read
+    if base == repo.config["default_branch"] and draft is False:
+        _refuse_foreign(_foreign_crs(repo, d, c, wt, head), c, args.pr, base, head)
     with RenderedBatch(repo, batch, actor="driver") as b:
         b.touch(b.cr(c.id), pr=args.pr, pr_base=base, pr_draft=draft, head=head, archive_seen=seen)
         b.log(

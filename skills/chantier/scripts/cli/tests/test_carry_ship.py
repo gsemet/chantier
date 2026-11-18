@@ -8,13 +8,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import changes, open_batch, record
+from batch_helpers import changes, open_batch, record, write_record
 from conftest import Chantier, sh
 from test_gate_carry import commit, git_at
 
 from chantier.commands import delivery
 from chantier.commands.carry import head_base
 from chantier.core.batch import read_batch
+from chantier.core.errors import EXIT_PRECONDITION
 from chantier.core.repo import Repo
 
 GATE = "python -c pass"
@@ -143,3 +144,47 @@ def test_ship_with_a_base_git_cannot_read_records_the_pr_and_no_carry(
     assert any("does not carry: " in ln and "cannot be read" in ln for ln in out), out
     assert not events(repo, "carry")
     assert record(repo)["crs"][1]["head"] == new and record(repo)["crs"][1]["pr"] == PR
+
+
+CASES = ["out of draft on main", "draft on main", "on A's branch", "A merged"]
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_ship_refuses_an_out_of_draft_main_pr_that_carries_another_crs_commits(
+    stack: tuple[Path, Chantier, list[dict[str, Any]]],
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    repo, chantier, (a, b) = stack
+    wa, wb = Path(a["worktree"]), Path(b["worktree"])
+    a_tip = commit(wa, "a.txt", "a\n", "A")
+    remote(repo, a["branch"], a_tip)
+    remote(repo, "main", sh("git", "rev-parse", "HEAD", cwd=repo))
+    pr_a = "https://github.com/acme/demo/pull/6"
+    assert chantier("ship", a["id"], pr_a)[0] == 0
+    commit(wb, "b.txt", "b\n", "B")
+    git_at(wb, "rebase", "-q", a_tip)
+    state = {
+        "out of draft on main": ("main", False, ""),
+        "draft on main": ("main", True, ""),
+        "on A's branch": (a["branch"], False, ""),
+        "A merged": ("main", False, ""),
+    }[case]
+    monkeypatch.setattr(delivery, "read_state", lambda link: state)
+    if case == "A merged":
+        data = record(repo)
+        data["crs"][0]["status"] = "merged"
+        write_record(repo, data)
+    before = len(events(repo, "ship"))
+    code, _, err = chantier("ship", b["id"], PR)
+    if case == "out of draft on main":
+        assert code == EXIT_PRECONDITION
+        assert a["id"] in err and pr_a in err, err
+        assert len(events(repo, "ship")) == before
+        assert "pr" not in record(repo)["crs"][1] or not record(repo)["crs"][1]["pr"]
+        assert not record(repo)["crs"][1].get("head")
+    else:
+        assert code == 0, err
+        assert len(events(repo, "ship")) == before + 1
+        assert record(repo)["crs"][1]["pr"] == PR
+        assert record(repo)["crs"][1]["head"] == sh("git", "rev-parse", "HEAD", cwd=wb)
