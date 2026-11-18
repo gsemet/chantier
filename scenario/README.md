@@ -293,7 +293,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test seam `CHANTIER_HUB_TEST_TIMES` shortening the cycle and the quiet, the watchers background
   processes:
   - `status` of a running batch prints `forge hub: none running` and `watch: chantier watch --after
-    <n>`; `--after` past the journal's end exits 1 (unit: surface-board) (test:
+    <n>`, right after the `last closed:` line (the second line stays that one); `--after` past the journal's end exits 1 (unit: surface-board) (test:
     test_forge_hub.py::test_watch_refusals,
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
   - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, `hub.json`

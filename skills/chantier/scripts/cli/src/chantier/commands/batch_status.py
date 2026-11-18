@@ -317,10 +317,10 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         _batch_line(d, _heartbeat_text(d, prev)),
         *_autosync_lines(repo),
         *_other_batches_lines(repo),
-        *_watch_lines(repo, d),
     ]
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
+    lines += _watch_lines(repo, d)
     events = read_events(repo.batch_dir(batch))
     stopped = stopped_agents(repo, d, events)
     lines += [
