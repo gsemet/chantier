@@ -903,6 +903,23 @@ text). The line `… the stack's state is unknown: run `forge-stack show`` gets 
 stays an `anomaly` with the exact text; before you raise it you may run `forge-stack show` (a read)
 and quote its output in the anomaly, without carrying on from it.
 
+**The local gate at the mergeable top.** When the project's rules ask the stack's top for a
+local run and the stack has drafts on top or CRs to come (a partial stack), the top of the
+mergeable part must have passed that local gate at its pushed head. Run it there when it has
+not: `$CHANTIER gate <cr> "<the project's command>"…` in that CR's worktree (clean, at the head
+you shipped), as any long gate (its queue, its lock, never stopped for slowness). A head with a
+pass is not run again: a `gate` that passed there, or that CR's `ship` printed `carried:` for the
+gate at that head (a clean restack). This holds at the first stack made and at each new top of
+the mergeable part, in any take: a draft that turns ready to merge, a restack after a partial
+merge, an insertion, a drop. Every hand-back that leaves a partial stack names the result for the
+mergeable top as it stands: `[stack→foreman] hand-back ready to merge <stack link> <cr>=<link>…
+local gate <cr> at <head7>: passed|failed`. A failed run is also `[stack→foreman] anomaly <cr>
+local gate failed at <head7>: <the log's path>`, sent before the hand-back; you change nothing
+for it (no round of your own: you edit no project file). A PR that would become the new mergeable
+top turns out of draft only once its local gate passed at its head; until then it stays a draft
+on top. When its gate fails, it stays a draft, the mergeable part keeps its previous top (whose
+pass still holds), and the anomaly above goes up.
+
 **A CR that joins** (it has a PR, a draft): order it on top (`stack`), have it rebased (see "Who
 moves a branch"), then `$CHANTIER forge-stack rebuild` (unstack, retarget, create; on GitLab, retarget). The PRs below
 are not moved and stay ready to merge: the user may merge them meanwhile. The same holds on GitLab for a
@@ -910,7 +927,7 @@ draft that turns ready, an insertion and a restack after a merge, each ending wi
 
 **A draft that turns ready to merge** (its CR handed back `ready`) moves into the mergeable part. When it
 is the lowest draft, nothing moves: no `rebuild`; read the stack back and turn its PR ready once
-the five checks hold, then `stack --out-of-draft <cr>`. When drafts sit under it, order it below them (`stack`), rebase it and the
+the five checks hold and, under the rule, its local gate passed at its head, then `stack --out-of-draft <cr>`. When drafts sit under it, order it below them (`stack`), rebase it and the
 drafts above (theirs by their Drivers' notes when working), `rebuild`, then turn it ready and `stack --out-of-draft <cr>`.
 
 **A merge during a take.** On `[foreman→stack] note merged: <cr>…`, read the stack again
@@ -922,7 +939,9 @@ plan merged meanwhile is an `anomaly` with the exact text, as any refused `rebui
 mergeable at that time. Turn ready only what is restacked, judged and green at the top before the
 time; leave the rest a draft on top. Never leave, at the time, the stack unstacked or a rebuild
 half done: a `rebuild` that cannot finish before the time is not started. Hand back with the stack
-as it stands.
+as it stands. With the rule above, a local gate that has not passed by the time does not hold
+the hand-back: hand back at the time with `local gate <cr> at <head7>: not run` (or `failed`); a
+gate still running is not stopped and records its result as any gate.
 
 **The five checks,** read on the forge with `$CHANTIER forge-stack show` (one line per failed
 check, exit 0 when all hold), on the stack as it stands (the bottom CRs with a PR; drafts on top
@@ -933,7 +952,8 @@ GitLab the checks read the chain (each MR's target is the branch below, the firs
 branch; no other MR on a branch of the stack but drafts of CRs to come; drafts only on top; the
 release on top; unproved; trial: one run on a GitLab project).
 Green and checked: `[stack→foreman] hand-back ready to merge <stack
-link> <cr>=<link>…`.
+link> <cr>=<link>…[ local gate <cr> at <head7>: passed|failed|not run]`, the tail present under
+the rule on every hand-back that leaves a partial stack.
 
 The stack is what your prompt gives from `take stack`, each CR with its base (the state computes
 it: the CR under it, the first on the default branch). Each row's label is the CR's hand-back
@@ -963,7 +983,8 @@ one restack for what remains, whatever the number of CRs one merge action of the
      what this pass avoids.
   4. One CI wait for all of them (heavy CI once at the top), the proofs each move touched judged
      again as above, then one `$CHANTIER forge-stack rebuild` (no manual retarget: it retargets
-     the first PR to the default branch), read back before the hand-back.
+     the first PR to the default branch), read back before the hand-back; then the local gate at
+     the mergeable top, when its head carries no pass (a clean restack carries it: no run).
 
 This hand-back is silent: no `stack-ready-to-merge` follows
 a restack. On GitLab, the forge may already have retargeted the next MR to the default branch when
@@ -1000,7 +1021,8 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
 4. The release PR: the insertion is a change of content under it, so it is stale: leave it a draft
    and hand back; the Foreman sends the release back (`take <release> --note "redo: <new cr>
    inserted"`) so that its notes name the new change, then takes the stack again.
-5. Verify every PR of the stack again on the forge (the five checks) and only then turn the PRs
+5. Verify every PR of the stack again on the forge (the five checks), run the local gate at the
+   mergeable top when its head carries no pass, and only then turn the PRs
    above ready (`stack --out-of-draft <cr>…`), the release PR last; hand back with the stack's link.
 
 **Removing a dropped CR.** Taken with a note, or sent one, that names `drop: <cr>`:
@@ -1025,7 +1047,8 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    it`).
 5. Close the dropped CR's PR (`gh pr close <n>`, `glab mr close <n>`), with no `--delete-branch`
    and no comment. Its branch and worktree stay until the user's word at `close`.
-6. Turn the mergeable part ready (`stack --out-of-draft <cr>…`). A release above stays a draft, waiting for the Foreman's
+6. Run the local gate at the mergeable top when its head carries no pass, then turn the
+   mergeable part ready (`stack --out-of-draft <cr>…`). A release above stays a draft, waiting for the Foreman's
    `redo:`. Hand back as for any take.
 
 A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR

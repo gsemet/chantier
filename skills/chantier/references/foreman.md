@@ -304,7 +304,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     (no estimate tool). No CR already started is stopped. Name the time in the stack driver's take
     (`take stack --note "deliver by <time>"`). At the time, the stack on the forge is what the user
     gets: send the `stack-ready-to-merge … to come: …` ask of the stack as it stands if it is not complete
-    and none was sent for it. Then the batch goes on toward the complete stack.
+    and none was sent for it, with the local-gate clause as the hand-back gives it (`not run` or
+    `failed` included: the time overrides the condition above). Then the batch goes on toward the complete stack.
 
   You run `take
   stack`, never the stack driver: its output goes in the stack driver's prompt, you start it, then
@@ -321,10 +322,14 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   and the `stack-ready-to-merge` asks (with the commit and the `to come:` tail) the same. On its `hand-back ready to merge <stack link>
   <cr>=<link>…`, read the stack on the forge before anything else, the five checks (below), then:
   - the first stack made: `$CHANTIER asks "stack-ready-to-merge <stack link> partial stack mergeable below
-    <sha7> merge <cr> <link> <cr>=<link> gaps: …… to come: <cr> <cr>…"` (`merge <cr> <link>`: the highest PR of the mergeable part, the PR whose head is `<sha7>`; the `<cr>=<link>` pairs: the mergeable part,
+    <sha7> merge <cr> <link> <cr>=<link> gaps: …… local gate <cr> at <sha7>: passed to come: <cr> <cr>…"` (`merge <cr> <link>`: the highest PR of the mergeable part, the PR whose head is `<sha7>`; the `<cr>=<link>` pairs: the mergeable part,
     each CR's gaps after its link as in the complete form below; to
     come: the drafts on top (the rows not ready to merge) and the CRs of
-    `forge-stack show`'s `to come:` line (no PR yet, or working and not placed yet); `<sha7>` as `forge-stack show` printed it);
+    `forge-stack show`'s `to come:` line (no PR yet, or working and not placed yet); `<sha7>` as `forge-stack show` printed it).
+    Under a project rule that asks the stack's top for a local run, the clause is copied from the
+    stack driver's hand-back and is a condition of every partial ask: send it only when it says
+    `passed`, for the `<sha7>` the ask names. A hand-back with no clause under the rule is a failed
+    check: `take stack --note "local gate at the mergeable top"`. With no such rule, no clause;
   - the stack complete: `$CHANTIER asks "stack-ready-to-merge <stack link> mergeable below <sha7>
     merge <cr> <link> <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
   - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask;
@@ -332,6 +337,9 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     anomaly nor an ask: `agents set stack - --epoch <n>`, `take stack --note "resume: <its text>" --epoch <n>`, a new stack
     driver on the batch's model; a failed restack is the stack driver's `conflict-resolver` on the
     escalation model, the stack driver keeping the batch's model;
+  - `anomaly <cr> local gate failed at <head7>: <log path>`: no ask for that top; `take <cr> --epoch
+    <n> --note "local gate failed at <head7>: <log path>"` sends that CR to a Driver for a round; it
+    joins the mergeable part at a later take, once its gate passes;
   - `anomaly <cr> conflict: stacked on <cr>: <files>`: before the five checks,
     `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"` (the CR is `working`,
     its draft no check 4 failure; its Driver rebases, the CR turns ready to merge at a later take);
@@ -404,7 +412,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER
   note <cr> "refused: <the exact command> -> <the host's exact text>"`), `budget <text>`,
   `merged <cr> <link>`, `released <cr> <link>`, `stack-ready-to-merge <stack link> [partial stack] mergeable
-  below <sha7> merge <cr> <link> <cr>=<link>[ gaps: …]… [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`, `conflict <cr> with <cr>[, <cr>…]: <paths>; switch to a
+  below <sha7> merge <cr> <link> <cr>=<link>[ gaps: …]…[ local gate <cr> at <sha7>: passed|failed|not run] [to come: <cr> <cr>…]`, `heavy-ci <cr> <head7> green|red <checks>`, `conflict <cr> with <cr>[, <cr>…]: <paths>; switch to a
   stack?`. In the
   text of an ask, name a CR
   by its number and slug together (`concepts.md`, "A CR's name"). A readiness ask (`ready-to-merge`,
