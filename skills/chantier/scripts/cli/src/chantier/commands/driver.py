@@ -30,6 +30,7 @@ from chantier.core.phases import PHASE_DETAIL_MAX
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
+from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
 from chantier.playbook.lines import team_lines, timing_lines
@@ -65,7 +66,7 @@ def _reopen(b: Batch) -> list[str]:
     return [f"{b.id} was paused: running again; `pause --epoch <n>` runs again at the end"]
 
 
-def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str) -> list[str]:
+def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str, fresh: list[str]) -> list[str]:
     """The stack's driver is taken: the batch must be a stack with no driver recorded."""
     d = b.record
     if d.mode != "stack":
@@ -89,7 +90,8 @@ def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str) -> list[str
         team=team_lines(d.playbook),
         note=note,
     )
-    return [head, *reopened, *rows, *driver_prompt_lines(row, d, block)]
+    watch = not_running_line(repo, d.status) if reopened else []
+    return [head, *reopened, *rows, *driver_prompt_lines(row, d, block), *fresh, *watch]
 
 
 def _cr_driver_block(repo: Repo, batch: str, c: CrEntry, facts: list[str]) -> DriverBlock:
@@ -120,7 +122,7 @@ def take(args: argparse.Namespace) -> list[str]:
         check_epoch(b, args.epoch)
         d = b.record
         if args.cr == "stack":
-            return [*_take_stack(repo, b, batch, args.note), *fresh]
+            return _take_stack(repo, b, batch, args.note, fresh)
         c = b.cr(args.cr)
         row = driver_row(d.host, "take <cr>", c.kind)  # before any state changes
         check_take(d, c, args.note)
@@ -151,6 +153,7 @@ def take(args: argparse.Namespace) -> list[str]:
         *facts,
         *skeleton,
         *fresh,
+        *(not_running_line(repo, d.status) if reopened else []),
     ]
 
 

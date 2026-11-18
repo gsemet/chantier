@@ -91,6 +91,16 @@ def sync_command() -> str | None:
     return f'uv sync --locked --project "{skill_dir().parents[1].as_posix()}"'
 
 
+def own_transcript(host: str) -> str | None:
+    """This session's transcript id, from the host's environment; None when unknown."""
+    return (
+        os.environ.get(
+            "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID"
+        )
+        or None
+    )
+
+
 def detect_host(explicit: str | None = None) -> str:
     """The host: `CHANTIER_HOST`, then the host's own environment."""
     host = explicit or os.environ.get("CHANTIER_HOST")

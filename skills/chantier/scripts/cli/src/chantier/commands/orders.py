@@ -23,6 +23,7 @@ from chantier.core.ids import normalize_cr
 from chantier.core.records import LIVE, OrderRecord
 from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, DriverRow, driver_prompt_lines, driver_row
+from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.filing import new_request, shown
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
@@ -289,10 +290,11 @@ def _ordered(
         oid = _record_order(b, args, req)
         skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
         batch_id = b.id
+        watch = not_running_line(repo, b.record.status) if args.kind == "qa" and reopened else []
     if w.ended:  # the batch's last CR ended: the locks are released
         effect += end_of_batch(repo, batch_id, f"order {oid}")
     if own:
-        return [*effect, *fresh]
+        return [*effect, *fresh, *watch]
     target = f" {cr}" if cr and cr != "-" else ""
     text = f" {note}" if note else ""
     return [
@@ -300,6 +302,7 @@ def _ordered(
         *effect,
         *skeleton,
         *fresh,
+        *watch,
     ]
 
 

@@ -15,7 +15,7 @@ from chantier import __version__
 from chantier.board.projects import project_name
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.hub import journal, lock
+from chantier.hub import autostart, journal, lock
 from chantier.hub import times as hub_times
 from chantier.hub.cycle import Hub, running_batch
 
@@ -30,12 +30,16 @@ class Watch:
         self.repo, self.cursor, self.version = repo, cursor, version
         self.project = project_name(repo)
         self.lock = lock.HubLock(repo.git_dir)
+        self.session = autostart.session_key()
+        self.own = lock.WatcherLock(repo.git_dir, self.project, self.session)
         self.hub: Hub | None = None
         self.events: list[dict[str, Any]] = []
         self.last_new: float | None = None
 
     def elect(self) -> None:
-        """Try the lock, once, when this watcher is not the hub."""
+        """Try the locks, once each, when this watcher does not hold them: its own (so the
+        session's `status` sees it) and the hub's."""
+        self.own.acquire()
         if self.hub is None and self.lock.acquire():
             self.hub = Hub(self.repo, self.version)
 
@@ -72,12 +76,19 @@ class Watch:
         out = [journal.event_text(e) for e in self.events]
         if reason == NO_BATCH:
             return [*out, f"watch: no running batch in {self.project}; ended"]
-        return [*out, f"watch: cursor {self.cursor}; next: chantier watch --after {self.cursor}"]
+        batch = running_batch(self.repo)
+        name = batch.id if batch is not None else self.project
+        return [
+            *out,
+            f"watch: {name} still running: for the Chief of Staff, start again in the "
+            f"background now: {autostart.watch_command(self.repo, self.cursor)}",
+        ]
 
     def close(self) -> None:
         if self.hub is not None:
             self.hub.close()
         self.lock.release()
+        self.own.release()
 
 
 def watch(args: argparse.Namespace) -> list[str]:

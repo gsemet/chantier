@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 from chantier.core.batch import check_epoch, read_batch, require_epoch, resolve_batch
@@ -13,9 +12,10 @@ from chantier.core.files import write_json
 from chantier.core.records import ClaimRecord, SeatRecord, chief_sessions
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
+from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
-from chantier.plugin_files import detect_host
+from chantier.plugin_files import detect_host, own_transcript
 
 
 def foreman(args: argparse.Namespace) -> list[str]:
@@ -34,7 +34,7 @@ def foreman(args: argparse.Namespace) -> list[str]:
         if args.action == "set":
             return _claim(b, args)
         check_epoch(b, args.epoch)
-        return _transcript(b, args)
+        return _transcript(repo, b, args)
 
 
 def _claim(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
@@ -52,7 +52,7 @@ def _claim(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
     return [f"foreman {args.value} epoch {b.record.foreman_epoch}"]
 
 
-def _transcript(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
+def _transcript(repo: Repo, b: RenderedBatch, args: argparse.Namespace) -> list[str]:
     if not args.value:
         raise ChantierError("foreman transcript <session-uuid>", EXIT_USAGE)
     claimed = b.record.foreman_transcript
@@ -80,18 +80,9 @@ def _transcript(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
         b.log("steering", None, steering="direct", transcript=args.value)
         n = b.record.foreman_epoch
         out.append(f"steering direct: the Chief of Staff steers {b.id} as Foreman n°{n}")
+        out += not_running_line(repo, b.record.status)
     b.log("foreman-transcript", None, transcript=args.value)
     return out
-
-
-def own_transcript(host: str) -> str | None:
-    """This session's transcript id, from the host's environment; None when unknown."""
-    return (
-        os.environ.get(
-            "COPILOT_AGENT_SESSION_ID" if host == "copilot" else "CLAUDE_CODE_SESSION_ID"
-        )
-        or None
-    )
 
 
 def _get(repo: Repo) -> list[str]:
