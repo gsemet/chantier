@@ -1,7 +1,7 @@
 # Release process: notes and announcement
 
 The mechanics of a release (version, tag, publication) are in
-[CONTRIBUTING.md](../CONTRIBUTING.md) "Release". This file says what the user reviews in the
+[CONTRIBUTING.md](https://github.com/gsemet/chantier/blob/main/CONTRIBUTING.md) "Release". This file says what the user reviews in the
 version PR: the release notes, the announcement thread and their images, in
 `docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. The folder is named by the date of the version PR. That
 date may differ from the tag's, and nothing checks it. The version PR's body shows
@@ -9,7 +9,7 @@ date may differ from the tag's, and nothing checks it. The version PR's body sho
 release folder stays the source, and the body is refreshed from it before the merge.
 
 The model is Markdown OKF-Schema Studio's release process. The generic default that other projects
-get is [release-template](../skills/chantier/references/release-template.md); this file ranks above
+get is [release-template](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/release-template.md); this file ranks above
 it for chantier.
 
 ## The release folder
@@ -39,15 +39,17 @@ Foreman, Driver) are product vocabulary and may be used. The structure, in order
      is `git rev-list --no-merges --count vPREVIOUS..HEAD` on the release branch before the version
      commit (the same number once merged by rebase).
 2. **Links**, centred, on one line: Install (`https://github.com/gsemet/chantier#install`) · the
-   tutorial (`blob/vX.Y.Z/docs/tutorial-claude-code.md`) · the use cases
-   (`blob/vX.Y.Z/docs/use-cases.md`) · Full changes (`compare/vPREVIOUS...vX.Y.Z`). Then a `---`
+   tutorial (`https://chantier.readthedocs.io/en/vX.Y.Z/tutorials/claude-code.html`) · the use cases
+   (`https://chantier.readthedocs.io/en/vX.Y.Z/how-to/use-cases.html`) · Full changes (`compare/vPREVIOUS...vX.Y.Z`). Then a `---`
    rule.
 3. **Two to four highlight sections**, `## <emoji> <what the reader can now do>`. Each has:
    - a short paragraph saying what changes for the reader;
    - a usage or call example: what the user says to the Chief of Staff (a quoted line), or a CLI
      call with its output in a code block;
    - one capture, or a before/after pair in a two-column table with a caption row;
-   - a link to the doc that covers it, at the tag (`blob/vX.Y.Z/...`);
+   - a link to the doc that covers it, at the tag: a page of the documentation site is linked at
+     `https://chantier.readthedocs.io/en/vX.Y.Z/<page>.html`; a file that is not a site page (a
+     card, a script) stays `blob/vX.Y.Z/...`;
    - one closing sentence on why it matters.
 4. **`## 🛠 Smaller changes`**: the smaller visible changes, one bullet each, with a bold lead.
 5. **Folded sections**: `<details><summary><b>🐞 All fixes</b></summary>`, then
@@ -137,6 +139,16 @@ The scan cannot read pixels, so steps 2 and 4 cover the images, and step 1 cover
 
 Tone: organic. No launch words ("excited to announce", "game changer", "supercharge"), at most two
 emoji in the whole thread, and no list of hashtags. Only the user posts: no agent posts the thread.
+
+## The docs at the tag
+
+The notes link the documentation of the release's own version, `https://chantier.readthedocs.io/en/vX.Y.Z/`.
+That address exists once Read the Docs has built the tag, a few minutes after the tag is pushed
+(its automation rule activates each `vX.Y.Z` tag: the user's setup of the Read the Docs project).
+So after the tag, the Release Driver checks that `https://chantier.readthedocs.io/en/vX.Y.Z/`
+serves, and waits for it, before it publishes the notes and the thread: no link is broken at
+publication. If it does not serve after a reasonable wait, the Driver hands back a
+`blocked question:` naming it.
 
 ## Which batch
 

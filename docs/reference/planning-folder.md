@@ -1,6 +1,6 @@
 # The planning folder
 
-The layout of the planning folder, in your project or in an external surface (see [planning modes](planning-modes.md) for the full account of a surface), what is published, the STATUS files, the worktrees, and a batch's pause and close.
+The layout of the planning folder, in your project or in an external surface (see [planning modes](../explanation/planning-modes.md) for the full account of a surface), what is published, the STATUS files, the worktrees, and a batch's pause and close.
 
 Everything lives in the planning folder, `.agents/changes/` in your project or
 `<surface>/projects/<name>/changes/` in an external surface:
@@ -30,7 +30,7 @@ without one (then its Driver works from the request alone). A CR moves to `3-don
 once when it merges, a stack's too, and to `5-archives` at `close`. A dropped CR goes to
 `6-trash/` and does not return to the backlog. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
-through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](../README.md#batch-modes), `open --mode parallel|series|stack`
+through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](../explanation/batches-and-lifecycle.md#batch-modes), `open --mode parallel|series|stack`
 (parallel unless you ask otherwise). While a CR runs, the team writes its notes, gate logs and PR body in the CR's own
 `work/` folder.
 

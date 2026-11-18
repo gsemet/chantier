@@ -8,7 +8,7 @@ copies it to a temporary folder, starts the web board on the copy and takes the 
   This folder has no `.agents/changes/` and the CLI never discovers it from the repository's root.
 - Everything in it is made up: the shop, its people, its pull requests (`example` URLs that no
   screenshot follows) and its dates (the capture fixes the clock at `2026-06-18T10:30:00Z`).
-- It is a multi-project planning surface, as [planning-modes](../planning-modes.md) describes:
+- It is a multi-project planning surface, as [planning-modes](../explanation/planning-modes.md) describes:
   `projects/<name>/` with `project.md`, `checkout.yml` and `changes/`.
 
 | Project | What it shows |

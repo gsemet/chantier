@@ -7,7 +7,7 @@ You need:
 
 - the **Claude Desktop app**, with its Code tab. Foreman mode starts the Foreman as a nested
   session, which only the Desktop app can do. In a terminal or in VS Code, or under Remote Control,
-  the batches are in [direct mode](use-cases-direct.md) with no argument, where the Chief of Staff
+  the batches are in [direct mode](../how-to/use-cases-direct.md) with no argument, where the Chief of Staff
   steers the batch itself;
 - [`uv`](https://docs.astral.sh/uv/), `git`, and your forge's CLI logged in to its host: the
   [GitHub CLI](https://cli.github.com/) `gh` (`gh auth status`) or the
@@ -52,7 +52,7 @@ The first line is the **fast gate** (the Coder runs it after every round), the s
 **long gate** (the Driver runs it once before the PR, through `chantier gate`, alone in the
 repository). One command may serve as both; write one command per item, never chained with `&&`
 or `;`. On Windows, the long gate runs in `cmd.exe`. The page
-[Your gates](gates.md) says more: exemptions, and a project with no long gate.
+[Your gates](../how-to/gates.md) says more: exemptions, and a project with no long gate.
 Everything else `AGENTS.md` says (how to commit, the PR template, the merge method, what a
 skipped job means, how to release) binds the team too: the Drivers commit, push and open the
 PRs themselves, and your rules rank above chantier's own.
@@ -135,7 +135,7 @@ asks you whether to add them (the rules of a release on its own, or of fixes on 
 you grant it), and adds them to `~/.claude/settings.json` on your yes, and nothing
 else there; when the host refuses that edit, it gives you one command line to run at your
 computer. The rules, the risk each accepts and what must stay refused are in the host reference's
-section "Configuration" ([claude-code.md](../skills/chantier/references/hosts/claude-code.md)).
+section "Configuration" ([claude-code.md](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md)).
 
 Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
 next to your repository, which its Driver creates when it starts), then starts the **Foreman**
@@ -162,7 +162,7 @@ What "status?" or `/chantier:status` gives once a batch is done: the CR table wi
 rounds and cost, the notes, the cost by role with the orchestration share, the spend outside the
 batch and the cost notes.
 
-![A status report of a done batch](status-report-done.png)
+![A status report of a done batch](../status-report-done.png)
 
 When a CR needs a decision only you can take, the Chief of Staff brings you the question. Your
 answer is recorded in the CR's `02-answers.md` and the work resumes.
@@ -256,10 +256,10 @@ included.
   never works around a refusal.
 - **The classifier refused a chantier command** (a push, a `$CHANTIER` command, a PR): say yes
   when the Chief of Staff asks to add the allow rules of the "Configuration" section of the
-  [host reference](../skills/chantier/references/hosts/claude-code.md) to your settings, or run
+  [host reference](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md) to your settings, or run
   the one command line it gives you at your computer when the host refuses that edit.
 - **The Foreman was refused an action by a classifier.** It wants your word in that session: type
   one line in the Foreman's session allowing that action, from your phone if you are away.
 
-Next: [use cases](use-cases.md) for more ways to work with chantier, or
-[planning modes](planning-modes.md) to plan in a git repository of its own.
+Next: [use cases](../how-to/use-cases.md) for more ways to work with chantier, or
+[planning modes](../explanation/planning-modes.md) to plan in a git repository of its own.

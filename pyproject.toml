@@ -16,6 +16,13 @@ chantier = "chantier.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-xdist>=3"]
+docs = [
+    "sphinx>=8",
+    "myst-parser>=4",
+    "furo>=2024.8.6",
+    "sphinx-design>=0.6",
+    "sphinx-copybutton>=0.5",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -3,7 +3,7 @@
 
 `chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for its PRs page.
 
-The pictures on this page are taken from the real board by `just docs-screenshots`, on a made-up planning surface (`docs/demo/`, see [its README](demo/README.md)): three fictional projects, the clock fixed at 2026-06-18 10:30 UTC. Nothing in them is a real project.
+The pictures on this page are taken from the real board by `just docs-screenshots`, on a made-up planning surface (`docs/demo/`, see [its README](https://github.com/gsemet/chantier/blob/main/docs/demo/README.md)): three fictional projects, the clock fixed at 2026-06-18 10:30 UTC. Nothing in them is a real project.
 
 For the other board, the pane in Claude Code, see [boards](boards.md). To start it, keep it on the machine and stop it, see [Starting the board](#starting-the-board).
 
@@ -11,35 +11,35 @@ For the other board, the pane in Claude Code, see [boards](boards.md). To start 
 
 The breadcrumb at the top names where you are, and stays in place when the page scrolls. The left bar lists the views and the project. On a phone the bar becomes a bottom bar and the project picker sits at the top. A planning surface with several projects opens the picker's menu with the surface as its header: the grid icon, its name in bold and "overview · N projects" under it. A click on that header opens the overview from any page. A line follows, then the projects, slightly indented; a single project has no such header.
 
-![The project picker, open](web-board/picker-pc.png)
+![The project picker, open](../web-board/picker-pc.png)
 
 The data refreshes by itself. The line under the bar says how old it is (`Data: 0 s ago`), or that the board is unreachable.
 
 ### Home: the planning surface
 
-![The planning surface: one line per project](web-board/home-pc.png)
+![The planning surface: one line per project](../web-board/home-pc.png)
 
 With several projects, Home is the table of the surface (its name is the page's title): each project's line shows its folder in the surface and its code repository as its `checkout.yml` names it (`.repo` with no `repo:` line), then the batch (running or not), the CRs working, the PRs to review (ready to merge), a progress gauge, what was spent against the budget, and the numbers of the intake and the grill. A path too long for its place is cut, and shown whole when you hover it. A click on a line opens that project. The surface's Home is read-only.
 
 ### Home: a project
 
-![A project's Home](web-board/project-pc.png)
+![A project's Home](../web-board/project-pc.png)
 
 A project's Home answers "what needs me?": five tiles (**To review**, the PRs ready to merge; **Waiting for you**, the CRs that are blocked; **In grill**, the items being grilled or specified; **Next batch**; **Written by the board**), the batch with its progress gauge, the open PRs (a row opens its PR or MR on the forge, and its CR number opens the CR's folder), the pipeline of the backlog, the recent activity of the batch (with no batch running, it names the last closed one), the last merged CRs and the five latest closed batches, one line each, with a link to the costs.
 
 ### Batch
 
-![The batch: levels, PRs to review and PRs in draft](web-board/batch-pc.png)
+![The batch: levels, PRs to review and PRs in draft](../web-board/batch-pc.png)
 
 The batch in four figures (the slots, the CRs working, the CRs handed back ready, what was spent), then the CRs as boxes in levels, "Level 1", "Level 2" and so on: a CR sits in the level below the CRs it waits for, and an arrow goes from a CR to the one that waits for it. Each CR stays in one place for its whole life, merged ones included. The state is a badge in the CR's top right corner, its icon and word in the state's colour: blocked, working, **ready to merge**, **PR in draft**, **ready locally** (done, no PR yet), waits, queued, merged; its legend is in the "States and arrows" tooltip. Hover a CR to see what it waits for and what waits for it; a click opens its folder.
 
 Above the central view, three tabs show the same batch three ways: **Graph** (the levels above), **Gantt** and **Time cards**. The tab is in the address (`&t=gantt`, `&t=cards`; the graph is the default and writes nothing), so a link opens the same tab; it is kept while you stay on the Batch page of the project and dropped by any other view or project. The legend pill stays above the tabs. A CR that changed state in the last ten minutes shows a small burst in its state's colour beside its badge (it plays once, and again when you come back to the Graph tab). A CR's top row begins with the stage it came from, a priority chip (`P1` to `P4`, `Inbox` or `3-ready`) read from the batch's `add` event; a batch that did not record it shows none.
 
-![The batch's Gantt](web-board/batch-gantt-pc.png)
+![The batch's Gantt](../web-board/batch-gantt-pc.png)
 
 **Gantt**: one line per CR on a real time scale, from the batch's start to now. A CR's bar is cut into segments, one per period in a state, in that state's colour; the open segment runs to the "now" line, hatched. A CR that has not started is a cross at the right edge, a finished one ends on a round mark (merged green, cancelled grey), with its start and end times above the bar. The arrows are the graph's, vertical at the start of the CR that waits; hover a CR to light what it waits for and what waits for it. The times come from the batch's events, so a closed batch's record (which keeps none) shows only a note under the Gantt and Time cards tabs.
 
-![The batch's time cards](web-board/batch-cards-pc.png)
+![The batch's time cards](../web-board/batch-cards-pc.png)
 
 **Time cards**: one paper card per CR, in the receipt's paper. Each round is one stamped line (the coder, then the inspector's first phase), then the verifier line with its verdict, the PR and the cost. A rubber stamp says merged, ready or working, and a CR at its third round or more also carries a "reworked" stamp.
 
@@ -68,13 +68,13 @@ The batch navigator is on this page as on Costs and Batch: a past batch's PRs ar
 
 ### Kanban
 
-![The kanban: Inbox, Backlog, Grill, 3-ready, In progress, Handed back, Done](web-board/kanban-pc.png)
+![The kanban: Inbox, Backlog, Grill, 3-ready, In progress, Handed back, Done](../web-board/kanban-pc.png)
 
 Seven columns, from the idea to the merged CR: **Inbox** (`1-inbox`), **Backlog** (`2-backlog`, P1 to P4, not yet grilled), **Grill** (items being grilled or specified, from the inbox or the backlog), **3-ready** (waits for the next batch), **In progress** (queued, working, blocked), **Handed back** and **Done** (the newest merged CRs; the total is in the column's head). A card shows its priority (a teal shade, darkest for P1 and palest for P4, on its `Pn` chip), its labels, its first lines, the number of files and its state (raw, in grill, specified, automatable), or its round for a CR of the batch. A working CR of the batch shows its step (`coder r2`, `gate scenario`, `CI`), a blocked one "waits for the user", and the CR the batch would start next carries a "next to start" tag (the Batch view's Slots figure names it). A click opens the folder. The labels at the top filter the cards, and a priority filter (the inbox and P1 to P4) sits beside them. **+ New: a new idea** files an idea (see below).
 
 ### Triage
 
-![Triage: the inbox, the backlog by priority and 3-ready](web-board/triage-pc.png)
+![Triage: the inbox, the backlog by priority and 3-ready](../web-board/triage-pc.png)
 
 The place where you sort the backlog. Each item is a post-it, the same card as the Kanban's with the selection and the drag added: its folder name, where the request came from (an issue number, a Jira key or `verbal`), its labels, and a mark for how far it has been worked (raw, in grill, specified, automatable). A dashed post-it with a clock has a late summary: the CR changed after its summary was written. On a wide screen each priority shows its post-its side by side, as many per row as fit, each the width of an inbox post-it. The post-its of P1 to P4 carry the same teal shade of their priority, on their chip, as on the Kanban (the panel's head shows the same chip).
 
@@ -87,7 +87,7 @@ Each change is written at once, with the CLI's own file and triage commands, in 
 
 ### Costs
 
-![The costs: the batch's receipt, the totals and one row per CR](web-board/costs-pc.png)
+![The costs: the batch's receipt, the totals and one row per CR](../web-board/costs-pc.png)
 
 The page shows the cost of the batch the navigator chose as a supermarket receipt; by default the running batch's, and, with no batch running, the newest closed batch's. The navigator sits next to the title, on this page and on the Batch page: `‹ batch-04 ›` moves to the previous and the next batch (greyed on the first and on the last), and a **Latest** pill, shown when the page is not on the last batch, goes back to it. The batch shown is in the address (`&b=batch-04`), so a link opens the same batch; it stays between Costs and Batch, and any other view or project drops it. An unknown `b` shows the latest batch. A record that is neither closed nor the running batch (an abandoned one) is not in the navigator. On a wide screen the receipt (the ticket) stays on the left and the cards on the right; on a phone the ticket comes first, the Per CR table keeps the CR and its title and the figures follow.
 
@@ -101,7 +101,7 @@ The first card on the right, **Where the money went**, shows where the shown bat
 
 ### Configuration
 
-![The configuration: each role's agent and model, per host](web-board/config-pc.png)
+![The configuration: each role's agent and model, per host](../web-board/config-pc.png)
 
 For each host (Claude Code, Copilot), one row per role: the agent and the model it has in the project's configuration file in the planning surface (`projects/<name>/chantier.yaml`), the value in effect and the layer it comes from, and how the role starts (the plugin's agent, a named agent, or a generic agent when the host cannot start a named agent on a chosen model). Choosing "inherited" removes the key from the file. Each change is judged first (a dry run) and written by **Save**, keeping the file's comments and its other keys; it applies at the next batch, never to a running one. The other settings are shown read-only, and with no planning surface the whole page is read-only.
 
@@ -109,27 +109,27 @@ A value the code repository's own `chantier.yaml` overrides is still written to 
 
 ## A CR's files
 
-![A CR's folder in the side panel](web-board/panel-pc.png)
+![A CR's folder in the side panel](../web-board/panel-pc.png)
 
 A click on a CR, a card, a row or a PR's folder icon opens its folder in a side panel: the tree of its files on the left (sub-folders such as `intake/`, `evidence/` and `work/` included), the file on the right. Markdown is drawn, other text is shown as text, images are shown, and a file the page cannot show (too large, or another type) offers a download. A web link or URL of the drawn Markdown opens in a new tab; the facts row links the CR's PR or MR and a backlog item's issue, and an MR's number is `!n`. The panel reads the planning folder only.
 
 ### Editing a Markdown file
 
-![Editing a backlog item's specification](web-board/editor-pc.png)
+![Editing a backlog item's specification](../web-board/editor-pc.png)
 
 A backlog item's Markdown file has an **Edit** button (never a batch CR's, never on the surface's Home). **Save** (or Ctrl+S) writes the file only if it is still the one you opened: if the Chief of Staff or another device changed it meanwhile, the board refuses and tells you, so that nothing is overwritten. Leaving the file, the item or the page with unsaved changes asks first.
 
 ## A new idea
 
-![The New dialog](web-board/new-pc.png)
+![The New dialog](../web-board/new-pc.png)
 
 **+ New** (at the top right of a project's views) files an idea in the project's `1-inbox/`: write it, optionally name its folder (lower case, dashes), press **File**. The folder holds an `intake/request.md` with your text. If the name is taken the dialog asks for another one.
 
 ## Autosync
 
-![The autosync pill, an incident to approve](web-board/autosync-pc.png)
+![The autosync pill, an incident to approve](../web-board/autosync-pc.png)
 
-When the planning surface runs the autosync tool (its `AGENTS.md` names the guidelines [planning-modes](planning-modes.md#the-surfaces-autosync) describes), the bottom of the left bar shows a pill with the state of the group that keeps the surface in sync: **active** (with the time of the last push), **stopped**, **blocked** (the Chief of Staff must integrate, then restart) or **to approve**. A click opens a panel: the leader, the participants, the last push, and the buttons **Start**, **Stop** and, for an incident the tool holds (a push that would carry staged files or secrets), **Approve**. The board approves only the incident it shows: if another one is waiting by then, it says so. A surface without autosync has no pill.
+When the planning surface runs the autosync tool (its `AGENTS.md` names the guidelines [planning-modes](../explanation/planning-modes.md#the-surfaces-autosync) describes), the bottom of the left bar shows a pill with the state of the group that keeps the surface in sync: **active** (with the time of the last push), **stopped**, **blocked** (the Chief of Staff must integrate, then restart) or **to approve**. A click opens a panel: the leader, the participants, the last push, and the buttons **Start**, **Stop** and, for an incident the tool holds (a push that would carry staged files or secrets), **Approve**. The board approves only the incident it shows: if another one is waiting by then, it says so. A surface without autosync has no pill.
 
 ## On a phone
 
@@ -137,9 +137,19 @@ Each view fits a phone: the bar is at the bottom, the project picker and **+ New
 
 | Batch | Triage | Triage, two selected | Picker | Autosync |
 | --- | --- | --- | --- | --- |
-| ![The batch on a phone](web-board/batch-phone.png) | ![Triage on a phone](web-board/triage-phone.png) | ![Triage with two post-its selected and the bottom bar](web-board/triage-selection-phone.png) | ![The project picker on a phone](web-board/picker-phone.png) | ![Autosync on a phone](web-board/autosync-phone.png) |
+| ![The batch on a phone](../web-board/batch-phone.png) | ![Triage on a phone](../web-board/triage-phone.png) | ![Triage with two post-its selected and the bottom bar](../web-board/triage-selection-phone.png) | ![The project picker on a phone](../web-board/picker-phone.png) | ![Autosync on a phone](../web-board/autosync-phone.png) |
 
-The other views, each at both sizes, are in [`docs/web-board/`](web-board/): `<view>-pc.png` and `<view>-phone.png`.
+The other views at phone size:
+
+| Home | Project | Kanban | Costs |
+| --- | --- | --- | --- |
+| ![The planning surface on a phone](../web-board/home-phone.png) | ![A project's Home on a phone](../web-board/project-phone.png) | ![The kanban on a phone](../web-board/kanban-phone.png) | ![The costs on a phone](../web-board/costs-phone.png) |
+
+| Configuration | CR panel | Editor | New |
+| --- | --- | --- | --- |
+| ![The configuration on a phone](../web-board/config-phone.png) | ![A CR's folder in the side panel on a phone](../web-board/panel-phone.png) | ![Editing a backlog item on a phone](../web-board/editor-phone.png) | ![The New dialog on a phone](../web-board/new-phone.png) |
+
+Every view at both sizes is in [`docs/web-board/`](https://github.com/gsemet/chantier/tree/main/docs/web-board): `<view>-pc.png` and `<view>-phone.png`.
 
 ## Language
 

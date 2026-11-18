@@ -60,15 +60,19 @@ lint:
     uv lock --check
     uvx --from {{node}} npx --yes {{biome}} check skills/chantier/scripts/cli/src/chantier/board/web
 
+# The documentation site (docs/, Sphinx), built into docs/_build/html; any warning fails
+docs:
+    uv run --locked --group docs sphinx-build -W --keep-going -b html docs docs/_build/html
+
 # Fetch the pinned check tools into the caches, running nothing (CI runs it before `check`, retried once)
 tools:
-    uv sync --locked --group dev
+    uv sync --locked --group dev --group docs
     uv run --locked --group dev --with {{mypy}} --with types-psutil mypy --version
     uvx {{ruff}} --version
     uvx --from {{node}} npx --yes {{biome}} --version
 
 # Everything a change must pass
-check: lint test release-notes
+check: lint test release-notes docs
 
 # Prepare a release on a new branch: bump, check and commit (pushes nothing)
 release part="patch": (bump-version part) check

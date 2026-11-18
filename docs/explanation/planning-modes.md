@@ -3,7 +3,24 @@
 Chantier plans in a **planning folder**, in one of two modes. Every command, card and agent works
 the same in both.
 
-![Planning modes: in-project and external](planning-modes.svg)
+Chantier works on Change Requests, a folder of Markdown files describing what you want. It starts
+from an intent, written by hand or taken from a Jira, GitHub or GitLab issue, and the Chief of
+Staff helps you turn it into a Change Specification.
+
+Chantier plans in one of two places, the **planning folder**:
+
+- **In-project** (the default, nothing to declare): `.agents/changes/` in your project.
+- **External**: a git repository of its own, the *planning surface*, with one folder per project
+  (`projects/<name>/` with `project.md`, `checkout.yml` and `changes/`). Your project's repository
+  gets only the code and, if you want, each CR's cleaned archive in its PR.
+
+The Chief of Staff, the Foreman and the Griller run on the default branch: your project's main
+checkout in-project, the surface's checkout in external mode. Only the code gets worktrees: each
+CR's Driver and workers, in your project; a Griller in a never-merged worktree, in remote. About
+remote sessions, this is the author's own finding, not a proved trial: a remote session cannot start
+outside a worktree, so the Chief of Staff starts locally, then goes remote (Remote Control).
+
+![Planning modes: in-project and external](../planning-modes.svg)
 
 | | In-project (the default) | External |
 | --- | --- | --- |
@@ -52,7 +69,7 @@ several Chiefs of Staff's pushes (a later change). A surface can also name an au
 - The surface root and each project's folder may hold a `chantier.yaml` (or `chantier.yml`): the
   configuration of all its projects, and of that project. The code repository's own `chantier.yaml`
   is the strongest layer, and the plugin's shipped defaults the weakest (see
-  [your own agents and models](agents-and-models.md#the-layers)).
+  [your own agents and models](../how-to/agents-and-models.md#the-layers)).
 - A tracker issue, when there is one, is a link inside the CR, not part of its folder's name.
 
 ## Pointing a project to its surface
@@ -133,7 +150,7 @@ Start the board from the surface's root with
 surface's planners use); click Start for the autosync. The board serves and keeps the group joined
 until you stop it. A Chief of Staff session that starts later reuses it (`board already running
 at`), and its leaving does not stop it. A session running another chantier version is refused
-with the board's version, PID and stop command, as today ([`web-board.md`](web-board.md), "When
+with the board's version, PID and stop command, as today ([`web-board.md`](../reference/web-board.md), "When
 it stops"): keep the surface's pinned version on the planners' release.
 
 ## Two sessions on one surface
@@ -158,7 +175,7 @@ started outside a worktree, which blocks planning on the default branch, and nes
 a problem in remote too. So start the Chief of Staff locally (desktop, no worktree), then put it
 in remote (Remote Control); reuse that session, in direct mode, and optionally add Griller
 sessions in worktrees that are never merged. See the
-[Claude Code reference](../skills/chantier/references/hosts/claude-code.md). On Copilot: not tried.
+[Claude Code reference](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md). On Copilot: not tried.
 
 ## Privacy
 

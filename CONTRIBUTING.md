@@ -27,7 +27,7 @@ It keeps the backlog, asks you the questions a change needs, and starts work onl
    batch (a CR added while it runs is queued and taken when a slot frees, and a paused batch takes several, the first start setting it running); it may switch to Foreman mode on your word.
    Direct mode is less dynamic than Foreman mode (the Chief
    of Staff, busy steering, holds no grill in that session) but has the same lifecycle: a batch is
-   running, then paused, then closed on your word. See [direct mode](docs/use-cases-direct.md).
+   running, then paused, then closed on your word. See [direct mode](docs/how-to/use-cases-direct.md).
 4. **The Foreman runs the batch.** It starts one background **Driver** per working CR (a slot is a
    running Driver), plus a stack driver and a QA driver, which takes a slot, when needed, and keeps itself warm with a heartbeat.
 5. **Each Driver creates the CR's git worktree and branch, then runs short foreground workers**
@@ -174,7 +174,7 @@ skills/chantier/
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
-docs/                       ← diagrams, screenshots, the user docs (tutorial, use cases, reference pages), release notes
+docs/                       ← the documentation site's source (Sphinx, in Diátaxis folders: tutorials, how-to, explanation, reference), its diagrams and screenshots, the release notes
 ```
 
 ## Set up
@@ -211,8 +211,9 @@ never holds a file a command needs to rewrite (os error 32 on Windows); never `u
 
 ```bash
 just                # list the recipes
-just check          # lint (ruff, mypy, the lock) and structure tests: run before any PR
+just check          # lint (ruff, mypy, the lock), structure tests and the docs build: run before any PR
 just test -k agent  # structure tests, with pytest arguments
+just docs           # build the documentation site into docs/_build/html (any warning fails)
 just scenario       # one whole batch, end to end, through the real CLI and a fake gh, then glab
 just eval-dry-run   # the eval kit, end to end on a local sandbox: reset, setup, a staged run, audit, judge
 just copilot-models # refresh the Copilot model catalog from GitHub's tables (network), then review the diff and its differences
@@ -377,7 +378,7 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
 1. From an up-to-date `main` with green CI, or, for a release CR on top of a stack or a series,
    from the top CR's branch, take the version: the release CR's, else the Driver's choice, with
    its reason in the PR. Then, on a new branch, write the release folder `docs/release-notes/<today>-vX.Y.Z/` as
-   [docs/release-process.md](docs/release-process.md) says.
+   [docs/how-to/release-process.md](docs/how-to/release-process.md) says.
 2. Prepare the release. This bumps the version and runs `just check`, which refuses missing or
    invalid notes. It then stages `docs/release-notes/` and commits `release: vX.Y.Z`; it pushes
    nothing:
