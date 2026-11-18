@@ -1,6 +1,8 @@
 // English words of the Batch page's tabs: the tabs, the burst, the Gantt and the time cards.
 // Merged into en.js.
 export default {
+  'batch.no_cr_yet': 'Paused, no CR yet: order add joins one.',
+  'batch.spent_none_yet': 'none yet',
   'batch.tab_graph': 'Graph',
   'batch.tab_gantt': 'Gantt',
   'batch.tab_cards': 'Time cards',

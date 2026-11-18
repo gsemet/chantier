@@ -268,7 +268,10 @@ and how an agent is started. Each worker reads its own card, which restates the 
   CR's on the user's word.
 - **Batch lifecycle:** three states, and only these words: **running**, **paused**, **closed**.
   1. **Running:** `open` creates the batch, running. Its CRs are taken by Drivers on the free
-     slots, worked, handed back, merged by the user, or dropped.
+     slots, worked, handed back, merged by the user, or dropped. `open` with no CR creates the
+     batch **paused**, with no CR: no cost to show, no retro, no close offer at that pause (steps 3
+     and 4 do not apply to it); `order add` joins CRs and the first `take` sets it running, as in
+     step 3.
   2. **Complete:** every CR is merged or cancelled. The CLI removes each merged CR's worktree
      and branch (one whose agent is still held, or that git refuses, is kept and named) and runs
      `pause` itself: the batch is **paused**. With a note, a QA or a stack Driver pending, it

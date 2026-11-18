@@ -737,6 +737,23 @@ test('a paused batch is folded, with its cost on its title line', async ($, on) 
   await ui.unmount()
 })
 
+for (const [total, empty] of [[0, true], [2, false]] as const) {
+  test(`a paused batch with crs_total ${total} ${empty ? 'says' : 'does not say'} no CR yet on its title line`, async ($, on) => {
+    mock.clock(on)
+    const w = world(on)
+    const spent = empty ? { spent_usd: null } : {}
+    w.put(INDEX, index({ batches: [batch({ state: 'paused', crs_total: total, crs: [], ...spent })] }))
+    await skill($)
+    const ui = await board($)
+    const title = (await label(ui, `fold-batch-${BATCH}`)) as string
+    expect(title.includes('none yet')).toBe(empty)
+    expect(title.includes('paused, no CR yet')).toBe(empty)
+    await ui.press({ key: `fold-batch-${BATCH}` })
+    expect(((await words(ui)) as string).includes('No CR yet.')).toBe(empty)
+    await ui.unmount()
+  })
+}
+
 test('a row draws its severity icon once, in the State column', async ($, on) => {
   mock.clock(on)
   const w = world(on)

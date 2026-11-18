@@ -46,8 +46,10 @@ export type ChantierBatch = {
   batch: string
   folder: string
   state: string
-  spent_usd: number
+  spent_usd: number | null
   budget_usd: number | null
+  /** The CRs the batch ever held, ended ones included; absent from an older STATUS.json. */
+  crs_total?: number
   asks_unread: number
   heartbeat: string | null
   orders_pending: number

@@ -2,29 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
+
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 
-def register(sub: Subparsers) -> None:
-    """Declare this module's commands."""
-    s = add_command(
-        sub,
-        "open",
-        "chantier.commands.opening:open_batch",
-        "open a batch: each prepared CR gets its folder, and a branch and worktree name",
-        NO_BATCH,
-    )
-    s.add_argument("items", nargs="+", help="path to a prepared CR folder or specification")
-    s.add_argument("--slots", type=int, default=4)
-    s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
-    s.add_argument(
-        "--mode",
-        choices=["parallel", "series", "stack"],
-        default="parallel",
-        help="parallel (default): independent CRs, each on the default branch; series: "
-        "one after the other, in the order given, each on the previous one's "
-        "branch; stack: independent CRs, then a stack driver stacks the PRs",
-    )
+def _release_options(s: argparse.ArgumentParser) -> None:
+    """The options of a batch with a release CR."""
     s.add_argument(
         "--release",
         type=int,
@@ -46,6 +30,35 @@ def register(sub: Subparsers) -> None:
         action="store_true",
         help="the Foreman starts and merges the release's fixes (needs --budget)",
     )
+
+
+def register(sub: Subparsers) -> None:
+    """Declare this module's commands."""
+    s = add_command(
+        sub,
+        "open",
+        "chantier.commands.opening:open_batch",
+        "open a batch: each prepared CR gets its folder, and a branch and worktree name; "
+        "with no CR the batch is born paused",
+        NO_BATCH,
+    )
+    s.add_argument(
+        "items",
+        nargs="*",
+        help="path to a prepared CR folder or specification; none opens the batch paused, "
+        "with no CR (`order add` joins CRs to it)",
+    )
+    s.add_argument("--slots", type=int, default=4)
+    s.add_argument("--budget", type=float, help="USD; no Driver starts past it")
+    s.add_argument(
+        "--mode",
+        choices=["parallel", "series", "stack"],
+        default="parallel",
+        help="parallel (default): independent CRs, each on the default branch; series: "
+        "one after the other, in the order given, each on the previous one's "
+        "branch; stack: independent CRs, then a stack driver stacks the PRs",
+    )
+    _release_options(s)
     s.add_argument(
         "--direct",
         action="store_true",

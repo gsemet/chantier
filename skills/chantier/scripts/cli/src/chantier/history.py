@@ -8,6 +8,7 @@ from __future__ import annotations
 from chantier.core.batch_records import Rec, open_record
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
+from chantier.core.steering import NO_SESSION
 from chantier.rails import usd_text
 from chantier.status.words import forge_word, shape_word, steering_word
 
@@ -51,14 +52,18 @@ def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
     }
 
 
-def close_record(d: BatchRecord, closed: str, total: float, unpriced: Rec, by_cr: Rec) -> Rec:
-    """`d` is the batch as it is at `close`, its CRs' `path` already the archives'."""
+def close_record(
+    d: BatchRecord, closed: str, total: float | None, unpriced: Rec, by_cr: Rec
+) -> Rec:
+    """`d` is the batch as it is at `close`, its CRs' `path` already the archives'. A `total` of
+    None is a batch no session steered: `cost_usd` is null, with `cost_cause` beside it."""
     crs = sorted(d.crs, key=lambda c: c.order)
     return {
         **open_record(d),
         "state": "closed",
         "closed": closed,
-        "cost_usd": round(total, 4),
+        "cost_usd": None if total is None else round(total, 4),
+        **({"cost_cause": NO_SESSION} if total is None else {}),
         "cost_unpriced": unpriced,
         "crs": [cr_entry(c, by_cr) for c in crs],
         "report": f"{d.id}.md",
@@ -103,7 +108,11 @@ def table_lines(crs: list[Rec]) -> list[str]:
 def head_line(record: Rec) -> str:
     budget = record.get("budget_usd")
     cost = record.get("cost_usd")
-    price = "no cost recorded" if cost is None else usd_text(cost, record.get("cost_unpriced"))
+    price = (
+        record.get("cost_cause") or "no cost recorded"
+        if cost is None
+        else usd_text(cost, record.get("cost_unpriced"))
+    )
     return (
         f"Opened {record['opened']}, closed {record['closed']}, "
         f"{shape_word(record['mode'])}, steered by {steering_word(record['steering'])}, "
@@ -134,7 +143,7 @@ def close_markdown(record: Rec, summary: list[str], retro: str | None, release: 
         "",
         "## Completion",
         "",
-        *table_lines(record["crs"]),
+        *(table_lines(record["crs"]) if record["crs"] else ["This batch held no CR."]),
         "",
         "## Cost",
         "",
@@ -147,7 +156,8 @@ def close_markdown(record: Rec, summary: list[str], retro: str | None, release: 
         "## Retro",
         "",
     ]
-    body = retro if retro else NO_RETRO  # the retro's own bytes, whole
+    # the retro's own bytes, whole
+    body = retro if retro else (NO_RETRO if record["crs"] else f"{NO_RETRO[:-1]}: no CR.")
     return (
         "\n".join(head)
         + "\n"

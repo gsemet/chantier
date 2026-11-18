@@ -47,6 +47,7 @@ VIEW_KEYS = (
     "heartbeat_stopped",
     "asks_unread",
     "orders_pending",
+    "crs_total",
 )
 EVENTS_SHOWN = 40
 SECONDS_PER_MINUTE = 60

@@ -106,7 +106,8 @@ UNITS = {
     ),
     "series-deps": (260, ["github"], ["batch_modes", "dependencies", "early_conflict",
                                       "changes_tree"]),
-    "direct": (125, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
+    "direct": (135, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
+                                 "empty_batch"]),
     "surface-board": (300, ["github"], ["remote_board", "forge_hub", "external_surface", "cr_summary"]),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
@@ -5305,6 +5306,38 @@ def restore_cr(w: World) -> None:
           f"{y} then CR-{new}")
 
 
+def empty_batch(w: World) -> None:
+    note("\n## 16d. An empty batch: `open` with no CR is born paused, joined by `order add`")
+    _, item = prepare_cr(w, "Empty first")
+    w.reset()
+    code, out = w.start("--direct", *FROM_AGENTS_MD)
+    d = w.batch()
+    check("`open` with no CR opens a batch born paused, with no CR and no cost yet",
+          code == 0 and d["status"] == "paused" and d["crs"] == [] and d["spent_usd"] is None
+          and "no CR, paused" in out[0], str(out))
+    w.env["CHANTIER_BATCH"] = w.name
+    code, out = w.chantier("status")
+    mine = next((ln for ln in out if ln.startswith(w.name)), "")
+    check("`status` says `spent none yet` and `no CR yet` for it, never $0.00",
+          code == 0 and "spent none yet" in mine and mine.endswith("no CR yet")
+          and "$0.00" not in mine, str(out))
+    code, out = w.chantier("order", "add", "--note", str(item), "--batch", w.name)
+    check("`order add --note` joins a CR to the empty batch, which stays paused",
+          code == 0 and w.batch()["status"] == "paused" and len(w.batch()["crs"]) == 1, str(out))
+    w.chantier("foreman", "set", "local_foreman_empty", "--epoch", 1)
+    code, out = w.chantier("take", w.batch()["crs"][0]["id"], "--epoch", 1)
+    check("the first `take` sets the batch running", code == 0 and w.batch()["status"] == "running",
+          str(out))
+    w.reset()
+    w.start("--direct", *FROM_AGENTS_MD)
+    code, out = w.chantier("close", "--yes", "--batch", w.name)
+    check("`close --yes` of a batch that held no CR and was never steered archives 0 CRs and "
+          "reads its cost `none: no session steered it`",
+          code == 0 and "0 CRs archived" in out[0]
+          and any("none: no session steered it" in ln for ln in out), str(out))
+    w.reset()
+
+
 def stack_batch(w: World) -> None:
     note("\n## 13. A stack on request, one open batch, a stack merged in part")
     w.reset()
@@ -8947,6 +8980,7 @@ CASES = {
     "qa_on_head": qa_on_head,
     "driver_liveness": driver_liveness,
     "restore_cr": restore_cr,
+    "empty_batch": empty_batch,
     "gitlab_ship_merge": gitlab_ship_merge,
 }
 

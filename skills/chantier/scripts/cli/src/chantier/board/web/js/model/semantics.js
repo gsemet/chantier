@@ -200,6 +200,9 @@ export function edges(rows) {
   return rows.flatMap((c) => (c.after ?? []).filter((d) => found.has(d)).map((d) => [d, c.cr]));
 }
 
+// A paused batch that never held a CR: opened empty, waiting for its first `order add`.
+export const noCrYet = (batch) => batch?.state === 'paused' && batch.crs_total === 0;
+
 // The CRs and counts the Home and Batch figures need.
 export function counts(batch) {
   const n = (state) =>
