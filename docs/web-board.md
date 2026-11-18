@@ -155,8 +155,8 @@ The board needs your own `gh` (GitHub) or `glab` (GitLab) login, and the network
 
 On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
-trashed CRs, the costs, and each CR's files (text and images). It stops when its session leaves
-the seat. It writes in the backlog only (the inbox, the priorities, `3-ready`), never in a batch:
+trashed CRs, the costs, and each CR's files (text and images). Started by a session, it stops when
+that session leaves the seat; started by hand, it serves until you stop it. It writes in the backlog only (the inbox, the priorities, `3-ready`), never in a batch:
 file an idea, move items between those places, label and group them, edit an item's Markdown
 files, and declare the next batch ready (`next-batch.json`, the time and the CRs then in
 `3-ready`; it decides nothing). Every write lands in `board-journal.jsonl` (not committed); the
@@ -193,9 +193,12 @@ board:
   `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier --project <folder> board`
   (`<version>` is the release the surface's planners use). In chantier's own checkout, start it
   with `uv run --no-sync --project <checkout> chantier board` after a `uv sync --locked --project
-  <checkout>`; never `uvx --from <checkout>`.
-- **When it stops.** With Ctrl-C, or by itself once no session that registered a seat holds it any
-  more. A second `chantier board` on the same address says the board is already running and
+  <checkout>`; never `uvx --from <checkout>`. From the surface's root, with no `--project`, the
+  board serves every project of the surface; it runs until you stop it, so a scheduled task or a
+  service may start it (the surface's own setup; chantier ships none).
+- **When it stops.** With Ctrl-C. A board a session started (`--seat`) also stops by itself once
+  no session that registered a seat holds it any more; a board started by hand (no `--seat`)
+  does not, even when sessions register a seat on it and leave. A second `chantier board` on the same address says the board is already running and
   prints the same link. Two refusals leave the board alone and tell you what to do
   yourself: a board of another chantier version already serves the surface, or one holds it and
   does not answer. Each prints one line with the version, the PID and the command that stops it
