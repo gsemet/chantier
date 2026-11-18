@@ -1,0 +1,109 @@
+/* The Batch Gantt: the label cards on the left (they stay put when the area scrolls), the time area
+   on the right, one SVG over it; the SVG is the graph's `svg.edges`, so the arrows and the light are
+   shared. The bars take their state's colour, the open one is hatched. */
+.batch .gscroll[data-scroll="gantt"] {
+  background-image: none;
+  background-color: var(--panel);
+}
+
+.batch .gt {
+  display: grid;
+  grid-template-columns: 240px minmax(480px, 1fr);
+  min-width: max-content;
+}
+
+.batch .gt-labels {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-3) var(--space-2);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.batch .gt-axis {
+  flex: none;
+  height: 22px;
+}
+
+.batch .gt-area {
+  position: relative;
+  min-width: 0;
+}
+
+.batch .gt-t,
+.batch .gt-now-t {
+  fill: var(--ink3);
+  font-size: var(--text-badge);
+}
+
+.batch .gt-now-t {
+  fill: var(--accent);
+}
+
+.batch .gt-tick {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.batch .gt-now {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.batch .hatch {
+  stroke: currentcolor;
+  stroke-width: 2;
+}
+
+.batch .seg,
+.batch .mark,
+.batch .cross {
+  pointer-events: all;
+}
+
+.batch .cross line {
+  stroke: currentcolor;
+  stroke-width: 1.6;
+}
+
+.batch .gt-svg .blocked {
+  color: var(--state-blocked);
+}
+
+.batch .gt-svg .working {
+  color: var(--state-working);
+}
+
+.batch .gt-svg .ready {
+  color: var(--state-ready);
+}
+
+.batch .gt-svg .draft {
+  color: var(--state-draft);
+}
+
+.batch .gt-svg .local {
+  color: var(--state-local);
+}
+
+.batch .gt-svg .waits {
+  color: var(--state-waits);
+}
+
+.batch .gt-svg .queued {
+  color: var(--state-queued);
+}
+
+.batch .gt-svg .merged {
+  color: var(--state-merged);
+}
+
+@media (width <= 700px) {
+  .batch .gt {
+    grid-template-columns: 220px minmax(480px, 1fr);
+  }
+}

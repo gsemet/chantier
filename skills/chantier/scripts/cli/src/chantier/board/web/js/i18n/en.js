@@ -1,4 +1,5 @@
 // English words. A language is one file like this, registered in ../model/words.js.
+import batch from './en-batch.js';
 import board from './en-board.js';
 import costs from './en-costs.js';
 import mr from './en-mr.js';
@@ -231,6 +232,7 @@ export default {
   'panel.tree': 'Files of the folder',
   'panel.doc': 'File',
   ...write,
+  ...batch,
   ...board,
   ...prs,
   ...mr,

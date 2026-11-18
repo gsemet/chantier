@@ -1,4 +1,5 @@
 // Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../model/words.js.
+import batch from './fr-batch.js';
 import board from './fr-board.js';
 import costs from './fr-costs.js';
 import mr from './fr-mr.js';
@@ -232,6 +233,7 @@ export default {
   'panel.tree': 'Fichiers du dossier',
   'panel.doc': 'Fichier',
   ...write,
+  ...batch,
   ...board,
   ...prs,
   ...mr,

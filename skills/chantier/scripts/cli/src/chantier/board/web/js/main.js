@@ -80,6 +80,14 @@ const guarded = (action) => async (event, el) => {
   if (await confirmLeave()) action(event, el);
 };
 
+const goOnClick = (body, selector, place) =>
+  delegate(
+    body,
+    'click',
+    selector,
+    guarded((_, el) => go(place(el))),
+  );
+
 function listenToFrame() {
   const body = document.body;
   delegate(
@@ -107,12 +115,8 @@ function listenToFrame() {
       go(toAll ? { project: ALL, view: overviewIds()[0] } : { project: el.dataset.project });
     }),
   );
-  delegate(
-    body,
-    'click',
-    '[data-batch-go]',
-    guarded((_, el) => go({ batch: el.dataset.batchGo || null })),
-  );
+  goOnClick(body, '[data-batch-go]', (el) => ({ batch: el.dataset.batchGo || null }));
+  goOnClick(body, '[data-tab]', (el) => ({ tab: el.dataset.tab }));
   delegate(
     body,
     'click',

@@ -57,6 +57,13 @@
   color: var(--accent-dark);
 }
 
+/* a tab of the Batch page: the same chip as a toggle, filled with the accent when on (`off` below) */
+.tag.tab {
+  --edge: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+}
+
 /* a priority chip drawn as a toggle: the same chip with a 1px border in its fill colour, so it
    keeps its size when it is off */
 button.tag {

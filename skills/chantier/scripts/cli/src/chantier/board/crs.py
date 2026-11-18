@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board.backlog import count_files, description, subject
+from chantier.board.times import cr_times, priority_of
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
@@ -95,6 +96,8 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "updated": c.updated,
         "branch": c.branch,
         "handed_back_at": handed_back_at(events, c.id),
+        "times": cr_times(events, c),
+        "priority": priority_of(events, c),
         "files": count_files(folder) if folder else 0,
         "description": description(folder) if folder else "",
         "chain_place": place.index(c.id) + 1 if c.id in place else None,

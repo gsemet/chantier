@@ -182,3 +182,118 @@ a.card {
   flex: 0 1 auto;
   min-width: 0;
 }
+
+/* the Batch's time card: a punched paper card (the receipt's paper, ink and shadow), mono type, one
+   ruled line per round, its rubber stamps tilted. The tilts and the stamp's opacity are set here. */
+.card-paper {
+  --tilt-hand: -1.5deg;
+  --tilt-merged: -9deg;
+  --tilt-ready: -6deg;
+  --tilt-working: -4deg;
+  --tilt-rework: 5deg;
+  --stamp-op: 0.85;
+  display: flex;
+  flex-direction: column;
+  min-height: 190px;
+  border-color: var(--paper-line);
+  background-color: var(--paper);
+  background-image: var(--paper-grain);
+  box-shadow: var(--shadow-ticket);
+  color: var(--paper-ink);
+  font-family: var(--mono);
+}
+
+.card-paper .card-top {
+  flex-wrap: wrap;
+}
+
+.card-paper .card-body {
+  margin-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.card-paper .card-meta {
+  margin-top: auto;
+  border-top: 1px dashed var(--paper-rule);
+  background: none;
+}
+
+.card-paper .tc-no {
+  margin-left: auto;
+  color: var(--ink2);
+  font-size: var(--text-small);
+}
+
+.card-paper .tc-cap {
+  flex-basis: 100%;
+  color: var(--caption);
+  font-size: var(--text-badge);
+  letter-spacing: var(--caption-spacing);
+  text-align: center;
+}
+
+.card-paper .tc-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  padding: var(--space-off-3) 0;
+  border-bottom: 1px solid var(--paper-line);
+  font-size: var(--text-small);
+}
+
+.card-paper .tc-r {
+  color: var(--ink3);
+}
+
+.card-paper .tc-stamp {
+  display: inline-block;
+  color: var(--stamp-hand);
+  transform: rotate(var(--tilt-hand));
+  white-space: nowrap;
+}
+
+.card-paper .tc-verdict {
+  color: var(--ok-ink);
+}
+
+/* a rubber stamp: a double rule, tilted, translucent, over the card and never in the way */
+.card-stamp {
+  position: absolute;
+  right: var(--space-3);
+  padding: var(--space-off-2) var(--space-2);
+  border: 2px solid currentcolor;
+  border-radius: var(--radius-off-4);
+  font-size: var(--text-small);
+  font-weight: 700;
+  letter-spacing: var(--caption-spacing);
+  opacity: var(--stamp-op);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.card-stamp-merged {
+  bottom: var(--space-off-50);
+  color: var(--bad-ink);
+  font-size: var(--text-off-16);
+  transform: rotate(var(--tilt-merged));
+}
+
+.card-stamp-ready {
+  bottom: var(--space-off-50);
+  color: var(--accent);
+  transform: rotate(var(--tilt-ready));
+}
+
+.card-stamp-working {
+  bottom: var(--space-off-50);
+  border-style: dashed;
+  color: var(--stamp-hand);
+  transform: rotate(var(--tilt-working));
+}
+
+.card-stamp-rework {
+  top: var(--space-off-30);
+  color: var(--stamp-rework);
+  transform: rotate(var(--tilt-rework));
+}

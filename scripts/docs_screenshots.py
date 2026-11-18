@@ -205,6 +205,11 @@ def views(page: Page, url: str, size: str) -> None:
     shot(page, "project", size)
     goto(page, url, "batch", "shop-api")
     shot(page, "batch", size)
+    for tab in ("gantt", "cards") if size == "pc" else ():  # on a phone the PR column comes first
+        goto(page, url, "batch&t=" + tab, "shop-api")
+        page.wait_for_selector(".gt-svg *, .tcards .card", state="attached")
+        settle(page)
+        shot(page, "batch-" + tab, size)
     goto(page, url, "kanban", "shop-api")
     shot(page, "kanban", size)
     goto(page, url, "triage", "shop-api")

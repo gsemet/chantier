@@ -1,0 +1,28 @@
+// Mots français des onglets de la page Batch : les onglets, l'éclat, le Gantt et les cartes de
+// pointage. Fusionnés dans fr.js.
+export default {
+  'batch.tab_graph': 'Graphe',
+  'batch.tab_gantt': 'Gantt',
+  'batch.tab_cards': 'Cartes de pointage',
+  'batch.tabs': 'Vues du batch',
+  'batch.tab_loading': 'Chargement de la vue…',
+  'batch.tab_failed': "Cette vue n'a pas pu être chargée. Rouvrez l'onglet pour réessayer.",
+  'batch.times_none': 'Le dossier de ce batch ne garde aucune heure.',
+  'batch.changed_ago': "A changé d'état il y a {age}",
+  'batch.gantt_now': 'maintenant',
+  'batch.gantt_not_started': 'Pas commencé',
+  'batch.gantt_span': '{from} – {to}',
+  'timecard.title': 'CARTE DE POINTAGE',
+  'timecard.number': 'N° {n}',
+  'timecard.coder': 'codeur',
+  'timecard.insp': 'insp',
+  'timecard.verifier': 'vérif.',
+  'timecard.verified': 'VÉRIFIÉ',
+  'timecard.unverified': 'NON VÉRIFIÉ',
+  'timecard.no_pr': 'pas de PR',
+  'timecard.rounds': '{n} rd',
+  'timecard.merged': 'MERGÉ',
+  'timecard.ready': 'PRÊT',
+  'timecard.working': 'EN COURS',
+  'timecard.reworked': 'RETOUCHÉ ×{n}',
+};

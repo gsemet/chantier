@@ -162,6 +162,8 @@ One row per custom property of `css/tokens.css`, in its order. Kind: `colour`, `
 | `--shadow-ticket`      | `0 1px 2px rgb(22 24 29 / 6%), 0 12px 28px rgb(22 24 29 / 10%)`                                                                                                         | shadow | a shadow of a surface                                           |
 | `--shadow-ticket-edge` | `drop-shadow(0 3px 2px rgb(22 24 29 / 6%))`                                                                                                                             | shadow | a shadow of a surface                                           |
 | `--ticket-width`       | `420px`                                                                                                                                                                 | size   | the receipt's width                                             |
+| `--stamp-hand`         | `#4b3f9e`                                                                                                                                                               | colour | a time card's hand stamp ink                                    |
+| `--stamp-rework`       | `var(--state-waits)`                                                                                                                                                    | colour | a time card's rework stamp                                      |
 | `--m1`                 | `#d96c4a`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
 | `--m2`                 | `#3a7bd5`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
 | `--m3`                 | `#1f9d8b`                                                                                                                                                               | colour | the Costs card's model colours, in cost order                   |
@@ -281,3 +283,6 @@ on the user's word.
 - Its red "NOT FINISHED" / "PAS FINI" stamp on a batch that is not closed
   (`css/views/costs-stamp.css`).
 - The receipt's "Copy as image", which carries both (`js/views/costs-image.js`).
+- The Batch page's time card: a paper card, the receipt's paper, ink and shadow, one ruled line per
+  round and its rubber stamps tilted (the `paper` variant and the `card-stamp-*` classes of
+  `css/components/card.css`, built by `js/ui/card.js`; `js/views/batch-timecards.js`).

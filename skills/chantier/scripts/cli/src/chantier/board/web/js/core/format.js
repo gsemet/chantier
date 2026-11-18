@@ -42,6 +42,13 @@ export function hhmm(iso) {
   return at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+// The short local date of an instant, "Jun 18".
+export function shortDate(iso) {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return '';
+  return at.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 // A link only for an http(s) address; anything else is no link and gives null.
 export const safeUrl = (url) => (/^https?:\/\//i.test(url ?? '') ? url : null);
 
