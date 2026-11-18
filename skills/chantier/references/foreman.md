@@ -323,7 +323,13 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   a release CR handed back `ready` whose release PR waits for its merge is not work for a Driver:
   mark it `order done` at once and do not take the CR (the PR stays as it is, ready); the approval
   waits in the record for the Driver started at `order merged`. An `order approve` on a release CR
-  that is `blocked approval:` keeps the take with the note. A release handed back `blocked waits: …,
+  that is `blocked approval:` keeps the take with the note. An `order note` whose note starts
+  `publication done:` on a release CR `blocked approval: publish: ...` is taken back at once:
+  `take <release-cr> --note "<the order's note>"`, by the usual take-back path ("Orders are the
+  user's word": `agents set <cr> -` first when the id is still recorded, `order done` once taken);
+  it is not a new attempt. Received while the release's Driver is still `working` (the user
+  published before the refusal reached you), it goes as the `[foreman→driver <cr>] note <text>`
+  message, as for any note to a working Driver. A release handed back `blocked waits: …,
   then the user's word…`: once the others are merged, ask the Chief of Staff (`[foreman→chief-of-staff]
   release <cr>: the batch is merged; run the release procedure?`) and take it back on `order
   confirm`. When a CR under a prepared release changes, read `log <cr>`: a move with no change
