@@ -37,7 +37,7 @@ def _cr_folder(repo: Repo, paths: dict[str, Path], item: str) -> Path:
 
 
 def _gap_line(repo: Repo, gap: Gap) -> str:
-    path = shown(repo, gap.folder)
+    path = repo.rel(gap.folder)  # the form `summary set` reads: relative to the planning folder
     if gap.kind == "no summary":
         return (
             f"{path}: no summary → summary set {path} "
