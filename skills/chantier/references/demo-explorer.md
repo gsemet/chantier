@@ -17,7 +17,7 @@ Ground rules:
 - No fallback: a tool, a model, an agent or a `$CHANTIER` command that is not available exactly as
   named is a stop, reported with its error; never a look-alike, a workaround or an estimate. Within
   what you have, judge freely. A skill or tool the playbook says the role needs but the session
-  lacks is not a stop: say so in a note and work without it, never by another means.
+  lacks is not a stop: say so in a note and work without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`), never by another means.
 - Never claim a check you did not run. Run no `sleep` and no background shell. Never run
   `git stash` and never stop a process by name or pattern (`pkill`, `killall`).
 - One command per call when you can: a chain (`a; b`, `a && b`, a pipe) passes the host's allow

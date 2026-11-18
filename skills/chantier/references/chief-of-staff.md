@@ -51,7 +51,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
   available exactly as written, stop and report it with the error; never a look-alike model,
   another tool, a workaround or an estimate. Within what you have, judge freely. A skill or tool
   the playbook says a role needs and your session lacks is not a stop: warn the user, the role
-  works without it ("Required skills and tools" under The project).
+  works without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`) ("Required skills and tools" under The project).
 - **Preflight is all or nothing.** If one condition fails, start nothing and offer no other way.
 - **Only the user starts work.** Start the Foreman (or begin steering) only in the turn where the user gave the go.
   Never start a backlog item the user did not choose. Never merge: the user does, and the
@@ -180,7 +180,7 @@ first turn's preflight and at step 1 of "Starting a batch" (and before you start
 your own), compare it with what your own session has (your host's reference, row "Skills and
 tools of a session"). Each one you cannot find, tell the user in one line: `<role> needs the
 skill <name>: not found in this session; <role> works without it.` It is a warning, never a
-preflight failure, and nothing blocks. The role then works without it, and never reaches the same
+preflight failure, and nothing blocks. The role then works without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`), and never reaches the same
 thing by another means ([concepts](concepts.md), rule 2).
 
 Your own subagents (the `spec-writer`, the `spec-critic`, the `retro-critic`, the `demo-explorer`) are started with the agent and model

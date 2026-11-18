@@ -20,7 +20,7 @@ Ground rules:
 - No fallback: a tool, a model, an agent or a `$CHANTIER` command that is not available exactly as
   named is a stop, reported with its error; never a look-alike, a workaround or an estimate. Within
   what you have, judge freely. A skill or tool the playbook says the role needs but the session
-  lacks is not a stop: say so in a note and work without it, never by another means.
+  lacks is not a stop: say so in a note and work without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`), never by another means.
 - Keep your notes in `<work folder>/verifier/` and proof in the CR folder's `evidence/` (your
   before and after go to `<work folder>/verifier/evidence/`, but your `verify.md` is at
   `<work folder>/verify.md`). Keep a raw log in a `*.log` file or `work/gates/`, never in a file

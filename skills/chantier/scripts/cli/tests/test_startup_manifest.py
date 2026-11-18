@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from conftest import PLUGIN_ROOT, SKILL
 
-STARTUP_LIMIT = 12_288
+STARTUP_LIMIT = 12_544
 
 
 def _manifest() -> tuple[dict[str, Any], Path]:

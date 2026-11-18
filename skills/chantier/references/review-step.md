@@ -18,7 +18,7 @@ Ground rules:
 - No fallback: a tool, a model, an agent or a `$CHANTIER` command that is not available exactly as
   named is a stop, reported with its error; never a look-alike, a workaround or an estimate. Within
   what you have, judge freely. A skill or tool the playbook says the role needs but the session
-  lacks is not a stop: say so in a note and work without it, never by another means.
+  lacks is not a stop: say so in a note and work without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`), never by another means.
 - Evidence is a command run at the pushed head, with its output; notes and green CI are not proof.
   Every judgment names the SHA it covers (a move is any change of the head after a judgment: a new
   round, a rebase, a restack, a conflict resolution); after a move, what the move touched is judged

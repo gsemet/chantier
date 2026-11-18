@@ -92,7 +92,7 @@ defer the rest of this card until an action names it. These are the card's defau
   own commands write there as git does. A file to ignore is ignored by the worktree's own files (a
   `.gitignore` change goes through a `coder`, in a round, as any project file) or not at all; a
   file that should not be committed is simply not staged (staging is by name). A `Needs:`
-  you cannot meet is a `$CHANTIER note`, and you do your part without it.
+  you cannot meet is a `$CHANTIER note`, and you do your part without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`).
 - A reply out of format is a failed worker. Each worker's reply has the format its own card names (for example
   [coder](coder.md), [inspector](inspector.md), [verifier](verifier.md)); before acting on a reply, check it against that format:
   - Inspector, and each extra review step: the reply is the JSON object alone, parseable, with

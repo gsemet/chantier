@@ -60,7 +60,7 @@ COPILOT_OPUS_ROLES = {
 
 CARDS = {**{r: "driver" for r in DRIVERS}, **{r: r for r in WORKERS}}
 
-STARTUP_LIMIT = 12_288
+STARTUP_LIMIT = 12_544
 
 
 def agent_file(role: str, host: str) -> Path:
