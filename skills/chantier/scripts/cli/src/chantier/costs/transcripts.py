@@ -299,7 +299,7 @@ class _Scan:
             self._call(d, when, number)
 
 
-def _place(scan: _Scan, split: bool, window: tuple[Any, Any]) -> dict[str, Any]:
+def _place(scan: _Scan, split: bool, bounded: bool) -> dict[str, Any]:
     """Give each call its expiry and its row: the grill's or the rest's."""
     row = scan.row
     grill = _new_row() if split else None
@@ -312,7 +312,7 @@ def _place(scan: _Scan, split: bool, window: tuple[Any, Any]) -> dict[str, Any]:
         t = c["tokens"]
         lifetime = CACHE_1H if t[2] else CACHE_5M if t[1] else lifetime
         row["untimed"] += c["when"] is None
-        if split and c["when"] is None and any(window):
+        if split and c["when"] is None and bounded:
             continue  # not placed in the window: counted, in neither share
         turns = scan.window_turns if scan.in_steering(c["when"]) else scan.grill_turns
         _add(grill if grill is not None and c["turn"] in turns else row, c)
@@ -327,7 +327,8 @@ class Reading:
 
     split: bool = False
     prices: dict[str, Any] | None = None
-    steering: tuple[str, str] | None = None
+    steering: tuple[tuple[str, str], ...] | None = None
+    windows: tuple[tuple[str, str], ...] | None = None
 
 
 def usage(
@@ -341,28 +342,28 @@ def usage(
     model with none is counted in `row["unpriced"]`, by model. A call with no time cannot be
     placed in a window: with `split` and a window it is in neither, and `untimed` counts it.
 
-    `steering`: the (since, until) of the steering window, when the transcript has one. A tool use
-    is judged by the rule of the window its record's `timestamp` falls in: the strict one inside
-    it (see `_grill_use`), the loose one elsewhere, a record with no time included. Each call is
-    classified by its own window: a call inside the steering window goes to the grill only if its
-    turn has a strict grill use inside that window (a loose use outside it, in the same turn, does
+    `steering`: the (since, until) windows of the steering, when the transcript has any (a session
+    that steered, left and steered again has one per stint). A tool use is judged by the rule of
+    the window its record's `timestamp` falls in: the strict one inside one of them (see
+    `_grill_use`), the loose one elsewhere, a record with no time included. Each call is
+    classified by its own window: a call inside a steering window goes to the grill only if its
+    turn has a strict grill use inside such a window (a loose use outside it, in the same turn, does
     not move it); any other call uses the turns that have a grill use by that use's own window.
-    So the calls of the steering window are the same whichever `since`/`until` prices them. With
-    no `steering`, every use is loose."""
+    So the calls of the steering windows are the same whichever `since`/`until` prices them. With
+    no `steering`, every use is loose. `windows`: when given, the calls priced are those inside
+    any of these windows, in place of `since`/`until`."""
     reading = reading or Reading()
     split, prices, steering = reading.split, reading.prices, reading.steering
-    start, end = _when(since, path, 0), _when(until, path, 0)
-    steer_from, steer_to = (
-        (_when(steering[0], path, 0), _when(steering[1], path, 0)) if steering else (None, None)
-    )
+    spans = [(_when(a, path, 0), _when(b, path, 0)) for a, b in (reading.windows or ())] or [
+        (_when(since, path, 0), _when(until, path, 0))
+    ]
+    steered = [(_when(a, path, 0), _when(b, path, 0)) for a, b in (steering or ())]
 
     def in_steering(when: Any) -> bool:
-        return bool(
-            steering
-            and when
-            and not (steer_from and when < steer_from)
-            and not (steer_to and when > steer_to)
-        )
+        return bool(when and any(not (a and when < a) and not (b and when > b) for a, b in steered))
+
+    def within(when: Any) -> bool:
+        return any(not ((a and when and when < a) or (b and when and when > b)) for a, b in spans)
 
     scan = _Scan(path, prices, in_steering)
     for number, line in enumerate(_transcript_lines(path), 1):
@@ -370,6 +371,5 @@ def usage(
         if d is None:
             continue
         when = _when(d.get("timestamp"), path, number)
-        inside = not ((start and when and when < start) or (end and when and when > end))
-        scan.feed(d, when, number, inside)
-    return _place(scan, split, (start, end))
+        scan.feed(d, when, number, within(when))
+    return _place(scan, split, any(x for span in spans for x in span))

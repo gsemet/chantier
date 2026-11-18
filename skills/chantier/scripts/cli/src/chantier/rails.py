@@ -59,14 +59,13 @@ def running(repo: Repo, d: BatchRecord) -> tuple[list[str], list[Ending], list[E
     not merged or cancelled, an open order, a recorded stack agent) and, on Copilot, from the
     session file (written in the last 5 minutes, or not measured). On Claude each transcript is
     read at its end, never by the file's age: an agent that handed back has ended, one that waits
-    on a tool call or has a step under way runs, one whose file is missing or cut cannot be read
-    (see `transcript_state`). Only the agents the batch holds can block: the current Foreman (the
-    last steering session's main transcript) and each id `agents set` recorded and did not clear,
-    a held id with no transcript under the steering sessions being one that cannot be read. The
-    other transcripts (the session's other subagents, a held Driver's own subagents, the replaced
-    Foremans' main transcripts) are returned apart, never a cause. The Foreman's session tree is
-    all the CLI knows: a Driver run from another session of the user's is not in it. The Chief of
-    Staff's own session is not counted (on a direct batch its subagents are read, not its file)."""
+    on a tool call or has a step under way runs, one whose file is missing or cut cannot be read.
+    Only the agents the batch holds can block: the current Foreman (the last claim's session main
+    transcript) and each id `agents set` recorded and did not clear, a held id with no transcript
+    under the steering sessions being one that cannot be read. The other transcripts (other
+    subagents, a held Driver's own, the replaced Foremans' main ones) are returned apart, never a
+    cause. The Foreman's session tree is all the CLI knows: a Driver run from another session of
+    the user's is not in it. The Chief of Staff's own session is not counted (its subagents are)."""
     causes = [
         f"{c.id} is {c.status}, not merged or cancelled" for c in d.crs if c.status not in ENDED
     ]
@@ -87,6 +86,7 @@ def running(repo: Repo, d: BatchRecord) -> tuple[list[str], list[Ending], list[E
                 )
         return causes, [], []
     stack = {d.stack_agent} if d.stack_agent else set()
+    sessions = sorted(sessions, key=lambda s: [s] == [c.transcript for c in d.foreman_claims[-1:]])
     mine, others = transcript_endings(
         repo.session_root, sessions, chief_sessions(d), held_agents(d), stack
     )

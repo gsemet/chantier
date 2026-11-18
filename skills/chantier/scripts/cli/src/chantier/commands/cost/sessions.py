@@ -12,7 +12,7 @@ from chantier.commands.cost.pricing import (
     minus,
     price_table,
     spend,
-    steering_window,
+    steering_windows,
     sum_unpriced,
     unpriced_of,
 )
@@ -107,12 +107,16 @@ def _chief_session(
 ) -> tuple[list[Any], list[Any], list[Any]]:
     """The session whole, since the batch opened, and the steering row inside the window."""
     path = transcript_path(repo.session_root, uuid)
-    window = steering_window(d, uuid) if uuid in claimed_transcripts(d) else None
+    windows = steering_windows(d, uuid) if uuid in claimed_transcripts(d) else None
     whole = session_costs(path, scope=Scope("chief-of-staff", prices=prices))
-    scope = Scope("chief-of-staff", True, True, prices, window)
+    scope = Scope("chief-of-staff", True, True, prices, windows)
     since = session_costs(path, d.created or "", scope=scope)
     steered = (
-        without_specification_agents(session_costs(path, *window, scope=scope)) if window else []
+        without_specification_agents(
+            session_costs(path, scope=Scope("chief-of-staff", True, True, prices, windows, windows))
+        )
+        if windows
+        else []
     )
     return whole, since, steered
 
@@ -254,19 +258,16 @@ def cost_rows(repo: Repo, d: BatchRecord, host: str, uuids: list[str]) -> list[d
         if host == "copilot":
             got = copilot_session_costs(uuid)  # no timestamps: the whole session
         else:
-            since, until = steering_window(d, uuid)
+            windows = steering_windows(d, uuid)
             got = session_costs(
                 transcript_path(repo.session_root, uuid),
-                since,
-                until,
                 scope=Scope(
                     "chief-of-staff" if steering else "foreman",
                     allow_empty=len(uuids) > 1,
                     split=steering,
                     prices=prices,
-                    steering=(since, until)
-                    if steering and uuid in claimed_transcripts(d)
-                    else None,
+                    steering=windows if steering and uuid in claimed_transcripts(d) else None,
+                    windows=windows,
                 ),
             )
         if steering:

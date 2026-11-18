@@ -65,15 +65,20 @@ def hints(models: Iterable[str]) -> list[str]:
     ]
 
 
-def steering_window(d: BatchRecord, uuid: str) -> tuple[str, str]:
-    """The part of a steering transcript that belongs to the batch's steering: a Foreman's from
-    the batch's opening (its startup is the batch's), the Chief of Staff's from its claim; each
-    ends where the next claim begins. A batch with no recorded claims has no end."""
+def steering_windows(d: BatchRecord, uuid: str) -> tuple[tuple[str, str], ...]:
+    """The parts of a steering transcript that belong to the batch's steering, one per stint: a
+    Foreman's first from the batch's opening (its startup is the batch's), the Chief of Staff's
+    and every later stint from its claim; each ends where the next claim begins. A batch with no
+    recorded claims has no end."""
     claims = d.foreman_claims
-    names = [c.transcript for c in claims]
     created = d.created or ""
-    if uuid not in names:
-        return created, ""
-    i = names.index(uuid)
-    since = (claims[i].since or "") if uuid in chief_sessions(d) else created
-    return since, (claims[i + 1].since or "") if i + 1 < len(claims) else ""
+    if uuid not in [c.transcript for c in claims]:
+        return ((created, ""),)
+    chief = uuid in chief_sessions(d)
+    out: list[tuple[str, str]] = []
+    for i, c in enumerate(claims):
+        if c.transcript != uuid:
+            continue
+        since = created if not chief and not out else (c.since or "")
+        out.append((since, (claims[i + 1].since or "") if i + 1 < len(claims) else ""))
+    return tuple(out)

@@ -626,7 +626,7 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     text).
   - **A Driver stopped from outside** (any Driver kind: CR, release, stack, QA order):
     - **Which stops:** only a stop the steering session did not make itself. Its own stop by the
-      host's means (a switch to Foreman mode, a drop, the user's stop or
+      host's means (a switch to Foreman mode or to direct mode, a drop, the user's stop or
       hold, the `stop` after a `pong` with no progress for 3 hours) is never restarted by this rule;
       each of those keeps its own path. A stop the user makes in the app is from outside.
     - **Keeping its own stops apart:** the snapshot record does not say who stopped the agent, and a
@@ -634,7 +634,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
       a Driver itself and does not restart it at once by the restart path, it clears the id it
       recorded for it in the same turn (`agents set <cr> - --epoch <n>`, or `agents set stack -` /
       `agents set <O-k> -` for the stack driver or a QA order), after a `note <cr> "stopped: <why>"`
-      for a CR. The `status` flag names only a recorded agent, so it never shows for the steering
+      for a CR, except a switch of mode (to Foreman or to direct mode), whose restart path
+      clears them. The `status` flag names only a recorded agent, so it never shows for the steering
       session's own stop; and a refusal to a message to an agent it no longer has recorded is not
       this rule.
     - **What it does:** it takes the restart path at once (`agents set <cr> - --epoch <n>`,
@@ -710,6 +711,15 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 - On `[chief-of-staff→foreman] chief-of-staff <session id>` (a hand-over of the seat), check that
   `$CHANTIER seat` names that session; then send your lines to it from then on. Otherwise ignore
   the line and ask (`asks`) the Chief of Staff of your prompt.
+- On `[chief-of-staff→foreman] switch to direct mode`: start no Driver. For each live Driver you
+  own (CR, release, stack, QA order), `$CHANTIER note <cr> "switch to direct mode: Driver
+  stopped; the Chief of Staff restarts it"` for a CR or release CR, then stop it by the host's
+  stop (your host's reference, "Stop a Driver"). Do not clear the recorded ids and restart
+  nothing (the Chief of Staff's restart path clears them, as in the switch to Foreman mode).
+  Record the heartbeat's stop (`$CHANTIER status --stop-heartbeat --batch <batch> --epoch <n>`)
+  and cancel the armed wake as your host's reference says. Then send `[foreman→chief-of-staff]
+  switched to direct mode <batch>: stopped <cr> <cr>… [stack] [O-<k>…]` (`none` when no Driver
+  ran) and stop: no further command, no wake (the user may close your session).
 - Exactly these commands carry `--epoch <n>`, and no other: `foreman set`, `foreman
   transcript`, `status --refresh` on a wake, `status --stop-heartbeat`, `take`, `agents set`,
   `order done`, `order merged`, `order add --fix-for`, `gate <cr> --first`, `cancel` and

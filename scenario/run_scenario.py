@@ -2448,6 +2448,96 @@ def direct_batch(w: World) -> None:
           any(ln.startswith("Chief of Staff, steering the batch, and the Foreman, with their own "
                             "subagents: $") for ln in by_cr)
           and not any(ln.startswith("foreman:") for ln in by_cr), str(by_cr))
+
+    # the Chief of Staff takes the batch back from the Foreman: direct again, both stints priced
+    now_dt = datetime.now(timezone.utc)
+    later_stamp = (now_dt + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S.000Z")  # after claim 3
+    chief.write_text(msg("c-s1", at(10)) + msg("c-s2", later_stamp), encoding="utf-8")
+    foreman_file.write_text(msg("fm-1", at(40)), encoding="utf-8")
+    foreman_kept = foreman_file.read_text(encoding="utf-8")
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 3)
+    code, out = w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 3)
+    d = w.batch()
+    steering_events = [json.loads(e) for e in (w.folder() / "events.jsonl").read_text(
+        encoding="utf-8").splitlines() if json.loads(e).get("kind") == "steering"]
+    check("the Chief of Staff's claim of the next number makes the Foreman batch direct again, says "
+          "so, logs a second steering event, and records the returning transcript as a claim",
+          d["steering"] == "direct" and any(ln.startswith("steering direct:") for ln in out)
+          and [e["steering"] for e in steering_events] == ["foreman", "direct"]
+          and [c["transcript"] for c in d["foreman_claims"]] == ["uuid-chief", "uuid-foreman",
+                                                                 "uuid-chief"], str(d))
+    w.chantier("status", "--refresh", "--epoch", 2, expect=3)
+    check("the replaced Foreman's number is refused", True)
+    _, out = w.chantier("status")
+    check("`status` and STATUS.md say direct again", " steering direct (the Chief of Staff) " in out[0]
+          and "direct mode" in (w.folder() / "STATUS.md").read_text(encoding="utf-8"), str(out))
+    _, out = w.chantier("cost")
+    own = next(ln for ln in out if ln.startswith("Chief of Staff, steering the batch: "))
+    old = next(ln for ln in out if ln.startswith("Foreman: "))
+    outside = [ln for ln in out if ln.startswith(
+        "Chief of Staff, steering the batch (outside the budget)")]
+    check("`cost` prices the Chief of Staff's two windows in the batch's spend and the Foreman's "
+          "window between them; no call of the second stint is outside the budget",
+          "(2 calls," in own and "(1 calls," in old
+          and all("(1 calls)" in ln for ln in outside), str(out))
+    foreman_file.write_text(foreman_kept + call_line("Bash"), encoding="utf-8")
+    os.utime(chief, None)
+    code, out = w.chantier("close", "--batch", w.name, expect=None)
+    text = "\n".join(out) + "\n" + w.last_stderr
+    check("`close` does not name the replaced Foreman's transcript as a cause, which ends on a tool "
+          "call (listed apart)", "transcript uuid-foreman still runs" not in text
+          and "uuid-foreman cannot be read" not in text, text)
+    foreman_file.write_text(foreman_kept, encoding="utf-8")
+
+    # a Foreman-opened batch switched to direct with a CR working under the old Foreman
+    w.reset()
+    _, started = prepare_cr(w, "Foreman then direct")
+    _, queued = prepare_cr(w, "Foreman then direct, queued")
+    w.start(started, "--slots", 1, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("order", "add", "--note", str(queued))
+    w.chantier("foreman", "set", "local_foreman_one", "--epoch", 1)
+    w.chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)
+    fm = Foreman(w, epoch=1)
+    fm.turn()
+    cr = w.batch()["crs"][0]["id"]
+    driver_round(w, cr, "switch.py", "SWITCH = True\n")
+    pr, branch, tree = w.cr(cr)["pr"], w.cr(cr)["branch"], w.cr(cr)["worktree"]
+    agent = w.cr(cr)["agent"]
+    old_driver = foreman_file.with_suffix("") / "subagents" / f"agent-{agent}.jsonl"
+    old_driver.parent.mkdir(parents=True, exist_ok=True)
+    ended = "".join(msg(f"od{i}", at(15)) for i in range(2))
+    runs(old_driver, ended)
+    code, out = w.chantier("close", "--batch", w.name, expect=None)
+    text = "\n".join(out) + "\n" + w.last_stderr
+    check("`close` (no --yes) shows the old Driver running while its file ends on a tool call",
+          f"agent-{agent} still runs" in text, text)
+    old_driver.write_text(ended, encoding="utf-8")
+    code, out = w.chantier("close", "--batch", w.name, expect=None)
+    text = "\n".join(out) + "\n" + w.last_stderr
+    check("`close` shows the old Driver ended once its file ends on a final reply",
+          f"agent-{agent} still runs" not in text
+          and f"agent-{agent} cannot be read" not in text, text)
+    w.chantier("foreman", "set", "uuid-chief", "--epoch", 2)
+    code, out = w.chantier("foreman", "transcript", "uuid-chief", "--epoch", 2)
+    check("the claim switches that batch to direct", w.batch()["steering"] == "direct"
+          and any(ln.startswith("steering direct:") for ln in out), str(out))
+    w.chantier("agents", "set", cr, "-", "--epoch", 2)
+    w.chantier("handoff", cr)
+    code, _ = w.chantier("take", cr, "--note", "resume: switch to direct mode", "--epoch", 2)
+    queued_cr = w.batch()["crs"][1]
+    check("the restart path is accepted; the CR keeps its branch, worktree and PR, and the queued CR "
+          "stays queued", code == 0 and w.cr(cr)["status"] == "working" and w.cr(cr)["pr"] == pr
+          and w.cr(cr)["branch"] == branch and w.cr(cr)["worktree"] == tree
+          and Path(tree).is_dir() and queued_cr["status"] == "queued", str(w.cr(cr)))
+    probe = ("import json,sys;from pathlib import Path;from chantier.core.repo import Repo;"
+             "from chantier.board.state import project_state;r=Path(sys.argv[1]);"
+             "print(json.dumps(project_state('p',Repo(r,r/'.git',{},None,None),False,None)['batch']"
+             "['steering']))")
+    done = subprocess.run([sys.executable, "-c", probe, str(w.work)], env=w.env, cwd=w.work,
+                          capture_output=True, text=True, encoding="utf-8")
+    check("the board's state says the batch is direct", json.loads(done.stdout or "null") == "direct",
+          done.stdout + done.stderr)
     w.env.pop("CHANTIER_BATCH", None)
     w.reset()
     if kept is None:

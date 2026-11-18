@@ -172,6 +172,18 @@ on your word, runs the preflight again and starts a new Foreman, which relaunche
 every CR still in progress, from its recorded state and worktree. Uncommitted work in a worktree
 is kept.
 
+## Switch to direct mode
+
+> "Switch the batch to direct mode." · "Take over the batch."
+
+On your word, on a running or paused Foreman batch, whether its Foreman answers or not. A live
+Foreman stops its Drivers and itself; a Foreman that does not answer has its session stopped by
+you, or by the Chief of Staff on your yes on Claude Desktop, from the machine. The Chief of Staff
+checks that each old Driver has ended, then takes over the batch and restarts each of those CRs
+from its recorded state and worktree. Nothing is lost: queued CRs stay queued, and the pull
+requests, branches and worktrees are kept. The old Foreman's spend stays in the batch's cost. The
+batch can go back to Foreman mode on your word.
+
 ## On GitHub Copilot
 
 Everything above works in a Copilot agent session the same way, with two differences: the

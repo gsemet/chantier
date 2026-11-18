@@ -30,7 +30,8 @@ class Scope:
     allow_empty: bool = False
     split: bool = False
     prices: dict[str, Any] | None = None
-    steering: tuple[str, str] | None = None
+    steering: tuple[tuple[str, str], ...] | None = None
+    windows: tuple[tuple[str, str], ...] | None = None  # priced instead of `since`/`until`
 
 
 def session_costs(
@@ -44,7 +45,8 @@ def session_costs(
     label = kind.replace("-", " ").capitalize()
     if not main.is_file():
         raise ChantierError(f"{label} transcript not found: {main}", EXIT_EXTERNAL)
-    foreman = usage(main, since, until, Reading(split, prices, steering))
+    windows = scope.windows
+    foreman = usage(main, since, until, Reading(split, prices, steering, windows))
     if not _held(foreman) + (_held(foreman["grill"]) if split else 0) and not allow_empty:
         raise ChantierError(f"no priced calls in {label} transcript: {main}", EXIT_EXTERNAL)
     rows = [{"agent": "main", "type": kind, "description": "", **foreman}]
@@ -53,7 +55,7 @@ def session_costs(
         for f in sorted(sub.glob("agent-*.jsonl")):
             meta_path = f.with_suffix("").with_suffix(".meta.json")
             meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-            row = usage(f, since, until, Reading(prices=prices))
+            row = usage(f, since, until, Reading(prices=prices, windows=windows))
             if _held(row):
                 rows.append(
                     {
