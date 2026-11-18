@@ -1,15 +1,13 @@
-// The batch navigator, next to the title of the Costs and Batch pages: `‹ batch-04 ›` and, when the
+// The batch navigator, next to the title of the Costs, Batch and PRs pages: `‹ batch-04 ›` and, when the
 // page is not on the latest batch, a "Latest" pill. The batch shown is in the address (`b=`).
 import { html } from '../core/dom.js';
-import { ALL } from '../core/router.js';
+import { ALL, BATCH_VIEWS } from '../core/router.js';
 import { batchSequence, shownId } from '../model/history.js';
 import { t } from '../model/words.js';
 
-const VIEWS = ['costs', 'batch'];
-
 // The markup of the navigator, or an empty string where the page has none.
 export function navigator(state) {
-  if (state.project === ALL || !state.data || !VIEWS.includes(state.view)) return '';
+  if (state.project === ALL || !state.data || !BATCH_VIEWS.includes(state.view)) return '';
   const seq = batchSequence(state.data);
   if (!seq.length) return '';
   const shown = shownId(state.data, state.batchId);

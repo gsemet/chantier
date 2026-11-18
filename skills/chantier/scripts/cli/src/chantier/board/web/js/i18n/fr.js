@@ -1,6 +1,7 @@
 // Mots français (ceux du prototype). Une langue est un fichier comme celui-ci, déclaré dans ../model/words.js.
 import board from './fr-board.js';
 import costs from './fr-costs.js';
+import mr from './fr-mr.js';
 import prs from './fr-prs.js';
 import write from './fr-write.js';
 
@@ -86,7 +87,6 @@ export default {
   'base.not_stacked': ' · pas encore empilée',
   'pr.draft': 'PR en draft, ne pas merger',
   'pr.open': 'ouvrir la PR',
-  'mr.open': 'ouvrir la MR',
   'issue.open': 'ouvrir le ticket',
   'pr.folder': 'ouvrir le dossier du CR',
   'gate.label': 'Gate longue',
@@ -233,6 +233,7 @@ export default {
   ...write,
   ...board,
   ...prs,
+  ...mr,
   ...costs,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'actif',

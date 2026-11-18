@@ -2,9 +2,9 @@
 
 The page reads only: it writes nothing in the record, git or the forge, and nothing in the
 planning folder but one line in `board-seen.jsonl` for a merge the record does not hold. A
-read of the forge is kept for `TTL_S` seconds per project, whatever the number of pages open, and
-a failed read keeps the last good one with its time. The `Context` imports this module, so it
-never imports the `Context`."""
+read of the forge is kept for `TTL_S` seconds per project and batch shown, whatever the number of
+pages open, and a failed read keeps the last good one with its time. The `Context` imports this
+module, so it never imports the `Context`."""
 
 from __future__ import annotations
 
@@ -43,8 +43,9 @@ class _Entry:
 
 
 class ForgeReads:
-    """The last forge read of each project. A call within `TTL_S` of the last one, for the same
-    PRs, gets that read again; a second caller waits for the call in flight and gets its read."""
+    """The last forge read of each project and batch shown (the key). A call within `TTL_S` of the
+    last one, for the same PRs, gets that read again; a second caller waits for the call in
+    flight and gets its read."""
 
     def __init__(self, ttl: float = TTL_S, now: Callable[[], float] = time.monotonic) -> None:
         self.ttl = ttl
@@ -149,6 +150,8 @@ def row_of(
         "why": why_not(c, f),
         "merged_at": f["merged_at"],
         "closed_at": f["closed_at"],
+        "opened_at": f.get("opened_at"),
+        "updated_at": f.get("updated_at"),
         "landed_with": None,  # `answer` fills it once all rows of the read are built
     }
 
@@ -192,37 +195,91 @@ def _in_order(batch: dict[str, Any]) -> list[dict[str, Any]]:
     return [c for c in [*first, *rest] if c["pr"]]
 
 
-def answer(
-    reads: ForgeReads, key: str, state: dict[str, Any], repo: Repo | None = None
-) -> dict[str, Any]:
-    """The page's answer for a project whose record is `state`. With no batch, or no PR yet, the
-    forge is not asked. With a `repo`, a merge the forge shows and the record does not is left as
-    one line in `board-seen.jsonl` (the only write)."""
+def _closed_rows(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """A closed record's CRs that have a PR, as the CR shape `row_of` reads: by `order` when the
+    record has it, else as listed. The record keeps no kind, branch, review flag nor state."""
+    listed = [
+        (c.get("order", i), i, c) for i, c in enumerate(record.get("crs") or []) if c.get("pr")
+    ]
+    return [
+        {
+            "cr": c["cr"],
+            "title": c.get("title", ""),
+            "kind": None,
+            "branch": None,
+            "to_review": False,
+            "state": "merged" if c.get("result") == "merged" else c.get("result"),
+            "pr": c["pr"],
+        }
+        for _, _, c in sorted(listed, key=lambda x: (x[0], x[1]))
+    ]
+
+
+def _shown(
+    state: dict[str, Any], want: str | None
+) -> tuple[str | None, list[dict[str, Any]], bool, str | None]:
+    """The batch the page shows: its id, the CRs with a PR, whether it is closed, and an error.
+    The batch in `4-batch/` for no id or its own; else the closed record of that id, or the
+    newest closed one for no id with no batch in `4-batch/`."""
     batch = state["batch"]
+    if batch and want in (None, "", batch["id"]):
+        return batch["id"], _in_order(batch), False, None
+    closed = [r for r in state["history"] if isinstance(r, dict) and r.get("state") == "closed"]
+    pick = next((r for r in closed if r.get("batch") == want), None) if want else None
+    pick = pick or (closed[0] if closed and not want else None)
+    if pick:
+        return pick["batch"], _closed_rows(pick), True, None
+    return None, [], False, f"unknown batch {want}" if want else None
+
+
+def _closed_row(row: dict[str, Any]) -> dict[str, Any]:
+    """A closed batch's row: the record says nothing of readiness, nor of where a PR landed."""
+    row["why"] = row["disagrees"] = None
+    row["ready_now"] = False
+    if row["merged_into"]:
+        row["merged_into"]["cr"] = None
+    return row
+
+
+def answer(
+    reads: ForgeReads,
+    key: str,
+    state: dict[str, Any],
+    repo: Repo | None = None,
+    batch: str | None = None,
+) -> dict[str, Any]:
+    """The page's answer for a project whose record is `state`, for the batch `batch` (none: the
+    batch in `4-batch/`, else the newest closed one). With no batch, an unknown one or no PR yet,
+    the forge is not asked. A closed batch is read on the forge, judged against nothing, and never
+    signalled. With a `repo`, a merge the forge shows and the record does not, in the batch in
+    `4-batch/`, is left as one line in `board-seen.jsonl` (the only write)."""
+    live = state["batch"]
+    shown, withpr, closed, error = _shown(state, batch)
     out: dict[str, Any] = {
-        "batch": batch["id"] if batch else None,
-        "paused": bool(batch and batch["state"] == "paused"),
-        "last_batch": None if batch else (state["history"] or [{}])[0].get("id"),
+        "batch": shown,
+        "paused": bool(live and shown == live["id"] and live["state"] == "paused"),
+        "closed": closed,
         "rows": [],
         "read_at": None,
-        "error": None,
+        "error": error,
         "all_done": False,
         "now": clock.now(),
     }
-    withpr = _in_order(batch) if batch else []
     if not withpr:
         return out
     forge, out["read_at"], out["error"], fresh = reads.get(
-        key, [c["pr"] for c in withpr], forge_read.read
+        f"{key}:{shown}", [c["pr"] for c in withpr], forge_read.read
     )
-    branches = {c["branch"]: c["cr"] for c in batch["crs"] if c["branch"]}
+    branches = {c["branch"]: c["cr"] for c in live["crs"] if c["branch"]} if live else {}
     found = [(c, _number(c["pr"])) for c in withpr]
-    rows = [row_of(c, forge[n], n, branches) for c, n in found if n in forge]
+    rows = [row_of(c, forge[n], n, {} if closed else branches) for c, n in found if n in forge]
+    if closed:
+        rows = [_closed_row(r) for r in rows]
     by_cr = {r["cr"]: r for r in rows}
     for r in rows:
         r["landed_with"] = landed_with(r, by_cr)
     out["rows"] = rows
-    if repo is not None and fresh and not out["error"]:
-        seen.signal(repo, batch["id"], rows)
+    if repo is not None and live and fresh and not out["error"] and not closed:
+        seen.signal(repo, live["id"], rows)
     out["all_done"] = len(rows) == len(withpr) and all(r["state"] in DONE for r in rows)
     return out

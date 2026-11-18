@@ -22,6 +22,8 @@ const data = {
   panel: null, // the target (kind, key, title, folder, files, row) whose folder is open, else null
   editing: null, // the panel's Markdown editor: { path, original, draft, base, saving, error }
   autosync: { open: false, busy: false, error: '' }, // the autosync panel: open, a call running, its error
+  prsState: null, // PRs: the state filter ('open', 'draft', 'merged'), null for all
+  prsSort: null, // PRs: the sort ('opened', 'activity', 'cr'), null for the batch's order
   prs: null, // PRs: the last answer of GET api/projects/{id}/prs, kept across a failed read
   copying: false, // Costs: the receipt is being copied as an image
   recomputing: false, // Costs: a recompute was asked and its figure has not arrived

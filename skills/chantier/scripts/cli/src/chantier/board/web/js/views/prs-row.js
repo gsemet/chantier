@@ -51,7 +51,16 @@ const readyNow = (row) => {
     : html`<span>${t('pv.ready_no')}</span>`;
 };
 
-const when = (row, now) => {
+// The date the row is sorted by (opened, last activity); under the other sorts, the merge or
+// close date.
+const SORT_DATE = {
+  opened: ['opened_at', 'pv.opened_ago'],
+  activity: ['updated_at', 'pv.active_ago'],
+};
+
+const when = (row, now, sort) => {
+  const [field, word] = SORT_DATE[sort] ?? [];
+  if (field && row[field]) return html`<span>${t(word, { age: age(row[field], now) })}</span>`;
   if (row.state === 'merged' && row.merged_at) {
     return html`<span>${t('pv.merged_ago', { age: age(row.merged_at, now) })}</span>`;
   }
@@ -76,11 +85,12 @@ const readAt = (readTime, now) =>
   readTime ? html`<span>${t('pv.read', { age: age(readTime, now) })}</span>` : '';
 
 // The row is a link to the PR (a box when it has no web address); the folder icon inside opens the
-// CR's folder, as on the Batch view.
-export function prRow(row, now, readTime) {
+// CR's folder, as on the Batch view. `sort` is the page's sort: the row shows the date it is
+// sorted by.
+export function prRow(row, now, readTime, sort) {
   const number = html`<b>${prNumber(row.pr)}</b>`;
   const top = html`<div class="top">${number}<span class="tag cr">${row.cr}</span>${kind(row)}${tag('st', html`${stateIcon(TAGS[row.state] ?? 'queued')}${t(`pv.state.${row.state}`)}`)}${folder(row)}</div>`;
-  const facts = html`<div class="facts">${conflict(row)}${checks(row)}${into(row)}${readyNow(row)}${when(row, now)}${readAt(readTime, now)}</div>`;
+  const facts = html`<div class="facts">${conflict(row)}${checks(row)}${into(row)}${readyNow(row)}${when(row, now, sort)}${readAt(readTime, now)}</div>`;
   const inner = html`${top}<div class="nt">${row.title}</div>${facts}${disagreement(row)}`;
   const names = 'pvrow';
   const url = safeUrl(row.pr);

@@ -4,7 +4,7 @@
 
 import { delegate, html } from '../core/dom.js';
 import { age, safeUrl, usd } from '../core/format.js';
-import { t } from '../model/words.js';
+import { t, tf } from '../model/words.js';
 import { empty, live, mark, meter } from '../ui/parts.js';
 import { pathsOf, projectsOf } from '../ui/picker.js';
 import { surfaceBlock } from './home-project.js';
@@ -46,21 +46,27 @@ const dataOf = (p, now) => {
 const row = (p, now) =>
   html`<tr data-project="${p.id}" tabindex="0" data-key="row-${p.id}"><td class="who">${mark(p.id)}<div class="wtx"><div class="wnm"><b>${p.id}</b>${p.running ? live() : ''}</div>${pathsOf(p)}</div></td><td>${batchOf(p)}</td><td class="num">${workingOf(p)}</td><td>${p.to_review.length ? p.to_review.map(prLink) : none}</td><td>${progressOf(p)}</td><td class="num">${spentOf(p)}</td><td class="num">${p.inbox} · ${p.backlog}</td><td class="mut">${dataOf(p, now)}</td></tr>`;
 
-const head = ['project', 'batch', 'working', 'review', 'progress', 'spent', 'intake', 'data'].map(
-  (k) =>
-    html`<th class="${['working', 'spent', 'intake'].includes(k) ? 'num' : ''}">${t(`overview.${k}`)}</th>`,
-);
+// The forge of the words every project shares (the headings, the note): "MR" only when every
+// project listed is on GitLab.
+const sharedForge = (projects) =>
+  projects.length && projects.every((p) => p.forge === 'gitlab') ? 'gitlab' : null;
 
-const counted = (key, n) => {
-  const [before, after] = t(key, { n: '\u0001' }).split('\u0001');
+const head = (forge) =>
+  ['project', 'batch', 'working', 'review', 'progress', 'spent', 'intake', 'data'].map(
+    (k) =>
+      html`<th class="${['working', 'spent', 'intake'].includes(k) ? 'num' : ''}">${tf(forge, `overview.${k}`)}</th>`,
+  );
+
+const counted = (forge, key, n) => {
+  const [before, after] = tf(forge, key, { n: '\u0001' }).split('\u0001');
   return html`${before}<b>${n}</b>${after}`;
 };
 
 const sums = (p) => [
-  counted('overview.card_review', p.to_review.length),
-  counted('overview.card_working', p.working.length),
+  counted(p.forge, 'overview.card_review', p.to_review.length),
+  counted(p.forge, 'overview.card_working', p.working.length),
   html`<b>${p.batch ? usd(p.spent_usd) : none}</b>`,
-  counted('overview.card_intake', p.inbox),
+  counted(p.forge, 'overview.card_intake', p.inbox),
 ];
 
 const card = (p) =>
@@ -69,7 +75,8 @@ const card = (p) =>
 export function render(state) {
   const projects = projectsOf(state);
   if (!projects.length) return empty(t('stats.loading'));
-  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(card)}</div><p class="note">${t('overview.note')}</p><div class="blocks">${surfaceBlock(state)}</div></div>`;
+  const forge = sharedForge(projects);
+  return html`<div class="overview"><div class="tbl wide"><table><thead><tr>${head(forge)}</tr></thead><tbody>${projects.map((p) => row(p, state.now))}</tbody></table></div><div class="cards">${projects.map(card)}</div><p class="note">${tf(forge, 'overview.note')}</p><div class="blocks">${surfaceBlock(state)}</div></div>`;
 }
 
 // A PR link opens the PR only: the click does not reach the line that opens the project.
