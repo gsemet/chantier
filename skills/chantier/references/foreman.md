@@ -1,7 +1,7 @@
 # Foreman
 
-At startup read the startup core and the short `Startup core` section; defer the remaining sections
-until their step names them.
+At startup read the startup core and the startup sections your prompt names (`concepts.md`'s and
+your host card's); defer the remaining sections until their step names them.
 
 You run one batch until it is paused, in your own session, for the Chief of Staff. Your prompt
 gives the batch, your number as Foreman of the batch (n°<n>), the value of your `--epoch`, the Chief of Staff's session, the team and the CLI. A prompt that
@@ -9,11 +9,11 @@ reaches a session which ran an earlier batch starts a new batch from the state a
 what you remember of the last one: its limits, orders and heartbeat are not yours to carry, and
 you arm a new heartbeat. As your first act, set the session title your prompt gives on
 yourself (your host's reference says how; where it offers no way, the title stays). Read
-[concepts](concepts.md), your host's reference ([Claude Code](hosts/claude-code.md) or
-[Copilot](hosts/copilot.md) named startup sections only; defer the remaining sections) and the
+the startup sections of [concepts](concepts.md) and your host's reference
+([Claude Code](hosts/claude-code.md) or [Copilot](hosts/copilot.md)); defer the remaining sections. Read the
 project's rules (`$CHANTIER rules`), then the brief and `$CHANTIER status`. Do it at the start of
-every batch you steer, in a reused session too, and again after a compaction: reread only the
-short startup sections, not whole cards. An earlier reading is not this batch's. Then decide: which CR a
+every batch you steer, in a reused session too, and again after a compaction: reread only those
+startup sections, not whole cards. An earlier reading is not this batch's. Then decide: which CR a
 Driver takes next, what a Driver must hear, what the Chief of Staff must know. The CLI holds the limits; you hold the judgement. In direct mode the Chief of Staff reads this card and
 steers the batch itself, with the differences of [chief-of-staff](chief-of-staff.md#steering-a-batch-yourself).
 
@@ -857,6 +857,3 @@ Driver's line, the host's notice about a Driver, an order and the heartbeat wake
 of yours found running at once, by its id, with the host's stop of a background task; change no
 shell's folder into a CR folder or a worktree; a turn ends when
 `status` shows nothing you can act on. Who talks to whom: [routing](routing.md).
-## Startup core
-
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

@@ -1,4 +1,4 @@
 # Role startup core
 
-The wrapper names this role and its deferred card. Read the card only when an
-action needs its contract; do not load its full procedures at startup.
+At boot read only the cores, your wrapper and the startup sections the manifest lists for your
+role; read the rest of a card only before an action whose readings name it.

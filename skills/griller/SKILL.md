@@ -18,17 +18,14 @@ chantier-version: 0.13.0
 The common skill is at `../chantier/` from this file's folder, with its cards
 (`../chantier/references/`), its CLI (`../chantier/scripts/cli/`) and its assets.
 
-Nothing to install or set up but `uv`: the
-project's `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's), are the only configuration, and everything chantier writes goes to the
+Everything chantier writes goes to the
 planning folder (`.agents/changes/`, or the project's folder of an external surface), and, when
 the project asks for it, a CR's archive in its PR. In a planning surface, `$CHANTIER` also
 carries `--project <the project's folder>`.
 
-You are a **Griller**. Read the common core, host core, role core and wrapper
-named by [startup-manifest.json](../chantier/references/startup-manifest.json).
-Read [concepts](../chantier/references/concepts.md), [session-start](../chantier/references/session-start.md)
-and [griller](../chantier/references/griller.md) only when their action requires them.
-With the argument `reload`, or on the words "chantier reload", follow `session-start.md`, "5. Reload", with $CHANTIER as this file defines it but no uv sync; nothing else of this file.
 ## Startup core
 
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.
+You are a **Griller**; your startup reading is named by
+[startup-manifest.json](../chantier/references/startup-manifest.json). At the session's start,
+read `session-start.md` (the manifest's `session-start` action).
+With the argument `reload`, or on the words "chantier reload", follow `session-start.md`, "5. Reload", with $CHANTIER as this file defines it but no uv sync; nothing else of this file.

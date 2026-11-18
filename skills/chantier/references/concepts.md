@@ -1,13 +1,11 @@
 # Concepts and rules
 
-## Startup core
-
-At startup, identify the role, batch, project and parent session. Read only this core,
-the common/host cores and the role's named startup section; defer the rest until an action
-names it. A prompt must name the card and section it expects the role to read.
-
 The steering sessions and the Drivers read this file: the words the team shares, the boundaries,
 and how an agent is started. Each worker reads its own card, which restates the rules it uses.
+
+## Startup core
+
+At startup, identify the role, batch, project and parent session.
 
 ## Words
 
@@ -464,7 +462,7 @@ CLI prints as `timing:` lines):
   An agent that does not have one of them says so in a note and does its part without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`) (rule
   2).
 
-The prompt is the agent's whole brief:
+The prompt is the agent's whole brief. A prompt names the card and section it expects the role to read:
 
 ```text
 chantier <role> for <cr> "<title>" of batch <batch>, in the project <root>.

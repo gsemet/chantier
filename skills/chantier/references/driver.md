@@ -1255,5 +1255,4 @@ work: stop").
 
 ## Startup core
 
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.
 A `Note: resume: closing` reads only the CR's notes, as the opening reading rules list.
