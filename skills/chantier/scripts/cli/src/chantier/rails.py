@@ -260,7 +260,7 @@ def spent_text(d: BatchRecord) -> str:
     `at least` while calls of a model with no price are left out of it."""
     spent = d.spent_usd
     if spent is None:
-        return "unknown"
+        return "none yet" if not d.crs else "unknown"
     return f"{'at least ' if d.unpriced else ''}${spent:.2f}"
 
 

@@ -15,6 +15,20 @@ from chantier.commands.cost.breakdown import (
 from chantier.commands.cost.pricing import sum_unpriced, unpriced_of
 from chantier.commands.cost.sessions import _Chief, chief_outside
 from chantier.core.records import BatchRecord
+from chantier.core.steering import NO_SESSION, never_steered
+
+
+def _unsteered(chief: _Chief | str) -> dict[str, Any]:
+    """The receipt of a batch no session steered: steering has no figure, only its cause."""
+    steering: dict[str, Any] = {"label": "Foreman", "usd": None, "calls": 0, "unpriced": {}}
+    steering.update(wakes=0, context_avg=None, none=NO_SESSION)
+    return {
+        "steering": steering,
+        "drivers": [],
+        "split": [],
+        "models": [],
+        **chief_outside(chief),
+    }
 
 
 def cost_receipt(
@@ -29,6 +43,8 @@ def cost_receipt(
     session cannot be measured, then `outside` is `None` beside `outside_unknown`; `outside`
     holds the grill and the Chief of Staff's steering outside its claim windows,
     as the text's line."""
+    if not rows and never_steered(d):  # nothing steered it: no figure, never a $0.00
+        return _unsteered(chief)
     total = sum(r["usd"] for r in rows)
     un = sum_unpriced(rows)
     mains = [r for r in rows if r["agent"] == "main"]

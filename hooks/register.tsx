@@ -115,8 +115,9 @@ function money(n: number | null | undefined): string {
   return n === null || n === undefined ? '-' : '$' + n.toFixed(2)
 }
 
-function gauge(spent: number, budget: number | null): string {
+function gauge(spent: number | null, budget: number | null): string {
   if (!budget || budget <= 0) return ''
+  if (spent === null) return ''
   const full = Math.max(0, Math.min(10, Math.round((spent / budget) * 10)))
   return '█'.repeat(full) + '░'.repeat(10 - full)
 }
@@ -1021,7 +1022,8 @@ export const register: Register = on => {
     }
 
     const Batch = (b: ChantierBatch) => {
-      const spent = money(b.spent_usd)
+      const noCr = b.state === 'paused' && b.crs_total === 0 // opened with no CR, none joined yet
+      const spent = noCr && b.spent_usd === null ? 'none yet' : money(b.spent_usd)
       const budget = b.budget_usd === null ? '' : ` / $${+b.budget_usd.toFixed(2)}`
       const waiting = b.crs.filter(isWaiting)
       const rest = b.crs.filter(r => !isWaiting(r))
@@ -1031,7 +1033,11 @@ export const register: Register = on => {
       const key = scope + 'batch-' + b.folder
       const shown = b.state !== 'paused' // a paused batch is folded, its cost still on the title line
       const why = waiting.filter(r => r.blocked !== null)
-      return Section(key, shown, `${b.batch}  ${spent}${budget} ${gauge(b.spent_usd, b.budget_usd)}`, () => (
+      return Section(key, shown, `${b.batch}  ${spent}${budget}${noCr ? ' · paused, no CR yet' : ' ' + gauge(b.spent_usd, b.budget_usd)}`, () => noCr ? (
+        <Box flexDirection="column" paddingLeft={2}>
+          <Text dimColor>No CR yet.</Text>
+        </Box>
+      ) : (
         <Box flexDirection="column" rowGap={1} paddingLeft={2}>
           {b.asks_unread > 0 && <Text>{`${b.asks_unread} unread ask${b.asks_unread === 1 ? '' : 's'}`}</Text>}
           {(b.slots || b.mode !== undefined) && (

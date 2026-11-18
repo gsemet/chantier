@@ -277,7 +277,15 @@ def _batch_line(d: BatchRecord, hb_text: str) -> str:
         + (f" of ${d.budget_usd:g}" if d.budget_usd else "")
         + (f", {age_text(d)}" if age_text(d) else "")
         + (" (paused, cost to date)" if d.status == "paused" else "")
+        + (", no CR yet" if d.status == "paused" and not d.crs else "")
     )
+
+
+def _no_cr_lines(d: BatchRecord) -> list[str]:
+    """A paused batch that never held a CR: how a CR joins it."""
+    if d.status != "paused" or d.crs:
+        return []
+    return [f"no CR yet: `order add --note <folder> --batch {d.id}` joins one"]
 
 
 def _unpaused_line(d: BatchRecord) -> list[str]:
@@ -318,6 +326,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         *_autosync_lines(repo),
         *_other_batches_lines(repo),
     ]
+    lines += _no_cr_lines(d)
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     lines += _watch_lines(repo, d)

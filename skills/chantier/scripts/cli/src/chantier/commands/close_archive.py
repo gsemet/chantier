@@ -25,6 +25,7 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.files import retry
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
+from chantier.core.steering import never_steered
 from chantier.history import close_markdown, close_record, release_retro_line, stopped_agents
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import STATE_FOLDERS, archive_name, stage_layout
@@ -94,6 +95,8 @@ def final_rows(repo: Repo, batch: str, d: BatchRecord) -> list[Rec]:
     do not refuse the close: they are counted apart and the cost is a floor. It is refused (exit 2)
     with its cause when nothing can be priced (no Foreman transcript recorded, no priced call in
     the whole batch), never closed on a false $0.00."""
+    if never_steered(d):
+        return []  # nothing steered it: nothing to price, and the cost reads `none`
     try:
         return cost_rows(repo, d, d.host, foreman_uuid(d))
     except ChantierError as e:
@@ -134,7 +137,13 @@ def _close_files(k: Closing, record: BatchRecord) -> tuple[Rec, str]:
         }
     )
     final = {
-        **close_record(titled, closed, sum(r["usd"] for r in k.rows), sum_unpriced(k.rows), by_cr),
+        **close_record(
+            titled,
+            closed,
+            None if never_steered(k.d) else sum(r["usd"] for r in k.rows),
+            sum_unpriced(k.rows),
+            by_cr,
+        ),
         "cost_receipt": k.receipt,
         **stopped_agents(k.stopped, closed),
     }

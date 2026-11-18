@@ -57,7 +57,10 @@ Known host issues: a `model` array once refused by the CLI ([copilot-cli#2133](h
 ## Heartbeat
 
 In direct mode there is no Foreman chat: the Chief of Staff runs the same `/every` in its own session (unproved), its wake read from the
-batch's `timing: Copilot other models:` line.
+batch's `timing: Copilot other models:` line. For a batch born paused with no CR, the Chief of
+Staff does not send `/every` on `ready <batch>`: it arms it with the first order it sends the
+Foreman, as it already does after a heartbeat ended; in direct mode it runs no `/every` until its
+first `take`.
 Otherwise the Chief of Staff arms it: on the Foreman's `ready <batch>`, it sends the Foreman chat `/every
 <steering wake> chantier status --refresh --batch <batch> --epoch <n>`, the wake read from the
 batch's `timing: Copilot <family> models:` line for the family of the model it started the Foreman
