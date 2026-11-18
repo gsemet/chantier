@@ -6,7 +6,7 @@ import { delegate, html } from '../core/dom.js';
 import { age, safeUrl, usd } from '../core/format.js';
 import { t, tf } from '../model/words.js';
 import { empty, live, mark, meter } from '../ui/parts.js';
-import { pathsOf, projectsOf } from '../ui/picker.js';
+import { pathsOf, projectsOf, sharedForge } from '../ui/picker.js';
 import { surfaceBlock } from './home-project.js';
 
 const none = '—';
@@ -45,11 +45,6 @@ const dataOf = (p, now) => {
 
 const row = (p, now) =>
   html`<tr data-project="${p.id}" tabindex="0" data-key="row-${p.id}"><td class="who">${mark(p.id)}<div class="wtx"><div class="wnm"><b>${p.id}</b>${p.running ? live() : ''}</div>${pathsOf(p)}</div></td><td>${batchOf(p)}</td><td class="num">${workingOf(p)}</td><td>${p.to_review.length ? p.to_review.map(prLink) : none}</td><td>${progressOf(p)}</td><td class="num">${spentOf(p)}</td><td class="num">${p.inbox} · ${p.backlog}</td><td class="mut">${dataOf(p, now)}</td></tr>`;
-
-// The forge of the words every project shares (the headings, the note): "MR" only when every
-// project listed is on GitLab.
-const sharedForge = (projects) =>
-  projects.length && projects.every((p) => p.forge === 'gitlab') ? 'gitlab' : null;
 
 const head = (forge) =>
   ['project', 'batch', 'working', 'review', 'progress', 'spent', 'intake', 'data'].map(

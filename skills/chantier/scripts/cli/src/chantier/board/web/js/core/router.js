@@ -82,13 +82,13 @@ function apply(place) {
   if (place.project && place.project !== ALL) setPref(LAST, place.project);
   const { project, view, batch, st, sort } = place;
   update({
+    ...(turned ? closed : {}),
+    ...(moved ? reset : {}),
     project,
     view,
     batchId: batch ?? null,
     prsState: st ?? null,
     prsSort: sort ?? null,
-    ...(turned ? closed : {}),
-    ...(moved ? reset : {}),
   });
 }
 

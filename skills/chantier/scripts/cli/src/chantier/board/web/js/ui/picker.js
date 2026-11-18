@@ -9,6 +9,10 @@ import { mark } from './parts.js';
 
 export const projectsOf = (state) => state.board?.projects ?? [];
 
+// The forge of the words every project listed shares: "MR" only when every one is on GitLab.
+export const sharedForge = (projects) =>
+  projects.length && projects.every((p) => p.forge === 'gitlab') ? 'gitlab' : null;
+
 // More than one project: only then is there something to pick.
 export const canPick = (state) => projectsOf(state).length > 1;
 

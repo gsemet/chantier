@@ -4,6 +4,7 @@ export default {
   'mr.nav.prs': 'MR',
   'mr.pv.nopr': "Aucune CR n'a encore de MR.",
   'mr.open': 'ouvrir la MR',
+  'mr.tag': 'MR',
   'mr.draft': 'MR en draft, ne pas merger',
   'mr.home.open_prs': 'MR ouvertes',
   'mr.home.review_go': 'MR prêtes à merger',
