@@ -3,6 +3,7 @@ is paused by the CLI (`order merged`, `handback released`, `cancel`, `order drop
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -133,6 +134,48 @@ def test_a_release_crs_order_merged_and_the_drop_of_a_live_cr_pause_nothing(
     code, out, _ = chantier("order", "drop", last)  # a live CR: the Foreman stops its Driver
     assert code == 0 and record(repo)["status"] == "running"
     assert not any(line.startswith(("cleanup", "paused")) for line in out)
+
+
+@pytest.mark.parametrize("pr", ["https://example.com/pr/1", None])
+def test_a_merged_release_crs_pr_stays_in_its_record(
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    pr: str | None,
+) -> None:
+    first, last = started(repo, chantier, monkeypatch, 2, 2)
+    assert merge(chantier, first)[0] == 0
+    patch(repo, last, kind="release", status="ready", pr=pr)
+    assert merge(chantier, last)[0] == 0
+    c = cr(repo, last)
+    assert c["pr"] is None and c["merged_pr"] == (pr or "the release PR")
+    assert (f"PR: {pr} (merged);" if pr else "PR: none;") in " ".join(chantier("handoff", last)[1])
+    row = next(x for x in chantier("status")[1] if x.startswith(f"{last} "))
+    assert (f" {pr} " in row) if pr else (" - " in row)
+    status = json.loads(
+        (repo / ".agents" / "changes" / c["path"] / "STATUS.json").read_text(encoding="utf-8")
+    )
+    assert (status["pr"] or {}).get("url") == pr
+    code, out, _ = chantier("release", "go", last, "--note", "merged")
+    assert code == 0 and any("go" in x and "was merged" in x for x in out)
+
+
+def test_a_stack_line_marks_a_merged_release_pr_and_not_an_open_one(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first, last = open_batch(
+        repo, chantier, monkeypatch, "Stack a", "Stack b", args=("--mode", "stack")
+    )
+    patch(repo, first, status="ready", pr="https://example.com/pr/2")
+    patch(repo, last, kind="release", status="queued", merged_pr="https://example.com/pr/1")
+    lines = chantier("stack")[1]
+    assert any(
+        x.startswith(f"{first} ") and " PR https://example.com/pr/2 head" in x for x in lines
+    )
+    assert any(
+        x.startswith(f"{last} ") and " PR https://example.com/pr/1 (merged) head" in x
+        for x in lines
+    )
 
 
 def test_a_worktree_git_refuses_to_remove_is_kept_with_its_branch(

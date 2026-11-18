@@ -19,6 +19,10 @@ export const HEARTBEAT_MARGIN_MIN = 5;
 const MINUTE_MS = 60000;
 
 export const isOpen = (c) => Boolean(c) && !CLOSED.includes(c.state);
+
+// An open PR: the CR is open and its PR is not already merged (`pr_merged`: the release PR its
+// merge recorded, while the release is still going).
+export const openPr = (c) => Boolean(c.pr) && !c.pr_merged && isOpen(c);
 export const isFix = (c) => c.kind === 'fix';
 export const isRelease = (c) => c.kind === 'release';
 export const crsOf = (batch) => batch?.crs ?? [];
@@ -91,7 +95,7 @@ export const toReview = (c) => vstate(c) === 'ready';
 // The open CRs with a PR, in the order their PRs are merged. A stack or a series: the chain, a
 // fix apart. A parallel batch: the order the CRs were handed back, the release last.
 export function mergeOrder(batch) {
-  const open = crsOf(batch).filter((c) => c.pr && isOpen(c));
+  const open = crsOf(batch).filter(openPr);
   const rank = (c) => Number(isRelease(c));
   if (batch.mode === 'parallel') {
     const when = (c) => c.handed_back_at || c.updated || '';

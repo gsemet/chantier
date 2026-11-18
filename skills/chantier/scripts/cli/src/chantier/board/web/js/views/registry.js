@@ -5,7 +5,7 @@
 import { usd } from '../core/format.js';
 import { ALL } from '../core/router.js';
 import { itemsOf } from '../model/grill.js';
-import { crsOf } from '../model/semantics.js';
+import { crsOf, openPr } from '../model/semantics.js';
 import * as batch from './batch.js';
 import * as config from './config.js';
 import * as costs from './costs.js';
@@ -45,10 +45,7 @@ export const VIEWS = [
     icon: 'pr',
     word: 'nav.prs',
     module: prs,
-    count: (state) =>
-      state.data?.batch
-        ? crsOf(state.data.batch).filter((c) => c.pr && c.state !== 'merged').length
-        : null,
+    count: (state) => (state.data?.batch ? crsOf(state.data.batch).filter(openPr).length : null),
   },
   {
     id: 'costs',

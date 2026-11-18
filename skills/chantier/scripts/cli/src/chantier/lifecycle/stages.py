@@ -228,7 +228,7 @@ def _delivery(repo: Repo, cr: CrEntry, folder: Path) -> None:
         mine = "no (missing from the PR)"
     write_file(
         folder / "delivery.md",
-        f"# Delivery\n\n- PR: {cr.pr or 'none'}\n"
+        f"# Delivery\n\n- PR: {cr.shown_pr() or 'none'}\n"
         f"- Merged: {cr.merged_at}\n- Archive in the PR: {mine}\n",
     )
 

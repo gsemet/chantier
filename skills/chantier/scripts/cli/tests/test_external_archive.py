@@ -156,3 +156,28 @@ def test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clea
     assert not [ln for ln in shown if any(name in ln for name in local)], shown
     assert sh("git", "status", "--porcelain", "-uall", cwd=repo) == ""
     _ship_once(repo, project, chantier, monkeypatch, archived)
+
+
+def test_a_released_crs_delivery_names_the_release_pr_its_merge_recorded(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    surface, project = _surface(repo, tmp_path, None)
+    monkeypatch.chdir(surface)
+    monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "claude-desktop")
+    assert chantier("preflight")[0] == 0
+    folder = _prepared(surface, chantier)
+    assert chantier("open", str(folder), *FROM_AGENTS_MD)[0] == 0
+    assert chantier("take", "CR-101", "--epoch", 0)[0] == 0
+    path = project / "changes" / "4-batch" / "batch.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["crs"][0].update(kind="release", status="ready", pr="https://example.com/pr/1")
+    path.write_text(json.dumps(data), encoding="utf-8")
+    assert chantier("order", "merged", "CR-101", "--epoch", 0)[0] == 0
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["crs"][0]["status"] = "working"  # the release procedure goes on after the merge
+    path.write_text(json.dumps(data), encoding="utf-8")
+    code, _, err = chantier("handback", "CR-101", "ready", "v1.0.0")
+    assert code == 0, err
+    (delivery_md,) = project.glob("changes/4-batch/3-done/*/delivery.md")
+    assert "- PR: https://example.com/pr/1\n" in delivery_md.read_text(encoding="utf-8")

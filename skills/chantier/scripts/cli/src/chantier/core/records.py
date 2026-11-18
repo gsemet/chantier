@@ -8,6 +8,7 @@ does not know survives a read and a write, and an absent key stays absent."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -25,6 +26,11 @@ GROUP_MAX = 60
 LABEL_PATTERN = r"[a-z0-9][a-z0-9-]{0,23}"
 TRACKERS = ("github", "gitlab", "jira")
 ORIGIN_KINDS = ("verbal", *TRACKERS)
+
+
+def _link(url: str | None) -> str | None:
+    """A link only for an http(s) URL; anything else is not one."""
+    return url if url and re.match(r"https?://", url) else None
 
 
 class Record(BaseModel):
@@ -110,6 +116,10 @@ class CrEntry(Record):
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
     phase_detail: str | None = None
     phase_at: str | None = None
+
+    def shown_pr(self) -> str | None:
+        """The PR to show: the open one, else the release PR `order merged` recorded, else None."""
+        return _link(self.pr) or _link(self.merged_pr)
 
     def clear_phase(self) -> None:
         """No step: a new Driver starts, or the CR is handed back."""
