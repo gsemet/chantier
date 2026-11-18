@@ -1,6 +1,6 @@
 // Every word the page shows: one file per language under i18n/, registered here. To add a
 // language, add its file with the same keys and one line below.
-import { pref, setPref } from '../core/store.js';
+import { pref, setPref, snapshot } from '../core/store.js';
 import en from '../i18n/en.js';
 import fr from '../i18n/fr.js';
 
@@ -30,11 +30,19 @@ export function nextLanguage() {
   return all[(all.indexOf(current) + 1) % all.length];
 }
 
-// A word, with its `{name}` holes filled. An unknown key shows as itself.
-export function t(key, params = {}) {
-  const text = LANGUAGES[current][key] ?? key;
+// The MR form of a key: `mr.<x>` for `pr.<x>`, `mr.<key>` for any other (see i18n/en-mr.js).
+const mrKey = (key) => `mr.${key.startsWith('pr.') ? key.slice(3) : key}`;
+
+// A word for a project of that forge, with its `{name}` holes filled: on GitLab the MR form when
+// there is one, else the key's own. An unknown key shows as itself.
+export function tf(forge, key, params = {}) {
+  const words = LANGUAGES[current];
+  const text = (forge === 'gitlab' ? words[mrKey(key)] : undefined) ?? words[key] ?? key;
   return text.replace(/\{(\w+)\}/g, (_, name) => params[name] ?? '');
 }
+
+// A word for the project shown (its forge is `forge` in the state).
+export const t = (key, params = {}) => tf(snapshot().data?.forge, key, params);
 
 // A word with a count: `<key>.one` when the count is one ("1 file"), else `<key>` ("3 files").
 export const tn = (key, n) => t(n === 1 ? `${key}.one` : key, { n });

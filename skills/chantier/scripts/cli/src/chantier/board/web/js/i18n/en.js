@@ -1,6 +1,7 @@
 // English words. A language is one file like this, registered in ../model/words.js.
 import board from './en-board.js';
 import costs from './en-costs.js';
+import mr from './en-mr.js';
 import prs from './en-prs.js';
 import write from './en-write.js';
 
@@ -86,7 +87,6 @@ export default {
   'base.not_stacked': ' · not stacked yet',
   'pr.draft': 'PR in draft, do not merge',
   'pr.open': 'open the PR',
-  'mr.open': 'open the MR',
   'issue.open': 'open the issue',
   'pr.folder': "open the CR's folder",
   'gate.label': 'Long gate',
@@ -232,6 +232,7 @@ export default {
   ...write,
   ...board,
   ...prs,
+  ...mr,
   ...costs,
   'autosync.title': 'Autosync {state}',
   'autosync.state.active': 'active',

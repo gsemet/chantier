@@ -22,12 +22,12 @@ TIMEOUT_S = 20  # a hung `gh` or `glab` holds one worker and the project's lock 
 SHOWN_CHARS = 300
 
 GITHUB_FIELDS = (
-    "state isDraft mergeable baseRefName mergedAt closedAt "
+    "state isDraft mergeable baseRefName mergedAt closedAt createdAt updatedAt "
     "commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 1) "
     "{ totalCount } } } } }"
 )
 GITLAB_FIELDS = (
-    "state draft conflicts detailedMergeStatus targetBranch mergedAt closedAt "
+    "state draft conflicts detailedMergeStatus targetBranch mergedAt closedAt createdAt updatedAt "
     "headPipeline { status }"
 )
 # the rollup states of GitHub and the pipeline statuses of GitLab, as the page words them
@@ -158,6 +158,8 @@ def github_state(node: dict[str, Any], has_workflows: bool) -> Forge:
         "base": node.get("baseRefName"),
         "merged_at": node.get("mergedAt"),
         "closed_at": node.get("closedAt"),
+        "opened_at": node.get("createdAt"),
+        "updated_at": node.get("updatedAt"),
     }
 
 
@@ -177,6 +179,8 @@ def gitlab_state(node: dict[str, Any]) -> Forge:
         "base": node.get("targetBranch"),
         "merged_at": node.get("mergedAt"),
         "closed_at": node.get("closedAt"),
+        "opened_at": node.get("createdAt"),
+        "updated_at": node.get("updatedAt"),
     }
 
 

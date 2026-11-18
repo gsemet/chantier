@@ -14,6 +14,7 @@ from typing import Any
 from chantier.board import crs
 from chantier.board.archived import recovered_after
 from chantier.board.backlog import backlog_items
+from chantier.board.forge_kind import forge_of
 from chantier.board.journal import since_rescan
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
@@ -161,11 +162,13 @@ def project_state(
         apply_batch_settings(repo, d)
         events = read_events(folders[0])
         batch = _batch(repo, d, folders[0], events)
+    history = _history(repo.changes)
     return {
         "project": project_id,
         "surface": surface,
         "seat": _seat(repo),
         "batch": batch,
+        "forge": forge_of({"batch": batch, "history": history}, origin_of(repo.root)),
         "events": _events(events),
         "backlog": backlog_items(repo.changes, dash["backlog"]),
         "next_batch": next_batch(repo),
@@ -174,7 +177,7 @@ def project_state(
         "merged_total": dash["merged_total"],
         "trashed": dash["trashed"],
         "trashed_total": dash["trashed_total"],
-        "history": _history(repo.changes),
+        "history": history,
         "live": live,
     }
 
@@ -223,6 +226,7 @@ def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:
     by_priority = {p: len(state["backlog"][p]) for p in ("P1", "P2", "P3", "P4")}
     return {
         "id": project_id,
+        "forge": state.get("forge"),
         "batch": {k: batch[k] for k in ("id", "state", "mode", "steering")} if batch else None,
         "running": bool(batch and batch["state"] == "running"),
         "working": [_entry(c) for c in rows if c["state"] == "working"],

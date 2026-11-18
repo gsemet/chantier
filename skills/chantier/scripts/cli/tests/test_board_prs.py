@@ -82,8 +82,8 @@ class Board:
         return {p.as_posix(): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
 
 
-@pytest.fixture
-def board(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> Board:
+def served(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> Board:
+    """The `board` fixture's body, for the other test files of the page."""
     ids = open_batch(repo, chantier, monkeypatch, "Alpha", "Beta", "Gamma", "Delta")
     data = record(repo)
     for i, c in enumerate(data["crs"]):
@@ -91,6 +91,11 @@ def board(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> Bo
         c["branch"] = f"chantier/b/cr-{i}"
     write_record(repo, data)
     return Board(repo, ids, monkeypatch)
+
+
+@pytest.fixture
+def board(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> Board:
+    return served(repo, chantier, monkeypatch)
 
 
 def test_the_route_needs_the_key_and_with_no_batch_asks_no_forge(
@@ -103,12 +108,7 @@ def test_the_route_needs_the_key_and_with_no_batch_asks_no_forge(
     board = Board(repo, [], monkeypatch)
     assert board.get(key=False)[0] == HTTP_NO_KEY
     status, body = board.get()
-    assert (status, body["batch"], body["last_batch"], body["rows"]) == (
-        HTTP_OK,
-        None,
-        "batch-7",
-        [],
-    )
+    assert (status, body["batch"], body["rows"]) == (HTTP_OK, None, [])
     assert (body["all_done"], body["error"], board.calls) == (False, None, [])
 
 

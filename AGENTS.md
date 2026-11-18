@@ -44,12 +44,13 @@
   each role's agent, model and escalation, per host, in the project's configuration file in the planning
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
   own reading, checking and writing of that file; it never edits a batch and never messages an
-  agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project,
-  while a PR of the batch is not done, plus one read when the page opens, it reads the forge,
-  read-only, with the user's own `gh` or `glab`, on its own (no agent asks it), and needs the
-  network for that, and a second, from the same page: when its forge read finds a PR merged that
-  the record does not hold, it appends one line to `board-seen.jsonl` (planning folder, never
-  published), which `status` prints for the Chief of Staff to record at its next `status`; the
+  agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project
+  and batch shown, while a PR of the batch shown is not done, plus one read when the page opens and
+  one at once on each change of the batch shown, it reads the forge, read-only, with the user's own
+  `gh` or `glab`, on its own (no agent asks it), and needs the network for that, and a second, from
+  the same page: when its forge read finds a PR of the batch in `4-batch/` merged that the record
+  does not hold, it appends one line to `board-seen.jsonl` (planning folder, never published), which
+  `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent; it takes its dependencies like the rest of the CLI and knows no role.
 - The CLI has two named git exceptions: the board's server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync

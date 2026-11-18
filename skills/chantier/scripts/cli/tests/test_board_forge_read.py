@@ -97,6 +97,17 @@ def test_gitlab_reads_the_same_words_and_never_says_none_for_an_open_mr_it_canno
     assert (found["state"], found["checking"], found["checks"]) == (state, checking, checks)
 
 
+def test_both_queries_ask_for_the_dates_and_both_states_return_them() -> None:
+    assert "createdAt updatedAt" in forge_read.GITHUB_FIELDS
+    assert "createdAt updatedAt" in forge_read.GITLAB_FIELDS
+    dates = {"createdAt": "2026-11-01T00:00:00Z", "updatedAt": "2026-11-02T00:00:00Z"}
+    for found in (
+        forge_read.github_state({**GH_NODE, **dates}, True),
+        forge_read.gitlab_state({"state": "opened", **dates}),
+    ):
+        assert (found["opened_at"], found["updated_at"]) == tuple(dates.values())
+
+
 def test_the_forge_argv_is_a_read_and_its_variables_are_not_in_the_query() -> None:
     for gitlab in (False, True):
         call = forge_read.argv("h.example", "own'er", 'na"me', [3, 12], gitlab)

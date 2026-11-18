@@ -1,12 +1,15 @@
 // The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
-// Costs and Batch views), and the browser's history. With the store, this module is the only one that writes the URL.
+// Costs, Batch and PRs views), and on the PRs view &st=<state>&sort=<sort>, and the browser's
+// history. With the store, this module is the only one that writes the URL.
 import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
 
 export const ALL = '*';
 const LAST = 'last';
 const CHOSEN = 'project';
 const rules = { views: ['home'], overview: ['home'] };
-const BATCH_VIEWS = ['costs', 'batch']; // the views the batch navigator moves through
+export const BATCH_VIEWS = ['costs', 'batch', 'prs']; // the views the batch navigator moves through
+export const PRS_STATES = ['open', 'draft', 'merged']; // the PRs view's state filter (absent: all)
+export const PRS_SORTS = ['opened', 'activity', 'cr']; // its sort (absent: the batch's order)
 
 // The views the page knows, and those that stay on "All projects" (the registry says which).
 export function configure(views, overview) {
@@ -31,13 +34,17 @@ export function resolve(projects, search = location.search) {
   );
   const view = known(asked.get('v'));
   const batch = BATCH_VIEWS.includes(view) ? asked.get('b') || null : null;
-  return { project: wanted ?? lastOf(ids), view, batch };
+  const only = (key, values) =>
+    view === 'prs' && values.includes(asked.get(key)) ? asked.get(key) : null;
+  const st = only('st', PRS_STATES);
+  const sort = only('sort', PRS_SORTS);
+  return { project: wanted ?? lastOf(ids), view, batch, st, sort };
 }
 
 // A view that "All projects" does not show opens on the last real project.
 function settle(place) {
   const ids = (snapshot().board?.projects ?? []).map((p) => p.id);
-  const next = place.project === ALL ? { ...place, batch: null } : place;
+  const next = place.project === ALL ? { ...place, batch: null, st: null, sort: null } : place;
   if (place.project === ALL && !rules.overview.includes(place.view)) {
     return { ...next, project: lastOf(ids) };
   }
@@ -57,6 +64,8 @@ const reset = {
   priorityFilter: [...FILTER_BUCKETS],
   historyOpen: [],
   prs: null,
+  prsState: null,
+  prsSort: null,
   journalOpen: false,
   journal: null,
   pending: [],
@@ -71,11 +80,13 @@ function apply(place) {
   const turned = place.view !== now.view;
   if (place.project) setPref(CHOSEN, place.project);
   if (place.project && place.project !== ALL) setPref(LAST, place.project);
-  const { project, view, batch } = place;
+  const { project, view, batch, st, sort } = place;
   update({
     project,
     view,
     batchId: batch ?? null,
+    prsState: st ?? null,
+    prsSort: sort ?? null,
     ...(turned ? closed : {}),
     ...(moved ? reset : {}),
   });
@@ -87,6 +98,8 @@ export const href = (place) =>
     p: place.project ?? '',
     v: place.view ?? 'home',
     ...(place.batch ? { b: place.batch } : {}),
+    ...(place.view === 'prs' && place.st ? { st: place.st } : {}),
+    ...(place.view === 'prs' && place.sort ? { sort: place.sort } : {}),
   })}`;
 
 // The chosen batch after a move: kept (or set by `place.batch`) between Costs and Batch of the
@@ -98,13 +111,27 @@ export function batchOf(place, now, project, view) {
   return project === now.project ? now.batchId : null;
 }
 
+// The PRs view's filter and sort after a move: set by the place, else kept on the same project's
+// PRs view (`undefined`), else cleared. Any other view has none.
+export function prsOf(place, now, project, view) {
+  if (view !== 'prs') return { st: null, sort: null };
+  const keep = (key, held) =>
+    place[key] !== undefined ? place[key] : project === now.project ? held : null;
+  return { st: keep('st', now.prsState), sort: keep('sort', now.prsSort) };
+}
+
 let here = null; // the address the page last settled on
 
 export function go(place, { replace = false } = {}) {
   const now = snapshot();
   const project = place.project ?? now.project;
   const view = known(place.view ?? now.view);
-  const next = settle({ project, view, batch: batchOf(place, now, project, view) });
+  const next = settle({
+    project,
+    view,
+    batch: batchOf(place, now, project, view),
+    ...prsOf(place, now, project, view),
+  });
   if (replace) history.replaceState(null, '', href(next));
   else history.pushState(null, '', href(next));
   here = location.href;

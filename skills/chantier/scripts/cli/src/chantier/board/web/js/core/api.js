@@ -32,8 +32,10 @@ export const projectState = (id, etag) => get(`${base(id)}/state`, etag);
 
 export const costs = (id) => get(`${base(id)}/costs`);
 
-// The batch's PRs read on the forge (read-only; the server keeps a read for 10 s).
-export const prs = (id) => get(`${base(id)}/prs`);
+// The PRs of a batch read on the forge (read-only; the server keeps a read for 10 s per batch);
+// with no `batch`, the batch in 4-batch/, else the newest closed one.
+export const prs = (id, batch) =>
+  get(`${base(id)}/prs${batch ? `?batch=${encodeURIComponent(batch)}` : ''}`);
 
 export const tree = (id, path) => get(`${base(id)}/tree?${withPath(path)}`);
 
