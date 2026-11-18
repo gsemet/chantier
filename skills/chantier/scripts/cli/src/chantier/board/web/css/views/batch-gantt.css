@@ -8,7 +8,7 @@
 
 .batch .gt {
   display: grid;
-  grid-template-columns: 240px minmax(480px, 1fr);
+  grid-template-columns: 240px minmax(400px, 1fr);
   min-width: max-content;
 }
 
@@ -104,6 +104,6 @@
 
 @media (width <= 700px) {
   .batch .gt {
-    grid-template-columns: 220px minmax(480px, 1fr);
+    grid-template-columns: 220px minmax(400px, 1fr);
   }
 }
