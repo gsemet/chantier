@@ -154,12 +154,25 @@ def _why(n: int, un: dict[str, Any]) -> str:
     return f"{n} calls" + (f"; {not_priced(un)}" if un else "")
 
 
+def steer_outside(c: _Chief) -> str | _Part | None:
+    """The Chief of Staff's steering outside the budget, decided from the read alone, one rule
+    for the text and the receipt: `"unknown"` when the only calls of this part cannot be placed,
+    the figure (`c.steer`) when calls are held there or none fell inside the claim windows, else
+    `None` (the steering is all in the batch's spend)."""
+    if not c.steer.held() and c.untimed:
+        return "unknown"
+    if c.steer.held() or not c.inside_calls:
+        return c.steer
+    return None
+
+
 def _chief_lines(c: _Chief) -> list[str]:
     lines = []
     steer = c.steer
-    if not steer.held() and c.untimed:  # the only calls of this part cannot be placed
+    out = steer_outside(c)
+    if out == "unknown":
         lines.append(f"{STEER_OUT}: unknown ({c.untimed} calls without a time, not placed)")
-    elif steer.held() or not c.inside_calls:  # a direct batch's steering is its row, not a line
+    elif out is not None:
         lines.append(
             f"{STEER_OUT}: {spend(steer.usd, steer.calls, steer.unpriced)} since the batch "
             f"opened ({_why(steer.calls, steer.unpriced)})"
@@ -220,20 +233,21 @@ def _outside_part(p: _Part) -> dict[str, Any]:
     return {"usd": round(p.usd, 4), "calls": p.calls, "unpriced": dict(p.unpriced)}
 
 
-def chief_outside(d: BatchRecord, read: _Chief | str) -> dict[str, Any]:
+def chief_outside(read: _Chief | str) -> dict[str, Any]:
     """The parts of the Chief of Staff's session outside the budget, as data: `outside` (the
-    grill, and the steering in a Foreman batch; `None` when nothing can be measured) and, then,
-    `outside_unknown` with the cause. Never a $0.00 for what is not measured."""
+    grill, and the Chief of Staff's steering outside its claim windows, the text's line from
+    the same `steer_outside`; `None` when nothing can be measured) and, then, `outside_unknown`
+    with the cause. Never a $0.00 for what is not measured."""
     if isinstance(read, str):
         return {"outside": None, "outside_unknown": read}
-    steer = read.steer
+    out = steer_outside(read)
     steering: dict[str, Any] | None
-    if d.steering == "direct" or (not steer.held() and read.inside_calls):
-        steering = None  # a direct batch's steering is its Steering line, inside the budget
-    elif not steer.held() and read.untimed:
+    if out is None:
+        steering = None
+    elif isinstance(out, str):
         steering = {"usd": None, "calls": 0, "unpriced": {}, "unknown": "calls without a time"}
     else:
-        steering = _outside_part(steer)
+        steering = _outside_part(out)
     return {"outside": {"grill": _outside_part(read.grill), "steering": steering}}
 
 

@@ -2452,7 +2452,8 @@ def direct_batch(w: World) -> None:
     # the Chief of Staff takes the batch back from the Foreman: direct again, both stints priced
     now_dt = datetime.now(timezone.utc)
     later_stamp = (now_dt + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%S.000Z")  # after claim 3
-    chief.write_text(msg("c-s1", at(10)) + msg("c-s2", later_stamp), encoding="utf-8")
+    chief.write_text(msg("c-out", at(-30)) + msg("c-s1", at(10)) + msg("c-s2", later_stamp),
+                     encoding="utf-8")  # c-out: between the opening and the first claim
     foreman_file.write_text(msg("fm-1", at(40)), encoding="utf-8")
     foreman_kept = foreman_file.read_text(encoding="utf-8")
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 3)
@@ -2477,9 +2478,20 @@ def direct_batch(w: World) -> None:
     outside = [ln for ln in out if ln.startswith(
         "Chief of Staff, steering the batch (outside the budget)")]
     check("`cost` prices the Chief of Staff's two windows in the batch's spend and the Foreman's "
-          "window between them; no call of the second stint is outside the budget",
+          "window between them; only the call before the first claim is outside the budget",
           "(2 calls," in own and "(1 calls," in old
-          and all("(1 calls)" in ln for ln in outside), str(out))
+          and len(outside) == 1 and "(1 calls)" in outside[0], str(out))
+    probe_costs = ("import json,sys;from pathlib import Path;from chantier.core.repo import Repo;"
+                   "from chantier.board.costs import compute;r=Path(sys.argv[1]);"
+                   "print(json.dumps(compute(Repo(r,r/'.git',{},None,None))['receipt']['outside']"
+                   "['steering']))")
+    done = subprocess.run([sys.executable, "-c", probe_costs, str(w.work)], env=w.env, cwd=w.work,
+                          capture_output=True, text=True, encoding="utf-8")
+    figure = json.loads(done.stdout or "null") or {}
+    check("the board's receipt holds the same steering outside the budget as `cost`'s line, on "
+          "the direct batch that was a Foreman's", bool(outside) and figure.get("calls") == 1
+          and f"${figure.get('usd', 0):.2f} since the batch opened" in outside[0],
+          done.stdout + done.stderr)
     foreman_file.write_text(foreman_kept + call_line("Bash"), encoding="utf-8")
     os.utime(chief, None)
     code, out = w.chantier("close", "--batch", w.name, expect=None)
