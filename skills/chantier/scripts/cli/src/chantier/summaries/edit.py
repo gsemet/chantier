@@ -32,14 +32,19 @@ def one_line(value: str, field: str, limit: int) -> str:
     return text
 
 
+LABEL_RULE = (
+    "a label is lowercase letters, digits and hyphens, 24 characters at most, "
+    "starting with a letter or digit"
+)
+
+
 def label_set(raw: str) -> set[str]:
     """Comma-separated labels, lowercased and checked."""
     labels = {part.strip().lower() for part in raw.split(",") if part.strip()}
     bad = sorted(x for x in labels if not re.fullmatch(LABEL_PATTERN, x))
     if bad or not labels:
         raise ChantierError(
-            f"a label is lowercase letters, digits and hyphens, 24 characters at most, "
-            f"starting with a letter or digit: {', '.join(bad) or 'none given'}",
+            f"{LABEL_RULE}: {', '.join(bad) or 'none given'}",
             EXIT_USAGE,
         )
     return labels

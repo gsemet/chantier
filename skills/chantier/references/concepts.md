@@ -111,7 +111,11 @@ and how an agent is started. Each worker reads its own card, which restates the 
   published one. The rest of a CR's folder is pushed with the surface. So are the batches' records:
   each batch leaves `5-archives/batches/batch-NN.json` (for a UI; written by `open` as `running`,
   completed by `close`) and `batch-NN.md` (for a person: the Completion table, the cost, the retro).
-  The next batch number is read from these records.
+  The next batch number is read from these records. `$CHANTIER validate` checks the whole planning
+  folder (stages, CR folders, `summary.json`'s format, missing or late summaries, broken links
+  between its Markdown files), writes nothing, exits 0 when it finds only gaps (their count on its
+  first line), 3 on errors and 1 when it cannot run; a surface's own validation calls it; it
+  blocks no other command.
 - **Planning surface:** a git repository of its own, one folder per project, always worked on
   its default branch (never in a worktree; only the project's code gets worktrees):
   `projects/<name>/` holds `project.md` (the project, its remote, `- Archive in the PR: yes|no`,

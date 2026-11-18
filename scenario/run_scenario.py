@@ -8772,6 +8772,10 @@ def external_surface(tmp: Path) -> None:
           and not (archives[0] / "retro.md").exists()
           and not any(f.endswith("retro.md") or "/batches/" in f for f in tree), str(archives))
     surface_publishes(w, "after the close")
+    code, out = w.chantier("validate", expect=None)
+    check("`validate` on a closed batch's planning folder exits 0 with no `error` line: archives with their "
+          "delivery.md and the batches' records read clean",
+          code == 0 and not any(ln.startswith("error ") for ln in out), str(out))
     kept = (archives[0] / "summary.json").is_file() and (archives[0] / "summary.json").read_text(
         encoding="utf-8") == before_close
     code, out = w.chantier("summary", "lint", archives[0], expect=None)
@@ -8974,6 +8978,19 @@ def summary_walk(w: World) -> None:
           and re.fullmatch(r"… \d+ more lines", out[-1]), str(out))
 
 
+def validate_walk(w: World) -> None:
+    """`validate` over the filed items with no summary: every gap printed, each `no summary` line
+    the `summary lint` line behind `gap `."""
+    _, lint = w.chantier("summary", "lint", expect=2)
+    code, out = w.chantier("validate", expect=None)
+    check("`validate` exits 0 on gaps only, its count first and every gap printed, never cut at ten",
+          code == 0 and re.fullmatch(r"\d+ gap\(s\) in \d+ CRs", out[0]) and len(out) > 10
+          and not any("more lines" in ln for ln in out), str(out))
+    shown = [ln for ln in lint[1:] if ": no summary" in ln]
+    check("each `no summary` line of `validate` is `gap ` and the matching `summary lint` line",
+          shown and all(f"gap {ln}" in out for ln in shown), str(out[:3]))
+
+
 def cr_summary(tmp: Path) -> None:
     note("\n## 21. A CR's summary: the linter and its commands")
     tmp.mkdir()
@@ -8988,6 +9005,7 @@ def cr_summary(tmp: Path) -> None:
     ready = summary_moves(w, a)
     summary_status_bytes(w, ready)
     summary_walk(w)
+    validate_walk(w)
 
 
 def gitlab_ship_merge(w: World) -> None:
