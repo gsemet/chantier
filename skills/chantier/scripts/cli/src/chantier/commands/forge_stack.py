@@ -24,7 +24,7 @@ from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.stacks import chain, off_place, stack_base, state_word
+from chantier.stacks import chain, off_place, stack_base, state_word, to_come
 
 
 def _is_gitlab(rows: list[dict[str, Any]]) -> bool:
@@ -40,9 +40,9 @@ def _plan(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], Where, dict[int, str]]:
     """The stack as it stands: the rows (the bottom CRs with a PR on its place, whatever their
     status: cr, status, PR number, link, base, head, release), the CRs to come (those from the
-    first with no PR, or a working one off its place, up: cr, status, PR number or None), the
-    forge's host, owner and repository, read from the PR links, and the PR numbers of the
-    batch's dropped CRs (to their CR ids)."""
+    first with no PR, or a working one off its place or not placed by the stack driver yet, up:
+    cr, status, PR number or None), the forge's host, owner and repository, read from the PR
+    links, and the PR numbers of the batch's dropped CRs (to their CR ids)."""
     repo = Repo.find()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
@@ -53,7 +53,7 @@ def _plan(
     rows: list[dict[str, Any]] = []
     where = None
     for c in links:
-        if not c.pr or off_place(data, c, repo):  # a working PR off its place is to come
+        if not c.pr or to_come(data, c, repo):  # to come: see `to_come`
             break
         host, owner, name, number = pr_parts(c.pr)
         if where not in (None, (host, owner, name)):
@@ -82,6 +82,12 @@ def _plan(
 def _no_bottom(data: BatchRecord, repo: Repo, first: CrEntry) -> NoBottom:
     """The refusal when no PR stands at the bottom: none, or a working one off its place."""
     off = off_place(data, first, repo) if first.pr else None
+    if first.pr and not off and first.status == "working" and not first.stacked:
+        return NoBottom(
+            f"no PR placed at the bottom of the stack: {first.id} is working and the stack "
+            f"driver has not placed its PR {first.pr} yet",
+            EXIT_PRECONDITION,
+        )
     if off:
         planned = stack_base(data, first, repo, planned=True)
         return NoBottom(

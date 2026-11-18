@@ -190,7 +190,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   base, refusing the change while the PR is in an open stack): the stack as it stands (the bottom
   CRs with a PR, the others to come): `create` and `show` with two ready PRs and the release to
   come, naming the commit the user may merge below; a CR that joins as a draft on top (`rebuild`:
-  unstack, retarget, create again; `drafts on top`, `to come:`); `check 4` read against each CR's
+  unstack, retarget, create again; `drafts on top`, `to come:`; a working CR with a PR the stack driver has not placed, under `to come:`); `check 4` read against each CR's
   status; the complete stack (`stack complete, mergeable below`, no `to come:` line); `stack`
   naming only some CRs, refused when a dependency is left out; `rebuild` after an insertion
   (unstack, retarget, one new stack bottom to top, the release on top), after a partial merge

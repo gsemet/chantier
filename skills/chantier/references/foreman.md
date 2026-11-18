@@ -323,7 +323,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
   - the first stack made: `$CHANTIER asks "stack-ready-to-merge <stack link> partial stack mergeable below
     <sha7> merge <cr> <link> <cr>=<link> gaps: …… to come: <cr> <cr>…"` (`merge <cr> <link>`: the highest PR of the mergeable part, the PR whose head is `<sha7>`; the `<cr>=<link>` pairs: the mergeable part,
     each CR's gaps after its link as in the complete form below; to
-    come: the drafts on top and the CRs with no PR; `<sha7>` as `forge-stack show` printed it);
+    come: the drafts on top (the rows not ready to merge) and the CRs of
+    `forge-stack show`'s `to come:` line (no PR yet, or working and not placed yet); `<sha7>` as `forge-stack show` printed it);
   - the stack complete: `$CHANTIER asks "stack-ready-to-merge <stack link> mergeable below <sha7>
     merge <cr> <link> <cr>=<link>…"`, each CR's gaps after its link (`<cr>=<link> gaps: …`);
   - any other hand-back (a CR joined, a draft turned ready, a restack after a merge): no ask;
