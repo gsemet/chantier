@@ -1074,6 +1074,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
   bullet above) in the same message, naming
   the PR and which PRs are below and above it, before the sentence that says the stack can be
   merged. The user decides; the evidence route stays (`order note <cr> --note "evidence: <path>"`).
+  On a partial ask, in a project whose rules ask the stack's top for a local run, quote its
+  `local gate <cr> at <sha7>: passed|failed|not run` clause in the user's language before the
+  sentence that says the stack can be merged. `passed`: say the local gate ran and passed at that
+  head. `not run` or `failed` (a `deliver by` time), or no clause: say the project's rule asks that
+  gate at that head before the merge and it has not passed there; merging anyway is the user's
+  choice, recorded as any merge (`order merged`), never questioned or refused. The record holds it:
+  the last `gate` events of that CR at that full head in the batch's `events.jsonl` (`status`'s
+  "Long gate" column keeps `exempt: <rule>` for a CR handed back with `--no-gate`).
   All hold: first tell the user the one PR to merge, by the ask's `merge <cr> <link>` (its number
   and link): on GitHub, merging that PR merges those under it in one action; one PR at a time from
   the bottom stays their choice. Tell them that no other PR of the batch is to be merged while the
