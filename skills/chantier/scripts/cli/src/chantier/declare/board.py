@@ -28,7 +28,8 @@ def register(sub: Subparsers) -> None:
         "--seat",
         metavar="SESSION",
         help="the Chief of Staff session this board is for: the board follows its seats and "
-        "stops when none of them names its session any more",
+        "stops when none of them names its session any more; with none, it serves until stopped "
+        "by hand",
     )
     s.add_argument(
         "--clock",

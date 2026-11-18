@@ -2228,16 +2228,23 @@ def remote_board(w: World) -> None:
         check("a board that stops removes its record from `board.json`, the key stays",
               "running" not in json.loads(key_file.read_text(encoding="utf-8"))
               and json.loads(key_file.read_text(encoding="utf-8"))["key"] == link.key)
-        # a board with no seat starts its watch at its first seat, whenever it comes
+        # a board started by hand (no `--seat`) records a session's seat and follows none
         late = board("board", "--host", "127.0.0.1", "--port", 0)
         late_link = Link(late.line())
         p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
                             str(late_link.port), "--seat", "s-4"], cwd=w.work, env=w.env,
                            capture_output=True, text=True, encoding="utf-8", timeout=30)
+        registered = jget(late_link.port, late_link, "/api/board")[2].get("seats")
         w.chantier("seat", "take", "s-5", "--over", "s-4")
-        check("a board that had no seat takes its first over `POST /api/seats`, then stops by itself "
-              "when that session goes",
-              late_link.ok and p.returncode == 0 and exits(late) == 0, p.stdout + p.stderr)
+        # the board checks its seats at each request: the same `gone()` a watch would call
+        fetch(late_link.port, "/api/board", headers=late_link.cookie)
+        check("a board started by hand registers a session's seat and keeps serving when that "
+              "session goes",
+              late_link.ok and p.returncode == 0 and p.stdout.startswith("board already running at ")
+              and registered == 1
+              and late.p.poll() is None
+              and fetch(late_link.port, "/api/board", headers=late_link.cookie)[0] == 200,
+              p.stdout + p.stderr)
         # a port held by another program, with no live board to reuse
         with socket.socket() as held:
             held.bind(("127.0.0.1", 0))

@@ -107,10 +107,11 @@ reports it and never replaces it:
   push), stopped, blocked (with the reason), or waiting for your approval of an incident. A script
   that is missing is a warning. Chantier only reads the files under
   `<surface git dir>/ai-autosync/`; it deletes none, a dead participant's included.
-- **The board** joins the group once, at a fresh start (never when it reuses a running board), as
-  `join . --owner-pid <its pid> --harness generic --session-id chantier-board`, and shows the
-  state as a pill (a dot on a phone) with a panel. Its buttons run the script's
-  `start . --enable-only`, `stop .` and, for an incident, `approve . <id>` then
+- **The board** shows the state as a pill (a dot on a phone) with a panel. Starting the board
+  joins nothing. Its Start button runs the script's `start . --enable-only`, then joins once as
+  `join . --owner-pid <its pid> --harness generic --session-id chantier-board`, so the board's
+  process owns that participant, which leaves when the board stops. Its other buttons run
+  `stop .` and, for an incident, `approve . <id>` then
   `start . --enable-only`, on your click only. A blocked group has no button: the Chief of
   Staff integrates, then restarts it. The first join needs the network once (uv's cache);
   offline, the board says `board: autosync not joined`.
@@ -124,6 +125,16 @@ reports it and never replaces it:
   what is its own, else tells you the reason and waits.
 - **The Chief of Staff** never runs `approve`, even on your word in the chat; it shows you the
   incident and waits for your click on the board or your own terminal.
+
+## With no agent
+
+Start the board from the surface's root with
+`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board` (the version the
+surface's planners use); click Start for the autosync. The board serves and keeps the group joined
+until you stop it. A Chief of Staff session that starts later reuses it (`board already running
+at`), and its leaving does not stop it. A session running another chantier version is refused
+with the board's version, PID and stop command, as today ([`web-board.md`](web-board.md), "When
+it stops"): keep the surface's pinned version on the planners' release.
 
 ## Two sessions on one surface
 

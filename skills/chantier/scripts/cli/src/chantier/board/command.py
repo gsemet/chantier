@@ -86,7 +86,7 @@ def _bind(host: str, port: int, held: Callable[[], str] | None = None) -> socket
 
 
 def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
-    """Serve until Ctrl-C or until the seats leave."""
+    """Serve until Ctrl-C, or, for a board started with `--seat`, until its seats leave."""
     box: list[Any] = []
 
     def stop() -> None:
@@ -168,7 +168,7 @@ def board(args: argparse.Namespace) -> list[str]:
         raise _not_started(e) from e
     host, port = settings(projects.home, args.host, args.port)
     key = load_or_create(projects.home, args.new_key)
-    seats = Seats(projects)
+    seats = Seats(projects, follows=bool(args.seat))
     if args.seat:
         seats.add(projects.home_id, args.seat)
     run = running.live(key_path(projects.home))
