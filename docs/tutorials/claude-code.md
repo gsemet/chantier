@@ -30,9 +30,9 @@ claude plugin marketplace add gsemet/chantier
 claude plugin install chantier@chantier
 ```
 
-This installs four skills (the router `chantier`, `chief-of-staff`, `griller` and `status`) and twelve
-agents (`chantier:cr-driver`, `chantier:coder`, …). Restart the Desktop app so it loads them. There is nothing else to install
-and nothing to configure.
+This installs four skills (the router `chantier`, `chief-of-staff`, `griller` and `status`) and
+twelve agents (`chantier:cr-driver`, `chantier:coder`, …). Restart the Desktop app so it loads
+them. Nothing else needs installing or configuring.
 
 ## 2. Tell chantier how your project builds
 
@@ -48,14 +48,15 @@ have neither, add an `AGENTS.md` at the root of the repository with at least:
 - Commits follow Conventional Commits.
 ```
 
-The first line is the **fast gate** (the Coder runs it after every round), the second the
-**long gate** (the Driver runs it once before the PR, through `chantier gate`, alone in the
-repository). One command may serve as both; write one command per item, never chained with `&&`
-or `;`. On Windows, the long gate runs in `cmd.exe`. The page
-[Your gates](../how-to/gates.md) says more: exemptions, and a project with no long gate.
-Everything else `AGENTS.md` says (how to commit, the PR template, the merge method, what a
-skipped job means, how to release) binds the team too: the Drivers commit, push and open the
-PRs themselves, and your rules rank above chantier's own.
+The first gate line is the fast gate: the Coder runs it after every round. The second is the long
+gate: the Driver runs it once before the PR, through `chantier gate`, alone in the repository. One
+command may serve as both. Write one command per item, never chained with `&&` or `;`. On Windows,
+the long gate runs in `cmd.exe`. [Your gates](../how-to/gates.md) covers exemptions and a project
+with no long gate.
+
+Everything else your `AGENTS.md` says binds the team too: how to commit, the PR template, the
+merge method, what a skipped job means, how to release. The Drivers commit, push and open the PRs
+themselves, and your rules rank above chantier's own.
 
 ## 3. Open the repository and meet the Chief of Staff
 
@@ -66,25 +67,30 @@ type:
 /chantier:chief-of-staff prepare yourself to work on this project
 ```
 
-`/chantier:chief-of-staff` is the session that opens and runs batches. With no argument its mode
+`/chantier:chief-of-staff` is the session that opens and runs batches. With no argument, its mode
 follows where you are (Foreman at the desktop, direct under Remote Control, in a terminal or VS
-Code); `foreman` or `direct` after it forces one. `/chantier:griller` is a session that refines the inbox and the backlog
-while the Chief of Staff runs batches. One Chief of Staff holds the seat per repository; a
-second session that asks for it becomes a Griller and offers "become chief of staff", which you
-say to take over. `/chantier:status` shows the progress report of the running batch at once, from any session, and changes nothing.
+Code). Add `foreman` or `direct` to force one.
 
-The Chief of Staff introduces chantier in a few lines, reads your `AGENTS.md`, and tells you
-what it learned: how you check, ship and merge, and the default branch. It asks about anything your instructions do
-not settle, and offers to write the answer in `AGENTS.md`. It records nothing anywhere else: it
-reads `AGENTS.md` again at every session, and everything chantier writes later goes to
-`.agents/changes/`.
+Two other entries exist:
 
-New to chantier, or on a project with no `.agents/changes/` yet? Type
-`/chantier:chief-of-staff init` instead. It creates the empty stage folders (inbox, backlog, `3-ready`,
-batches, archives, trash), then gives you a guided tour of your project, in the chat or as an HTML page.
-It writes nothing in the project except what you say yes to at the end.
+- `/chantier:griller` refines the inbox and the backlog while the Chief of Staff runs batches.
+  Each repository has one Chief of Staff. A second session that asks for the seat becomes a
+  Griller and offers "become chief of staff", which you say to take over.
+- `/chantier:status` shows the progress report of the running batch at once, from any session, and
+  changes nothing.
 
-You can check at any time:
+The Chief of Staff introduces chantier in a few lines, reads your `AGENTS.md` and tells you what it
+learned: how you check, ship and merge, and the default branch. It asks about anything your
+instructions do not settle, and offers to write the answer in `AGENTS.md`. It records nothing
+anywhere else. It reads `AGENTS.md` again at every session, and everything chantier writes later
+goes to `.agents/changes/`.
+
+On a project with no `.agents/changes/` yet, type `/chantier:chief-of-staff init` instead. It
+creates the empty stage folders (inbox, backlog, `3-ready`, batches, archives, trash), then gives
+you a guided tour of your project, in the chat or as an HTML page. It writes nothing in the project
+except what you say yes to at the end.
+
+To check what it knows, at any time, type:
 
 ```text
 chantier, what do you know about this project?
@@ -96,16 +102,16 @@ chantier, what do you know about this project?
 chantier, file this: the login form should show an error when the password is empty.
 ```
 
-The Chief of Staff creates a **Change Request** folder in `.agents/changes/1-inbox/`, with
+The Chief of Staff creates a Change Request folder in `.agents/changes/1-inbox/`, with
 your request kept as written. Then it asks the questions that change the result ("only on submit,
 or as you type?"), each with its recommended answer, and records your answers in `02-answers.md`.
 When the questions are done, it restates the CR and asks whether it is grilled enough. On your
-word, a **spec-writer** agent writes the **Change Specification** (`03-change-spec.md`) in the
-background, and the Chief of Staff shows it to you after checking it against your answers (on an
-impactful CR, a 🧐 **spec critic** checks it first, and its questions come to you). Read
-it: it is exactly what the team will build.
+word, a spec-writer agent writes the Change Specification (`03-change-spec.md`) in the background.
+The Chief of Staff checks it against your answers, then shows it to you. On an impactful CR, a
+spec critic checks it first, and its questions come to you. Read the specification: it is exactly
+what the team will build.
 
-File as many items as you like. To prioritize one:
+File as many items as you like. To prioritise one:
 
 ```text
 make it a P1
@@ -119,32 +125,30 @@ run the P1s, two at a time
 
 The Chief of Staff:
 
-1. runs the **preflight** (Desktop app, plugin agents, `uv` and `git`, main checkout, project
-   instructions, the forge's CLI logged in) and stops with the reason if anything is missing. It
-   also checks, as warnings only, the forge's rights and branch rules (can you push, force-push
-   a `chantier/` branch, edit PRs), and, per capability the batch uses (every batch, a stack, a
-   release on its own, fixes on a grant), whether your allow rules let through the commands the
-   agents run, judged by what they match and not by their text; a missing rule is a strong warning,
-   never a failure, and the Chief of Staff runs one harmless trial per used capability before the go;
-2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch
-   (a Foreman or the Chief of Staff itself, and why: the surface, or your `foreman` / `direct`);
-3. waits for your **go**.
+1. runs the preflight and stops with the reason if anything is missing. The preflight checks the
+   Desktop app, the plugin agents, `uv` and `git`, the main checkout, the project instructions and
+   the forge's CLI login. It also warns, without stopping, about the forge's rights and branch
+   rules (can you push, force-push a `chantier/` branch, edit PRs) and about allow rules that let
+   through too few of the commands the agents run;
+2. shows you the plan: the CRs, the slots, the budget, the agents, and who steers the batch (a
+   Foreman or the Chief of Staff itself, and why: the surface, or your `foreman` / `direct`);
+3. waits for your go.
 
-For fewer auto-mode interruptions, when the preflight finds allow rules missing the Chief of Staff
-asks you whether to add them (the rules of a release on its own, or of fixes on a grant, only when
-you grant it), and adds them to `~/.claude/settings.json` on your yes, and nothing
-else there; when the host refuses that edit, it gives you one command line to run at your
-computer. The rules, the risk each accepts and what must stay refused are in the host reference's
-section "Configuration" ([claude-code.md](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md)).
+When the preflight finds allow rules missing, the Chief of Staff asks whether to add them. On your
+yes it adds them to `~/.claude/settings.json`, and nothing else there. When the host refuses that
+edit, it gives you one command line to run at your computer. The rules, the risk each accepts and
+what must stay refused are in the "Configuration" section of the
+[host reference](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md).
 
-Say "go". It opens the batch (each CR is named a branch `chantier/batch-<n>/…` and a worktree
-next to your repository, which its Driver creates when it starts), then starts the **Foreman**
-in its own session. You will see that session in the sidebar; you never need to talk to it. In
-direct mode, which the plan names, with the reason, when the session is under Remote Control, when
-a Foreman session cannot start, or when you forced it, no Foreman starts: the Chief of Staff steers the batch itself and, while it does, answers only
-"status?", "what did it cost?", your answers to a blocked CR and orders on the batch. Direct mode
-is less dynamic (that session holds no grill and orders no QA while the batch runs; a CR grilled elsewhere still joins it) but has the same
-lifecycle: running, paused, closed on your word.
+Say "go". The Chief of Staff opens the batch: each CR gets a branch `chantier/batch-<n>/…` and a
+worktree next to your repository, which its Driver creates when it starts. Then it starts the
+Foreman in its own session. You see that session in the sidebar; you never need to talk to it.
+
+In direct mode no Foreman starts, and the Chief of Staff steers the batch itself. The plan says so,
+with the reason: you are under Remote Control, a Foreman session cannot start, or you forced it.
+While it steers, the Chief of Staff answers only "status?", "what did it cost?", your answers to a
+blocked CR and orders on the batch. It holds no grill and orders no QA, but a CR grilled elsewhere
+still joins the batch. The lifecycle is the same: running, paused, closed on your word.
 
 ## 6. Follow and steer
 
@@ -169,12 +173,16 @@ answer is recorded in the CR's `02-answers.md` and the work resumes.
 
 ## 7. Review and merge
 
-When a CR is ready to merge, the Chief of Staff gives you its pull request (a PR in draft waits for what is under it: do not merge it). Each PR was built in rounds
-(Coder, then a fresh Inspector), passed the long gate and CI, and was checked at its pushed head
-by a Verifier that did not write it; the Driver committed, rebased, pushed and opened it by your
-project's rules; its description follows the default PR template shipped in the skill, unless
-your project has its own template, which ranks above it. Review it like any PR. **chantier never merges your PRs**: you do (only a
-release's PR or fix is merged by the Foreman, on your word).
+When a CR is ready to merge, the Chief of Staff gives you its pull request. A PR in draft waits for
+what is under it: do not merge it.
+
+Each PR was built in rounds (a Coder, then a fresh Inspector), passed the long gate and CI, and was
+checked at its pushed head by a Verifier that did not write it. The Driver committed, rebased,
+pushed and opened it by your project's rules. Its description follows the default PR template
+shipped in the skill, unless your project has its own template, which ranks above it.
+
+Review it like any PR. chantier never merges your PRs: you do. Only a release's PR or a fix is
+merged by the Foreman, on your word.
 
 After merging, tell it:
 
@@ -182,14 +190,19 @@ After merging, tell it:
 I merged #42
 ```
 
-The CR's folder moves at once to `3-done`, then to `5-archives`, named by the time of the merge,
-at `close`. When every CR of
-the batch is merged or dropped, the CLI removes the merged CRs' worktrees and branches
-and pauses the batch (its `STATUS.md` is the exit report, its cost to date); the Foreman writes the retro and goes idle. The Chief of Staff then offers you the close.
-The batch stays paused, and takes new CRs, until you say "close the batch". Then the Chief of Staff runs `chantier close` without `--yes`, which refuses while anything
-still runs (an agent of the batch, held or the current Foreman, stopped without handing back passes on your word; the session's other subagents and replaced Foremans are listed, not a block) or nothing at all can be priced (it names the cause) and otherwise prices it, with the calls of a model it has no price for shown apart; it shows what closing deletes (the batch's own files,
-the dropped CRs' worktrees and branches, and any merged CR's leftover the cleanup kept) and that cost; on your yes, `chantier close --yes` moves the merged CRs to `5-archives`, deletes those files and removes the rest with git.
-Without a yes, everything stays.
+The CR's folder moves at once to `3-done`, then to `5-archives` (named by the time of the merge)
+when the batch closes.
+
+When every CR of the batch is merged or dropped, chantier removes the merged CRs' worktrees and
+branches and pauses the batch. Its `STATUS.md` is the exit report, with the cost to date. The
+Foreman writes the retro and goes idle, and the Chief of Staff offers you the close.
+
+The batch stays paused, and takes new CRs, until you say "close the batch". Then the Chief of
+Staff shows what closing deletes and what the batch cost: the batch's own files, the dropped CRs'
+worktrees and branches, and any leftover of a merged CR that the cleanup kept. It refuses to
+close while an agent of the batch still runs, or when nothing can be priced, and names the cause.
+On your yes, it moves the merged CRs to `5-archives` and deletes the rest. Without a yes,
+everything stays.
 
 ## 8. Make the team yours
 
@@ -222,22 +235,22 @@ hosts:
 - security-review: `sec-reviewer`, after the Inspector: OWASP top 10 on the diff
 ```
 
-"Which agents and models?" runs `chantier playbook`, which prints what each role runs. A built-in role keeps its contract (its card in the skill, named in the prompt the Driver
-writes), so your agent only brings its model, tools and know-how. A new role runs after the Inspector approves each round and answers with
-the same verdict. The next batch uses the new team; a running batch keeps its own.
+"Which agents and models?" runs `chantier playbook`, which prints what each role runs. A built-in
+role keeps its contract (its card in the skill), so your agent only brings its model, tools and
+know-how. A new role runs after the Inspector approves each round and answers with the same
+verdict. The next batch uses the new team; a running batch keeps its own.
 
-By default the spec-writer and the spec critic run on Opus 5.5 (what a specification must say; Fable on request for the critic), and the Foreman, every
-driver and the workers on Sonnet 5.5; run your own session (the Chief of Staff) on Opus 5.5. On a
-named trouble (a CR blocked twice, the rounds used up with the Inspector still asking for fixes, a
-red check nobody could explain, a conflict nobody could settle, a restack that failed) the task goes
-to a new agent on the role's escalation model (Opus 5.5 by default), once per CR and then the user,
-and the report says so.
+By default the spec-writer and the spec critic run on Opus 5.5, and the Foreman, every Driver and
+the workers on Sonnet 5.5. Run your own session (the Chief of Staff) on Opus 5.5. On a named
+trouble, the task goes to a new agent on the role's escalation model (Opus 5.5 by default), once
+per CR, and then to you. The report says so. [Your agents and models](../how-to/agents-and-models.md)
+covers the escalation model and the other options.
 
-None of them needs a 1M-token context. The plugin's agents compact at 200,000 tokens
+No role needs a 1M-token context. The plugin's agents compact at 200,000 tokens
 (`autoCompactWindow` in their files). The Foreman is a session of its own, which chantier cannot
-configure: to keep it lean too, set the window in your user settings, `~/.claude/settings.json`
-(300,000 leaves the Foreman room for a long batch). It applies to every session you run, yours
-included.
+configure. To keep it lean too, set the window in your user settings, `~/.claude/settings.json`.
+300,000 leaves the Foreman room for a long batch. The setting applies to every session you run,
+yours included.
 
 ```json
 { "autoCompactWindow": 300000 }

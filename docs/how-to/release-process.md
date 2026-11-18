@@ -1,16 +1,19 @@
 # Release process: notes and announcement
 
-The mechanics of a release (version, tag, publication) are in
-[CONTRIBUTING.md](https://github.com/gsemet/chantier/blob/main/CONTRIBUTING.md) "Release". This file says what the user reviews in the
-version PR: the release notes, the announcement thread and their images, in
-`docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. The folder is named by the date of the version PR. That
-date may differ from the tag's, and nothing checks it. The version PR's body shows
-`release-notes.md`, then `tweet.md`, each after a `---` rule, under the PR's description; the
-release folder stays the source, and the body is refreshed from it before the merge.
+This page is for contributors. It says what the user reviews in a release's version PR: the release
+notes, the announcement thread and their images, in `docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. The
+mechanics of a release (version, tag, publication) are in
+[CONTRIBUTING.md](https://github.com/gsemet/chantier/blob/main/CONTRIBUTING.md) "Release".
+
+The folder is named by the date of the version PR. That date may differ from the tag's, and nothing
+checks it. The version PR's body shows `release-notes.md`, then `tweet.md`, each after a `---` rule,
+under the PR's description. The release folder stays the source, and the body is refreshed from it
+before the merge.
 
 The model is Markdown OKF-Schema Studio's release process. The generic default that other projects
-get is [release-template](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/release-template.md); this file ranks above
-it for chantier.
+get is
+[release-template](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/release-template.md);
+this page ranks above it for chantier.
 
 ## The release folder
 
@@ -25,12 +28,14 @@ or invalid folder.
 
 ## Release notes
 
-They are written for a user of chantier from the commits since the previous tag
-(`git log --no-merges vPREVIOUS..HEAD`; chantier has no `CHANGELOG.md`) and from the
-specifications, PR descriptions and evidence of the CRs they come from, and from the release's
-claims file, `evals/results/claims-vX.Y.Z.md`. They contain no CR number
-or slug, no batch number and no path under `.agents/changes/`. The role names (Chief of Staff,
-Foreman, Driver) are product vocabulary and may be used. The structure, in order:
+They are written for a user of chantier. The sources are the commits since the previous tag
+(`git log --no-merges vPREVIOUS..HEAD`; chantier has no `CHANGELOG.md`), the specifications, PR
+descriptions and evidence of the CRs they come from, and the release's claims file,
+`evals/results/claims-vX.Y.Z.md`.
+
+The notes contain no CR number or slug, no batch number and no path under `.agents/changes/`. The
+role names (Chief of Staff, Foreman, Driver) are product vocabulary and may be used. The structure,
+in order:
 
 1. **Header**, centred:
    - `<h1 align="center">chantier X.Y</h1>`;
@@ -142,20 +147,25 @@ emoji in the whole thread, and no list of hashtags. Only the user posts: no agen
 
 ## The docs at the tag
 
-The notes link the documentation of the release's own version, `https://chantier.readthedocs.io/en/vX.Y.Z/`.
-That address exists once Read the Docs has built the tag, a few minutes after the tag is pushed
-(its automation rule activates each `vX.Y.Z` tag: the user's setup of the Read the Docs project).
-So after the tag, the Release Driver checks that `https://chantier.readthedocs.io/en/vX.Y.Z/`
-serves, and waits for it, before it publishes the notes and the thread: no link is broken at
+The notes link the documentation of the release's own version,
+`https://chantier.readthedocs.io/en/vX.Y.Z/`. That address exists once Read the Docs has built the
+tag, a few minutes after the tag is pushed. Its automation rule activates each `vX.Y.Z` tag: it is
+the user's setup of the Read the Docs project.
+
+After the tag, the Release Driver checks that `https://chantier.readthedocs.io/en/vX.Y.Z/` serves,
+and waits for it, before it publishes the notes and the thread, so that no link is broken at
 publication. If it does not serve after a reasonable wait, the Driver hands back a
 `blocked question:` naming it.
 
 ## Which batch
 
 A chantier release joins the batch whose work it ships (`order add --release --note <folder>`),
-rather than running alone with `--release 1`, best a stack batch, its version PR on top: that
-batch's board and `STATUS.md` then show the work the captures explain. A change inserted into a stack ready to merge leaves the version PR on top, and its release notes are updated to name the change. When the release joins,
-the Chief of Staff writes `report.md` (its latest Progress report) and `conversation.md` (the
-excerpts it chooses) into the release CR's folder, and refreshes them until the version PR is
-prepared. A
-docs SVG diagram goes into the notes only on the user's word in the release CR's grill.
+rather than running alone with `--release 1`. A stack batch, with the version PR on top, is best:
+that batch's board and `STATUS.md` then show the work the captures explain. A change inserted into
+a stack ready to merge leaves the version PR on top, and its release notes are updated to name the
+change.
+
+When the release joins, the Chief of Staff writes `report.md` (its latest Progress report) and
+`conversation.md` (the excerpts it chooses) into the release CR's folder, and refreshes them until
+the version PR is prepared. A docs SVG diagram goes into the notes only on the user's word in the
+release CR's grill.

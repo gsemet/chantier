@@ -16,7 +16,9 @@ def site_pages() -> list[Path]:
     return [
         page
         for page in docs.rglob("*.md")
-        if not skipped & set(page.relative_to(docs).parts) and not page.name.endswith("-texts.md")
+        if not skipped & set(page.relative_to(docs).parts)
+        and not page.name.endswith("-texts.md")
+        and page.name != "STYLE.md"
     ]
 
 

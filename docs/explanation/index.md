@@ -1,6 +1,6 @@
 # Explanation
 
-How chantier works, and why.
+Read why chantier is built the way it is: where it plans, how a batch runs, what it costs.
 
 ::::{grid} 1 2 2 2
 :gutter: 3

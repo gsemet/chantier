@@ -174,7 +174,7 @@ skills/chantier/
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`
-docs/                       ← the documentation site's source (Sphinx, in Diátaxis folders: tutorials, how-to, explanation, reference), its diagrams and screenshots, the release notes
+docs/                       ← the documentation site's source (Sphinx, in Diátaxis folders: tutorials, how-to, explanation, reference), its style guide `STYLE.md`, its diagrams and screenshots, the release notes
 ```
 
 ## Set up
@@ -253,7 +253,8 @@ already registered, the main checkout). Check the first two in the screenshot it
 visible in the PR's head, absent on main).
 
 - Repository text is in English.
-- Write code and docs in the style of the surrounding files: short sentences, exact terms.
+- Write code and docs in the style of the surrounding files: short sentences, exact terms. The pages
+  of the docs site follow `docs/STYLE.md`.
 - Tests check the structure (versions, manifests, agents, references, and a smoke run in a fresh
   repository) and the CLI's refusals on a prepared state, called in-process; keep them few,
   parametrized and fast (`just test` at most 30 s above its 18.5 s of 2026-11-14). They do not

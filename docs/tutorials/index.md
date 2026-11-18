@@ -1,6 +1,6 @@
 # Tutorials
 
-Learn chantier by doing one batch from start to finish.
+Follow one batch from the first install to the close, step by step.
 
 ::::{grid} 1
 :gutter: 3

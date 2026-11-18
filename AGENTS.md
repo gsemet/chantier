@@ -95,6 +95,10 @@
   `.claude/settings.json` and gets the plugin from the user's own install.
 - A change under `skills/chantier/scripts/cli/src/chantier/board/web/` reads its `DESIGN.md` first and
   keeps it true.
+- A change to a page of the docs site (under `docs/`, but not `docs/demo/`, `docs/release-notes/` or
+  a `*-texts.md`) follows `docs/STYLE.md`: its Driver reads the guide first; the Inspector reads it
+  and checks each changed page against it, each broken rule a `blocking` item that names the rule's
+  id.
 - A change to what the CR board pane draws (`hooks/register.tsx`'s pane, or the `STATUS.json`
   fields of `status.py` that the pane shows) carries, in its PR's Deliverables, one screenshot of
   the pane from a real Claude Code session running the PR's head, captioned with the head's SHA

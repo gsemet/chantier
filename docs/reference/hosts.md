@@ -1,8 +1,8 @@
 # Supported hosts
 
-The hosts Foreman and direct mode run on, the forges, and Windows.
+Which hosts run each mode, which forges chantier talks to, and what changes on Windows.
 
-For Foreman mode:
+## Hosts for Foreman mode
 
 | Host | Nested session | Foreman heartbeat |
 | --- | --- | --- |
@@ -12,27 +12,41 @@ For Foreman mode:
 The heartbeat stops on the first wake that sees no Driver run for 30 minutes or more, whatever the
 wake's interval. The settings are `hosts.<host>.timing` ([your agents and models](../how-to/agents-and-models.md)).
 
-Foreman mode refuses every other host (a VS Code tab, the terminal, ...): with no argument the
-batches are direct mode there, and a forced `foreman` is refused with the reason. An unattended run and a linked worktree are refused in both modes, with no
-fallback.
+Foreman mode refuses every other host (a VS Code tab, the terminal, ...). With no argument, the
+batches are direct mode there; a forced `foreman` is refused with the reason. An unattended run and
+a linked worktree are refused in both modes, with no fallback.
+
+## Hosts for direct mode
 
 Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a
 Remote Control session) and in a Copilot agent session, checked by `chantier preflight --direct`.
-With no argument it is the mode under Remote Control and on a host that cannot start a Foreman;
-`direct` forces it anywhere. The heartbeat is the same, run in the Chief of Staff's own
-session: `chantier status` prints "heartbeat N min" (since its last wake) or "heartbeat stopped"
-(a loop ended on purpose).
+With no argument it is the mode under Remote Control and on a host that cannot start a Foreman.
+`direct` forces it anywhere. The heartbeat is the same, run in the Chief of Staff's own session.
+`chantier status` prints "heartbeat N min" (since its last wake) or "heartbeat stopped" (a loop
+ended on purpose).
 
-On Copilot, chantier runs in the Copilot App (on the Copilot SDK, like Claude Desktop: the
-table's "Copilot SDK host", Foreman and direct mode) and in the Copilot CLI, in direct mode (a
-Copilot agent session in the terminal; the user's statement of 2026-11-16, unproved until a run).
-VS Code's local harness is not supported (it does not use the Copilot CLI or SDK); the Copilot
+## Copilot
+
+chantier runs in two places on Copilot:
+
+- the Copilot App, on the Copilot SDK like Claude Desktop (the table's "Copilot SDK host"), in
+  Foreman and direct mode;
+- the Copilot CLI, in direct mode: a Copilot agent session in the terminal (stated by the user on
+  2026-11-16, unproved until a run).
+
+VS Code's local harness is not supported: it does not use the Copilot CLI or SDK. The Copilot
 harness in VS Code, arriving, uses them (unproved until a run).
 
-**Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
-settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
-the Foreman an action (starting a Release driver, say) until you allow it in that session: type
-one line there saying so, from your phone if you are away, and it does that action once.
+## Claude Desktop
+
+:::{note}
+Turn on "Connect new sessions to Remote Control" in the app's settings, so you can reach the
+Foreman's session from your phone. A host classifier may refuse the Foreman an action (starting a
+Release driver, say) until you allow it in that session. Type one line there saying so, from your
+phone if you are away, and it does that action once.
+:::
+
+## Forges
 
 | Forge | CLI | Where |
 | --- | --- | --- |
@@ -40,9 +54,11 @@ one line there saying so, from your phone if you are away, and it does that acti
 | GitLab | `glab` | gitlab.com, or a self-managed server when `glab` is logged in to its host |
 
 The agents use the forge's CLI as it is logged in (`gh auth login`, `glab auth login --hostname
-<host>`), on the batch's git remote (`origin`, or `--remote`). Nothing is configured in chantier.
+<host>`), on the batch's git remote (`origin`, or `--remote`). You configure nothing in chantier.
 
-On Windows, the CLI runs natively (no WSL). `chantier gate` runs the long gate in `cmd.exe`, so
-write it for it. `chantier cancel` ends a CR's processes at once, with no grace period, and
+## Windows
+
+The CLI runs natively on Windows (no WSL). `chantier gate` runs the long gate in `cmd.exe`, so
+write it for `cmd.exe`. `chantier cancel` ends a CR's processes at once, with no grace period. It
 finds stray ones by their command line only, since Windows does not expose another process's
 current directory.

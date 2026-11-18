@@ -1,6 +1,6 @@
 # What you say
 
-Talk to the Chief of Staff in plain language:
+Talk to the Chief of Staff in plain language. Each phrase below, or one close to it, does what its row says.
 
 | You say | What happens |
 | --- | --- |

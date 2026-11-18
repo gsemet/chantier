@@ -5,6 +5,8 @@ import re
 from conftest import PLUGIN_ROOT, SKILL
 from docs_site import repo_file_of, site_pages
 
+from chantier.commands.rules import linked
+
 
 def test_every_docs_image_is_shown_by_a_site_page() -> None:
     docs = PLUGIN_ROOT / "docs"
@@ -34,3 +36,13 @@ def test_skill_and_references_links_resolve() -> None:
                 assert (page.parent / link).exists(), f"{page.name}: {link}"
             elif (target := repo_file_of(link)) is not None:
                 assert target.exists(), f"{page.name}: {link}"
+
+
+def test_the_docs_style_guide_is_wired_in_and_stays_out_of_the_rules() -> None:
+    assert (PLUGIN_ROOT / "docs" / "STYLE.md").is_file()
+    for name in ("AGENTS.md", "CONTRIBUTING.md"):
+        text = (PLUGIN_ROOT / name).read_text(encoding="utf-8")
+        assert "`docs/STYLE.md`" in text, f"{name} does not name `docs/STYLE.md`"
+    seen = [(PLUGIN_ROOT / "AGENTS.md").resolve()]
+    linked(seen[0], PLUGIN_ROOT.resolve(), seen, 2)
+    assert not [p for p in seen if p.as_posix().endswith("docs/STYLE.md")]

@@ -1,30 +1,33 @@
 # chantier by use case: direct mode
 
-In direct mode there is no Foreman session: the Chief of Staff starts the Drivers on the free
-slots and steers the batch from your own session. The limits (slots, budget, rounds), the folders,
-`STATUS.md`, the reports, the costs and your boundaries are the same as in
+Steer a batch from your own session. In direct mode there is no Foreman session: the Chief of
+Staff starts the Drivers on the free slots and steers the batch itself. The limits (slots, budget,
+rounds), the folders, `STATUS.md`, the reports, the costs and your boundaries are the same as in
 [Foreman mode](use-cases-foreman.md). The situations that do not depend on the steering (a new
 project, ready work, PR descriptions, your own agents, cost) are on the
 [common page](use-cases.md).
 
 With no argument (`/chantier:chief-of-staff`), the plan names direct mode, and why, when the
 session is under Remote Control or the host cannot start a Foreman session (a terminal or IDE
-host). Your go approves it. You can also force it for the session
-(`/chantier:chief-of-staff direct`) or say so.
+host). Your go approves it. You can also force it for the session, with
+`/chantier:chief-of-staff direct` or by saying so.
 
 ## Same lifecycle, less dynamic
 
-A direct batch has the same lifecycle as a Foreman batch: **running**, **paused**, then **closed**
-on your word only (see [the life of a batch](use-cases.md#the-life-of-a-batch)). It is less
-dynamic while it runs, in two ways.
+A direct batch has the same lifecycle as a Foreman batch: running, paused, then closed on your word
+only (see [the life of a batch](use-cases.md#the-life-of-a-batch)). It is less dynamic while it
+runs, in two ways.
 
-**What joins the running batch.** A CR already grilled and specified joins it: `order add`
-queues it, and it is taken when a slot frees. `order qa` is refused until the pause. A release CR
-and its fixes join as ever. Once the batch is paused, it takes any number of new CRs, like any
-paused batch, and the first one to start sets it running again.
+### What joins the running batch
 
-**No grill in the same session.** While the batch runs, the Chief of Staff, busy steering,
-answers only:
+A CR already grilled and specified joins it: `order add` queues it, and it is taken when a slot
+frees. `order qa` is refused until the pause. A release CR and its fixes join as ever. Once the
+batch is paused, it takes any number of new CRs, like any paused batch, and the first one to start
+sets it running again.
+
+### No grill in the same session
+
+While the batch runs, the Chief of Staff, busy steering, answers only:
 
 - "status?" and "what did it cost?";
 - your answers to a blocked CR of the batch;
@@ -36,27 +39,33 @@ answers only:
 - the spec-writer, on your word that a CR already grilled (by a Griller, or before the batch) is
   grilled enough; the spec critic stays open with it, and its questions wait for the pause.
 
-It does not grill, and it does not touch the running batch from backlog work. Any other request is noted word for word and handed back when the batch completes. An idea you
-raise meanwhile is filed in the inbox at once, without a grill. When you ask for a grill, the
-Chief of Staff says this limit, its reason and the Griller way at once.
+It does not grill, and it does not touch the running batch from backlog work. Any other request is
+noted word for word and handed back when the batch completes. An idea you raise meanwhile is filed
+in the inbox at once, without a grill. When you ask for a grill, the Chief of Staff says this
+limit, its reason and the Griller way at once.
 
 To grill meanwhile, open a Griller (`/chantier:griller`, or a fork in remote: see
-[the how-to](use-cases.md#a-chief-of-staff-and-grillers-in-remote)). It grills, files and
-specifies your own ideas into the backlog, beside the batch. Those
-CRs join the batch through the steering session once it is paused (you say so there, and it adds
-them), or wait for the next batch.
+[the common page](use-cases.md#a-chief-of-staff-and-grillers-in-remote)). It grills, files and
+specifies your own ideas into the backlog, beside the batch. Those CRs join the batch through the
+steering session once it is paused (you say so there, and it adds them), or wait for the next
+batch.
 
 ## Run a batch
 
 > "Run the P1s, budget 20 dollars."
 
 After the preflight, the plan and your go, the Chief of Staff opens the batch in direct mode and
-starts the Drivers itself, several in parallel on the free slots. A CR that needs you is parked
-as blocked with its question, and the Chief of Staff tells you at once, in the shape of a
-progress report; the others go on. Past the budget, nothing new starts until you answer. Parallel
-(the default), series and stacked pull requests work as in Foreman mode: parallel CRs are all based
-on the default branch and rebased after each merge, a series goes one CR after the other, each on
-the previous one's branch, and a stack driver makes one native stack afterwards, which you merge in one action from the top PR or one PR at a time from the bottom, as you choose; a change inserted into a stack ready to merge sends the PRs above it back to draft until the stack is verified again.
+starts the Drivers itself, several in parallel on the free slots. A CR that needs you is parked as
+blocked with its question, and the Chief of Staff tells you at once, in the shape of a progress
+report. The others go on. Past the budget, nothing new starts until you answer.
+
+Parallel (the default), series and stacked pull requests work as in Foreman mode:
+
+- Parallel: the CRs are all based on the default branch and rebased after each merge.
+- Series: one CR after the other, each on the previous one's branch.
+- Stack: a stack driver makes one native stack afterwards. You merge it in one action from the top
+  PR, or one PR at a time from the bottom, as you choose. A change inserted into a stack ready to
+  merge sends the PRs above it back to draft until the stack is verified again.
 
 The orders of Foreman mode that act on the batch itself work the same: drop a CR, a note on a CR,
 "I merged #42", more rounds, slots or budget, and a hold ("Hold" sets the slots to 0, "Resume"
@@ -64,58 +73,66 @@ gives a number back). `order qa` does not, as above.
 
 ## When the batch is paused, and when you close it
 
-When every CR is merged or cancelled, the CLI removes the merged CRs' worktrees and
-branches and pauses the batch, and the Chief of Staff gives you the Completion report: the cost to date, what the
+When every CR is merged or cancelled, chantier removes the merged CRs' worktrees and branches and
+pauses the batch. The Chief of Staff gives you the Completion report: the cost to date, what the
 batch did not prove, the inbox ideas ready for a grill. Now it can grill, with you, in this
 session.
 
 > "Grill the CSV export and the import, then add them to this batch."
 
-Once it is specified and you say so, the CRs are added, as many as you want: the batch stays paused until the first one starts, then runs again, and pauses again at
-the end, with the cost to date grown. A factory batch (see [Factory mode](https://github.com/gsemet/chantier#factory-mode)) pauses with no retro and no close offer, and waits for its next ready CR; it ends on your word. A paused batch stays paused, however long, until you say:
+Once a CR is specified and you say so, it is added, as many as you want. The batch stays paused
+until the first one starts, then runs again, and pauses again at the end, with the cost to date
+grown. A factory batch (see [Factory mode](https://github.com/gsemet/chantier#factory-mode)) pauses with no retro and no close offer, and waits for its next ready CR; it ends on your word. A paused batch stays paused, however long, until you say:
 
 > "Close the batch."
 
-Only on your word, and exactly as in Foreman mode: the check and the final cost, then your yes,
-then the batch's own files are deleted, each merged CR moves to `5-archives`, and the dropped CRs' worktrees and branches are removed. In
-direct mode the check counts only your Drivers' session files as something that runs, not your
-own session. Without a recorded steering transcript, nothing can be priced and `close` refuses.
+Closing happens only on your word, and exactly as in Foreman mode: the check and the final cost,
+then your yes. Then the batch's own files are deleted, each merged CR moves to `5-archives`, and
+the dropped CRs' worktrees and branches are removed. In direct mode the check counts only your
+Drivers' session files as something that runs, not your own session. Without a recorded steering
+transcript, nothing can be priced and `close` refuses.
 
 ## Where it runs, and the preflight
 
 Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a Remote
 Control session with no Foreman to reuse) and in a Copilot agent session. `chantier preflight
---direct` checks it: the host check passes on all of them; an unattended run, a linked worktree,
+--direct` checks it. The host check passes on all of them. An unattended run, a linked worktree,
 missing project instructions or an unauthenticated forge are refused, as in Foreman mode.
 
 The batch's heartbeat runs in your own session, as the Foreman's does in Foreman mode: it
 refreshes the status on a timer and stops at the pause. "Heartbeat N min" in `chantier status` is
-the minutes since its last wake, and "heartbeat stopped" is a loop it ended on purpose. On Claude Code that a Driver reaches the
-Chief of Staff the way it reaches a Foreman is not yet proved until a direct batch runs.
+the minutes since its last wake, and "heartbeat stopped" is a loop it ended on purpose. On Claude
+Code, that a Driver reaches the Chief of Staff the way it reaches a Foreman is not yet proved until
+a direct batch runs.
 
 ## What it costs
 
-The steering is one `Chief of Staff, steering the batch` line in the cost table. It counts in the batch's
-spend and budget as a Foreman's does; the grill and specifications with you, and the whole
-session (with its compaction count), stay apart on their own `Chief of Staff, ...` lines and are never in the batch's spend; the whole-session line prices the whole session and names in a parenthesis the part of it that is in the batch's spend.
+The steering is one `Chief of Staff, steering the batch` line in the cost table. It counts in the
+batch's spend and budget as a Foreman's does.
+
+The grill and specifications with you, and the whole session (with its compaction count), stay
+apart on their own `Chief of Staff, ...` lines and are never in the batch's spend. The
+whole-session line prices the whole session and names, in a parenthesis, the part of it that is in
+the batch's spend.
 
 ## Switch to Foreman mode
 
 > "Switch to Foreman mode."
 
-On your word, and only where a Foreman can start. The Chief of Staff checks the Foreman-mode
-preflight first, and on a Remote Control session the switch needs a Foreman to reuse, else it is
-refused with the reason. No new Driver starts; the running ones are stopped, and the Foreman
-restarts each of them from where the record stands as soon as it takes over the batch. The
-batch can switch back to direct mode on your word; see "Switch to direct mode" in
-[use-cases-foreman](use-cases-foreman.md).
+The switch happens on your word, and only where a Foreman can start. The Chief of Staff checks the
+Foreman-mode preflight first. On a Remote Control session the switch needs a Foreman to reuse, else
+it is refused with the reason. No new Driver starts and the running ones are stopped. The Foreman
+restarts each of them from where the record stands as soon as it takes over the batch.
+
+The batch can switch back to direct mode on your word: see "Switch to direct mode" in
+[Foreman mode](use-cases-foreman.md).
 
 ## Make a release
 
 A release works as in [Foreman mode](use-cases-foreman.md#make-a-release), with two differences.
-A release CR joins a running direct batch, as does a fix of it. The release's own PR is yours to merge, last; the steering session, the
-Chief of Staff here, merges it only under your grant, once every other CR of the batch is merged
-or cancelled. An approval never lets it.
+A release CR joins a running direct batch, as does a fix of it. The release's own PR is yours to
+merge, last. The steering session, the Chief of Staff here, merges it only under your grant, once
+every other CR of the batch is merged or cancelled. An approval never lets it.
 
 ## On GitHub Copilot
 
