@@ -271,7 +271,11 @@ and how an agent is started. Each worker reads its own card, which restates the 
      slots, worked, handed back, merged by the user, or dropped. `open` with no CR creates the
      batch **paused**, with no CR: no cost to show, no retro, no close offer at that pause (steps 3
      and 4 do not apply to it); `order add` joins CRs and the first `take` sets it running, as in
-     step 3.
+     step 3. A **factory** batch (opened empty, with `--factory`, or by `order factory on`) takes
+     each CR made ready with `triage --ready` at once; at its last CR's end it is paused with no
+     retro and no close offer; it ends on the user's word (`order factory off`, then the retro and
+     the close; a batch that never held a CR goes straight to the close), or after a release CR it
+     took, which turns the factory off.
   2. **Complete:** every CR is merged or cancelled. The CLI removes each merged CR's worktree
      and branch (one whose agent is still held, or that git refuses, is kept and named) and runs
      `pause` itself: the batch is **paused**. With a note, a QA or a stack Driver pending, it

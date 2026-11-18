@@ -37,7 +37,12 @@ def register(sub: Subparsers) -> None:
     g = s.add_mutually_exclusive_group(required=True)
     g.add_argument("--priority", choices=["P1", "P2", "P3", "P4"])
     g.add_argument(
-        "--ready", action="store_true", help="the CR waits in 3-ready for the next batch"
+        "--ready",
+        action="store_true",
+        help=(
+            "the CR waits in 3-ready for the next batch; in a factory batch it joins that batch "
+            "at once, as `order add` would"
+        ),
     )
     g.add_argument(
         "--inbox",

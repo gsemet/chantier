@@ -27,6 +27,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "switch the batch to direct mode", "take over the batch" | the switch, on a running or paused Foreman batch, its Foreman alive or not | [Steering a batch yourself](#steering-a-batch-yourself) ("Switching to direct mode") |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route), then the close offered at once, unprompted (next row) | While it runs |
+| the Foreman's `ready <batch>` at a factory batch's pause | the progress and completion report; no retro, no close offer: the batch waits for its next ready CR | While it runs |
 | the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42", a `forge saw merged` line in `status` or at a watcher's end; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
 | a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](#the-watcher), then start it again | While it runs |
@@ -205,6 +206,14 @@ do not write them in the main checkout yourself.
 $CHANTIER file "<raw request>" [--slug <slug>]        # or @<file> for a raw request file
 $CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog item changes priority
 $CHANTIER triage <inbox-or-backlog-folder> --ready    # to 3-ready, for the next batch, on the user's word
+```
+
+In a factory batch (see "Factory batches" below), `triage --ready` (still only on the user's word)
+also joins the CR to the batch, as `order add` would, and prints the order line: relay it to the
+Foreman verbatim (direct mode: take it as usual). A refused join leaves the CR in `3-ready` with the
+reason on stderr: fix it, then `order add --note <folder>`.
+
+```bash
 $CHANTIER abandon <unclaimed-folder>                  # only on the user's explicit word
 $CHANTIER restore <6-trash/item> [--slug <slug>]      # only on the user's word
 $CHANTIER summary lint [<folder>]                     # the CRs whose summary is missing or late, each with its command
@@ -326,7 +335,8 @@ nothing dropped, nothing invented. Its open questions go to the user; record the
 CR). A CR moves to `3-ready` (`triage --ready`)
 only on the user's word, specified or not; until then it stays in the inbox or the backlog. A
 `3-ready` CR keeps no priority: it is one flat set, the next batch's candidates (`triage
-<3-ready-folder> --priority Pn` puts it back in the backlog). The spec-writer and the spec critic
+<3-ready-folder> --priority Pn` puts it back in the backlog); in a factory batch it joins the batch
+at once ("Factory batches"). The spec-writer and the spec critic
 take no slot and no budget of any batch; their cost is on the `grill and specifications with the
 user` line. A release CR's and a fix's specification stay yours; the spec critic runs on them too
 when you judge them impactful, by the criterion below: with no grill, you judge once you have
@@ -696,6 +706,34 @@ trial, `<capability>: <command> -> ran | refused: <exact text> | no trial: P10's
 with the P10 line of each capability. Before a batch (a first turn), the result is told, not
 recorded.
 
+## Factory batches
+
+A factory batch stays open and takes each CR the user makes ready. An empty `open`, `open
+--factory` and `order factory on` (on any open batch, on the user's word) make one; `status`,
+`brief.md` and the board say `factory: on`. The user's go for the batch covers each CR that joins
+it this way: no go per CR. The budget is unchanged: a CR may join past it, no Driver starts past it.
+
+- **Joining.** `triage --ready` (on the user's word) joins the CR in the same call: relay the order
+  line it prints to the Foreman verbatim (direct mode: take it as usual). A refused join leaves the
+  CR in `3-ready` with the reason: fix it, then `order add --note <folder>`.
+- **A CR in `3-ready` that did not join** (placed from a Griller's worktree, arrived through
+  autosync, named by `status`'s `3-ready holds ... not joined` line): run `order add --note <folder>`
+  on your own, the factory's go covering it, and relay its line.
+- **When a batch becomes a factory** (empty `open`, `open --factory`, `order factory on`): add every
+  CR the CLI names in `3-ready` with `order add` at once and name them to the user.
+- **A release CR is excepted** from both: it is never moved by `triage --ready` while the factory is
+  on. It joins with `order add --note <folder> --release` on its own go (its folder may be in the
+  inbox or the backlog); that turns the factory off (the CLI says so): the batch ends after the
+  release as an ordinary one, and after its close you offer to open a new factory batch.
+- **The pause.** At the end of the last CR the batch pauses as any batch, and waits for its next
+  ready CR: no retro, no retro critic, no close offer.
+- **Ending it,** only on the user's word. To end or close a factory batch that held CRs, run `order
+  factory off --note "<the user's words>"` and relay its line. If CRs remain, the batch ends as any
+  batch at its last CR's end. If none remains, the retro (with its critic) is written now (by the
+  Foreman, who sends `final`; in direct mode by you), then the close offer, as above. A factory
+  batch that never held a CR: the user's close goes straight to `close` (the check, then `close
+  --yes` on the yes), no retro and no critic.
+
 ## Starting a batch
 
 Only in the turn where the user gave the go:
@@ -799,22 +837,27 @@ Only in the turn where the user gave the go:
    delivery time are said, nothing else. With the delivery time unknown, no cut can be counted:
    say so in the plan.
 
+   **Factory.** An `open` with no CR is a factory batch, and `open --factory` makes one with CRs:
+   the plan then says "factory: on" and that the go covers each CR that joins it ("Factory
+   batches").
+
    The limits are the same in both modes; there is no CR threshold of its own. Then
    the go. While a batch is not closed, whatever its state
-   (running or paused), there is no new plan: new work joins it with `order add`.
+   (running or paused), there is no new plan: new work joins it with `order add` (in a factory batch,
+   by `triage --ready`).
 3. **Open:**
 
    ```bash
    $CHANTIER open [<prepared-folder>…] [--default-branch <branch>] [--slots N] \
-     [--budget USD] [--mode parallel|series|stack] [--release N] [--direct]
+     [--budget USD] [--mode parallel|series|stack] [--release N] [--direct] [--factory]
    ```
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
    makes the mode you name: `parallel` (the default), independent CRs, each on the default branch;
    `series`, one CR after the other, in the order given, each on the previous one's branch; `stack`,
    independent CRs that the stack driver then stacks. It exits 2 while a batch is not closed. With
-   no folder it opens the batch **paused, with no CR** (`--release` is refused then: the release
-   CR joins later with `order add --release`); CRs join it with `$CHANTIER order add --note
+   no folder it opens the batch **paused, with no CR**, a factory batch (`--release` is refused
+   then: the release CR joins later with `order add --release`, which turns the factory off); CRs join it with `$CHANTIER order add --note
    <folder> --batch <batch>` as their specs become ready, each one planned as a CR joining a
    paused batch is today, and the first `take` sets it running. It moves
    each folder to `4-batch/1-pending/`, names each CR's branch and worktree, and writes
@@ -975,6 +1018,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   $CHANTIER order rounds CR-102 --note 5      # on the user's word
   $CHANTIER order budget --note 40
   $CHANTIER order mode --note parallel|series|stack   # any mode to any other, on the user's word
+  $CHANTIER order factory on|off --note "<the user's words>"   # a factory batch takes each ready CR on its own
   $CHANTIER order qa --note "<what to test>"  # a QA driver on the project's head; takes a slot
   $CHANTIER order waive stack --note "<the user's words>"   # a stack: one long gate on the top PR only
   $CHANTIER order waive CR-102 --note "<the user's words>" --follow-up <backlog folder>
@@ -1293,6 +1337,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   - End of a batch: "add <slug> to this batch"; "why did it cost that?";
     "release v<x.y.z>"; "run what is in 3-ready", when that folder holds CRs.
   - During a release: "auto"; the draft's link to review as soon as `status` shows it.
+- **The pause of a factory batch:** on `[foreman→chief-of-staff] ready <batch>` at its pause, give
+  the progress and completion report as usual, then say the batch waits for its next ready CR;
+  offer no retro and no close, and start no retro critic. See "Factory batches" for ending it.
 - **The pause:** on `[foreman→chief-of-staff] final <STATUS.md path>`, that file is the exit
   report with the cost to date: the CLI removed the merged CRs' worktrees and branches and paused the
   batch when the last CR ended (a `kept:` or `not removed:` line names a leftover, which `close`
@@ -1587,13 +1634,14 @@ these differences.
     (`abandon`, on the user's explicit word), and record answers and decisions in a CR's
     `02-answers.md` (the "Record at once" rule holds), and keep each CR's summary fresh
     (`summary lint`, `summary set`; `summary label` and `summary group` on the user's word
-    only). `triage --ready` moves a CR to `3-ready`; it does not join the running batch.
+    only). `triage --ready` moves a CR to `3-ready`; it does not join the running batch, except a factory
+    batch, where it joins as "Factory batches" says.
   - **The spec-writer and the spec critic.** On the user's word that a CR already grilled (by a
     Griller, or before the batch) is grilled enough, start the spec-writer as "Backlog and grill"
     says; the spec critic stays open too, on a CR grilled before, and its questions wait for the
     pause, like any grill question.
   - **Not while the batch runs:** grill a CR (ask its questions, write its `01-intent.md` from a
-    discussion with the user); touch the running batch from backlog work (`triage --ready` joins no CR to it, the CLI
+    discussion with the user); touch the running batch from backlog work (`triage --ready` joins no CR to it, except in a factory batch; the CLI
     refuses `order qa`; nothing starts that the user did not order on the batch);
     the demo.
   - Any other request is noted word for word and handed back when the batch completes; an idea
@@ -1605,6 +1653,9 @@ these differences.
   - A paused batch is not running: all of this lifts at the pause. When the CLI paused the batch,
     your retro and its retro critic still run after the pause and before the close offer; what
     lifts at the pause does not lift them.
+- **The pause of a factory batch (direct mode).** When the batch is a factory, give the progress and
+  completion report as usual, then say it waits for its next ready CR; write no retro, start no
+  retro critic and offer no close. See "Factory batches" for ending it.
 - **The pause.** The end of the last CR (your `order merged <cr> --epoch <n>`, `cancel`,
   `order drop`, a release Driver's `handback released`) removes the merged CRs' worktrees and
   branches whose Driver has ended and pauses the batch (`paused <batch>`). When it prints

@@ -5,11 +5,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from batch_helpers import FROM_AGENTS_MD, changes, host, prepared, record
+import pytest
+from batch_helpers import FROM_AGENTS_MD, changes, events, host, prepared, record
 from conftest import Chantier
 from pytest import MonkeyPatch
 
-from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION
+from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE
 
 SPEC = "03-change-spec.md"
 
@@ -78,3 +79,44 @@ def test_restore_puts_a_trashed_cr_back_whole_and_refuses_a_clash_or_an_archive(
     archive = changes(repo) / "5-archives" / "260101-0000-9-old"
     archive.mkdir(parents=True)
     assert chantier("restore", str(archive))[0] == EXIT_PRECONDITION and archive.is_dir()
+
+
+def three_ready(repo: Path, chantier: Chantier, title: str) -> Path:
+    """A CR made ready in a project with no batch yet."""
+    out = chantier("triage", str(prepared(repo, chantier, title)), "--ready")[1]
+    return repo / out[0].removeprefix("triaged ")
+
+
+@pytest.mark.parametrize("how", ["no-cr", "flag", "plain"])
+def test_open_makes_a_factory_only_with_no_cr_or_the_flag(
+    repo: Path, chantier: Chantier, monkeypatch: MonkeyPatch, how: str
+) -> None:
+    host(monkeypatch)
+    waiting = three_ready(repo, chantier, "Waiting in ready")
+    item = prepared(repo, chantier, "Opened") if how != "no-cr" else None
+    args = (str(item),) if item else ()
+    code, out, err = chantier(
+        "open", *args, *(("--factory",) if how == "flag" else ()), *FROM_AGENTS_MD
+    )
+    assert code == 0, err
+    on = how != "plain"
+    brief = (changes(repo) / "4-batch" / "brief.md").read_text("utf-8")
+    assert record(repo)["factory"] is on and f"Factory: {'on' if on else 'off'}." in brief
+    assert out[0].endswith(", factory") == on
+    assert ("(factory)" in out[1]) == on
+    held = [x for x in out if x.startswith("3-ready holds")]
+    assert bool(held) == on  # the CR left in 3-ready is named, the factory's go covers it
+    if held:
+        assert "1 CRs not joined" in held[0] and waiting.name in held[0] and "order add" in held[0]
+    opened = next(e for e in events(repo) if e["kind"] == "open")
+    assert opened.get("factory") is (True if on else None)
+
+
+def test_open_refuses_a_release_in_a_factory(
+    repo: Path, chantier: Chantier, monkeypatch: MonkeyPatch
+) -> None:
+    host(monkeypatch)
+    item = prepared(repo, chantier, "Release")
+    code, _, err = chantier("open", "--factory", "--release", 1, str(item), *FROM_AGENTS_MD)
+    assert code == EXIT_USAGE and "order add --release" in err and "turns the factory off" in err
+    assert not (changes(repo) / "4-batch" / "batch.json").exists()

@@ -44,6 +44,12 @@ def release_grant(args: argparse.Namespace) -> ReleaseGrant | None:
                 "--autonomous-releases and --grant-fixes need --release", EXIT_USAGE
             )
         return None
+    if args.factory:
+        raise ChantierError(
+            "a release CR ends a factory batch: open without --factory, or open the factory and "
+            "add the release later with `order add --release`, which turns the factory off",
+            EXIT_USAGE,
+        )
     if not args.items:
         raise ChantierError(
             "--release N names the release CR among the CRs given, and none is given: add it "
@@ -90,6 +96,7 @@ def new_record(
         asks=[],
         crs=[],
         release=release,
+        factory=bool(args.factory or not args.items),
     )
 
 

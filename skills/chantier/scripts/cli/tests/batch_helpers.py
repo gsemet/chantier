@@ -63,3 +63,21 @@ def open_batch(
 def has(out: list[str], line: str) -> bool:
     """A role line, whatever escalation ends it."""
     return any(ln == line or ln.startswith(f"{line} escalation=") for ln in out)
+
+
+def events(repo: Path) -> list[dict[str, Any]]:
+    """The open batch's events, oldest first."""
+    path = changes(repo) / "4-batch" / "events.jsonl"
+    return [json.loads(x) for x in path.read_text("utf-8").splitlines()]
+
+
+def open_factory(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, *args: object
+) -> str:
+    """Open a factory batch (no CR unless `args` names one); returns its id."""
+    host(monkeypatch)
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-chief")
+    code, _, err = chantier("open", *args, *FROM_AGENTS_MD)
+    assert code == 0, err
+    monkeypatch.setenv("CHANTIER_BATCH", record(repo)["id"])
+    return str(record(repo)["id"])

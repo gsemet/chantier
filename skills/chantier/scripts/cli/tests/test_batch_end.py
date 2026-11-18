@@ -31,10 +31,15 @@ def exists(repo: Path, cr_id: str) -> tuple[bool, bool]:
 
 
 def started(
-    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, count: int, took: int
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    count: int,
+    took: int,
+    *flags: object,
 ) -> list[str]:
     """A batch of `count` CRs, the first `took` of them taken, each with its real worktree."""
-    ids = open_batch(repo, chantier, monkeypatch, *[f"End {i}" for i in range(count)])
+    ids = open_batch(repo, chantier, monkeypatch, *[f"End {i}" for i in range(count)], args=flags)
     for cr_id in ids[:took]:
         assert chantier("take", cr_id, "--epoch", 1)[0] == 0
         c = cr(repo, cr_id)
@@ -75,6 +80,7 @@ def test_the_end_of_the_last_cr_cleans_the_merged_crs_and_pauses_the_batch(
     assert any(line.startswith(f"cleanup: {first} worktree") and "removed" in line for line in out)
     assert any(line.startswith("paused batch-") for line in out)
     assert not any("not paused" in line for line in out)
+    assert any(line.startswith("next: the retro (with its critic)") for line in out)
     assert exists(repo, first) == (False, False)
     if end == "cancel":  # a cancelled CR's worktree and branch stay for the user's word
         assert exists(repo, last) == (True, True)
@@ -227,3 +233,17 @@ def test_close_names_the_merged_crs_leftovers_beside_the_dropped_ones(
         any(x.startswith(f"{dropped} (dropped) worktree") for x in line) and len(line) == LEFTOVERS
     )
     assert not any(x.startswith(removed) for x in line)
+
+
+def test_the_end_of_the_last_cr_of_a_factory_batch_waits_for_the_next_ready_cr(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    first, last = started(repo, chantier, monkeypatch, 2, 2, "--factory")
+    assert record(repo)["factory"] is True and merge(chantier, first)[0] == 0
+    code, out, err = merge(chantier, last)
+    assert code == 0, err
+    assert record(repo)["status"] == "paused" and exists(repo, last) == (False, False)
+    assert any(line.startswith("cleanup: ") for line in out)  # cleaned as in any batch
+    text = " ".join(out)
+    assert "waits for its next ready CR" in text and "order factory off" in text
+    assert "offer the close" not in text and "the retro (with its critic)" not in text

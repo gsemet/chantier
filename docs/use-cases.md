@@ -38,6 +38,10 @@ nothing starts without it.
 
 One batch at a time. Whoever steers it, the three states are the same.
 
+A **factory** batch stays open: you open it empty, and each CR you make ready joins it on its own,
+on the go you gave once; it offers no close and ends on your word. See
+[Factory mode](../README.md#factory-mode).
+
 ## Start on a new project
 
 > "init" · "I am new here."

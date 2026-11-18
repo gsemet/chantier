@@ -54,7 +54,8 @@ written since your last read.
 ## Never
 
 Post on a tracker issue, comment on it, close or reopen it.
-Open, pause or close a batch; `order`; start or message a Driver or a Foreman; steer; merge;
+Open, pause or close a batch; `order` (one exception: in a factory batch your `triage --ready`, on
+the user's word, records an `add` order itself; see "Telling the Chief of Staff"); start or message a Driver or a Foreman; steer; merge;
 `seat take` without the user's word ([session-start](session-start.md)). A request for any of
 these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
 
@@ -63,6 +64,12 @@ these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
 Nothing routine. When a CR's specification is written and the seat names a live session, you may
 send it one line, `[griller→chief-of-staff] <slug> specified`, once the specification is final for this pass (after the spec critic, when it ran), by the host's means; a
 refused send is reported, never sent another way ([routing](routing.md)).
+
+In a factory batch, your `triage --ready` (on the user's word) joins the CR and prints its `add`
+order line: send it, verbatim, as `[griller→chief-of-staff] <the order line>` by the host's means,
+for the Chief of Staff to relay; with no live Chief of Staff, tell the user (the Foreman still sees
+the order in `status`). A refused join: tell the user the reason; the CR waits in `3-ready`. In a
+worktree you run no `triage`: the Chief of Staff places the files and adds the CR.
 
 ## In a planning surface
 

@@ -13,6 +13,7 @@ from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
+from chantier.commands.factory import FACTORY_ON, factory_lines
 from chantier.core.batch import (
     Batch,
     check_epoch,
@@ -270,22 +271,15 @@ def _batch_line(d: BatchRecord, hb_text: str) -> str:
     queued = sum(1 for c in d.crs if c.status == "queued")
     return (
         f"{d.id} {d.status} steering {steering_word(d.steering)} "
-        f"shape {shape_word(d.mode)} live {len(held(d))}/{d.slots} queued {queued} "
+        f"shape {shape_word(d.mode)}{FACTORY_ON if d.factory else ''} "
+        f"live {len(held(d))}/{d.slots} queued {queued} "
         f"foreman {d.foreman or 'none'} e{d.foreman_epoch} "
-        f"heartbeat {hb_text}"
-        f" spent {spent_text(d)}"
+        f"heartbeat {hb_text} spent {spent_text(d)}"
         + (f" of ${d.budget_usd:g}" if d.budget_usd else "")
         + (f", {age_text(d)}" if age_text(d) else "")
         + (" (paused, cost to date)" if d.status == "paused" else "")
         + (", no CR yet" if d.status == "paused" and not d.crs else "")
     )
-
-
-def _no_cr_lines(d: BatchRecord) -> list[str]:
-    """A paused batch that never held a CR: how a CR joins it."""
-    if d.status != "paused" or d.crs:
-        return []
-    return [f"no CR yet: `order add --note <folder> --batch {d.id}` joins one"]
 
 
 def _unpaused_line(d: BatchRecord) -> list[str]:
@@ -326,7 +320,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         *_autosync_lines(repo),
         *_other_batches_lines(repo),
     ]
-    lines += _no_cr_lines(d)
+    lines += factory_lines(repo, d)
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     lines += _watch_lines(repo, d)

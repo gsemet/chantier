@@ -11,7 +11,13 @@ import { usd } from '../core/format.js';
 import { TABS } from '../core/router.js';
 import { snapshot, update } from '../core/store.js';
 import { mergedOf, recordRows, shownRecord, totalOf } from '../model/history.js';
-import { counts, modeWords, noCrYet, STATE_ORDER, steeringWord } from '../model/semantics.js';
+import {
+  counts,
+  modeWords,
+  noCrYet,
+  STATE_ORDER,
+  steeringFactoryWord,
+} from '../model/semantics.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter, stateIcon } from '../ui/parts.js';
@@ -85,7 +91,7 @@ function modeBand(batch) {
   const switches = MODES.map(
     (m) => html`<span class="${m === batch.mode ? 'on' : ''}">${t(`mode.${m}`)}</span>`,
   );
-  return html`<div class="mode"><span class="mb">${words.name} · ${steeringWord(batch)}</span><span>${words.text}</span><span class="ms">${switches}</span></div>`;
+  return html`<div class="mode"><span class="mb">${words.name} · ${steeringFactoryWord(batch)}</span><span>${words.text}</span><span class="ms">${switches}</span></div>`;
 }
 
 // A closed record's figures: merged of the total, the dropped ones, the rounds summed, spent against
@@ -116,7 +122,7 @@ export function render(state) {
   const batch = state.data.batch;
   if (!batch) return empty(t('batch.none'));
   if (noCrYet(batch)) {
-    return html`<div class="batch">${figures(batch)}${modeBand(batch)}${empty(t('batch.no_cr_yet'))}</div>`;
+    return html`<div class="batch">${figures(batch)}${modeBand(batch)}${empty(t(batch.factory ? 'batch.no_cr_yet_factory' : 'batch.no_cr_yet'))}</div>`;
   }
   const graph = state.batchTab === 'graph';
   const panel = graph ? graphBlock(batch.crs, batch, state.now) : lazyTab(state);
