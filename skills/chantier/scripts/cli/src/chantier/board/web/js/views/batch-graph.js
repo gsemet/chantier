@@ -33,10 +33,10 @@ function mergedBand(c, now) {
 
 // A CR of a closed record: its folder, title, badge, rounds, cost and "PR"; no opener, no phase.
 const recordedNode = (c) =>
-  html`<div class="node card" data-id="${c.cr}" data-key="node-${c.cr}" tabindex="0"><div class="row-tags"><span class="tag cr">${c.cr}</span><span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div><div class="nm">${c.round == null ? '' : html`<span>r${c.round}</span>`}${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
+  html`<div class="node card" data-id="${c.cr}" data-key="node-${c.cr}" tabindex="0"><div class="row-tags"><span class="tag cr">${c.cr}</span><span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div><div class="nm">${c.round == null ? '' : html`<span>r${c.round}</span>`}${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>${t('pr.tag')}</span>` : ''}<span class="r">${usd(c.cost_usd)}</span></div></div>`;
 
 const node = (c, batch, now) =>
-  html`<div class="node card" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>PR</span>` : ''}<span class="r">${usd(c.cost_usd)}</span>${mergedBand(c, now)}</div></div>`;
+  html`<div class="node card" data-id="${c.cr}" ${opener(crKey(c), 'node-')}><div class="row-tags"><span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${badge(c)}</div><div class="nt">${title(c.title)}</div>${c.phase ? html`<div class="np" title="${t('step')}">${c.phase}</div>` : ''}<div class="nm"><span>r${roundText(c, batch)}</span>${c.after?.length ? html`<span>${icon('dep')} ${c.after.length}</span>` : ''}${c.pr ? html`<span>${t('pr.tag')}</span>` : ''}<span class="r">${usd(c.cost_usd)}</span>${mergedBand(c, now)}</div></div>`;
 
 const level = (rows, i, draw) => {
   const head = i === 0 ? t('batch.no_dep') : t('batch.level', { i });

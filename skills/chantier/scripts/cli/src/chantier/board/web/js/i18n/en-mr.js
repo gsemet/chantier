@@ -4,6 +4,7 @@ export default {
   'mr.nav.prs': 'MRs',
   'mr.pv.nopr': 'No CR has an MR yet.',
   'mr.open': 'open the MR',
+  'mr.tag': 'MR',
   'mr.draft': 'MR in draft, do not merge',
   'mr.home.open_prs': 'Open MRs',
   'mr.home.review_go': 'MRs ready to merge',

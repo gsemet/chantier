@@ -4,13 +4,14 @@ import { html } from '../core/dom.js';
 import { ALL } from '../core/router.js';
 import { grillItems, handedCrs, inboxItems, progressCrs } from '../model/columns.js';
 import { shownRecord } from '../model/history.js';
-import { t, tn } from '../model/words.js';
+import { t, tf, tn } from '../model/words.js';
 import { entry } from '../views/registry.js';
 import { stateIcon } from './parts.js';
-import { projectsOf, surfaceName } from './picker.js';
+import { projectsOf, sharedForge, surfaceName } from './picker.js';
 
 const figure = (n, word) => html`<span><b>${n}</b> ${t(word)}</span>`;
-const counted = (n, word) => html`<span><b>${n}</b> ${tn(word, n)}</span>`;
+const counted = (n, word, forge) =>
+  html`<span><b>${n}</b> ${forge ? tf(forge, n === 1 ? `${word}.one` : word, { n }) : tn(word, n)}</span>`;
 
 // The figures of the whole surface, on the overview.
 function overall(state) {
@@ -25,6 +26,7 @@ function overall(state) {
     counted(
       sum((p) => p.to_review.length),
       'stats.reviews',
+      sharedForge(projects),
     ),
     counted(
       sum((p) => p.working.length),
