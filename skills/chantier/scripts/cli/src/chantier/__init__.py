@@ -3,4 +3,4 @@ the lines that synchronise, a few tools; every change is one event in the batch'
 One named exception, `chantier board`: the web board's server, for the user
 in remote."""
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
