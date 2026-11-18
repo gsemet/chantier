@@ -210,4 +210,42 @@
   --nav-height: 36px;
   --gap-main: 32px;
   --phone-max: 760px;
+
+  /* off-scale values, kept as they were: each is the exact value a sheet used before the tokens
+     covered every length, named for it; folding them into the scale is a design change of its own */
+  --space-off-1: 1px;
+  --space-off-2: 2px;
+  --space-off-3: 3px;
+  --space-off-5: 5px;
+  --space-off-6: 6px;
+  --space-off-7: 7px;
+  --space-off-9: 9px;
+  --space-off-10: 10px;
+  --space-off-14: 14px;
+  --space-off-18: 18px;
+  --space-off-20: 20px;
+  --space-off-22: 22px;
+  --space-off-23: 23px;
+  --space-off-28: 28px;
+  --space-off-30: 30px;
+  --space-off-40: 40px;
+  --space-off-50: 50px;
+  --space-off-90: 90px;
+  --radius-off-2: 2px;
+  --radius-off-3: 3px;
+  --radius-off-4: 4px;
+  --radius-off-7: 7px;
+  --radius-off-10: 10px;
+  --radius-pill: 999px;
+  --radius-round: 50%;
+  --text-off-12-5: 12.5px;
+  --text-off-13-5: 13.5px;
+  --text-off-15: 15px;
+  --text-off-15-5: 15.5px;
+  --text-off-16: 16px;
+  --text-off-17: 17px;
+  --text-off-18: 18px;
+  --text-off-22: 22px;
+  --text-off-34: 34px;
+  --text-off-40: 40px;
 }

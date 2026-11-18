@@ -314,8 +314,9 @@ in the `justfile`) and `tests/test_code_targets.py` enforce:
   no cyclomatic rule: its cognitive one is the closest, and the stricter for nesting); `const` by
   default, no `var`, no unused variable or import, no global but the module's scope.
 - **CSS:** no `!important`, no id selector, nesting at most 3 levels (the test counts the braces;
-  Biome has no such rule), every colour in `css/tokens.css` and a computed width or colour passed as
-  a custom property.
+  Biome has no such rule), tokens only, as `board/web/DESIGN.md` says (every colour, radius, space
+  and type size is a token of `css/tokens.css`), and a computed width or colour passed as a custom
+  property.
 - **Page:** no inline script or style, no `style=` and no `on...=` attribute, no resource loaded
   from outside (the policy allows `self` only; the page loads its own font from `web/fonts/`,
   `font-src 'self'`, and no font from outside), every link, script and import relative and inside
@@ -327,7 +328,8 @@ in the `justfile`) and `tests/test_code_targets.py` enforce:
   where "to review", the chain, the merge order, the levels and the rounds are defined),
   `js/ui/` (the shell: icons, parts, sidebar, picker, bottom bar, header, host),
   `js/views/` (`registry.js` and one module per view), `css/` (`tokens`, `base`, `shell`,
-  `components`, `widgets`, `panel`, then one file per view).
+  `components`, `components/` (the card, the column and the chip, one sheet each), `widgets`,
+  `panel`, then one file per view; the board's design rules are in `DESIGN.md`).
 - **A view's contract:** `render(state)` returns markup built with `html` from `core/dom.js`;
   `mount(root, state)`, optional, runs once per project and view and returns its cleanup;
   `after(root, state)`, optional, runs after every paint (to measure or draw arrows). A view reads

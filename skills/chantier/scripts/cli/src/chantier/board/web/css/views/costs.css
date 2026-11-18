@@ -3,7 +3,7 @@
 .costs .cwrap {
   display: flex;
   align-items: flex-start;
-  gap: 28px;
+  gap: var(--space-off-28);
   padding-top: var(--space-2);
 }
 
@@ -19,7 +19,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-off-10);
   margin: var(--space-4) 0 var(--space-3);
   color: var(--ink2);
 }
@@ -52,7 +52,7 @@
   display: none;
   width: max-content;
   max-width: 300px;
-  padding: 10px 12px;
+  padding: var(--space-off-10) var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-m);
   background: var(--panel);
@@ -82,7 +82,7 @@
 }
 
 .costs .kpi {
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-off-14);
   border-color: var(--accent-line);
   background: var(--accent-tint);
 }
@@ -93,7 +93,7 @@
 
 /* an earlier batch's CRs, unfolded under its row */
 .costs tr.sub > td {
-  padding: 0 0 8px 20px;
+  padding: 0 0 var(--space-2) var(--space-off-20);
 }
 
 .costs tr.sub table {

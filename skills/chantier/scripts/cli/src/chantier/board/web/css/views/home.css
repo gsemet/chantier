@@ -2,15 +2,15 @@
 .home .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
+  gap: var(--space-off-14);
   margin-top: var(--space-4);
 }
 
 .home .blocks {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 14px;
-  margin-top: 14px;
+  gap: var(--space-off-14);
+  margin-top: var(--space-off-14);
 }
 
 .home .block {
@@ -34,8 +34,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 10px;
-  font-size: 13.5px;
+  margin: 0 0 var(--space-off-10);
+  font-size: var(--text-off-13-5);
 }
 
 .home h3 {
@@ -69,14 +69,14 @@
 .home .legend span {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-off-5);
 }
 
 .home .mini {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 14px;
+  gap: var(--space-off-10);
+  margin-top: var(--space-off-14);
 }
 
 .home .mini div {
@@ -91,7 +91,7 @@
 }
 
 .home .mini b {
-  font-size: 16px;
+  font-size: var(--text-off-16);
   font-weight: 500;
 }
 
@@ -102,17 +102,17 @@
 .home .list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-off-6);
 }
 
 .home .x {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 6px var(--space-2);
+  padding: var(--space-off-6) var(--space-2);
   border: 1px solid var(--line2);
   border-radius: var(--radius-nav);
-  font-size: 12.5px;
+  font-size: var(--text-off-12-5);
 }
 
 .home a.x {
@@ -129,10 +129,13 @@
 }
 
 .home .x b,
-.home .x .r,
-.home .x .tag {
+.home .x .r {
   flex: none;
   white-space: nowrap;
+}
+
+.home .x .tag {
+  flex: none;
 }
 
 .home .x .r {
@@ -148,7 +151,7 @@
 }
 
 .home .none {
-  padding: 10px var(--space-2);
+  padding: var(--space-off-10) var(--space-2);
   color: var(--ink3);
   font-size: var(--text-small);
 }
@@ -164,10 +167,10 @@
 .home .feed li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 7px 0;
+  gap: var(--space-off-10);
+  padding: var(--space-off-7) 0;
   border-bottom: 1px solid var(--line2);
-  font-size: 12.5px;
+  font-size: var(--text-off-12-5);
 }
 
 .home .feed li:last-child {
@@ -215,14 +218,14 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--ink2);
-  font-size: 12.5px;
+  font-size: var(--text-off-12-5);
 }
 
 .home .pipe .bar {
   display: flex;
   height: 6px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: var(--radius-off-3);
   background: var(--chip-2);
 }
 
@@ -240,12 +243,12 @@
 @media (max-width: 760px) {
   .home .tiles {
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: var(--space-off-10);
   }
 
   .home .blocks {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: var(--space-off-10);
   }
 
   .home .wide,

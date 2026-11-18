@@ -52,7 +52,7 @@
 .stats {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) 14px;
+  gap: var(--space-1) var(--space-off-14);
   color: var(--ink3);
   font-size: var(--text-stat);
 }
@@ -68,7 +68,7 @@
   color: var(--state-blocked);
   border: 1px solid var(--line);
   border-radius: var(--radius-m);
-  padding: 6px 10px;
+  padding: var(--space-off-6) var(--space-off-10);
   font-size: var(--text-small);
 }
 
@@ -152,7 +152,7 @@
     justify-content: space-around;
     background: var(--panel);
     border-top: 1px solid var(--line);
-    padding: 6px 0 10px;
+    padding: var(--space-off-6) 0 var(--space-off-10);
   }
 
   .bnav button {
@@ -163,7 +163,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: var(--space-off-2);
   }
 
   .bnav button.on {

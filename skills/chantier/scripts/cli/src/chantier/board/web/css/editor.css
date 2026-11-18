@@ -6,7 +6,7 @@
 }
 
 .btn.small {
-  padding: 3px 10px;
+  padding: var(--space-off-3) var(--space-off-10);
   font-size: var(--text-small);
 }
 

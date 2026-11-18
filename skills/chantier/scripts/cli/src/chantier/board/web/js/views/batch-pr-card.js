@@ -13,16 +13,9 @@ import {
 } from '../model/semantics.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
+import { card } from '../ui/card.js';
 import { icon } from '../ui/icons.js';
 import { opener } from '../ui/open.js';
-
-// The card's outer element: a link, or a box when the PR has no web address.
-function shell(c, cls, inner) {
-  const url = safeUrl(c.pr);
-  const names = `prc card ${cls}`;
-  if (!url) return html`<div class="${names}">${inner}</div>`;
-  return html`<a class="${names}" href="${url}" target="_blank" rel="noopener" title="${t('pr.open')}">${inner}</a>`;
-}
 
 const kindTag = (c) => {
   if (isRelease(c)) return html`<span class="tag rel">${t('kind.release')}</span>`;
@@ -72,18 +65,20 @@ export function bindGateLinks(root) {
   };
 }
 
-function body(c, line, why, cost) {
-  const second = why ? html`<span>${why}</span>` : '';
-  return html`<div class="nt">${c.title}</div><div class="nm"><span>${line}</span>${second}<span class="r">${cost}${folder(c)}</span>${gateLine(c)}</div>`;
-}
-
 // A PR to review or a draft; `index` is its place in the list as drawn.
 export function prCard(c, batch, index, draft) {
-  const top = html`<div class="top"><b>${prNumber(c.pr)}</b><span class="tag cr">${c.cr}</span>${kindTag(c)}${place(c, batch, index, draft)}</div>`;
   const why = draft ? draftWhy(c) : '';
-  return shell(
-    c,
-    draft ? 'draft' : '',
-    html`${top}${body(c, baseOf(c, batch).text, why, usd(c.cost_usd))}`,
-  );
+  const url = safeUrl(c.pr);
+  return card({
+    as: url ? 'a' : 'div',
+    href: url,
+    classes: 'prc',
+    variants: ['clamp', draft && 'draft'],
+    attrs: url ? html`title="${t('pr.open')}"` : '',
+    top: html`<b class="num">${prNumber(c.pr)}</b><span class="tag cr">${c.cr}</span>${kindTag(c)}${place(c, batch, index, draft)}`,
+    title: c.title,
+    meta: html`<span>${baseOf(c, batch).text}</span>${why ? html`<span>${why}</span>` : ''}`,
+    end: html`${usd(c.cost_usd)}${folder(c)}`,
+    foot: gateLine(c),
+  });
 }

@@ -3,6 +3,7 @@
 // on a group's frame joins it; a group dragged by its handle moves whole. The drop target is
 // lit while the drag is over it.
 import { $$, delegate } from '../core/dom.js';
+import { cardMark } from '../ui/card.js';
 import { dropOnPostit, joinGroup, moveWhole } from './groups.js';
 import { moveTo } from './move.js';
 
@@ -16,7 +17,7 @@ function start(event, source) {
   const slug = source.dataset.slug;
   const group = source.dataset.gdrag;
   dragging = slug ? { slug } : { group };
-  source.classList.add('drag');
+  cardMark(source, 'drag');
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('text/plain', slug ?? group);
 }
@@ -60,7 +61,7 @@ export function bindDrag(root) {
   const offs = [
     delegate(root, 'dragstart', '.pi, [data-gdrag]', start),
     delegate(root, 'dragend', '.pi, [data-gdrag]', (_, el) => {
-      el.classList.remove('drag');
+      cardMark(el, 'drag', false);
       dragging = null;
       clearOver(root);
     }),

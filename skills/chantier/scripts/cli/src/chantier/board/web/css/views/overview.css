@@ -11,16 +11,16 @@
 }
 
 .overview table {
-  font-size: 13.5px;
+  font-size: var(--text-off-13-5);
 }
 
 .overview td {
-  padding: var(--space-3) 10px;
+  padding: var(--space-3) var(--space-off-10);
   vertical-align: middle;
 }
 
 .overview th {
-  padding: 6px 10px;
+  padding: var(--space-off-6) var(--space-off-10);
   font-size: var(--text-small);
 }
 
@@ -35,7 +35,7 @@
 .overview .who {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-off-9);
 }
 
 /* the paths never widen the first column: they take the width the name gives, then are cut */
@@ -47,7 +47,7 @@
 .overview .wnm {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-off-9);
 }
 
 .overview .wtx .pth {
@@ -56,14 +56,14 @@
 }
 
 .overview .apth {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .overview .who .mark {
   flex: none;
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--radius-off-7);
   font-size: var(--text-small);
 }
 
@@ -73,8 +73,8 @@
 
 .overview .prlink {
   display: inline-block;
-  margin: 2px 4px 2px 0;
-  padding: 2px 7px;
+  margin: var(--space-off-2) var(--space-1) var(--space-off-2) 0;
+  padding: var(--space-off-2) var(--space-off-7);
   border-radius: var(--radius-s);
   background: var(--accent-tint);
   color: var(--accent);
@@ -89,7 +89,7 @@
 
 .overview .mbar {
   width: 110px;
-  margin-bottom: 3px;
+  margin-bottom: var(--space-off-3);
 }
 
 .overview .mbar .meter {
@@ -105,8 +105,9 @@
   cursor: pointer;
 }
 
-.overview .apc .band {
-  display: block;
+.overview .apth,
+.overview .aps {
+  flex-basis: 100%;
 }
 
 .overview .apt {
@@ -118,7 +119,7 @@
 .overview .apt .mark {
   width: 24px;
   height: 24px;
-  border-radius: 7px;
+  border-radius: var(--radius-off-7);
   font-size: var(--text-small);
 }
 
@@ -135,9 +136,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin-top: var(--space-1);
   color: var(--ink2);
-  font-size: 12.5px;
+  font-size: var(--text-off-12-5);
 }
 
 @media (max-width: 760px) {

@@ -1,11 +1,12 @@
-/* Tags, chips, labels and the state icons: neutral grey, no border. The exceptions: a state chip,
-   on its state's tint with the state's colour in its icon, and a priority chip, on its priority's
-   teal; the CR id and 3-ready keep the accent. */
+/* The one chip: tags, labels and the state icons, neutral grey, no border. The exceptions: a state
+   chip, on its state's tint with the state's colour in its icon, and a priority chip, on its
+   priority's teal; the CR id and 3-ready keep the accent. The priority chip is also the Kanban's
+   priority toggle, a button: filled when on, outlined grey (`off`) when off, the same size. */
 .tag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 1px 7px;
+  gap: var(--space-off-5);
+  padding: var(--space-off-1) var(--space-off-7);
   border-radius: var(--radius-s);
   background: var(--chip-2);
   color: var(--ink2);
@@ -27,34 +28,56 @@
 
 .tag.pri-3-ready {
   background: var(--accent-tint);
+  --edge: var(--accent-tint);
   color: var(--accent);
 }
 
 /* the priorities: a gradient of the accent, P1 dark to P4 pale */
 .tag.pri-P1 {
   background: var(--pri-1);
+  --edge: var(--pri-1);
   color: var(--white);
 }
 
 .tag.pri-P2 {
   background: var(--pri-2);
+  --edge: var(--pri-2);
   color: var(--white);
 }
 
 .tag.pri-P3 {
   background: var(--pri-3);
+  --edge: var(--pri-3);
   color: var(--accent-dark);
 }
 
 .tag.pri-P4 {
   background: var(--pri-4);
+  --edge: var(--pri-4);
   color: var(--accent-dark);
+}
+
+/* a priority chip drawn as a toggle: the same chip with a 1px border in its fill colour, so it
+   keeps its size when it is off */
+button.tag {
+  border: 1px solid var(--edge, var(--chip-2));
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: 500;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.tag.off {
+  --edge: var(--line);
+  background: var(--panel);
+  color: var(--ink2);
 }
 
 /* the CR's slug, or a quiet fact beside a tag */
 .lbl {
   max-width: 170px;
-  padding: 0 6px;
+  padding: 0 var(--space-off-6);
   overflow: hidden;
   border-radius: var(--radius-s);
   background: var(--chip);
@@ -69,8 +92,8 @@
   --lc: var(--label-5);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 1px 7px;
+  gap: var(--space-off-5);
+  padding: var(--space-off-1) var(--space-off-7);
   border-radius: var(--radius-s);
   background: var(--chip);
   color: var(--ink2);
@@ -81,7 +104,7 @@
   content: "";
   width: 6px;
   height: 6px;
-  border-radius: 2px;
+  border-radius: var(--radius-off-2);
   background: var(--lc);
 }
 
@@ -166,4 +189,76 @@
 .tag.st.queued,
 .tag.queued {
   background: var(--state-queued-tint);
+}
+
+/* a state badge: the state's icon and word in its colour, on its tint, at a card's top right */
+.sb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+  padding: 0 var(--space-off-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--panel);
+  color: var(--c, var(--state-queued));
+  font-size: var(--text-badge);
+  font-weight: 500;
+}
+
+.sb.queued {
+  background: var(--state-queued-tint);
+}
+
+.sb.working {
+  background: var(--state-working-tint);
+}
+
+.sb.blocked {
+  background: var(--state-blocked-tint);
+}
+
+.sb.ready {
+  background: var(--state-ready-tint);
+}
+
+.sb.draft {
+  background: var(--state-draft-tint);
+}
+
+.sb.local {
+  background: var(--state-local-tint);
+}
+
+.sb.waits {
+  background: var(--state-waits-tint);
+}
+
+.sb.merged {
+  background: var(--state-merged-tint);
+}
+
+/* a state icon in a PR row: it sits a little lower than in a chip */
+.pvrow .si {
+  vertical-align: -3px;
+}
+
+/* the label filter's toggle: a label chip you press, on the accent tint when on */
+.lbtn {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-small);
+}
+
+/* a PR page's filter button carries no label square */
+.lbtn[data-pf]::before,
+.lbtn[data-pvf]::before,
+.lbtn[data-pvs]::before {
+  content: none;
+}
+
+.lbtn.on {
+  background: var(--accent-tint);
+  color: var(--accent);
 }

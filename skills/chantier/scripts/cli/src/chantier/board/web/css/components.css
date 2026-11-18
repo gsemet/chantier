@@ -55,14 +55,14 @@
   flex: none;
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .btn {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: var(--radius-nav);
-  padding: 7px var(--space-3);
+  padding: var(--space-off-7) var(--space-3);
   color: var(--ink);
 }
 
@@ -84,26 +84,26 @@
 .tbl {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 6px 12px;
+  padding: var(--space-off-6) var(--space-3);
   overflow: auto;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--text-stat);
 }
 
 th {
   text-align: left;
   color: var(--ink3);
   font-weight: 500;
-  padding: var(--space-2) 6px;
+  padding: var(--space-2) var(--space-off-6);
   border-bottom: 1px solid var(--line);
 }
 
 td {
-  padding: var(--space-2) 6px;
+  padding: var(--space-2) var(--space-off-6);
   border-bottom: 1px solid var(--line2);
 }
 
@@ -119,10 +119,10 @@ th.num {
 .empty {
   border: 1px dashed var(--line);
   border-radius: var(--radius-card);
-  padding: 28px;
+  padding: var(--space-off-28);
   color: var(--ink2);
   text-align: center;
-  margin-top: 20px;
+  margin-top: var(--space-off-20);
   line-height: 1.6;
 }
 
@@ -187,4 +187,45 @@ th.num {
 .mark[data-mark="5"] {
   background: var(--mark-5-tint);
   color: var(--mark-5);
+}
+
+/* a clickable card, row or node: the keyboard reaches it */
+[data-open] {
+  cursor: pointer;
+}
+
+/* a figure card: white, soft shadow, a grey label, a regular figure, a grey sub-line */
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--card-line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+  box-shadow: var(--shadow-card-soft);
+}
+
+.kpi[data-go] {
+  cursor: pointer;
+}
+
+.kpi .l {
+  display: flex;
+  gap: var(--space-off-6);
+  align-items: center;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.kpi b {
+  font-size: var(--title);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.kpi .sub {
+  color: var(--ink3);
+  font-size: var(--text-small);
 }

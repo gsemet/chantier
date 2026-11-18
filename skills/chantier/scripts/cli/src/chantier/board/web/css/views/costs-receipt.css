@@ -6,7 +6,7 @@
   width: var(--ticket-width);
   flex: none;
   align-self: flex-start;
-  padding: 28px 30px 22px;
+  padding: var(--space-off-28) var(--space-off-30) var(--space-off-22);
   border-radius: var(--radius);
   background-color: var(--paper);
   background-image: var(--paper-grain);
@@ -40,7 +40,7 @@
 }
 
 .ticket .brand {
-  font-size: 22px;
+  font-size: var(--text-off-22);
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -54,8 +54,8 @@
 
 .ticket .pill {
   display: inline-block;
-  padding: 1px 8px;
-  border-radius: 99px;
+  padding: var(--space-off-1) var(--space-2);
+  border-radius: var(--radius-pill);
   background: var(--accent-tint-2);
   color: var(--accent);
   font-size: var(--text-badge);
@@ -63,14 +63,14 @@
 }
 
 .ticket .r-grp {
-  margin-top: 18px;
+  margin-top: var(--space-off-18);
 }
 
 .ticket .r-grp h3 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 4px;
+  margin: 0 0 var(--space-1);
   color: var(--ink2);
   font-size: var(--text-small);
   font-weight: 500;
@@ -80,7 +80,7 @@
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-round);
 }
 
 .ticket .d1 {
@@ -99,7 +99,7 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: var(--space-2);
-  padding: 5px 0;
+  padding: var(--space-off-5) 0;
   border-bottom: 1px solid var(--paper-line);
 }
 
@@ -127,9 +127,9 @@
 .ticket .sbar {
   display: flex;
   height: 8px;
-  gap: 2px;
+  gap: var(--space-off-2);
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--radius-off-4);
 }
 
 .ticket .sbar i {
@@ -141,8 +141,8 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 4px var(--space-3);
-  margin-top: 6px;
+  gap: var(--space-1) var(--space-3);
+  margin-top: var(--space-off-6);
   color: var(--ink2);
   font-size: var(--text-small);
 }
@@ -154,7 +154,7 @@
 .ticket .cut {
   position: relative;
   height: 22px;
-  margin: 20px -30px 14px;
+  margin: var(--space-off-20) calc(-1 * var(--space-off-30)) var(--space-off-14);
 }
 
 .ticket .cut::before {
@@ -175,10 +175,10 @@
   position: absolute;
   top: 50%;
   left: 10px;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   background: var(--paper);
   color: var(--paper-scissors);
-  font-size: 13px;
+  font-size: var(--text-stat);
   transform: translateY(-52%);
 }
 
@@ -194,7 +194,7 @@
 }
 
 .ticket .total .big {
-  font-size: 40px;
+  font-size: var(--text-off-40);
   font-weight: 500;
   letter-spacing: -0.02em;
 }
@@ -202,26 +202,26 @@
 .ticket .tfoot {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px var(--space-4);
-  margin-top: 6px;
+  gap: var(--space-1) var(--space-4);
+  margin-top: var(--space-off-6);
   color: var(--ink3);
   font-size: var(--text-small);
 }
 
 .ticket .rule {
-  margin: 18px 0 14px;
+  margin: var(--space-off-18) 0 var(--space-off-14);
   border-top: 1.5px dashed var(--paper-rule);
 }
 
 .ticket .r-crs {
-  margin-top: 6px;
+  margin-top: var(--space-off-6);
 }
 
 .ticket .r-cr {
   display: grid;
   grid-template-columns: 62px 1fr auto;
   gap: var(--space-2);
-  padding: 3px 0;
+  padding: var(--space-off-3) 0;
   font-size: var(--text-stat);
 }
 
@@ -241,14 +241,14 @@
 .ticket .sum {
   display: flex;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: var(--space-off-10);
   padding-top: var(--space-2);
   border-top: 1px solid var(--paper-sum);
   font-size: var(--text-stat);
 }
 
 .ticket .rest {
-  margin: 2px 0 0;
+  margin: var(--space-off-2) 0 0;
   color: var(--ink3);
   font-size: var(--text-small);
 }
@@ -256,7 +256,7 @@
 .ticket .code {
   height: 26px;
   margin-top: var(--space-4);
-  border-radius: 3px;
+  border-radius: var(--radius-off-3);
   background:
     linear-gradient(
       90deg,
@@ -285,15 +285,15 @@
     position: relative;
     top: 0;
     width: auto;
-    padding: 22px 20px 18px;
+    padding: var(--space-off-22) var(--space-off-20) var(--space-off-18);
   }
 
   .ticket .cut {
-    margin-right: -20px;
-    margin-left: -20px;
+    margin-right: calc(-1 * var(--space-off-20));
+    margin-left: calc(-1 * var(--space-off-20));
   }
 
   .ticket .total .big {
-    font-size: 34px;
+    font-size: var(--text-off-34);
   }
 }

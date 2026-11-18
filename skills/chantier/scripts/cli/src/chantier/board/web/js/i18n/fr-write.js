@@ -9,6 +9,8 @@ export default {
   'toast.network': 'Le board est injoignable : rien n’a été écrit.',
 
   'triage.backlog': 'Backlog',
+  'triage.inbox_sub': '1-inbox : déposé',
+  'triage.backlog_sub': '2-backlog : P1 à P4',
   'triage.urgent': '↑ plus urgent · glisse un post-it vers le haut ou le bas',
   'triage.empty_row': 'vide : dépose un post-it ici',
   'triage.drop': 'dépose ici',

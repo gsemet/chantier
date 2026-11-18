@@ -1,0 +1,118 @@
+/* The one column of the board (DESIGN.md): Triage's and Kanban's, built by js/ui/column.js. A light
+   area, a hairline, a plain head (dot, name, count), a one-line grey sub-line, the body; a lane is
+   a part of the column (Triage's Backlog holds four). Pages set its width and place only. */
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--col-fill);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+.column-lane {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--col-fill);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  gap: var(--space-2);
+}
+
+/* the drop state, lit while a drag is over a column or a lane */
+.column.over,
+.column-lane.over {
+  background: var(--drop-fill);
+  border-color: var(--drop-edge);
+}
+
+.column-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-off-6);
+  min-width: 0;
+}
+
+.column-head h2 {
+  margin: 0;
+  font-size: var(--text);
+  font-weight: 500;
+}
+
+.column-count {
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+/* a line in the count's place, ellipsed in the head like the sub-line */
+.column-hint {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.column-sub {
+  flex: none;
+  overflow: hidden;
+  color: var(--ink3);
+  font-size: var(--text-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.column-act {
+  display: flex;
+  flex: none;
+}
+
+.column-act .btn {
+  width: 100%;
+  font-size: var(--text-small);
+}
+
+/* The padding and the opposite margin leave room for a hovered card's tilt and shadow, which would
+   otherwise make the scrolling body show a horizontal bar. */
+.column-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* a lane: capped cards side by side, as many per row as the lane holds */
+.column-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-w)), var(--card-w)));
+  align-content: start;
+  justify-content: start;
+}
+
+/* an empty lane is a thin strip */
+.column-empty {
+  padding: var(--space-off-6) var(--space-3);
+}
+
+.column-empty .column-body {
+  display: none;
+}
+
+/* in a lane's grid, a group's frame and the drop zone span the whole row */
+.column-grid > .grpf,
+.column-grid > .dropzone {
+  grid-column: 1 / -1;
+}

@@ -9,6 +9,15 @@ import { stateGlyph } from './icons.js';
 export const tag = (kind, text, { badge = false } = {}) =>
   html`<span class="tag ${kind}${badge ? ' badge' : ''}">${text}</span>`;
 
+// The priority chip, the one of every card that has a priority: `bucket` is `inbox`, P1 to P4 or
+// 3-ready. `button` draws it as the Kanban's toggle (`on`: filled, else the `off` look); `attrs`
+// is the toggle's markup of attributes.
+export const priorityChip = (bucket, { button = false, on = true, attrs = '' } = {}) => {
+  const name = bucket === 'inbox' ? t('priority.inbox') : bucket;
+  if (!button) return tag(`pri-${bucket}`, name);
+  return html`<button type="button" class="tag pri-${bucket}${on ? '' : ' off'}" aria-pressed="${on}" ${attrs}>${name}</button>`;
+};
+
 // A state's small icon, in the state's colour: `s` is a state's name or a CR.
 export const stateIcon = (s) => {
   const name = typeof s === 'string' ? s : vstate(s);

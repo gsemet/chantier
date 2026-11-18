@@ -26,15 +26,15 @@
 .home .pjt,
 .overview .pjt {
   grid-column: 1 / -1;
-  padding: 14px var(--space-4);
+  padding: var(--space-off-14) var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
 }
 
 .pjt h2 {
-  margin: 0 0 10px;
-  font-size: 13.5px;
+  margin: 0 0 var(--space-off-10);
+  font-size: var(--text-off-13-5);
   font-weight: 500;
 }
 

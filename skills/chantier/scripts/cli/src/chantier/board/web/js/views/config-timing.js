@@ -4,6 +4,7 @@
 
 import { html } from '../core/dom.js';
 import { t } from '../model/words.js';
+import { card } from '../ui/card.js';
 import { empty } from '../ui/parts.js';
 
 export const TABS = ['models', 'timing'];
@@ -36,13 +37,17 @@ function row(setting, host) {
   return html`<div class="trow"><div>${t(`config.timing_${setting.id}`)}<small>${t(`config.timing_${setting.id}.text`)}</small></div>${cells}</div>`;
 }
 
-function card(host) {
+function hostCard(host) {
   const head = host.columns.map((col) => html`<span>${col.name}</span>`);
   const rows = SETTINGS.map((id) => row({ id, ...host.settings[id] }, host));
-  return html`<section class="hcard"><h3>${host.name}</h3><div class="trow th"><span>${t('config.th_setting')}</span>${head}</div>${rows}</section>`;
+  return card({
+    as: 'section',
+    variants: ['flush'],
+    body: html`<h3>${host.name}</h3><div class="trow th"><span>${t('config.th_setting')}</span>${head}</div>${rows}`,
+  });
 }
 
 export function timingTab(view) {
   if (!view.timing) return empty(t('config.timing_unreadable'));
-  return html`<div class="tcards">${Object.values(view.timing).map(card)}</div>`;
+  return html`<div class="tcards">${Object.values(view.timing).map(hostCard)}</div>`;
 }

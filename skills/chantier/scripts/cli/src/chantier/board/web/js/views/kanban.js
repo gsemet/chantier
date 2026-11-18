@@ -19,8 +19,8 @@ import {
 import { defaultBranch } from '../model/semantics.js';
 import { labelsOf } from '../model/triage.js';
 import { t } from '../model/words.js';
+import { column as columnOf } from '../ui/column.js';
 import { bindOpen } from '../ui/open.js';
-import { dot } from '../ui/parts.js';
 import { backlogCard, crCard, doneCard } from './kanban-cards.js';
 
 // A column: its key, colour, sub-line and the cards it holds (already drawn).
@@ -59,10 +59,18 @@ function columns(state) {
 }
 
 // The Inbox column's button: it opens the New dialog (wired once for the page, in main.js).
-const newIdea = html`<div class="colact"><button type="button" class="btn" data-new>${t('new.kanban')}</button></div>`;
+const newIdea = html`<button type="button" class="btn" data-new>${t('new.kanban')}</button>`;
 
 const column = (c) =>
-  html`<section class="col" data-key="col-${c.key}"><div class="colh">${dot(c.color)}<h2>${t(`kanban.${c.key}`)}</h2><span class="c">${c.count ?? c.cards.length}</span><span class="place"></span></div>${c.key === 'inbox' ? newIdea : ''}<div class="colsub">${c.sub}</div><div class="cards">${c.cards.length ? c.cards : html`<div class="none">${t('kanban.empty')}</div>`}${c.foot ?? ''}</div></section>`;
+  columnOf({
+    key: `col-${c.key}`,
+    name: t(`kanban.${c.key}`),
+    color: c.color,
+    count: c.count ?? c.cards.length,
+    act: c.key === 'inbox' ? newIdea : '',
+    sub: c.sub,
+    body: html`${c.cards.length ? c.cards : html`<div class="none">${t('kanban.empty')}</div>`}${c.foot ?? ''}`,
+  });
 
 export function render(state) {
   const cols = columns(state);

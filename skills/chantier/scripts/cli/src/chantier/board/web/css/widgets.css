@@ -8,8 +8,8 @@
   display: inline-block;
   width: 7px;
   height: 7px;
-  margin-left: 4px;
-  border-radius: 50%;
+  margin-left: var(--space-1);
+  border-radius: var(--radius-round);
   background: var(--state-working);
   vertical-align: middle;
 }
@@ -19,8 +19,8 @@
   display: flex;
   height: 6px;
   overflow: hidden;
-  gap: 1px;
-  border-radius: 3px;
+  gap: var(--space-off-1);
+  border-radius: var(--radius-off-3);
   background: var(--chip-2);
 }
 
@@ -33,7 +33,7 @@
   height: 6px;
   width: var(--w, 0);
   background: var(--c, var(--accent));
-  border-radius: 3px;
+  border-radius: var(--radius-off-3);
 }
 
 /* an extension place stays empty and takes no room */
@@ -42,6 +42,6 @@
 }
 
 .h2t {
-  font-size: 15px;
-  margin: 22px 0 8px;
+  font-size: var(--text-off-15);
+  margin: var(--space-off-22) 0 var(--space-2);
 }
