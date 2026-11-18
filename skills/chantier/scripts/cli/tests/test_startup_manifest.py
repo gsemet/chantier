@@ -8,6 +8,13 @@ import pytest
 from conftest import PLUGIN_ROOT, SKILL
 
 STARTUP_LIMIT = 12_544
+DRIVER_ROLES = ("cr-driver", "stack-driver", "qa-driver", "release-driver")
+MANIFEST_VERSION = 2
+WITH_SECTIONS = {*DRIVER_ROLES, "foreman", "chief-of-staff", "griller", "router", "status"}
+FOREMAN_SECTIONS = [
+    "concepts.md#Startup core",
+    {"claude": "hosts/claude-code.md#Startup core", "copilot": "hosts/copilot.md#Startup core"},
+]
 
 
 def _manifest() -> tuple[dict[str, Any], Path]:
@@ -61,7 +68,7 @@ def _unique_startup_bytes(paths: list[Path], sections: list[dict[str, str]]) -> 
     for path in paths:
         spans.setdefault(path.resolve(), []).append((0, len(_lf_bytes(path))))
     for section in sections:
-        path = (PLUGIN_ROOT / section["file"]).resolve()
+        path = Path(section["file"]).resolve()
         spans.setdefault(path, []).append(_section_span(path, section["heading"]))
     total = 0
     for ranges in spans.values():
@@ -72,34 +79,51 @@ def _unique_startup_bytes(paths: list[Path], sections: list[dict[str, str]]) -> 
     return total
 
 
-def _reading_file(reading: str | dict[str, str]) -> str:
-    return reading if isinstance(reading, str) else reading["file"]
+def _resolve(reading: Any, host: str) -> dict[str, str]:
+    """A reading as an absolute file and, for `file#heading`, its level-2 heading line."""
+    if isinstance(reading, dict):
+        assert set(reading) == {"claude", "copilot"}, reading
+        reading = reading[host]
+    file, _, heading = reading.partition("#")
+    path = (_manifest()[1].parent / file).resolve()
+    assert path.is_file(), reading
+    return {"file": str(path), "heading": f"## {heading}" if heading else ""}
 
 
-def _check_actions(manifest: dict[str, Any]) -> set[str]:
-    action_reads = {_reading_file(r) for readings in manifest["actions"].values() for r in readings}
-    assert all((PLUGIN_ROOT / r).is_file() for r in action_reads)
-    for readings in manifest["actions"].values():
-        for reading in readings:
-            if isinstance(reading, dict):
-                assert set(reading) <= {"host", "file", "heading"}
-                assert _section_bytes(PLUGIN_ROOT / reading["file"], reading["heading"]) > 0
+def _sections(readings: list[Any], host: str) -> tuple[list[Path], list[dict[str, str]]]:
+    resolved = [_resolve(r, host) for r in readings]
+    files = [Path(r["file"]) for r in resolved if not r["heading"]]
+    return files, [r for r in resolved if r["heading"]]
+
+
+def _check_actions(manifest: dict[str, Any]) -> set[Path]:
+    assert isinstance(manifest["paths"], str)
+    readings = {
+        key: manifest[key]
+        for key in ("manifest", "common", "role_core", "hosts", "entries", "roles")
+    }
+    readings |= {"startup_sections": manifest["startup_sections"], "actions": manifest["actions"]}
+    assert "paths" not in readings
+    assert manifest["paths"] not in json.dumps(readings)
+    action_reads: set[Path] = set()
+    for host in ("claude", "copilot"):
+        for action in manifest["actions"].values():
+            files, sections = _sections(action, host)
+            action_reads |= set(files) | {Path(s["file"]) for s in sections}
+            assert all(_section_bytes(Path(s["file"]), s["heading"]) > 0 for s in sections)
     assert manifest["actions"]["reload"][:3] == [
         manifest["common"],
         manifest["role_core"],
         manifest["manifest"],
     ]
     for role, heading in {
-        "cr-driver": "## CR driver",
-        "stack-driver": "## Stack driver",
-        "qa-driver": "## QA driver",
-        "release-driver": "## Release driver",
+        "cr-driver": "CR driver",
+        "stack-driver": "Stack driver",
+        "qa-driver": "QA driver",
+        "release-driver": "Release driver",
     }.items():
-        expected = {"file": manifest["roles"][role], "heading": heading}
-        assert {"file": manifest["roles"][role], "heading": "## Your means"} in manifest["actions"][
-            role
-        ]
-        assert expected in manifest["actions"][role]
+        card = manifest["roles"][role]
+        assert manifest["actions"][role] == [f"{card}#Your means", f"{card}#{heading}"]
     return action_reads
 
 
@@ -116,64 +140,53 @@ def _wrapper_path(role: str, host: str, entry: dict[str, Any], wrapper: Path) ->
 def _reload_bytes(
     manifest: dict[str, Any], host: str, required: list[Path], sections: list[dict[str, str]]
 ) -> int:
-    readings = manifest["actions"]["reload"]
-    reload_sections = [
-        reading
-        for reading in readings
-        if isinstance(reading, dict) and reading.get("host", host) == host
-    ]
-    reload_files = [PLUGIN_ROOT / reading for reading in readings if isinstance(reading, str)]
-    return _unique_startup_bytes(required + reload_files, sections + reload_sections)
+    files, reload_sections = _sections(manifest["actions"]["reload"], host)
+    return _unique_startup_bytes(required + files, sections + reload_sections)
 
 
 @pytest.mark.parametrize("host", ["claude", "copilot"])
 def test_startup_manifest_measures_every_real_role_and_host(host: str) -> None:
     manifest, manifest_path = _manifest()
+    assert manifest["version"] == MANIFEST_VERSION
     assert manifest["limit"] == STARTUP_LIMIT
+    folder = manifest_path.parent
     roles = _roles()
     assert manifest["actions"]
     action_reads = _check_actions(manifest)
     for role, card in manifest["roles"].items():
         assert role in roles
-        assert (PLUGIN_ROOT / card).is_file()
+        assert (folder / card).is_file()
+    assert set(manifest["startup_sections"]) == WITH_SECTIONS
     for role, wrapper in roles.items():
         entry = manifest.get("entries", {}).get(role, {})
         wrapper_path = _wrapper_path(role, host, entry, wrapper)
         required = [
-            PLUGIN_ROOT / manifest["common"],
-            PLUGIN_ROOT / manifest["hosts"][host]["core"],
-            PLUGIN_ROOT / manifest["role_core"],
+            folder / manifest["common"],
+            folder / manifest["hosts"][host]["core"],
+            folder / manifest["role_core"],
             manifest_path,
         ]
         if wrapper_path is not None:
             required.append(wrapper_path)
-        sections = [
-            section
-            for section in manifest["mandatory_sections"].get(role, [])
-            if section.get("host", host) == host
-        ]
-        assert sections
+        files, sections = _sections(manifest["startup_sections"].get(role, []), host)
+        assert not files
         total = _unique_startup_bytes(required, sections)
         assert total <= STARTUP_LIMIT, (role, host, total)
         reload_total = _reload_bytes(manifest, host, required, sections)
         assert reload_total <= STARTUP_LIMIT, (role, host, "reload", reload_total)
         print(f"startup-bytes role={role} host={host} bytes={total} reload={reload_total}")
         if role == "foreman":
-            host_card = (
-                f"skills/chantier/references/hosts/{'claude-code' if host == 'claude' else host}.md"
-            )
-            assert {"host": host, "file": host_card, "heading": "## Startup core"} in sections
-            assert entry == {
-                "wrapper": None,
-                "prompt_builder": "skills/chantier/references/chief-of-staff.md",
-            }
+            assert manifest["startup_sections"]["foreman"] == FOREMAN_SECTIONS
+            assert entry == {"wrapper": None, "prompt_builder": "chief-of-staff.md"}
             continue
         assert wrapper_path is not None
-        declared = {manifest["common"], manifest["role_core"], manifest["hosts"][host]["core"]}
-        declared |= {s["file"] for s in sections} | action_reads
+        declared = {Path(folder / manifest[k]).resolve() for k in ("common", "role_core")}
+        declared |= {(folder / manifest["hosts"][host]["core"]).resolve()}
+        declared |= {Path(s["file"]) for s in sections} | action_reads
         boot = "\n".join(wrapper_path.read_text(encoding="utf-8").splitlines()[:45])
         for reference in re.findall(r"references/([A-Za-z0-9._/-]+\.md)", boot):
-            assert f"skills/chantier/references/{reference}" in declared, (role, host, reference)
+            found = (SKILL / "references" / reference).resolve()
+            assert found in declared, (role, host, reference)
 
 
 def test_empty_action_readings_are_rejected() -> None:
@@ -198,7 +211,84 @@ def test_reload_budget_includes_additional_whole_file_readings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     manifest, path = _manifest()
-    manifest["actions"]["reload"].append("skills/chantier/references/foreman.md")
+    manifest["actions"]["reload"].append("foreman.md")
     monkeypatch.setattr(sys.modules[__name__], "_manifest", lambda: (manifest, path))
     with pytest.raises(AssertionError, match="reload"):
         test_startup_manifest_measures_every_real_role_and_host("copilot")
+
+
+REFS = SKILL / "references"
+SKILLS = PLUGIN_ROOT / "skills"
+WORKER_CARDS = ("coder", "inspector", "verifier", "demo-explorer")
+
+
+def _text(path: Path, heading: str | None = None) -> str:
+    data = _lf_bytes(path)
+    if heading:
+        start, end = _section_span(path, f"## {heading}")
+        data = data[start:end]
+    return " ".join(data.decode("utf-8").split())
+
+
+def _agent_files() -> list[Path]:
+    return [
+        *(PLUGIN_ROOT / "agents").glob("*.md"),
+        *(PLUGIN_ROOT / "com.github.copilot" / "agents").glob("*.agent.md"),
+    ]
+
+
+START, COS = REFS / "session-start.md", SKILLS / "chief-of-staff" / "SKILL.md"
+GRILLER, CHIEF_CARD = SKILLS / "griller" / "SKILL.md", REFS / "chief-of-staff.md"
+FIRST_TURN, CORE = "4. First turn: introduce chantier", "Startup core"
+SESSION = "At the session's start, read `session-start.md`"
+ABOUT_FOREMAN = (
+    "named startup sections of <skill>/references/concepts.md and <skill>/references/hosts/"
+)
+MOVED_IN = [
+    ("It repeats no grant and starts no service twice.", START, "5. Reload"),
+    ("a CR's archive in its PR when the project asks", START, FIRST_TURN),
+    ("A prompt names the card and section it expects", REFS / "concepts.md", None),
+    ("a host path not exercised is labelled untested", REFS / "startup-core.md", None),
+    ("At startup read the startup core and the startup sections", REFS / "foreman.md", None),
+    (ABOUT_FOREMAN, CHIEF_CARD, None),
+    ("A `Note: resume: closing` reads only", REFS / "driver.md", CORE),
+    (SESSION, COS, CORE),
+    (SESSION, GRILLER, CORE),
+    ("with `$CHANTIER` as this file defines it, nothing else of this file but its", COS, CORE),
+    *[("At startup read the startup core; defer", REFS / f"{c}.md", None) for c in WORKER_CARDS],
+]
+
+MOVED_OUT = [
+    ("Read this short role contract at boot", [*SKILLS.rglob("*.md")]),
+    ("defer all other card sections", _agent_files()),
+    *[("short Startup core section", [REFS / f"{c}.md"]) for c in WORKER_CARDS],
+    ("the short `Startup core` section", [REFS / "foreman.md"]),
+    ("named startup sections only", [REFS / "foreman.md"]),
+    ("startup sections of <skill>/references/foreman.md", [REFS / "chief-of-staff.md"]),
+    ("Availability is not proof", [*REFS.glob("host-core-*.md")]),
+]
+
+
+@pytest.mark.parametrize(("phrase", "path", "heading"), MOVED_IN)
+def test_moved_rule_is_where_it_now_lives(phrase: str, path: Path, heading: str | None) -> None:
+    assert phrase in _text(path, heading)
+
+
+@pytest.mark.parametrize(("phrase", "paths"), MOVED_OUT)
+def test_moved_rule_is_gone_from_where_it_was(phrase: str, paths: list[Path]) -> None:
+    assert paths
+    assert [p for p in paths if phrase in _text(p)] == []
+
+
+def test_the_rules_that_must_not_be_missed_come_first() -> None:
+    paragraphs = _lf_bytes(REFS / "startup-core.md").decode("utf-8").split("\n\n")
+    assert "report the exact error and stop" in " ".join(paragraphs[1].split())
+    assert "never in a shell variable" in " ".join(paragraphs[1].split())
+    assert paragraphs[2].startswith("No fallback")
+    for skill, needle in {
+        "chief-of-staff": "`watch: not running`",
+        "chantier": "live Chief of Staff in the seat",
+        "status": "You change nothing",
+    }.items():
+        first = _lf_bytes(SKILLS / skill / "SKILL.md").decode("utf-8").split("## Startup core\n")[1]
+        assert needle in next(line for line in first.splitlines() if line.strip()), skill

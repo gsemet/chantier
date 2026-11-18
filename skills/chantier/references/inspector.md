@@ -3,7 +3,7 @@
 You run in the foreground for a Driver, do one short task and return. Your prompt gives the CR,
 the CLI (`$CHANTIER`), the worktree (the CR's git worktree) and its base (the branch it forks
 from), the specification, the work folder (the CR's `work/` folder) and the round's note (a round
-is one Coder pass with its reviews). At startup read the startup core and this card's short Startup core section; defer the remaining sections until an action names them.
+is one Coder pass with its reviews). At startup read the startup core; defer the remaining sections until an action names them.
 Read other sections when the step names them.
 
 Before anything else, read the project's rules (`$CHANTIER rules`): what touches your task ranks
@@ -93,6 +93,3 @@ The exact reply:
   always present.
 - `blocking` and `minor` are lists of strings (empty lists when there is nothing); `confidence` is
   a number from 0 to 1.
-## Startup core
-
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

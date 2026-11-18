@@ -2,6 +2,7 @@
 
 import json
 import re
+import shlex
 import subprocess
 import tomllib
 from pathlib import Path
@@ -390,3 +391,10 @@ def test_one_launch_two_modes_one_text(tmp_path: Path, monkeypatch: pytest.Monke
         ):
             assert form in text, f"{name}/SKILL.md does not name `{form}`"
         assert "git+https" not in text, f"{name}/SKILL.md hard-codes a ref"
+    core = (SKILL / "references" / "startup-core.md").read_text(encoding="utf-8")
+    assert "never in a shell variable" in " ".join(core.split())
+    d, p = tmp_path / "with space" / "dev", tmp_path / "with space" / "plugin"
+    uv = ["uv", "run", "--no-sync", "--project", d.as_posix(), "chantier"]
+    assert shlex.split(command_for(d, git=True) or "") == uv
+    uvx = ["uvx", "--from", p.as_posix(), "chantier", "--skill", f"{p.as_posix()}/skills/chantier"]
+    assert shlex.split(command_for(p, git=False) or "") == uvx
