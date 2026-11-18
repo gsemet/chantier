@@ -40,7 +40,7 @@ SECTION = "## Supported models"
 def fetch(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "chantier-copilot-models"})
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+        with urllib.request.urlopen(request, timeout=60) as response:
             data: bytes = response.read()
     except (urllib.error.URLError, OSError) as error:
         raise SystemExit(f"{url}: {error}") from error

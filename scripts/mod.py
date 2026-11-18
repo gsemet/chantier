@@ -1,4 +1,4 @@
-"""Check the mod: `claude plugin validate .` then `claude plugin test .`, from the repository's root.
+"""Check the mod: `claude plugin validate .` then `claude plugin test .`, from the repo's root.
 
 It finds the `claude` binary itself: on the PATH, else the executable of the process
 CLAUDE_PID names (on Claude Desktop `claude` is not on the PATH). No binary: it exits 1 and says so.

@@ -306,6 +306,9 @@ The plugin's Python (every `.py` file under `skills/`, tests included) meets the
   chantier's own modules; a command imports its libraries when it runs (`test_code_targets.py`
   checks `--version` and `--help`).
 
+The tooling scripts (`scripts/`) meet the Style target too (`ruff format` and `ruff check` clean, through
+`just lint`); the other targets stay for the plugin's Python under `skills/`.
+
 The code of `src/chantier/` is in layers, and a module imports only from its own layer or the ones
 below: `core/` (errors, files, clock, git, the JSON records as pydantic models, the repository,
 the batch, the seat), then the domain modules (`lifecycle/`, `playbook/`, `costs/`, `status/`,

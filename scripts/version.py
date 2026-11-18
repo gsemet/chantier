@@ -92,6 +92,22 @@ def apply(old: str, new: str) -> list[str]:
     return []
 
 
+def check_tag(version: str) -> int:
+    subject = subprocess.run(
+        ["git", "log", "-1", "--format=%s", "origin/main"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    ).stdout.strip()
+    expected = f"release: v{version}"
+    if subject != expected:
+        print(f'just tag: origin/main is "{subject}", expected "{expected}"', file=sys.stderr)
+        return 1
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -108,18 +124,7 @@ def main() -> int:
         print(old)
         return 0
     if args.cmd == "check-tag":
-        subject = subprocess.run(
-            ["git", "log", "-1", "--format=%s", "origin/main"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        ).stdout.strip()
-        expected = f"release: v{old}"
-        if subject != expected:
-            print(f'just tag: origin/main is "{subject}", expected "{expected}"', file=sys.stderr)
-            return 1
-        return 0
+        return check_tag(old)
     new = args.version if args.cmd == "set" else bump(old, args.part)
     if not SEMVER.match(new):
         print(f"error: `{new}` is not MAJOR.MINOR.PATCH", file=sys.stderr)

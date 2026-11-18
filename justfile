@@ -55,7 +55,7 @@ release-notes:
 # The code standards: format, lint, types, the lock and the web frame's Biome (tools pinned above, the types against the locked dependencies)
 lint:
     uvx {{ruff}} format --check skills scripts
-    uvx {{ruff}} check skills
+    uvx {{ruff}} check skills scripts
     uv run --locked --group dev --with {{mypy}} --with types-psutil mypy
     uv lock --check
     uvx --from {{node}} npx --yes {{biome}} check skills/chantier/scripts/cli/src/chantier/board/web
