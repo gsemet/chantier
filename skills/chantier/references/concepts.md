@@ -115,7 +115,7 @@ and how an agent is started. Each worker reads its own card, which restates the 
 - **Planning surface:** a git repository of its own, one folder per project, always worked on
   its default branch (never in a worktree; only the project's code gets worktrees):
   `projects/<name>/` holds `project.md` (the project, its remote, `- Archive in the PR: yes|no`,
-  `yes` when absent), `checkout.yml` (`repo:` and `worktrees:`, paths relative to the project's
+  `no` when absent), `checkout.yml` (`repo:` and `worktrees:`, paths relative to the project's
   folder; defaults `.repo/` and `.worktrees/` there) and `changes/` (the planning folder). The
   surface's `AGENTS.md` holds its own rules, its sync first. The project's **clone** is the
   "main checkout" for git only (`git -C <clone>`): no session runs in it. The project's

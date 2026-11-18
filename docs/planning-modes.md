@@ -10,7 +10,7 @@ the same in both.
 | Planning folder | `<project>/.agents/changes/` | `<surface>/projects/<name>/changes/` |
 | Declared by | nothing | the surface's `projects/<name>/` (`checkout.yml`, `changes/`) |
 | CLI | `$CHANTIER <command>` | `$CHANTIER --project <folder> <command>` (the `cli:` lines carry it) |
-| Archive in the PR | no | by the project's setting, default yes |
+| Archive in the PR | no | by the project's setting, default no |
 
 ## What runs where
 
@@ -48,7 +48,7 @@ several Chiefs of Staff's pushes (a later change). A surface can also name an au
   (defaults `.repo/` and `.worktrees/`). The project's clone is used for git only
   (`git -C <clone>`); no chantier session runs in it.
 - `project.md` is your prose. One fixed line is read: `- Archive in the PR: yes` or `no`
-  (`yes` when absent).
+  (`no` when absent).
 - The surface root and each project's folder may hold a `chantier.yaml` (or `chantier.yml`): the
   configuration of all its projects, and of that project. The code repository's own `chantier.yaml`
   is the strongest layer, and the plugin's shipped defaults the weakest (see
@@ -79,7 +79,7 @@ documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`.
 - In the surface's `5-archives/<YYMMDD-HHMM>-<number>-<slug>/`: the CR's folder as the surface
   holds it (no detailed logs), with a `delivery.md` that names the PR, the merge time and whether
   the archive is also in the PR.
-- In the CR's PR, in external mode, when `project.md` says `yes` (or says nothing): the Driver
+- In the CR's PR, in external mode, when `project.md` says `yes`: the Driver
   commits, before each hand-back `ready`, a cleaned archive at `.agents/changes/5-archives/…/`
   with `intake/`, `evidence/`, `01-intent.md`, `02-answers.md`, `03-change-spec.md`,
   `delivery.md` and `STATUS.md`, and the retained prototype (`prototypes/NN-<idea>/`, zipped if

@@ -124,7 +124,7 @@ def surface_instructions(repo: Repo) -> Path | None:
 
 def archive_path(repo: Repo, c: CrEntry) -> str | None:
     """Where the CR's cleaned archive goes in its PR, in the project's repository; None when the
-    mode is in-project or the project's setting says no."""
+    mode is in-project or the project does not set `- Archive in the PR: yes`."""
     if not (repo.external and repo.archive_in_pr):
         return None
     name = Path(c.path).name if c.path else c.id

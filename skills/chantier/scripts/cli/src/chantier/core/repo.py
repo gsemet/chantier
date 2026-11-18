@@ -90,7 +90,7 @@ class Repo:
     surface: Path | None = None  # external: the surface's root
     clone_dir: Path | None = None
     worktrees_dir: Path | None = None
-    archive_in_pr: bool = True
+    archive_in_pr: bool = False
 
     @classmethod
     def find(
@@ -164,7 +164,7 @@ class Repo:
             Path(top).resolve(),
             clone,
             work,
-            not (mine and mine[1].lower() == "no"),
+            bool(mine and mine[1].lower() == "yes"),
         )
 
     @property

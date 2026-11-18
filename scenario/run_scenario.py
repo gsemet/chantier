@@ -8067,13 +8067,13 @@ class SurfaceWorld(World):
         self.sh("git", "config", "user.name", "scenario", cwd=self.surface)
         self.sh("git", "config", "user.email", "scenario@example.com", cwd=self.surface)
         (self.surface / "AGENTS.md").write_text("# Surface rules\n\nPlan on the default branch.\n")
-        for name, suffix, archive in (("demo", "", "yes"), ("other", "2", "no")):
+        for name, suffix, archive in (("demo", "", "- Archive in the PR: yes\n"), ("other", "2", "")):
             folder = self.surface / "projects" / name
             folder.mkdir(parents=True)
             (folder / "checkout.yml").write_text(
                 f"repo: ../../../code{suffix}\nworktrees: ../../../wt{suffix}\n")
             (folder / "project.md").write_text(
-                f"# {name}\n\n- Remote: {self.root / 'origin.git'}\n- Archive in the PR: {archive}\n")
+                f"# {name}\n\n- Remote: {self.root / 'origin.git'}\n{archive}")
         self.sh("git", "add", ".", cwd=self.surface)
         self.sh("git", "commit", "--quiet", "-m", "init", cwd=self.surface)
 
@@ -8438,9 +8438,12 @@ def external_surface(tmp: Path) -> None:
     w.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", other_batch, project="other")
     code, out = w.chantier("take", "CR-101", "--epoch", 1, "--batch", other_batch, project="other",
                            env=copilot)
-    check("a project set to keep its archive out of the PR says so in the facts",
-          "archive: not in the PR" in out and any(ln.startswith("clone: ") and "code2" in ln for ln in out),
-          str(out))
+    heading = next((i for i, ln in enumerate(out) if ln.startswith("cr-driver prompt (")), 0)
+    writes = next((ln for ln in out[heading:] if ln.startswith("  writes: ")), "")
+    check("a project that does not ask for its archive in the PR gets `archive: not in the PR` in the "
+          "facts, and its CR Driver writes only the CR folder",
+          "archive: not in the PR" in out and any(ln.startswith("clone: ") and "code2" in ln for ln in out)
+          and writes != "" and "; " not in writes, str(out))
     check("`take` prints the generic Coder's contract after its opening lines, and the team line says "
           "`agent=(generic)`",
           any(ln.startswith("coder contract (a generic agent: copy it unchanged") for ln in out)
