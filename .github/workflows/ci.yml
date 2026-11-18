@@ -29,6 +29,10 @@ jobs:
         run: |
           git config --global user.name "chantier CI"
           git config --global user.email "ci@example.com"
+      # A download that times out (seen: a mypy wheel on macOS) is retried once; `just check` is not.
+      - name: Fetch the check tools (retried once)
+        shell: bash
+        run: just tools || just tools
       - run: just check
 
   scenario:

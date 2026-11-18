@@ -3797,27 +3797,31 @@ def rails(w: World) -> None:
     def newest_log(cr):
         return max((w.state / w.cr(cr)["path"] / "work" / "gates").glob("*.log")).read_text("utf-8")
 
-    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
+    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])
+    import psutil
+    born = psutil.Process(sleeper.pid).create_time()
     gone = subprocess.Popen([sys.executable, "-c", "pass"])
     gone.wait()
     lock = w.state / ".long-gate.lock"
 
     def reused_lock(cr):
         lock.write_bytes(b"\0" + f"{cr} pid {gone.pid} pg{sleeper.pid}".encode())
-        back = time.time() - 10  # the sleeper was created after this write: a reused pid
+        # the lock dates from before the sleeper was created, so the sleeper is a reused pid
+        # however long the section runs (within the sleeper's 600 s)
+        back = born - 60
         os.utime(lock, (back, back))
 
     reused_lock(one)
     started = time.monotonic()
     code, out = w.chantier("gate", two, long_gate)
     check("a lock naming a reused pid is not waited for: the next gate runs at once",
-          code == 0 and time.monotonic() - started < 10
+          code == 0 and time.monotonic() - started < 60
           and "its command still runs" not in newest_log(two), f"{out} {newest_log(two)}")
     # a waiting gate's ticket that names a reused pid is skipped like a dead one
     (w.state / ".long-gate.queue").mkdir(exist_ok=True)
-    stale = w.state / ".long-gate.queue" / f"{time.time_ns() - 10 * 10**9:020d}-{sleeper.pid}"
+    stale = w.state / ".long-gate.queue" / f"{int((born - 60) * 10**9):020d}-{sleeper.pid}"
     stale.write_text(f"{one} pid {sleeper.pid}", encoding="utf-8")
-    back = time.time() - 10
+    back = born - 60
     os.utime(stale, (back, back))
     code, out = w.chantier("gate", two, queue_gate)
     check("a ticket naming a reused pid is deleted by the next gate and not waited for",
