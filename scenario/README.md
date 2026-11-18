@@ -360,7 +360,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
   releases); an approval recorded while the release PR waits for its merge takes no Driver, is
   not spent by a merge under the grant, and the Driver started at the merge sees it (`approvals
   unused:`); a `wait:` note recorded right after the merge leaves the take at the merge reading
-  `merged:` (unit: release);
+  `merged:`; a publication refused by the host and done by the user: the release `blocked
+  approval: publish:` goes back to a Driver on the steering session's `order note ... "publication
+  done: ..."`, with no new attempt, and ends `3-done` (unit: release);
 - the event log, and the forge's call log: only the agents called it (unit: parallel);
 - a paused batch: `pause` printing the cost to date (the whole summary, not cut), recorded with a
   to-date line and one total in `STATUS.md`, a second `pause` refused, `order add` leaving it

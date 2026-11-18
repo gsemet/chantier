@@ -1921,6 +1921,23 @@ with no release PR): part of the question, not a tip, so it holds when tips are 
 announcement, starting or merging a fix (`fixes=` unchanged), the procedure's word
 (`order confirm`) or a raise of the budget.
 
+The publication refused by the host. The ask is `blocked <release-cr> approval: publish: <the
+exact command>`. Give the user the command as a **For you** line, exactly as handed back, with
+where to run it (the main checkout, or the clone `take` names with a planning surface): "the
+publication is yours: run `<the command>`, then tell me when it is published". The question keeps
+its usual answers ("auto"; the user's word that you run it yourself, each command alone, rule 9).
+An `order approve` does not help here: the host refused the Driver, not the user. The user's word
+that it is published ("done", in any language): relay it at once, `$CHANTIER order note
+<release-cr> --note "publication done: user, <YYYY-MM-DD>: '<the user's words>'"`. In Foreman mode,
+send the order's line to the Foreman; in direct mode, act on it as the Foreman's work: `take
+<release-cr> --note "<the note>"` and a Release driver. If you ran the command on the user's word,
+the same note follows once it has succeeded: `publication done: steering session, <YYYY-MM-DD>:
+'<the user's words>'`. The Release driver then checks the publication and runs its end checklist:
+its `release published` opens the "Released in" list and its `retro.md` reaches the Completion
+report, both as below; the user is asked nothing more for this release, except what that list
+already asks. Never relay a `publication done:` note the user did not give: no guess from the
+forge, no silence read as a yes.
+
 `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
 read `work/retro.md` in the release CR's folder (`4-batch/3-done/`); it is offered once, in the Retro
