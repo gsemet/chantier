@@ -290,3 +290,17 @@ def move_backlog_item(repo: Repo, item: str, to: str, paths: dict[str, Path]) ->
         )
     move_directory(source, target)
     return target
+
+
+def specifying_markers(repo: Repo) -> list[str]:
+    """The CR folders with a `work/specifying` marker in the project's planning folder: the
+    inbox, `2-backlog/P1`..`P4` and `3-ready`, in that order, each stage by folder name."""
+    paths = stage_layout(repo)
+    stages = [paths["inbox"], *(paths["backlog"] / p for p in PRIORITIES), paths["ready"]]
+    return [
+        folder.name
+        for stage in stages
+        if stage.is_dir()
+        for folder in sorted(stage.iterdir())
+        if (folder / "work" / "specifying").exists()
+    ]

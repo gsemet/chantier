@@ -14,7 +14,7 @@ As [chief-of-staff](chief-of-staff.md), "Backlog and grill", says (it is not cop
 tracker issue), record every answer in `02-answers.md` at once, the restatement before "grilled
 enough?", the shape of a series of questions to the user ("Asking the user: a series": reference,
 text first, options), `depends.json` when a CR needs another's result, and on the user's word the
-`spec-writer` (one per CR, `work/specifying` as the guard, and a refused start restarted by a new
+`spec-writer` (one per CR, `work/specifying` as the guard, the project's `specifying.parallel` the most CRs specified at once, read in the `limits:` line of `$CHANTIER playbook` and kept as [chief-of-staff.md](chief-of-staff.md) says, and a refused start restarted by a new
 start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
 [concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
 the user). On a CR you judge impactful, by the same criterion, you say the critic line in the

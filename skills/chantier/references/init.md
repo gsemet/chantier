@@ -57,7 +57,7 @@ getting started here, phrases to say, the glossary.
   Verifier, the user's merge). In the chat they are text diagrams.
 - **Two previews:** the CR's folder tree with this project's real paths, and a `status` table.
   Money in it is shown as `$…`: the tour gives no cost figure.
-- **Money and decisions:** the budget, slots (4 by default) and rounds (3 by default) as
+- **Money and decisions:** the budget, slots (4 by default, `batch.slots`) and rounds (3 by default) as
   mechanics, with no figure; what only the user does (prioritize, say go, merge, release, raise
   a limit); "what did it cost?" gives the measured detail.
 - No comprehension check, no quiz.

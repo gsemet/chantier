@@ -236,12 +236,12 @@ def _order_lines(d: BatchRecord) -> list[str]:
 
 def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
     """What the forge saw merged that the record does not hold (the hub's and the board's
-    journal): one line per open CR of this batch, for the Chief of Staff. Nothing is written; an
-    unreadable line is named."""
+    journal): one line per open CR of this batch, then the `batch.slots` change saved on the board
+    and not yet ordered, for the Chief of Staff. Nothing is written; an unreadable line is named."""
     entries, bad = journal.read(repo.changes)
     lines = [f"{journal.FILE}: line {n} unreadable" for n in bad]
     open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
-    lines += journal.lines(entries, d.id, open_crs)
+    lines += journal.lines(entries, d.id, open_crs, d.orders)
     return lines
 
 

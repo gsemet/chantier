@@ -46,7 +46,8 @@
   `--force`), then pauses the batch; it does nothing else in git. Second, `chantier board`, the web board's server, for the user on this machine and the local
   network, behind a key in its URL: it serves the record and the planning folder's files, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
-  each role's agent, model and escalation, per host, in the project's configuration file in the planning
+  each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
+  `batch.slots`), in the project's configuration file in the planning
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
   own reading, checking and writing of that file; it never edits a batch and never messages an
   agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project
@@ -56,7 +57,9 @@
   the same page: when its forge read finds a PR of the batch in `4-batch/` merged that the record
   does not hold, it appends one line to `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
-  board itself records nothing and messages no agent; it takes its dependencies like the rest of the CLI and knows no role.
+  board itself records nothing and messages no agent; a third, from its Configuration page: a save
+  that changes a limit's effective value appends one `config` line to the same journal (`by: board`),
+  which `status` and the watcher carry to the Chief of Staff; it takes its dependencies like the rest of the CLI and knows no role.
   Third, the forge hub of `chantier watch`, started by the Chief of Staff on the user's yes: of
   the watchers of a planning surface (or a repository) on one machine, the one that holds an OS
   file lock in the git folder (`chantier/hub.lock`) reads the forge, read-only, with the user's

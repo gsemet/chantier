@@ -303,7 +303,7 @@ At startup, identify the role, batch, project and parent session.
   The same in both steerings. On a *running* direct batch `order add` queues the CR (taken
   when a slot frees) and `order qa` is refused; a *paused* batch, of either steering, takes any number of new CRs before its first `take`. "Pause"
   names only the batch state: the hold on new Drivers (`order slots --note 0`) is called **hold**.
-- **Slots, budget, rounds:** the batch's limits. A slot is a running Driver: a CR in `working`,
+- **Slots, budget, rounds:** the batch's limits. The slots of a new batch are `batch.slots` (4 by default, set in a `chantier.yaml` or on the board's Configuration page; `--slots` wins at `open`); a running batch keeps its own until an `order slots`. A slot is a running Driver: a CR in `working`,
   or a QA driver (an `order qa` not yet `order done` holds one from the order on, and is refused
   when none is free). A `ready` or `blocked` CR holds none. The budget is dollars the Foreman's
   session and its agents may spend; a round is one Coder pass with its reviews, three per CR

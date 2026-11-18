@@ -73,6 +73,17 @@ export default {
   'config.unreadable': 'The configuration could not be read just now.',
   'config.tab_models': 'Models',
   'config.tab_timing': 'Timing',
+  'config.tab_limits': 'Limits',
+  'config.limits.parallel': 'CRs specified at once',
+  'config.limits.parallel.text': 'the most CRs being specified at once on the project',
+  'config.limits.slots': 'Slots of a new batch',
+  'config.limits.slots.text':
+    'a running batch keeps its slots until the Chief of Staff orders a change',
+  'config.limits.inherit': 'use the inherited value',
+  'config.limits.unset': 'not set',
+  'config.limits.overridden':
+    'overridden by {path}: a save here changes nothing until that line is removed',
+  'config.limits.unreadable': 'The limits could not be read: the shipped defaults are missing.',
   'config.leg_default': 'shipped default',
   'config.leg_set': 'set in chantier.yaml',
   'config.th_setting': 'Setting',

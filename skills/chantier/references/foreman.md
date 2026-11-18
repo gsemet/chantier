@@ -173,7 +173,7 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   then `$CHANTIER order merged <cr> --epoch <n>`, then the
   fast-forward (Your means).
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
-  past the limit or the budget; a refusal is a fact, not an argument. A spent budget, a round limit, a
+  past the limit or the budget; a refusal is a fact, not an argument. The batch keeps the slots it opened with, whatever the board's Configuration page now says: only an `order slots` the Chief of Staff sends changes them. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
 - **Orders are the user's word:** `status` lists them until you mark each `order done`: an
   `orders pending` line holds those nothing has touched yet (a note, a QA, the drop of a live

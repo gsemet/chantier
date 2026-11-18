@@ -11,7 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook import escalation, layers, timing
+from chantier.playbook import escalation, layers, limits, timing
 
 if TYPE_CHECKING:
     from chantier.core.records import CrEntry
@@ -308,6 +308,16 @@ def read_timing(repo: Repo, host: str) -> tuple[dict[str, Any] | None, list[str]
     defaults = root / "config" / "chantier.defaults.yml" if root else None
     found, problems = timing.load_timing(repo, {h: plugin_roles(h) for h in HOSTS}, defaults)
     return (found or {}).get(host), problems
+
+
+def read_limits(repo: Repo) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """The two limits (`specifying.parallel`, `batch.slots`), each `{value, layer, src, layers}`,
+    from the user's files and the shipped defaults; with no plugin, from the user's files alone
+    (a limit none sets has a None value). The problems found come back instead."""
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    found, problems = limits.load_limits(repo, {h: plugin_roles(h) for h in HOSTS}, defaults)
+    return found or {}, problems
 
 
 def recorded_timing(record: Any) -> dict[str, Any] | None:
