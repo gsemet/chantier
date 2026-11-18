@@ -86,7 +86,8 @@ chantier is four things in one repository:
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the planning folder (the target repository's `.agents/changes/`, or the project's
    folder of an external planning surface, plus its own `.gitignore`, and the board's key in the
-   git folder), as plain JSON and
+   git folder, and the forge hub's lock and record, `chantier/hub.lock` and `chantier/hub.json`),
+   as plain JSON and
    Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
    `3-ready/`, `4-batch/` (`1-pending/`, `2-actives/`, `3-done/`), `5-archives/` and `6-trash/`
    (each with a `work/` folder while it runs), and the batch's own files at the root of
@@ -100,12 +101,23 @@ chantier is four things in one repository:
    read when the page opens, it reads the forge, read-only, with the user's own `gh` or `glab`, on
    its own (no agent asks it), and needs the network for that, and a second, from the same page:
    when its forge read finds a PR merged that the record does not hold, it appends one line to
-   `board-seen.jsonl` (planning folder, never published), which `status` prints for the Chief of
+   `forge-journal.jsonl` (planning folder, never published), which `status` prints for the Chief of
    Staff to record at its next `status`; the board itself records nothing and messages no agent;
    takes its dependencies like the
    rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
-   build step). It is also the CLI's one git exception: while it runs it joins the planning
+   build step).
+   The board is also the CLI's one git exception: while it runs it joins the planning
    surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
+   The forge hub of `chantier watch` is a second named exception among the tools: it is
+   started by the Chief of Staff on the user's yes. Of the watchers of a planning surface (or a
+   repository) on one machine, the one that holds an OS file lock in the git folder reads the
+   forge, read-only, with the user's own `gh` or `glab`, on its own, and needs the network for
+   that: at most once every 20 s, one query per project whose running batch has a PR the record
+   does not hold merged or cancelled; it appends to that project's `forge-journal.jsonl`
+   (planning folder, never published) one line per merge the record does not hold and per CI
+   turning red on a PR ready to merge, and nothing else; each session's watcher reads only its
+   project's journal and ends 20 s after the last new event, which wakes its session; the hub
+   records nothing in a batch, runs no git and messages no agent.
    A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and

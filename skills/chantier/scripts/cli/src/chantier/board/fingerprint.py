@@ -17,7 +17,7 @@ from chantier.core.files import is_lock
 DEEP = ("1-inbox", "2-backlog", "3-ready", "4-batch")
 SHALLOW = ("5-archives", "6-trash", "5-archives/batches")
 # the batch's own files are in `4-batch`
-SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl", "board-seen.jsonl")
+SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl", "forge-journal.jsonl")
 
 
 def _entry(path: Path, base: Path) -> str:

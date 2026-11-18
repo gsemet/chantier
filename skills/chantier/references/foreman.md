@@ -696,8 +696,12 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     from outside and a `context:` hand-back do not.
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
   host's reference says (at the steering wake of the batch's `timing:` line, and who arms it). No wake ever arriving is a stop.
-  A `board saw merged` line in `status` is the Chief of Staff's: do nothing with it, send no
-  message about it, and it is not an undone order for ending the heartbeat.
+  A `forge saw merged` line in `status`, and the `forge hub:` and `watch:` lines, are the Chief of
+  Staff's: do nothing with them, send no message about them, and they are not an undone order for
+  ending the heartbeat.
+- A `checks red <cr> <pr> at <head7>` line from the Chief of Staff (a red CI on a PR ready to
+  merge): record nothing and start no Driver on it. When the CR's Driver is live, send it the line
+  as a `note`; with none, do nothing more.
 - End the heartbeat, never your session (an idle session still receives an order), right after
   the pause (the CLI's or yours), and on the first wake that sees no Driver of any kind (CR, stack,
   QA, release) run for 30 minutes or more, whatever the wake's interval, and no order is undone:
@@ -748,7 +752,10 @@ and `pause` again at the end (`pause` on a paused batch is refused).
 
 How you start, message and stop a Driver, and message the Chief of Staff, is your host's
 reference. Keep each turn short: never wait inside a call, never run a long command; start
-no background task of your own to wait for anything (a file, a task's output, a Driver, CI). A
+no background task of your own to wait for anything (a file, a task's output, a Driver, CI); the
+one exception is the Chief of Staff's watcher in direct mode (`$CHANTIER watch`,
+[chief-of-staff](chief-of-staff.md)): started on the user's yes, started again after each end, it
+stops itself. A
 Driver's line, the host's notice about a Driver, an order and the heartbeat wake you. Stop a task
 of yours found running at once, by its id, with the host's stop of a background task; change no
 shell's folder into a CR folder or a worktree; a turn ends when

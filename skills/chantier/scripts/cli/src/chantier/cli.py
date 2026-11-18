@@ -28,6 +28,7 @@ from chantier.declare import (
     rules,
     seat,
     summary,
+    watch,
 )
 
 MAX_LINES = 10
@@ -49,6 +50,7 @@ FULL_OUTPUT = {
     "cost",
     "playbook",
     "preflight",
+    "watch",
 }
 
 
@@ -86,6 +88,7 @@ def _parser() -> argparse.ArgumentParser:
         closing,
         cost,
         summary,
+        watch,
     ):
         module.register(sub)
     return p

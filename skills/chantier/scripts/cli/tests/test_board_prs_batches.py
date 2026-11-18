@@ -58,7 +58,7 @@ def test_a_closed_batch_answers_its_record_in_its_order_and_signals_nothing(boar
         assert (r["ready_now"], r["why"], r["disagrees"], r["kind"]) == (False, None, None, None)
     assert got["rows"][0]["merged_into"] == {"branch": "main", "cr": None}
     assert board.planning() == before
-    assert not (changes(board.repo) / "board-seen.jsonl").exists()
+    assert not (changes(board.repo) / "forge-journal.jsonl").exists()
 
 
 @pytest.mark.parametrize("asked", [None, "running"])

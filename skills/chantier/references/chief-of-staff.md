@@ -28,7 +28,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route), then the close offered at once, unprompted (next row) | While it runs |
 | the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
-| add, drop, reorder, change a CR; "I merged #42", a `board saw merged` line in `status`; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
+| add, drop, reorder, change a CR; "I merged #42", a `forge saw merged` line in `status` or at a watcher's end; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
+| a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](#the-watcher), then start it again | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
 | "my own PR template" | `$CHANTIER file` a CR for the guideline and the template; a CR Driver delivers them by PR, see [pr-template](pr-template.md) | The project |
 | "use my agent for <role>", "which models?", "which agents and models?", a role's skills or tools | `hosts.<host>.roles.<role>.agent` (or `model`, `skills`, `tools`) in `chantier.yaml`, edited only on the user's word, then `$CHANTIER playbook` to show the result; "back to the plugin's agent": `agent: default` | The project |
@@ -1035,17 +1036,18 @@ CR-222 → CR-225 → CR-226 → CR-228."
   after its `ready-to-merge` line (or the `stack-ready-to-merge` line for a stack) has reached you, never on a
   Driver's progress, a green CI or the PR's look on the forge. When the user merges a PR before
   its `ready-to-merge` line, record it as any merge (`order merged <cr>`: the user's merge is a fact) and
-  tell the Foreman in the same message; no reproach, no question. A `board saw merged: <cr> …`
-  line in `status` is a merge the user made: record it like any merge, at the `status` that shows
-  it (`order merged <cr>`, then, in Foreman mode, send its line to the Foreman as for any order).
-  A line that says `landed with <other cr>` is a merge to record, like the `into <branch>` one:
-  the board read the PR merged into `<other cr>`'s branch and that CR's PR on the default branch
+  tell the Foreman in the same message; no reproach, no question. A `forge saw merged: <cr> …`
+  line, in `status` or at a watcher's end, is a merge the user made: record it like any merge, at
+  the `status` that shows it or at the watcher's end, once the forge confirms it ([The
+  watcher](#the-watcher)): `order merged <cr>`, then, in Foreman mode, send its line to the
+  Foreman as for any order. A line that says `landed with <other cr>` is a merge to record, like
+  the `into <branch>` one: the hub (or the board) read the PR merged into `<other cr>`'s branch and that CR's PR on the default branch
   at the same time or later (`order merged <cr>`, then the Foreman's line in Foreman mode). Only
   a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user
   where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
-  it lands (the board then writes a second line, `landed with`); the line keeps printing until
+  it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until
   the CR is recorded merged. One exception, on GitLab: a fold (`forge-stack show` prints `folded
-  into <cr below>`) is recorded at once by the fold rule below, whatever the board's line says.
+  into <cr below>`) is recorded at once by the fold rule below, whatever the line says.
 - **A series batch:** the CRs merge one by one, in order. On each `ready-to-merge` ask, tell the user which
   PR is next to merge (the bottom one, ready to merge on the default branch) and that the others are drafts
   waiting on it; quote each gap of the ask as above; when the user says it is merged,
@@ -1197,6 +1199,29 @@ CR-222 → CR-225 → CR-226 → CR-228."
   that waits for the user stays unread until the user has heard it. At each report, `asks` lists
   what is still unread: each one is relayed or acted on in that turn. A host may limit messages between sessions (its
   reference says how): a refused send is reported, never sent another way.
+- **The watcher** (`$CHANTIER watch --after <n>`, in the background; the user's yes once per
+  session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
+  It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and ends 20 s
+  after the last new one, or with `no running batch`; its end starts your turn.
+  - *When it starts*, with the session's yes, when no watcher of this session runs and `status`
+    shows a running batch: once the batch runs (Starting a batch, after `open`); at a session
+    start or a reload; after a paused batch resumes; after the switch to direct mode; and after
+    each watcher end, with the `--after <seq>` of its last line (else the `watch:` line of
+    `status`). A watcher that ends with `no running batch` is not started again.
+  - *A watcher's end:* read its output. A `forge saw merged … order merged <cr>` line, on this
+    path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
+    state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default
+    branch, or, for a `landed with` line, its base's PR merged into the default branch. Then
+    `order merged <cr>` with no word from the user (Foreman mode: send its line to the Foreman, as
+    for any order; direct mode: do what it needs yourself); `already merged` is harmless. A line
+    the forge does not confirm is not recorded: tell the user what the forge shows. A `not
+    landed` line: tell the user where the PR went, record nothing. The GitLab fold rule keeps its
+    precedence. A `forge saw checks red` line: tell the user (the CR, the PR, the head), record
+    nothing; in Foreman mode send the Foreman `checks red <cr> <pr> at <head7>`. Then one message
+    to the user with what was recorded and told (the report format), and start the watcher again
+    as above.
+  - *Never:* start a second watcher in the same session while one runs; stop another session's
+    watcher; start one after the user's no in this session.
 - **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".
 - **Compacting:** once per session, advise the user to set the host's auto-compact window, if
   its reference names one (it says which command and setting, and names none when none exists).
@@ -1637,7 +1662,8 @@ Rules only; the models judge the rest.
   `foreman transcript`), and gives the slots back if a hold was set. A Foreman batch: it sends the
   Foreman `chief-of-staff <own session id>` ([routing](routing.md)).
 - The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
-  seat moves; the new one starts its own at its `seat take`.
+  seat moves; the new one starts its own at its `seat take`. The old one stops its watcher (the
+  host's stop of a background task, by its id); the new one asks for and starts its own.
 - With no batch active, the hand-over is the seat alone: `seat take --over` on the user's word.
 
 ## Subagents and the demo

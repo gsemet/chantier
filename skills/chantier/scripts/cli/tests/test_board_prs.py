@@ -139,8 +139,8 @@ def test_the_four_crs_are_read_in_one_call_and_judged_against_the_record(board: 
     }
     assert rows[d]["disagrees"] == prs.MERGED_NOT_RECORDED
     after = board.planning()  # a read writes nothing but the signal of the merge it sees
-    assert {k: v for k, v in after.items() if not k.endswith("board-seen.jsonl")} == before
-    assert sum(k.endswith("board-seen.jsonl") for k in after) == 1
+    assert {k: v for k, v in after.items() if not k.endswith("forge-journal.jsonl")} == before
+    assert sum(k.endswith("forge-journal.jsonl") for k in after) == 1
 
 
 def test_a_paused_batch_is_read_as_a_running_one(board: Board) -> None:
@@ -215,7 +215,7 @@ def test_all_done_is_every_pr_merged_or_closed(board: Board, states: list[str], 
     assert board.get()[1]["all_done"] is done
 
 
-SEEN = "board-seen.jsonl"
+SEEN = "forge-journal.jsonl"
 MERGED_AT = "2026-11-16T10:00:00Z"
 
 
@@ -229,7 +229,7 @@ def status_lines(chantier: Chantier, form: str, batch: str) -> list[str]:
     code, out, err = chantier(*args, *(() if form == "direct" else ("--epoch", 1)))
     # a wake that cannot read the spend (no transcripts here) still prints the batch's lines
     assert code == 0 or form == "heartbeat", err
-    return [x for x in out if x.startswith(("board saw merged", SEEN))]
+    return [x for x in out if x.startswith(("forge saw merged", SEEN))]
 
 
 @pytest.mark.parametrize(("base", "into_cr"), [("main", None), ("chantier/b/cr-0", 0)])
@@ -241,6 +241,8 @@ def test_a_merge_the_record_lacks_is_signalled_once_and_a_cached_read_writes_not
     board.get()
     (first,) = seen_lines(board)
     assert {k: v for k, v in first.items() if k != "t"} == {
+        "seq": 1,
+        "by": "board",
         "kind": "merged",
         "batch": record(board.repo)["id"],
         "cr": board.ids[1],
@@ -330,7 +332,7 @@ def test_status_prints_the_signal_until_the_merge_is_recorded(
     board.forge = {FIRST: {"state": "merged", "merged_at": MERGED_AT}}
     board.get()
     assert status_lines(chantier, form, batch) == [
-        f"board saw merged: {cr} {LINK.format(FIRST)} into main at {MERGED_AT}; "
+        f"forge saw merged: {cr} {LINK.format(FIRST)} into main at {MERGED_AT}; "
         f"for the Chief of Staff: order merged {cr}"
     ]
     assert chantier("order", "merged", cr, "--epoch", 1)[0] == 0
@@ -362,9 +364,9 @@ def test_status_names_what_it_cannot_read_and_prints_only_the_open_crs_of_its_ba
     (changes(board.repo) / SEEN).write_text("\n".join(lines) + "\n", encoding="utf-8")
     assert status_lines(chantier, "direct", batch) == [
         f"{SEEN}: line 1 unreadable",
-        f"board saw merged: {c} P into {a}'s branch at t; for the Chief of Staff: not landed, "
+        f"forge saw merged: {c} P into {a}'s branch at t; for the Chief of Staff: not landed, "
         f"tell the user, record nothing until {a} lands",
-        f"board saw merged: {d} P into {a}'s branch at t, landed with {a} at u; "
+        f"forge saw merged: {d} P into {a}'s branch at t, landed with {a} at u; "
         f"for the Chief of Staff: order merged {d}",
     ]
     assert b not in "".join(status_lines(chantier, "direct", batch))

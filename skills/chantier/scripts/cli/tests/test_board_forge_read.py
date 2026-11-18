@@ -108,6 +108,14 @@ def test_both_queries_ask_for_the_dates_and_both_states_return_them() -> None:
         assert (found["opened_at"], found["updated_at"]) == tuple(dates.values())
 
 
+def test_both_queries_ask_for_the_head_commit_and_both_states_carry_it() -> None:
+    assert "headRefOid" in forge_read.GITHUB_FIELDS
+    assert "diffHeadSha" in forge_read.GITLAB_FIELDS
+    assert forge_read.github_state({**GH_NODE, "headRefOid": "abc123"}, True)["head"] == "abc123"
+    found = forge_read.gitlab_state({"state": "opened", "diffHeadSha": "def456"})
+    assert found["head"] == "def456"
+
+
 def test_the_forge_argv_is_a_read_and_its_variables_are_not_in_the_query() -> None:
     for gitlab in (False, True):
         call = forge_read.argv("h.example", "own'er", 'na"me', [3, 12], gitlab)

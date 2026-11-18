@@ -16,12 +16,14 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the board's PRs page (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the board's PRs page and the forge hub (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
   after a merge it records, the board keeps its key, and while it serves its PID, address and version,
-  in the repository's git folder (`chantier/board.json`), and removes the merged CRs' worktrees and
+  in the repository's git folder (`chantier/board.json`), the forge hub keeps its lock and, while
+  it runs, its PID, version and last reads there too (`chantier/hub.lock`, `chantier/hub.json`),
+  and removes the merged CRs' worktrees and
   branches at a batch's end (below), and,
   on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else
   there.
@@ -34,7 +36,7 @@
   agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line.
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools. The agents do the work, git and the forge included; a new
-  CLI tool comes from measured token-costly behaviour, never from speculation. Two named
+  CLI tool comes from measured token-costly behaviour, never from speculation. Three named
   exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
@@ -49,9 +51,20 @@
   one at once on each change of the batch shown, it reads the forge, read-only, with the user's own
   `gh` or `glab`, on its own (no agent asks it), and needs the network for that, and a second, from
   the same page: when its forge read finds a PR of the batch in `4-batch/` merged that the record
-  does not hold, it appends one line to `board-seen.jsonl` (planning folder, never published), which
+  does not hold, it appends one line to `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent; it takes its dependencies like the rest of the CLI and knows no role.
+  Third, the forge hub of `chantier watch`, started by the Chief of Staff on the user's yes: of
+  the watchers of a planning surface (or a repository) on one machine, the one that holds an OS
+  file lock in the git folder (`chantier/hub.lock`) reads the forge, read-only, with the user's
+  own `gh` or `glab`, on its own (no agent asks it), and needs the network for that: at most once
+  every 20 s, one query per project of the surface whose running batch has a PR the record does
+  not hold merged or cancelled; it appends to that project's `forge-journal.jsonl` (planning
+  folder, never published) one line per merge the record does not hold and per CI turning red on
+  a PR ready to merge, and nothing else; each session's watcher reads only its project's
+  journal, never the forge, and ends 20 s after the last new event, which wakes its session; the
+  hub records nothing in a batch, runs no git and messages no agent. Its measured cost to justify
+  it: one round trip with the user per merge.
 - The CLI has two named git exceptions: the board's server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants; the board commits
