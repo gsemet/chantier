@@ -94,6 +94,11 @@
   overflow-y: auto;
 }
 
+/* the body scrolls; its cards keep their full height rather than shrink to fit it */
+.column-body > * {
+  flex: none;
+}
+
 /* a lane: capped cards side by side, as many per row as the lane holds */
 .column-grid {
   display: grid;

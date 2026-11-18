@@ -15,6 +15,19 @@
   min-width: 0;
 }
 
+/* The receipt's head meta (mode, dates) on the page: a grey band, as the page has always drawn it.
+   Not in costs-receipt.css, so "Copy as image", which reads that sheet, keeps it plain as before. */
+.costs .ticket .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  margin: var(--space-off-10) calc(-1 * var(--space-3)) calc(-1 * var(--space-off-10));
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--band-line);
+  background: var(--band);
+}
+
 .costs .age {
   display: flex;
   flex-wrap: wrap;
