@@ -5,10 +5,10 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
+from chantier import __version__
 from chantier.autosync.lines import status_line
 from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import find_site
-from chantier.board import seen
 from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
@@ -29,6 +29,7 @@ from chantier.core.records import BatchRecord, CrEntry, EventRecord, read_events
 from chantier.core.repo import Repo
 from chantier.core.surface_batches import other_batches
 from chantier.history import last_closed_text
+from chantier.hub import journal, lock
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import (
@@ -232,12 +233,37 @@ def _order_lines(d: BatchRecord) -> list[str]:
 
 
 def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
-    """What the board saw merged on the forge that the record does not hold: one line per CR of
-    this batch, for the Chief of Staff. Nothing is written; an unreadable line is named."""
-    entries, bad = seen.read(repo.changes)
-    lines = [f"{seen.FILE}: line {n} unreadable" for n in bad]
+    """What the forge saw merged that the record does not hold (the hub's and the board's
+    journal): one line per open CR of this batch, for the Chief of Staff. Nothing is written; an
+    unreadable line is named."""
+    entries, bad = journal.read(repo.changes)
+    lines = [f"{journal.FILE}: line {n} unreadable" for n in bad]
     open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
-    return lines + seen.lines(entries, d.id, open_crs)
+    lines += journal.lines(entries, d.id, open_crs)
+    return lines
+
+
+def _watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
+    """With a running batch, the hub's line and the command that starts the watcher."""
+    if d.status != "running":
+        return []
+    last = journal.last_seq(journal.read(repo.changes)[0])
+    return [_hub_line(repo), f"watch: chantier watch --after {last}"]
+
+
+def _hub_line(repo: Repo) -> str:
+    """The forge hub of this surface on this machine: its PID and its last read of this project."""
+    record = lock.live(repo.git_dir)
+    if record is None:
+        return "forge hub: none running"
+    mine = (record.get("projects") or {}).get((repo.project_dir or repo.root).name) or {}
+    line = f"forge hub: PID {record['pid']}, last read {mine.get('read_at') or 'none yet'}"
+    if mine.get("error"):
+        line += (
+            f"; last read failed at {mine.get('error_at') or 'an unknown time'}: {mine['error']}"
+        )
+    other = lock.other_version(record, __version__)
+    return f"{line}; hub is chantier {other}" if other else line
 
 
 def _batch_line(d: BatchRecord, hb_text: str) -> str:
@@ -291,6 +317,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         _batch_line(d, _heartbeat_text(d, prev)),
         *_autosync_lines(repo),
         *_other_batches_lines(repo),
+        *_watch_lines(repo, d),
     ]
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))

@@ -3,7 +3,9 @@
 It only reads: the argv is `gh api graphql` or `glab api graphql` with a query text, never a
 mutation. The forge is chosen from the shape of the links (`pr_parts`, `GITLAB_LINK`), as
 `forge_base.py` does. `read` is the seam the tests replace; everything else is a pure function of
-the forge's answer. When the answer cannot tell whether the checks have started, the PR is "being
+the forge's answer. `head` is the PR's head commit (GitHub GraphQL `PullRequest.headRefOid`,
+GitLab GraphQL `MergeRequest.diffHeadSha`); the page ignores it, the forge hub keys a red CI on it.
+When the answer cannot tell whether the checks have started, the PR is "being
 checked", never "no checks"."""
 
 from __future__ import annotations
@@ -22,13 +24,13 @@ TIMEOUT_S = 20  # a hung `gh` or `glab` holds one worker and the project's lock 
 SHOWN_CHARS = 300
 
 GITHUB_FIELDS = (
-    "state isDraft mergeable baseRefName mergedAt closedAt createdAt updatedAt "
+    "state isDraft mergeable baseRefName headRefOid mergedAt closedAt createdAt updatedAt "
     "commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 1) "
     "{ totalCount } } } } }"
 )
 GITLAB_FIELDS = (
-    "state draft conflicts detailedMergeStatus targetBranch mergedAt closedAt createdAt updatedAt "
-    "headPipeline { status }"
+    "state draft conflicts detailedMergeStatus targetBranch diffHeadSha mergedAt closedAt "
+    "createdAt updatedAt headPipeline { status }"
 )
 # the rollup states of GitHub and the pipeline statuses of GitLab, as the page words them
 GITHUB_CHECKS = {
@@ -156,6 +158,7 @@ def github_state(node: dict[str, Any], has_workflows: bool) -> Forge:
         "checking": live and (node.get("mergeable") == "UNKNOWN" or checks is None),
         "checks": checks or ("running" if live else "none"),
         "base": node.get("baseRefName"),
+        "head": node.get("headRefOid"),
         "merged_at": node.get("mergedAt"),
         "closed_at": node.get("closedAt"),
         "opened_at": node.get("createdAt"),
@@ -177,6 +180,7 @@ def gitlab_state(node: dict[str, Any]) -> Forge:
         "checking": live and (uncomputed or checks is None),
         "checks": checks or ("running" if live else "none"),
         "base": node.get("targetBranch"),
+        "head": node.get("diffHeadSha"),
         "merged_at": node.get("mergedAt"),
         "closed_at": node.get("closedAt"),
         "opened_at": node.get("createdAt"),

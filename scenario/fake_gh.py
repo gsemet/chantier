@@ -37,11 +37,12 @@ elif args[:2] == ["api", "graphql"]:
 
     def node(number):
         f = {"state": "OPEN", "isDraft": False, "mergeable": "MERGEABLE", "baseRefName": "main",
-             "mergedAt": None, "closedAt": None, "checks": "SUCCESS", **held.get(str(number), {})}
+             "mergedAt": None, "closedAt": None, "checks": "SUCCESS",
+             "headRefOid": "abc1234def5678", **held.get(str(number), {})}
         rollup = ({"state": f["checks"], "contexts": {"totalCount": 1}} if f["checks"] else None)
         return {"state": f["state"], "isDraft": f["isDraft"], "mergeable": f["mergeable"],
                 "baseRefName": f["baseRefName"], "mergedAt": f["mergedAt"],
-                "closedAt": f["closedAt"],
+                "closedAt": f["closedAt"], "headRefOid": f["headRefOid"],
                 "commits": {"nodes": [{"commit": {"statusCheckRollup": rollup}}]}}
     repo = {f"p{n}": node(n) for n in asked}
     repo["wf"] = {"entries": [{"name": "ci.yml"}]} if state.get("workflows", True) else None

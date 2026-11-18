@@ -107,7 +107,7 @@ UNITS = {
     "series-deps": (260, ["github"], ["batch_modes", "dependencies", "early_conflict",
                                       "changes_tree"]),
     "direct": (125, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree"]),
-    "surface-board": (250, ["github"], ["remote_board", "external_surface", "cr_summary"]),
+    "surface-board": (300, ["github"], ["remote_board", "forge_hub", "external_surface", "cr_summary"]),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
 }
@@ -1353,9 +1353,9 @@ def scenario(w: World) -> None:
 class BoardProc:
     """A `chantier board` run in the background: its printed lines are read as they come."""
 
-    def __init__(self, w: World, *args, cwd=None):
+    def __init__(self, w: World, *args, cwd=None, env: dict | None = None):
         self.p = subprocess.Popen([sys.executable, "-m", "chantier", *map(str, args)],
-                                  cwd=cwd or w.work, env=w.env, stdout=subprocess.PIPE,
+                                  cwd=cwd or w.work, env={**w.env, **(env or {})}, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, text=True, encoding="utf-8")
         self.lines: "queue.Queue[str]" = queue.Queue()
         threading.Thread(target=self._read, daemon=True).start()
@@ -1584,26 +1584,26 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
 
     def kept() -> dict:
         """The planning folder, but for the one file a read may write (CR-303's signal)."""
-        return {k: v for k, v in folder_state(w.state).items() if k != "board-seen.jsonl"}
+        return {k: v for k, v in folder_state(w.state).items() if k != "forge-journal.jsonl"}
 
     def untouched(note: str, then) -> tuple[dict, dict]:
         folder = kept()
         porcelain = w.sh("git", "status", "--porcelain", "--", ".agents/changes")
         found = then()
-        check(f"{note}: nothing was written in the planning folder but `board-seen.jsonl`, nor "
+        check(f"{note}: nothing was written in the planning folder but `forge-journal.jsonl`, nor "
               "its git status",
               kept() == folder
               and w.sh("git", "status", "--porcelain", "--", ".agents/changes") == porcelain)
         return found
 
-    def seen_entries() -> list[dict]:
-        path = w.state / "board-seen.jsonl"
+    def journal_entries() -> list[dict]:
+        path = w.state / "forge-journal.jsonl"
         return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
                 if path.is_file() else [])
 
     def signal_lines(*args) -> list[str]:
         w.chantier(*args, expect=None)
-        return [x for x in w.last_out if x.startswith("board saw merged")]
+        return [x for x in w.last_out if x.startswith("forge saw merged")]
 
     record_pr(w, two, url(902))
     record_pr(w, three, url(903))
@@ -1636,16 +1636,16 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
           by[three]["conflicting"] and by[three]["checks"] == "failing"
           and by[four]["state"] == "draft" and by[four]["checking"] is True
           and by[four]["checks"] != "none", str((by[three], by[four])))
-    wanted = (f"board saw merged: {one} {shown} into main at 2026-11-16T10:00:00Z; "
+    wanted = (f"forge saw merged: {one} {shown} into main at 2026-11-16T10:00:00Z; "
               f"for the Chief of Staff: order merged {one}")
-    check("the merge the board saw is one line of `board-seen.jsonl`, once, never published",
-          [(e["cr"], e["pr"], e["into"], e["into_cr"], e["merged_at"]) for e in seen_entries()]
+    check("the merge the board saw is one line of `forge-journal.jsonl`, once, never published",
+          [(e["cr"], e["pr"], e["into"], e["into_cr"], e["merged_at"]) for e in journal_entries()]
           == [(one, shown, "main", None, "2026-11-16T10:00:00Z")]
-          and w.sh("git", "check-ignore", ".agents/changes/board-seen.jsonl").strip() != "",
-          str(seen_entries()))
+          and w.sh("git", "check-ignore", ".agents/changes/forge-journal.jsonl").strip() != "",
+          str(journal_entries()))
     rows()
-    check("a second read of the same merge writes no second line", len(seen_entries()) == 1)
-    check("`status` prints the `board saw merged` line for the Chief of Staff",
+    check("a second read of the same merge writes no second line", len(journal_entries()) == 1)
+    check("`status` prints the `forge saw merged` line for the Chief of Staff",
           signal_lines("status") == [wanted], str(w.last_out))
     orders = w.batch()["orders"]
     check("the Foreman's heartbeat `status --refresh --batch --epoch` prints it too and the "
@@ -1654,7 +1654,7 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
           and w.batch()["orders"] == orders, str(w.last_out))
     code, _ = w.chantier("order", "merged", one, "--epoch", 1, expect=None)
     check("`status` no longer prints the line once the merge is recorded, the file untouched",
-          code == 0 and signal_lines("status") == [] and len(seen_entries()) == 1, str(w.last_out))
+          code == 0 and signal_lines("status") == [] and len(journal_entries()) == 1, str(w.last_out))
     got, by = rows()
     check("`order merged` makes the disagreement go", code == 0 and by[one]["disagrees"] is None
           and by[one]["state"] == "merged", f"{code} {by.get(one)}")
@@ -1677,6 +1677,247 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
           bool(calls) and all(c[:2] == ["api", "graphql"]
                               and not any(a == "-X" or a.startswith("query=mutation") for a in c)
                               for c in calls), str(calls[:1]))
+
+
+def forge_hub(w: World) -> None:
+    """CR-358: one forge hub per surface and machine, and the watchers that wake each session."""
+    note("\n## 16d. The forge hub: one reader of the forge for a surface, and `chantier watch`")
+    sw = SurfaceWorld(w.root / "hub")
+    sw.root.mkdir()
+    sw.build()
+    url = "https://github.com/acme/demo/pull/{}".format
+    hub_json = sw.surface / ".git" / "chantier" / "hub.json"
+    quick = {"CHANTIER_HUB_TEST_TIMES": "1:4"}  # the hub reads every 1 s, a watcher ends 4 s on
+    slow = {"CHANTIER_HUB_TEST_TIMES": "30:4"}  # the hub reads once at its start, then 30 s on
+    procs: list[BoardProc] = []
+    mine = {"demo": {910, 911, 912, 913, 914, 915}, "other": {920}}
+    setup = [0]
+
+    def folder(project: str) -> Path:
+        return sw.surface / "projects" / project / "changes"
+
+    def batch(project: str) -> dict:
+        return json.loads((folder(project) / "4-batch" / "batch.json").read_text(encoding="utf-8"))
+
+    def edit(project: str, cr: str, **fields: object) -> None:
+        d = batch(project)
+        next(c for c in d["crs"] if c["id"] == cr).update(fields)
+        (folder(project) / "4-batch" / "batch.json").write_text(json.dumps(d, indent=2))
+
+    def journal(project: str = "demo") -> list[dict]:
+        path = folder(project) / "forge-journal.jsonl"
+        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                if path.is_file() else [])
+
+    def record() -> dict:
+        try:
+            return json.loads(hub_json.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def until(then, timeout: float = 40) -> bool:
+        end = time.monotonic() + timeout
+        while not (found := then()) and time.monotonic() < end:
+            time.sleep(0.25)
+        return bool(found)
+
+    def asked(call: list[str]) -> list[int]:
+        query = next(a for a in call if a.startswith("query="))
+        return [int(n) for n in re.findall(r"\bp(\d+): pullRequest", query)]
+
+    def graphql() -> list[list[str]]:
+        return [c for c in forge_calls(sw)[setup[0]:] if c[:2] == ["api", "graphql"]]
+
+    def reads(project: str) -> int:
+        """The hub's reads of a project so far: the `api graphql` calls naming its PRs."""
+        return len([c for c in graphql() if set(asked(c)) <= mine[project]])
+
+    def ended(proc: BoardProc, timeout: float = 60) -> list[str]:
+        """What a watcher printed until it exited."""
+        try:
+            proc.p.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return ["(still running)"]
+        got = []
+        while (x := proc.line(2)) is not None:
+            got.append(x)
+        return got
+
+    def watcher(project: str, *args, env: dict = quick) -> BoardProc:
+        procs.append(BoardProc(sw, "--project", project, "watch", *args, cwd=sw.surface, env=env))
+        return procs[-1]
+
+    def merged(number: int, at: str) -> None:
+        forge_pr(sw, url(number), state="MERGED", mergedAt=at)
+
+    def says(cr: str, number: int, at: str) -> str:
+        return (f"forge saw merged: {cr} {url(number)} into main at {at}; "
+                f"for the Chief of Staff: order merged {cr}")
+
+    def cursor(n: int) -> str:
+        return f"watch: cursor {n}; next: chantier watch --after {n}"
+
+    sw.chantier("init")
+    sw.chantier("init", project="other")
+    items = [sw.prepare(f"Hub A{n}") for n in range(1, 7)]
+    sw.chantier("open", *items, "--direct", "--slots", 2, *FROM_AGENTS_MD)
+    a_batch = batch("demo")["id"]
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", a_batch)
+    _, out = sw.chantier("open", sw.prepare("Hub B1", project="other"), "--direct", "--slots", 1,
+                         *FROM_AGENTS_MD, project="other")
+    b_batch = out[0].split()[1]
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", b_batch, project="other")
+    a = [c["id"] for c in batch("demo")["crs"]]
+    b1 = batch("other")["crs"][0]["id"]
+    for cr, number in zip(a, range(910, 916)):
+        edit("demo", cr, pr=url(number))
+    edit("other", b1, pr=url(920))
+    edit("demo", a[3], status="ready", pr_draft=False)  # the one CR the record holds ready to merge
+    before = {(p, f): (folder(p) / "4-batch" / f).read_bytes()
+              for p in ("demo", "other") for f in ("batch.json", "events.jsonl")
+              if (folder(p) / "4-batch" / f).is_file()}
+    setup[0] = len(forge_calls(sw))
+    _, out = sw.chantier("status", expect=None)
+    check("`status` of a running batch names the hub (none yet) and the `watch` command to run",
+          "forge hub: none running" in out and "watch: chantier watch --after 0" in out, str(out))
+    sw.chantier("watch", "--after", 5, expect=1)
+    check("`watch --after` past the journal's end exits 1", "past the journal's end" in sw.last_stderr,
+          sw.last_stderr)
+    try:
+        # 1. two watchers, one hub, one read per project with an open PR each cycle
+        wa = watcher("demo")
+        start = wa.line()
+        check("the first watcher takes the hub lock and says so",
+              (start or "").startswith("watch: demo from cursor 0") and (start or "").endswith(", the hub"),
+              str(start))
+        wb = watcher("other")
+        start_b = wb.line()
+        check("a watcher of the other project of the surface is not the hub",
+              (start_b or "").startswith("watch: other from cursor 0")
+              and not (start_b or "").endswith(", the hub"), str(start_b))
+        began = time.monotonic()
+        until(lambda: reads("demo") >= 3 and reads("other") >= 3)
+        span = time.monotonic() - began
+        found = record()
+        first_hub = found.get("pid")
+        check("`hub.json` names one PID (a process of its own, neither watcher's argument vector) and "
+              "a read per project of the surface",
+              isinstance(first_hub, int) and set(found.get("projects", {})) == {"demo", "other"}
+              and record().get("pid") == first_hub, str(found))
+        _, out = sw.chantier("status", expect=None)
+        check("`status` names the hub's PID while it runs",
+              any(x.startswith(f"forge hub: PID {first_hub},") for x in out), str(out))
+        sets = [asked(c) for c in graphql()]
+        check("each cycle makes one `api graphql` call per project with an open PR: every call names "
+              "one project's PRs, and no more than one hub's worth were made",
+              all(set(x) in (mine["demo"], mine["other"]) for x in sets)
+              and reads("demo") <= span + 3 and reads("other") <= span + 3,
+              f"{sets[:3]} {reads('demo')} {reads('other')} in {span:.1f} s")
+        # 2. a merge in A: A's watcher ends on it, B's keeps running and takes the lock
+        merged(910, "2026-11-16T10:00:00Z")
+        got = ended(wa)
+        check("A's watcher ends with the `forge saw merged` line and its cursor",
+              got == [says(a[0], 910, "2026-11-16T10:00:00Z"), cursor(1)], str(got))
+        entries = journal()
+        check("the journal holds the merge once, written by the hub, and git ignores the file",
+              [(e["seq"], e["by"], e["kind"], e["cr"]) for e in entries] == [(1, "hub", "merged", a[0])]
+              and sw.sh("git", "check-ignore", "projects/demo/changes/forge-journal.jsonl",
+                        cwd=sw.surface).strip() != "", str(entries))
+        check("B's watcher keeps running and takes the lock",
+              until(lambda: record().get("pid") not in (None, first_hub)) and wb.p.poll() is None, str(record()))
+        reached = reads("other")
+        check("the next cycles still read the forge, for B's PRs too",
+              until(lambda: reads("other") > reached), str(graphql()[-2:]))
+        check("the hub changed neither project's `batch.json` nor `events.jsonl`",
+              all((folder(p) / "4-batch" / f).read_bytes() == v for (p, f), v in before.items()),
+              "a record changed")
+        # 3. restarted with --after: nothing replayed; two merges within the quiet: one end
+        wa = watcher("demo", "--after", 1)
+        start = wa.line()
+        check("a watcher restarted with `--after 1` is not the hub and replays nothing",
+              (start or "").startswith("watch: demo from cursor 1")
+              and not (start or "").endswith(", the hub") and wa.line(2) is None, str(start))
+        merged(911, "2026-11-16T10:01:00Z")
+        until(lambda: len(journal()) == 2)
+        merged(912, "2026-11-16T10:01:30Z")
+        got = ended(wa)
+        check("two merges within the quiet give one end with both lines",
+              got == [says(a[1], 911, "2026-11-16T10:01:00Z"), says(a[2], 912, "2026-11-16T10:01:30Z"),
+                      cursor(3)], str(got))
+        # 4. a ready PR whose checks fail: a line for the watcher, none in `status`
+        forge_pr(sw, url(913), checks="FAILURE", headRefOid="feedface0123456789")
+        wa = watcher("demo", "--after", 3)
+        wa.line()
+        got = ended(wa)
+        red = (f"forge saw checks red: {a[3]} {url(913)} at feedfac, ready to merge in the record; "
+               "for the Chief of Staff: tell the user, record nothing")
+        check("a ready PR's failing checks end the watcher with the `forge saw checks red` line",
+              got == [red, cursor(4)], str(got))
+        _, out = sw.chantier("status", expect=None)
+        check("`status` does not print the checks-red line, and prints the three merges",
+              not any("checks red" in x for x in out)
+              and len([x for x in out if x.startswith("forge saw merged:")]) == 3, str(out))
+        # 5. recording: `order merged` twice, the second answers `already merged`
+        sw.chantier("order", "merged", a[0], "--epoch", 1, "--batch", a_batch)
+        sw.chantier("order", "merged", a[0], "--epoch", 1, "--batch", a_batch, expect=None)
+        check("`order merged` twice: the second answers `already merged`",
+              f"{a[0]} already merged" in "\n".join(sw.last_out) + sw.last_stderr,
+              f"{sw.last_out} {sw.last_stderr}")
+        # 6. a merge the board's PRs page reads first: the hub writes no second line
+        wb.stop()
+        board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+                          cwd=sw.surface)
+        procs.append(board)
+        link = Link(board.line())
+        wa = watcher("demo", "--after", 4, env=slow)
+        wa.line()
+        until(lambda: bool(record().get("projects", {}).get("demo", {}).get("read_at")))
+        merged(914, "2026-11-16T10:03:00Z")
+        code, _, _ = jget(link.port, link, "/api/projects/demo/prs")
+        check("the board's PRs page reads the merge first and writes its line",
+              code == 200 and [(e["seq"], e["by"], e["cr"]) for e in journal()][-1:] == [(5, "board", a[4])],
+              str(journal()[-1:]))
+        got = ended(wa)
+        check("the watcher wakes on the board's line",
+              got == [says(a[4], 914, "2026-11-16T10:03:00Z"), cursor(5)], str(got))
+        wa = watcher("demo", "--after", 5)
+        wa.line()
+        seen = len(graphql())
+        until(lambda: len(graphql()) >= seen + 2)
+        check("the hub's reads of the same merge write no second line",
+              [e["by"] for e in journal()] == ["hub", "hub", "hub", "hub", "board"], str(journal()))
+        # 7. the batch ends and pauses: A's watcher ends, and a merge then writes no line for A
+        for cr in (a[1], a[2], a[4]):
+            sw.chantier("order", "merged", cr, "--epoch", 1, "--batch", a_batch)
+        sw.chantier("order", "drop", a[3], "--batch", a_batch)
+        sw.chantier("order", "drop", a[5], "--batch", a_batch)
+        got = ended(wa)
+        check("A's watcher ends with `no running batch` when its batch is paused",
+              batch("demo")["status"] == "paused" and bool(got)
+              and got[-1] == "watch: no running batch in demo; ended", f"{batch('demo')['status']} {got}")
+        wb = watcher("other")
+        wb.line()
+        merged(915, "2026-11-16T10:04:00Z")
+        seen = len(graphql())
+        until(lambda: len(graphql()) >= seen + 2)
+        check("a PR merged after the pause writes no line for A, and the hub no longer reads its PRs",
+              len(journal()) == 5 and not any(x != [920] for x in map(asked, graphql()[seen:])),
+              str(journal()[-1:]))
+        sw.chantier("watch", expect=2)
+        check("`watch` with no running batch exits 2 and says nothing to watch",
+              "nothing to watch" in sw.last_stderr, sw.last_stderr)
+        # 8. nothing but read-only `api graphql` calls, and B's record is as it was
+        calls = forge_calls(sw)[setup[0]:]
+        check("no `gh` call but `api graphql` queries (no mutation) was made by the hub or the board",
+              bool(calls) and all(c[:2] == ["api", "graphql"] and not any(
+                  x == "-X" or x.startswith("query=mutation") for x in c) for c in calls), str(calls[:1]))
+        check("B's `batch.json` and `events.jsonl` are as the hub found them, and B has no journal",
+              all((folder("other") / "4-batch" / f).read_bytes() == v
+                  for (p, f), v in before.items() if p == "other") and journal("other") == [],
+              str(journal("other")))
+    finally:
+        for proc in reversed(procs):
+            proc.stop()
 
 
 def remote_board(w: World) -> None:
@@ -8632,6 +8873,7 @@ CASES = {
     "seat_handover": seat_handover,
     "foreman_in_a_worktree": foreman_in_a_worktree,
     "remote_board": remote_board,
+    "forge_hub": forge_hub,
     "external_surface": lambda w: external_surface(w.root / "external"),
     "cr_summary": lambda w: cr_summary(w.root / "summary"),
     "lost_messages": lost_messages,

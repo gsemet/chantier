@@ -46,7 +46,7 @@ External layout, beside it:
 ```
 
 What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
-`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`) and the detailed logs
+`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`) and the detailed logs
 (`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
 folder. A running CR's documents, reports and evidence are pushed with the surface. A CR's folder
 may also hold `prototypes/NN-<idea>/` and `experiments/`, created only when used and published

@@ -682,8 +682,10 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    worktree on Claude Code). Name the target instead: `git -C <worktree>`, absolute paths,
    `gh … --repo <owner>/<name>`, `glab … -R <owner>/<name>`. Whoever starts a background task
    stops it by its id, with the host's stop of a background task, once its result is read or no
-   longer counts (the board keeps `session-start.md`'s start and stop rules; only the
-   current-folder rule applies to it). The shell that runs `$CHANTIER gate` is the gate itself: it
+   longer counts (the board and the Chief of Staff's watcher, `$CHANTIER watch`, keep
+   `session-start.md`'s and `chief-of-staff.md`'s start and stop rules: the watcher is started on
+   the user's yes, started again after each end, and stops itself; only the current-folder rule
+   applies to them). The shell that runs `$CHANTIER gate` is the gate itself: it
    ends when the gate ends and records its result, and it is stopped only with `gate <cr> --stop`.
    The reasons: on Windows a process whose current folder is inside a folder keeps that folder from
    being moved or removed (WinError 32), so a CR's move between stages or a worktree's removal

@@ -51,7 +51,7 @@ heavier load than the first table of this section had:
 | gates | 400 | 381.0 | 392.1 |
 | series-deps | 260 | 331.7 | 327.9 |
 | direct | 125 | 149.9 | 120.6 |
-| surface-board | 250 | 236.3 | 196.0 |
+| surface-board | 300 | 236.3 | 196.0 |
 | qa-driver | 115 | 166.0 | 131.9 |
 | gitlab | 95 | 92.0 | 67.5 |
 | wall time | | 606.2 | 642.7 |
@@ -281,14 +281,48 @@ does a unit that is not in `UNITS` and a test that does not exist.
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose
   checks the forge has not computed (`being checked`, never `none`) told apart; every PR merged or
-  closed is `all_done`, a CR added after brings a new row; the folder (but `board-seen.jsonl`) and
+  closed is `all_done`, a CR added after brings a new row; the folder (but `forge-journal.jsonl`) and
   its git status unchanged and no call but `api graphql` queries (unit: surface-board);
-- the merge the board signals (CR-303): the read that sees a PR merged on the fake forge and not
-  in the record leaves one line in `board-seen.jsonl` (once, ignored by git, the only file the
-  page writes); `status` prints `board saw merged: <cr> <pr> into <branch> at <time>; for the
-  Chief of Staff: order merged <cr>`, and so does the Foreman's heartbeat form (`status --refresh
-  --batch --epoch`) with the batch's orders unchanged; after `order merged` the line no longer
-  prints (unit: surface-board);
+- the merge the forge signals (CR-303, CR-358): the read that sees a PR merged on the fake forge and
+  not in the record leaves one line in `forge-journal.jsonl` (once, `by: board`, ignored by git,
+  the only file the page writes); `status` prints `forge saw merged: <cr> <pr> into <branch> at
+  <time>; for the Chief of Staff: order merged <cr>`, and so does the Foreman's heartbeat form
+  (`status --refresh --batch --epoch`) with the batch's orders unchanged; after `order merged` the
+  line no longer prints (unit: surface-board);
+- the forge hub and `chantier watch` (CR-358), on a two-project surface with the fake `gh`, the
+  test seam `CHANTIER_HUB_TEST_TIMES` shortening the cycle and the quiet, the watchers background
+  processes:
+  - `status` of a running batch prints `forge hub: none running` and `watch: chantier watch --after
+    <n>`; `--after` past the journal's end exits 1 (unit: surface-board) (test:
+    test_forge_hub.py::test_watch_refusals,
+    test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
+  - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, `hub.json`
+    names one PID and a read per project, `status` names that PID, and each cycle makes one `api
+    graphql` call per project with an open PR, never two hubs' worth (unit: surface-board) (test:
+    test_forge_hub.py::test_one_watcher_holds_the_hub_lock_and_the_next_takes_it,
+    test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
+  - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
+    `watch: cursor 1; next: ...`, the merge written once (`by: hub`); B's watcher keeps running,
+    takes the lock and the next cycles still read the forge (unit: surface-board) (test:
+    test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
+    test_forge_hub.py::test_a_watcher_ends_twenty_seconds_after_the_last_event);
+  - two of A's merges within the quiet give one end with both lines; a watcher restarted with
+    `--after <n>` replays nothing (unit: surface-board) (test:
+    test_forge_hub.py::test_a_watcher_ends_twenty_seconds_after_the_last_event);
+  - a ready PR's checks failing print `forge saw checks red` at the watcher's end and never in
+    `status` (unit: surface-board) (test:
+    test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
+  - `order merged <cr>` twice: the second answers `<cr> already merged` (unit: surface-board);
+  - a merge the board's PRs page reads first: the page writes the line (`by: board`), the hub's
+    reads of it write no second line and the watcher wakes on the board's line (unit:
+    surface-board) (test: test_forge_hub.py::test_the_board_and_the_hub_share_the_journal_once);
+  - A's batch paused (every CR merged or dropped): A's watcher ends with `no running batch`, a PR
+    merged then writes no line for A and the hub reads none of its PRs; `watch` with no running
+    batch exits 2 (unit: surface-board) (test: test_forge_hub.py::test_watch_refusals);
+  - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
+    is unchanged by the hub, a forge error lands in `hub.json` and not in the journal, and no `gh`
+    call is made but read-only `api graphql` queries (unit: surface-board) (test:
+    test_forge_hub.py::test_a_forge_error_lands_in_the_hub_record_not_in_the_journal);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

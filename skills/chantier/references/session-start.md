@@ -94,6 +94,17 @@ never start it.
 
 On a surface, `$CHANTIER board --seat <id>` keeps the `--project` that `$CHANTIER` holds.
 
+**The watcher.** A Chief of Staff (never a Griller, a Foreman, a Driver or the router before a
+role) whose project has a running batch asks the user once per session, as for the board, before
+starting `$CHANTIER watch --after <n>` in the background: it runs on in the background, its hub
+reads the forge of every project of the surface every 20 s with the user's own `gh` or `glab`, and
+needs the network. A yes holds for the session (every later start, restart, resume and switch to
+direct mode goes on without asking again); a no starts nothing for the session, and merges go back
+to the user's word and the `forge saw merged` lines of `status`. Start it by the host's means (the
+host's reference, "Run the watcher"); a host that cannot run a background command: one line with
+the reason, then go on, no workaround. The start line's `hub is chantier <v>`: tell the user once,
+in one line, and go on. When it starts and stops: [chief-of-staff](chief-of-staff.md).
+
 **The surface's autosync.** Joining is explicit opt-in, independent of board permission, and
 never stops another participant. Without participation follow the project's manual-sync rules.
 After opt-in, run its `status`, then join as its guidelines say, adding `--session-id <own session id>`,

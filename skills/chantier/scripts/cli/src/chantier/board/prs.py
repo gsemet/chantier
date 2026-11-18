@@ -1,7 +1,7 @@
 """The PRs page's server side: the batch's PRs read on the forge, judged against the record.
 
 The page reads only: it writes nothing in the record, git or the forge, and nothing in the
-planning folder but one line in `board-seen.jsonl` for a merge the record does not hold. A
+planning folder but one line in `forge-journal.jsonl` for a merge the record does not hold. A
 read of the forge is kept for `TTL_S` seconds per project and batch shown, whatever the number of
 pages open, and a failed read keeps the last good one with its time. The `Context` imports this
 module, so it never imports the `Context`."""
@@ -15,11 +15,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from chantier.board import forge_read, seen
+from chantier.board import forge_read
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.core import clock
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
+from chantier.hub import journal
 
 TTL_S = 10.0
 MERGED_NOT_RECORDED = "merged on the forge, not recorded yet: tell the Chief of Staff"
@@ -241,6 +242,24 @@ def _closed_row(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
+def rows_of(
+    withpr: list[dict[str, Any]],
+    forge: dict[int, dict[str, Any]],
+    branches: dict[str, str],
+    closed: bool = False,
+) -> list[dict[str, Any]]:
+    """The rows of the CRs `withpr` against the forge's read, with where each merged PR landed:
+    the one function the page and the forge hub both judge with, so they never disagree."""
+    found = [(c, _number(c["pr"])) for c in withpr]
+    rows = [row_of(c, forge[n], n, branches) for c, n in found if n in forge]
+    if closed:
+        rows = [_closed_row(r) for r in rows]
+    by_cr = {r["cr"]: r for r in rows}
+    for r in rows:
+        r["landed_with"] = landed_with(r, by_cr)
+    return rows
+
+
 def answer(
     reads: ForgeReads,
     key: str,
@@ -252,7 +271,7 @@ def answer(
     batch in `4-batch/`, else the newest closed one). With no batch, an unknown one or no PR yet,
     the forge is not asked. A closed batch is read on the forge, judged against nothing, and never
     signalled. With a `repo`, a merge the forge shows and the record does not, in the batch in
-    `4-batch/`, is left as one line in `board-seen.jsonl` (the only write)."""
+    `4-batch/`, is left as one line in `forge-journal.jsonl` (the only write)."""
     live = state["batch"]
     shown, withpr, closed, error = _shown(state, batch)
     out: dict[str, Any] = {
@@ -271,15 +290,9 @@ def answer(
         f"{key}:{shown}", [c["pr"] for c in withpr], forge_read.read
     )
     branches = {c["branch"]: c["cr"] for c in live["crs"] if c["branch"]} if live else {}
-    found = [(c, _number(c["pr"])) for c in withpr]
-    rows = [row_of(c, forge[n], n, {} if closed else branches) for c, n in found if n in forge]
-    if closed:
-        rows = [_closed_row(r) for r in rows]
-    by_cr = {r["cr"]: r for r in rows}
-    for r in rows:
-        r["landed_with"] = landed_with(r, by_cr)
+    rows = rows_of(withpr, forge, {} if closed else branches, closed)
     out["rows"] = rows
     if repo is not None and live and fresh and not out["error"] and not closed:
-        seen.signal(repo, live["id"], rows)
+        journal.append(repo, journal.merged_events(live["id"], rows), "board")
     out["all_done"] = len(rows) == len(withpr) and all(r["state"] in DONE for r in rows)
     return out
