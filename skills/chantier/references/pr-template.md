@@ -25,6 +25,8 @@ The default description of a CR's PR, written by the CR Driver and checked by th
   description names it only in its Internal references section, as any `.agents/changes/` path,
   and the Verifier's check of the description against the diff takes it as expected, not as an
   unexplained file.
+- When `take` says `archive: not in the PR`, the diff holds no archive folder and the description
+  names none.
 - Explain the change from the reader's side: what was wrong or missing, what the PR changes, what
   they will notice. Name features by what they do, not by internal ids. Define a project term on
   first use.

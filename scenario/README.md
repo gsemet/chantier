@@ -263,12 +263,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   run on GitHub in its own unit): a command at the surface exits 2 naming the projects, a
   missing clone fails preflight, init makes the planning folder and its .gitignore; a batch in
   each project at once, a second open on one refused, one seat per project; `take` carries `cli:`
-  with `--project`, `clone:` and `archive:` (`not in the PR` for a project that sets it so); the
+  with `--project`, `clone:` and `archive:` (`not in the PR` for a project that does not set it to `yes`); the
   surface's git lists the CR documents and never a local file (`batch.json`, `events.jsonl`,
   STATUS files, locks, `seat.json`, gate logs), the clone stays clean; `ship` says the archive is
   missing from the PR until it is there; `order merged` writes `delivery.md`; `rules` lists the
   project's instructions then the surface's; `close` archives the CR (unit: surface-board)
-  (test: test_cli_runs.py::test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean);
+  (test: test_external_archive.py::test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean);
 - a surface that names an autosync (`scenario/fake_autosync.py` stands for the surface's script):
   no P13 or status line without the mention, script missing, no group yet, then active (with and
   without a live participant, a dead participant's file kept), stopped, blocked and approval,

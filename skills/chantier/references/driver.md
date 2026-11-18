@@ -87,7 +87,7 @@ defer the rest of this card until an action names it. These are the card's defau
   copied unchanged (never put together from `worktree:` or `folder:`, whose values carry text
   after the path); a CR Driver's own prompt holds `writes: <CR folder>`
   (and `; <absolute archive path>` when `take` prints one; [concepts](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/concepts.md), "A Driver's prompt"): you write your notes, `pr-body.md`, your large
-  outputs and the archive, nothing else. A Driver and its workers write nothing in the repository's
+  outputs and, when `take` prints an archive path, the archive, nothing else. A Driver and its workers write nothing in the repository's
   git folder (`.git/info/exclude`, `.git/config`, `.git/hooks`), by any tool or shell command; git's
   own commands write there as git does. A file to ignore is ignored by the worktree's own files (a
   `.gitignore` change goes through a `coder`, in a round, as any project file) or not at all; a
@@ -436,12 +436,13 @@ defer the rest of this card until an action names it. These are the card's defau
   asks the user. The same Known gap names a folder that grew very big during the batch. `ship`
   says `archive missing from the PR at <path>` when it is off. When the project
   ignores `.agents/changes/`, say it in a `note` and hand back with the PR as it is: the Chief of
-  Staff asks the user (no `git add -f`). `archive: not in the PR`: nothing to add.
+  Staff asks the user (no `git add -f`). `archive: not in the PR` means no archive in the worktree, no `.agents/changes/` path in the diff,
+  and no `delivery.md` to write for the PR; that is the default with a planning surface.
 - Logs: a raw log goes in `work/gates/` or a `*.log` file, never in a file that is published with
   the CR.
 - CI: the `timing:` line you read is, on Claude Code, the `subagent` one; on Copilot, the line of
   your model's family, else `other models`. While CI runs, do everything that does not need its result first: `pr-body.md` and the
-  description as far as they can go, the archive's `delivery.md`, your notes. Then one long wait:
+  description as far as they can go, the archive's `delivery.md` when `take` printed an archive path, your notes. Then one long wait:
   the forge's watch in a background shell (`gh pr checks <pr> --watch`, `glab ci status
   --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
   between (the two looks of the "no CI" rule below come before the long wait starts, or instead of
@@ -623,7 +624,7 @@ Take one CR from its specification to a green PR, then hand it back. A CR Driver
 card, doc or other project file itself, not even one line, and not through the shell either (a
 redirection, `Set-Content`, `sed -i`, an interpreter's inline code): the guard refuses what it
 sees, and the rule holds for what it does not. Every change the CR makes goes
-through a `coder`. It writes only its notes, `pr-body.md` and the CR's archive.
+through a `coder`. It writes only its notes, `pr-body.md` and, when `take` prints an archive path, the CR's archive.
 
 A CR that touches the board's write paths carries, in each Coder's brief, the scratch-folder rule
 of [coder](coder.md); in each Verifier's brief, the `scratch:` folder and the rule of
