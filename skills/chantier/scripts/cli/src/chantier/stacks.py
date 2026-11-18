@@ -253,6 +253,24 @@ def draft_waited(d: BatchRecord, c: CrEntry, repo: Repo) -> CrEntry | str | None
     return None
 
 
+def draft_clause(d: BatchRecord, c: CrEntry, repo: Repo, prepared: bool) -> str:
+    """`its PR <pr> is <state>; it waits <what>`: the clause the ready line of a PR in draft ends
+    with and the CR's now line repeats, from the record."""
+    if c.pr_draft is None:
+        state = f"of unknown draft state (draft not read: ship {c.id} {c.pr})"
+    else:
+        state = "a draft on the forge" if c.pr_draft else "out of draft on the forge"
+    waited = draft_waited(d, c, repo)
+    if waited is None:
+        what = "for its turn out of draft"
+    elif isinstance(waited, str):
+        what = f"on the branch {waited} (no CR of this batch)"
+    else:
+        what = f"on {waited.id} ({waited.pr or 'no PR yet'})"
+    own = f"the release PR {c.pr} is" if prepared else f"its PR {c.pr} is"
+    return f"{own} {state}; it waits {what}"
+
+
 def draft_waits(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
     """The same answer as a word for the views: the CR's id, the branch, or its own turn."""
     waited = draft_waited(d, c, repo)

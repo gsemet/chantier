@@ -47,7 +47,7 @@ from chantier.rails import (
 from chantier.stacks import (
     PR_IN_DRAFT,
     READY_TO_MERGE,
-    draft_waited,
+    draft_clause,
     ready_word,
     stack_base,
     start_on_for,
@@ -302,19 +302,7 @@ def _ready_lines(repo: Repo, d: BatchRecord, c: CrEntry, prepared: bool, tail: s
     if word == READY_TO_MERGE:
         wait = f": the release PR {c.pr} waits for its merge" if prepared else ""
         return [line, f"{c.id} {word}{wait}"]
-    if c.pr_draft is None:
-        state = f"of unknown draft state (draft not read: ship {c.id} {c.pr})"
-    else:
-        state = "a draft on the forge" if c.pr_draft else "out of draft on the forge"
-    waited = draft_waited(d, c, repo)
-    if waited is None:
-        what = "for its turn out of draft"
-    elif isinstance(waited, str):
-        what = f"on the branch {waited} (no CR of this batch)"
-    else:
-        what = f"on {waited.id} ({waited.pr or 'no PR yet'})"
-    own = f"the release PR {c.pr} is" if prepared else f"its PR {c.pr} is"
-    return [line, f"{c.id} {word}: {own} {state}; it waits {what}"]
+    return [line, f"{c.id} {word}: {draft_clause(d, c, repo, prepared)}"]
 
 
 def note(args: argparse.Namespace) -> list[str]:

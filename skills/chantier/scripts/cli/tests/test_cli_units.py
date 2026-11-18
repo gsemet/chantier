@@ -17,12 +17,14 @@ from conftest import PLUGIN_ROOT, load_script
 from chantier.commands.cost.breakdown import breakdown, cost_kind, cost_label
 from chantier.commands.cost.sessions import OWN_CHIEF
 from chantier.commands.crs import carry_at, last_gate_pass, last_verdict, last_verdict_head
+from chantier.commands.driver import _ready_lines
 from chantier.commands.forge_stack_gh import Unreadable, gh
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
 from chantier.core.heads import gate_passed
 from chantier.core.ids import normalize_cr
 from chantier.core.records import BatchRecord, CrEntry, EventRecord
-from chantier.status.words import next_to_start, phase_text
+from chantier.status.steps import step_entries
+from chantier.status.words import next_to_start, notify, phase_text
 
 FULL_ROWS = 13
 
@@ -235,3 +237,69 @@ def test_a_ship_with_a_conflict_voids_every_judged_head_and_carry_before_it() ->
     assert carry_at([*log, later], "d") is later  # a judgment after the conflict can carry
     fresh = _ev("gate", result="pass", head="c", run="2", base="n")
     assert last_gate_pass([*log, fresh]) == "c"
+
+
+@pytest.mark.parametrize(
+    ("gate_from", "verdict_from", "steps"),
+    [
+        (
+            "a" * 40,
+            "a" * 40,
+            [("Long gate", "carried from aaaaaaa"), ("Verdict", "carried from aaaaaaa")],
+        ),
+        (None, "a" * 40, [("Verdict", "carried from aaaaaaa")]),
+        (None, None, []),
+    ],
+)
+def test_a_ready_handback_shows_its_carried_verdict_as_a_step(
+    gate_from: str | None, verdict_from: str | None, steps: list[tuple[str, str]]
+) -> None:
+    e = EventRecord(
+        t="t",
+        actor="driver",
+        kind="handback",
+        result="ready",
+        gate_from=gate_from,
+        verdict_from=verdict_from,
+    )
+    got = step_entries(e, BatchRecord(id="b"), CrEntry(id="CR-1"), [])
+    assert [(n, v) for n, v, _ in got] == [*steps, ("Handed back", "")]
+
+
+@pytest.mark.parametrize("draft", [True, False, None])
+@pytest.mark.parametrize("wait", ["cr-pr", "cr-no-pr", "branch", "none"])
+def test_the_now_line_of_a_pr_in_draft_takes_the_ready_lines_clause(
+    draft: bool | None, wait: str
+) -> None:
+    if wait == "none" and draft is False:
+        pytest.skip("a PR out of draft on the default branch reads ready to merge")
+    below = CrEntry(
+        id="CR-1",
+        order=1,
+        status="ready",
+        branch="b/cr-1",
+        pr="https://h/o/r/pull/1" if wait == "cr-pr" else None,
+        pr_draft=True,
+    )
+    base = {"cr-pr": below.branch, "cr-no-pr": below.branch, "branch": "feature/x", "none": "main"}[
+        wait
+    ]
+    c = CrEntry(
+        id="CR-2",
+        order=2,
+        status="ready",
+        branch="b/cr-2",
+        pr="https://h/o/r/pull/2",
+        pr_draft=draft,
+        pr_base=base,
+    )
+    crs = [below, c] if wait in {"cr-pr", "cr-no-pr"} else [c]
+    d = BatchRecord(id="b", mode="parallel", crs=crs)
+    repo: Any = SimpleNamespace(config={"default_branch": "main"})
+    ready = _ready_lines(repo, d, c, False, "")[1]
+    now, nxt = notify(repo, d, c, str(c.pr))
+    assert ready.startswith("CR-2 PR in draft: ")
+    assert now == f"PR in draft: {ready.removeprefix('CR-2 PR in draft: ')}."
+    assert f"on {base}," not in now
+    out = "" if draft is False else " and the PR is out of draft"
+    assert nxt == f"Ready to merge once what is under it is{out}."

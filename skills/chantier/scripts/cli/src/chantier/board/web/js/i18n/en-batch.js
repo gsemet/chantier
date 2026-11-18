@@ -13,6 +13,8 @@ export default {
   'batch.tab_loading': 'Loading the view…',
   'batch.tab_failed': 'This view could not be loaded. Open the tab again to retry.',
   'batch.times_none': "This batch's record keeps no times.",
+  'batch.spent_age': 'computed {age} ago',
+  'batch.spent_age_unknown': 'age unknown',
   'batch.changed_ago': 'Changed state {age} ago',
   'batch.gantt_now': 'now',
   'batch.gantt_not_started': 'Not started',

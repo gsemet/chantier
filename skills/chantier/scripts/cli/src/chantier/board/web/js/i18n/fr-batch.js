@@ -13,6 +13,8 @@ export default {
   'batch.tab_loading': 'Chargement de la vue…',
   'batch.tab_failed': "Cette vue n'a pas pu être chargée. Rouvrez l'onglet pour réessayer.",
   'batch.times_none': 'Le dossier de ce batch ne garde aucune heure.',
+  'batch.spent_age': 'calculé il y a {age}',
+  'batch.spent_age_unknown': 'âge inconnu',
   'batch.changed_ago': "A changé d'état il y a {age}",
   'batch.gantt_now': 'maintenant',
   'batch.gantt_not_started': 'Pas commencé',
