@@ -10,6 +10,7 @@ from batch_helpers import changes, open_batch, record, write_record
 from conftest import PLUGIN_ROOT, SKILL, Chantier
 from test_plugin_files import DRIVERS, _front, agent_file
 
+from chantier.core import files
 from chantier.core.errors import EXIT_PRECONDITION
 from chantier.driver_prompt import BACKTICKED, driver_table
 
@@ -165,6 +166,14 @@ def test_the_planning_folder_ignores_a_scratch_project_and_a_call_there_leaves_t
         ["git", "check-ignore", "-q", str(scratch / "f.txt")], cwd=repo, check=False
     )
     assert ignored.returncode == 0
+    assert "**/work/gates/" in (live / ".gitignore").read_text(encoding="utf-8").splitlines()
+    gate = live / "4-batch" / "2-actives" / "101-one" / "work" / "gates" / "out.txt"
+    gate.parent.mkdir(parents=True)
+    gate.write_text("x", encoding="utf-8")
+    assert (
+        subprocess.run(["git", "check-ignore", "-q", str(gate)], cwd=repo, check=False).returncode
+        == 0
+    )
 
     def snapshot() -> dict[str, bytes]:
         return {
@@ -181,3 +190,23 @@ def test_the_planning_folder_ignores_a_scratch_project_and_a_call_there_leaves_t
     assert (scratch / ".agents" / "changes" / "1-inbox").is_dir()
     assert any(p.is_file() for p in (scratch / ".agents" / "changes" / "1-inbox").rglob("*"))
     assert snapshot() == before
+
+
+def test_an_old_work_gates_line_is_completed_with_the_any_depth_one(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    open_batch(repo, chantier, monkeypatch, "One")
+    live = changes(repo)
+    (live / ".gitignore").write_text("work/gates/\n", encoding="utf-8")
+    files._ignored_done.clear()
+    code, _, err = chantier("file", "probe")
+    assert code == 0, err
+    lines = (live / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert lines.count("**/work/gates/") == 1 and "work/gates/" in lines
+    gate = live / "2-backlog" / "P1" / "a-cr" / "work" / "gates" / "out.txt"
+    gate.parent.mkdir(parents=True)
+    gate.write_text("x", encoding="utf-8")
+    assert (
+        subprocess.run(["git", "check-ignore", "-q", str(gate)], cwd=repo, check=False).returncode
+        == 0
+    )
