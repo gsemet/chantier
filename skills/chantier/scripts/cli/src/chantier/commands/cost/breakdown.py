@@ -10,6 +10,7 @@ from chantier.commands.cost.pricing import add_unpriced, hints, sum_unpriced, un
 from chantier.core.batch import read_batch
 from chantier.core.records import BatchRecord, read_events
 from chantier.core.repo import Repo
+from chantier.core.steering import NO_SESSION, never_steered
 from chantier.rails import not_priced, usd_text
 
 MAX_HOPS = 5  # parent links followed from a worker to its Driver
@@ -218,6 +219,14 @@ def cost_summary(
     """What the user reads at the end of a batch; the detail is in `cost`. The split is the
     breakdown of `cost` summed by kind: the Foreman, the Drivers alone, the workers alone. The
     per-Driver figures say "with its workers". Amounts and shares add up as printed."""
+    if not rows and never_steered(d):  # nothing steered it: never a $0.00
+        return [
+            f"Total: {NO_SESSION}",
+            f"Foreman or steering: {NO_SESSION}",
+            *chief,
+            "Not counted: compaction calls, which leave no record "
+            f"(about ${COMPACTION_USD:.2f} each)",
+        ]
     total = sum(r["usd"] for r in rows)
     un = sum_unpriced(rows)  # calls of a model with no price: every figure is then a floor
     budget = d.budget_usd

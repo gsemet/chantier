@@ -286,3 +286,11 @@ on the user's word.
 - The Batch page's time card: a paper card, the receipt's paper, ink and shadow, one ruled line per
   round and its rubber stamps tilted (the `paper` variant and the `card-stamp-*` classes of
   `css/components/card.css`, built by `js/ui/card.js`; `js/views/batch-timecards.js`).
+
+## A batch with no CR yet
+
+A batch opened with no CR (paused, `crs_total` 0, `model/semantics.js`'s `noCrYet`) is drawn with
+what exists and no more. The Batch page shows its four figures, the mode strip and the page's empty
+state (`batch.no_cr_yet`), with no graph, Gantt or time cards. The Home batch card keeps its head,
+replaces the bar and its legend by the same line, shows `none yet` under Spent with no meter,
+`0/<total>` slots and `—` for the steering sign, never marked late. No new colour, size or class.

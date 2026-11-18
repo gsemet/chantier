@@ -209,6 +209,7 @@ def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
         "paused": d.paused,
         "summary": d.summary,
         "crs": [_row(repo, d, c, folder, events) for c in sorted(d.crs, key=lambda x: x.order)],
+        "crs_total": len(d.crs),  # every CR the batch ever held; `crs` lists its active ones
     }
 
 
@@ -357,6 +358,7 @@ def dashboard_view(repo: Repo, paths: dict[str, Path]) -> dict[str, Any]:
                 "orders_pending": v["orders_pending"],
                 "slots": {"taken": len(held(d)), "total": d.slots},
                 "mode": v["mode"],
+                "crs_total": v["crs_total"],
                 "crs": [_row(repo, d, c, start, events) for c in active],
             }
         )

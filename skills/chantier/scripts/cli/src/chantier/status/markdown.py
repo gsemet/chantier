@@ -93,6 +93,11 @@ def _budget(v: dict[str, Any], dated: bool = False) -> str:
     ) + (f" of ${budget:g}" if budget else "")
 
 
+def _no_cr(v: dict[str, Any]) -> bool:
+    """A batch that never held a CR and has no spend yet."""
+    return v.get("crs_total") == 0 and v["spent_usd"] is None
+
+
 def batch_markdown(v: dict[str, Any]) -> str:
     who = {
         "direct": "steered by the Chief of Staff (direct mode)",
@@ -107,7 +112,7 @@ def batch_markdown(v: dict[str, Any]) -> str:
         f"# {v['batch']}: {v['state']}",
         "",
         f"Updated {v['updated']} · {who} · {shape} · "
-        f"spent {_budget(v, True) if v['priced'] else 'unknown'}"
+        f"spent {_budget(v, True) if v['priced'] else ('none yet' if _no_cr(v) else 'unknown')}"
         f"{' (to date)' if v['paused'] and v['priced'] else ''} · "
         f"{v['asks_unread']} asks unread · "
         f"{v['orders_pending']} orders pending",
@@ -118,6 +123,8 @@ def batch_markdown(v: dict[str, Any]) -> str:
     ]
     if v["paused"]:
         lines += ["", "## Paused", "", f"- Paused: {v['paused']}"]
+        if v.get("crs_total") == 0:
+            lines.append("- No CR yet.")
     if v["summary"]:
         lines += ["", "## Cost", "", *(f"- {ln}" for ln in v["summary"])]
     return "\n".join(lines) + "\n"

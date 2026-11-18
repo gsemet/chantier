@@ -1,6 +1,8 @@
 // Mots français des onglets de la page Batch : les onglets, l'éclat, le Gantt et les cartes de
 // pointage. Fusionnés dans fr.js.
 export default {
+  'batch.no_cr_yet': 'En pause, aucune CR encore : order add en ajoute une.',
+  'batch.spent_none_yet': 'rien encore',
   'batch.tab_graph': 'Graphe',
   'batch.tab_gantt': 'Gantt',
   'batch.tab_cards': 'Cartes de pointage',

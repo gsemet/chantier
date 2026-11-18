@@ -58,6 +58,17 @@ def record_pause(repo: Repo, b: RenderedBatch, trigger: str) -> list[str]:
     return summary
 
 
+def record_born_paused(b: RenderedBatch) -> None:
+    """A batch opened with no CR is born paused: nothing to price, no steering transcript yet, so
+    its spend stays unset (shown `none yet`, never $0.00)."""
+    paused = now()
+    b.record.status = "paused"
+    b.record.paused = paused
+    b.record.heartbeat_stopped = paused
+    b.record.summary = ["Spent: none yet (no CR)"]
+    b.log("pause", None, trigger="open, no CR")
+
+
 def pause(args: argparse.Namespace) -> list[str]:
     """The batch's end of work: it is paused, and the cost to date is computed and printed;
     `close` prices the final one. A paused batch is not paused again: `order add` adds work,

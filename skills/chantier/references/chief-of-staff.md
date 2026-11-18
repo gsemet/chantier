@@ -734,7 +734,9 @@ Only in the turn where the user gave the go:
    Routes table", and in plain words "a rebase with a conflict that would happen anyway"); how many CRs start at once, on how many slots (4 unless you say
    otherwise), and, on a surface, the other batches of P14 (project, batch, steering, Drivers), so
    the user picks the slots knowing the machine's load (no cap is proposed or applied); mode (parallel unless the user asked for a series or a stack, or a CR depends on another; for a series, the order), budget, the floor ([The floor](#the-floor)) with its two terms and the critical path, and the delivery time it gives ("not before <time>") or "unknown" with the reason, the team (what `$CHANTIER playbook` printed: each role's agent and model); and who steers
-   the batch. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
+   the batch. A go given before any CR is ready makes an **empty batch**: its plan shows the
+   mode, slots, budget, the team and who steers, and says for the floor and the delivery time
+   "none yet: no CR"; no cut is proposed. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user may merge in one action from its top PR, or one PR at a time from
    the bottom: the user may also merge each PR ready to merge as it comes, before the stack is made, and
@@ -803,14 +805,18 @@ Only in the turn where the user gave the go:
 3. **Open:**
 
    ```bash
-   $CHANTIER open <prepared-folder>… [--default-branch <branch>] [--slots N] \
+   $CHANTIER open [<prepared-folder>…] [--default-branch <branch>] [--slots N] \
      [--budget USD] [--mode parallel|series|stack] [--release N] [--direct]
    ```
 
    The batch has no name: `open` numbers it and prints its id, `batch-<n>` (`<batch>` below). It
    makes the mode you name: `parallel` (the default), independent CRs, each on the default branch;
    `series`, one CR after the other, in the order given, each on the previous one's branch; `stack`,
-   independent CRs that the stack driver then stacks. It exits 2 while a batch is not closed. It moves
+   independent CRs that the stack driver then stacks. It exits 2 while a batch is not closed. With
+   no folder it opens the batch **paused, with no CR** (`--release` is refused then: the release
+   CR joins later with `order add --release`); CRs join it with `$CHANTIER order add --note
+   <folder> --batch <batch>` as their specs become ready, each one planned as a CR joining a
+   paused batch is today, and the first `take` sets it running. It moves
    each folder to `4-batch/1-pending/`, names each CR's branch and worktree, and writes
    `brief.md`: complete it from the grill (the team, autonomous decisions allowed, questions to
    bring back). Right after `open`, before the first `take` (direct mode) or before starting the
@@ -846,7 +852,9 @@ Only in the turn where the user gave the go:
    the user's: give the "For you" block of the reference, after saying what the choice costs, and
    say "I have not tested this path" for a block it marks unproved. On
    `[foreman→chief-of-staff] ready <batch>`, arm the heartbeat if your host's reference says you
-   do.
+   do. After an empty `open` you may start the Foreman at once: it claims its epoch, sends `ready
+   <batch>` and waits for the first order, ready and not done; its wait counts in the batch's
+   spend, and it arms no heartbeat while the batch has no CR (see the host's "Heartbeat").
 
    **Reusing the last Foreman.** When the previous batch's Foreman session still exists, even
    stopped, you may reuse it instead of starting a session, with the new batch and its epoch 1.
@@ -1509,7 +1517,8 @@ these differences.
   ([session-start](session-start.md), "Titles").
 - **Your number as Foreman.** Claim it as a Foreman does: `$CHANTIER foreman set <your session id> --epoch
   <n>` (`1` for a new batch), then `$CHANTIER foreman transcript <your transcript id> --epoch
-  <n>`. Right after each claim, every batch you steer, a resumed or taken-over one too: run
+  <n>`. On a batch opened empty, claim it just before your first `take`, not at `open`, so the
+  wait costs the batch nothing. Right after each claim, every batch you steer, a resumed or taken-over one too: run
   `$CHANTIER rules` and read the rule files it lists, as a Foreman does at its start. A reading
   before this batch's `open` is not this batch's; skip only the re-read of a file this session
   has read since this batch's `open` and since its last compaction. The command runs every time,

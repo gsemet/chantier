@@ -44,6 +44,12 @@ def release_grant(args: argparse.Namespace) -> ReleaseGrant | None:
                 "--autonomous-releases and --grant-fixes need --release", EXIT_USAGE
             )
         return None
+    if not args.items:
+        raise ChantierError(
+            "--release N names the release CR among the CRs given, and none is given: add it "
+            "later with `order add --note <folder> --release` (then `order grant`)",
+            EXIT_USAGE,
+        )
     if not 1 <= args.release <= len(args.items):
         raise ChantierError("--release: the item number of the release CR", EXIT_USAGE)
     release = ReleaseGrant(autonomous=args.autonomous_releases, fixes=args.grant_fixes, published=0)

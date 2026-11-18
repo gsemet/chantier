@@ -68,7 +68,11 @@ you propose on your own (a suggestion in an answer to the user), before you give
 user asked for does not go through it.
 
 An order that adds work leaves the paused batch paused: your first `take` sets it running again,
-and `pause` again at the end (`pause` on a paused batch is refused).
+and `pause` again at the end (`pause` on a paused batch is refused). A batch born paused with no
+CR (`open` given none) is the same paused batch: after your claim, the brief and the rules, send
+`[foreman→chief-of-staff] ready <batch>` and wait. There is no Driver to start, no retro, no `final`
+and no `pause`: you are ready, not done. The first order's line starts your turn, and your first
+`take` sets the batch running.
 
 ## The user's boundaries
 
@@ -769,6 +773,8 @@ and `pause` again at the end (`pause` on a paused batch is refused).
     from outside and a `context:` hand-back do not.
 - Heartbeat: the wake that runs `chantier status --refresh --batch <batch> --epoch <n>`, as your
   host's reference says (at the steering wake of the batch's `timing:` line, and who arms it). No wake ever arriving is a stop.
+  While the batch is paused with no CR, arm no heartbeat (nothing can move); the turn that takes
+  the first CR arms it.
   A `forge saw merged` line in `status`, and the `forge hub:` and `watch:` lines, are the Chief of
   Staff's: do nothing with them, send no message about them, and they are not an undone order for
   ending the heartbeat.

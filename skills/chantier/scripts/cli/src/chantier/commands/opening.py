@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from chantier.commands.closing import record_born_paused
 from chantier.commands.crs import grant_line
 from chantier.commands.opening_record import (
     instruction_files,
@@ -234,8 +235,11 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
         f"# {b.id}\n\n- Mode: {data.mode}. Slots: {args.slots}. "
         f"Budget: {args.budget or 'none'}. Host: {host}. "
         f"Steering: {data.steering}.\n"
-        "- CRs, in order:\n"
-        + "".join(_cr_line(b, c) for c in data.crs)
+        + (
+            "- CRs, in order: none yet (born paused; `order add` joins them)\n"
+            if not data.crs
+            else "- CRs, in order:\n" + "".join(_cr_line(b, c) for c in data.crs)
+        )
         + (f"- Release grant: {grant_line(release)}\n" if release else "")
         + instructions
         + ".\n"
@@ -277,6 +281,24 @@ def _read_configuration(repo: Repo, host: str) -> tuple[Any, Any, Any]:
     return team, timing, escalation
 
 
+def _empty_lines(
+    repo: Repo, b: Batch, args: argparse.Namespace, shape: tuple[str, Any, Path]
+) -> list[str]:
+    """The output of an `open` with no CR: the batch is born paused, and what comes next."""
+    host, data, brief = shape
+    add = f"`order add --note <folder> --batch {b.id}`"
+    tail = (
+        "for each CR; claim the batch, then `take`"
+        if args.direct
+        else "for each CR, then start the Foreman"
+    )
+    return [
+        f"opened {b.id} on {host}: no CR, paused, {args.slots} slots, "
+        f"{data.mode}, steering {data.steering}",
+        f"next: complete the brief {shown(repo, brief)}, then {add} {tail}",
+    ]
+
+
 def open_batch(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     host = detect_host()
@@ -309,6 +331,10 @@ def open_batch(args: argparse.Namespace) -> list[str]:
             _open_crs(b, args, release)
             brief.write_text(_brief_text(b, args, host, release), encoding="utf-8")
             b.log("open", None, crs=[c.id for c in b.record.crs])
+            if not b.record.crs:
+                record_born_paused(b)
+    if not args.items:
+        return _empty_lines(repo, b, args, (host, data, brief))
     lines = [
         f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots, "
         f"{data.mode}, steering {data.steering}"
