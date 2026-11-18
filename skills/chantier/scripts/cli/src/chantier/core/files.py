@@ -150,7 +150,7 @@ IGNORED = (
     "/4-batch/batch.json",
     "/4-batch/events.jsonl",
     "/4-batch/brief.md",
-    "work/gates/",
+    "**/work/gates/",
     "**/work/scratch/",
     "*.log",
     "*.tmp",

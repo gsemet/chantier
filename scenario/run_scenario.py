@@ -8330,7 +8330,15 @@ def external_surface(tmp: Path) -> None:
     ignore = (w.state / ".gitignore").read_text(encoding="utf-8")
     check("`init` makes the planning folder and its .gitignore of local files",
           (w.state / "1-inbox").is_dir() and "seat.json" in ignore and "/4-batch/batch.json" in ignore
-          and "work/gates/" in ignore and not (w.work / ".agents").exists(), ignore)
+          and "**/work/gates/" in ignore.splitlines() and not (w.work / ".agents").exists(), ignore)
+    gate_dir = w.state / "2-backlog" / "P1" / "any-cr" / "work" / "gates"
+    gate_dir.mkdir(parents=True)
+    (gate_dir / "out.txt").write_text("x", encoding="utf-8")
+    gated = subprocess.run(["git", "check-ignore", "-q", "--no-index", "--", str(gate_dir / "out.txt")],
+                           cwd=w.surface, check=False)
+    check("a CR's work/gates/ is ignored at any depth of the planning folder",
+          gated.returncode == 0, str(gated.returncode))
+    shutil.rmtree(w.state / "2-backlog" / "P1" / "any-cr")
     code, out = w.chantier("preflight")
     check("preflight passes in the surface's main checkout", code == 0, str(out))
     item = w.prepare("Surface work")
