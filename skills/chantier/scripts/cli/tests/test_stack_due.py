@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
 from chantier.core.records import BatchRecord, CrEntry
-from chantier.stacks import stack_due, stack_line
+from chantier.core.repo import Repo
+from chantier.stacks import stack_due, stack_line, to_come
 
 PR = "https://github.com/o/r/pull/"
 
@@ -47,3 +49,19 @@ def test_the_first_stack_is_due(crs: list[CrEntry], batch: dict[str, Any], due: 
     line = f"stack: take stack now: {', '.join(due)} ready with a PR, no stack made yet "
     assert stack_line(d) == ([line + "(`take stack --epoch <n>`)"] if due else [])
     assert due != ["CR-1", "CR-2"] or stack_line(d) == [LINE]
+
+
+@pytest.mark.parametrize(
+    ("fields", "come"),
+    [
+        ({"pr": None}, True),
+        ({"status": "working", "stacked": False}, True),
+        ({"status": "working", "stacked": True}, False),
+        ({"status": "ready", "stacked": False}, False),
+        ({"status": "working", "stacked": True, "pr_base": "elsewhere"}, True),
+    ],
+)
+def test_a_cr_not_placed_yet_is_to_come(fields: dict[str, Any], come: bool) -> None:
+    d = BatchRecord(id="batch-01", mode="stack", crs=[cr(1, branch="b-1", **fields)])
+    repo = cast(Repo, SimpleNamespace(config={"default_branch": "main"}))
+    assert to_come(d, d.crs[0], repo) is come

@@ -5636,6 +5636,20 @@ def forge_stack_cli(w: World) -> None:
               code == 0 and f"mergeable below {h7(b)} (#202" in out[0] and "drafts on top #204" in out[0]
               and f"to come: {new} working, {r} queued" in out, str(out))
 
+        # a working CR with a draft PR on its place, not named in `stack`: to come, never a row
+        _, late = prepare_cr(w, "Forge late")
+        w.chantier("order", "add", "--note", str(late))
+        extra = w.batch()["crs"][-1]["id"]
+        record({extra: "working"}, **{extra: PR_LINK["github"] + "295"})
+        edit_cr(extra, pr_base=branch(new))
+        w.gh(drafts=[204, 295], heads={**gh_state()["heads"], "295": branch(extra)})
+        code, out = w.chantier("forge-stack", "show", env=on_path)
+        check("a working CR with a PR on its place that the stack driver has not placed is under "
+              "`to come:`, working, and no `check 2` line names its PR",
+              code == 0 and any(x.startswith("to come:") and f"{extra} working" in x for x in out)
+              and not any(x.startswith("check 2") and "#295" in x for x in out), str(out))
+        edit_cr(extra, status="cancelled", pr=None, pr_base=None)
+
         # 3. check 4 against each CR's status
         record({new: "ready"})
         code, out = w.chantier("forge-stack", "show", env=on_path, expect=2)

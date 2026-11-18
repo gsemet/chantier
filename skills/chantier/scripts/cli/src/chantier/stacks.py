@@ -191,6 +191,15 @@ def off_place(d: BatchRecord, c: CrEntry, repo: Repo) -> tuple[str, str] | None:
     return c.pr_base, below
 
 
+def to_come(d: BatchRecord, c: CrEntry, repo: Repo) -> bool:
+    """True when `c` is not in the stack as it stands: it has no PR, or its working PR is off its
+    place, or it is working and not placed by the stack driver yet (`stack <cr>...` has not named
+    its PR)."""
+    return (
+        not c.pr or off_place(d, c, repo) is not None or (c.status == "working" and not c.stacked)
+    )
+
+
 def _out_of_draft(c: CrEntry) -> bool:
     """A CR handed back ready whose PR is recorded as out of draft."""
     return c.status == "ready" and bool(c.pr) and c.pr_draft is False

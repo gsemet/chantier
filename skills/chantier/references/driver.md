@@ -878,7 +878,7 @@ as it stands.
 
 **The five checks,** read on the forge with `$CHANTIER forge-stack show` (one line per failed
 check, exit 0 when all hold), on the stack as it stands (the bottom CRs with a PR; drafts on top
-and the `to come:` line are no failure): the stack is open; it holds every PR of the stack as it
+and the `to come:` line are no failure; a working CR not placed yet is in `to come:`): the stack is open; it holds every PR of the stack as it
 stands, and no other; in the order of `take stack`, bottom first; no PR of a CR ready to merge is a draft
 and every draft sits above the PRs ready to merge; the release PR, when it is in the stack, is on top. On
 GitLab the checks read the chain (each MR's target is the branch below, the first on the default

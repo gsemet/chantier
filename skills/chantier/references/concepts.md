@@ -236,10 +236,11 @@ and how an agent is started. Each worker reads its own card, which restates the 
   action is GitHub's; on GitLab the MRs under it are merged first, one at a time from the bottom.
   **Stack as it stands:** the
   bottom CRs of the stack with a PR on its place, whatever their status (a working CR whose PR is
-  on another base than its place is to come until its Driver rebases). **Mergeable part:** those of it from
+  on another base than its place is to come until its Driver rebases; a working CR the stack
+  driver has not placed yet is to come until a stack driver names it in `stack`). **Mergeable part:** those of it from
   the bottom while each CR is ready to merge; its commit is the head of its highest
   PR. **Drafts on top:** the CRs above it (PR in draft, or not ready). **To come:** the open CRs
-  of the stack with no PR yet. **Stack ready to merge** means five checks hold on the forge
+  of the stack with no PR yet, and those the stack as it stands leaves out. **Stack ready to merge** means five checks hold on the forge
   (`$CHANTIER forge-stack show` prints the failing ones): the stack is open; it holds every PR of
   the stack as it stands, and no other; in the record's order, bottom first; no PR of a CR ready to merge
   is a draft and every draft sits above the PRs ready to merge; the release PR, when it is in the stack, is
