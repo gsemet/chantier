@@ -24,6 +24,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | anything, at the start of a session | read `AGENTS.md`: how the project ships, the branch, the team | The project |
 | to file, triage or refine an item | `$CHANTIER file` / `triage`, grill; on the user's word, the `spec-writer` writes the specification and, on an impactful CR, the `spec-critic` checks it. While a direct batch runs, file and triage stay open and the grill waits for the pause | Backlog and grill; [Steering a batch yourself](#steering-a-batch-yourself) |
 | a batch, "run the P1s", a series, a stack | preflight → show the plan → go → `$CHANTIER open` → start the Foreman, or steer it yourself in direct mode; the mode: forced by the argument or the user's word, else the surface ([Starting a batch](#starting-a-batch)) | Starting a batch |
+| "switch the batch to direct mode", "take over the batch" | the switch, on a running or paused Foreman batch, its Foreman alive or not | [Steering a batch yourself](#steering-a-batch-yourself) ("Switching to direct mode") |
 | "status?" | `$CHANTIER status --refresh` (no epoch), then `$CHANTIER status`, with links, and `.agents/changes/STATUS.md`; a blocked CR is a question for the user | While it runs |
 | the `final` message, the batch paused | read `4-batch/retro.md`, then the Completion report (the cost to date from `cost` and `cost --explain`, the Retro offered, by route), then the close offered at once, unprompted (next row) | While it runs |
 | the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
@@ -773,9 +774,9 @@ Only in the turn where the user gave the go:
      "direct", or start from the desktop app). Under Remote Control with a Foreman to reuse, you
      reuse it ([claude-code](hosts/claude-code.md), "Reusing the last Foreman"). A forced mode is
      never swapped silently.
-   - **A batch keeps the steering it was opened with.** Going to the phone or coming back changes
-     no running or paused batch; a Foreman batch never becomes direct (see Switching to Foreman
-     mode).
+   - **A batch keeps its steering until the user's word switches it** (see "Switching to Foreman
+     mode" and "Switching to direct mode"). Going to the phone or coming back changes no running
+     or paused batch.
 
    **The cut.** When the user has given a time (a night, "by 9 o'clock") and the floor exceeds
    it, the plan proposes a cut: the largest set of CRs whose floor fits the time given, taking
@@ -1378,7 +1379,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   Foreman has stopped waking, as it should. "Heartbeat stopped" is a loop ended on purpose. After a break, a restart or a stale heartbeat, prove the Foreman is alive
   (`$CHANTIER foreman get`; the host knows the session and it answers a `ping`) before
   reporting progress. An app restart stops every session: tell the user, and on "resume" run
-  preflight again and start a new Foreman with the next epoch, adding "Resume: relaunch each
+  preflight again and start a new Foreman with the next epoch (or, on the user's word, switch to
+  direct mode, "Switching to direct mode"), adding "Resume: relaunch each
   CR still working by the restart path (`agents set <cr> - --epoch <n>`, `handoff`, `take <cr>
   --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`); stop orphan processes with
   `$CHANTIER cancel`." A Driver whose id was cleared with `agents set <cr> -` (an app restart,
@@ -1408,6 +1410,7 @@ The checklist: what an option needs, and why. Each host's reference gives the co
 | Option | It needs | Why |
 | --- | --- | --- |
 | Switch to Foreman mode | a Foreman session the user can see and steer, or one to reuse | the Foreman is a separate session |
+| Switch to direct mode | only the Chief of Staff's own session; with a Foreman not answering, its session's stop needs the machine (unproved from Remote Control); otherwise yes on desktop, Remote Control and terminal | unproved until a real switch runs (trial: the first real switch, its events showing the `steering` event `direct` and each `resume: switch to direct mode` take) |
 | "Run this command in a terminal" | a shell on the machine | otherwise you run it, or say you cannot and why |
 | Open a local URL or a file path | the machine | send the file or a forge link instead |
 | A host command that opens a terminal dialog | a terminal | the app and a remote view have no such panel; use the app's own UI |
@@ -1561,8 +1564,63 @@ these differences.
   switch stopped by the restart path, `resume: switch to Foreman mode`". No Driver of yours runs
   once the Foreman claims (two Drivers on one CR is what this prevents). Your epoch is then stale
   and the CLI refuses your steering
-  commands (exit 3); the batch's steering becomes Foreman. A Foreman batch does not switch to
-  direct mode.
+  commands (exit 3); the batch's steering becomes Foreman. The switch can be undone by the
+  switch to direct mode (next bullet).
+- **Switching to direct mode.** In order:
+  1. **Trigger.** The user's word only ("switch the batch to direct mode", "take over the
+     batch"), on a running or paused Foreman batch, its Foreman alive or not. It needs nothing a
+     Foreman needs (no preflight P1 or P2): it works under Remote Control, in a terminal, on both
+     hosts.
+  2. **Pre-check, before anything is stopped.** Compare this session's own transcript id (the
+     host's reference says where it is) with the batch record's `chief_transcript` (in
+     `batch.json`). If they differ, run `$CHANTIER seat take <your session id>` (it records this
+     session's transcript on the batch) and compare again. If they still differ, or the
+     transcript is unknown, the CLI could not tell your claim from a Foreman's: stop, and tell
+     the user why; no workaround.
+  3. **Is the Foreman answering?** `$CHANTIER foreman get`, `$CHANTIER status --refresh` (no
+     epoch) for `heartbeat N min`, then `[chief-of-staff→foreman] ping`. It is not answering
+     when its heartbeat is late by the board's test (older than the batch's steering wake plus 5
+     minutes) and no `pong` came within 5 minutes; or when the user said so (no wait). When its
+     heartbeat is "stopped" (a loop it ended on purpose, or the batch's pause), the time in
+     `heartbeat_stopped` counts as its last heartbeat.
+  4. **A live Foreman.** Send `[chief-of-staff→foreman] switch to direct mode`, and start nothing
+     until its `switched to direct mode <batch>: stopped <what>` line comes. A Foreman that
+     answered the ping but sends no such line: keep waiting; only the user's word moves it to the
+     "not answering" path. This path works under Remote Control too.
+  5. **A Foreman not answering.** Its session is stopped by the user, or by you on the user's yes
+     where your host's reference names the means (Claude Desktop:
+     `mcp__ccd_session_mgmt__stop_session`; Copilot: none recorded, so the user stops it). Under
+     Remote Control, say the stop needs the machine (stopping a session from the phone is
+     unproved), name the session and wait. In every case name the session to the user (its title
+     and the id `foreman get` prints) and wait until it is stopped.
+  6. **Has each old Driver ended?** Before any restart, run `$CHANTIER close --batch <batch>`
+     (the check, never `--yes`): it lists each held agent's transcript state. Restart only the
+     CRs (and the stack driver, QA orders) whose old Driver is shown ended; for any shown running
+     or unreadable, ask the user, and restart it only once the user says it is stopped. Never
+     assume that stopping a session ended its Agent children. On the live-Foreman path the
+     Foreman's `switched` line names what it stopped; the same check confirms them.
+  7. **Claim.** `$CHANTIER foreman set <your session id> --epoch <n+1>` (`n` from `foreman get`),
+     then `$CHANTIER foreman transcript <your transcript id> --epoch <n+1>`; the output's
+     steering line confirms the switch. No such line: stop and tell the user (the batch is still
+     a Foreman batch at Foreman n°<n+1>). Then, as after any claim of yours: `$CHANTIER rules`
+     and the rule files, your title `[<code>] 💬 Project · CoS (Batch <nn>)`, and your heartbeat,
+     as this section says. The old Foreman's number is stale: any command it still sends is
+     refused (exit 3) and it stops.
+  8. **Resume.** At once, by the restart path with `resume: switch to direct mode`, for each
+     Driver step 6 showed ended: every `working` CR, the recorded stack driver and every open QA
+     order with an agent id (`agents set <cr> - --epoch <n+1>`, `handoff <cr>`, `take <cr> --note
+     "resume: switch to direct mode" --epoch <n+1>`, a new Driver from the printed skeleton,
+     `agents set <cr> <id> --epoch <n+1>`; the stack driver by `take stack --note ...`). A Driver
+     of a Foreman stopped from outside counts as stopped from outside: no question to the user,
+     counting toward nothing. A CR the old Driver handed back `blocked stopped` with the switch's
+     note is taken back the same way and counts toward nothing. No round is counted, no second
+     slot taken, the budget applies (exit 5 is a `budget` ask). Queued CRs stay queued; CRs
+     handed back `ready` or `blocked` stay as they are; PRs, branches and worktrees are kept.
+  9. **Said to the user.** One line: the batch is direct from now on, which CRs restarted (and
+     which wait for the user's word that their old Driver is stopped), and that the old Foreman's
+     spend stays in the batch's cost. Never the word "epoch" ("Foreman n°3 is stale: the Chief of
+     Staff steers batch-06").
+  The switch to Foreman mode undoes it.
 
 ## Handing the seat over
 

@@ -104,8 +104,9 @@ session (with its compaction count), stay apart on their own `Chief of Staff, ..
 On your word, and only where a Foreman can start. The Chief of Staff checks the Foreman-mode
 preflight first, and on a Remote Control session the switch needs a Foreman to reuse, else it is
 refused with the reason. No new Driver starts; the running ones are stopped, and the Foreman
-restarts each of them from where the record stands as soon as it takes over the batch. A Foreman
-batch never switches back to direct mode.
+restarts each of them from where the record stands as soon as it takes over the batch. The
+batch can switch back to direct mode on your word; see "Switch to direct mode" in
+[use-cases-foreman](use-cases-foreman.md).
 
 ## Make a release
 

@@ -342,8 +342,9 @@ and how an agent is started. Each worker reads its own card, which restates the 
 - **Session title:** `[<code>] 💬 Project · <role>` for a session the user talks to, `[<code>] ⚙️ Project · Foreman (Batch <nn>)` for the Foreman ([session-start](session-start.md), "Titles").
 - **Steering session:** the session that runs the batch from its state: a Foreman, or, in direct
   mode (`open --direct`), the Chief of Staff itself, the session the seat names. Both claim an epoch the same way. The batch
-  records which steers it and switches to Foreman mode when a later epoch is claimed by another
-  transcript; a Foreman batch never switches to direct mode. To the user, a claim's number is the
+  records which steers it. A later epoch claimed by a transcript other than the recorded Chief of
+  Staff transcript makes a direct batch a Foreman batch; a later epoch claimed by the recorded
+  Chief of Staff transcript makes a Foreman batch direct. To the user, a claim's number is the
   Foreman's number within its batch (`batch-18, Foreman n°2`), never the word epoch; the flag
   stays `--epoch`.
 - **Order, ask, hand-back:** the lines that change the state: the user's word through the
@@ -536,7 +537,7 @@ Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a De
 - The causes, one word each: `stopped from outside: <the host's text>` (the host stopped the agent: its `task_status` `killed`
   record or its refusal of a message), `host failure: <the host's exact text>` (an API error, an overloaded
   or refused service, a network error the host reports as the agent's end, not the agent's own
-  words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, plus those `foreman.md` already names
+  words), `refused first line`, `reply out of format: <what is missing>`, `switch to Foreman mode`, `switch to direct mode`, plus those `foreman.md` already names
   (`context`, a proven death, a new epoch, a silent end).
 - **One way, never both.** A restart is either a message that resumes the ended agent, where a card
   names that way (only the `taken back:` note of `foreman.md` does), or a new start; never a

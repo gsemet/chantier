@@ -66,17 +66,22 @@ def _transcript(b: RenderedBatch, args: argparse.Namespace) -> list[str]:
     b.record.foreman_transcript = args.value
     if args.value not in b.record.foreman_transcripts:  # a relay keeps the earlier ones
         b.record.append("foreman_transcripts", args.value)
-        # each steering transcript is priced from its claim to the next one
+    claims = b.record.foreman_claims
+    if not claims or claims[-1].transcript != args.value:
+        # each steering stint is priced from its claim to the next one, a returning session too
         b.record.append("foreman_claims", ClaimRecord(transcript=args.value, since=now()))
-    if (
-        b.record.steering == "direct"
-        and b.record.chief_transcript
-        and args.value != b.record.chief_transcript
-    ):
+    out = [f"transcript {args.value}"]
+    chief = b.record.chief_transcript
+    if b.record.steering == "direct" and chief and args.value != chief:
         b.record.steering = "foreman"  # a Foreman took the batch over from the Chief of Staff
         b.log("steering", None, steering="foreman", transcript=args.value)
+    elif b.record.steering == "foreman" and chief and args.value == chief:
+        b.record.steering = "direct"  # the Chief of Staff took the batch over from its Foreman
+        b.log("steering", None, steering="direct", transcript=args.value)
+        n = b.record.foreman_epoch
+        out.append(f"steering direct: the Chief of Staff steers {b.id} as Foreman n°{n}")
     b.log("foreman-transcript", None, transcript=args.value)
-    return [f"transcript {args.value}"]
+    return out
 
 
 def own_transcript(host: str) -> str | None:

@@ -8,8 +8,8 @@ the Foreman `$CHANTIER status`, a new Driver `$CHANTIER handoff <cr>`.
 | From → to | Lines |
 | --- | --- |
 | Chief of Staff → Foreman | `order O-<k>: …` (printed by `$CHANTIER order`), `ping` |
-| Foreman → Chief of Staff | `ready <batch>`, `ask <A-k>: …` (printed by `$CHANTIER asks`), `pong <status line>`, `final <STATUS.md path>`, `push <branch> <expected remote sha> <local sha>` (a Driver's refused force push, passed as it came), `chain <cr> after <cr>: <reason>` (a queued CR the Foreman chains; the Chief of Staff records it at once, without the user's word) |
-| Chief of Staff → Foreman | also `pushed <branch>`, `push failed <branch> <text>`, `push refused <branch>: <reason or git's exact text>` (the CR's fresh Driver then hands back `blocked refused <exact text>`), `chief-of-staff <session id>` (a hand-over: the new Chief of Staff's session) |
+| Foreman → Chief of Staff | `ready <batch>`, `ask <A-k>: …` (printed by `$CHANTIER asks`), `pong <status line>`, `final <STATUS.md path>`, `push <branch> <expected remote sha> <local sha>` (a Driver's refused force push, passed as it came), `chain <cr> after <cr>: <reason>` (a queued CR the Foreman chains; the Chief of Staff records it at once, without the user's word), `switched to direct mode <batch>: stopped <cr>…\|none` (the answer to `switch to direct mode`) |
+| Chief of Staff → Foreman | also `pushed <branch>`, `push failed <branch> <text>`, `push refused <branch>: <reason or git's exact text>` (the CR's fresh Driver then hands back `blocked refused <exact text>`), `chief-of-staff <session id>` (a hand-over: the new Chief of Staff's session), `switch to direct mode` (the Foreman stops its Drivers, answers and stops; see [foreman](foreman.md)) |
 | Chief of Staff → Chief of Staff (hand-over) | `your turn, you are the Chief of Staff`; back: `I have the batch` |
 | Griller → Chief of Staff | `<slug> specified` (optional), `files for <slug>: <paths>` (a Griller in a worktree) |
 | Foreman → Driver | `note <text>`, `fix <fix-cr>`, `ping`, `stop` |

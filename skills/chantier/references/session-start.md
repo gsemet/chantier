@@ -150,7 +150,7 @@ machine's code in front: a phone shows about 25 characters of a title. Its parts
 | Session | Title |
 | --- | --- |
 | Chief of Staff | `[<code>] 💬 Project · CoS` |
-| Chief of Staff steering a direct batch, from `open --direct` (or from the hand-over) until the batch is closed, then back to the line above | `[<code>] 💬 Project · CoS (Batch <nn>)` |
+| Chief of Staff steering a direct batch, from `open --direct`, the hand-over or a switch to direct mode until the batch is closed, then back to the line above | `[<code>] 💬 Project · CoS (Batch <nn>)` |
 | Griller | `[<code>] 💬 Project · Griller` |
 | Griller, once its subject is known | `[<code>] 💬 Project · Griller · <subject>` |
 | Foreman, given in its prompt ([chief-of-staff](chief-of-staff.md)) | `[<code>] ⚙️ Project · Foreman (Batch <nn>)` |

@@ -600,7 +600,7 @@ defer the rest of this card until an action names it. These are the card's defau
   back:`, is not work to start: pass it to the steering session as the refused line above.
   `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: stop a long gate of yours that
   is running (`gate <cr> --stop`), then `handback blocked stopped`; when the steering session's
-  stop comes with a switch to Foreman mode, the note says so.
+  stop comes with a switch of mode (to Foreman or to direct mode), the note says so.
 
 ## CR driver
 

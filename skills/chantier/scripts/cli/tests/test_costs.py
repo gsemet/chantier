@@ -6,7 +6,9 @@ from typing import Any
 
 import pytest
 
+from chantier.commands.cost.pricing import steering_windows
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
+from chantier.core.records import BatchRecord, ClaimRecord
 from chantier.costs.sessions import Scope, session_costs
 from chantier.costs.transcripts import Reading, usage
 
@@ -210,13 +212,13 @@ def test_in_the_steering_window_only_a_write_or_a_spec_writer_is_grill(
         json.dumps({"type": "user", "message": {"content": "go"}}) + "\n" + record
     )
     window = ("2026-01-01T00:00:00Z", "")
-    row = usage(transcript, window[0], reading=Reading(split=True, steering=window))
+    row = usage(transcript, window[0], reading=Reading(split=True, steering=(window,)))
     assert (row["grill"]["calls"], row["calls"]) == ((1, 0) if grill else (0, 1))
     if name == "Read":  # outside the steering window, the loose rule: naming is enough
         row = usage(
             transcript,
             window[0],
-            reading=Reading(split=True, steering=("2026-06-01T00:00:00Z", "")),
+            reading=Reading(split=True, steering=(("2026-06-01T00:00:00Z", ""),)),
         )
         assert (row["grill"]["calls"], row["calls"]) == (1, 0)
 
@@ -252,8 +254,8 @@ def test_a_loose_use_after_the_window_does_not_move_the_calls_inside_it(tmp_path
         )
     )
     window = ("2026-02-01T00:00:00Z", "2026-03-02T00:00:00Z")
-    inside = usage(transcript, *window, Reading(split=True, steering=window))
-    since = usage(transcript, window[0], reading=Reading(split=True, steering=window))
+    inside = usage(transcript, *window, Reading(split=True, steering=(window,)))
+    since = usage(transcript, window[0], reading=Reading(split=True, steering=(window,)))
     assert (inside["calls"], inside["grill"]["calls"]) == (1, 0)
     assert since["grill"]["calls"] == 1 and since["calls"] == 1  # the later call: loose, grill
 
@@ -277,3 +279,24 @@ def test_a_row_keeps_its_priced_calls_and_dollars_by_model(tmp_path: Path) -> No
     }
     assert sum(v["usd"] for v in row["by_model"].values()) == pytest.approx(row["usd"])
     assert row["by_model"]["claude-sonnet-5-5"]["usd"] == pytest.approx(2 * 0.022)
+
+
+def test_a_steering_transcript_that_claims_again_is_priced_over_each_of_its_windows() -> None:
+    def batch(*claims: tuple[str, str]) -> BatchRecord:
+        return BatchRecord(
+            id="batch-01",
+            created="t0",
+            chief_transcript="chief",
+            chief_transcripts=["chief"],
+            foreman_claims=[ClaimRecord(transcript=n, since=s) for n, s in claims],
+        )
+
+    back_and_forth = batch(("chief", "t1"), ("foreman", "t2"), ("chief", "t3"))
+    assert steering_windows(back_and_forth, "chief") == (("t1", "t2"), ("t3", ""))
+    assert steering_windows(back_and_forth, "foreman") == (("t0", "t3"),)
+    twice = batch(("foreman", "t1"), ("chief", "t2"), ("foreman", "t3"))
+    assert steering_windows(twice, "foreman") == (("t0", "t2"), ("t3", ""))  # no overlap
+    one_each = batch(("chief", "t1"), ("foreman", "t2"))  # every batch before: one window each
+    assert steering_windows(one_each, "chief") == (("t1", "t2"),)
+    assert steering_windows(one_each, "foreman") == (("t0", ""),)
+    assert steering_windows(one_each, "other") == (("t0", ""),)  # not a claim: as before

@@ -8,11 +8,17 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import FROM_AGENTS_MD, changes, open_batch, record, write_record
+from batch_helpers import FROM_AGENTS_MD, changes, open_batch, prepared, record, write_record
 from conftest import Chantier
 
 from chantier.core.batch import resolve_batch
-from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.errors import (
+    EXIT_BUDGET,
+    EXIT_CONFLICT,
+    EXIT_PRECONDITION,
+    EXIT_USAGE,
+    ChantierError,
+)
 from chantier.core.repo import Repo
 
 ROUNDS = 3
@@ -250,3 +256,50 @@ def test_a_command_that_writes_refuses_a_paused_batch_by_name_and_status_reads_i
     assert chantier("status")[0] == 0
     code, _, err = chantier("asks")
     assert code != 0 and f"--batch {batch}" in err and "chantier open" not in err
+
+
+@pytest.mark.parametrize(
+    "host_cell",
+    [
+        ("claude", "CLAUDE_CODE_SESSION_ID", True),
+        ("copilot", "COPILOT_AGENT_SESSION_ID", True),
+        ("claude", "CLAUDE_CODE_SESSION_ID", False),  # no Chief of Staff transcript recorded
+    ],
+)
+def test_the_chief_of_staff_claiming_a_foreman_batch_makes_it_direct(
+    repo: Path,
+    chantier: Chantier,
+    monkeypatch: pytest.MonkeyPatch,
+    host_cell: tuple[str, str, bool],
+) -> None:
+    host, variable, recorded = host_cell
+    monkeypatch.setenv("CHANTIER_HOST", host)
+    if recorded:
+        monkeypatch.setenv(variable, "uuid-chief")
+    assert chantier("open", str(prepared(repo, chantier, "Fix login")), *FROM_AGENTS_MD)[0] == 0
+    folder = repo / ".agents" / "changes" / "4-batch"
+    assert chantier("foreman", "set", "s-foreman", "--epoch", 1)[0] == 0
+    assert chantier("foreman", "transcript", "uuid-foreman", "--epoch", 1)[1] == [
+        "transcript uuid-foreman"
+    ]
+    assert chantier("foreman", "set", "uuid-chief", "--epoch", 2)[0] == 0
+    code, out, err = chantier("foreman", "transcript", "uuid-chief", "--epoch", 2)
+    assert code == 0, err
+    events = [json.loads(ln) for ln in (folder / "events.jsonl").read_text("utf-8").splitlines()]
+    steering = [e for e in events if e["kind"] == "steering"]
+    state = json.loads((folder / "batch.json").read_text(encoding="utf-8"))["steering"]
+    if not recorded:  # nothing could tell the claim from a Foreman's: no flip, no line, no event
+        assert (state, out, steering) == ("foreman", ["transcript uuid-chief"], [])
+        return
+    assert (
+        state == "direct"
+        and len(out) == len(["transcript", "steering"])
+        and out[0] == "transcript uuid-chief"
+    )
+    assert out[1].startswith("steering direct:") and "epoch" not in out[1]
+    assert [(e["steering"], e["transcript"]) for e in steering] == [("direct", "uuid-chief")]
+    assert " steering direct (the Chief of Staff) " in chantier("status")[1][0]
+    assert chantier("status", "--refresh", "--epoch", 1)[0] == EXIT_CONFLICT  # the old number
+    code, out, err = chantier("take", "CR-101", "--epoch", 2)
+    assert code == 0, err
+    assert any(ln.startswith("  Steering: the Chief of Staff") for ln in out)

@@ -35,6 +35,7 @@ Each behaviour carries a mark:
 | Message the Chief of Staff | `SendMessage` to its session id | proved, same |
 | A Driver messages its steering session (the Foreman; in direct mode the Chief of Staff, which is `main` there) | `SendMessage` to `main` | proved, same; in direct mode the same mechanism, unproved until a direct batch runs |
 | Stop a Driver | `TaskStop` | proved, same; after its own `TaskStop` with no restart at once, the steering session clears the recorded id (`foreman.md`, "A Driver stopped from outside") |
+| Stop another session (a Foreman not answering, on the user's yes) | `mcp__ccd_session_mgmt__stop_session` with the session's id | unproved. Trial: the first switch to direct mode with a Foreman not answering, the Foreman's session shown stopped afterwards. From Remote Control: unproved |
 | Agent ids of the project | the `name:` of a file in `.claude/agents/` or `~/.claude/agents/` | proved, same |
 | Start the Retro critic (Foreman, Chief of Staff) | `Agent`, `subagent_type: chantier:retro-critic`; the `model` parameter only when `$CHANTIER playbook` printed one or the user asked for Fable; no effort | the agent: unproved until a retro is cut this way. Trial: the first pause after the merge, the Foreman's transcript showing the agent and its model; Fable through the `model` parameter: unproved |
 | Models | the Spec-writer, the Spec critic and the Retro critic run Opus 5.5; the Foreman, every Driver and the workers run Sonnet 5.5, unless the configuration (`hosts.<host>.roles`) sets one (the default models are `config/chantier.defaults.yml`'s); a task under escalation (`concepts.md`, "Escalation") runs the role's `escalation` model, set per role in the configuration and printed by `$CHANTIER playbook` (only `coder`, `debugger` and `conflict-resolver` escalate) | proved, same, except the CR driver, the stack and release drivers and the Foreman: unproved; the trial is the model their transcripts show in the next batch (the Foreman: the trial in the row "Start the Foreman's session") |
@@ -619,6 +620,7 @@ otherwise.
 | Option | Desktop, typed | Remote Control | Terminal | Why and mark |
 | --- | --- | --- | --- | --- |
 | Switch to Foreman mode | yes | only by reusing a Foreman ("Reusing the last Foreman"), else no | no | preflight P1 fails in a terminal; proved by the classes table for the first two |
+| Switch to direct mode | yes | yes, except the stop of a Foreman not answering (needs the machine) | yes | needs only the Chief of Staff's own session; unproved until a real switch runs (trial: the first real switch, its events showing the `steering` event `direct` and each `resume: switch to direct mode` take) |
 | Run a command in a terminal | yes | no | yes | Remote Control has no shell; unproved |
 | Open `localhost` or a file path | yes | no: send the file or a forge link | yes | unproved |
 | `/permissions`, `/config` | no: the app's own settings | no | yes | terminal dialogs; unproved |
