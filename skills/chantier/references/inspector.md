@@ -73,6 +73,10 @@ When the specification or your prompt names a host and default matrix ([concepts
 "Words"), each cell needs a test or a check in the diff that runs its real flow. A cell with
 none, or one tested only on a record or configuration shape built by hand, is `blocking`.
 
+From round 1, each test the specification names that guards a shipped file must read that file
+as it ships, at the head under test (`spec-writer.md`, "Output"). A named test missing from the
+diff, or one that checks only a prepared text where the shipped file would do, is `blocking`.
+
 On a CR's round, read `<work folder>/pr-body.md` with the diff and audit it against the
 project's PR template and rules, else against [pr-template](pr-template.md) (its audit list); when
 the CR was grilled it also reads the CR's `02-answers.md` (in the CR's folder, the parent of the work

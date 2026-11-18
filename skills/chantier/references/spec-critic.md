@@ -21,7 +21,9 @@ Only these four:
 
 1. **A gap with the request's intent:** something the user asked for that the specification drops,
    narrows or bends; something it adds that nobody asked for; a decision of `02-answers.md` lost
-   or changed.
+   or changed. Evidence that does not prove what is asked counts too: a check that guards a
+   shipped file but reads a copy or a prepared text where the shipped file would do
+   (`spec-writer.md`, "Output"); this is about evidence, not an implementation detail.
 2. **An inconsistency with the rest of the software:** with a card, the CLI, the hooks, the docs,
    the tests or the scenario (an old rule the specification leaves standing against it
    included), or with another pending item on the same files (two items that would contradict
