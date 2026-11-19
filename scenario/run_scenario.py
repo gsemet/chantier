@@ -25,12 +25,14 @@ import hashlib
 import html
 import http.client
 import json
+import contextlib
 import os
 import posixpath
 import queue
 import re
 import shlex
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -108,7 +110,11 @@ UNITS = {
                                       "changes_tree"]),
     "direct": (135, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
                                  "empty_batch", "factory_batch"]),
-    "surface-board": (300, ["github"], ["remote_board", "forge_hub", "external_surface", "cr_summary"]),
+    "surface-board": (
+        500,
+        ["github"],
+        ["remote_board", "forge_hub", "surface_server", "external_surface", "cr_summary"],
+    ),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
 }
@@ -1709,7 +1715,7 @@ def forge_hub(w: World) -> None:
     sw.root.mkdir()
     sw.build()
     url = "https://github.com/acme/demo/pull/{}".format
-    hub_json = sw.surface / ".git" / "chantier" / "hub.json"
+    server_json = sw.surface / ".git" / "chantier" / "server.json"
     quick = {"CHANTIER_HUB_TEST_TIMES": "1:4"}  # the hub reads every 1 s, a watcher ends 4 s on
     slow = {"CHANTIER_HUB_TEST_TIMES": "30:4"}  # the hub reads once at its start, then 30 s on
     procs: list[BoardProc] = []
@@ -1729,12 +1735,17 @@ def forge_hub(w: World) -> None:
 
     def journal(project: str = "demo") -> list[dict]:
         path = folder(project) / "forge-journal.jsonl"
-        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
-                if path.is_file() else [])
+        lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+        whole = []
+        for x in lines:  # a line being appended is not a line yet
+            with contextlib.suppress(ValueError):
+                whole.append(json.loads(x))
+        return whole
 
     def record() -> dict:
+        """The `hub` entry of `server.json`."""
         try:
-            return json.loads(hub_json.read_text(encoding="utf-8"))
+            return json.loads(server_json.read_text(encoding="utf-8")).get("hub", {})
         except (OSError, ValueError):
             return {}
 
@@ -1835,7 +1846,7 @@ def forge_hub(w: World) -> None:
         span = time.monotonic() - began
         found = record()
         first_hub = found.get("pid")
-        check("`hub.json` names one PID (a process of its own, neither watcher's argument vector) and "
+        check("the `hub` entry of `server.json` names one PID (a process of its own, neither watcher's argument vector) and "
               "a read per project of the surface",
               isinstance(first_hub, int) and set(found.get("projects", {})) == {"demo", "other"}
               and record().get("pid") == first_hub, str(found))
@@ -1917,11 +1928,13 @@ def forge_hub(w: World) -> None:
               f"{sw.last_out} {sw.last_stderr}")
         # 6. a merge the board's PRs page reads first: the hub writes no second line
         wb.stop()
+        # the board is the surface server now: it takes the hub lock and reads the forge once at its
+        # start, then every 30 s, so its PRs page reads the merge first
         board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
-                          cwd=sw.surface)
+                          cwd=sw.surface, env=slow)
         procs.append(board)
         link = Link(board.line())
-        wa = watcher("demo", "--after", 4, env=slow)
+        wa = watcher("demo", "--after", 4)
         wa.line()
         until(lambda: bool(record().get("projects", {}).get("demo", {}).get("read_at")))
         merged(914, "2026-11-16T10:03:00Z")
@@ -1935,7 +1948,7 @@ def forge_hub(w: World) -> None:
         wa = watcher("demo", "--after", 5)
         wa.line()
         seen = len(graphql())
-        until(lambda: len(graphql()) >= seen + 2)
+        until(lambda: len(graphql()) >= seen + 1, 45)
         check("the hub's reads of the same merge write no second line",
               [e["source"] for e in journal()] == ["hub", "hub", "hub", "hub", "board"], str(journal()))
         # 7. the batch ends and pauses: A's watcher keeps running, and the board's writes wake it
@@ -1986,7 +1999,7 @@ def forge_hub(w: World) -> None:
         wb.line()
         merged(915, "2026-11-16T10:04:00Z")
         seen = len(graphql())
-        until(lambda: len(graphql()) >= seen + 2)
+        until(lambda: len(graphql()) >= seen + 1, 45)
         check("a PR merged after the pause writes no line for A, and the hub no longer reads its PRs",
               len(journal()) == 6 and not any(x != [920] for x in map(asked, graphql()[seen:])),
               str(journal()[-1:]))
@@ -2016,6 +2029,190 @@ def forge_hub(w: World) -> None:
               == (1, 2, "board", ["project"]) and len(got) == 2 and got[0].startswith("board wrote (new): "),
               f"{after} {got}")
     finally:
+        for proc in reversed(procs):
+            proc.stop()
+
+
+def surface_server(w: World) -> None:
+    """CR-386: one surface server per surface and machine, `chantier board`, that is also the hub."""
+    note("\n## 16e. The surface server: the board is the forge hub, `server.json` holds its state")
+    sw = SurfaceWorld(w.root / "server")
+    sw.root.mkdir()
+    sw.build()
+    url = "https://github.com/acme/demo/pull/{}".format
+    git = sw.surface / ".git" / "chantier"
+    quick = {"CHANTIER_HUB_TEST_TIMES": "1:4"}
+    procs: list[BoardProc] = []
+    batch_file = sw.state / "4-batch" / "batch.json"
+
+    def state() -> dict:
+        try:
+            return json.loads((git / "server.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+
+    def until(then, timeout: float = 40) -> bool:
+        end = time.monotonic() + timeout
+        while not (found := then()) and time.monotonic() < end:
+            time.sleep(0.25)
+        return bool(found)
+
+    def journal() -> list[dict]:
+        path = sw.state / "forge-journal.jsonl"
+        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                if path.is_file() else [])
+
+    def graphql() -> list[list[str]]:
+        return [c for c in forge_calls(sw) if c[:2] == ["api", "graphql"]]
+
+    def watcher(*args) -> BoardProc:
+        procs.append(BoardProc(sw, "--project", "demo", "watch", *args, cwd=sw.surface, env=quick))
+        return procs[-1]
+
+    def ended(proc: BoardProc, timeout: float = 60) -> list[str]:
+        try:
+            proc.p.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return ["(still running)"]
+        got = []
+        while (x := proc.line(2)) is not None:
+            got.append(x)
+        return got
+
+    def start_board() -> BoardProc:
+        procs.append(BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+                               cwd=sw.surface, env=quick))
+        return procs[-1]
+
+    def run_board(project: str, *extra) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-m", "chantier", "board", "--project", project,
+                               "--host", "127.0.0.1", "--port", "0", *extra], cwd=sw.surface,
+                              env={**sw.env, **quick}, capture_output=True, text=True,
+                              encoding="utf-8", timeout=60)
+
+    def hub_line() -> str:
+        _, out = sw.chantier("status", expect=None)
+        return next((x for x in out if x.startswith("forge hub:")), "")
+
+    def server_pid() -> int | None:
+        """The board's PID as `server.json` names it (a launcher may sit between us and it)."""
+        return state().get("server", {}).get("pid")
+
+    def kill_server() -> None:
+        pid = server_pid()
+        if pid and pid != os.getpid():  # the migration's record names this very process
+            with contextlib.suppress(OSError):
+                # a hard kill, no cleanup runs: SIGKILL on POSIX (the dead-entry takeover), and
+                # `os.kill` ends the process outright on Windows
+                os.kill(pid, getattr(signal, "SIGKILL", signal.SIGTERM))
+
+    sw.chantier("init")
+    sw.chantier("init", project="other")
+    items = [sw.prepare(f"Server A{n}") for n in range(1, 4)]
+    sw.chantier("open", *items, "--direct", "--slots", 2, *FROM_AGENTS_MD)
+    d = json.loads(batch_file.read_text(encoding="utf-8"))
+    a = [c["id"] for c in d["crs"]]
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", d["id"])
+    for c, number in zip(d["crs"], range(930, 933)):
+        c["pr"] = url(number)
+    batch_file.write_text(json.dumps(d, indent=2))
+    record = batch_file.read_bytes()
+    try:
+        # 1. the board is the server and the hub
+        board = start_board()
+        link = Link(board.line())
+        until(lambda: bool(state().get("hub", {}).get("projects")))
+        found = state()
+        pid = server_pid()
+        check("`server.json` names the board's PID in `server` and in `hub`, and the key",
+              isinstance(pid, int) and found.get("hub", {}).get("pid") == pid
+              and found.get("key") == link.key, str(found))
+        check("the git folder holds `server.json` and no `board.json` or `hub.json`",
+              not (git / "board.json").exists() and not (git / "hub.json").exists(),
+              str(list(git.iterdir())))
+        check("`status` prints the server's PID as the hub",
+              hub_line().startswith(f"forge hub: PID {pid}, the surface server"), hub_line())
+        # 2. a second board answers with the first one's address, whichever project it serves
+        for project, extra in (("demo", ()), ("other", ("--seat", "sess-o"))):
+            p = run_board(project, *extra)
+            check(f"a second `board {' '.join(extra)}` answers `board already running at`",
+                  p.returncode == 0 and p.stdout.startswith("board already running at "),
+                  p.stdout + p.stderr)
+        # 3. a watcher started while the board runs is not the hub; the hub's line wakes it
+        wa = watcher()
+        start = wa.line()
+        check("a watcher started while the board runs is not the hub",
+              (start or "").startswith("watch: demo from cursor 0")
+              and not (start or "").endswith(", the hub"), str(start))
+        forge_pr(sw, url(930), state="MERGED", mergedAt="2026-11-16T10:00:00Z")
+        got = ended(wa)
+        check("a merge on the forge ends the watcher with the `forge saw merged` line",
+              bool(got) and got[0].startswith(f"forge saw merged: {a[0]} {url(930)} into main at ")
+              and f"order merged {a[0]}" in got[0], str(got))
+        check("the journal holds the merge once, written by the hub",
+              [(e["source"], e["kind"], e["cr"]) for e in journal()] == [("hub", "merged", a[0])],
+              str(journal()))
+        # 4. the board stops: a watcher is the hub; the board returns: the watcher yields
+        kill_server()
+        board.stop()
+        wb = watcher("--after", 1)
+        start = wb.line()
+        check("with the board stopped, a watcher is the hub", (start or "").endswith(", the hub"),
+              str(start))
+        check("`status` says the hub is a watcher",
+              until(lambda: ", a watcher," in hub_line()), hub_line())
+        board = start_board()
+        link = Link(board.line())
+        check("the board starts: the watcher yields and `status` names the server",
+              until(lambda: server_pid() not in (None, pid)
+                    and state().get("hub", {}).get("pid") == server_pid() and wb.p.poll() is None)
+              and hub_line().startswith(f"forge hub: PID {server_pid()}, the surface server"),
+              f"{state()} {hub_line()}")
+        mark = len(graphql())
+        time.sleep(6)
+        reads = len(graphql()) - mark
+        # one project has open PRs (`demo`), the hub's cycle is 1 s: one read per cycle, so 6 s hold
+        # 6 reads, give or take the one a window edge adds or drops; a second reader would give 12
+        check("the server reads the forge once per cycle for the one project with an open PR, "
+              "and no second hub reads", 5 <= reads <= 7, f"{reads} reads in 6 s, 1 s cycles")
+        # 5. the server is killed: a watcher takes the lock
+        kill_server()
+        board.stop()
+        check("the server killed hard, a watcher takes the hub lock and `status` says so",
+              until(lambda: ", a watcher," in hub_line(), 60), hub_line())
+        forge_pr(sw, url(931), state="MERGED", mergedAt="2026-11-16T10:01:00Z")
+        got = ended(wb)
+        check("the next merge still wakes the watcher",
+              bool(got) and got[0].startswith(f"forge saw merged: {a[1]} {url(931)} into main"),
+              str(got))
+        # 6. the migration of an earlier version's `board.json`
+        for proc in procs:
+            proc.stop()
+        (git / "server.json").unlink(missing_ok=True)
+        old = {"key": "k" * 43, "created": "2026-01-01T00:00:00Z",
+               "running": {"pid": os.getpid(), "host": "127.0.0.1", "port": free_port(),
+                           "version": "0.0.1", "served": "x",
+                           "started": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}}
+        (git / "board.json").write_text(json.dumps(old), encoding="utf-8")
+        p = run_board("demo")
+        said = p.stdout + p.stderr
+        check("a live older board in `board.json` refuses the new one with its stop command, the "
+              "key moves to `server.json` and `board.json` is gone",
+              p.returncode != 0 and "then run board again" in said
+              and state().get("key") == old["key"] and not (git / "board.json").exists(),
+              f"{said} {state()}")
+        # 7. the record is as it was, only read-only calls were made, the folder holds the state
+        calls = forge_calls(sw)
+        check("the batch record is unchanged and only read-only `api graphql` calls were made",
+              batch_file.read_bytes() == record and bool(calls)
+              and all(c[:2] == ["api", "graphql"] and not any(
+                  x == "-X" or x.startswith("query=mutation") for x in c) for c in calls),
+              str(calls[:1]))
+        names = {x.name for x in git.iterdir() if not x.name.startswith("watch-")}
+        check("`chantier/` holds only `server.json`, `server.json.lock`, `hub.lock` and `watch-*` entries",
+              names <= {"server.json", "server.json.lock", "hub.lock"}, str(sorted(names)))
+    finally:
+        kill_server()
         for proc in reversed(procs):
             proc.stop()
 
@@ -2079,8 +2276,8 @@ def remote_board(w: World) -> None:
         )
         # 2. the key
         key_file = Path(w.sh("git", "rev-parse", "--path-format=absolute", "--git-common-dir")) \
-            / "chantier" / "board.json"
-        check("the key is kept in the git folder's `chantier/board.json`",
+            / "chantier" / "server.json"
+        check("the key is kept in the git folder's `chantier/server.json`",
               key_file.is_file() and json.loads(key_file.read_text(encoding="utf-8"))["key"] == link.key,
               str(key_file))
         refused = [fetch(port, p)[0] for p in ("/", "/api/board", "/js/main.js",
@@ -2291,16 +2488,17 @@ def remote_board(w: World) -> None:
               p.returncode == 0
               and p.stdout.strip() == f"board already running at http://127.0.0.1:{port}/?k={link.key}",
               p.stdout + p.stderr)
-        check("the live board's record in `board.json` names its PID, port and version, and "
-              "`/api/board` answers the same PID",
-              json.loads(key_file.read_text(encoding="utf-8")).get("running", {}).get("port") == port
-              and json.loads(key_file.read_text(encoding="utf-8"))["running"]["pid"]
+        check("the live board's `server` entry in `server.json` names its PID, port and version, "
+              "and `/api/board` answers the same PID",
+              json.loads(key_file.read_text(encoding="utf-8")).get("server", {}).get("port") == port
+              and json.loads(key_file.read_text(encoding="utf-8"))["server"]["pid"]
               == jget(port, link, "/api/board")[2].get("pid"), key_file.read_text(encoding="utf-8"))
         w.chantier("seat", "take", "s-4", "--over", "s-3")
         check("the board whose seats are gone stops by itself, with no request of ours",
               exits(second) == 0)
-        check("a board that stops removes its record from `board.json`, the key stays",
-              "running" not in json.loads(key_file.read_text(encoding="utf-8"))
+        check("a board that stops removes its `server` and `hub` entries from `server.json`, the "
+              "key stays",
+              not {"server", "hub"} & set(json.loads(key_file.read_text(encoding="utf-8")))
               and json.loads(key_file.read_text(encoding="utf-8"))["key"] == link.key)
         # a board started by hand (no `--seat`) records a session's seat and follows none
         late = board("board", "--host", "127.0.0.1", "--port", 0)
@@ -9275,6 +9473,7 @@ CASES = {
     "foreman_in_a_worktree": foreman_in_a_worktree,
     "remote_board": remote_board,
     "forge_hub": forge_hub,
+    "surface_server": surface_server,
     "external_surface": lambda w: external_surface(w.root / "external"),
     "cr_summary": lambda w: cr_summary(w.root / "summary"),
     "lost_messages": lost_messages,

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
 import pytest
 from conftest import Chantier
+
+from chantier.core import clock
+from chantier.hub import state
 
 FROM_AGENTS_MD = ("--default-branch", "main")  # what the Chief of Staff read in the rules
 
@@ -81,3 +85,19 @@ def open_factory(
     assert code == 0, err
     monkeypatch.setenv("CHANTIER_BATCH", record(repo)["id"])
     return str(record(repo)["id"])
+
+
+DEAD = 2_000_000_000  # a PID no process has
+
+
+def name_server(git_dir: Path, pid: int = 0, version: str = "9.9.9") -> None:
+    """The `server` entry of `server.json`: of this process by default, else of a PID (`DEAD`)."""
+    entry = {
+        "pid": pid or os.getpid(),
+        "host": "127.0.0.1",
+        "port": 1,
+        "version": version,
+        "served": "x",
+        "started": clock.now(),
+    }
+    state.modify(git_dir, lambda data: data.__setitem__(state.SERVER, entry))

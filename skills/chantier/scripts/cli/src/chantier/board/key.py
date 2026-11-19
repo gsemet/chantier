@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import hmac
 import json
-import os
 import secrets
 from http.cookies import SimpleCookie
 from pathlib import Path
 
-from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
-from chantier.core.files import read_text, write_json
+from chantier.core.files import read_text
 from chantier.core.repo import Repo
+from chantier.hub import state
 
 COOKIE = "chantier_board"
 HEADER = "x-chantier-board-key"
@@ -20,8 +19,8 @@ YEAR_S = 365 * 24 * 3600
 
 
 def key_path(repo: Repo) -> Path:
-    """`<git common dir>/chantier/board.json`: never in a working tree, never pushed."""
-    return repo.git_dir / "chantier" / "board.json"
+    """`<git common dir>/chantier/server.json`: never in a working tree, never pushed."""
+    return state.path(repo.git_dir)
 
 
 def read_key(path: Path) -> str:
@@ -35,21 +34,14 @@ def read_key(path: Path) -> str:
 
 
 def load_or_create(repo: Repo, new: bool = False) -> str:
-    """The board's key; made at the first start, replaced by `--new-key`."""
-    path = key_path(repo)
-    if path.is_file() and not new:
-        return read_key(path)
-    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    """The board's key; made at the first start, replaced by `--new-key`, which keeps the
+    `server` and `hub` entries. A failed write raises `state.StateError`."""
+    if not new:
+        key = state.read(repo.git_dir).get("key")
+        if isinstance(key, str) and key:
+            return key
     key = secrets.token_urlsafe(32)
-    kept = {}
-    if path.is_file():  # `--new-key` replaces the key only: the running board's record stays
-        try:
-            old = json.loads(read_text(path))
-            kept = old if isinstance(old, dict) else {}
-        except (OSError, ValueError):
-            kept = {}
-    write_json(path, {**kept, "key": key, "created": clock.now()})
-    os.chmod(path, 0o600)
+    state.set_key(repo.git_dir, key)
     return key
 
 
@@ -70,8 +62,8 @@ class KeyFile:
         if mark != self._seen:
             try:
                 self._key, self._seen = read_key(self.path), mark
-            except ChantierError:
-                return ""
+            except ChantierError:  # a file in the middle of a replace: the last good key stays
+                return self._key
         return self._key
 
 

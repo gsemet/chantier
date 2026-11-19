@@ -6,7 +6,7 @@ from chantier import __version__
 from chantier.board.projects import project_name
 from chantier.core.records import BatchRecord
 from chantier.core.repo import Repo
-from chantier.hub import autostart, journal, lock
+from chantier.hub import autostart, journal, lock, state
 
 
 def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
@@ -41,15 +41,18 @@ def board_lines(repo: Repo) -> list[str]:
 
 
 def hub_line(repo: Repo) -> str:
-    """The forge hub of this surface on this machine: its PID and its last read of this project."""
-    record = lock.live(repo.git_dir)
+    """The forge hub of this surface on this machine: its PID, whether it is the surface server
+    or a watcher, and its last read of this project."""
+    record = state.live_entry(repo.git_dir, state.HUB)
     if record is None:
         return "forge hub: none running"
+    server = state.live_entry(repo.git_dir, state.SERVER)
+    who = "the surface server" if server and server["pid"] == record["pid"] else "a watcher"
     mine = (record.get("projects") or {}).get((repo.project_dir or repo.root).name) or {}
-    line = f"forge hub: PID {record['pid']}, last read {mine.get('read_at') or 'none yet'}"
+    line = f"forge hub: PID {record['pid']}, {who}, last read {mine.get('read_at') or 'none yet'}"
     if mine.get("error"):
         line += (
             f"; last read failed at {mine.get('error_at') or 'an unknown time'}: {mine['error']}"
         )
-    other = lock.other_version(record, __version__)
+    other = state.other_version(record, __version__)
     return f"{line}; hub is chantier {other}" if other else line

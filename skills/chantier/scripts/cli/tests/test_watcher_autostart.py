@@ -11,9 +11,8 @@ from batch_helpers import FROM_AGENTS_MD, host, open_batch, prepared, record, wr
 from conftest import Chantier
 
 from chantier import __version__, cli
-from chantier.board import running
 from chantier.core.repo import Repo
-from chantier.hub import autostart, journal, lock
+from chantier.hub import autostart, journal, lock, state
 from chantier.hub.watch import Watch
 from chantier.plugin_files import cli_command
 
@@ -216,9 +215,8 @@ def test_the_seat_of_another_session_gets_no_line_and_a_status_names_a_board_of_
     assert code == 0 and not any(x.startswith("watch:") for x in out)
     open_batch(repo, chantier, monkeypatch, "Alpha")
     found = Repo.find()
-    board = found.git_dir / "chantier" / "board.json"
     for version, shown in (("0.0.1", True), (__version__, False)):
-        running.write(board, "127.0.0.1", 1, version, "x")
+        state.write_server(found.git_dir, "127.0.0.1", 1, version, "x")
         out = chantier("status")[1]
         assert any(x.startswith("board: chantier 0.0.1 serves this surface") for x in out) == shown
         assert not any("board wrote" in x for x in out)

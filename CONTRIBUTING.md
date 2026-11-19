@@ -85,8 +85,9 @@ chantier is four things in one repository:
    command that changes anything (it reads the head, the remote and the status to say what is
    off) and no forge command: the agents have `git`, `gh` and `glab` and do the work. It writes
    only in the planning folder (the target repository's `.agents/changes/`, or the project's
-   folder of an external planning surface, plus its own `.gitignore`, and the board's key in the
-   git folder, and the forge hub's lock and record, `chantier/hub.lock` and `chantier/hub.json`, and each watcher's
+   folder of an external planning surface, plus its own `.gitignore`, and the surface server's key,
+   record and the forge hub's record in the git folder (`chantier/server.json`), the hub's lock
+   (`chantier/hub.lock`), and each watcher's
    lock, `chantier/watch-<project>/<session>.lock`),
    as plain JSON and
    Markdown: the CR folders in `1-inbox/`, `2-backlog/`,
@@ -113,9 +114,10 @@ chantier is four things in one repository:
    build step).
    The board is also the CLI's one git exception: while it runs it joins the planning
    surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
-   The forge hub of `chantier watch` is a second named exception among the tools: it is
-   started by the Chief of Staff on the user's yes. Of the watchers of a planning surface (or a
-   repository) on one machine, the one that holds an OS file lock in the git folder reads the
+   The forge hub is the surface server's second role, a named exception among the tools: one
+   process per planning surface and machine, `chantier board`, started by the Chief of Staff on
+   the user's yes; with no server running, the one watcher that holds the OS file lock in the git
+   folder is the hub, and it yields the lock when a server starts. The hub reads the
    forge, read-only, with the user's own `gh` or `glab`, on its own, and needs the network for
    that: at most once every 20 s, one query per project whose running batch has a PR the record
    does not hold merged or cancelled; it appends to that project's `forge-journal.jsonl`
@@ -125,7 +127,8 @@ chantier is four things in one repository:
    hub's lines and the board's writes) and ends 20 s after the last new event for it that wakes, and no
    sooner than `events.wake_every` after its start, which wakes its session, or when the
    project's seat is another session's; the hub records nothing in
-   a batch, runs no git and messages no agent. It spares the user one round trip per merge and
+   a batch, runs no git and messages no agent (the server runs no git either, but its autosync join), and every journal
+   line, the CLI commands' included in their own process, goes through the one append function. It spares the user one round trip per merge and
    per board session ("rescan").
    A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.

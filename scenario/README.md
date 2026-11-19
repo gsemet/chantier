@@ -284,7 +284,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   /api/autosync`, `start` refused while blocked, `stop` refused while stopped, a stale incident
   refused, an approval that runs `approve` then `start`; an in-project board has no autosync
   (unit: surface-board);
-- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `/api/board` answers its `pid`, `board.json` holds the `running` record while the board runs and no more once it has stopped, the key staying (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
+- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `/api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
 - the board's PRs page (`GET /api/projects/<id>/prs`, the fake `gh` answering its one `api
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose
@@ -310,10 +310,11 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_watch_events.py::test_watch_refusals_and_the_pull_path,
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version,
     test_watcher_autostart.py::test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs);
-  - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, `hub.json`
-    names one PID and a read per project, `status` names that PID, and each cycle makes one `api
-    graphql` call per project with an open PR, never two hubs' worth (unit: surface-board) (test:
-    test_forge_hub.py::test_one_watcher_holds_the_hub_lock_and_the_next_takes_it,
+  - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, the `hub`
+    entry of `server.json` names one PID and a read per project, `status` names that PID
+    (`a watcher`), and each cycle makes one `api graphql` call per project with an open PR, never
+    two hubs' worth (unit: surface-board) (test:
+    test_surface_server.py::test_one_watcher_holds_the_hub_lock_and_the_next_takes_it,
     test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
   - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
     `watch: <batch> still running: for the Chief of Staff, start again in the background now:
@@ -344,9 +345,27 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_watch_events.py::test_the_seat_of_another_session_ends_the_watcher_with_its_line,
     test_watch_events.py::test_the_board_and_config_lines_are_never_duplicates_and_status_holds_none);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
-    is unchanged by the hub, a forge error lands in `hub.json` and not in the journal, and no `gh`
+    is unchanged by the hub, a forge error lands in the `hub` entry and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:
-    test_forge_hub.py::test_a_forge_error_lands_in_the_hub_record_not_in_the_journal);
+    test_forge_hub.py::test_a_forge_error_lands_in_the_hub_record_not_in_the_journal,
+    test_surface_server.py::test_a_hub_entry_that_cannot_be_written_is_written_at_the_next_cycle);
+  - the surface server (CR-386), on the same surface: `chantier board --port 0` runs in the
+    background, `server.json` names its PID in `server` and, within one cycle, in `hub`, `status`
+    prints `forge hub: PID <board pid>, the surface server, ...`, and no `board.json` or `hub.json`
+    is left; a second `board --port 0` prints `board already running at`, also with `--seat` from
+    the other project; a `board.json` prepared with a key and a live older `running` record
+    refuses `board` with the stop command and its key lands in `server.json`; a watcher of A
+    started while the board runs has no `, the hub` and ends on A's merge with `forge saw merged:
+    ... order merged <cr>`, the line written once with `source: "hub"`; a watcher that was the hub
+    when the board starts yields (`status` names the server's PID within one cycle, one `api
+    graphql` per project per cycle); the board killed hard, a running watcher takes the lock at its
+    next poll, `status` prints `forge hub: PID <watcher pid>, a watcher, ...` and the next merge
+    still wakes it; the record is unchanged by the server and the git folder's `chantier/` holds
+    only `server.json`, `server.json.lock`, `hub.lock` and the `watch-<project>/<session>.lock`
+    files (unit: surface-board) (test:
+    test_surface_server.py::test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go,
+    test_surface_server.py::test_two_writers_of_server_json_lose_neither_entry,
+    test_board_running.py::test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own);
 - the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `PUT /config` writes
   the project folder's file and says, role-free, `slots 4 -> 6: <batch> keeps <n> until an order
   slots` and `specifying 4 -> 1: from the next start`, with no `applies at the next batch` line;

@@ -8,12 +8,10 @@ from __future__ import annotations
 
 import re
 
-from chantier.board import running
-from chantier.board.key import key_path
 from chantier.board.projects import project_name
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
-from chantier.hub import journal, lock
+from chantier.hub import journal, lock, state
 from chantier.plugin_files import cli_command, detect_host, own_transcript
 
 NONE = "none"
@@ -40,10 +38,9 @@ def other_sessions(repo: Repo, project: str) -> list[str]:
 
 
 def board_clause(repo: Repo, version: str) -> str:
-    """What the start line and `status` say of a live board of another version, else nothing."""
-    record = running.live(key_path(repo))
-    found = (record or {}).get("version")
-    return found if isinstance(found, str) and found != version else ""
+    """What the start line and `status` say of a live surface server of another version, else
+    nothing."""
+    return state.other_version(state.live_entry(repo.git_dir, state.SERVER), version) or ""
 
 
 def pull_command(repo: Repo, n: int) -> str:
