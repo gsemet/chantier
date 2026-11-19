@@ -17,6 +17,7 @@ one fault and must be caught by the tool that owns it, naming its criterion:
     plain-merge      the Foreman's `git merge origin/main`, with no `--ff-only` (audit J22)
     ticket-summary-setup   setup of `ticket-summary` on the local sandbox: no CR placed, the issue line, no forge write
     audit-cos-prompt   a retro critic started with `chantier retro-critic for the Chief of Staff` passes J1 and J2; a first line of no known form, or a wrong card, still fails J1
+    audit-qa-prompt    a QA driver started with its card's first line passes J1, J2 and J3 (its detached worktree, its QA folder); a first line of no known form, another role in that form, a wrong card, a branch worktree or a write outside its folder still fail; in a direct batch it is audited too
     audit-claim-call   a `$C rules` in the shell call that claims the transcript passes J14; the same command in an earlier call still fails it
     audit-heredoc      `git -C <main checkout>` in a here-doc's text passes J26; `git checkout main`, and a move in a `bash <<'EOF'`, still fail it
     other-sandbox      a `sandbox.local.json` naming another repository (a temporary one) flows through setup, merge, the judge and the audit, the fake forge answering for that name
@@ -68,7 +69,7 @@ CLI = setup.CLI
 GATE = "uv run --locked pytest -q"  # the sandbox's long gate (its AGENTS.md)
 PATCH = HERE / "dry-run" / "delete-item.patch"
 CASES = ["clean", "stray-merge", "reset-leftover", "merge-refused", "stale-lock", "force-tag-push",
-         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-claim-call", "audit-heredoc",
+         "plain-merge", "ticket-summary-setup", "audit-cos-prompt", "audit-qa-prompt", "audit-claim-call", "audit-heredoc",
          "other-sandbox", "reset-foreign", "reset-empty", "publish", "eval-root", "setup-prompt"]
 OK, FAILED, USAGE, EXTERNAL = 0, 1, 2, 4
 SESSION = "local_dry-run-foreman"
@@ -987,6 +988,96 @@ def case_audit_cos_prompt(run: Run) -> str:
             "an unrecognised first line and a wrong card still fail [J1]")
 
 
+QA_FOLDER = ".agents/changes/1-inbox/qa-261118-1200"
+QA_BODY = ("Read {skill}/references/driver.md;\n"
+           "the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.\n"
+           "CLI ($CHANTIER): {cli}")
+
+
+def qa_first_line(batch: Batch) -> str:
+    """The QA driver's first line, from the shipped agent file's description, filled in."""
+    text = (audit.ROOT / "agents" / "qa-driver.md").read_text(encoding="utf-8")
+    found = re.search(r"Prompt starts with: `([^`]+)`", text)
+    need(found is not None, "`agents/qa-driver.md` holds a `Prompt starts with: `...`` first line", "none")
+    return (found[1].replace("<folder>", QA_FOLDER).replace("<batch>", batch.data()["id"])
+            .replace("<root>", posix(batch.ws)))
+
+
+def case_audit_qa_prompt(run: Run) -> str:
+    world, batch = run.clean()
+    world.activate()
+    ws = posix(batch.ws)
+    skill = posix(audit.ROOT / "skills" / "chantier")
+    cli = f"uv run --no-sync --project {posix(audit.ROOT)} chantier"
+    good = qa_first_line(batch) + "\n" + QA_BODY.format(skill=skill, cli=cli)
+    worktree = f"git -C {ws} fetch origin main; git -C {ws} worktree add {{how}} {ws}.worktrees/qa-261118-1200 origin/main"
+    inside = f"{ws}/{QA_FOLDER}/04-result.md"
+    variants = {  # name: (role, prompt, worktree flags, writes)
+        "own": ("qa-driver", good, "--detach", [inside]),
+        "form": ("qa-driver", good.replace(" for ", " about ", 1), "--detach", [inside]),
+        "role": ("coder", good.replace("qa-driver", "coder", 1), "--detach", [inside]),
+        "card": ("qa-driver", good.replace("references/driver.md", "references/coder.md"), "--detach",
+                 [inside]),
+        "branch": ("qa-driver", good, "-b qa-261118-1200", [inside]),
+        "outside": ("qa-driver", good, "--detach", [inside, f"{ws}/src/shelf/qa_probe.py"]),
+        "direct": ("qa-driver", good, "--detach", [inside]),
+    }
+    path = batch.changes / "4-batch" / "batch.json"
+    saved = path.read_bytes()
+    got = {}
+    for name, (role, prompt, how, writes) in variants.items():
+        child = batch.foreman.spawn(role, QA_FOLDER, prompt)
+        child.say("Bash", {"command": worktree.format(how=how)})
+        for target in writes:
+            child.say("Write", {"file_path": target, "content": "No findings."})
+        try:
+            if name == "direct":
+                data = json.loads(saved)
+                data["steering"] = "direct"
+                data["foreman_claims"] = [{"transcript": batch.foreman.uuid, "since": batch.foreman.started}]
+                path.write_bytes(json.dumps(data, indent=2).encode("utf-8"))
+            batch.write_transcripts()
+            got[name] = (child.hex[:10], audit_in_process(world)[1])
+        finally:
+            path.write_bytes(saved)
+            drop_agent(batch, child)
+            batch.write_transcripts()
+    for name in ("own", "direct"):
+        short, text = got[name]
+        mine = [line for line in failed_checks(text) if short in line]
+        need(not mine, f"no FAIL names the QA driver started with the card's own first line ({name})",
+             f"{mine}")
+        table = [line for line in text.splitlines() if line.startswith(f"| {short} ")]
+        need(table and f"| qa-driver | {QA_FOLDER} | steering |" in table[0],
+             f"the agents table shows role `qa-driver`, for its QA folder, parent `steering` ({name})",
+             f"{table}")
+        need(lines_of(text, "PASS", "J1", short, "chantier <role>") and lines_of(text, "PASS", "J1", short, "driver.md")
+             and lines_of(text, "PASS", "J1", short, "rules") and lines_of(text, "PASS", "J2", short),
+             f"[J1] (prompt, card, rules) and [J2] PASS for it ({name})", "no such line")
+        need(lines_of(text, "PASS", "J3", short, "creates no worktree")
+             and lines_of(text, "PASS", "J3", short, "writes no code itself"),
+             f"both [J3] checks PASS for it ({name})", f"{failed_checks(text)}")
+    need(not [line for line in got["direct"][1].splitlines() if line.startswith(f"- {got['direct'][0]} ")
+              and "outside the batch" in line] and got["direct"][0] not in got["direct"][1].split("## The agents")[0],
+         "in a direct batch the QA driver is not listed apart as started outside the batch", "it is")
+    for name in ("form", "role"):
+        short, text = got[name]
+        need(lines_of(text, "FAIL", "J1", short, "starts with a `chantier <role>` prompt"),
+             f"a first line of no recognised form still fails [J1] ({name})", f"{failed_checks(text)}")
+    short, text = got["card"]
+    need(lines_of(text, "FAIL", "J1", short, "driver.md"), "a prompt naming `references/coder.md` fails [J1]",
+         f"{failed_checks(text)}")
+    short, text = got["branch"]
+    need(lines_of(text, "FAIL", "J3", short, "(qa-driver) creates no worktree"),
+         "a branch worktree fails [J3] `creates no worktree`", f"{failed_checks(text)}")
+    short, text = got["outside"]
+    need(lines_of(text, "FAIL", "J3", short, "(qa-driver) writes no code itself"),
+         "a write outside its QA folder fails [J3] `writes no code itself`", f"{failed_checks(text)}")
+    return ("the QA driver's first line passes [J1], [J2] and [J3] and shows in the table, in a Foreman batch "
+            "and in a direct one; an unrecognised form, another role in that form, a wrong card, a branch "
+            "worktree and a write outside its folder still fail")
+
+
 def case_audit_claim_call(run: Run) -> str:
     world, batch = run.clean()
     world.activate()
@@ -1284,7 +1375,8 @@ FUNCTIONS = {"eval-root": case_eval_root, "other-sandbox": case_other_sandbox, "
              "ticket-summary-setup": case_ticket_summary_setup, "clean": case_clean, "stray-merge": case_stray, "reset-leftover": case_reset_leftover,
              "merge-refused": case_merge_refused, "stale-lock": case_stale_lock,
              "force-tag-push": case_force_tag_push, "plain-merge": case_plain_merge,
-             "audit-cos-prompt": case_audit_cos_prompt, "audit-claim-call": case_audit_claim_call,
+             "audit-cos-prompt": case_audit_cos_prompt, "audit-qa-prompt": case_audit_qa_prompt,
+             "audit-claim-call": case_audit_claim_call,
              "audit-heredoc": case_audit_heredoc}
 
 
