@@ -45,8 +45,9 @@ def base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> dict[str, str]:
     it), the previous CR of a series, else its last open dependency, else the default branch."""
     default: str = repo.config["default_branch"] or "main"
     if c.kind != "fix" and d.mode == "stack" and c.id in [x.id for x in chain(d)]:
-        branch = stack_base(d, c, repo, planned=not _open_after(d, c))
-        why = "stack" if c.stacked else "dependency" if _open_after(d, c) else "planned"
+        branch = stack_base(d, c, repo)
+        deps = [x.branch for x in _open_after(d, c)]
+        why = "stack" if c.stacked else "dependency" if branch in deps else "planned"
         return {"on": _on(d, repo, branch), "why": why}
     if d.mode == "series":
         pred = series_predecessor(d.crs, c)

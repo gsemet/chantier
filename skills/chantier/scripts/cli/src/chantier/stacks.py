@@ -122,28 +122,61 @@ def stack_line(b_data: BatchRecord) -> list[str]:
     ]
 
 
+def _below_with_pr(b_data: BatchRecord, c: CrEntry) -> tuple[int, CrEntry] | None:
+    """The first CR with a PR (so its branch is on the remote) found walking `chain` down from
+    `c`, with its place in the chain; None when no CR below `c` has one."""
+    order = chain(b_data)
+    ids = [x.id for x in order]
+    top = ids.index(c.id) if c.id in ids else 0
+    return next(((i, order[i]) for i in range(top - 1, -1, -1) if order[i].pr), None)
+
+
+def _nearest_open(b_data: BatchRecord, c: CrEntry) -> tuple[int, CrEntry] | None:
+    """The open dependency of `c` that sits highest in `chain`, whatever its place in `after`,
+    with that place; a dependency outside the chain (a fix CR) ranks below every CR of it (-1)."""
+    ids = [x.id for x in chain(b_data)]
+    ranked = [(ids.index(x.id) if x.id in ids else -1, x) for x in _open_after(b_data, c)]
+    return max(ranked, key=lambda r: r[0], default=None)
+
+
 def start_on_for(b_data: BatchRecord, c: CrEntry) -> str | None:
     """The branch a CR taken from `queued` in a stack batch is to start on, to record on it: for a
     CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
-    earlier CR of the batch (lower `order`, not ended, not a fix, not a release) that has a PR,
-    else None (the default branch). None in a parallel or series batch and for any other CR."""
+    CR below it in `chain` that has a PR (`stack_start`'s rule 2), else None (the default branch).
+    None in a parallel or series batch and for any other CR; a CR with an open dependency gets
+    none, its base follows its dependencies' places."""
     if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c):
         return None
-    earlier = [
-        x
-        for x in b_data.crs
-        if x.id != c.id and _alone(x) and x.status not in ENDED and x.order < c.order and x.pr
-    ]
-    nearest = max(earlier, key=lambda x: x.order, default=None)
-    return nearest.branch if nearest else None
+    below = _below_with_pr(b_data, c)
+    return below[1].branch if below else None
+
+
+def stack_start(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
+    """The branch a CR of a stack batch starts on, and the place the record gives it until
+    `stack` places it (a CR that is neither a release nor a fix). First match wins:
+    1. its `start_on`, recorded at its take, while the CR that owns that branch is not ended;
+    2. the branch of the nearest CR below it in `chain` that has a PR, unless one of its open
+       dependencies sits higher in `chain`: then the nearest such dependency's branch;
+    3. with no CR below that has a PR, the nearest open dependency's branch (highest in `chain`,
+       a dependency outside the chain ranking lowest), else the default branch."""
+    default: str = repo.config["default_branch"]
+    if c.start_on:
+        owner = next((x for x in b_data.crs if x.branch == c.start_on), None)
+        if owner is not None and owner.status not in ENDED:
+            return c.start_on
+    below = _below_with_pr(b_data, c)
+    dep = _nearest_open(b_data, c)
+    if below is not None:
+        return dep[1].branch if dep is not None and dep[0] > below[0] else below[1].branch
+    return dep[1].branch if dep is not None else default
 
 
 def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """The branch a CR starts on: that of its last dependency still open, in the order of
-    `after`; with none open, in a stack batch the branch recorded at its first `take` while the CR
-    that owns it is open, else the default branch. A release in an
-    ordered batch starts on the top CR's branch, with none open under it on the default branch;
-    in a parallel batch, or alone, on the default branch."""
+    """The branch a CR starts on. A release in an ordered batch: the top CR's branch, with none
+    open under it the default branch. A series batch: the previous CR's branch. A stack batch,
+    for a CR that is neither a release nor a fix: `stack_start`. Otherwise (a parallel batch, a
+    fix): the branch of its last open dependency in the order of `after`, else the default
+    branch."""
     default: str = repo.config["default_branch"]
     if c.kind == "release":
         top = top_cr(b_data)
@@ -151,27 +184,29 @@ def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c)
         return pred.branch if pred and pred.status != "merged" else default
-    if c.after and c.kind not in {"release", "fix"}:
+    if b_data.mode == "stack" and c.kind != "fix":
+        return stack_start(b_data, c, repo)
+    if c.after and c.kind != "fix":
         open_ = _open_after(b_data, c)
         if open_:
             return open_[-1].branch
-    if b_data.mode == "stack" and c.start_on and c.kind != "fix":
-        owner = next((x for x in b_data.crs if x.branch == c.start_on), None)
-        if owner is not None and owner.status not in ENDED:
-            return c.start_on
     return default
 
 
 def stack_base(b_data: BatchRecord, c: CrEntry, repo: Repo, planned: bool = False) -> str:
-    """The base its PR has: its place in the stack once `stack` marked the CR (`planned`: the
-    place it will take); otherwise where it started. A CR sits on the one below it in the chain
-    (the first on the default branch), whatever its `after`; a CR with an open dependency that
-    `stack` has not placed yet, on that dependency's branch."""
+    """The base its PR has. A CR placed by `stack` sits on the one below it in the chain (the
+    first on the default branch), whatever its `after`. A CR not placed yet (and not a release or
+    a fix) has `stack_start`'s base, for either value of `planned`. The release sits on the top
+    CR; a fix CR keeps `start_base`'s result (`planned` only matters for that fix CR's place,
+    the default branch)."""
     default: str = repo.config["default_branch"]
     if c.kind == "release":  # the top of the stack: on the top CR's branch
         return start_base(b_data, c, repo)
-    if not c.stacked and ((c.after and c.kind != "fix") or not planned):
-        return start_base(b_data, c, repo)  # not placed by `stack` yet: where it started
+    if not c.stacked:
+        if c.kind != "fix":
+            return stack_start(b_data, c, repo)
+        if not planned:
+            return start_base(b_data, c, repo)
     order = chain(b_data)
     ids = [x.id for x in order]
     i = ids.index(c.id) if c.id in ids else 0
