@@ -175,6 +175,10 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit or the budget; a refusal is a fact, not an argument. The batch keeps the slots it opened with, whatever the board's Configuration page now says: only an `order slots` the Chief of Staff sends changes them. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
+- **The rounds exception:** every `order rounds` is taken. After one, when the CR holds a note
+  starting `rounds exception:` (in `status`'s order list, or in full in `handoff <cr>` / `log
+  <cr>`), take it with `take <cr> --note "rounds exception: <cause>"`, with no escalation, and
+  mark that note's order done only after the `take`; without such a note, `escalate: rounds`.
 - **Orders are the user's word:** `status` lists them until you mark each `order done`: an
   `orders pending` line holds those nothing has touched yet (a note, a QA, the drop of a live
   CR), another line those the CLI applied, which only await your `order done`; `pause` waits for
@@ -242,7 +246,9 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   `take <cr> --note "escalate: ..."`, whose rounds' Coder starts on the escalation model that
   `playbook --batch` prints: a CR blocked twice on trouble in the work (`escalate: blocked twice:
   <reasons>`; `rounds:` and `fix:` count), and the user's grant of more rounds after `blocked
-  rounds:` (`escalate: rounds`). You record it with `note` and give it one line in the retro.
+  rounds:` (`escalate: rounds`; not a grant under the rounds exception, which keeps the batch's
+  model). A `rounds:` hand-back covered by the rounds exception does not count toward blocked
+  twice, and a CR with an `escalated:` note can still get the exception. You record it with `note` and give it one line in the retro.
   Once per CR, then the user: a CR that holds an `escalated:` note for itself and fails again
   stays `blocked` and goes up as a question (one more round, drop it, another approach). A CR
   with no rounds blocked twice goes to that question at once.
