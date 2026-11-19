@@ -1,7 +1,8 @@
 """The board's write routes and the journal's: the backlog only, through the same functions the
 `file` and `triage` commands run (`lifecycle/backlog.py`, `summaries/edit.py`), one JSON answer
 `{"ok", "lines", "results", "journal"}` and the status of the CLI's exit code (400 usage, 409
-precondition or conflict, 500 otherwise). Each write adds one line to the journal."""
+precondition or conflict, 500 otherwise). Each write adds one line to the journal, and one `board`
+line to the project's forge journal (`hub/journal.py`), which the Chief of Staff's watcher reads."""
 
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from chantier.core.errors import (
 from chantier.core.files import inside
 from chantier.core.records import GROUP_MAX
 from chantier.core.repo import Repo
+from chantier.hub import journal as forge_journal
 from chantier.lifecycle import backlog
 from chantier.lifecycle.stages import PRIORITIES
 from chantier.summaries.edit import change_group, change_labels, label_set, one_line
@@ -78,6 +80,7 @@ def _answer(
         words = "; ".join(r["words"] for r in written)
         slugs = list(dict.fromkeys(s for r in written for s in r["items"]))
         entries.append(journal.record(repo, kind, slugs, words))
+        forge_journal.append(repo, [forge_journal.board_event(kind, slugs, words)], "board")
     failed = next((r for r in results if not r["ok"]), None)
     body = {
         "ok": failed is None,

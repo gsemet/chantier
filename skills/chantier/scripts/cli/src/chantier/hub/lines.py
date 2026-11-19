@@ -10,21 +10,34 @@ from chantier.hub import autostart, journal, lock
 
 
 def watch_lines(repo: Repo, d: BatchRecord) -> list[str]:
-    """With a running batch, the hub's line, then the watcher's: this session's own command when
-    it runs, one line per watcher of another session (its end wakes that session, not this
-    one). When none of this session runs, `status` ends with `not_running_line`."""
-    if d.status != "running":
-        return []
-    lines = [hub_line(repo)]
+    """The hub's line (a running batch only), then the watcher's: this session's pull command
+    when it runs, one line per watcher of another session (its end wakes that session, not this
+    one), the board's version when it is not this CLI's. When none of this session runs,
+    `status` ends with `not_running_line`."""
+    lines = [hub_line(repo)] if d.status == "running" else []
     project = project_name(repo)
     if autostart.session_key() in lock.watchers(repo.git_dir, project):
         last = journal.last_seq(journal.read(repo.changes)[0])
-        lines.append(f"watch: chantier watch --after {last}")
+        lines.append(
+            f"watch: this session's watcher runs; pull path: {autostart.pull_command(repo, last)}"
+        )
     lines += [
         f"watch: session {s} runs a watcher too; its end wakes that session, not this one"
         for s in autostart.other_sessions(repo, project)
     ]
-    return lines
+    return lines + board_lines(repo)
+
+
+def board_lines(repo: Repo) -> list[str]:
+    """One line when the board that serves this surface is live and of another version."""
+    found = autostart.board_clause(repo, __version__)
+    if not found:
+        return []
+    return [
+        f"board: chantier {found} serves this surface, this is chantier {__version__}: its "
+        "writes do not reach the watcher; for the Chief of Staff: tell the user once to "
+        "restart it"
+    ]
 
 
 def hub_line(repo: Repo) -> str:

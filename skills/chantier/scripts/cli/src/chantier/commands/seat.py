@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
 from chantier.core.batch import check_epoch, read_batch, require_epoch, resolve_batch
@@ -12,7 +13,7 @@ from chantier.core.files import write_json
 from chantier.core.records import ClaimRecord, SeatRecord, chief_sessions
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.hub.autostart import not_running_line
+from chantier.hub.autostart import not_running_line, session_key
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.plugin_files import detect_host, own_transcript
@@ -80,9 +81,16 @@ def _transcript(repo: Repo, b: RenderedBatch, args: argparse.Namespace) -> list[
         b.log("steering", None, steering="direct", transcript=args.value)
         n = b.record.foreman_epoch
         out.append(f"steering direct: the Chief of Staff steers {b.id} as Foreman n°{n}")
-        out += not_running_line(repo, b.record.status)
+        out += not_running_line(repo)
     b.log("foreman-transcript", None, transcript=args.value)
     return out
+
+
+def _own_watch_line(repo: Repo, transcript: str | None) -> list[str]:
+    """The `watch: not running` line when the seat's transcript, kept as the watcher's key is, is
+    this CLI run's own key (the seat is this session's) and no watcher of it runs."""
+    kept = re.sub(r"[^A-Za-z0-9-]", "", transcript or "")
+    return not_running_line(repo) if kept and kept == session_key() else []
 
 
 def _get(repo: Repo) -> list[str]:
@@ -93,6 +101,7 @@ def _get(repo: Repo) -> list[str]:
         f"seat {held.session} env {held.env or 'unknown'} "
         f'title "{held.title or ""}" link {held.link or "unknown"}',
         f"transcript {held.transcript or 'unknown'}",
+        *_own_watch_line(repo, held.transcript),
     ]
 
 
@@ -144,7 +153,11 @@ def _take(repo: Repo, path: Path, args: argparse.Namespace) -> list[str]:
         link=args.link,
     )
     write_json(path, record.to_data())
-    return [f"seat {args.session}", *(_record_transcript(repo, transcript) if transcript else [])]
+    return [
+        f"seat {args.session}",
+        *(_record_transcript(repo, transcript) if transcript else []),
+        *_own_watch_line(repo, transcript),
+    ]
 
 
 def seat(args: argparse.Namespace) -> list[str]:

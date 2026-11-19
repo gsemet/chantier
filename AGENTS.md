@@ -58,8 +58,11 @@
   does not hold, it appends one line to `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent; a third, from its Configuration page: a save
-  that changes a limit's effective value appends one `config` line to the same journal (`by: board`),
-  which `status` and the watcher carry to the Chief of Staff; it takes its dependencies like the rest of the CLI and knows no role.
+  appends one `config` line to the same journal (`by: board`) for each key whose effective value it
+  changes (the two limits, and each role's agent, model and escalation), which `status` and the
+  watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one
+  `board` line to that project's `forge-journal.jsonl`, which the Chief of Staff's watcher reads;
+  it takes its dependencies like the rest of the CLI and knows no role.
   Third, the forge hub of `chantier watch`, started by the Chief of Staff on the user's yes: of
   the watchers of a planning surface (or a repository) on one machine, the one that holds an OS
   file lock in the git folder (`chantier/hub.lock`) reads the forge, read-only, with the user's
@@ -67,13 +70,15 @@
   every 20 s, one query per project of the surface whose running batch has a PR the record does
   not hold merged or cancelled; it appends to that project's `forge-journal.jsonl` (planning
   folder, never published) one line per merge the record does not hold and per CI turning red on
-  a PR ready to merge, and nothing else; each session's watcher reads only its project's
-  journal, never the forge, and ends 20 s after the last new event, which wakes its session; the
+  a PR ready to merge, and nothing else; each session's watcher, run for the Chief of Staff's
+  whole session, with or without a batch, reads only its project's journal (the hub's lines and
+  the board's), never the forge, and ends 20 s after the last new event that wakes, which wakes
+  its session, or when the project's seat is another session's; the
   hub records nothing in a batch, runs no git and messages no agent; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
   `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
-  it: one round trip with the user per merge.
+  it: one round trip with the user per merge and per board session ("rescan").
 - The CLI has two named git exceptions: the board's server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants; the board commits

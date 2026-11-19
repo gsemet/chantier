@@ -397,4 +397,4 @@ def open_batch(args: argparse.Namespace) -> list[str]:
         f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}"
         for c, src in zip(b.record.crs, selected, strict=False)
     ]
-    return lines + not_running_line(repo, b.record.status)
+    return lines + not_running_line(repo)

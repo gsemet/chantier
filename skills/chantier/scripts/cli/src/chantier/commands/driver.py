@@ -90,7 +90,7 @@ def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str, fresh: list
         team=team_lines(d.playbook),
         note=note,
     )
-    watch = not_running_line(repo, d.status) if reopened else []
+    watch = not_running_line(repo) if reopened else []
     return [head, *reopened, *rows, *driver_prompt_lines(row, d, block), *fresh, *watch]
 
 
@@ -153,7 +153,7 @@ def take(args: argparse.Namespace) -> list[str]:
         *facts,
         *skeleton,
         *fresh,
-        *(not_running_line(repo, d.status) if reopened else []),
+        *(not_running_line(repo) if reopened else []),
     ]
 
 

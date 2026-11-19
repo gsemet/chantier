@@ -302,10 +302,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   processes:
   - `status` of a running batch with no watcher prints `forge hub: none running` and, as its last
     line, `watch: not running: for the Chief of Staff, start in the background: <command>` (the
-    command ends `watch --after 0`, no `--batch`); while watchers of the session run, it prints
-    `watch: chantier watch --after <n>` and no `not running` line; after a watcher's end it ends
-    with the line again; a paused batch prints no `watch:` line; `--after` past the journal's end exits 1 (unit: surface-board) (test:
-    test_forge_hub.py::test_watch_refusals,
+    command ends `watch --after 0`, no `--batch`, then `; after the user's no, at each user
+    message: <command> watch --once --after 0`); while watchers of the session run, it prints
+    `watch: this session's watcher runs; pull path: <command>` and no `not running` line; after a
+    watcher's end it ends with the line again; `--after` past the journal's end exits 1, and
+    `watch --once` with no `--after` exits 1 (unit: surface-board) (test:
+    test_watch_events.py::test_watch_refusals_and_the_pull_path,
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version,
     test_watcher_autostart.py::test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs);
   - project A's watcher takes the hub lock (`, the hub`), project B's is not the hub, `hub.json`
@@ -318,10 +320,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
     <command> watch --after 1`, the merge written once (`by: hub`); B's watcher keeps running,
     takes the lock and the next cycles still read the forge (unit: surface-board) (test:
     test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
-    test_forge_hub.py::test_a_watcher_ends_twenty_seconds_after_the_last_event);
+    test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes);
   - two of A's merges within the quiet give one end with both lines; a watcher restarted with
     `--after <n>` replays nothing (unit: surface-board) (test:
-    test_forge_hub.py::test_a_watcher_ends_twenty_seconds_after_the_last_event);
+    test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes);
   - a ready PR's checks failing print `forge saw checks red` at the watcher's end and never in
     `status` (unit: surface-board) (test:
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
@@ -329,13 +331,18 @@ does a unit that is not in `UNITS` and a test that does not exist.
   - a merge the board's PRs page reads first: the page writes the line (`by: board`), the hub's
     reads of it write no second line and the watcher wakes on the board's line (unit:
     surface-board) (test: test_forge_hub.py::test_the_board_and_the_hub_share_the_journal_once);
-  - A's batch paused (every CR merged or dropped): A's watcher ends with `no running batch`, a PR
-    merged then writes no line for A and the hub reads none of its PRs; `watch` with no running
-    batch exits 2 (unit: surface-board) (test: test_forge_hub.py::test_watch_refusals);
-  - while the session's watchers run, `status` holds `watch: chantier watch --after <n>` and no `not
-    running` line; once A's watcher ended on its merge and before it restarts, `status` ends with
-    the line again, with the journal's last seq; A's paused batch prints no `watch:` line (unit:
-    surface-board);
+  - A's batch paused (every CR merged or dropped): A's watcher keeps running, and `status` still
+    holds the `pull path` line; a board write on A (`new`) ends it with the `board wrote (new)`
+    line and the restart of its batch; `watch --once --after 5` prints the same line, then
+    `watch: cursor 6; next, at the user's next message: <command> watch --once --after 6`, and
+    takes no lock; a board write on the other project does not end A's watcher and lands in that
+    project's journal only; another session's `seat take` ends A's watcher with `watch: the seat of
+    demo is another session's now; ended`; a PR merged then writes no line for A and the hub reads
+    none of its PRs (unit: surface-board) (test:
+    test_watch_events.py::test_watch_refusals_and_the_pull_path,
+    test_watch_events.py::test_the_pull_path_prints_the_lines_past_the_cursor_and_takes_no_lock,
+    test_watch_events.py::test_the_seat_of_another_session_ends_the_watcher_with_its_line,
+    test_watch_events.py::test_the_board_and_config_lines_are_never_duplicates_and_status_holds_none);
   - the journal is ignored by git (`git check-ignore`), the record (`batch.json`, `events.jsonl`)
     is unchanged by the hub, a forge error lands in `hub.json` and not in the journal, and no `gh`
     call is made but read-only `api graphql` queries (unit: surface-board) (test:
@@ -343,16 +350,22 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `PUT /config` writes
   the project folder's file and says, role-free, `slots 4 -> 6: <batch> keeps <n> until an order
   slots` and `specifying 4 -> 1: from the next start`, with no `applies at the next batch` line;
-  each save writes one `config` line in the forge journal (`by: board`) and a running `chantier
-  watch` ends on it with the `config changed on the board` line; `status` prints the slots line once
+  each save writes one `config` line per changed key in the forge journal (`by: board`; a role's
+  model too, keyed `hosts.<host>.roles.<role>.model`) and a running `chantier watch` ends on it with the `config changed on the board` line; `status` prints the slots line once
   and the specifying one never, and no longer after an `order slots`; with `specifying.parallel` 1
   and a `work/specifying` marker, `playbook` prints `limits:` with `[surface project]`, `markers 1
   (<slug>)` and `specifying at the limit`; `open` with no `--slots` takes the project folder's
   `batch.slots` and names `[surface project]` (unit: surface-board) (test:
   test_limits.py::test_the_board_saves_a_limit_keeps_comments_journals_one_line_and_removes_it,
-  test_limits.py::test_a_put_of_both_limits_and_a_role_edit_writes_two_lines_and_status_follows_the_orders,
+  test_limits.py::test_a_put_of_both_limits_and_a_role_edit_writes_three_lines_and_status_follows_the_orders,
   test_limits.py::test_open_and_the_playbook_take_the_limits_from_the_layers,
-  test_forge_hub.py::test_a_config_line_ends_the_watcher_and_is_told_in_its_form);
+  test_forge_hub.py::test_a_config_line_ends_the_watcher_and_is_told_in_its_form,
+  test_board_config.py::test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none);
+- the board's backlog writes (`POST backlog/move`, a refused one): each write that changes something
+  appends one `board` line to the project's `forge-journal.jsonl` (`by: board`, `wakes` true for a
+  move, ignored by git), a refused one none (unit: surface-board) (test:
+  test_board_journal.py::test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal,
+  test_board_journal.py::test_a_refusal_a_rescan_and_another_project_leave_no_line_here);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

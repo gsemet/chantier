@@ -1,8 +1,9 @@
 """The forge journal: `forge-journal.jsonl` at the planning folder's root, one JSON line per forge
 event of a project's batch. It is local (ignored by git) and append-only; chantier never
-truncates it. The forge hub (`by: "hub"`), the board's PRs page and its Configuration page
-(`by: "board"`) are its writers; `chantier status` and `chantier watch` its readers. Nothing here
-records anything in a batch: a line is a signal the Chief of Staff reads.
+truncates it. The forge hub (`by: "hub"`) and the board (`by: "board"`: its PRs page, its backlog
+writes and its Configuration page) are its writers; `chantier status` and `chantier watch` its
+readers. `by` says who wrote a line, never what it is: every reader dispatches on `kind`. Nothing
+here records anything in a batch: a line is a signal the Chief of Staff reads.
 
 Every line carries `seq` (1 for the first line, then the highest readable `seq` plus one), `t`,
 `by` and `kind`:
@@ -14,11 +15,18 @@ Every line carries `seq` (1 for the first line, then the highest readable `seq` 
 - `checks-red`: `batch`, `cr`, `pr`, `head` (the PR head's commit SHA). Written once per batch,
   CR and head: a new red head after a fix gives a new line, the same head read again none.
 
-- `config`: `key` (a dotted path into the configuration: `batch.slots` or `specifying.parallel`),
-  `old` and `new` (the effective values before and after the save, all layers included) and
-  `batch` (the batch running or paused at the save, or null). Written by the board's
-  Configuration page, once per limit whose effective value a save changed. It wakes a watcher as
-  a merge does. A line has its own key, with `t`: two saves make two lines.
+- `config`: `key` (a dotted path into the configuration: `batch.slots`, `specifying.parallel`,
+  or `hosts.<host>.roles.<role>.<agent|model|escalation>`), `old` and `new` (the effective values
+  before and after the save, all layers included) and `batch` (the batch running or paused at the
+  save, or null). Written by the board's Configuration page, once per key whose effective value a
+  save changed. It wakes a watcher as a merge does.
+- `board`: `action` (the board journal's kind: `new`, `move`, `edit`, `label`, `group`,
+  `ungroup`, `next-batch`), `items`, `text` (those of the `board-journal.jsonl` line written in
+  the same call) and `wakes` (true for `new`, `move` and `edit`). Written by the board's backlog
+  writes. A line that wakes does as a merge does; one that does not rides along with the next.
+
+A `board` or `config` line is never a duplicate: two identical moves, or two saves of the same
+value, are two lines.
 
 Every append runs under the project's lifecycle lock, reads the file, assigns `seq` and skips a
 line already there, whoever wrote the first. An unreadable line is skipped, never rewritten."""
@@ -36,6 +44,8 @@ from chantier.lifecycle.stages import changes_lock
 
 FILE = "forge-journal.jsonl"
 SHA_SHOWN = 7
+WAKING_ACTIONS = ("new", "move", "edit")
+LIMITS = ("batch.slots", "specifying.parallel")
 
 
 def read(changes: Path) -> tuple[list[dict[str, Any]], list[int]]:
@@ -66,11 +76,12 @@ def last_seq(entries: list[dict[str, Any]]) -> int:
 
 def _key(e: dict[str, Any]) -> tuple[Any, ...]:
     """What makes two lines the same event."""
-    if e.get("kind") == "config":
-        return ("config", e.get("key"), e.get("old"), e.get("new"), e.get("t"))
-    if e.get("kind") == "checks-red":
+    kind = e.get("kind")
+    if kind == "checks-red":
         return ("checks-red", e.get("batch"), e.get("cr"), e.get("head"))
-    return ("merged", e.get("batch"), e.get("cr"), bool(e.get("landed_with")))
+    if kind == "merged":
+        return ("merged", e.get("batch"), e.get("cr"), bool(e.get("landed_with")))
+    return (kind, e.get("seq"))  # `board`, `config`: each line is its own event
 
 
 def merged_events(batch: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -98,6 +109,23 @@ def merged_events(batch: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]
 
 def red_event(batch: str, cr: str, pr: str, head: str) -> dict[str, Any]:
     return {"kind": "checks-red", "batch": batch, "cr": cr, "pr": pr, "head": head}
+
+
+def board_event(action: str, items: list[str], text: str) -> dict[str, Any]:
+    """The `board` line of one backlog write of the board."""
+    return {
+        "kind": "board",
+        "action": action,
+        "items": items,
+        "text": text,
+        "wakes": action in WAKING_ACTIONS,
+    }
+
+
+def waking(e: dict[str, Any]) -> bool:
+    """Whether a line starts or extends a watcher's wait: every line but a `board` line whose
+    `wakes` is not true."""
+    return e.get("kind") != "board" or e.get("wakes") is True
 
 
 def append(repo: Repo, events: list[dict[str, Any]], by: str) -> list[dict[str, Any]]:
@@ -152,18 +180,36 @@ def red_text(e: dict[str, Any]) -> str:
 def config_text(e: dict[str, Any]) -> str:
     """The line a `config` event is told by: the limit that changed on the board, and what
     happens to the batch."""
-    head = f"config changed on the board: {e.get('key')} {e.get('old')} -> {e.get('new')}"
-    if e.get("key") != "batch.slots":
+    key = e.get("key")
+    old = "inherited" if e.get("old") is None else e.get("old")
+    new = "inherited" if e.get("new") is None else e.get("new")
+    if key not in LIMITS:
+        return (
+            f"config changed on the board: {key} {old} -> {new}; applies at the next batch; "
+            "for the Chief of Staff: tell the user, act on nothing"
+        )
+    head = f"config changed on the board: {key} {e.get('old')} -> {e.get('new')}"
+    if key != "batch.slots":
         return head
     if e.get("batch"):
         return f"{head}; {e['batch']} keeps {e.get('old')} until an order slots"
     return f"{head}; from the next open (no batch)"
 
 
+def board_text(e: dict[str, Any]) -> str:
+    return (
+        f"board wrote ({e.get('action')}): {e.get('text')}; "
+        "for the Chief of Staff: tell the user, act on nothing"
+    )
+
+
 def event_text(e: dict[str, Any]) -> str:
-    if e.get("kind") == "checks-red":
+    kind = e.get("kind")
+    if kind == "checks-red":
         return red_text(e)
-    return config_text(e) if e.get("kind") == "config" else merged_text(e)
+    if kind == "config":
+        return config_text(e)
+    return board_text(e) if kind == "board" else merged_text(e)
 
 
 def _slots_line(entries: list[dict[str, Any]], batch: str, orders: list[Any]) -> list[str]:
