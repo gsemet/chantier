@@ -18,6 +18,7 @@ from chantier.board.context import Context, Request
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core.repo import Repo
+from chantier.hub import journal as forge_journal
 from chantier.playbook import models
 
 OK, BAD, CONFLICT = 200, 400, 409
@@ -115,6 +116,48 @@ def test_the_configuration_is_written_or_refused_through_the_cli(
         assert TERRA.encode() in written
         assert row["overridden_by"] == MINE and row["model"]["effective"]["id"] == "gpt-6.1-sol"
         assert answer["journal"][0]["text"].endswith(f", overridden by {MINE}")
+
+
+ROLE = "hosts.copilot.roles.coder."
+SAVES = [
+    ("agent", ROLE + "agent", ["mine", "plugin"]),
+    ("model", ROLE + "model", [TERRA, "gpt-6.1-sol"]),
+    ("slots", "batch.slots", [7, 8]),
+    ("parallel", "specifying.parallel", [3, 4]),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("name", "key", "values"), SAVES, ids=[c[0] for c in SAVES])
+def test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none(
+    surface: Surface, monkeypatch: pytest.MonkeyPatch, name: str, key: str, values: list[Any]
+) -> None:
+    call = _on_surface(monkeypatch)
+    found = Repo.find(project="demo", readonly=True)
+
+    def lines() -> list[dict[str, Any]]:
+        return [e for e in forge_journal.read(found.changes)[0] if e["kind"] == "config"]
+
+    def change(value: Any) -> dict[str, Any]:
+        if name in ("slots", "parallel"):
+            return {"key": key, "value": value}
+        return _change("coder", name, value)
+
+    def save(value: Any, dry: bool = False) -> None:
+        sha = call("GET")[1]["sha256"]
+        code, answer = call("PUT", {"changes": [change(value)], "base_sha256": sha, "dry_run": dry})
+        assert code == OK, answer
+
+    save(values[0], dry=True)
+    assert lines() == []
+    save(values[0])
+    (one,) = lines()
+    assert (one["by"], one["kind"], one["key"], one["batch"]) == ("board", "config", key, None)
+    assert one["new"] is not None and one["old"] != one["new"]
+    save(values[0])  # the effective value is where it was: no line
+    assert len(lines()) == 1
+    save(values[1])
+    second = lines()[1]
+    assert (second["key"], second["old"]) == (key, one["new"]) and second["new"] != one["new"]
 
 
 def test_a_dry_run_and_a_stale_hash_write_nothing_and_the_view_shows_resets_and_plans(

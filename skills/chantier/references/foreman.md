@@ -852,7 +852,9 @@ reference. Keep each turn short: never wait inside a call, never run a long comm
 no background task of your own to wait for anything (a file, a task's output, a Driver, CI); the
 one exception is the Chief of Staff's watcher in direct mode (`$CHANTIER watch`,
 [chief-of-staff](chief-of-staff.md)): started on the user's yes, started again after each end, it
-stops itself. A
+stops itself. The
+`board:` version line and the `pull path` line of `status` are the Chief of Staff's: do nothing
+with them, send nothing. A
 Driver's line, the host's notice about a Driver, an order and the heartbeat wake you. Stop a task
 of yours found running at once, by its id, with the host's stop of a background task; change no
 shell's folder into a CR folder or a worktree; a turn ends when

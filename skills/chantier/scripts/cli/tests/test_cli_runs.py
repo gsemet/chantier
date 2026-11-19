@@ -41,7 +41,8 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
         "--link",
         "claude://s-1",
     )
-    assert (code, out) == (0, ["seat s-1"])
+    assert code == 0 and out[0] == "seat s-1"
+    assert [x.split(":")[0] for x in out[1:]] == ["watch"]  # this run's own seat: the watcher line
     assert sorted(p.name for p in changes.iterdir() if not p.name.startswith(".")) == ["seat.json"]
     seat = json.loads((changes / "seat.json").read_text(encoding="utf-8"))
     assert seat["session"] == "s-1" and seat["link"] == "claude://s-1"
@@ -54,7 +55,7 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
     assert code == EXIT_PRECONDITION and "held by s-1" in err and "--over s-1" in err
     assert chantier("seat", "take", "s-2", "--over", "s-3")[0] == EXIT_PRECONDITION
     assert chantier("seat", "leave", "s-2")[0] == EXIT_PRECONDITION
-    assert chantier("seat", "take", "s-2", "--over", "s-1")[1] == ["seat s-2"]
+    assert chantier("seat", "take", "s-2", "--over", "s-1")[1][0] == "seat s-2"
     assert chantier("seat", "leave", "s-2")[1] == ["seat none"]
     assert chantier("seat", "leave", "s-2")[1] == ["seat none"]
 

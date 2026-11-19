@@ -1,8 +1,9 @@
 """The board's Configuration routes: the view of the configuration and the change of a role's
-`agent` or `model`, or of the two limits, in the planning surface's project file. The reading, the
-checks and the writing are the CLI's (`playbook/edit.py`); this module only routes to them and adds
-the journals' lines: the board's own, and, for a limit whose effective value changed, one `config`
-line in the forge journal (a signal the watcher and `status` carry to the Chief of Staff)."""
+`agent`, `model` or `escalation`, or of the two limits, in the planning surface's project file.
+The reading, the checks and the writing are the CLI's (`playbook/edit.py`); this module only
+routes to them and adds the journals' lines: the board's own, and, for each key whose effective
+value changed, one `config` line in the forge journal (a signal the watcher and `status` carry to
+the Chief of Staff)."""
 
 from __future__ import annotations
 
@@ -72,17 +73,41 @@ def _limit_line(key: str, old: Any, new: Any, batch: tuple[str, int] | None) -> 
     return f"slots {move}: from the next open"
 
 
-def _limit_changes(
+def _printable(value: Any) -> Any:
+    """A model's `{id, name}` is written as its id (its name without one), a text as it is."""
+    if isinstance(value, dict):
+        return value.get("id") or value.get("name")
+    return value
+
+
+def _held(view: dict[str, Any], change: dict[str, Any]) -> Any:
+    """The effective value the view shows for a change's key (a role's `agent`, `model` or
+    `escalation`, or a limit), printable; None when nothing applies."""
+    if "host" not in change:
+        return view["limits"][change["key"]]["effective"]
+    row: dict[str, Any] = next(
+        (r for r in view["hosts"][change["host"]]["roles"] if r["role"] == change["role"]), {}
+    )
+    return _printable((row.get(change["key"]) or {}).get("effective"))
+
+
+def _dotted(change: dict[str, Any]) -> str:
+    if "host" not in change:
+        return str(change["key"])
+    return f"hosts.{change['host']}.roles.{change['role']}.{change['key']}"
+
+
+def _config_changes(
     changes: list[dict[str, Any]], before: dict[str, Any], after: dict[str, Any]
 ) -> list[tuple[str, Any, Any]]:
-    """The limit keys of the changes whose effective value moved: `(key, old, new)`, in the order
-    of the changes."""
+    """The keys of the changes whose effective value moved: `(dotted key, old, new)`, in the
+    order of the changes, one per key."""
     out: list[tuple[str, Any, Any]] = []
     for c in changes:
-        key = c["key"]
-        if "host" in c or key not in LIMIT_KEYS or any(o[0] == key for o in out):
+        key = _dotted(c)
+        if any(o[0] == key for o in out):
             continue
-        old, new = before[key]["effective"], after[key]["effective"]
+        old, new = _held(before, c), _held(after, c)
         if old != new:
             out.append((key, old, new))
     return out
@@ -105,7 +130,7 @@ def _put(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
         raise ChantierError("'base_sha256' is a text, or null for a file not there yet", EXIT_USAGE)
     if not isinstance(dry, bool):
         raise ChantierError("'dry_run' is true or false", EXIT_USAGE)
-    before = edit.config_view(repo)["limits"]
+    before = edit.config_view(repo)
     view = edit.edit_surface_file(repo, data.get("changes"), base, dry)
     body: dict[str, Any] = {
         "ok": True,
@@ -117,13 +142,13 @@ def _put(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     }
     if not dry:
         words = "; ".join(_word(c, view) for c in data["changes"])
-        moved = _limit_changes(data["changes"], before, view["limits"])
+        moved = _config_changes(data["changes"], before, view)
         batch = _open_batch(repo)
         forge_journal.append(repo, [_event(k, o, n, batch) for k, o, n in moved], "board")
         roles = any("host" in c for c in data["changes"])
         body["lines"] = [
             f"wrote {view['file']}",
-            *(_limit_line(k, o, n, batch) for k, o, n in moved),
+            *(_limit_line(k, o, n, batch) for k, o, n in moved if k in LIMIT_KEYS),
             *([APPLIES] if roles else []),
         ]
         body["journal"] = [journal.record(repo, "config", [], words)]

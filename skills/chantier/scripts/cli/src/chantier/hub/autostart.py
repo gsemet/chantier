@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+from chantier.board import running
+from chantier.board.key import key_path
 from chantier.board.projects import project_name
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
@@ -37,12 +39,27 @@ def other_sessions(repo: Repo, project: str) -> list[str]:
     return [s for s in lock.watchers(repo.git_dir, project) if s != me]
 
 
-def not_running_line(repo: Repo, status: str) -> list[str]:
-    """The line for a running batch when no watcher of this session runs, else nothing."""
-    if status != "running" or session_key() in lock.watchers(repo.git_dir, project_name(repo)):
+def board_clause(repo: Repo, version: str) -> str:
+    """What the start line and `status` say of a live board of another version, else nothing."""
+    record = running.live(key_path(repo))
+    found = (record or {}).get("version")
+    return found if isinstance(found, str) and found != version else ""
+
+
+def pull_command(repo: Repo, n: int) -> str:
+    """The pull path: the journal's lines past `n`, with no process and no forge read."""
+    return f"{cli_command(repo)} watch --once --after {n}"
+
+
+def not_running_line(repo: Repo) -> list[str]:
+    """The line for a session whose watcher does not run, whatever the batch's status (a batch
+    running, paused or none), else nothing."""
+    if session_key() in lock.watchers(repo.git_dir, project_name(repo)):
         return []
     n = journal.last_seq(journal.read(repo.changes)[0])
     return [
         "watch: not running: for the Chief of Staff, start in the background: "
         + watch_command(repo, n)
+        + "; after the user's no, at each user message: "
+        + pull_command(repo, n)
     ]

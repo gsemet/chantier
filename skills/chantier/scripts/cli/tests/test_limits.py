@@ -275,7 +275,7 @@ def test_a_stale_hash_is_409_and_a_dry_run_writes_no_file_and_no_journal_line(
     assert path.read_bytes() == before and _forge(surface) == []
 
 
-def test_a_put_of_both_limits_and_a_role_edit_writes_two_lines_and_status_follows_the_orders(
+def test_a_put_of_both_limits_and_a_role_edit_writes_three_lines_and_status_follows_the_orders(
     surface: Surface, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _as_chief(monkeypatch)
@@ -298,6 +298,7 @@ def test_a_put_of_both_limits_and_a_role_edit_writes_two_lines_and_status_follow
     assert code == OK, answer
     assert [(e["key"], e["old"], e["new"], e["batch"]) for e in _forge(surface)] == [
         ("batch.slots", SLOTS, FOUND_MIN, "batch-01"),
+        ("hosts.copilot.roles.coder.model", "gpt-6.1-sol", TERRA, "batch-01"),
         ("specifying.parallel", PARALLEL, 2, "batch-01"),
     ]
     assert answer["lines"][1:] == [
@@ -352,7 +353,7 @@ def test_with_no_planning_surface_a_limit_is_read_only_and_writes_nothing(
     assert not (changes(repo) / "forge-journal.jsonl").exists()
 
 
-def test_config_lines_with_the_same_values_and_time_are_one_line(
+def test_config_lines_with_the_same_values_and_time_are_two_lines(
     surface: Surface, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = Repo.find(project="demo", readonly=True)
@@ -360,4 +361,4 @@ def test_config_lines_with_the_same_values_and_time_are_one_line(
     monkeypatch.setattr(clock, "_fixed", [])
     clock.fix("2030-01-01T00:00:00Z")
     journal.append(repo, [one, one], "board")
-    assert len(_forge(surface)) == 1
+    assert len(_forge(surface)) == 2  # noqa: PLR2004 - a config line is never deduplicated

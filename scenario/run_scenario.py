@@ -1481,6 +1481,11 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
     def journal_count() -> int:
         return jget(port, link, f"{base}/journal")[2].get("count", -1)
 
+    def forge_lines() -> list[dict]:
+        path = w.state / "forge-journal.jsonl"
+        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                if path.is_file() else [])
+
     slug = "board-inbox-item"
     for to, where in (("P2", "2-backlog/P2"), ("3-ready", "3-ready"), ("inbox", "1-inbox")):
         code, body = call("POST", "backlog/move", {"items": [slug], "to": to})
@@ -1495,6 +1500,14 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
         code, body = call("POST", "backlog/move", {"items": [bad], "to": "P1"})
         check(f"a move of {bad!r}, not in the backlog, is refused", code == 409
               and not body.get("ok"), f"{code} {body}")
+    seen = forge_lines()
+    check("the three moves made one `board` line each in the project's `forge-journal.jsonl` and "
+          "the refused ones none; git ignores the file",
+          [(e["by"], e["kind"], e["action"], e["items"], e["wakes"]) for e in seen]
+          == [("board", "board", "move", [slug], True)] * 3
+          and [e["seq"] for e in seen] == [1, 2, 3]
+          and w.sh("git", "check-ignore", ".agents/changes/forge-journal.jsonl").strip() != "",
+          str(seen))
     code, body = call("POST", "backlog/new", {"text": "Board filed idea\r\n\r\nbody é\r\n"})
     filed = w.state / "1-inbox" / "board-filed-idea"
     request = filed / "intake" / "request.md"
@@ -1604,9 +1617,11 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
         return found
 
     def journal_entries() -> list[dict]:
+        """The merges of the journal: the board's backlog writes share the file."""
         path = w.state / "forge-journal.jsonl"
-        return ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
-                if path.is_file() else [])
+        found = ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+                 if path.is_file() else [])
+        return [e for e in found if e["kind"] == "merged"]
 
     def signal_lines(*args) -> list[str]:
         w.chantier(*args, expect=None)
@@ -1765,6 +1780,10 @@ def forge_hub(w: World) -> None:
                 f'--project "{(sw.surface / "projects" / "demo").resolve().as_posix()}"')
     not_running = "watch: not running: for the Chief of Staff, start in the background: "
 
+    def no_watcher(n: int) -> str:
+        return (f"{not_running}{cli_form} watch --after {n}; after the user's no, at each user "
+                f"message: {cli_form} watch --once --after {n}")
+
     def cursor(n: int) -> str:
         return ("watch: " + f"{a_batch} still running: for the Chief of Staff, start again in the "
                 f"background now: {cli_form} watch --after {n}")
@@ -1793,7 +1812,7 @@ def forge_hub(w: World) -> None:
     check("`status` of a running batch with no watcher names the hub (none yet) and ends with the "
           "`watch: not running` line and the command to run, no `watch: chantier watch` line",
           "forge hub: none running" in out and bool(out)
-          and out[-1] == f"{not_running}{cli_form} watch --after 0" and "--batch" not in out[-1]
+          and out[-1] == no_watcher(0) and "--batch" not in out[-1]
           and not any(x.startswith("watch: chantier watch") for x in out), str(out))
     sw.chantier("watch", "--after", 5, expect=1)
     check("`watch --after` past the journal's end exits 1", "past the journal's end" in sw.last_stderr,
@@ -1822,9 +1841,10 @@ def forge_hub(w: World) -> None:
         _, out = sw.chantier("status", expect=None)
         check("`status` names the hub's PID while it runs",
               any(x.startswith(f"forge hub: PID {first_hub},") for x in out), str(out))
-        check("while the session's watchers run, `status` holds `watch: chantier watch --after` and "
+        check("while the session's watchers run, `status` holds the `pull path` line and "
               "no `watch: not running` line",
-              any(x.startswith("watch: chantier watch --after ") for x in out)
+              any(x.startswith("watch: this session's watcher runs; pull path: ") and
+                  x.endswith(" watch --once --after 0") for x in out)
               and not any(x.startswith("watch: not running") for x in out), str(out))
         sets = [asked(c) for c in graphql()]
         check("each cycle makes one `api graphql` call per project with an open PR: every call names "
@@ -1845,7 +1865,7 @@ def forge_hub(w: World) -> None:
         _, out = sw.chantier("status", expect=None)
         check("after A's watcher ended and before it is restarted, `status` ends with the "
               "`watch: not running` line and the journal's last seq",
-              bool(out) and out[-1] == f"{not_running}{cli_form} watch --after 1", str(out[-2:]))
+              bool(out) and out[-1] == no_watcher(1), str(out[-2:]))
         check("B's watcher keeps running and takes the lock",
               until(lambda: record().get("pid") not in (None, first_hub)) and wb.p.poll() is None, str(record()))
         reached = reads("other")
@@ -1909,37 +1929,66 @@ def forge_hub(w: World) -> None:
         until(lambda: len(graphql()) >= seen + 2)
         check("the hub's reads of the same merge write no second line",
               [e["by"] for e in journal()] == ["hub", "hub", "hub", "hub", "board"], str(journal()))
-        # 7. the batch ends and pauses: A's watcher ends, and a merge then writes no line for A
+        # 7. the batch ends and pauses: A's watcher keeps running, and the board's writes wake it
         for cr in (a[1], a[2], a[4]):
             sw.chantier("order", "merged", cr, "--epoch", 1, "--batch", a_batch)
         sw.chantier("order", "drop", a[3], "--batch", a_batch)
         sw.chantier("order", "drop", a[5], "--batch", a_batch)
-        got = ended(wa)
-        check("A's watcher ends with `no running batch` when its batch is paused",
-              batch("demo")["status"] == "paused" and bool(got)
-              and got[-1] == "watch: no running batch in demo; ended", f"{batch('demo')['status']} {got}")
+        time.sleep(7)  # longer than a watcher's quiet and than the hub's cycle
         _, out = sw.chantier("status", expect=None)
-        check("`status` of A's paused batch holds no `watch:` line",
-              not any(x.startswith("watch:") for x in out), str(out))
+        check("A's batch is paused and A's watcher keeps running; `status` holds the `pull path` line",
+              batch("demo")["status"] == "paused" and wa.p.poll() is None
+              and any(x.startswith("watch: this session's watcher runs; pull path: ") for x in out)
+              and not any(x.startswith("watch: not running") for x in out), f"{batch('demo')['status']} {out}")
+        jh = {**link.cookie, "Content-Type": "application/json"}
+
+        def write(project: str, text: str) -> int:
+            return fetch(link.port, f"/api/projects/{project}/backlog/new", "POST", jh,
+                         json.dumps({"text": text}).encode("utf-8"))[0]
+
+        check("a board write on A", write("demo", "Rescan idea one") == 200)
+        got = ended(wa)
+        told = ("board wrote (new): " in (got or [""])[0] and "for the Chief of Staff: tell the user, "
+                "act on nothing" in got[0])
+        check("A's watcher, its batch paused, ends on the board's line, with the restart of its batch",
+              len(got) == 2 and told and got[1] == cursor(6), str(got))
+        _, out = sw.chantier("watch", "--once", "--after", 5)
+        check("`watch --once --after 5` prints the same line, then the cursor and the pull command, "
+              "and takes no lock",
+              len(out) == 2 and out[0] == got[0]
+              and out[1] == ("watch: cursor 6; next, at the user's next message: "
+                             f"{cli_form} watch --once --after 6"), str(out))
+        sw.chantier("watch", "--once", expect=1)
+        check("`watch --once` with no `--after` exits 1 and says it needs one",
+              "needs --after" in sw.last_stderr, sw.last_stderr)
+        wa = watcher("demo", "--after", 6)
+        wa.line()
+        check("a board write on the other project", write("other", "Rescan idea two") == 200)
+        time.sleep(7)
+        check("it does not end A's watcher, and lands in the other project's journal, not A's",
+              wa.p.poll() is None and [e["kind"] for e in journal("other")] == ["board"]
+              and len(journal()) == 6, f"{wa.p.poll()} {journal('other')}")
+        sw.chantier("seat", "take", "sess-z", "--env", "remote", "--title", "[Remote] Proj", "--link",
+                    "link-z", env={"CLAUDE_CODE_SESSION_ID": "uuid-chief-b"})
+        got = ended(wa)
+        check("another session's `seat take` ends A's watcher with the seat line",
+              got == ["watch: the seat of demo is another session's now; ended"], str(got))
         wb = watcher("other")
         wb.line()
         merged(915, "2026-11-16T10:04:00Z")
         seen = len(graphql())
         until(lambda: len(graphql()) >= seen + 2)
         check("a PR merged after the pause writes no line for A, and the hub no longer reads its PRs",
-              len(journal()) == 5 and not any(x != [920] for x in map(asked, graphql()[seen:])),
+              len(journal()) == 6 and not any(x != [920] for x in map(asked, graphql()[seen:])),
               str(journal()[-1:]))
-        sw.chantier("watch", expect=2)
-        check("`watch` with no running batch exits 2 and says nothing to watch",
-              "nothing to watch" in sw.last_stderr, sw.last_stderr)
         # 8. nothing but read-only `api graphql` calls, and B's record is as it was
         calls = forge_calls(sw)[setup[0]:]
         check("no `gh` call but `api graphql` queries (no mutation) was made by the hub or the board",
               bool(calls) and all(c[:2] == ["api", "graphql"] and not any(
                   x == "-X" or x.startswith("query=mutation") for x in c) for c in calls), str(calls[:1]))
-        check("B's `batch.json` and `events.jsonl` are as the hub found them, and B has no journal",
+        check("B's `batch.json` and `events.jsonl` are as the hub found them, and B's journal holds its board line only",
               all((folder("other") / "4-batch" / f).read_bytes() == v
-                  for (p, f), v in before.items() if p == "other") and journal("other") == [],
+                  for (p, f), v in before.items() if p == "other") and [e["kind"] for e in journal("other")] == ["board"],
               str(journal("other")))
     finally:
         for proc in reversed(procs):
@@ -8498,6 +8547,11 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
               "`applies at the next batch`",
               code == 200 and answer.get("ok") is True and "applies at the next batch" in answer.get("lines", [])
               and target.is_file(), f"{code} {answer.get('lines')} {answer.get('error')}")
+        lines = [json.loads(x) for x in (w.project / "changes" / "forge-journal.jsonl")
+                 .read_text(encoding="utf-8").splitlines()]
+        check("that save of a role's model appends one `config` line, by the board, keyed on the role",
+              [(e["seq"], e["by"], e["kind"], e["key"]) for e in lines]
+              == [(1, "board", "config", "hosts.claude.roles.coder.model")], str(lines))
         # the two limits: a save moves one `config` line of the forge journal; a running watcher ends
         # on it, `status` carries the slots one until an `order slots` follows
         held = w.batch()["slots"]
@@ -8539,13 +8593,13 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
             told = f"config changed on the board: batch.slots 4 -> 6; {w.name} keeps 4 until an order slots"
             got = ended(watch)
             check("a running `chantier watch` ends with the `config changed on the board` line and its cursor",
-                  got == [told, cursor(1)], str(got))
+                  got == [told, cursor(2)], str(got))
         finally:
             watch.stop()
         # the specifying limit at 1 with a `work/specifying` marker present
         (w.project / "changes" / "1-inbox" / "marker-cr" / "work").mkdir(parents=True)
         (w.project / "changes" / "1-inbox" / "marker-cr" / "work" / "specifying").write_text("", "utf-8")
-        watch = BoardProc(w, "--project", "demo", "watch", "--after", 1, cwd=w.surface, env=quick)
+        watch = BoardProc(w, "--project", "demo", "watch", "--after", 2, cwd=w.surface, env=quick)
         try:
             watch.line()
             code, saved = save([{"key": "specifying.parallel", "value": 1}], saved["sha256"])
@@ -8554,7 +8608,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
                   f"{code} {saved.get('lines')} {saved.get('error')}")
             got = ended(watch)
             check("the watcher ends with the `specifying.parallel 4 -> 1` line",
-                  got == ["config changed on the board: specifying.parallel 4 -> 1", cursor(2)], str(got))
+                  got == ["config changed on the board: specifying.parallel 4 -> 1", cursor(3)], str(got))
         finally:
             watch.stop()
     finally:

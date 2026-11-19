@@ -45,7 +45,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
 | "start autosync", "stop autosync" (a surface with an autosync) | the surface script's `start . --enable-only` (a join first if this session is not a member) or `stop .`, from the surface's root; never `approve` | With a planning surface |
 | "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
-| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); without autosync, commit the planning folder by hand; tell the user what moved and whether the next batch is declared ready | [session-start](session-start.md) |
+| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); without autosync, commit the planning folder by hand; tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks | [session-start](session-start.md) |
 
 ## Hard rules
 
@@ -930,10 +930,7 @@ Only in the turn where the user gave the go:
 5. **Start the watcher.** When `open` ends with `watch: not running: …`, start it now in the
    background, by the host's means, on the session's yes (the first time in the session, ask as
    [session-start](session-start.md) says): run the printed command as is: no flag added. A batch
-   opened paused (`open` with no CR) prints no such line: it comes with the first `take` that sets
-   the batch running (direct mode: your own `take`; Foreman mode: the Foreman's `take`, which the
-   Foreman ignores, so the line reaches you at your next `status`, your next report or the next
-   Foreman message you act on).
+   opened paused (`open` with no CR) prints it too, whatever the batch's status.
 
 ### The floor
 
@@ -1299,19 +1296,23 @@ CR-222 → CR-225 → CR-226 → CR-228."
   reference says how): a refused send is reported, never sent another way.
 - **The watcher** (the command the CLI prints, in the background; the user's yes once per
   session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
-  It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and the limits saved on the board (`config changed on the board`), and ends 20 s
-  after the last new one, or with `no running batch`; its end starts your turn.
-  - *When it starts:* the CLI prints `watch: not running: for the Chief of Staff, start in the
-    background: <command>` when the batch runs and no watcher of this session runs (after `open`,
-    the `take` or `order qa` that sets a paused batch running, the switch to direct mode,
-    `status` at a session start, a reload or any time). Start it at once, on the session's yes:
+  It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and what the
+  user does in the board (`board wrote`, `config changed on the board`), and ends 20 s after the
+  last new one that wakes, or when the seat is another session's; its end starts your turn.
+  - *When it starts:* whatever the batch, running, paused or none, the CLI prints `watch: not
+    running: for the Chief of Staff, start in the background: <command>` when no watcher of this
+    session runs (after `open`, `seat take`, `seat`, the `take` or `order qa` that sets a paused
+    batch running, the switch to direct mode, `status` at a session start, a reload or any
+    time). Start it at once, on the session's yes:
     run the printed command as is: no flag added. In Foreman mode the resuming `take` is the
     Foreman's, so the line reaches you at your next `status` (your next report, or the next
     Foreman message you act on). A watcher of another session, which `status` names, does not
-    wake you: start your own. After a watcher's end: its last line `watch: <batch> still
-    running: …` prints the restart: run the printed command as is: no flag added. A watcher that
-    ends with `no running batch` is not started again; a paused batch prints no line (a factory
-    batch at its pause included); the line returns once the batch runs again.
+    wake you: start your own. After a watcher's end: its last line `watch: <name> still
+    running: …` (`<name>` the batch, or `<project> (no batch)`) prints the restart: run the
+    printed command as is: no flag added. A watcher that ends with `the seat of <project> is
+    another session's now` is not started again: the seat moved. The `board:` line of `status`
+    and the start line's `board is chantier <v>`: say it once to the user with the restart; never
+    stop or restart the board yourself.
   - *A watcher's end:* read its output. A `forge saw merged … order merged <cr>` line, on this
     path and at the next `status`, is checked on the forge first (`gh pr view <pr> --json
     state,baseRefName,mergedAt`, `glab mr view <iid>` on GitLab): merged, into the default
@@ -1328,8 +1329,16 @@ CR-222 → CR-225 → CR-226 → CR-228."
     slots on the board for the next batch, the running one keeps its own; tell the user and offer
     `order slots --note <new>` for the running batch, send nothing before their word. A
     `config changed on the board: specifying.parallel ...` line is told as it stands and changes
-    nothing in the batch; the next spec-writer start reads the new limit. A paused batch has no
-    watcher: its `status` is where the line shows.
+    nothing in the batch; the next spec-writer start reads the new limit. A `board wrote (...)`
+    line, or a `config changed on the board` line of a role's key (`hosts.<host>.roles...`): one
+    line to the user that says it (a few words per event), no tool call, no action.
+  - *The pull path:* when no watcher can wake this session (its host's reference, or the user's
+    no), run the printed `watch --once` command (the `watch: not running` line's `after the
+    user's no` clause, the `pull path` line of `status`, or the last `--once` output's `next`
+    line) at the start of each turn the user's message opens: run it as is: no flag added. Tell
+    its `board wrote` and role `config` lines as above, and act on its merge and two-key
+    `config` lines as at a watcher's end. A line whose `seq` was already told is not told
+    again.
   - *Never:* start a second watcher in the same session while one runs; stop another session's
     watcher; start one after the user's no in this session.
 - **Cost:** the cost table of a report, and `cost --explain`: see `status-layout.md`, "Cost".
@@ -1799,9 +1808,10 @@ Rules only; the models judge the rest.
   `foreman transcript`), and gives the slots back if a hold was set. A Foreman batch: it sends the
   Foreman `chief-of-staff <own session id>` ([routing](routing.md)).
 - The old one becomes a Griller (or ends), and renames itself. Its board stops by itself when the
-  seat moves; the new one starts its own at its `seat take`. The old one stops its watcher (the
-  host's stop of a background task, by its id); the new one starts its own from the line of its
-  `status` (another session's watcher, the old one's included, does not count; its `status` names it).
+  seat moves; the new one starts its own at its `seat take`. The old one's watcher ends by itself
+  once the new session takes the seat; the new one starts its own from the line of its `seat take`
+  or `status` (another session's watcher, the old one's included, does not count; its `status`
+  names it).
 - With no batch active, the hand-over is the seat alone: `seat take --over` on the user's word.
 
 ## Subagents and the demo

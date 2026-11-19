@@ -10,7 +10,8 @@ import pytest
 from batch_helpers import FROM_AGENTS_MD, host, open_batch, prepared, record, write_record
 from conftest import Chantier
 
-from chantier import cli
+from chantier import __version__, cli
+from chantier.board import running
 from chantier.core.repo import Repo
 from chantier.hub import autostart, journal, lock
 from chantier.hub.watch import Watch
@@ -116,12 +117,32 @@ def _status(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[
     return lambda: chantier("status")[1]
 
 
+def _status_paused(
+    repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch
+) -> Callable[[], list[str]]:
+    open_batch(repo, chantier, mp, "Alpha")
+    _paused(repo, chantier, mp)
+    return lambda: chantier("status")[1]
+
+
+def _seat_take(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    return lambda: chantier("seat", "take", "s-chief")[1]
+
+
+def _seat_get(repo: Path, chantier: Chantier, mp: pytest.MonkeyPatch) -> Callable[[], list[str]]:
+    assert chantier("seat", "take", "s-chief")[0] == 0
+    return lambda: chantier("seat", "get")[1]
+
+
 SETUPS: dict[str, Setup] = {
     "open": _open,
     "take": _take,
     "order-qa": _order_qa,
     "transcript": _transcript,
     "status": _status,
+    "status-paused": _status_paused,
+    "seat-take": _seat_take,
+    "seat-get": _seat_get,
 }
 
 
@@ -152,14 +173,16 @@ def test_the_outputs_end_with_the_line_when_no_watcher_of_this_session_runs(
     out = run()
     for w in watchers:
         w.close()
-    last = f"{LINE}{cli_command(found)} watch --after 2"
+    pull = f"{cli_command(found)} watch --once --after 2"
+    no = "; after the user's no, at each user message: "
+    last = f"{LINE}{cli_command(found)} watch --after 2{no}{pull}"
     if who == "mine":
         assert not any(x.startswith("watch: not running") for x in out)
     else:
         assert out[-1] == last and "--batch" not in last
         assert sum(x.startswith("watch: not running") for x in out) == 1
-    if command == "status":
-        mine = "watch: chantier watch --after 2"
+    if command.startswith("status"):
+        mine = f"watch: this session's watcher runs; pull path: {pull}"
         assert (mine in out) == (who == "mine")
         theirs = (
             f"watch: session {OTHER} runs a watcher too; its end wakes that session, not this one"
@@ -180,7 +203,25 @@ def test_some_outputs_print_no_line(
     code, out, err = chantier("order", "add", "--note", str(extra))
     assert code == 0, err
     assert not any(x.startswith(nothing) for x in out)
-    assert not any(x.startswith(nothing) for x in chantier("status")[1])
+
+
+def test_the_seat_of_another_session_gets_no_line_and_a_status_names_a_board_of_another_version(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    host(monkeypatch)
+    monkeypatch.setenv(VAR, ME)
+    assert chantier("seat", "take", "s-chief")[0] == 0
+    monkeypatch.setenv(VAR, OTHER)
+    code, out, _ = chantier("seat", "get")
+    assert code == 0 and not any(x.startswith("watch:") for x in out)
+    open_batch(repo, chantier, monkeypatch, "Alpha")
+    found = Repo.find()
+    board = found.git_dir / "chantier" / "board.json"
+    for version, shown in (("0.0.1", True), (__version__, False)):
+        running.write(board, "127.0.0.1", 1, version, "x")
+        out = chantier("status")[1]
+        assert any(x.startswith("board: chantier 0.0.1 serves this surface") for x in out) == shown
+        assert not any("board wrote" in x for x in out)
 
 
 TWELVE = [f"line {i}" for i in range(12)]

@@ -290,7 +290,7 @@ def _ordered(
         oid = _record_order(b, args, req)
         skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
         batch_id = b.id
-        watch = not_running_line(repo, b.record.status) if args.kind == "qa" and reopened else []
+        watch = not_running_line(repo) if args.kind == "qa" and reopened else []
     if w.ended:  # the batch's last CR ended: the locks are released
         effect += end_of_batch(repo, batch_id, f"order {oid}")
     if own:

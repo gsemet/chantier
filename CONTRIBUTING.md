@@ -104,9 +104,11 @@ chantier is four things in one repository:
    when its forge read finds a PR merged that the record does not hold, it appends one line to
    `forge-journal.jsonl` (planning folder, never published), which `status` prints for the Chief of
    Staff to record at its next `status`; the board itself records nothing and messages no agent;
-   a save of a limit (`specifying.parallel`, `batch.slots`) on its Configuration page also appends one
-   `config` line to that journal, which `status` and the watcher carry to the Chief of Staff;
-   takes its dependencies like the
+   a save on its Configuration page also appends one `config` line to that journal for each key
+   whose effective value it changes (the two limits, and each role's agent, model and escalation),
+   which `status` and the watcher carry to the Chief of Staff; each write it makes to the backlog
+   also appends one `board` line to the project's journal, which the Chief of Staff's watcher
+   reads; takes its dependencies like the
    rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
    build step).
    The board is also the CLI's one git exception: while it runs it joins the planning
@@ -118,9 +120,12 @@ chantier is four things in one repository:
    that: at most once every 20 s, one query per project whose running batch has a PR the record
    does not hold merged or cancelled; it appends to that project's `forge-journal.jsonl`
    (planning folder, never published) one line per merge the record does not hold and per CI
-   turning red on a PR ready to merge, and nothing else; each session's watcher reads only its
-   project's journal and ends 20 s after the last new event, which wakes its session; the hub
-   records nothing in a batch, runs no git and messages no agent.
+   turning red on a PR ready to merge, and nothing else; each session's watcher, run for the
+   Chief of Staff's whole session with or without a batch, reads only its project's journal (the
+   hub's lines and the board's writes) and ends 20 s after the last new event that wakes, which
+   wakes its session, or when the project's seat is another session's; the hub records nothing in
+   a batch, runs no git and messages no agent. It spares the user one round trip per merge and
+   per board session ("rescan").
    A new CLI tool comes only from measured token-costly behaviour of the
    agents, never from speculation about what they might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and

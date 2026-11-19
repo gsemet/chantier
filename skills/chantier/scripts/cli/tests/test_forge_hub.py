@@ -16,15 +16,14 @@ from batch_helpers import changes, open_batch, record
 from conftest import Chantier, Surface
 
 from chantier import __version__
-from chantier.board import forge_read, prs
+from chantier.board import forge_read, prs, running
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
 from chantier.hub import journal, lock
-from chantier.hub import times as hub_times
 from chantier.hub.autostart import watch_command
 from chantier.hub.cycle import Hub
-from chantier.hub.watch import EVENTS, NO_BATCH, Watch
+from chantier.hub.watch import EVENTS, Watch
 
 LINK = "https://github.com/acme/{}/pull/{}"
 OPEN: dict[str, Any] = {
@@ -42,6 +41,7 @@ MAIN, B1 = "main", "chantier/b/cr-1"
 FIRST_PR = {"alpha": 10, "beta": 20, "gamma": 30, "delta": 40}
 CYCLE, QUIET = 20.0, 20.0
 EXIT_USAGE, EXIT_PRECONDITION = 1, 2
+BOARD_LINE = {"kind": "board", "action": "move", "items": ["x"], "text": "x", "wakes": True}
 NEW_VERSION = "9.9.9"
 CALLS = 2  # alpha and beta: one call each
 
@@ -231,6 +231,7 @@ def test_the_board_and_the_hub_share_the_journal_once(world: World, first: str) 
             for c in crs_of("alpha")
         ]
         rows = prs.rows_of(withpr, world.read([c["pr"] for c in withpr]), {})
+        journal.append(repo, [BOARD_LINE], "board")  # a board line never blocks the merge
         journal.append(repo, journal.merged_events("batch-01", rows), "board")
 
     if first == "board":
@@ -239,8 +240,8 @@ def test_the_board_and_the_hub_share_the_journal_once(world: World, first: str) 
     else:
         world.hub.cycle(0.0)
         board()
-    (only,) = world.journal("alpha")
-    assert (only["seq"], only["by"], only["cr"]) == (1, first, "CR-1")
+    (only,) = (e for e in world.journal("alpha") if e["kind"] == "merged")
+    assert (only["by"], only["cr"]) == (first, "CR-1")
 
 
 def test_the_start_line_names_the_hub_and_a_hub_of_another_version(world: World) -> None:
@@ -257,51 +258,17 @@ def test_the_start_line_names_the_hub_and_a_hub_of_another_version(world: World)
     w = Watch(beta, 0, NEW_VERSION)
     assert w.start_line() == "watch: beta from cursor 0, the hub"
     w.close()
-
-
-# (event times, a pause at this time or None, the time the watcher ends, why)
-ENDS: list[Any] = [
-    ([0], None, 20, EVENTS),
-    ([0, 15, 30], None, 50, EVENTS),
-    ([], None, None, None),
-    ([0], 5, 5, NO_BATCH),
-    ([], 5, 5, NO_BATCH),
-]
-
-
-@pytest.mark.parametrize(("times", "pause", "end", "why"), ENDS)
-def test_a_watcher_ends_twenty_seconds_after_the_last_event(
-    repo: Path, times: list[int], pause: int | None, end: int | None, why: str | None
-) -> None:
-    folder = repo / ".agents" / "changes" / "4-batch"
-    folder.mkdir(parents=True)
-
-    def write(status: str) -> None:
-        data = {"id": "batch-01", "status": status, "crs": []}
-        (folder / "batch.json").write_text(json.dumps(data), encoding="utf-8")
-
-    write("running")
-    found = Repo.find()
-    assert (hub_times.cycle_s(), hub_times.quiet_s()) == (CYCLE, QUIET)
-    w = Watch(found, 0, __version__)
-    ended: tuple[int, str] | None = None
-    for t in range(120):
-        if t == pause:
-            write("paused")
-        if t in times:
-            journal.append(found, [journal.red_event("batch-01", f"CR-{t}", "P", "c" * 40)], "hub")
-        reason = w.poll(float(t))
-        if reason:
-            ended = (t, reason)
-            break
+    board = beta.git_dir / "chantier" / "board.json"
+    tail = "; board is chantier 0.0.1: its writes do not reach this watcher, restart it"
+    for version, said in (("0.0.1", tail), (NEW_VERSION, "")):
+        running.write(board, "127.0.0.1", 1, version, "x")  # the record of a live process: ours
+        w = Watch(beta, 0, NEW_VERSION)
+        assert w.start_line() == f"watch: beta from cursor 0, the hub{said}"
+        w.close()
+    board.unlink()
+    w = Watch(beta, 0, NEW_VERSION)
+    assert w.start_line() == "watch: beta from cursor 0, the hub"  # no live record: nothing said
     w.close()
-    assert ended == ((end, why) if end is not None else None)
-    if why == EVENTS:
-        again = "still running: for the Chief of Staff, start again in the background now: "
-        last = f"watch: batch-01 {again}{watch_command(found, len(times))}"
-        assert w.lines(EVENTS)[-1] == last
-    if why == NO_BATCH:
-        assert w.lines(NO_BATCH)[-1] == f"watch: no running batch in {found.root.name}; ended"
 
 
 CONFIGS = [
@@ -335,21 +302,6 @@ def test_a_config_line_ends_the_watcher_and_is_told_in_its_form(
     assert w.lines(EVENTS) == [text, last]
 
 
-def test_watch_refusals(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> None:
-    code, _, err = chantier("watch")
-    assert code == EXIT_PRECONDITION and "watch: no running batch in" in err
-    assert "nothing to watch" in err
-    open_batch(repo, chantier, monkeypatch, "Alpha")
-
-    def files() -> list[str]:
-        return sorted(p.as_posix() for p in repo.rglob("*") if ".git/" not in p.as_posix())
-
-    before = files()
-    code, _, err = chantier("watch", "--after", "5")
-    assert code == EXIT_USAGE and "watch: --after 5 is past the journal's end (0)" in err
-    assert files() == before and not (repo / ".git" / "chantier").exists()
-
-
 def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -377,7 +329,8 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     got = forge_lines()
     last = 5  # the journal's highest seq
     assert got[0] == "forge hub: none running" and got[-1].startswith("watch: not running:")
-    assert got[-1].endswith(f" watch --after {last}") and "watch: chantier watch" not in got
+    assert f" watch --after {last}; after the user's no" in got[-1]
+    assert got[-1].endswith(f" watch --once --after {last}") and "watch: chantier watch" not in got
     got = got[1:-1]
     assert got[0] == f"forge saw merged: {a} P into main at t; {order} {a}"
     assert got[1] == (

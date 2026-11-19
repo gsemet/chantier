@@ -314,7 +314,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     unread = sum(1 for a in d.asks if not a.read)
     if unread:
         lines.append(f"{unread} asks unread: `chantier asks`")
-    return lines + extra + not_running_line(repo, d.status), code
+    return lines + extra + not_running_line(repo), code
 
 
 def asks(args: argparse.Namespace) -> list[str]:

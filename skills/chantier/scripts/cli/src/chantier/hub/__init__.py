@@ -4,7 +4,9 @@ Every watcher of a planning surface (or a repository) on one machine competes fo
 lock in the git folder (`chantier/hub.lock`); the one that holds it is the hub, the only process
 that reads the forge, for every project of the surface, at most once every 20 s, and appends the
 events it finds to each project's `forge-journal.jsonl`. Each watcher reads only its project's
-journal and ends 20 s after the last new event, which wakes its session. Each watcher also holds
+journal (the hub's lines and the board's writes) and ends 20 s after the last new event that wakes,
+which wakes its session, or when the project's seat is another session's. It runs with or
+without a batch. Each watcher also holds
 a lock of its own per project and session (`chantier/watch-<project>/<session>.lock`, `lock.py`);
 `status`, `open`, `take`, `order` and the switch to direct mode read it to print the
 `watch: not running` line (`autostart.py`) when no watcher of the session runs.

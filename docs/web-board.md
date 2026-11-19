@@ -81,7 +81,7 @@ The place where you sort the backlog. Each item is a post-it, the same card as t
 - Drag a post-it between **Inbox**, a priority (P1 more urgent than P4) and **3-ready**, or up and down in a column.
 - Select several post-its for the bar that groups them under a theme (a group moves to the first post-it's column, **undo** takes it apart) or labels them (one lower-case word).
 - **The next batch is ready** records that you said so (`next-batch.json`, the time and the CRs then in `3-ready`). It decides nothing and opens nothing: the next batch opens after the running one closes, on your word to the Chief of Staff.
-- The button **✎ n writes since your last 'rescan'** lists what the board wrote. The board does not talk to the Chief of Staff: tell it "rescan" in the chat, then press **I said 'rescan' to the CoS**.
+- The button **✎ n writes since your last 'rescan'** lists what the board wrote. The board does not talk to the Chief of Staff itself: a Chief of Staff whose watcher (or pull path) runs hears each write within about 20 s, and "rescan" stays for one that runs neither: tell it "rescan" in the chat, then press **I said 'rescan' to the CoS**.
 
 Each change is written at once, with the CLI's own file and triage commands, in the backlog only: the inbox, the priorities, `3-ready`, the labels, the groups. The surface's Home and a running batch's CRs are never written.
 
@@ -162,7 +162,7 @@ that session leaves the seat; started by hand, it serves until you stop it. It w
 file an idea, move items between those places, label and group them, edit an item's Markdown
 files, and declare the next batch ready (`next-batch.json`, the time and the CRs then in
 `3-ready`; it decides nothing). Every write lands in `board-journal.jsonl` (not committed); the
-"rescan" button empties it, to tell the Chief of Staff the backlog changed. The surface's Home
+"rescan" button empties it, to tell the Chief of Staff the backlog changed. Each write also lands as one `board` line in the project's `forge-journal.jsonl`, which a Chief of Staff's watcher (or its pull path) reads: "rescan" is for one that runs neither. The surface's Home
 (the overview of the projects) is read-only.
 
 - **The link.** The Chief of Staff gives you one link, `http://<address>:8765/?k=<key>`. When the

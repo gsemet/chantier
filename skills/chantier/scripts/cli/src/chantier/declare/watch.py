@@ -5,9 +5,11 @@ from __future__ import annotations
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
 HELP = (
-    "wait in the background for the forge events of this project's running batch (merges, CI "
-    "red on a PR ready to merge), read from the local journal; one process per surface and "
-    "machine reads the forge for all, every 20 s"
+    "wait in the background for the events of this project, read from the local journal: the "
+    "forge's (merges, CI red on a PR ready to merge) and the board's writes (backlog, "
+    "configuration), with or without a batch; it ends 20 s after the last that wakes, or when "
+    "the project's seat is another session's; one process per surface and machine reads the "
+    "forge for all, every 20 s; --once --after SEQ prints the lines past SEQ and exits"
 )
 
 
@@ -20,4 +22,10 @@ def register(sub: Subparsers) -> None:
         metavar="SEQ",
         help="count the events whose seq is greater than this, including those written while no "
         "watcher ran (default: the journal's highest seq now)",
+    )
+    s.add_argument(
+        "--once",
+        action="store_true",
+        help="the pull path: print the journal's lines past --after and the next command, take "
+        "no lock, read no forge, start nothing",
     )
