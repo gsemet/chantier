@@ -6,7 +6,13 @@ import argparse
 from dataclasses import dataclass
 
 from chantier.commands.endpause import end_of_batch
-from chantier.commands.orders_apply import CR_ORDERS, HANDLERS, Word, apply_order
+from chantier.commands.factory import USAGE as FACTORY_USAGE
+from chantier.commands.orders_apply import (
+    CR_ORDERS,
+    HANDLERS,
+    Word,
+    apply_order,
+)
 from chantier.commands.orders_merged import stop_before_merge
 from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
 from chantier.core import git
@@ -45,6 +51,8 @@ def _check_args(args: argparse.Namespace, note: str, new_release: bool) -> None:
             "CR; a fix of it is `order add --fix-for <release-cr>`",
             EXIT_USAGE,
         )
+    if kind == "factory" and (args.cr not in ("on", "off") or not note.strip()):
+        raise ChantierError(FACTORY_USAGE, EXIT_USAGE)
     if kind == "qa" and not note.strip():
         raise ChantierError('order qa --note "<what to test>"', EXIT_USAGE)
     if args.follow_up and kind != "waive":
@@ -144,6 +152,7 @@ class _Req:
     new_release: bool
     oid: str = ""
     stopped: list[str] | None = None
+    origin: str | None = None  # an `add` made by another command (`triage --ready`): its name
 
 
 def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
@@ -173,6 +182,8 @@ def _word(b: Batch, args: argparse.Namespace, req: _Req) -> Word:
 
 def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
     cr, note, own, new_release = req.cr, req.note, req.own, req.new_release
+    if args.kind == "factory":
+        cr = "-"  # the positional is `on` or `off`, not a CR
     oid = req.oid
     # The CLI did its whole part, the Foreman only has to end the order: not a note (the
     # Foreman relays it), not a QA (it starts a driver), not the drop of a live CR.
@@ -187,14 +198,21 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
             cr=cr or "-",
             note=note,
             sent=now(),
-            done=now() if own else None,
+            done=now() if own or args.kind == "factory" else None,
             **({} if own else {"applied": applied}),
             **({"fix_for": args.fix_for} if args.fix_for else {}),
             **({"follow_up": args.follow_up} if args.follow_up else {}),
             **({"release": True} if new_release else {}),
         ),
     )
-    b.log("order", None if cr in (None, "-") else cr, order=oid, order_kind=args.kind, note=note)
+    b.log(
+        "order",
+        None if cr in (None, "-") else cr,
+        order=oid,
+        order_kind=args.kind,
+        note=note,
+        **({"origin": req.origin} if req.origin else {}),
+    )
     return oid
 
 
@@ -224,7 +242,30 @@ def order(args: argparse.Namespace) -> list[str]:
     if args.kind == "done":
         return _order_done(repo, args)
     note = _normalise_args(args, note)
+    return _ordered(repo, args, note, new_release)
 
+
+def add_order(repo: Repo, batch: str, folder: str, origin: str) -> list[str]:
+    """`order add --note <folder> --batch <batch>` by the Chief of Staff, whoever runs it: the
+    same refusals, the same record, the same lines. `origin` names the command that adds."""
+    args = argparse.Namespace(
+        kind="add",
+        cr="-",
+        note=folder,
+        fix_for=None,
+        follow_up=None,
+        batch=batch,
+        epoch=None,
+        release=False,
+    )
+    _check_args(args, folder, False)
+    return _ordered(repo, args, _normalise_args(args, folder), False, origin)
+
+
+def _ordered(
+    repo: Repo, args: argparse.Namespace, note: str, new_release: bool, origin: str | None = None
+) -> list[str]:
+    """Apply and record one order, in the batch's own locks: the lines the Chief of Staff relays."""
     own = args.epoch is not None
     _check_own(args, own)
     actor = "foreman" if own else "chief-of-staff"
@@ -242,7 +283,7 @@ def order(args: argparse.Namespace) -> list[str]:
         qa_row = _qa_row(repo, b) if args.kind == "qa" else None  # before any state changes
         reopened = _reopen(b, args.kind)
         cr = _qa_folder(repo, b, note) if qa_row else args.cr
-        req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}", stopped)
+        req = _Req(cr, note, own, new_release, f"O-{len(b.record.orders) + 1}", stopped, origin)
         w = _word(b, args, req)
         effect = reopened + apply_order(w)
         oid = _record_order(b, args, req)

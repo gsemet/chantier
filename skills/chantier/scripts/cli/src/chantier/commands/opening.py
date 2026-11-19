@@ -10,6 +10,7 @@ from typing import Any
 
 from chantier.commands.closing import record_born_paused
 from chantier.commands.crs import grant_line
+from chantier.commands.factory import not_joined_line, not_joined_text
 from chantier.commands.opening_record import (
     instruction_files,
     new_record,
@@ -234,9 +235,10 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
     return (
         f"# {b.id}\n\n- Mode: {data.mode}. Slots: {args.slots}. "
         f"Budget: {args.budget or 'none'}. Host: {host}. "
-        f"Steering: {data.steering}.\n"
+        f"Steering: {data.steering}. Factory: {'on' if data.factory else 'off'}.\n"
         + (
-            "- CRs, in order: none yet (born paused; `order add` joins them)\n"
+            "- CRs, in order: none yet (born paused; each CR made ready with "
+            "`triage --ready` joins on its own)\n"
             if not data.crs
             else "- CRs, in order:\n" + "".join(_cr_line(b, c) for c in data.crs)
         )
@@ -286,17 +288,40 @@ def _empty_lines(
 ) -> list[str]:
     """The output of an `open` with no CR: the batch is born paused, and what comes next."""
     host, data, brief = shape
-    add = f"`order add --note <folder> --batch {b.id}`"
-    tail = (
-        "for each CR; claim the batch, then `take`"
-        if args.direct
-        else "for each CR, then start the Foreman"
-    )
     return [
         f"opened {b.id} on {host}: no CR, paused, {args.slots} slots, "
-        f"{data.mode}, steering {data.steering}",
-        f"next: complete the brief {shown(repo, brief)}, then {add} {tail}",
+        f"{data.mode}, steering {data.steering}, factory",
+        f"next: complete the brief {shown(repo, brief)}, then start the Foreman (direct mode: "
+        f"steer it yourself); {FACTORY_NEXT}",
+        *_ready_lines(repo, b),
     ]
+
+
+FACTORY_NEXT = "each CR made ready with `triage <folder> --ready` joins it on its own (factory)"
+
+
+def _ready_lines(repo: Repo, b: Batch) -> list[str]:
+    """A factory batch: the CRs `3-ready` already holds, which the factory's go covers."""
+    left = not_joined_line(repo) if b.record.factory else None
+    return [not_joined_text(left, b.id)] if left else []
+
+
+def _direct_needs_a_chief(args: argparse.Namespace, chief: str | None) -> None:
+    if args.direct and not chief:
+        raise ChantierError(
+            "--direct needs the Chief of Staff's own session id "
+            "(CLAUDE_CODE_SESSION_ID or COPILOT_AGENT_SESSION_ID): none is known, "
+            "so a Foreman's claim could not be told from the Chief of Staff's",
+            EXIT_PRECONDITION,
+        )
+
+
+def _freeze_rules(data: Any, team: Any, escalation: Any, timing: Any) -> None:
+    """A running batch keeps the playbook, escalation and timing it opened with."""
+    if team:  # the prices are read live at each pricing, not frozen with the roles
+        data.playbook = {k: v for k, v in team.items() if k not in ("prices", "price_layers")}
+    data.escalation = escalation
+    data.timing = timing
 
 
 def open_batch(args: argparse.Namespace) -> list[str]:
@@ -308,42 +333,39 @@ def open_batch(args: argparse.Namespace) -> list[str]:
     paths = stage_layout(repo)
     release = release_grant(args)
     chief = own_transcript(host)
-    if args.direct and not chief:
-        raise ChantierError(
-            "--direct needs the Chief of Staff's own session id "
-            "(CLAUDE_CODE_SESSION_ID or COPILOT_AGENT_SESSION_ID): none is known, "
-            "so a Foreman's claim could not be told from the Chief of Staff's",
-            EXIT_PRECONDITION,
-        )
+    _direct_needs_a_chief(args, chief)
     selected = [prepared_cr(repo, item, paths).directory for item in args.items]
     if len(set(selected)) != len(selected):
         raise ChantierError("the same CR was selected more than once", EXIT_USAGE)
     data = new_record(args, host, settings, release, chief)
-    if team:  # a running batch keeps the playbook it opened with
-        # the prices are read live at each pricing, not frozen with the roles
-        data.playbook = {k: v for k, v in team.items() if k not in ("prices", "price_layers")}
-    data.escalation = escalation  # likewise the escalation, even with no user file
-    data.timing = timing  # a running batch keeps the timing it opened with, whatever the files
+    _freeze_rules(data, team, escalation, timing)
     with changes_lock(repo):
         check_no_open_batch(repo)
         with RenderedBatch(repo, None, actor="chief-of-staff", create=data) as b:
             brief = b.dir / "brief.md"
             _open_crs(b, args, release)
             brief.write_text(_brief_text(b, args, host, release), encoding="utf-8")
-            b.log("open", None, crs=[c.id for c in b.record.crs])
+            b.log(
+                "open",
+                None,
+                crs=[c.id for c in b.record.crs],
+                **({"factory": True} if b.record.factory else {}),
+            )
             if not b.record.crs:
                 record_born_paused(b)
     if not args.items:
         return _empty_lines(repo, b, args, (host, data, brief))
     lines = [
         f"opened {b.id} on {host}: {len(args.items)} CRs, {args.slots} slots, "
-        f"{data.mode}, steering {data.steering}"
+        f"{data.mode}, steering {data.steering}" + (", factory" if data.factory else "")
     ]
     # the next step comes before the CR list: past ten lines it is the list that is cut
     lines.append(
         f"next: complete the brief {shown(repo, brief)}, then "
         + ("steer it yourself" if args.direct else "start the Foreman")
+        + (f"; {FACTORY_NEXT}" if data.factory else "")
     )
+    lines += _ready_lines(repo, b)
     lines += [
         f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}"
         for c, src in zip(b.record.crs, selected, strict=False)

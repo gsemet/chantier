@@ -1,7 +1,7 @@
 // Home, the batch block: its state and mode, the bar of its CRs by state, the four small figures.
 import { html } from '../core/dom.js';
 import { age, usd } from '../core/format.js';
-import { counts, heartbeat, noCrYet, steeringWord } from '../model/semantics.js';
+import { counts, heartbeat, noCrYet, steeringFactoryWord } from '../model/semantics.js';
 import { t } from '../model/words.js';
 import { dot, meter, stateIcon, tag } from '../ui/parts.js';
 
@@ -62,7 +62,9 @@ export function batchBlock(state) {
     return html`<section class="block wide"><h2>${t('batch.batch')}</h2><div class="empty">${t('home.no_batch')}</div></section>`;
   }
   const running = batch.state === 'running';
-  const head = html`<h2>${batch.id} ${tag('st', html`${stateIcon(running ? 'working' : 'queued')}${batch.state}`)}<span class="sub">${t(`mode.${batch.mode}`)} · ${steeringWord(batch)}</span><button class="more" type="button" data-go="batch">${t('home.see_batch')}</button></h2>`;
-  const body = noCrYet(batch) ? html`<p class="note">${t('batch.no_cr_yet')}</p>` : bar(batch);
+  const head = html`<h2>${batch.id} ${tag('st', html`${stateIcon(running ? 'working' : 'queued')}${batch.state}`)}<span class="sub">${t(`mode.${batch.mode}`)} · ${steeringFactoryWord(batch)}</span><button class="more" type="button" data-go="batch">${t('home.see_batch')}</button></h2>`;
+  const body = noCrYet(batch)
+    ? html`<p class="note">${t(batch.factory ? 'batch.no_cr_yet_factory' : 'batch.no_cr_yet')}</p>`
+    : bar(batch);
   return html`<section class="block wide">${head}${body}${figures(batch, state.now)}</section>`;
 }

@@ -107,7 +107,7 @@ UNITS = {
     "series-deps": (260, ["github"], ["batch_modes", "dependencies", "early_conflict",
                                       "changes_tree"]),
     "direct": (135, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
-                                 "empty_batch"]),
+                                 "empty_batch", "factory_batch"]),
     "surface-board": (300, ["github"], ["remote_board", "forge_hub", "external_surface", "cr_summary"]),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
@@ -5315,12 +5315,17 @@ def empty_batch(w: World) -> None:
     check("`open` with no CR opens a batch born paused, with no CR and no cost yet",
           code == 0 and d["status"] == "paused" and d["crs"] == [] and d["spent_usd"] is None
           and "no CR, paused" in out[0], str(out))
+    check("it is a factory batch: `factory: true` in its record, the first line says so, and its "
+          "brief carries `Factory: on.`",
+          d["factory"] is True and out[0].endswith(", factory")
+          and "Factory: on." in (w.state / "4-batch" / "brief.md").read_text(encoding="utf-8"),
+          str(out))
     w.env["CHANTIER_BATCH"] = w.name
     code, out = w.chantier("status")
     mine = next((ln for ln in out if ln.startswith(w.name)), "")
     check("`status` says `spent none yet` and `no CR yet` for it, never $0.00",
           code == 0 and "spent none yet" in mine and mine.endswith("no CR yet")
-          and "$0.00" not in mine, str(out))
+          and " factory: on " in mine and "$0.00" not in mine, str(out))
     code, out = w.chantier("order", "add", "--note", str(item), "--batch", w.name)
     check("`order add --note` joins a CR to the empty batch, which stays paused",
           code == 0 and w.batch()["status"] == "paused" and len(w.batch()["crs"]) == 1, str(out))
@@ -5335,6 +5340,51 @@ def empty_batch(w: World) -> None:
           "reads its cost `none: no session steered it`",
           code == 0 and "0 CRs archived" in out[0]
           and any("none: no session steered it" in ln for ln in out), str(out))
+    w.reset()
+
+
+def factory_batch(w: World) -> None:
+    note("\n## 16e. A factory batch: `triage --ready` joins it, it pauses at the last CR's end "
+         "with no close offered, and ends on the user's word")
+    _, ready = prepare_cr(w, "Factory first")
+    w.reset()
+    w.start("--direct", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    code, out = w.chantier("triage", ready, "--ready")
+    d = w.batch()
+    check("`triage --ready` joins the factory batch in the same call: the CR is queued, the batch "
+          "stays paused, one `add` order says where it came from, the last line names the CR",
+          code == 0 and out[0].startswith("triaged ") and len(d["crs"]) == 1
+          and d["crs"][0]["status"] == "queued" and d["status"] == "paused"
+          and [o["kind"] for o in d["orders"]] == ["add"]
+          and any(ln.startswith("[chief-of-staff→foreman] order O-1: add ") for ln in out)
+          and out[-1].startswith(f"factory {w.name}: {d['crs'][0]['id']} joined on its own"),
+          str(out))
+    lines = (w.state / "4-batch" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    events = [json.loads(ln) for ln in lines]
+    check("the `order` event says `origin: triage --ready`",
+          [e.get("origin") for e in events if e["kind"] == "order"] == ["triage --ready"],
+          str(events))
+    cr = d["crs"][0]["id"]
+    w.chantier("foreman", "set", "local_foreman_factory", "--epoch", 1)
+    w.chantier("take", cr, "--epoch", 1)
+    code, out = w.chantier("order", "merged", cr)
+    next_line = next((ln for ln in out if ln.startswith("next:")), "")
+    check("the last CR's end pauses the factory batch and prints the factory `next:` line: no "
+          "retro, no close offered",
+          code == 0 and w.batch()["status"] == "paused" and "waits for its next ready CR" in next_line
+          and "offer the close" not in next_line and "order factory off" in next_line, str(out))
+    code, out = w.chantier("order", "factory", "off", "--note", "the user closes the factory")
+    check("`order factory off` makes it an ordinary batch and, paused with every CR ended, says "
+          "the retro comes next; the order is done at once",
+          code == 0 and w.batch()["factory"] is False
+          and any(ln.startswith("every CR is merged or cancelled: next: the retro") for ln in out)
+          and w.batch()["orders"][-1]["done"], str(out))
+    code, out = w.chantier("close", "--yes", expect=2)
+    check("`close` is refused for the cost of a batch no transcript steered, never for the done "
+          "`factory` order",
+          code == 2 and "no steering transcript recorded" in w.last_stderr
+          and "order" not in w.last_stderr.replace("cannot close", ""), w.last_stderr)
     w.reset()
 
 
@@ -8981,6 +9031,7 @@ CASES = {
     "driver_liveness": driver_liveness,
     "restore_cr": restore_cr,
     "empty_batch": empty_batch,
+    "factory_batch": factory_batch,
     "gitlab_ship_merge": gitlab_ship_merge,
 }
 

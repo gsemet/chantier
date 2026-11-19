@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1310 880" width="1310" height="880" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Life of a batch</title>
-  <desc>One batch at a time: it is running, then paused, and closed only on your word. The states and the transitions are the same with a Foreman (Foreman mode: a Foreman session steers the batch, CRs join it while it runs, and your session stays free to grill, file and triage) and with the Chief of Staff steering the batch itself (direct mode: no Foreman session; less dynamic, no grill in that session while the batch runs, so you grill in a Griller session and file your ideas to the backlog). Running: on your go on the plan, chantier open (Foreman mode) or chantier open --direct (direct mode) creates the batch in 4-batch/, running; open is refused while a batch is not closed; chantier open with no CR creates the batch paused, with no CR: order add joins CRs and the first take sets it running. Drivers take the CRs on the free slots; each is worked, handed back, merged by you, or dropped. A running direct batch takes no grill in its session and no order qa; order add queues a specified CR, and a release CR and its fixes join. Paused: once every CR is merged or cancelled, the CLI removes the merged CRs' worktrees and branches (one whose agent is still held, or that git refuses, is kept and named) and pauses the batch itself; a note, a QA or a stack driver still pending holds the pause and chantier pause is run once they are done. Nothing runs; the cost to date is computed and shown; the batch's STATUS.md is its exit report; the Completion report goes to you. A paused batch, of either steering, takes new CRs: chantier order add adds new CRs, any number, and the batch stays paused; the first take (or an order qa) sets it running again, and it pauses again at the end, with the cost to date grown. It stays paused, however long, until you say "close the batch". Closed: only on your word. chantier close is the check: it refuses, naming the cause, while anything runs or nothing at all can be priced (calls of a model with no price are shown apart and the final cost is a floor); otherwise it shows the final cost and what goes. On your yes, chantier close --yes moves each merged CR from 4-batch/3-done/ to 5-archives/, deletes the batch's own files in 4-batch/, and the dropped CRs' worktrees and branches are removed with git. Without a yes, everything stays. Hold (order slots --note 0: no new Driver starts) is not a state.</desc>
+  <desc>One batch at a time: it is running, then paused, and closed only on your word. The states and the transitions are the same with a Foreman (Foreman mode: a Foreman session steers the batch, CRs join it while it runs, and your session stays free to grill, file and triage) and with the Chief of Staff steering the batch itself (direct mode: no Foreman session; less dynamic, no grill in that session while the batch runs, so you grill in a Griller session and file your ideas to the backlog). Running: on your go on the plan, chantier open (Foreman mode) or chantier open --direct (direct mode) creates the batch in 4-batch/, running; open is refused while a batch is not closed; chantier open with no CR creates the batch paused, with no CR: order add joins CRs and the first take sets it running (a factory batch: each CR made ready with triage --ready joins on its own). Drivers take the CRs on the free slots; each is worked, handed back, merged by you, or dropped. A running direct batch takes no grill in its session and no order qa; order add queues a specified CR, and a release CR and its fixes join. Paused: once every CR is merged or cancelled, the CLI removes the merged CRs' worktrees and branches (one whose agent is still held, or that git refuses, is kept and named) and pauses the batch itself; a note, a QA or a stack driver still pending holds the pause and chantier pause is run once they are done. Nothing runs; the cost to date is computed and shown; the batch's STATUS.md is its exit report; the Completion report goes to you. A paused batch, of either steering, takes new CRs: chantier order add adds new CRs, any number, and the batch stays paused; the first take (or an order qa) sets it running again, and it pauses again at the end, with the cost to date grown. It stays paused, however long, until you say "close the batch"; a factory batch offers no close and waits for its next ready CR, and ends on your word (order factory off, then the retro and the close). Closed: only on your word. chantier close is the check: it refuses, naming the cause, while anything runs or nothing at all can be priced (calls of a model with no price are shown apart and the final cost is a floor); otherwise it shows the final cost and what goes. On your yes, chantier close --yes moves each merged CR from 4-batch/3-done/ to 5-archives/, deletes the batch's own files in 4-batch/, and the dropped CRs' worktrees and branches are removed with git. Without a yes, everything stays. Hold (order slots --note 0: no new Driver starts) is not a state.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -86,10 +86,12 @@
     <text x="710" y="531">Completion report to you</text>
     <text x="710" y="552" font-weight="700" fill="#1e3a8a">takes new CRs, either steering</text>
   </g>
-  <rect x="580" y="566" width="260" height="42" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>
+  <rect x="580" y="558" width="260" height="58" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>
   <g font-size="12" fill="#1e3a8a" text-anchor="middle">
-    <text x="710" y="583">stays paused, however long,</text>
-    <text x="710" y="599">until you say “close the batch”</text>
+    <text x="710" y="571">stays paused, however long,</text>
+    <text x="710" y="584">until you say “close the batch”</text>
+    <text x="710" y="597">a factory batch: no close offered;</text>
+    <text x="710" y="610">it waits for its next ready CR</text>
   </g>
 
   <!-- paused → running: new work -->
@@ -98,13 +100,17 @@
   <rect x="540" y="672" width="168" height="18" fill="#f8fafc"/>
   <text x="544" y="685" font-size="12.5" fill="#1e3a8a" textLength="160" lengthAdjust="spacingAndGlyphs">the first take (or <tspan font-family="ui-monospace, Menlo, monospace">order qa</tspan>)</text>
   <text x="466" y="712" font-size="12.5" fill="#475569" text-anchor="middle">new CRs join it, any number; the first take sets it running again; it pauses again at the end, the cost to date grown</text>
+  <text x="466" y="730" font-size="12.5" fill="#475569" text-anchor="middle">or, in a factory batch, <tspan font-family="ui-monospace, Menlo, monospace">triage --ready</tspan></text>
 
   <!-- paused → closed -->
   <line x1="860" y1="470" x2="1036" y2="470" stroke="#334155" stroke-width="1.8" marker-end="url(#arrow)"/>
   <rect x="872" y="432" width="152" height="26" rx="13" fill="#16a34a"/><text x="948" y="449.5" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="middle">👤 only on your word</text>
   <text x="948" y="496" font-size="12.5" fill="#475569" text-anchor="middle">the check,</text>
   <text x="948" y="512" font-size="12.5" fill="#475569" text-anchor="middle">then your yes</text>
-  <line x1="948" y1="522" x2="948" y2="644" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <text x="948" y="540" font-size="12.5" fill="#475569" text-anchor="middle">a factory batch:</text>
+  <text x="948" y="556" font-size="12.5" fill="#475569" text-anchor="middle"><tspan font-family="ui-monospace, Menlo, monospace">order factory off</tspan>,</text>
+  <text x="948" y="572" font-size="12.5" fill="#475569" text-anchor="middle">then the retro and the close</text>
+  <line x1="948" y1="584" x2="948" y2="644" stroke="#64748b" stroke-width="1.5" stroke-dasharray="3 3"/>
 
   <!-- State: closed -->
   <rect x="1040" y="400" width="240" height="220" rx="14" fill="#e2e8f0" stroke="#64748b" stroke-width="2.5"/>

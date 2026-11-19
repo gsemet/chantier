@@ -228,6 +228,13 @@ does a unit that is not in `UNITS` and a test that does not exist.
   line in pytest (unit: direct) (test:
   test_cost_reading.py::test_the_chief_lines_and_a_model_with_no_price) (test:
   test_cli_runs.py::test_a_direct_batch_is_recorded_shown_and_queues_added_work);
+- a batch opened with no CR, born paused and a factory (`factory: true`, the brief's `Factory: on.`,
+  `status` saying `factory: on` and `no CR yet`), then a factory batch in a direct batch:
+  `triage --ready` joining it in the same call (queued, still paused, one `add` order with its
+  `origin`), the last CR's end pausing it with the factory `next:` line and no close offered,
+  `order factory off` saying the retro comes next, `close` refused only for the cost of a batch no
+  transcript steered (unit: direct) (test:
+  test_factory.py::test_triage_ready_joins_a_factory_batch_on_its_own);
 - the seat: `seat take` refused to a second session, taken over only with `--over` naming the
   holder, the batch keeping both Chief of Staff transcripts, the new session claiming the epoch
   with the steering still direct, `seat leave` (unit: direct) (test:

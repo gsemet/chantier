@@ -64,5 +64,11 @@ def register(sub: Subparsers) -> None:
         action="store_true",
         help="no Foreman session: the Chief of Staff steers the batch itself",
     )
+    s.add_argument(
+        "--factory",
+        action="store_true",
+        help="a factory batch: each CR made ready with `triage --ready` joins it on its own, and "
+        "it stays open until the user's `close`; an `open` with no CR is one already",
+    )
     s.add_argument("--default-branch", help="default: the remote's HEAD")
     s.add_argument("--remote", default="origin")

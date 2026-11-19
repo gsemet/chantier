@@ -23,7 +23,7 @@ def _one(name: str, repo: Repo) -> str | None:
     drivers = len(rails.held(d)) + (1 if d.stack_agent else 0)
     return (
         f"{name} {d.id} {state}, steering {steering_word(d.steering)}, "
-        f"{drivers} Driver{'' if drivers == 1 else 's'}"
+        f"{drivers} Driver{'' if drivers == 1 else 's'}" + (", factory on" if d.factory else "")
     )
 
 
