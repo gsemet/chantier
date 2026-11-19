@@ -13,7 +13,7 @@ description: >-
 
 # chantier: Chief of Staff
 
-chantier-version: 0.13.0
+chantier-version: 0.14.0
 
 `$CHANTIER` is the CLI, one launch in two modes, checked once at the session's start. The plugin root (`<plugin root>` = `<../chantier made absolute>/../..`, made absolute). If `<plugin root>/.git` exists (a folder or a file), this is chantier's own checkout, the dev mode: run `uv sync --locked --project "<plugin root>"` once, before the first `$CHANTIER` command, then `$CHANTIER` is `uv run --no-sync --project "<plugin root>" chantier`, the local code, live, with no fetch. Otherwise it is a host's plugin copy, the plugin mode: `$CHANTIER` is `uvx --from "<plugin root>" chantier --skill "<../chantier made absolute>"`, with no fetch. Any failure of the sync or of `$CHANTIER`, in either mode, at any call, follows `startup-core.md`.
 
