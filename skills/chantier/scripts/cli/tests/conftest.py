@@ -84,6 +84,7 @@ def repo(repo_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
         "CHANTIER_BATCH",
         "CHANTIER_HOST",
         "CLAUDE_CODE_ENTRYPOINT",
+        "CLAUDE_CODE_SESSION_ID",
         "COPILOT_CLI",
         "COPILOT_AGENT_SESSION_ID",
         "AI_AGENT",

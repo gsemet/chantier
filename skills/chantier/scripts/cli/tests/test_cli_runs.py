@@ -28,6 +28,7 @@ def test_the_seat_is_one_file_held_until_taken_over_on_purpose(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("CHANTIER_HOST", "claude")
+    monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "sess-1")
     changes = repo / ".agents" / "changes"
     assert chantier("seat")[1] == ["seat none"]
     code, out, _ = chantier(
