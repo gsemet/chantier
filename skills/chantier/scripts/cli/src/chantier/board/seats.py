@@ -13,11 +13,14 @@ SEAT_CHECK_S = 10  # the board looks at its seats at least this often, and at ea
 
 
 class Seats:
-    """The pairs (project, session) that registered. A board with none stops on Ctrl-C only; one
-    that had some stops when none of them is still named by its project's `seat.json`."""
+    """The pairs (project, session) that registered. Two rules. A board started with `--seat`
+    (`follows`) follows every seat that registers on it and stops when none of them is still
+    named by its project's `seat.json`. A board started by hand (no `--seat`) records the seats,
+    so it counts them, but follows none: it stops only when stopped by hand."""
 
-    def __init__(self, projects: Projects) -> None:
+    def __init__(self, projects: Projects, follows: bool = True) -> None:
         self._projects = projects
+        self._follows = follows
         self._seats: set[tuple[str, str]] = set()
         self._lock = threading.Lock()
         self._stop: Callable[[], None] | None = None
@@ -40,7 +43,7 @@ class Seats:
 
     def _start(self) -> None:
         with self._lock:
-            if self._stop is None or self._watching:
+            if not self._follows or self._stop is None or self._watching:
                 return
             self._watching = True
         threading.Thread(target=self._loop, args=(self._stop,), daemon=True).start()
@@ -68,7 +71,9 @@ class Seats:
         return bool(seat and seat.session == session)
 
     def gone(self) -> bool:
-        """Seats were registered and none is held any more."""
+        """Seats were registered and none is held any more; never, for a board that follows none."""
+        if not self._follows:
+            return False
         with self._lock:
             seats = sorted(self._seats)
         return bool(seats) and not any(self._held(p, s) for p, s in seats)
