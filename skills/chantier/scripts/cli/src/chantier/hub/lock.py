@@ -1,28 +1,22 @@
-"""The hub's election and its record, in the git folder next to the board's `board.json`.
+"""The surface server's election and the watchers' locks, in the git folder next to its
+`server.json` (`state.py`).
 
 `hub.lock` is taken with `core.files.try_lock` and never waited on: the OS releases it when the
-holder exits or dies, so no stale lock exists. `hub.json` is kept while the lock is held: the
-holder's `pid`, `version`, `started` and, per project, `read_at` (the last good read), `error` (the
-last failed read's one line, or null) and `error_at`. A record whose process is not alive since
-`started` is no record.
+holder exits or dies, so no stale lock exists. The holder is the forge hub: the surface server
+(`chantier board`) or, with no server running, a watcher. The hub's record is the `hub` entry of
+`server.json`, written by the holder only.
 
 Each watcher also holds `watch-<project>/<session>.lock`, the same way: `watchers` lists the
 sessions whose watcher of a project runs now."""
 
 from __future__ import annotations
 
-import json
-import os
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import IO, Any
+from typing import IO
 
-from chantier import procs
-from chantier.core import clock
-from chantier.core.files import read_text, try_lock, unlock, write_json
+from chantier.core.files import try_lock, unlock
 
 LOCK = "hub.lock"
-RECORD = "hub.json"
 WATCHER_SUFFIX = ".lock"
 
 
@@ -62,7 +56,7 @@ class _FileLock:
 
 
 class HubLock(_FileLock):
-    """The hub's lock."""
+    """The hub's lock: its holder is the surface server, or a watcher when none runs."""
 
     def __init__(self, git_dir: Path) -> None:
         super().__init__(folder(git_dir) / LOCK)
@@ -101,48 +95,3 @@ def watchers(git_dir: Path, project: str) -> list[str]:
         finally:
             f.close()
     return found
-
-
-def _read(path: Path) -> dict[str, Any]:
-    try:
-        data = json.loads(read_text(path))
-    except (OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
-def _epoch(started: object) -> float | None:
-    try:
-        return datetime.strptime(str(started), clock.FORMAT).replace(tzinfo=UTC).timestamp()
-    except ValueError:
-        return None
-
-
-def live(git_dir: Path) -> dict[str, Any] | None:
-    """The record of a hub whose process is alive and is the recorded one, else None."""
-    data = _read(folder(git_dir) / RECORD)
-    pid, when = data.get("pid"), _epoch(data.get("started"))
-    if not isinstance(pid, int) or when is None:
-        return None
-    return data if procs.alive_since(pid, when, unreadable=True) else None
-
-
-def start_record(version: str) -> dict[str, Any]:
-    return {"pid": os.getpid(), "version": version, "started": clock.now(), "projects": {}}
-
-
-def write(git_dir: Path, data: dict[str, Any]) -> None:
-    write_json(folder(git_dir) / RECORD, data)
-
-
-def remove(git_dir: Path, pid: int) -> None:
-    """Remove the record when it still names this PID."""
-    path = folder(git_dir) / RECORD
-    if _read(path).get("pid") == pid:
-        path.unlink(missing_ok=True)
-
-
-def other_version(record: dict[str, Any] | None, version: str) -> str | None:
-    """The hub's version when it differs from `version`, else None."""
-    found = (record or {}).get("version")
-    return found if isinstance(found, str) and found != version else None

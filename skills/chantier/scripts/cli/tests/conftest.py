@@ -12,6 +12,7 @@ from types import ModuleType
 from typing import Any, NamedTuple
 
 import pytest
+from forge_world import World
 
 from chantier.cli import main
 from chantier.core import git as git_module
@@ -168,3 +169,9 @@ def chantier(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
         return code, out.out.splitlines(), out.err
 
     return run
+
+
+@pytest.fixture
+def world(surface: Surface, monkeypatch: pytest.MonkeyPatch) -> World:
+    """`forge_world.World`: a surface of four projects and a fake forge."""
+    return World(surface, monkeypatch)

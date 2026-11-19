@@ -1,4 +1,5 @@
-"""One board per planning surface: the running board's record and what a new `board` does."""
+"""One surface server per planning surface: its `server` entry in `server.json`, the migration of
+`board.json`, and what a new `board` does."""
 
 from __future__ import annotations
 
@@ -17,6 +18,8 @@ from chantier.board import command, running
 from chantier.board import key as board_key
 from chantier.board.projects import open_projects
 from chantier.core.errors import EXIT_EXTERNAL
+from chantier.core.files import try_lock, unlock
+from chantier.hub import state
 
 LINK_PORT = 40123
 PORT = 1234
@@ -34,14 +37,23 @@ def _prepare_board(
     chantier: Chantier,
     monkeypatch: pytest.MonkeyPatch,
     plan: tuple[bool, dict[str, Any] | None, Any],
+    old: bool = False,
 ) -> tuple[Path, list[int]]:
+    """`old`: the record sits in an older version's `board.json` (with a key) instead."""
     alive, record, answer = plan
     prepared(repo, chantier, "Board one")
-    path = board_key.key_path(open_projects().home)
-    board_key.load_or_create(open_projects().home)
-    if record is not None:
-        data = json.loads(path.read_text("utf-8"))
-        path.write_text(json.dumps({**data, "running": record}), "utf-8")
+    home = open_projects().home
+    path = board_key.key_path(home)
+    if old:
+        old_file = path.with_name(state.OLD_BOARD)
+        old_file.parent.mkdir(parents=True, exist_ok=True)
+        data = {"key": "old-key", "created": "2026-01-01T00:00:00Z"}
+        old_file.write_text(json.dumps(data if record is None else {**data, "running": record}))
+    else:
+        board_key.load_or_create(home)
+        if record is not None:
+            data = json.loads(path.read_text("utf-8"))
+            path.write_text(json.dumps({**data, "server": record}), "utf-8")
     monkeypatch.setattr(procs, "alive_since", lambda *_a, **_k: alive)
     monkeypatch.setattr(command, "probe", lambda *_a, **_k: answer)
     monkeypatch.setattr(running, "find_pid", lambda _port: None)
@@ -63,13 +75,8 @@ def _answer(served: str, version: str, pid: int | None = None) -> dict[str, Any]
     return body
 
 
-@pytest.mark.parametrize(
-    "case", ["same", "other-version", "silent", "dead", "no-record-old", "no-record-old-pid"]
-)
-def test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs(
-    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, case: str
-) -> None:
-    served = open_projects().served.as_posix()
+def _plans(served: str) -> dict[str, tuple[bool, dict[str, Any] | None, Any]]:
+    """(the recorded process is alive, the `server` entry, what the probe answers) by case."""
     rec = {
         "pid": 4242,
         "host": "127.0.0.1",
@@ -78,15 +85,37 @@ def test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs(
         "served": served,
         "started": "2026-01-01T00:00:00Z",
     }
-    plans: dict[str, tuple[bool, dict[str, Any] | None, Any]] = {
+    older = _answer(served, "0.0.1")
+    return {
         "same": (True, rec, _answer(served, __version__)),
-        "other-version": (True, {**rec, "version": "0.0.1"}, _answer(served, "0.0.1")),
+        "other-version": (True, {**rec, "version": "0.0.1"}, older),
         "silent": (True, rec, None),
         "dead": (False, rec, None),
-        "no-record-old": (False, None, _answer(served, "0.0.1")),
+        "no-record-old": (False, None, older),
         "no-record-old-pid": (False, None, _answer(served, "0.0.1", 777)),
+        "migrate-live-older": (True, {**rec, "version": "0.0.1"}, older),
+        "migrate-key-only": (False, None, None),
     }
-    path, bound = _prepare_board(repo, chantier, monkeypatch, plans[case])
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "same",
+        "other-version",
+        "silent",
+        "dead",
+        "no-record-old",
+        "no-record-old-pid",
+        "migrate-live-older",
+        "migrate-key-only",
+    ],
+)
+def test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    plan = _plans(open_projects().served.as_posix())[case]
+    path, bound = _prepare_board(repo, chantier, monkeypatch, plan, old=case.startswith("migrate"))
     code, out, err = chantier("board", "--host", "127.0.0.1", "--port", str(LINK_PORT + 1))
     stop = running.stop_command(4242)
     if case == "same":
@@ -102,8 +131,15 @@ def test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs(
         assert stop in err and not bound
     elif case == "dead":
         assert code == 0 and len(bound) == 1
-        # the fresh record was written (`_run` is stubbed, so it stays)
-        assert json.loads(path.read_text("utf-8"))["running"]["pid"] == os.getpid()
+        # the fresh entry was written (`_run` is stubbed, so it stays)
+        assert json.loads(path.read_text("utf-8"))["server"]["pid"] == os.getpid()
+    elif case == "migrate-live-older":
+        assert code == EXIT_EXTERNAL and "0.0.1" in err and "PID 4242" in err and stop in err
+        assert not bound and not path.with_name(state.OLD_BOARD).exists()
+        assert json.loads(path.read_text("utf-8"))["key"] == "old-key"
+    elif case == "migrate-key-only":
+        assert code == 0 and len(bound) == 1 and not path.with_name(state.OLD_BOARD).exists()
+        assert json.loads(path.read_text("utf-8"))["key"] == "old-key"
     else:
         assert code == EXIT_EXTERNAL and "0.0.1" in err and not bound
         if case == "no-record-old":
@@ -112,16 +148,38 @@ def test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs(
             assert "PID 777" in err and running.stop_command(777) in err
 
 
-def test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own(repo: Path) -> None:
+def test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prepared(repo, chantier, "Board one")
     home = open_projects().home
+    git = home.git_dir
     path = board_key.key_path(home)
     first = board_key.load_or_create(home)
-    running.write(path, "127.0.0.1", PORT, "1", "x")
+    state.write_server(git, "127.0.0.1", PORT, "1", "x")
+    state.write_hub(git, state.hub_record("1"))
     assert board_key.load_or_create(home, new=True) != first
     data = json.loads(path.read_text("utf-8"))
-    assert data["running"]["port"] == PORT and data["running"]["pid"] == os.getpid()
-    running.remove(path, os.getpid() + 1)
-    assert "running" in json.loads(path.read_text("utf-8"))
-    running.remove(path, os.getpid())
-    assert "running" not in json.loads(path.read_text("utf-8"))
+    assert data["server"]["port"] == PORT and data["server"]["pid"] == os.getpid()
+    assert data["hub"]["pid"] == os.getpid()
+    for name in (state.SERVER, state.HUB):
+        state.remove_entry(git, name, os.getpid() + 1)
+        assert name in json.loads(path.read_text("utf-8"))
+        state.remove_entry(git, name, os.getpid())
+        assert name not in json.loads(path.read_text("utf-8"))
     assert board_key.read_key(path)
+    # a refused write (the write lock held) at start: nothing is bound, nothing is printed
+    monkeypatch.setattr(state, "WAIT_S", 0.05)
+    held = (path.parent / state.LOCK).open("a+")
+    assert try_lock(held)
+    bound: list[int] = []
+    monkeypatch.setattr(command, "_bind", lambda *_a, **_k: bound.append(1))
+    monkeypatch.setattr(command, "probe", lambda *_a, **_k: None)
+    try:
+        for extra in ((), ("--new-key",)):
+            code, out, err = chantier("board", "--port", "0", *extra)
+            assert code == EXIT_EXTERNAL and out == [] and not bound
+            assert f"board not started: {path}: " in err and "write lock" in err
+    finally:
+        unlock(held)
+        held.close()

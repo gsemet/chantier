@@ -1,15 +1,17 @@
-"""`chantier board`: the web board's server. The options, the key, the start lines and the probe
-of a board already running; `starlette` and `uvicorn` load only once the board serves."""
+"""`chantier board`: the surface server (the web board, and the forge hub loop in the same
+process). The options, the key, the start lines and the probe of a server already running;
+`starlette` and `uvicorn` load only once the board serves."""
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import errno
 import os
 import socket
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar
 
 from chantier import __version__
 from chantier.board import running
@@ -23,13 +25,16 @@ from chantier.board.address import (
 )
 from chantier.board.app import make_server
 from chantier.board.context import Context
-from chantier.board.key import KeyFile, key_path, load_or_create
+from chantier.board.key import KeyFile, load_or_create
 from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
 from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
+from chantier.hub import state
+from chantier.hub.loop import HubLoop, HubThread
 from chantier.playbook.layers import load_board
 
+T = TypeVar("T")
 BEYOND = (
     "board: listens on the local network ({host}); the link holds its key: give it to the user "
     "only, plain HTTP"
@@ -93,17 +98,26 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
         box[0].should_exit = True
 
     ctx = Context(
-        projects, KeyFile(key_path(projects.home)), seats, __version__, stop, sock.getsockname()[:2]
+        projects,
+        KeyFile(state.path(projects.home.git_dir)),
+        seats,
+        __version__,
+        stop,
+        sock.getsockname()[:2],
     )
     box.append(make_server(ctx))
     seats.arm(stop)
+    hub = HubThread(HubLoop(projects.home), stop)
+    hub.start()
     try:
         box[0].run(sockets=[sock])
     except KeyboardInterrupt:
         pass
     finally:
+        hub.stop()
         sock.close()
-        running.remove(key_path(projects.home), os.getpid())
+        with contextlib.suppress(OSError):  # an entry left behind names a dead process
+            state.remove_entry(projects.home.git_dir, state.SERVER, os.getpid())
 
 
 def _another_version(version: object, pid: object, link: str, stop: str) -> ChantierError:
@@ -153,6 +167,22 @@ def _answering(projects: Projects, host: str, port: int, key: str) -> tuple[str,
     raise _another_version(found.get("version"), pid or "unknown", url(host, port, key), stop)
 
 
+def _writing(write: Callable[[], T]) -> T:
+    """A write of `server.json`; a refused one is `board not started: <path>: <reason>`."""
+    try:
+        return write()
+    except OSError as e:
+        raise _not_started(e) from e
+
+
+def _announce(host: str, bound: int, key: str, served: str) -> None:
+    print(f"board on {url(host, bound, key)} over {served}", flush=True)
+    if local := local_url(host, bound, key):
+        print(f"on this machine: {local}", flush=True)
+    if not is_loopback(host):
+        print(BEYOND.format(host=host), flush=True)
+
+
 def board(args: argparse.Namespace) -> list[str]:
     if args.clock:
         try:
@@ -167,11 +197,13 @@ def board(args: argparse.Namespace) -> list[str]:
     except ChantierError as e:
         raise _not_started(e) from e
     host, port = settings(projects.home, args.host, args.port)
-    key = load_or_create(projects.home, args.new_key)
+    git_dir = projects.home.git_dir
+    _writing(lambda: state.migrate(git_dir))
+    key = _writing(lambda: load_or_create(projects.home, args.new_key))
     seats = Seats(projects, follows=bool(args.seat))
     if args.seat:
         seats.add(projects.home_id, args.seat)
-    run = running.live(key_path(projects.home))
+    run = state.live_entry(git_dir, state.SERVER)
     there = _recorded(projects, run, key) if run else _answering(projects, host, port, key)
     if there:
         if args.seat and not register_seat(*there, key, projects.home_id, args.seat):
@@ -180,15 +212,15 @@ def board(args: argparse.Namespace) -> list[str]:
         if local := local_url(*there, key):
             lines.append(f"on this machine: {local}")
         return lines
+    _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
     from_config = args.port is None and "port" in load_board(projects.home)[0]
     sock = _bind(host, port, lambda: _held_by(host, port, key, from_config))
-    bound = sock.getsockname()[1]
-    running.write(key_path(projects.home), host, bound, __version__, projects.served.as_posix())
-    link = url(host, bound, key)
-    print(f"board on {link} over {projects.served.as_posix()}", flush=True)
-    if local := local_url(host, bound, key):
-        print(f"on this machine: {local}", flush=True)
-    if not is_loopback(host):
-        print(BEYOND.format(host=host), flush=True)
+    bound, served = sock.getsockname()[1], projects.served.as_posix()
+    try:
+        _writing(lambda: state.write_server(git_dir, host, bound, __version__, served))
+    except ChantierError:
+        sock.close()
+        raise
+    _announce(host, bound, key, served)
     _run(projects, seats, sock)
     return []

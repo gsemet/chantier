@@ -1,12 +1,13 @@
 """The hub's cycle: for every project of the surface whose batch in `4-batch/` is running, one
 forge read of the batch's PRs, judged as the board's PRs page judges them (`prs.rows_of`), and the
 events appended to the project's journal. It runs no git command, records nothing in a batch,
-messages no agent and writes nothing but the journals and `hub.json`.
+messages no agent and writes nothing but the journals and the `hub` entry of `server.json`.
 
 `forge_read.read` is the one seam: tests replace it."""
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
 from chantier.core.records import BatchRecord, read_batch_json
 from chantier.core.repo import Repo, surface_projects
-from chantier.hub import journal, lock
+from chantier.hub import journal, state
 from chantier.hub import times as hub_times
 from chantier.stacks import READY_TO_MERGE, ready_word
 
@@ -78,15 +79,22 @@ def events_of(
 
 
 class Hub:
-    """What the process that holds the lock does: its cycle and its record."""
+    """What the process that holds the hub lock (the surface server, or a watcher when none
+    runs) does: its cycle and its `hub` entry. An entry that cannot be written is written again
+    at the next cycle; the lock is kept."""
 
     def __init__(self, repo: Repo, version: str = __version__) -> None:
         self.repo = repo
         self.git_dir: Path = repo.git_dir
-        self.record = lock.start_record(version)
+        self.record = state.hub_record(version)
         self.last: float | None = None  # the monotonic time of the last cycle
         self._repos: dict[str, Repo] = {}
-        lock.write(self.git_dir, self.record)
+        self.publish()
+
+    def publish(self) -> None:
+        """Write the `hub` entry; a failed write is left to the next cycle."""
+        with contextlib.suppress(OSError):
+            state.write_hub(self.git_dir, self.record)
 
     def due(self, now: float) -> bool:
         return self.last is None or now - self.last >= hub_times.cycle_s()
@@ -105,7 +113,7 @@ class Hub:
         return list(found.values())
 
     def cycle(self, now: float) -> None:
-        """One cycle: each project in turn; a forge error goes in `hub.json` and the cycle goes
+        """One cycle: each project in turn; a forge error goes in the `hub` entry and the cycle goes
         on."""
         self.last = now
         for repo in self.projects():
@@ -124,7 +132,15 @@ class Hub:
                 continue
             entry["read_at"], entry["error"], entry["error_at"] = clock.now(), None, None
             journal.append(repo, events_of(d, withpr, forge), "hub")
-        lock.write(self.git_dir, self.record)
+        self.publish()
+
+    def note_error(self, e: Exception) -> None:
+        """A cycle that raised outside a forge read: every project's entry carries the error."""
+        for entry in self.record["projects"].values():
+            entry["error"] = " ".join(str(e).split()) or type(e).__name__
+            entry["error_at"] = clock.now()
+        self.publish()
 
     def close(self) -> None:
-        lock.remove(self.git_dir, self.record["pid"])
+        with contextlib.suppress(OSError):  # an entry left behind names a dead process
+            state.remove_entry(self.git_dir, state.HUB, self.record["pid"])

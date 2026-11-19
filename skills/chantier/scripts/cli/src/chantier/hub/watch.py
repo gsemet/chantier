@@ -25,7 +25,7 @@ from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.hub import autostart, journal, lock
+from chantier.hub import autostart, journal, lock, state
 from chantier.hub import times as hub_times
 from chantier.hub.cycle import Hub
 from chantier.plugin_files import read_wake_rules
@@ -100,12 +100,24 @@ class Watch:
         self.last_new: float | None = None
         self.seat_at: float | None = None
 
+    def serving(self) -> bool:
+        """Whether `server.json` names a live surface server."""
+        return state.live_entry(self.repo.git_dir, state.SERVER) is not None
+
     def elect(self) -> None:
         """Try the locks, once each, when this watcher does not hold them: its own (so the
-        session's `status` sees it) and the hub's."""
+        session's `status` sees it) and the hub's, only while no live surface server is named."""
         self.own.acquire()
-        if self.hub is None and self.lock.acquire():
+        if self.hub is None and not self.serving() and self.lock.acquire():
             self.hub = Hub(self.repo, self.version)
+
+    def yield_hub(self) -> None:
+        """A surface server runs: this watcher is no longer the hub. It removes its `hub` entry
+        and lets the lock go, and goes on reading its journal."""
+        if self.hub is not None:
+            self.hub.close()
+            self.hub = None
+        self.lock.release()
 
     def start_line(self) -> str:
         self.elect()
@@ -113,7 +125,9 @@ class Watch:
         if self.hub is not None:
             line = f"{line}, the hub"
         else:
-            other = lock.other_version(lock.live(self.repo.git_dir), self.version)
+            other = state.other_version(
+                state.live_entry(self.repo.git_dir, state.HUB), self.version
+            )
             line = f"{line}; hub is chantier {other}" if other else line
         board = autostart.board_clause(self.repo, self.version)
         if board:
@@ -126,6 +140,8 @@ class Watch:
         self.elect()
         if self.hub is not None and self.hub.due(now):
             self.hub.cycle(now)
+        if self.hub is not None and self.serving():
+            self.yield_hub()
         if self.started is None:
             self.started = now
         entries = journal.read(self.repo.changes)[0]

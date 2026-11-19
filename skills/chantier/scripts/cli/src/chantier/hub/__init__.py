@@ -1,8 +1,10 @@
 """The forge hub and `chantier watch`.
 
-Every watcher of a planning surface (or a repository) on one machine competes for one OS file
-lock in the git folder (`chantier/hub.lock`); the one that holds it is the hub, the only process
-that reads the forge, for every project of the surface, at most once every 20 s, and appends the
+One process holds the OS file lock in the git folder (`chantier/hub.lock`) per planning surface
+(or repository) and machine: the hub, the only process that reads the forge. It is the surface
+server (`chantier board`, `loop.py`) while one runs, else the one watcher that wins the lock, and
+that watcher yields it when a server starts (`state.py` holds `server.json`, which names both).
+The hub reads the forge, for every project of the surface, at most once every 20 s, and appends the
 events it finds to each project's `forge-journal.jsonl`. Each watcher reads only its project's
 journal (the hub's lines and the board's writes) and reads the lines for it (see `journal.py`:
 every line is addressed), and ends 20 s after the last new event for it that wakes, and no sooner

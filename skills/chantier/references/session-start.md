@@ -64,7 +64,9 @@ says how to tell; where it cannot, the seat's session "looks stopped". No activi
 taken as proof of life.
 
 **The board.** Ask before starting `$CHANTIER board --seat <own session id>` in the background,
-explaining its persistent process and configured network exposure. A decline starts no server.
+explaining its persistent process and configured network exposure, and that it is also the
+surface's forge hub: it reads the forge every 20 s with the user's own `gh` or `glab` and needs
+the network for that. A decline starts no server.
 After acceptance, use the host's means (the host's reference, "Run the board"),
 and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
 never start it.
@@ -109,7 +111,8 @@ yes, start it at once; run the printed command as is: no flag added. On a host w
 a watcher's end does not wake the session, or is not proved to (Copilot today), say once, in the
 user's language: "This host may not wake me: what you do in the board reaches me at your next
 message." A host that cannot run a background command: one line with
-the reason, then go on, no workaround. The start line's `hub is chantier <v>`: tell the user once,
+the reason, then go on, no workaround. A watcher started while the board runs is not the hub (its
+start line has no `, the hub`): the board reads the forge. The start line's `hub is chantier <v>`: tell the user once,
 in one line, and go on. When it starts and stops: [chief-of-staff](chief-of-staff.md).
 
 **The surface's autosync.** Joining is explicit opt-in, independent of board permission, and

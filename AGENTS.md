@@ -20,9 +20,10 @@
   external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
-  after a merge it records, the board keeps its key, and while it serves its PID, address and version,
-  in the repository's git folder (`chantier/board.json`), the forge hub keeps its lock and, while
-  it runs, its PID, version and last reads there too (`chantier/hub.lock`, `chantier/hub.json`),
+  after a merge it records, the surface server keeps its key, and while it serves its PID, address
+  and version, and the forge hub's PID, version and last reads, in the repository's git folder
+  (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
+  `chantier/hub.lock`),
   each watcher's lock too (`chantier/watch-<project>/<session>.lock`: one per project and session
   that ran a watcher, held while it runs, empty, never removed),
   and removes the merged CRs' worktrees and
@@ -39,11 +40,11 @@
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
   that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included; a new
-  CLI tool comes from measured token-costly behaviour, never from speculation. Three named
+  CLI tool comes from measured token-costly behaviour, never from speculation. Two named
   exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
-  `--force`), then pauses the batch; it does nothing else in git. Second, `chantier board`, the web board's server, for the user on this machine and the local
+  `--force`), then pauses the batch; it does nothing else in git. Second, the surface server, `chantier board`: the web board's server, for the user on this machine and the local
   network, behind a key in its URL: it serves the record and the planning folder's files, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
   each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
@@ -62,10 +63,11 @@
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
   watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one
   `board` line to that project's `forge-journal.jsonl`, which the Chief of Staff's watcher reads;
-  it takes its dependencies like the rest of the CLI and knows no role.
-  Third, the forge hub of `chantier watch`, started by the Chief of Staff on the user's yes: of
-  the watchers of a planning surface (or a repository) on one machine, the one that holds an OS
-  file lock in the git folder (`chantier/hub.lock`) reads the forge, read-only, with the user's
+  it takes its dependencies like the rest of the CLI and knows no role. The same process is the
+  forge hub while it runs (one per planning surface and machine, started by the Chief of Staff on
+  the user's yes): it holds the OS file lock in the git folder (`chantier/hub.lock`) and, with
+  none running, the one watcher of the surface that holds that lock is the hub and yields it when
+  a server starts. The hub reads the forge, read-only, with the user's
   own `gh` or `glab`, on its own (no agent asks it), and needs the network for that: at most once
   every 20 s, one query per project of the surface whose running batch has a PR the record does
   not hold merged or cancelled; it appends to that project's `forge-journal.jsonl` (planning
@@ -75,12 +77,12 @@
   the board's), never the forge, and ends 20 s after the last new event for it that wakes, and no
   sooner than `events.wake_every` after its start, which wakes its session, or when the project's
   seat is another session's; the
-  hub records nothing in a batch, runs no git and messages no agent; each watcher holds a lock of
+  hub records nothing in a batch, runs no git and messages no agent (the server runs no git either, but its autosync join); every journal line, the CLI commands' included in their own process, goes through the one append function; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
   `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
   it: one round trip with the user per merge and per board session ("rescan").
-- The CLI has two named git exceptions: the board's server, which may serve without joining the
+- The CLI has two named git exceptions: the surface server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants; the board commits
   nothing itself), and the batch's end cleanup (above). The rest of the CLI keeps no git write.

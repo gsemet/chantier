@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from batch_helpers import changes, host, open_batch
 from conftest import PLUGIN_ROOT, Chantier, Surface
-from test_forge_hub import QUIET
+from forge_world import QUIET
 
 from chantier import __version__
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE

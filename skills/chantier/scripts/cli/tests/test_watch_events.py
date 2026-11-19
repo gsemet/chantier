@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from batch_helpers import host, open_batch
 from conftest import Chantier
-from test_forge_hub import CYCLE, EXIT_USAGE, QUIET
+from forge_world import CYCLE, EXIT_USAGE, QUIET
 
 from chantier import __version__
 from chantier.board import forge_read
@@ -161,7 +161,7 @@ def test_the_pull_path_prints_the_lines_past_the_cursor_and_takes_no_lock(
         assert code == 0, err
         assert len(out) == texts + 1
         assert out[-1] == f"watch: cursor 3; next, at the user's next message: {command}"
-    assert not (found.git_dir / "chantier" / "hub.json").exists()
+    assert not (found.git_dir / "chantier" / "server.json").exists()
     assert lock.watchers(found.git_dir, found.root.name) == []
     code, out, _ = chantier("watch", "--once", "--after", "0")
     assert out[0].startswith("board wrote (label)") and out[1].startswith("board wrote (move)")
