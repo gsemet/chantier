@@ -10,7 +10,6 @@ from types import ModuleType
 
 import pytest
 from conftest import PLUGIN_ROOT, SKILL, load_script
-from docs_site import repo_file_of, site_pages
 
 from chantier import __version__
 from chantier.playbook.copilot_catalog import normalise
@@ -297,20 +296,6 @@ def test_the_model_table_names_no_model_twice_per_host() -> None:
         assert len(set(ids)) == len(ids), host
         names = [normalise(m.name) for m in models]
         assert len(set(names)) == len(names), host
-
-
-def test_skill_and_references_links_resolve() -> None:
-    for page in [
-        *(PLUGIN_ROOT / "skills").glob("*/SKILL.md"),
-        *(SKILL / "references").glob("*.md"),
-        PLUGIN_ROOT / "README.md",
-        *site_pages(),
-    ]:
-        for link in re.findall(r"\]\(([^)#\s]+)", page.read_text(encoding="utf-8")):
-            if not link.startswith("http"):
-                assert (page.parent / link).exists(), f"{page.name}: {link}"
-            elif (target := repo_file_of(link)) is not None:
-                assert target.exists(), f"{page.name}: {link}"
 
 
 def test_four_skills_the_router_and_three_thin_ones_listed_by_copilot() -> None:

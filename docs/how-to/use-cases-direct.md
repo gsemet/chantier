@@ -72,7 +72,7 @@ session.
 > "Grill the CSV export and the import, then add them to this batch."
 
 Once it is specified and you say so, the CRs are added, as many as you want: the batch stays paused until the first one starts, then runs again, and pauses again at
-the end, with the cost to date grown. A factory batch (see [Factory mode](../README.md#factory-mode)) pauses with no retro and no close offer, and waits for its next ready CR; it ends on your word. A paused batch stays paused, however long, until you say:
+the end, with the cost to date grown. A factory batch (see [Factory mode](https://github.com/gsemet/chantier#factory-mode)) pauses with no retro and no close offer, and waits for its next ready CR; it ends on your word. A paused batch stays paused, however long, until you say:
 
 > "Close the batch."
 
