@@ -8519,6 +8519,13 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
                 got.append(x)
             return got
 
+        cli_form = (f'uv run --no-sync --project "{SKILL.parents[1].resolve().as_posix()}" chantier '
+                    f'--project "{(w.surface / "projects" / "demo").resolve().as_posix()}"')
+
+        def cursor(n: int) -> str:
+            return (f"watch: {w.name} still running: for the Chief of Staff, start again in the "
+                    f"background now: {cli_form} watch --after {n}")
+
         watch = BoardProc(w, "--project", "demo", "watch", cwd=w.surface, env=quick)
         try:
             watch.line()  # its start line
@@ -8532,7 +8539,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
             told = f"config changed on the board: batch.slots 4 -> 6; {w.name} keeps 4 until an order slots"
             got = ended(watch)
             check("a running `chantier watch` ends with the `config changed on the board` line and its cursor",
-                  got == [told, "watch: cursor 1; next: chantier watch --after 1"], str(got))
+                  got == [told, cursor(1)], str(got))
         finally:
             watch.stop()
         # the specifying limit at 1 with a `work/specifying` marker present
@@ -8547,8 +8554,7 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
                   f"{code} {saved.get('lines')} {saved.get('error')}")
             got = ended(watch)
             check("the watcher ends with the `specifying.parallel 4 -> 1` line",
-                  got == ["config changed on the board: specifying.parallel 4 -> 1",
-                          "watch: cursor 2; next: chantier watch --after 2"], str(got))
+                  got == ["config changed on the board: specifying.parallel 4 -> 1", cursor(2)], str(got))
         finally:
             watch.stop()
     finally:
