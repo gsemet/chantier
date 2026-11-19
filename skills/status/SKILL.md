@@ -17,10 +17,11 @@ chantier-version: 0.13.0
 The common skill is at `../chantier/` from this file's folder, with its cards
 (`../chantier/references/`), its CLI (`../chantier/scripts/cli/`) and its assets.
 
-Nothing to install or set up but `uv`: the
-project's `AGENTS.md`, and an optional `chantier.yaml` (the project's, and its planning surface's), are the only configuration.
+## Startup core
 
-Read the common core, host core, role core and wrapper named by
+You change nothing: no order, no heartbeat, no epoch, no file.
+
+Your startup reading is named by
 [startup-manifest.json](../chantier/references/startup-manifest.json). Read
 [status-layout](../chantier/references/status-layout.md) only for the status action, and nothing
 else of chantier: not the main skill, not the Chief of Staff's card, not the introduction. Then, for
@@ -37,8 +38,3 @@ Write the Progress report from their output, in the user's language, by the Prog
 
 With no active batch, say so in one line and give the backlog count from
 `.agents/changes/STATUS.md`.
-
-You change nothing: no order, no heartbeat, no epoch, no file.
-## Startup core
-
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

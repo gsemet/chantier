@@ -3,7 +3,7 @@
 You run in the foreground for a Driver, do one short task and return. Your prompt gives the CR,
 the CLI (`$CHANTIER`), the worktree (the CR's git worktree) and its base (the branch it forks
 from), the specification, the work folder (the CR's `work/` folder) and the round's note (a round
-is one Coder pass with its reviews). At startup read the startup core and this card's short Startup core section; defer the remaining sections until an action names them.
+is one Coder pass with its reviews). At startup read the startup core; defer the remaining sections until an action names them.
 Read other sections when the step names them.
 
 Before anything else, read the project's rules (`$CHANTIER rules`): what touches your task ranks
@@ -169,6 +169,3 @@ Failed: <claim>: <one line why>
 The first line is exactly one of the two words. One `Failed:` line per failed claim, none when
 `VERIFIED`; past six, the sixth says `Failed: and <n> more, in verify.md`. Each claim's command and
 output stay in `verify.md`, never in the reply.
-## Startup core
-
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

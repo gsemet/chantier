@@ -1,114 +1,72 @@
 {
-  "version": 1,
+  "version": 2,
   "limit": 12544,
-  "manifest": "skills/chantier/references/startup-manifest.json",
+  "paths": "relative to this file's folder; a reading is a file, or file#heading for its level-2 section",
+  "manifest": "startup-manifest.json",
+  "common": "startup-core.md",
+  "role_core": "role-core.md",
   "hosts": {
-    "claude": {
-      "core": "skills/chantier/references/host-core-claude-code.md",
-      "wrappers": "agents"
-    },
-    "copilot": {
-      "core": "skills/chantier/references/host-core-copilot.md",
-      "wrappers": "com.github.copilot/agents"
-    }
+    "claude": {"core": "host-core-claude-code.md", "wrappers": "../../../agents"},
+    "copilot": {"core": "host-core-copilot.md", "wrappers": "../../../com.github.copilot/agents"}
   },
-  "common": "skills/chantier/references/startup-core.md",
-  "role_core": "skills/chantier/references/role-core.md",
-  "entries": {
-    "foreman": {
-      "wrapper": null,
-      "prompt_builder": "skills/chantier/references/chief-of-staff.md"
-    }
-  },
+  "entries": {"foreman": {"wrapper": null, "prompt_builder": "chief-of-staff.md"}},
   "roles": {
-    "cr-driver": "skills/chantier/references/driver.md",
-    "stack-driver": "skills/chantier/references/driver.md",
-    "foreman": "skills/chantier/references/foreman.md",
-    "qa-driver": "skills/chantier/references/driver.md",
-    "release-driver": "skills/chantier/references/driver.md",
-    "investigator": "skills/chantier/references/investigator.md",
-    "coder": "skills/chantier/references/coder.md",
-    "inspector": "skills/chantier/references/inspector.md",
-    "debugger": "skills/chantier/references/debugger.md",
-    "verifier": "skills/chantier/references/verifier.md",
-    "conflict-resolver": "skills/chantier/references/conflict-resolver.md",
-    "demo-explorer": "skills/chantier/references/demo-explorer.md",
-    "spec-writer": "skills/chantier/references/spec-writer.md",
-    "spec-critic": "skills/chantier/references/spec-critic.md",
-    "retro-critic": "skills/chantier/references/retro-critic.md",
-    "chief-of-staff": "skills/chief-of-staff/SKILL.md",
-    "griller": "skills/griller/SKILL.md",
-    "router": "skills/chantier/SKILL.md",
-    "status": "skills/status/SKILL.md"
+    "cr-driver": "driver.md",
+    "stack-driver": "driver.md",
+    "foreman": "foreman.md",
+    "qa-driver": "driver.md",
+    "release-driver": "driver.md",
+    "investigator": "investigator.md",
+    "coder": "coder.md",
+    "inspector": "inspector.md",
+    "debugger": "debugger.md",
+    "verifier": "verifier.md",
+    "conflict-resolver": "conflict-resolver.md",
+    "demo-explorer": "demo-explorer.md",
+    "spec-writer": "spec-writer.md",
+    "spec-critic": "spec-critic.md",
+    "retro-critic": "retro-critic.md",
+    "chief-of-staff": "../../chief-of-staff/SKILL.md",
+    "griller": "../../griller/SKILL.md",
+    "router": "../../chantier/SKILL.md",
+    "status": "../../status/SKILL.md"
   },
-  "mandatory_sections": {
-    "cr-driver": [{"file": "skills/chantier/references/driver.md", "heading": "## Startup core"}],
-    "stack-driver": [{"file": "skills/chantier/references/driver.md", "heading": "## Startup core"}],
-    "foreman": [
-      {"file": "skills/chantier/references/foreman.md", "heading": "## Startup core"},
-      {"file": "skills/chantier/references/concepts.md", "heading": "## Startup core"},
-      {"host": "claude", "file": "skills/chantier/references/hosts/claude-code.md", "heading": "## Startup core"},
-      {"host": "copilot", "file": "skills/chantier/references/hosts/copilot.md", "heading": "## Startup core"}
-    ],
-    "qa-driver": [{"file": "skills/chantier/references/driver.md", "heading": "## Startup core"}],
-    "release-driver": [{"file": "skills/chantier/references/driver.md", "heading": "## Startup core"}],
-    "investigator": [{"file": "skills/chantier/references/investigator.md", "heading": "## Startup core"}],
-    "coder": [{"file": "skills/chantier/references/coder.md", "heading": "## Startup core"}],
-    "inspector": [{"file": "skills/chantier/references/inspector.md", "heading": "## Startup core"}],
-    "debugger": [{"file": "skills/chantier/references/debugger.md", "heading": "## Startup core"}],
-    "verifier": [{"file": "skills/chantier/references/verifier.md", "heading": "## Startup core"}],
-    "conflict-resolver": [{"file": "skills/chantier/references/conflict-resolver.md", "heading": "## Startup core"}],
-    "demo-explorer": [{"file": "skills/chantier/references/demo-explorer.md", "heading": "## Startup core"}],
-    "spec-writer": [{"file": "skills/chantier/references/spec-writer.md", "heading": "## Startup core"}],
-    "spec-critic": [{"file": "skills/chantier/references/spec-critic.md", "heading": "## Startup core"}],
-    "retro-critic": [{"file": "skills/chantier/references/retro-critic.md", "heading": "## Startup core"}],
-    "chief-of-staff": [{"file": "skills/chief-of-staff/SKILL.md", "heading": "## Startup core"}],
-    "griller": [{"file": "skills/griller/SKILL.md", "heading": "## Startup core"}],
-    "router": [{"file": "skills/chantier/SKILL.md", "heading": "## Startup core"}],
-    "status": [{"file": "skills/status/SKILL.md", "heading": "## Startup core"}]
+  "startup_sections": {
+    "cr-driver": ["driver.md#Startup core"],
+    "stack-driver": ["driver.md#Startup core"],
+    "foreman": ["concepts.md#Startup core", {"claude": "hosts/claude-code.md#Startup core", "copilot": "hosts/copilot.md#Startup core"}],
+    "qa-driver": ["driver.md#Startup core"],
+    "release-driver": ["driver.md#Startup core"],
+    "chief-of-staff": ["../../chief-of-staff/SKILL.md#Startup core"],
+    "griller": ["../../griller/SKILL.md#Startup core"],
+    "router": ["../../chantier/SKILL.md#Startup core"],
+    "status": ["../../status/SKILL.md#Startup core"]
   },
   "actions": {
-    "route": ["skills/chantier/references/routing.md", "skills/chantier/SKILL.md", "skills/chantier/references/session-start.md"],
-    "reload": [
-      "skills/chantier/references/startup-core.md",
-      "skills/chantier/references/role-core.md",
-      "skills/chantier/references/startup-manifest.json",
-      {"file": "skills/chantier/references/session-start.md", "heading": "## 5. Reload"}
-    ],
-    "cr-driver": [
-      {"file": "skills/chantier/references/driver.md", "heading": "## Your means"},
-      {"file": "skills/chantier/references/driver.md", "heading": "## CR driver"}
-    ],
-    "stack-driver": [
-      {"file": "skills/chantier/references/driver.md", "heading": "## Your means"},
-      {"file": "skills/chantier/references/driver.md", "heading": "## Stack driver"}
-    ],
-    "qa-driver": [
-      {"file": "skills/chantier/references/driver.md", "heading": "## Your means"},
-      {"file": "skills/chantier/references/driver.md", "heading": "## QA driver"}
-    ],
-    "release-driver": [
-      {"file": "skills/chantier/references/driver.md", "heading": "## Your means"},
-      {"file": "skills/chantier/references/driver.md", "heading": "## Release driver"}
-    ],
-    "session-start": ["skills/chantier/references/session-start.md", "skills/chantier/references/hosts/claude-code.md", "skills/chantier/references/hosts/copilot.md"],
-    "chief-of-staff": ["skills/chantier/references/chief-of-staff.md", "skills/chantier/references/session-start.md", "skills/chantier/references/hosts/claude-code.md", "skills/chantier/references/hosts/copilot.md"],
-    "grill": ["skills/chantier/references/griller.md"],
-    "status": ["skills/chantier/references/status-layout.md"],
-    "batch": ["skills/chantier/references/foreman.md", "skills/chantier/references/concepts.md", "skills/chantier/references/hosts/claude-code.md", "skills/chantier/references/hosts/copilot.md"],
-    "spec-writer": ["skills/chantier/references/spec-writer.md"],
-    "spec-critic": ["skills/chantier/references/spec-critic.md"],
-    "retro-critic": ["skills/chantier/references/retro-critic.md"],
-    "investigator": ["skills/chantier/references/investigator.md"],
-    "coder": ["skills/chantier/references/coder.md"],
-    "inspector": ["skills/chantier/references/inspector.md"],
-    "debugger": ["skills/chantier/references/debugger.md"],
-    "verifier": ["skills/chantier/references/verifier.md"],
-    "conflict-resolver": ["skills/chantier/references/conflict-resolver.md"],
-    "demo-explorer": ["skills/chantier/references/demo-explorer.md"],
-    "deliver": ["skills/chantier/references/pr-template.md"],
-    "release": ["skills/chantier/references/release-template.md"],
-    "board": ["skills/chantier/references/concepts.md", "skills/chantier/references/session-start.md"],
-    "autosync": ["skills/chantier/references/concepts.md", "skills/chantier/references/chief-of-staff.md"]
+    "route": ["routing.md", "../../chantier/SKILL.md", "session-start.md"],
+    "reload": ["startup-core.md", "role-core.md", "startup-manifest.json", "session-start.md#5. Reload"],
+    "cr-driver": ["driver.md#Your means", "driver.md#CR driver"],
+    "stack-driver": ["driver.md#Your means", "driver.md#Stack driver"],
+    "qa-driver": ["driver.md#Your means", "driver.md#QA driver"],
+    "release-driver": ["driver.md#Your means", "driver.md#Release driver"],
+    "session-start": ["session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
+    "chief-of-staff": ["chief-of-staff.md", "session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
+    "grill": ["griller.md"],
+    "status": ["status-layout.md"],
+    "batch": ["foreman.md", "concepts.md", "hosts/claude-code.md", "hosts/copilot.md"],
+    "spec-writer": ["spec-writer.md"],
+    "spec-critic": ["spec-critic.md"],
+    "retro-critic": ["retro-critic.md"],
+    "investigator": ["investigator.md"],
+    "coder": ["coder.md"],
+    "inspector": ["inspector.md"],
+    "debugger": ["debugger.md"],
+    "verifier": ["verifier.md"],
+    "conflict-resolver": ["conflict-resolver.md"],
+    "demo-explorer": ["demo-explorer.md"],
+    "deliver": ["pr-template.md"],
+    "release": ["release-template.md"],
+    "board": ["concepts.md", "session-start.md"],
+    "autosync": ["concepts.md", "chief-of-staff.md"]
   }
 }

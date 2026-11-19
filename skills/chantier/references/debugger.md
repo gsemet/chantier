@@ -45,6 +45,3 @@ Find why a check is red or a behavior is wrong, and prove it. A diagnosis, not a
 probe with commands and scripts in your notes folder, and change no file of the worktree.
 Output: `diagnosis.md`: the reproduction command, the cause
 with its evidence, the place to fix. After two failed fixes on one premise, test the premise.
-## Startup core
-
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.

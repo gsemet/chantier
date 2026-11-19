@@ -47,6 +47,3 @@ file), the technique, reusing the project's e2e or test environment when it has 
 cannot be shown. A change with nothing to see says so in one line. What the project's rules say
 of the evidence a kind of change needs, and how to capture it, ranks above the plan; where they
 are silent the plan decides, never a question to the user.
-## Startup core
-
-Read this short role contract at boot. Load the complete card only before an action listed in the startup manifest.
