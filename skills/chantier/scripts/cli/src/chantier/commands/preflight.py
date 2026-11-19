@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import shutil
 from pathlib import Path
 
@@ -14,7 +13,6 @@ from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import find_site
 from chantier.commands.permissions import CAPABILITIES, SETTINGS_SHOWN, commands_not_allowed
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.core.files import read_text
 from chantier.core.git import default_branch, git
 from chantier.core.repo import Repo, SurfaceChoice
 from chantier.core.surface_batches import other_batches
@@ -134,20 +132,9 @@ def _check_checkout(r: _Report, repo: Repo) -> None:
 
 def _check_instructions(r: _Report, repo: Repo) -> None:
     found = project_instructions(repo)
-    if repo.external and not repo.clone.is_dir():
-        text = repo.project_folder / "project.md"
-        remote = (
-            re.search(r"^\W*remote\W*:?\s*(\S+)", read_text(text), re.I | re.M)
-            if text.is_file()
-            else None
-        )
-        r.check(
-            "P8",
-            False,
-            "",
-            f"no clone of the project at {repo.clone.as_posix()} "
-            f"(remote {remote[1] if remote else 'see project.md'}): clone it there",
-        )
+    missing = repo.missing_clone()
+    if missing:
+        r.check("P8", False, "", missing)
     else:
         r.check(
             "P8",

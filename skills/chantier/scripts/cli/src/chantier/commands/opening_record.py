@@ -9,7 +9,7 @@ from typing import Any
 
 from chantier import __version__
 from chantier.core.clock import now
-from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
+from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import default_branch, git
 from chantier.core.records import BatchRecord, BatchSettings, ReleaseGrant
 from chantier.core.repo import Repo
@@ -21,6 +21,9 @@ def open_settings(repo: Repo, args: argparse.Namespace) -> dict[str, Any]:
     """The remote and default branch the batch opens with, checked against git."""
     if args.slots < 1 or (args.budget is not None and args.budget <= 0):
         raise ChantierError("slots and budget must be positive", EXIT_USAGE)
+    missing = repo.missing_clone()
+    if missing:
+        raise ChantierError(missing, EXIT_PRECONDITION)
     if args.remote not in git("remote", cwd=repo.root).split():
         raise ChantierError(f"no remote {args.remote!r}: pass --remote <remote>", EXIT_EXTERNAL)
     branch = args.default_branch or default_branch(repo.root, args.remote)

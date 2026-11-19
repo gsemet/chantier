@@ -6,11 +6,13 @@ import os
 import subprocess
 from pathlib import Path
 
-from chantier.core.errors import EXIT_EXTERNAL, ChantierError
+from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
 
 def git(*args: str, cwd: Path | str | None = None, check: bool = True) -> str:
     env = {**os.environ, "GIT_EDITOR": "true", "GIT_PAGER": "cat", "GIT_TERMINAL_PROMPT": "0"}
+    if cwd is not None and not Path(cwd).is_dir():
+        raise ChantierError(f"no folder {cwd}: git cannot run there", EXIT_PRECONDITION)
     p = subprocess.run(
         ["git", "--no-pager", *args],
         cwd=cwd,
