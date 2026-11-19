@@ -68,6 +68,16 @@ with `chantier summary set`; the Chief of Staff closes what is left. It is publi
 (it is not ignored by git), so every device sees it, and the board reads it instead of the
 Markdown. A late summary blocks nothing, and the STATUS files read the same with or without it.
 
+`chantier validate` checks the whole planning folder and writes nothing: the placement of CR folders
+(a CR outside a stage, nested in another, a priority folder outside `2-backlog`) and the format of
+every `summary.json`, in every stage; the missing or late summaries, the shape of each CR folder
+(a request, the entries of its tree) and the broken links between Markdown files, in the live
+stages only (`5-archives` and `6-trash` are history). Its first line gives the counts
+(`no error, no gap (<k> CRs)`, `<m> gap(s) in <k> CRs` or `<n> error(s), <m> gap(s) in <k> CRs`),
+then one line per finding, errors first. Exit 0 when there is no error (gaps pass), 3 on an error
+(chantier or the board misreads the folder), 1 when it cannot run. A planning surface's
+`just validate` calls it and keeps no validation of its own.
+
 The agents own the worktrees as they own git: a CR's Driver creates its worktree and branch
 (named by chantier, next to the repository), the CLI removes a merged CR's when the batch's last CR ends (a leftover it cannot remove is kept and named, and `close` names it), and the Chief of Staff
 removes a dropped CR's only on your word. When every CR is merged or cancelled, the batch is

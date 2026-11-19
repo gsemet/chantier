@@ -102,7 +102,7 @@ class Repo:
         """`--project` names the project's folder in a planning surface (external mode); else a
         git root that is a surface, with one project, is taken as that. Otherwise in-project.
         `CHANTIER_ROOT` wins over the working folder, so agents elsewhere reach the same state.
-        `readonly` (used by `board` only) writes nothing: no `.gitignore`."""
+        `readonly` (used by `board` and `validate`) writes nothing: no `.gitignore`."""
         cwd = Path(cwd or os.environ.get("CHANTIER_ROOT") or os.getcwd())
         project = project or PROJECT
         if project:

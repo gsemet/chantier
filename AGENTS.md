@@ -37,7 +37,8 @@
   both. The CLI knows no role; one named exception: the cost code knows the two specification
   agents by their agent type (`spec-writer`, `spec-critic`), to put them on the grill line.
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
-  to synchronise, and a few tools. The agents do the work, git and the forge included; a new
+  to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
+  that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. Three named
   exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended

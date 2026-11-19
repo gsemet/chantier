@@ -396,7 +396,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   from the records (unit: parallel) (test:
   test_opening_and_restore.py::test_the_next_batch_number_is_read_from_the_records);
 - in external mode, the batch's records in the surface, never in the CR's PR archive (unit:
-  surface-board).
+  surface-board);
+- `chantier validate` on a planning folder with eleven filed CRs and no summary: exit 0, the counts
+  line first, every gap printed (more than ten lines), each `no summary` line the matching
+  `summary lint` line behind `gap `; on a closed batch's surface (archives with `delivery.md`,
+  the batches' records) exit 0 and no `error` line; its findings and refusals (unit: surface-board)
+  (test: test_validate.py::test_what_chantier_misreads_is_an_error_and_exits_3).
 
 ## Adding a case
 
