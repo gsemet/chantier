@@ -7272,6 +7272,25 @@ def release_on_stack(w: World) -> None:
           "`release go` answers `go` naming the merged PR for two steps, with no grant",
           fm.started[-1].startswith(f"{r} merged:") and w.cr(r)["status"] == "working"
           and all(s.startswith("go:") and pr in s for s in steps), str(steps))
+    # the host refuses the publication; the user publishes by hand and says so
+    attempts = w.cr(r)["attempts"]
+    cmd = "gh release create v1.8.0 --title v1.8.0 --verify-tag --notes-file notes.md"
+    w.chantier("note", r, "steps run: push the tag")
+    w.chantier("handback", r, "blocked", f"approval: publish: {cmd}")
+    check("10. a publication the host refuses is `blocked approval: publish:`, the batch running",
+          w.cr(r)["status"] == "blocked"
+          and (w.cr(r)["blocked_reason"] or "").startswith("approval: publish:")
+          and w.batch()["status"] != "paused", str(w.cr(r)))
+    word = "publication done: user, 2026-11-18: 'publié'"
+    code, out = w.chantier("order", "note", r, "--note", word, expect=None)
+    check("10. the user's word is accepted and says the CR is blocked until the Foreman takes "
+          "it back", code == 0 and any("is blocked" in ln for ln in out), str(out))
+    fm.turn()
+    check("10. the Foreman took the release back with the note, with no new attempt, and "
+          "every order is done",
+          fm.started[-1].startswith(f"{r} note: publication done:")
+          and w.cr(r)["status"] == "working" and w.cr(r)["attempts"] == attempts
+          and all(o["done"] for o in w.batch()["orders"]), str(fm.started))
     w.chantier("release", "published", r, "--note", "v1.8.0 https://forge.example/v1.8.0")
     w.chantier("handback", r, "ready", "https://forge.example/v1.8.0")
     fm.turn()

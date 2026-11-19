@@ -1209,7 +1209,25 @@ inside the procedure and the grant, and ask for anything beyond them.
     without it the host asks or its classifier judges). When the host refuses it, report the
     refusal with its exact text (rule 7) as `handback blocked approval: publish: <the exact
     command>` and try nothing else: the steering session gives the user the command ("the
-    publication is yours") and never runs it without their word.
+    publication is yours") and never runs it without their word. The command handed back must run
+    as written once you have ended: the notes file and the assets it names are not in a folder
+    your end removes (keep them in the CR's work folder or the worktree, never in a temporary
+    folder you clean up). Before the hand-back, name in a `note` the steps of the procedure
+    already run (for chantier, `just tag`), as the held-step bullet above asks.
+- The publication done by someone else. A take note (or a message) that starts `publication
+  done:` says the publication step was run outside you: by the user, or by the steering session
+  on the user's word. It is not a new attempt: no `release start`, and no step already run is run
+  again (read the notes: the previous Driver's `note` names them). Never run the publication
+  command again, whatever the note says. Check the publication on the forge, read-only: `gh
+  release view <tag> --json url,tagName,isDraft` on GitHub, `glab release view <tag>` on GitLab
+  (**unproved** there), or the equivalent the host card names.
+  - Found and not a draft: the publication step is done; its text may differ from the prepared
+    notes, which is accepted (CONTRIBUTING.md "Release" step 5). Run the procedure's later steps
+    that are yours, with their holds, by the bullets above (for chantier there is none: step 6,
+    the announcement, is the user's). Then run "Release driver: the end", whose `release
+    published <cr> --note "<version> <link>"` takes the link the forge printed.
+  - Not found, or a draft: `handback blocked approval: publish: <the exact command>; not on the
+    forge: <what the forge printed, first line>`, and nothing else.
 - A step fails on the product: `<work folder>/fix-<n>.md`, the fix's specification (a title
   line, then steps, expected, actual), then
   `handback blocked fix: <one line>; <path>`. On the infrastructure: one re-run, then `blocked
