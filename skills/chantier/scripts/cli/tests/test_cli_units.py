@@ -20,6 +20,7 @@ from chantier.commands.crs import carry_at, last_gate_pass, last_verdict, last_v
 from chantier.commands.driver import _ready_lines
 from chantier.commands.forge_stack_gh import Unreadable, gh
 from chantier.core.errors import EXIT_EXTERNAL, ChantierError
+from chantier.core.git import git
 from chantier.core.heads import gate_passed
 from chantier.core.ids import normalize_cr
 from chantier.core.records import BatchRecord, CrEntry, EventRecord
@@ -303,3 +304,8 @@ def test_the_now_line_of_a_pr_in_draft_takes_the_ready_lines_clause(
     assert f"on {base}," not in now
     out = "" if draft is False else " and the PR is out of draft"
     assert nxt == f"Ready to merge once what is under it is{out}."
+
+
+def test_git_in_a_missing_folder_is_a_refusal_naming_it(tmp_path: Path) -> None:
+    with pytest.raises(ChantierError, match=r"no folder .*missing"):
+        git("status", cwd=tmp_path / "missing", check=False)

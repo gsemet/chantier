@@ -191,6 +191,22 @@ class Repo:
         """External: the project's clone."""
         return self._external_dir(self.clone_dir, "clone")
 
+    def missing_clone(self) -> str | None:
+        """External: the line saying the project's clone is missing, None when it is there (or
+        the project is not in a surface)."""
+        if not self.external or self.clone.is_dir():
+            return None
+        text = self.project_folder / "project.md"
+        remote = (
+            re.search(r"^\W*remote\W*:?\s*(\S+)", read_text(text), re.I | re.M)
+            if text.is_file()
+            else None
+        )
+        return (
+            f"no clone of the project at {self.clone.as_posix()} "
+            f"(remote {remote[1] if remote else 'see project.md'}): clone it there"
+        )
+
     @property
     def session_root(self) -> Path:
         """The folder a chantier session runs in: the project's repository, or the surface."""
