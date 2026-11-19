@@ -65,7 +65,7 @@ def rollup(state: str | None, total: int = 1) -> dict[str, Any]:
 def test_github_checks_not_started_are_being_checked_and_none_needs_the_forge_to_say_so(
     node: dict[str, Any], workflows: bool, checking: bool, checks: str, ready: bool
 ) -> None:
-    found = forge_read.github_state({**GH_NODE, **node}, workflows)
+    found = forge_read.github_state({**GH_NODE, **node}, workflows, set())
     assert (found["checking"], found["checks"]) == (checking, checks)
     assert prs.ready_now({"to_review": True, "state": "ready"}, found) is ready
 
@@ -102,7 +102,7 @@ def test_both_queries_ask_for_the_dates_and_both_states_return_them() -> None:
     assert "createdAt updatedAt" in forge_read.GITLAB_FIELDS
     dates = {"createdAt": "2026-11-01T00:00:00Z", "updatedAt": "2026-11-02T00:00:00Z"}
     for found in (
-        forge_read.github_state({**GH_NODE, **dates}, True),
+        forge_read.github_state({**GH_NODE, **dates}, True, set()),
         forge_read.gitlab_state({"state": "opened", **dates}),
     ):
         assert (found["opened_at"], found["updated_at"]) == tuple(dates.values())
@@ -111,9 +111,41 @@ def test_both_queries_ask_for_the_dates_and_both_states_return_them() -> None:
 def test_both_queries_ask_for_the_head_commit_and_both_states_carry_it() -> None:
     assert "headRefOid" in forge_read.GITHUB_FIELDS
     assert "diffHeadSha" in forge_read.GITLAB_FIELDS
-    assert forge_read.github_state({**GH_NODE, "headRefOid": "abc123"}, True)["head"] == "abc123"
+    assert (
+        forge_read.github_state({**GH_NODE, "headRefOid": "abc123"}, True, set())["head"]
+        == "abc123"
+    )
     found = forge_read.gitlab_state({"state": "opened", "diffHeadSha": "def456"})
     assert found["head"] == "def456"
+
+
+@pytest.mark.parametrize(
+    ("node", "gitlab", "want"),
+    [
+        ({"state": "MERGED", "mergeCommit": {"oid": "aaa"}}, False, True),  # in the history
+        ({"state": "MERGED", "mergeCommit": {"oid": "zzz"}}, False, False),  # not in it
+        ({"state": "MERGED", "mergeCommit": None}, False, False),  # no merge commit
+        ({"state": "OPEN"}, False, None),
+        ({"state": "merged"}, True, None),  # GitLab never says
+    ],
+)
+def test_a_merged_pr_says_whether_its_merge_commit_is_on_the_default_branch(
+    node: dict[str, Any], gitlab: bool, want: bool | None
+) -> None:
+    history = {"history": {"nodes": [{"oid": "aaa"}, {"oid": "bbb"}]}}
+    if gitlab:
+        found = forge_read.gitlab_state({"state": "merged", "targetBranch": "main"})
+    else:
+        got = {"data": {"repository": {"dh": history, "p1": {**GH_NODE, **node}}}}
+        found = forge_read._github_rows(got, [1])[1]
+    assert found["merged_on_default"] is want
+
+
+def test_the_github_query_reads_the_merge_commit_and_the_default_branch_history() -> None:
+    assert "mergeCommit { oid }" in forge_read.GITHUB_FIELDS
+    query = forge_read.github_query([1])
+    assert 'object(expression: "HEAD")' in query
+    assert "history(first: 100)" in query
 
 
 def test_the_forge_argv_is_a_read_and_its_variables_are_not_in_the_query() -> None:

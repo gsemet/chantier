@@ -116,6 +116,30 @@ def test_a_forge_error_lands_in_the_hub_record_not_in_the_journal(world: World) 
     assert mine["projects"]["alpha"]["read_at"]
 
 
+def test_a_native_stack_merged_in_one_go_is_told_landed_with_its_bottom(world: World) -> None:
+    write_batch(world.project("alpha"), "running", crs_of("alpha", count=3))
+    on_default = {"merged_on_default": True}
+    world.forge = {
+        10: {**merged(MAIN, T1), **on_default},
+        11: {**merged(B1, "2026-11-18T10:00:01Z"), **on_default},
+        12: {**merged("chantier/b/cr-2", "2026-11-18T10:00:02Z"), **on_default},
+    }
+    world.hub.cycle(0.0)
+    world.hub.cycle(CYCLE)  # read again: still one line each
+    entries = [e for e in world.journal("alpha") if e["kind"] == "merged"]
+    assert [(e["cr"], e.get("landed_with")) for e in entries] == [
+        ("CR-1", None),
+        ("CR-2", "CR-1"),
+        ("CR-3", "CR-1"),
+    ]
+    told = [journal.merged_text(e) for e in entries[1:]]
+    assert told == [
+        f"forge saw merged: CR-{n} {LINK.format('alpha', 9 + n)} into CR-{n - 1}'s branch at "
+        f"{at}, landed with CR-1 at {T1}; for the Chief of Staff: order merged CR-{n}"
+        for n, at in ((2, "2026-11-18T10:00:01Z"), (3, "2026-11-18T10:00:02Z"))
+    ]
+
+
 @pytest.mark.parametrize("first", ["board", "hub"])
 def test_the_board_and_the_hub_share_the_journal_once(world: World, first: str) -> None:
     world.forge = {10: merged(MAIN, T1)}

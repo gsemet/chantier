@@ -15,7 +15,8 @@ payload of its kind:
 - `merged`: `batch`, `cr`, `pr`, `into`, `into_cr`, `merged_at`, and once the base landed
   `landed_with` and `landed_at`. Written once per batch, CR and landed-or-not: a PR merged into
   another CR's branch is first read not landed, and one second line follows, once, when a later
-  read finds it landed with its base.
+  read finds it landed with its base, or when the forge shows the PR's merge commit on the default
+  branch.
 - `checks-red`: `batch`, `cr`, `pr`, `head` (the PR head's commit SHA). Written once per batch,
   CR and head: a new red head after a fix gives a new line, the same head read again none.
 - `config`: `key` (a dotted path into the configuration: `batch.slots`, `specifying.parallel`,

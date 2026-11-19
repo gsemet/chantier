@@ -1139,7 +1139,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   watcher](#the-watcher)): `order merged <cr>`, then, in Foreman mode, send its line to the
   Foreman as for any order. A line that says `landed with <other cr>` is a merge to record, like
   the `into <branch>` one: the hub (or the board) read the PR merged into `<other cr>`'s branch and that CR's PR on the default branch
-  at the same time or later (`order merged <cr>`, then the Foreman's line in Foreman mode). Only
+  at the same time or later, or the PR's own merge on the default branch (a native stack merged in one go) (`order merged <cr>`, then the Foreman's line in Foreman mode). Only
   a line that ends `not landed …` is not one to record: do not run `order merged`; tell the user
   where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
   it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until

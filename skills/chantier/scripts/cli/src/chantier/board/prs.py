@@ -151,6 +151,7 @@ def row_of(
         "disagrees": disagrees(c, f),
         "why": why_not(c, f),
         "merged_at": f["merged_at"],
+        "merged_on_default": f.get("merged_on_default"),
         "closed_at": f["closed_at"],
         "opened_at": f.get("opened_at"),
         "updated_at": f.get("updated_at"),
@@ -171,9 +172,34 @@ def _instant(text: Any) -> datetime | None:
 
 def landed_with(row: dict[str, Any], by_cr: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
     """For a row merged into the branch of another CR of the batch: `{"cr", "at"}` of the CR whose
-    PR reached a branch that is no CR's, when each PR of the chain is merged on the forge at the
-    same time as the one it carries or later. None for a merge into no CR's branch, a base not
-    merged, merged before this PR, a missing time, a missing row or a cycle."""
+    PR reached a branch that is no CR's, in one of two ways. First, each PR of the chain is merged
+    on the forge at the same time as the one it carries or later (a stack merged top-down, PR by
+    PR). Second, the PR's own merge commit is on the default branch (`merged_on_default`, a native
+    stack merged in one go, bottom-up) and each PR of the chain is merged on the forge, whatever
+    the order of the times. None for a merge into no CR's branch, a base not merged, a missing
+    row or a cycle, and for a missing time unless the second way holds."""
+    return _landed_by_time(row, by_cr) or _landed_on_default(row, by_cr)
+
+
+def _landed_on_default(
+    row: dict[str, Any], by_cr: dict[str, dict[str, Any]]
+) -> dict[str, Any] | None:
+    cur, walked = (row.get("merged_into") or {}).get("cr"), {row["cr"]}
+    if row.get("merged_on_default") is not True:
+        return None
+    while cur is not None and cur not in walked:
+        walked.add(cur)
+        base = by_cr.get(cur)
+        if not base or base.get("state") != "merged":
+            return None
+        cur_into = (base.get("merged_into") or {}).get("cr")
+        if cur_into is None:
+            return {"cr": cur, "at": base["merged_at"]}
+        cur = cur_into
+    return None
+
+
+def _landed_by_time(row: dict[str, Any], by_cr: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
     into = row.get("merged_into") or {}
     cur, since, walked = into.get("cr"), _instant(row.get("merged_at")), {row["cr"]}
     while cur is not None and since is not None and cur not in walked:
