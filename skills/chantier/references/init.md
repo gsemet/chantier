@@ -82,7 +82,7 @@ getting started here, phrases to say, the glossary.
    then propose `long_gate:` / `parallel: <n>` for `chantier.yaml`, written only on the user's
    yes; on a no, propose `parallel: 1`, so the question is not asked again. Not asked when
    `chantier.yaml` already has `long_gate`. The impact when the key is missing: long gates run
-   one at a time, and four CRs in `3-ready` wait their turns. Point to `docs/gates.md`. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
+   one at a time, and four CRs in `3-ready` wait their turns. Point to `docs/how-to/gates.md`. Work that needs code (tests, CI) is proposed as a CR filed in the inbox,
    only on the user's yes. For an in-project planning folder, the `.gitignore` line is explained only: keep `.agents/changes/` out
    of git so the main checkout stays clean and the CRs stay local; the user adds it themself. In a
    surface it does not apply: the planning folder is the surface's, and the tour says where it is.

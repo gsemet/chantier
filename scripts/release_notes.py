@@ -10,7 +10,7 @@
     uv run --script scripts/release_notes.py --scan FILE...
 
 The notes, the announcement thread and their images live in
-`docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. See docs/release-process.md.
+`docs/release-notes/YYYY-MM-DD-vX.Y.Z/`. See docs/how-to/release-process.md.
 """
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def validate_notes(notes: str, folder: Path, version: str) -> None:
         if not block or not NOT_EXERCISED.search(block.group(0)):
             raise ValueError(
                 'The notes must say, under For contributors, "- **Not exercised by an eval.** ..." '
-                "(docs/release-process.md)"
+                "(docs/how-to/release-process.md)"
             )
 
 

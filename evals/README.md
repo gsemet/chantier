@@ -367,7 +367,7 @@ completed after them, and committed with the campaigns' reports.
 - **The runs' modes.** The campaigns are launched so that every claim whose `Can come up in`
   names a campaign has at least one run that can bring it.
 - **The release notes.** They list each claim not `exercised`, under `For contributors`
-  ([release-process](../docs/release-process.md)).
+  ([release-process](../docs/how-to/release-process.md)).
 
 ## The kit
 

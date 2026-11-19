@@ -31,23 +31,23 @@ sheet and its documents. The pane checks every 15 seconds while open and reads a
 
 A batch just opened: three CRs working in round 1/3, two queued, no PR yet, no cost.
 
-![The board, a batch just opened](board-mod-batch.png)
+![The board, a batch just opened](../board-mod-batch.png)
 
 Three CRs in CI, with PRs #1 to #3 and their costs: $0.57 of $20.
 
-![The board, three CRs in CI with their PRs](board-mod-batch-prs-light.png)
+![The board, three CRs in CI with their PRs](../board-mod-batch-prs-light.png)
 
 "3 waiting for you": two CRs ready to merge, and one unread ask.
 
-![The board, three things waiting for you](board-mod-waiting-light.png)
+![The board, three things waiting for you](../board-mod-waiting-light.png)
 
 "Merged (2 of 2)" open.
 
-![The board, the merged CRs](board-mod-merged-light.png)
+![The board, the merged CRs](../board-mod-merged-light.png)
 
 The batch done: 0 live, $9.22 of $20, and "Merged (5 of 5)" with each CR's PR and cost.
 
-![The board, the batch done](board-mod-batch-done.png)
+![The board, the batch done](../board-mod-batch-done.png)
 
 ### Two facts the pictures raise
 

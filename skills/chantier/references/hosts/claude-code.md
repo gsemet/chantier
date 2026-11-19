@@ -637,7 +637,7 @@ otherwise.
 | Open `localhost` or a file path | yes | no: send the file or a forge link | yes | unproved |
 | `/permissions`, `/config` | no: the app's own settings | no | yes | terminal dialogs; unproved |
 | Restart the app, `/reload-plugins`, open in an editor | yes (terminal: restart the CLI) | no | restart the CLI | the machine; unproved |
-| `/chantier-board` | yes | the pane does not show in a Remote Control view (`docs/boards.md`) | yes | documented in `docs/boards.md` |
+| `/chantier-board` | yes | the pane does not show in a Remote Control view (`docs/reference/boards.md`) | yes | documented in `docs/reference/boards.md` |
 | The remote board (`chantier board`) | yes | yes, from any device on the local network, through the link | yes | unproved; trial: open the board's link from the phone on the local network during a batch |
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
 | A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |

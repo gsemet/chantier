@@ -136,7 +136,7 @@ At startup, identify the role, batch, project and parent session.
   Several sessions may work one surface on one machine: each stages only its own project's folder,
   one board serves the surface, and `preflight` (P14) and `status` list the other batches.
   Full account:
-  [planning modes](../../../docs/planning-modes.md).
+  [planning modes](../../../docs/explanation/planning-modes.md).
 - **Archive:** the CR's folder in `5-archives/`, with a `delivery.md` (the PR, the merge time,
   whether the archive is also in the PR). In external mode the Driver also commits a cleaned
   archive (`intake/`, `evidence/`, `01`–`03`, `delivery.md`, `STATUS.md`, and the retained

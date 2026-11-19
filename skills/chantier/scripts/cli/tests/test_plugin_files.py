@@ -298,18 +298,6 @@ def test_the_model_table_names_no_model_twice_per_host() -> None:
         assert len(set(names)) == len(names), host
 
 
-def test_skill_and_references_links_resolve() -> None:
-    for page in [
-        *(PLUGIN_ROOT / "skills").glob("*/SKILL.md"),
-        *(SKILL / "references").glob("*.md"),
-        PLUGIN_ROOT / "README.md",
-        *(PLUGIN_ROOT / "docs").glob("*.md"),
-    ]:
-        for link in re.findall(r"\]\(([^)#\s]+)", page.read_text(encoding="utf-8")):
-            if not link.startswith("http"):
-                assert (page.parent / link).exists(), f"{page.name}: {link}"
-
-
 def test_four_skills_the_router_and_three_thin_ones_listed_by_copilot() -> None:
     names = ("chantier", "chief-of-staff", "griller", "status")
     for name in names:

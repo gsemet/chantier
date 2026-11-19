@@ -1,7 +1,7 @@
 # chantier by use case
 
 Each section is a situation, what you say to the Chief of Staff, and what happens. New to
-chantier? Start with the [tutorial](tutorial-claude-code.md).
+chantier? Start with the [tutorial](../tutorials/claude-code.md).
 
 This page holds what does not depend on who steers a batch. The situations that do (running a
 batch, steering it, releasing) are in one document per configuration, below.
@@ -29,7 +29,7 @@ nothing starts without it.
 
 ## The life of a batch
 
-![The life of a batch: running, paused, closed](batch-lifecycle.svg)
+![The life of a batch: running, paused, closed](../batch-lifecycle.svg)
 
 - A batch is **running** from `open` until every CR is merged or cancelled.
 - It is then **paused**: the cost to date is shown, `STATUS.md` is its exit report, and you get the
@@ -40,7 +40,7 @@ One batch at a time. Whoever steers it, the three states are the same.
 
 A **factory** batch stays open: you open it empty, and each CR you make ready joins it on its own,
 on the go you gave once; it offers no close and ends on your word. See
-[Factory mode](../README.md#factory-mode).
+[Factory mode](https://github.com/gsemet/chantier#factory-mode).
 
 ## Start on a new project
 
@@ -134,14 +134,14 @@ and takes the seat, and the batch follows it.
   it is told who holds it and does not take it.
 - A running batch follows the new Chief of Staff; its cost counts both.
 - The steps above are unproved until followed once by hand; what is proved and what is not is in
-  the [Claude Code reference, "A Chief of Staff and Grillers in remote"](../skills/chantier/references/hosts/claude-code.md#a-chief-of-staff-and-grillers-in-remote).
+  the [Claude Code reference, "A Chief of Staff and Grillers in remote"](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md#a-chief-of-staff-and-grillers-in-remote).
 
 ## Plan outside your project's repository
 
 > "Plan this project in my planning surface."
 
 Chantier can keep the whole planning in a git repository of its own, with one folder per project.
-See [planning modes](planning-modes.md).
+See [planning modes](../explanation/planning-modes.md).
 
 ## Your pull requests' description
 

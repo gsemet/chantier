@@ -35,7 +35,7 @@ The configuration is read in four layers, weakest to strongest, and merged node 
 | Layer | File | When |
 | --- | --- | --- |
 | defaults | `config/chantier.defaults.yml` in the plugin (never edit it: a release changes it) | always |
-| surface | `chantier.yaml` at the [planning surface](planning-modes.md)'s root, for all its projects | external planning surface |
+| surface | `chantier.yaml` at the [planning surface](../explanation/planning-modes.md)'s root, for all its projects | external planning surface |
 | surface project | `projects/<name>/chantier.yaml` in the surface | external planning surface |
 | repository | `chantier.yaml` at the code repository's root | always |
 
@@ -96,9 +96,9 @@ Claude Code `steering_wake` 30m, `cache_ttl` 1h for a session and 5m for a subag
 Copilot `steering_wake` 4m, `cache_ttl` 5m, `ci_reruns` 1. A column's value beats the general one
 within a layer, and a stronger layer beats a weaker one, whatever the key. `chantier playbook`
 prints the result as `timing:` lines; a running batch keeps the timing it opened with. The
-[web board](web-board.md)'s Configuration page has a Timing tab for it.
+[web board](../reference/web-board.md)'s Configuration page has a Timing tab for it.
 
-The file's other keys are `prices`, `board` (where [the web board](web-board.md) listens: `host`
+The file's other keys are `prices`, `board` (where [the web board](../reference/web-board.md) listens: `host`
 and `port`), `ci` (`beside_gate: true`: a CR's CI runs while its local long gate runs; it spends CI
 minutes on every approved round, off by default) and `long_gate` (how many long gates may run at once, [your gates](gates.md)). Only the `chantier` CLI reads these files: it refuses an unknown role, key or model, and an
 incomplete price entry, with the line, and turns a model name into an exact identifier

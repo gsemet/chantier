@@ -97,7 +97,7 @@ recommended answer and an offer to write it in `AGENTS.md`; an absent gate never
 project's rules say there is no long gate, or exempt a kind of CR, or name a pipeline job as the long gate, a Driver's `handback --no-gate` carries
 that rule and the steering session checks it ([foreman](foreman.md), "The user's boundaries").
 When the user says "our long gate is `<command>`", propose the exact `AGENTS.md` lines
-(`docs/gates.md`) and write them on the user's yes. At that moment ask once, on the same rule as
+(`docs/how-to/gates.md`) and write them on the user's yes. At that moment ask once, on the same rule as
 `init.md`'s step 5.1, whether that long gate is isolated per worktree, and propose the
 `long_gate:` / `parallel: <n>` lines of `chantier.yaml`.
 
@@ -1554,7 +1554,7 @@ these, say the three parts at once, in the user's language, before any try.
 | **E.** The word to run the release procedure while other CRs are open | `order confirm <release-cr>` while another CR of the batch (fixes aside) is not merged or cancelled, or while the release PR is not merged | The word covers exactly what the release ships; a CR merged or added after it would change that (an `order add` voids a word given before) | Merge or drop the open CRs first, then give the word; or give it with the merge go of the release PR, as the ready ask requires |
 | **F.** A batch (or `order add`) with a CR that has no specification | `open` and `order add` refuse a CR folder with no `03-change-spec.md` ("missing Change Specification: ...; grill the CR first"), except a CR in `3-ready` with `intake/request.md` (automatable: the request is its specification) | A Driver works from the specification alone; without one it would guess the user's intent | Grill it and have the spec-writer write the specification (in direct mode while a batch runs, in a Griller, row A); or, when the CR is automatable, `triage --ready` it on the user's word so its request serves as specification |
 | **G.** More work on a CR past its round limit | `round` once a CR has used its rounds (three unless granted; "round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)"); the CR comes back blocked | The limit caps what a CR that does not converge may spend before the user looks at it | Read the blocked CR's question, then grant more rounds (`order rounds <cr> --note <n>`), change or split the CR, or drop it |
-| **H.** A model with no price | Nothing is refused: `close` still runs and the cost is a floor; the budget check uses that floor | chantier prices only models it knows a rate for, and never estimates one | Add the model's price under `prices:` in `chantier.yaml` (exact model id, $/MTok, `docs/agents-and-models.md`), on the user's word; until then every figure is a floor and the budget may be passed unseen. Say it when the user picks such a model, not only when the cost report's not-priced line appears |
+| **H.** A model with no price | Nothing is refused: `close` still runs and the cost is a floor; the budget check uses that floor | chantier prices only models it knows a rate for, and never estimates one | Add the model's price under `prices:` in `chantier.yaml` (exact model id, $/MTok, `docs/how-to/agents-and-models.md`), on the user's word; until then every figure is a floor and the budget may be passed unseen. Say it when the user picks such a model, not only when the cost report's not-priced line appears |
 
 The Tips bullet of "While it runs" and the "For you" block follow this section.
 
@@ -1836,7 +1836,7 @@ then) and recommend a stack batch instead; a parallel batch cannot be switched t
 recommendation is for the batch being opened or the next one. The version is grilled at filing
 when the user can; otherwise the Release driver picks it and says why: there is no version
 confirmation. (chantier's own release joins the batch whose work it ships, as
-`docs/release-process.md` says; that file ranks above this card as a project rule.) Write your
+`docs/how-to/release-process.md` says; that file ranks above this card as a project rule.) Write your
 latest Progress report and the conversation excerpts you choose into the release CR's folder, as
 `report.md` and `conversation.md` (the release Driver renders them from there, anonymised), when
 the release joins the batch, and refresh them at each Progress report until the Release driver has
