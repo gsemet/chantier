@@ -22,6 +22,7 @@ from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
 from chantier.hub import journal, lock
 from chantier.hub import times as hub_times
+from chantier.hub.autostart import watch_command
 from chantier.hub.cycle import Hub
 from chantier.hub.watch import EVENTS, NO_BATCH, Watch
 
@@ -296,7 +297,8 @@ def test_a_watcher_ends_twenty_seconds_after_the_last_event(
     w.close()
     assert ended == ((end, why) if end is not None else None)
     if why == EVENTS:
-        last = f"watch: cursor {len(times)}; next: chantier watch --after {len(times)}"
+        again = "still running: for the Chief of Staff, start again in the background now: "
+        last = f"watch: batch-01 {again}{watch_command(found, len(times))}"
         assert w.lines(EVENTS)[-1] == last
     if why == NO_BATCH:
         assert w.lines(NO_BATCH)[-1] == f"watch: no running batch in {found.root.name}; ended"
@@ -343,8 +345,9 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     order = "for the Chief of Staff: order merged"
     got = forge_lines()
     last = 5  # the journal's highest seq
-    assert got[:2] == ["forge hub: none running", f"watch: chantier watch --after {last}"]
-    got = got[2:]
+    assert got[0] == "forge hub: none running" and got[-1].startswith("watch: not running:")
+    assert got[-1].endswith(f" watch --after {last}") and "watch: chantier watch" not in got
+    got = got[1:-1]
     assert got[0] == f"forge saw merged: {a} P into main at t; {order} {a}"
     assert got[1] == (
         f"forge saw merged: {b} P into {a}'s branch at t; for the Chief of Staff: not landed, "

@@ -17,13 +17,13 @@ from chantier.commands.opening_record import (
     open_settings,
     release_grant,
 )
-from chantier.commands.seat import own_transcript
 from chantier.core.batch import Batch, next_cr_number
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
 from chantier.core.records import CrEntry, ReleaseGrant
 from chantier.core.repo import Repo
+from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.filing import shown, slugify
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import (
@@ -34,7 +34,13 @@ from chantier.lifecycle.stages import (
     stage_layout,
 )
 from chantier.playbook.lines import ci_lines, ci_source, timing_text
-from chantier.plugin_files import detect_host, read_escalation, read_playbook, read_timing
+from chantier.plugin_files import (
+    detect_host,
+    own_transcript,
+    read_escalation,
+    read_playbook,
+    read_timing,
+)
 from chantier.rails import ENDED, alone, check_no_open_batch, is_release
 
 
@@ -370,4 +376,4 @@ def open_batch(args: argparse.Namespace) -> list[str]:
         f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}"
         for c, src in zip(b.record.crs, selected, strict=False)
     ]
-    return lines
+    return lines + not_running_line(repo, b.record.status)

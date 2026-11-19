@@ -102,6 +102,17 @@ def _one_spelling_of_a_cr(args: argparse.Namespace) -> None:
         args.crs = [normalize_cr(x) for x in args.crs]
 
 
+def cut(lines: list[str]) -> list[str]:
+    """Past `MAX_LINES`, the output is cut from the end, but a last `watch: not running:` line
+    (the Chief of Staff's trigger) stays last."""
+    if len(lines) <= MAX_LINES:
+        return lines
+    if lines[-1].startswith("watch: not running:"):
+        keep = MAX_LINES - 2
+        return [*lines[:keep], f"… {len(lines) - keep - 1} more lines", lines[-1]]
+    return [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
+
+
 def main(argv: list[str] | None = None) -> int:
     # Output holds `→` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
     for stream in (sys.stdout, sys.stderr):
@@ -118,8 +129,8 @@ def main(argv: list[str] | None = None) -> int:
         return e.code
     lines, code = result if isinstance(result, tuple) else (result, 0)
     full = args.cmd in FULL_OUTPUT or (args.cmd == "order" and args.kind == "qa")  # a prompt
-    if not full and len(lines) > MAX_LINES:
-        lines = [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
+    if not full:
+        lines = cut(lines)
     if lines:  # `board` printed its own lines while it served
         print("\n".join(lines))
     return int(code)

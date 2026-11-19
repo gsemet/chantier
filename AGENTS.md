@@ -23,6 +23,8 @@
   after a merge it records, the board keeps its key, and while it serves its PID, address and version,
   in the repository's git folder (`chantier/board.json`), the forge hub keeps its lock and, while
   it runs, its PID, version and last reads there too (`chantier/hub.lock`, `chantier/hub.json`),
+  each watcher's lock too (`chantier/watch-<project>/<session>.lock`: one per project and session
+  that ran a watcher, held while it runs, empty, never removed),
   and removes the merged CRs' worktrees and
   branches at a batch's end (below), and,
   on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else
@@ -63,7 +65,10 @@
   folder, never published) one line per merge the record does not hold and per CI turning red on
   a PR ready to merge, and nothing else; each session's watcher reads only its project's
   journal, never the forge, and ends 20 s after the last new event, which wakes its session; the
-  hub records nothing in a batch, runs no git and messages no agent. Its measured cost to justify
+  hub records nothing in a batch, runs no git and messages no agent; each watcher holds a lock of
+  its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
+  that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
+  `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
   it: one round trip with the user per merge.
 - The CLI has two named git exceptions: the board's server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
