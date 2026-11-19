@@ -1,6 +1,6 @@
 # Reference
 
-Look something up.
+Look up an exact phrase, view, file or setting.
 
 ::::{grid} 1 2 2 2
 :gutter: 3

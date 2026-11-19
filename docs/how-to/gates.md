@@ -1,26 +1,30 @@
 # Your gates
 
-The fast gate and the long gate that guard every change, and how to declare them.
+Declare the two checks that guard every change, in your `AGENTS.md`.
 
-Two checks guard every change, in any project. You declare them in your `AGENTS.md`.
+## The two gates
 
-- **The fast gate** (a short check): what the Coder runs after every round, and the Inspector may
-  run to check a claim. It should take seconds to a minute: lint, type check, the tests near the
-  change. The Driver also runs it once more before the CR's first push, at the rebased head. Your
-  project may also name an extra pre-push check in its `AGENTS.md`: it runs at the same time and
-  the same way (one command per item, never through `chantier gate`).
-- **The long gate**: the full check the Driver runs once before the PR with `chantier gate`,
-  as many at once as your `chantier.yaml` allows (one by default, see below); when more wait,
-  the CR you merge next goes first in a stack or series batch, then those the Foreman moved
-  first, then arrival order. `handback ready` requires it passed at the PR's head (or carried
-  over a clean rebase), and the Verifier's `VERIFIED` there. Both carry over a clean rebase that
-  leaves the patch unchanged: `ship` proves it with git, by the exact patch-ids of the CR's own
-  commits, and records it. CI still runs at the new head. One command may serve as both gates. The fast gate is never run
-  through `chantier gate`.
+- **The fast gate**: a short check, kept under a minute (lint, type check, the tests near the
+  change). The Coder runs it after every round, and the Inspector may run it to check a claim. The
+  Driver runs it once more before the CR's first push, at the rebased head. Your project may also
+  name an extra pre-push check in its `AGENTS.md`: it runs at the same time and the same way (one
+  command per item, never through `chantier gate`).
+- **The long gate**: the full check, run once before the PR with `chantier gate`. It runs one at a
+  time unless your `chantier.yaml` allows more (see below). When several wait, the CR you merge
+  next goes first in a stack or series batch, then those the Foreman moved first, then arrival
+  order.
 
-Declare them with one line each, the exact commands, one command per item, never chained with
-`&&` or `;` (the Driver passes each as its own argument to `chantier gate`, so it runs the same
-way on every OS):
+One command may serve as both gates, but the fast gate is never run through `chantier gate`.
+
+The Driver does not open the PR until the long gate has passed at the PR's head and the Verifier
+has said `VERIFIED` there. Both carry over a clean rebase that leaves the patch unchanged: git
+proves it by the patch-ids of the CR's own commits. CI still runs at the new head.
+
+## Declare them
+
+Write one line each, with the exact commands. Give one command per item and never chain them with
+`&&` or `;`: the Driver passes each as its own argument to `chantier gate`, so it runs the same
+way on every OS.
 
 ```markdown
 - Fast gate (after each change): `npm run lint`, `npm test -- --changed`.
@@ -29,27 +33,30 @@ way on every OS):
 - A change to the docs alone needs no long gate.
 ```
 
-An exemption (the last line) and a project with no long gate at all (`This project has no long
-gate: <why>`) are written there too: the Driver quotes that rule with `handback ready
---no-gate`, and the Foreman (or the Chief of Staff steering) checks it. A rule that is not
-written is a question for you, never a pass.
+Write an exemption (the last line) and a project with no long gate at all (`This project has no
+long gate: <why>`) there too. The Driver quotes that rule instead of running the gate, and the
+Foreman (or the Chief of Staff steering) checks it. A rule that is not written is a question for
+you, never a pass.
 
-A project whose CI runs the long suite faster than the machine may name that pipeline job as its
-long gate instead:
+## When CI is the long gate
+
+If your CI runs the long suite faster than your machine, name that pipeline job as the long gate:
 
 ```markdown
 - Long gate: the pipeline's `test` job, green at the PR's head.
 ```
 
-The Driver then runs no local gate, waits for that job on the forge and quotes the rule with
-`--no-gate`, and the Foreman (or the Chief of Staff steering) reads the job's state at the PR's
-head. A project with no CI, or whose runner is the same slow machine, gains nothing. GitLab and
-Copilot: unproved.
+The Driver then runs no local gate and waits for that job on the forge. The Foreman (or the Chief
+of Staff steering) reads the job's state at the PR's head. A project with no CI, or whose runner is
+the same slow machine, gains nothing. GitLab and Copilot: unproved.
 
-A long gate that is isolated per worktree (its own ports, folders and services) can run several at
-once with `long_gate:` then `parallel: <n>` in `chantier.yaml`; the number is what your machine
-carries. With no such key the long gates run one at a time.
+## Run several long gates at once
 
-To have chantier declare them, say "init" (the tour looks for both gates and proposes the exact
-lines), or tell the Chief of Staff "our long gate is `<command>`". Either writes them only on
-your yes.
+If your long gate is isolated per worktree (its own ports, folders and services), set
+`long_gate:` then `parallel: <n>` in `chantier.yaml`. Pick the number your machine carries. With no
+such key the long gates run one at a time.
+
+## Let chantier write them
+
+Say "init": the tour looks for both gates and proposes the exact lines. Or tell the Chief of Staff
+"our long gate is `<command>`". Either writes them only on your yes.

@@ -19,7 +19,7 @@ extensions = [
 myst_enable_extensions = ["colon_fence", "deflist"]
 myst_heading_anchors = 3
 
-exclude_patterns = ["_build", "demo/**", "release-notes/**", "*-texts.md", "**/*-texts.md"]
+exclude_patterns = ["_build", "demo/**", "release-notes/**", "*-texts.md", "**/*-texts.md", "STYLE.md"]
 
 html_theme = "furo"
 html_title = "chantier"

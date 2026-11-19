@@ -1,24 +1,18 @@
 # Planning modes
 
-Chantier plans in a **planning folder**, in one of two modes. Every command, card and agent works
-the same in both.
+chantier keeps its Change Requests, Markdown files describing what you want, in a planning folder.
+This page explains the two places that folder can live, and what runs where in each. Every
+command, card and agent works the same in both.
 
-Chantier works on Change Requests, a folder of Markdown files describing what you want. It starts
-from an intent, written by hand or taken from a Jira, GitHub or GitLab issue, and the Chief of
-Staff helps you turn it into a Change Specification.
-
-Chantier plans in one of two places, the **planning folder**:
-
-- **In-project** (the default, nothing to declare): `.agents/changes/` in your project.
-- **External**: a git repository of its own, the *planning surface*, with one folder per project
+- In-project (the default, nothing to declare): `.agents/changes/` in your project.
+- External: a git repository of its own, the planning surface, with one folder per project
   (`projects/<name>/` with `project.md`, `checkout.yml` and `changes/`). Your project's repository
   gets only the code and, if you want, each CR's cleaned archive in its PR.
 
 The Chief of Staff, the Foreman and the Griller run on the default branch: your project's main
 checkout in-project, the surface's checkout in external mode. Only the code gets worktrees: each
-CR's Driver and workers, in your project; a Griller in a never-merged worktree, in remote. About
-remote sessions, this is the author's own finding, not a proved trial: a remote session cannot start
-outside a worktree, so the Chief of Staff starts locally, then goes remote (Remote Control).
+CR's Driver and workers, in your project, and a Griller in a never-merged worktree, in remote (see
+[Remote](#remote)).
 
 ![Planning modes: in-project and external](../planning-modes.svg)
 
@@ -56,10 +50,11 @@ A git repository of its own, with one folder per project:
 
 It is an isolated, multi-user workspace for a very small active team (2 to 4 people) working
 around one subject. It works like an Obsidian vault with obsidian-git: every change is pushed to
-the default branch as fast as possible, like OneDrive. Its own sync rules win; without any, the
-Chief of Staff commits and pushes after each step that changes it. Chantier does not coordinate
-several Chiefs of Staff's pushes (a later change). A surface can also name an autosync of its own
-([below](#the-surfaces-autosync)).
+the default branch as fast as possible, like OneDrive.
+
+Its own sync rules win. Without any, the Chief of Staff commits and pushes after each step that
+changes it. chantier does not coordinate several Chiefs of Staff's pushes (a later change). A
+surface can also name an autosync of its own ([below](#the-surfaces-autosync)).
 
 - `checkout.yml` has two keys, `repo:` and `worktrees:`, paths relative to `projects/<name>/`
   (defaults `.repo/` and `.worktrees/`). The project's clone is used for git only
@@ -106,11 +101,10 @@ documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`.
 ## Grillers
 
 A Griller writes prototypes, plans and other artifacts cleanly in the CR's folder, in every mode,
-never in the host's scratchpad. In a never-merged
-worktree it joins no autosync and commits nothing: its files go to the Chief of Staff, who places
-them in the planning folder. If the surface's rules rank above the cards, they can say so: "a
-session in a worktree of the surface does not join the autosync; it sends its files to the Chief
-of Staff."
+never in the host's scratchpad. In a never-merged worktree it joins no autosync and commits
+nothing: its files go to the Chief of Staff, who places them in the planning folder. If the
+surface's rules rank above the cards, they can say so: "a session in a worktree of the surface does
+not join the autosync; it sends its files to the Chief of Staff."
 
 A Griller in the surface's checkout joins the autosync group like the other sessions.
 
@@ -121,47 +115,49 @@ A surface names its autosync when its `AGENTS.md` (or the rules it points to) me
 reports it and never replaces it:
 
 - **Preflight P13** and a line of `status` give the state: active (leader, participants, last
-  push), stopped, blocked (with the reason), or waiting for your approval of an incident. A script
-  that is missing is a warning. Chantier only reads the files under
+  push), stopped, blocked (with the reason), or waiting for your approval of an incident. A
+  missing script is a warning. chantier only reads the files under
   `<surface git dir>/ai-autosync/`; it deletes none, a dead participant's included.
 - **The board** shows the state as a pill (a dot on a phone) with a panel. Starting the board
   joins nothing. Its Start button runs the script's `start . --enable-only`, then joins once as
-  `join . --owner-pid <its pid> --harness generic --session-id chantier-board`, so the board's
-  process owns that participant, which leaves when the board stops. Its other buttons run
-  `stop .` and, for an incident, `approve . <id>` then
-  `start . --enable-only`, on your click only. A blocked group has no button: the Chief of
-  Staff integrates, then restarts it. The first join needs the network once (uv's cache);
-  offline, the board says `board: autosync not joined`.
+  `join . --owner-pid <its pid> --harness generic --session-id chantier-board`. The board's
+  process then owns that participant, which leaves when the board stops. Its other buttons run
+  `stop .` and, for an incident, `approve . <id>` then `start . --enable-only`, on your click
+  only. A blocked group has no button: the Chief of Staff integrates, then restarts it. The first
+  join needs the network once (uv's cache); offline, the board says `board: autosync not joined`.
 - **Who joins:** the Chief of Staff, the Foreman and a Griller in the surface's checkout join the
-  group at session start. Drivers, and a Griller in a surface worktree, never join. While the group
-  is enabled, nobody commits or pushes the surface by hand.
+  group at session start. Drivers, and a Griller in a surface worktree, never join. While the
+  group is enabled, nobody commits or pushes the surface by hand.
 - **The four states:** active (green), stopped (grey, commit by hand), blocked (red, with its
   reason) and waiting for approval (orange, with the incident).
-- **Who fixes a block:** the Chief of Staff. When upstream moved it integrates by rebase, loses no
-  change, never force-pushes, then restarts the group; for LFS, Gitleaks or a conflict it repairs
-  what is its own, else tells you the reason and waits.
-- **The Chief of Staff** never runs `approve`, even on your word in the chat; it shows you the
-  incident and waits for your click on the board or your own terminal.
+- **Who fixes a block:** the Chief of Staff. When upstream moved, it integrates by rebase, loses
+  no change, never force-pushes, then restarts the group. For LFS, Gitleaks or a conflict, it
+  repairs what is its own, else tells you the reason and waits.
+- **Approval:** the Chief of Staff never runs `approve`, even on your word in the chat. It shows
+  you the incident and waits for your click on the board or your own terminal.
 
 ## With no agent
 
 Start the board from the surface's root with
-`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board` (the version the
-surface's planners use); click Start for the autosync. The board serves and keeps the group joined
-until you stop it. A Chief of Staff session that starts later reuses it (`board already running
-at`), and its leaving does not stop it. A session running another chantier version is refused
-with the board's version, PID and stop command, as today ([`web-board.md`](../reference/web-board.md), "When
-it stops"): keep the surface's pinned version on the planners' release.
+`uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board`, where the version is
+the one the surface's planners use. Click Start for the autosync. The board serves and keeps the
+group joined until you stop it.
+
+A Chief of Staff session that starts later reuses it (`board already running at`), and its leaving
+does not stop it. A session running another chantier version is refused with the board's version,
+PID and stop command (see [the web board](../reference/web-board.md), "When it stops"). Keep the
+surface's pinned version on the planners' release.
 
 ## Two sessions on one surface
 
 Several Chief of Staff sessions may work one surface on one machine (two projects, two batches).
 Each stages only its own project's folder (`git add -- projects/<name>/...`, never `-A`), then
-`git pull --rebase --autostash` and `git push`: the other session's unstaged files stay
-untouched. One board serves the surface, whatever the port. `preflight` (P14) and `status` list the
-other batches of the surface (project, batch, state, steering, and how many Drivers each runs), so
-a session picks its slots knowing the machine's load; there is no cap and no message between
-sessions. Only the projects of the same surface are seen.
+runs `git pull --rebase --autostash` and `git push`: the other session's unstaged files stay
+untouched. One board serves the surface, whatever the port.
+
+`preflight` (P14) and `status` list the other batches of the surface (project, batch, state,
+steering, and how many Drivers each runs), so a session picks its slots knowing the machine's load.
+There is no cap and no message between sessions. Only the projects of the same surface are seen.
 
 ## Outside contributors
 
@@ -170,12 +166,13 @@ surface. You review and merge it on the forge; the Chief of Staff reads the CR l
 
 ## Remote
 
-This is the author's own finding (2026-11-10), not a proved trial: a remote session cannot be
+This is the author's own finding (2026-11-10), not a proved trial. A remote session cannot be
 started outside a worktree, which blocks planning on the default branch, and nested sessions are
-a problem in remote too. So start the Chief of Staff locally (desktop, no worktree), then put it
-in remote (Remote Control); reuse that session, in direct mode, and optionally add Griller
+a problem in remote too. So the Chief of Staff starts locally (desktop, no worktree), then goes
+remote (Remote Control). You reuse that session, in direct mode, and optionally add Griller
 sessions in worktrees that are never merged. See the
-[Claude Code reference](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md). On Copilot: not tried.
+[Claude Code reference](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/hosts/claude-code.md).
+On Copilot: not tried.
 
 ## Privacy
 
@@ -190,8 +187,9 @@ serve as the interface for outside customers and support.
 
 ## Setting one up
 
-1. In the surface, create `projects/<name>/` with `project.md` and `checkout.yml`.
-2. Clone the project where `checkout.yml` says (`preflight` names the path when it is missing).
-3. Let the host write there: the clone and its worktrees are outside the surface's folder (Claude
-   Code: additional working directories; unproved, see its reference).
-4. Start the Chief of Staff in the surface and say `init`.
+A surface needs `projects/<name>/` with `project.md` and `checkout.yml`, and the project cloned
+where `checkout.yml` says (`preflight` names the path when it is missing). The host must be allowed
+to write there, since the clone and its worktrees are outside the surface's folder (Claude Code:
+additional working directories; unproved, see its reference). Then you start the Chief of Staff in
+the surface and say `init`. The how-to page [by use case](../how-to/use-cases.md) shows the
+phrase to say.

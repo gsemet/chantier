@@ -1,6 +1,6 @@
 # How-to guides
 
-Do one thing with chantier.
+Pick the task you have: each guide gets one thing done and assumes you know the basics.
 
 ::::{grid} 1 2 2 2
 :gutter: 3
