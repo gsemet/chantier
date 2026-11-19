@@ -52,7 +52,7 @@ folder. A running CR's documents, reports and evidence are pushed with the surfa
 may also hold `prototypes/NN-<idea>/` and `experiments/`, created only when used and published
 with the CR like its documents. The archive
 has two places: the surface's `5-archives/` (with a `delivery.md`: the PR, the merge time) and,
-by the project's setting (default yes), a cleaned copy in the CR's PR, in external mode.
+by the project's setting (default no), a cleaned copy in the CR's PR, in external mode.
 
 `STATUS.md` and `STATUS.json` exist at three levels (the planning folder, `4-batch/`, the CR), each
 linking to the others. The CLI rewrites them at every state change, from the state alone; a
