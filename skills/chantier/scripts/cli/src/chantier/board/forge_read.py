@@ -5,6 +5,9 @@ mutation. The forge is chosen from the shape of the links (`pr_parts`, `GITLAB_L
 `forge_base.py` does. `read` is the seam the tests replace; everything else is a pure function of
 the forge's answer. `head` is the PR's head commit (GitHub GraphQL `PullRequest.headRefOid`,
 GitLab GraphQL `MergeRequest.diffHeadSha`); the page ignores it, the forge hub keys a red CI on it.
+`merged_on_default` is, for a merged PR, whether its merge commit (GitHub `mergeCommit.oid`) is
+among the default branch's last `DEFAULT_HISTORY` commits, read in the same query: the window
+inside which a stacked merge can be read as landed (None for a PR not merged, always for GitLab).
 When the answer cannot tell whether the checks have started, the PR is "being
 checked", never "no checks"."""
 
@@ -22,11 +25,12 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
 TIMEOUT_S = 20  # a hung `gh` or `glab` holds one worker and the project's lock for this long
 SHOWN_CHARS = 300
+DEFAULT_HISTORY = 100  # the default branch's commits read, to tell a merge landed on it
 
 GITHUB_FIELDS = (
     "state isDraft mergeable baseRefName headRefOid mergedAt closedAt createdAt updatedAt "
-    "commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 1) "
-    "{ totalCount } } } } }"
+    "mergeCommit { oid } commits(last: 1) { nodes { commit { statusCheckRollup { state "
+    "contexts(first: 1) { totalCount } } } } }"
 )
 GITLAB_FIELDS = (
     "state draft conflicts detailedMergeStatus targetBranch diffHeadSha mergedAt closedAt "
@@ -65,6 +69,8 @@ def github_query(numbers: list[int]) -> str:
     return (
         "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { "
         'wf: object(expression: "HEAD:.github/workflows") { ... on Tree { entries { name } } } '
+        'dh: object(expression: "HEAD") { ... on Commit { '
+        f"history(first: {DEFAULT_HISTORY}) {{ nodes {{ oid }} }} }} }} "
         f"{prs} }} }}"
     )
 
@@ -144,7 +150,7 @@ def _github_checks(node: dict[str, Any], has_workflows: bool) -> str | None:
     return GITHUB_CHECKS.get(str(rollup.get("state")))
 
 
-def github_state(node: dict[str, Any], has_workflows: bool) -> Forge:
+def github_state(node: dict[str, Any], has_workflows: bool, default_oids: set[str]) -> Forge:
     """One PR as the page judges it, from GitHub's fields."""
     state = str(node.get("state"))
     live = state == "OPEN"
@@ -152,6 +158,7 @@ def github_state(node: dict[str, Any], has_workflows: bool) -> Forge:
     if live:
         word = "draft" if node.get("isDraft") else "open"
     checks = _github_checks(node, has_workflows)
+    oid = (node.get("mergeCommit") or {}).get("oid")
     return {
         "state": word,
         "conflicting": live and node.get("mergeable") == "CONFLICTING",
@@ -159,6 +166,7 @@ def github_state(node: dict[str, Any], has_workflows: bool) -> Forge:
         "checks": checks or ("running" if live else "none"),
         "base": node.get("baseRefName"),
         "head": node.get("headRefOid"),
+        "merged_on_default": (oid in default_oids) if state == "MERGED" else None,
         "merged_at": node.get("mergedAt"),
         "closed_at": node.get("closedAt"),
         "opened_at": node.get("createdAt"),
@@ -181,6 +189,7 @@ def gitlab_state(node: dict[str, Any]) -> Forge:
         "checks": checks or ("running" if live else "none"),
         "base": node.get("targetBranch"),
         "head": node.get("diffHeadSha"),
+        "merged_on_default": None,
         "merged_at": node.get("mergedAt"),
         "closed_at": node.get("closedAt"),
         "opened_at": node.get("createdAt"),
@@ -199,7 +208,9 @@ def _node(box: dict[str, Any], key: str, n: int) -> dict[str, Any]:
 def _github_rows(got: dict[str, Any], numbers: list[int]) -> dict[int, Forge]:
     repo = (got.get("data") or {}).get("repository") or {}
     has_workflows = bool((repo.get("wf") or {}).get("entries"))
-    return {n: github_state(_node(repo, "p", n), has_workflows) for n in numbers}
+    history = ((repo.get("dh") or {}).get("history") or {}).get("nodes") or []
+    oids = {h["oid"] for h in history if h and h.get("oid")}
+    return {n: github_state(_node(repo, "p", n), has_workflows, oids) for n in numbers}
 
 
 def _gitlab_rows(got: dict[str, Any], numbers: list[int]) -> dict[int, Forge]:

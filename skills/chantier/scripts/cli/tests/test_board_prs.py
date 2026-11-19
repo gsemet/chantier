@@ -269,10 +269,11 @@ def test_a_merge_the_record_lacks_is_signalled_once_and_a_cached_read_writes_not
 CHAIN = 2
 T1, T2, T3 = "2026-11-16T10:00:00Z", "2026-11-16T10:00:05Z", "2026-11-16T09:59:59Z"
 INTO_0, INTO_1 = "chantier/b/cr-0", "chantier/b/cr-1"
+Y = True  # merged_on_default
 
 
-def merged(base: str, at: str) -> dict[str, Any]:
-    return {"state": "merged", "base": base, "merged_at": at}
+def merged(base: str, at: str, on_default: bool | None = None) -> dict[str, Any]:
+    return {"state": "merged", "base": base, "merged_at": at, "merged_on_default": on_default}
 
 
 # (the stacked CR, the forge's reads in turn, what each read adds for it: its lines' landed_with)
@@ -286,6 +287,17 @@ LANDING: list[Any] = [
         [[None], [None, 0], [None, 0]],
     ),
     (2, [{41: merged(INTO_0, T1), 40: merged("main", T2)}], [[0]]),  # a chain
+    (1, [{41: merged(INTO_0, T1, Y), 40: merged("main", T3, Y)}], [[0]]),
+    (
+        2,
+        [{42: merged(INTO_1, T2, Y), 41: merged(INTO_0, T1, Y), 40: merged("main", T3, Y)}],
+        [[0]],
+    ),
+    (
+        1,
+        [{41: merged(INTO_0, T1, Y), 40: {}}],
+        [[None]],
+    ),  # on the default branch, base not merged
 ]
 
 
