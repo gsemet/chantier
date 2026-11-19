@@ -256,6 +256,15 @@ def limits_line(limits: dict[str, Any], markers: list[str]) -> str:
     return line
 
 
+def events_line(rules: dict[str, Any]) -> str:
+    """The `events:` line: how soon after its start a watcher may end, followed by the layer that
+    set it (none for a shipped default)."""
+    if rules.get("text") is None:
+        return "events: wake every: not set"
+    text = f"events: wake every {rules['text']}"
+    return text if rules["layer"] == "defaults" else f"{text} [{rules['layer']}]"
+
+
 def timing_warnings(timing: dict[str, Any] | None, host: str) -> list[str]:
     """One line for each column whose steering wake is longer than its cache TTL."""
     if not timing:

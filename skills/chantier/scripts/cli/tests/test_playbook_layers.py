@@ -56,6 +56,7 @@ def test_the_shipped_defaults_give_each_role_the_model_its_agent_file_declares(
         "hosts",
         "specifying",
         "batch",
+        "events",
     }  # valid, and nothing else
     assert set(tree.value["hosts"][1].value) == {"claude", "copilot"}
     held = tree.value["hosts"][1].value[host_name][1].value

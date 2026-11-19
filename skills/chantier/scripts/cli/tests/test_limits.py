@@ -230,12 +230,12 @@ def test_the_board_saves_a_limit_keeps_comments_journals_one_line_and_removes_it
     assert "# mine" in text and "# kept" in text and f"{sub}: {FOUND_MIN}" in text
     assert answer["lines"][1] == line and "applies at the next batch" not in answer["lines"]
     (event,) = _forge(surface)
-    assert {k: event[k] for k in ("kind", "key", "old", "new", "by", "batch")} == {
+    assert {k: event[k] for k in ("kind", "key", "old", "new", "source", "batch")} == {
         "kind": "config",
         "key": key,
         "old": 5,
         "new": FOUND_MIN,
-        "by": "board",
+        "source": "board",
         "batch": None,
     }
     # the same value again changes nothing; inheriting removes the key and moves to the default

@@ -34,7 +34,7 @@ def test_the_board_saves_zero_slots_and_journals_it_and_open_then_refuses(
     assert code == OK, answer
     assert "slots: 0" in (surface.project / "chantier.yaml").read_text("utf-8")
     (event,) = _forge(surface)
-    assert (event["key"], event["old"], event["new"], event["by"]) == (
+    assert (event["key"], event["old"], event["new"], event["source"]) == (
         "batch.slots",
         SLOTS,
         0,

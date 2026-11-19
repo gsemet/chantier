@@ -113,9 +113,9 @@ def merged(base: str, at: str) -> dict[str, Any]:
 
 
 def shape(entries: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
-    """(seq, by, kind, cr, landed_with or head) of each line."""
+    """(seq, source, kind, cr, landed_with or head) of each line."""
     return [
-        (e["seq"], e["by"], e["kind"], e["cr"], e.get("landed_with") or e.get("head"))
+        (e["seq"], e["source"], e["kind"], e["cr"], e.get("landed_with") or e.get("head"))
         for e in entries
     ]
 
@@ -241,7 +241,7 @@ def test_the_board_and_the_hub_share_the_journal_once(world: World, first: str) 
         world.hub.cycle(0.0)
         board()
     (only,) = (e for e in world.journal("alpha") if e["kind"] == "merged")
-    assert (only["by"], only["cr"]) == (first, "CR-1")
+    assert (only["source"], only["cr"]) == (first, "CR-1")
 
 
 def test_the_start_line_names_the_hub_and_a_hub_of_another_version(world: World) -> None:
@@ -252,22 +252,24 @@ def test_the_start_line_names_the_hub_and_a_hub_of_another_version(world: World)
     for version, tail in ((NEW_VERSION, ""), ("0.0.1", f"; hub is chantier {NEW_VERSION}")):
         lock.write(beta.git_dir, lock.start_record(NEW_VERSION))
         w = Watch(beta, 3, version)
-        assert w.start_line() == f"watch: beta from cursor 3{tail}"
+        assert w.start_line() == f"watch: beta from cursor 3 for project{tail}"
         w.close()
     held.release()
     w = Watch(beta, 0, NEW_VERSION)
-    assert w.start_line() == "watch: beta from cursor 0, the hub"
+    assert w.start_line() == "watch: beta from cursor 0 for project, the hub"
     w.close()
     board = beta.git_dir / "chantier" / "board.json"
     tail = "; board is chantier 0.0.1: its writes do not reach this watcher, restart it"
     for version, said in (("0.0.1", tail), (NEW_VERSION, "")):
         running.write(board, "127.0.0.1", 1, version, "x")  # the record of a live process: ours
         w = Watch(beta, 0, NEW_VERSION)
-        assert w.start_line() == f"watch: beta from cursor 0, the hub{said}"
+        assert w.start_line() == f"watch: beta from cursor 0 for project, the hub{said}"
         w.close()
     board.unlink()
     w = Watch(beta, 0, NEW_VERSION)
-    assert w.start_line() == "watch: beta from cursor 0, the hub"  # no live record: nothing said
+    assert (
+        w.start_line() == "watch: beta from cursor 0 for project, the hub"
+    )  # no live record: nothing said
     w.close()
 
 

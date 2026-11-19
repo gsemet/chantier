@@ -151,7 +151,7 @@ def test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none(
     assert lines() == []
     save(values[0])
     (one,) = lines()
-    assert (one["by"], one["kind"], one["key"], one["batch"]) == ("board", "config", key, None)
+    assert (one["source"], one["kind"], one["key"], one["batch"]) == ("board", "config", key, None)
     assert one["new"] is not None and one["old"] != one["new"]
     save(values[0])  # the effective value is where it was: no line
     assert len(lines()) == 1

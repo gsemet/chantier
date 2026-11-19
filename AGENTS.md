@@ -72,8 +72,9 @@
   folder, never published) one line per merge the record does not hold and per CI turning red on
   a PR ready to merge, and nothing else; each session's watcher, run for the Chief of Staff's
   whole session, with or without a batch, reads only its project's journal (the hub's lines and
-  the board's), never the forge, and ends 20 s after the last new event that wakes, which wakes
-  its session, or when the project's seat is another session's; the
+  the board's), never the forge, and ends 20 s after the last new event for it that wakes, and no
+  sooner than `events.wake_every` after its start, which wakes its session, or when the project's
+  seat is another session's; the
   hub records nothing in a batch, runs no git and messages no agent; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,

@@ -11,7 +11,7 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.playbook import escalation, layers, limits, timing
+from chantier.playbook import escalation, events, layers, limits, timing
 
 if TYPE_CHECKING:
     from chantier.core.records import CrEntry
@@ -318,6 +318,15 @@ def read_limits(repo: Repo) -> tuple[dict[str, dict[str, Any]], list[str]]:
     defaults = root / "config" / "chantier.defaults.yml" if root else None
     found, problems = limits.load_limits(repo, {h: plugin_roles(h) for h in HOSTS}, defaults)
     return found or {}, problems
+
+
+def read_wake_rules(repo: Repo) -> dict[str, Any]:
+    """The watcher's wake rules (`events.wake_every`), from the user's files and the shipped
+    defaults: `{text, seconds, layer, src, events_problems, other}` (see
+    `events.load_wake_rules`); with no plugin, from the user's files alone."""
+    root = plugin_root()
+    defaults = root / "config" / "chantier.defaults.yml" if root else None
+    return events.load_wake_rules(repo, {h: plugin_roles(h) for h in HOSTS}, defaults)
 
 
 def recorded_timing(record: Any) -> dict[str, Any] | None:

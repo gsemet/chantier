@@ -98,3 +98,7 @@ specifying:
   parallel: 4   # the most CRs being specified at once on the project
 batch:
   slots: 4      # the slots `open` gives a batch when no --slots is given
+
+# How a watcher of this project is woken.
+events:
+  wake_every: 20s   # a watcher ends no sooner than this after its start (one wake per window)

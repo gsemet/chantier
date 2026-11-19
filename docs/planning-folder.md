@@ -92,3 +92,35 @@ what goes (the batch's own files, the dropped CRs' worktrees and branches) and w
 priced call, no Foreman transcript recorded) it refuses, naming the cause, and the Chief of Staff
 reports it to you. On your yes, `chantier close --yes` moves each merged CR to `5-archives`, writes the batch's record (`5-archives/batches/batch-NN.json`) and its Markdown, retro included (`batch-NN.md`), keeps in each CR of the record its `order` and its `after` list (the CRs it waited for), deletes the batch's other files and removes the rest with git;
 without a yes, everything stays. Close last: those files hold the exit report and the event log.
+
+## The event journal
+
+`forge-journal.jsonl`, at the planning folder's root, never published, holds every event of the
+project: the forge's (a merge the record does not hold, a CI turning red on a PR ready to merge)
+and the board's writes. Its name is historical, it is not only the forge's. One line is one JSON
+object, written by one function (`hub/journal.py`, `append`), under the project's lifecycle lock:
+
+```json
+{"v": 1, "seq": 41, "t": "2026-11-18T10:02:03Z", "kind": "merged", "source": "hub",
+ "audience": ["project"], "batch": "batch-29", "cr": "CR-12", "pr": "#88"}
+```
+
+| Field | Holds |
+|---|---|
+| `v` | the line's version, 1 |
+| `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
+| `t` | the time of the append |
+| `kind` | `merged`, `checks-red`, `config` or `board`, then the fields of that kind |
+| `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `cli` (room for a command) |
+| `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
+
+Every line written today is for `["project"]`: `merged` and `checks-red` by the hub or the board's
+PRs page, `config` by the Configuration page, `board` by the backlog writes. The CLI checks an
+audience value's form, never what it names, and routes to no role, CR or user yet. A line with no
+`v` is version 0, from an older chantier: its `by` is its source and it is for the project; it is
+never rewritten. A line of a newer version counts for `seq`, wakes no one and is named by `status`.
+
+`chantier watch` reads the lines for it: `project`, its own `session:<key>` and each `--for`
+value (repeatable; none is the default command). A line for another audience moves its cursor and
+is never printed. The watcher ends 20 s after the last new event for it that wakes, and no sooner
+than `events.wake_every` (`chantier.yaml`, default `20s`, 20 s or more) after its start.
