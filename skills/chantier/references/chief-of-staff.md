@@ -1032,7 +1032,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: to 3-done
   $CHANTIER order slots --note 0              # 0 holds; a number resumes
-  $CHANTIER order rounds CR-102 --note 5      # on the user's word
+  $CHANTIER order rounds CR-102 --note 5      # on the user's word, or under the rounds exception (below)
   $CHANTIER order budget --note 40
   $CHANTIER order mode --note parallel|series|stack   # any mode to any other, on the user's word
   $CHANTIER order factory on|off --note "<the user's words>"   # a factory batch takes each ready CR on its own
@@ -1052,6 +1052,17 @@ CR-222 → CR-225 → CR-226 → CR-228."
   in chantier's own checkout, sync once `$CHANTIER status` shows no gate running: stop the board,
   `uv sync --locked --project "<plugin root>"`, start the board again; until then say `sync
   pending` in your report's Notes.
+
+  The rounds exception: a CR handed back `blocked rounds:` whose last round failed on a red the
+  batch caused (a restack or rebase onto another CR's branch, a CR merged or moved below it; judge
+  it from the hand-back, `log <cr>` and `diagnosis.md`; in doubt, the user's word) gets its next
+  round from you. The cap is the batch's own `settings.max_rounds`, never the CR's limit that
+  `status` shows: +1 per grant, each on its own cause, never above `max_rounds` + 2 (default 3:
+  the 4th, then the 5th). Send the Foreman two orders in one message, `order rounds <cr> --note
+  <limit + 1>` and `order note <cr> --note "rounds exception: <the event>; <the failing check>"`,
+  and tell the user in the same message, with no wait: `CR-<n>: round <k> granted under the rounds
+  exception: <cause>`. The Foreman takes the CR with that note and no escalation; you alone answer
+  for the exception. Every other grant of rounds stays the user's.
 
   A Driver's question (`ask … blocked <cr> question: …`): record the user's answer in the CR's
   `02-answers.md`, then `order note <cr> --note "answer: …"`. A `fix:` from a release: under the
@@ -1579,7 +1590,7 @@ these, say the three parts at once, in the user's language, before any try.
 | **D.** "Close the batch" while something still runs | `close` (with or without `--yes`) while a CR is not merged or cancelled, an order is open, a stack agent or a held agent still runs or cannot be read; on Copilot, an agent whose session file was written in the last 5 minutes counts as running | `close` deletes the batch's own files and prices its final cost; work still running would be cut off and left out of that cost | Wait for the running agent's end (the refusal names it), then `close` again; on Copilot, wait until 5 minutes after its last write; a held agent that has ended and has no transcript: `agents set <cr> - --epoch <n>` on the user's word; a CR left open: merge it, or drop it (`order drop`) on the user's word |
 | **E.** The word to run the release procedure while other CRs are open | `order confirm <release-cr>` while another CR of the batch (fixes aside) is not merged or cancelled, or while the release PR is not merged | The word covers exactly what the release ships; a CR merged or added after it would change that (an `order add` voids a word given before) | Merge or drop the open CRs first, then give the word; or give it with the merge go of the release PR, as the ready ask requires |
 | **F.** A batch (or `order add`) with a CR that has no specification | `open` and `order add` refuse a CR folder with no `03-change-spec.md` ("missing Change Specification: ...; grill the CR first"), except a CR in `3-ready` with `intake/request.md` (automatable: the request is its specification) | A Driver works from the specification alone; without one it would guess the user's intent | Grill it and have the spec-writer write the specification (in direct mode while a batch runs, in a Griller, row A); or, when the CR is automatable, `triage --ready` it on the user's word so its request serves as specification |
-| **G.** More work on a CR past its round limit | `round` once a CR has used its rounds (three unless granted; "round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)"); the CR comes back blocked | The limit caps what a CR that does not converge may spend before the user looks at it | Read the blocked CR's question, then grant more rounds (`order rounds <cr> --note <n>`), change or split the CR, or drop it |
+| **G.** More work on a CR past its round limit | `round` once a CR has used its rounds (three unless granted; "round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)"); the CR comes back blocked | The limit caps what a CR that does not converge may spend before the user looks at it | Read the blocked CR's question, then grant more rounds (`order rounds <cr> --note <n>`), change or split the CR, or drop it. A red the batch caused (a restack, a rebase onto another CR, a CR merged or moved below) is the rounds exception: you grant the next round yourself, up to the batch's `max_rounds` + 2, and say so (Steering). |
 | **H.** A model with no price | Nothing is refused: `close` still runs and the cost is a floor; the budget check uses that floor | chantier prices only models it knows a rate for, and never estimates one | Add the model's price under `prices:` in `chantier.yaml` (exact model id, $/MTok, `docs/agents-and-models.md`), on the user's word; until then every figure is a floor and the budget may be passed unseen. Say it when the user picks such a model, not only when the cost report's not-priced line appears |
 
 The Tips bullet of "While it runs" and the "For you" block follow this section.
@@ -1595,7 +1606,8 @@ these differences.
 
 - **Escalation.** The Foreman's escalation triggers ([concepts](concepts.md), "Escalation") are
   yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`. The two rounds
-  routes are yours too (`escalate: rounds` after the user's grant of more rounds,
+  routes are yours too (`escalate: rounds` after the user's grant of more rounds; a grant under
+  the rounds exception is taken with `rounds exception:` and no escalation,
   `escalate: blocked twice`), once per CR, then the user; a CR with no rounds blocked twice goes
   straight to the user's question. A restack that fails runs the stack driver's
   `conflict-resolver` on the escalation model, the stack driver keeping the batch's model.
