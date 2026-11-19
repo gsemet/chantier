@@ -32,5 +32,14 @@ def quiet_s() -> float:
     return test[1] if test else QUIET_S
 
 
+def wake_every_s(configured: float | None) -> float:
+    """The least a watcher runs before it may end: `events.wake_every`, 0 for none; under the
+    test times, no more than the test's quiet (the tests keep their short times)."""
+    if configured is None:
+        return 0.0
+    test = _test()
+    return min(configured, test[1]) if test else float(configured)
+
+
 def poll_s() -> float:
     return min(POLL_S, cycle_s())

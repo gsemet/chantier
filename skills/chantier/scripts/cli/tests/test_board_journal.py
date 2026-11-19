@@ -65,7 +65,7 @@ def test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal(
         assert code == HTTPStatus.OK, answer
         assert len(_lines(demo)) == before + 1
         line, entry = _lines(demo)[-1], answer["journal"][0]
-        assert (line["by"], line["action"], line["wakes"]) == ("board", action, wakes)
+        assert (line["source"], line["action"], line["wakes"]) == ("board", action, wakes)
         assert (line["items"], line["text"]) == (entry["items"], entry["text"])
     moves = [e for e in _lines(demo) if e["action"] == "move"]
     assert (moves[1]["items"], moves[1]["text"]) == (moves[3]["items"], moves[3]["text"])

@@ -1308,8 +1308,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **The watcher** (the command the CLI prints, in the background; the user's yes once per
   session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
   It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and what the
-  user does in the board (`board wrote`, `config changed on the board`), and ends 20 s after the
-  last new one that wakes, or when the seat is another session's; its end starts your turn.
+  user does in the board (`board wrote`, `config changed on the board`), the events for it (the
+  project's and this session's), and ends 20 s after the last new one for it that wakes, and no
+  sooner than `events.wake_every` after its start, or when the seat is another session's; its end
+  starts your turn.
   - *When it starts:* whatever the batch, running, paused or none, the CLI prints `watch: not
     running: for the Chief of Staff, start in the background: <command>` when no watcher of this
     session runs (after `open`, `seat take`, `seat`, the `take` or `order qa` that sets a paused

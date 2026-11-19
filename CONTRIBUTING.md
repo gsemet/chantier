@@ -122,8 +122,9 @@ chantier is four things in one repository:
    (planning folder, never published) one line per merge the record does not hold and per CI
    turning red on a PR ready to merge, and nothing else; each session's watcher, run for the
    Chief of Staff's whole session with or without a batch, reads only its project's journal (the
-   hub's lines and the board's writes) and ends 20 s after the last new event that wakes, which
-   wakes its session, or when the project's seat is another session's; the hub records nothing in
+   hub's lines and the board's writes) and ends 20 s after the last new event for it that wakes, and no
+   sooner than `events.wake_every` after its start, which wakes its session, or when the
+   project's seat is another session's; the hub records nothing in
    a batch, runs no git and messages no agent. It spares the user one round trip per merge and
    per board session ("rescan").
    A new CLI tool comes only from measured token-costly behaviour of the

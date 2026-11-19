@@ -241,9 +241,11 @@ def test_a_merge_the_record_lacks_is_signalled_once_and_a_cached_read_writes_not
     board.get()
     (first,) = seen_lines(board)
     assert {k: v for k, v in first.items() if k != "t"} == {
+        "v": 1,
         "seq": 1,
-        "by": "board",
         "kind": "merged",
+        "source": "board",
+        "audience": ["project"],
         "batch": record(board.repo)["id"],
         "cr": board.ids[1],
         "pr": LINK.format(FIRST + 1),

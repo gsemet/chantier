@@ -13,6 +13,7 @@ from chantier.core.repo import Repo
 from chantier.lifecycle.stages import specifying_markers
 from chantier.playbook.lines import (
     escalate_line,
+    events_line,
     limits_line,
     playbook_lines,
     timing_lines,
@@ -28,6 +29,7 @@ from chantier.plugin_files import (
     read_limits,
     read_playbook,
     read_timing,
+    read_wake_rules,
     recorded_escalation,
     recorded_timing,
     surface_instructions,
@@ -92,6 +94,12 @@ def playbook(args: argparse.Namespace) -> tuple[list[str], int]:
         limits_line(limits, specifying_markers(repo))
         if not args.batch or not last
         else f"limits: not readable: {last[0]}"
+    )
+    wake = read_wake_rules(repo)
+    lines.append(
+        events_line(wake)
+        if not wake["events_problems"]
+        else f"events: not readable: {wake['events_problems'][0]}"
     )
     # first lines to copy as printed: the Chief of Staff's all, the Foreman's (in a batch) only
     # those of the agents whose description says the Foreman starts them
