@@ -133,7 +133,7 @@ class Waits:
                 batch_prs.ALWAYS | ({"review"} if w["type"] == "approval" else set()),
                 f"{d.id} {c.id} {w['id']}",
                 self.name,
-                (w["type"], w["ref"]),
+                meta=(w["type"], w["ref"]),
             )
             for c, w in split(repo, d)[0]
             if link_of(w["link"])

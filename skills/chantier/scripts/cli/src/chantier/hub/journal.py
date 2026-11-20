@@ -13,9 +13,10 @@ readable `seq` plus one), `t`, `type`, `source`, `audience` (a list of `project`
 `cr:<id>`, `session:<key>` or `user`; every writer of today writes `["project"]`), then the
 payload of its type. The type is `name@N`: the name and the published version of the payload. The
 six published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
-`checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`), each with its model, wake rule, text,
-duplicate key and example. A published `name@N` never changes; a change is a new `name@N+1`,
-published beside it. Its JSON Schema is in `hub/schemas.json`, written by `just journal-schemas`.
+`checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`), each with its model, wake
+rule, text, duplicate key and example. A published `name@N` never changes; a change is a new
+`name@N+1`, published beside it. Its JSON Schema is in `hub/schemas.json`, written by
+`just journal-schemas`.
 
 A line with no `v` is version 0 (`by` where later versions have `source`, no `audience`), and a
 version 1 line has `kind` where version 2 has `type`: `read` gives each its effective type,
