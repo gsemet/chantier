@@ -129,8 +129,15 @@ def _check_actions(manifest: dict[str, Any]) -> set[Path]:
         assert own & set(listed) == {f"{card}#{heading}"}
         assert listed[:-1]
         assert all(r.startswith(f"{card}#Means: ") for r in listed[:-1])
+    _check_driver_steps(manifest)
+    return action_reads
+
+
+def _check_driver_steps(manifest: dict[str, Any]) -> None:
     others = ("Stack driver", "QA driver", "Release driver")
-    lines = {k: manifest["actions"][k] for k in ("cr-driver", "cr-driver:ship", "cr-driver:closing")}
+    lines = {
+        k: manifest["actions"][k] for k in ("cr-driver", "cr-driver:ship", "cr-driver:closing")
+    }
     for key in ("cr-driver:ship", "cr-driver:closing"):
         card = manifest["roles"]["cr-driver"]
         listed = lines[key]
@@ -144,7 +151,6 @@ def _check_actions(manifest: dict[str, Any]) -> set[Path]:
     assert not set(lines["cr-driver"]) & set(lines["cr-driver:ship"])
     assert not set(lines["cr-driver"]) & set(lines["cr-driver:closing"])
     assert not set(lines["cr-driver:ship"]) & set(lines["cr-driver:closing"])
-    return action_reads
 
 
 def _wrapper_path(role: str, host: str, entry: dict[str, Any], wrapper: Path) -> Path | None:
