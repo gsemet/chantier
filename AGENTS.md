@@ -115,6 +115,10 @@
   `access`: read-only, it explains why a session may or may not write the planning folder, claim
   a CR or push its branch, and changes nothing; built on the user's answer of 2026-11-20 ("tout":
   all five of Vercel Board's ideas, planning-server-Q9), with no measured cost.
+  `live`: a read-only terminal client of the surface server's published API, shipped in
+  `clients/tui/`; it reads the server only (never the planning folder, the forge or git), writes
+  nothing and messages no agent; built on the user's request of 2026-11-20, with no measured
+  cost.
   The surface server's writer, a thread of the same process, one per planning surface and
   machine, held by an OS lock in the git folder (`chantier/writer.lock`): while the server runs, it
   commits, rebases and pushes the planning surface's published paths and the local commits of the

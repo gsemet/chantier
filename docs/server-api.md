@@ -75,7 +75,7 @@ refused (400).
 | Op | Arguments | Data |
 | --- | --- | --- |
 | `board.get` | none | `board`, `version`, `surface`, `pid`, `served`, `served_origin`, `local_url`, `seats`, `projects`, `writer`, `protocols`, `now` |
-| `project.state` | `project`, `rev`? | the project's state, with `rev` and `now`; with `rev` equal to the current one, `{"changed": false, "rev": ...}` |
+| `project.state` | `project`, `rev`? | the project's state, with `rev` and `now`; with `rev` equal to the current one, `{"changed": false, "rev": ...}`. Each CR row of `batch.crs` has `lease`, and the batch `stack_lease`: `null` when the unit never had a lease, else `{n, renewed, expires, ended, holds, gate}`, facts only (`holds`: the running `lease hold`s of this lease; `gate`: `"gate running"`, `"gate queued"` or `null`); a client compares `expires` with `now` itself |
 | `project.tree` | `project`, `path`? | `{path, files, now}`: the files and folders of the planning folder at `path` |
 | `project.file` | `project`, `path` | a text file as `{text, cut, sha256}` (`cut` is true when the text was shortened); a binary file is 415 (read it over HTTP, below) |
 | `costs.get` | `project` | `recorded`, `live`, `now` |
@@ -127,7 +127,7 @@ client watches.
 | `costs` | `project` | what `costs.get` gives |
 | `prs` | `project`, `batch`? | what `prs.get` gives; the forge is read at most once every 10 s per project and batch |
 | `journal` | `project` | what `journal.get` gives |
-| `events` | `project`, `after`? | `{"lines": [...]}`: the new lines of the project's `forge-journal.jsonl`, 200 at most, each with its `seq`; with no `after`, the lines after the last one at the time of `sub` |
+| `events` | `project`, `after`? | `{"lines": [...]}`: the new lines of the project's `forge-journal.jsonl`, 200 at most, each with its `seq`, and `text`, its type's sentence, when the type is published and its payload accepted (no `text` otherwise); that `text` replaces, in the answer only, a payload's own `text` key (`board@1`, `issue@1`, `sync-*@1`), which the sentence quotes and the journal file keeps; with no `after`, the lines after the last one at the time of `sub` |
 
 A `sub` for an unknown topic is a `result` with 404, for bad arguments 400, for an unknown
 project 404, and the 33rd subscription of a connection 429.
@@ -201,6 +201,16 @@ own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
 - A board already running keeps what it was started with: `--ui` on a second `chantier board`
   prints `--ui not applied: a board already serves this surface; stop it to change what it
   serves`, and nothing else changes.
+
+## A terminal client
+
+`chantier live` is the API's second client: a read-only terminal view of a running board (the
+counts, the projects and Drivers, the flow of events, the tasks with their lease time left). It
+sends `hello`, `sub`, `unsub` and the poll, and nothing else, over the WebSocket first and the
+HTTP long-poll when the WebSocket does not open. Its package,
+[`clients/tui/`](../skills/chantier/scripts/cli/src/chantier/clients/tui/), is the example of a
+client in Python: it imports nothing of chantier but itself, the version and the error type, so
+everything it shows comes through this API. See [boards.md](boards.md#the-live-terminal-view).
 
 ## Versions
 

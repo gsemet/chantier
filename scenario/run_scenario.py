@@ -2965,6 +2965,7 @@ def remote_board(w: World) -> None:
         check("a call with the key in the header from a foreign `Origin` is accepted", code == 202,
               str(code))
         check("`PUT` answers 405", fetch(port, "/api/board", "PUT", link.cookie)[0] == 405)
+        live_once(w, one)
         # 7. nothing written
         check("nothing was written in the planning folder, its files, sizes and times, nor its git status",
               folder_state(w.state) == before
@@ -3088,6 +3089,9 @@ def remote_board(w: World) -> None:
               and fetch(late_link.port, "/api/board", headers=late_link.cookie)[0] == 200,
               p.stdout + p.stderr)
         late.stop()  # the next checks expect no live board
+        code, _ = w.chantier("live", "--once", expect=None)
+        check("once the board has stopped, `live --once` exits 4: no board runs for this surface",
+              code == 4 and "no board runs for this surface" in w.last_stderr, w.last_stderr)
         # a port held by another program, with no live board to reuse
         with socket.socket() as held:
             held.bind(("127.0.0.1", 0))
@@ -3161,6 +3165,26 @@ def remote_board(w: World) -> None:
         for seat in ("s-5", "s-2", "s-1"):
             w.chantier("seat", "leave", seat, expect=None)
         w.reset()
+
+
+def live_once(w: World, working: str) -> None:
+    """`chantier live --once` on each transport against the running board: the working CR in the
+    tasks, `working 1` in the header, and nothing written (git status, journal)."""
+    journal = w.state / "forge-journal.jsonl"
+    before = (journal.read_bytes() if journal.is_file() else b"",
+              w.sh("git", "status", "--porcelain", "--", ".agents/changes"))
+    for extra in ((), ("--transport", "http")):
+        code, out = w.chantier("live", "--once", *extra, expect=None)
+        shown = "\n".join(out)
+        cells = [x.split("│") for x in out]  # the Tasks panel is the last one on its rows
+        tasks = [c[-2] for c in cells if len(c) > 2 and c[-2].strip().startswith(f"{working} ")]
+        check(f"`{' '.join(('live', '--once', *extra))}` exits 0 and shows the working CR in "
+              "Tasks and `working 1` in the header",
+              code == 0 and "working 1" in shown and bool(tasks), shown + w.last_stderr)
+    after = (journal.read_bytes() if journal.is_file() else b"",
+             w.sh("git", "status", "--porcelain", "--", ".agents/changes"))
+    check("`live --once` wrote nothing: the planning folder's git status and its journal are unchanged",
+          after == before, str(after != before))
 
 
 def seat_handover(w: World) -> None:

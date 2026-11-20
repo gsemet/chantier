@@ -87,6 +87,11 @@ def _base(host: str, port: int) -> str:
     return f"http://{_bracket(_loopback_of(host))}:{port}"
 
 
+def loopback_base(host: str, port: int) -> str:
+    """The board's address on this machine's loopback, for a client of this machine."""
+    return _base(host, port) + "/"
+
+
 def _call(base: str, key: str, method: str, route: str, body: Any = None) -> Any:
     address = f"{base}{route}"
     data = json.dumps(body).encode("utf-8") if body is not None else None

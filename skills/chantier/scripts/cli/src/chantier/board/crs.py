@@ -9,9 +9,10 @@ from typing import Any
 
 from chantier.board.backlog import count_files, description
 from chantier.board.times import cr_times, priority_of
+from chantier.core import leases
 from chantier.core import waits as typed_waits
 from chantier.core.files import subject
-from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
+from chantier.core.records import BatchRecord, CrEntry, EventRecord, Lease, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
 from chantier.stack_words import READY_TO_MERGE, ready_word
@@ -59,6 +60,25 @@ def base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> dict[str, str]:
     elif c.kind != "fix" and (open_ := _open_after(d, c)):
         return {"on": open_[-1].id, "why": "dependency"}
     return {"on": default, "why": "default"}
+
+
+def lease_view(repo: Repo, unit: str, lease: Lease | None) -> dict[str, Any] | None:
+    """A unit's last lease as facts, None when it never had one: the record's `n`, `renewed`,
+    `expires` and `ended`, the running `lease hold`s of this lease and the long gate keeping it.
+    Read-only (no hold record removed); never the word `live`, which changes with the clock."""
+    if lease is None:
+        return None
+    holds = sum(
+        1 for _, rec in leases.hold_records(repo, unit, drop=False) if rec.get("lease") == lease.n
+    )
+    return {
+        "n": lease.n,
+        "renewed": lease.renewed,
+        "expires": lease.expires,
+        "ended": lease.ended,
+        "holds": holds,
+        "gate": leases.gate_keeping(repo, unit),
+    }
 
 
 def _folder_of(repo: Repo, c: CrEntry) -> Path | None:
@@ -111,6 +131,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "gate": gate_view(repo, d, c, events),
         # to review: the PR is out of draft and everything under it is (`ready_word`)
         "to_review": readiness == READY_TO_MERGE,
+        "lease": lease_view(repo, c.id, c.lease),
     }
 
 

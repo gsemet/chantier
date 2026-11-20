@@ -18,6 +18,8 @@ DEEP = ("1-inbox", "2-backlog", "3-ready", "4-batch")
 SHALLOW = ("5-archives", "6-trash", "5-archives/batches")
 # the batch's own files are in `4-batch`
 SINGLE = ("seat.json", "next-batch.json", "board-journal.jsonl", "forge-journal.jsonl")
+# a `lease hold`'s record at the root: one that starts or ends moves a CR row's `lease.holds`
+HOLDS = ".lease-hold.*.run"
 
 
 def _entry(path: Path, base: Path) -> str:
@@ -49,6 +51,7 @@ def fingerprint(changes: Path, extra: str = "") -> str:
     live cost's marks)."""
     base = changes.resolve()
     lines = [_entry(base / name, base) for name in SINGLE]
+    lines += [_entry(p, base) for p in sorted(base.glob(HOLDS))]
     for name in DEEP:
         lines += _walk(base / name, base, True)
     for name in SHALLOW:

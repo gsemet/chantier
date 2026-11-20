@@ -51,7 +51,7 @@ MODULES = [
     "writer_api",
     "prs",
 ]
-LAZY = ("starlette", "uvicorn", "websockets")
+LAZY = ("starlette", "uvicorn", "websockets", "rich")
 OK, NOT_FOUND = 200, 404
 PROBE = {"board", "version", "pid", "served", "surface", "protocols"}
 

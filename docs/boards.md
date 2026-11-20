@@ -69,3 +69,51 @@ code, is covered by the cards, and the steering session reports what changed in 
 ## The web board
 
 The web board is a small web server, `chantier board`, for any device. Every view, how to start it, keep it on the machine and stop it are in [the web board](web-board.md); its API, which the page and any other client use, is in [the server's API](server-api.md).
+
+## The live terminal view
+
+`chantier live` watches a running board in the terminal, read-only: the second client of [the
+server's API](server-api.md), beside the web page. It never starts a board, writes nothing and
+messages no agent.
+
+What it shows, redrawn once a second:
+
+- the header: the folder served, the board's version, the transport (`ws` or `http`), the link's
+  state (`live`, or `reconnecting since HH:MM:SS`), the server's time, and four counts: working,
+  ready (to review), held (blocked), done (merged);
+- on the left (from 100 columns): each project watched with its batch and its backlog, and one
+  line per unit an agent holds (`Driver <cr> <phase>`, `Stack driver`);
+- in the centre, the flow: the record's events and the journal's lines of every project
+  watched, newest at the bottom;
+- on the right, the tasks: the working CRs with their round and their lease's time left (from the
+  server's clock, so a machine with a wrong clock shows the right time), then the CRs to review
+  with their age, then the blocked ones with their reason.
+
+How to start it:
+
+- `chantier live`: the board recorded as running for this surface or project, on the loopback
+  address. With none: `live: no board runs for this surface: start one with chantier board, or
+  pass --url <link>` (exit 4).
+- `chantier live --url <link>`: a board on another machine, from the link it printed (with its
+  `?k=` key); the environment's proxies apply.
+- `--only <project>` (repeatable) watches those projects only; without it, every project, the
+  first 15. `--transport auto|ws|http`: the WebSocket first, else the HTTP long-poll, or one only.
+  A lost link is tried again every 5 s; a refused key exits 4 with the server's sentence.
+- `--once` prints the screen once as plain text and exits: for a script, a test or a bug report.
+  Without it, a stdout that is not a terminal is refused. Ctrl-C leaves the screen.
+
+One `--once` capture, on a board over a small scratch project, a running batch whose first CR is
+taken (its lease live) and the second not yet (120 columns):
+
+```text
+chantier live  /tmp/live-demo/demo/.agents/changes  v0.14.0  ws  live  23:54:56 U…
+working 1  ready 0  held 0  done 0
+┌─ Projects ───────────────┐┌─ Flow ───────────────────────────────────────┐┌─ Tasks ──────────────────────────────────┐
+│ demo  batch-01 running … ││ 23:54:48 chief-of-… add CR-101               ││ CR-101    Export the report as CSV       │
+│   inbox 0 backlog 0 rea… ││ 23:54:48 chief-of-… add CR-102               ││           lease 09:55  round 0/3         │
+│                          ││ 23:54:48 chief-of-… open                     ││                                          │
+│ Agents                   ││ 23:54:52 foreman    take CR-101              ││                                          │
+│ Driver CR-101            ││                                              ││                                          │
+└──────────────────────────┘└──────────────────────────────────────────────┘└──────────────────────────────────────────┘
+Ctrl-C to quit
+```

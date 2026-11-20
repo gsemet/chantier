@@ -16,6 +16,7 @@ from chantier.board.context import Context
 from chantier.board.projects import Project
 from chantier.core import clock
 from chantier.hub import journal as forge_journal
+from chantier.hub import schemas
 
 Reading = tuple[str, dict[str, Any] | None] | None
 Read = Callable[[Context, Any, str | None], Reading]
@@ -106,6 +107,19 @@ def _entries(ctx: Context, changes: Path) -> list[dict[str, Any]]:
     return kept[1]
 
 
+def _told(entry: dict[str, Any]) -> dict[str, Any]:
+    """The line with `text`, its type's sentence, when the type is published and its payload is
+    accepted; as it is otherwise (an unknown type, a newer version, a refused payload)."""
+    type_ = entry.get("type")
+    found = schemas.PUBLISHED.get(type_) if isinstance(type_, str) else None
+    if found is None or forge_journal.newer(entry) or not entry.get("audience"):
+        return entry
+    payload = {k: v for k, v in entry.items() if k not in forge_journal.HEADER}
+    if schemas.check(type_, payload) is not None:
+        return entry
+    return {**entry, "text": found.text(entry)}
+
+
 def _events(ctx: Context, project: Project, a: Any, last: str | None) -> Reading:
     entries = _entries(ctx, project.repo.changes)
     if last is not None and last.isdigit():
@@ -119,7 +133,7 @@ def _events(ctx: Context, project: Project, a: Any, last: str | None) -> Reading
     rev = str(lines[-1]["seq"] if lines else cursor)
     if last is not None and not lines:
         return rev, None
-    return rev, {"lines": lines}
+    return rev, {"lines": [_told(e) for e in lines]}
 
 
 def _seq(entry: dict[str, Any]) -> int:

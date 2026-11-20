@@ -188,8 +188,9 @@ skills/chantier/
 │                             spec-writer, spec-critic, retro-critic, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
-└── scripts/cli/            ← the `chantier` CLI's source (its web client in `clients/web/`), its tests
-                              and `session_usage.py`
+└── scripts/cli/            ← the `chantier` CLI's source (its web client in `clients/web/`,
+                              its terminal client in `clients/tui/`), its tests and
+                              `session_usage.py`
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
 scripts/                    ← version tooling, run by `just`

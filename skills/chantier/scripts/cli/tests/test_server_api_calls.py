@@ -5,6 +5,7 @@ each cell of the key matrix, the forge read shared by three watchers of the PRs 
 from __future__ import annotations
 
 import hashlib
+import json
 import threading
 from typing import Any
 
@@ -34,10 +35,11 @@ from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core.repo import Repo
 from chantier.hub import journal as forge_journal
+from chantier.hub import schemas
 from chantier.hub import state as hub_state
 from chantier.playbook import edit
 
-MANY_LINES, THREE = 5, 3
+MANY_LINES, THREE, FIVE = 5, 3, 5
 
 
 def _same(a: dict[str, Any], b: dict[str, Any], *drop: str) -> None:
@@ -153,7 +155,15 @@ def test_the_events_topic_carries_the_journal_lines_after_its_cursor(board: Boar
     assert len(fresh) == count  # each line once: no change, no event
     add("last")
     loop.poll(20.0)
-    assert [e["seq"] for e in fresh[-1]["data"]["lines"]] == [5]
+    (last,) = fresh[-1]["data"]["lines"]
+    said = schemas.board_text({**last, "text": "x"})  # the payload's own `text` is the sentence's
+    assert last["seq"] == FIVE and last["text"] == said  # its type's sentence
+    with (repo.changes / forge_journal.FILE).open("a", encoding="utf-8") as f:
+        line = {"v": 2, "seq": 6, "t": "2030-01-01T00:00:00Z", "type": "later@1"}
+        f.write(json.dumps(line) + "\n")
+    loop.poll(30.0)
+    (unknown,) = fresh[-1]["data"]["lines"]
+    assert unknown["seq"] == FIVE + 1 and "text" not in unknown  # a type not published: none
 
 
 def test_a_change_during_the_hold_answers_the_long_poll_before_the_hold_ends(
