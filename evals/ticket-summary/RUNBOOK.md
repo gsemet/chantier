@@ -19,8 +19,9 @@ Setup prints the operator's `prompt` line last, with this checkout's path filled
 `/chantier:chief-of-staff Run the chantier eval campaign ticket-summary: follow <this checkout>/evals/ticket-summary/RUNBOOK.md.`).
 Start the operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
-workspace with it. The workspace is inside the trusted eval root, so the app does not ask to
-trust it (setup refuses a workspace outside it; **unproved** until the trial reports). This campaign has no Foreman, so it can start
+workspace with it. The workspace is inside the trusted eval root, so it asks for no new trust
+(setup refuses a workspace outside it; Claude Code: hosts/claude-code.md, "The eval operator from a
+remote client"). This campaign has no Foreman, so it can start
 from the phone, under Remote Control: see the evals README, "The operator".
 
 ## Setup, by the operator

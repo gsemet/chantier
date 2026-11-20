@@ -26,8 +26,9 @@ of `stack`, `parallel`, `series` and `<this checkout>` its absolute path:
 Setup prints this as its last line, the `prompt` line, with the path filled in. Start the
 operator from New session in the Claude Desktop Code tab (pick the workspace folder in its native
 spelling, then paste the line), or ask a Desktop session at the desk to start a new session on the
-workspace with it. The workspace is inside the trusted eval root, so the app does not ask to
-trust it (setup refuses a workspace outside it; **unproved** until the trial reports). This campaign has no Foreman, so it can start
+workspace with it. The workspace is inside the trusted eval root, so it asks for no new trust
+(setup refuses a workspace outside it; Claude Code: hosts/claude-code.md, "The eval operator from a
+remote client"). This campaign has no Foreman, so it can start
 from the phone, under Remote Control: see the evals README, "The operator".
 
 From a terminal, in the workspace, the equivalent is:
