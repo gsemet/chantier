@@ -5,7 +5,9 @@ It holds the `key` and `created` (kept across starts), the `server` entry (the p
 `chantier board`: `pid`, `host`, `port`, `version`, `served`, `started`) and the `hub` entry (the
 process that holds `hub.lock`, the server or, with no server, a watcher: `pid`, `version`,
 `started` and, per project, `read_at`, `error`, `error_at`). An entry whose process has not been
-alive since `started` is no entry.
+alive since `started` is no entry. The `writer` entry (the surface's writer, `writer/record.py`)
+is written by the writer only: `pid`, `version`, `started`, its `state` and the facts of the last
+cycle.
 
 Every write reads the file, changes one entry and replaces the file atomically, under a short OS
 lock on `server.json.lock` (taken without waiting, retried for up to a second). Readers take no
@@ -34,7 +36,7 @@ OLD_BOARD = "board.json"
 OLD_HUB = "hub.json"
 WAIT_S = 1.0  # how long a write waits for the write lock
 STEP_S = 0.02
-SERVER, HUB = "server", "hub"
+SERVER, HUB, WRITER = "server", "hub", "writer"
 
 
 class StateError(OSError):
@@ -70,7 +72,8 @@ def _epoch(started: object) -> float | None:
 
 
 def live_entry(git_dir: Path, name: str) -> dict[str, Any] | None:
-    """The `server` or `hub` entry when its process is alive and is the recorded one, else None."""
+    """The `server`, `hub` or `writer` entry when its process is alive and is the recorded one,
+    else None."""
     entry = read(git_dir).get(name)
     if not isinstance(entry, dict):
         return None
@@ -167,6 +170,11 @@ def write_hub(git_dir: Path, record: dict[str, Any]) -> None:
     """Record this process as the forge hub (and drop `hub.json` of an earlier version)."""
     modify(git_dir, lambda data: data.__setitem__(HUB, json.loads(json.dumps(record))))
     (folder(git_dir) / OLD_HUB).unlink(missing_ok=True)
+
+
+def write_writer(git_dir: Path, record: dict[str, Any]) -> None:
+    """Record this process as the surface's writer (the whole entry, replaced)."""
+    modify(git_dir, lambda data: data.__setitem__(WRITER, json.loads(json.dumps(record))))
 
 
 def remove_entry(git_dir: Path, name: str, pid: int) -> None:

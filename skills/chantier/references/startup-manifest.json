@@ -67,6 +67,6 @@
     "deliver": ["pr-template.md"],
     "release": ["release-template.md"],
     "board": ["concepts.md", "session-start.md"],
-    "autosync": ["concepts.md", "chief-of-staff.md"]
+    "writer": ["concepts.md", "chief-of-staff.md"]
   }
 }

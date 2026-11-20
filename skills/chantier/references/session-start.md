@@ -66,7 +66,9 @@ taken as proof of life.
 **The board.** Ask before starting `$CHANTIER board --seat <own session id>` in the background,
 explaining its persistent process and configured network exposure, and that it is also the
 surface's forge hub: it reads the forge every 20 s with the user's own `gh` or `glab` (only the
-PRs a running batch waits for) and needs the network for that. A decline starts no server.
+PRs a running batch waits for) and needs the network for that. On a planning surface it is also the
+surface's writer: it commits, rebases and pushes the plan, and with no server a write to the surface
+is refused. A decline starts no server, so the session's writes to the surface are refused.
 After acceptance, use the host's means (the host's reference, "Run the board"),
 and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
 never start it.
@@ -88,9 +90,9 @@ never start it.
   version, the PID and the stop command as printed. Never stop it yourself and never start one on
   another port to get round it: the user decides, then you run `board --seat <id>` again on the
   user's word.
-- `board: autosync not joined: <reason>` (a second line when the board's explicit autosync
-  action fails): one line with the reason; the board serves anyway. Board launch itself joins
-  nothing.
+- `board: writer not started: <reason>`: one line with the reason; the board serves anyway, and
+  writes to the surface are refused until a writer runs. The board's other start line is the
+  writer's own, `writer: <state>`.
 - `error: board not started: ...`, or a host that cannot run a background command: one line with
   the reason, then go on. The board never blocks the session, a preflight, a batch or a report.
 
@@ -114,15 +116,6 @@ message." A host that cannot run a background command: one line with
 the reason, then go on, no workaround. A watcher started while the board runs is not the hub (its
 start line has no `, the hub`): the board reads the forge. The start line's `hub is chantier <v>`: tell the user once,
 in one line, and go on. When it starts and stops: [chief-of-staff](chief-of-staff.md).
-
-**The surface's autosync.** Joining is explicit opt-in, independent of board permission, and
-never stops another participant. Without participation follow the project's manual-sync rules.
-After opt-in, run its `status`, then join as its guidelines say, adding `--session-id <own session id>`,
-once per session. Do not join when `status` already lists a participant with this session's id. A
-reload joins nothing. A blocked or approval state met there: the Chief of Staff
-handles it ([chief-of-staff](chief-of-staff.md)), and a Griller says it in one line and goes on. A
-failed join is reported by the session itself in one line to the user, with the reason, like a
-board that did not start; the `board: autosync not joined` line is the board server's own.
 
 A reload starts nothing: the board survives a compaction, and at the next skill invocation the
 `board` run is a reuse.

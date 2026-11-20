@@ -252,6 +252,100 @@
     "title": "Merged1",
     "type": "object"
   },
+  "sync-blocked@1": {
+    "additionalProperties": false,
+    "properties": {
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      }
+    },
+    "required": [
+      "reason",
+      "text"
+    ],
+    "title": "SyncBlocked1",
+    "type": "object"
+  },
+  "sync-conflict@1": {
+    "additionalProperties": false,
+    "properties": {
+      "files": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Files",
+        "type": "array"
+      },
+      "local": {
+        "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+        "title": "Local",
+        "type": "string"
+      },
+      "projects": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Projects",
+        "type": "array"
+      },
+      "upstream": {
+        "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+        "title": "Upstream",
+        "type": "string"
+      }
+    },
+    "required": [
+      "upstream",
+      "local",
+      "files",
+      "projects"
+    ],
+    "title": "SyncConflict1",
+    "type": "object"
+  },
+  "sync-late@1": {
+    "additionalProperties": false,
+    "properties": {
+      "ahead": {
+        "title": "Ahead",
+        "type": "integer"
+      },
+      "paths": {
+        "title": "Paths",
+        "type": "integer"
+      },
+      "since": {
+        "title": "Since",
+        "type": "string"
+      }
+    },
+    "required": [
+      "since",
+      "paths",
+      "ahead"
+    ],
+    "title": "SyncLate1",
+    "type": "object"
+  },
+  "sync-resumed@1": {
+    "additionalProperties": false,
+    "properties": {
+      "after": {
+        "title": "After",
+        "type": "string"
+      }
+    },
+    "required": [
+      "after"
+    ],
+    "title": "SyncResumed1",
+    "type": "object"
+  },
   "wait-cleared@1": {
     "additionalProperties": false,
     "properties": {

@@ -45,6 +45,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import psutil
+
 HERE = Path(__file__).resolve().parent
 SKILL = HERE.parent / "skills" / "chantier"
 FAKE = {"github": ("gh", Path(__file__).with_name("fake_gh.py")),
@@ -112,10 +114,10 @@ UNITS = {
     "direct": (135, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
                                  "empty_batch", "factory_batch"]),
     "surface-board": (
-        500,
+        700,
         ["github"],
         ["remote_board", "forge_hub", "outside_poller", "typed_waits", "surface_server",
-         "external_surface", "cr_summary"],
+         "external_surface", "surface_writer", "cr_summary"],
     ),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (75, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli", "typed_waits"]),
@@ -278,6 +280,10 @@ def unit_name(word: str) -> str:
     """A lease's unit: `CR-106` for `106`, `cr-106` and `CR-106`; `STACK` for the stack."""
     word = word.upper()
     return f"CR-{word}" if word.isdigit() else word
+
+
+def stamp_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class World:
@@ -2540,8 +2546,8 @@ def surface_server(w: World) -> None:
                   x == "-X" or x.startswith("query=mutation") for x in c) for c in calls),
               str(calls[:1]))
         names = {x.name for x in git.iterdir() if not x.name.startswith("watch-")}
-        check("`chantier/` holds only `server.json`, `server.json.lock`, `hub.lock` and `watch-*` entries",
-              names <= {"server.json", "server.json.lock", "hub.lock"}, str(sorted(names)))
+        check("`chantier/` holds only `server.json`, `server.json.lock`, `hub.lock`, `writer.lock`, `writer.wake` and `watch-*` entries",
+              names <= {"server.json", "server.json.lock", "hub.lock", "writer.lock", "writer.wake"}, str(sorted(names)))
     finally:
         kill_server()
         for proc in reversed(procs):
@@ -2677,10 +2683,9 @@ def remote_board(w: World) -> None:
         check("`GET /api/board`: one project, `surface: false`, the seat counted",
               code == 200 and api.get("board") is True and api["surface"] is False
               and len(api["projects"]) == 1 and api["seats"] == 1 and api["served"] == link.over, str(api))
-        check("E2: a board of an in-project folder has no autosync (present: false) and starts no join",
-              api.get("autosync") == {"present": False}
-              and jget(port, link, "/api/autosync")[2].get("present") is False
-              and not (w.work / "scripts" / "ai-autosync-git.argv").exists(), str(api.get("autosync")))
+        check("a board of an in-project folder has `writer: {state: off}`, no `autosync` key, and runs no writer",
+              api.get("writer") == {"state": "off"} and "autosync" not in api
+              and jget(port, link, "/api/autosync")[0] == 404, str(api.get("writer")))
         settled_live(port, link, project)
         base = f"/api/projects/{project}"
         code, head, data = jget(port, link, f"{base}/state")
@@ -9006,9 +9011,38 @@ class SurfaceWorld(World):
         self.surface = root / "surface"
         self.project = self.surface / "projects" / "demo"
         self.state = self.project / "changes"
+        # a board's writer of a unit that does not test it commits only at its final cycle or on
+        # a `sync now`: its quiet and its longest wait are an hour
+        self.env["CHANTIER_WRITER_TEST_TIMES"] = "30:3600:3600:3600:7200"
+        self.writerless = False  # True where a unit tests the refusal of a write with no writer
+
+    def writer_up(self) -> None:
+        """Stand for the surface's writer where no board runs: a `writer` entry of `server.json`
+        for this process, which is alive. A real board's writer, a live `server` entry (a board of
+        another version, a board starting) and a unit that tests the refusal leave it alone."""
+        file = self.surface / ".git" / "chantier" / "server.json"
+        try:
+            data = json.loads(file.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        if self.writerless or not isinstance(data, dict):
+            return
+        for key in ("server", "writer"):  # a live entry stays; a killed board's is replaced
+            entry = data.get(key)
+            if isinstance(entry, dict) and int(entry.get("pid") or 0) > 0 and psutil.pid_exists(int(entry["pid"])):
+                return
+        data.pop("server", None)
+        data["writer"] = {"pid": os.getpid(), "version": "0", "started": stamp_now(),
+                          "state": "synced", "reason": "", "text": "", "since": stamp_now(),
+                          "last_cycle": stamp_now(), "pending": 0, "pending_since": None,
+                          "ahead": 0, "unpushed_since": None, "last_commit": None,
+                          "last_push": None, "last_fetch": None, "conflict": None, "failure": None}
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(json.dumps(data), encoding="utf-8")
 
     def chantier(self, *args, project="demo", cwd=None, **kw):
         head = ("--project", project) if project else ()
+        self.writer_up()
         return super().chantier(*head, *args, cwd=cwd or self.surface, **kw)
 
     def build(self) -> None:
@@ -9028,6 +9062,12 @@ class SurfaceWorld(World):
                 f"# {name}\n\n- Remote: {self.root / 'origin.git'}\n{archive}")
         self.sh("git", "add", ".", cwd=self.surface)
         self.sh("git", "commit", "--quiet", "-m", "init", cwd=self.surface)
+        # the surface's origin: the writer's upstream
+        origin = self.root / "surface-origin.git"
+        self.sh("git", "init", "--quiet", "--bare", "-b", "main", str(origin), cwd=self.root)
+        self.sh("git", "remote", "add", "origin", str(origin), cwd=self.surface)
+        self.sh("git", "push", "--quiet", "-u", "origin", "main", cwd=self.surface)
+        self.sh("git", "remote", "set-head", "origin", "main", cwd=self.surface)
 
     def prepare(self, title: str, project="demo") -> Path:
         _, out = self.chantier("file", title, project=project)
@@ -9058,169 +9098,105 @@ def surface_publishes(w: SurfaceWorld, label: str) -> None:
           any(f.endswith("03-change-spec.md") for f in files), str(files))
 
 
-AUTOSYNC_GUIDE = ".agents/guidelines/autosync.guidelines.md"
-INCIDENT_ID = "staged-" + "0123456789abcdef0123"
-STOPPED = {"enabled": False, "reason": "stopped by user"}
-BLOCKED = {"enabled": False, "reason": "blocked: upstream moved"}
-APPROVAL = {"state": "approval_required", "incident": INCIDENT_ID, "message": "3 files staged"}
+def surface_writer(tmp: Path) -> None:
+    note("\n## 20b. The surface's writer: a real `board --seat` commits and pushes the plan")
+    tmp.mkdir()
+    w = SurfaceWorld(tmp)
+    w.build()
+    w.env["CHANTIER_WRITER_TEST_TIMES"] = "1:1:3:2:60"  # a short quiet, so a cycle is quick
+    origin = w.root / "surface-origin.git"
+    journal = w.state / "forge-journal.jsonl"
 
+    def origin_files() -> str:
+        return w.sh("git", "--git-dir", str(origin), "log", "--name-only", "--format=", "main")
 
-def surface_autosync(w: SurfaceWorld) -> None:
-    """E2: a surface that names an autosync. The fake tool (scenario/fake_autosync.py) stands for
-    scripts/ai-autosync-git.py; the state files are written where the real tool keeps them."""
-    rules = w.surface / "AGENTS.md"
-    original = rules.read_bytes()
-    script = w.surface / "scripts" / "ai-autosync-git.py"
-    log = script.with_suffix(".argv")
-    state = w.surface / ".git" / "ai-autosync"
+    def until(then, timeout: float = 40) -> bool:
+        end = time.monotonic() + timeout
+        while not (found := then()) and time.monotonic() < end:
+            time.sleep(0.5)
+        return bool(found)
 
-    def put(name: str, data: dict) -> None:
-        path = state / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data), encoding="utf-8")
+    def writer_line(command: str) -> str:
+        _, out = w.chantier(command, expect=None)
+        return next((x for x in out if x.startswith("writer:")), "")
 
-    def lines() -> tuple[str, str]:
-        _, pre = w.chantier("preflight", expect=None)
-        _, st = w.chantier("status", expect=None)
-        return (next((ln for ln in pre if "P13" in ln), ""),
-                next((ln for ln in st if "autosync" in ln), ""))
+    def head() -> str:
+        return w.sh("git", "rev-parse", "HEAD", cwd=w.surface)
 
-    def runs() -> list[list[str]]:
-        if not log.is_file():
+    def pushed() -> str:
+        return w.sh("git", "--git-dir", str(origin), "rev-parse", "main")
+
+    def events() -> list[str]:
+        if not journal.is_file():
             return []
-        return [json.loads(ln) for ln in log.read_text(encoding="utf-8").splitlines() if ln]
+        return [json.loads(x)["type"] for x in journal.read_text(encoding="utf-8").splitlines()]
 
-    def post(link: Link, path: str, body: dict | None = None) -> tuple[int, dict]:
-        code, _, raw = fetch(link.port, path, "POST",
-                             {**link.cookie, "Content-Type": "application/json"},
-                             json.dumps(body or {}).encode("utf-8"))
-        return code, json.loads(raw.decode("utf-8") or "{}")
-
-    live = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"])
-    done = subprocess.Popen([sys.executable, "-c", "pass"])
-    done.wait()
-    gone = done.pid
+    w.chantier("init")
+    w.chantier("seat", "take", "sess-w", "--env", "remote", "--title", "[remote] writer", "--link", "l")
+    bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, "--seat",
+                   "sess-w", cwd=w.surface)
     try:
-        pre, st = lines()
-        check("E2: a surface whose rules do not name the autosync has no P13 and no status line",
-              not pre and not st, f"{pre!r} {st!r}")
-        rules.write_text(rules.read_text(encoding="utf-8")
-                         + f"\nShare the planning with `{AUTOSYNC_GUIDE}`.\n", encoding="utf-8")
-        pre, st = lines()
-        check("E2: the rules name it but the script is missing: P13 warns, and no status line",
-              "scripts/ai-autosync-git.py is missing" in pre and not st, f"{pre!r} {st!r}")
-        script.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy(Path(__file__).with_name("fake_autosync.py"), script)
-        pre, st = lines()
-        check("E2: the script is there and no group ran yet: `no group yet` in both lines",
-              "has no group yet" in pre and st == "autosync: no group yet", f"{pre!r} {st!r}")
-        put(f"participants/{live.pid}.json", {"pid": live.pid, "harness": "generic",
-                                              "session_id": "scen0001-abcd", "role": "leader"})
-        put(f"participants/{gone}.json", {"pid": gone, "harness": "generic"})
-        put("watcher.json", {"pid": live.pid})
-        put("status.json", {"state": "synced", "updated_at": 1_700_000_000})
-        pre, st = lines()
-        check("E2: active, one live participant (the dead one is not counted): both lines say so",
-              "is active: leader session scen0001, 1 participant" in pre
-              and st.startswith("autosync active, leader session scen0001, 1 participant, synced "),
-              f"{pre!r} {st!r}")
-        mine = state / "participants" / f"{live.pid}.json"
-        mine.rename(state / "keep.json")
-        pre, st = lines()
-        check("E2: active with no live participant: both lines ask to join",
-              "has no live participant" in pre and st == "autosync active, no live participant: join it",
-              f"{pre!r} {st!r}")
-        (state / "keep.json").rename(mine)
-        put("control.json", STOPPED)
-        pre, st = lines()
-        check("E2: stopped: both lines say to commit the surface by hand",
-              "autosync is stopped (stopped by user)" in pre
-              and st == "autosync stopped (stopped by user): commit the surface by hand",
-              f"{pre!r} {st!r}")
-        put("control.json", BLOCKED)
-        pre, st = lines()
-        check("E2: blocked: both lines give the reason and who restarts it",
-              "is blocked: upstream moved" in pre
-              and st == "autosync blocked: upstream moved: the Chief of Staff integrates, then "
-                        "start . --enable-only", f"{pre!r} {st!r}")
-        put("status.json", APPROVAL)
-        pre, st = lines()
-        check("E2: an approval: both lines name the incident",
-              f"approval of incident {INCIDENT_ID}: 3 files staged" in pre
-              and st == f"autosync waits for the user's approval: incident {INCIDENT_ID}: 3 files staged",
-              f"{pre!r} {st!r}")
-        check("E2: reading never deletes a participant file, a dead one included",
-              (state / "participants" / f"{gone}.json").is_file() and mine.is_file(),
-              str(list(state.rglob("*"))))
-        # the board serves without joining autosync; autosync remains an explicit opt-in
-        shutil.rmtree(state)
-        bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
-                       cwd=w.surface)
-        try:
-            link = Link(bp.line())
-            joined = bp.line()
-            check("E2: the board starts without joining the surface's autosync",
-                  link.ok and joined is None, str(joined))
-            api = jget(link.port, link, "/api/autosync")[2]
-            join = next((r for r in runs() if r[:1] == ["join"]), [])
-            check("E2: the board does not create an autosync participant",
-                  not join and not api.get("participants") and api.get("state") != "active",
-                  f"{join} {api}")
-            board = jget(link.port, link, "/api/board")[2]
-            check("E2: the board reports autosync independently",
-                  board.get("autosync", {}).get("state") != "active", str(board.get("autosync")))
-            before = len(runs())
-            put("control.json", STOPPED)
-            code, body = post(link, "/api/autosync/stop")
-            check("E2: stop is refused while the group is stopped",
-                  code == 409 and body.get("code") == "stopped" and len(runs()) == before, str(body))
-            code, body = post(link, "/api/autosync/start")
-            # the join is spawned after the reply and logged by the fake tool a moment later
-            deadline = time.monotonic() + 10
-            while time.monotonic() < deadline and not (
-                    runs() and runs()[-1][:2] == ["join", "."]):
-                time.sleep(0.05)
-            check("E2: start in the stopped state runs `start . --enable-only` and the group is active",
-                  code == 200 and runs()[-2] == ["start", ".", "--enable-only"]
-                  and runs()[-1][:2] == ["join", "."]
-                  and body.get("autosync", {}).get("state") == "active", f"{code} {body}")
-            put("control.json", BLOCKED)
-            before = len(runs())
-            code, body = post(link, "/api/autosync/start")
-            check("E2: start is refused while blocked: the Chief of Staff restarts it",
-                  code == 409 and body.get("code") == "blocked" and len(runs()) == before, str(body))
-            put("control.json", {"enabled": True})
-            put("status.json", APPROVAL)
-            code, body = post(link, "/api/autosync/approve", {"incident": "secrets-" + "f" * 20})
-            check("E2: approving an incident that is not the one waiting is refused (stale)",
-                  code == 409 and body.get("code") == "stale" and len(runs()) == before, str(body))
-            code, body = post(link, "/api/autosync/approve", {"incident": INCIDENT_ID})
-            check("E2: approving the current incident runs `approve . <id>` then `start . --enable-only`",
-                  code == 200 and runs()[-2:] == [["approve", ".", INCIDENT_ID],
-                                                  ["start", ".", "--enable-only"]], f"{code} {body}")
-            code, _, _ = fetch(link.port, "/api/autosync/start", "POST", dict(link.cookie), b"{}")
-            check("E2: a POST without the JSON content type is refused", code in (400, 403, 415),
-                  str(code))
-        finally:
-            shutil.rmtree(state, ignore_errors=True)  # the join leaves once its file is gone
-            bp.stop()
+        link = Link(bp.line())
+        first = bp.line() or ""
+        check("a board started with `--seat` on the surface prints its `writer:` line",
+              link.ok and first.startswith("writer: "), f"{link.over} {first}")
+        item = w.prepare("Writer plan")  # `file`, then `triage`
+        check("`file` then `triage` reach the bare origin within the shortened bound",
+              until(lambda: "03-change-spec.md" in origin_files() and "2-backlog/P1" in origin_files()),
+              origin_files())
+        check("`seat` prints `writer: synced`",
+              until(lambda: writer_line("seat").startswith("writer: synced")),
+              writer_line("seat"))
+        # a commit pushed from a second clone of the surface is integrated
+        clone = w.root / "surface-clone"
+        w.sh("git", "clone", "--quiet", str(origin), str(clone), cwd=w.root)
+        for key, value in (("user.name", "second"), ("user.email", "second@example.com")):
+            w.sh("git", "config", key, value, cwd=clone)
+        (clone / "projects" / "other" / "from-clone.md").write_text("from the second clone\n")
+        w.sh("git", "add", "-A", cwd=clone)
+        w.sh("git", "commit", "--quiet", "-m", "from the second clone", cwd=clone)
+        w.sh("git", "push", "--quiet", "origin", "main", cwd=clone)
+        check("a commit pushed from a second clone of the surface is integrated",
+              until(lambda: (w.surface / "projects" / "other" / "from-clone.md").is_file()),
+              w.sh("git", "log", "--oneline", "-3", cwd=w.surface))
+        # a conflicting change on both sides: the conflict line, the journal, the resolution
+        target = Path(item) / "01-intent.md"
+        rel = target.relative_to(w.surface).as_posix()
+        until(lambda: pushed() == head())
+        (clone / rel).write_text("# the second clone's version\n")
+        w.sh("git", "commit", "--quiet", "-am", "same file, other side", cwd=clone)
+        w.sh("git", "pull", "--quiet", "--rebase", cwd=clone)
+        w.sh("git", "push", "--quiet", "origin", "main", cwd=clone)
+        target.write_text("# the surface's version\n")
+        check("a conflicting change on both sides yields the conflict line in `seat` and the journal",
+              until(lambda: writer_line("seat").startswith("writer: conflict")
+                    and "sync-conflict@1" in events()),
+              f"{writer_line('seat')} {events()}")
+        # the scripted Chief of Staff's resolution: a resolved file, then the rebase continues
+        w.sh("git", "fetch", "--quiet", "origin", cwd=w.surface)
+        subprocess.run(["git", "rebase", "origin/main"], cwd=w.surface, capture_output=True)  # stops
+        target.write_text("# resolved by the Chief of Staff\n")
+        w.sh("git", "add", rel, cwd=w.surface)
+        subprocess.run(["git", "-c", "core.editor=true", "rebase", "--continue"], cwd=w.surface,
+                       check=True, capture_output=True, env={**os.environ, "GIT_EDITOR": "true"})
+        check("the Chief of Staff's resolution is pushed by the writer, `seat` is `synced`",
+              until(lambda: pushed() == head() and writer_line("seat").startswith("writer: synced"), 60)
+              and "sync-resumed@1" in events(), f"{pushed()} {head()} {writer_line('seat')} {events()}")
     finally:
-        live.kill()
-        live.wait()
-        shutil.rmtree(state, ignore_errors=True)
-        rules.write_bytes(original)
-        script.unlink(missing_ok=True)
-        log.unlink(missing_ok=True)
-        try:
-            script.parent.rmdir()
-        except OSError:
-            pass
+        w.writerless = True  # the board is stopped: no writer, whatever entry a kill leaves
+        bp.stop()
+    before = {str(f.relative_to(w.state)): f.read_bytes() for f in w.state.rglob("*") if f.is_file()}
+    code, _ = w.chantier("file", "No writer", expect=2)
+    after = {str(f.relative_to(w.state)): f.read_bytes() for f in w.state.rglob("*") if f.is_file()}
+    check("the board stopped, `file` is refused with the writer's text and the folder is unchanged",
+          "the surface's writer is not running: nothing written" in w.last_stderr and before == after,
+          w.last_stderr)
 
 
 def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen: str) -> None:
     """The board's Configuration page with a batch open: `PUT /config` writes the project folder's
     file and says it applies at the next batch; the running batch keeps its frozen value; the board
-    commits nothing, the surface's autosync does."""
+    commits nothing itself: the surface server's writer does."""
     target = w.project / "chantier.yaml"
     head = w.sh("git", "rev-parse", "HEAD", cwd=w.surface)
     bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
@@ -9245,6 +9221,10 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
         check("that save of a role's model appends one `config@1` line, by the board, keyed on the role",
               [(e["seq"], e["source"], e["type"], e["key"]) for e in lines]
               == [(1, "board", "config@1", "hosts.claude.roles.coder.model")], str(lines))
+        check("the board's code committed nothing: the surface's HEAD did not move and the file waits "
+              "for its writer",
+              w.sh("git", "rev-parse", "HEAD", cwd=w.surface) == head
+              and "projects/demo/chantier.yaml" in w.surface_files(), str(w.surface_files()))
         # the two limits: a save moves one `config@1` line of the forge journal; a running watcher ends
         # on it, `status` carries the slots one until an `order slots` follows
         held = w.batch()["slots"]
@@ -9333,14 +9313,25 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
           coder_line("--batch", w.name) == frozen
           and "opus (claude-opus-5-5, Claude Opus 5.5) [surface project]" in coder_line(),
           f"{coder_line()} / {coder_line('--batch', w.name)}")
-    check("the board committed nothing: the surface's HEAD did not move and the file waits",
-          w.sh("git", "rev-parse", "HEAD", cwd=w.surface) == head
-          and "projects/demo/chantier.yaml" in w.surface_files(), str(w.surface_files()))
-    subprocess.run([sys.executable, str(Path(__file__).with_name("fake_autosync.py")), "commit"],
-                   cwd=w.surface, check=True, capture_output=True)
-    check("the surface's autosync commits the file",
+    # the writer commits and pushes the file when asked (a fresh board, its writer's `sync now`)
+    bw = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
+    try:
+        Link(bw.line())
+        bw.line()  # its `writer:` line
+        w.chantier("sync", "now")
+        end = time.monotonic() + 60
+        while time.monotonic() < end and not (
+                w.sh("git", "rev-parse", "HEAD", cwd=w.surface) != head
+                and w.sh("git", "ls-remote", "origin", "main", cwd=w.surface).split()[0]
+                == w.sh("git", "rev-parse", "HEAD", cwd=w.surface)):
+            time.sleep(0.5)
+    finally:
+        bw.stop()
+    pushed = w.sh("git", "ls-remote", "origin", "main", cwd=w.surface).split()[0]
+    check("the surface server's writer commits the file and pushes it",
           w.sh("git", "rev-parse", "HEAD", cwd=w.surface) != head
-          and "projects/demo/chantier.yaml" not in w.surface_files(), str(w.surface_files()))
+          and "projects/demo/chantier.yaml" not in w.surface_files()
+          and pushed == w.sh("git", "rev-parse", "HEAD", cwd=w.surface), str(w.surface_files()))
     target.unlink()
     w.sh("git", "commit", "--quiet", "-am", "drop the configuration", cwd=w.surface)
 
@@ -9463,7 +9454,7 @@ def external_surface(tmp: Path) -> None:
     w.chantier("seat", "take", "sess-a", "--env", "remote", "--title", "[remote] surface", "--link", "l")
     _, out = w.chantier("seat", "get", project="other")
     check("two projects of one surface each run a batch, and the seat is one per project",
-          out == ["seat none"] and (w.project / "changes" / "seat.json").is_file(), str(out))
+          out[:1] == ["seat none"] and (w.project / "changes" / "seat.json").is_file(), str(out))
     w.chantier("seat", "leave", "sess-a")
     # the other batches of the surface: each session sees the other project's batch, no cap
     _, out = w.chantier("status", project="demo")
@@ -9528,7 +9519,6 @@ def external_surface(tmp: Path) -> None:
           not [f for f in w.surface_files() if ".long-gate" in f], str(w.surface_files()))
     for p in slot_files:
         p.unlink()
-    surface_autosync(w)
     # the web board at a surface: every project of the surface, each confined to its own folder
     bp = BoardProc(w, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0, cwd=w.surface)
     try:
@@ -9956,6 +9946,7 @@ CASES = {
     "typed_waits": typed_waits,
     "surface_server": surface_server,
     "external_surface": lambda w: external_surface(w.root / "external"),
+    "surface_writer": lambda w: surface_writer(w.root / "writer"),
     "cr_summary": lambda w: cr_summary(w.root / "summary"),
     "lost_messages": lost_messages,
     "qa_on_head": qa_on_head,

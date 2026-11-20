@@ -8,6 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from conftest import live_writer
 
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.store import READ_ONLY, FolderStore, PlanStore, SurfaceStore
@@ -29,7 +30,7 @@ def store(request: pytest.FixtureRequest, tmp_path: Path) -> PlanStore:
     if request.param == "folder":
         return FolderStore(tmp_path / "project" / ".agents" / "changes")
     project = tmp_path / "surface" / "projects" / "demo"
-    return SurfaceStore(project / "changes", project)
+    return SurfaceStore(project / "changes", project, tmp_path / "surface" / ".git")
 
 
 def needs(store: PlanStore, feature: str) -> None:
@@ -190,6 +191,8 @@ def test_published_agrees_with_the_ignored_files(store: PlanStore) -> None:
 
 
 def test_check_publish_returns(store: PlanStore) -> None:
+    if isinstance(store, SurfaceStore):
+        live_writer(store.git_dir)
     store.check_publish(["3-ready/x/01-intent.md", "4-batch/batch.json"])
     store.check_publish([], config=True, command="file")
     store.check_publish(["3-ready/x/01-intent.md"], command="order merged")
@@ -198,11 +201,19 @@ def test_check_publish_returns(store: PlanStore) -> None:
 
 def test_refuses_without_publisher(store: PlanStore) -> None:
     needs(store, REFUSES_WITHOUT_PUBLISHER)
+    assert isinstance(store, SurfaceStore)
     with pytest.raises(ChantierError) as refused:
         store.check_publish(["3-ready/x/01-intent.md"], command="file")
     assert refused.value.code == EXIT_PRECONDITION
-    assert "file" in str(refused.value)
-    store.check_publish(["4-batch/batch.json"])
+    assert "file: the surface's writer is not running" in str(refused.value)
+    with pytest.raises(ChantierError) as config:
+        store.check_publish([], config=True, command="board config")
+    assert config.value.code == EXIT_PRECONDITION
+    store.check_publish(["4-batch/batch.json"])  # a local file: no publisher needed
+    assert not store.root.exists()
+    live_writer(store.git_dir)
+    store.check_publish(["3-ready/x/01-intent.md"], command="file")
+    store.check_publish([], config=True, command="board config")
 
 
 def test_local_files_are_declared(store: PlanStore) -> None:

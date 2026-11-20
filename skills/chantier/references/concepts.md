@@ -127,7 +127,8 @@ At startup, identify the role, batch, project and parent session.
   files (`batch.json`, `events.jsonl`, `brief.md`, STATUS, locks, `.batch-number`, `seat.json`) and
   the detailed logs (`work/gates/`, `*.log`) and the Verifier's scratch folder (`work/scratch/`)
   out of git: a raw log goes in such a file, never in a
-  published one. The rest of a CR's folder is pushed with the surface. So are the batches' records:
+  published one. In a surface the writer commits the published paths only; the local ones stay on the
+  machine. The rest of a CR's folder is pushed with the surface. So are the batches' records:
   each batch leaves `5-archives/batches/batch-NN.json` (for a UI; written by `open` as `running`,
   completed by `close`) and `batch-NN.md` (for a person: the Completion table, the cost, the retro).
   The next batch number is read from these records. `$CHANTIER validate` checks the whole planning
@@ -140,20 +141,19 @@ At startup, identify the role, batch, project and parent session.
   `projects/<name>/` holds `project.md` (the project, its remote, `- Archive in the PR: yes|no`,
   `no` when absent), `checkout.yml` (`repo:` and `worktrees:`, paths relative to the project's
   folder; defaults `.repo/` and `.worktrees/` there) and `changes/` (the planning folder). The
-  surface's `AGENTS.md` holds its own rules, its sync first. The project's **clone** is the
+  surface's `AGENTS.md` holds its own rules. The project's **clone** is the
   "main checkout" for git only (`git -C <clone>`): no session runs in it. The project's
   `AGENTS.md` may point to its surface with one line, `- planning: <url>, projects/<name>`, which
   the Chief of Staff reads and the CLI does not. With a surface, every `$CHANTIER` carries
-  `--project <the project's folder>`; a `cli:` line says so. A surface whose rules name
-  `.agents/guidelines/autosync.guidelines.md` and that holds `scripts/ai-autosync-git.py` has an
-  **autosync**: its own tool keeps the surface pushed. Preflight's P13 and a line of `status` report
-  its state (active, stopped, blocked, or waiting for the user's approval); chantier only reads its
-  files in `<surface git dir>/ai-autosync/` and never deletes one. chantier owns no autosync: the
-  Chief of Staff, the Foreman and a Griller in the surface's checkout may join its group only after
-  an explicit session-start opt-in, with `--session-id <their session id>`, and follow its
-  guidelines. Drivers, and a Griller in a surface worktree, never join. While the group is enabled,
-  no session commits or pushes the surface by hand. The board server does not join it implicitly;
-  board permission and autosync participation are independent, and autosync is explicit opt-in.
+  `--project <the project's folder>`; a `cli:` line says so. The surface server (`$CHANTIER board`)
+  is also the surface's **writer**, its one writer: it commits the plan's published paths
+  (`projects/` and the root `chantier.yaml`), rebases them on the remote and pushes within 5
+  minutes, keeps the surface's state and exposes the server. No session commits the plan by
+  hand. The surface's other files are committed by hand, and the writer pushes them with the
+  plan: it pushes every local commit of the branch, so nobody pulls or pushes the surface by hand
+  while a writer runs. With no writer a write to the surface is refused (the Chief of Staff starts
+  the server); a conflict with the remote, a block and a late push go to the Chief of Staff, as
+  the `writer:` line of `status`, `seat` and `sync` and the journal's `sync-*` lines say.
   Several sessions may work one surface on one machine: each stages only its own project's folder,
   one board serves the surface, and `preflight` (P14) and `status` list the other batches.
   Full account:

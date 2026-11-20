@@ -16,8 +16,13 @@ from forge_world import World
 from lease_args import learn, with_lease
 
 from chantier.cli import main
+from chantier.core import clock
 from chantier.core import git as git_module
 from chantier.core import repo as repo_module
+from chantier.hub import state as hub_state
+
+pytest_plugins = ["writer_rig"]  # the writer tests' `rig` fixture
+
 
 SKILL = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = SKILL.parents[1]
@@ -134,6 +139,12 @@ def surface_template(repo_template: Path, tmp_path_factory: pytest.TempPathFacto
     return root
 
 
+def live_writer(git_dir: Path) -> None:
+    """Record this test process as the surface's writer, so a published write is not refused."""
+    record = {"pid": os.getpid(), "started": clock.now(), "state": "synced"}
+    hub_state.modify(git_dir, lambda data: data.__setitem__(hub_state.WRITER, record))
+
+
 @pytest.fixture
 def surface(
     repo: Path, surface_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -143,6 +154,7 @@ def surface(
     root = tmp_path / "surface"
     shutil.copytree(surface_template, root)
     monkeypatch.chdir(root)
+    live_writer(root.resolve() / ".git")
     return Surface(
         root.resolve(),
         (root / "projects" / "demo").resolve(),

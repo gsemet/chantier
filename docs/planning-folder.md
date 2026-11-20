@@ -42,7 +42,7 @@ External layout, beside it:
 
 ```text
 <surface>/
-├── AGENTS.md                the surface's own rules (its sync, among others)
+├── AGENTS.md                the surface's own rules; its sync is the surface server's writer
 └── projects/<name>/
     ├── project.md           the project: remote, default branch, `- Archive in the PR: yes|no`
     ├── checkout.yml         `repo:` and `worktrees:`, relative to this folder
@@ -50,9 +50,9 @@ External layout, beside it:
 ```
 
 What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
-`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`, which also holds the board's writes, and the `.lease-hold.*.run` records of a running `lease hold`) and the detailed logs
+`brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`, which also holds the board's writes and the writer's lines, and the `.lease-hold.*.run` records of a running `lease hold`) and the detailed logs
 (`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
-folder. A running CR's documents, reports and evidence are pushed with the surface. A CR's folder
+folder. A running CR's documents, reports and evidence are pushed with the surface, by the surface server's writer, within 5 minutes; with no writer running, a write to the surface is refused. A CR's folder
 may also hold `prototypes/NN-<idea>/` and `experiments/`, created only when used and published
 with the CR like its documents. A backlog CR may hold a `waits.json` (`wait <folder> add`): its typed waits, published and moved
 with the folder; `open` or `order add` carries its open waits into the batch's record and removes
@@ -104,7 +104,7 @@ without a yes, everything stays. Close last: those files hold the exit report an
 
 `forge-journal.jsonl`, at the planning folder's root, never published, holds every event of the
 project: the forge's (a merge the record does not hold, a CI turning red on a PR ready to merge)
-the board's writes and the issue events an outside poller writes. Its name is historical, it is not only the forge's. One line is one JSON
+the board's writes, the writer's (a conflict, a block, a push that is late, the resumption) and the issue events an outside poller writes. Its name is historical, it is not only the forge's. One line is one JSON
 object, written by one function (`hub/journal.py`, `append`), under the project's lifecycle lock:
 
 ```json
@@ -118,15 +118,15 @@ object, written by one function (`hub/journal.py`, `append`), under the project'
 | `v` | the line's version, 2 (0 and 1 still read) |
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
-| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1` or `issue@1`), then the fields of that type |
-| `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
+| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1` or `sync-*@1`), then the fields of that type |
+| `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `writer` (the surface's writer), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
 A published `name@N` never changes; a change is a new `name@N+1`, and every type's JSON Schema
 ships in `hub/schemas.json`.
 
 Every line written today is for `["project"]`: `merged@1` and `checks-red@1` by the hub or the
-board's PRs page, `wait-cleared@1` by the hub, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller. The CLI
+board's PRs page, `wait-cleared@1` by the hub, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller, `sync-*@1` by the writer. The CLI
 checks an audience value's form, never what it names, and routes to no role, CR or user yet.
 
 | Type | Written by | Wakes a watcher |
@@ -137,6 +137,10 @@ checks an audience value's form, never what it names, and routes to no role, CR 
 | `config@1` | the board's Configuration page | yes |
 | `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move` and `edit` |
 | `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |
+| `sync-conflict@1` | the writer | yes |
+| `sync-blocked@1` | the writer | yes |
+| `sync-late@1` | the writer | yes |
+| `sync-resumed@1` | the writer | no |
 
 An event the hub or the board builds from a forge read or a backlog or Configuration write that its
 type's model refuses is not written, the others are, and the hub's entry or the page's reply names

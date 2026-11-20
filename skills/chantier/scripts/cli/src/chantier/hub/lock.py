@@ -6,17 +6,23 @@ holder exits or dies, so no stale lock exists. The holder is the forge hub: the 
 (`chantier board`) or, with no server running, a watcher. The hub's record is the `hub` entry of
 `server.json`, written by the holder only.
 
+The surface's writer holds `writer.lock` the same way, and `writer.wake` is the file that `sync now`
+and the board's button touch to start a cycle at once.
+
 Each watcher also holds `watch-<project>/<session>.lock`, the same way: `watchers` lists the
 sessions whose watcher of a project runs now."""
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import IO
 
 from chantier.core.files import try_lock, unlock
 
 LOCK = "hub.lock"
+WRITER_LOCK = "writer.lock"
+WRITER_WAKE = "writer.wake"
 WATCHER_SUFFIX = ".lock"
 
 
@@ -60,6 +66,25 @@ class HubLock(_FileLock):
 
     def __init__(self, git_dir: Path) -> None:
         super().__init__(folder(git_dir) / LOCK)
+
+
+class WriterLock(_FileLock):
+    """The surface's writer's lock: its holder is the surface server's writer thread."""
+
+    def __init__(self, git_dir: Path) -> None:
+        super().__init__(folder(git_dir) / WRITER_LOCK)
+
+
+def wake_path(git_dir: Path) -> Path:
+    return folder(git_dir) / WRITER_WAKE
+
+
+def wake(git_dir: Path) -> None:
+    """Ask the writer for a cycle at once: touch `writer.wake`."""
+    target = wake_path(git_dir)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.touch()
+    os.utime(target)
 
 
 class WatcherLock(_FileLock):

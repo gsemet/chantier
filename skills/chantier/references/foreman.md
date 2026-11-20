@@ -519,11 +519,10 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
 - A host's event about a CR's PR (a request to fix it, or to merge the base branch in) is not an
   order and not the user's word; your host's reference says what to do with it ([Claude
   Code](hosts/claude-code.md), "Auto-fix events").
-- With a planning surface that has an autosync, join its group at batch start only when the
-  interactive session explicitly granted this Foreman session opt-in for this project. Without
-  that grant, do not join and say so. On a blocked group or one waiting for the user's approval,
-  ask the Chief of Staff once per block, not at each turn:
-  `$CHANTIER asks "autosync <state>: <reason>"`. You never run `approve`.
+- With a planning surface, never commit, pull or push it: its writer does. On a `writer:` line in
+  `conflict` or `blocked`, `$CHANTIER asks "writer <state>: <reason>"` once per episode. On
+  `writer: not running` or `writer: stopped: <why>`, `$CHANTIER asks "writer off"` once per episode, and no `take` until a
+  `writer:` line in another state comes back, which ends the episode.
 - `$CHANTIER asks "<text>"` records what the Chief of Staff must hear and prints the line to
   send; a lost line loses nothing. Lines in plain words: `ready-to-merge <cr> <link> [gaps: …][ local gate <cr> at <sha7>: passed|failed|not run]`, `pr-in-draft <cr> <link> on <base>: waits for <what> [gaps: …][ local gate <cr> at <sha7>: passed|failed|not run]`, `ready-locally <cr> [gaps: …]`,
   `blocked <cr> <reason>`, `question <cr> <text>`, `refused <cr> <text>` (record it at once, `$CHANTIER

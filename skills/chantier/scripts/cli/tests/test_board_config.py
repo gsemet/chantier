@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from conftest import Surface
 
-from chantier.board import autosync_tool, config_api, routes
+from chantier.board import config_api, routes
 from chantier.board import key as keys
 from chantier.board.context import Context, Request
 from chantier.board.projects import Projects
@@ -35,12 +35,7 @@ RESETS = (
 
 def _board(repo_: Repo, monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[int, Any]]:
     """The board's routes called in-process on one project, with the key and the headers a page
-    sends; its autosync tool must never be reached."""
-
-    def forbidden(*_a: object, **_k: object) -> None:
-        pytest.fail("the board commits nothing and joins no autosync")
-
-    monkeypatch.setattr(autosync_tool, "spawn_join", forbidden)
+    sends."""
     projects = Projects(repo_, repo_.surface, [])
     secret = keys.load_or_create(repo_)
     ctx = Context(projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None)

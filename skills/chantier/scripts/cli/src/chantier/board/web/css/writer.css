@@ -1,4 +1,4 @@
-/* The surface's autosync: the pill at the sidebar's foot, the dot on the phone, and their panel. */
+/* The surface's writer: the pill at the sidebar's foot, the dot on the phone, and their panel. */
 .aswrap {
   position: relative;
 }
@@ -57,20 +57,20 @@
   border-radius: var(--radius-round);
 }
 
-.adot.active {
-  background: var(--autosync-active);
+.adot.synced {
+  background: var(--writer-synced);
 }
 
-.adot.stopped {
-  background: var(--autosync-stopped);
+.adot.pending {
+  background: var(--writer-pending);
+}
+
+.adot.offline {
+  background: var(--writer-offline);
 }
 
 .adot.blocked {
-  background: var(--autosync-blocked);
-}
-
-.adot.approval {
-  background: var(--autosync-approval);
+  background: var(--writer-blocked);
 }
 
 .asyd {
@@ -129,13 +129,8 @@
 }
 
 .aw.ko {
-  background: var(--autosync-ko-fill);
-  color: var(--autosync-ko-ink);
-}
-
-.aw.wa {
-  background: var(--autosync-wa-fill);
-  color: var(--autosync-wa-ink);
+  background: var(--writer-ko-fill);
+  color: var(--writer-ko-ink);
 }
 
 .aa {

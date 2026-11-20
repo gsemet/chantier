@@ -2,8 +2,8 @@
 line per event (the name is historical: the file holds every event of the project, the forge's
 and the board's). It is local (ignored by git) and append-only; chantier never truncates it.
 `append` is its one writer path (the forge hub, `source: "hub"`; the board, `"board"`: its PRs
-page, its backlog writes and its Configuration page; an outside poller, `"poller"`, through
-`chantier journal add`; `"cli"` is room for a command); `read` its
+page, its backlog writes and its Configuration page; `"writer"`: the surface's writer, its
+`sync-*` lines; an outside poller, `"poller"`, through `chantier journal add`; `"cli"` is room for a command); `read` its
 one reader, for `chantier status` and `chantier watch`. `source` says who wrote a line, never
 what it is: every reader dispatches on the line's type. Nothing here records anything in a batch:
 a line is a signal for whom it is addressed.
@@ -12,8 +12,9 @@ A version 2 line carries, in this order, `v` (2), `seq` (1 for the first line, t
 readable `seq` plus one), `t`, `type`, `source`, `audience` (a list of `project`, `role:<name>`,
 `cr:<id>`, `session:<key>` or `user`; every writer of today writes `["project"]`), then the
 payload of its type. The type is `name@N`: the name and the published version of the payload. The
-six published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
-`checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`), each with its model, wake
+published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
+`checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`, and the writer's
+`sync-conflict@1`, `sync-blocked@1`, `sync-late@1`, `sync-resumed@1`), each with its model, wake
 rule, text, duplicate key and example. A published `name@N` never changes; a change is a new
 `name@N+1`, published beside it. Its JSON Schema is in `hub/schemas.json`, written by
 `just journal-schemas`.
@@ -24,8 +25,8 @@ version 1 line has `kind` where version 2 has `type`: `read` gives each its effe
 version 2 line of a type not in `PUBLISHED` (a newer chantier wrote it) counts for `seq`, wakes no
 one and is named with its type by `read`; one whose payload its model refuses counts for `seq`,
 wakes no one and is listed as unreadable. A line of a newer version counts for `seq` and wakes no
-one. A `board@1` or `config@1` line is never a duplicate: two identical moves, or two saves of the
-same value, are two lines.
+one. A `board@1`, `config@1` or `sync-*@1` line is never a duplicate: two identical moves, two saves
+of the same value, or two conflicts with the same shas in two episodes, are two lines.
 
 Every append runs under the project's lifecycle lock, reads the file, assigns `seq` and skips a
 line already there, whoever wrote the first. An unreadable line is skipped, never rewritten."""
@@ -46,7 +47,7 @@ from chantier.lifecycle.stages import changes_lock
 
 FILE = "forge-journal.jsonl"
 VERSION = 2
-SOURCES = ("hub", "board", "cli", "poller")
+SOURCES = ("hub", "board", "cli", "poller", "writer")
 PROJECT = "project"
 WAKING_ACTIONS = ("new", "move", "edit")
 HEADER = ("v", "seq", "t", "type", "source", "audience")
@@ -343,3 +344,24 @@ def lines(
         *cleared,
         *_slots_line(entries, batch, orders),
     ]
+
+
+# the writer's journal types, and the `writer` states in which each one's episode lasts
+_EPISODES = {
+    "sync-conflict@1": ("conflict",),
+    "sync-blocked@1": ("blocked",),
+    "sync-late@1": ("pending", "offline", "blocked", "conflict"),
+}
+
+
+def writer_lines(entries: list[dict[str, Any]], writer: dict[str, Any]) -> list[str]:
+    """The newest line of each `sync-*@1` type whose episode lasts: the `writer` entry is still
+    in a state of it, so a resolved conflict leaves no line. `sync-resumed@1` is never told."""
+    found = []
+    for kind, states in _EPISODES.items():
+        if writer.get("state") not in states:
+            continue
+        mine = [e for e in entries if _listed(e) and e.get("type") == kind]
+        if mine:
+            found.append(max(mine, key=lambda e: (e.get("t") or "", e.get("seq") or 0)))
+    return [event_text(e) for e in found]

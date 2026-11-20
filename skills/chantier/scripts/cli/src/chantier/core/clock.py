@@ -22,9 +22,23 @@ def now() -> str:
     return _current().strftime(FORMAT)
 
 
+def real_now() -> str:
+    """The wall clock's instant, whatever `--clock` pins: for the moment a process started, which
+    the OS fixes (a liveness check compares it with the process's creation time)."""
+    return datetime.now(UTC).strftime(FORMAT)
+
+
 def stamp() -> str:
     """The date in an archive's name: its order is the date's."""
     return _current().strftime("%y%m%d-%H%M")
+
+
+def local_hhmm(ts: str | None) -> str:
+    """A stamp as `HH:MM` in the machine's local time, as `status` prints times; `?` for none."""
+    try:
+        return datetime.strptime(str(ts), FORMAT).replace(tzinfo=UTC).astimezone().strftime("%H:%M")
+    except ValueError:
+        return "?"
 
 
 def age_minutes(ts: str | None) -> float | None:

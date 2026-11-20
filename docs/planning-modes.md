@@ -21,7 +21,8 @@ the same in both.
 | Foreman | the project's main checkout; it fast-forwards it after each merge | the surface's checkout; the CLI removes merged CRs' worktrees with `git -C <clone>`; it fast-forwards the clone after each merge |
 | Driver, workers | the CR's worktree of the project | the CR's worktree of the project, under `checkout.yml`'s `worktrees` |
 
-Only the project's code gets worktrees. The surface is never worked in a worktree by the Chief of
+The surface's writer runs in the surface server (`chantier board`), on one machine per surface:
+it is the only process that commits and pushes the plan. Only the project's code gets worktrees. The surface is never worked in a worktree by the Chief of
 Staff or the Foreman.
 
 ## The planning surface
@@ -30,7 +31,7 @@ A git repository of its own, with one folder per project:
 
 ```text
 <surface>/
-├── AGENTS.md                      the surface's own rules (its sync, among others)
+├── AGENTS.md                      the surface's own rules
 └── projects/<name>/
     ├── project.md                 the project: its remote, its default branch, its rules
     ├── checkout.yml               where the project's clone and worktrees are
@@ -38,11 +39,10 @@ A git repository of its own, with one folder per project:
 ```
 
 It is an isolated, multi-user workspace for a very small active team (2 to 4 people) working
-around one subject. It works like an Obsidian vault with obsidian-git: every change is pushed to
-the default branch as fast as possible, like OneDrive. Its own sync rules win; without any, the
-Chief of Staff commits and pushes after each step that changes it. Chantier does not coordinate
-several Chiefs of Staff's pushes (a later change). A surface can also name an autosync of its own
-([below](#the-surfaces-autosync)).
+around one subject. It works like an Obsidian vault with obsidian-git: the surface server's
+writer commits, rebases and pushes the plan, within 5 minutes of a change
+([below](#the-surfaces-writer)). Chantier does not coordinate several Chiefs of Staff's work
+beyond that: two machines, each with its writer, meet as two git clones.
 
 - `checkout.yml` has two keys, `repo:` and `worktrees:`, paths relative to `projects/<name>/`
   (defaults `.repo/` and `.worktrees/`). The project's clone is used for git only
@@ -72,7 +72,11 @@ project. You write the line.
 Never in the surface's git (the CLI keeps a `.gitignore` in the planning folder): the batch's own
 files (`batch.json`, `events.jsonl`, `brief.md`, the STATUS files, locks, `.batch-number`,
 `seat.json`) and the detailed logs (`work/gates/`, `*.log`). Pushed while a CR runs: its
-documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`.
+documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`, by the writer,
+within 5 minutes of a change. The writer pushes every local commit of the surface's branch, the
+ones you made by hand included; it never commits the surface's other files (`AGENTS.md`,
+`scripts/`), an ignored path, or the project's clone and worktrees. With no surface server
+running, chantier writes nothing to the surface.
 
 ## Archives, in two places
 
@@ -89,49 +93,40 @@ documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`.
 ## Grillers
 
 A Griller writes prototypes, plans and other artifacts cleanly in the CR's folder, in every mode,
-never in the host's scratchpad. In a never-merged
-worktree it joins no autosync and commits nothing: its files go to the Chief of Staff, who places
-them in the planning folder. If the surface's rules rank above the cards, they can say so: "a
-session in a worktree of the surface does not join the autosync; it sends its files to the Chief
-of Staff."
+never in the host's scratchpad. Its writes are published by the writer, as every session's. In a
+never-merged worktree it commits nothing: its files go to the Chief of Staff, who places them in
+the planning folder. If the surface's rules rank above the cards, they can say so: "a session in a
+worktree of the surface sends its files to the Chief of Staff."
 
-A Griller in the surface's checkout joins the autosync group like the other sessions.
+## The surface's writer
 
-## The surface's autosync
+One writer per surface and machine, the one that keeps the state and exposes the server (chantier's
+equivalent of Vercel Board). It runs in the surface server, as long as the server does, and:
 
-A surface names its autosync when its `AGENTS.md` (or the rules it points to) mentions
-`.agents/guidelines/autosync.guidelines.md` and `scripts/ai-autosync-git.py` exists. Chantier then
-reports it and never replaces it:
+- **commits** the plan's published files, once they have been still for 10 s (or the oldest change
+  is 2 minutes old), with your own git identity and hooks; **fetches**, **rebases** on the upstream
+  and **pushes**, never forcing. It pushes every local commit of the branch, the surface's other
+  files' commits included. Nobody pulls or pushes the surface by hand while it runs.
+- **shows its state:** `synced`, `pending`, `syncing`, `offline`, `conflict` or `blocked` (with the
+  reason), as a `writer:` line in `status` and `seat`, and as a pill on the board
+  ([`web-board.md`](web-board.md#the-surfaces-writer)). `$CHANTIER sync now` (or the board's
+  **Sync now**) asks for a cycle at once.
+- **stops with the server:** after one final cycle, up to 30 s, that commits and pushes what is
+  pending.
+- **hands a conflict to the Chief of Staff:** a rebase that conflicts is left for the Chief of
+  Staff to resolve; the writer pushes once it is done.
+- **writes nothing with no server running:** every command that writes in the surface is
+  refused, with the way to start the board.
 
-- **Preflight P13** and a line of `status` give the state: active (leader, participants, last
-  push), stopped, blocked (with the reason), or waiting for your approval of an incident. A script
-  that is missing is a warning. Chantier only reads the files under
-  `<surface git dir>/ai-autosync/`; it deletes none, a dead participant's included.
-- **The board** shows the state as a pill (a dot on a phone) with a panel. Starting the board
-  joins nothing. Its Start button runs the script's `start . --enable-only`, then joins once as
-  `join . --owner-pid <its pid> --harness generic --session-id chantier-board`, so the board's
-  process owns that participant, which leaves when the board stops. Its other buttons run
-  `stop .` and, for an incident, `approve . <id>` then
-  `start . --enable-only`, on your click only. A blocked group has no button: the Chief of
-  Staff integrates, then restarts it. The first join needs the network once (uv's cache);
-  offline, the board says `board: autosync not joined`.
-- **Who joins:** the Chief of Staff, the Foreman and a Griller in the surface's checkout join the
-  group at session start. Drivers, and a Griller in a surface worktree, never join. While the group
-  is enabled, nobody commits or pushes the surface by hand.
-- **The four states:** active (green), stopped (grey, commit by hand), blocked (red, with its
-  reason) and waiting for approval (orange, with the incident).
-- **Who fixes a block:** the Chief of Staff. When upstream moved it integrates by rebase, loses no
-  change, never force-pushes, then restarts the group; for LFS, Gitleaks or a conflict it repairs
-  what is its own, else tells you the reason and waits.
-- **The Chief of Staff** never runs `approve`, even on your word in the chat; it shows you the
-  incident and waits for your click on the board or your own terminal.
+Preflight P13 warns when the surface's `AGENTS.md` still tells the sessions to pull or push by
+hand, or an autosync of the surface's own is running.
 
 ## With no agent
 
 Start the board from the surface's root with
 `uvx --from git+https://github.com/gsemet/chantier@v<version> chantier board` (the version the
-surface's planners use); click Start for the autosync. The board serves and keeps the group joined
-until you stop it. A Chief of Staff session that starts later reuses it (`board already running
+surface's planners use). The board serves and runs the writer until you stop it; you guarantee it
+is running while you work. A Chief of Staff session that starts later reuses it (`board already running
 at`), and its leaving does not stop it. A session running another chantier version is refused
 with the board's version, PID and stop command, as today ([`web-board.md`](web-board.md), "When
 it stops"): keep the surface's pinned version on the planners' release.
@@ -139,9 +134,8 @@ it stops"): keep the surface's pinned version on the planners' release.
 ## Two sessions on one surface
 
 Several Chief of Staff sessions may work one surface on one machine (two projects, two batches).
-Each stages only its own project's folder (`git add -- projects/<name>/...`, never `-A`), then
-`git pull --rebase --autostash` and `git push`: the other session's unstaged files stay
-untouched. One board serves the surface, whatever the port. `preflight` (P14) and `status` list the
+None stages, pulls or pushes: one writer commits and pushes for all, and the other sessions write
+the working tree under the CLI's locks. One board serves the surface, whatever the port. `preflight` (P14) and `status` list the
 other batches of the surface (project, batch, state, steering, and how many Drivers each runs), so
 a session picks its slots knowing the machine's load; there is no cap and no message between
 sessions. Only the projects of the same surface are seen.

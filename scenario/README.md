@@ -287,13 +287,14 @@ does a unit that is not in `UNITS` and a test that does not exist.
   missing from the PR until it is there; `order merged` writes `delivery.md`; `rules` lists the
   project's instructions then the surface's; `close` archives the CR (unit: surface-board)
   (test: test_external_archive.py::test_an_external_surface_gets_the_planning_folder_and_the_project_stays_clean);
-- a surface that names an autosync (`scenario/fake_autosync.py` stands for the surface's script):
-  no P13 or status line without the mention, script missing, no group yet, then active (with and
-  without a live participant, a dead participant's file kept), stopped, blocked and approval,
-  each with its exact two lines; the board's join argv and the group naming the board; `GET
-  /api/autosync`, `start` refused while blocked, `stop` refused while stopped, a stale incident
-  refused, an approval that runs `approve` then `start`; an in-project board has no autosync
-  (unit: surface-board);
+- the surface's writer: a real `board --seat` on a surface with a bare origin prints its `writer:` line;
+  a `file` then `triage` reach the origin within the shortened bound (`CHANTIER_WRITER_TEST_TIMES`);
+  `seat` prints `writer: synced`; a commit pushed from a second clone is integrated; a change on both
+  sides gives `writer: conflict` and `sync-conflict@1`, and the Chief of Staff's resolution is pushed
+  with `sync-resumed@1`; `sync now` commits and pushes the configuration file a save left; with the
+  board stopped `file` is refused with "the surface's writer is not running: nothing written" and
+  nothing changes; an in-project board has `writer == {"state":"off"}`, no `autosync` key and `GET
+  /api/autosync` answers 404 (unit: surface-board);
 - two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `/api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
 - typed waits (CR-409): `wait add` records a merge, approval, pipeline and answer wait on a CR
   (ids w1..w4, the forge ones on its PR), `status` shows them on the CR's row, the hub tells the

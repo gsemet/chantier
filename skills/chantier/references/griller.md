@@ -75,16 +75,14 @@ worktree you run no `triage`: the Chief of Staff places the files and adds the C
 ## In a planning surface
 
 You run in the surface's checkout, on its default branch, and write in the planning folder
-directly, on the surface's own sync rules ([concepts](concepts.md), "Planning surface"). With an autosync
-(P13), join its group as the surface's guidelines say, with `--session-id <your own session id>`.
-Where you commit by hand in that checkout, stage only this project's folder or paths inside it
-(`git add -- projects/<name>/...`), never `git add -A`, `git add .` nor a wider folder, then
-`git pull --rebase --autostash` and `git push`: another session on the surface may have files
-unstaged there.
+directly. The surface's writer commits and pushes them ([concepts](concepts.md), "Planning
+surface"): you join nothing, commit nothing, pull nothing, push nothing. Read the `writer:` line of
+`$CHANTIER seat` at start. With `writer: not running` or `writer: stopped`, record nothing (no file, no answer, no CLI
+write), say so to the user in one line, and wait for a Chief of Staff to start the server.
 
 ## In a worktree
 
-In a surface, this means a surface worktree that is never merged: you join no autosync and commit
+In a surface, this means a surface worktree that is never merged: you commit
 nothing there; your files go to the Chief of Staff, who places them in the planning folder.
 You open no PR or MR and commit nothing. You read the CR folders of the main checkout; you write
 your files (answers, intent, specification, plan, artifacts, prototypes, experiments, evidence) in

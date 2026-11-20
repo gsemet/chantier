@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Planning modes: in-project and external</title>
-  <desc>Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote, the user's own finding: a remote session cannot start outside a worktree, so the Chief of Staff starts locally and is then put in remote; Grillers may run in worktrees that are never merged and send their files to the Chief of Staff. Outside contributors submit a CR by a pull request on the surface.</desc>
+  <desc>Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. In a planning surface, the surface server commits and pushes the plan. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote, the user's own finding: a remote session cannot start outside a worktree, so the Chief of Staff starts locally and is then put in remote; Grillers may run in worktrees that are never merged and send their files to the Chief of Staff. Outside contributors submit a CR by a pull request on the surface.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -52,12 +52,12 @@
   <rect x="966" y="182" width="176" height="48" rx="9" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/><text x="1054" y="203" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="ui-monospace, Menlo, monospace">changes/</text><text x="1054" y="220" font-size="11.5" fill="#475569" text-anchor="middle">the planning folder</text>
   <path d="M728,230 V243 H1054 V232" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#arrow)"/>
   <g font-size="12" fill="#334155" font-family="ui-monospace, Menlo, monospace">
-    <text x="650" y="264">AGENTS.md                the surface's own rules (its sync)</text>
+    <text x="650" y="264">AGENTS.md                the surface's own rules</text>
     <text x="650" y="280">projects/&lt;name&gt;/project.md    remote, archive setting</text>
     <text x="650" y="296">projects/&lt;name&gt;/checkout.yml repo: · worktrees:</text>
     <text x="650" y="312">projects/&lt;name&gt;/changes/     1-inbox … 6-trash</text>
   </g>
-  <text x="650" y="328" font-size="11">A team of 2 to 4, one subject: every change pushed to the default branch, like an Obsidian vault.</text>
+  <text x="650" y="328" font-size="11">A team of 2 to 4, one subject: the surface server pushes every change within 5 minutes.</text>
 
   <rect x="636" y="352" width="250" height="80" rx="10" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
   <text x="650" y="374" font-size="13.5" font-weight="700" fill="#0f172a">Project's clone</text>
@@ -83,10 +83,10 @@
   <text x="44" y="626" font-size="16" font-weight="700" fill="#0f172a">Who runs where, in both modes</text>
   <g font-size="13" fill="#334155">
     <text x="44" y="654"><tspan font-weight="700">On the default branch:</tspan> the Chief of Staff, the Foreman and the Griller. In-project, the project's main checkout; external, the surface's checkout.</text>
-    <text x="44" y="676"><tspan font-weight="700">In a worktree:</tspan> only the project's code: each CR's Driver and workers. A Griller in a never-merged worktree joins no autosync and commits nothing there.</text>
+    <text x="44" y="676"><tspan font-weight="700">In a worktree:</tspan> only the project's code: each CR's Driver and workers. A Griller in a never-merged worktree commits nothing there.</text>
     <text x="44" y="698"><tspan font-weight="700">Outside contributors:</tspan> submit a CR into 1-inbox or 2-backlog only by a pull request on the surface; the maintainer reviews and merges it.</text>
     <text x="44" y="720"><tspan font-weight="700">Privacy:</tspan> a public surface exposes the requests, the grills, the reports and the evidence; you choose its visibility.</text>
-    <text x="44" y="742"><tspan font-weight="700">Sync:</tspan> the surface's own rules win; without any, the Chief of Staff commits and pushes after each step that changes it.</text>
+    <text x="44" y="742"><tspan font-weight="700">Sync:</tspan> the surface server's writer pushes the plan; nobody pulls or pushes the surface by hand while it runs.</text>
     <text x="44" y="764" fill="#475569">Next to a tracker: the planning folder is the tactical, short-term plan; the tracker keeps the strategic, long-term plan.</text>
   </g>
 </svg>

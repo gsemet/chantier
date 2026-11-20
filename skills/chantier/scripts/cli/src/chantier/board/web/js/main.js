@@ -10,14 +10,14 @@ import { confirmLeave } from './edit/markdown-editor.js';
 import { openNew } from './edit/new-idea.js';
 import { nextLanguage, pick, setLanguage, t } from './model/words.js';
 import { afterPanel, bindPanel, closePanel, panelMarkup, syncPanel } from './panel/panel.js';
-import { dot, pill } from './ui/autosync.js';
-import { bindAutosync } from './ui/autosync-events.js';
 import { navigator } from './ui/batch-nav.js';
 import { bottomBar } from './ui/bottombar.js';
 import { bindScroll, crumbs, notice, stats, title } from './ui/header.js';
 import { show } from './ui/host.js';
 import { menu, trigger } from './ui/picker.js';
 import { heard, languageButton, navigation, projectSide } from './ui/sidebar.js';
+import { dot, pill } from './ui/writer.js';
+import { bindWriter } from './ui/writer-events.js';
 import { ids, overviewIds } from './views/registry.js';
 
 const RETRY_MS = 5000;
@@ -27,10 +27,10 @@ function drawFrame(state) {
   paint($('#views-label'), t('nav.views'));
   paint($('#crumbs'), crumbs(state));
   paint($('#side-nav'), navigation(state));
-  paint($('#autosync-side'), pill(state));
+  paint($('#writer-side'), pill(state));
   paint($('#sync-label'), t('nav.sync'));
-  $('#sync-label').hidden = !$('#autosync-side').firstElementChild;
-  paint($('#autosync-phone'), dot(state));
+  $('#sync-label').hidden = !$('#writer-side').firstElementChild;
+  paint($('#writer-phone'), dot(state));
   paint($('#heard'), heard(state));
   paint($('#lang'), languageButton());
   paint($('#project-phone'), [trigger(state, 'pbtn'), menu(state)]);
@@ -125,7 +125,7 @@ function listenToFrame() {
   );
   delegate(body, 'click', '[data-new]', () => openNew());
   bindPanel($('#panel'));
-  bindAutosync(body);
+  bindWriter(body);
   delegate(body, 'keydown', '[tabindex][data-go], [tabindex][data-project]', (event, el) => {
     if (event.key === 'Enter') el.click();
   });

@@ -65,7 +65,7 @@ The Chief of Staff reads `AGENTS.md` (or `CLAUDE.md`, or `.github/copilot-instru
 tells you how it will build, test, ship, merge and release here, and on which branch. It asks
 about what the instructions leave open (a long gate, say), with a recommended answer, and offers
 to write that answer in `AGENTS.md`. There is no other configuration: every agent reads
-`AGENTS.md`, at every session, and chantier writes only in `.agents/changes/`, and fast-forwards a clean main checkout after a merge it records. Startup effects are explicit: official CLI preparation is bounded to the selected source/version, the board asks before launch, and autosync is an independent opt-in.
+`AGENTS.md`, at every session, and chantier writes only in `.agents/changes/`, and fast-forwards a clean main checkout after a merge it records. Startup effects are explicit: official CLI preparation is bounded to the selected source/version, the board asks before launch, and the surface server publishes the plan (it commits and pushes it).
 
 ## Turn ideas into ready work
 
@@ -209,5 +209,7 @@ Drivers and workers, the costliest CRs).
 chantier stops instead of improvising: in a linked worktree, unattended, without project
 instructions, with a missing agent, a refused tool or an unknown model. Foreman mode also needs
 the Desktop app or a Copilot agent session; with no argument, direct mode is used where the host
-cannot start a Foreman session, and a forced `foreman` there is refused with the reason. It tells you which condition failed and what you can do; it
+cannot start a Foreman session, and a forced `foreman` there is refused with the reason. On a planning surface, a command that
+writes the plan is refused while no surface server runs, and nothing is written: it says to start
+the surface server. It tells you which condition failed and what you can do; it
 never offers a workaround.

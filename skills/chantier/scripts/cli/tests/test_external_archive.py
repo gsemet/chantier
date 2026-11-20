@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
-from conftest import Chantier, sh
+from conftest import Chantier, live_writer, sh
 from test_cli_runs import FROM_AGENTS_MD, _prepared
 
 from chantier import plugin_files
@@ -38,6 +38,7 @@ def _surface(repo: Path, tmp_path: Path, project_md: str | None) -> tuple[Path, 
     if project_md is not None:
         (project / "project.md").write_text(project_md, encoding="utf-8")
     sh("git", "init", "--quiet", "-b", "main", str(surface))
+    live_writer(surface.resolve() / ".git")
     sh("git", "add", ".", cwd=surface)
     sh(
         "git",

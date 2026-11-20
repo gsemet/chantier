@@ -16,7 +16,7 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the board's PRs page and the forge hub (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the board's PRs page, the forge hub and the surface server's writer, whose fetch and push need it (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown (with the `.lease-hold.*.run` records of
   `lease hold`, never published), and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
@@ -24,7 +24,10 @@
   after a merge it records, the surface server keeps its key, and while it serves its PID, address
   and version, and the forge hub's PID, version and last reads, in the repository's git folder
   (`chantier/server.json`, with its write lock `chantier/server.json.lock`; the hub's lock is
-  `chantier/hub.lock`),
+  `chantier/hub.lock`), and the surface server's writer commits, rebases and pushes the planning
+  surface's published paths (`projects/` and the root `chantier.yaml`, never the surface's other
+  files), rebases and pushes with them the local commits of the surface's branch made by hand, and
+  keeps `chantier/writer.lock` and `chantier/writer.wake` in the git folder,
   each watcher's lock too (`chantier/watch-<project>/<session>.lock`: one per project and session
   that ran a watcher, held while it runs, empty, never removed),
   and removes the merged CRs' worktrees and
@@ -60,7 +63,8 @@
   the batch in `4-batch/` merged that the record does not hold, it appends one line to
   `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
-  board itself records nothing and messages no agent; a third, from its Configuration page: a save
+  board itself records nothing and messages no agent, but its writer's commits of the planning
+  surface's published paths (below) and its journal lines (`sync-*@1`); a third, from its Configuration page: a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
   watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one
@@ -80,10 +84,10 @@
   a PR ready to merge and per wait of a running batch's CR that the forge shows met
   (`wait-cleared@1`), and nothing else; each session's watcher, run for the Chief of Staff's
   whole session, with or without a batch, reads only its project's journal (the hub's lines, the
-  board's and an outside poller's `issue@1` lines), never the forge, and ends 20 s after the last new event for it that wakes, and no
+  board's, the writer's and an outside poller's `issue@1` lines), never the forge, and ends 20 s after the last new event for it that wakes, and no
   sooner than `events.wake_every` after its start, which wakes its session, or when the project's
   seat is another session's; the
-  hub records nothing in a batch, runs no git and messages no agent (the server runs no git either, but its autosync join); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
+  hub records nothing in a batch, runs no git and messages no agent (the server runs no git but its writer's); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
   started by chantier) writes into a project's journal only through `journal add`, only `issue@1`
   lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
@@ -104,10 +108,17 @@
   waits (answer, approval, pipeline, merge), recorded, cleared and shown, the hub signalling a wait
   met; built on the user's answer of 2026-11-20 ("tout", planning-server-Q9), with no measured
   cost.
-- The CLI has named git exceptions: the surface server, which may serve without joining the
-  planning surface's autosync group (board and autosync permissions are independent; autosync
-  participation is explicit opt-in and does not stop other participants; the board commits
-  nothing itself), and the batch's end cleanup (above). The rest of the CLI keeps no git write.
+  Sixth, the surface server's writer, a thread of the same process, one per planning surface and
+  machine, held by an OS lock in the git folder (`chantier/writer.lock`): while the server runs, it
+  commits, rebases and pushes the planning surface's published paths and the local commits of the
+  surface's branch, within 5 minutes of a change, with the user's own git identity and hooks, and
+  needs the network for its fetch and push; its git commands are the next bullet's, it records its
+  state in the `writer` entry of `chantier/server.json` and appends `sync-*@1` lines to the
+  journal, and it never edits a batch or messages an agent.
+- The CLI has named git exceptions: the surface server's writer, which runs `git add`,
+  `commit`, `fetch`, `merge --ff-only --autostash`, `rebase --autostash`, `rebase --abort` and
+  `push` (never forced, never `--no-verify`), in the planning surface's checkout only, while the
+  server runs, and the batch's end cleanup (above). The rest of the CLI keeps no git write.
 - Never edit a version by hand: `just version X.Y.Z` or `just bump-version [minor|major]`.
 - The CLI is one Python package declared in the root `pyproject.toml`, its dependencies listed
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a
