@@ -111,3 +111,19 @@ def test_a_board_event_its_model_refuses_leaves_the_write_and_names_the_skipped_
     assert answer["error"].startswith("skipped: journal payload board@1:")
     assert (demo.changes / "1-inbox" / SLUG).exists() and answer["journal"]
     assert _lines(demo) == []
+
+
+def test_the_new_route_files_a_title_above_the_text_and_refuses_a_paragraph_without_one(
+    surface: Any,
+) -> None:
+    call = _write_call(surface)
+    demo = Repo.find(project="demo", readonly=True)
+    paragraph = "a long request " * 10
+    code, answer = call("POST", "backlog/new", {"text": paragraph})
+    assert code != HTTPStatus.OK and "has no short title" in answer["error"], answer
+    assert not (demo.changes / "1-inbox").exists() or not list((demo.changes / "1-inbox").iterdir())
+    code, answer = call("POST", "backlog/new", {"text": paragraph, "title": "A short title"})
+    assert code == HTTPStatus.OK, answer
+    filed = demo.changes / "1-inbox" / "a-short-title" / "intake" / "request.md"
+    assert filed.read_bytes() == b"# A short title\n\n" + paragraph.encode()
+    assert call("POST", "backlog/new", {"text": "x", "title": 7})[0] != HTTPStatus.OK

@@ -12,7 +12,6 @@ from chantier.core.records import (
     LABEL_PATTERN,
     SUMMARY_MAX,
     SUMMARY_SCHEMA,
-    TITLE_MAX,
     CrSummary,
 )
 from chantier.lifecycle.layout_check import Finding
@@ -36,7 +35,6 @@ def _gaps(summary: CrSummary, cr: str) -> list[tuple[str, str]]:
     """The (message, closing hint) of each limit the summary is outside of."""
     set_hint = f"summary set {cr} --title/--summary …"
     found = [
-        (_limit(summary.title, "title", TITLE_MAX), set_hint),
         (_limit(summary.summary, "summary", SUMMARY_MAX), set_hint),
         (_limit(summary.group, "group", GROUP_MAX, True), f"summary group {cr} --name/--clear"),
     ]

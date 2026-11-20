@@ -17,7 +17,7 @@ const spend = (r) =>
   r.budget_usd == null ? usd(r.cost_usd) : `${usd(r.cost_usd)} / ${usd(r.budget_usd)}`;
 
 const crRow = (c) =>
-  html`<tr><td><b>${c.cr}</b></td><td class="hide-phone">${title(c.title)}</td><td>${c.result ?? DASH}</td><td class="num">${c.rounds ?? DASH}</td><td class="num">${usd(c.cost_usd)}</td></tr>`;
+  html`<tr><td><b>${c.cr}</b></td><td class="hide-phone"><span class="ct" title="${title(c.title)}">${title(c.title)}</span></td><td>${c.result ?? DASH}</td><td class="num">${c.rounds ?? DASH}</td><td class="num">${usd(c.cost_usd)}</td></tr>`;
 
 const crTable = (r) => {
   const cells = [

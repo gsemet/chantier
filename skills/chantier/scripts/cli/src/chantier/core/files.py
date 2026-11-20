@@ -35,10 +35,31 @@ def markdown_title(text: str) -> str:
     return next((ln.lstrip("# ").strip() for ln in lines if ln.strip()), "")
 
 
+def heading_of(text: str) -> str | None:
+    """A document's first `#` heading after a leading front matter, or None when it has none."""
+    lines = FRONTMATTER.sub("", text.replace("\r\n", "\n"), count=1).split("\n")
+    return next((m[1].strip() for m in map(HEADING_LINE.match, lines) if m), None)
+
+
 def subject(title: str) -> str:
     """A title without its byte-order mark, its `#` and its "Change Specification:" lead,
     in any case."""
     return LEAD.sub("", title or "").strip()
+
+
+TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
+
+
+def title_source(folder: Path) -> tuple[str, str | None]:
+    """A CR folder's own title and the file it is read from (None when it is the folder's name):
+    the first heading of its specification, intent or request, else that file's first line."""
+    for name in TITLE_FILES:
+        path = folder / name
+        if path.is_file():
+            title = subject(markdown_title(read_text(path, "replace")))
+            if title:
+                return title, name
+    return folder.name, None
 
 
 def try_lock(f: IO[str]) -> bool:

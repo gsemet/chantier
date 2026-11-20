@@ -36,7 +36,8 @@ const stamp = ({ kind, text }) => html`<span class="card-stamp card-stamp-${kind
 
 function heading({ title, tag }) {
   if (!given(title)) return '';
-  return html`${raw(`<${tag} class="card-title">`)}${title}${raw(`</${tag}>`)}`;
+  const open = raw(`<${tag} class="card-title" title="`);
+  return html`${open}${textOf(title)}${raw('">')}${title}${raw(`</${tag}>`)}`;
 }
 
 export function card(parts = {}) {

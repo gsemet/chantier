@@ -20,6 +20,10 @@ def register(sub: Subparsers) -> None:
         sub, "file", "chantier.commands.intake:file_cr", "file a request in the inbox", NO_BATCH
     )
     s.add_argument("item", help="request text, or @path to the raw request")
+    s.add_argument(
+        "--title",
+        help="a short title (72 characters at most), filed as the `# ` heading, the text below it",
+    )
     s.add_argument("--slug", help="folder name when the inferred slug is already used")
 
     s = add_command(

@@ -10,7 +10,8 @@ your host's reference with this card: [Claude Code](hosts/claude-code.md) or
 ## What you do
 
 As [chief-of-staff](chief-of-staff.md), "Backlog and grill", says (it is not copied here):
-`$CHANTIER file`, `triage`, write `01-intent.md` (with its `issue:` line, if the CR comes from a
+`$CHANTIER file` (a CR is filed with a short title, at most 72 characters, the description below
+it; `file` refuses a request without one unless `--title` is given), `triage`, write `01-intent.md` (with its `issue:` line, if the CR comes from a
 tracker issue), record every answer in `02-answers.md` at once, the restatement before "grilled
 enough?", the shape of a series of questions to the user ("Asking the user: a series": reference,
 text first, options), `depends.json` when a CR needs another's result, and on the user's word the

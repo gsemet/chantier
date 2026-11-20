@@ -82,6 +82,13 @@
   vertical-align: -2px;
 }
 
+/* the PR's title: one line, cut with an ellipsis; the full text is its title attribute */
+.prview .pvrow .nt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prview .pvrow .facts {
   display: flex;
   flex-wrap: wrap;

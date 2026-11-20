@@ -10,7 +10,7 @@ import { stateTag } from '../ui/parts.js';
 // The row is a link to the PR or MR (a box when it has no web address); the CR's number inside it
 // opens the CR's folder and leaves the link alone.
 function prRow(c) {
-  const inner = html`${stateTag(c)}<b ${opener(crKey(c), 'pr-')} title="${t('pr.folder')}">${c.cr}</b><span class="ell">${title(c.title)}</span><span class="r">${prNumber(c.pr)}</span>`;
+  const inner = html`${stateTag(c)}<b ${opener(crKey(c), 'pr-')} title="${t('pr.folder')}">${c.cr}</b><span class="ell" title="${title(c.title)}">${title(c.title)}</span><span class="r">${prNumber(c.pr)}</span>`;
   const url = safeUrl(c.pr);
   if (!url) return html`<div class="x">${inner}</div>`;
   const words = isMergeRequest(url) ? t('mr.open') : t('pr.open');

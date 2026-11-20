@@ -1,5 +1,6 @@
-// "New": file an idea in the inbox. A native dialog with a text area; the title and the slug come
-// from the text, as the CLI's `file` makes them. When the CR folder already exists the dialog stays
+// "New": file an idea in the inbox. A native dialog with an optional one-line Title field and a
+// text area; the title comes from the field, else from the text's heading, and the slug from the
+// title, as the CLI's `file` makes them. When the CR folder already exists the dialog stays
 // open with the CLI's message and shows a slug field to file again.
 import { BoardWriteError, newIdea } from '../api/backlog.js';
 import { reload } from '../core/refresh.js';
@@ -13,6 +14,7 @@ import { written } from '../ui/toast.js';
 const TAKEN = 'CR folder already exists';
 
 const fields = () => [
+  { name: 'title', label: t('new.heading'), hint: t('new.heading_hint') },
   { name: 'text', kind: 'area', rows: 6, label: t('new.idea') },
   { name: 'slug', label: t('new.slug'), hint: t('new.slug_hint'), hidden: true },
 ];
@@ -21,7 +23,12 @@ const fields = () => [
 async function file(project, values) {
   if (!values.text.trim()) return { error: t('new.empty') };
   try {
-    const answer = await newIdea(project, values.text, values.slug.trim() || null);
+    const answer = await newIdea(
+      project,
+      values.text,
+      values.slug.trim() || null,
+      values.title.trim() || null,
+    );
     written(answer.journal.map((e) => e.text).join('; '));
     return null;
   } catch (error) {

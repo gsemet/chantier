@@ -34,6 +34,8 @@ LINKS = """# Links
 """
 ARCHIVE_LINES = 3
 ELEVEN = 11
+LONG = "t" * 73
+WRITE = 'write a short "# Title" line (at most 72 characters) at its top, the text below it'
 BAD_LABEL = json.dumps({"title": "T", "summary": "S", "labels": ["Bad"]})
 
 
@@ -104,6 +106,19 @@ ERRORS = {
         {**INTENT, "1-inbox/a/work": "x"},
         "error 1-inbox/a/work: a file where chantier reads a folder",
     ),
+    "long summary title": (
+        {**INTENT, "1-inbox/a/summary.json": summary(title=LONG)},
+        "error 1-inbox/a/summary.json: title is 73 characters: the limit is 72 → "
+        'summary set 1-inbox/a --title "<at most 72 characters>"',
+    ),
+    "long heading": (
+        {"1-inbox/a/intake/request.md": f"# {LONG}\n\ntext\n"},
+        f"error 1-inbox/a/intake/request.md: title is 73 characters: the limit is 72 → {WRITE}",
+    ),
+    "no heading": (
+        {"1-inbox/a/intake/request.md": "one paragraph\nof words\n"},
+        f'error 1-inbox/a/intake/request.md: no "# " heading → {WRITE}',
+    ),
     "folder for file": (
         {**INTENT, "1-inbox/a/delivery.md/": ""},
         "error 1-inbox/a/delivery.md: a folder where chantier reads a file",
@@ -125,11 +140,6 @@ def test_what_chantier_misreads_is_an_error_and_exits_3(
 
 
 GAPS = {
-    "title": (
-        {**INTENT, "1-inbox/a/summary.json": summary(title="t" * 121)},
-        "gap 1-inbox/a/summary.json: title is 121 characters: the limit is 120 → "
-        "summary set 1-inbox/a --title/--summary …",
-    ),
     "label": (
         {**INTENT, "1-inbox/a/summary.json": BAD_LABEL},
         "gap 1-inbox/a/summary.json: label 'Bad': a label is lowercase",
@@ -170,6 +180,40 @@ def test_a_gap_is_shown_and_passes(name: str, repo: Path, chantier: Chantier) ->
         assert len([x for x in lines if "link to" in x]) == 1, lines
 
 
+TITLES = {
+    "summary": ("summary.json", summary(title=LONG), "title is 73 characters: the limit is 72"),
+    "heading": ("intake/request.md", f"# {LONG}\n", "title is 73 characters: the limit is 72"),
+    "none": ("intake/request.md", "a paragraph\n", 'no "# " heading'),
+}
+
+
+@pytest.mark.parametrize(
+    "place",
+    ["4-batch/1-pending", "4-batch/2-actives", "4-batch/3-done", "5-archives", "6-trash"],
+)
+@pytest.mark.parametrize("kind", list(TITLES))
+def test_a_long_title_or_a_missing_heading_is_a_gap_after_the_backlog(
+    place: str, kind: str, repo: Path, chantier: Chantier
+) -> None:
+    name, text, message = TITLES[kind]
+    build(repo / ".agents" / "changes", {f"{place}/a/{name}": text})
+    code, lines, _ = chantier("validate")
+    assert code == 0, lines
+    found = [line for line in lines if line.startswith(f"gap {place}/a/{name}: {message}")]
+    assert found, lines
+    assert place != "6-trash" or "→" not in found[0], found  # `summary set` refuses in the trash
+
+
+def test_a_title_of_the_limit_passes(repo: Path, chantier: Chantier) -> None:
+    build(
+        repo / ".agents" / "changes",
+        {"1-inbox/a/intake/request.md": f"# {'t' * 72}\n\ntext\n"},
+    )
+    code, lines, _ = chantier("validate")
+    assert code == 0, lines
+    assert not any("title is" in line or "heading" in line for line in lines), lines
+
+
 @pytest.mark.parametrize("late", [False, True])
 def test_a_missing_or_late_summary_reads_as_summary_lint_says(
     late: bool, repo: Path, chantier: Chantier
@@ -198,13 +242,13 @@ def test_the_archives_and_the_trash_keep_their_format_only(repo: Path, chantier:
     old = {"01-intent.md": LINKS, "junk.txt": "x"}
     build(base, {f"5-archives/x/{n}": t for n, t in old.items()})
     build(base, {"5-archives/x/summary.json": "{", "5-archives/batches/batch-01.json": "{}"})
-    build(base, {"6-trash/y/summary.json": summary(title="t" * 121)})
+    build(base, {"6-trash/y/summary.json": summary(title=LONG)})
     code, lines, _ = chantier("validate")
     assert code == EXIT_CONFLICT and len(lines) == ARCHIVE_LINES, lines
     assert lines[0] == "1 error(s), 1 gap(s) in 2 CRs"
     assert lines[1].startswith("error 5-archives/x/summary.json: unreadable (")
     assert lines[1].endswith("→ repair or remove it, then summary set 5-archives/x …")
-    assert lines[2] == "gap 6-trash/y/summary.json: title is 121 characters: the limit is 120"
+    assert lines[2] == "gap 6-trash/y/summary.json: title is 73 characters: the limit is 72"
 
 
 def test_validate_cannot_run_on_a_surface_without_a_project(

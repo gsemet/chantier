@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.clock import age_minutes, now
-from chantier.core.files import markdown_title, read_text, subject
+from chantier.core.files import read_text, subject, title_source
 from chantier.core.records import (
     LIVE,
     SUMMARY_FILE,
@@ -42,7 +42,6 @@ SCHEMA = 3
 PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
 IN_PROGRESS = ("draft:",)  # shown in `Documents`, not in `Decisions`
 SPEC_LINK = re.compile(r"[\w./-]+\.md\b")
-TITLE_FILES = ("03-change-spec.md", "01-intent.md", "intake/request.md")
 
 
 def _now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]:
@@ -214,14 +213,10 @@ def batch_view(repo: Repo, d: BatchRecord, folder: Path) -> dict[str, Any]:
     }
 
 
-def _title(folder: Path) -> str:
-    for name in TITLE_FILES:
-        path = folder / name
-        if path.is_file():
-            title = subject(markdown_title(read_text(path, "replace")))
-            if title:
-                return title
-    return folder.name
+def folder_title(folder: Path) -> str:
+    """The title of a CR folder, as the board shows it when no summary or record gives one: the
+    first heading of its specification, intent or request, else its first line, else its name."""
+    return title_source(folder)[0]
 
 
 def shown_title(recorded: str, folder: Path | None) -> str:
@@ -229,7 +224,7 @@ def shown_title(recorded: str, folder: Path | None) -> str:
     older `open`): then the folder's own title, when the folder is known."""
     if recorded and recorded.strip() != "---":
         return subject(recorded)
-    return _title(folder) if folder is not None and folder.is_dir() else recorded
+    return folder_title(folder) if folder is not None and folder.is_dir() else recorded
 
 
 def spec_state(folder: Path) -> str | None:
@@ -252,7 +247,7 @@ def _backlog(paths: dict[str, Path], start: Path) -> list[dict[str, Any]]:
                     {
                         "priority": priority,
                         "item": item.name,
-                        "title": _title(item),
+                        "title": folder_title(item),
                         "path": _link(item, start),
                         "spec": spec_state(item),
                         "files": sum(

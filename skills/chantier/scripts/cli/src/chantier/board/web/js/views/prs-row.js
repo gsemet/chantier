@@ -91,7 +91,7 @@ export function prRow(row, now, readTime, sort) {
   const number = html`<b>${prNumber(row.pr)}</b>`;
   const top = html`<div class="top">${number}<span class="tag cr">${row.cr}</span>${kind(row)}${tag('st', html`${stateIcon(TAGS[row.state] ?? 'queued')}${t(`pv.state.${row.state}`)}`)}${folder(row)}</div>`;
   const facts = html`<div class="facts">${conflict(row)}${checks(row)}${into(row)}${readyNow(row)}${when(row, now, sort)}${readAt(readTime, now)}</div>`;
-  const inner = html`${top}<div class="nt">${title(row.title)}</div>${facts}${disagreement(row)}`;
+  const inner = html`${top}<div class="nt" title="${title(row.title)}">${title(row.title)}</div>${facts}${disagreement(row)}`;
   const names = 'pvrow';
   const url = safeUrl(row.pr);
   if (!url) return html`<div class="${names}" data-key="pv-${row.cr}">${inner}</div>`;

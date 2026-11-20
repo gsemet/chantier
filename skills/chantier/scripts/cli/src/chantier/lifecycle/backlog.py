@@ -11,7 +11,8 @@ from pathlib import Path
 
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import inside, markdown_title, read_json, retry
+from chantier.core.files import heading_of, inside, markdown_title, read_json, retry
+from chantier.core.records import TITLE_MAX
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
 from chantier.lifecycle.stages import (
@@ -21,6 +22,7 @@ from chantier.lifecycle.stages import (
     stage_layout,
 )
 from chantier.status.write import write_dashboard
+from chantier.summaries.edit import one_line
 
 NEXT_BATCH = "next-batch.json"
 TEXT_LIMIT = 1_000_000  # bytes of a Markdown file the board edits, as the board's file view cuts
@@ -43,13 +45,44 @@ def idea_slug(text: str, slug: str | None = None) -> str:
     return slug
 
 
+def titled_request(
+    text: str, raw: bytes, title: str | None = None, slug: str | None = None
+) -> tuple[str, bytes]:
+    """The slug and the bytes a request is filed as: with a `title`, `# <title>`, a blank line, then
+    the text as received; with a heading of at most `TITLE_MAX` characters, as received; a single
+    short line becomes its own heading; anything else is refused, nothing written."""
+    if not text.strip():
+        raise ChantierError("the request is empty", EXIT_USAGE)
+    if title is not None:
+        title = one_line(title, "title", TITLE_MAX)
+        return idea_slug(title, slug), f"# {title}\n\n".encode() + raw
+    heading = heading_of(text)
+    line = text.strip()
+    if heading is None and "\n" not in line and len(line) <= TITLE_MAX:
+        return idea_slug(line, slug), f"# {line}\n".encode()
+    size = len(heading) if heading is not None else len(line.split("\n")[0].strip())
+    if heading is None or size > TITLE_MAX:
+        raise ChantierError(
+            f"the request has no short title (its title is {size} characters; the limit is "
+            f'{TITLE_MAX}): give --title "<at most {TITLE_MAX} characters>", the text goes below '
+            'it as its description, or start the text with a short "# Title" line',
+            EXIT_USAGE,
+        )
+    return idea_slug(text, slug), raw
+
+
 def file_idea(
-    repo: Repo, text: str, slug: str | None = None, raw: bytes | None = None
+    repo: Repo,
+    text: str,
+    slug: str | None = None,
+    raw: bytes | None = None,
+    title: str | None = None,
 ) -> list[str]:
-    """File a request in the inbox, kept as received (`raw`, else `text` in UTF-8)."""
-    slug = idea_slug(text, slug)
+    """File a request in the inbox, kept as received (`raw`, else `text` in UTF-8) under a short
+    title: its heading, its single line or `title` (see `titled_request`)."""
+    slug, body = titled_request(text, text.encode("utf-8") if raw is None else raw, title, slug)
     with changes_lock(repo):
-        folder = new_request(repo, slug, text.encode("utf-8") if raw is None else raw)
+        folder = new_request(repo, slug, body)
         write_dashboard(repo, stage_layout(repo))
     return [f"filed {shown(repo, folder)}; write the intent and grill the CR here"]
 

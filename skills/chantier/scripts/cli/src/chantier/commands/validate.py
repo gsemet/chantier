@@ -7,11 +7,12 @@ import argparse
 
 from chantier.core.errors import EXIT_CONFLICT, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.lifecycle.layout_check import Finding, placement, shape, stage_crs
+from chantier.lifecycle.layout_check import Finding, Severity, placement, shape, stage_crs
 from chantier.lifecycle.links import broken_links
-from chantier.lifecycle.stages import stage_layout
+from chantier.lifecycle.stages import PRIORITIES, stage_layout
 from chantier.summaries.format import summary_findings
 from chantier.summaries.gaps import gap_line, gap_of
+from chantier.summaries.title import title_findings
 
 
 def _planning_folder() -> Repo:
@@ -29,13 +30,21 @@ def _planning_folder() -> Repo:
 def findings(repo: Repo) -> tuple[list[Finding], int]:
     """Every finding, and the number of CR folders found in every stage."""
     live, closed = stage_crs(repo)
-    trash = stage_layout(repo)["trash"]
+    paths = stage_layout(repo)
+    trash = paths["trash"]
     found = [*placement(repo), *shape(repo), *broken_links(repo)]
+    unbatched = {paths["inbox"], paths["ready"], *(paths["backlog"] / p for p in PRIORITIES)}
     for cr in [*live, *closed]:
         found += summary_findings(repo.rel(cr), cr, cr.parent == trash)
+        # a CR not yet in a batch must have a short title; later ones are history
+        severity: Severity = "error" if cr.parent in unbatched else "gap"
+        for f in title_findings(repo, cr, severity):
+            # `summary set` and the files' edits are refused in `6-trash`: no closing hint there
+            text = f.text.partition(" → ")[0] if cr.parent == trash else f.text
+            found.append(Finding(f.severity, f.path, text))
     for cr in live:
         gap = gap_of(cr)  # None for a folder with no covered file
-        if gap and gap.kind != "unreadable":
+        if gap and gap.kind not in ("unreadable", "no heading", "long title"):
             path, _, text = gap_line(repo, gap).partition(": ")
             found.append(Finding("gap", path, text))
     return found, len(live) + len(closed)

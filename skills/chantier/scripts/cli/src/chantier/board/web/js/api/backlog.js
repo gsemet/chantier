@@ -20,9 +20,10 @@ async function write(method, project, path, body) {
 
 const post = (project, path, body) => write('POST', project, path, body);
 
-// File an idea in the inbox; `slug` only when the title's slug is taken.
-export const newIdea = (project, text, slug = null) =>
-  post(project, 'backlog/new', slug ? { text, slug } : { text });
+// File an idea in the inbox; `title` is the optional short title written above the text, `slug`
+// only when the title's slug is taken.
+export const newIdea = (project, text, slug = null, title = null) =>
+  post(project, 'backlog/new', { text, ...(slug ? { slug } : {}), ...(title ? { title } : {}) });
 
 // Move items, or a whole group, to `inbox`, `P1`..`P4` or `3-ready`.
 export const moveItems = (project, items, to) => post(project, 'backlog/move', { items, to });
