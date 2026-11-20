@@ -1240,6 +1240,17 @@ inside the procedure and the grant, and ask for anything beyond them.
     approval names, `handback blocked approval: <that step>[; <each later held step with no
     approval>]`; name the steps already run in a `note`. A later held step that is already
     approved is not asked again.
+  - The main-checkout step (a step of the procedure that runs in the main checkout; for this
+    project `CONTRIBUTING.md` "Release" step 4, `just tag`) is never yours: never run it, neither
+    in the main checkout nor in your worktree. When the procedure reaches it, the approval rule
+    above applies first (a held step with no approval gets `handback blocked approval: <step>`).
+    Once it is approved, name in a `note` the steps already run, then `handback blocked waits: the
+    steering session runs <the step> in the main checkout`, quoting the step as the procedure
+    writes it (for chantier, `just tag`). A take note that starts `tag done:` says the steering
+    session ran it: go on from the procedure's next step and never run it again; the steps
+    already run include it. Check its result read-only, where you can (for chantier, `git -C
+    <worktree> ls-remote --tags origin v<X.Y.Z>`); with the tag missing, `handback blocked
+    question:` naming the missing tag.
   - The publication step (for this project, `CONTRIBUTING.md`
     "Release" step 5, `gh release create … --verify-tag --notes-file …`) is yours once `release go`
     answers `go`, when the host lets it through (its rule is offered only under a release grant;

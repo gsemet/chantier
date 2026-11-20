@@ -108,11 +108,83 @@ def check_tag(version: str) -> int:
     return 0
 
 
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def _first(text: str) -> str:
+    lines = text.strip().splitlines()
+    return lines[0] if lines else "no message"
+
+
+def ff_main(root: Path = ROOT) -> int:
+    branch = _git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
+    if branch.returncode != 0:
+        print(
+            "just tag: detached HEAD, not main: run just tag from the main checkout, on main",
+            file=sys.stderr,
+        )
+        return 1
+    if branch.stdout.strip() != "main":
+        print(
+            f"just tag: the checkout is on {branch.stdout.strip()}, not main: "
+            "run just tag from the main checkout, on main",
+            file=sys.stderr,
+        )
+        return 1
+    status = _git(root, "status", "--porcelain", "--untracked-files=no")
+    if status.stdout.strip():
+        paths = [line[3:] for line in status.stdout.splitlines()[:3]]
+        print(
+            f"just tag: the main checkout has tracked changes ({', '.join(paths)}): "
+            "commit or set them aside yourself, then run just tag again",
+            file=sys.stderr,
+        )
+        return 1
+    fetch = _git(root, "fetch", "origin", "main")
+    if fetch.returncode != 0:
+        print(f"just tag: fetch failed: {_first(fetch.stderr)}", file=sys.stderr)
+        return 1
+    before = _git(root, "rev-parse", "HEAD").stdout.strip()
+    merge = _git(root, "merge", "--ff-only", "--no-overwrite-ignore", "origin/main")
+    if merge.returncode != 0:
+        reason = _first(merge.stderr or merge.stdout)
+        print(
+            f"just tag: main cannot fast-forward to origin/main ({reason}): nothing was "
+            "changed; settle main by hand, then run just tag again",
+            file=sys.stderr,
+        )
+        return 1
+    after = _git(root, "rev-parse", "HEAD").stdout.strip()
+    short = after[:7]
+    line = (
+        f"main checkout: already at {short}"
+        if before == after
+        else f"main checkout: fast-forwarded to {short}"
+    )
+    if _git(root, "diff", "--quiet", before, "HEAD", "--", "uv.lock").returncode == 1:
+        line += "; uv.lock changed: sync pending"
+    print(line)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("show", help="print the current version")
     sub.add_parser("check-tag", help="succeed only if origin/main's head is `release: v<version>`")
+    sub.add_parser(
+        "ff-main",
+        help="fast-forward the main checkout to origin/main; refuse when not on main, "
+        "with tracked changes, or when it is not a fast-forward",
+    )
     s = sub.add_parser("set", help="set an exact version")
     s.add_argument("version")
     b = sub.add_parser("bump", help="bump one part of the version")

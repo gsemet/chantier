@@ -75,9 +75,9 @@ release part="patch": (bump-version part) check
     git add docs/release-notes
     git commit -am "release: v$(uv run --script scripts/version.py show)"
 
-# After the release PR is merged: tag the version on origin/main and push the tag
+# After the release PR is merged, from the main checkout: fast-forward main, tag the version on origin/main and push the tag
 tag:
-    git fetch origin main
+    uv run --script scripts/version.py ff-main
     uv run --script scripts/version.py check-tag
     git tag "v$(uv run --script scripts/version.py show)" origin/main
     git push origin "v$(uv run --script scripts/version.py show)"
