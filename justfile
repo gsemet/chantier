@@ -44,6 +44,10 @@ copilot-models *args:
 journal-schemas:
     {{run-cli}} scripts/journal_schemas.py
 
+# Write board/api/protocol.json from the protocol's models (by hand, not in check)
+protocol-schema:
+    {{run-cli}} scripts/protocol_schema.py
+
 # The mod's checks: `claude plugin validate .` then `claude plugin test .` (not part of check: CI has no claude)
 mod:
     uv run --no-project python scripts/mod.py

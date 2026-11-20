@@ -6,8 +6,6 @@ import { snapshot, update } from '../core/store.js';
 import { t } from '../model/words.js';
 import { tickWriter } from './writer-tick.js';
 
-const SYNC = 'api/writer/sync';
-
 const setUi = (patch) => update({ writer: { ...snapshot().writer, ...patch } });
 
 // The words for a refusal (409): the server's line; a network failure has our own.
@@ -16,7 +14,7 @@ const failure = ({ data }) => data?.error ?? t('writer.err.network');
 async function run() {
   setUi({ busy: true, error: '' });
   try {
-    const answer = await post(SYNC, {});
+    const answer = await post('writer.sync', {});
     const shown = answer.data?.writer;
     update({
       ...(shown ? { board: { ...snapshot().board, writer: shown } } : {}),

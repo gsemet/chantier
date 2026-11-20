@@ -232,7 +232,7 @@ for you, the backlog and the merged CRs, and it lets you triage the backlog from
 
 ![The web board: a batch in stack mode, its CRs by level, the PRs to review and the drafts](docs/web-board/batch-pc.png)
 
-*The web board with a batch running, on a made-up project.* On Claude Code, a read-only pane shows
+*The web board with a batch running, on a made-up project.* It updates live, and it is one client of the server's published API ([server API](docs/server-api.md)), which a script or another app can use too. On Claude Code, a read-only pane shows
 the same record beside it; open it with `/chantier-board`, or by loading the Chief of Staff. See
 [boards](docs/boards.md) for the pane and [the web board](docs/web-board.md) for every view, with
 pictures.
@@ -314,6 +314,7 @@ Talk to the Chief of Staff in plain language:
 
 - [Boards](docs/boards.md): the CR board and the web board.
 - [The web board](docs/web-board.md): every view, with pictures taken from the real board.
+- [The server's API](docs/server-api.md): protocol 1, over a WebSocket and over HTTP, for any client.
 - [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`.
 - [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.

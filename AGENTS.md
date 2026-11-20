@@ -16,7 +16,7 @@
   `chantier.yml`) files, at the project's root and, with an external planning surface, at the
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
-  packages, except the board's PRs page, the forge hub and the surface server's writer, whose fetch and push need it (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
+  packages, except the server's read of a batch's PRs, the forge hub and the surface server's writer, whose fetch and push need it (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
   external planning surface), as plain JSON and Markdown (with the `.lease-hold.*.run` records of
   `lease hold`, never published), and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
@@ -49,22 +49,26 @@
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
   `--force`), then pauses the batch; it does nothing else in git. The surface server, `chantier board`: the web board's server, for the user on this machine and the local
-  network, behind a key in its URL: it serves the record and the planning folder's files, and it
+  network, behind a key (in its URL for the web client, in a header or a WebSocket's first message
+  for any other client), through one published API over a WebSocket, and over HTTP as the same
+  protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
+  fallback): it serves the record and the planning folder's files, and the web client's files, one
+  client among others, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
   each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
   `batch.slots`), in the project's configuration file in the planning
   surface (`projects/<name>/chantier.yaml`), only through the CLI's role-free commands and its
   own reading, checking and writing of that file; it never edits a batch and never messages an
-  agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project
-  and batch shown, while a PR of the batch shown is not done, plus one read when the page opens and
-  one at once on each change of the batch shown, it reads the forge, read-only, through the
+  agent; one named exception, a batch's PRs: while a client asks for them (one read, or a subscription),
+  at most once every 10 s per project and batch, while a PR of that batch is not done, a
+  subscription's first read included (within the same 10 s), it reads the forge, read-only, through the
   connector of its forge, with the user's own `gh` or `glab`, on its own (no agent asks it), and
-  needs the network for that, and a second, from the same page: when its forge read finds a PR of
+  needs the network for that, and a second, from the same read: when its forge read finds a PR of
   the batch in `4-batch/` merged that the record does not hold, it appends one line to
   `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent, but its writer's commits of the planning
-  surface's published paths (below) and its journal lines (`sync-*@1`); a third, from its Configuration page: a save
+  surface's published paths (below) and its journal lines (`sync-*@1`); a third, from a configuration save (the web client's Configuration page, or any client's `config.put`): a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
   watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one

@@ -1,6 +1,6 @@
-"""The board's PRs page: its route (`GET /api/projects/<id>/prs`) on a prepared batch, the
-judgement of a PR against the record and the forge read's failures. No test reaches a forge: the
-route's one seam, `connectors.read`, is replaced."""
+"""The board's PRs page: its op (`prs.get`) on a prepared batch, the judgement of a PR against
+the record and the forge read's failures. No test reaches a forge: the op's one seam,
+`connectors.read`, is replaced."""
 
 from __future__ import annotations
 
@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import call_route
 from batch_helpers import changes, open_batch, record, write_record
 from conftest import Chantier
 
 from chantier import connectors
-from chantier.board import fingerprint, journal, prs, routes
-from chantier.board.context import Context, Request
+from chantier.board import fingerprint, journal, prs
+from chantier.board.context import Context
 from chantier.board.key import KeyFile, key_path, load_or_create
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
@@ -64,9 +65,7 @@ class Board:
         return {n: {**OPEN, **self.forge.get(n, {})} for n in (int(pr_parts(x)[3]) for x in links)}
 
     def get(self, key: bool = True) -> tuple[int, dict[str, Any]]:
-        headers = {"x-chantier-board-key": self.key} if key else {}
-        reply = routes.handle(self.ctx, Request("GET", f"/api/projects/{self.id}/prs", {}, headers))
-        return reply.status, json.loads(reply.body or b"{}") if reply.status == HTTP_OK else {}
+        return call_route(self.ctx, self.key if key else None, "GET", self.id, "prs")
 
     def rows(self) -> dict[str, dict[str, Any]]:
         return {r["cr"]: r for r in self.get()[1]["rows"]}

@@ -23,6 +23,7 @@ from chantier.board.address import (
     settings,
     url,
 )
+from chantier.board.api.push import PushLoop, PushThread
 from chantier.board.app import make_server
 from chantier.board.context import Context
 from chantier.board.key import KeyFile, load_or_create
@@ -130,6 +131,9 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
     seats.arm(stop)
     hub = HubThread(HubLoop(projects.home), stop)
     hub.start()
+    ctx.push = PushLoop(ctx)
+    push = PushThread(ctx.push, stop)
+    push.start()
     writer = _start_writer(projects)
     try:
         box[0].run(sockets=[sock])
@@ -138,6 +142,7 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
     finally:
         if writer is not None:
             writer.stop()  # its final cycle, before the server's entry goes
+        push.stop()
         hub.stop()
         sock.close()
         with contextlib.suppress(OSError):  # an entry left behind names a dead process

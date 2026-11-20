@@ -125,7 +125,11 @@ def register_seat(host: str, port: int, key: str, project: str, session: str) ->
     """Add a seat to the board already running there; True when it took it."""
     try:
         _call(
-            _base(host, port), key, "POST", "/api/seats", {"project": project, "session": session}
+            _base(host, port),
+            key,
+            "POST",
+            "/api/v1/call/seats.register",
+            {"project": project, "session": session},
         )
     except (OSError, ValueError):
         return False

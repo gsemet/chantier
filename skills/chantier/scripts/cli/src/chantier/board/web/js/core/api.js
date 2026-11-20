@@ -1,95 +1,52 @@
-// Every request the page makes: the only module that calls `fetch`. The key is in the cookie:
-// nothing here sends or reads it. Every path is relative to the page, so the board's own address
-// is kept on every request.
+// Every request the page makes, each over `call` of `transport.js` (the one module that opens a
+// socket or names an address). The key is in the cookie: nothing here sends or reads it. A read
+// throws an `AskError` on a refusal; a write comes back as `{ ok, status, data }`, never thrown.
+import { AskError, call, fileUrl } from './transport.js';
 
-export class AskError extends Error {
-  constructor(status) {
-    super(`the board answered ${status}`);
-    this.status = status;
-  }
+export { AskError, fileUrl };
+
+// A read: the op's `data`, its clock, or a thrown `AskError`.
+export async function read(op, args = {}) {
+  const answer = await call(op, args);
+  if (!answer.ok) throw new AskError(answer.status);
+  return { data: answer.data, now: answer.now };
 }
 
-const base = (id) => `api/projects/${encodeURIComponent(id)}`;
+export const board = () => read('board.get');
 
-// A route of a project, relative to the page: `route('p', 'backlog/move')`.
-export const route = (id, path) => `${base(id)}/${path}`;
-const withPath = (path) => `path=${encodeURIComponent(path)}`;
-const OPTIONS = { cache: 'no-store', credentials: 'same-origin' };
-
-// GET a JSON route. With the last ETag, a 304 comes back as `{ changed: false }`.
-export async function get(path, etag = null) {
-  const headers = etag ? { 'If-None-Match': etag } : {};
-  const res = await fetch(path, { ...OPTIONS, headers });
-  const now = res.headers.get('X-Chantier-Now');
-  if (res.status === 304) return { changed: false, etag, now };
-  if (!res.ok) throw new AskError(res.status);
-  return { changed: true, etag: res.headers.get('ETag'), now, data: await res.json() };
+// The project's state; with the last `rev`, an unchanged record comes back as `{ changed: false }`.
+export async function projectState(project, rev = null) {
+  const got = await read('project.state', { project, ...(rev ? { rev } : {}) });
+  if (got.data.changed === false) return { changed: false, rev, now: got.now };
+  return { changed: true, rev: got.data.rev, now: got.now, data: got.data };
 }
 
-export const board = () => get('api/board');
-
-export const projectState = (id, etag) => get(`${base(id)}/state`, etag);
-
-export const costs = (id) => get(`${base(id)}/costs`);
+export const costs = (project) => read('costs.get', { project });
 
 // The PRs of a batch read on the forge (read-only; the server keeps a read for 10 s per batch);
 // with no `batch`, the batch in 4-batch/, else the newest closed one.
-export const prs = (id, batch) =>
-  get(`${base(id)}/prs${batch ? `?batch=${encodeURIComponent(batch)}` : ''}`);
+export const prs = (project, batch) => read('prs.get', { project, ...(batch ? { batch } : {}) });
 
-export const tree = (id, path) => get(`${base(id)}/tree?${withPath(path)}`);
+export const tree = (project, path) => read('project.tree', { project, path });
 
 // A text file: its text, whether the server cut it, and the SHA-256 of its bytes (an editor sends
 // it back; the server leaves it out of a cut file).
-export async function fileText(id, path) {
-  const res = await fetch(`${base(id)}/file?${withPath(path)}`, OPTIONS);
-  if (!res.ok) throw new AskError(res.status);
-  return {
-    text: await res.text(),
-    cut: res.headers.get('X-Chantier-Cut') === '1',
-    sha256: res.headers.get('X-Chantier-Sha256'),
-  };
+export async function fileText(project, path) {
+  const { data } = await read('project.file', { project, path });
+  return { text: data.text, cut: data.cut, sha256: data.sha256 };
 }
 
-// Where a file is served from: an image's `src`, or a download link's `href`.
-export const fileUrl = (id, path) => `${base(id)}/file?${withPath(path)}`;
-
-// POST a JSON body to a route that may refuse (409) or fail (502): the answer comes back with its
-// status and its JSON, never thrown.
-export async function post(path, body = {}) {
-  const res = await fetch(path, {
-    ...OPTIONS,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+// An op that may refuse (409) or fail (502), a write above all: the answer comes back with its status and its JSON,
+// the refusal's text in `data.error` when the op gave none. Only a failure of the
+// network throws.
+export async function post(op, args = {}) {
+  const answer = await call(op, args);
+  const data = answer.data ?? (answer.error ? { error: answer.error } : null);
+  return { ok: answer.ok, status: answer.status, data };
 }
 
 // Ask the server to read the transcripts again. It answers at once; the figure arrives with
-// the next `costs` read.
-export async function recompute(id) {
-  const res = await fetch(`${base(id)}/costs/recompute`, {
-    ...OPTIONS,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: '{}',
-  });
-  if (!res.ok) throw new AskError(res.status);
-  return res.json();
-}
-
-// A write: method is POST or PUT, body an object sent as JSON. It never throws on a refusal:
-// the answer is { ok, status, data }, data the board's JSON (or null). Only a failure of the
-// network throws. api/backlog.js turns a refusal into a BoardWriteError.
-export async function send(method, path, body = {}) {
-  const res = await fetch(path, {
-    ...OPTIONS,
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => null);
-  return { ok: res.ok, status: res.status, data };
+// the `costs` topic.
+export async function recompute(project) {
+  return (await read('costs.recompute', { project })).data;
 }

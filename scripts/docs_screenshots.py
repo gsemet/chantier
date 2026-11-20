@@ -12,6 +12,7 @@ stopped whatever happens. Nothing falls back: a step that fails stops the script
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -22,7 +23,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from playwright.sync_api import Page, Route, sync_playwright
+from playwright.sync_api import Page, Route, WebSocketRoute, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 DEMO = ROOT / "docs" / "demo"
@@ -149,19 +150,53 @@ def shot(page: Page, name: str, size: str) -> None:
     print(f"wrote docs/web-board/{name}-{size}.png")
 
 
-def fix_surface_path(route: Route) -> None:
+def fix_board(board: dict) -> None:
     """The board shows the surface's path, a temporary folder of this machine: the pictures show
     this made-up path instead, the same on every run and revealing nothing of the machine. In the
-    board's answer, `served`, `served_origin` and each project's `repo_path` and `origin` are
+    board's data, `served`, `served_origin` and each project's `repo_path` and `origin` are
     replaced; the projects' `folder` and `repo` are the demo's own, relative."""
-    response = route.fetch()
-    body = response.json()
-    body["served"] = SURFACE_SHOWN
-    body["served_origin"] = "https://github.com/demo/planning-surface"
-    for project in body.get("projects", []):
+    board["served"] = SURFACE_SHOWN
+    board["served_origin"] = "https://github.com/demo/planning-surface"
+    for project in board.get("projects", []):
         project["repo_path"] = f"/home/demo/{project['id']}"
         project["origin"] = f"https://github.com/demo/{project['id']}"
+
+
+def fix_board_call(route: Route) -> None:
+    """`board.get` over HTTP: the result's `data` is the board."""
+    response = route.fetch()
+    body = response.json()
+    if isinstance(body.get("data"), dict):
+        fix_board(body["data"])
     route.fulfill(response=response, json=body)
+
+
+def fix_board_socket(ws: WebSocketRoute) -> None:
+    """The page's WebSocket, passed through to the real server with the board's data fixed: the
+    `result` of each `board.get` call (matched by the call's `id`) and each `board` topic event."""
+    server = ws.connect_to_server()
+    board_calls: set[str] = set()
+
+    def from_page(message: str | bytes) -> None:
+        if isinstance(message, str):
+            frame = json.loads(message)
+            if frame.get("t") == "call" and frame.get("op") == "board.get":
+                board_calls.add(frame["id"])
+        server.send(message)
+
+    def from_server(message: str | bytes) -> None:
+        if isinstance(message, str):
+            frame = json.loads(message)
+            board = (frame.get("t") == "result" and frame.get("id") in board_calls) or (
+                frame.get("t") == "event" and frame.get("topic") == "board"
+            )
+            if board and isinstance(frame.get("data"), dict):
+                fix_board(frame["data"])
+                message = json.dumps(frame)
+        ws.send(message)
+
+    ws.on_message(from_page)
+    server.on_message(from_server)
 
 
 def capture(url: str) -> None:
@@ -180,7 +215,8 @@ def capture(url: str) -> None:
                     has_touch=size == "phone",
                 )
                 ctx.clock.set_fixed_time("2026-06-18T10:30:00Z")
-                ctx.route("**/api/board*", fix_surface_path)
+                ctx.route_web_socket("**/api/v1/ws", fix_board_socket)
+                ctx.route("**/api/v1/call/board.get", fix_board_call)
                 page = ctx.new_page()
                 views(page, url, size)
                 ctx.close()

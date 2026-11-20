@@ -96,16 +96,19 @@ chantier is four things in one repository:
    `4-batch/` (`batch.json`, `events.jsonl`, the brief, `STATUS.md`). The one write elsewhere is not the CLI's: on the user's yes, the Chief of Staff adds to `~/.claude/settings.json` the allow rules preflight's P10 named, and nothing else there. There is no configuration file: every agent reads the project's `AGENTS.md`.
    The CLI knows no role: the cards hold each role's contract, and the Foreman and the Drivers
    write the prompts. One named exception among the tools: `board`, the web board's server, for
-   the user on this machine and the local network, behind a key in its URL (it serves the record
-   and the planning folder's files, edits the backlog only through the CLI's role-free commands,
-   never edits a batch and never messages an agent, one named exception, its PRs page: when that
-   page asks, at most once every 10 s per project, while a PR of the batch is not done, plus one
-   read when the page opens, it reads the forge, read-only, with the user's own `gh` or `glab`, on
-   its own (no agent asks it), and needs the network for that, and a second, from the same page:
+   the user on this machine and the local network, behind a key (in its URL for the web client, in
+   a header or a WebSocket's first message for any other client), through one published API over a
+   WebSocket, and over HTTP as the same protocol behind a proxy for instance (it serves the record
+   and the planning folder's files, and the web client's files, one client among others, edits the backlog only through the CLI's role-free commands,
+   never edits a batch and never messages an agent, one named exception, a batch's PRs: while a
+   client asks for them (one read, or a subscription), at most once every 10 s per project and
+   batch, while a PR of that batch is not done, a subscription's first read included (within the
+   same 10 s), it reads the forge, read-only, with the user's own `gh` or `glab`, on
+   its own (no agent asks it), and needs the network for that, and a second, from the same read:
    when its forge read finds a PR merged that the record does not hold, it appends one line to
    `forge-journal.jsonl` (planning folder, never published), which `status` prints for the Chief of
    Staff to record at its next `status`; the board itself records nothing and messages no agent;
-   a save on its Configuration page also appends one `config@1` line to that journal for each key
+   a configuration save (the web client's Configuration page, or any client's `config.put`) also appends one `config@1` line to that journal for each key
    whose effective value it changes (the two limits, and each role's agent, model and escalation),
    which `status` and the watcher carry to the Chief of Staff; each write it makes to the backlog
    also appends one `board@1` line to the project's journal, which the Chief of Staff's watcher
@@ -157,7 +160,7 @@ chantier is four things in one repository:
    `git rev-parse`. Copilot has no such thing: its manifest names no hooks. The mod reads
    `STATUS.json` (`schema` 3) as `status.py` writes it: change both together. The CR board pane
    reads `STATUS.json` (`schema` 3); the web board reads the server's API, which the views of
-   `status.py` feed: change them together.
+   `status.py` feed: change them together (protocol 1, `docs/server-api.md`: an addition only; a change is protocol 2).
 
 The design rule that shapes everything: **no fallback.** When a tool, a host feature, a model
 or an agent is not exactly available, chantier stops and says so; it never picks a look-alike.
@@ -354,7 +357,7 @@ in the `justfile`) and `tests/test_code_targets.py` enforce:
   `web/`, `innerHTML` set in `js/core/dom.js` only.
 - **Words:** one file per language under `js/i18n/`, the same keys in each (a test checks it); a
   language is added by one file and one line in `js/model/words.js`.
-- **Layout:** `js/core/` (`api`, `store`, `router`, `refresh`, `paint`, `dom`, `format`: no view
+- **Layout:** `js/core/` (`transport`, `store`, `router`, `refresh`, `paint`, `dom`, `format`: no view
   knowledge), `js/model/` (`semantics`, `grill`, `events`, `words`: pure, no DOM, the one place
   where "to review", the chain, the merge order, the levels and the rounds are defined),
   `js/ui/` (the shell: icons, parts, sidebar, picker, bottom bar, header, host),
@@ -364,7 +367,7 @@ in the `justfile`) and `tests/test_code_targets.py` enforce:
 - **A view's contract:** `render(state)` returns markup built with `html` from `core/dom.js`;
   `mount(root, state)`, optional, runs once per project and view and returns its cleanup;
   `after(root, state)`, optional, runs after every paint (to measure or draw arrows). A view reads
-  the store's state and the model, never `fetch` or `localStorage`; the URL and `localStorage`
+  the store's state and the model, never `fetch`, a WebSocket or `localStorage`; only `js/core/transport.js` (with `ws-link.js` and `http-link.js`) opens a WebSocket or fetches an `api/` address, the page's own files staying allowed; the URL and `localStorage`
   belong to `core/router.js` and `core/store.js`.
 - **HTML escaping:** the `html` tag escapes every value unless it is markup built by `html`, a list
   of it, or `raw(...)` (for trusted constants such as icons). Never concatenate a string from the

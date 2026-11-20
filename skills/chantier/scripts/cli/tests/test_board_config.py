@@ -4,17 +4,17 @@ refusals and the read-only case."""
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import call_route
 from conftest import Surface
 
-from chantier.board import config_api, routes
+from chantier.board import config_api
 from chantier.board import key as keys
-from chantier.board.context import Context, Request
+from chantier.board.context import Context
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core.repo import Repo
@@ -34,18 +34,13 @@ RESETS = (
 
 
 def _board(repo_: Repo, monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[int, Any]]:
-    """The board's routes called in-process on one project, with the key and the headers a page
-    sends."""
+    """The board's ops called in-process on one project, with the key a page sends."""
     projects = Projects(repo_, repo_.surface, [])
     secret = keys.load_or_create(repo_)
     ctx = Context(projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None)
 
     def call(method: str, body: object = None) -> tuple[int, Any]:
-        head = {keys.HEADER: secret, "content-type": "application/json", "host": "board"}
-        raw = b"" if body is None else json.dumps(body).encode()
-        path = f"/api/projects/{projects.home_id}/config"
-        reply = routes.handle(ctx, Request(method, path, {}, head, raw))
-        return reply.status, json.loads(reply.body)
+        return call_route(ctx, secret, method, projects.home_id, "config", body)
 
     return call
 

@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import call_op
 from batch_helpers import FROM_AGENTS_MD, host
 from conftest import Chantier, Surface
 
 from chantier.board import key as keys
-from chantier.board import routes
-from chantier.board.context import Context, Request
+from chantier.board.context import Context
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core import clock
@@ -183,7 +183,7 @@ def test_p13_warns_on_a_surface_rule_that_names_the_old_tool_or_a_hand_push(
     assert len(p13()) == 1
 
 
-def test_the_board_serves_the_writer_entry_and_its_sync_route_wakes_it(
+def test_the_board_serves_the_writer_entry_and_its_sync_op_wakes_it(
     surface: Surface, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     found = Repo.find(project="demo", readonly=True)
@@ -191,24 +191,19 @@ def test_the_board_serves_the_writer_entry_and_its_sync_route_wakes_it(
     secret = keys.load_or_create(found)
     ctx = Context(projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None)
 
-    def call(method: str, path: str, key: bool = True) -> tuple[int, Any]:
-        head = {"content-type": "application/json", "host": "board"}
-        head |= {keys.HEADER: secret} if key else {}
-        reply = routes.handle(
-            ctx, Request(method, path, {}, head, b"{}" if method == "POST" else b"")
-        )
-        return reply.status, (json.loads(reply.body) if reply.body[:1] in (b"{", b"[") else None)
+    def call(op: str, key: bool = True) -> tuple[int, Any]:
+        return call_op(ctx, secret if key else None, op)
 
     put(surface, "pending")
-    status, body = call("GET", "/api/board")
+    status, body = call("board.get")
     assert status == HTTP_OK and body["writer"]["state"] == "pending" and "autosync" not in body
-    assert call("POST", "/api/writer/sync", key=False)[0] == HTTP_NO_KEY
+    assert call("writer.sync", key=False)[0] == HTTP_NO_KEY
     assert not lock.wake_path(surface.root / ".git").exists()
-    status, body = call("POST", "/api/writer/sync")
+    status, body = call("writer.sync")
     assert status == HTTP_OK and body["writer"]["state"] == "pending"
     assert lock.wake_path(surface.root / ".git").is_file()
     put(surface, None)
-    assert call("GET", "/api/board")[1]["writer"] == {"state": "off"}
-    status, body = call("POST", "/api/writer/sync")
+    assert call("board.get")[1]["writer"] == {"state": "off"}
+    status, body = call("writer.sync")
     assert status == HTTP_CONFLICT and "the surface's writer is not running" in body["error"]
-    assert call("GET", "/api/autosync")[0] == HTTP_NOT_FOUND
+    assert call("autosync")[0] == HTTP_NOT_FOUND

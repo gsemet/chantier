@@ -23,11 +23,14 @@ export const projectSide = (state) => html`${trigger(state, 'ws')}${menu(state)}
 export const navigation = (state) =>
   VIEWS.filter((v) => shown(v, state)).map((v) => item(v, state));
 
-// "Data: 3 min ago", or "Board unreachable: data 3 min ago", or that nothing was read yet.
+// "Data: 3 min ago" (with " (HTTP)" on the long-poll), "Board unreachable: data 3 min ago", that
+// nothing was read yet, or that the board was upgraded.
 export function heard(state) {
+  if (state.upgraded) return t('foot.upgraded');
   if (!state.heard) return t('foot.never');
   const age = waited(state.heard);
-  return t(unreachable(state.fails) ? 'foot.unreachable' : 'foot.data', { age });
+  if (unreachable(state.fails)) return t('foot.unreachable', { age });
+  return t(state.mode === 'http' ? 'foot.data_http' : 'foot.data', { age });
 }
 
 export const languageButton = () =>

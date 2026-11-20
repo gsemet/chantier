@@ -1,7 +1,7 @@
 // The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
 // Costs, Batch and PRs views), &t=<tab> (the Batch view's tab, when not the graph), on the PRs view
 // &st=<state>&sort=<sort>, and the browser's history. With the store, this module is the only one
-// that writes the URL.
+// that writes the URL. `transport=http` (the HTTP binding, forced) is kept in every address.
 import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
 
 export const ALL = '*';
@@ -57,7 +57,7 @@ function settle(place) {
 
 const reset = {
   data: null,
-  etag: null,
+  rev: null,
   now: null,
   fails: 0,
   panel: null,
@@ -100,6 +100,9 @@ function apply(place) {
 // The relative address of a place: it keeps the page's own address in front of the query.
 export const href = (place) =>
   `?${new URLSearchParams({
+    ...(new URLSearchParams(location.search).get('transport') === 'http'
+      ? { transport: 'http' }
+      : {}),
     p: place.project ?? '',
     v: place.view ?? 'home',
     ...(place.batch ? { b: place.batch } : {}),

@@ -17,8 +17,8 @@ ALLOWED = (*READ, *WRITE)
 
 def exchange(req: Request, key: str) -> Reply | None:
     """A request with `k`: a bad one is refused; a good one with a method the board does not
-    know gets `405`; a good read gets the cookie and a `303` to the same address without it; a
-    good `POST` carries on (it still needs the cookie or the header)."""
+    know gets `405`; a good read gets the cookie and a `303` to the same address without it (a
+    relative `Location`); a good `POST` carries on (it still needs the cookie or the header)."""
     if not keys.is_good(req.query.get("k"), key):
         return text(401, NEEDS_KEY)
     if req.method not in ALLOWED:
@@ -26,7 +26,8 @@ def exchange(req: Request, key: str) -> Reply | None:
     if req.method not in READ:
         return None
     rest = {k: v for k, v in req.query.items() if k != "k"}
-    where = quote(req.path, safe="/") + (f"?{urlencode(rest)}" if rest else "")
+    last = req.path.rsplit("/", 1)[-1]  # relative, so a path prefix behind a proxy is kept
+    where = "./" + quote(last, safe="") + (f"?{urlencode(rest)}" if rest else "")
     return text(303, "the key is in the cookie now", {"Location": where, **_cookie(key)})
 
 

@@ -8,12 +8,9 @@ and the reply's `error` says `skipped: <message>`."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
-from chantier.board import journal, write_api
-from chantier.board.context import Context, Request
-from chantier.board.reply import Reply, as_json, text
+from chantier.board import journal
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
@@ -22,13 +19,6 @@ from chantier.playbook import edit
 from chantier.playbook.limits_check import LIMIT_KEYS
 
 APPLIES = "applies at the next batch"
-
-
-def config_of(ctx: Context, req: Request, project_id: str) -> Reply:
-    project = write_api.project_of(ctx, project_id)
-    if project is None:
-        return text(404, "not found")
-    return as_json(edit.config_view(project.repo))
 
 
 def _word(change: dict[str, Any], view: dict[str, Any]) -> str:
@@ -159,7 +149,4 @@ def _put(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     return body, 200
 
 
-ROUTES: list[tuple[str, str, Callable[..., Reply]]] = [
-    ("GET", write_api.P + "config", config_of),
-    ("PUT", write_api.P + "config", write_api.writer(_put, "board config")),
-]
+WRITE = (_put, "board config")

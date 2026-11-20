@@ -261,6 +261,12 @@ def _shown(
     return None, [], False, f"unknown batch {want}" if want else None
 
 
+def watched(state: dict[str, Any], want: str | None) -> tuple[str | None, tuple[str, ...]]:
+    """The batch shown for `want` and the links of its PRs: what a watch on them is about."""
+    shown, withpr, _, _ = _shown(state, want)
+    return shown, tuple(c["pr"] for c in withpr)
+
+
 def _closed_row(row: dict[str, Any]) -> dict[str, Any]:
     """A closed batch's row: the record says nothing of readiness, nor of where a PR landed."""
     row["why"] = row["disagrees"] = None
