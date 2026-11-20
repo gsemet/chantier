@@ -114,7 +114,8 @@ class Hub:
 
     def cycle(self, now: float) -> None:
         """One cycle: each project in turn; a forge error goes in the `hub` entry and the cycle goes
-        on."""
+        on. An event its type's model refuses (from what the forge returned) is set aside, the
+        others are written, and the entry's `error` is `skipped: <message>` beside its `read_at`."""
         self.last = now
         for repo in self.projects():
             d = running_batch(repo)
@@ -131,7 +132,10 @@ class Hub:
                 entry["error_at"] = clock.now()
                 continue
             entry["read_at"], entry["error"], entry["error_at"] = clock.now(), None, None
-            journal.append(repo, events_of(d, withpr, forge), "hub")
+            accepted, refused = journal.set_aside(events_of(d, withpr, forge))
+            journal.append(repo, accepted, "hub")
+            if refused:
+                entry["error"], entry["error_at"] = journal.skipped(refused), clock.now()
         self.publish()
 
     def note_error(self, e: Exception) -> None:

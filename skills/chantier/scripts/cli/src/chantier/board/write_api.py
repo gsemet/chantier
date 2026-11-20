@@ -73,14 +73,19 @@ def _answer(
     repo: Repo, kind: str, results: list[dict[str, Any]], extra: dict[str, Any] | None = None
 ) -> tuple[dict[str, Any], int]:
     """The answer of a write, and its journal line when something was written: refusals are
-    listed, they undo nothing and stop nothing."""
+    listed, they undo nothing and stop nothing. A `board@1` event its model refuses is set aside:
+    the file stays written, the reply keeps its `ok` and status, and its `error` says
+    `skipped: <message>`."""
     written = [r for r in results if r["ok"] and r["words"]]
     entries = []
+    skipped = None
     if written:
         words = "; ".join(r["words"] for r in written)
         slugs = list(dict.fromkeys(s for r in written for s in r["items"]))
         entries.append(journal.record(repo, kind, slugs, words))
-        forge_journal.append(repo, [forge_journal.board_event(kind, slugs, words)], "board")
+        accepted, refused = forge_journal.set_aside([forge_journal.board_event(kind, slugs, words)])
+        forge_journal.append(repo, accepted, "board")
+        skipped = forge_journal.skipped(refused)
     failed = next((r for r in results if not r["ok"]), None)
     body = {
         "ok": failed is None,
@@ -89,8 +94,8 @@ def _answer(
         "journal": entries,
         **(extra or {}),
     }
-    if failed:
-        body["error"] = failed["error"]
+    if failed or skipped:
+        body["error"] = "; ".join(m for m in (failed and failed["error"], skipped) if m)
     return body, failed["status"] if failed else 200
 
 

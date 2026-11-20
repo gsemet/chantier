@@ -324,7 +324,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_forge_hub.py::test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_seconds);
   - A's PR merged on the forge: A's watcher ends with `forge saw merged: ... order merged <cr>` and
     `watch: <batch> still running: for the Chief of Staff, start again in the background now:
-    <command> watch --after 1`, the merge written once (`by: hub`); B's watcher keeps running,
+    <command> watch --after 1`, the merge written once (`source: hub`); B's watcher keeps running,
     takes the lock and the next cycles still read the forge (unit: surface-board) (test:
     test_forge_hub.py::test_a_hub_cycle_writes_each_event_once,
     test_watch_events.py::test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes);
@@ -335,7 +335,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
     `status` (unit: surface-board) (test:
     test_forge_hub.py::test_status_and_the_start_line_name_the_journal_the_hub_and_its_version);
   - `order merged <cr>` twice: the second answers `<cr> already merged` (unit: surface-board);
-  - a merge the board's PRs page reads first: the page writes the line (`by: board`), the hub's
+  - a merge the board's PRs page reads first: the page writes the line (`source: board`), the hub's
     reads of it write no second line and the watcher wakes on the board's line (unit:
     surface-board) (test: test_forge_hub.py::test_the_board_and_the_hub_share_the_journal_once);
   - A's batch paused (every CR merged or dropped): A's watcher keeps running, and `status` still
@@ -375,7 +375,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `PUT /config` writes
   the project folder's file and says, role-free, `slots 4 -> 6: <batch> keeps <n> until an order
   slots` and `specifying 4 -> 1: from the next start`, with no `applies at the next batch` line;
-  each save writes one `config` line per changed key in the forge journal (`source: board`; a role's
+  each save writes one `config@1` line per changed key in the forge journal (`source: board`; a role's
   model too, keyed `hosts.<host>.roles.<role>.model`) and a running `chantier watch` ends on it with the `config changed on the board` line; `status` prints the slots line once
   and the specifying one never, and no longer after an `order slots`; with `specifying.parallel` 1
   and a `work/specifying` marker, `playbook` prints `limits:` with `[surface project]`, `markers 1
@@ -387,19 +387,19 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_forge_hub.py::test_a_config_line_ends_the_watcher_and_is_told_in_its_form,
   test_board_config.py::test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none);
 - addressed events (CR-385): every line of `forge-journal.jsonl` the hub and the board write is
-  version 1, `v`, `seq`, `t`, `kind`, `source` and `audience: ["project"]` first, with no `by`; a
+  version 2, `v`, `seq`, `t`, `type`, `source` and `audience: ["project"]` first, with no `by`; a
   journal of version 0 lines (a `by`, no `v`) keeps them as written, a board write appends its
-  version 1 line after them and the watcher started with the printed `--after` prints it once; a
+  version 2 line after them and the watcher started with the printed `--after` prints it once; a
   default watcher and one started with `--for role:griller` (its start line lists `for project,
   ... role:griller`) both end on a forge merge, which is for the project; with `events.wake_every:
   2m` in the surface project's `chantier.yaml`, `playbook` prints `events: wake every 2m [surface
   project]` after the limits (the shipped `20s` with no label) (unit: surface-board) (test:
-  test_event_audience.py::test_an_append_writes_a_version_one_line_for_the_project,
+  test_event_audience.py::test_an_append_writes_a_version_two_line_for_the_project,
   test_event_audience.py::test_a_version_zero_line_reads_as_the_projects_and_a_newer_one_wakes_no_one,
   test_event_audience.py::test_a_watcher_ends_on_the_lines_for_it_and_passes_the_others,
   test_event_audience.py::test_playbook_prints_the_wake_rule_with_its_layer);
 - the board's backlog writes (`POST backlog/move`, a refused one): each write that changes something
-  appends one `board` line to the project's `forge-journal.jsonl` (`source: board`, `wakes` true for a
+  appends one `board@1` line to the project's `forge-journal.jsonl` (`source: board`, `wakes` true for a
   move, ignored by git), a refused one none (unit: surface-board) (test:
   test_board_journal.py::test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal,
   test_board_journal.py::test_a_refusal_a_rescan_and_another_project_leave_no_line_here);

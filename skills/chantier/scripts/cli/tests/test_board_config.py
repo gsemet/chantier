@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from conftest import Surface
 
-from chantier.board import autosync_tool, routes
+from chantier.board import autosync_tool, config_api, routes
 from chantier.board import key as keys
 from chantier.board.context import Context, Request
 from chantier.board.projects import Projects
@@ -135,7 +135,7 @@ def test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none(
     found = Repo.find(project="demo", readonly=True)
 
     def lines() -> list[dict[str, Any]]:
-        return [e for e in forge_journal.read(found.changes)[0] if e["kind"] == "config"]
+        return [e for e in forge_journal.read(found.changes)[0] if e["type"] == "config@1"]
 
     def change(value: Any) -> dict[str, Any]:
         if name in ("slots", "parallel"):
@@ -151,7 +151,12 @@ def test_a_save_writes_one_config_line_per_changed_key_and_a_dry_run_none(
     assert lines() == []
     save(values[0])
     (one,) = lines()
-    assert (one["source"], one["kind"], one["key"], one["batch"]) == ("board", "config", key, None)
+    assert (one["source"], one["type"], one["key"], one["batch"]) == (
+        "board",
+        "config@1",
+        key,
+        None,
+    )
     assert one["new"] is not None and one["old"] != one["new"]
     save(values[0])  # the effective value is where it was: no line
     assert len(lines()) == 1
@@ -215,3 +220,20 @@ def test_with_no_planning_surface_the_configuration_is_read_only(
     assert code == OK and view["writable"] is False and view["sha256"] is None
     code, answer = call("PUT", {"changes": [_change("coder", "model", TERRA)], "base_sha256": None})
     assert code == CONFLICT and "read-only" in answer["error"]
+
+
+def test_a_config_event_its_model_refuses_leaves_the_save_and_names_the_skipped_line(
+    surface: Surface, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # a prepared refusal: an event builder patched to add a field its model does not hold
+    build = config_api._event
+    monkeypatch.setattr(config_api, "_event", lambda *a: {**build(*a), "unexpected": 1})
+    call = _on_surface(monkeypatch)
+    found = Repo.find(project="demo", readonly=True)
+    sha = call("GET")[1]["sha256"]
+    change = {"key": "batch.slots", "value": 7}
+    code, answer = call("PUT", {"changes": [change], "base_sha256": sha})
+    assert code == OK and answer["ok"] is True
+    assert answer["error"].startswith("skipped: journal payload config@1:")
+    assert answer["sha256"] != sha and answer["journal"]
+    assert [e for e in forge_journal.read(found.changes)[0] if e["type"] == "config@1"] == []

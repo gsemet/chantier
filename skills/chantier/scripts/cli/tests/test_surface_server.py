@@ -84,7 +84,7 @@ def test_a_hub_entry_that_cannot_be_written_is_written_at_the_next_cycle(
     world.forge = {10: merged(MAIN, T1)}
     monkeypatch.setattr(state, "write_hub", refused)
     world.hub.cycle(0.0)  # the lock is kept, the cycle's events are in the journal anyway
-    assert shape(world.journal("alpha")) == [(1, "hub", "merged", "CR-1", None)]
+    assert shape(world.journal("alpha")) == [(1, "hub", "merged@1", "CR-1", None)]
     mine = state.live_entry(git_dir, state.HUB)
     assert mine is not None and "alpha" not in mine["projects"]
     monkeypatch.setattr(state, "write_hub", real)
@@ -165,8 +165,8 @@ def test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go(
     assert len(world.calls) == CALLS
     loop.poll(1.0 + CYCLE)  # due: the merge is not written twice
     assert len(world.calls) == 2 * CALLS
-    kinds = [(e["source"], e["kind"]) for e in world.journal("alpha")]
-    assert kinds == [("hub", "merged"), ("board", "board")]
+    kinds = [(e["source"], e["type"]) for e in world.journal("alpha")]
+    assert kinds == [("hub", "merged@1"), ("board", "board@1")]
     loop.stop()
     assert state.live_entry(git, state.HUB) is None
     again = lock.HubLock(git)

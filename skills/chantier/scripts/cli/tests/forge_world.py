@@ -34,7 +34,7 @@ MAIN, B1 = "main", "chantier/b/cr-1"
 FIRST_PR = {"alpha": 10, "beta": 20, "gamma": 30, "delta": 40}
 CYCLE, QUIET = 20.0, 20.0
 EXIT_USAGE, EXIT_PRECONDITION = 1, 2
-BOARD_LINE = {"kind": "board", "action": "move", "items": ["x"], "text": "x", "wakes": True}
+BOARD_LINE = {"type": "board@1", "action": "move", "items": ["x"], "text": "x", "wakes": True}
 NEW_VERSION = "9.9.9"
 CALLS = 2  # alpha and beta: one call each
 
@@ -101,8 +101,8 @@ def merged(base: str, at: str) -> dict[str, Any]:
 
 
 def shape(entries: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
-    """(seq, source, kind, cr, landed_with or head) of each line."""
+    """(seq, source, type, cr, landed_with or head) of each line."""
     return [
-        (e["seq"], e["source"], e["kind"], e["cr"], e.get("landed_with") or e.get("head"))
+        (e["seq"], e["source"], e["type"], e["cr"], e.get("landed_with") or e.get("head"))
         for e in entries
     ]

@@ -299,7 +299,9 @@ def answer(
     batch in `4-batch/`, else the newest closed one). With no batch, an unknown one or no PR yet,
     the forge is not asked. A closed batch is read on the forge, judged against nothing, and never
     signalled. With a `repo`, a merge the forge shows and the record does not, in the batch in
-    `4-batch/`, is left as one line in `forge-journal.jsonl` (the only write)."""
+    `4-batch/`, is left as one line in `forge-journal.jsonl` (the only write); an event its model
+    refuses is set aside, the others are written, and the answer's `error` is
+    `skipped: <message>`."""
     live = state["batch"]
     shown, withpr, closed, error = _shown(state, batch)
     out: dict[str, Any] = {
@@ -321,6 +323,8 @@ def answer(
     rows = rows_of(withpr, forge, {} if closed else branches, closed)
     out["rows"] = rows
     if repo is not None and live and fresh and not out["error"] and not closed:
-        journal.append(repo, journal.merged_events(live["id"], rows), "board")
+        accepted, refused = journal.set_aside(journal.merged_events(live["id"], rows))
+        journal.append(repo, accepted, "board")
+        out["error"] = journal.skipped(refused)
     out["all_done"] = len(rows) == len(withpr) and all(r["state"] in DONE for r in rows)
     return out

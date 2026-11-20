@@ -105,10 +105,10 @@ chantier is four things in one repository:
    when its forge read finds a PR merged that the record does not hold, it appends one line to
    `forge-journal.jsonl` (planning folder, never published), which `status` prints for the Chief of
    Staff to record at its next `status`; the board itself records nothing and messages no agent;
-   a save on its Configuration page also appends one `config` line to that journal for each key
+   a save on its Configuration page also appends one `config@1` line to that journal for each key
    whose effective value it changes (the two limits, and each role's agent, model and escalation),
    which `status` and the watcher carry to the Chief of Staff; each write it makes to the backlog
-   also appends one `board` line to the project's journal, which the Chief of Staff's watcher
+   also appends one `board@1` line to the project's journal, which the Chief of Staff's watcher
    reads; takes its dependencies like the
    rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
    build step).

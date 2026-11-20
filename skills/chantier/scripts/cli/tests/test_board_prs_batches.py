@@ -11,10 +11,11 @@ from typing import Any
 import pytest
 from batch_helpers import changes, record, write_record
 from conftest import Chantier
-from test_board_prs import FIRST, HTTP_OK, LINK, TWO_CALLS, Board, served
+from test_board_prs import FIRST, HTTP_OK, LINK, MERGED_AT, TWO_CALLS, Board, seen_lines, served
 
 from chantier.board.context import Request
 from chantier.board.routes import handle
+from chantier.hub import journal as hub_journal
 
 ROW_COUNT = 4
 CLOSED = "batch-3"
@@ -128,3 +129,21 @@ def test_a_title_is_shown_without_its_change_specification_lead(board: Board, wr
     data["crs"][0]["title"] = written
     write_record(board.repo, data)
     assert board.rows()[board.ids[0]]["title"] == "X"
+
+
+def test_a_merged_event_its_model_refuses_is_set_aside_and_the_page_keeps_its_rows(
+    board: Board, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # a prepared refusal: an event builder patched to add a field its model does not hold
+    build = hub_journal.merged_events
+
+    def with_a_bad_one(batch: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        good = build(batch, rows)
+        return [*good, {**good[0], "cr": "x"}]
+
+    monkeypatch.setattr(hub_journal, "merged_events", with_a_bad_one)
+    board.forge = {FIRST + 1: {"state": "merged", "base": "main", "merged_at": MERGED_AT}}
+    code, answer = board.get()
+    assert code == HTTP_OK and answer["rows"]
+    assert answer["error"].startswith("skipped: journal payload merged@1: cr")
+    assert [e["cr"] for e in seen_lines(board)] == [board.ids[1]]

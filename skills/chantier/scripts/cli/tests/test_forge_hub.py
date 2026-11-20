@@ -36,7 +36,7 @@ from chantier import __version__
 from chantier.board import prs
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
-from chantier.hub import journal, lock, state
+from chantier.hub import journal, lock, schemas, state
 from chantier.hub.autostart import watch_command
 from chantier.hub.watch import EVENTS, Watch
 
@@ -47,17 +47,17 @@ CYCLES: list[Any] = [
     (
         "merged into main, once",
         [{10: merged(MAIN, T1)}, {10: merged(MAIN, T1)}],
-        [[(1, "hub", "merged", "CR-1", None)]] * 2,
+        [[(1, "hub", "merged@1", "CR-1", None)]] * 2,
     ),
     (
         "into another CR's branch, then landed",
         [{11: merged(B1, T1)}, {11: merged(B1, T1), 10: merged(MAIN, T2)}],
         [
-            [(1, "hub", "merged", "CR-2", None)],
+            [(1, "hub", "merged@1", "CR-2", None)],
             [
-                (1, "hub", "merged", "CR-2", None),
-                (2, "hub", "merged", "CR-1", None),
-                (3, "hub", "merged", "CR-2", "CR-1"),
+                (1, "hub", "merged@1", "CR-2", None),
+                (2, "hub", "merged@1", "CR-1", None),
+                (3, "hub", "merged@1", "CR-2", "CR-1"),
             ],
         ],
     ),
@@ -65,9 +65,9 @@ CYCLES: list[Any] = [
         "red CI by head",
         [{10: RED_A}, {10: RED_A}, {10: RED_B}],
         [
-            [(1, "hub", "checks-red", "CR-1", A)],
-            [(1, "hub", "checks-red", "CR-1", A)],
-            [(1, "hub", "checks-red", "CR-1", A), (2, "hub", "checks-red", "CR-1", B)],
+            [(1, "hub", "checks-red@1", "CR-1", A)],
+            [(1, "hub", "checks-red@1", "CR-1", A)],
+            [(1, "hub", "checks-red@1", "CR-1", A), (2, "hub", "checks-red@1", "CR-1", B)],
         ],
     ),
 ]
@@ -126,13 +126,13 @@ def test_a_native_stack_merged_in_one_go_is_told_landed_with_its_bottom(world: W
     }
     world.hub.cycle(0.0)
     world.hub.cycle(CYCLE)  # read again: still one line each
-    entries = [e for e in world.journal("alpha") if e["kind"] == "merged"]
+    entries = [e for e in world.journal("alpha") if e["type"] == "merged@1"]
     assert [(e["cr"], e.get("landed_with")) for e in entries] == [
         ("CR-1", None),
         ("CR-2", "CR-1"),
         ("CR-3", "CR-1"),
     ]
-    told = [journal.merged_text(e) for e in entries[1:]]
+    told = [schemas.merged_text(e) for e in entries[1:]]
     assert told == [
         f"forge saw merged: CR-{n} {LINK.format('alpha', 9 + n)} into CR-{n - 1}'s branch at "
         f"{at}, landed with CR-1 at {T1}; for the Chief of Staff: order merged CR-{n}"
@@ -168,7 +168,7 @@ def test_the_board_and_the_hub_share_the_journal_once(world: World, first: str) 
     else:
         world.hub.cycle(0.0)
         board()
-    (only,) = (e for e in world.journal("alpha") if e["kind"] == "merged")
+    (only,) = (e for e in world.journal("alpha") if e["type"] == "merged@1")
     assert (only["source"], only["cr"]) == (first, "CR-1")
 
 
@@ -223,7 +223,7 @@ def test_a_config_line_ends_the_watcher_and_is_told_in_its_form(
     (folder / "batch.json").write_text(json.dumps(data), encoding="utf-8")
     found = Repo.find()
     w = Watch(found, 0, __version__)
-    journal.append(found, [{"kind": "config", **event}], "board")
+    journal.append(found, [{"type": "config@1", **event}], "board")
     ended = next(((t, r) for t in range(60) if (r := w.poll(float(t)))), None)
     w.close()
     assert ended == (int(QUIET), EVENTS)
@@ -238,7 +238,7 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     a, b, c, d = open_batch(repo, chantier, monkeypatch, "Alpha", "Beta", "Gamma", "Delta")
     found = Repo.find()
     batch = record(repo)["id"]
-    base = {"kind": "merged", "batch": batch, "pr": "P", "into": "main", "merged_at": "t"}
+    base = {"type": "merged@1", "batch": batch, "pr": "P", "into": "main", "merged_at": "t"}
     stacked = {**base, "into": "chantier/b/cr-0", "into_cr": a}
     journal.append(
         found,
@@ -281,3 +281,16 @@ def test_status_and_the_start_line_name_the_journal_the_hub_and_its_version(
     name_server(git)  # the hub's PID is the live server's
     assert forge_lines()[0] == hub.replace("a watcher", "the surface server")
     assert (changes(repo) / journal.FILE).is_file()
+
+
+def test_a_refused_event_is_set_aside_and_named_the_cycle_goes_on(world: World) -> None:
+    # a prepared refusal: the forge gives a 7-character head, which a published head never is
+    world.forge = {10: merged(MAIN, T1), 11: {"checks": "failing", "head": "abc1234"}}
+    world.hub.cycle(0.0)
+    assert shape(world.journal("alpha")) == [(1, "hub", "merged@1", "CR-1", None)]
+    mine = state.live_entry(world.repo("alpha").git_dir, state.HUB)
+    assert mine is not None
+    entry = mine["projects"]["alpha"]
+    assert entry["read_at"] and entry["error_at"]
+    assert entry["error"].startswith("skipped: journal payload checks-red@1: head")
+    assert any(LINK.format("beta", 20) in c for c in world.calls)  # the next project was read

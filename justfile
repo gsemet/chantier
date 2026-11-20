@@ -40,6 +40,10 @@ eval-dry-run:
 copilot-models *args:
     {{run-cli}} scripts/copilot_models.py {{args}}
 
+# Add the journal's missing published types to hub/schemas.json (by hand, not in check)
+journal-schemas:
+    {{run-cli}} scripts/journal_schemas.py
+
 # The mod's checks: `claude plugin validate .` then `claude plugin test .` (not part of check: CI has no claude)
 mod:
     uv run --no-project python scripts/mod.py
