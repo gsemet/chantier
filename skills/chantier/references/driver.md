@@ -934,9 +934,11 @@ dropped commits leave the branch; the rest is the rule above. A series CR's PR o
 on the base `take` printed: a Driver still retargets nothing but on a `rebase:` note.
 
 In a stack batch the `base` that `take` prints may be another CR's branch: the nearest earlier CR
-of the batch that has a PR. Create the worktree on that base and no other, never on a branch with
+of the batch that has a PR that the forge does not show merged. Create the worktree on that base and no other, never on a branch with
 no PR (the PR's base is the `base` that `take` printed, never another), and open the PR on it as a
-draft; that branch is the stack driver's, never rebased by you but on a note. A `note rebase: stacked on
+draft; that branch is the stack driver's, never rebased by you but on a note. A `base:` line after
+the `worktree:` line says the CLI left a CR out of the base because the forge shows its PR merged (not
+recorded yet): it only explains the base; the worktree goes on the base the `worktree:` line names. A `note rebase: stacked on
 <cr below>` received while working: rebase onto that CR's branch (not the default branch), retarget
 your PR to it (`gh pr edit --base`, `glab mr update --target-branch`) while it is in no native
 stack, push with `--force-with-lease`, `ship` (`--conflict` by the rule above).

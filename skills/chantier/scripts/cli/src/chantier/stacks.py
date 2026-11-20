@@ -1,4 +1,4 @@
-"""Where a CR's PR sits: the stack, the base of a PR, and the word a ready CR reads.
+"""Where a CR's PR sits: the stack and the base of a PR (the word a ready CR reads: `stack_words`).
 
 Read by the commands and by the status and board views, so it lives below both."""
 
@@ -9,9 +9,6 @@ from chantier.core.records import BatchRecord, CrEntry, GateWaiver
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
 
-READY_LOCALLY = "ready locally"
-PR_IN_DRAFT = "PR in draft"
-READY_TO_MERGE = "ready to merge"
 FORMING = 2  # the ready CRs with a PR that make the first stack due (`stack_due`)
 
 
@@ -52,15 +49,19 @@ def chain(b_data: BatchRecord) -> list[CrEntry]:
     )
 
 
-def top_cr(b_data: BatchRecord) -> CrEntry | None:
+def top_cr(b_data: BatchRecord, landed: frozenset[str] = frozenset()) -> CrEntry | None:
     """In an ordered batch (stack, series), the last open CR under the release, in order: the
-    branch the release starts on and its PR sits on. A fix CR and the release are not in it."""
+    branch the release starts on and its PR sits on. A fix CR and the release are not in it, nor
+    a CR of `landed` (seen merged on the forge, see `hub.journal.seen_merged`)."""
     if b_data.mode not in {"stack", "series"}:
         return None
     open_ = [
         x
         for x in b_data.crs
-        if x.status not in ENDED and x.kind not in {"release", "fix"} and not is_held(x)
+        if x.status not in ENDED
+        and x.id not in landed
+        and x.kind not in {"release", "fix"}
+        and not is_held(x)
     ]
     return max(open_, key=lambda x: x.order, default=None)
 
@@ -116,10 +117,14 @@ def _alone(c: CrEntry) -> bool:
     return c.kind not in {"release", "fix"}
 
 
-def _open_after(b_data: BatchRecord, c: CrEntry) -> list[CrEntry]:
-    """The dependencies of `c` still open, in the order of `after`."""
+def _open_after(
+    b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
+) -> list[CrEntry]:
+    """The dependencies of `c` still open, in the order of `after`; a CR of `landed` is ended."""
     found = {x.id: x for x in b_data.crs}
-    return [found[i] for i in c.after if i in found and found[i].status not in ENDED]
+    return [
+        found[i] for i in c.after if i in found and found[i].status not in ENDED and i not in landed
+    ]
 
 
 def stack_due(b_data: BatchRecord) -> list[CrEntry]:
@@ -169,81 +174,108 @@ def stack_line(b_data: BatchRecord) -> list[str]:
     ]
 
 
-def _below_with_pr(b_data: BatchRecord, c: CrEntry) -> tuple[int, CrEntry] | None:
+def _below_with_pr(
+    b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
+) -> tuple[int, CrEntry] | None:
     """The first CR with a PR (so its branch is on the remote) found walking `chain` down from
-    `c`, with its place in the chain; None when no CR below `c` has one."""
+    `c`, with its place in the chain; None when no CR below `c` has one. A CR of `landed` has
+    none to count."""
     order = chain(b_data)
     ids = [x.id for x in order]
     top = ids.index(c.id) if c.id in ids else 0
-    return next(((i, order[i]) for i in range(top - 1, -1, -1) if order[i].pr), None)
+    return next(
+        (
+            (i, order[i])
+            for i in range(top - 1, -1, -1)
+            if order[i].pr and order[i].id not in landed
+        ),
+        None,
+    )
 
 
-def _nearest_open(b_data: BatchRecord, c: CrEntry) -> tuple[int, CrEntry] | None:
+def _nearest_open(
+    b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
+) -> tuple[int, CrEntry] | None:
     """The open dependency of `c` that sits highest in `chain`, whatever its place in `after`,
     with that place; a dependency outside the chain (a fix CR) ranks below every CR of it (-1)."""
     ids = [x.id for x in chain(b_data)]
-    ranked = [(ids.index(x.id) if x.id in ids else -1, x) for x in _open_after(b_data, c)]
+    ranked = [(ids.index(x.id) if x.id in ids else -1, x) for x in _open_after(b_data, c, landed)]
     return max(ranked, key=lambda r: r[0], default=None)
 
 
-def start_on_for(b_data: BatchRecord, c: CrEntry) -> str | None:
+def start_on_for(
+    b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()
+) -> str | None:
     """The branch a CR taken from `queued` in a stack batch is to start on, to record on it: for a
     CR that is neither a release nor a fix and has no open dependency, the branch of the nearest
     CR below it in `chain` that has a PR (`stack_start`'s rule 2), else None (the default branch).
     None in a parallel or series batch and for any other CR; a CR with an open dependency gets
-    none, its base follows its dependencies' places."""
-    if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c):
+    none, its base follows its dependencies' places. A CR of `landed` (its PR seen merged on the
+    forge) reads as ended."""
+    if b_data.mode != "stack" or not _alone(c) or _open_after(b_data, c, landed):
         return None
-    below = _below_with_pr(b_data, c)
+    below = _below_with_pr(b_data, c, landed)
     return below[1].branch if below else None
 
 
-def _live_start(b_data: BatchRecord, c: CrEntry) -> bool:
-    """True when `c.start_on` names the branch of a CR that is neither ended nor held."""
+def _live_start(b_data: BatchRecord, c: CrEntry, landed: frozenset[str] = frozenset()) -> bool:
+    """True when `c.start_on` names the branch of a CR that is neither ended (nor in `landed`)
+    nor held."""
     owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
-    return owner is not None and owner.status not in ENDED and not is_held(owner)
+    return (
+        owner is not None
+        and owner.status not in ENDED
+        and owner.id not in landed
+        and not is_held(owner)
+    )
 
 
-def stack_start(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
+def stack_start(
+    b_data: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str] = frozenset()
+) -> str:
     """The branch a CR of a stack batch starts on, and the place the record gives it until
     `stack` places it (a CR that is neither a release nor a fix). First match wins:
     1. its `start_on`, recorded at its take, while the CR that owns that branch is not ended;
     2. the branch of the nearest CR below it in `chain` that has a PR, unless one of its open
        dependencies sits higher in `chain`: then the nearest such dependency's branch;
     3. with no CR below that has a PR, the nearest open dependency's branch (highest in `chain`,
-       a dependency outside the chain ranking lowest), else the default branch."""
+       a dependency outside the chain ranking lowest), else the default branch.
+    A CR of `landed` (its PR seen merged on the forge) reads as ended in all three."""
     default: str = repo.config["default_branch"]
-    if _live_start(b_data, c):
+    if _live_start(b_data, c, landed):
         return str(c.start_on)
-    below = _below_with_pr(b_data, c)
-    dep = _nearest_open(b_data, c)
+    below = _below_with_pr(b_data, c, landed)
+    dep = _nearest_open(b_data, c, landed)
     if below is not None:
         return dep[1].branch if dep is not None and dep[0] > below[0] else below[1].branch
     return dep[1].branch if dep is not None else default
 
 
-def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
+def start_base(
+    b_data: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str] = frozenset()
+) -> str:
     """The branch a CR starts on. A release in an ordered batch: the top CR's branch, with none
     open under it the default branch. A series batch: the previous CR's branch. A stack batch,
     for a CR that is neither a release nor a fix: `stack_start`. Otherwise (a parallel batch, a
     fix): the branch of its last open dependency in the order of `after`, else the default
-    branch."""
+    branch. `landed`: the CRs seen merged on the forge, read as ended."""
     default: str = repo.config["default_branch"]
     if c.kind == "release":
-        top = top_cr(b_data)
+        top = top_cr(b_data, landed)
         return top.branch if top else default
     if is_held(c):  # outside the stack: on the default branch
         return default
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c)
-        return pred.branch if pred and pred.status != "merged" else default
+        open_pred = pred is not None and pred.status != "merged" and pred.id not in landed
+        return pred.branch if pred and open_pred else default
     stackable = b_data.mode == "stack" and c.kind != "fix"
     owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
     held_owner = owner is not None and owner.status not in ENDED and is_held(owner)
     if stackable and not held_owner and (not c.stacked or c.start_on):  # a held owner: not here
-        return stack_start(b_data, c, repo)
+        return stack_start(b_data, c, repo, landed)
     if c.after and c.kind != "fix":
-        open_ = _open_after(b_data, c)
+        open_ = _open_after(b_data, c, landed)
         if open_:
             return open_[-1].branch
     return default
@@ -291,91 +323,3 @@ def to_come(d: BatchRecord, c: CrEntry, repo: Repo) -> bool:
     return (
         not c.pr or off_place(d, c, repo) is not None or (c.status == "working" and not c.stacked)
     )
-
-
-def _out_of_draft(c: CrEntry) -> bool:
-    """A CR handed back ready whose PR is recorded as out of draft."""
-    return c.status == "ready" and bool(c.pr) and c.pr_draft is False
-
-
-def ready_word(d: BatchRecord, c: CrEntry, repo: Repo) -> str | None:
-    """The word a ready CR reads, derived from the record; None for a CR not handed back ready.
-    Ready to merge: the PR is recorded out of draft and, in a stack, every CR under it is too;
-    elsewhere its base is the default branch. A PR with no recorded draft state reads as a draft:
-    never ahead of the forge."""
-    if c.status != "ready":
-        return None
-    if not c.pr:
-        return READY_LOCALLY
-    if c.pr_draft is not False or is_held(c):
-        return PR_IN_DRAFT
-    place = chain(d)
-    ids = [x.id for x in place]
-    if c.id in ids:
-        under = place[: ids.index(c.id)]
-        return READY_TO_MERGE if all(_out_of_draft(x) for x in under) else PR_IN_DRAFT
-    default: str = repo.config["default_branch"]
-    return READY_TO_MERGE if pr_base_of(d, c, repo) == default else PR_IN_DRAFT
-
-
-def pr_base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """The base its PR has: the forge's, as `ship` last read it; with none recorded (no PR
-    shipped, an older record, a failed read) the record's plan, `stack_base`."""
-    return c.pr_base or stack_base(d, c, repo)
-
-
-def draft_waited(d: BatchRecord, c: CrEntry, repo: Repo) -> CrEntry | str | None:
-    """What a PR in draft waits for: for a held CR, the text of its hold; else the CR whose branch
-    its PR sits on, on the forge, when that CR is not out of draft; else the CR under it in the
-    stack not yet out of draft, else the CR whose branch its base is, else the base branch itself
-    (no CR of the batch), else None (its own turn out of draft)."""
-    if is_held(c):
-        return held_text(c)
-    default: str = repo.config["default_branch"]
-    if c.pr_base and c.pr_base != default:
-        on = next((x for x in d.crs if x.branch == c.pr_base), None)
-        if on is not None and not _out_of_draft(on):
-            return on
-    place = chain(d)
-    ids = [x.id for x in place]
-    if c.id in ids:
-        below = [x for x in place[: ids.index(c.id)] if not _out_of_draft(x)]
-        if below:
-            return below[-1]
-    base = pr_base_of(d, c, repo)
-    if base != default:
-        return next((x for x in d.crs if x.branch == base), base)
-    return None
-
-
-def draft_clause(d: BatchRecord, c: CrEntry, repo: Repo, prepared: bool) -> str:
-    """`its PR <pr> is <state>; it waits <what>`: the clause the ready line of a PR in draft ends
-    with and the CR's now line repeats, from the record."""
-    if c.pr_draft is None:
-        state = f"of unknown draft state (draft not read: ship {c.id} {c.pr})"
-    else:
-        state = "a draft on the forge" if c.pr_draft else "out of draft on the forge"
-    waited = draft_waited(d, c, repo)
-    own = f"the release PR {c.pr} is" if prepared else f"its PR {c.pr} is"
-    if is_held(c):
-        return f"{own} {state}; it waits: {waited}"
-    if waited is None:
-        what = "for its turn out of draft"
-    elif isinstance(waited, str):
-        what = f"on the branch {waited} (no CR of this batch)"
-    else:
-        what = f"on {waited.id} ({waited.pr or 'no PR yet'})"
-    return f"{own} {state}; it waits {what}"
-
-
-def draft_waits(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """The same answer as a word for the views: the CR's id, the branch, or its own turn."""
-    waited = draft_waited(d, c, repo)
-    if waited is None:
-        return "its turn out of draft"
-    return waited if isinstance(waited, str) else waited.id
-
-
-def state_word(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
-    """The state as a person reads it: the CR's status, a ready CR by its word."""
-    return ready_word(d, c, repo) or c.status

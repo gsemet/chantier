@@ -5,7 +5,7 @@ from __future__ import annotations
 from chantier.core.records import BatchRecord, CrEntry, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import over_budget, slot_free, waits_all
-from chantier.stacks import (
+from chantier.stack_words import (
     PR_IN_DRAFT,
     READY_LOCALLY,
     READY_TO_MERGE,

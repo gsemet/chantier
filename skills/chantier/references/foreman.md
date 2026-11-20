@@ -378,11 +378,16 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   (refused past three fixes or the budget); else, or refused, it is an ask. A stack batch
   (`--mode stack`, or a batch switched to a stack by `order mode`): until the first stack is made it runs like
   a parallel batch with chains: each CR handed back `ready` on the default branch is an ordinary
-  `ready-to-merge` ask (the user may merge it now), and a merge is handled by the rebase notes below, not
+  `ready-to-merge` ask (the user may merge it now; the CLI reads such a CR `ready to merge`, so the
+  ask is `ready-to-merge` with no remark on the record, even with CRs before it in the order still
+  working), and a merge is handled by the rebase notes below, not
   by a restack; a CR based on another CR's branch hands back `PR in draft`. The stack grows from the bottom:
   - **The first take,** the moment the stack can form: as soon as two CRs are handed back `ready`
     with a PR (and neither depends on an open CR not ready). `take` starts every new CR on the
-    nearest earlier CR with a PR (the CLI computes it; you choose nothing), recorded at its first take. While it is due, `status` prints `stack: take stack now: <crs> ...`; that line
+    nearest earlier CR with a PR (the CLI computes it; you choose nothing), recorded at its first take;
+    it leaves out a CR the journal shows merged (`forge saw merged`, not recorded yet) and prints a
+    `base:` line naming it: pass that base unchanged, never correct a base by a take note; the `order merged` the
+    line names stays the Chief of Staff's. While it is due, `status` prints `stack: take stack now: <crs> ...`; that line
     is the trigger: take it in the same turn you read it (this rule stays the reference; the line only
     reminds it, and only for the batch's first stack).
   - **Each later take,** one for everything that happened while no stack driver ran: a CR got its

@@ -39,8 +39,10 @@ import re
 from pathlib import Path
 from typing import Any
 
+from chantier.board.crs import link_of
 from chantier.core import clock
 from chantier.core.files import read_text
+from chantier.core.records import BatchRecord
 from chantier.core.repo import Repo
 from chantier.hub import schemas
 from chantier.hub.schemas import PUBLISHED, config_text, merged_text, wait_cleared_text
@@ -179,6 +181,24 @@ def merged_events(batch: str, rows: list[dict[str, Any]]) -> list[dict[str, Any]
             entry["landed_with"], entry["landed_at"] = landed["cr"], landed["at"]
         out.append(entry)
     return out
+
+
+def seen_merged(entries: list[dict[str, Any]], d: BatchRecord) -> frozenset[str]:
+    """The ids of the CRs of `d` the forge hub saw merged: a listed `merged@1` line of this batch
+    whose `cr` is the CR and whose `pr` is the CR's recorded PR link (an old line does not hit a
+    CR that came back with a new PR). Any such line counts, `into_cr` or `landed_with` or not. Pure:
+    the caller reads the journal."""
+    link = {c.id: link_of(c.pr) for c in d.crs}
+    return frozenset(
+        str(e["cr"])
+        for e in entries
+        if _listed(e)
+        and e.get("type") == "merged@1"
+        and e.get("batch") == d.id
+        and isinstance(e.get("cr"), str)
+        and link.get(e["cr"]) is not None
+        and e.get("pr") == link[e["cr"]]
+    )
 
 
 def red_event(batch: str, cr: str, pr: str, head: str) -> dict[str, Any]:

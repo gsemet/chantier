@@ -14,7 +14,8 @@ from chantier.core.files import subject
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
-from chantier.stacks import READY_TO_MERGE, chain, ready_word, stack_base
+from chantier.stack_words import READY_TO_MERGE, ready_word
+from chantier.stacks import chain, stack_base
 from chantier.status.gate import gate_view
 from chantier.status.views import shown_title
 from chantier.status.words import next_to_start, phase_text, severity, state_label, waits

@@ -16,11 +16,9 @@ from chantier.core.batch import Batch, read_batch, resolve_batch
 from chantier.core.errors import ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
+from chantier.stack_words import draft_clause, draft_waited, draft_waits
 from chantier.stacks import (
     chain,
-    draft_clause,
-    draft_waited,
-    draft_waits,
     held_lines,
     next_merge,
     stack_base,

@@ -160,7 +160,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - a stack (`open --mode stack`) of independent CRs: all taken at once, each started on the
   default branch, then stacked afterwards by `stack` (`ship` records the default branch before,
   the CR under it after); a CR starting on the nearest earlier CR with a PR (a working one too; a branch with no PR, a
-  cancelled or merged CR skipped; a fix, a release, a CR with an `after` and a parallel batch
+  cancelled or merged CR skipped, and a CR whose PR the forge shows merged: the hub's `merged@1` line
+  of the journal, run on the fake forge, with `take` and `handoff` printing the default branch and a
+  `base:` line, until `order merged`; with no journal line, a's branch as before; a fix, a release, a CR with an `after` and a parallel batch
   unchanged), recorded at its first take (the default branch once its CR is cancelled or the batch leaves the
   stack), a working PR off its place left out of the stack as it stands (`show`, `stack`, a
   refusal at the bottom) and `forge-stack create` retargeting before it stacks (the fake forge
@@ -188,7 +190,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - the three words of a ready CR (`ready locally`, `PR in draft`, `ready to merge`) with their
   icons 🟣, 🟤 and 🟢 in `status`, the STATUS files (`readiness`) and `handoff`, and the `stack` and
   `take stack` rows: the hand-back state and the PR's draft flag (`ready, PR draft (#n)`):
-  `ship` reading the draft state from the forge, the hand-back line by word (for `PR in draft`, its PR's draft state and the CR (and PR) it waits
+  `ship` reading the draft state from the forge, a CR the stack driver has not placed reading its word
+  from its PR's base on the forge (`ready to merge` on the default branch or on the branch of a CR that is;
+  `PR in draft` waiting for its turn out of draft, or on the CR under it; the chain's rule again with
+  no recorded base and once `stack` places it), the hand-back line by word (for `PR in draft`, its PR's draft state and the CR (and PR) it waits
   on), a PR out of draft over a draft, `stack
   --out-of-draft` refused over a draft (nothing written) or on a CR that is working, `stack
   --out-of-draft` and `--draft` recorded, a CR taken back dropping the PR above it to `PR in

@@ -18,7 +18,7 @@ from chantier.core.records import BatchRecord, read_batch_json
 from chantier.core.repo import Repo
 from chantier.hub import journal
 from chantier.hub.interest import Interest
-from chantier.stacks import READY_TO_MERGE, ready_word
+from chantier.stack_words import READY_TO_MERGE, ready_word
 
 ALWAYS = frozenset({"state", "checks"})
 

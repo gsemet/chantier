@@ -22,7 +22,7 @@ from chantier.core.records import (
 )
 from chantier.core.repo import Repo
 from chantier.rails import held
-from chantier.stacks import ready_word
+from chantier.stack_words import ready_word
 from chantier.status.gate import gate_view
 from chantier.status.steps import steps
 from chantier.status.words import (

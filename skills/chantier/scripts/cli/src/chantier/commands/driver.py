@@ -32,6 +32,7 @@ from chantier.core.errors import ChantierError
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
+from chantier.hub import journal
 from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
@@ -45,14 +46,8 @@ from chantier.rails import (
     held,
     worktree_print,
 )
-from chantier.stacks import (
-    PR_IN_DRAFT,
-    READY_TO_MERGE,
-    draft_clause,
-    ready_word,
-    stack_base,
-    start_on_for,
-)
+from chantier.stack_words import PR_IN_DRAFT, READY_TO_MERGE, draft_clause, ready_word
+from chantier.stacks import stack_base, start_on_for
 from chantier.status.views import shown_title
 
 
@@ -153,13 +148,14 @@ def take(args: argparse.Namespace) -> list[str]:
         restart = c.status == "working"  # a new Driver on a CR already working
         if c.status in {"ready", "blocked", "working"}:
             c.append("notes", f"back to a Driver: {args.note}")
-        if c.status == "queued" and (start_on := start_on_for(d, c)):
+        landed = journal.seen_merged(journal.read(repo.changes)[0], d)
+        if c.status == "queued" and (start_on := start_on_for(d, c, landed)):
             c.start_on = start_on  # the start base is fixed at the first take
         b.touch(c, status="working", blocked_reason=None)
         c.clear_phase()
         b.log("take", c.id, note=args.note, lease=lease.n, **({"restart": True} if restart else {}))
         _start_work(repo, b, c)
-        facts = cr_facts(repo, batch, d, c)
+        facts = cr_facts(repo, batch, d, c, landed)
         block = _cr_driver_block(repo, batch, c, facts)
         block.team, block.note = team_lines(d.playbook), args.note
         block.lease = leases.driver_line(c.id, lease)
