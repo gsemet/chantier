@@ -65,8 +65,8 @@ taken as proof of life.
 
 **The board.** Ask before starting `$CHANTIER board --seat <own session id>` in the background,
 explaining its persistent process and configured network exposure, and that it is also the
-surface's forge hub: it reads the forge every 20 s with the user's own `gh` or `glab` and needs
-the network for that. A decline starts no server.
+surface's forge hub: it reads the forge every 20 s with the user's own `gh` or `glab` (only the
+PRs a running batch waits for) and needs the network for that. A decline starts no server.
 After acceptance, use the host's means (the host's reference, "Run the board"),
 and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
 never start it.

@@ -34,10 +34,14 @@ settings, so the Foreman's session can be reached from your phone. A host classi
 the Foreman an action (starting a Release driver, say) until you allow it in that session: type
 one line there saying so, from your phone if you are away, and it does that action once.
 
-| Forge | CLI | Where |
-| --- | --- | --- |
-| GitHub | `gh` | github.com, or GitHub Enterprise when `gh` is logged in to its host |
-| GitLab | `glab` | gitlab.com, or a self-managed server when `glab` is logged in to its host |
+| Forge | CLI | Connector | Where |
+| --- | --- | --- | --- |
+| GitHub | `gh` | `github` | github.com, or GitHub Enterprise when `gh` is logged in to its host |
+| GitLab | `glab` | `gitlab` | gitlab.com, or a self-managed server `glab` is logged in to |
+
+chantier's own reads of a forge (the forge hub, the PRs page) go through a connector, read-only
+([forge connectors](forge-connectors.md)); a link of another forge is named in the hub's error and
+on the PRs page, never read.
 
 The agents use the forge's CLI as it is logged in (`gh auth login`, `glab auth login --hostname
 <host>`), on the batch's git remote (`origin`, or `--remote`). Nothing is configured in chantier.

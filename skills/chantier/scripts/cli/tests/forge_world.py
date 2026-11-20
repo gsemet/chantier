@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from chantier.board import forge_read
+from chantier import connectors
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.core.repo import Repo
 from chantier.hub import journal
@@ -74,8 +74,9 @@ class World:
         write_batch(self.project("delta"), "running", crs_of("delta", "merged"))
         self.forge: dict[int, dict[str, Any]] = {}
         self.calls: list[list[str]] = []
+        self.asked: list[frozenset[str]] = []  # the optional facts of each call
         self.failure: Exception | None = None
-        monkeypatch.setattr(forge_read, "read", self.read)
+        monkeypatch.setattr(connectors, "read", self.read)
         self.hub = Hub(self.repo("alpha"), NEW_VERSION)
 
     def project(self, name: str) -> Path:
@@ -86,8 +87,11 @@ class World:
     def repo(self, name: str) -> Repo:
         return Repo.find(self.root, str(self.project(name)))
 
-    def read(self, links: list[str]) -> dict[int, dict[str, Any]]:
+    def read(
+        self, links: list[str], facts: frozenset[str] = frozenset()
+    ) -> dict[int, dict[str, Any]]:
         self.calls.append(links)
+        self.asked.append(facts)
         if self.failure:
             raise self.failure
         return {n: {**OPEN, **self.forge.get(n, {})} for n in (int(pr_parts(x)[3]) for x in links)}

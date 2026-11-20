@@ -1,7 +1,7 @@
 """The forge hub and `chantier watch`: the election, the cycle, the journal both the hub and the
 board's page write, the watcher's end, its refusals and what `status` says.
 
-No test reaches a forge (`forge_read.read` is replaced) and none sleeps: the cycle and the end
+No test reaches a forge (`connectors.read` is replaced) and none sleeps: the cycle and the end
 are driven with an injected monotonic time."""
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from forge_world import (
     write_batch,
 )
 
-from chantier import __version__
+from chantier import __version__, connectors
 from chantier.board import prs
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
@@ -40,6 +40,7 @@ from chantier.hub import journal, lock, schemas, state
 from chantier.hub.autostart import watch_command
 from chantier.hub.watch import EVENTS, Watch
 
+REAL_READ = connectors.read  # the seam as shipped, before `World` replaces it
 RED_A, RED_B = {"checks": "failing", "head": "a" * 40}, {"checks": "failing", "head": "b" * 40}
 A, B = "a" * 40, "b" * 40
 # (what the forge shows for alpha's PRs 10 and 11 at each cycle, alpha's journal after it)

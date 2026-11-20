@@ -13,8 +13,7 @@ from batch_helpers import host, open_batch
 from conftest import Chantier
 from forge_world import CYCLE, EXIT_USAGE, QUIET
 
-from chantier import __version__
-from chantier.board import forge_read
+from chantier import __version__, connectors
 from chantier.board.seats import SEAT_CHECK_S
 from chantier.core.repo import Repo
 from chantier.hub import autostart, journal, lock
@@ -147,10 +146,12 @@ def test_watch_refusals_and_the_pull_path(
 def test_the_pull_path_prints_the_lines_past_the_cursor_and_takes_no_lock(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def forge_read_called(links: list[str]) -> dict[int, dict[str, Any]]:
+    def forge_read_called(
+        links: list[str], facts: frozenset[str] = frozenset()
+    ) -> dict[int, dict[str, Any]]:
         raise AssertionError("--once reads no forge")
 
-    monkeypatch.setattr(forge_read, "read", forge_read_called)
+    monkeypatch.setattr(connectors, "read", forge_read_called)
     host(monkeypatch)
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "s-me")
     found = Repo.find()

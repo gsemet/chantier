@@ -1,8 +1,6 @@
 """The board's PRs page: its route (`GET /api/projects/<id>/prs`) on a prepared batch, the
-judgement of a PR against the record, the forge read's query and its failures.
-
-No test reaches a forge: the route's one seam, `forge_read.read`, is replaced, and the runner's
-own failures are tried with `subprocess.run` replaced."""
+judgement of a PR against the record and the forge read's failures. No test reaches a forge: the
+route's one seam, `connectors.read`, is replaced."""
 
 from __future__ import annotations
 
@@ -14,7 +12,8 @@ import pytest
 from batch_helpers import changes, open_batch, record, write_record
 from conftest import Chantier
 
-from chantier.board import fingerprint, forge_read, journal, prs, routes
+from chantier import connectors
+from chantier.board import fingerprint, journal, prs, routes
 from chantier.board.context import Context, Request
 from chantier.board.key import KeyFile, key_path, load_or_create
 from chantier.board.projects import Projects
@@ -56,9 +55,9 @@ class Board:
         self.id = projects.home_id
         self.ctx = Context(projects, KeyFile(key_path(found)), Seats(projects), "t", lambda: None)
         self.ctx.reads = prs.ForgeReads(now=lambda: self.now)
-        monkeypatch.setattr(forge_read, "read", self.read)
+        monkeypatch.setattr(connectors, "read", self.read)
 
-    def read(self, links: list[str]) -> dict[int, dict[str, Any]]:
+    def read(self, links: list[str], *_: object) -> dict[int, dict[str, Any]]:
         self.calls.append(links)
         if self.failure:
             raise self.failure

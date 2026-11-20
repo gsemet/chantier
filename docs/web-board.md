@@ -63,7 +63,9 @@ The batch navigator is on this page as on Costs and Batch: a past batch's PRs ar
 - **The signal is read only when a `status` runs**: when nothing runs (no heartbeat), the row's "merged on the forge, not recorded yet: tell the Chief of Staff" means just that: tell the Chief of Staff, who records it.
 - **A PR merged into another CR's PR** (a stacked batch) is signalled too, with that CR's branch. It is a merge to record once the PR under it has landed (the line then says `landed with <cr>`); until then the line says not landed, and the Chief of Staff tells you and records nothing.
 - **Refresh**: the page reads the forge when it opens and at once on each change of the batch shown, then every 10 s while the page is visible and a PR of the batch shown is not done. The server keeps one read per project and batch shown for 10 s, however many pages are open. It stops when every PR is merged or closed (a closed PR counts as done), and starts again when a new PR joins the batch.
-- **A forge error** (no login, no network, a hung call) shows as one line above the rows; the last good read stays on screen with its age.
+- **A forge error** (no login, no network, a hung call) shows as one line above the rows; the
+  last good read stays on screen with its age. A PR link of a forge chantier has no connector for
+  shows as `no connector reads <link>`, and the other rows are read.
 - **A paused batch** says so in the header; with no batch running the page shows the last closed batch (read once), and says "No batch running" only when the project has no history at all.
 
 ### Kanban
@@ -178,7 +180,7 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   board serves a planning surface, on whatever port, so a second session finds it and gets its
   link instead of starting another. The board is also the surface's forge hub while it runs
   (the `hub` entry of the same file): it reads the forge, read-only, every 20 s with your own
-  `gh` or `glab`, so it needs the network for that.
+  `gh` or `glab` (only the PRs a running batch waits for), so it needs the network for that.
 - **The local network.** By default the board listens on every address of the machine
   (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
   off any network you do not trust. On Windows, the first start asks the firewall for permission:
