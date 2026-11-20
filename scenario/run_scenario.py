@@ -1919,7 +1919,7 @@ def forge_hub(w: World) -> None:
         check("the `--for role:griller` watcher, the merge being for the project, ends with the same lines",
               ended(wg) == got, str(got))
         # 4. a ready PR whose checks fail: a line for the watcher, none in `status`
-        forge_pr(sw, url(913), checks="FAILURE", headRefOid="feedface0123456789")
+        forge_pr(sw, url(913), checks="FAILURE", headRefOid="feedface0123456789012345678901234567890a")
         wa = watcher("demo", "--after", 3)
         wa.line()
         got = ended(wa)
@@ -8904,10 +8904,10 @@ def surface_config_page(w: SurfaceWorld, coder_line: Callable[..., str], frozen:
               and target.is_file(), f"{code} {answer.get('lines')} {answer.get('error')}")
         lines = [json.loads(x) for x in (w.project / "changes" / "forge-journal.jsonl")
                  .read_text(encoding="utf-8").splitlines()]
-        check("that save of a role's model appends one `config` line, by the board, keyed on the role",
-              [(e["seq"], e["source"], e["kind"], e["key"]) for e in lines]
-              == [(1, "board", "config", "hosts.claude.roles.coder.model")], str(lines))
-        # the two limits: a save moves one `config` line of the forge journal; a running watcher ends
+        check("that save of a role's model appends one `config@1` line, by the board, keyed on the role",
+              [(e["seq"], e["source"], e["type"], e["key"]) for e in lines]
+              == [(1, "board", "config@1", "hosts.claude.roles.coder.model")], str(lines))
+        # the two limits: a save moves one `config@1` line of the forge journal; a running watcher ends
         # on it, `status` carries the slots one until an `order slots` follows
         held = w.batch()["slots"]
         quick = {"CHANTIER_HUB_TEST_TIMES": "1:4"}  # the watcher ends 4 s after the last event
