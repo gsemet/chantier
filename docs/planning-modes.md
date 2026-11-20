@@ -145,6 +145,10 @@ sessions. Only the projects of the same surface are seen.
 They submit a CR, into `1-inbox` or a priority of `2-backlog`, only by a pull request on the
 surface. You review and merge it on the forge; the Chief of Staff reads the CR like any other.
 
+A PR or MR merged on the project without chantier is archived on your word ("archive <link>") as
+`5-archives/<YYMMDD-HHMM>-outside-<number>-<slug>/`, with `intake/request.md` and `delivery.md`. In
+a planning surface the writer publishes it; with no writer, nothing is written.
+
 ## Remote
 
 This is the author's own finding (2026-11-10), not a proved trial: a remote session cannot be

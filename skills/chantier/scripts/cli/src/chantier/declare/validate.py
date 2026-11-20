@@ -11,7 +11,8 @@ def register(sub: Subparsers) -> None:
         sub,
         "validate",
         "chantier.commands.validate:validate",
-        "check the whole planning folder: stages, CR folders, summary.json's format, missing or "
+        "check the whole planning folder: stages, CR folders, outside archives' names, "
+        "summary.json's format, missing or "
         "late summaries, broken links; exit 0 with gaps, 3 on errors, 1 when it cannot run",
         NO_BATCH,
     )
