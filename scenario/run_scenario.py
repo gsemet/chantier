@@ -78,7 +78,8 @@ UNITS = {
     "stack": (
         640,
         ["github"],
-        ["stack_batch", "base_from_pr", "stack_waiver", "ready_words", "forge_stack_cli"],
+        ["stack_batch", "base_from_pr", "stack_waiver", "ready_words", "forge_stack_cli",
+         "stack_hold"],
     ),
     "release": (
         420,
@@ -7788,6 +7789,83 @@ def icon_is(w: World, cr: str, icon: str, what: str) -> dict:
     return own
 
 
+def stack_hold(w: World) -> None:
+    note("\n## 13b. `order hold`: a ready CR held out of the stack, on the forge and in the record")
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Hold piece a", "Hold piece b", "Hold piece c")]
+    w.start(*(str(x) for x in items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    path_key = next(k for k in w.env if k.upper() == "PATH")
+    on_path = {path_key: f"{w.fake.parent}{os.pathsep}{w.env[path_key]}"}
+    num = {a: 201, b: 202, c: 203}
+    branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
+    gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
+
+    def edit_cr(cr: str, **fields: object) -> None:
+        d = w.batch()
+        next(x for x in d["crs"] if x["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    for cr in (a, b, c):
+        edit_cr(cr, pr=PR_LINK["github"] + str(num[cr]), status="ready", pr_draft=False,
+                head=hashlib.sha1(cr.encode()).hexdigest())
+    w.chantier("stack", a, b, c)
+    w.chantier("foreman", "set", "local_foreman_hold", "--epoch", 1)
+    w.gh(next_stack=200, heads={str(n): branch(cr) for cr, n in num.items()},
+         stacks=[{"number": 100, "open": True, "pull_requests": [201, 202, 203]}])
+    forge_base(w, PR_LINK["github"] + "202", branch(a))
+    forge_base(w, PR_LINK["github"] + "203", branch(b))
+    for cr, base in ((b, branch(a)), (c, branch(b))):
+        edit_cr(cr, pr_base=base)
+
+    code, out = w.chantier("order", "hold", c)
+    check("`order hold` of the top ready CR is recorded at once (`applied`), prints the way back, and "
+          "`stack` leaves it out of the rows and prints the `held:` line",
+          code == 0 and any(x.startswith(f"{c} held out of the stack (order O-1)") for x in out)
+          and w.batch()["orders"][-1]["applied"] is True
+          and w.cr(c)["held"] == "O-1" and not w.cr(c)["stacked"], str(out))
+    _, rows = w.chantier("stack")
+    check("`stack` with no CR: the chain without the held CR, and `held: <cr> (order O-1) out of the "
+          "stack, PR <link> on main`",
+          rows[0].endswith(f"{a} → {b}") and not any(x.startswith(f"{c} ") for x in rows)
+          and any(x.startswith(f"held: {c} (order O-1) out of the stack, PR {PR_LINK['github']}203 "
+                               f"on main") for x in rows), str(rows))
+    w.chantier("take", "stack", "--note", f"hold {c}", "--epoch", 1, expect=0)
+    # the stack driver: the held PR to draft (`gh pr ready --undo`), the record told, then rebuild
+    w.gh(drafts=[203])
+    w.chantier("stack", "--draft", c)
+    code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+    state = gh_state()
+    top = next((x for x in reversed(state["stacks"]) if x["open"]), {})
+    check("`forge-stack rebuild` with a held PR: unstacks, retargets the held PR to the default branch "
+          "(a line naming the hold), stacks the other CRs' PRs only, and the held PR stays a draft",
+          code == 0 and f"#203 base {branch(b)} -> main (held out of the stack)" in out
+          and any("held out of the stack: left out" in x for x in out)
+          and top.get("pull_requests") == [201, 202] and state["bases"]["203"] == "main"
+          and 203 in state.get("drafts", []), f"{out} {top}")
+    _, out = w.chantier("status")
+    check("`status` prints the `held:` line after a rebuild", any(x.startswith(f"held: {c} ") for x in out),
+          str(out))
+    w.chantier("take", c, "--note", "again", "--epoch", 1, expect=2)
+    check("`take` of a held CR is refused naming `order unhold`",
+          f"`order unhold {c}` first" in w.last_stderr, w.last_stderr)
+
+    w.chantier("order", "unhold", c)
+    w.chantier("agents", "set", "stack", "-", "--epoch", 1)
+    w.chantier("take", "stack", "--note", f"unhold {c}", "--epoch", 1)
+    forge_base(w, PR_LINK["github"] + "203", branch(b))
+    edit_cr(c, pr_base=branch(b))
+    code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+    top = next((x for x in reversed(gh_state()["stacks"]) if x["open"]), {})
+    _, rows = w.chantier("stack")
+    check("`order unhold` and a take: the CR is back on top of the stack on the forge and in `stack`, "
+          "with no `held:` line",
+          code == 0 and top.get("pull_requests") == [201, 202, 203]
+          and rows[0].endswith(f"{a} → {b} → {c}") and "held" not in w.cr(c)
+          and not any(x.startswith("held:") for x in rows), f"{out} {rows}")
+
+
 def stack_waiver(w: World) -> None:
     note("\n## 13b. One long gate on the stack's top PR: `order waive stack`")
     w.reset()
@@ -9450,6 +9528,7 @@ CASES = {
     "stack_waiver": stack_waiver,
     "ready_words": ready_words,
     "forge_stack_cli": forge_stack_cli,
+    "stack_hold": stack_hold,
     "release": release,
     "granted_fixes": granted_fixes,
     "release_last": release_last,

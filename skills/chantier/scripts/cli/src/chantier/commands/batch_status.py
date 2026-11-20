@@ -43,7 +43,7 @@ from chantier.rails import (
     waits_all,
 )
 from chantier.rails_release import record_ask
-from chantier.stacks import stack_line, state_word
+from chantier.stacks import held_lines, stack_line, state_word
 from chantier.status.gate import gate_view
 from chantier.status.words import phase_text, shape_word, steering_word
 
@@ -313,6 +313,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         for c in sorted(d.crs, key=lambda c: c.order)
     ]
     lines += stack_line(d)
+    lines += held_lines(d, repo)
     lines += _order_lines(d)
     lines += _seen_lines(repo, d)
     unread = sum(1 for a in d.asks if not a.read)

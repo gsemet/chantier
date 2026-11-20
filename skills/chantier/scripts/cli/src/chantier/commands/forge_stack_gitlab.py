@@ -180,12 +180,19 @@ def retarget(rows: Rows, where: Where) -> list[str]:
     return done or ["no MR to retarget"]
 
 
-def make(rows: Rows, come: Rows, where: Where) -> tuple[list[str], int]:
-    """`create` and `rebuild`: retarget, bottom first, each MR off the record's base, then read
-    the chain back. A `still a draft` line is the stack driver's to act on, no failure."""
+def make(rows: Rows, come: Rows, where: Where, held: Rows | None = None) -> tuple[list[str], int]:
+    """`create` and `rebuild`: retarget, bottom first, each MR off the record's base, the held
+    MRs (outside the chain) to the default branch, then read the chain back. A `still a draft`
+    line is the stack driver's to act on, no failure."""
     mrs = _read(where, rows)
     done: list[str] = []
     try:
+        for r in held or []:
+            m = glab(f"{_base(where)}/{r['number']}", where[0])
+            old = m.get("target_branch")
+            if m.get("state") == "opened" and old != r["base"]:
+                glab(f"{_base(where)}/{r['number']}", where[0], "PUT", {"target_branch": r["base"]})
+                done.append(f"!{r['number']} target {old} -> {r['base']} (held out of the stack)")
         for r, m in zip(rows, mrs, strict=True):
             old = m.get("target_branch")
             if m.get("state") == "opened" and old != r["base"]:

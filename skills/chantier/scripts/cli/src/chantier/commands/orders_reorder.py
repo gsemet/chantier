@@ -5,6 +5,7 @@ from __future__ import annotations
 from chantier.core.batch import Batch
 from chantier.core.records import CrEntry, read_events
 from chantier.rails import ENDED
+from chantier.stacks import is_held
 
 
 def ready_times(b: Batch) -> dict[str, int]:
@@ -31,6 +32,23 @@ def chains_kept(seq: list[CrEntry]) -> list[CrEntry]:
         else:
             return seq
     return seq
+
+
+def release_holds(b: Batch) -> list[str]:
+    """The batch leaves a stack: no stack order to be out of any more, so every held CR is let
+    go, before `reorder` computes the places. `stack` renumbers only the CRs of the chain, so a
+    held CR's order can equal another's: it first takes a unique one, above all."""
+    top = max((x.order for x in b.record.crs), default=0)
+    out = []
+    for c in b.record.crs:
+        if not c.held:
+            continue
+        if is_held(c):
+            top += 1
+            c.order = top
+            out.append(f"{c.id}: no longer held (the batch leaves the stack)")
+        c.unset("held")
+    return out
 
 
 def reorder(b: Batch) -> list[str]:

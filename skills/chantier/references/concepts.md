@@ -256,7 +256,10 @@ At startup, identify the role, batch, project and parent session.
   the same way. **A CR dropped from the stack** is removed: the PRs above go to draft first, its
   commits come out of the branches above (by the stack driver, or by the Driver of a working CR),
   its PR is closed and its branch kept, the stack is rebuilt without it and judged again where it
-  changed, and a release above is redone. A CR stands on another
+  changed, and a release above is redone. **A CR held out of the stack** (`order hold <cr>`, a
+  ready CR of a stack batch, until `order unhold <cr>`) leaves it without being dropped: its PR goes
+  to the default branch as a draft, the stack is rebuilt without it, and it comes back on top; no
+  release starts while a CR is held. A CR stands on another
   only by a dependency: a real one (`depends.json`) or a chain the Foreman decided, or the plan
   proposed and the user's go approved (`order after`). A fix CR sits outside a series and a stack,
   on the default branch. A release CR is

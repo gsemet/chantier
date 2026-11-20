@@ -10,11 +10,11 @@ from chantier.commands.factory import USAGE as FACTORY_USAGE
 from chantier.commands.orders_apply import (
     CR_ORDERS,
     HANDLERS,
-    Word,
     apply_order,
 )
 from chantier.commands.orders_merged import stop_before_merge
 from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
+from chantier.commands.orders_word import Word
 from chantier.core import git
 from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp

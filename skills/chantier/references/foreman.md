@@ -376,6 +376,11 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
     such queued CR left out (with its unmet dependency), beside the one-time ask for a cancelled
     dependency. A CR that goes back to a Driver after the final-order take (a new round, a
     `rebase:`) makes it due again once that CR hands back.
+  - **A held CR** (the Chief of Staff's `order hold <cr>` or `order unhold <cr>` on the user's word,
+    in `status`): take the stack driver, `take stack --note "hold <cr>"` (or `"unhold <cr>"`),
+    then `order done <O-n>`. Never take a held CR for a round. A held CR does not count in the
+    final-order take, and neither the final-order take nor `take <release>` starts while a CR is
+    held: send one ask `the release waits: <cr> is held out of the stack (order O-n)`.
   - **Deliver by a time:** on the order note `deliver by <time>`, until the time, free slots go
     first to the CRs that can join the mergeable part by then: those closest to being handed back `ready` whose
     dependencies are already in it or ready to merge, short chains before long ones; a CR that cannot be
