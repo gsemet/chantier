@@ -762,7 +762,7 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
     <cr> <id> --epoch <n>`. No round is counted and no second slot is taken; the budget applies (a
     refusal with exit 5 is a `budget` ask).
   - **A hand-back `blocked context: …`** (the Driver's context reached the threshold, or the host asked its hand-back early, or the Driver handed off its closing
-    (`context: closing: …`: at its pushed-head `VERIFIED` with 100,000 tokens or more, or at the
+    (`context: closing: …`: at its pushed-head `VERIFIED` with 115,000 tokens or more, or at the
     context rule during the closing): its text says which): restart a fresh Driver on
     that CR before any queued CR (a blocked CR holds no slot, so it takes the next free one):
     `agents set <cr> - --epoch <n>`, then `take <cr> --note "resume: context" --epoch <n>`, no
