@@ -5734,12 +5734,12 @@ def stack_batch(w: World) -> None:
     _, stacked = w.chantier("take", "stack", "--epoch", 1)
     w.chantier("agents", "set", "stack", "-", "--epoch", 1)
     check("a stack: independent CRs are all taken at once and start on the default branch; "
-          "their place in the stack is the one under it",
+          "no CR below has a PR, so their place is the default branch too",
           fm.started == [one, two, three]
           and all(any("base origin/main" in ln for ln in base[c]) for c in (one, two, three))
           and "base origin/main" in stacked[1]
-          and f"base {w.cr(one)['branch']}" in stacked[2]
-          and f"base {w.cr(two)['branch']}" in stacked[3], str(base) + str(stacked))
+          and "base origin/main" in stacked[2]
+          and "base origin/main" in stacked[3], str(base) + str(stacked))
     for i, cr in enumerate((one, two, three)):
         driver_round(w, cr, f"stack{i}.py", f"N = {i}\n")
         w.ready(cr, w.cr(cr)["pr"])
@@ -5778,15 +5778,15 @@ def stack_batch(w: World) -> None:
           len(d["crs"]) == 4 and w.cr(four)["status"] == "queued"
           and w.cr(four)["path"].startswith("4-batch/1-pending/")
           and len(list((w.state / "4-batch").glob("batch.json"))) == 1
-          and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]),
+          and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]),
           str(out))
     w.chantier("order", "after", four, "--note", two)
-    chained = any(f"base {w.cr(two)['branch']}" in ln for ln in w.chantier("handoff", four)[1])
+    chained = any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1])
     w.chantier("order", "after", four, "--note", "-")
-    check("a chain through `order after` starts on the ready CR's branch; `--note -` puts the "
-          "queued CR back on the default branch",
+    check("`order after` on a CR lower in the stack than the top CR with a PR leaves the base on that "
+          "CR; `--note -` clears the `after` and the base is unchanged",
           chained and w.cr(four)["status"] == "queued" and "after" not in w.cr(four)
-          and any("base origin/main" in ln for ln in w.chantier("handoff", four)[1]))
+          and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]))
     # a stacked CR with an `after` takes its place in the stack as base, not its dependency's branch
     w.chantier("order", "after", four, "--note", one)
     w.chantier("stack", one, two, four, three)
@@ -5813,11 +5813,11 @@ def stack_batch(w: World) -> None:
         (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
         return was
     was = set_status(three, "cancelled")
-    on_main = any("base origin/main" in ln for ln in w.chantier("handoff", four)[1])
+    on_two = any(f"base {w.cr(two)['branch']}" in ln for ln in w.chantier("handoff", four)[1])
     set_status(three, was)
-    check("the recorded start base falls back to the default branch while the CR that owns it is "
+    check("the recorded start base falls back to the nearest CR below with a PR while the CR that owns it is "
           "cancelled, and is back with it (recorded, not recomputed)",
-          on_main and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]))
+          on_two and any(f"base {w.cr(three)['branch']}" in ln for ln in w.chantier("handoff", four)[1]))
     driver_round(w, four, "stack3.py", "N = 3\n")
     w.ready(four, w.cr(four)["pr"])
 

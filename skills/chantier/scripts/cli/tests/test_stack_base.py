@@ -93,6 +93,12 @@ def test_a_placed_cr_keeps_the_cr_just_below_it(n: int, want: str) -> None:
     assert stack_base(d, d.crs[n - 1], REPO, planned=True) == want
 
 
+def test_start_base_of_a_placed_cr_with_no_pr_is_the_default_branch() -> None:
+    crs = [placed(1), placed(2), placed(3).model_copy(update={"pr": None})]
+    d = BatchRecord(id="batch-01", mode="stack", crs=crs)
+    assert start_base(d, crs[2], REPO) == "main"
+
+
 def test_take_prints_the_base_the_stack_row_shows(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
