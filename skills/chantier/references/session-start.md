@@ -25,9 +25,13 @@ anything else:
   name what would be left (the uncommitted files, the commits) and ask. Where the host's reference
   names a way to move this session and marks it proved, offer that; Claude Code's is refused for
   an isolated worktree (its reference).
-- With a planning surface, "the main checkout" is the surface's checkout, on its default branch:
-  the project's clone hosts no session. A session started in a project whose `AGENTS.md` holds
-  the pointer line (`- planning: <url>, projects/<name>`) says, first, "this project plans in the
+- With a planning surface, "the main checkout" is the surface's checkout, on its default branch,
+  or the project's main checkout with the surface added as a working directory. In both, the
+  planning folder is the surface's project folder, written by absolute paths, and the project's
+  clone of `checkout.yml` hosts no session. A session tells the two cases apart by what it has:
+  the surface added as a working directory and `$CHANTIER` given `--project` in it. A session
+  started alone in a project whose `AGENTS.md` holds the pointer line (`- planning: <url>,
+  projects/<name>`), without the surface added, says, first, "this project plans in the
   surface at <url>; start the session there", and plans nothing in the project.
 
 The other preflight lines are a batch's and are not reported here, except what the configuration

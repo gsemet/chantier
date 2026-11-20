@@ -84,7 +84,7 @@ Claude Code their transcripts; on Copilot, until `copilot-close-end-event` lands
 ## Where it runs, and the preflight
 
 Direct mode runs on any Claude Code entry point (the Desktop app, the terminal, VS Code, a Remote
-Control session with no Foreman to reuse) and in a Copilot agent session. `chantier preflight
+Control session) and in a Copilot agent session. `chantier preflight
 --direct` checks it: the host check passes on all of them; an unattended run, a linked worktree,
 missing project instructions or an unauthenticated forge are refused, as in Foreman mode.
 
@@ -104,8 +104,8 @@ session (with its compaction count), stay apart on their own `Chief of Staff, ..
 > "Switch to Foreman mode."
 
 On your word, and only where a Foreman can start. The Chief of Staff checks the Foreman-mode
-preflight first, and on a Remote Control session the switch needs a Foreman to reuse, else it is
-refused with the reason. No new Driver starts; the running ones are stopped, and the Foreman
+preflight first; under Remote Control the switch starts a new Foreman or reuses one, as at the
+desk. No new Driver starts; the running ones are stopped, and the Foreman
 restarts each of them from where the record stands as soon as it takes over the batch: at once
 when its old Driver reported its end; when its lease is only not confirmed, once it checked with the
 host that the Driver ended (`take --reclaim`); while the lease is live, with `--reclaim` only on
