@@ -252,9 +252,12 @@ defer the rest of this card until an action names it. These are the card's defau
   CR's patch unchanged, run no long gate and no `verifier`: the pass and the Verifier's verdict
   at the head before the rebase carry, and `ship` checks both with git (the exact `git patch-id
   --verbatim` of each of the CR's own commits, oldest first, is the same on the base the judged
-  head sat on and on the base the new head sits on, and no merge commit is among them), logs a
+  head sat on and on the base the new head sits on, and no merge commit is among them; a base is
+  the nearest branch under the head among the batch CRs' branches, local or remote, and the
+  default branch, read by git, whatever the record or the PR names), logs a
   `carry` event with `gate_from` and `verdict_from`, and prints `carried:` (or `off:` with the
-  reason); `handback ready` reads that event and records the same keys. Any commit added or
+  reason, with both counts when the patch changed: unequal counts mean the CR's own commits
+  were miscounted, an anomaly to report, not a reason to re-verify); `handback ready` reads that event and records the same keys. Any commit added or
   edited is gated again and gets a `verifier` given the move (the hand-back refuses with `does
   not carry: <why>`). **The `ship --conflict` rule, stated once:** any `ship` after a rebase
   during which a conflict was resolved takes `--conflict`, whoever resolved it (a

@@ -3,7 +3,9 @@ it proves on a small prepared repository."""
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import sh
@@ -147,3 +149,22 @@ def test_a_ref_git_cannot_read_raises(shape: dict[str, str]) -> None:
         carry_check(
             Path(shape["wt"]), Judged(shape["g"], "f" * 40, shape["g"]), shape["moved"], shape["b"]
         )
+
+
+def test_a_failing_git_is_named_and_never_read_as_a_changed_patch(
+    shape: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = subprocess.run
+
+    def run(argv: list[str], *a: Any, **kw: Any) -> Any:
+        if argv[:2] == ["git", "patch-id"]:
+            return subprocess.CompletedProcess(argv, 128, b"", b"fatal: boom\nmore\n")
+        return real(argv, *a, **kw)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    got = carry_check(
+        Path(shape["wt"]), Judged(shape["g"], shape["a"], shape["g"]), shape["moved"], shape["b"]
+    )
+    assert got == (
+        f"git could not read the patch-ids of {shape['a'][:7]}..{shape['g'][:7]}: fatal: boom"
+    )

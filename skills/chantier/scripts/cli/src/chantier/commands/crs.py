@@ -150,20 +150,28 @@ def _readable(wt: Path, ref: str) -> None:
 
 def _patch_ids(wt: Path, base: str, head: str) -> list[str]:
     """The exact patch-ids (`git patch-id --verbatim`) of `base..head`'s commits, oldest first.
-    Git computes them; the diff text is never compared here."""
+    Git computes them; the diff text is never compared here. A failing git call raises a
+    ChantierError naming it, never an empty list."""
     log = subprocess.run(
         ["git", "log", "--reverse", "-p", "--no-merges", "--format=commit %H", f"{base}..{head}"],
         cwd=wt,
         capture_output=True,
         check=False,
     )
-    ids = subprocess.run(
-        ["git", "patch-id", "--verbatim"],
-        cwd=wt,
-        input=log.stdout,
-        capture_output=True,
-        check=False,
-    )
+    ids = log if log.returncode else None
+    if ids is None:
+        ids = subprocess.run(
+            ["git", "patch-id", "--verbatim"],
+            cwd=wt,
+            input=log.stdout,
+            capture_output=True,
+            check=False,
+        )
+    if ids.returncode:
+        first = (ids.stderr.decode("utf-8", "replace").strip().splitlines() or ["no message"])[0]
+        raise ChantierError(
+            f"git could not read the patch-ids of {short_head(base)}..{short_head(head)}: {first}"
+        )
     return [
         ln.split()[0] for ln in ids.stdout.decode("utf-8", "replace").splitlines() if ln.strip()
     ]
@@ -189,6 +197,26 @@ def _unproved(g: Judged, head: str, head_base: str | None, what: str) -> str | N
     return None
 
 
+def _changed(wt: Path, g: Judged, head: str, head_base: str) -> str | None:
+    """Why the CR's own commits at `head` (above `head_base`) are not the judged ones (above
+    `g.base`), or None when their exact patch-ids are the same, in order."""
+    try:
+        judged = _patch_ids(wt, str(g.base), g.head)
+        now = _patch_ids(wt, head_base, head)
+    except ChantierError as e:
+        return str(e)
+    if judged == now:
+        return None
+    if len(judged) != len(now):
+        return (
+            f"the rebase changed the patch (own commits: {len(judged)} at {short_head(g.head)} "
+            f"above {short_head(str(g.base))}, {len(now)} at {short_head(head)} "
+            f"above {short_head(head_base)})"
+        )
+    i = next(k for k, (x, y) in enumerate(zip(judged, now, strict=True), 1) if x != y)
+    return f"the rebase changed the patch (commit {i} of {len(now)} differs)"
+
+
 def carry_check(
     wt: Path, g: Judged, head: str, head_base: str | None, what: str = "pass"
 ) -> str | None:
@@ -205,8 +233,7 @@ def carry_check(
         return f"a merge commit in {short_head(g.head)}'s commits"
     if _merges(wt, head_base, head):
         return f"a merge commit in {short_head(head)}'s commits"
-    same = _patch_ids(wt, g.base, g.head) == _patch_ids(wt, head_base, head)
-    return None if same else "the rebase changed the patch"
+    return _changed(wt, g, head, head_base)
 
 
 def last_verdict(events: list[EventRecord], head: str | None) -> str | None:

@@ -188,3 +188,116 @@ def test_ship_refuses_an_out_of_draft_main_pr_that_carries_another_crs_commits(
         assert len(events(repo, "ship")) == before + 1
         assert record(repo)["crs"][1]["pr"] == PR
         assert record(repo)["crs"][1]["head"] == sh("git", "rev-parse", "HEAD", cwd=wb)
+
+
+@pytest.fixture
+def stack3(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Chantier, list[dict[str, Any]]]:
+    """A stack batch of three CRs, all started on main, each in its worktree."""
+    ids = open_batch(repo, chantier, monkeypatch, "Cr a", "Cr b", "Cr c", args=("--mode", "stack"))
+    for cr in ids:
+        assert chantier("take", cr, "--epoch", 1)[0] == 0
+    crs = record(repo)["crs"]
+    for cr in crs:
+        sh("git", "worktree", "add", "-q", "-b", cr["branch"], cr["worktree"], "HEAD", cwd=repo)
+    monkeypatch.setattr(delivery, "read_state", lambda link: ("main", False, ""))
+    remote(repo, "main", sh("git", "rev-parse", "HEAD", cwd=repo))
+    return repo, chantier, crs
+
+
+def judge(repo: Path, cr: dict[str, Any], head: str, base: str) -> None:
+    """A gate pass and a verdict VERIFIED at `head`, judged on `base`."""
+    log = changes(repo) / "4-batch" / "events.jsonl"
+    one = {"t": "t", "actor": "driver", "cr": cr["id"], "head": head, "base": base}
+    with log.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(one | {"kind": "gate", "result": "pass", "run": "1"}) + "\n")
+        f.write(json.dumps(one | {"kind": "verdict", "result": "VERIFIED"}) + "\n")
+
+
+def ship_off(chantier: Chantier, cr: dict[str, Any]) -> tuple[list[str], list[str]]:
+    code, out, err = chantier("ship", cr["id"], PR)
+    assert code == 0, err
+    return [ln for ln in out if ln.startswith("carried:")], [
+        ln for ln in out if "does not carry" in ln
+    ]
+
+
+@pytest.mark.parametrize("case", ["pushed", "local only", "three CRs"])
+def test_a_clean_rebase_onto_the_crs_below_carries_with_no_stack_mark_and_the_pr_on_main(
+    stack3: tuple[Path, Chantier, list[dict[str, Any]]], case: str
+) -> None:
+    repo, chantier, (a, b, c) = stack3
+    wa, wb, wc = Path(a["worktree"]), Path(b["worktree"]), Path(c["worktree"])
+    main = sh("git", "rev-parse", "HEAD", cwd=repo)
+    a_tip = commit(wa, "a.txt", "a\n", "A")
+    remote(repo, a["branch"], a_tip)
+    upper, wu, below = (c, wc, b) if case == "three CRs" else (b, wb, a)
+    if case == "three CRs":
+        git_at(wb, "rebase", "-q", a_tip)
+        below_tip = commit(wb, "b.txt", "b\n", "B")
+        remote(repo, b["branch"], below_tip)
+    else:
+        below_tip = a_tip
+    judged = commit(wu, "u.txt", "u\n", "U")
+    judge(repo, upper, judged, main)
+    if case == "local only":
+        git_at(wa, "commit", "--amend", "-qm", "A, reworded")
+        below_tip = sh("git", "rev-parse", "HEAD", cwd=wa)  # the remote ref keeps the old tip
+    git_at(wu, "rebase", "-q", below_tip)
+    carried, off = ship_off(chantier, upper)
+    new = sh("git", "rev-parse", "HEAD", cwd=wu)
+    (carry,) = events(repo, "carry")
+    assert carry["gate_from"] == carry["verdict_from"] == judged and carry["base"] == below_tip
+    assert carry["head"] == new and not off
+    want = f"carried: long gate and verdict from {judged[:7]} (clean rebase onto {below['branch']})"
+    assert carried == [want]
+
+
+def test_the_gate_records_the_nearest_branch_of_the_batch_as_the_base(
+    stack3: tuple[Path, Chantier, list[dict[str, Any]]],
+) -> None:
+    repo, chantier, (a, b, c) = stack3
+    a_tip = commit(Path(a["worktree"]), "a.txt", "a\n", "A")
+    git_at(Path(b["worktree"]), "rebase", "-q", a_tip)
+    b_tip = commit(Path(b["worktree"]), "b.txt", "b\n", "B")
+    git_at(Path(c["worktree"]), "rebase", "-q", b_tip)
+    commit(Path(c["worktree"]), "c.txt", "c\n", "C")
+    assert chantier("gate", c["id"], GATE)[0] == 0
+    assert events(repo, "gate")[-1]["base"] == b_tip
+
+
+def _added(repo: Path, wb: Path, wa: Path) -> tuple[str, str]:
+    commit(wb, "x.txt", "x\n", "after")
+    return "(own commits: 1 at ", ", 2 at "
+
+
+def _edited(repo: Path, wb: Path, wa: Path) -> tuple[str, str]:
+    (wb / "b.txt").write_text("edited\n", encoding="utf-8", newline="\n")
+    git_at(wb, "commit", "-aqm", "B, edited", "--amend")
+    return "(commit 1 of 1 differs)", ""
+
+
+def _cancelled(repo: Path, wb: Path, wa: Path) -> tuple[str, str]:
+    data = record(repo)
+    data["crs"][0]["status"] = "cancelled"
+    write_record(repo, data)
+    return "(own commits: 1 at ", ", 2 at "
+
+
+@pytest.mark.parametrize("change", [_added, _edited, _cancelled])
+def test_a_real_change_is_refused_and_off_says_by_how_much(
+    stack3: tuple[Path, Chantier, list[dict[str, Any]]], change: Any
+) -> None:
+    repo, chantier, (a, b, _) = stack3
+    wa, wb = Path(a["worktree"]), Path(b["worktree"])
+    main = sh("git", "rev-parse", "HEAD", cwd=repo)
+    a_tip = commit(wa, "a.txt", "a\n", "A")
+    remote(repo, a["branch"], a_tip)
+    judge(repo, b, commit(wb, "b.txt", "b\n", "B"), main)
+    git_at(wb, "rebase", "-q", a_tip)
+    first, second = change(repo, wb, wa)
+    carried, off = ship_off(chantier, b)
+    assert not carried and not events(repo, "carry")
+    assert off and all("the rebase changed the patch " in ln for ln in off), off
+    assert all(first in ln and second in ln for ln in off), off
