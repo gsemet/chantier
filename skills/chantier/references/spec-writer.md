@@ -21,6 +21,9 @@ or say in your reply why it does not hold. Never against `02-answers.md`.
 <the CR's folder>`, then `summary set`, as [concepts](concepts.md), "A CR's summary", says), and
 nothing else written anywhere.
 
+The specification's `#` heading and the summary's title are short (at most 72 characters), the
+description below them.
+
 A rich specification holds:
 
 - The goal, in the user's terms.

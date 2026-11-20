@@ -208,7 +208,7 @@ do not write them in the main checkout yourself.
 ## Backlog and grill
 
 ```bash
-$CHANTIER file "<raw request>" [--slug <slug>]        # or @<file> for a raw request file
+$CHANTIER file "<raw request>" [--title "<short title>"] [--slug <slug>]   # or @<file> for a raw request file
 $CHANTIER triage <inbox-or-backlog-folder> --priority P1|P2|P3|P4   # a backlog item changes priority
 $CHANTIER triage <inbox-or-backlog-folder> --ready    # to 3-ready, for the next batch, on the user's word
 ```
@@ -237,7 +237,9 @@ archives' `delivery.md`). Its first line carries the count and the output stops 
 it again until the first line says `no gap`. A named archive folder is checked; the default walk
 leaves `5-archives` out.
 
-`file` keeps the request as received in `intake/request.md`. Write `01-intent.md` and record every
+`file` keeps the request as received in `intake/request.md`. A CR is filed with a short title (at
+most 72 characters), the description below it: `file` refuses a request without one unless `--title`
+is given. Write `01-intent.md` and record every
 answer in `02-answers.md`. Grill at any stage, once for all the CRs of a batch, item by item: skip
 a question whose answer would not change the specification. Each question carries your
 recommendation, in the format below. Only the user sets priorities and picks what runs.
@@ -442,8 +444,8 @@ an inconsistency with the rest of the software, an unproved claim about the real
 (work that would ship more cheaply as separate CRs). It never
 edits the specification. It runs once per specification, on a CR you judge impactful; it is never
 a loop. A bundle finding is always a question for the user, the split recommended. On the user's
-split: the parts split off are filed as new inbox items (`$CHANTIER file`, one per part, the raw
-request naming the CR they come from), the answer is recorded in `02-answers.md`, and the
+split: the parts split off are filed as new inbox items (`$CHANTIER file`, one per part, each with its
+own short title, the raw request naming the CR they come from), the answer is recorded in `02-answers.md`, and the
 spec-writer's next run narrows the specification to what stays. The Griller follows the same steps.
 
 - **The criterion** (the same for the Chief of Staff and a Griller): the critic runs on a CR whose

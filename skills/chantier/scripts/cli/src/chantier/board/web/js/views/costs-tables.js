@@ -17,7 +17,7 @@ const byCost = (a, b) => (b.cost_usd ?? 0) - (a.cost_usd ?? 0);
 
 function crRow(c, batch, top) {
   const round = c.round ? html` <span class="mut">r${roundText(c, batch)}</span>` : '';
-  return html`<tr class="click" ${opener(crKey(c), 'cost-')}><td><b>${c.cr}</b> <span class="mut">${slug(c.folder)}</span></td><td>${title(c.title)}</td><td class="hide-phone">${stateTag(c)}${round}</td><td class="num">${usd(c.cost_usd)}</td><td class="hide-phone">${bar(c.cost_usd ?? 0, top, 'var(--blue)')}</td></tr>`;
+  return html`<tr class="click" ${opener(crKey(c), 'cost-')}><td><b>${c.cr}</b> <span class="mut">${slug(c.folder)}</span></td><td><span class="ct" title="${title(c.title)}">${title(c.title)}</span></td><td class="hide-phone">${stateTag(c)}${round}</td><td class="num">${usd(c.cost_usd)}</td><td class="hide-phone">${bar(c.cost_usd ?? 0, top, 'var(--blue)')}</td></tr>`;
 }
 
 export function perCr(batch) {
@@ -34,7 +34,7 @@ export function perCr(batch) {
 }
 
 function mergedRow(m, top) {
-  return html`<tr><td><b>${m.cr}</b></td><td class="hide-phone">${title(m.title)}</td><td>${m.batch ?? ''}</td><td class="num">${usd(m.cost_usd)}</td><td class="hide-phone">${bar(m.cost_usd ?? 0, top, 'var(--green)')}</td></tr>`;
+  return html`<tr><td><b>${m.cr}</b></td><td class="hide-phone"><span class="ct" title="${title(m.title)}">${title(m.title)}</span></td><td>${m.batch ?? ''}</td><td class="num">${usd(m.cost_usd)}</td><td class="hide-phone">${bar(m.cost_usd ?? 0, top, 'var(--green)')}</td></tr>`;
 }
 
 export function lastMerged(merged) {

@@ -81,6 +81,8 @@ export default {
   'new.kanban': '+ New: a new idea',
   'new.title': 'A new idea',
   'new.idea': 'Your new idea',
+  'new.heading': 'Title',
+  'new.heading_hint': 'A short title, at most 72 characters; the text below is its description.',
   'new.file': 'File',
   'new.empty': 'Write the idea first.',
   'new.slug': 'Folder name',

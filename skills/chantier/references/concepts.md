@@ -100,7 +100,7 @@ At startup, identify the role, batch, project and parent session.
   place. What only the conversation holds (a subagent's reply, an inline visualization, a pasted
   image) is lost unless an agent writes it in the folder: writing it is the agent's job.
 
-- **A CR's summary:** `summary.json` in the CR's folder: its title (one line), a summary of what
+- **A CR's summary:** `summary.json` in the CR's folder: its title (one line, at most 72 characters), a summary of what
   the CR means now (one line of plain text; its state of grill or delivery, not its progress in a
   batch), its origin (an issue's tracker and reference from the `issue:` line, or verbal), its
   labels and its group, and the checksums of the covered files at the time it was written. The

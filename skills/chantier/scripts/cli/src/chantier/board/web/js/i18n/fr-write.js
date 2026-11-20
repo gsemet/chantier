@@ -81,6 +81,9 @@ export default {
   'new.kanban': '+ Nouveau : une nouvelle idée',
   'new.title': 'Une nouvelle idée',
   'new.idea': 'Ta nouvelle idée',
+  'new.heading': 'Titre',
+  'new.heading_hint':
+    'Un titre court, 72 caractères au plus ; le texte en dessous est sa description.',
   'new.file': 'Déposer',
   'new.empty': 'Écris d’abord l’idée.',
   'new.slug': 'Nom du dossier',

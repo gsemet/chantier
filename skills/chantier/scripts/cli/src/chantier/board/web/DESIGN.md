@@ -34,6 +34,9 @@ fails when the table and `tokens.css` disagree.
   `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
   every card that has a priority (inbox, P1 to P4, 3-ready); a chip used as a filter toggle is the
   same chip, filled when on, outlined grey when off, the same size in both states.
+- **One-line titles.** A CR's title in a card, a row or a table cell is drawn on one line, cut with
+  an ellipsis, its full text in the element's `title` attribute; the side panel shows it whole
+  (test).
 - **Words.** Every string the board shows goes through the i18n keys (`t()`, `tn()`), in every
   language file; data (titles, slugs, file contents) is shown as it is.
 - **The reference look.** This file describes the column, the card and the chip in words only; no

@@ -102,13 +102,14 @@ def _answer(
 
 def _new(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     idea = _text(data, "text")
-    slug = data.get("slug")
-    if slug is not None and not isinstance(slug, str):
-        raise ChantierError("'slug' is a string of the JSON body", EXIT_USAGE)
-    filed = backlog.idea_slug(idea, slug)
+    slug, title = data.get("slug"), data.get("title")
+    for key, value in (("slug", slug), ("title", title)):
+        if value is not None and not isinstance(value, str):
+            raise ChantierError(f"{key!r} is a string of the JSON body", EXIT_USAGE)
+    filed, _ = backlog.titled_request(idea, idea.encode("utf-8"), title, slug)
 
     def run() -> tuple[list[str], str]:
-        return backlog.file_idea(repo, idea, filed), f"new idea in 1-inbox/{filed}"
+        return backlog.file_idea(repo, idea, filed, None, title), f"new idea in 1-inbox/{filed}"
 
     return _answer(repo, "new", [_attempt(filed, run)], {"item": filed})
 

@@ -28,6 +28,15 @@
   background: var(--band);
 }
 
+/* a CR's title in a table cell: one line, cut with an ellipsis; the full text is its title attribute */
+.costs td .ct {
+  display: block;
+  max-width: 48ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .costs .age {
   display: flex;
   flex-wrap: wrap;

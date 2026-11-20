@@ -6,11 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from chantier.core.files import heading_of, read_text
+from chantier.core.records import TITLE_MAX, CrSummary
 from chantier.core.repo import Repo
 from chantier.summaries import store
 from chantier.summaries.sources import Change, checksums, diff
+from chantier.summaries.title import REQUEST, WRITE
 
-GapKind = Literal["unreadable", "no summary", "late"]
+GapKind = Literal["unreadable", "no summary", "late", "no heading", "long title"]
 
 
 @dataclass(frozen=True)
@@ -36,7 +39,12 @@ def gap_of(folder: Path) -> Gap | None:
     if summary is None or not summary.title or not summary.summary:
         return Gap("no summary", folder)
     changes = diff(summary.sources, current)
-    return Gap("late", folder, tuple(changes)) if changes else None
+    if changes:
+        return Gap("late", folder, tuple(changes))
+    request = folder / REQUEST
+    if request.is_file() and heading_of(read_text(request, "replace")) is None:
+        return Gap("no heading", folder)
+    return Gap("long title", folder) if len(summary.title) > TITLE_MAX else None
 
 
 def gap_line(repo: Repo, gap: Gap) -> str:
@@ -45,7 +53,15 @@ def gap_line(repo: Repo, gap: Gap) -> str:
     if gap.kind == "no summary":
         return (
             f"{path}: no summary → summary set {path} "
-            '--title "<title>" --summary "<the CR\'s state now>"'
+            f'--title "<at most {TITLE_MAX} characters>" --summary "<the CR\'s state now>"'
+        )
+    if gap.kind == "no heading":
+        return f'{path}/{REQUEST}: no "# " heading → {WRITE}'
+    if gap.kind == "long title":
+        size = len((store.read(gap.folder) or CrSummary()).title or "")
+        return (
+            f"{path}/summary.json: title is {size} characters: the limit is {TITLE_MAX} → "
+            f'summary set {path} --title "<at most {TITLE_MAX} characters>"'
         )
     if gap.kind == "unreadable":
         return (

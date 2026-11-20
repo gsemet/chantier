@@ -20,7 +20,7 @@ from chantier.core.files import read_json, read_text
 DEFAULT_MAX_ROUNDS = 3
 SUMMARY_FILE = "summary.json"
 SUMMARY_SCHEMA = 1
-TITLE_MAX = 120
+TITLE_MAX = 72
 SUMMARY_MAX = 300
 GROUP_MAX = 60
 LABEL_PATTERN = r"[a-z0-9][a-z0-9-]{0,23}"

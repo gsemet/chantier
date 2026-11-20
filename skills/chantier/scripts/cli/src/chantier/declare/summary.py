@@ -8,7 +8,7 @@ from chantier.commands.registry import NO_BATCH, Subparsers, add_command, lazy
 
 # The limits of `core.records` (TITLE_MAX, SUMMARY_MAX, GROUP_MAX, TRACKERS), repeated here so
 # the start-up imports no pydantic.
-TITLE_MAX = 120
+TITLE_MAX = 72
 SUMMARY_MAX = 300
 GROUP_MAX = 60
 TRACKERS = ("github", "gitlab", "jira")

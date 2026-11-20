@@ -72,7 +72,7 @@ def file_cr(args: argparse.Namespace) -> list[str]:
     else:
         text = args.item
         raw = text.encode("utf-8")
-    return file_idea(repo, text, args.slug, raw)
+    return file_idea(repo, text, args.slug, raw, args.title)
 
 
 def triage(args: argparse.Namespace) -> list[str]:

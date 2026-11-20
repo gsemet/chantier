@@ -272,3 +272,12 @@ def test_checker_table() -> None:
     assert check_table("| `--a` | `1px` | space | x |", ":root { --a: 1px; --b: 2px }") == [
         "token --b is not in DESIGN.md's table"
     ]
+
+
+def test_a_card_title_is_one_line_with_its_full_text_on_hover() -> None:
+    sheet = (CSS / "components" / "card.css").read_text(encoding="utf-8")
+    declared = dict(next(d for s, d in rules(sheet) if s == ".card-title"))
+    assert declared["white-space"] == "nowrap" and declared["text-overflow"] == "ellipsis"
+    assert not any("line-clamp" in p for s, d in rules(sheet) if "card-title" in s for p, _ in d)
+    script = (WEB / "js" / "ui" / "card.js").read_text(encoding="utf-8")
+    assert 'class="card-title" title="' in script

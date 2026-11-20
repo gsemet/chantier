@@ -9,10 +9,12 @@ from typing import NamedTuple
 
 from chantier.core.batch import Batch, find_cr_batch, read_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.heads import gate_passed, same_head
 from chantier.core.ids import normalize_cr
 from chantier.core.records import (
+    TITLE_MAX,
     BatchRecord,
     CrEntry,
     EventRecord,
@@ -23,6 +25,7 @@ from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, slugify
 from chantier.lifecycle.stages import cr_directory, stage_layout
 from chantier.rails_release import MAX_GRANTED_FIXES
+from chantier.summaries.title import short_heading
 
 
 def batch_cr(repo: Repo, cr_id: str, batch: str | None) -> tuple[str, BatchRecord, CrEntry]:
@@ -283,6 +286,12 @@ def filed_fix(b: Batch, rel: CrEntry, item: str) -> str:
     if target is None:
         return item
     source = repo.planning_path(item, "fix")
+    if short_heading(read_text(source, "replace")) is None:  # never an inbox CR validate refuses
+        raise ChantierError(
+            f'the fix {item} has no short "# Title" heading (at most {TITLE_MAX} characters) '
+            "→ write one at its top",
+            EXIT_USAGE,
+        )
     repo.check_publish([target, target / "intake" / "request.md", target / "03-change-spec.md"])
     folder = new_request(repo, target.name, source.read_bytes())
     repo.store.write_bytes(repo.rel(folder / "03-change-spec.md"), source.read_bytes())
