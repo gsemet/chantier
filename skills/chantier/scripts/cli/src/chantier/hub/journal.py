@@ -3,7 +3,8 @@ line per event (the name is historical: the file holds every event of the projec
 and the board's). It is local (ignored by git) and append-only; chantier never truncates it.
 `append` is its one writer path (the forge hub, `source: "hub"`; the board, `"board"`: its PRs
 page, its backlog writes and its Configuration page; `"writer"`: the surface's writer, its
-`sync-*` lines; an outside poller, `"poller"`, through `chantier journal add`; `"cli"` is room for a command); `read` its
+`sync-*` lines; an outside poller, `"poller"`, through `chantier journal add`; `"cli"` is
+room for a command); `read` its
 one reader, for `chantier status` and `chantier watch`. `source` says who wrote a line, never
 what it is: every reader dispatches on the line's type. Nothing here records anything in a batch:
 a line is a signal for whom it is addressed.
