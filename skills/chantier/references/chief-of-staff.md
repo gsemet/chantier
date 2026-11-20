@@ -1658,6 +1658,9 @@ these differences.
   "resume: lease not confirmed"`; a QA order: `agents set O-k <id> --reclaim`; the stack: `take stack
   --reclaim`), and `agents set <cr>|O-k|stack -` after an agent's reported end ends its live lease.
 
+- **A refusal you do not understand.** A Griller's or a Driver's: `$CHANTIER access <cr> --epoch
+  <n>` before you ask; it explains and changes nothing.
+
 - **Escalation.** The Foreman's escalation triggers ([concepts](concepts.md), "Escalation") are
   yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`. The two rounds
   routes are yours too (`escalate: rounds` after the user's grant of more rounds; a grant under
@@ -1683,7 +1686,8 @@ these differences.
   without `--epoch` (exit 2), except `order merged` and `order add --fix-for`, whose form
   without it is the Chief of Staff's order, and the refresh before a report. Any other command,
   or any other `order` kind (`order add` without `--fix-for`, `order note`, `order after`...),
-  refuses `--epoch` (exit 2). Never
+  refuses `--epoch` (exit 2), except `access`, which reads `--epoch` as an option and renews and
+  records nothing. Never
   on the refresh before a report, which stays `status --refresh` with no epoch and records no
   heartbeat; arm the
   same heartbeat, as your host's reference says. Your own "heartbeat N min" is the minutes since

@@ -25,7 +25,7 @@ def older_board(git_dir: Path) -> dict[str, Any] | None:
     return server if state.other_version(server, __version__) else None
 
 
-def _older(server: dict[str, Any]) -> str:
+def older_text(server: dict[str, Any]) -> str:
     return (
         f"chantier board {server.get('version')} (PID {server.get('pid')}) serves this surface "
         f"with no writer"
@@ -43,7 +43,7 @@ def refused(git_dir: Path) -> bool:
     return entry is None or entry.get("state") == "stopped"
 
 
-def _stopped(entry: dict[str, Any]) -> str:
+def stopped_text(entry: dict[str, Any]) -> str:
     return (
         f"the surface's writer is stopped: {entry.get('text') or 'unknown'}; "
         f"for the Chief of Staff: restart: {START}"
@@ -54,7 +54,7 @@ def refusal(command: str, git_dir: Path) -> str:
     """The error text of a published write with no live writer (C.8), without `error: `."""
     entry = state.live_entry(git_dir, state.WRITER)
     if entry is not None and entry.get("state") == "stopped":
-        return f"{command}: {_stopped(entry)}: nothing written"
+        return f"{command}: {stopped_text(entry)}: nothing written"
     server = older_board(git_dir)
     if server is None:
         return (
@@ -62,7 +62,7 @@ def refusal(command: str, git_dir: Path) -> str:
             f"for the Chief of Staff: {START}"
         )
     return (
-        f"{command}: the surface's writer is not running: {_older(server)}: nothing written; "
+        f"{command}: the surface's writer is not running: {older_text(server)}: nothing written; "
         f"for the Chief of Staff: {_then(server)}"
     )
 
@@ -134,7 +134,7 @@ def state_line(entry: dict[str, Any], older: dict[str, Any] | None = None) -> st
         return lines[kind](entry)
     if older is not None:
         return (
-            f"writer: not running: {_older(older)}; writes to the surface are refused; "
+            f"writer: not running: {older_text(older)}; writes to the surface are refused; "
             f"for the Chief of Staff: {_then(older)}"
         )
     return (
@@ -142,20 +142,25 @@ def state_line(entry: dict[str, Any], older: dict[str, Any] | None = None) -> st
     )
 
 
-def note(entry: dict[str, Any]) -> str | None:
-    """The line a command adds when it did a published write and the writer has not pushed it:
-    `writer: <state>: not pushed yet (<reason or ahead count>)`; None for `synced`, `syncing`
-    and no writer."""
+def pending_why(entry: dict[str, Any]) -> str | None:
+    """Why a write is not pushed yet (the blocked reason, else the ahead count, else the paths
+    changed); None for `synced`, `syncing` and no writer."""
     kind = entry.get("state")
     if kind not in ("pending", "offline", "blocked", "conflict"):
         return None
     if kind == "blocked":
-        why = str(entry.get("reason") or "")
-    elif _count(entry.get("ahead")):
-        why = f"{_count(entry.get('ahead'))} commits"
-    else:
-        why = f"{_count(entry.get('pending'))} paths"
-    return f"writer: {kind}: not pushed yet ({why})"
+        return str(entry.get("reason") or "")
+    if _count(entry.get("ahead")):
+        return f"{_count(entry.get('ahead'))} commits"
+    return f"{_count(entry.get('pending'))} paths"
+
+
+def note(entry: dict[str, Any]) -> str | None:
+    """The line a command adds when it did a published write and the writer has not pushed it:
+    `writer: <state>: not pushed yet (<reason or ahead count>)`; None for `synced`, `syncing`
+    and no writer."""
+    why = pending_why(entry)
+    return None if why is None else f"writer: {entry.get('state')}: not pushed yet ({why})"
 
 
 _WROTE: set[Path] = set()  # the git folders of the surfaces this command wrote to (published)

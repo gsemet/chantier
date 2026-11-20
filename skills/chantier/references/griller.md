@@ -78,7 +78,8 @@ You run in the surface's checkout, on its default branch, and write in the plann
 directly. The surface's writer commits and pushes them ([concepts](concepts.md), "Planning
 surface"): you join nothing, commit nothing, pull nothing, push nothing. Read the `writer:` line of
 `$CHANTIER seat` at start. With `writer: not running` or `writer: stopped`, record nothing (no file, no answer, no CLI
-write), say so to the user in one line, and wait for a Chief of Staff to start the server.
+write), say so to the user in one line, and wait for a Chief of Staff to start the server. A refusal
+you do not understand: `$CHANTIER access` before you ask.
 
 ## In a worktree
 

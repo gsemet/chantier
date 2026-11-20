@@ -11,6 +11,7 @@ from chantier.core import repo
 from chantier.core.errors import ChantierError
 from chantier.core.ids import normalize_cr
 from chantier.declare import (
+    access,
     batch_status,
     board,
     closing,
@@ -89,6 +90,7 @@ def _parser() -> argparse.ArgumentParser:
         board,
         batch_status,
         driver,
+        access,
         rules,
         facts,
         gate,

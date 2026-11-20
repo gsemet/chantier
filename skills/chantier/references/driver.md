@@ -766,6 +766,8 @@ that carries `--lease <n>` (the number `take` printed); times in its texts are U
   drop`, `agents set <cr> -`). Stop at once, record nothing more, tell the Foreman.
 - Reclaim is the steering session's: `take --reclaim` after it checked with the host that the
   Driver ended, or on the user's word for a live lease. A Driver never reclaims.
+- A refusal you do not understand (a write, a `take`, a push): run `$CHANTIER access <cr> --lease
+  <n>` before you ask; it explains and changes nothing.
 
 ## CR driver
 

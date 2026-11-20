@@ -175,6 +175,8 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
 - **The batch's limits are the CLI's:** `take` is refused past the slots or the budget, `round`
   past the limit or the budget; a refusal is a fact, not an argument. The batch keeps the slots it opened with, whatever the board's Configuration page now says: only an `order slots` the Chief of Staff sends changes them. A spent budget, a round limit, a
   question, an approval, an infrastructure failure: the Chief of Staff hears it as an ask, once.
+- **A refusal you do not understand:** `$CHANTIER access <cr> --epoch <n>` before you ask; it
+  explains and changes nothing.
 - **The rounds exception:** every `order rounds` is taken. After one, when the CR holds a note
   starting `rounds exception:` (in `status`'s order list, or in full in `handoff <cr>` / `log
   <cr>`), take it with `take <cr> --note "rounds exception: <cause>"`, with no escalation, and

@@ -15,7 +15,6 @@ from chantier.commands.crs import (
 )
 from chantier.commands.driver_checks import (
     GateBasis,
-    check_release_branch,
     handback_args,
     handback_blocked,
     handback_refusals,
@@ -24,6 +23,7 @@ from chantier.commands.driver_checks import (
 )
 from chantier.commands.endpause import end_of_batch
 from chantier.commands.facts import cr_facts, stack_lines
+from chantier.commands.take_checks import check_take_all
 from chantier.commands.waits import add_to_cr
 from chantier.core import leases
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, require_epoch, resolve_batch
@@ -34,7 +34,7 @@ from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
 from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.session import RenderedBatch
-from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, stage_layout, start_cr
+from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
 from chantier.playbook.lines import team_lines, timing_lines
 from chantier.plugin_files import archive_path, cli_command, recorded_timing
 from chantier.rails import (
@@ -42,7 +42,6 @@ from chantier.rails import (
     check_budget,
     check_round,
     check_stray_round,
-    check_take,
     held,
     worktree_print,
 )
@@ -51,7 +50,6 @@ from chantier.stacks import (
     READY_TO_MERGE,
     draft_clause,
     ready_word,
-    refuse_held,
     stack_base,
     start_on_for,
 )
@@ -146,11 +144,9 @@ def take(args: argparse.Namespace) -> list[str]:
         d = b.record
         if args.cr == "stack":
             return _take_stack(repo, b, batch, args, fresh)
-        refuse_held(c := b.cr(args.cr))
+        c = b.cr(args.cr)
+        old = check_take_all(repo, d, c, note=args.note, reclaim=bool(args.reclaim))
         row = driver_row(d.host, "take <cr>", c.kind)  # before any state changes
-        check_take(d, c, args.note)
-        old = leases.check_free(repo, d, c.id, bool(args.reclaim))
-        _check_take(repo, d, c)
         reopened = _reopen(b)
         leases.reclaim(b, c.id, old)
         lease = leases.start(d, c.id)
@@ -177,16 +173,6 @@ def take(args: argparse.Namespace) -> list[str]:
         *fresh,
         *(not_running_line(repo) if reopened else []),
     ]
-
-
-def _check_take(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
-    """Before `take` changes anything: the release branch, and the published paths it will
-    touch: the CR's folder, where `1-pending` sends it, and its `work/`."""
-    if c.status != "working":
-        check_release_branch(repo, d, c)
-    paths, here = stage_layout(repo), cr_directory(repo, c)
-    there = paths["actives"] / here.name if here.parent == paths["pending"] else here
-    repo.check_publish([here, there, there / "work"])
 
 
 def round_(args: argparse.Namespace) -> list[str]:
