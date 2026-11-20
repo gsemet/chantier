@@ -71,7 +71,7 @@ project. You write the line.
 
 Never in the surface's git (the CLI keeps a `.gitignore` in the planning folder): the batch's own
 files (`batch.json`, `events.jsonl`, `brief.md`, the STATUS files, locks, `.batch-number`,
-`seat.json`) the detailed logs (`work/gates/`, `*.log`), the scratch folder (`work/scratch/`) and downloaded CI
+`seat.json`), the detailed logs (`work/gates/`, `*.log`), the scratch folder (`work/scratch/`) and downloaded CI
 artifacts (any `artifacts-*/` folder under a `work/` folder). Pushed while a CR runs: its
 documents (`intake/`, `01`–`03`), its `evidence/` and the reports in `work/`, by the writer,
 within 5 minutes of a change. The writer pushes every local commit of the surface's branch, the
