@@ -60,8 +60,16 @@ def titled_request(
     line = text.strip()
     if heading is None and "\n" not in line and len(line) <= TITLE_MAX:
         return idea_slug(line, slug), f"# {line}\n".encode()
-    size = len(heading) if heading is not None else len(line.split("\n")[0].strip())
-    if heading is None or size > TITLE_MAX:
+    if heading is None:
+        raise ChantierError(
+            "the request has no short title (a request of several lines must start with a "
+            f'"# Title" line of at most {TITLE_MAX} characters): start the text with it, or give '
+            f'--title "<at most {TITLE_MAX} characters>", the text goes below it as its '
+            "description",
+            EXIT_USAGE,
+        )
+    size = len(heading)
+    if size > TITLE_MAX:
         raise ChantierError(
             f"the request has no short title (its title is {size} characters; the limit is "
             f'{TITLE_MAX}): give --title "<at most {TITLE_MAX} characters>", the text goes below '
