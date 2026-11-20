@@ -30,8 +30,8 @@ repeat it. The `claude-planted` campaign needs only the first two items and the 
   `evals/kit/eval-root.local.json` (git-ignored, written by you: `{"root": "C:/Users/<user>/chantier-eval"}`).
   Trust it once, at the desk: open a Code session on that folder in Claude Desktop and answer the
   app's trust question. chantier never grants or edits that trust. Every workspace is created
-  inside the eval root (setup refuses any other), so a workspace asks for no new trust (unproved
-  until the trial in "The operator" reports). A Foreman campaign (`real-foreman`, `full`) still
+  inside the eval root (setup refuses any other), so a workspace inside it asks for no new trust
+  (Claude Code: hosts/claude-code.md, "The eval operator from a remote client"). A Foreman campaign (`real-foreman`, `full`) still
   needs the desk, to start the Foreman and type the go; only the campaigns with no Foreman
   (`real-direct`, `ticket-summary`, `claude-planted`) start from the phone.
 - The host's PR automations off: global Auto-fix and auto-archive on merge (see "A sandbox
@@ -39,7 +39,7 @@ repeat it. The `claude-planted` campaign needs only the first two items and the 
 
 The steps of a sandbox campaign, in order: the preparation (the automations off, no board left
 running, then `sandbox.py publish` the first time or `reset`, then `setup.py`); start the operator
-with the `prompt` line setup printed; the runbook's turns; the audit; `close --yes`; the cost; the
+with the `prompt` line setup printed (away from the desk: see "The operator"); the runbook's turns; the audit; `close --yes`; the cost; the
 report. Each is described under "A sandbox campaign".
 
 ## Campaigns
@@ -105,8 +105,8 @@ from this checkout, with the [prerequisites](#prerequisites) met.
      a new folder inside the eval root (see the [prerequisites](#prerequisites)), for example
      `<eval root>/<campaign>-<date>`. Setup refuses any other workspace, and a missing or
      malformed `evals/kit/eval-root.local.json`, before it creates anything: a workspace inside the
-     trusted root does not ask for trust (unproved until the trial reports, below), so the
-     operator's session can start from Remote Control. Setup refuses
+     trusted root asks for no new trust (Claude Code: hosts/claude-code.md, "The eval operator from a
+     remote client"), so the operator's session can start away from the desk. Setup refuses
      when the sandbox is not at its base, never resets and never pushes. It clones the sandbox
      into the workspace, runs `chantier init` and `uv sync --locked` there, places the campaign's
      frozen CRs in `.agents/changes/3-ready/`, writes `<workspace>.run.json` (the run's record)
@@ -131,17 +131,24 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   workspace folder (its native spelling, the `workspace` line setup printed; backslashes on
   Windows), then pasting the `prompt` line; or **from a chantier session at the desk**, asking a
   Claude Desktop session (for example the one in this checkout) to start a new session on the
-  workspace with the `prompt` line; or **away from the desk**, for a campaign with no Foreman
-  only (**unproved** until the trial below reports): from the phone, under Remote Control, start a
-  new Code session on the workspace folder and paste the `prompt` line. The session must be on the
-  workspace's main checkout, not a worktree of it. **The trust step:** a workspace inside the
-  trusted eval root does not ask for trust (unproved until the trial reports); a folder outside it
-  would ask, and only at the desk, which is why setup refuses it. A Foreman campaign is started at
-  the desk. The trial (the first `real-direct` run after this change): from the phone, before
-  `preflight`, the operator runs `git rev-parse --git-dir`, `git rev-parse --git-common-dir` and
-  `git rev-parse --show-toplevel`; the first two must be the same folder and the top level the
-  workspace, else it is a Fail. The report quotes the output and records how the session was
-  created from the phone (the app, the screen, the choices made). On Copilot: a new
+  workspace with the `prompt` line; or **away from the desk**, as set out below. **The trust step:** a workspace
+  inside the trusted eval root asks for no new trust; a folder outside it would ask, and only at
+  the desk, which is why setup refuses it. A Foreman campaign is started at
+  the desk.
+  **Away from the desk, the requirement:** the operator is a session started in the workspace, on
+  its main checkout, whose context holds only the workspace's instructions: no other project's
+  instructions, memory or settings. **The check, before the `prompt` line, in every run:** in a
+  turn where it reads no file, the operator gives its folder (the three `git rev-parse` lines:
+  `--git-dir`, `--git-common-dir`, `--show-toplevel`), the instruction and memory files its context
+  shows, and whether its instructions hold the sandbox's line "shelf is a small reading list served
+  on the web" and chantier's line "Run `just check` before you hand back". **The Pass rule:**
+  `--git-dir` equals `--git-common-dir` and the top level is the workspace; the sandbox line is
+  present and chantier's line is absent; no listed file belongs to another project. The rule rests
+  on the condition that no file was read in that turn. The sandbox line alone does not prove
+  isolation: it shows that the workspace's instructions loaded, not that no others did. A Fail
+  stops the run before the `prompt` line, and the report records it. **How to start it away from
+  the desk, per host:** Claude Code: hosts/claude-code.md, "The eval operator from a remote
+  client". Copilot: unproved, as its line says. On Copilot: a new
   chat of the Copilot app opened on the workspace, with the `prompt` line (**unproved** until
   the campaign's first run). The operator is the Chief of Staff and plays the
   user in full: the go after the plan, every merge, every answer, every approval, the release's

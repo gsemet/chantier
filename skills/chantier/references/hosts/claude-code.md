@@ -46,8 +46,8 @@ Each behaviour carries a mark:
 | Preflight P2 | `mcp__ccd_session__start_session` loads | proved, same |
 | Ask the user a series of questions (grill, specification) | the host's question tool (`AskUserQuestion`), at most 4 questions per call, at most 4 options per question, plus the tool's own free answer ("Other"); the reference opens each question's text (the tool's short header field, if used, does not need to hold it). Remote Control relays the same tool: the user sees the same 4-question form on the phone. Under Remote Control the form shows above the conversation and the text written before it is read by scrolling up: the text is written before every call all the same | the figures: the user's statements (2026-11-14, CR-250 answers 5 and 11), unproved; trials: one call with 4 questions shown and a fifth refused; the same series from the phone under Remote Control, all 4 shown. The scrolling: observed by the user, 2026-11-14 (CR-250 answer 17) |
 | Run the board | `Bash` with `run_in_background: true` and the command `$CHANTIER board --seat <id>`; its first lines are read from the background task's output; stopped with the host's stop of a background shell | unproved; trial: a Chief of Staff starts it, `GET /api/board` with the key answers from the machine, and the output shows the start line |
-| Trust of a workspace inside a trusted folder | a folder the user has trusted once in Claude Desktop at the desk covers every new folder created inside it later, so a session started on such a folder from Remote Control does not ask for trust | unproved; trial: the first `real-direct` run after the eval root change, started from the phone on `<eval root>/real-direct-<date>`; the operator's `git rev-parse --git-dir`, `--git-common-dir` and `--show-toplevel` before `preflight` (evals README, "The operator"); on Pass the row is marked proved, with the date and the machine, on Fail it records what was seen |
-| Move a started session to another folder | a session started with no `cwd` may move with `mcp__ccd_directory__change_directory` into a folder inside a trusted folder (the `Projets` tree): no question is asked in auto mode, the next turn runs there (`pwd`), and the move does not reload project instructions: the session keeps the `AGENTS.md` of the folder it started in. Clearing another session from the Chief of Staff (`clear_session` on another id) is denied by the auto mode classifier, and no chantier route uses it. Not recorded here: the operator's route, the self-clear, and where a session started by a moved session lands | proved 2026-11-20, Battlestation (the move and the denial; `01-intent.md` of CR-414); the other three: not recorded |
+| Trust of a workspace inside a trusted folder | a folder the user has trusted once in Claude Desktop at the desk covers every new folder created inside it later, so a move into such a folder asks nothing, and a session started on it from the phone's own New session is not known to ask for trust | the move: proved 2026-11-20, Battlestation (no question asked, trusted tree, auto mode). A start on such a folder from the phone's own New session: unproved unless trial (b) of "The eval operator from a remote client" ran; trial: `work/trial-phone.md` of CR-415, the row marked by its result, with the date and the machine |
+| Move a started session to another folder | a session started with no `cwd` may move with `mcp__ccd_directory__change_directory` into a folder inside a trusted folder (the `Projets` tree): no question is asked in auto mode, the next turn runs there (`pwd`), and the move does not reload project instructions: the session keeps the `AGENTS.md` of the folder it started in. Clearing another session from the Chief of Staff (`clear_session` on another id) is denied by the auto mode classifier, and no chantier route uses it. The operator's route, the self-clear and where a session started by a moved session lands: "The eval operator from a remote client" | proved 2026-11-20, Battlestation (the move and the denial; `01-intent.md` of CR-414); the other three: unproved until the trial of `work/trial-phone.md` reports |
 | Prompt cache TTL (the `cache_ttl` defaults) | a session's cache writes are 1-hour (`cache_creation.ephemeral_1h_input_tokens` in its transcript's usage), a subagent's 5-minute (`ephemeral_5m_input_tokens`) | measured once, 2026-11-17, one account; unproved in general. Trial: on another account, or after a host update, one session and one subagent each write the cache, and their transcripts' `cache_creation` fields show the same split; record the date and the account's kind |
 | Steering wake bound (60 minutes) | the CLI refuses a `steering_wake` over 60 minutes | proved: 30 minutes (real-direct run 1, 2026-11-12); unproved: any other value up to 60. Trial: a batch with `session: steering_wake: 60m` whose Foreman's transcript shows a `ScheduleWakeup` of 3600 seconds and a wake about an hour later; then one over 60 minutes, to learn whether the host accepts it, before the bound moves |
 | Run the watcher | the shell tool (`Bash`, or `PowerShell` on Windows) with `run_in_background: true` and the command the `watch: not running` or `still running` line prints, as is; its end is the background task's completion notice, which starts a turn of the idle Chief of Staff session; its output is read from the background task | unproved; trial: a batch's first merge with a watcher running, the Chief of Staff's transcript showing the notice, the `forge saw merged` line, the forge check and the `order merged` that followed with no user message between. (A subagent's wake by a background shell's end is proved, row "End a subagent's turn"; the main session's is not.) A `config@1` line the board writes (a limit saved on its Configuration page) wakes the watcher like a merge: unproved until a session sees a save end the watcher and start a turn; trial: save `batch.slots` on the board with a watcher running, see its end print the `config changed on the board` line. The trial also covers a board move with no batch running and the session's turn that follows (unproved until then). |
@@ -724,6 +724,70 @@ in the Foreman's session, not `/clear`.
   `.claude/worktrees/<name>/`. Unproved; trial: one file sent and placed.
 - The two-Chiefs case and the hand-over lines travel by `SendMessage` like the rest (unproved
   between two sessions of the user, as the Tools row says).
+
+## The eval operator from a remote client
+
+How an eval's operator (evals README, "The operator") starts from the phone, under Remote Control,
+with a context that holds only the workspace's instructions. Every item below is **unproved until
+the trial of `work/trial-phone.md` reports** (CR-415, draft). The README states the host-neutral
+requirement, its check and its Pass rule; this section is Claude Code's route.
+
+- **The steering session** is the user's Chief of Staff, driven from the phone, in chantier's own
+  folder with the surface added. It starts the operator with `mcp__ccd_session__start_session`: no
+  `cwd`, no `preset`, `use_worktree: false`, the user's permission mode. A start with a `cwd` or a
+  `preset` is refused from Remote Control (the rule, "starting a session from Remote Control"),
+  and a start with neither lands in the steering session's own folder, here chantier's main
+  checkout. During an eval that checkout does not change, so the bootstrap writes nothing before
+  its move.
+- **The bootstrap prompt** is short, not setup's `prompt` line; `<workspace>` is setup's `workspace`
+  line, in the platform's own spelling:
+
+  ```text
+  Move this session into <workspace> with mcp__ccd_directory__change_directory, then call
+  clear_session on self. Load no skill, run no chantier command and write nothing before the move.
+  ```
+
+  The slash line does not open it: `/chantier:chief-of-staff` would run the boot skill in the
+  steering folder before the move, where the live Chief of Staff holds the seat and the operator
+  would become a Griller; a self-clear would also wipe it. So `evals/kit/setup.py` is unchanged.
+- **The move** is `mcp__ccd_directory__change_directory` into the workspace, which is inside the
+  trusted eval root (row "Trust of a workspace inside a trusted folder"). It does not reload
+  project instructions (row "Move a started session to another folder"), hence the isolation step.
+- **Isolation, three routes tried in this order**; the first one proved is the route, the later
+  ones are not tried. Each is recorded proved or not proved in the trial file.
+  1. (a) The self-clear: `clear_session` on `self`, after the move. Unproved.
+  2. (b) The phone's own New session on the workspace folder, with no move and no clear: first the
+     "Remote Control" entry, then the "Local" group's entry or a saved environment with Worktree off
+     (the card's two tries, "The trial that settles a new Foreman from a remote client"). The check
+     runs with `git rev-parse`, because a session created from the remote client landed in a
+     worktree on 2026-11-10. The user pastes the check message, then the `prompt` line once the
+     check passes. Unproved; reached only if (a) is not proved.
+  3. (c) A neutral steering folder: the steering session is a plain Claude Desktop session on the
+     eval root (no `AGENTS.md`, no `CLAUDE.md`; the trial checks it), opened at the desk before
+     leaving and connected to Remote Control. A start with no `cwd` lands outside chantier and the
+     operator moves as in (a), with no clear; it holds no project instructions, and reads the
+     workspace's rules with `$CHANTIER rules`. Unproved; reached only if (b) is not proved.
+
+  No route has the Chief of Staff clear or stop another session (denied 2026-11-20).
+- **The check message**, sent by the steering session when the bootstrap turn ends (under (b), pasted
+  by the user). It asks the operator, in its next turn and without reading any file, to:
+  run `pwd`, `git rev-parse --git-dir`, `git rev-parse --git-common-dir` and
+  `git rev-parse --show-toplevel`; list the path of every instruction and memory file its context
+  shows; quote the sandbox's line "shelf is a small reading list served on the web" if its project
+  instructions hold it, or say "no such line"; say whether its instructions hold the line "Run
+  `just check` before you hand back". The Pass rule is the README's. Under (c) the operator loaded
+  no project instructions, so the sandbox's line is expected absent. A Fail stops the run before
+  the `prompt` line.
+- **The `prompt` line** is sent by `SendMessage` to the operator's session id (the row "Message
+  another session of the user"), verbatim, with the mode blank filled, once the check passes.
+- **Message cost:** two messages of the steering session under the 10-message limit, the check and
+  the `prompt` line; under (b) the user pastes both and the steering session sends none.
+- **Not yet recorded: the trial reports.**
+  - what loads at a session's start or after the self-clear: `AGENTS.md`, the auto-memory and
+    `.claude/settings*.json` (whether a command allowed only by the workspace's
+    `.claude/settings.local.json` runs with no prompt);
+  - where a session started by the moved operator lands, and whether the user can type into it from
+    the phone.
 
 ## The "For you" block
 
