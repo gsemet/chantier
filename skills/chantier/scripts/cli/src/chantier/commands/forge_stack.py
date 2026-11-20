@@ -28,7 +28,8 @@ from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.stacks import chain, off_place, stack_base, state_word, to_come
+from chantier.stack_words import state_word
+from chantier.stacks import chain, off_place, stack_base, to_come
 
 Rows = list[dict[str, Any]]
 

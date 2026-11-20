@@ -3,6 +3,7 @@ one function (`stack_start`), so the take's printed base and the record's place 
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -14,7 +15,10 @@ from conftest import Chantier
 from chantier.commands.facts import stack_lines
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.stacks import off_place, stack_base, start_base
+from chantier.hub import journal
+from chantier.hub.schemas import PUBLISHED
+from chantier.stack_words import draft_waits, ready_word
+from chantier.stacks import off_place, stack_base, stack_start, start_base, start_on_for
 
 PR = "https://github.com/o/r/pull/"
 REPO = cast(Repo, SimpleNamespace(config={"default_branch": "main", "remote": "origin"}))
@@ -119,3 +123,150 @@ def test_take_prints_the_base_the_stack_row_shows(
     assert f" base {branch};" in line
     rows = chantier("take", "stack", "--epoch", 1)[1]
     assert next(x for x in rows if x.startswith(f"{ids[3]} ")).count(f" base {branch} ") == 1
+
+
+LANDED = [
+    # (id, crs, the CR asked, landed, without the set, with it)
+    ("below", [cr(1), cr(2), noPr(3, status="queued")], 3, {"CR-2"}, "b-2", "b-1"),
+    ("below-all", [cr(1), cr(2), noPr(3, status="queued")], 3, {"CR-1", "CR-2"}, "b-2", "main"),
+    (
+        "live-start-on",
+        [cr(1), cr(2), noPr(3, status="queued", start_on="b-2")],
+        3,
+        {"CR-2"},
+        "b-2",
+        "b-1",
+    ),
+    (
+        "dependency",
+        [noPr(1), cr(2), noPr(3, status="queued", after=["CR-2"])],
+        3,
+        {"CR-2"},
+        "b-2",
+        "main",
+    ),
+    ("empty-set", [cr(1), cr(2), noPr(3, status="queued")], 3, set(), "b-2", "b-2"),
+]
+
+
+@pytest.mark.parametrize(
+    ("crs", "n", "landed", "plain", "want"), [c[1:] for c in LANDED], ids=[c[0] for c in LANDED]
+)
+def test_a_cr_seen_merged_is_no_start_base(
+    crs: list[CrEntry], n: int, landed: set[str], plain: str, want: str
+) -> None:
+    d = BatchRecord(id="batch-01", mode="stack", crs=crs)
+    c = next(x for x in crs if x.id == f"CR-{n}")
+    seen = frozenset(landed)
+    assert start_base(d, c, REPO) == plain
+    assert start_base(d, c, REPO, seen) == want
+    assert stack_start(d, c, REPO, seen) == want
+    expected = None if want == "main" else want
+    if not c.start_on and not c.after:
+        assert start_on_for(d, c, seen) == expected
+
+
+def test_a_series_predecessor_and_the_release_top_skip_a_cr_seen_merged() -> None:
+    top = CrEntry(id="CR-9", status="working", order=9, branch="b-9", kind="release")
+    crs = [cr(1), cr(2), top]
+    seen = frozenset({"CR-2"})
+    series = BatchRecord(id="batch-01", mode="series", crs=crs)
+    assert start_base(series, crs[1], REPO, seen) == "b-1"
+    assert start_base(series, crs[2], REPO, seen) == "b-1"
+    assert start_base(series, crs[2], REPO) == "b-2"
+    assert start_base(series, noPr(3, order=3), REPO, seen) == "main"
+
+
+WORDS = [
+    # (id, the CR asked ("c"), other CRs, its word, what it waits for)
+    ("default", {"pr_base": "main"}, [noPr(1)], "ready to merge", "its turn out of draft"),
+    (
+        "default-draft",
+        {"pr_base": "main", "pr_draft": True},
+        [noPr(1)],
+        "PR in draft",
+        "its turn out of draft",
+    ),
+    (
+        "open-ready",
+        {"pr_base": "b-1"},
+        [cr(1, status="ready", pr_draft=False, pr_base="main")],
+        "ready to merge",
+        "its turn out of draft",
+    ),
+    (
+        "open-not-ready",
+        {"pr_base": "b-1"},
+        [cr(1, status="ready", pr_draft=True)],
+        "PR in draft",
+        "CR-1",
+    ),
+    ("open-working", {"pr_base": "b-1"}, [cr(1)], "PR in draft", "CR-1"),
+    (
+        "merged",
+        {"pr_base": "b-1"},
+        [cr(1, status="merged"), noPr(2)],
+        "PR in draft",
+        "CR-2",
+    ),
+    ("no-cr", {"pr_base": "elsewhere"}, [noPr(1)], "PR in draft", "elsewhere"),
+    ("cancelled", {"pr_base": "b-1"}, [cr(1, status="cancelled")], "PR in draft", "CR-1"),
+    ("no-base", {}, [noPr(1)], "PR in draft", "CR-1"),
+    (
+        "loop",
+        {"pr_base": "b-1"},
+        [cr(1, status="ready", pr_draft=False, pr_base="b-9")],
+        "PR in draft",
+        "CR-1",
+    ),
+    (
+        "placed",
+        {"pr_base": "main", "stacked": True},
+        [noPr(1)],
+        "PR in draft",
+        "CR-1",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("fields", "others", "word", "waits"), [w[1:] for w in WORDS], ids=[w[0] for w in WORDS]
+)
+def test_a_ready_cr_not_placed_reads_its_word_from_its_pr_base(
+    fields: dict[str, Any], others: list[CrEntry], word: str, waits: str
+) -> None:
+    me = cr(9, status="ready", pr_draft=fields.get("pr_draft", False), order=9)
+    for k, v in fields.items():
+        setattr(me, k, v)
+    d = BatchRecord(id="batch-01", mode="stack", crs=[*others, me])
+    assert ready_word(d, me, REPO) == word
+    if word == "PR in draft":
+        assert draft_waits(d, me, REPO) == waits
+
+
+def test_two_crs_on_each_others_branches_read_pr_in_draft() -> None:
+    a = cr(1, status="ready", pr_draft=False, pr_base="b-2")
+    b = cr(2, status="ready", pr_draft=False, pr_base="b-1")
+    d = BatchRecord(id="batch-01", mode="stack", crs=[a, b])
+    assert ready_word(d, a, REPO) == ready_word(d, b, REPO) == "PR in draft"
+
+
+def test_seen_merged_counts_a_listed_line_of_this_batch_cr_and_pr(tmp_path: Path) -> None:
+    mine = {"type": "merged@1", "v": journal.VERSION, **PUBLISHED["merged@1"].example}
+    mine["pr"] = f"{PR}88"
+    crs = [cr(12, pr=f"{PR}88")]
+    d = BatchRecord(id="batch-29", crs=crs)
+
+    def seen(*lines: dict[str, Any], batch: BatchRecord = d) -> frozenset[str]:
+        (tmp_path / journal.FILE).write_text(
+            "".join(json.dumps(x) + chr(10) for x in lines), encoding="utf-8"
+        )
+        return journal.seen_merged(journal.read(tmp_path)[0], batch)
+
+    assert seen(mine) == {"CR-12"}
+    assert seen({**mine, "landed_with": "CR-13", "landed_at": "2026-11-18T10:02:00Z"}) == {"CR-12"}
+    assert seen(mine, batch=BatchRecord(id="batch-30", crs=crs)) == frozenset()
+    assert seen({**mine, "pr": f"{PR}89"}) == frozenset()
+    assert seen({**mine, "cr": "CR-13"}) == frozenset()
+    assert seen({**mine, "v": journal.VERSION + 1}) == frozenset()
+    assert seen({**mine, "merged_at": 5}) == frozenset()

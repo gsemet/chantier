@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from chantier.board.crs import link_of
 from chantier.commands import wait_view
 from chantier.commands.carry import carry_reason, head_base
 from chantier.commands.crs import (
@@ -24,6 +25,7 @@ from chantier.core import leases
 from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
+from chantier.hub import journal
 from chantier.lifecycle.stages import cr_directory
 from chantier.playbook.lines import ci_lines, team_lines, timing_lines
 from chantier.plugin_files import (
@@ -34,13 +36,13 @@ from chantier.plugin_files import (
     skill_dir,
     worker_prompt_lines,
 )
+from chantier.stack_words import state_word
 from chantier.stacks import (
     chain,
     held_lines,
     off_place,
     stack_base,
     start_base,
-    state_word,
     validated_ids,
     validating_cr,
     waived_gate,
@@ -55,7 +57,7 @@ def _ref(repo: Repo, branch: str) -> str:
     )
 
 
-def _base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
+def _base_of(d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str]) -> str:
     """The `base <ref>` a CR's `worktree:` line ends with: the ref its branch starts on (the
     remote's default branch, or the branch of its last open dependency); for a stacked CR with a
     PR, the PR's base read from the forge, or `base ? (not read from <link>: …)`."""
@@ -63,7 +65,26 @@ def _base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
     if read is not None:
         branch, unread = read
         return f"base {_ref(repo, branch)}" if branch else unread
-    return f"base {_ref(repo, start_base(d, c, repo))}"
+    return f"base {_ref(repo, start_base(d, c, repo, landed))}"
+
+
+def _landed_line(d: BatchRecord, c: CrEntry, repo: Repo, landed: frozenset[str]) -> list[str]:
+    """The `base:` line, only when the CRs the forge shows merged changed the CR's start base: the
+    branch the record alone gives is no base, its PR is merged, not recorded yet."""
+    if not landed or stacked_read(d, c) is not None:
+        return []
+    # the record alone: a start base `take` fixed from the record is looked at again too
+    first = c if c.stacked else c.model_copy(update={"start_on": None})
+    plain = start_base(d, first, repo)
+    if plain == start_base(d, c, repo, landed):
+        return []
+    owner = next((x for x in d.crs if x.branch == plain), None)
+    if owner is None or owner.id not in landed:
+        return []
+    return [
+        f"base: not {owner.id}'s branch: the forge shows its PR {link_of(owner.pr)} merged, "
+        f"not recorded yet (order merged {owner.id})"
+    ]
 
 
 def _stack_ref(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
@@ -71,9 +92,14 @@ def _stack_ref(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
     return _ref(repo, stack_base(d, c, repo, planned=True))
 
 
-def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
+def cr_facts(
+    repo: Repo, batch: str, d: BatchRecord, c: CrEntry, landed: frozenset[str] | None = None
+) -> list[str]:
     """Everything an agent needs to work on a CR, on one screen: the parent writes its prompt
-    from these lines and the role's card."""
+    from these lines and the role's card. `landed`: the CRs the forge hub saw merged, from the
+    journal (read here when the caller passes none)."""
+    if landed is None:
+        landed = journal.seen_merged(journal.read(repo.changes)[0], d)
     folder = cr_directory(repo, c)
     found = project_instructions(repo)
     skill = skill_dir().as_posix()
@@ -88,8 +114,9 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         f"specification: {(folder / c.specification).as_posix()}",
         f"folder: {folder.as_posix()} (work/, evidence/)",
         f"scratch: {(folder / 'work' / 'scratch').as_posix()}",
-        f"worktree: {c.worktree} branch {c.branch} {_base_of(d, c, repo)}"
+        f"worktree: {c.worktree} branch {c.branch} {_base_of(d, c, repo, landed)}"
         + ("" if made else "; not created yet: a Driver creates it first"),
+        *_landed_line(d, c, repo, landed),
         *_external_lines(repo, c),
         f"PR: {_shown_pr(c)}; head {short_head(c.head) or '-'}",
         f"rounds: {c.round} of {round_limit(d, c)}",

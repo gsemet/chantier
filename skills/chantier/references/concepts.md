@@ -30,8 +30,11 @@ At startup, identify the role, batch, project and parent session.
   stack from it. The three derived words stay everywhere else.
 - **Ready to merge** (🟢): a CR handed back `ready` whose PR is out of draft on the forge (the CLI
   records it: `ship` reads it from the forge, `stack --out-of-draft`, never ahead of the forge) and, in a
-  stack batch, with every CR under it ready to merge too; outside a stack its PR's base on the
-  forge, as `ship` last read it, is the default branch. The user may merge it on its own at any moment, a stack batch is no exception;
+  stack batch, with every CR under it ready to merge too (for a CR the stack driver placed, the CRs
+  below it in the stack's order; for a CR not placed yet, the CR whose branch its PR's base is on the
+  forge, as `ship` last read it, none when that base is the default branch: the recorded order alone
+  never holds back a PR that is out of draft on the default branch); outside a stack its PR's base on
+  the forge, as `ship` last read it, is the default branch. The user may merge it on its own at any moment, a stack batch is no exception;
   the top of a stack ready to merge means the whole stack is mergeable. "Mergeable" names only PRs
   ready to merge, never a draft, whatever the forge's `mergeable` field says.
   In a stack batch, a PR of the mergeable part of a verified stack (the five checks of **Stack**,
@@ -43,8 +46,9 @@ At startup, identify the role, batch, project and parent session.
 - **PR in draft** (🟤): a CR handed back `ready` whose PR is open and a draft, or out of draft over a CR that is not (a
   stack, a PR on another CR's branch); its hand-back line names its own draft state and the CR it
   waits on; it waits for what is
-  under it: first the CR whose branch its PR's base is on the forge, as `ship` last read it, else
-  a CR below, its dependency, the release's top, or for its turn out of draft, and
+  under it: first the CR whose branch its PR's base is on the forge, as `ship` last read it (a CR not
+  placed whose PR is a draft on the default branch waits for its turn out of draft, not for a CR of
+  the order), else a CR below, its dependency, the release's top, or for its turn out of draft, and
   nobody merges it (do not merge). **Ready locally** (🟣): a CR handed back `ready` with no PR yet
   (rare: `handback ready` needs a PR). A draft's icon is its CR's state, never "draft" by
   default: 🟡 while it rebases or runs a gate, 🟠 waiting for another CR's work, 🔴 blocked.
@@ -242,7 +246,8 @@ At startup, identify the role, batch, project and parent session.
   driver acting as their cards say; a merged CR never changes (its record, PR, branch and folder).
   **Stack**: parallel, with a stack driver: every CR with no open
   dependency starts at once, on the nearest earlier CR of the batch (by order) that already has a
-  PR, else on the default branch, recorded at its first `take` (a branch with no PR is never a
+  PR and whose PR the forge does not show merged (a `forge saw merged` line of the journal), else on
+  the default branch, recorded at its first `take` (a branch with no PR is never a
   base), so its PR is already on the stack; a CR with a dependency starts only once that
   dependency is `ready` (`take` refuses it until then), on the branch of its last dependency still
   open, else on the default branch (see **Dependencies**), and the stack driver puts the PRs each on the
@@ -353,8 +358,8 @@ At startup, identify the role, batch, project and parent session.
   who drops the CR or changes it). A release's `after` is met by `ready` or `merged` in an
   ordered batch (stack, series), by `merged` in a parallel one; a cancelled CR never holds it
   back. The CR starts on the branch of its last dependency still open,
-  in the order of `after`, else, in a stack, on the nearest earlier CR of the batch that has a PR,
-  else on the default branch: a CR's start base and its place in the stack are two
+  in the order of `after`, else, in a stack, on the nearest earlier CR of the batch that has a PR and whose PR the forge
+  does not show merged (a `forge saw merged` line of the journal), else on the default branch: a CR's start base and its place in the stack are two
   things. A chain is an `after` with no real dependency, which the
   Foreman decided, or the plan proposed and the user's go approved, for a queued CR; it ends with `order after <cr> --note -` while the CR is
   queued. `stack` refuses an order that puts a CR below one of its

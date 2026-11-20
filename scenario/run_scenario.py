@@ -80,8 +80,8 @@ UNITS = {
     "stack": (
         750,
         ["github"],
-        ["stack_batch", "base_from_pr", "stack_waiver", "ready_words", "forge_stack_cli",
-         "stack_hold"],
+        ["stack_batch", "start_base_forge", "base_from_pr", "stack_waiver", "ready_words",
+         "ready_words_unplaced", "forge_stack_cli", "stack_hold"],
     ),
     "release": (
         585,
@@ -6652,6 +6652,81 @@ def stack_start_base(w: World) -> None:
     w.env.pop("CHANTIER_BATCH", None)
 
 
+def hub_cycle(w: World) -> None:
+    """One cycle of the forge hub on this world (what its process does every 20 s): the fake forge
+    is read, and a `merged@1` line is appended for a PR it shows merged and the record does not."""
+    code = ("import time\n"
+            "from chantier.core.repo import Repo\n"
+            "from chantier.hub.cycle import Hub\n"
+            "Hub(Repo.find()).cycle(time.monotonic())\n")
+    p = subprocess.run([sys.executable, "-c", code], cwd=w.work, env=w.env, capture_output=True,
+                       text=True, encoding="utf-8")
+    check("the hub's cycle ran against the fake forge", p.returncode == 0, p.stderr[-300:])
+
+
+def start_base_forge(w: World) -> None:
+    """`take` and `handoff` leave out a CR whose PR the forge shows merged (a `merged@1` line of
+    the journal, written by the hub), not recorded merged yet."""
+    note("\n## 13-ter. A stack CR does not start on a CR whose PR the forge shows merged")
+    w.reset()
+    items = [prepare_cr(w, f"Forge base {x}")[1] for x in "zabcd"]
+    w.start(*map(str, items), "--mode", "stack", "--slots", 6, *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman13", "--epoch", 1)
+    z, a, b, c, d = (x["id"] for x in w.batch()["crs"])
+
+    def edit(cr: str, **fields: object) -> None:
+        data = w.batch()
+        next(x for x in data["crs"] if x["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(data, indent=2))
+
+    def link(cr: str) -> str:
+        return PR_LINK[ARGS.forge] + str(400 + int(cr.removeprefix("CR-")))
+
+    says = (f"base: not {a}'s branch: the forge shows its PR {link(a)} merged, not recorded yet "
+            f"(order merged {a})")
+
+    def on_base(out: list[str], ref: str) -> bool:
+        return any(ln.startswith("worktree: ") and f" base {ref}" in ln for ln in out)
+
+    w.chantier("take", a, "--epoch", 1)
+    edit(a, pr=link(a))  # a is working with an open PR
+    forge_pr(w, link(a), state="MERGED", mergedAt="2026-11-16T10:00:00Z")  # merged on the forge
+    _, out = w.chantier("take", b, "--epoch", 1)
+    check("4. with no journal line (the PR merged on the forge, no hub cycle yet) `take` prints "
+          "a's branch as the base, no `base:` line, as today",
+          w.cr(b).get("start_on") == w.cr(a)["branch"] and on_base(out, w.cr(a)["branch"])
+          and not any(ln.startswith("base: ") for ln in out), str(out))
+    hub_cycle(w)
+    _, out = w.chantier("take", c, "--epoch", 1)
+    check("1. once the hub saw the merge, `take` records no `start_on`, prints the default "
+          "branch as the base and the `base:` line naming a and the order merged",
+          "start_on" not in w.cr(c) and on_base(out, "origin/main") and says in out, str(out))
+    _, out = w.chantier("handoff", c)
+    check("1. `handoff` prints the same two lines", on_base(out, "origin/main") and says in out,
+          str(out))
+    _, status = w.chantier("status")
+    _, rows = w.chantier("stack")
+    check("5. `status` and `stack` still show the record's plan: a is listed, not merged",
+          any(ln.startswith(a + " ") for ln in status + rows) and w.cr(a)["status"] != "merged",
+          str((status, rows)))
+    edit(z, pr=link(z))  # an earlier CR with an open PR, below a
+    _, out = w.chantier("take", d, "--epoch", 1)
+    check("2. with an earlier CR z that has an open PR below a, `take` records z's branch and "
+          "prints it as the base, the `base:` line still naming a",
+          w.cr(d).get("start_on") == w.cr(z)["branch"] and on_base(out, w.cr(z)["branch"])
+          and says in out, str(out))
+    edit(a, status="ready")
+    w.chantier("order", "merged", a, "--epoch", 1)
+    _, out = w.chantier("handoff", d)
+    check("3. after `order merged a`, `handoff` prints the same base and no `base:` line",
+          on_base(out, w.cr(z)["branch"]) and not any(ln.startswith("base: ") for ln in out),
+          str(out))
+    forge_pr(w, link(a), state="OPEN", mergedAt=None)  # PR links repeat: leave the fake forge clean
+    w.reset()
+    w.env.pop("CHANTIER_BATCH", None)
+
+
 def base_from_pr(w: World) -> None:
     note("\n## 13b. `take` and `handoff` print a stacked CR's base, `ship` reads and records any CR's "
          "base, as its PR has it on the forge")
@@ -8419,6 +8494,79 @@ def icon_is(w: World, cr: str, icon: str, what: str) -> dict:
     return own
 
 
+def ready_words_unplaced(w: World) -> None:
+    note("\n## 13b. A ready CR the stack driver has not placed reads its word from its PR's base")
+
+    def edit_cr(cr: str, drop: tuple[str, ...] = (), **fields: object) -> None:
+        d = w.batch()
+        c = next(x for x in d["crs"] if x["id"] == cr)
+        c.update(fields)
+        for key in drop:
+            c.pop(key, None)
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    def ready_of(cr: str) -> str | None:
+        return drawn(w, cr)[1].get("readiness")
+
+    def batch_readiness(cr: str) -> str | None:
+        board = json.loads((w.folder() / "STATUS.json").read_text(encoding="utf-8"))
+        return next(r.get("readiness") for r in board["crs"] if r["cr"] == cr)
+
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Unplaced a", "Unplaced b", "Unplaced c")]
+    w.start(*map(str, items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    w.chantier("foreman", "set", "local_foreman_unplaced", "--epoch", 1)
+    Foreman(w, epoch=1).turn()  # no `stack <cr>...` call in this batch
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    driver_round(w, b, "unplaced_b.py", "N = 1\n")
+    driver_round(w, c, "unplaced_c.py", "N = 2\n")
+    bpr, cpr = w.cr(b)["pr"], w.cr(c)["pr"]
+    _, out = w.ready(b, bpr)
+    check("6. a working CR with no PR before it, b shipped out of draft on the default branch and "
+          "handed back: `ready to merge`, in the hand-back line, `readiness` and the label",
+          out[0].startswith(f"[driver {b}→foreman] hand-back ready to merge")
+          and ready_of(b) == "ready to merge" == batch_readiness(b)
+          and drawn(w, b)[1]["label"].startswith("🟢 "), str(out))
+    forge_draft(w, cpr, True)
+    w.chantier("ship", c, cpr)
+    _, out = w.ready(c, cpr)
+    check("7. c shipped as a draft on the default branch: `PR in draft`, it waits for its turn "
+          "out of draft, not for a CR of the order",
+          out[0].startswith(f"[driver {c}→foreman] hand-back PR in draft")
+          and out[1].endswith("a draft on the forge; it waits for its turn out of draft")
+          and drawn(w, c)[1]["label"].endswith("waits for its turn out of draft")
+          and ready_of(c) == "PR in draft", str(out))
+    forge_draft(w, cpr, False)
+    forge_base(w, cpr, w.cr(b)["branch"])
+    w.chantier("ship", c, cpr)
+    w.chantier("note", c, "redraw")
+    check("8. c's PR on b's branch, out of draft, shipped: `ready to merge` while b is",
+          ready_of(c) == "ready to merge", str(drawn(w, c)[1]))
+    forge_draft(w, bpr, True)
+    w.chantier("ship", b, bpr)
+    w.chantier("note", c, "redraw")
+    check("8. b turned back to a draft and shipped: c reads `PR in draft` and waits on b",
+          ready_of(c) == "PR in draft" and f"waits for {b}" in drawn(w, c)[1]["label"],
+          str(drawn(w, c)[1]))
+    forge_draft(w, bpr, False)
+    w.chantier("ship", b, bpr)
+    edit_cr(c, drop=("pr_base",))  # an old record: no base recorded
+    w.chantier("note", c, "redraw")
+    check("9. c with `pr_base` dropped (an old record): today's rule, `PR in draft`, it waits on a",
+          ready_of(c) == "PR in draft" and f"waits for {a}" in drawn(w, c)[1]["label"],
+          str(drawn(w, c)[1]))
+    code, out = w.chantier("stack", a, b, c, expect=None)
+    check("10. `stack a b c` places the three: the chain's rule again, b and c `PR in draft` over a",
+          code == 0 and ready_of(b) == "PR in draft" and ready_of(c) == "PR in draft",
+          f"{code} {out} {ready_of(b)} {ready_of(c)}")
+    for cr in (b, c):  # PR links repeat from batch to batch: leave the fake forge clean
+        forge_draft(w, w.cr(cr)["pr"], False)
+        forge_base(w, w.cr(cr)["pr"], "main")
+    w.reset()
+    w.env.pop("CHANTIER_BATCH", None)
+
+
 def stack_hold(w: World) -> None:
     note("\n## 13b. `order hold`: a ready CR held out of the stack, on the forge and in the record")
     w.reset()
@@ -10145,9 +10293,11 @@ CASES = {
     "close_batch": close_batch,
     "retro_cases": retro_cases,
     "stack_batch": stack_batch,
+    "start_base_forge": start_base_forge,
     "base_from_pr": base_from_pr,
     "stack_waiver": stack_waiver,
     "ready_words": ready_words,
+    "ready_words_unplaced": ready_words_unplaced,
     "forge_stack_cli": forge_stack_cli,
     "stack_hold": stack_hold,
     "release": release,

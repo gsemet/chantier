@@ -50,7 +50,8 @@ from chantier.rails import (
     waits_all,
 )
 from chantier.rails_release import record_ask
-from chantier.stacks import held_lines, stack_line, state_word
+from chantier.stack_words import state_word
+from chantier.stacks import held_lines, stack_line
 from chantier.status.gate import gate_view
 from chantier.status.words import phase_text, shape_word, steering_word
 
