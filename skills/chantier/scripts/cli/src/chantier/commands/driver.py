@@ -49,6 +49,7 @@ from chantier.stacks import (
     READY_TO_MERGE,
     draft_clause,
     ready_word,
+    refuse_held,
     stack_base,
     start_on_for,
 )
@@ -123,7 +124,7 @@ def take(args: argparse.Namespace) -> list[str]:
         d = b.record
         if args.cr == "stack":
             return _take_stack(repo, b, batch, args.note, fresh)
-        c = b.cr(args.cr)
+        refuse_held(c := b.cr(args.cr))
         row = driver_row(d.host, "take <cr>", c.kind)  # before any state changes
         check_take(d, c, args.note)
         if c.status != "working":

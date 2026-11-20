@@ -4,6 +4,7 @@ Read by the commands and by the status and board views, so it lives below both."
 
 from __future__ import annotations
 
+from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry, GateWaiver
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor
@@ -14,6 +15,26 @@ READY_TO_MERGE = "ready to merge"
 FORMING = 2  # the ready CRs with a PR that make the first stack due (`stack_due`)
 
 
+def is_held(c: CrEntry) -> bool:
+    """A CR held out of the stack (`order hold`): open and carrying the hold's order id. A CR
+    merged or cancelled with a stale `held` reads as not held."""
+    return bool(c.held) and c.status not in ENDED
+
+
+def refuse_held(c: CrEntry) -> None:
+    """`take <cr>` of a held CR: refused, it is outside the stack until `order unhold`."""
+    if is_held(c):
+        raise ChantierError(
+            f"{c.id} is held out of the stack (order {c.held}): `order unhold {c.id}` first",
+            EXIT_PRECONDITION,
+        )
+
+
+def held_text(c: CrEntry) -> str:
+    """What a held CR waits for: its way back into the stack."""
+    return f"held out of the stack (order {c.held}): `order unhold {c.id}`"
+
+
 def chain(b_data: BatchRecord) -> list[CrEntry]:
     """The stack as it stands: the CRs not ended, in order, the release CR last whatever its
     `order` (it is the top piece). A fix CR sits outside it, on the default branch. What a
@@ -22,7 +43,11 @@ def chain(b_data: BatchRecord) -> list[CrEntry]:
     if b_data.mode != "stack":
         return []
     return sorted(
-        [x for x in b_data.crs if x.status not in {"cancelled", "merged"} and x.kind != "fix"],
+        [
+            x
+            for x in b_data.crs
+            if x.status not in {"cancelled", "merged"} and x.kind != "fix" and not is_held(x)
+        ],
         key=lambda x: (x.kind == "release", x.order),
     )
 
@@ -32,7 +57,11 @@ def top_cr(b_data: BatchRecord) -> CrEntry | None:
     branch the release starts on and its PR sits on. A fix CR and the release are not in it."""
     if b_data.mode not in {"stack", "series"}:
         return None
-    open_ = [x for x in b_data.crs if x.status not in ENDED and x.kind not in {"release", "fix"}]
+    open_ = [
+        x
+        for x in b_data.crs
+        if x.status not in ENDED and x.kind not in {"release", "fix"} and not is_held(x)
+    ]
     return max(open_, key=lambda x: x.order, default=None)
 
 
@@ -74,7 +103,11 @@ def next_merge(b_data: BatchRecord) -> CrEntry | None:
     batch: the record names no next merge there."""
     if b_data.mode not in {"stack", "series"}:
         return None
-    open_ = [x for x in b_data.crs if x.status not in ENDED and x.kind not in {"release", "fix"}]
+    open_ = [
+        x
+        for x in b_data.crs
+        if x.status not in ENDED and x.kind not in {"release", "fix"} and not is_held(x)
+    ]
     return min(open_, key=lambda x: x.order, default=None)
 
 
@@ -108,6 +141,20 @@ def stack_due(b_data: BatchRecord) -> list[CrEntry]:
         and all(y.status == "ready" for y in _open_after(d, x))
     ]
     return due if len(due) >= FORMING else []
+
+
+def held_lines(b_data: BatchRecord, repo: Repo) -> list[str]:
+    """One `status` line per held CR of a stack batch, in order: where it sits and how it comes
+    back."""
+    if b_data.mode != "stack":
+        return []
+    default: str = repo.config["default_branch"]
+    return [
+        f"held: {c.id} (order {c.held}) out of the stack, PR {c.shown_pr() or '-'} on {default}: "
+        f"`order unhold {c.id}` puts it back"
+        for c in sorted(b_data.crs, key=lambda x: x.order)
+        if is_held(c)
+    ]
 
 
 def stack_line(b_data: BatchRecord) -> list[str]:
@@ -181,6 +228,8 @@ def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     if c.kind == "release":
         top = top_cr(b_data)
         return top.branch if top else default
+    if is_held(c):  # outside the stack: on the default branch
+        return default
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c)
         return pred.branch if pred and pred.status != "merged" else default
@@ -249,7 +298,7 @@ def ready_word(d: BatchRecord, c: CrEntry, repo: Repo) -> str | None:
         return None
     if not c.pr:
         return READY_LOCALLY
-    if c.pr_draft is not False:
+    if c.pr_draft is not False or is_held(c):
         return PR_IN_DRAFT
     place = chain(d)
     ids = [x.id for x in place]
@@ -267,10 +316,12 @@ def pr_base_of(d: BatchRecord, c: CrEntry, repo: Repo) -> str:
 
 
 def draft_waited(d: BatchRecord, c: CrEntry, repo: Repo) -> CrEntry | str | None:
-    """What a PR in draft waits for: the CR whose branch its PR sits on, on the forge, when that
-    CR is not out of draft; else the CR under it in the stack not yet out of draft, else the CR
-    whose branch its base is, else the base branch itself (no CR of the batch), else None (its
-    own turn out of draft)."""
+    """What a PR in draft waits for: for a held CR, the text of its hold; else the CR whose branch
+    its PR sits on, on the forge, when that CR is not out of draft; else the CR under it in the
+    stack not yet out of draft, else the CR whose branch its base is, else the base branch itself
+    (no CR of the batch), else None (its own turn out of draft)."""
+    if is_held(c):
+        return held_text(c)
     default: str = repo.config["default_branch"]
     if c.pr_base and c.pr_base != default:
         on = next((x for x in d.crs if x.branch == c.pr_base), None)
@@ -296,13 +347,15 @@ def draft_clause(d: BatchRecord, c: CrEntry, repo: Repo, prepared: bool) -> str:
     else:
         state = "a draft on the forge" if c.pr_draft else "out of draft on the forge"
     waited = draft_waited(d, c, repo)
+    own = f"the release PR {c.pr} is" if prepared else f"its PR {c.pr} is"
+    if is_held(c):
+        return f"{own} {state}; it waits: {waited}"
     if waited is None:
         what = "for its turn out of draft"
     elif isinstance(waited, str):
         what = f"on the branch {waited} (no CR of this batch)"
     else:
         what = f"on {waited.id} ({waited.pr or 'no PR yet'})"
-    own = f"the release PR {c.pr} is" if prepared else f"its PR {c.pr} is"
     return f"{own} {state}; it waits {what}"
 
 

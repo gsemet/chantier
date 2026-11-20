@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from chantier.commands.crs import filed_fix, grant_line
 from chantier.commands.factory import set_factory, switch_factory
 from chantier.commands.gate_run import stop_gate, stopped_line
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
+from chantier.commands.orders_hold import hold, unhold
 from chantier.commands.orders_release import (
     add_release,
     check_release_open,
@@ -17,8 +17,9 @@ from chantier.commands.orders_release import (
     refused,
     release_cr,
 )
-from chantier.commands.orders_reorder import reorder
+from chantier.commands.orders_reorder import release_holds, reorder
 from chantier.commands.orders_waive import USAGE, stack_waiver, waive_cr, waive_stack
+from chantier.commands.orders_word import Word, target
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import LIVE, CrEntry
@@ -33,32 +34,7 @@ from chantier.rails_release import (
     release_merged,
 )
 
-CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant", "confirm"}
-
-
-@dataclass
-class Word:
-    """One order to apply: `own` is the Foreman acting under the user's grant."""
-
-    b: Batch
-    kind: str
-    cr_id: str
-    c: CrEntry | None
-    note: str
-    fix_for: str | None = None
-    own: bool = False
-    release: bool = False
-    follow_up: str | None = None
-    order_id: str = ""
-    stopped: list[str] | None = None  # `order merged`: the line of a gate stopped before the locks
-    ended: bool = False  # set by the handler: this order ended the batch's last CR
-
-
-def target(w: Word) -> CrEntry:
-    """The CR the order is about: every kind that reaches for it names one."""
-    if w.c is None:
-        raise ChantierError(f"order {w.kind} names a CR", EXIT_USAGE)
-    return w.c
+CR_ORDERS = {"after", "drop", "merged", "rounds", "approve", "grant", "confirm", "hold", "unhold"}
 
 
 def _need_note(w: Word, usage: str) -> str:
@@ -227,6 +203,7 @@ def _merged(w: Word) -> list[str]:
     # or a stale lock is stopped now, while the CR's folder and its log are in place
     stopped = w.stopped or _stop_gate(b, cr_id)
     if c.kind != "release":
+        c.unset("held")  # merged on the default branch: no longer held
         lines = merge_done(b, c)
         w.ended = all_merged(b.record)
         return [lines[0], *stopped]
@@ -338,7 +315,9 @@ def _mode(w: Word) -> list[str]:
         raise ChantierError(f"{b.id} is already a {to}")
     b.record.mode = to
     b.log("mode", None, mode=to, previous=now_)
+    freed: list[str] = []
     if now_ == "stack":
+        freed = release_holds(b)
         for c in b.record.crs:
             c.stacked = False
     if to == "parallel":
@@ -355,7 +334,11 @@ def _mode(w: Word) -> list[str]:
             else f"{b.id} is a series now (order: {order}): each open PR is rebased on the one "
             "below, the ones above the bottom go back to draft"
         )
-    return [line, *(["run `forge-stack unstack` before any rebase"] if now_ == "stack" else [])]
+    return [
+        line,
+        *freed,
+        *(["run `forge-stack unstack` before any rebase"] if now_ == "stack" else []),
+    ]
 
 
 def _qa(w: Word) -> list[str]:
@@ -381,6 +364,8 @@ HANDLERS: dict[str, Callable[[Word], list[str]]] = {
     "waive": _waive,
     "qa": _qa,
     "factory": _factory,
+    "hold": hold,
+    "unhold": unhold,
 }
 
 

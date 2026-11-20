@@ -8,7 +8,7 @@ import json
 import re
 import shutil
 import subprocess
-from typing import Any
+from typing import Any, NamedTuple
 
 from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
@@ -77,13 +77,27 @@ def stacks(host: str, owner: str, name: str) -> list[dict[str, Any]]:
     return stacks
 
 
-def held_outside(outside: list[int], left: dict[int, str], dropped: dict[int, str]) -> str:
+class Apart(NamedTuple):
+    """The PRs of a stack that are not planned, to their CR ids: the batch's stack left out of
+    the rows (`left`), dropped CRs, held CRs."""
+
+    left: dict[int, str]
+    dropped: dict[int, str]
+    held: dict[int, str]
+
+
+def held_outside(outside: list[int], apart: Apart) -> str:
     """The PRs an unstacked stack held that are not planned: those of the batch's stack left out
-    of the rows, those of dropped CRs, and foreign ones."""
+    of the rows, those of dropped CRs, those of held CRs, and foreign ones."""
+    left, dropped, held = apart
     mine = [n for n in outside if n in left]
     gone = [n for n in outside if n in dropped]
-    foreign = [n for n in outside if n not in left and n not in dropped]
+    kept = [n for n in outside if n in held]
+    foreign = [n for n in outside if n not in left and n not in dropped and n not in held]
     parts = []
+    if kept:
+        said = " ".join(f"#{n} of {held[n]}" for n in kept)
+        parts.append(f"it also held {said}, held out of the stack: left out")
     if mine:
         said = " ".join(f"#{n} of {left[n]}" for n in mine)
         parts.append(f"it also held {said}: a plain PR until it joins again")
@@ -102,8 +116,7 @@ def unstack(
     s: dict[str, Any],
     planned: set[int],
     where: Where,
-    left: dict[int, str],
-    dropped: dict[int, str],
+    apart: Apart,
 ) -> str:
     """Unstack one open stack that holds a planned PR, until the forge reads it back as gone."""
     host, owner, name = where
@@ -126,10 +139,10 @@ def unstack(
             f"reads it back {'with ' + back if back else 'open, with no PR'})",
             EXIT_EXTERNAL,
         )
-    return f"unstacked #{s['number']}" + held_outside(outside, left, dropped)
+    return f"unstacked #{s['number']}" + held_outside(outside, apart)
 
 
-def retarget(rows: list[dict[str, Any]], where: Where, done: list[str]) -> None:
+def retarget(rows: list[dict[str, Any]], where: Where, done: list[str], why: str = "") -> None:
     host, owner, name = where
     for r in rows:
         pull = gh(["-X", "GET", f"repos/{owner}/{name}/pulls/{r['number']}"], host)
@@ -137,7 +150,7 @@ def retarget(rows: list[dict[str, Any]], where: Where, done: list[str]) -> None:
         if old != r["base"]:
             patch = ["-X", "PATCH", f"repos/{owner}/{name}/pulls/{r['number']}"]
             gh([*patch, "-f", f"base={r['base']}"], host)
-            done.append(f"#{r['number']} base {old} -> {r['base']}")
+            done.append(f"#{r['number']} base {old} -> {r['base']}{why}")
 
 
 def unstack_rows(args: argparse.Namespace) -> tuple[list[dict[str, Any]], Where | None, str, str]:
@@ -179,7 +192,7 @@ def unstack_action(args: argparse.Namespace) -> tuple[list[str], int]:
         for s in stacks(host, owner, name):
             held = {p["number"] for p in s.get("pull_requests", [])}
             if s.get("open") and planned & held:
-                done.append(unstack(s, planned, where, {}, {}))
+                done.append(unstack(s, planned, where, Apart({}, {}, {})))
         if not done:
             done.append("no stack holds the batch's PRs")
         retarget(rows, where, done)

@@ -34,6 +34,7 @@ from chantier.plugin_files import (
 )
 from chantier.stacks import (
     chain,
+    held_lines,
     off_place,
     stack_base,
     start_base,
@@ -257,12 +258,16 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
     """The stack as it stands: the chain line, then one line per CR (what `take stack` and
     `stack` with no CR print)."""
     crs = chain(d)
-    return [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"] + [
-        f"{x.id} {stack_label(x)} worktree {x.worktree} branch {x.branch} "
-        f"base {_stack_ref(d, x, repo)} PR {_shown_pr(x)} head {short_head(x.head) or '-'} "
-        f"{_last_restack(x)}{_off_place_tail(d, x, repo)}"
-        for x in crs
-    ]
+    return (
+        [f"the stack of batch {batch}: {' → '.join(x.id for x in crs)}"]
+        + [
+            f"{x.id} {stack_label(x)} worktree {x.worktree} branch {x.branch} "
+            f"base {_stack_ref(d, x, repo)} PR {_shown_pr(x)} head {short_head(x.head) or '-'} "
+            f"{_last_restack(x)}{_off_place_tail(d, x, repo)}"
+            for x in crs
+        ]
+        + held_lines(d, repo)
+    )
 
 
 def stack_label(c: CrEntry) -> str:

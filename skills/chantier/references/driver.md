@@ -1078,6 +1078,14 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    mergeable part ready (`stack --out-of-draft <cr>…`). A release above stays a draft, waiting for the Foreman's
    `redo:`. Hand back as for any take.
 
+**A CR held out of the stack.** Taken with a note `hold: <cr>`: the CR's base is now the default
+branch and the CRs above it no longer stand on it. Turn its PR to a draft (`gh pr ready --undo`,
+`glab mr update --draft`, then `$CHANTIER stack --draft <cr>`), move the CRs above onto the CR
+below as the record's bases say (`restack`, as for a drop, without closing the PR), then `$CHANTIER
+forge-stack rebuild`: it unstacks the stack, retargets the held PR to the default branch (`held out
+of the stack`) and stacks the others. Never `stack --out-of-draft` the held CR. With `unhold: <cr>`,
+the CR is back on top: place it as a CR that joins, then rebuild.
+
 A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR
 and nothing on its branch needs nothing from you.
 

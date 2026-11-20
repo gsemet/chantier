@@ -112,6 +112,9 @@ class CrEntry(Record):
     # the branch a CR of a stack batch started on, the nearest earlier CR with a PR at its first
     # `take`, fixed there (see `start_base`)
     start_on: str | None = None
+    # the id of the `order hold` that holds this CR out of the stack (stack batch); None when not
+    # held
+    held: str | None = None
     gate_waiver: GateWaiver | None = None
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
     phase_detail: str | None = None

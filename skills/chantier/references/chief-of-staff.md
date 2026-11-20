@@ -1239,6 +1239,13 @@ CR-222 → CR-225 → CR-226 → CR-228."
   user that the CR's commits come out of the PRs above it, its PR is closed, its branch stays until
   `close`, and the PRs above it are PRs in draft (do not merge) until the next report's partial-stack
   line shows them ready to merge again. Nothing more is asked of the user.
+- **Holding a CR out of a stack:** on the user's word to keep a ready CR out of the stack for now
+  (not the batch: ask when it is unclear whether the user means out of the stack or out of the
+  batch), `order hold <cr>`; to put it back, `order unhold <cr>` (it returns on top). The Foreman
+  then takes the stack driver (`take stack --note "hold <cr>"`), which rebuilds the stack on the
+  forge without it. Name each held CR in the batch reports. The batch stays open while a CR is held,
+  and no release starts: when the release is blocked by a held CR, offer the user `order unhold <cr>`,
+  or `order drop <cr>` with a destination.
 - **Inserting a CR into a stack ready to merge:** on the user's word, first and at once put to draft every
   PR that will sit above the new one (`gh pr ready --undo`, `glab mr update --draft`): the stack
   is changing under them. A CR in the middle of a stack ready to merge that goes back to its Driver for a

@@ -165,6 +165,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
   whose SHA left the head's history after a rebase (the SHA after `carried from` and the text of `STALE` lines left out; an image, Markdown or HTML, linked into a commit outside the head named on any line, `STALE` lines included),
   and not taking a token of digits only for a commit (a dangling commit whose first seven
   characters are digits) (unit: stack);
+- a ready CR held out of a stack (`order hold`, `order unhold`): the stack, `status` and `forge-stack rebuild`
+  leave the held PR on the default branch as a draft, `take` and `stack --out-of-draft` refuse it, and
+  `unhold` puts it back on top (unit: stack) (test: test_stack_hold.py::test_hold_leaves_the_cr_apart_and_unhold_puts_it_back_on_top)
 - a stack's long-gate waiver (`order waive stack`): a lower CR handed back ready with no gate and
   no `--no-gate` while the top is refused without its own, `handoff` printing the two `gate:`
   lines, `status`, `STATUS.md` and `STATUS.json` showing `waived → CR-k (#n)` and `validates …`,

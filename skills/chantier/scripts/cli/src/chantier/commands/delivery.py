@@ -28,7 +28,7 @@ from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.plugin_files import archive_path
-from chantier.stacks import chain
+from chantier.stacks import chain, is_held
 
 VERDICTS = ("VERIFIED", "NOT VERIFIED")
 HISTORY_CHARS = 120
@@ -280,6 +280,13 @@ def stack(args: argparse.Namespace) -> list[str]:
     with RenderedBatch(repo, batch, actor="stack") as b:
         if b.record.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
+        for cr in args.crs:
+            if is_held(b.cr(cr)):
+                raise ChantierError(
+                    f"{cr} is held out of the stack (order {b.cr(cr).held}): "
+                    f"`order unhold {cr}` first",
+                    EXIT_PRECONDITION,
+                )
         place = {cr: i for i, cr in enumerate(args.crs, 1)}
         rest = [x.id for x in chain(b.record) if x.id not in place]
         for cr in args.crs:
@@ -321,6 +328,12 @@ def _check_out_of_draft(d: BatchRecord, crs: list[CrEntry]) -> None:
     place = chain(d)
     ids = [x.id for x in place]
     for c in crs:
+        if is_held(c):
+            raise ChantierError(
+                f"{c.id} is held out of the stack (order {c.held}): unhold it first "
+                f"(`order unhold {c.id}`)",
+                EXIT_PRECONDITION,
+            )
         if c.status != "ready" or not c.pr:
             raise ChantierError(
                 f"{c.id}: only a CR handed back ready leaves draft", EXIT_PRECONDITION
