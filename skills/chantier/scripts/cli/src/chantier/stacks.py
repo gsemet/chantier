@@ -238,7 +238,9 @@ def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
         pred = series_predecessor(b_data.crs, c)
         return pred.branch if pred and pred.status != "merged" else default
     stackable = b_data.mode == "stack" and c.kind != "fix"
-    if stackable and (not c.stacked or _live_start(b_data, c)):  # a placed CR: a live start only
+    owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
+    held_owner = owner is not None and owner.status not in ENDED and is_held(owner)
+    if stackable and not held_owner and (not c.stacked or c.start_on):  # a held owner: not here
         return stack_start(b_data, c, repo)
     if c.after and c.kind != "fix":
         open_ = _open_after(b_data, c)
