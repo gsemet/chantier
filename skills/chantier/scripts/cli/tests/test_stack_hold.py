@@ -70,7 +70,10 @@ def test_a_held_cr_is_outside_the_stack_in_every_read_of_the_record() -> None:
     assert merge is not None and merge.id == "CR-1"
     assert tip is not None and tip.id == "CR-3"
     assert stack_base(d, d.crs[2], REPO, planned=True) == "b/cr-1"  # on the CR below the held one
-    assert start_on_for(d, cr(9, status="queued", pr=None)) == "b/cr-3"  # never on the held one
+    new = cr(9, status="queued", pr=None)
+    d.crs.append(new)
+    assert start_on_for(d, new) == "b/cr-3"  # never on the held one
+    d.crs.remove(new)
     d.crs[0].status = "merged"  # a stale `held` on an ended CR reads as not held
     d.crs[1].status = "merged"
     assert [c.id for c in chain(d)] == ["CR-3", "CR-4"] and held_lines(d, REPO) == []
