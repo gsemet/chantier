@@ -58,9 +58,10 @@ From the server:
 A frame of a kind the server does not know, or with a field it does not know (but `hello`'s),
 is an `error` and the close 4400.
 
-Close codes: 1001 the server stops, 1009 a frame over 4 MiB, 1013 the server is busy (64
-welcomed sockets, or 16 waiting for `hello`), 4400 bad frame, 4401 key, 4408 no `hello` within
-5 s, 4426 protocol (a `hello` whose `protocol` is not 1). The server pings every 20 s.
+Close codes: 1001 the server stops, 1009 a frame over 4 MiB, 1013 the server is busy (a 65th
+welcomed socket), 4400 bad frame, 4401 key, 4408 no `hello` within 5 s, 4426 protocol (a `hello`
+whose `protocol` is not 1). A 17th socket still waiting for `hello` gets no close code: the upgrade
+itself is refused, HTTP 503 `too many clients`. The server pings every 20 s.
 
 ## The ops
 
@@ -164,7 +165,7 @@ answers 429 at once.
 | Subscriptions of a connection, subs of a poll | 32 | 429 |
 | Long-polls held at once | 16 | 429 |
 | WebSockets past `welcome` | 64 | close 1013 |
-| WebSockets before `hello` | 16 | close 1013 |
+| WebSockets before `hello` | 16 | HTTP 503 at the upgrade |
 | Time to say `hello` | 5 s | close 4408 |
 
 ## Behind a proxy
