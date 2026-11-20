@@ -123,7 +123,12 @@ def _check_actions(manifest: dict[str, Any]) -> set[Path]:
         "release-driver": "Release driver",
     }.items():
         card = manifest["roles"][role]
-        assert manifest["actions"][role] == [f"{card}#Your means", f"{card}#{heading}"]
+        own = {f"{card}#{h}" for h in ("CR driver", "Stack driver", "QA driver", "Release driver")}
+        listed = manifest["actions"][role]
+        assert listed[-1] == f"{card}#{heading}"
+        assert own & set(listed) == {f"{card}#{heading}"}
+        assert listed[:-1]
+        assert all(r.startswith(f"{card}#Means: ") for r in listed[:-1])
     return action_reads
 
 
@@ -192,6 +197,24 @@ def test_startup_manifest_measures_every_real_role_and_host(host: str) -> None:
 def test_empty_action_readings_are_rejected() -> None:
     manifest, _ = _manifest()
     assert all(manifest["actions"].values())
+
+
+CR_DRIVER_COMMON_PATH_LIMIT = 45_000
+
+
+def test_cr_driver_common_path_reads_at_most_the_card_budget() -> None:
+    manifest, path = _manifest()
+    card = (path.parent / manifest["roles"]["cr-driver"]).resolve()
+    data = _lf_bytes(card)
+    total = data.index(b"\n## ") + 1  # the opening, up to the first level-2 heading
+    for reading in manifest["actions"]["cr-driver"]:
+        file, _, heading = reading.partition("#")
+        assert (path.parent / file).resolve() == card, reading
+        assert heading
+        size = _section_bytes(card, f"## {heading}")
+        assert size > len(f"## {heading}\n") + 1, reading
+        total += size
+    assert total <= CR_DRIVER_COMMON_PATH_LIMIT, total
 
 
 def test_reading_union_counts_lf_bytes_and_nested_sections_once(tmp_path: Path) -> None:

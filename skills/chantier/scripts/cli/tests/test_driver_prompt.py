@@ -62,6 +62,15 @@ def _worker_writes_line_and_scratch(out: list[str], block: list[str]) -> None:
     assert f"    {out[at + 1].strip()}" in block
 
 
+def _card_line(block: list[str]) -> bool:
+    """The card line starts `  Card: `, names driver.md, and no line is a `Read` of it."""
+    return (
+        block[3].startswith("  Card: ")
+        and "/references/driver.md" in block[3]
+        and not any(ln[:7] == "  Read " and ln.endswith("driver.md;") for ln in block)
+    )
+
+
 @pytest.mark.parametrize("which", ["change", "release", "stack", "qa"])
 def test_the_commands_print_each_drivers_prompt_skeleton_without_a_writes_line_for_most(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, which: str
@@ -87,8 +96,8 @@ def test_the_commands_print_each_drivers_prompt_skeleton_without_a_writes_line_f
     teams = [ln for ln in block if ln.startswith("  Team:")]
     start = "(copy it whole" if which == "change" else "(no writes: line"
     assert block[0].startswith(f"{role} prompt {start}")
-    assert block[2].startswith("  Read ") and block[3].startswith("  Read ")
-    assert block[3].endswith("/driver.md;") and "  CLI ($CHANTIER): " in block[5]
+    assert block[2].startswith("  Read ") and _card_line(block)
+    assert "  CLI ($CHANTIER): " in block[5]
     assert any(ln.startswith("  Steering: the Foreman ") for ln in block)
     assert len(teams) == (1 if which in {"change", "stack"} else 0)
     folder = out[1].removeprefix("QA folder: ").split(";")[0]

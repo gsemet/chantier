@@ -690,7 +690,7 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    only by the steering session's `merge --ff-only --no-overwrite-ignore` after a merge it
    records, and only when clean: the user's uncommitted changes and untracked files are never
    touched. No `sleep`, no polling loop: a wait is the forge's own watch, in a background shell
-   (except two bounded waits, each once: the one before a second CI look that [driver](driver.md), `CI:`,
+   (except two bounded waits, each once: the one before a second CI look that [driver](driver.md), "Means: when CI lists no check",
    names, and the one after a `pending` answer of GitHub's asynchronous merge, a single `sleep` of at
    most 30 seconds then one read, at most once per merge: [foreman](foreman.md), "Merging on GitHub").
    For a Driver and the steering session (the workers keep their cards' ground rules): a
