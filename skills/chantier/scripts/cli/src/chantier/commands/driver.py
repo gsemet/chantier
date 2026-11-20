@@ -32,7 +32,7 @@ from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
 from chantier.hub.autostart import not_running_line
 from chantier.lifecycle.session import RenderedBatch
-from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, start_cr
+from chantier.lifecycle.stages import changes_lock, cr_directory, done_cr, stage_layout, start_cr
 from chantier.playbook.lines import team_lines, timing_lines
 from chantier.plugin_files import archive_path, cli_command, recorded_timing
 from chantier.rails import (
@@ -127,8 +127,7 @@ def take(args: argparse.Namespace) -> list[str]:
         refuse_held(c := b.cr(args.cr))
         row = driver_row(d.host, "take <cr>", c.kind)  # before any state changes
         check_take(d, c, args.note)
-        if c.status != "working":
-            check_release_branch(repo, d, c)
+        _check_take(repo, d, c)
         reopened = _reopen(b)
         restart = c.status == "working"  # a new Driver on a CR already working
         if c.status in {"ready", "blocked", "working"}:
@@ -143,7 +142,7 @@ def take(args: argparse.Namespace) -> list[str]:
             c.archive_stamp = (
                 c.archive_stamp or stamp()
             )  # the archive's name, kept from the first take
-        work(repo, c).mkdir(parents=True, exist_ok=True)
+        repo.store.make_folder(repo.rel(work(repo, c)), True)
         facts = cr_facts(repo, batch, d, c)
         block = _cr_driver_block(repo, batch, c, facts)
         block.team, block.note = team_lines(d.playbook), args.note
@@ -156,6 +155,16 @@ def take(args: argparse.Namespace) -> list[str]:
         *fresh,
         *(not_running_line(repo) if reopened else []),
     ]
+
+
+def _check_take(repo: Repo, d: BatchRecord, c: CrEntry) -> None:
+    """Before `take` changes anything: the release branch, and the published paths it will
+    touch: the CR's folder, where `1-pending` sends it, and its `work/`."""
+    if c.status != "working":
+        check_release_branch(repo, d, c)
+    paths, here = stage_layout(repo), cr_directory(repo, c)
+    there = paths["actives"] / here.name if here.parent == paths["pending"] else here
+    repo.check_publish([here, there, there / "work"])
 
 
 def round_(args: argparse.Namespace) -> list[str]:
@@ -177,10 +186,11 @@ def round_(args: argparse.Namespace) -> list[str]:
         wt = Path(c.worktree) if c.worktree else None
         seen = worktree_print(wt)
         check_stray_round(cr_events(repo, batch, c.id), c, seen)  # then a stray round
+        repo.check_publish([work(repo, c)])
         b.touch(c, round=c.round + 1, phase="coder", phase_at=now())
         c.unset("phase_detail")
         b.log("round", c.id, round=c.round, note=args.note, **seen)
-        work(repo, c).mkdir(parents=True, exist_ok=True)
+        repo.store.make_folder(repo.rel(work(repo, c)), True)
         facts = cr_facts(repo, batch, b.record, c)
         context = context_line(repo, b.record, c.agent)
     return [f"round {c.round} of {limit} for {c.id}", *facts, context, *fresh]

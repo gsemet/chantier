@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import contextlib
 import re
-import time
-from collections.abc import Iterator
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -13,7 +11,7 @@ from pathlib import Path
 from chantier.core.batch import Batch, move_directory
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import markdown_title, read_text, subject, try_lock, unlock, write_file
+from chantier.core.files import markdown_title, read_text, subject
 from chantier.core.records import CrEntry, read_batch_json
 from chantier.core.repo import Repo
 
@@ -80,20 +78,9 @@ def cr_stage(paths: dict[str, Path], folder: Path) -> str | None:
     return next((k for k in keys if paths[k] == parent), None)
 
 
-@contextlib.contextmanager
-def changes_lock(repo: Repo) -> Iterator[None]:
-    repo.changes.mkdir(parents=True, exist_ok=True)
-    repo.ensure_gitignore()
-    with open(repo.changes / ".lifecycle.lock", "a+") as lock:
-        deadline = time.monotonic() + 30
-        while not try_lock(lock):
-            if time.monotonic() > deadline:
-                raise ChantierError("CR lifecycle is locked for over 30 s")
-            time.sleep(0.05)
-        try:
-            yield
-        finally:
-            unlock(lock)
+def changes_lock(repo: Repo) -> AbstractContextManager[None]:
+    """The planning folder's lifecycle lock: the store's."""
+    return repo.store.lock()
 
 
 @dataclass(frozen=True)
@@ -216,8 +203,13 @@ def done_cr(batch: Batch, cr: CrEntry) -> None:
         return
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
-    if source.parent not in (paths["done"], paths["archives"], paths["trash"]):
-        relocate(batch, cr, paths["done"] / source.name)
+    moving = source.parent not in (paths["done"], paths["archives"], paths["trash"])
+    where = paths["done"] / source.name if moving else source
+    batch.repo.check_publish(
+        [source, where, *([where / "delivery.md"] if batch.repo.external else [])]
+    )
+    if moving:
+        relocate(batch, cr, where)
     cr.merged_at = cr.merged_at or now()
     if batch.repo.external and cr_directory(batch.repo, cr).is_dir():
         _delivery(batch.repo, cr, cr_directory(batch.repo, cr))
@@ -233,8 +225,8 @@ def _delivery(repo: Repo, cr: CrEntry, folder: Path) -> None:
         mine = f"yes, at .agents/changes/5-archives/{cr.archive_stamp or '?'}-{name}/"
     else:
         mine = "no (missing from the PR)"
-    write_file(
-        folder / "delivery.md",
+    repo.store.write_text(
+        repo.rel(folder / "delivery.md"),
         f"# Delivery\n\n- PR: {cr.shown_pr() or 'none'}\n"
         f"- Merged: {cr.merged_at}\n- Archive in the PR: {mine}\n",
     )
@@ -295,7 +287,7 @@ def move_backlog_item(repo: Repo, item: str, to: str, paths: dict[str, Path]) ->
         raise ChantierError(
             f"{where} already holds {source.name}: nothing moved", EXIT_PRECONDITION
         )
-    move_directory(source, target)
+    move_directory(repo, source, target)
     return target
 
 

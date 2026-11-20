@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from chantier.commands.joining import add_cr
+from chantier.commands.joining import add_cr, check_joins
 from chantier.commands.opening import declare_dependencies, release_waits_for_all
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_USAGE, ChantierError
@@ -40,6 +40,7 @@ def add_release(b: Batch, note: str) -> list[str]:
             f"{b.id}; a batch has one. Put the second release in the next batch, "
             "once this one is closed"
         )
+    check_joins(b.repo, [note])
     c = add_cr(b, note, kind="release")
     b.record.release = ReleaseGrant(autonomous=0, fixes=False, published=0, cr=c.id)
     declare_dependencies(b, [c])

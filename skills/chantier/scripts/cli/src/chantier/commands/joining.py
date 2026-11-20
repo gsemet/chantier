@@ -4,11 +4,13 @@ a CR that came back to its own batch, reopened)."""
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 from chantier.commands.came_back import came_back, came_back_line, holds, reopen
 from chantier.core.batch import Batch, next_cr_number
 from chantier.core.clock import now
 from chantier.core.records import CrEntry
+from chantier.core.repo import Repo
 from chantier.lifecycle.filing import slugify
 from chantier.lifecycle.stages import ensure_unclaimed, prepared_cr, stage_layout
 
@@ -28,6 +30,31 @@ def new_entry(b: Batch, cr_id: str, title: str, kind: str) -> CrEntry:
         notes=[],
         updated=now(),
     )
+
+
+def join_paths(repo: Repo, directories: list[Path]) -> list[Path]:
+    """Every published path that joining these prepared folders, in order, touches: each source,
+    its target in `1-pending` (numbered as `join_cr` will, one after the other) and the
+    `formerly.json` of a CR that came back. Read-only: a command passes it to `check_publish`
+    once, before the first move."""
+    paths = stage_layout(repo)
+    roots = (paths["archives"], paths["trash"], paths["pending"], paths["actives"], paths["done"])
+    previous = next_cr_number(repo, roots) - 1
+    touched: list[Path] = []
+    for directory in directories:
+        came = came_back(directory)
+        previous = max(previous, int(came.cr[3:])) if came else previous + 1
+        number = int(came.cr[3:]) if came else previous
+        slug = re.sub(r"^(?:CR-)?\d+-", "", directory.name, flags=re.I)
+        cdir = paths["pending"] / f"{number:03d}-{slugify(slug)}"
+        touched += [directory, cdir, *([cdir / "formerly.json"] if came else [])]
+    return touched
+
+
+def check_joins(repo: Repo, items: list[str], extra: tuple[Path, ...] = ()) -> None:
+    """`check_publish` on every path joining these items touches, before the first move."""
+    directories = [prepared_cr(repo, item, stage_layout(repo)).directory for item in items]
+    repo.check_publish([*extra, *join_paths(repo, directories)])
 
 
 def join_cr(b: Batch, item: str, kind: str = "change") -> tuple[CrEntry, str | None]:

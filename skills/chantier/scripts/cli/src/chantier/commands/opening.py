@@ -10,7 +10,7 @@ from typing import Any
 from chantier.commands.closing import record_born_paused
 from chantier.commands.crs import grant_line
 from chantier.commands.factory import not_joined_line, not_joined_text
-from chantier.commands.joining import join_cr
+from chantier.commands.joining import check_joins, join_cr
 from chantier.commands.opening_record import (
     instruction_files,
     new_record,
@@ -219,6 +219,7 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
 def _open_crs(b: Batch, args: argparse.Namespace, release: ReleaseGrant | None) -> dict[str, str]:
     """Add each CR; the join lines of those that came back, by id."""
     told: dict[str, str] = {}
+    check_joins(b.repo, args.items)  # every move, before the first
     for i, item in enumerate(args.items, 1):
         c, line = join_cr(b, item, kind="release" if i == args.release else "change")
         if line:

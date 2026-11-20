@@ -5,14 +5,16 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.files import ensure_gitignore, read_text
+from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.ids import normalize_batch
+from chantier.store import FolderStore, PlanStore, SurfaceStore
+from chantier.store.base import inside_path
 
 CHANGES = Path(".agents") / "changes"
 RECORDS = Path("5-archives") / "batches"  # each batch's `batch-NN.json` and `batch-NN.md`
@@ -34,12 +36,7 @@ SETTINGS = ("default_branch", "remote", "max_rounds")
 def project_path(
     root: Path, value: str | Path, label: str = "path", where: str = "the repository"
 ) -> Path:
-    path = Path(value).expanduser()
-    path = (path if path.is_absolute() else root / path).resolve()
-    root = root.resolve()
-    if path == root or not path.is_relative_to(root):
-        raise ChantierError(f"{label} must be inside {where}: {value}", EXIT_USAGE)
-    return path
+    return inside_path(root, value, label, where)
 
 
 def read_keyed(path: Path) -> dict[str, str]:
@@ -54,6 +51,7 @@ def read_keyed(path: Path) -> dict[str, str]:
 
 
 PROJECT: str | None = None  # `--project`, set by the CLI before the command runs
+COMMAND: str | None = None  # the command the CLI runs (as `file`, `order merged`), for a refusal
 
 
 def surface_projects(root: Path) -> list[str]:
@@ -91,6 +89,8 @@ class Repo:
     clone_dir: Path | None = None
     worktrees_dir: Path | None = None
     archive_in_pr: bool = False
+    command: str | None = None  # a board route's own name, for a refusal; else the CLI's
+    _store: PlanStore | None = field(default=None, init=False, repr=False, compare=False)
 
     @classmethod
     def find(
@@ -218,8 +218,26 @@ class Repo:
         project, or `changes/` of the project's folder in a surface."""
         return self.project_dir / "changes" if self.project_dir else self.root / CHANGES
 
+    @property
+    def store(self) -> PlanStore:
+        """The planning folder's store, built once: no file is created by building it."""
+        if self._store is None:
+            self._store = (
+                SurfaceStore(self.changes, self.project_folder)
+                if self.external
+                else FolderStore(self.changes)
+            )
+        return self._store
+
     def ensure_gitignore(self) -> None:
-        ensure_gitignore(self.changes)
+        self.store.ensure_gitignore()
+
+    def check_publish(self, paths: list[Path], *, config: bool = False) -> None:
+        """The published paths a command is about to change (absolute, in the planning folder),
+        checked by the store before any change, under the CLI's command name."""
+        self.store.check_publish(
+            [self.rel(p) for p in paths], config=config, command=self.command or COMMAND
+        )
 
     def rel(self, path: Path) -> str:
         """A path in the planning folder, as the record keeps it: relative to that folder."""

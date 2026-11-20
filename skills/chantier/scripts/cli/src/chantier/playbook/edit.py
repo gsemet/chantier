@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import retry, write_bytes
+from chantier.core.files import retry
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import changes_lock
 from chantier.playbook import (
@@ -28,14 +28,11 @@ from chantier.playbook.limits_check import LIMIT_KEYS
 from chantier.playbook.lines import GENERIC_AGENT
 from chantier.playbook.yaml_subset import Node, is_reset
 from chantier.plugin_files import HOSTS, plugin_role_descriptions, plugin_roles, plugin_root
+from chantier.store import READ_ONLY
 
 KEYS = ("agent", "model", "escalation")
 PROJECT_LABEL = "surface project"
 LABELS = ("defaults", "surface", PROJECT_LABEL, "repository")
-READ_ONLY = (
-    "the configuration is read-only with no planning surface: edit chantier.yaml by hand "
-    "(the board writes only a planning surface's file)"
-)
 DEFAULT_TEXT = (
     'no agent or model is named "default": to take the value back, choose "inherited" '
     "(the key is removed from the file)"
@@ -69,7 +66,9 @@ class Target:
 def _target(repo: Repo) -> Target:
     folder = repo.project_folder
     found = [folder / n for n in config.FILES if (folder / n).is_file()]
-    path = found[0] if found else folder / config.FILE
+    path = repo.store.config_path
+    if path is None:
+        raise ChantierError(READ_ONLY, EXIT_PRECONDITION)
     both = None
     if len(found) > 1:
         both = f"{' and '.join(layers.display(repo, p) for p in found)} are both present: keep one"
@@ -363,6 +362,8 @@ def edit_surface_file(
     text would have). With `dry_run` it writes nothing."""
     wanted = _shape(changes)
     target = _refuse_early(repo, _writable(repo))
+    if not dry_run:
+        repo.check_publish([], config=True)
     roles_by_host = _roles_by_host()
     defaults, _ = layers.read_defaults(_defaults_path(), roles_by_host)
     with changes_lock(repo):
@@ -378,5 +379,5 @@ def edit_surface_file(
         data = old
         if not dry_run:
             data = edit_text.file_bytes(text, old)
-            write_bytes(target.path, data)
+            repo.store.write_config(data)
     return _view(repo, user, defaults, elsewhere, (target, data))

@@ -323,8 +323,8 @@ The tooling scripts (`scripts/`) meet the Style target too (`ruff format` and `r
 
 The code of `src/chantier/` is in layers, and a module imports only from its own layer or the ones
 below: `core/` (errors, files, clock, git, the JSON records as pydantic models, the repository,
-the batch, the seat), then the domain modules (`lifecycle/`, `playbook/`, `costs/`, `status/`,
-`rails.py`, `procs.py`, `plugin_files.py`), then `commands/` (one module per family of commands,
+the plan's store, the batch, the seat), then the domain modules (`lifecycle/`, `playbook/`,
+`costs/`, `status/`, `rails.py`, `procs.py`, `plugin_files.py`), then `commands/` (one module per family of commands,
 each with its `register(sub)`) and `board/`, then `cli.py`.
 
 A dependency must replace hand-written code and ship wheels for Linux, macOS (x86_64 and arm64)

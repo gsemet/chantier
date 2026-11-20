@@ -12,18 +12,16 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Self, TextIO
 
-from chantier.core.batch_records import last_closed_note, reserve_record
+from chantier.core.batch_records import last_closed_note, record_path, reserve_record
 from chantier.core.clock import now
 from chantier.core.errors import (
     EXIT_CONFLICT,
-    EXIT_EXTERNAL,
     EXIT_PRECONDITION,
     EXIT_USAGE,
     ChantierError,
 )
 from chantier.core.files import (
     LOCK_TIMEOUT_S,
-    retry,
     try_lock,
     unlock,
     write_file,
@@ -40,20 +38,12 @@ from chantier.core.records import (
 from chantier.core.repo import SETTINGS, Repo
 
 
-def move_directory(source: Path, destination: Path) -> None:
+def move_directory(repo: Repo, source: Path, destination: Path) -> None:
+    """A CR folder to another stage, through the store: its refusals and their exit codes."""
     if not source.is_dir():
         raise ChantierError(f"CR folder not found: {source}", EXIT_USAGE)
-    if destination.exists() or destination.is_symlink():
-        raise ChantierError(f"refusing to overwrite CR folder: {destination}", EXIT_CONFLICT)
-    if source == destination or source in destination.parents:
-        raise ChantierError(f"invalid CR move: {source} to {destination}", EXIT_USAGE)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        retry(source.rename, destination)
-    except OSError as e:
-        raise ChantierError(
-            f"cannot move CR folder {source} to {destination}: {e}", EXIT_EXTERNAL
-        ) from e
+    repo.check_publish([source, destination])
+    repo.store.move(repo.rel(source), repo.rel(destination))
 
 
 def apply_batch_settings(repo: Repo, record: BatchRecord) -> None:
@@ -97,6 +87,8 @@ class Batch:
     def __enter__(self) -> Self:
         if self._create is None and self.id not in self.repo.batch_ids():
             raise ChantierError(f"unknown batch {self.id}")
+        if self._number:  # `open`: its record is published
+            self.repo.check_publish([record_path(self.repo, self._number)])
         self.dir.mkdir(parents=True, exist_ok=True)
         self.repo.ensure_gitignore()
         self._lock = open(self.dir / ".lock", "a+")  # closed in __exit__
@@ -143,8 +135,7 @@ class Batch:
             if exc_type is None and self._events:
                 if self._number:  # the number is reserved by the record, before the state
                     self._record = reserve_record(self.repo, self.record)
-                for gone in self._consumed:  # what the record now holds, before it is written
-                    gone.unlink(missing_ok=True)
+                self._drop_consumed()  # what the record now holds, before it is written
                 write_json(self.dir / "batch.json", self.record.to_data())
                 saved = True
                 self._append_events()
@@ -154,6 +145,11 @@ class Batch:
                     print(f"warning: STATUS not rewritten: {e}", file=sys.stderr)
         finally:
             self._finish(saved)
+
+    def _drop_consumed(self) -> None:
+        for gone in self._consumed:
+            if gone.exists():
+                self.repo.store.remove(self.repo.rel(gone))
 
     def _append_events(self) -> None:
         with open(self.dir / "events.jsonl", "a", encoding="utf-8") as f:
@@ -175,13 +171,12 @@ class Batch:
                 self._remove_own_files()
 
     def _remove_own_files(self) -> None:
-        for path in (
-            self.dir / ".lock",
-            self.dir / "brief.md",
-            *([self._record] if self._record else []),
-        ):
+        for path in (self.dir / ".lock", self.dir / "brief.md"):
             with contextlib.suppress(OSError):
                 path.unlink()
+        if self._record:
+            with contextlib.suppress(OSError):
+                self.repo.store.remove(self.repo.rel(self._record))
 
     def log(self, kind: str, cr: str | None = None, **fields: Any) -> None:
         self._events.append(EventRecord(t=now(), actor=self.actor, kind=kind, cr=cr, **fields))
@@ -199,12 +194,13 @@ class Batch:
         c.updated = now()
 
     def move(self, source: Path, destination: Path) -> None:
-        move_directory(source, destination)
+        move_directory(self.repo, source, destination)
         self._moves.append((source, destination))
 
     def consume(self, path: Path) -> None:
         """A file the record now holds the content of: deleted when the record is saved, and kept
         when the command is refused."""
+        self.repo.check_publish([path])
         self._consumed.append(path)
 
     def _rollback_moves(self) -> None:
@@ -214,8 +210,7 @@ class Batch:
                     f"cannot roll back CR move {destination} to {source}; "
                     "preserve both paths and resolve manually"
                 )
-            source.parent.mkdir(parents=True, exist_ok=True)
-            retry(destination.rename, source)
+            self.repo.store.move(self.repo.rel(destination), self.repo.rel(source))
         self._moves.clear()
 
 

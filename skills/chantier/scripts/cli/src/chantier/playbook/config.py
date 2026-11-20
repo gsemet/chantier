@@ -14,8 +14,9 @@ from chantier.playbook.limits_check import batch_key, specifying_key
 from chantier.playbook.models import HOST_NAMES, NAMED_AGENT_MODEL_AT_START, resolve
 from chantier.playbook.timing_check import check_timing
 from chantier.playbook.yaml_subset import Node, YamlError, is_reset, parse
+from chantier.store import CONFIG_FILES
 
-FILES = ("chantier.yaml", "chantier.yml")
+FILES = CONFIG_FILES
 FILE = FILES[0]
 Bad = Callable[[int, str], None]
 

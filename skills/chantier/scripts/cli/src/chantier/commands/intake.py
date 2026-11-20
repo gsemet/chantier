@@ -6,7 +6,7 @@ import argparse
 import re
 from pathlib import Path
 
-from chantier.core.batch import move_directory
+from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
@@ -49,11 +49,11 @@ def init(args: argparse.Namespace) -> list[str]:
     repo.changes.mkdir(parents=True, exist_ok=True)
     repo.ensure_gitignore()
     lines = []
-    for key, folder in stage_layout(repo).items():
-        if key == "batches":  # the parent of the three state folders, made with them
-            continue
+    stages = [f for k, f in stage_layout(repo).items() if k != "batches"]
+    repo.check_publish(stages)
+    for folder in stages:  # `batches` is the parent of the three state folders, made with them
         existed = folder.is_dir()
-        folder.mkdir(parents=True, exist_ok=True)
+        repo.store.make_folder(repo.rel(folder), True)
         lines.append(f"{'exists ' if existed else 'created'} {shown(repo, folder)}")
     return lines
 
@@ -128,7 +128,7 @@ def abandon(args: argparse.Namespace) -> list[str]:
     with changes_lock(repo):
         ensure_unclaimed(repo, source)
         target = paths["trash"] / f"{stamp()}-{source.name}"
-        move_directory(source, target)
+        move_directory(repo, source, target)
         write_dashboard(repo, paths)
     return [f"abandoned {shown(repo, target)}"]
 
@@ -194,7 +194,15 @@ def restore(args: argparse.Namespace) -> list[str]:
         name = _restored_name(source, known, args.slug)
         _check_free(repo, name, batch_crs)
         target = paths["inbox"] / name
-        move_directory(source, target)
+        if known:
+            repo.check_publish(
+                [
+                    repo.changes / RESTORED_NUMBER_FILE,
+                    target / "01-intent.md",
+                    target / "notes.md",
+                ]
+            )
+        move_directory(repo, source, target)
         if known:
             _remember(repo, target, known)
         write_dashboard(repo, paths)
