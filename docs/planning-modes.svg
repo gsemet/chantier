@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji">
   <title>Planning modes: in-project and external</title>
-  <desc>Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. In a planning surface, the surface server commits and pushes the plan. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote, the user's own finding: a remote session cannot start outside a worktree, so the Chief of Staff starts locally and is then put in remote; Grillers may run in worktrees that are never merged and send their files to the Chief of Staff. Outside contributors submit a CR by a pull request on the surface.</desc>
+  <desc>Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. In a planning surface, the surface server commits and pushes the plan. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote: a session the Chief of Staff starts from remote with no cwd and no preset lands in its own main checkout (proved 2026-11-20), so the Chief of Staff starts locally and is then put in remote; from there its batches stay direct, a forced foreman starts the Foreman in its own folder, and Grillers start the same way. A session you create from the remote client lands in a worktree (batch-06). Outside contributors submit a CR by a pull request on the surface.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -34,12 +34,12 @@
   <line x1="90" y1="232" x2="90" y2="320" stroke="#c2410c" stroke-width="1.6" stroke-dasharray="5 3" marker-end="url(#arrow-orange)"/>
   <text x="98" y="312" font-size="11.5" fill="#c2410c">starts</text>
 
-  <text x="44" y="462" font-size="13.5" font-weight="700" fill="#0f172a">Remote (the user's own finding, not a proved trial)</text>
-  <text x="44" y="482" font-size="12.5" fill="#475569">A remote session cannot start outside a worktree, which blocks planning</text>
-  <text x="44" y="500" font-size="12.5" fill="#475569">on the default branch. So: start the Chief of Staff locally (desktop,</text>
-  <text x="44" y="518" font-size="12.5" fill="#475569">no worktree), then put it in remote (Remote Control); reuse it, in direct</text>
-  <text x="44" y="536" font-size="12.5" fill="#475569">mode. Grillers may run in worktrees that are never merged: their files</text>
-  <text x="44" y="554" font-size="12.5" fill="#475569">go to the Chief of Staff, which places them.</text>
+  <text x="44" y="462" font-size="13.5" font-weight="700" fill="#0f172a">Remote (a start with no cwd, proved 2026-11-20)</text>
+  <text x="44" y="482" font-size="12.5" fill="#475569">A session started from remote with no cwd lands in the Chief of Staff's</text>
+  <text x="44" y="500" font-size="12.5" fill="#475569">own main checkout. So: start the Chief of Staff locally (desktop, no</text>
+  <text x="44" y="518" font-size="12.5" fill="#475569">worktree), then put it in remote (Remote Control). Its batches stay</text>
+  <text x="44" y="536" font-size="12.5" fill="#475569">direct; a forced foreman starts the Foreman in its own folder, and a</text>
+  <text x="44" y="554" font-size="12.5" fill="#475569">Griller starts the same way.</text>
 
   <!-- ============ External ============ -->
   <rect x="616" y="100" width="560" height="470" rx="14" fill="#ffffff" stroke="#1e3a8a" stroke-width="2"/>

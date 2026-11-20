@@ -19,7 +19,7 @@ Each behaviour carries a mark:
 
 | Generic | Claude Code | Mark |
 | --- | --- | --- |
-| Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, `use_worktree: false`, `model: "claude-sonnet-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | the start: proved, every batch started from Claude Desktop (v0.3 on); with this model: **unproved** until seen. Trial: batch-11, where the Foreman was switched to Sonnet 5.5 after its `ready` (CR-174), then the first batch started with this row: the transcript shows `claude-sonnet-5-5`, and `effort: "medium"` is accepted with it. Record the date once seen |
+| Start the Foreman's session | `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `title: "<title>"`, `context: "fresh"`, no `cwd`, no `preset`, `use_worktree: false`, `model: "claude-sonnet-5-5"`, `effort: "medium"`, the user's permission mode; leave it linked | the start: proved, every batch started from Claude Desktop (v0.3 on); from Remote Control: proved 2026-11-20 (the Studio's batch-07 Foreman); with this model: **unproved** until seen. Trial: batch-11, where the Foreman was switched to Sonnet 5.5 after its `ready` (CR-174), then the first batch started with this row: the transcript shows `claude-sonnet-5-5`, and `effort: "medium"` is accepted with it. Record the date once seen |
 | Own session id and title | `get_session("self")`; the transcript's id is `$CLAUDE_CODE_SESSION_ID` | proved, same |
 | Set a session's own title (the Chief of Staff, a Griller, the Foreman) | `set_session_title` | proved for a Chief of Staff's own session, 2026-11-08 (Battlestation, a session renamed itself); the Foreman's case stays unproved: the trial is a Foreman that sets its title and `get_session("self")` shows it |
 | The skills | `/chantier:chantier` (the router), `/chantier:chief-of-staff [foreman|direct]`, `/chantier:griller`, `/chantier:status`, `/chantier:chantier reload` (the router with the argument `reload`), `/chantier:chief-of-staff reload`, `/chantier:griller reload`: a plugin's `skills/<name>/` is `/<plugin>:<name>` | documented: <https://code.claude.com/docs/en/plugins-reference> (skills); the argument's handling (only the first word of `chief-of-staff` counts) is unproved until a session shows it, and the reload's until a reload runs; the argument `reload` of the two role skills is unproved until seen, its trial the one of "Reload after a compaction"; trial: type `/chantier:chantier reload` after a `/compact`, see the one line and no introduction |
@@ -47,6 +47,7 @@ Each behaviour carries a mark:
 | Ask the user a series of questions (grill, specification) | the host's question tool (`AskUserQuestion`), at most 4 questions per call, at most 4 options per question, plus the tool's own free answer ("Other"); the reference opens each question's text (the tool's short header field, if used, does not need to hold it). Remote Control relays the same tool: the user sees the same 4-question form on the phone. Under Remote Control the form shows above the conversation and the text written before it is read by scrolling up: the text is written before every call all the same | the figures: the user's statements (2026-11-14, CR-250 answers 5 and 11), unproved; trials: one call with 4 questions shown and a fifth refused; the same series from the phone under Remote Control, all 4 shown. The scrolling: observed by the user, 2026-11-14 (CR-250 answer 17) |
 | Run the board | `Bash` with `run_in_background: true` and the command `$CHANTIER board --seat <id>`; its first lines are read from the background task's output; stopped with the host's stop of a background shell | unproved; trial: a Chief of Staff starts it, `GET /api/board` with the key answers from the machine, and the output shows the start line |
 | Trust of a workspace inside a trusted folder | a folder the user has trusted once in Claude Desktop at the desk covers every new folder created inside it later, so a session started on such a folder from Remote Control does not ask for trust | unproved; trial: the first `real-direct` run after the eval root change, started from the phone on `<eval root>/real-direct-<date>`; the operator's `git rev-parse --git-dir`, `--git-common-dir` and `--show-toplevel` before `preflight` (evals README, "The operator"); on Pass the row is marked proved, with the date and the machine, on Fail it records what was seen |
+| Move a started session to another folder | a session started with no `cwd` may move with `mcp__ccd_directory__change_directory` into a folder inside a trusted folder (the `Projets` tree): no question is asked in auto mode, the next turn runs there (`pwd`), and the move does not reload project instructions: the session keeps the `AGENTS.md` of the folder it started in. Clearing another session from the Chief of Staff (`clear_session` on another id) is denied by the auto mode classifier, and no chantier route uses it. Not recorded here: the operator's route, the self-clear, and where a session started by a moved session lands | proved 2026-11-20, Battlestation (the move and the denial; `01-intent.md` of CR-414); the other three: not recorded |
 | Prompt cache TTL (the `cache_ttl` defaults) | a session's cache writes are 1-hour (`cache_creation.ephemeral_1h_input_tokens` in its transcript's usage), a subagent's 5-minute (`ephemeral_5m_input_tokens`) | measured once, 2026-11-17, one account; unproved in general. Trial: on another account, or after a host update, one session and one subagent each write the cache, and their transcripts' `cache_creation` fields show the same split; record the date and the account's kind |
 | Steering wake bound (60 minutes) | the CLI refuses a `steering_wake` over 60 minutes | proved: 30 minutes (real-direct run 1, 2026-11-12); unproved: any other value up to 60. Trial: a batch with `session: steering_wake: 60m` whose Foreman's transcript shows a `ScheduleWakeup` of 3600 seconds and a wake about an hour later; then one over 60 minutes, to learn whether the host accepts it, before the bound moves |
 | Run the watcher | the shell tool (`Bash`, or `PowerShell` on Windows) with `run_in_background: true` and the command the `watch: not running` or `still running` line prints, as is; its end is the background task's completion notice, which starts a turn of the idle Chief of Staff session; its output is read from the background task | unproved; trial: a batch's first merge with a watcher running, the Chief of Staff's transcript showing the notice, the `forge saw merged` line, the forge check and the `order merged` that followed with no user message between. (A subagent's wake by a background shell's end is proved, row "End a subagent's turn"; the main session's is not.) A `config@1` line the board writes (a limit saved on its Configuration page) wakes the watcher like a merge: unproved until a session sees a save end the watcher and start a turn; trial: save `batch.slots` on the board with a watcher running, see its end print the `config changed on the board` line. The trial also covers a board move with no batch running and the session's turn that follows (unproved until then). |
@@ -579,12 +580,12 @@ by the next real eval's normal use, and the audit checks each worker's prompt ho
 | Class | How it is known | Can start a session | Fit for a Foreman |
 | --- | --- | --- | --- |
 | Desktop, typed at the keyboard | no Remote Control notice | yes | yes, it starts it alone |
-| Desktop, driven by Remote Control | the host's Remote Control notice | no: refused, the message must be typed in the desktop app | it reuses the last Foreman, or the user acts |
+| Desktop, driven by Remote Control | the host's Remote Control notice | yes, with no `cwd` and no `preset`, in its own folder; a start with `cwd` or `preset` is refused (proved 2026-11-20) | yes, on a main checkout: it starts a new Foreman in its own folder, or reuses the last one |
 | Session on the main checkout | `git rev-parse --git-dir` equals `--git-common-dir` | n/a | yes |
 | Session in a worktree | they differ | n/a | no: Write refuses the main checkout, `change_directory` is refused, `request_directory` does not help |
 | Remote or app session | often starts in a linked worktree, `.claude/worktrees/<name>`: the row above | n/a | no, as the worktree row says; proved 2026-11-10, Battlestation, session `epic-lamport-b88c2f`: preflight P6 and P7 failed and the hook refused writes in the main checkout's planning folder |
 | Cloud | the host's environment | n/a | no: no main checkout |
-| Session in a planning surface | its folder is the surface's root | n/a | yes, if the host lets it write in the project's clone and worktrees, which are outside its folder (`checkout.yml`); **unproved** |
+| Session in a planning surface | its folder is the surface's checkout, or the project's main checkout with the surface added as a working directory | n/a | yes, in both setups: the sessions run there and write the planning folder by absolute paths; a session started with no `cwd` lands there (proved 2026-11-20, the Studio's batch-07 Foreman and chantier's batch-29 Foreman). Whether the host lets it write in the project's clone and worktrees, outside its folder (`checkout.yml`), on the surface's checkout: **unproved** |
 
 With no argument the Chief of Staff's batches are direct in the Remote Control row and on any
 entry where the Foreman-mode P1 fails (terminal, VS Code), and Foreman in the "Desktop, typed" row
@@ -593,7 +594,7 @@ entry where the Foreman-mode P1 fails (terminal, VS Code), and Foreman in the "D
 Proved: the worktree row, batch-06, 2026-11 (the user picked the `chantier` entry under "Remote
 Control": it names the main checkout, shows no worktree option, the session landed in a
 worktree, and Write refused `.agents/changes/`, so Drivers were blocked). The refusal on a
-Remote Control session to start a session: proved in use. The cloud row: unproved; trial: start a
+Remote Control session to start a session in another place: proved in use, 2026-11-20 (a start with a `cwd`, the planning surface or the eval root, or with a saved `preset` is refused with "The user is working over Remote Control, and this turn can't start that session"). The cloud row: unproved; trial: start a
 Foreman there and run `git rev-parse --show-toplevel`; the same trial tells a cloud session, for
 `Remote` in the title. A Remote Control session is told by its notice (the Remote Control row),
 for the offer to fork.
@@ -603,12 +604,33 @@ isolated worktree, even clean with no commit (proved 2026-11-10, same session). 
 main checkout is the user's step: a new session on the main checkout, without worktree ("For you"
 below).
 
-**A Chief of Staff and Grillers in remote: the user's own finding (2026-11-10), not a proved
-trial.** A remote session cannot be started outside a worktree, which blocks chantier's planning
-on the default branch; nested sessions are a problem in remote too. So the Chief of Staff is
-started locally (desktop, no worktree), then put in remote (Remote Control). In remote the setup
-is: reuse the Chief of Staff's session (its next batch is direct by itself), plus, optionally, Griller sessions in
-worktrees that are never merged (their files go to the Chief of Staff, which places them).
+**The rule: starting a session from Remote Control (proved 2026-11-20).** From a session driven by
+Remote Control, every session start (a Foreman, a Griller) is `mcp__ccd_session__start_session`
+with **no `cwd` and no `preset`** and `use_worktree: false`. Remote Control refuses a start in
+another place, not every start: a `cwd` (the planning surface, the eval root) or a saved `preset`
+gets "The user is working over Remote Control, and this turn can't start that session". With
+neither, the new session lands in the steering session's own folder, its main checkout
+(`--git-dir` equals `--git-common-dir`). That folder must be a main checkout, in one of two
+setups: the planning surface's checkout, or the project's main checkout with the surface added as
+a working directory. A worktree session is unfit, as the worktree row says. What lies outside that
+folder reaches the new session by absolute paths in its prompt (`$CHANTIER` already carries
+`--project <absolute folder>`; the Foreman's prompt gives `Repository:` and the skill's folder as
+absolute paths). At the desk the same start works and stays the default; no card names a `cwd`.
+Seen 2026-11-20, Battlestation: the Studio's Chief of Staff ran in the Studio's main checkout, and
+its batch-07 Foreman (Sonnet 5.5, effort medium), started with no `cwd`, landed there, passed its
+worktree check, claimed its batch, wrote to the surface by absolute paths and started a Driver;
+two Grillers were started the same way. chantier's own Chief of Staff runs in
+`C:\Users\gaeta\Projets\chantier` with the surface added: its batch-29 Foreman landed in that
+folder, and session `local_9ef60aad-22ce-4ab4-9dd6-80cf84213736` was started there too.
+
+**A Chief of Staff and Grillers in remote.** Proved, batch-06 (2026-11-10): a session the user
+creates from the remote client's "Remote Control" entry lands in a worktree, which blocks
+chantier's planning on the default branch. Proved 2026-11-20: a session started *by* a Chief of
+Staff driven by Remote Control, with no `cwd`, lands on that Chief of Staff's main checkout (the
+rule above). So the Chief of Staff is still started locally (desktop, no worktree), then put in
+remote (Remote Control). From there it can start a Foreman in its own folder, and a Griller
+session on the user's word; a Griller in a never-merged worktree is no longer the only way to
+have a Griller in remote. The Chief of Staff's own next batch is direct by itself.
 
 Documented, not proved here: the desktop docs say Worktree is off by default and is set per
 environment (<https://code.claude.com/docs/en/desktop>); `claude remote-control --spawn
@@ -616,11 +638,12 @@ same-dir` keeps the folder and `--spawn worktree` isolates
 (<https://code.claude.com/docs/en/remote-control>). Not documented: creating a session from a
 phone on a Desktop host, and its options.
 
-**The trial that settles a new Foreman from a remote client** (unproved until it is run, on the
-user's word): from the remote client, pick the "Remote Control" entry and, in a second try, the
-"Local" group's entry or a saved environment with Worktree off; in each, run `git rev-parse
---git-dir --git-common-dir`. Record here the path that lands on the main checkout. If none does,
-a new Foreman needs the desktop, and the reuse is offered.
+**The trial that settles a new Foreman from a remote client.** Settled 2026-11-20 for a Foreman
+started by the Chief of Staff with no `cwd` (the rule above, the trials quoted there). Still
+unproved: a session the user creates from the remote client's own New session on a chosen folder
+(trial, on the user's word: from the remote client, pick the "Remote Control" entry and, in a
+second try, the "Local" group's entry or a saved environment with Worktree off; in each, run `git
+rev-parse --git-dir --git-common-dir`, and record the path that lands on the main checkout).
 
 ## Surfaces and options
 
@@ -643,7 +666,7 @@ otherwise.
 
 | Option | Desktop, typed | Remote Control | Terminal | Why and mark |
 | --- | --- | --- | --- | --- |
-| Switch to Foreman mode | yes | only by reusing a Foreman ("Reusing the last Foreman"), else no | no | preflight P1 fails in a terminal; proved by the classes table for the first two |
+| Switch to Foreman mode | yes | yes: a new Foreman with no `cwd`, or a reused one ("Reusing the last Foreman") | no | preflight P1 fails in a terminal; proved 2026-11-20 for the first two (the rule above) |
 | Switch to direct mode | yes | yes, except the stop of a Foreman not answering (needs the machine) | yes | needs only the Chief of Staff's own session; unproved until a real switch runs (trial: the first real switch, its events showing the `steering` event `direct` and each `resume: switch to direct mode` take) |
 | Run a command in a terminal | yes | no | yes | Remote Control has no shell; unproved |
 | Open `localhost` or a file path | yes | no: send the file or a forge link | yes | unproved |
@@ -652,7 +675,7 @@ otherwise.
 | `/chantier-board` | yes | the pane does not show in a Remote Control view (`docs/boards.md`) | yes | documented in `docs/boards.md` |
 | The remote board (`chantier board`) | yes | yes, from any device on the local network, through the link | yes | unproved; trial: open the board's link from the phone on the local network during a batch |
 | Review renders, review and merge a PR | yes | yes | yes | the forge, from any device |
-| A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` is refused (classes table) | where the host has it | proved for `start_session`, unproved for the rest |
+| A host feature (scheduled wake, start a session, a monitor) | where the host has it | `start_session` with no `cwd` and no `preset` works; with either, it is refused | where the host has it | proved 2026-11-20 for `start_session`, unproved for the rest |
 | Work in the main checkout | not during an eval, not from a worktree session | same | same | the classes table and the project's rules |
 | Resume a stopped subagent | `SendMessage` to its agent id resumes it with its context | same | same | proved, batch-15 (a refused spec-writer resumed by a message); not for a subagent the host stopped (its `task_status` `killed`, the notice `Task "<name>" (<id>) was stopped.`): `SendMessage` gets `Agent <id> was stopped and won't be resumed. Treat its work as cancelled; only launch a new agent if the user explicitly asks.`, proved, batch-22 (agents `a0106566b6aa3f0cb`, `a103955deaf241307`, `a164f7a02355addd0`, refused at 20:49:19Z to 20:49:22Z on 2026-11-16); chantier uses it for the `taken back:` note and the `record your hand-back` note of `foreman.md`: a refused agent answers it with its refusal; proved again, batch-18, twice (`a2c1f342e038708e6` and `ae6e32e6270cf2ba5` recorded their hand-back within 10 seconds of the message) |
 | End a subagent's turn with nothing running in the background | the host asks for its hand-back at once (`[handback-send-enforce] Your report has not been delivered. Call SubagentHandback…`), before a resumed worker's reply arrives; a background shell's end wakes it (the CI wait of `driver.md`) | same | same | proved, batch-16 (the CR-216 Driver, agent `ac87782157e90d829`; the CR-215 Driver's Inspector reply came after its hand-back) |
@@ -721,16 +744,10 @@ Nothing for the user: `start_session` as above. The user only gives the go.
 
 ### A new Foreman, from a remote client
 
-Cost: none beyond a fresh context; a worktree session blocks writes, so the folder must be the
-main checkout. **Unproved**: the entry that lands on the main checkout is not known (trial
-above). Until it is run, do not state any entry as fact: say the new Foreman needs the desktop
-and offer the reuse. Once the trial recorded a path, the block is:
-
-- **Where:** the remote client, on the device the trial named.
-- **Do:** the labels the trial recorded, in order, ending on the main checkout.
-- **Paste:** the Foreman's prompt of "Starting a batch", complete.
-- **You should see:** the Foreman's `ready <batch>` in my session within a few minutes; else tell
-  me what the session shows, and run `git rev-parse --git-dir --git-common-dir` in it.
+Nothing for the user: the Chief of Staff starts it with no `cwd`, as at the desk (proved
+2026-11-20). Cost: none beyond a fresh context; a worktree session blocks writes, so the Chief of
+Staff's session must be on a main checkout. The user only gives the go. A session the user
+creates from the remote client's own New session on a chosen folder stays unproved (trial above).
 
 ### A planning surface: the project's folders
 
@@ -778,19 +795,23 @@ worktree clean with no commit. **Unproved** until followed once.
 
 ### A Chief of Staff and Grillers in remote
 
-Built on the user's own finding (2026-11-10), not a proved trial: a remote session cannot start
-outside a worktree, so the Chief of Staff starts locally. Chantier explains the steps and never
-does them. The path is **unproved** until followed once by hand.
+Built on the batch-06 finding (2026-11-10: a session the user creates from the remote client
+lands in a worktree) and the 2026-11-20 rule (a session the Chief of Staff starts with no `cwd`
+lands on its main checkout), so the Chief of Staff starts locally. Chantier explains the steps and
+never does them. The path is **unproved** as a whole until followed once by hand.
 
 1. Start the Chief of Staff locally, in the desktop app, with no worktree and the tools allowed in
    auto mode (your own steps), then run `/chantier:chief-of-staff` (or `/chantier:chantier`).
-2. Put that session in remote (Remote Control). In remote, reuse this session; with no argument its next batch is direct by itself.
-3. Optionally, start Griller sessions in worktrees that are never merged: they send their files
+2. Put that session in remote (Remote Control). In remote, reuse this session; with no argument
+   its next batch is direct by itself, and a forced `foreman` starts a new Foreman in its own
+   folder.
+3. Optionally, on your word the Chief of Staff starts a Griller session with no `cwd`, in its own
+   folder; or you start Griller sessions in worktrees that are never merged: they send their files
    to the Chief of Staff, which places them.
 4. Each session renames itself.
 
-What is not possible on the host (a fork that cannot be told apart, nested sessions in remote) is
-written here as found, with no workaround.
+What is not possible on the host (a fork that cannot be told apart) is written here as found, with
+no workaround.
 
 ### `/compact`
 

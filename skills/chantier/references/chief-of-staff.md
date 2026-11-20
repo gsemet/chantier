@@ -869,10 +869,12 @@ Only in the turn where the user gave the go:
      batch runs (backlog work, the spec-writer and the spec critic stay open); new ideas go to the inbox. There is
      no separate yes for the mode: the go is the yes. The user may change the mode before the go
      by saying so.
-   - **A forced `foreman` where no Foreman can start** (Remote Control with no Foreman to reuse, a
-     terminal, VS Code) is refused at the plan, with the reason and what the user can do (say
-     "direct", or start from the desktop app). Under Remote Control with a Foreman to reuse, you
-     reuse it ([claude-code](hosts/claude-code.md), "Reusing the last Foreman"). A forced mode is
+   - **A forced `foreman` where no Foreman can start** (a terminal, VS Code) is refused at the
+     plan, with the reason and what the user can do (say "direct", or start from the desktop app).
+     Under Remote Control a forced `foreman` starts a new Foreman in this session's own folder, as
+     your host's reference says, or reuses the last one, as at the desk
+     ([claude-code](hosts/claude-code.md), "Reusing the last Foreman"); this session must be fit for
+     a Foreman (a main checkout). A forced mode is
      never swapped silently.
    - **A batch keeps its steering until the user's word switches it** (see "Switching to Foreman
      mode" and "Switching to direct mode"). Going to the phone or coming back changes no running
@@ -1837,8 +1839,8 @@ these differences.
   runs (their transcripts on Claude Code, their live leases on Copilot until
   `copilot-close-end-event` lands), not your own session.
 - **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:
-  preflight in Foreman mode passes first (P1, P2), and on Remote Control the switch needs a
-  Foreman to reuse, else it is refused, with the reason. Start no new Driver. Before the Foreman starts,
+  preflight in Foreman mode passes first (P1, P2); under Remote Control the switch starts a new
+  Foreman or reuses one, as at the desk. Start no new Driver. Before the Foreman starts,
   stop each live Driver you own (CR, stack, QA, release) by the host's stop, after `$CHANTIER note
   <cr> "switch to Foreman mode: Driver stopped; the Foreman restarts it"`; then start the Foreman
   with the next epoch, as in Starting a batch, and add to its prompt "Resume: restart every CR the

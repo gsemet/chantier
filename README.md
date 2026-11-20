@@ -74,9 +74,10 @@ Chantier plans in one of two places, the **planning folder**:
 
 The Chief of Staff, the Foreman and the Griller run on the default branch: your project's main
 checkout in-project, the surface's checkout in external mode. Only the code gets worktrees: each
-CR's Driver and workers, in your project; a Griller in a never-merged worktree, in remote. About
-remote sessions, this is the author's own finding, not a proved trial: a remote session cannot start
-outside a worktree, so the Chief of Staff starts locally, then goes remote (Remote Control).
+CR's Driver and workers, in your project. About remote sessions (proved 2026-11-20): a session the
+Chief of Staff starts from remote with no `cwd` lands in its own main checkout, so the Chief of
+Staff starts locally, then goes remote (Remote Control); there it can start a Foreman and a
+Griller the same way, and its batches stay direct with no argument.
 
 ![Planning modes: in-project and external](docs/planning-modes.svg)
 

@@ -1,6 +1,6 @@
 # Planning modes
 
-Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. In a planning surface, the surface server commits and pushes the plan. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote, the user's own finding: a remote session cannot start outside a worktree, so the Chief of Staff starts locally and is then put in remote; Grillers may run in worktrees that are never merged and send their files to the Chief of Staff. Outside contributors submit a CR by a pull request on the surface.
+Chantier plans in a planning folder, in one of two modes. In-project, the planning folder is .agents/changes/ in the project's repository: the Chief of Staff, the Foreman and the Griller run on the project's main checkout, on its default branch, and each CR's Driver and workers run in a worktree of the project. External, the planning folder is the changes folder of a project in a planning surface, a git repository of its own with one folder per project (project.md, checkout.yml, changes); the surface is always worked on its default branch, and the sessions run in the surface's checkout. The project's clone is used for git only: the Drivers' worktrees are created from it, under the worktrees folder that checkout.yml names. A running batch's own files and the detailed logs stay local. In a planning surface, the surface server commits and pushes the plan. Archives are in the surface's 5-archives and, by the project's setting, in the CR's pull request. Remote: a session the Chief of Staff starts from remote with no cwd and no preset lands in its own main checkout (proved 2026-11-20), so the Chief of Staff starts locally and is then put in remote; from there its batches stay direct, a forced foreman starts the Foreman in its own folder, and Grillers start the same way. A session you create from the remote client lands in a worktree (batch-06). Outside contributors submit a CR by a pull request on the surface.
 
 ## Header
 
@@ -28,12 +28,12 @@ Worktrees · <repo>.worktrees/<batch>-<cr>
 🔨 Workers: Coder · Inspector · Verifier · …
 starts
 
-Remote (the user's own finding, not a proved trial)
-A remote session cannot start outside a worktree, which blocks planning
-on the default branch. So: start the Chief of Staff locally (desktop,
-no worktree), then put it in remote (Remote Control); reuse it, in direct
-mode. Grillers may run in worktrees that are never merged: their files
-go to the Chief of Staff, which places them.
+Remote (a start with no cwd, proved 2026-11-20)
+A session started from remote with no cwd lands in the Chief of Staff's
+own main checkout. So: start the Chief of Staff locally (desktop, no
+worktree), then put it in remote (Remote Control). Its batches stay
+direct; a forced foreman starts the Foreman in its own folder, and a
+Griller starts the same way.
 ```
 
 ## External panel

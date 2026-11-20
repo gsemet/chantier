@@ -115,12 +115,14 @@ role in its title, in the form `[Battle] 💬 Chantier · CoS` or `[Battle] 💬
 
 In a remote session, the steps are yours (chantier explains them and never does them):
 
-1. Start the Chief of Staff locally (desktop, no worktree, tools allowed in auto mode): a remote
-   session cannot start outside a worktree (the author's own finding, not a proved trial).
+1. Start the Chief of Staff locally (desktop, no worktree, tools allowed in auto mode): a session
+   you create from the remote client lands in a worktree (batch-06), while a session the Chief of
+   Staff starts from remote with no `cwd` lands in its own main checkout (proved 2026-11-20).
 2. Run `/chantier:chief-of-staff`, then put the session in remote (Remote Control). In remote,
-   reuse that session: with no argument, its next batch is direct.
-3. Optionally, start Griller sessions in worktrees that are never merged: their files go to the
-   Chief of Staff.
+   reuse that session: with no argument, its next batch is direct; a forced `foreman` starts a
+   new Foreman in its folder.
+3. Optionally, on your word the Chief of Staff starts a Griller session the same way; or start
+   Griller sessions in worktrees that are never merged: their files go to the Chief of Staff.
 4. Each session renames itself.
 
 A second session tells you who holds the seat and offers one thing only: say "become chief of

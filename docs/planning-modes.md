@@ -151,11 +151,12 @@ a planning surface the writer publishes it; with no writer, nothing is written.
 
 ## Remote
 
-This is the author's own finding (2026-11-10), not a proved trial: a remote session cannot be
-started outside a worktree, which blocks planning on the default branch, and nested sessions are
-a problem in remote too. So start the Chief of Staff locally (desktop, no worktree), then put it
-in remote (Remote Control); reuse that session, in direct mode, and optionally add Griller
-sessions in worktrees that are never merged. See the
+Proved 2026-11-20: a session the Chief of Staff starts from remote with no `cwd` and no preset
+lands in its own main checkout. A session you create from the remote client lands in a worktree
+(batch-06), which blocks planning on the default branch. So start the Chief of Staff locally
+(desktop, no worktree), then put it in remote (Remote Control): its batches stay direct with no
+argument, a forced `foreman` starts the Foreman in its own folder, and on your word it starts a
+Griller the same way. See the
 [Claude Code reference](../skills/chantier/references/hosts/claude-code.md). On Copilot: not tried.
 
 ## Privacy
