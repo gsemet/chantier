@@ -16,6 +16,7 @@ from forge_world import World
 
 from chantier.cli import main
 from chantier.core import git as git_module
+from chantier.core import repo as repo_module
 
 SKILL = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = SKILL.parents[1]
@@ -40,6 +41,12 @@ def sh(*args: str, cwd: Path | None = None) -> str:
     return subprocess.run(
         args, cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout.strip()
+
+
+@pytest.fixture(autouse=True)
+def _restore_project(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`chantier.cli.main` sets the global `repo.PROJECT` and never restores it: start clean."""
+    monkeypatch.setattr(repo_module, "PROJECT", repo_module.PROJECT)
 
 
 @pytest.fixture(scope="session")
