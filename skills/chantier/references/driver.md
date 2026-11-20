@@ -1078,13 +1078,39 @@ checks hold, then it turns ready with the others (`stack --out-of-draft`). A fix
    mergeable part ready (`stack --out-of-draft <cr>…`). A release above stays a draft, waiting for the Foreman's
    `redo:`. Hand back as for any take.
 
-**A CR held out of the stack.** Taken with a note `hold: <cr>`: the CR's base is now the default
-branch and the CRs above it no longer stand on it. Turn its PR to a draft (`gh pr ready --undo`,
-`glab mr update --draft`, then `$CHANTIER stack --draft <cr>`), move the CRs above onto the CR
-below as the record's bases say (`restack`, as for a drop, without closing the PR), then `$CHANTIER
-forge-stack rebuild`: it unstacks the stack, retargets the held PR to the default branch (`held out
-of the stack`) and stacks the others. Never `stack --out-of-draft` the held CR. With `unhold: <cr>`,
-the CR is back on top: place it as a CR that joins, then rebuild.
+**A CR held out of the stack.** Taken with a note `hold: <cr>` (the CR's base is now the default
+branch; the CRs above it no longer stand on it):
+
+1. Turn every PR above the held CR to a draft first (`gh pr ready --undo`, `glab mr update
+   --draft`, then `$CHANTIER stack --draft <cr>…`): the user must not merge a stack that still
+   holds the held CR's commits.
+2. Take the held CR's commits out of each CR above it that has no live Driver (handed back
+   `ready`, or `blocked`), bottom up, as steps 2 and 3 of "Removing a dropped CR" say (`rebase
+   --onto`, push with `--force-with-lease`, `ship`); a `working` CR above is skipped: its Driver
+   does it, on the Foreman's rebase note, as for a drop.
+3. Rebase the held CR's own branch on `origin/<default branch>` (`git -C <worktree> rebase
+   origin/<default branch>`), push it with the Push bullet's rewrite form
+   (`--force-with-lease`), and `ship` it. A held CR at the top of the stack has nothing above it:
+   only this step, step 4 and the rebuild.
+4. Turn the held CR's PR to a draft (`gh pr ready --undo`, `glab mr update --draft`, then
+   `$CHANTIER stack --draft <cr>`). A held CR is never turned out of draft: `stack --out-of-draft`
+   refuses it.
+5. `$CHANTIER stack <cr>…` orders the rest (the CRs of `chain`, held ones apart), then
+   `$CHANTIER forge-stack rebuild`: it dissolves the stack, moves the held PR to the default
+   branch (`held out of the stack`) and makes the stack without it.
+6. Read it back (the five checks), run the local gate at the mergeable top when its head carries
+   no pass, and turn the mergeable part ready again (`stack --out-of-draft <cr>…`, the held CR
+   never named).
+
+A clean rebase carries the CR's gate and verdict as any clean restack. A conflict that only needs
+resolving goes to a `conflict-resolver`, and the proofs a move touched are judged again by the
+rule above (a `verifier` given the move, an `inspector` when the patch changed, always after a
+`conflict-resolver`); one that needs code goes the way "A conflict that needs code" says.
+
+With `unhold: <cr>`, the CR comes back on top: it is a ready CR that joins, handled as "A draft
+that turns ready to merge" (ordered below the drafts, rebased, `forge-stack rebuild`, turned
+ready, `stack --out-of-draft <cr>`). The final-order take orders only the CRs of `chain` (held
+CRs apart).
 
 A dropped CR with an open PR and nothing on its branch needs only steps 4 and 5; one with no PR
 and nothing on its branch needs nothing from you.
