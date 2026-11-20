@@ -29,7 +29,7 @@ def test_every_op_and_topic_has_its_schema_and_its_code() -> None:
     assert set(ops.HANDLERS) == set(protocol.OPS) and set(topics.READS) == set(protocol.TOPICS)
 
 
-WEB = Path(topics.__file__).parents[1] / "web" / "js"
+WEB = Path(topics.__file__).parents[2] / "clients" / "web" / "js"
 TRANSPORT_FILES = {"core/transport.js", "core/ws-link.js", "core/http-link.js"}
 OP_CALL = re.compile(r"\b(?:read|post|call|httpCall)\(\s*'([a-z_.]+)'")
 TOPIC_CALL = re.compile(r"\bsubscribe\(\s*'([a-z_]+)'")

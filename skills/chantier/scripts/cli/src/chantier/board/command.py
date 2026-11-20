@@ -11,6 +11,7 @@ import os
 import socket
 import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any, TypeVar
 
 from chantier import __version__
@@ -31,6 +32,7 @@ from chantier.board.projects import Projects, check_planning, open_projects
 from chantier.board.seats import Seats
 from chantier.core import clock
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
+from chantier.declare.board import SHIPPED_UI
 from chantier.hub import state
 from chantier.hub.loop import HubLoop, HubThread
 from chantier.playbook.layers import load_board
@@ -39,6 +41,9 @@ from chantier.writer import record as writer_record
 from chantier.writer.loop import WriterLoop, WriterThread
 
 T = TypeVar("T")
+NOT_APPLIED = (
+    "--ui not applied: a board already serves this surface; stop it to change what it serves"
+)
 BEYOND = (
     "board: listens on the local network ({host}); the link holds its key: give it to the user "
     "only, plain HTTP"
@@ -112,7 +117,7 @@ def _start_writer(projects: Projects) -> WriterThread | None:
     return thread
 
 
-def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
+def _run(projects: Projects, seats: Seats, sock: socket.socket, ui: Path | None) -> None:
     """Serve until Ctrl-C, or, for a board started with `--seat`, until its seats leave."""
     box: list[Any] = []
 
@@ -125,6 +130,7 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
         seats,
         __version__,
         stop,
+        ui,
         sock.getsockname()[:2],
     )
     box.append(make_server(ctx))
@@ -212,6 +218,19 @@ def _announce(host: str, bound: int, key: str, served: str) -> None:
         print(BEYOND.format(host=host), flush=True)
 
 
+def _ui(arg: Path | str) -> Path | None:
+    """The folder to serve: `None` for `none`, else a folder holding an `index.html`."""
+    if arg == "none":
+        return None
+    folder = Path(arg).resolve()
+    if not (folder / "index.html").is_file():
+        raise ChantierError(
+            f"--ui {arg}: not a folder with an index.html: give a folder of static files, or none",
+            EXIT_USAGE,
+        )
+    return folder
+
+
 def board(args: argparse.Namespace) -> list[str]:
     if args.clock:
         try:
@@ -220,6 +239,7 @@ def board(args: argparse.Namespace) -> list[str]:
             raise ChantierError(
                 f"--clock {args.clock!r}: use YYYY-MM-DDTHH:MM:SSZ", EXIT_USAGE
             ) from e
+    ui = _ui(args.ui)
     projects = open_projects()
     try:
         check_planning(projects)
@@ -240,6 +260,8 @@ def board(args: argparse.Namespace) -> list[str]:
         lines = [f"board already running at {url(*there, key)}"]
         if local := local_url(*there, key):
             lines.append(f"on this machine: {local}")
+        if args.ui != SHIPPED_UI:
+            lines.append(NOT_APPLIED)
         return lines
     _writing(lambda: state.check_writable(git_dir))  # a refused write: known before any bind
     from_config = args.port is None and "port" in load_board(projects.home)[0]
@@ -251,5 +273,5 @@ def board(args: argparse.Namespace) -> list[str]:
         sock.close()
         raise
     _announce(host, bound, key, served)
-    _run(projects, seats, sock)
+    _run(projects, seats, sock, ui)
     return []

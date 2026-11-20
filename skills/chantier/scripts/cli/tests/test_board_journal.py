@@ -40,7 +40,9 @@ def _write_call(surface: Any) -> Any:
     repo_ = Repo.find(project="demo", readonly=True)
     projects = Projects(repo_, repo_.surface, [])
     secret = keys.load_or_create(repo_)
-    ctx = Context(projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None)
+    ctx = Context(
+        projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None, None
+    )
 
     def call(method: str, route: str, body: dict[str, Any], project: str = "demo") -> Any:
         return call_route(ctx, secret, method, project, route, body)

@@ -1,6 +1,7 @@
 # The server's API, protocol 1
 
-`chantier board` serves one published API. The web board is one client of it; a script, an editor
+`chantier board` serves one published API, and a folder of static files (by default the web
+board). The web board is one client of it; a script, an editor
 or a phone app is another. The API has two bindings of the same protocol: a **WebSocket**
 (`/api/v1/ws`), and **HTTP** (`POST /api/v1/call/<op>`, `POST /api/v1/poll`), for a network where
 a WebSocket does not pass, behind a proxy for instance. HTTP is not a fallback of the server: it
@@ -175,6 +176,31 @@ Pass the upgrade (`Upgrade` and `Connection` headers, HTTP/1.1) for the WebSocke
 long-poll holds 20 s: keep the proxy's read timeout above that (nginx's `proxy_read_timeout`
 defaults to 60 s). For a client that cannot upgrade, use the HTTP binding; nothing else changes.
 The server speaks plain HTTP: put TLS on the proxy, and keep the key out of logs.
+
+## Serving another UI
+
+`chantier board` serves a folder of static files at `/`: the shipped web client by default, your
+own with `--ui <folder>`, none with `--ui none`. The shipped client's folder
+(`skills/chantier/scripts/cli/src/chantier/clients/web/`) is the example of such a folder.
+
+- `chantier board --ui <folder>` serves that folder's files, `index.html` for `/`, behind the same
+  key: the link's `?k=` sets the cookie, and the page then calls the API from the same origin
+  (the cookie counts there, as the key section says). The folder must hold an `index.html`, or the
+  command refuses to start (the usage exit, 1).
+- The server sends only files of the folder, by the types it knows: `.html`, `.js`, `.css`,
+  `.svg`, `.json`, `.ico`, `.png`, `.woff2`; any other answers 404 (a type is added only when a
+  real UI needs it). Each answer carries `Cache-Control: no-cache` and an `ETag`. An HTML page
+  carries the server's Content Security Policy (`default-src 'none'; script-src 'self'; style-src
+  'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; ...`): no inline script or
+  style, nothing loaded from another origin, the API on the same origin only.
+- Its addresses must be relative to stay working behind a proxy with a path prefix (the proxy
+  rules below hold for any served folder).
+- `--ui none`: the API only; `/` answers 404 with the line `this server serves no UI: see
+  docs/server-api.md`. A UI served elsewhere (another origin) or a native app uses the key in a
+  header or in the WebSocket's first message, as the key section says; it needs no `--ui`.
+- A board already running keeps what it was started with: `--ui` on a second `chantier board`
+  prints `--ui not applied: a board already serves this surface; stop it to change what it
+  serves`, and nothing else changes.
 
 ## Versions
 

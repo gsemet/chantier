@@ -1,4 +1,4 @@
-"""The board's design rules (`board/web/DESIGN.md`), checked on the sheets: the token table agrees
+"""The board's design rules (`clients/web/DESIGN.md`), checked on the sheets: the token table agrees
 with `tokens.css`, no side accent border, no raw length where a token belongs. Each check is a
 function from a text to a list of problems, so a prepared text can feed it (`test_checker`)."""
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-WEB = Path(__file__).resolve().parents[1] / "src" / "chantier" / "board" / "web"
+WEB = Path(__file__).resolve().parents[1] / "src" / "chantier" / "clients" / "web"
 CSS = WEB / "css"
 DESIGN = WEB / "DESIGN.md"
 SEPARATORS = ("1px solid var(--line)", "1px solid var(--side-line)")

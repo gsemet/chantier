@@ -42,7 +42,7 @@ def _dispatch(ctx: Context, req: Request) -> Reply:
         return _unknown()
     if method != "GET":
         return guard.not_allowed()
-    return static.serve(req.path, req.headers.get("if-none-match"))
+    return static.serve(ctx.ui, req.path, req.headers.get("if-none-match"))
 
 
 def _frame(ctx: Context, req: Request, key: str) -> Reply:

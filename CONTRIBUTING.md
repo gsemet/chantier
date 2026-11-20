@@ -113,8 +113,9 @@ chantier is four things in one repository:
    which `status` and the watcher carry to the Chief of Staff; each write it makes to the backlog
    also appends one `board@1` line to the project's journal, which the Chief of Staff's watcher
    reads; takes its dependencies like the
-   rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
-   build step).
+   rest of the CLI and knows no role; its web client, in `clients/web/`, is hand-written HTML, CSS and ES modules, with no
+   build step, served as plain files (`--ui` serves another folder, or none); the server's code
+   names nothing of it (a test checks it)).
    The board's process also runs the surface's writer, a named git exception: while the server
    runs, it commits, rebases and pushes the planning surface's published paths and the local
    commits of the surface's branch; the board's own code commits nothing.
@@ -187,7 +188,7 @@ skills/chantier/
 │                             spec-writer, spec-critic, retro-critic, init,
 │                             pr-template, release-template, and hosts/ (one
 │                             reference per host: Claude Code, Copilot)
-└── scripts/cli/            ← the `chantier` CLI's source (its web board in `board/web/`), its tests
+└── scripts/cli/            ← the `chantier` CLI's source (its web client in `clients/web/`), its tests
                               and `session_usage.py`
 scenario/                   ← one whole batch, scripted, no model
 evals/                      ← eval campaigns with real agents, and their reports
@@ -338,7 +339,7 @@ A dependency must replace hand-written code and ship wheels for Linux, macOS (x8
 and Windows: the root `pyproject.toml` sets `no-build = true`, so nothing is built from source. After
 a change to its dependencies, run `uv lock` (from the root); `just lint` refuses a stale lock.
 
-The board's page (`board/web/`: HTML, CSS and native ES modules, no build step, no framework)
+The board's page (`clients/web/`: HTML, CSS and native ES modules, no build step, no framework)
 meets these targets, which `just lint` (Biome, run by `uvx` on a Node.js taken from PyPI and pinned
 in the `justfile`) and `tests/test_code_targets.py` enforce:
 
@@ -348,13 +349,13 @@ in the `justfile`) and `tests/test_code_targets.py` enforce:
   no cyclomatic rule: its cognitive one is the closest, and the stricter for nesting); `const` by
   default, no `var`, no unused variable or import, no global but the module's scope.
 - **CSS:** no `!important`, no id selector, nesting at most 3 levels (the test counts the braces;
-  Biome has no such rule), tokens only, as `board/web/DESIGN.md` says (every colour, radius, space
+  Biome has no such rule), tokens only, as `clients/web/DESIGN.md` says (every colour, radius, space
   and type size is a token of `css/tokens.css`), and a computed width or colour passed as a custom
   property.
 - **Page:** no inline script or style, no `style=` and no `on...=` attribute, no resource loaded
-  from outside (the policy allows `self` only; the page loads its own font from `web/fonts/`,
+  from outside (the policy allows `self` only; the page loads its own font from `clients/web/fonts/`,
   `font-src 'self'`, and no font from outside), every link, script and import relative and inside
-  `web/`, `innerHTML` set in `js/core/dom.js` only.
+  `clients/web/`, `innerHTML` set in `js/core/dom.js` only.
 - **Words:** one file per language under `js/i18n/`, the same keys in each (a test checks it); a
   language is added by one file and one line in `js/model/words.js`.
 - **Layout:** `js/core/` (`transport`, `store`, `router`, `refresh`, `paint`, `dom`, `format`: no view

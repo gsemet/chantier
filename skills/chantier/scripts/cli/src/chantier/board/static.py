@@ -1,4 +1,5 @@
-"""The frame: the files of `board/web/`, shipped as package data."""
+"""The frame: the static files of the folder `chantier board` was given (`--ui`); none when it
+was given `none`."""
 
 from __future__ import annotations
 
@@ -6,7 +7,7 @@ from pathlib import Path
 
 from chantier.board.reply import Reply, matches, text
 
-WEB = Path(__file__).resolve().parent / "web"
+NO_UI = "this server serves no UI: see docs/server-api.md"
 # Python's `mimetypes` reads the Windows registry: the types are named here.
 TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -20,18 +21,21 @@ TYPES = {
 }
 
 
-def _file(rel: str) -> Path | None:
+def _file(ui: Path, rel: str) -> Path | None:
     name = rel.strip("/") or "index.html"
     try:
-        target = (WEB / name).resolve()
+        target = (ui / name).resolve()
     except (OSError, ValueError):
         return None
-    return target if target.is_relative_to(WEB.resolve()) and target.is_file() else None
+    return target if target.is_relative_to(ui.resolve()) and target.is_file() else None
 
 
-def serve(rel: str, if_none_match: str | None) -> Reply:
-    """A file of the frame, with an `ETag` and `no-cache`: `304` while it is unchanged."""
-    target = _file(rel)
+def serve(ui: Path | None, rel: str, if_none_match: str | None) -> Reply:
+    """A file of the folder served, with an `ETag` and `no-cache`: `304` while it is unchanged;
+    `404` with `NO_UI` when there is no folder."""
+    if ui is None:
+        return text(404, NO_UI)
+    target = _file(ui, rel)
     if target is None or target.suffix not in TYPES:
         return text(404, "not found")
     info = target.stat()

@@ -212,6 +212,8 @@ board:
   <checkout>`; never `uvx --from <checkout>`. From the surface's root, with no `--project`, the
   board serves every project of the surface; it runs until you stop it, so a scheduled task or a
   service may start it (the surface's own setup; chantier ships none).
+- **Another UI.** `chantier board --ui <folder>` serves your own UI's static files in place of the
+  web board, and `--ui none` serves the API only; see [the server's API](server-api.md).
 - **When it stops.** With Ctrl-C. The writer first runs one final cycle, up to 30 s, that commits and pushes what is pending. A board a session started (`--seat`) also stops by itself once
   no session that registered a seat holds it any more; a board started by hand (no `--seat`)
   does not, even when sessions register a seat on it and leave. A second `chantier board` on the same address says the board is already running and

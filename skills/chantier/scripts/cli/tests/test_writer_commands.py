@@ -189,7 +189,9 @@ def test_the_board_serves_the_writer_entry_and_its_sync_op_wakes_it(
     found = Repo.find(project="demo", readonly=True)
     projects = Projects(found, found.surface, [])
     secret = keys.load_or_create(found)
-    ctx = Context(projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None)
+    ctx = Context(
+        projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None, None
+    )
 
     def call(op: str, key: bool = True) -> tuple[int, Any]:
         return call_op(ctx, secret if key else None, op)
