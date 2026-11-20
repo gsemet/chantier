@@ -90,6 +90,15 @@ def test_a_held_crs_base_is_the_default_branch_even_when_it_started_on_another_c
     assert start_base(d, cr(5, start_on="b/cr-1"), REPO) == "b/cr-1"
 
 
+def test_a_placed_crs_start_on_owner_ended_falls_back_below_and_held_goes_to_default() -> None:
+    d = held_stack()
+    above = d.crs[2]
+    assert start_base(d, above, REPO) == "main"  # owner held
+    d.crs[1].held = None
+    d.crs[1].status = "cancelled"  # owner ended: the nearest CR below with a PR
+    assert start_base(d, above, REPO) == "b/cr-1"
+
+
 def test_a_held_crs_waits_text_names_the_hold_and_the_way_back() -> None:
     d = held_stack()
     held = d.crs[1]
