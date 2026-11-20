@@ -335,7 +335,19 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   user's word": `agents set <cr> -` first when the id is still recorded, `order done` once taken);
   it is not a new attempt. Received while the release's Driver is still `working` (the user
   published before the refusal reached you), it goes as the `[foreman→driver <cr>] note <text>`
-  message, as for any note to a working Driver. A release handed back `blocked waits: …,
+  message, as for any note to a working Driver. A release handed back `blocked waits: the steering session runs <step> in the main checkout` is
+  yours to run at once, in the checkout the post-merge fast-forward uses (the main checkout, or
+  with a planning surface the project's clone); for chantier, `just --justfile <that
+  checkout>/justfile tag`, as one command with nothing chained (your own fast-forward has already
+  run; the recipe fast-forwards again as its guard). When it succeeds, copy its `main checkout:
+  ...` line word for word into `$CHANTIER note <release-cr> "<the line>"` (a `uv.lock changed:
+  sync pending` in it reaches the Chief of Staff, who syncs, as after your own fast-forward), then
+  take the CR back by the usual path: `take <release-cr> --note "tag done: steering session,
+  <YYYY-MM-DD>: v<X.Y.Z> pushed"`. When it refuses (a `just tag:` line) or the host refuses the
+  command, change nothing, try no other way and never force: send `[foreman→chief-of-staff]
+  release <cr>: <step> refused: <the exact line>` (in direct mode you are the Chief of Staff:
+  take it to the user yourself, as `chief-of-staff.md` says). The step's approval is the user's
+  word, which the Driver checked before its hand-back: run nothing the Driver did not hand back. A release handed back `blocked waits: …,
   then the user's word…`: once the others are merged, ask the Chief of Staff (`[foreman→chief-of-staff]
   release <cr>: the batch is merged; run the release procedure?`) and take it back on `order
   confirm`. When a CR under a prepared release changes, read `log <cr>`: a move with no change

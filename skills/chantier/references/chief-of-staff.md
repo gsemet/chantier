@@ -1987,6 +1987,14 @@ report, both as below; the user is asked nothing more for this release, except w
 already asks. Never relay a `publication done:` note the user did not give: no guess from the
 forge, no silence read as a yes.
 
+A refused main-checkout step: the line `release <cr>: <step> refused: <line>` from the Foreman, or
+the refusal you see yourself in direct mode. Give the user a **For you** line with the refusal and
+what it says to do ("the main checkout has tracked changes (...): commit or set them aside, then
+tell me to run `just tag` again"); you never settle the checkout yourself. When the user says to
+run it again: in Foreman mode, send `[chief-of-staff→foreman] release <cr>: run <step> again`, and
+the Foreman runs it as its card says; in direct mode, run it yourself, the same way. The ready
+ask's naming of the approved steps (CONTRIBUTING.md step 4, `just tag`) is unchanged.
+
 `status` shows a `draft
 <path>` on the release's line: give the user the link as soon as it appears. Once released,
 read `work/retro.md` in the release CR's folder (`4-batch/3-done/`); it is offered once, in the Retro

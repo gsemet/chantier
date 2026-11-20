@@ -401,14 +401,22 @@ run when the skill, the CLI and the agents disagree, so every file must move tog
    and its files, and merges it by rebase once CI is green, last (in a stack, the stack in one action from
    the top PR or one PR at a time from the bottom, the release commit last; a change inserted into the stack makes the release PR update its
    release notes). That merge starts the next steps.
-4. Tag the merged commit on `main` and push the tag:
+4. Tag the merged commit on `main` and push the tag. It runs from the main checkout, on `main`:
 
    ```bash
-   just tag
+   just tag    # or: just --justfile <main checkout>/justfile tag
    ```
 
-   It refuses unless origin/main's head is the `release: vX.Y.Z` commit of the local version, so
+   `just tag` first fast-forwards the main checkout to `origin/main`, and never by force. It
+   refuses, changing nothing, in four cases: the checkout is not on `main`, it has tracked changes,
+   the fetch fails, or main cannot fast-forward. Each refusal says what to do; you settle the
+   checkout by hand and run `just tag` again.
+
+   It then refuses unless origin/main's head is the `release: vX.Y.Z` commit of the local version, so
    a commit pushed after the merge never gets the tag.
+
+   Its `main checkout: ...` line says when `uv.lock` changed. In chantier's own checkout, the sync
+   then follows (after a merge that changes `uv.lock`, as AGENTS.md says).
 
 5. Publish the reviewed notes as they are, with the images attached:
 
