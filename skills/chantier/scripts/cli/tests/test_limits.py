@@ -230,8 +230,8 @@ def test_the_board_saves_a_limit_keeps_comments_journals_one_line_and_removes_it
     assert "# mine" in text and "# kept" in text and f"{sub}: {FOUND_MIN}" in text
     assert answer["lines"][1] == line and "applies at the next batch" not in answer["lines"]
     (event,) = _forge(surface)
-    assert {k: event[k] for k in ("kind", "key", "old", "new", "source", "batch")} == {
-        "kind": "config",
+    assert {k: event[k] for k in ("type", "key", "old", "new", "source", "batch")} == {
+        "type": "config@1",
         "key": key,
         "old": 5,
         "new": FOUND_MIN,
@@ -357,7 +357,7 @@ def test_config_lines_with_the_same_values_and_time_are_two_lines(
     surface: Surface, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = Repo.find(project="demo", readonly=True)
-    one = {"kind": "config", "key": "specifying.parallel", "old": 4, "new": 2, "batch": None}
+    one = {"type": "config@1", "key": "specifying.parallel", "old": 4, "new": 2, "batch": None}
     monkeypatch.setattr(clock, "_fixed", [])
     clock.fix("2030-01-01T00:00:00Z")
     journal.append(repo, [one, one], "board")

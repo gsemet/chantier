@@ -105,24 +105,43 @@ and the board's writes. Its name is historical, it is not only the forge's. One 
 object, written by one function (`hub/journal.py`, `append`), under the project's lifecycle lock:
 
 ```json
-{"v": 1, "seq": 41, "t": "2026-11-18T10:02:03Z", "kind": "merged", "source": "hub",
- "audience": ["project"], "batch": "batch-29", "cr": "CR-12", "pr": "#88"}
+{"v": 2, "seq": 41, "t": "2026-11-18T10:02:03Z", "type": "merged@1", "source": "hub",
+ "audience": ["project"], "batch": "batch-29", "cr": "CR-12", "pr": "#88", "into": "main",
+ "into_cr": null, "merged_at": "2026-11-18T10:01:40Z"}
 ```
 
 | Field | Holds |
 |---|---|
-| `v` | the line's version, 1 |
+| `v` | the line's version, 2 (0 and 1 still read) |
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
-| `kind` | `merged`, `checks-red`, `config` or `board`, then the fields of that kind |
+| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `config@1` or `board@1`), then the fields of that type |
 | `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `cli` (room for a command) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
-Every line written today is for `["project"]`: `merged` and `checks-red` by the hub or the board's
-PRs page, `config` by the Configuration page, `board` by the backlog writes. The CLI checks an
-audience value's form, never what it names, and routes to no role, CR or user yet. A line with no
-`v` is version 0, from an older chantier: its `by` is its source and it is for the project; it is
-never rewritten. A line of a newer version counts for `seq`, wakes no one and is named by `status`.
+A published `name@N` never changes; a change is a new `name@N+1`, and every type's JSON Schema
+ships in `hub/schemas.json`.
+
+Every line written today is for `["project"]`: `merged@1` and `checks-red@1` by the hub or the
+board's PRs page, `config@1` by the Configuration page, `board@1` by the backlog writes. The CLI
+checks an audience value's form, never what it names, and routes to no role, CR or user yet.
+
+| Type | Written by | Wakes a watcher |
+|---|---|---|
+| `merged@1` | the hub, the board's PRs page | yes |
+| `checks-red@1` | the hub | yes |
+| `config@1` | the board's Configuration page | yes |
+| `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move` and `edit` |
+
+An event the hub or the board builds from a forge read or a backlog or Configuration write that its
+type's model refuses is not written, the others are, and the hub's entry or the page's reply names
+it (`skipped: journal payload <type>: ...`).
+
+A version 0 or 1 line's `kind` is read as `<kind>@1` and never rewritten (version 0's `by` is its
+source and it is for the project). A version 2 line of an unknown type or a refused payload counts
+for `seq` and wakes no one, and `status` names it (`line <n> is of type <t>, unknown to this
+chantier: update it`; `line <n> unreadable`). A line of a newer version counts for `seq`, wakes no
+one and is named by `status`.
 
 `chantier watch` reads the lines for it: `project`, its own `session:<key>` and each `--for`
 value (repeatable; none is the default command). A line for another audience moves its cursor and

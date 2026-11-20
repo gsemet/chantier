@@ -1,4 +1,4 @@
-"""The addressed events: the version 1 line and its one writer path, the reading of version 0 and
+"""The addressed events: the version 2 line and its one writer path, the reading of version 0 and
 of newer lines, the watcher's filter by audience, its rate limit `events.wake_every` and its
 configuration problems. No test sleeps: a watcher is driven with an injected monotonic time.
 
@@ -19,7 +19,7 @@ from forge_world import QUIET
 from chantier import __version__
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE
 from chantier.core.repo import Repo
-from chantier.hub import autostart, journal
+from chantier.hub import autostart, journal, schemas
 from chantier.hub import times as hub_times
 from chantier.hub.watch import EVENTS, Rules, Watch, once
 from chantier.playbook import config, events_check
@@ -28,11 +28,19 @@ from chantier.plugin_files import read_wake_rules
 SRC = Path(__file__).resolve().parents[1] / "src" / "chantier"
 DEFAULTS = PLUGIN_ROOT / "config" / "chantier.defaults.yml"
 CARD = PLUGIN_ROOT / "skills" / "chantier" / "references" / "chief-of-staff.md"
-BOARD = {"kind": "board", "action": "move", "items": ["x"], "text": "x", "wakes": True}
-MERGED = {"kind": "merged", "batch": "b", "cr": "CR-1", "pr": "P", "into": "main", "merged_at": "t"}
-CONFIG = {"kind": "config", "key": "batch.slots", "old": 4, "new": 6, "batch": None}
+BOARD = {"type": "board@1", "action": "move", "items": ["x"], "text": "x", "wakes": True}
+MERGED = {
+    "type": "merged@1",
+    "batch": "b",
+    "cr": "CR-1",
+    "pr": "P",
+    "into": "main",
+    "into_cr": None,
+    "merged_at": "t",
+}
+CONFIG = {"type": "config@1", "key": "batch.slots", "old": 4, "new": 6, "batch": None}
 SECOND = 2
-HEAD = ["v", "seq", "t", "kind", "source", "audience"]
+HEAD = ["v", "seq", "t", "type", "source", "audience"]
 
 
 def raw(repo: Path, *lines: dict[str, Any]) -> None:
@@ -44,11 +52,11 @@ def raw(repo: Path, *lines: dict[str, Any]) -> None:
 
 
 @pytest.mark.parametrize("source", journal.SOURCES)
-def test_an_append_writes_a_version_one_line_for_the_project(repo: Path, source: str) -> None:
+def test_an_append_writes_a_version_two_line_for_the_project(repo: Path, source: str) -> None:
     found = Repo.find()
     (one, two) = journal.append(found, [MERGED, {**BOARD, "audience": ["project", "user"]}], source)
-    assert list(one)[: len(HEAD)] == HEAD and "by" not in one
-    assert (one["v"], one["seq"], one["source"], one["audience"]) == (1, 1, source, ["project"])
+    assert list(one)[: len(HEAD)] == HEAD and "by" not in one and "kind" not in one
+    assert (one["v"], one["seq"], one["source"], one["audience"]) == (2, 1, source, ["project"])
     assert (two["seq"], two["audience"]) == (2, ["project", "user"])
     assert {k: one[k] for k in MERGED} == MERGED  # the payload is unchanged
     on_disk = json.loads((changes(repo) / journal.FILE).read_text("utf-8").splitlines()[0])
@@ -59,7 +67,7 @@ def test_an_append_writes_a_version_one_line_for_the_project(repo: Path, source:
     ("source", "event"),
     [
         ("nobody", MERGED),
-        ("hub", {**MERGED, "kind": "ci-red"}),
+        ("hub", {**MERGED, "type": "ci-red@1"}),
         ("hub", {**MERGED, "audience": ["Project"]}),
         ("hub", {**MERGED, "audience": ["role:"]}),
         ("hub", {**MERGED, "audience": ["cr:a b"]}),
@@ -67,7 +75,7 @@ def test_an_append_writes_a_version_one_line_for_the_project(repo: Path, source:
         ("hub", {**MERGED, "audience": "project"}),
     ],
 )
-def test_an_append_refuses_a_source_a_kind_or_an_audience_of_a_wrong_form(
+def test_an_append_refuses_a_source_a_type_or_an_audience_of_a_wrong_form(
     repo: Path, source: str, event: dict[str, Any]
 ) -> None:
     with pytest.raises(ValueError, match="journal"):
@@ -79,23 +87,26 @@ def test_a_version_zero_line_reads_as_the_projects_and_a_newer_one_wakes_no_one(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     open_batch(repo, chantier, monkeypatch, "Alpha")
-    old = {"seq": 1, "t": "t", "by": "board", **BOARD}  # a line today's writers no longer produce
-    later = {"v": 2, "seq": 2, "t": "t", "kind": "merged", "source": "x", "audience": ["project"]}
+    # a line today's writers no longer produce
+    old = {"seq": 1, "t": "t", "by": "board", **{**BOARD, "kind": "board"}}
+    del old["type"]
+    later = {"v": 3, "seq": 2, "t": "t", "type": "merged@1", "source": "x", "audience": ["project"]}
     raw(repo, old, later)
     found = Repo.find()
-    entries, bad, newer = journal.read(found.changes)
+    entries, bad, newer, unknown = journal.read(found.changes)
     assert (entries[0]["source"], entries[0]["audience"]) == ("board", ["project"])
-    assert (bad, newer, entries[1]["audience"]) == ([], [(2, 2)], [])
+    assert (bad, newer, unknown, entries[1]["audience"]) == ([], [(2, 3)], [], [])
+    assert entries[0]["type"] == "board@1"
     w = Watch(found, 0, __version__)
     assert w.poll(0.0) is None and w.cursor == SECOND  # the cursor passes the newer line
     assert w.poll(float(QUIET)) == EVENTS
     w.close()
-    assert [x for x in w.lines(EVENTS) if "board wrote" in x] == [journal.board_text(old)]
+    assert [x for x in w.lines(EVENTS) if "board wrote" in x] == [schemas.board_text(old)]
     assert len(w.events) == 1  # the newer line is told by no one
     (third,) = journal.append(found, [MERGED], "hub")
     assert third["seq"] == SECOND + 1
     status = chantier("status")[1]
-    assert f"{journal.FILE}: line 2 is version 2, newer than this chantier: update it" in status
+    assert f"{journal.FILE}: line 2 is version 3, newer than this chantier: update it" in status
 
 
 # (the lines' audiences, the watcher's --for values, its key, whether it ends)

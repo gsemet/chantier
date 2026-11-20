@@ -1518,11 +1518,11 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
         check(f"a move of {bad!r}, not in the backlog, is refused", code == 409
               and not body.get("ok"), f"{code} {body}")
     seen = forge_lines()
-    check("the three moves made one `board` line each in the project's `forge-journal.jsonl` and "
+    check("the three moves made one `board@1` line each in the project's `forge-journal.jsonl` and "
           "the refused ones none; git ignores the file",
-          [(e["v"], e["source"], e["audience"], e["kind"], e["action"], e["items"], e["wakes"])
+          [(e["v"], e["source"], e["audience"], e["type"], e["action"], e["items"], e["wakes"])
            for e in seen]
-          == [(1, "board", ["project"], "board", "move", [slug], True)] * 3
+          == [(2, "board", ["project"], "board@1", "move", [slug], True)] * 3
           and [e["seq"] for e in seen] == [1, 2, 3]
           and w.sh("git", "check-ignore", ".agents/changes/forge-journal.jsonl").strip() != "",
           str(seen))
@@ -1639,7 +1639,7 @@ def board_prs(w: World, port: int, link: Link, project: str, ids: tuple[str, str
         path = w.state / "forge-journal.jsonl"
         found = ([json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
                  if path.is_file() else [])
-        return [e for e in found if e["kind"] == "merged"]
+        return [e for e in found if e["type"] == "merged@1"]
 
     def signal_lines(*args) -> list[str]:
         w.chantier(*args, expect=None)
@@ -1882,8 +1882,8 @@ def forge_hub(w: World) -> None:
               got == [says(a[0], 910, "2026-11-16T10:00:00Z"), cursor(1)], str(got))
         entries = journal()
         check("the journal holds the merge once, written by the hub, and git ignores the file",
-              [(e["v"], e["seq"], e["source"], e["audience"], e["kind"], e["cr"]) for e in entries]
-              == [(1, 1, "hub", ["project"], "merged", a[0])]
+              [(e["v"], e["seq"], e["source"], e["audience"], e["type"], e["cr"]) for e in entries]
+              == [(2, 1, "hub", ["project"], "merged@1", a[0])]
               and sw.sh("git", "check-ignore", "projects/demo/changes/forge-journal.jsonl",
                         cwd=sw.surface).strip() != "", str(entries))
         _, out = sw.chantier("status", expect=None)
@@ -1999,7 +1999,7 @@ def forge_hub(w: World) -> None:
         check("a board write on the other project", write("other", "Rescan idea two") == 200)
         time.sleep(7)
         check("it does not end A's watcher, and lands in the other project's journal, not A's",
-              wa.p.poll() is None and [e["kind"] for e in journal("other")] == ["board"]
+              wa.p.poll() is None and [e["type"] for e in journal("other")] == ["board@1"]
               and len(journal()) == 6, f"{wa.p.poll()} {journal('other')}")
         sw.chantier("seat", "take", "sess-z", "--env", "remote", "--title", "[Remote] Proj", "--link",
                     "link-z", env={"CLAUDE_CODE_SESSION_ID": "uuid-chief-b"})
@@ -2021,12 +2021,13 @@ def forge_hub(w: World) -> None:
                   x == "-X" or x.startswith("query=mutation") for x in c) for c in calls), str(calls[:1]))
         check("B's `batch.json` and `events.jsonl` are as the hub found them, and B's journal holds its board line only",
               all((folder("other") / "4-batch" / f).read_bytes() == v
-                  for (p, f), v in before.items() if p == "other") and [e["kind"] for e in journal("other")] == ["board"],
+                  for (p, f), v in before.items() if p == "other") and [e["type"] for e in journal("other")] == ["board@1"],
               str(journal("other")))
-        # 9. a journal from before (version 0 lines): a board write appends a version 1 line after
+        # 9. a journal from before (version 0 lines): a board write appends a version 2 line after
         # them, and the watcher started with the printed `--after` prints it once
         (one,) = journal("other")
-        old = {"seq": 1, "t": one["t"], "by": "board", **{k: one[k] for k in ("kind", "action", "items", "text", "wakes")}}
+        old = {"seq": 1, "t": one["t"], "by": "board", "kind": one["type"].split("@")[0],
+               **{k: one[k] for k in ("action", "items", "text", "wakes")}}
         (folder("other") / "forge-journal.jsonl").write_text(json.dumps(old) + os.linesep, encoding="utf-8")
         wb.stop()
         wb = watcher("other", "--after", 1)
@@ -2034,10 +2035,10 @@ def forge_hub(w: World) -> None:
         check("a board write on a journal of version 0 lines", write("other", "Rescan idea three") == 200)
         got = ended(wb)
         after = journal("other")
-        check("the version 0 line is kept as written, the board's line follows it in version 1, "
+        check("the version 0 line is kept as written, the board's line follows it in version 2, "
               "and the watcher prints that line once",
               after[0] == old and (after[1]["v"], after[1]["seq"], after[1]["source"], after[1]["audience"])
-              == (1, 2, "board", ["project"]) and len(got) == 2 and got[0].startswith("board wrote (new): "),
+              == (2, 2, "board", ["project"]) and len(got) == 2 and got[0].startswith("board wrote (new): "),
               f"{after} {got}")
     finally:
         for proc in reversed(procs):
@@ -2161,7 +2162,7 @@ def surface_server(w: World) -> None:
               bool(got) and got[0].startswith(f"forge saw merged: {a[0]} {url(930)} into main at ")
               and f"order merged {a[0]}" in got[0], str(got))
         check("the journal holds the merge once, written by the hub",
-              [(e["source"], e["kind"], e["cr"]) for e in journal()] == [("hub", "merged", a[0])],
+              [(e["source"], e["type"], e["cr"]) for e in journal()] == [("hub", "merged@1", a[0])],
               str(journal()))
         # 4. the board stops: a watcher is the hub; the board returns: the watcher yields
         kill_server()

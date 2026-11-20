@@ -241,9 +241,9 @@ def test_a_merge_the_record_lacks_is_signalled_once_and_a_cached_read_writes_not
     board.get()
     (first,) = seen_lines(board)
     assert {k: v for k, v in first.items() if k != "t"} == {
-        "v": 1,
+        "v": 2,
         "seq": 1,
-        "kind": "merged",
+        "type": "merged@1",
         "source": "board",
         "audience": ["project"],
         "batch": record(board.repo)["id"],
@@ -363,7 +363,7 @@ def test_status_names_what_it_cannot_read_and_prints_only_the_open_crs_of_its_ba
     write_record(board.repo, data)
 
     def entry(cr: str, **more: Any) -> str:
-        found = {"kind": "merged", "batch": batch, "cr": cr, "pr": "P", "into": "main"}
+        found = {"v": 2, "type": "merged@1", "batch": batch, "cr": cr, "pr": "P", "into": "main"}
         return json.dumps({**found, "into_cr": None, "merged_at": "t", **more})
 
     lines = [

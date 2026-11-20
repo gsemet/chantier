@@ -1,5 +1,5 @@
-"""What the Chief of Staff's watcher hears of the board: the board's and the roles' `config` lines,
-which wake it or not, the end on another session's seat, the pull path and the lines never
+"""What the Chief of Staff's watcher hears of the board: the board's and the roles' `config@1`
+lines, which wake it or not, the end on another session's seat, the pull path and the lines never
 deduplicated. No test sleeps: the end is driven with an injected monotonic time."""
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from chantier.hub.watch import EVENTS, SEAT, Watch
 
 def board_line(wakes: bool, action: str = "move") -> dict[str, Any]:
     return {
-        "kind": "board",
+        "type": "board@1",
         "action": action,
         "items": ["x"],
         "text": "x: priority P2 -> P1",
@@ -35,7 +35,7 @@ def board_line(wakes: bool, action: str = "move") -> dict[str, Any]:
 
 def role_line() -> dict[str, Any]:
     key = "hosts.claude-code.roles.coder.model"
-    return {"kind": "config", "key": key, "old": "a", "new": "b", "batch": None}
+    return {"type": "config@1", "key": key, "old": "a", "new": "b", "batch": None}
 
 
 RED = journal.red_event("batch-01", "CR-1", "P", "c" * 40)
@@ -83,7 +83,7 @@ def test_a_watcher_ends_twenty_seconds_after_the_last_line_that_wakes(
         out = w.lines(EVENTS)
         assert out[-1] == f"watch: {name} {text}{watch_command(found, w.cursor)}"
         assert len(out) == len(w.events) + 1
-        boards = sum(1 for x in lines if x["kind"] == "board")
+        boards = sum(1 for x in lines if x["type"] == "board@1")
         assert sum(1 for x in out if x.startswith("board wrote")) == boards
 
 
@@ -175,11 +175,12 @@ def test_the_board_and_config_lines_are_never_duplicates_and_status_holds_none(
     found = Repo.find()
     twice = [board_line(True), board_line(True), role_line(), role_line()]
     merge = {
-        "kind": "merged",
+        "type": "merged@1",
         "batch": "b",
         "cr": "CR-1",
         "pr": "P",
         "into": "main",
+        "into_cr": None,
         "merged_at": "t",
     }
     written = journal.append(found, [*twice[:2], merge, *twice[2:], merge], "board")

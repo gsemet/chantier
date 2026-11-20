@@ -1,0 +1,208 @@
+{
+  "board@1": {
+    "additionalProperties": false,
+    "properties": {
+      "action": {
+        "title": "Action",
+        "type": "string"
+      },
+      "items": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "wakes": {
+        "title": "Wakes",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "action",
+      "items",
+      "text",
+      "wakes"
+    ],
+    "title": "Board1",
+    "type": "object"
+  },
+  "checks-red@1": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "title": "Batch",
+        "type": "string"
+      },
+      "cr": {
+        "pattern": "^CR-[0-9]+$",
+        "title": "Cr",
+        "type": "string"
+      },
+      "head": {
+        "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+        "title": "Head",
+        "type": "string"
+      },
+      "pr": {
+        "title": "Pr",
+        "type": "string"
+      }
+    },
+    "required": [
+      "batch",
+      "cr",
+      "pr",
+      "head"
+    ],
+    "title": "ChecksRed1",
+    "type": "object"
+  },
+  "config@1": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Batch"
+      },
+      "key": {
+        "title": "Key",
+        "type": "string"
+      },
+      "new": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "New"
+      },
+      "old": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Old"
+      }
+    },
+    "required": [
+      "key",
+      "old",
+      "new",
+      "batch"
+    ],
+    "title": "Config1",
+    "type": "object"
+  },
+  "merged@1": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "title": "Batch",
+        "type": "string"
+      },
+      "cr": {
+        "pattern": "^CR-[0-9]+$",
+        "title": "Cr",
+        "type": "string"
+      },
+      "into": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Into"
+      },
+      "into_cr": {
+        "anyOf": [
+          {
+            "pattern": "^CR-[0-9]+$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Into Cr"
+      },
+      "landed_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Landed At"
+      },
+      "landed_with": {
+        "anyOf": [
+          {
+            "pattern": "^CR-[0-9]+$",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Landed With"
+      },
+      "merged_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Merged At"
+      },
+      "pr": {
+        "title": "Pr",
+        "type": "string"
+      }
+    },
+    "required": [
+      "batch",
+      "cr",
+      "pr",
+      "into",
+      "into_cr",
+      "merged_at"
+    ],
+    "title": "Merged1",
+    "type": "object"
+  }
+}

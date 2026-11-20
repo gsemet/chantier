@@ -59,10 +59,10 @@
   does not hold, it appends one line to `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent; a third, from its Configuration page: a save
-  appends one `config` line to the same journal (`by: board`) for each key whose effective value it
+  appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
   changes (the two limits, and each role's agent, model and escalation), which `status` and the
   watcher carry to the Chief of Staff; and each write it makes to the backlog also appends one
-  `board` line to that project's `forge-journal.jsonl`, which the Chief of Staff's watcher reads;
+  `board@1` line to that project's `forge-journal.jsonl`, which the Chief of Staff's watcher reads;
   it takes its dependencies like the rest of the CLI and knows no role. The same process is the
   forge hub while it runs (one per planning surface and machine, started by the Chief of Staff on
   the user's yes): it holds the OS file lock in the git folder (`chantier/hub.lock`) and, with

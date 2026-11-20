@@ -1382,8 +1382,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
     no), run the printed `watch --once` command (the `watch: not running` line's `after the
     user's no` clause, the `pull path` line of `status`, or the last `--once` output's `next`
     line) at the start of each turn the user's message opens: run it as is: no flag added. Tell
-    its `board wrote` and role `config` lines as above, and act on its merge and two-key
-    `config` lines as at a watcher's end. A line whose `seq` was already told is not told
+    its `board wrote` and role `config@1` lines as above, and act on its merge and two-key
+    `config@1` lines as at a watcher's end. A line whose `seq` was already told is not told
     again.
   - *Never:* start a second watcher in the same session while one runs; stop another session's
     watcher; start one after the user's no in this session.

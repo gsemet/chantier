@@ -2,8 +2,9 @@
 `agent`, `model` or `escalation`, or of the two limits, in the planning surface's project file.
 The reading, the checks and the writing are the CLI's (`playbook/edit.py`); this module only
 routes to them and adds the journals' lines: the board's own, and, for each key whose effective
-value changed, one `config` line in the forge journal (a signal the watcher and `status` carry to
-the Chief of Staff)."""
+value changed, one `config@1` line in the forge journal (a signal the watcher and `status` carry to
+the Chief of Staff). A `config@1` event its model refuses is set aside: the save stays written
+and the reply's `error` says `skipped: <message>`."""
 
 from __future__ import annotations
 
@@ -114,9 +115,9 @@ def _config_changes(
 
 
 def _event(key: str, old: Any, new: Any, batch: tuple[str, int] | None) -> dict[str, Any]:
-    """The forge journal's `config` line of one limit."""
+    """The forge journal's `config@1` event of one key."""
     return {
-        "kind": "config",
+        "type": "config@1",
         "key": key,
         "old": old,
         "new": new,
@@ -144,7 +145,10 @@ def _put(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
         words = "; ".join(_word(c, view) for c in data["changes"])
         moved = _config_changes(data["changes"], before, view)
         batch = _open_batch(repo)
-        forge_journal.append(repo, [_event(k, o, n, batch) for k, o, n in moved], "board")
+        accepted, refused = forge_journal.set_aside([_event(k, o, n, batch) for k, o, n in moved])
+        forge_journal.append(repo, accepted, "board")
+        if refused:
+            body["error"] = forge_journal.skipped(refused)
         roles = any("host" in c for c in data["changes"])
         body["lines"] = [
             f"wrote {view['file']}",

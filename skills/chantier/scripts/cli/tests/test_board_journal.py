@@ -1,4 +1,4 @@
-"""The board's backlog writes leave one `board` line each in their project's forge journal, which
+"""The board's backlog writes leave one `board@1` line each in their project's forge journal, which
 the Chief of Staff's watcher reads; a refusal, a drop on the same column and a rescan leave none."""
 
 from __future__ import annotations
@@ -8,6 +8,8 @@ import json
 import shutil
 from http import HTTPStatus
 from typing import Any
+
+import pytest
 
 from chantier.board import key as keys
 from chantier.board import routes
@@ -51,7 +53,7 @@ def _write_call(surface: Any) -> Any:
 
 
 def _lines(repo: Repo) -> list[dict[str, Any]]:
-    return [e for e in forge_journal.read(repo.changes)[0] if e["kind"] == "board"]
+    return [e for e in forge_journal.read(repo.changes)[0] if e["type"] == "board@1"]
 
 
 def test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal(
@@ -94,3 +96,18 @@ def test_a_refusal_a_rescan_and_another_project_leave_no_line_here(surface: Any)
     assert call("POST", "backlog/new", {"text": "elsewhere"}, "other")[0] == HTTPStatus.OK
     assert [e["action"] for e in _lines(other)] == ["new"]
     assert not any(e.get("items") == ["elsewhere"] for e in _lines(demo))
+
+
+def test_a_board_event_its_model_refuses_leaves_the_write_and_names_the_skipped_line(
+    surface: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # a prepared refusal: an event builder patched to add a field its model does not hold
+    build = forge_journal.board_event
+    monkeypatch.setattr(forge_journal, "board_event", lambda *a: {**build(*a), "unexpected": 1})
+    call = _write_call(surface)
+    demo = Repo.find(project="demo", readonly=True)
+    code, answer = call("POST", "backlog/new", {"text": "an idea"})
+    assert code == HTTPStatus.OK and answer["ok"] is True
+    assert answer["error"].startswith("skipped: journal payload board@1:")
+    assert (demo.changes / "1-inbox" / SLUG).exists() and answer["journal"]
+    assert _lines(demo) == []
