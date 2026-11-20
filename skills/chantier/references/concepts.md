@@ -132,7 +132,7 @@ At startup, identify the role, batch, project and parent session.
   each batch leaves `5-archives/batches/batch-NN.json` (for a UI; written by `open` as `running`,
   completed by `close`) and `batch-NN.md` (for a person: the Completion table, the cost, the retro).
   The next batch number is read from these records. `$CHANTIER validate` checks the whole planning
-  folder (stages, CR folders, `summary.json`'s format, missing or late summaries, broken links
+  folder (stages, CR folders, outside archives' names, `summary.json`'s format, missing or late summaries, broken links
   between its Markdown files), writes nothing, exits 0 when it finds only gaps (their count on its
   first line), 3 on errors and 1 when it cannot run; a surface's own validation calls it; it
   blocks no other command.

@@ -4,6 +4,7 @@ and what a live CR folder holds (shape). Read-only; it returns findings and repa
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +42,8 @@ CR_FILES = (
 )
 LAYOUT_GAP = 'not in a CR folder\'s layout (concepts.md, "Change Request")'
 LIVE_STAGES = ("inbox", "ready", "pending", "actives", "done")
+OUTSIDE_CLAIM = re.compile(r"^(?:\d{6}(?:-\d{4})?-)?outside-")
+OUTSIDE_NAME = re.compile(r"^\d{6}-\d{4}-outside-\d+-[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 @dataclass(frozen=True)
@@ -129,10 +132,23 @@ def _backlog_and_batch(repo: Repo, paths: dict[str, Path]) -> list[Finding]:
     return found
 
 
+def _outside_names(repo: Repo, paths: dict[str, Path]) -> list[Finding]:
+    """A folder of `5-archives` that claims the outside form (`outside-` at its start or after a
+    date or stamp) must be named `<YYMMDD-HHMM>-outside-<number>-<slug>`; other names are free."""
+    text = "not an outside archive's name (<YYMMDD-HHMM>-outside-<number>-<slug>) → rename it"
+    return [
+        Finding("error", repo.rel(folder), text)
+        for folder in _dirs(paths["archives"])
+        if folder.name != "batches"
+        and OUTSIDE_CLAIM.match(folder.name)
+        and not OUTSIDE_NAME.match(folder.name)
+    ]
+
+
 def placement(repo: Repo) -> list[Finding]:
     """Where a CR folder may stand, in every stage: errors."""
     paths = stage_layout(repo)
-    found = _top_level(repo) + _backlog_and_batch(repo, paths)
+    found = _top_level(repo) + _backlog_and_batch(repo, paths) + _outside_names(repo, paths)
     for stage in (*LIVE_STAGES, "archives", "trash"):
         found += [
             Finding("error", repo.rel(folder), "a priority folder outside 2-backlog")

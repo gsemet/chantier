@@ -265,6 +265,38 @@ def test_the_archives_and_the_trash_keep_their_format_only(repo: Path, chantier:
     assert lines[2] == "gap 6-trash/y/summary.json: title is 73 characters: the limit is 72"
 
 
+@pytest.mark.parametrize(
+    ("name", "bad"),
+    [
+        ("261120-1015-outside-42-fix-typo", False),
+        ("261120-1015-outside-fix-typo", True),
+        ("outside-42-fix-typo", True),
+        ("261120-outside-42-fix-typo", True),
+        ("261120-1015-outside-42-Fix_Typo", True),
+        ("261120-1015-outside-42-", True),
+        ("261120-1015-412-outside-contributions-archive", False),
+        ("264-edit-outside-trusted-workspace", False),
+    ],
+)
+def test_an_outside_archive_is_named_in_its_form(
+    repo: Path, chantier: Chantier, name: str, bad: bool
+) -> None:
+    base = repo / ".agents" / "changes"
+    files = {
+        "intake/request.md": "# Fix\n",
+        "delivery.md": "# Delivery\n",
+        "summary.json": summary(),
+    }
+    build(base, {f"5-archives/{name}/{n}": t for n, t in files.items()})
+    code, lines, _ = chantier("validate")
+    if not bad:
+        assert (code, lines) == (0, ["no error, no gap (1 CRs)"]), lines
+        return
+    error = f"error 5-archives/{name}: not an outside archive's name"
+    hint = "(<YYMMDD-HHMM>-outside-<number>-<slug>) → rename it"
+    assert code == EXIT_CONFLICT and lines[1:] == [f"{error} {hint}"], lines
+
+
 def test_validate_cannot_run_on_a_surface_without_a_project(
     surface: Surface, chantier: Chantier
 ) -> None:

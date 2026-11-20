@@ -20,6 +20,7 @@ Everything lives in the planning folder, `.agents/changes/` in your project or
 │   │                                      branch chantier/batch-<n>/… and worktree next to the repo
 │   └── 3-done/<number>-<slug>/            merged, until `close`
 ├── 5-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged, after `close` (time of the merge, UTC)
+├── 5-archives/<YYMMDD-HHMM>-outside-<number>-<slug>/   a PR merged without chantier, archived on your word
 ├── 5-archives/batches/batch-NN.json|md          each batch's record: for a UI, for a person (the retro)
 └── 6-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word (cancelled)
 ```
@@ -76,7 +77,7 @@ Markdown. A late summary blocks nothing, and the STATUS files read the same with
 
 `chantier validate` checks the whole planning folder and writes nothing: a backlog CR's `waits.json` must be `{"schema": 1, "waits": [...]}` of waits with an `id`
 (`w<n>`), a `type` and text fields (an error otherwise), and under `4-batch/` it is an unknown file (a gap); the placement of CR folders
-(a CR outside a stage, nested in another, a priority folder outside `2-backlog`) and the format of
+(a CR outside a stage, nested in another, a priority folder outside `2-backlog`) and the names of outside archives (`<YYMMDD-HHMM>-outside-<number>-<slug>`) and the format of
 every `summary.json`, in every stage; the missing or late summaries, the shape of each CR folder
 (a request, the entries of its tree) and the broken links between Markdown files, in the live
 stages only (`5-archives` and `6-trash` are history). Its first line gives the counts

@@ -30,6 +30,7 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | the Foreman's `ready <batch>` at a factory batch's pause | the progress and completion report; no retro, no close offer: the batch waits for its next ready CR | While it runs |
 | the close, offered at the pause (or "close the batch") | `$CHANTIER close` (the check; refused while anything runs; it prices the final cost), show the bilan, that cost and its line of worktrees and branches to remove, ask "close the batch?"; `close --yes` only on the user's yes | While it runs |
 | add, drop, reorder, change a CR; "I merged #42", a `forge saw merged` line in `status` or at a watcher's end; more rounds, slots or budget | `$CHANTIER order …`, then send its line to the Foreman (`order qa`: the line and the `qa-driver prompt` block together; in direct mode, do what it needs yourself) | While it runs |
+| "archive <link>" (a PR or MR merged outside chantier) | read it with the forge's CLI, write its outside archive in `5-archives/`, `summary set` on it; with `writer: not running`, write nothing | With a planning surface ("Outside contributors") |
 | a watcher's end (its background task ended) | read its output, act on each line as in [The watcher](#the-watcher); its last line `watch: <batch> still running: …` names the restart: run the printed command as is: no flag added (on the session's yes already given) | While it runs |
 | a `watch: not running` line in any output (`open`, `take`, `order qa`, `foreman transcript`, `status`) | start the watcher now in the background, by the host's means, on the session's yes (asked once per session): run the printed command as is: no flag added; after the user's no in this session, ignore the line | While it runs |
 | "what did it cost?" | `$CHANTIER cost` | While it runs |
@@ -395,6 +396,44 @@ say, its `AGENTS.md` first; its writer commits and pushes the plan (below). A cl
 contributors submit a CR by a PR on the surface, which the user reviews and merges on the forge;
 a CR so merged into `1-inbox` or `2-backlog/P<n>` is read like any other. Never touch the
 project's clone except by `git -C <clone>`.
+
+**An outside PR** (merged on the project without chantier), only on the user's word, "archive
+<link>": never offered unprompted, never from a forge read of your own.
+
+- In a planning surface, read the `writer:` line first (`$CHANTIER sync`). With `writer: not
+  running`, write nothing (no folder, no file, no `summary set`), say so in one line, act as that
+  line says (start the surface server, or, when it names an older board, ask the user to stop it),
+  then archive. In-project mode has no writer and refuses nothing: write in
+  `.agents/changes/5-archives/` like any other write there.
+- Read the PR with the forge's CLI, read-only: GitHub `gh pr view <link> --json
+  number,title,url,author,state,mergedAt,files,body`; GitLab `glab mr view <link>` and its changed
+  files with `glab` as the installed version allows. You need the title, link, author, merge time,
+  files changed and description.
+- Write nothing, and say why in one line, when the PR is not merged (`state` is not `MERGED`, or no
+  merge time); a CR of a batch's record names it (it is chantier's: `order merged` records it); an
+  outside archive of its number already exists (`5-archives/*-outside-<number>-*`): name it.
+- Write `5-archives/<YYMMDD-HHMM>-outside-<number>-<slug>/`, UTF-8 without a byte-order mark: the
+  time is the merge time, UTC; the number is the forge's, digits only; the slug is the title as
+  `file` makes one (lowercase letters and digits, other runs one hyphen, at most 40 characters).
+  Two files: `intake/request.md`, the description as received (an empty one: the title alone as a
+  `# ` heading line); and `delivery.md`:
+
+  ```markdown
+  # Delivery
+
+  - PR: <the PR's link>
+  - Author: <the author's login>
+  - Merged: <the merge time, YYYY-MM-DDTHH:MM:SSZ, UTC>
+  - Archive in the PR: no
+
+  <what changed, in a few lines: the files changed, grouped, and what the PR does>
+  ```
+- Then `$CHANTIER summary lint <the folder>` and `$CHANTIER summary set <the folder> --title "<the
+  PR's title>" --summary "<one line: what it changed, by whom>"`. The writer publishes it at its
+  next cycle (`$CHANTIER sync now` to publish at once). When `summary set` is refused (exit 2: the
+  writer stopped), the files stay in the working tree for the next writer: tell the user, and run
+  it again once `writer:` is back.
+- Reply in one line: `archived <link> at 5-archives/<name>/`.
 
 The surface's writer ([concepts](concepts.md)) commits and pushes the plan. You never commit the
 plan by hand; the surface's other files stay yours to commit, by hand. While a writer runs you
