@@ -220,6 +220,7 @@ def test_a_failed_git_step_waits_a_cycle_then_blocks_once_and_resumes(
     hook = r.root / ".git" / "hooks" / "pre-commit"
     hook.parent.mkdir(exist_ok=True)
     hook.write_text("#!/bin/sh\necho refused by the hook >&2\nexit 1\n", encoding="utf-8")
+    hook.chmod(0o755)  # git skips a hook with no exec bit on POSIX
     r.git("config", "core.hooksPath", str(hook.parent))
     r.write("projects/demo/changes/1-inbox/idea/01-intent.md")
     r.tick()
