@@ -3,6 +3,7 @@ at once as the project allows."""
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import time
@@ -13,7 +14,7 @@ from chantier import procs
 from chantier.core.errors import ChantierError
 from chantier.core.files import try_lock, unlock
 from chantier.core.repo import Repo
-from chantier.gate_queue import MARK, QUEUE, ordered, ticket_cr
+from chantier.gate_queue import MARK, QUEUE, _shared, ordered, ticket_cr
 from chantier.gate_slots import (
     Slot,
     lock_text,
@@ -58,6 +59,7 @@ class LongGateLock:
         self.repo, self.cr, self.log, self.parallel = repo, cr, log, parallel
         self.f: IO[str] | None = None
         self.slot: Slot = slot(repo, 1)
+        self.left = False  # the ticket or its mark could not be removed: `__exit__` tries again
 
     def _wait_note(self, holder: str) -> None:
         with open(self.log, "a", encoding="utf-8") as f:
@@ -82,16 +84,30 @@ class LongGateLock:
         self.ticket = self.queue / f"{time.time_ns():020d}-{os.getpid()}"
         tmp = self.queue / f".{self.ticket.name}.tmp"  # atomic: a reader never sees half a ticket
         tmp.write_text(f"{self.cr} pid {os.getpid()}", encoding="utf-8")
-        os.replace(tmp, self.ticket)
+        try:
+            _shared(os.replace, tmp, self.ticket)
+        except PermissionError:
+            with contextlib.suppress(OSError):
+                tmp.unlink()
+            raise
         try:
             self._acquire()
         except BaseException:
             self._release()
             raise
         finally:
-            self.ticket.unlink(missing_ok=True)
-            (self.queue / f"{MARK}{self.ticket.name}").unlink(missing_ok=True)
+            self._unlink_ticket()
         return self
+
+    def _unlink_ticket(self) -> None:
+        """Remove the ticket and its mark; one that stays (`PermissionError`) is noted in `left`,
+        and the next waiting gate drops it once this process ends."""
+        self.left = False
+        for p in (self.ticket, self.queue / f"{MARK}{self.ticket.name}"):
+            try:
+                _shared(p.unlink, True)
+            except PermissionError:
+                self.left = True
 
     def _take(self) -> bool:
         """Try the slots 1 to N in order; the first free one is this gate's."""
@@ -160,3 +176,6 @@ class LongGateLock:
             self.holding("")
         finally:
             self._release()
+            if self.left:
+                with contextlib.suppress(OSError):
+                    self._unlink_ticket()

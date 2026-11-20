@@ -8,7 +8,9 @@ from __future__ import annotations
 import contextlib
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from chantier import procs
 from chantier.core.errors import ChantierError
@@ -21,13 +23,24 @@ QUEUE = ".long-gate.queue"
 MARK = "first-"
 
 
+def _shared(op: Callable[..., Any], *args: Any) -> Any:
+    """`op(*args)`, tried again every 10 ms for about 300 ms on a `PermissionError` (on Windows,
+    the other gate holds the file open for a moment), on every OS; then the last one is raised."""
+    for _ in range(29):
+        try:
+            return op(*args)
+        except PermissionError:
+            time.sleep(0.01)
+    return op(*args)
+
+
 def read_ticket(p: Path) -> tuple[str, int] | None:
     """The CR and pid a queue ticket names; None if it is gone or stays unreadable. It deletes
     nothing."""
     for _ in range(5):  # the other side may be writing it
         try:
             m = re.fullmatch(r"(\S+) pid (\d+)", p.read_text(encoding="utf-8").strip())
-        except FileNotFoundError:
+        except (FileNotFoundError, PermissionError):  # leaving the queue: gone for this pass
             return None
         except (OSError, ValueError):
             m = None
@@ -71,9 +84,9 @@ def ordered(queue: Path, drop: bool = False) -> list[Path]:
     marks = {p.name for p in queue.glob(f"{MARK}*")}
     if drop:
         names = {t.name for t in tickets}
-        for m in marks:
-            if m[len(MARK) :] not in names:
-                (queue / m).unlink(missing_ok=True)
+        for m in (m for m in marks if m[len(MARK) :] not in names):
+            with contextlib.suppress(FileNotFoundError, PermissionError):
+                (queue / m).unlink()
     nxt = next_merge_cr(queue)
 
     def is_next(p: Path) -> bool:
@@ -100,7 +113,8 @@ def move_first(repo: Repo, cr: str) -> list[str] | None:
         return None
     ahead = [c for p, c in live[: live.index((mine[0], cr))] if c and c != cr]
     for p in mine:
-        (queue / f"{MARK}{p.name}").touch()
+        with contextlib.suppress(PermissionError):  # a mark pending deletion: its ticket leaves
+            _shared((queue / f"{MARK}{p.name}").touch)
     return ahead
 
 
