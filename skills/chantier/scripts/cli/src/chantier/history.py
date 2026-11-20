@@ -6,7 +6,7 @@ they are read and written is in `chantier.core.batch_records`.
 from __future__ import annotations
 
 from chantier.core.batch_records import Rec, open_record
-from chantier.core.records import BatchRecord, CrEntry
+from chantier.core.records import TRASH, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.core.steering import NO_SESSION
 from chantier.rails import usd_text
@@ -31,18 +31,23 @@ def last_closed_text(record: Rec | None) -> str:
 
 
 def archive_of(c: CrEntry) -> str | None:
-    """A CR's folder after `close`, relative to the planning folder, in `/` form."""
+    """A CR's folder after `close`, relative to the planning folder, in `/` form; None for a CR
+    moved to the inbox or the backlog, which stays there, out of the batch's archive."""
     path = c.path
+    if c.moved_to():
+        return None
     return str(path).replace("\\", "/") if path else None
 
 
 def cr_entry(c: CrEntry, by_cr: Rec) -> Rec:
     cost = by_cr.get(c.id)
+    to = {} if c.status == "merged" else {"to": c.left_to or TRASH}  # an older drop: trash
     return {
         "cr": c.id,
         "title": c.title,
         "result": "merged" if c.status == "merged" else "dropped",
         "archive": archive_of(c),
+        **to,
         "pr": c.shown_pr(),
         "rounds": c.round,
         "cost_usd": round(cost[1], 4) if cost else None,

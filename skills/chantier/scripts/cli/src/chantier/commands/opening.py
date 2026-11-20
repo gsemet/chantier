@@ -29,6 +29,7 @@ from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import (
     changes_lock,
     cr_directory,
+    cr_slug,
     ensure_unclaimed,
     prepared_cr,
     stage_layout,
@@ -83,12 +84,6 @@ def add_cr(b: Batch, item: str, kind: str = "change") -> CrEntry:
     b.record.append("crs", c)
     b.log("add", cr_id, title=title, path=c.path, origin=origin)
     return c
-
-
-def cr_slug(folder_name: str) -> str:
-    """A CR folder's name without its date and its number: how `depends.json` names it."""
-    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", folder_name)
-    return re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
 
 
 def read_depends(folder: Path) -> list[str]:

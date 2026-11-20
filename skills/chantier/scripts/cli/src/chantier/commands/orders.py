@@ -20,7 +20,7 @@ from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
-from chantier.core.records import LIVE, OrderRecord
+from chantier.core.records import LIVE, TRASH, OrderRecord
 from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, DriverRow, driver_prompt_lines, driver_row
 from chantier.hub.autostart import not_running_line
@@ -212,13 +212,32 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
         order=oid,
         order_kind=args.kind,
         note=note,
+        **({"to": note} if args.kind == "drop" else {}),
         **({"origin": req.origin} if req.origin else {}),
     )
     return oid
 
 
+DROP_USAGE = (
+    "order drop <cr> --note trash|inbox|P1..P4: where the CR goes; ask the user when they "
+    "have not said it"
+)
+_DROP_FOLDERS = {"trash": TRASH, "inbox": "1-inbox", **{f"p{n}": f"2-backlog/P{n}" for n in "1234"}}
+
+
+def _drop_folder(note: str) -> str:
+    """`order drop`'s word as the folder it names; no default, the user says where."""
+    folder = _DROP_FOLDERS.get(note.strip().lower())
+    if folder is None:
+        raise ChantierError(DROP_USAGE, EXIT_USAGE)
+    return folder
+
+
 def _normalise_args(args: argparse.Namespace, note: str) -> str:
-    """The CR ids of the arguments in their canonical form; returns the note."""
+    """The CR ids of the arguments in their canonical form; returns the note (`drop`'s, as the
+    folder it names)."""
+    if args.kind == "drop":
+        note = _drop_folder(note)
     if (
         args.kind in CR_ORDERS
         or args.kind == "note"
@@ -298,7 +317,7 @@ def _ordered(
     target = f" {cr}" if cr and cr != "-" else ""
     text = f" {note}" if note else ""
     return [
-        f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}",
+        f"[chief-of-staff→foreman] order {oid}: {args.kind}{target}{text}{w.clause}",
         *effect,
         *skeleton,
         *fresh,

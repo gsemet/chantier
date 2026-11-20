@@ -192,7 +192,7 @@ def make(rows: Rows, come: Rows, where: Where, held: Rows | None = None) -> tupl
             old = m.get("target_branch")
             if m.get("state") == "opened" and old != r["base"]:
                 glab(f"{_base(where)}/{r['number']}", where[0], "PUT", {"target_branch": r["base"]})
-                done.append(f"!{r['number']} target {old} -> {r['base']} (held out of the stack)")
+                done.append(f"!{r['number']} target {old} -> {r['base']}{r.get('why', '')}")
         for r, m in zip(rows, mrs, strict=True):
             old = m.get("target_branch")
             if m.get("state") == "opened" and old != r["base"]:

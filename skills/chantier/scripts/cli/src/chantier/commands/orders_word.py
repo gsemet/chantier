@@ -25,6 +25,7 @@ class Word:
     order_id: str = ""
     stopped: list[str] | None = None  # `order merged`: the line of a gate stopped before the locks
     ended: bool = False  # set by the handler: this order ended the batch's last CR
+    clause: str = ""  # set by the handler: what ends the order's line (`; close its PR <link>`)
 
 
 def target(w: Word) -> CrEntry:

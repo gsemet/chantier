@@ -19,8 +19,9 @@ STAGES = ("1-inbox", "2-backlog", "3-ready", "4-batch", "5-archives", "6-trash")
 CR_LIKE = (INTAKE, "01-intent.md", "02-answers.md", "03-change-spec.md", "summary.json")
 
 # A CR folder's tree: concepts.md ("Change Request") gives the folders and the Markdown files,
-# `summary.json` and the STATUS files; `delivery.md` is an archive's (`stages.py`), `depends.json`
-# a dependency's, `report.md` and `conversation.md` a release CR's sources (release-template.md).
+# `summary.json` and the STATUS files; `delivery.md` is an archive's (`stages.py`),
+# `formerly.json` a CR taken out of a batch's, `depends.json` a dependency's, `report.md` and
+# `conversation.md` a release CR's sources (release-template.md).
 CR_FOLDERS = ("intake", "evidence", "work", "prototypes", "experiments")
 CR_FILES = (
     "01-intent.md",
@@ -30,6 +31,7 @@ CR_FILES = (
     "STATUS.md",
     "STATUS.json",
     "delivery.md",
+    "formerly.json",
     "depends.json",
     "report.md",
     "conversation.md",

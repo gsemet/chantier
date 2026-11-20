@@ -9,10 +9,12 @@ from chantier import procs
 from chantier.commands.endpause import end_of_batch
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
+from chantier.core.records import TRASH, CrEntry
 from chantier.core.repo import Repo
 from chantier.gate_slots import mtime, slot_of
+from chantier.lifecycle.moveout import check_drop_free, close_pr_clause, leave_batch
 from chantier.lifecycle.session import RenderedBatch
-from chantier.lifecycle.stages import changes_lock, trash_cr
+from chantier.lifecycle.stages import changes_lock
 from chantier.rails import all_merged, spent_text
 from chantier.rails_release import fix_go, release_go
 
@@ -86,9 +88,29 @@ def _answer(
     return [f"go: {note} ({why})"], 0
 
 
+def _stop_processes(repo: Repo, c: CrEntry) -> list[str]:
+    """The CR's gate's process group, if it is still that process, and the processes that run in
+    its worktree: stopped; what was stopped, as `pg<n>` and paths."""
+    killed = []
+    v = slot_of(repo, c.id)
+    h = v.holder if v else None
+    # a pg the lock names counts only while it is still that process (a pid can be reused)
+    if (
+        v
+        and h
+        and h.pg is not None
+        and procs.alive_since(h.pg, mtime(v.slot.lock), False)
+        and procs.stop_group(h.pg)
+    ):
+        killed.append(f"pg{h.pg}")
+    if c.worktree and Path(c.worktree).exists():
+        killed += [str(p) for p in procs.stop(procs.find(Path(c.worktree)))]
+    return killed
+
+
 def cancel(args: argparse.Namespace) -> list[str]:
     """A dropped CR, on the user's word: its gate and its stray processes stopped, its folder
-    in the trash with its work."""
+    moved to the destination its drop order recorded (trash, inbox or backlog), with its work."""
     if args.epoch is None:
         raise ChantierError(
             "cancel <cr> --epoch <n>: the steering session's command for a CR the "
@@ -105,25 +127,24 @@ def cancel(args: argparse.Namespace) -> list[str]:
         c = b.cr(args.cr)
         if c.status == "merged":
             raise ChantierError(f"{args.cr} is merged: nothing to cancel")
-        killed = []
-        v = slot_of(repo, args.cr)
-        h = v.holder if v else None
-        # a pg the lock names counts only while it is still that process (a pid can be reused)
-        if (
-            v
-            and h
-            and h.pg is not None
-            and procs.alive_since(h.pg, mtime(v.slot.lock), False)
-            and procs.stop_group(h.pg)
-        ):
-            killed.append(f"pg{h.pg}")
-        if c.worktree and Path(c.worktree).exists():
-            killed += [str(p) for p in procs.stop(procs.find(Path(c.worktree)))]
-        trash_cr(b, c)
+        if c.status != "cancelled" and c.left_to is None:
+            raise ChantierError(
+                f"cancel {args.cr}: no destination recorded; the Chief of Staff's "
+                f'"order drop {args.cr} --note trash|inbox|P1..P4" names it',
+                EXIT_PRECONDITION,
+            )
+        if c.status != "cancelled":
+            check_drop_free(b, c, c.left_to or TRASH)
+        killed = _stop_processes(repo, c)
+        leave_batch(b, c)
         b.touch(c, status="cancelled", agent=None)
-        b.log("cancel", args.cr, killed=killed, path=c.path)
+        to = c.left_to or TRASH
+        b.log("cancel", args.cr, killed=killed, path=c.path, to=to)
         done, batch_id = all_merged(b.record), b.id
+        clause = close_pr_clause(b, c)
+    here = "" if to == TRASH else f" to {to}"
     return [
-        f"cancelled {args.cr}; stopped {len(killed)}: {' '.join(killed) or 'none'}",
+        f"cancelled {args.cr}{here}; stopped {len(killed)}: {' '.join(killed) or 'none'}",
+        *([clause.removeprefix("; ")] if clause else []),
         *(end_of_batch(repo, batch_id, f"cancel {args.cr}") if done else []),
     ]

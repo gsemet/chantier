@@ -5,26 +5,24 @@ from __future__ import annotations
 import argparse
 import re
 from pathlib import Path
-from typing import Any
 
-from chantier.commands.opening import cr_slug
-from chantier.core.batch import RESTORED_NUMBER_FILE, move_directory
+from chantier.core.batch import move_directory
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
 from chantier.core.records import (
     CrEntry,
     read_batch_json,
-    read_restored_number,
-    write_restored_number,
 )
 from chantier.core.repo import Repo
 from chantier.lifecycle.backlog import file_idea, move_item
 from chantier.lifecycle.filing import shown
+from chantier.lifecycle.moveout import folder_taken, remember_cr
 from chantier.lifecycle.stages import (
     PRIORITIES,
     TRIAGE_USAGE,
     changes_lock,
+    cr_slug,
     ensure_unclaimed,
     stage_layout,
 )
@@ -163,15 +161,8 @@ def _restored_name(source: Path, known: object, slug: str | None) -> str:
     return name
 
 
-def _check_free(repo: Repo, paths: dict[str, Any], name: str, batch_crs: list[str]) -> None:
-    taken = [
-        paths["inbox"] / name,
-        paths["ready"] / name,
-        *(paths["backlog"] / p / name for p in PRIORITIES),
-    ]
-    clash = next((shown(repo, t) for t in taken if t.exists()), None) or (
-        f"a CR of the open batch ({name})" if name in batch_crs else None
-    )
+def _check_free(repo: Repo, name: str, batch_crs: list[str]) -> None:
+    clash = folder_taken(repo, name, batch_crs)
     if clash:
         raise ChantierError(
             f"restore: the name {name} is already used by {clash}; "
@@ -182,13 +173,7 @@ def _check_free(repo: Repo, paths: dict[str, Any], name: str, batch_crs: list[st
 
 def _remember(repo: Repo, target: Path, known: tuple[str, CrEntry]) -> None:
     """Note on the folder what it was, and never give its number again."""
-    number = re.fullmatch(r"CR-(\d+)", known[1].id)
-    if number:  # the number is never given again, even once the batch is closed
-        path = repo.changes / RESTORED_NUMBER_FILE
-        write_restored_number(path, max(read_restored_number(path), int(number[1])))
-    intent = target / "01-intent.md"
-    with open(intent if intent.is_file() else target / "notes.md", "a", encoding="utf-8") as f:
-        f.write(f"\nformerly {known[1].id} of {known[0]}\n")
+    remember_cr(repo, target, known[1].id, known[0])
 
 
 def restore(args: argparse.Namespace) -> list[str]:
@@ -207,7 +192,7 @@ def restore(args: argparse.Namespace) -> list[str]:
     with changes_lock(repo):
         known, batch_crs = _owners(repo, source)
         name = _restored_name(source, known, args.slug)
-        _check_free(repo, paths, name, batch_crs)
+        _check_free(repo, name, batch_crs)
         target = paths["inbox"] / name
         move_directory(source, target)
         if known:

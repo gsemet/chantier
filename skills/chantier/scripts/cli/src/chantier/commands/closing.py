@@ -157,7 +157,7 @@ def _to_remove(repo: Repo, d: BatchRecord) -> list[str]:
     dropped = [
         f"{c.id} (dropped) worktree {c.worktree} branch {c.branch}"
         for c in d.crs
-        if c.status == "cancelled"
+        if c.status == "cancelled" and not c.moved_to()
     ]
     for c in d.crs:  # a merged CR's leftovers: the worktree folder, the branch, what still exists
         if c.status != "merged":
@@ -169,6 +169,22 @@ def _to_remove(repo: Repo, d: BatchRecord) -> list[str]:
         if left:
             dropped.append(f"{c.id} (merged) {' '.join(left)}")
     return dropped
+
+
+def _kept(repo: Repo, d: BatchRecord) -> list[str]:
+    """The CRs `order drop` moved to the inbox or the backlog: they keep their work, nothing on
+    their line is removed. A folder that has moved on since (triaged, added again) says so."""
+    kept = []
+    for c in d.crs:
+        to = c.moved_to()
+        if not to:
+            continue
+        here = bool(c.path) and repo.planning_path(str(c.path), "recorded CR path").is_dir()
+        folder = f"{c.path}" if here else f"moved since from {to}"
+        kept.append(
+            f"{c.id} ({folder}) worktree {c.worktree} branch {c.branch} PR {c.shown_pr() or 'none'}"
+        )
+    return kept
 
 
 def _closing(
@@ -208,10 +224,11 @@ def _closing(
         cost_receipt(d, rows, by_driver, chief),
     )
     tail = [
-        "the dropped CRs and the merged CRs' leftovers, to remove on the same word where they "
+        "the trashed CRs and the merged CRs' leftovers, to remove on the same word where they "
         f"still exist (`git {'-C ' + repo.clone.as_posix() + ' ' if repo.external else ''}"
         "worktree remove --force`, `git branch -D`; for a folder git no longer knows, "
         f"`git worktree prune` once it is deleted): {'; '.join(dropped) or 'none'}",
+        f"kept, moved out with their work: {'; '.join(_kept(repo, d)) or 'none'}",
         *_apart_lines(batch, apart),
         "final cost, up to now (nothing runs):",
         *summary,

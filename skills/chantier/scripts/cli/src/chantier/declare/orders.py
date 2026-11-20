@@ -16,8 +16,8 @@ def register(sub: Subparsers) -> None:
     )
     s.add_argument(
         "kind",
-        help="add [--release], after, drop, merged, hold|unhold (a ready CR out of a stack, "
-        "and back), note, rounds, slots, budget, qa, "
+        help="add [--release], after, drop (--note trash|inbox|P1..P4), merged, hold|unhold "
+        "(a ready CR out of a stack, and back), note, rounds, slots, budget, qa, "
         "mode (any mode to any other), factory on|off (--note: the user's words), "
         "waive stack|<cr> [--follow-up] (the long gate; --note - withdraws); "
         "for the release CR: approve, grant, confirm; the Foreman: done <O-k>, merged "
@@ -26,7 +26,8 @@ def register(sub: Subparsers) -> None:
     s.add_argument("cr", nargs="?", default="-", help="the CR, or the order id for `done`")
     s.add_argument(
         "--note",
-        help="add: <folder>, or a release's fix file; after: the CR ids it waits "
+        help="add: <folder>, or a release's fix file; drop: trash, inbox or P1..P4, where the "
+        "CR goes (the user's word; never a default); after: the CR ids it waits "
         "for, comma separated, or - for none; note: the line; rounds, "
         "slots, budget: the number; mode: parallel, series or stack; qa: what to test; "
         "approve: the action; grant: releases=N fixes=on|off budget=N; "

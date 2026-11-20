@@ -129,6 +129,8 @@ def label(
     """`🔴 blocked CI 1/3`: how a CR's state reads in every table. A ready CR reads its word
     (`ready_word`); a PR in draft is held by what it waits for, as a queued CR is."""
     state = {"cancelled": "dropped", "ready": ready or PR_IN_DRAFT}.get(c.status, c.status)
+    if c.moved_to():
+        state = f"dropped to {c.moved_to()}"
     mark = icon(c, waiting or [], free, ready)
     if waiting:
         return f"{mark} {state}, waits for {', '.join(waiting)}"
