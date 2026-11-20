@@ -1,6 +1,6 @@
 // Home, the open PRs block, and under it the blocked CRs with their reason.
 import { html } from '../core/dom.js';
-import { isMergeRequest, prNumber, safeUrl } from '../core/format.js';
+import { isMergeRequest, prNumber, safeUrl, title } from '../core/format.js';
 import { crsOf, openPr } from '../model/semantics.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
@@ -10,7 +10,7 @@ import { stateTag } from '../ui/parts.js';
 // The row is a link to the PR or MR (a box when it has no web address); the CR's number inside it
 // opens the CR's folder and leaves the link alone.
 function prRow(c) {
-  const inner = html`${stateTag(c)}<b ${opener(crKey(c), 'pr-')} title="${t('pr.folder')}">${c.cr}</b><span class="ell">${c.title}</span><span class="r">${prNumber(c.pr)}</span>`;
+  const inner = html`${stateTag(c)}<b ${opener(crKey(c), 'pr-')} title="${t('pr.folder')}">${c.cr}</b><span class="ell">${title(c.title)}</span><span class="r">${prNumber(c.pr)}</span>`;
   const url = safeUrl(c.pr);
   if (!url) return html`<div class="x">${inner}</div>`;
   const words = isMergeRequest(url) ? t('mr.open') : t('pr.open');

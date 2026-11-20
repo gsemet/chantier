@@ -66,8 +66,9 @@ export function prNumber(url) {
 // "visualization-backend" from a folder "…/2-actives/225-visualization-backend".
 export const slug = (folder) => (folder ?? '').split('/').pop().replace(/^\d+-/, '');
 
-// A title without the "Change Specification: " or "Intent: " prefix the files carry.
-export const title = (text) => String(text ?? '').replace(/^(Change Specification|Intent):\s*/, '');
+// A title without the "Change Specification: " (any case, after a BOM or `#`) or "Intent: " prefix the files carry.
+export const title = (text) =>
+  String(text ?? '').replace(/^\ufeff?[#\s]*(?:Change\s+Specification|Intent)\s*:\s*/i, '');
 
 // A share of a whole as a percentage in [0, 100]; zero when the whole is zero.
 export const percent = (part, whole) =>

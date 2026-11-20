@@ -3,7 +3,7 @@
 //   render(state) returns the view's markup; mount(root, state) returns a cleanup.
 
 import { delegate, html } from '../core/dom.js';
-import { age, safeUrl, usd } from '../core/format.js';
+import { age, safeUrl, title, usd } from '../core/format.js';
 import { t, tf } from '../model/words.js';
 import { card } from '../ui/card.js';
 import { empty, live, mark, meter } from '../ui/parts.js';
@@ -16,7 +16,7 @@ const none = '—';
 const prLink = (e) => {
   const url = safeUrl(e.pr);
   return url
-    ? html`<a class="prlink" href="${url}" target="_blank" rel="noopener" title="${e.title}">${e.cr} <span aria-hidden="true">↗</span></a>`
+    ? html`<a class="prlink" href="${url}" target="_blank" rel="noopener" title="${title(e.title)}">${e.cr} <span aria-hidden="true">↗</span></a>`
     : html`<span class="prlink">${e.cr}</span>`;
 };
 
