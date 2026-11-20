@@ -8,6 +8,7 @@
     uv run --script scripts/version.py show
     uv run --script scripts/version.py set 1.2.3
     uv run --script scripts/version.py bump [patch|minor|major]
+    uv run --script scripts/version.py ff-main
 
 The current version is read from the CLI (`__version__`); every other file must agree with it,
 or nothing is written.
@@ -175,6 +176,23 @@ def ff_main(root: Path = ROOT) -> int:
     return 0
 
 
+def write(old: str, new: str) -> int:
+    if not SEMVER.match(new):
+        print(f"error: `{new}` is not MAJOR.MINOR.PATCH", file=sys.stderr)
+        return 1
+    if new == old:
+        print(f"already {old}")
+        return 0
+    errors = apply(old, new)
+    if errors:
+        print("error: nothing written", file=sys.stderr)
+        for line in errors:
+            print(f"  {line}", file=sys.stderr)
+        return 1
+    print(f"{old} -> {new} in {len(TARGETS)} files")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -191,6 +209,8 @@ def main() -> int:
     b.add_argument("part", nargs="?", default="patch", choices=["patch", "minor", "major"])
     args = parser.parse_args()
 
+    if args.cmd == "ff-main":
+        return ff_main()
     old = current()
     if args.cmd == "show":
         print(old)
@@ -198,20 +218,7 @@ def main() -> int:
     if args.cmd == "check-tag":
         return check_tag(old)
     new = args.version if args.cmd == "set" else bump(old, args.part)
-    if not SEMVER.match(new):
-        print(f"error: `{new}` is not MAJOR.MINOR.PATCH", file=sys.stderr)
-        return 1
-    if new == old:
-        print(f"already {old}")
-        return 0
-    errors = apply(old, new)
-    if errors:
-        print("error: nothing written", file=sys.stderr)
-        for line in errors:
-            print(f"  {line}", file=sys.stderr)
-        return 1
-    print(f"{old} -> {new} in {len(TARGETS)} files")
-    return 0
+    return write(old, new)
 
 
 if __name__ == "__main__":
