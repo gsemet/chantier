@@ -735,7 +735,8 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
     project's `AGENTS.md` ranks above this threshold.
   - **Proof of death**, one of three: the host refuses a message to the agent because it no
     longer exists (dead at once); or a `[foreman→driver <cr>] ping` to a suspect gets no `pong` by
-    the next wake; or the host says the Driver was stopped, read at once, with no ping round and no
+    the next wake (on a host whose reference says a Driver cannot answer before its end, the sign that
+    reference names stands in place of the `pong`: for Claude Code, [its reference](hosts/claude-code.md), "A Driver's silence"); or the host says the Driver was stopped, read at once, with no ping round and no
     message first. On Claude Code that is exactly two things: the stop a compaction snapshot reports
     (the `task_status` `killed` record, which the session sees as `Task "<name>" (<id>) was
     stopped.`, and which `status` flags: a CR's row in any `status`, the stack driver's and a QA

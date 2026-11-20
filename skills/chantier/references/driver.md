@@ -744,7 +744,7 @@ that lists no check gives no such bullet; the "no CI" rule says what to write th
   for where it stands, then go on from `<why>` as from a prompt's `Note:` (a `rebase:` as the
   "CR driver" section says). Any other note received after your hand-back, with no `taken
   back:`, is not work to start: pass it to the steering session as the refused line above.
-  `ping`: `[driver <cr>→foreman] pong <step>`. `stop`: stop a long gate of yours that
+  `ping`: `[driver <cr>→foreman] pong <step>`. When the `Steering:` line says nothing reaches the steering session before your end, a `ping` gets no answer: go on. `stop`: stop a long gate of yours that
   is running (`gate <cr> --stop`) and every other background task of yours, then `handback blocked stopped`; when the steering session's
   stop comes with a switch of mode (to Foreman or to direct mode), the note says so.
 
