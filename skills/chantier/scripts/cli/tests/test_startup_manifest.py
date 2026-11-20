@@ -369,3 +369,9 @@ def test_the_rules_that_must_not_be_missed_come_first() -> None:
     }.items():
         first = _lf_bytes(SKILLS / skill / "SKILL.md").decode("utf-8").split("## Startup core\n")[1]
         assert needle in next(line for line in first.splitlines() if line.strip()), skill
+
+
+@pytest.mark.parametrize("card", ["driver.md", "debugger.md", "verifier.md"])
+def test_the_cards_send_a_downloaded_ci_artifact_to_the_scratch_folder(card: str) -> None:
+    text = (SKILL / "references" / card).read_text(encoding="utf-8")
+    assert "work/scratch/artifacts-<run id>/" in " ".join(text.split())

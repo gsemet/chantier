@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -15,7 +17,10 @@ from writer_rig import QUIET, Rig
 from chantier.hub import state
 from chantier.hub.lock import wake
 from chantier.writer import git_ops
-from chantier.writer.record import read
+from chantier.writer.record import TEXT_MAX, read
+
+FOLDER_LENGTH = 235
+LONG_PATH = 300  # above git for Windows' 260
 
 
 @pytest.mark.parametrize(
@@ -232,3 +237,69 @@ def test_a_board_started_with_no_seat_starts_the_writer(
     assert code == 0, _err
     assert seen == ["syncing"]  # the writer ran while the server served, with no `--seat`
     assert read(git_dir)["state"] == "off"  # and went with it
+
+
+def test_a_downloaded_artifact_folder_is_left_out_of_the_commit(rig: Callable[[], Rig]) -> None:
+    r = rig()
+    r.seat()
+    r.repo.store.ensure_gitignore()
+    changes = "projects/demo/changes/1-inbox/idea"
+    r.write(f"{changes}/01-intent.md")
+    r.write(f"{changes}/work/debugger/artifacts-123/log/a.txt")
+    entry = r.until("synced")
+    assert entry["state"] == "synced"
+    shown = r.git("show", "--name-only", "--format=", "HEAD").splitlines()
+    assert f"{changes}/01-intent.md" in shown
+    assert not any("artifacts-123" in p for p in shown)
+
+
+@pytest.mark.parametrize(
+    ("text", "path"),
+    [
+        # prepared texts (no shipped file holds them): git for Windows, then the POSIX spelling
+        (
+            'error: open("p/a/long.txt"): Filename too long error: unable to index file '
+            "'p/a/long.txt' fatal: adding files failed",
+            "p/a/long.txt",
+        ),
+        ("error: unable to index file 'p/b.txt': File name too long", "p/b.txt"),
+        ("error: Filename too long", None),
+        ("fatal: pathspec 'x' did not match any files", None),
+    ],
+    ids=["windows", "posix", "phrase-without-path", "other-error"],
+)
+def test_a_failed_add_names_the_path_git_refuses_as_too_long(text: str, path: str | None) -> None:
+    assert git_ops.too_long_path(("add", "-A", "--", "p"), text) == path
+    assert git_ops.too_long_path(("commit", "-m", "x"), text) is None
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="git for Windows refuses a path above 260")
+def test_a_real_path_too_long_blocks_with_its_reason_then_resumes(rig: Callable[[], Rig]) -> None:
+    r = rig()
+    r.seat()
+    r.git("config", "core.longpaths", "false")
+    r.write("projects/demo/changes/1-inbox/idea/01-intent.md")
+    assert r.settle()["state"] == "synced"  # nothing else is left to stage
+    prefix = "projects/demo/changes/1-inbox/idea/work/notes/"
+    # the folder is still openable (git skips a folder it cannot open, with a warning only), the
+    # file inside it is not: its path is above LONG_PATH
+    pad = FOLDER_LENGTH - len(str(r.root / prefix))
+    rel = f"{prefix}{'d' * pad}/{'f' * 70}.txt"
+    file = Path("\\\\?\\" + str(r.root / rel).replace("/", "\\"))
+    assert len(str(r.root / rel)) > LONG_PATH
+    file.parent.mkdir(parents=True)
+    file.write_text("x\n", encoding="utf-8")
+    r.tick()
+    entry = r.tick(QUIET)
+    assert entry["state"] == "pending" and entry["failure"]["cycles"] == 1
+    assert r.lines() == []
+    entry = r.tick()
+    assert entry["state"] == "blocked" and entry["reason"] == "path-too-long"
+    assert entry["text"].startswith(f"{len(str(r.root / rel))} characters: {prefix}")
+    assert len(entry["text"]) <= TEXT_MAX
+    r.tick()
+    assert r.types().count("sync-blocked@1") == 1
+    file.unlink()
+    assert r.until("synced")["state"] == "synced"
+    resumed = [x for x in r.lines() if x["type"] == "sync-resumed@1"]
+    assert [x["after"] for x in resumed] == ["blocked"]

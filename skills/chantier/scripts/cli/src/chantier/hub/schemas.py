@@ -99,6 +99,11 @@ WAY_OUT = {
     ),
     "staged": "commit or unstage them by hand",
     "foreign-autosync": "stop the tool (`uv run scripts/ai-autosync-git.py stop .`)",
+    "path-too-long": (
+        "move it, or the folder that holds it, under its CR's `work/scratch/` (downloaded CI "
+        "artifacts go there, never published), or shorten it; the next cycle that completes "
+        "its git steps ends it (`sync now` runs one at once)"
+    ),
     "git-error": (
         "read the text and repair it (a stash: tell the user where the edits are, "
         "`git stash list`); the next cycle that completes its git steps ends it "

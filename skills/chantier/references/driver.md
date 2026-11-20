@@ -100,7 +100,11 @@ workers" when it starts a worker.
   sessions'. A worker's own card (`<role>.md`): only when its reply needs checking beyond this section.
 - Escalation: "Means: escalation". A `[foreman→driver <cr>]` message: "Means: the steering session's messages".
 - Logs: a raw log goes in `work/gates/` or a `*.log` file, never in a file that is published with
-  the CR.
+  the CR. A CI artifact you download (`gh run download`, `glab job artifact`, or the forge's
+  equivalent) goes under `<CR folder>/work/scratch/artifacts-<run id>/`, never elsewhere in the CR's
+  folder: it stays on this machine, never published. What proves a claim is copied from it, small,
+  into `evidence/`. A brief that asks a `debugger` or a `verifier` to read an artifact names that
+  folder.
 
 ## Means: context and your folder
 

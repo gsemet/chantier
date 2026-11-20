@@ -181,6 +181,7 @@ IGNORED = (
     "/4-batch/brief.md",
     "**/work/gates/",
     "**/work/scratch/",
+    "**/work/**/artifacts-*/",
     "*.log",
     "*.tmp",
 )

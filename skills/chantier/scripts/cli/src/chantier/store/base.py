@@ -83,7 +83,8 @@ def guard(root: Path, rel: str, root_ok: bool = False) -> Path:
 
 def _matches(pattern: str, parts: list[str], is_dir: bool) -> bool:
     """One `.gitignore` line against a path (its parts): a leading `/` anchors at the root, a
-    trailing `/` is a folder and what is under it, `**/` any depth, `*` within a name."""
+    trailing `/` is a folder and what is under it, `**/` any depth, a middle `**` zero or more
+    folders as git does, `*` within a name."""
     dir_only = pattern.endswith("/")
     pattern = pattern.rstrip("/")
     anywhere = False
@@ -98,10 +99,19 @@ def _matches(pattern: str, parts: list[str], is_dir: bool) -> bool:
         if dir_only and not (k < len(parts) or is_dir):
             continue
         prefix = parts[:k]
-        tail = prefix[-len(names) :] if anywhere else prefix
-        if (anywhere or k == len(names)) and all(map(fnmatchcase, tail, names)):
+        starts = range(k) if anywhere else (0,)
+        if any(_fits(names, prefix[i:]) for i in starts):
             return True
     return False
+
+
+def _fits(names: list[str], parts: list[str]) -> bool:
+    """All of `parts` against a pattern's names; a `**` name is zero or more folders."""
+    if not names:
+        return not parts
+    if names[0] == "**":
+        return any(_fits(names[1:], parts[i:]) for i in range(len(parts) + 1))
+    return bool(parts) and fnmatchcase(parts[0], names[0]) and _fits(names[1:], parts[1:])
 
 
 def is_published(rel: str) -> bool:
