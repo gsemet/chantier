@@ -21,6 +21,8 @@ from chantier.declare import (
     forge_stack,
     gate,
     intake,
+    interests,
+    journal,
     opening,
     orders,
     preflight,
@@ -53,6 +55,8 @@ FULL_OUTPUT = {
     "preflight",
     "watch",
     "validate",
+    "interests",
+    "journal",
 }
 
 
@@ -90,6 +94,8 @@ def _parser() -> argparse.ArgumentParser:
         closing,
         cost,
         summary,
+        interests,
+        journal,
         validate,
         watch,
     ):

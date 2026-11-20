@@ -11,7 +11,7 @@ time. A later part adds a type by adding one entry here and running the recipe.
 
 A model fixes each field's JSON type and only the formats that cannot change: a CR id
 (`CR-<n>`), a commit SHA (40 or 64 hex characters). The open sets (`board@1.action`,
-`config@1.key`) are plain strings."""
+`config@1.key`, `issue@1.tracker` and `issue@1.event`) are plain strings."""
 
 from __future__ import annotations
 
@@ -67,6 +67,16 @@ class Board1(_Payload):
     wakes: bool
 
 
+class Issue1(_Payload):
+    tracker: str
+    ref: str
+    event: str
+    at: str
+    text: str
+    wakes: bool
+    folders: list[str]
+
+
 def merged_text(e: dict[str, Any]) -> str:
     """The line a `merged@1` event is told by, in `status` and at a watcher's end."""
     head = f"forge saw merged: {e.get('cr')} {e.get('pr')}"
@@ -114,6 +124,15 @@ def board_text(e: dict[str, Any]) -> str:
     return (
         f"board wrote ({e.get('action')}): {e.get('text')}; "
         "for the Chief of Staff: tell the user, act on nothing"
+    )
+
+
+def issue_text(e: dict[str, Any]) -> str:
+    """The line an `issue@1` event is told by: what an outside poller saw on an issue."""
+    folders = ", ".join(e.get("folders") or [])
+    return (
+        f"tracker saw {e.get('event')} on {e.get('ref')} ({folders}): "
+        f'"{e.get("text")}"; for the Chief of Staff: tell the user in one line, record nothing'
     )
 
 
@@ -165,6 +184,21 @@ PUBLISHED: dict[str, Entry] = {
         board_text,
         None,
         {"action": "new", "items": ["an-idea"], "text": "new: an idea", "wakes": True},
+    ),
+    "issue@1": Entry(
+        Issue1,
+        "wakes",
+        issue_text,
+        lambda e: ("issue", e.get("ref"), e.get("event"), e.get("at")),
+        {
+            "tracker": "jira",
+            "ref": "https://acme.atlassian.net/browse/PAY-12",
+            "event": "commented",
+            "at": "2026-11-20T09:14:00Z",
+            "text": "a comment asks to keep the old column order",
+            "wakes": True,
+            "folders": ["2-backlog/P2/export-columns"],
+        },
     ),
 }
 

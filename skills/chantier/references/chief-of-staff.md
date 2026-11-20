@@ -1343,7 +1343,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **The watcher** (the command the CLI prints, in the background; the user's yes once per
   session, [session-start](session-start.md); the host's means, its reference, "Run the watcher").
   It prints the project's forge events (`forge saw merged`, `forge saw checks red`) and what the
-  user does in the board (`board wrote`, `config changed on the board`), the events for it (the
+  user does in the board (`board wrote`, `config changed on the board`) and the issue events an
+  outside poller writes (`tracker saw`), the events for it (the
   project's and this session's), and ends 20 s after the last new one for it that wakes, and no
   sooner than `events.wake_every` after its start, or when the seat is another session's; its end
   starts your turn.
@@ -1379,12 +1380,14 @@ CR-222 → CR-225 → CR-226 → CR-228."
     `config changed on the board: specifying.parallel ...` line is told as it stands and changes
     nothing in the batch; the next spec-writer start reads the new limit. A `board wrote (...)`
     line, or a `config changed on the board` line of a role's key (`hosts.<host>.roles...`): one
-    line to the user that says it (a few words per event), no tool call, no action.
+    line to the user that says it (a few words per event), no tool call, no action. A `tracker saw
+    ...` line (an outside poller's issue event): one line to the user that says it, no tool call,
+    record nothing.
   - *The pull path:* when no watcher can wake this session (its host's reference, or the user's
     no), run the printed `watch --once` command (the `watch: not running` line's `after the
     user's no` clause, the `pull path` line of `status`, or the last `--once` output's `next`
     line) at the start of each turn the user's message opens: run it as is: no flag added. Tell
-    its `board wrote` and role `config@1` lines as above, and act on its merge and two-key
+    its `board wrote`, `tracker saw` and role `config@1` lines as above, and act on its merge and two-key
     `config@1` lines as at a watcher's end. A line whose `seq` was already told is not told
     again.
   - *Never:* start a second watcher in the same session while one runs; stop another session's

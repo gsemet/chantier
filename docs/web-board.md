@@ -180,7 +180,8 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   board serves a planning surface, on whatever port, so a second session finds it and gets its
   link instead of starting another. The board is also the surface's forge hub while it runs
   (the `hub` entry of the same file): it reads the forge, read-only, every 20 s with your own
-  `gh` or `glab` (only the PRs a running batch waits for), so it needs the network for that.
+  `gh` or `glab` (only the PRs a running batch waits for; `chantier interests --kind pr` lists them; it never
+  reads an issue), so it needs the network for that.
 - **The local network.** By default the board listens on every address of the machine
   (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
   off any network you do not trust. On Windows, the first start asks the firewall for permission:

@@ -1,5 +1,6 @@
 """`chantier watch`: wait for the events of this project's journal: the forge's (merges, CI red)
-and the board's writes, with a running, a paused or no batch.
+and the board's writes and an outside poller's issue events, with a running, a paused or no
+batch.
 
 The watcher reads only its project's journal, never the forge, except as the hub (the process
 that holds `hub.lock`), and then only through `Hub.cycle`. It reads the lines for it only: its

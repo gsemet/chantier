@@ -36,7 +36,7 @@ from chantier import __version__, connectors
 from chantier.board import prs
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
-from chantier.hub import journal, lock, schemas, state
+from chantier.hub import issue_refs, journal, lock, schemas, state
 from chantier.hub.autostart import watch_command
 from chantier.hub.watch import EVENTS, Watch
 
@@ -100,6 +100,25 @@ def test_a_hub_cycle_reads_only_what_there_is_to_read_and_is_due_every_twenty_se
     world.forge = {10: RED_A}
     world.hub.cycle(CYCLE)
     assert world.journal("alpha") == []
+
+
+def test_the_hub_never_collects_the_issues_provider(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asked: list[object] = []
+
+    def spy(repo: Repo) -> list[Any]:
+        asked.append(repo)
+        return []
+
+    monkeypatch.setattr(issue_refs.PROVIDER, "collect", spy)
+    for name in ("alpha", "beta"):  # no running batch, but a CR naming an issue
+        write_batch(world.project(name), "paused", crs_of(name))
+        cr = world.project(name) / "changes" / "1-inbox" / "export"
+        cr.mkdir(parents=True)
+        (cr / "01-intent.md").write_text("# t\n\nissue: https://acme.atlassian.net/browse/P-1\n")
+    world.hub.cycle(0.0)
+    assert world.calls == [] and asked == []
 
 
 def test_a_forge_error_lands_in_the_hub_record_not_in_the_journal(world: World) -> None:
