@@ -117,7 +117,9 @@ FILE_CASES = [
     pytest.param((HEAD, "--title", "Mine"), f"# Mine\n\n{HEAD}", None, id="a title above the text"),
     pytest.param(("One short line",), "# One short line\n", None, id="one short line"),
     pytest.param((LONG_HEAD,), None, REFUSAL.format(73), id="a long heading"),
-    pytest.param(("A line\nand another",), None, REFUSAL.format(6), id="several lines, no heading"),
+    pytest.param(
+        ("A line\nand another",), None, "must start with a", id="several lines, no heading"
+    ),
     pytest.param((HEAD, "--title", "t" * 73), None, "title is 73 characters", id="a long --title"),
 ]
 

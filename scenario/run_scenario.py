@@ -1620,14 +1620,14 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
           and [e["seq"] for e in seen] == [1, 2, 3]
           and w.sh("git", "check-ignore", ".agents/changes/forge-journal.jsonl").strip() != "",
           str(seen))
-    code, body = call("POST", "backlog/new", {"text": "Board filed idea\r\n\r\nbody é\r\n"})
+    code, body = call("POST", "backlog/new", {"text": "# Board filed idea\r\n\r\nbody é\r\n"})
     filed = w.state / "1-inbox" / "board-filed-idea"
     request = filed / "intake" / "request.md"
     check("`POST backlog/new` files the text byte for byte in 1-inbox",
           code == 200 and request.is_file()
-          and request.read_bytes() == "Board filed idea\r\n\r\nbody é\r\n".encode("utf-8"),
+          and request.read_bytes() == "# Board filed idea\r\n\r\nbody é\r\n".encode("utf-8"),
           f"{code} {body}")
-    code, body = call("POST", "backlog/new", {"text": "Board filed idea"})
+    code, body = call("POST", "backlog/new", {"text": "# Board filed idea\n\nbody"})
     check("a second idea with the same slug is refused: already exists",
           code == 409 and "already exists" in body.get("error", ""), f"{code} {body}")
     rel = request.relative_to(w.state).as_posix()
@@ -1636,10 +1636,10 @@ def board_writes(w: World, port: int, link: Link, base: str) -> None:
     check("`GET file` of a text file carries the SHA-256 of its bytes",
           code == 200 and sha == hashlib.sha256(request.read_bytes()).hexdigest(), sha)
     edit = {"item": "board-filed-idea", "path": request.relative_to(filed).as_posix(),
-            "text": "Board filed idea\n\nedited\n", "base_sha256": sha}
+            "text": "# Board filed idea\n\nedited\n", "base_sha256": sha}
     code, body = call("PUT", "backlog/file", edit)
     check("`PUT backlog/file` with the right hash writes the text and keeps CRLF",
-          code == 200 and request.read_bytes() == b"Board filed idea\r\n\r\nedited\r\n"
+          code == 200 and request.read_bytes() == b"# Board filed idea\r\n\r\nedited\r\n"
           and body.get("sha256") == hashlib.sha256(request.read_bytes()).hexdigest(),
           f"{code} {body}")
     kept = request.read_bytes()
