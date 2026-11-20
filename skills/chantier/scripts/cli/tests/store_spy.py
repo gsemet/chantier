@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 from conftest import PLUGIN_ROOT as ROOT
-from conftest import SEEDED_COMMON_DIRS, SKILL, Surface, _key
+from conftest import SEEDED_COMMON_DIRS, SKILL, Surface, _key, live_writer
 
 from chantier.cli import main
 from chantier.core.repo import Repo
@@ -164,6 +164,7 @@ def build_states(surface_template: Path, factory: pytest.TempPathFactory) -> dic
             _environment(mp, home)
             mp.chdir(root)
             mp.setattr("chantier.core.repo.PROJECT", None)
+            live_writer(root.resolve() / ".git")
             _build(root, state)
         made[state] = root
     return made
@@ -174,6 +175,7 @@ def enter_state(source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     root = tmp_path / "surface"
     shutil.copytree(source, root)
     monkeypatch.chdir(root)
+    live_writer(root.resolve() / ".git")
     project = (root / "projects" / "demo").resolve()
     monkeypatch.setitem(SEEDED_COMMON_DIRS, _key(project / ".repo"), str(project / ".repo/.git"))
     monkeypatch.setenv("CHANTIER_HOST", "claude")

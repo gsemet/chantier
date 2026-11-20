@@ -129,19 +129,19 @@ A backlog item's Markdown file has an **Edit** button (never a batch CR's, never
 
 **+ New** (at the top right of a project's views) files an idea in the project's `1-inbox/`: write it, optionally name its folder (lower case, dashes), press **File**. The folder holds an `intake/request.md` with your text. If the name is taken the dialog asks for another one.
 
-## Autosync
+## The surface's writer
 
-![The autosync pill, an incident to approve](web-board/autosync-pc.png)
+![The writer pill, synced](web-board/writer-pc.png)
 
-When the planning surface runs the autosync tool (its `AGENTS.md` names the guidelines [planning-modes](planning-modes.md#the-surfaces-autosync) describes), the bottom of the left bar shows a pill with the state of the group that keeps the surface in sync: **active** (with the time of the last push), **stopped**, **blocked** (the Chief of Staff must integrate, then restart) or **to approve**. A click opens a panel: the leader, the participants, the last push, and the buttons **Start**, **Stop** and, for an incident the tool holds (a push that would carry staged files or secrets), **Approve**. The board approves only the incident it shows: if another one is waiting by then, it says so. A surface without autosync has no pill.
+On a planning surface, the bottom of the left bar shows a pill with the state of the surface's writer, the part of the board that commits and pushes the plan ([planning-modes](planning-modes.md#the-surfaces-writer)): **synced** (green, with the time of the last push), **pending** and **syncing** (blue), **offline** (grey, the origin is out of reach), **conflict** and **blocked** (red, the Chief of Staff must integrate or fix it) or **off** (grey: no writer runs). A click opens a panel: the state and since when, the last push, the paths to commit, the commits to push, the conflict's files or the blocked reason with its way out, and one button, **Sync now**, that asks the writer for a cycle at once. There is no Start, Stop or Approve: the writer lives as long as the board does. A board on a project's own folder has no pill.
 
 ## On a phone
 
-Each view fits a phone: the bar is at the bottom, the project picker and **+ New** at the top, the autosync pill is a dot beside the picker, and the tables and boards become lists and stacked cards.
+Each view fits a phone: the bar is at the bottom, the project picker and **+ New** at the top, the writer pill is a dot beside the picker, and the tables and boards become lists and stacked cards.
 
-| Batch | Triage | Triage, two selected | Picker | Autosync |
+| Batch | Triage | Triage, two selected | Picker | Writer |
 | --- | --- | --- | --- | --- |
-| ![The batch on a phone](web-board/batch-phone.png) | ![Triage on a phone](web-board/triage-phone.png) | ![Triage with two post-its selected and the bottom bar](web-board/triage-selection-phone.png) | ![The project picker on a phone](web-board/picker-phone.png) | ![Autosync on a phone](web-board/autosync-phone.png) |
+| ![The batch on a phone](web-board/batch-phone.png) | ![Triage on a phone](web-board/triage-phone.png) | ![Triage with two post-its selected and the bottom bar](web-board/triage-selection-phone.png) | ![The project picker on a phone](web-board/picker-phone.png) | ![The writer on a phone](web-board/writer-phone.png) |
 
 The other views, each at both sizes, are in [`docs/web-board/`](web-board/): `<view>-pc.png` and `<view>-phone.png`.
 
@@ -151,7 +151,7 @@ The page is in English or French; a button at the bottom of the bar switches it 
 
 ## Retaking the pictures
 
-`just docs-screenshots` copies `docs/demo/` to a temporary folder, starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. The surface's path is a temporary folder of the machine, so the script shows a made-up one (`/home/demo/planning-surface`) in its place. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
+`just docs-screenshots` copies `docs/demo/` to a temporary folder, as a git repository with a bare origin (the writer's pill shows `synced`), starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. The surface's path is a temporary folder of the machine, so the script shows a made-up one (`/home/demo/planning-surface`) in its place. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
 
 ## Starting the board
 
@@ -182,6 +182,13 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   (the `hub` entry of the same file): it reads the forge, read-only, every 20 s with your own
   `gh` or `glab` (only the PRs a running batch waits for; `chantier interests --kind pr` lists them; it never
   reads an issue), so it needs the network for that.
+- **The writer.** On a planning surface the board also runs the surface's writer, one per surface
+  and machine (the `writer` entry of the same file), whether a session started the board or you
+  did: it commits, rebases and pushes the plan, and prints its `writer:` line at the start. If it
+  cannot start (another process holds its lock), the board prints `board: writer not started: ...`
+  and serves anyway. Without a writer, chantier refuses every write in the surface. An older
+  board still serving after an upgrade runs no writer: the refusal and the `writer:` line name its
+  version, PID and stop command.
 - **The local network.** By default the board listens on every address of the machine
   (`0.0.0.0`): your phone on the same network reaches it. It speaks plain HTTP, so keep the link
   off any network you do not trust. On Windows, the first start asks the firewall for permission:
@@ -203,7 +210,7 @@ board:
   <checkout>`; never `uvx --from <checkout>`. From the surface's root, with no `--project`, the
   board serves every project of the surface; it runs until you stop it, so a scheduled task or a
   service may start it (the surface's own setup; chantier ships none).
-- **When it stops.** With Ctrl-C. A board a session started (`--seat`) also stops by itself once
+- **When it stops.** With Ctrl-C. The writer first runs one final cycle, up to 30 s, that commits and pushes what is pending. A board a session started (`--seat`) also stops by itself once
   no session that registered a seat holds it any more; a board started by hand (no `--seat`)
   does not, even when sessions register a seat on it and leave. A second `chantier board` on the same address says the board is already running and
   prints the same link. Two refusals leave the board alone and tell you what to do

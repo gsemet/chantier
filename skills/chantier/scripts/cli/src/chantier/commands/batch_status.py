@@ -5,15 +5,14 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from chantier.autosync.lines import status_line
-from chantier.autosync.reading import names_of, read_view
-from chantier.autosync.site import find_site
 from chantier.commands import wait_view
 from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.commands.factory import FACTORY_ON, factory_lines
+from chantier.commands.writer_line import entry as writer_entry
+from chantier.commands.writer_line import writer_lines
 from chantier.core import leases
 from chantier.core.batch import (
     Batch,
@@ -280,6 +279,8 @@ def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
     ]
     open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
     lines += journal.lines(entries, d.id, open_crs, d.orders, wait_view.open_keys(d))
+    if repo.external:
+        lines += journal.writer_lines(entries, writer_entry(repo))
     return lines
 
 
@@ -309,14 +310,6 @@ def _unpaused_line(d: BatchRecord) -> list[str]:
     ]
 
 
-def _autosync_lines(repo: Repo) -> list[str]:
-    """The surface's autosync, one line, when its rules name one and its script is there."""
-    site = find_site(repo)
-    if site is None or site.script_missing:
-        return []
-    return [status_line(read_view(site, names_of([repo])))]
-
-
 def _other_batches_lines(repo: Repo) -> list[str]:
     line = other_batches(repo)
     return [line] if line else []
@@ -333,7 +326,7 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     d = read_batch(repo, batch)
     lines = [
         _batch_line(d, _heartbeat_text(d, prev)),
-        *_autosync_lines(repo),
+        *writer_lines(repo),
         *_other_batches_lines(repo),
     ]
     lines += factory_lines(repo, d)

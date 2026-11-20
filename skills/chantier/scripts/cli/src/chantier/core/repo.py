@@ -223,7 +223,7 @@ class Repo:
         """The planning folder's store, built once: no file is created by building it."""
         if self._store is None:
             self._store = (
-                SurfaceStore(self.changes, self.project_folder)
+                SurfaceStore(self.changes, self.project_folder, self.git_dir)
                 if self.external
                 else FolderStore(self.changes)
             )

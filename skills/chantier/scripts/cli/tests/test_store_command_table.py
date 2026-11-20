@@ -26,8 +26,8 @@ from store_spy import (
     unguarded,
 )
 
-from chantier.board import autosync_tool, routes
 from chantier.board import key as keys
+from chantier.board import routes
 from chantier.board.context import Context, Request
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
@@ -158,7 +158,6 @@ ROWS = [
 
 def _board(surface: Surface, monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[int, Any]]:
     """The board's routes, called in-process with the key and the headers a page sends."""
-    monkeypatch.setattr(autosync_tool, "spawn_join", lambda *a, **k: pytest.fail("autosync"))
     found = Repo.find(project="demo", readonly=True)
     projects = Projects(found, found.surface, [])
     secret = keys.load_or_create(found)

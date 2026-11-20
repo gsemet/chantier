@@ -43,9 +43,8 @@ steered by a Foreman or, in direct mode, by you. Who talks to whom: [routing](ro
 | "release v1.4.0", a release question | find the project's procedure, ask for the grant, a release CR in a batch | Releases |
 | "auto" during a release | `order grant <release-cr> --note "releases=<k+1>"`, a budget first if the batch has none | Releases |
 | "become a griller", "become chief of staff" | the seat and the role | [session-start](session-start.md) |
-| "start autosync", "stop autosync" (a surface with an autosync) | the surface script's `start . --enable-only` (a join first if this session is not a member) or `stop .`, from the surface's root; never `approve` | With a planning surface |
 | "board on my phone", "where is the board?" | the board's link again (it holds the key; its PRs page is the live view of the batch's PRs); on the user's word, to keep the board on this machine only, `board.host: 127.0.0.1` in `chantier.yaml`, then the board started again: stop the running one by the host's means, then `$CHANTIER board --seat <id>`; a board refused because another one serves the surface is the user's to stop | [session-start](session-start.md) |
-| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); without autosync, commit the planning folder by hand; tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks | [session-start](session-start.md) |
+| "rescan", "I updated the priorities" (the user edited the backlog on the board) | read the backlog again (`$CHANTIER status`, the dashboard, `next-batch.json`); tell the user what moved and whether the next batch is declared ready; with a watcher or the pull path running, the board's writes already came: read the backlog again only when the user asks | [session-start](session-start.md) |
 
 ## Hard rules
 
@@ -390,35 +389,30 @@ artifact or an inline visualization that matters to the CR has its source saved 
 the CR is written in the CR's folder; your memory is never a CR's place (decisions go to
 `02-answers.md`, as "Record at once" says).
 
-**With a planning surface** ([concepts](concepts.md)): the surface's own rules win for its sync,
-its `AGENTS.md` first. Without sync rules there, commit and push the surface after each step that
-changes it (a file, a grill answer, a specification, `open`, a merge recorded, `close`) and, in a
-batch, at each hand-back you hear: stage only this project's folder or paths inside it
-(`git add -- projects/<name>/...`), never `git add -A`, `git add .` nor a wider folder (another
-session on the same surface may have its own files unstaged there; a file outside the project's
-folder, the surface's own `AGENTS.md` or its root `chantier.yaml`, only by its own path); then
-commit, `git pull --rebase --autostash` and `git push` to the default branch, never a force push. A clone missing at
+**With a planning surface** ([concepts](concepts.md)): the surface's own rules win for what they
+say, its `AGENTS.md` first; its writer commits and pushes the plan (below). A clone missing at
 `checkout.yml`'s path (`preflight` fails naming it) is cloned on the user's word. Outside
 contributors submit a CR by a PR on the surface, which the user reviews and merges on the forge;
 a CR so merged into `1-inbox` or `2-backlog/P<n>` is read like any other. Never touch the
 project's clone except by `git -C <clone>`.
 
-A surface with an autosync (P13, `status`; [concepts](concepts.md)) is kept pushed by its own tool:
+The surface's writer ([concepts](concepts.md)) commits and pushes the plan. You never commit the
+plan by hand; the surface's other files stay yours to commit, by hand. While a writer runs you
+never pull or push the surface by hand: it pushes your hand commits too. On a `writer:` line (of
+`status`, `seat`, P13 or `sync`) or a writer's journal line, act as it says:
 
-- **Enabled:** commit or push nothing by hand. `uv run scripts/ai-autosync-git.py sync .`, from
-  the surface's root, publishes at once when a step needs it.
-- **Stopped by the user, or no autosync:** the rule above (by hand, only this project's folder,
-  `git pull --rebase --autostash`, `git push`, never a force push).
-- **Blocked** (the `status` line, P13, the Foreman's ask, the board, or the user): the reason says
-  what. When upstream moved, integrate as the surface's rules say (chantier's own: a rebase, no
-  change discarded, never a force push), then `start . --enable-only`. When something else blocks
-  it (LFS, Gitleaks, a conflict), repair what is the session's own, else tell the user the reason
-  and wait.
-- **Approval:** show the user the incident (its id and message). Only the user approves, from the
-  board's approve button (give the board's URL) or in their own terminal. You never run `approve`,
-  even on the user's word in the chat.
-- **"start autosync", "stop autosync":** the script's `start . --enable-only` (after a join, if
-  this session is not a member) or `stop .`, from the surface's root.
+- **conflict:** in the surface's checkout, `git fetch`, `git rebase origin/<branch>`; resolve each
+  file to your best guess, or ask the user; never a force push. The writer pushes once integrated.
+- **blocked:** the way out the line gives, else tell the user the reason. Blocked by a stash git
+  cannot reapply: tell the user where the edits are, the stash's name the line gives.
+- **offline, or late:** tell the user once per episode.
+- **not running:** start the surface server ([session-start](session-start.md)). When the line
+  names an older board, ask the user to stop it with the stop command it gives, then start the
+  server.
+- **stopped:** tell the user the reason the line gives, once per episode, and restart the
+  surface server as for not running.
+- A Foreman's `writer off` ask: the same. `$CHANTIER sync now` when a step must reach the forge at
+  once.
 
 Shared understanding: ask whether a CR is grilled enough only after a complete restatement of it,
 in the user's language: what it changes, every decision taken (from `02-answers.md`), what is
@@ -735,7 +729,7 @@ it this way: no go per CR. The budget is unchanged: a CR may join past it, no Dr
   line it prints to the Foreman verbatim (direct mode: take it as usual). A refused join leaves the
   CR in `3-ready` with the reason: fix it, then `order add --note <folder>`.
 - **A CR in `3-ready` that did not join** (placed from a Griller's worktree, arrived through
-  autosync, named by `status`'s `3-ready holds ... not joined` line): run `order add --note <folder>`
+  the writer, named by `status`'s `3-ready holds ... not joined` line): run `order add --note <folder>`
   on your own, the factory's go covering it, and relay its line.
 - **When a batch becomes a factory** (empty `open`, `open --factory`, `order factory on`): add every
   CR the CLI names in `3-ready` with `order add` at once and name them to the user.

@@ -33,6 +33,9 @@ from chantier.core.errors import EXIT_EXTERNAL, EXIT_USAGE, ChantierError
 from chantier.hub import state
 from chantier.hub.loop import HubLoop, HubThread
 from chantier.playbook.layers import load_board
+from chantier.writer import lines as writer_lines
+from chantier.writer import record as writer_record
+from chantier.writer.loop import WriterLoop, WriterThread
 
 T = TypeVar("T")
 BEYOND = (
@@ -90,6 +93,24 @@ def _bind(host: str, port: int, held: Callable[[], str] | None = None) -> socket
     return sock
 
 
+def _start_writer(projects: Projects) -> WriterThread | None:
+    """The surface's writer, only when the folder served is an external planning surface: its
+    start line, and its thread. A writer that cannot start (its lock is held by another process)
+    leaves the board serving, and says why."""
+    home = projects.home
+    if not home.external:
+        return None
+    loop = WriterLoop(home)
+    why = loop.start()
+    if why:
+        print(f"board: writer not started: {' '.join(why.split())}", flush=True)
+        return None
+    print(writer_lines.state_line(writer_record.read(home.git_dir)), flush=True)
+    thread = WriterThread(loop)
+    thread.start()
+    return thread
+
+
 def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
     """Serve until Ctrl-C, or, for a board started with `--seat`, until its seats leave."""
     box: list[Any] = []
@@ -109,11 +130,14 @@ def _run(projects: Projects, seats: Seats, sock: socket.socket) -> None:
     seats.arm(stop)
     hub = HubThread(HubLoop(projects.home), stop)
     hub.start()
+    writer = _start_writer(projects)
     try:
         box[0].run(sockets=[sock])
     except KeyboardInterrupt:
         pass
     finally:
+        if writer is not None:
+            writer.stop()  # its final cycle, before the server's entry goes
         hub.stop()
         sock.close()
         with contextlib.suppress(OSError):  # an entry left behind names a dead process

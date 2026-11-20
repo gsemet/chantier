@@ -9,8 +9,23 @@ from pathlib import Path
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 
 
-def git(*args: str, cwd: Path | str | None = None, check: bool = True) -> str:
-    env = {**os.environ, "GIT_EDITOR": "true", "GIT_PAGER": "cat", "GIT_TERMINAL_PROMPT": "0"}
+def git(
+    *args: str,
+    cwd: Path | str | None = None,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+    input: str | None = None,
+    raw: bool = False,
+) -> str:
+    """Run git and return its standard output, stripped (`raw`: as git printed it). `env` is
+    merged over the environment; `input` is passed on standard input as text."""
+    env = {
+        **os.environ,
+        "GIT_EDITOR": "true",
+        "GIT_PAGER": "cat",
+        "GIT_TERMINAL_PROMPT": "0",
+        **(env or {}),
+    }
     if cwd is not None and not Path(cwd).is_dir():
         raise ChantierError(f"no folder {cwd}: git cannot run there", EXIT_PRECONDITION)
     p = subprocess.run(
@@ -21,13 +36,14 @@ def git(*args: str, cwd: Path | str | None = None, check: bool = True) -> str:
         encoding="utf-8",
         errors="replace",
         env=env,
+        input=input,
         check=False,
     )
     if check and p.returncode != 0:
         raise ChantierError(
             f"git {' '.join(args)}: {p.stderr.strip() or p.stdout.strip()}", EXIT_EXTERNAL
         )
-    return p.stdout.strip()
+    return p.stdout if raw else p.stdout.strip()
 
 
 def default_branch(root: Path, remote: str = "origin") -> str | None:

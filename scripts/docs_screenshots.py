@@ -12,7 +12,6 @@ stopped whatever happens. Nothing falls back: a step that fails stops the script
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import shutil
@@ -31,7 +30,6 @@ OUT = ROOT / "docs" / "web-board"
 CLOCK = "2026-06-18T10:30:00Z"
 SIZES = {"pc": {"width": 1400, "height": 860}, "phone": {"width": 375, "height": 812}}
 SURFACE_SHOWN = "/home/demo/planning-surface"  # the surface's name and path in the pictures
-INCIDENT = "staged-0123456789abcdef0123"
 
 
 def run(*cmd: str, cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
@@ -39,7 +37,7 @@ def run(*cmd: str, cwd: Path | None = None, env: dict[str, str] | None = None) -
 
 
 def make_surface(parent: Path) -> Path:
-    """A copy of the demo, a git repository, and the autosync tool's state files."""
+    """A copy of the demo, a git repository, and a bare origin, so the writer shows `synced`."""
     surface = parent / "surface"
     shutil.copytree(DEMO, surface)
     git = (
@@ -61,21 +59,13 @@ def make_surface(parent: Path) -> Path:
     run(*git, "init", "-q", "-b", "main", cwd=surface)
     run(*git, "add", "-A", cwd=surface)
     run(*git, "commit", "-q", "-m", "demo", cwd=surface)
-    state = surface / ".git" / "ai-autosync"
-    state.mkdir()
-    (state / "control.json").write_text(json.dumps({"enabled": True}), encoding="utf-8")
-    (state / "status.json").write_text(
-        json.dumps(
-            {
-                "state": "approval_required",
-                "message": "3 staged files look like secrets: projects/shop-api/.env.local, "
-                "projects/shop-api/keys/dev.pem, projects/mobile-app/google-services.json",
-                "updated_at": 1781778000.0,
-                "incident": INCIDENT,
-            }
-        ),
-        encoding="utf-8",
-    )
+    # The surface's origin: a bare repository beside it, so the surface's writer has an upstream
+    # to push to and shows `synced` (the board starts it with the server).
+    origin = parent / "origin.git"
+    run(*git, "init", "-q", "--bare", "-b", "main", str(origin))
+    run(*git, "remote", "add", "origin", str(origin), cwd=surface)
+    run(*git, "push", "-q", "-u", "origin", "main", cwd=surface)
+    run(*git, "remote", "set-head", "origin", "main", cwd=surface)
     return surface
 
 
@@ -242,13 +232,15 @@ def panel(page: Page, url: str, size: str) -> None:
     shot(page, "panel", size)
 
 
-def autosync(page: Page, url: str, size: str) -> None:
+def writer(page: Page, url: str, size: str) -> None:
     goto(page, url, "home", "*")
-    pill = page.locator('[data-key="autosync-pill"], [data-key="autosync-dot"]')
+    pill = page.locator('[data-key="writer-pill"], [data-key="writer-dot"]')
+    # the writer's first cycle sets `synced`; the page shows it at its next refresh
+    page.wait_for_selector(".adot.synced", state="attached")
     pill.locator("visible=true").first.click()
     page.locator(".apop").locator("visible=true").first.wait_for()
     settle(page)
-    shot(page, "autosync", size)
+    shot(page, "writer", size)
 
 
 def editor(page: Page, url: str, size: str) -> None:
@@ -291,7 +283,7 @@ def selection(page: Page, url: str, size: str) -> None:
     shot(page, "triage-selection", size)
 
 
-EXTRA = [panel, editor, new_dialog, autosync, picker, selection]
+EXTRA = [panel, editor, new_dialog, writer, picker, selection]
 
 
 def main() -> None:

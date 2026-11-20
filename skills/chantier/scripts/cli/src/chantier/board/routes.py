@@ -8,7 +8,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from chantier.board import autosync_api, config_api, costs, files, guard, prs, static, write_api
+from chantier.board import config_api, costs, files, guard, prs, static, write_api, writer_api
 from chantier.board.address import local_url
 from chantier.board.context import Context, Request
 from chantier.board.fingerprint import fingerprint
@@ -75,7 +75,7 @@ def board(ctx: Context, req: Request) -> Reply:
             "local_url": _local_url(ctx),
             "seats": ctx.seats.count(),
             "projects": lines,
-            "autosync": autosync_api.payload(ctx),
+            "writer": writer_api.payload(ctx),
             "now": clock.now(),
         }
     )
@@ -164,7 +164,7 @@ ROUTES: list[tuple[str, str, Handler]] = [
     ("POST", r"/api/seats", seats),
     *write_api.ROUTES,
     *config_api.ROUTES,
-    *autosync_api.ROUTES,
+    *writer_api.ROUTES,
 ]
 
 

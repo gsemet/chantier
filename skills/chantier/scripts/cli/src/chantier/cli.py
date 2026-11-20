@@ -30,9 +30,11 @@ from chantier.declare import (
     rules,
     seat,
     summary,
+    sync,
     validate,
     watch,
 )
+from chantier.writer import lines as writer_lines
 
 MAX_LINES = 10
 # The facts of a CR, a list of files, the whole batch, or what the user approves, is useless cut
@@ -58,6 +60,7 @@ FULL_OUTPUT = {
     "validate",
     "interests",
     "journal",
+    "sync",  # a conflict names its files
 }
 
 
@@ -97,6 +100,7 @@ def _parser() -> argparse.ArgumentParser:
         summary,
         interests,
         journal,
+        sync,
         validate,
         watch,
     ):
@@ -123,6 +127,16 @@ def cut(lines: list[str]) -> list[str]:
     return [*lines[: MAX_LINES - 1], f"… {len(lines) - MAX_LINES + 1} more lines"]
 
 
+def with_notes(lines: list[str]) -> list[str]:
+    """The `writer: <state>: not pushed yet (...)` lines of a command that wrote to a surface,
+    before a last `watch: not running:` line."""
+    notes = writer_lines.notes()
+    if not notes:
+        return lines
+    at = len(lines) - 1 if lines and lines[-1].startswith("watch: not running:") else len(lines)
+    return [*lines[:at], *notes, *lines[at:]]
+
+
 def main(argv: list[str] | None = None) -> int:
     # Output holds `→` and paths: UTF-8 everywhere, not the Windows code page of a pipe.
     for stream in (sys.stdout, sys.stderr):
@@ -142,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     plugin_files.SKILL = args.skill
+    writer_lines.forget()
     try:
         result: Any = args.fn(args)
     except ChantierError as e:
@@ -151,6 +166,8 @@ def main(argv: list[str] | None = None) -> int:
     full = args.cmd in FULL_OUTPUT or (args.cmd == "order" and args.kind == "qa")  # a prompt
     if not full:
         lines = cut(lines)
+    if args.cmd != "board":  # its routes write too, and its output is its own
+        lines = with_notes(lines)
     if lines:  # `board` printed its own lines while it served
         print("\n".join(lines))
     return int(code)

@@ -8,11 +8,12 @@ import shutil
 from pathlib import Path
 
 from chantier import __version__
-from chantier.autosync.lines import preflight_check
-from chantier.autosync.reading import names_of, read_view
-from chantier.autosync.site import find_site
+from chantier.autosync.site import GUIDELINES
 from chantier.commands.permissions import CAPABILITIES, SETTINGS_SHOWN, commands_not_allowed
+from chantier.commands.writer_line import entry as writer_entry
+from chantier.commands.writer_line import line as writer_line
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
+from chantier.core.files import read_text
 from chantier.core.git import default_branch, git
 from chantier.core.repo import Repo, SurfaceChoice
 from chantier.core.surface_batches import other_batches
@@ -23,8 +24,10 @@ from chantier.plugin_files import (
     project_instructions,
     read_playbook,
     skill_version,
+    surface_instructions,
     sync_command,
 )
+from chantier.writer import lines
 
 
 class _Report:
@@ -212,14 +215,52 @@ def _check_allow(r: _Report, repo: Repo | None, wanted: set[str]) -> None:
         )
 
 
-def _check_autosync(r: _Report, repo: Repo) -> None:
-    """P13: the surface's own autosync, when its rules name one. Read-only, warn-only."""
-    site = find_site(repo)
-    if site is None:
+def _surface_rules(repo: Repo) -> str:
+    """The text of the surface's own rules (its root `AGENTS.md`), empty when it has none."""
+    rules = surface_instructions(repo)
+    if rules is None:
+        return ""
+    try:
+        return read_text(rules, errors="replace")
+    except OSError:
+        return ""
+
+
+def _check_writer(r: _Report, repo: Repo) -> None:
+    """P13: the surface's writer, external mode only. Read-only, warn-only; two more warn lines
+    while the surface's rules still name its autosync tool or a hand pull or push."""
+    if not repo.external:
         return
-    check = preflight_check(site, read_view(site, names_of([repo])))
-    text = check.text
-    r.check("P13", check.passed, text, text, warn=True)
+    entry = writer_entry(repo)
+    line = writer_line(repo)
+    running = entry.get("state") in lines.LIVE_STATES
+    r.check(
+        "P13",
+        running,
+        f"the surface's writer runs: {line.removeprefix('writer: ')}",
+        line,
+        warn=True,
+    )
+    rules = _surface_rules(repo)
+    if GUIDELINES in rules:
+        r.check(
+            "P13",
+            False,
+            "",
+            "the surface's rules name its autosync tool: chantier's writer replaces it; "
+            "remove the mention from the surface's AGENTS.md",
+            warn=True,
+        )
+    if "git pull" in rules or "git push" in rules:
+        r.check(
+            "P13",
+            False,
+            "",
+            "the surface's rules name a hand pull or push: chantier's writer pushes every "
+            "commit of the surface while it runs, nobody pulls or pushes it by hand; remove it "
+            "from the surface's AGENTS.md",
+            warn=True,
+        )
 
 
 def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
@@ -229,7 +270,7 @@ def _check_project(r: _Report, repo: Repo, host: str | None) -> None:
         _check_playbook(r, repo, host)
     if repo.external:
         _check_surface(r, repo)
-    _check_autosync(r, repo)
+    _check_writer(r, repo)
     if repo.external:
         r.lines.append(f"P14 ok   {other_batches(repo) or 'no other batch on this surface'}")
 

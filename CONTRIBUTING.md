@@ -112,8 +112,9 @@ chantier is four things in one repository:
    reads; takes its dependencies like the
    rest of the CLI and knows no role; its page, in `board/web/`, is hand-written HTML, CSS and ES modules, with no
    build step).
-   The board is also the CLI's one git exception: while it runs it joins the planning
-   surface's own autosync group, which commits and pushes its writes; it commits nothing itself.
+   The board's process also runs the surface's writer, a named git exception: while the server
+   runs, it commits, rebases and pushes the planning surface's published paths and the local
+   commits of the surface's branch; the board's own code commits nothing.
    The forge hub is the surface server's second role, a named exception among the tools: one
    process per planning surface and machine, `chantier board`, started by the Chief of Staff on
    the user's yes; with no server running, the one watcher that holds the OS file lock in the git
@@ -124,10 +125,10 @@ chantier is four things in one repository:
    (planning folder, never published) one line per merge the record does not hold and per CI
    turning red on a PR ready to merge, and nothing else; each session's watcher, run for the
    Chief of Staff's whole session with or without a batch, reads only its project's journal (the
-   hub's lines, the board's writes and an outside poller's `issue@1` lines) and ends 20 s after the last new event for it that wakes, and no
+   hub's lines, the board's writes, the writer's and an outside poller's `issue@1` lines) and ends 20 s after the last new event for it that wakes, and no
    sooner than `events.wake_every` after its start, which wakes its session, or when the
    project's seat is another session's; the hub records nothing in
-   a batch, runs no git and messages no agent (the server runs no git either, but its autosync join), and every journal
+   a batch, runs no git and messages no agent (the server runs no git but its writer's), and every journal
    line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never started
    by chantier) writes into a project's journal only through `journal add`, only `issue@1` lines,
    and only for an issue a CR's `issue:` line names. It spares the user one round trip per merge and

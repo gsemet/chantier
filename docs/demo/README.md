@@ -19,5 +19,5 @@ copies it to a temporary folder, starts the web board on the copy and takes the 
 
 The record files a running batch keeps (`batch.json`, `events.jsonl`, `seat.json`) are kept here
 too, in the format the server reads. The capture script adds what git does not hold: it initialises
-a git repository in its copy and writes the autosync tool's state files there (a group waiting for
-an approval), so that the board's pill has a fixed state to draw.
+a git repository in its copy, with a bare repository as its origin, so that the surface server's
+writer has an upstream and the board's pill has a fixed state to draw (`synced`).

@@ -118,15 +118,13 @@
   --mark-4-tint: #eaeade;
   --mark-5-tint: #dfebeb;
 
-  /* the surface's autosync: the pill's states, and its two boxes */
-  --autosync-active: #23805a;
-  --autosync-stopped: #8b909c;
-  --autosync-blocked: #c03552;
-  --autosync-approval: #b86e0c;
-  --autosync-ko-fill: #fff4f5;
-  --autosync-ko-ink: #9c2a41;
-  --autosync-wa-fill: #fff6ec;
-  --autosync-wa-ink: #7a4a0c;
+  /* the surface's writer: the pill's states, and its box */
+  --writer-synced: #23805a;
+  --writer-pending: #2f6fb5;
+  --writer-offline: #8b909c;
+  --writer-blocked: #c03552;
+  --writer-ko-fill: #fff4f5;
+  --writer-ko-ink: #9c2a41;
 
   /* the Costs receipt: warm paper with a faint grain, its lines, its shadows and its width */
   --paper: #fffefb;

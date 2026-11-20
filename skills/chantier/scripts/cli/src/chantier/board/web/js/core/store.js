@@ -22,7 +22,7 @@ const data = {
   panelFile: null, // the open panel's file: { path, rel, kind, text, sha256, cut, loading, failed }
   panel: null, // the target (kind, key, title, folder, files, row) whose folder is open, else null
   editing: null, // the panel's Markdown editor: { path, original, draft, base, saving, error }
-  autosync: { open: false, busy: false, error: '' }, // the autosync panel: open, a call running, its error
+  writer: { open: false, busy: false, error: '' }, // the writer panel: open, a call running, its error
   prsState: null, // PRs: the state filter ('open', 'draft', 'merged'), null for all
   prsSort: null, // PRs: the sort ('opened', 'activity', 'cr'), null for the batch's order
   prs: null, // PRs: the last answer of GET api/projects/{id}/prs, kept across a failed read
