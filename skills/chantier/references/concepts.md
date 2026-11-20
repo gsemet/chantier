@@ -15,6 +15,10 @@ At startup, identify the role, batch, project and parent session.
   for; `chantier interests` lists them; the forge hub reads only the PRs and MRs (a running
   batch's open approval, pipeline and merge waits are interests too), an outside poller (the
   user's own program) the issues, and writes their events with `chantier journal add`.
+- **`access`:** `$CHANTIER access [write|claim|push] [<cr>]` explains, read-only, what the rules say
+  now for this session: whether it may write the planning folder (the writer), claim a CR (`take`'s
+  checks, with `--epoch`) or push a CR's branch (its lease, with `--lease`). It changes nothing,
+  renews no lease and is no permission. A refusal stays the refusing command's.
 - **Wait:** what a CR waits for, one of four types: `answer` (the user's), `approval`, `pipeline`
   and `merge` (a forge's). It lives in the CR entry of `batch.json`, and in a backlog CR's
   `waits.json`; `wait` records, clears and lists it. It changes no rule of the lifecycle (a CR with

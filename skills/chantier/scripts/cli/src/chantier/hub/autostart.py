@@ -27,6 +27,12 @@ def session_key() -> str:
     return re.sub(r"[^A-Za-z0-9-]", "", own_transcript(host) or "") or NONE
 
 
+def holds_seat(transcript: str | None) -> bool:
+    """The seat's transcript, kept as the watcher's key is, is this CLI run's own key."""
+    kept = re.sub(r"[^A-Za-z0-9-]", "", transcript or "")
+    return bool(kept) and kept == session_key()
+
+
 def watch_command(repo: Repo, n: int) -> str:
     return f"{cli_command(repo)} watch --after {n}"
 

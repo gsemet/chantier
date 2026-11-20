@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
 from chantier.commands.writer_line import writer_lines
@@ -14,7 +13,7 @@ from chantier.core.files import write_json
 from chantier.core.records import ClaimRecord, SeatRecord, chief_sessions
 from chantier.core.repo import Repo
 from chantier.core.seat import read_seat
-from chantier.hub.autostart import not_running_line, session_key
+from chantier.hub.autostart import holds_seat, not_running_line
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.plugin_files import detect_host, own_transcript
@@ -90,8 +89,7 @@ def _transcript(repo: Repo, b: RenderedBatch, args: argparse.Namespace) -> list[
 def _own_watch_line(repo: Repo, transcript: str | None) -> list[str]:
     """The `watch: not running` line when the seat's transcript, kept as the watcher's key is, is
     this CLI run's own key (the seat is this session's) and no watcher of it runs."""
-    kept = re.sub(r"[^A-Za-z0-9-]", "", transcript or "")
-    return not_running_line(repo) if kept and kept == session_key() else []
+    return not_running_line(repo) if holds_seat(transcript) else []
 
 
 def _get(repo: Repo) -> list[str]:

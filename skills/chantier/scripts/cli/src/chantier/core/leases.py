@@ -118,10 +118,12 @@ class Liveness(NamedTuple):
     gate: str | None = None  # `gate running` or `gate queued`: a long gate of the CR keeps it
 
 
-def hold_records(repo: Repo, unit: str | None = None) -> list[tuple[Path, dict[str, Any]]]:
+def hold_records(
+    repo: Repo, unit: str | None = None, drop: bool = True
+) -> list[tuple[Path, dict[str, Any]]]:
     """The `.lease-hold.<unit>.<k>.run` records whose process is still the one that wrote them.
-    A record whose process is gone holds nothing and is removed here; one that cannot be read
-    is left alone."""
+    A record whose process is gone holds nothing and is removed here (unless `drop` is False:
+    a read-only caller leaves it); one that cannot be read is left alone."""
     found = []
     for p in sorted(repo.changes.glob(f"{HOLD}.*.run")):
         m = _HOLD_NAME.fullmatch(p.name)
@@ -135,7 +137,7 @@ def hold_records(repo: Repo, unit: str | None = None) -> list[tuple[Path, dict[s
             continue
         if procs.alive_since(pid, recorded, False):
             found.append((p, data))
-        else:
+        elif drop:
             p.unlink(missing_ok=True)
     return found
 
@@ -157,10 +159,10 @@ def gate_keeping(repo: Repo, unit: str) -> str | None:
     return None
 
 
-def liveness(repo: Repo, unit: str, lease: Lease) -> Liveness:
+def liveness(repo: Repo, unit: str, lease: Lease, drop: bool = True) -> Liveness:
     if lease.ended:
         return Liveness(ENDED)
-    holds = sum(1 for _, rec in hold_records(repo, unit) if rec.get("lease") == lease.n)
+    holds = sum(1 for _, rec in hold_records(repo, unit, drop) if rec.get("lease") == lease.n)
     gate = gate_keeping(repo, unit)
     if seconds_until(lease.expires) > 0 or holds or gate:
         return Liveness(LIVE, holds, gate)
@@ -206,14 +208,17 @@ def not_confirmed(repo: Repo, unit: str, lease: Lease | None) -> str | None:
     return not_confirmed_text(lease)
 
 
-def check_free(repo: Repo, d: BatchRecord, unit: str, reclaim: bool) -> Lease | None:
+def check_free(
+    repo: Repo, d: BatchRecord, unit: str, reclaim: bool, drop: bool = True
+) -> Lease | None:
     """What `take` (and a QA driver's restart) asks of the unit's last lease: free when it has
     none or it ended. A live one (exit 3, "held") and a not confirmed one (exit 3, "check with the
-    host") are refused unless `reclaim`: then the lease is returned, for `reclaim` to end."""
+    host") are refused unless `reclaim`: then the lease is returned, for `reclaim` to end.
+    `drop` False: read-only, no dead hold record is removed."""
     lease = lease_of(d, unit)
     if lease is None or lease.ended:
         return None
-    state = liveness(repo, unit, lease).state
+    state = liveness(repo, unit, lease, drop).state
     if reclaim:
         return lease
     if state == LIVE:
