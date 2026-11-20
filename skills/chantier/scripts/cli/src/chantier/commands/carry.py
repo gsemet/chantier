@@ -42,20 +42,26 @@ def _ancestor(wt: Path, older: str, newer: str) -> bool:
 
 
 def head_base(repo: Repo, d: BatchRecord, c: CrEntry, wt: Path, head: str) -> Base | None:
-    """The base a head actually sits on: of the start base, the PR's base as `ship` last read it
-    and the planned place, each one's remote tip that is an ancestor of the head, the nearest
-    to the head. None when none is: the head sits on none of them. Read only."""
-    names = [stack_base(d, c, repo), c.pr_base or "", stack_base(d, c, repo, planned=True)]
+    """The base a head actually sits on: the nearest to the head, among the candidates' tips that
+    are its ancestors. The candidates: the start base, the PR's base as `ship` last read it, the
+    planned place and the default branch (each by its remote tip), then every other CR of the
+    batch that is not cancelled (its branch's remote tip and its local tip). A tie goes to the
+    first in that order; `Base.branch` is the branch name. None when none is an ancestor. Read
+    only."""
+    remote = repo.config["remote"]
+    names = [
+        stack_base(d, c, repo),
+        c.pr_base or "",
+        stack_base(d, c, repo, planned=True),
+        repo.config["default_branch"] or "",
+    ]
+    refs = [(n, f"{remote}/{n}") for n in names if n]
+    for o in d.crs:
+        if o.id != c.id and o.status != "cancelled" and o.branch:
+            refs += [(o.branch, f"{remote}/{o.branch}"), (o.branch, f"refs/heads/{o.branch}")]
     found: dict[str, Base] = {}
-    for name in dict.fromkeys(n for n in names if n):
-        tip = git(
-            "rev-parse",
-            "--verify",
-            "--quiet",
-            f"{repo.config['remote']}/{name}",
-            cwd=wt,
-            check=False,
-        )
+    for name, ref in dict.fromkeys(refs):
+        tip = git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", cwd=wt, check=False)
         if tip and _ancestor(wt, tip, head):
             found.setdefault(tip, Base(name, tip))
     if not found:
