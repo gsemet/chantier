@@ -184,8 +184,8 @@ def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c)
         return pred.branch if pred and pred.status != "merged" else default
-    if b_data.mode == "stack" and c.kind != "fix":
-        return stack_start(b_data, c, repo)
+    if b_data.mode == "stack" and c.kind != "fix" and (not c.stacked or c.start_on):
+        return stack_start(b_data, c, repo)  # a placed CR keeps only a recorded start base
     if c.after and c.kind != "fix":
         open_ = _open_after(b_data, c)
         if open_:
