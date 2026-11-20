@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from chantier.gate_queue import MARK, ordered
+from chantier.commands.gate_lock import LongGateLock
+from chantier.gate_queue import MARK, QUEUE, ordered, ticket_cr
 
 # (label, batch mode, CRs as (id, order, status, kind), tickets by arrival, marked, expected)
 ONE, TWO, THREE = "CR-1", "CR-2", "CR-3"
@@ -109,3 +113,54 @@ def test_a_queue_with_no_batch_record_keeps_the_marked_then_arrival_order(tmp_pa
         (queue / f"{n:020d}-1").write_text(f"{cr} pid 1", encoding="utf-8")
     (queue / f"{MARK}{n:020d}-1").touch()
     assert [p.read_text().split()[0] for p in ordered(queue)] == [ONE, THREE, TWO]
+
+
+def _refuse(real: Any, target: Path | None, times: int) -> Any:
+    """`real` (a Path method), refusing with a sharing violation `times` times on `target` (any
+    path with `None`); `times < 0`: always."""
+    left = [times]
+
+    def wrapper(self: Path, *a: Any, **k: Any) -> Any:
+        if (target is None or self == target) and left[0] != 0:
+            left[0] -= 1
+            raise PermissionError(32, "being used by another process")
+        return real(self, *a, **k)
+
+    return wrapper
+
+
+def test_a_sharing_violation_on_a_ticket_or_a_mark_stops_no_gate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(time, "sleep", lambda _s: None)
+    # Reader: a ticket that raises on read is gone for the pass, and is not deleted.
+    queue = tmp_path / QUEUE
+    queue.mkdir()
+    a, b = queue / f"{1:020d}-1", queue / f"{2:020d}-1"
+    for p, cr in ((a, ONE), (b, TWO)):
+        p.write_text(f"{cr} pid {os.getpid()}", encoding="utf-8")
+    (queue / f"{MARK}{3:020d}-1").touch()  # an orphan mark
+    with monkeypatch.context() as m:
+        m.setattr(Path, "read_text", _refuse(Path.read_text, a, -1))
+        m.setattr(Path, "unlink", _refuse(Path.unlink, queue / f"{MARK}{3:020d}-1", -1))
+        assert ordered(queue, drop=True) == [a, b]
+        assert ticket_cr(a, True) is None
+        assert ticket_cr(b, True) == TWO
+    assert a.exists()
+    # Owner: the unlink fails a few times, then goes.
+    repo: Any = SimpleNamespace(changes=tmp_path / "owner")
+    repo.changes.mkdir()
+    log = tmp_path / "gate.log"
+    with monkeypatch.context() as m:
+        m.setattr(Path, "unlink", _refuse(Path.unlink, None, 3))
+        with LongGateLock(repo, ONE, log):
+            assert not list((repo.changes / QUEUE).glob("[0-9]*"))
+    # Owner: the unlink always fails in `__enter__`; the gate goes on, `__exit__` tries again.
+    with monkeypatch.context() as m:
+        m.setattr(Path, "unlink", _refuse(Path.unlink, None, -1))
+        lock = LongGateLock(repo, ONE, log)
+        lock.__enter__()
+        assert lock.left
+        assert list((repo.changes / QUEUE).glob("[0-9]*"))
+    lock.__exit__()
+    assert not list((repo.changes / QUEUE).glob("[0-9]*"))
