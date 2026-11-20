@@ -201,69 +201,60 @@ defer the rest of this card until an action names it. These are the card's defau
   `git -C <main checkout> worktree add -b <branch> <path> <base>` (with a planning surface, from
   the clone that `take` names: `git -C <clone>`), with the names your prompt gives. An
   earlier Driver's worktree is there: use it (its branch alone: `git -C <main checkout> worktree
-  add <path> <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
-  it removes at its end. A CR whose first `take` shows a `PR:` link came back to a batch (it was
-  taken out of an earlier one with its work): use its branch, never a new one: its recorded
-  worktree if it is there, else `git -C <main checkout> worktree add <path> <branch>` (with a
-  planning surface, `git -C <clone>`), with the names `take` printed. Before anything else on the
-  forge, read the PR (`gh pr view <n> --json state`, `glab mr view <n>`): open, go on; closed,
-  reopen it (`gh pr reopen <n>`, `glab mr reopen <n>`) before any push to its branch, and when the
-  reopen is refused push nothing and hand back `handback <cr> blocked question: its PR <link> is
-  closed and the forge refuses to reopen it: <exact text>`; merged, nothing to do: hand back
-  `handback <cr> blocked question: its PR <link> is already merged`, which the Chief of Staff
-  records (`order merged <cr>`). Then rebase it on the base `take` names (below) and ship to that
-  same PR: never open a second PR for it.
+  add <path> <branch>`). Workers never create one, except the Verifier's detached worktree of the
+  base, which it removes at its end. A CR whose first `take` shows a `PR:` link came back to a
+  batch: use the branch and worktree `take` printed, never a new branch. Read its PR first (`gh pr
+  view <n> --json state`, `glab mr view <n>`): open, go on; closed, `gh pr reopen <n>` / `glab mr
+  reopen <n>` before any push, and if refused hand back `handback <cr> blocked question: its PR
+  <link> is closed and the forge refuses to reopen it: <exact text>`; merged, hand back `handback
+  <cr> blocked question: its PR <link> is already merged` (the Chief of Staff records `order merged
+  <cr>`). Then rebase on the base `take` names, ship to that PR: never open a second PR.
 - Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
-  <worktree> rebase <base>`;
-  a conflict is a `conflict-resolver`. A rebase with no conflict that leaves the CR's patch
+  <worktree> rebase <base>`; a conflict is a `conflict-resolver`. A rebase with no conflict that leaves the CR's patch
   unchanged needs no new long gate and no new `verifier`: the pass and the verdict carry over it
-  (see the long gate bullet). When the PR already exists and the rebase
-  needs a long gate (a conflict was resolved), push early, by the "Early push" rule below.
-  Never `git stash`: the stash is shared by every worktree,
-  so set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
-  stop only one you started, by its id (a running long gate is stopped with `gate <cr> --stop`,
-  never by ending the `gate` command, which leaves its suite running). A command the host may refuse runs alone, never chained
-  with routine steps.
+  (see the long gate bullet). When the PR exists and the rebase needs a long gate (a conflict was
+  resolved), push early, by the "Early push" rule below. Never `git stash` (shared): set work aside with a commit. Never stop a process by name or pattern (`pkill`, `killall`);
+  stop only one you started, by its id (a running long gate: `gate <cr> --stop`, never by ending
+  the `gate` command, which leaves its suite running). A command the host may refuse runs alone.
 - **Before the first push:** run the project's fast gate again, in the worktree, at the rebased
   committed head you are about to push, with any extra pre-push check the project's rules name
   (`$CHANTIER rules`) for the kind of change the CR is. The Coder ran the fast gate on the round's
-  base, and the rebase may have changed what it checks. These are short gates: you run them
-  yourself, one command per call, never through `gate`. A failure is a round: a `coder` with the
-  failing lines in its prompt, then the reviews, then these checks again at the new head before
-  the push. Record each result with `$CHANTIER note <cr> "before first push at <sha7>: <command>:
+  base, and the rebase may have changed what it checks. You run these short gates yourself, one
+  command per call, never through `gate`. A failure is a round: a `coder` with the
+  failing lines in its prompt, the reviews, then these checks again at the new head before the push. Record each result with `$CHANTIER note <cr> "before first push at <sha7>: <command>:
   pass"` (one note per command, or one note naming each). When the rules name no fast gate and no
-  pre-push check, there is nothing to run and no note. It holds whichever way the first push happens (before `gate` runs, before a pipeline job's push, before the push with the `ci: beside the long gate` line); it is not a third gate.
+  pre-push check, there is nothing to run and no note. It holds whichever way the first push happens (before `gate`, before a pipeline job's push, with the `ci: beside the long gate` line); it is not a third gate.
 - Push and the PR. A remote command that fails with a forge server error or a network failure:
   "Means: a remote command fails". A force push the host refuses: "Means: a force push the host
   refuses". `take` printing `archive: in the PR at <path>`: "Means: the archive in the PR". Push: a plain `git -C <worktree> push -u <remote> <branch>` when the remote branch is an ancestor
   of your head, `git -C <worktree> push --force-with-lease -u <remote> <branch>` only for a rewrite
   (a rebase). `<branch>` is your own CR's branch, the one your `take` / `handoff` prints, never
   another CR's (the stack driver restacks the stack's branches by its own rule, below).
-  Open or edit the PR yourself; a CR Driver opens it as a draft (`gh pr create --draft
+  Open or edit the PR yourself: a CR Driver opens it as a draft (`gh pr create --draft
   --body-file <work folder>/pr-body.md`, `glab mr create --draft` with the form below), a Release
   driver opens its PR as the base says: ready on the default branch, a draft on another base. A CR Driver writes the title and `<work folder>/pr-body.md` from the
-  project's PR template and rules, else from [pr-template](pr-template.md), and keeps the body
+  project's PR template and rules, else [pr-template](pr-template.md), and keeps the body
   and the PR's description current with the scope (`gh pr edit --body-file`, `glab mr update`
-  with the form below). The body is a file, written with the Write tool and changed with the Edit tool,
-  and posted from that file, as in [concepts](concepts.md), rule 9, never as text in the command. For GitLab: "Means: GitLab forms". The body carries
-  the `## Issues References` section for the specification's `issue:` lines ([pr-template](pr-template.md)), left out when there is none; a
-  Driver never comments on, closes or reopens an issue. The stack driver's and a Release
-  driver's PRs keep their form, by the project's rules. Before each post of the body
+  with the form below). The body is a file, written with the Write tool, changed with the Edit
+  tool and posted from that file ([concepts](concepts.md), rule 9), never as text in the command.
+  For GitLab: "Means: GitLab forms". The body carries the `## Issues References` section for the
+  specification's `issue:` lines ([pr-template](pr-template.md)), left out when there is none; a
+  Driver never comments on, closes or reopens an issue. The stack and Release drivers' PRs keep
+  their form, by the project's rules. Before each post of the body
   (`gh pr create` or `gh pr edit` with `--body-file`, the `glab` form), a CR Driver reads
   `pr-body.md` once against the audit list of the template in use, the items on internal
   references (role names included) and on Known gaps first, and fixes `pr-body.md` itself before
-  posting. This is not a round and not a review: it replaces neither the Inspector's audit nor
-  the Verifier's description pass. Then
+  posting. This is not a round or a review: it replaces neither the Inspector's audit nor the
+  Verifier's description pass. Then
   `$CHANTIER ship <cr> <pr link>` (the CLI reads the PR's base and draft state from the forge and
-  records them; a failed read prints `base ? (not read from <link>: …)` and `draft not read`, and
-  the CR reads `PR in draft` until a `ship` reads the forge): it records the PR at this head (the full SHA) and says what
+  records them; a failed read prints `base ? (not read from <link>: …)` and `draft not read`: the
+  CR reads `PR in draft` until a `ship` reads the forge): it records the PR at this head (the full SHA) and says what
   is off (uncommitted changes, a head not pushed, no long gate passed at it; with the `ci: beside
   the long gate` line `ship` runs before the gate passes, so `off: no long gate passed at <sha>`
-  is expected there and no slip, as it is for a PR already recorded after a rebase that needs a
-  long gate (the early push), and `handback ready` still refuses a head with no passed long
+  is expected there, as for a PR already recorded after a rebase that needs a long gate (the
+  early push), and `handback ready` still refuses a head with no passed long
   gate, unless the pass carries over a clean rebase). The PR's base is the
-  `base` that `take` printed, never another: a Driver does not retarget a PR, the stack driver
-  does. Any change of a PR's base or draft state on the forge (`gh pr ready`, `gh pr ready
+  `base` that `take` printed, never another (the stack driver retargets, a Driver does not). Any change of a PR's base or draft state on the forge (`gh pr ready`, `gh pr ready
   --undo`, `glab mr update --ready`, `glab mr update --draft`, a retarget) is followed by `ship
   <cr> <link>`, so the record follows the forge (GitLab and Copilot: "Means: GitLab forms"). `ship` also refuses a PR whose head carries another CR's (`… carries CR-x …`): "Means: carries, conflicts and the early push".
 
@@ -273,24 +264,23 @@ defer the rest of this card until an action names it. These are the card's defau
   the long gate` line, at the head you pushed, started right after `ship`, while CI runs; the
   "CI" bullet gives that order): `$CHANTIER gate <cr> "<command>"
   ["<command>"...]` runs only the long gate the project's rules name, in the worktree, in order,
-  as many at once as the project allows (`chantier.yaml`, one by default), the others in this
-  order: the next merge's first (in a stack or series batch, the first CR of the order not merged
+  as many at once as the project allows (`chantier.yaml`, one by default), the rest in this order: the next merge's first (in a stack or series batch, the first CR of the order not merged
   or cancelled, a fix CR and the release CR excepted), then those the Foreman moved first, then
-  arrival order; a running gate is never stopped. A rebase that leaves the CR's patch unchanged needs no new long gate and no `verifier`; one with a conflict resolved takes `ship --conflict` and the early push ("Means: carries, conflicts and the early push"). The CLI reads no forge: you read CI at the new head, which must be green.  A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
+  arrival order; a running gate is never stopped. A rebase that leaves the CR's patch unchanged needs no new long gate and no `verifier`; one with a conflict resolved takes `ship --conflict` and the early push ("Means: carries, conflicts and the early push"). The CLI reads no forge: you read CI at the new head, which must be green. A short gate (the fast gate, or the check that the rules ask of a CR they exempt from
   the long gate, such as a docs-only change) you run yourself in the worktree, never through
-  `gate`: it would wait in the lock behind the long gates. A CR the rules exempt hands back with
-  `--no-gate "<the rule>"`. When the project's rules name a pipeline job as the long gate
+  `gate`: it would wait behind the long gates. A CR the rules exempt hands back with `--no-gate
+  "<the rule>"`. When the project's rules name a pipeline job as the long gate
   ([concepts](concepts.md)), run no `gate`: push and open the PR after the approved round (the
   first push starts the gate, so no wait before it; `ship`'s `off: no long gate passed at <sha>`
   is then expected), read CI as the "CI" bullet says, and once that job is green at the PR's head
   with the `VERIFIED` verdict there, hand back `ready <link> … --no-gate "<the rule>"`, quoting
   the rule; a red run of that job is a red CI job, a round. A rebase needs no gate carry: the job
   runs again at the pushed head. (GitLab and Copilot: unproved.) A rule that asks the batch's or the stack's top for a local run: "Means: carries, conflicts and the early push".
-  `gate` stops at the first failure, keeps the log and records the pass at that head. It
-  is refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
+  `gate` stops at the first failure, keeps the log and records the pass at that head. It is
+  refused (exit 2) on a dirty tree: a gate binds to a commit, so commit first. The log's
   first line names the CR, the branch and the full SHA it ran at, its last line the result; a
   head that moved during the run (a gate command committed) is no pass at either head (exit 4).
-  One command per argument, never a `;` or `&&` chain. The fast gates you run yourself.
+  One command per argument, never a `;` or `&&` chain.
   Stopping a gate (`gate <cr> --stop`: only your own CR's, only when its result can no longer count) and a long wait in the queue: "Means: stopping a long gate". `cancel` is the steering session's, never a Driver's.
 
 ## Means: CI
@@ -300,9 +290,8 @@ defer the rest of this card until an action names it. These are the card's defau
   description as far as they can go, the archive's `delivery.md` when `take` printed an archive path, your notes. Then one long wait:
   the forge's watch in a background shell (`gh pr checks <pr> --watch`, `glab ci status
   --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
-  between (the two looks of the "no CI" rule below come before the long wait starts, or instead of
-  it when no check is listed). Read the result yourself (`gh pr
-  checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
+  between (the two looks of the "no CI" rule below come before the long wait, or instead of it
+  when no check is listed). Read the result yourself (`gh pr checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
   failure gets at most the CI re-runs of your `timing:` line (1 by default; 0: none), each at the
   same head, and a failure the CR does not touch that passes on a re-run is a
@@ -312,21 +301,20 @@ defer the rest of this card until an action names it. These are the card's defau
   driver: `[stack→foreman] anomaly <cr> infra: …`). Say what CI showed in a `note`. With no result after 3 hours on one head, stop waiting
   and end with `handback <cr> blocked infra: CI still running after 3 hours` (a longer CI in the
   project's rules gives its own limit). What you say about CI follows these rules, for every
-  Driver that pushes (a stack driver opens no PR: "the PR" is the one whose branch it pushed, the
-  top of the stack):
+  Driver that pushes (a stack driver opens no PR: "the PR" is its pushed branch's, the
+  stack's top):
     - With the `ci: beside the long gate` line, or an early push: "Means: CI beside the long gate".
   - The only source: any claim about CI (running, green, red or none) comes from the forge's list
     of checks for the PR at the pushed head: `gh pr checks <pr>`, `glab ci list`, or the forge's
     equivalent. The project's files (a workflow folder or its absence), its rules, an earlier
     Driver's note and a guess are not a source.
-  - The rules do not replace the look: even when the project's rules say it has no CI, the claim
-    comes from the forge's list; the rules only say how to judge what the list shows. A list that
-    contradicts the rules (a check where they say none, none where they say some) is said in a
+  - The rules do not replace the look: even when they say the project has no CI, the claim comes
+    from the forge's list; the rules only say how to judge it. A list that contradicts the rules (a check where they say none, none where they say some) is said in a
     `note`.
   - The head first: before you read the checks, confirm the PR's head on the forge is the head you
     pushed (`gh pr view <pr> --json headRefOid`, or the forge's equivalent). Checks listed for an
-    older commit prove nothing about the pushed one.
-    - "No CI" needs two looks, a minute apart: "Means: when CI lists no check".
+    older commit prove nothing about the pushed head.
+    - "No CI" needs two looks a minute apart: "Means: when CI lists no check".
   - What the note says: the `note` that says what CI showed names the command you ran and the head
     (seven characters) you read at, e.g. `CI: gh pr checks 12 at abc1234: test pass` or `CI: no
     check listed at abc1234 (gh pr checks 12, two looks, the second a minute after the push)`. The
@@ -336,20 +324,19 @@ defer the rest of this card until an action names it. These are the card's defau
 ## Means: commits, the PR's state and the evidence
 
 - Commits: a PR merges by rebase with every commit of its branch, so each commit you make is a
-  commit of the default branch. Every commit you make, a round's commit or a checkpoint (work set
-  aside before a rebase, a commit before a gate, a commit after a `FIX-REQUIRED` round), has a
-  message in the project's commit style (its rules; where they give none, a Conventional Commit
+  commit of the default branch. Every one, a round's commit or a checkpoint (work set aside
+  before a rebase, a commit before a gate, a commit after a `FIX-REQUIRED` round), has a message in the project's commit style (its rules; where they give none, a Conventional Commit
   subject, as for the PR title in [pr-template](pr-template.md)) that says what the commit holds.
   Never a `wip` type, never "pending", "checkpoint", a round or a review state, never a CR
-  number, a batch or a role. A checkpoint that is your head before the first push may be folded: "Means: checkpoint commits". A commit a procedure names (a release's `release: vX.Y.Z`) keeps the
-  procedure's message.
-- A CR's PR says on the forge when it is not [ready to merge](concepts.md), "Words" (a PR in draft). When a CR is sent
-  back to a CR Driver (handed back ready or blocked, with a PR, whatever the note), it turns the PR back to
+  number, a batch or a role. A checkpoint that is your head before the first push may be folded: "Means: checkpoint commits". A commit a procedure names (a release's `release: vX.Y.Z`) keeps its
+  message.
+- A CR's PR says on the forge when it is not [ready to merge](concepts.md), "Words" (a PR in draft). When a CR with a PR is sent
+  back to a CR Driver (handed back ready or blocked, whatever the note), it turns the PR back to
   a draft first (`gh pr ready --undo`, `glab mr update --draft`): the Foreman never edits a PR.
   A release PR is a draft while its base is not the default branch, and turns ready when the
   stack driver retargets it and it is green. A project that shows it otherwise (a label, a
   title prefix, no draft at all) is followed as written, on the opening and on turning ready. A forge or plan that refuses a draft stops that step:
-  `handback blocked refused <exact text>` (the stack driver: its `anomaly` line); no look-alike.
+  `handback blocked refused <exact text>` (the stack driver: its `anomaly` line).
 - The evidence: once the Verifier has left it, you put it in the PR's description, in its
   Deliverables section, before and after side by side, as the forge's own CLI uploads images and
   videos (`gh pr edit --attach` on GitHub, `gh` 2.103 and later); read the CLI's help for any
@@ -360,17 +347,15 @@ defer the rest of this card until an action names it. These are the card's defau
   (`ship`'s `off: pr-body.md line <n> shows an image from …`) is attached by you with the forge's
   CLI, using the same image file (from `work/`, or from `git show <old>:<path>` while the commit
   is still local), before the PR turns ready; it is captured again only when a Verifier is due
-  anyway (a conflict, a refused carry).
-  Every image is given the look before it is kept or uploaded: "Means: images and the look".
+  anyway (a conflict, a refused carry). Every image is given the look before it is kept or uploaded: "Means: images and the look".
 
 ## Means: your end
 
 - Your end comes in this order: first your background tasks stopped (the "Your folder and your background tasks" bullet of "Means: context and your folder"), then `$CHANTIER handback <cr> …`; once the CLI accepted it, the
   host's hand-back, whose first line is the line `handback` printed (`[driver <cr>→foreman]
-  hand-back …`), unchanged. A hand-back the CLI refused is never followed by the host's hand-back
-  until a `handback` (ready or blocked) is accepted. Never call the host's hand-back with no
-  `$CHANTIER handback` first: a report sent with no recorded hand-back leaves the CR `working`, and
-  the steering session resumes you to record it. `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
+  hand-back …`), unchanged. Never call the host's hand-back until a `$CHANTIER handback` (ready or blocked) is accepted
+  (a refused one counts for none): a report sent with no recorded hand-back leaves the CR
+  `working`, and the steering session resumes you to record it. `$CHANTIER handback <cr> ready <link>` (refused without a PR recorded, and without,
   at the PR's head, a passed long gate and a last verdict `VERIFIED`, refused alone when the
   worktree's head is not the one `ship` recorded (a commit or a rebase after `ship`), and
   refused, one line per cause, when the
@@ -391,21 +376,19 @@ defer the rest of this card until an action names it. These are the card's defau
   which prints `no long gate: <rule> gaps: <gap>`); the CLI prints which state the CR is, ready to
   merge, PR in draft or ready locally; for PR in draft the printed line says its PR's draft state on
   the forge and the CR (and PR) it waits on, and asks for no change on the forge: it is no reason
-  to turn the PR to draft or ready, to retarget it, or to stop; the hand-back is done) or `handback
+  to turn the PR draft or ready, retarget it or stop; the hand-back is done) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`, or
   `context: closing: <where it stopped>; next: <what is left>`, the CR driver's closing hand-off):
   it writes the state and prints the line to send the
-  Foreman (how it reaches the steering session, the Foreman or in direct mode the Chief of Staff, is your host's reference).
+  Foreman (how it reaches the steering session, Foreman or direct-mode Chief of Staff, is your host's reference).
   A `budget:` hand-back follows only a CLI refusal on the budget: "Means: hand-backs out of the ordinary". Then end: ending frees
   your slot; a Driver that handed back ready may be resumed later by a `taken back:` note.
   A hand-back refused (`is ready`, `is blocked`, `is merged`, a head `ship` did not record), or a Driver still recorded on a CR it handed back `blocked`: "Means: hand-backs out of the ordinary". A decision only the user can take is `blocked question: <text>`. `blocked waits:
-  <what>` is for a thing already on its way (the stack driver, another CR) that nobody has to
-  decide: the CR shows 🟠, and the steering session takes it back when that thing lands. A
+  <what>` is for a thing already on its way (the stack driver, another CR) that no one decides: the CR shows 🟠, and the steering session takes it back when that thing lands. A
   Driver whose context is ending first records its state with `$CHANTIER note <cr> "…"`, then
   `handback <cr> blocked context: <where it stopped, what is next>`: the steering session restarts
-  a fresh Driver from it. The CR driver's closing hand-off, `context: closing: …`, is the same
-  hand-back, made at the pushed-head `VERIFIED` at 100,000 tokens or more, or at the context rule
+  a fresh Driver from it. The CR driver's closing hand-off, `context: closing: …`, is the same, made at the pushed-head `VERIFIED` at 100,000 tokens or more, or at the context rule
   during the closing (see "CR driver").
 
 ## Means: a worker that fails
