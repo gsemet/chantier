@@ -13,6 +13,7 @@ from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE
 from chantier.commands.cost.receipt import cost_receipt
 from chantier.commands.cost.sessions import chief_line, chief_read, cost_rows, foreman_uuid
+from chantier.core import leases
 from chantier.core.batch import check_epoch, require_epoch, resolve_batch
 from chantier.core.batch_records import Rec, check_closable, number_of, read_retro
 from chantier.core.clock import now
@@ -23,7 +24,7 @@ from chantier.core.records import LIVE, BatchRecord, read_batch_json
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_directory, stage_layout
-from chantier.rails import check_idle
+from chantier.rails_idle import check_idle
 from chantier.status.write import write_dashboard
 
 if TYPE_CHECKING:
@@ -187,6 +188,21 @@ def _kept(repo: Repo, d: BatchRecord) -> list[str]:
     return kept
 
 
+def _live_lease_lines(repo: Repo, d: BatchRecord) -> list[str]:
+    """On Claude Code the transcripts judge what runs; a live lease is shown beside them, never a
+    cause."""
+    if d.host == "copilot":
+        return []
+    units = [(c.id, c.lease) for c in d.crs] + [(o.id, o.lease) for o in d.orders]
+    units.append(("stack", d.stack_lease))
+    lines = [
+        leases.line(repo, unit, lease)
+        for unit, lease in units
+        if lease is not None and leases.liveness(repo, unit, lease).state == leases.LIVE
+    ]
+    return [f"live leases, beside the transcripts: {'; '.join(lines)}"] if lines else []
+
+
 def _closing(
     repo: Repo,
     batch: str,
@@ -230,6 +246,7 @@ def _closing(
         f"`git worktree prune` once it is deleted): {'; '.join(dropped) or 'none'}",
         f"kept, moved out with their work: {'; '.join(_kept(repo, d)) or 'none'}",
         *_apart_lines(batch, apart),
+        *_live_lease_lines(repo, d),
         "final cost, up to now (nothing runs):",
         *summary,
     ]

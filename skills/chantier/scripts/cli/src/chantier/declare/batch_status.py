@@ -43,14 +43,27 @@ def register(sub: Subparsers) -> None:
     )
     s.add_argument("text", nargs="*", help="the Foreman's own ask")
     s.add_argument("--read", metavar="A-k|all", help="mark heard")
+    _register_agents(sub)
 
+
+def _register_agents(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "agents",
-        "chantier.commands.batch_status:agents",
+        "chantier.commands.agents:agents",
         "map a CR (or stack) to its agent id",
         BATCH_EPOCH,
     )
     s.add_argument("action", choices=["set"])
     s.add_argument("cr")
-    s.add_argument("agent", help="the agent id; `-` clears it")
+    s.add_argument(
+        "agent",
+        help="the agent id; `-` clears it (and ends the unit's live lease, so a restart does "
+        "not wait)",
+    )
+    s.add_argument(
+        "--reclaim",
+        action="store_true",
+        help="a QA order's restart over a live (only on the user's word) or not confirmed lease: "
+        "ends it and starts the next",
+    )

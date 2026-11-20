@@ -124,6 +124,7 @@ def test_a_ready_cr_goes_back_to_a_driver_only_with_a_note_and_cancel_needs_the_
     for c in data["crs"]:
         if c["id"] == one:
             c.update(status="ready", pr="https://example.invalid/pr/1", agent=None)
+            c["lease"]["ended"] = "2026-01-01T00:00:00Z"
     write_record(repo, data)
     code, _, err = chantier("take", one, "--epoch", 1)
     assert code == EXIT_PRECONDITION and "only with `--note`" in err

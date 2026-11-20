@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from chantier.commands.registry import BATCH, Subparsers, add_command
+from chantier.commands.registry import BATCH, Subparsers, add_command, add_lease
 
 
 def register(sub: Subparsers) -> None:
@@ -28,3 +28,4 @@ def register(sub: Subparsers) -> None:
         metavar="N",
         help="show: the stack's number (default: the one that holds the batch's PRs); GitHub only",
     )
+    add_lease(s, required=True)

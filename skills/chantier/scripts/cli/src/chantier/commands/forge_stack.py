@@ -6,8 +6,10 @@ import argparse
 import json
 from typing import Any
 
+from chantier.commands import forge_stack_apart as off_stack
 from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.crs import short_head
+from chantier.commands.forge_stack_apart import Moved
 from chantier.commands.forge_stack_gh import (
     PR_LINK,
     Apart,
@@ -21,14 +23,14 @@ from chantier.commands.forge_stack_gh import (
 )
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
 from chantier.commands.forge_stack_shared import Where, draft_checks, left, ready_tail
+from chantier.core import leases
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.stacks import chain, is_held, off_place, stack_base, state_word, to_come
+from chantier.stacks import chain, off_place, stack_base, state_word, to_come
 
 Rows = list[dict[str, Any]]
-Moved = dict[int, tuple[str, str]]
 
 
 def _is_gitlab(rows: list[dict[str, Any]]) -> bool:
@@ -72,9 +74,9 @@ def _plan(
         rows,
         _come(data, repo, links[len(rows) :]),
         where,
-        _dropped(data),
-        _held(data),
-        _moved(data),
+        off_stack.dropped(data),
+        off_stack.held(data),
+        off_stack.moved(data),
     )
 
 
@@ -128,56 +130,18 @@ def _come(data: BatchRecord, repo: Repo, rest: list[CrEntry]) -> list[dict[str, 
     return come
 
 
-def _held(data: BatchRecord) -> dict[int, str]:
-    """The PR numbers (to their CR ids) of the batch's held CRs that have a PR: kept out of the
-    stack, on the default branch."""
-    found = {}
-    for c in data.crs:
-        link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
-        if is_held(c) and link:
-            found[int(link.groups()[-1])] = c.id
-    return found
-
-
-def _held_rows(rows: list[dict[str, Any]], held: dict[int, str]) -> list[dict[str, Any]]:
-    """What `retarget` takes for the held PRs: each on the default branch."""
-    return [
-        {"number": n, "base": rows[0]["default"], "why": " (held out of the stack)"} for n in held
-    ]
-
-
-def _moved(data: BatchRecord) -> Moved:
-    """The PR numbers of the batch's CRs moved to the inbox or the backlog that have a PR (to
-    their CR id and folder): their work is kept, they are left out of the stack, on main."""
-    found = {}
-    for c in data.crs:
-        link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
-        if c.moved_to() and link:
-            found[int(link.groups()[-1])] = (c.id, str(c.moved_to()))
-    return found
-
-
-def _moved_rows(rows: list[dict[str, Any]], moved: Moved) -> list[dict[str, Any]]:
-    """What `retarget` takes for the moved PRs: each on the default branch, with its reason."""
-    return [
-        {"number": n, "base": rows[0]["default"], "why": f" (moved to {dest})"}
-        for n, (_, dest) in moved.items()
-    ]
-
-
-def _dropped(data: BatchRecord) -> dict[int, str]:
-    """The PR numbers (to their CR ids) of the batch's cancelled CRs that have a PR and went to
-    the trash (or have no recorded destination), a fix CR apart: a dropped CR's PR is named
-    apart from a foreign one."""
-    found = {}
-    for c in data.crs:
-        link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
-        if c.status == "cancelled" and c.kind != "fix" and not c.moved_to() and link:
-            found[int(link.groups()[-1])] = c.id
-    return found
-
-
 def forge_stack(args: argparse.Namespace) -> tuple[list[str], int]:
+    if args.action != "show":  # the stack driver's writing forms hold its lease; `show` reads
+        repo = Repo.find()
+        leases.renewed_in_session(
+            repo,
+            resolve_batch(repo, args.batch),
+            "stack",
+            args.lease,
+            what=f"forge-stack {args.action}",
+            required=True,
+            ended_ok=True,
+        )
     if args.action == "create":
         return _create(args)
     if args.action == "rebuild":
@@ -222,7 +186,7 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     rows, come, where, dropped, held_prs, moved = _plan(args)
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
-        apart_rows = _held_rows(rows, held_prs) + _moved_rows(rows, moved)
+        apart_rows = off_stack.held_rows(rows, held_prs) + off_stack.moved_rows(rows, moved)
         return gitlab.make(rows, come, where, apart_rows)
     host, owner, name = where
     done: list[str] = []
@@ -233,7 +197,9 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
         apart = Apart(left(come), dropped, held_prs, moved)
         gone += _unstack_all(rows, where, apart, done)
         unstacked = True
-        retarget(_held_rows(rows, held_prs) + _moved_rows(rows, moved), where, done)
+        retarget(
+            off_stack.held_rows(rows, held_prs) + off_stack.moved_rows(rows, moved), where, done
+        )
         retarget(rows, where, done)
         making = True
         number, line = _make(rows, host, owner, name)
@@ -269,11 +235,13 @@ def _create(args: argparse.Namespace) -> tuple[list[str], int]:
     rows, come, where, _, held_prs, moved = _plan(args)
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
-        apart_rows = _held_rows(rows, held_prs) + _moved_rows(rows, moved)
+        apart_rows = off_stack.held_rows(rows, held_prs) + off_stack.moved_rows(rows, moved)
         return gitlab.make(rows, come, where, apart_rows)
     done: list[str] = []
     try:
-        retarget(_held_rows(rows, held_prs) + _moved_rows(rows, moved), where, done)
+        retarget(
+            off_stack.held_rows(rows, held_prs) + off_stack.moved_rows(rows, moved), where, done
+        )
         retarget(rows, where, done)
         return [*done, _make(rows, *where)[1]], 0
     except ChantierError as e:

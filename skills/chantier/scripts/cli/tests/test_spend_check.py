@@ -42,6 +42,7 @@ def stage(w: CostWorld, which: str, budget: float | None) -> None:
     assert w.chantier("agents", "set", one, "-", "--epoch", "1")[0] == 0
     d = record(w.repo)
     d = {**d, "budget_usd": budget, "spent_usd": STORED}
+    d["crs"] = [{k: v for k, v in c.items() if k != "lease"} for c in d["crs"]]  # no lease yet
     d.pop("spent_at", None)
     if which == "stack":
         d["mode"] = "stack"

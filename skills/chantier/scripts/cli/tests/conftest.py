@@ -13,6 +13,7 @@ from typing import Any, NamedTuple
 
 import pytest
 from forge_world import World
+from lease_args import learn, with_lease
 
 from chantier.cli import main
 from chantier.core import git as git_module
@@ -170,11 +171,24 @@ def chantier(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr("chantier.core.repo.git", git_cached)
 
+    held: dict[str, str] = {}  # unit -> the lease number `take` (or `agents set`) last printed
+
     def run(*args: object) -> tuple[int, list[str], str]:
-        code = main([str(a) for a in args])
+        argv = [str(a) for a in args]
+        code = main(with_lease(argv, held))
         out = capsys.readouterr()
+        learn(argv, out.out.splitlines(), held)
         return code, out.out.splitlines(), out.err
 
+    def bare(*args: object) -> tuple[int, list[str], str]:
+        argv = [str(a) for a in args]
+        code = main(argv)
+        out = capsys.readouterr()
+        learn(argv, out.out.splitlines(), held)
+        return code, out.out.splitlines(), out.err
+
+    run.bare = bare  # type: ignore[attr-defined]
+    run.leases = held  # type: ignore[attr-defined]
     return run
 
 

@@ -71,6 +71,17 @@ class GateWaiver(Record):
     follow_up: str | None = None
 
 
+class Lease(Record):
+    """A Driver's hold on its unit (a CR, the stack, a QA order), local to this machine: its
+    number, when it was taken and last renewed, when it expires, and when it ended."""
+
+    n: int
+    taken: str
+    renewed: str
+    expires: str
+    ended: str | None = None
+
+
 TRASH = "6-trash"  # where `order drop --note trash` sends a CR, and where an older drop went
 
 
@@ -126,6 +137,7 @@ class CrEntry(Record):
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
     phase_detail: str | None = None
     phase_at: str | None = None
+    lease: Lease | None = None
 
     def moved_to(self) -> str | None:
         """The folder a dropped CR went to when it is the inbox or the backlog (`1-inbox`,
@@ -168,6 +180,8 @@ class OrderRecord(Record):
     fix_for: str | None = None
     follow_up: str | None = None
     release: bool = False
+    lease: Lease | None = None
+    driven: bool = False  # a QA driver was recorded: the next `agents set O-k <agent>` restarts
 
 
 class AskRecord(Record):
@@ -209,6 +223,7 @@ class BatchRecord(Record):
     chief_transcript: str | None = None
     chief_transcripts: list[str] = []
     stack_agent: str | None = None
+    stack_lease: Lease | None = None
     heartbeat: str | None = None
     heartbeat_stopped: str | None = None
     settings: BatchSettings | None = None

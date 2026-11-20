@@ -48,6 +48,7 @@ class DriverBlock:
     writes: str | None = None
     team: list[str] | None = None
     note: str = ""
+    lease: str | None = None  # the `lease:` line, when the command started one
 
 
 def driver_table() -> list[list[str]]:
@@ -143,6 +144,7 @@ def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> l
         *contract_lines(row.role, row.text, d.playbook, recorded_escalation(d)),
         f"  CLI ($CHANTIER): {block.cli}",
         *(f"  {line}" for line in block.middle),
+        *([f"  {block.lease}"] if block.lease else []),
         *([f"  writes: {block.writes}"] if row.writes and block.writes else []),
         f"  Steering: {who} <the host's means, from its reference's row \"A Driver messages its "
         'steering session">',

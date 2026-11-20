@@ -23,10 +23,10 @@ from chantier.commands.driver_checks import (
 )
 from chantier.commands.endpause import end_of_batch
 from chantier.commands.facts import cr_facts, stack_lines
+from chantier.core import leases
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
-from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.phases import PHASE_DETAIL_MAX
+from chantier.core.errors import ChantierError
 from chantier.core.records import LIVE, BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.driver_prompt import DriverBlock, driver_prompt_lines, driver_row
@@ -67,9 +67,11 @@ def _reopen(b: Batch) -> list[str]:
     return [f"{b.id} was paused: running again; `pause --epoch <n>` runs again at the end"]
 
 
-def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str, fresh: list[str]) -> list[str]:
+def _take_stack(
+    repo: Repo, b: RenderedBatch, batch: str, args: argparse.Namespace, fresh: list[str]
+) -> list[str]:
     """The stack's driver is taken: the batch must be a stack with no driver recorded."""
-    d = b.record
+    d, note, reclaim = b.record, args.note, bool(args.reclaim)
     if d.mode != "stack":
         raise ChantierError(f"batch {batch} is not a stack")
     if d.stack_agent:
@@ -80,8 +82,11 @@ def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str, fresh: list
         )
     row = driver_row(d.host, "take stack")  # before any state changes
     check_budget(d)
+    old = leases.check_free(repo, d, "stack", reclaim)
     reopened = _reopen(b)
-    b.log("take", None, note=note)
+    leases.reclaim(b, "stack", old)
+    lease = leases.start(d, "stack")
+    b.log("take", None, note=note, lease=lease.n)
     head, *rows = stack_lines(repo, batch, d)
     rows += timing_lines(recorded_timing(d), d.host)  # after the CR rows, as `take <cr>` prints
     block = DriverBlock(
@@ -90,6 +95,12 @@ def _take_stack(repo: Repo, b: RenderedBatch, batch: str, note: str, fresh: list
         [head, *rows],
         team=team_lines(d.playbook),
         note=note,
+        lease=(
+            f"lease: stack {lease.n} (pass --lease {lease.n} on stack <crs>, --out-of-draft, "
+            f"--draft and forge-stack create|rebuild|unstack; renew at each wake: lease stack "
+            f"renew --lease {lease.n}; run a long gate under lease stack hold --lease {lease.n} "
+            "-- <command>)"
+        ),
     )
     watch = not_running_line(repo) if reopened else []
     return [head, *reopened, *rows, *driver_prompt_lines(row, d, block), *fresh, *watch]
@@ -104,6 +115,15 @@ def _cr_driver_block(repo: Repo, batch: str, c: CrEntry, facts: list[str]) -> Dr
     title = shown_title(c.title, cr_directory(repo, c))
     fill = {"<cr>": c.id, "<title>": title, "<batch>": batch, "<root>": repo.root.as_posix()}
     return DriverBlock(fill, facts[1].removeprefix("cli: "), facts[2:], writes)
+
+
+def _start_work(repo: Repo, b: Batch, c: CrEntry) -> None:
+    """`1-pending` to `2-actives`, before the Driver gets its facts; the archive's name, kept
+    from the first take; the work folder."""
+    start_cr(b, c)
+    if repo.external:
+        c.archive_stamp = c.archive_stamp or stamp()
+    repo.store.make_folder(repo.rel(work(repo, c)), True)
 
 
 def take(args: argparse.Namespace) -> list[str]:
@@ -123,12 +143,15 @@ def take(args: argparse.Namespace) -> list[str]:
         check_epoch(b, args.epoch)
         d = b.record
         if args.cr == "stack":
-            return _take_stack(repo, b, batch, args.note, fresh)
+            return _take_stack(repo, b, batch, args, fresh)
         refuse_held(c := b.cr(args.cr))
         row = driver_row(d.host, "take <cr>", c.kind)  # before any state changes
         check_take(d, c, args.note)
+        old = leases.check_free(repo, d, c.id, bool(args.reclaim))
         _check_take(repo, d, c)
         reopened = _reopen(b)
+        leases.reclaim(b, c.id, old)
+        lease = leases.start(d, c.id)
         restart = c.status == "working"  # a new Driver on a CR already working
         if c.status in {"ready", "blocked", "working"}:
             c.append("notes", f"back to a Driver: {args.note}")
@@ -136,19 +159,16 @@ def take(args: argparse.Namespace) -> list[str]:
             c.start_on = start_on  # the start base is fixed at the first take
         b.touch(c, status="working", blocked_reason=None)
         c.clear_phase()
-        b.log("take", c.id, note=args.note, **({"restart": True} if restart else {}))
-        start_cr(b, c)  # `1-pending` to `2-actives`, before the Driver gets its facts
-        if repo.external:
-            c.archive_stamp = (
-                c.archive_stamp or stamp()
-            )  # the archive's name, kept from the first take
-        repo.store.make_folder(repo.rel(work(repo, c)), True)
+        b.log("take", c.id, note=args.note, lease=lease.n, **({"restart": True} if restart else {}))
+        _start_work(repo, b, c)
         facts = cr_facts(repo, batch, d, c)
         block = _cr_driver_block(repo, batch, c, facts)
         block.team, block.note = team_lines(d.playbook), args.note
+        block.lease = leases.driver_line(c.id, lease)
         skeleton = driver_prompt_lines(row, d, block)
     return [
-        f"took {c.id} ({len(held(d))} of {d.slots} slots held)",
+        f"took {c.id} ({len(held(d))} of {d.slots} slots held), lease {lease.n} until "
+        f"{leases.hms(lease.expires)}",
         *reopened,
         *facts,
         *skeleton,
@@ -182,6 +202,7 @@ def round_(args: argparse.Namespace) -> list[str]:
         c = b.cr(args.cr)
         if c.status not in LIVE:
             raise ChantierError(f"{args.cr} is {c.status}: no Driver to run a round")
+        leases.claim(b, c.id, args.lease, what=f"round {c.id}", required=True)
         limit = check_round(b.record, c)  # the budget first, then the limit
         wt = Path(c.worktree) if c.worktree else None
         seen = worktree_print(wt)
@@ -238,6 +259,9 @@ def _handback_locked(
     ):
         c = live_cr(b, args.cr, args.result)
         was_blocked = c.status == "blocked"  # a ready hand-back from the Driver that blocked
+        if not was_blocked:  # a blocked hand-back ended the lease already
+            leases.claim(b, c.id, args.lease, what=f"handback {c.id}", required=True)
+        leases.end(c.lease)  # a hand-back, ready or blocked, ends it; a refusal below saves nothing
         reason = c.blocked_reason or ""
         line = f"[driver {args.cr}→foreman] hand-back {args.result} {note}"
         if args.result == "blocked":
@@ -314,59 +338,6 @@ def _ready_lines(repo: Repo, d: BatchRecord, c: CrEntry, prepared: bool, tail: s
         wait = f": the release PR {c.pr} waits for its merge" if prepared else ""
         return [line, f"{c.id} {word}{wait}"]
     return [line, f"{c.id} {word}: {draft_clause(d, c, repo, prepared)}"]
-
-
-def note(args: argparse.Namespace) -> list[str]:
-    """A Driver's or worker's line in the CR's state: what was done or found, shown in its
-    STATUS.md. `--draft <path>` names a file the user reviews and edits in place."""
-    repo = Repo.find()
-    text = " ".join(args.text).strip()
-    if not text and not args.draft:
-        raise ChantierError("note <cr> <text> | note <cr> --draft <path>", EXIT_USAGE)
-    with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
-        c = b.cr(args.cr)
-        if args.draft:
-            path = Path(args.draft).expanduser()
-            if not path.is_file():
-                raise ChantierError(
-                    f"note --draft <path of an existing file>, not {args.draft!r}", EXIT_USAGE
-                )
-            draft = path.resolve().as_posix()
-            if draft not in c.drafts:
-                c.append("drafts", draft)
-            text = text or f"draft: {draft}"
-        c.append("notes", text)
-        b.touch(c)
-        b.log("note", args.cr, note=text)
-        context = context_line(repo, b.record, c.agent)
-    return ["ok", context]
-
-
-def phase(args: argparse.Namespace) -> list[str]:
-    """A Driver records the step its CR is at, shown by the status, the board and the pane."""
-    repo = Repo.find()
-    detail = " ".join(args.detail).strip()
-    if len(detail) > PHASE_DETAIL_MAX:
-        raise ChantierError(
-            f"phase: the detail is at most {PHASE_DETAIL_MAX} characters", EXIT_PRECONDITION
-        )
-    if args.phase == "review" and not detail:
-        raise ChantierError("phase <cr> review <the review step's name>", EXIT_PRECONDITION)
-    with RenderedBatch(repo, find_cr_batch(repo, args.cr, args.batch), actor="driver") as b:
-        c = b.cr(args.cr)
-        if c.status not in LIVE:
-            raise ChantierError(
-                f"{c.id} is {c.status}: no Driver to record a step", EXIT_PRECONDITION
-            )
-        keeps = args.phase in {"review", "gate", "release"}
-        b.touch(c, phase=args.phase, phase_at=now())
-        if keeps and detail:
-            c.phase_detail = detail
-        else:
-            c.unset("phase_detail")
-        b.log("phase", c.id, phase=args.phase, note=detail or None)
-        context = context_line(repo, b.record, c.agent)
-    return ["ok", context]
 
 
 def log(args: argparse.Namespace) -> list[str]:

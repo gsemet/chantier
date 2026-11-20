@@ -16,6 +16,7 @@ from chantier.commands.carry import base_keys, head_base
 from chantier.commands.crs import batch_cr, cr_worktree, dirty_files, short_head, work
 from chantier.commands.gate_lock import LongGateLock
 from chantier.commands.gate_run import run_write, stop_asked, stop_gate
+from chantier.core import leases
 from chantier.core.batch import check_epoch
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.git import git
@@ -236,6 +237,7 @@ def gate(args: argparse.Namespace) -> tuple[list[str], int]:
     cmds = _commands(args)
     if args.stop:
         return _gate_stop(args, repo, batch, wt)
+    leases.renewed_in_session(repo, batch, c.id, args.lease, what=f"gate {c.id}", required=False)
     if dirty_files(wt):  # a gate binds to a commit: nothing runs, nothing is logged
         raise ChantierError(
             f"{c.id}: the worktree has uncommitted changes or untracked files: "

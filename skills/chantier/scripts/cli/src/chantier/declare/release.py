@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command
+from chantier.commands.registry import BATCH, BATCH_EPOCH, Subparsers, add_command, add_lease
 
 
 def register(sub: Subparsers) -> None:
@@ -17,6 +17,7 @@ def register(sub: Subparsers) -> None:
     s.add_argument("action", choices=["start", "go", "published"])
     s.add_argument("cr")
     s.add_argument("--note", help="go: the irreversible action; published: version and link")
+    add_lease(s, required=True)
 
     s = add_command(
         sub,

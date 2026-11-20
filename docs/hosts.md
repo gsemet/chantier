@@ -29,6 +29,11 @@ Copilot agent session in the terminal; the user's statement of 2026-11-16, unpro
 VS Code's local harness is not supported (it does not use the Copilot CLI or SDK); the Copilot
 harness in VS Code, arriving, uses them (unproved until a run).
 
+On Copilot, until `copilot-close-end-event` lands, `close` tells that a Driver, the stack driver or a
+QA driver still runs by its live lease (10 minutes, renewed by its commands), and the Foreman by a
+heartbeat younger than 10 minutes; it no longer sees a Driver's leftover background work after its
+hand-back. On Claude Code it reads the transcripts, the lease only shown beside them.
+
 **Recommended on Claude Desktop:** turn on "Connect new sessions to Remote Control" in the app's
 settings, so the Foreman's session can be reached from your phone. A host classifier may refuse
 the Foreman an action (starting a Release driver, say) until you allow it in that session: type

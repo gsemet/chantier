@@ -13,10 +13,10 @@ from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
 from chantier.commands.factory import FACTORY_ON, factory_lines
+from chantier.core import leases
 from chantier.core.batch import (
     Batch,
     check_epoch,
-    find_cr_batch,
     read_batch,
     require_epoch,
     resolve_batch,
@@ -25,7 +25,14 @@ from chantier.core.batch_records import last_closed
 from chantier.core.clock import age_minutes, now
 from chantier.core.endblockers import end_blockers
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import BatchRecord, CrEntry, EventRecord, read_events, round_limit
+from chantier.core.records import (
+    BatchRecord,
+    CrEntry,
+    EventRecord,
+    OrderRecord,
+    read_events,
+    round_limit,
+)
 from chantier.core.repo import Repo
 from chantier.core.surface_batches import other_batches
 from chantier.history import last_closed_text
@@ -183,6 +190,20 @@ def _ended_unrecorded(repo: Repo, d: BatchRecord, agent: str | None) -> bool:
     return agent_handed_back(repo.session_root, sessions, agent) is True
 
 
+def _working_tail(repo: Repo, d: BatchRecord, c: CrEntry, stopped: set[str]) -> str:
+    """What the status adds to a working CR's row about its Driver and its lease."""
+    tail = ""
+    if not c.agent:
+        tail = " | no Driver recorded"
+    elif c.agent in stopped:
+        tail = f" | {stopped_text(c.agent)}"
+    elif _ended_unrecorded(repo, d, c.agent):
+        tail = f" | Driver {c.agent} ended, no hand-back recorded"
+    if late := leases.not_confirmed(repo, c.id, c.lease):
+        tail += f" | {late}"
+    return tail
+
+
 def _cr_row(
     repo: Repo, d: BatchRecord, c: CrEntry, notes: bool, seen: tuple[list[EventRecord], set[str]]
 ) -> str:
@@ -199,12 +220,8 @@ def _cr_row(
     waits = waits_all(d.crs, c, d.mode) if c.status == "queued" else []
     if waits:
         row += f" | waits for {', '.join(waits)}"
-    if c.status == "working" and not c.agent:
-        row += " | no Driver recorded"
-    elif c.status == "working" and c.agent in stopped:
-        row += f" | {stopped_text(c.agent)}"
-    elif c.status == "working" and _ended_unrecorded(repo, d, c.agent):
-        row += f" | Driver {c.agent} ended, no hand-back recorded"
+    if c.status == "working":
+        row += _working_tail(repo, d, c, stopped)
     if c.status == "blocked" and c.blocked_reason:
         row += f" | blocked: {c.blocked_reason[:70]}"
     elif c.notes and (notes or c.status == "queued"):
@@ -213,7 +230,7 @@ def _cr_row(
     return f"{row} | {'-' if usd is None else f'${usd:.2f}'}"
 
 
-def _order_lines(d: BatchRecord) -> list[str]:
+def _order_lines(d: BatchRecord, repo: Repo) -> list[str]:
     open_orders = [o for o in d.orders if not o.done]
     lines = []
     for applied, head in (
@@ -228,10 +245,21 @@ def _order_lines(d: BatchRecord) -> list[str]:
                     f"{o.id} {o.kind}{' ' + o.cr if o.cr != '-' else ''}"
                     f"{' ' + o.note[:40] if o.note else ''}"
                     f"{' follow-up ' + o.follow_up if o.follow_up else ''}"
+                    f"{_late_suffix(repo, o)}"
                     for o in group
                 )
             )
     return lines
+
+
+def _late_suffix(repo: Repo, o: OrderRecord) -> str:
+    late = leases.not_confirmed(repo, o.id, o.lease) if o.kind == "qa" else None
+    return f" ({late})" if late else ""
+
+
+def _stack_driver_lines(d: BatchRecord, repo: Repo) -> list[str]:
+    late = leases.not_confirmed(repo, "stack", d.stack_lease) if d.stack_agent else None
+    return [f"stack driver {d.stack_agent}: {late}"] if late else []
 
 
 def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
@@ -318,7 +346,8 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
     ]
     lines += stack_line(d)
     lines += held_lines(d, repo)
-    lines += _order_lines(d)
+    lines += _stack_driver_lines(d, repo)
+    lines += _order_lines(d, repo)
     lines += _seen_lines(repo, d)
     unread = sum(1 for a in d.asks if not a.read)
     if unread:
@@ -351,30 +380,3 @@ def asks(args: argparse.Namespace) -> list[str]:
             return [f"read {len(hit)}"]
         unread = [a for a in b.record.asks if not a.read]
     return [f"{a.id}: {a.text}" for a in unread] or ["no unread ask"]
-
-
-def agents(args: argparse.Namespace) -> list[str]:
-    """The agent id a CR's Driver or the stack driver runs under: the Foreman records it after
-    each start, so a restart and the cost know who ran what."""
-    require_epoch(args.epoch, f"agents set {args.cr} <id>|- --epoch <n>")
-    repo = Repo.find()
-    batch = (
-        find_cr_batch(repo, args.cr, args.batch)
-        if args.cr != "stack" and not args.cr.startswith("O-")
-        else resolve_batch(repo, args.batch)
-    )
-    with RenderedBatch(repo, batch, actor="foreman") as b:
-        check_epoch(b, args.epoch)
-        if args.agent == "-":  # the agent ended: the next one may start
-            args.agent = None
-        if args.cr == "stack":
-            b.record.stack_agent = args.agent
-        elif args.cr.startswith("O-"):  # a QA order: its driver is a Driver of the batch for `cost`
-            o = next((x for x in b.record.orders if x.id == args.cr), None)
-            if o is None or o.kind != "qa":
-                raise ChantierError(f"agents set {args.cr}: not a QA order of {b.id}", EXIT_USAGE)
-            o.agent = args.agent
-        else:
-            b.touch(b.cr(args.cr), agent=args.agent)
-        b.log("agent", args.cr, agent=args.agent)
-    return [f"{args.cr} → {args.agent}"]
