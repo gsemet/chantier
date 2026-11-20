@@ -9,6 +9,7 @@ from chantier.commands.crs import filed_fix, grant_line
 from chantier.commands.factory import set_factory, switch_factory
 from chantier.commands.gate_run import stop_gate, stopped_line
 from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
+from chantier.commands.orders_drop import drop
 from chantier.commands.orders_hold import hold, unhold
 from chantier.commands.orders_release import (
     add_release,
@@ -22,9 +23,8 @@ from chantier.commands.orders_waive import USAGE, stack_waiver, waive_cr, waive_
 from chantier.commands.orders_word import Word, target
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import LIVE, CrEntry
+from chantier.core.records import CrEntry
 from chantier.gate_slots import slot_of
-from chantier.lifecycle.stages import trash_cr
 from chantier.rails import ENDED, all_merged, is_release
 from chantier.rails_release import (
     check_grant,
@@ -148,20 +148,6 @@ def _set_after(c: CrEntry, ids: list[str]) -> None:
         c.after = ids
     else:
         c.unset("after")
-
-
-def _drop(w: Word) -> list[str]:
-    b, c, cr_id = w.b, target(w), w.cr_id
-    if c.status == "merged":
-        raise ChantierError(f"cannot drop {cr_id}: it is already merged")
-    if c.status in LIVE:
-        return [f"{cr_id} is live: the Foreman stops its Driver, then `chantier cancel {cr_id}`"]
-    if c.status == "cancelled":
-        raise ChantierError(f"{cr_id} is already dropped: {c.path}", EXIT_PRECONDITION)
-    trash_cr(b, c)
-    b.touch(c, status="cancelled")
-    w.ended = all_merged(b.record)
-    return [f"dropped {cr_id}: {c.path}"]
 
 
 def _note(w: Word) -> list[str]:
@@ -351,7 +337,7 @@ def _qa(w: Word) -> list[str]:
 HANDLERS: dict[str, Callable[[Word], list[str]]] = {
     "add": _add,
     "after": _after,
-    "drop": _drop,
+    "drop": drop,
     "note": _note,
     "merged": _merged,
     "rounds": _rounds,

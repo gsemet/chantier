@@ -22,7 +22,7 @@ def register(sub: Subparsers) -> None:
         sub,
         "cancel",
         "chantier.commands.release:cancel",
-        "stop a CR's processes and mark it cancelled",
+        "stop a dropped CR's processes, mark it cancelled and move it where its drop order said",
         BATCH_EPOCH,
     )
     s.add_argument("cr")

@@ -71,6 +71,9 @@ class GateWaiver(Record):
     follow_up: str | None = None
 
 
+TRASH = "6-trash"  # where `order drop --note trash` sends a CR, and where an older drop went
+
+
 class CrEntry(Record):
     """A CR of the batch, as `batch.json` lists it."""
 
@@ -115,10 +118,22 @@ class CrEntry(Record):
     # the id of the `order hold` that holds this CR out of the stack (stack batch); None when not
     # held
     held: str | None = None
+    # where the CR went when `order drop` took it out of the batch: `6-trash`, `1-inbox` or
+    # `2-backlog/P<n>`; None for a CR never dropped, and for a dropped one of an older record
+    # (read as trash)
+    left_to: str | None = None
     gate_waiver: GateWaiver | None = None
     phase: str | None = None  # the step its Driver is at (`chantier phase`)
     phase_detail: str | None = None
     phase_at: str | None = None
+
+    def moved_to(self) -> str | None:
+        """The folder a dropped CR went to when it is the inbox or the backlog (`1-inbox`,
+        `2-backlog/P<n>`); None for a CR not dropped, and for one in the trash (or dropped by an
+        older record, with no `left_to`)."""
+        if self.status == "cancelled" and self.left_to and self.left_to != TRASH:
+            return self.left_to
+        return None
 
     def shown_pr(self) -> str | None:
         """The PR to show: the open one, else the release PR `order merged` recorded, else None."""

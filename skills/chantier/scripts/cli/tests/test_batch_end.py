@@ -47,6 +47,14 @@ def started(
     return ids
 
 
+def done_orders(repo: Path) -> None:
+    """The Foreman's `order done` for each order: the live drop's order waits on its `cancel`."""
+    data = record(repo)
+    for o in data["orders"]:
+        o["done"] = o.get("done") or "2026-01-01T00:00:00Z"
+    write_record(repo, data)
+
+
 def merge(chantier: Chantier, cr_id: str, own: bool = True) -> tuple[int, list[str], str]:
     return chantier("order", "merged", cr_id, *(("--epoch", 1) if own else ()))
 
@@ -63,6 +71,9 @@ def test_the_end_of_the_last_cr_cleans_the_merged_crs_and_pauses_the_batch(
     first, last = started(repo, chantier, monkeypatch, 2, 1 if end == "drop" else 2)
     if end == "released":
         patch(repo, last, kind="release")
+    if end == "cancel":  # `cancel` goes where the order named
+        assert chantier("order", "drop", last, "--note", "trash")[0] == 0
+        done_orders(repo)
     code, out, _ = merge(chantier, first)  # not the last: nothing is paused or removed
     assert code == 0 and record(repo)["status"] == "running"
     assert exists(repo, first) == (True, True) and not any("cleanup" in line for line in out)
@@ -71,7 +82,7 @@ def test_the_end_of_the_last_cr_cleans_the_merged_crs_and_pauses_the_batch(
         "merged-own": lambda: merge(chantier, last),
         "released": lambda: chantier("handback", last, "ready", "v1.0.0"),
         "cancel": lambda: chantier("cancel", last, "--epoch", 1),
-        "drop": lambda: chantier("order", "drop", last),
+        "drop": lambda: chantier("order", "drop", last, "--note", "trash"),
     }[end]()
     assert code == 0, err
     data = record(repo)
@@ -137,7 +148,9 @@ def test_a_release_crs_order_merged_and_the_drop_of_a_live_cr_pause_nothing(
     assert cr(repo, last)["status"] == "queued"
     assert not any(line.startswith(("cleanup", "paused")) for line in out)
     patch(repo, last, status="working")
-    code, out, _ = chantier("order", "drop", last)  # a live CR: the Foreman stops its Driver
+    code, out, _ = chantier(
+        "order", "drop", last, "--note", "trash"
+    )  # a live CR: the Foreman stops its Driver
     assert code == 0 and record(repo)["status"] == "running"
     assert not any(line.startswith(("cleanup", "paused")) for line in out)
 
@@ -222,6 +235,8 @@ def test_close_names_the_merged_crs_leftovers_beside_the_dropped_ones(
     for cr_id in (kept, folderless):
         assert merge(chantier, cr_id)[0] == 0
     shutil.rmtree(cr(repo, folderless)["worktree"])
+    assert chantier("order", "drop", dropped, "--note", "trash")[0] == 0
+    done_orders(repo)
     assert chantier("cancel", dropped, "--epoch", 1)[0] == 0
     assert merge(chantier, removed, own=False)[0] == 0
     assert record(repo)["status"] == "paused"

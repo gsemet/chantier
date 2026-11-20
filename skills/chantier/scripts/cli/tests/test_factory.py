@@ -140,7 +140,7 @@ def test_order_factory_switches_the_batch_and_its_brief(
     assert chantier("order", "factory", "on")[0] == EXIT_USAGE
     assert chantier("order", "add", "--note", str(changes(repo) / "3-ready" / waiting.name))[0] == 0
     assert (
-        chantier("order", "drop", record(repo)["crs"][0]["id"])[0] == 0
+        chantier("order", "drop", record(repo)["crs"][0]["id"], "--note", "trash")[0] == 0
     )  # every CR ended: the batch pauses
     code, out, _ = chantier("order", "factory", "off", "--note", "done")
     assert code == 0 and any("next: the retro (with its critic)" in x for x in out)

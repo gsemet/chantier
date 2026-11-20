@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import re
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -17,6 +18,12 @@ from chantier.core.records import CrEntry, read_batch_json
 from chantier.core.repo import Repo
 
 PRIORITIES = ("P1", "P2", "P3", "P4")
+
+
+def cr_slug(folder_name: str) -> str:
+    """A CR folder's name without its date and its number: how `depends.json` names it."""
+    name = re.sub(r"^(?:\d{6}-\d{4}-)+", "", folder_name)
+    return re.sub(r"^(?:CR-)?\d+-", "", name, flags=re.I)
 
 
 STATE_FOLDERS = ("1-pending", "2-actives", "3-done")  # the batch's, in `4-batch/`
@@ -185,7 +192,7 @@ def cr_directory(repo: Repo, cr: CrEntry) -> Path:
     return repo.planning_path(cr.path, "recorded CR path")
 
 
-def _relocate(batch: Batch, cr: CrEntry, target: Path) -> None:
+def relocate(batch: Batch, cr: CrEntry, target: Path) -> None:
     source = cr_directory(batch.repo, cr)
     batch.move(source, target)
     cr.path = batch.repo.rel(target)
@@ -199,7 +206,7 @@ def start_cr(batch: Batch, cr: CrEntry) -> None:
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
     if source.parent == paths["pending"]:
-        _relocate(batch, cr, paths["actives"] / source.name)
+        relocate(batch, cr, paths["actives"] / source.name)
 
 
 def done_cr(batch: Batch, cr: CrEntry) -> None:
@@ -210,7 +217,7 @@ def done_cr(batch: Batch, cr: CrEntry) -> None:
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
     if source.parent not in (paths["done"], paths["archives"], paths["trash"]):
-        _relocate(batch, cr, paths["done"] / source.name)
+        relocate(batch, cr, paths["done"] / source.name)
     cr.merged_at = cr.merged_at or now()
     if batch.repo.external and cr_directory(batch.repo, cr).is_dir():
         _delivery(batch.repo, cr, cr_directory(batch.repo, cr))
@@ -240,7 +247,7 @@ def trash_cr(batch: Batch, cr: CrEntry) -> None:
     paths = stage_layout(batch.repo)
     source = cr_directory(batch.repo, cr)
     if source.parent not in (paths["done"], paths["archives"], paths["trash"]):  # not left yet
-        _relocate(batch, cr, paths["trash"] / f"{stamp()}-{source.name}")
+        relocate(batch, cr, paths["trash"] / f"{stamp()}-{source.name}")
 
 
 def archive_name(cr: CrEntry, folder: Path) -> str:

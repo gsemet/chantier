@@ -46,7 +46,12 @@ def write_final_pages(repo: Repo, d: BatchRecord, folder: Path) -> None:
     events = _events_by_cr(folder)
     for c in d.crs:
         cr_folder = repo.planning_path(c.path) if c.path else None
-        if cr_folder and cr_folder.is_dir() and folder not in cr_folder.parents:
+        if (
+            cr_folder
+            and cr_folder.is_dir()
+            and folder not in cr_folder.parents
+            and not c.moved_to()  # moved to the inbox or the backlog: no final page there
+        ):
             v = cr_view(repo, d, c, (cr_folder, events.get(c.id, []), False))
             _write(cr_folder, cr_markdown(v), v)
 

@@ -86,6 +86,8 @@ SAMPLES = (
     ("batch", "github", "gh pr ready 12 --undo", "gh pr ready*"),
     ("batch", "github", "gh pr checks 12", "gh pr checks*"),
     ("batch", "github", "gh pr view 12", "gh pr view*"),
+    ("batch", "github", "gh pr close 12", "gh pr close*"),
+    ("batch", "github", "gh pr reopen 12", "gh pr reopen*"),
     ("stack", "gh-stack", "gh stack view", "gh stack*"),
     (
         "batch",
@@ -95,6 +97,8 @@ SAMPLES = (
     ),
     ("batch", "gitlab", "glab mr update 12 --target-branch main", "glab mr update*"),
     ("batch", "gitlab", "glab mr view 12", "glab mr view*"),
+    ("batch", "gitlab", "glab mr close 12", "glab mr close*"),
+    ("batch", "gitlab", "glab mr reopen 12", "glab mr reopen*"),
     ("batch", "gitlab", "glab ci status", "glab ci status*"),
     ("release", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
     (

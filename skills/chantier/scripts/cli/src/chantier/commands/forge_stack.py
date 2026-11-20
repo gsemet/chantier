@@ -28,6 +28,7 @@ from chantier.core.repo import Repo
 from chantier.stacks import chain, is_held, off_place, stack_base, state_word, to_come
 
 Rows = list[dict[str, Any]]
+Moved = dict[int, tuple[str, str]]
 
 
 def _is_gitlab(rows: list[dict[str, Any]]) -> bool:
@@ -38,13 +39,16 @@ class NoBottom(ChantierError):
     """The stack's first CR has no PR: nothing to stack."""
 
 
-def _plan(args: argparse.Namespace) -> tuple[Rows, Rows, Where, dict[int, str], dict[int, str]]:
+def _plan(
+    args: argparse.Namespace,
+) -> tuple[Rows, Rows, Where, dict[int, str], dict[int, str], Moved]:
     """The stack as it stands: the rows (the bottom CRs with a PR on its place, whatever their
     status: cr, status, PR number, link, base, head, release), the CRs to come (those from the
     first with no PR, or a working one off its place or not placed by the stack driver yet, up:
     cr, status, PR number or None), the forge's host, owner and repository, read from the PR
-    links, the PR numbers of the batch's dropped CRs (to their CR ids), and those of its held
-    CRs (to their CR ids): a held PR is outside the stack, on the default branch."""
+    links, the PR numbers of the batch's trashed CRs (to their CR ids), those of its held CRs (to
+    their CR ids: a held PR is outside the stack, on the default branch), and those of its CRs
+    moved to the inbox or the backlog (to their CR id and folder)."""
     repo = Repo.find()
     data = read_batch(repo, resolve_batch(repo, args.batch))
     if data.mode != "stack":
@@ -61,24 +65,35 @@ def _plan(args: argparse.Namespace) -> tuple[Rows, Rows, Where, dict[int, str], 
         if where not in (None, (host, owner, name)):
             raise ChantierError("the stack's PRs are not all in one repository", EXIT_PRECONDITION)
         where = (host, owner, name)
-        rows.append(
-            {
-                "cr": c.id,
-                "status": c.status,
-                "word": state_word(data, c, repo),
-                "recorded": c.pr_draft,
-                "number": int(number),
-                "link": c.pr,
-                "base": stack_base(data, c, repo, planned=True),
-                "branch": c.branch,
-                "head": short_head(c.head) or "-",
-                "release": c.kind == "release",
-                "default": repo.config["default_branch"],
-            }
-        )
+        rows.append(_row(data, repo, c, number))
     if where is None:
         raise _no_bottom(data, repo, links[0])
-    return rows, _come(data, repo, links[len(rows) :]), where, _dropped(data), _held(data)
+    return (
+        rows,
+        _come(data, repo, links[len(rows) :]),
+        where,
+        _dropped(data),
+        _held(data),
+        _moved(data),
+    )
+
+
+def _row(data: BatchRecord, repo: Repo, c: CrEntry, number: str) -> dict[str, Any]:
+    """One CR of the stack with a PR on its place: cr, status, word, recorded draft state, PR
+    number, link, base, branch, head, release, default branch."""
+    return {
+        "cr": c.id,
+        "status": c.status,
+        "word": state_word(data, c, repo),
+        "recorded": c.pr_draft,
+        "number": int(number),
+        "link": c.pr,
+        "base": stack_base(data, c, repo, planned=True),
+        "branch": c.branch,
+        "head": short_head(c.head) or "-",
+        "release": c.kind == "release",
+        "default": repo.config["default_branch"],
+    }
 
 
 def _no_bottom(data: BatchRecord, repo: Repo, first: CrEntry) -> NoBottom:
@@ -126,17 +141,39 @@ def _held(data: BatchRecord) -> dict[int, str]:
 
 def _held_rows(rows: list[dict[str, Any]], held: dict[int, str]) -> list[dict[str, Any]]:
     """What `retarget` takes for the held PRs: each on the default branch."""
-    return [{"number": n, "base": rows[0]["default"]} for n in held]
+    return [
+        {"number": n, "base": rows[0]["default"], "why": " (held out of the stack)"} for n in held
+    ]
+
+
+def _moved(data: BatchRecord) -> Moved:
+    """The PR numbers of the batch's CRs moved to the inbox or the backlog that have a PR (to
+    their CR id and folder): their work is kept, they are left out of the stack, on main."""
+    found = {}
+    for c in data.crs:
+        link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
+        if c.moved_to() and link:
+            found[int(link.groups()[-1])] = (c.id, str(c.moved_to()))
+    return found
+
+
+def _moved_rows(rows: list[dict[str, Any]], moved: Moved) -> list[dict[str, Any]]:
+    """What `retarget` takes for the moved PRs: each on the default branch, with its reason."""
+    return [
+        {"number": n, "base": rows[0]["default"], "why": f" (moved to {dest})"}
+        for n, (_, dest) in moved.items()
+    ]
 
 
 def _dropped(data: BatchRecord) -> dict[int, str]:
-    """The PR numbers (to their CR ids) of the batch's cancelled CRs that have a PR, a fix CR
-    apart: a dropped CR's PR is named apart from a foreign one."""
+    """The PR numbers (to their CR ids) of the batch's cancelled CRs that have a PR and went to
+    the trash (or have no recorded destination), a fix CR apart: a dropped CR's PR is named
+    apart from a foreign one."""
     found = {}
     for c in data.crs:
-        link = PR_LINK.match(c.pr) if c.pr else None
-        if c.status == "cancelled" and c.kind != "fix" and link:
-            found[int(link.group(4))] = c.id
+        link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
+        if c.status == "cancelled" and c.kind != "fix" and not c.moved_to() and link:
+            found[int(link.groups()[-1])] = c.id
     return found
 
 
@@ -172,7 +209,7 @@ def _unstack_all(rows: Rows, where: Where, apart: Apart, done: list[str]) -> lis
     gone = []
     for s in stacks(*where):
         in_it = {p["number"] for p in s.get("pull_requests", [])}
-        if s.get("open") and (planned | set(apart.held)) & in_it:
+        if s.get("open") and (planned | set(apart.held) | set(apart.moved)) & in_it:
             done.append(unstack(s, planned, where, apart))
             gone.append(s["number"])
     return gone
@@ -182,20 +219,21 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     """Unstack the open stacks that hold the batch's PRs, retarget the bases, stack again. When
     the forge refuses, its exact text comes back (exit 4), and when a stack stays open after its
     unstack tries."""
-    rows, come, where, dropped, held_prs = _plan(args)
+    rows, come, where, dropped, held_prs, moved = _plan(args)
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
-        return gitlab.make(rows, come, where, _held_rows(rows, held_prs))
+        apart_rows = _held_rows(rows, held_prs) + _moved_rows(rows, moved)
+        return gitlab.make(rows, come, where, apart_rows)
     host, owner, name = where
     done: list[str] = []
     gone: list[int] = []  # the stacks this run unstacked
     unstacked = False  # the unstack phase is over
     making = False  # the create call is the phase that raised
     try:
-        apart = Apart(left(come), dropped, held_prs)
+        apart = Apart(left(come), dropped, held_prs, moved)
         gone += _unstack_all(rows, where, apart, done)
         unstacked = True
-        retarget(_held_rows(rows, held_prs), where, done, " (held out of the stack)")
+        retarget(_held_rows(rows, held_prs) + _moved_rows(rows, moved), where, done)
         retarget(rows, where, done)
         making = True
         number, line = _make(rows, host, owner, name)
@@ -228,13 +266,14 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
 
 
 def _create(args: argparse.Namespace) -> tuple[list[str], int]:
-    rows, come, where, _, held_prs = _plan(args)
+    rows, come, where, _, held_prs, moved = _plan(args)
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
-        return gitlab.make(rows, come, where, _held_rows(rows, held_prs))
+        apart_rows = _held_rows(rows, held_prs) + _moved_rows(rows, moved)
+        return gitlab.make(rows, come, where, apart_rows)
     done: list[str] = []
     try:
-        retarget(_held_rows(rows, held_prs), where, done, " (held out of the stack)")
+        retarget(_held_rows(rows, held_prs) + _moved_rows(rows, moved), where, done)
         retarget(rows, where, done)
         return [*done, _make(rows, *where)[1]], 0
     except ChantierError as e:
@@ -244,25 +283,21 @@ def _create(args: argparse.Namespace) -> tuple[list[str], int]:
         raise ChantierError("\n".join([*done, said]), e.code) from e
 
 
-def _checks(
-    stack: dict[str, Any],
-    rows: list[dict[str, Any]],
-    left: dict[int, str],
-    dropped: dict[int, str],
-    held: dict[int, str],
-) -> tuple[list[str], dict[str, Any] | None]:
-    """One line per failed check of a stack read back; and the release row, if any."""
-    prs = stack.get("pull_requests", [])
-    have = [p["number"] for p in prs]
-    expected = [r["number"] for r in rows]
+def _check_two(
+    stack: dict[str, Any], expected: list[int], have: list[int], apart: Apart
+) -> list[str]:
+    """Check 2: the stack holds the planned PRs and no other, each PR left out named by why."""
+    left, dropped, held, moved = apart
     lines = []
-    if not stack.get("open"):
-        lines.append(f"check 1: stack #{stack.get('number')} is not open")
     absent = [f"#{n}" for n in expected if n not in have]
     foreign = [
         f"#{n}"
         for n in have
-        if n not in expected and n not in left and n not in dropped and n not in held
+        if n not in expected
+        and n not in left
+        and n not in dropped
+        and n not in held
+        and n not in moved
     ]
     out = [f"#{n} ({left[n]})" for n in have if n in left]
     gone = [f"#{n} ({dropped[n]})" for n in have if n in dropped]
@@ -280,6 +315,28 @@ def _checks(
         for n in have
         if n in held
     ]
+    lines += [
+        f"check 2: #{n} of {moved[n][0]}, moved to {moved[n][1]}, is left out of the stack and "
+        f"still in stack #{stack.get('number')}: `forge-stack rebuild`"
+        for n in have
+        if n in moved
+    ]
+    return lines
+
+
+def _checks(
+    stack: dict[str, Any],
+    rows: list[dict[str, Any]],
+    apart: Apart,
+) -> tuple[list[str], dict[str, Any] | None]:
+    """One line per failed check of a stack read back; and the release row, if any."""
+    prs = stack.get("pull_requests", [])
+    have = [p["number"] for p in prs]
+    expected = [r["number"] for r in rows]
+    lines = []
+    if not stack.get("open"):
+        lines.append(f"check 1: stack #{stack.get('number')} is not open")
+    lines += _check_two(stack, expected, have, apart)
     common = [n for n in expected if n in have]
     if [n for n in have if n in common] != common:
         lines.append(
@@ -319,7 +376,7 @@ def _read(args: argparse.Namespace, rows: list[dict[str, Any]], where: Where) ->
 
 def _show(args: argparse.Namespace) -> tuple[list[str], int]:
     try:
-        rows, come, where, dropped, held = _plan(args)
+        rows, come, where, dropped, held, moved = _plan(args)
     except NoBottom as e:
         return [f"check 1: {e}"], EXIT_PRECONDITION
     if _is_gitlab(rows):
@@ -331,7 +388,7 @@ def _show(args: argparse.Namespace) -> tuple[list[str], int]:
         if e.code != EXIT_PRECONDITION:
             raise
         return [str(e)], EXIT_PRECONDITION
-    lines, release = _checks(stack, rows, left(come), dropped, held)
+    lines, release = _checks(stack, rows, Apart(left(come), dropped, held, moved))
     if lines:
         return lines, EXIT_PRECONDITION
     prs = stack.get("pull_requests", [])
