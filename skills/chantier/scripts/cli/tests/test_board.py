@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import call_op
 from batch_helpers import prepared
 from conftest import Chantier
 
@@ -49,7 +50,9 @@ MODULES = [
     "writer_api",
     "prs",
 ]
-LAZY = ("starlette", "uvicorn")
+LAZY = ("starlette", "uvicorn", "websockets")
+OK, NOT_FOUND = 200, 404
+PROBE = {"board", "version", "pid", "served", "surface", "protocols"}
 
 
 def _top_level_imports(path: Path) -> set[str]:
@@ -142,13 +145,20 @@ def _git_init(folder: Path) -> None:
     subprocess.run(["git", "init", "-q", str(folder)], check=True)
 
 
+def _keyfile(path: Path) -> KeyFile:
+    path.write_text('{"key": "test-key"}', encoding="utf-8")
+    return KeyFile(path)
+
+
 def _board_payload(root: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setenv("CHANTIER_ROOT", str(root))
     monkeypatch.chdir(root)
     projects = open_projects()
-    ctx = Context(projects, KeyFile(root / "key.json"), Seats(projects), "0", lambda: None)
-    body: dict[str, Any] = json.loads(routes.board(ctx, Request("GET", "/api/board", {}, {})).body)
-    return body
+    ctx = Context(projects, _keyfile(root / "key.json"), Seats(projects), "0", lambda: None)
+    status, body = call_op(ctx, ctx.key.current(), "board.get")
+    assert status == OK
+    answer: dict[str, Any] = body
+    return answer
 
 
 def test_the_board_gives_a_surface_its_root_and_each_project_its_two_paths(
@@ -169,6 +179,27 @@ def test_the_board_gives_a_surface_its_root_and_each_project_its_two_paths(
         "alpha": ("projects/alpha/", "../../../code/"),
         "beta": ("projects/beta/", ".repo"),
     }
+
+
+def test_the_probe_answers_its_frozen_fields_and_every_old_route_is_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _git_init(tmp_path / "solo")
+    (tmp_path / "solo" / ".agents" / "changes").mkdir(parents=True)
+    monkeypatch.setenv("CHANTIER_ROOT", str(tmp_path / "solo"))
+    monkeypatch.chdir(tmp_path / "solo")
+    projects = open_projects()
+    ctx = Context(projects, _keyfile(tmp_path / "key.json"), Seats(projects), "0", lambda: None)
+    head = {"x-chantier-board-key": ctx.key.current(), "host": "board"}
+
+    def get(path: str) -> reply.Reply:
+        return routes.handle(ctx, Request("GET", path, {}, head))
+
+    probe = get("/api/board")
+    assert probe.status == OK and set(json.loads(probe.body)) == PROBE
+    assert json.loads(probe.body)["protocols"] == [1]
+    for old in ("/api/projects/x/state", "/api/autosync", "/api/seats", "/api/writer/sync"):
+        assert get(old).status == NOT_FOUND, old
 
 
 def test_the_board_adds_no_path_to_an_in_project_folder(

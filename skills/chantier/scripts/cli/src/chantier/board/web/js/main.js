@@ -151,7 +151,8 @@ function closeInnermost() {
   else if (panel) confirmLeave().then((ok) => ok && closePanel());
 }
 
-// Read the board until the server answers; the refresh takes over once a project is shown.
+// Read the board (`board.get`) until the server answers; the refresh takes over once a project is
+// shown.
 async function boot() {
   try {
     const got = await board();

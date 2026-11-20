@@ -51,6 +51,8 @@ export default {
   'time.d': '{n} d',
   'time.ago': '{age} ago',
   'foot.data': 'Data: {age} ago',
+  'foot.data_http': 'Data: {age} ago (HTTP)',
+  'foot.upgraded': 'Board upgraded: reload the page',
   'foot.unreachable': 'Board unreachable: data {age} ago',
   'foot.never': 'No data yet',
   'notice.key': 'This board needs the link with its key: ask the Chief of Staff for it.',

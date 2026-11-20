@@ -5,3 +5,4 @@ skills/chantier/scripts/cli/src/chantier/playbook/copilot_tables/** text eol=lf
 skills/chantier/scripts/cli/src/chantier/playbook/copilot-models.json text eol=lf
 config/chantier.defaults.yml text eol=lf
 skills/chantier/scripts/cli/src/chantier/hub/schemas.json text eol=lf
+skills/chantier/scripts/cli/src/chantier/board/api/protocol.json text eol=lf

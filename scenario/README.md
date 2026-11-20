@@ -293,9 +293,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
   sides gives `writer: conflict` and `sync-conflict@1`, and the Chief of Staff's resolution is pushed
   with `sync-resumed@1`; `sync now` commits and pushes the configuration file a save left; with the
   board stopped `file` is refused with "the surface's writer is not running: nothing written" and
-  nothing changes; an in-project board has `writer == {"state":"off"}`, no `autosync` key and `GET
-  /api/autosync` answers 404 (unit: surface-board);
-- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `/api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
+  nothing changes; an in-project board has `writer == {"state":"off"}`, no `autosync` key and a
+  route of the versions before protocol 1 (`/api/autosync`) answers 404 (unit: surface-board);
+- two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `GET /api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
 - typed waits (CR-409): `wait add` records a merge, approval, pipeline and answer wait on a CR
   (ids w1..w4, the forge ones on its PR), `status` shows them on the CR's row, the hub tells the
   approval and pipeline waits the forge shows met in one `wait-cleared@1` line each, once
@@ -304,7 +304,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
   pipeline` records the wait on the head and the MR, the fake `glab` (`api graphql`) turns the head
   green, the hub tells it once and the Foreman clears it and takes the CR back, the approval half
   not played (not proved on GitLab) (unit: gitlab) (test: test_waits.py::test_a_blocked_handback_records_its_waits_and_the_steering_session_clears_them);
-- the board's PRs page (`GET /api/projects/<id>/prs`, the fake `gh` answering its one `api
+- the board's PRs (the `prs.get` op over HTTP, the fake `gh` answering its one `api
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose
   checks the forge has not computed (`being checked`, never `none`) told apart; every PR merged or
@@ -396,7 +396,7 @@ does a unit that is not in `UNITS` and a test that does not exist.
     test_surface_server.py::test_the_servers_hub_loop_elects_cycles_when_due_and_lets_go,
     test_surface_server.py::test_two_writers_of_server_json_lose_neither_entry,
     test_board_running.py::test_new_key_keeps_the_running_record_and_the_exit_removes_only_its_own);
-- the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `PUT /config` writes
+- the two limits `specifying.parallel` and `batch.slots` (CR-383): the board's `config.put` op writes
   the project folder's file and says, role-free, `slots 4 -> 6: <batch> keeps <n> until an order
   slots` and `specifying 4 -> 1: from the next start`, with no `applies at the next batch` line;
   each save writes one `config@1` line per changed key in the forge journal (`source: board`; a role's
@@ -422,11 +422,30 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_event_audience.py::test_a_version_zero_line_reads_as_the_projects_and_a_newer_one_wakes_no_one,
   test_event_audience.py::test_a_watcher_ends_on_the_lines_for_it_and_passes_the_others,
   test_event_audience.py::test_playbook_prints_the_wake_rule_with_its_layer);
-- the board's backlog writes (`POST backlog/move`, a refused one): each write that changes something
+- the board's backlog writes (the `backlog.move` op, a refused one): each write that changes something
   appends one `board@1` line to the project's `forge-journal.jsonl` (`source: board`, `wakes` true for a
   move, ignored by git), a refused one none (unit: surface-board) (test:
   test_board_journal.py::test_each_backlog_write_adds_one_board_line_to_its_projects_forge_journal,
   test_board_journal.py::test_a_refusal_a_rescan_and_another_project_leave_no_line_here);
+- the server's API, protocol 1 (CR-406), against the real `chantier board` process, its times
+  shortened by `CHANTIER_API_TEST_TIMES` (`1:6:5:5`), through `websockets.sync.client` and `http.client`:
+  a WebSocket with the cookie from the board's own origin gets `welcome` (the 20 ops, the 6 topics,
+  the probe's PID); a `project` subscription gets its event, then `chantier file` run as a command in
+  the same project makes an event with a new rev within the push loop's look plus 2 s;
+  `backlog.move` over the socket moves the folder and writes one `board@1` line, which an `events`
+  subscription receives; over HTTP `board.get`, a write (`backlog.move`) and a long-poll that answers
+  when `chantier file` runs; the cookie from a foreign origin answers 401 on HTTP and on the upgrade,
+  the key in a header from a foreign origin is accepted on both; a `hello` with a wrong key gets an
+  `error` frame and the close code 4401; `GET /api/board` holds the probe's six fields and
+  `protocols: [1]`; a route of the versions before protocol 1 answers 404, a `POST` with the cookie
+  too; the board stopped closes the open socket with 1001; the cases that read the board
+  (`remote_board`'s state, tree, file and costs checks and its seat count, `forge_hub`'s PRs read and
+  write, `external_surface`'s two projects and refused paths, `surface_config_page`'s `config.get` and
+  `config.put`) call the ops over `/api/v1/call/<op>` (unit: surface-board) (test:
+  test_server_api.py::test_the_key_and_the_origin,
+  test_server_api.py::test_an_old_route_answers_404_even_for_a_post_a_cookie_carries,
+  test_server_api_ws.py::test_a_socket_says_hello_gets_welcome_and_watches_a_project,
+  test_server_api_ws.py::test_a_stopping_server_closes_each_socket_with_1001);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

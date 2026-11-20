@@ -9,12 +9,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import call_route
 from batch_helpers import changes, record, write_record
 from conftest import Chantier
 from test_board_prs import FIRST, HTTP_OK, LINK, MERGED_AT, TWO_CALLS, Board, seen_lines, served
 
-from chantier.board.context import Request
-from chantier.board.routes import handle
 from chantier.hub import journal as hub_journal
 
 ROW_COUNT = 4
@@ -40,12 +39,10 @@ def archive(repo: Path, number: int, crs: list[dict[str, Any]] | None = None) ->
 
 
 def ask(b: Board, batch: str | None = None) -> dict[str, Any]:
-    query = {"batch": batch} if batch else {}
-    path = f"/api/projects/{b.id}/prs"
-    reply = handle(b.ctx, Request("GET", path, query, {"x-chantier-board-key": b.key}))
-    assert reply.status == HTTP_OK
-    body: dict[str, Any] = json.loads(reply.body or b"{}")
-    return body
+    status, body = call_route(b.ctx, b.key, "GET", b.id, "prs", {"batch": batch} if batch else {})
+    assert status == HTTP_OK
+    answer: dict[str, Any] = body
+    return answer
 
 
 def test_a_closed_batch_answers_its_record_in_its_order_and_signals_nothing(board: Board) -> None:

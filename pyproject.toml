@@ -9,6 +9,7 @@ dependencies = [
     "psutil==7.2.2",
     "starlette==1.10.0",
     "uvicorn==0.54.0",
+    "websockets==17.4",
 ]
 
 [project.scripts]
@@ -55,7 +56,7 @@ max-statements = 50
 max-nested-blocks = 3
 
 [tool.ruff.lint.flake8-tidy-imports]
-banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil", "starlette", "uvicorn"]
+banned-module-level-imports = ["ruamel", "ruamel.yaml", "psutil", "starlette", "uvicorn", "websockets"]
 
 [tool.mypy]
 strict = true

@@ -51,6 +51,8 @@ export default {
   'time.d': '{n} j',
   'time.ago': 'il y a {age}',
   'foot.data': 'Données : il y a {age}',
+  'foot.data_http': 'Données : il y a {age} (HTTP)',
+  'foot.upgraded': 'Board mis à jour : rechargez la page',
   'foot.unreachable': "Board injoignable : données d'il y a {age}",
   'foot.never': 'Aucune donnée pour le moment',
   'notice.key': 'Ce board demande le lien avec sa clé : demande-le au Chief of Staff.',

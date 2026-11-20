@@ -4,16 +4,15 @@ the Chief of Staff's watcher reads; a refusal, a drop on the same column and a r
 from __future__ import annotations
 
 import hashlib
-import json
 import shutil
 from http import HTTPStatus
 from typing import Any
 
 import pytest
+from api_client import call_route
 
 from chantier.board import key as keys
-from chantier.board import routes
-from chantier.board.context import Context, Request
+from chantier.board.context import Context
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core.repo import Repo
@@ -35,7 +34,7 @@ STEPS: list[tuple[str, str, dict[str, Any], str, bool]] = [
 
 
 def _write_call(surface: Any) -> Any:
-    """The board's write routes called in-process on a surface of two projects: `demo`, `other`."""
+    """The board's write ops called in-process on a surface of two projects: `demo`, `other`."""
     shutil.copytree(surface.clone, surface.root / "projects" / "other" / ".repo")
     (surface.root / "projects" / "other" / "checkout.yml").write_text("repo: .repo\n")
     repo_ = Repo.find(project="demo", readonly=True)
@@ -44,10 +43,7 @@ def _write_call(surface: Any) -> Any:
     ctx = Context(projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None)
 
     def call(method: str, route: str, body: dict[str, Any], project: str = "demo") -> Any:
-        head = {keys.HEADER: secret, "content-type": "application/json", "host": "board"}
-        path = f"/api/projects/{project}/{route}"
-        reply_ = routes.handle(ctx, Request(method, path, {}, head, json.dumps(body).encode()))
-        return reply_.status, json.loads(reply_.body)
+        return call_route(ctx, secret, method, project, route, body)
 
     return call
 

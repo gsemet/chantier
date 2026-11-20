@@ -1,0 +1,954 @@
+{
+  "frame.call": {
+    "additionalProperties": false,
+    "properties": {
+      "args": {
+        "additionalProperties": true,
+        "title": "Args",
+        "type": "object"
+      },
+      "id": {
+        "maxLength": 64,
+        "title": "Id",
+        "type": "string"
+      },
+      "op": {
+        "title": "Op",
+        "type": "string"
+      },
+      "t": {
+        "const": "call",
+        "title": "T",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "id",
+      "op"
+    ],
+    "title": "Call",
+    "type": "object"
+  },
+  "frame.error": {
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "title": "Code",
+        "type": "string"
+      },
+      "error": {
+        "title": "Error",
+        "type": "string"
+      },
+      "t": {
+        "const": "error",
+        "title": "T",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "code",
+      "error"
+    ],
+    "title": "Error",
+    "type": "object"
+  },
+  "frame.event": {
+    "additionalProperties": false,
+    "properties": {
+      "data": {
+        "additionalProperties": true,
+        "title": "Data",
+        "type": "object"
+      },
+      "now": {
+        "title": "Now",
+        "type": "string"
+      },
+      "rev": {
+        "title": "Rev",
+        "type": "string"
+      },
+      "sub": {
+        "title": "Sub",
+        "type": "string"
+      },
+      "t": {
+        "const": "event",
+        "title": "T",
+        "type": "string"
+      },
+      "topic": {
+        "title": "Topic",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "sub",
+      "topic",
+      "rev",
+      "data",
+      "now"
+    ],
+    "title": "Event",
+    "type": "object"
+  },
+  "frame.hello": {
+    "properties": {
+      "client": {
+        "maxLength": 100,
+        "title": "Client",
+        "type": "string"
+      },
+      "key": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Key"
+      },
+      "protocol": {
+        "title": "Protocol",
+        "type": "integer"
+      },
+      "t": {
+        "const": "hello",
+        "title": "T",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "protocol",
+      "client"
+    ],
+    "title": "Hello",
+    "type": "object"
+  },
+  "frame.result": {
+    "additionalProperties": false,
+    "properties": {
+      "data": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Data"
+      },
+      "error": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Error"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "now": {
+        "title": "Now",
+        "type": "string"
+      },
+      "ok": {
+        "title": "Ok",
+        "type": "boolean"
+      },
+      "status": {
+        "title": "Status",
+        "type": "integer"
+      },
+      "t": {
+        "const": "result",
+        "title": "T",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "id",
+      "ok",
+      "status",
+      "data",
+      "now"
+    ],
+    "title": "Result",
+    "type": "object"
+  },
+  "frame.sub": {
+    "additionalProperties": false,
+    "properties": {
+      "args": {
+        "additionalProperties": true,
+        "title": "Args",
+        "type": "object"
+      },
+      "id": {
+        "maxLength": 64,
+        "title": "Id",
+        "type": "string"
+      },
+      "t": {
+        "const": "sub",
+        "title": "T",
+        "type": "string"
+      },
+      "topic": {
+        "title": "Topic",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "id",
+      "topic"
+    ],
+    "title": "Sub",
+    "type": "object"
+  },
+  "frame.tick": {
+    "additionalProperties": false,
+    "properties": {
+      "now": {
+        "title": "Now",
+        "type": "string"
+      },
+      "t": {
+        "const": "tick",
+        "title": "T",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "now"
+    ],
+    "title": "Tick",
+    "type": "object"
+  },
+  "frame.unsub": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "maxLength": 64,
+        "title": "Id",
+        "type": "string"
+      },
+      "t": {
+        "const": "unsub",
+        "title": "T",
+        "type": "string"
+      }
+    },
+    "required": [
+      "t",
+      "id"
+    ],
+    "title": "Unsub",
+    "type": "object"
+  },
+  "frame.welcome": {
+    "$defs": {
+      "ServerInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "pid": {
+            "title": "Pid",
+            "type": "integer"
+          },
+          "served": {
+            "title": "Served",
+            "type": "string"
+          },
+          "surface": {
+            "title": "Surface",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "pid",
+          "served",
+          "surface"
+        ],
+        "title": "ServerInfo",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "now": {
+        "title": "Now",
+        "type": "string"
+      },
+      "ops": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Ops",
+        "type": "array"
+      },
+      "protocol": {
+        "const": 1,
+        "title": "Protocol",
+        "type": "integer"
+      },
+      "server": {
+        "$ref": "#/$defs/ServerInfo"
+      },
+      "t": {
+        "const": "welcome",
+        "title": "T",
+        "type": "string"
+      },
+      "topics": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Topics",
+        "type": "array"
+      }
+    },
+    "required": [
+      "t",
+      "protocol",
+      "server",
+      "ops",
+      "topics",
+      "now"
+    ],
+    "title": "Welcome",
+    "type": "object"
+  },
+  "http.poll": {
+    "$defs": {
+      "PollSub": {
+        "additionalProperties": false,
+        "properties": {
+          "args": {
+            "additionalProperties": true,
+            "title": "Args",
+            "type": "object"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "rev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rev"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "topic"
+        ],
+        "title": "PollSub",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "The body of `POST /api/v1/poll`.",
+    "properties": {
+      "subs": {
+        "items": {
+          "$ref": "#/$defs/PollSub"
+        },
+        "title": "Subs",
+        "type": "array"
+      }
+    },
+    "required": [
+      "subs"
+    ],
+    "title": "Poll",
+    "type": "object"
+  },
+  "op.backlog.file": {
+    "additionalProperties": false,
+    "properties": {
+      "base_sha256": {
+        "title": "Base Sha256",
+        "type": "string"
+      },
+      "item": {
+        "title": "Item",
+        "type": "string"
+      },
+      "path": {
+        "title": "Path",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "item",
+      "path",
+      "text",
+      "base_sha256"
+    ],
+    "title": "BacklogFileArgs",
+    "type": "object"
+  },
+  "op.backlog.group": {
+    "additionalProperties": false,
+    "properties": {
+      "items": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "items",
+      "name"
+    ],
+    "title": "GroupArgs",
+    "type": "object"
+  },
+  "op.backlog.labels": {
+    "additionalProperties": false,
+    "properties": {
+      "add": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        ],
+        "title": "Add"
+      },
+      "items": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "items",
+      "add"
+    ],
+    "title": "LabelsArgs",
+    "type": "object"
+  },
+  "op.backlog.move": {
+    "additionalProperties": false,
+    "properties": {
+      "group": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Group"
+      },
+      "items": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Items"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "to": {
+        "title": "To",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "to"
+    ],
+    "title": "MoveArgs",
+    "type": "object"
+  },
+  "op.backlog.new": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "slug": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Slug"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "title": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Title"
+      }
+    },
+    "required": [
+      "project",
+      "text"
+    ],
+    "title": "NewArgs",
+    "type": "object"
+  },
+  "op.backlog.next_batch": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "op.backlog.ungroup": {
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "name"
+    ],
+    "title": "UngroupArgs",
+    "type": "object"
+  },
+  "op.board.get": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "NoArgs",
+    "type": "object"
+  },
+  "op.config.get": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "op.config.put": {
+    "additionalProperties": false,
+    "properties": {
+      "base_sha256": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Base Sha256"
+      },
+      "changes": {
+        "default": null,
+        "title": "Changes"
+      },
+      "dry_run": {
+        "default": false,
+        "title": "Dry Run",
+        "type": "boolean"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ConfigPutArgs",
+    "type": "object"
+  },
+  "op.costs.get": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "op.costs.recompute": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "op.journal.get": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "op.journal.rescan": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "op.project.file": {
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "title": "Path",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project",
+      "path"
+    ],
+    "title": "PathArgs",
+    "type": "object"
+  },
+  "op.project.state": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      },
+      "rev": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Rev"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "StateArgs",
+    "type": "object"
+  },
+  "op.project.tree": {
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "default": "",
+        "title": "Path",
+        "type": "string"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "TreeArgs",
+    "type": "object"
+  },
+  "op.prs.get": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Batch"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "PrsArgs",
+    "type": "object"
+  },
+  "op.seats.register": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Project"
+      },
+      "session": {
+        "title": "Session",
+        "type": "string"
+      }
+    },
+    "required": [
+      "session"
+    ],
+    "title": "SeatArgs",
+    "type": "object"
+  },
+  "op.writer.sync": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "NoArgs",
+    "type": "object"
+  },
+  "topic.board": {
+    "additionalProperties": false,
+    "properties": {},
+    "title": "NoArgs",
+    "type": "object"
+  },
+  "topic.costs": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "topic.events": {
+    "additionalProperties": false,
+    "properties": {
+      "after": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "After"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "EventsArgs",
+    "type": "object"
+  },
+  "topic.journal": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "topic.project": {
+    "additionalProperties": false,
+    "properties": {
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "ProjectArgs",
+    "type": "object"
+  },
+  "topic.prs": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Batch"
+      },
+      "project": {
+        "title": "Project",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project"
+    ],
+    "title": "PrsArgs",
+    "type": "object"
+  }
+}

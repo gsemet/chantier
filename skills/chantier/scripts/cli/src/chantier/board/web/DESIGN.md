@@ -39,6 +39,11 @@ fails when the table and `tokens.css` disagree.
   (test).
 - **Words.** Every string the board shows goes through the i18n keys (`t()`, `tn()`), in every
   language file; data (titles, slugs, file contents) is shown as it is.
+- **One transport.** The page talks to the server through `js/core/transport.js` only (`call`,
+  `subscribe`, `fileUrl`), over the WebSocket of protocol 1, or over HTTP (`POST api/v1/call/<op>`
+  and the long-poll) when the socket never opens or the address says `?transport=http`, which the
+  sidebar footer shows as " (HTTP)". A view names a published op or topic and no address; no file
+  but the transport's three opens a socket (test).
 - **The reference look.** This file describes the column, the card and the chip in words only; no
   picture ships in the package, and a pull request's screenshots are the visual record.
 

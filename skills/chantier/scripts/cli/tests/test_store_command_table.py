@@ -6,13 +6,13 @@ made before the first write, when nothing had changed. A spy wraps `Repo.store`
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pytest
+from api_client import call_route
 from conftest import Chantier, Surface
 from store_spy import (
     MAIN,
@@ -27,8 +27,7 @@ from store_spy import (
 )
 
 from chantier.board import key as keys
-from chantier.board import routes
-from chantier.board.context import Context, Request
+from chantier.board.context import Context
 from chantier.board.projects import Projects
 from chantier.board.seats import Seats
 from chantier.core import batch as batch_module
@@ -157,18 +156,14 @@ ROWS = [
 
 
 def _board(surface: Surface, monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[int, Any]]:
-    """The board's routes, called in-process with the key and the headers a page sends."""
+    """The board's ops, called in-process with the key a page sends."""
     found = Repo.find(project="demo", readonly=True)
     projects = Projects(found, found.surface, [])
     secret = keys.load_or_create(found)
     ctx = Context(projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None)
 
     def call(method: str, route: str, body: object = None) -> tuple[int, Any]:
-        head = {keys.HEADER: secret, "content-type": "application/json", "host": "board"}
-        raw = b"" if body is None else json.dumps(body).encode()
-        path = f"/api/projects/{projects.home_id}/{route}"
-        reply = routes.handle(ctx, Request(method, path, {}, head, raw))
-        return reply.status, json.loads(reply.body)
+        return call_route(ctx, secret, method, projects.home_id, route, body)
 
     return call
 

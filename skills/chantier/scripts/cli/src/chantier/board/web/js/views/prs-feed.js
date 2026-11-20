@@ -1,20 +1,10 @@
-// The PRs view's own feed: one read of the forge when the view opens, then one every 10 s while the
-// page is visible and the batch has a PR that is neither merged nor closed. It stops when every PR
-// is done and starts again when a CR gets a PR it has not asked for. A closed batch is read once,
-// and the view starts a new feed for each batch it shows. A failed read keeps the last good one
-// on screen with the error beside it.
-import { prs as ask } from '../core/api.js';
-import { snapshot, subscribe, update } from '../core/store.js';
-
-const EVERY_MS = 10000;
-
-const linksOf = (state) =>
-  (state.data?.batch?.crs ?? [])
-    .map((c) => c.pr)
-    .filter(Boolean)
-    .sort();
-
-const same = (a, b) => a.length === b.length && a.every((link, i) => link === b[i]);
+// The PRs view's own feed: a subscription to the `prs` topic of one batch. The server reads the
+// forge for every client at once, at most every 10 s and only while a PR of the batch is not
+// merged or closed. The subscription goes when the page is hidden and comes back when it shows
+// again, and the view starts a new feed for each batch it shows. A refused subscription keeps the
+// last good answer on screen with the error beside it.
+import { snapshot, update } from '../core/store.js';
+import { subscribe } from '../core/transport.js';
 
 const visible = () => document.visibilityState === 'visible';
 
@@ -24,7 +14,7 @@ const failed = (last, error) => ({
   rows: [],
   unread: !last,
   ...last,
-  error: error.message,
+  error,
   failed: true,
 });
 
@@ -32,42 +22,29 @@ const failed = (last, error) => ({
 // default, which is the newest closed one when none is there). It returns the function that stops it.
 export function startFeed(batch = null) {
   const project = snapshot().project;
-  const feed = { asked: [], busy: false, stopped: false, once: false };
-  const here = () => !feed.stopped && snapshot().project === project;
-
-  async function fetchOnce() {
-    try {
-      const got = await ask(project, batch);
-      if (!here()) return;
-      feed.once = Boolean(got.data.closed && !got.data.error); // a closed batch is read once
-      update({ prs: got.data });
-    } catch (error) {
-      if (here()) update({ prs: failed(snapshot().prs, error) });
-    }
-  }
-
-  async function read() {
-    if (feed.busy || feed.stopped) return;
-    feed.busy = true;
-    feed.asked = linksOf(snapshot());
-    await fetchOnce();
-    feed.busy = false;
-  }
-
-  const tick = () => visible() && !feed.once && !snapshot().prs?.all_done && read();
-  // A CR got a PR the last read did not ask for: read now, the page is no longer all done.
-  const unsub = subscribe((state) => {
-    const open = state.project === project && !batch && !feed.once;
-    if (open && !same(feed.asked, linksOf(state)) && visible()) read();
-  });
-  read();
-  const timer = setInterval(tick, EVERY_MS);
-  // The page comes back to the front: read again only while a PR is not done.
-  document.addEventListener('visibilitychange', tick);
+  const args = { project, ...(batch ? { batch } : {}) };
+  let stopped = false;
+  let off = null;
+  const here = () => !stopped && snapshot().project === project;
+  const on = () => {
+    off ??= subscribe(
+      'prs',
+      args,
+      (data) => here() && update({ prs: data }),
+      (error) => here() && update({ prs: failed(snapshot().prs, error) }),
+    );
+  };
+  const sync = () => {
+    if (visible()) return on();
+    off?.();
+    off = null;
+    return undefined;
+  };
+  on();
+  document.addEventListener('visibilitychange', sync);
   return () => {
-    feed.stopped = true;
-    unsub();
-    clearInterval(timer);
-    document.removeEventListener('visibilitychange', tick);
+    stopped = true;
+    off?.();
+    document.removeEventListener('visibilitychange', sync);
   };
 }

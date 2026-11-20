@@ -11,7 +11,7 @@ import { money, receiptOf } from '../model/receipt.js';
 import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter } from '../ui/parts.js';
-import { recomputeCosts } from './costs-action.js';
+import { recomputeCosts, watchCosts } from './costs-action.js';
 import { bindHistory, historyBlock } from './costs-history.js';
 import { copyReceipt } from './costs-image.js';
 import { bindSpendBy, spendCard } from './costs-models.js';
@@ -115,6 +115,7 @@ export function mount(root) {
     bindHistory(root),
     bindSpendBy(root),
     delegate(root, 'click', '[data-recompute]', () => recomputeCosts()),
+    watchCosts(),
   ];
   return () => {
     for (const off of offs) off();

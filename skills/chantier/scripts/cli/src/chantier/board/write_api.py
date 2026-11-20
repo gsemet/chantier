@@ -6,7 +6,6 @@ line to the project's forge journal (`hub/journal.py`), which the Chief of Staff
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from dataclasses import replace
 from functools import partial
@@ -14,10 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board import journal
-from chantier.board.context import Context, Request
 from chantier.board.projects import Project
-from chantier.board.reply import Reply, as_json, text
-from chantier.core import clock
 from chantier.core.errors import (
     EXIT_CONFLICT,
     EXIT_PRECONDITION,
@@ -268,69 +264,29 @@ def _rescan(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     }, 200
 
 
-def _project(ctx: Context, project_id: str) -> Project | None:
-    ctx.projects.refresh()
-    return ctx.projects.get(project_id)
-
-
-def _write(ctx: Context, req: Request, project_id: str, op: Op, command: str) -> Reply:
-    """A write: the project must exist, the body must be JSON; a refusal of the CLI's code gives
-    its status and `{"ok": false, "error"}`."""
-    project = _project(ctx, project_id)
-    if project is None:
-        return text(404, "not found")
-    if not req.headers.get("content-type", "").startswith("application/json"):
-        return text(415, "refused: the body is application/json")
+def execute(
+    project: Project, op: Op, command: str, data: dict[str, Any]
+) -> tuple[dict[str, Any], int]:
+    """A write's body and status: a refusal of the CLI's code gives its status and `{"ok": false,
+    "error"}` (`stale: true` for a file changed since the page read it)."""
     try:
-        try:
-            data = json.loads(req.body or b"{}")
-        except ValueError as e:
-            raise ChantierError("the body is not JSON", EXIT_USAGE) from e
-        if not isinstance(data, dict):
-            raise ChantierError("the body is a JSON object", EXIT_USAGE)
-        body, status = op(replace(project.repo, command=command), data)
+        return op(replace(project.repo, command=command), data)
     except ChantierError as e:
         refusal: dict[str, Any] = {"ok": False, "error": str(e)}
         if e.code == EXIT_CONFLICT:
-            refusal["stale"] = True  # the file changed since the page read it
-        return as_json(refusal, STATUS.get(e.code, 500))
+            refusal["stale"] = True
+        return refusal, STATUS.get(e.code, 500)
     except OSError as e:
-        return as_json({"ok": False, "error": f"not written: {e}"}, 500)
-    return as_json(body, status)
+        return {"ok": False, "error": f"not written: {e}"}, 500
 
 
-def _writer(op: Op, command: str) -> Callable[..., Reply]:
-    def handler(ctx: Context, req: Request, project_id: str) -> Reply:
-        return _write(ctx, req, project_id, op, command)
-
-    return handler
-
-
-writer = _writer  # the other write routes of the board (`config_api`) are built the same way
-
-
-def project_of(ctx: Context, project_id: str) -> Project | None:
-    """The served project of that id, the list of projects read again first."""
-    return _project(ctx, project_id)
-
-
-def journal_of(ctx: Context, req: Request, project_id: str) -> Reply:
-    project = _project(ctx, project_id)
-    if project is None:
-        return text(404, "not found")
-    entries = journal.since_rescan(project.repo.changes)
-    return as_json({"entries": entries, "count": len(entries), "now": clock.now()})
-
-
-P = r"/api/projects/([^/]+)/"
-ROUTES: list[tuple[str, str, Callable[..., Reply]]] = [
-    ("POST", P + "backlog/new", _writer(_new, "board backlog/new")),
-    ("POST", P + "backlog/move", _writer(_move, "board backlog/move")),
-    ("POST", P + "backlog/labels", _writer(_labels, "board backlog/labels")),
-    ("POST", P + "backlog/group", _writer(_group, "board backlog/group")),
-    ("POST", P + "backlog/ungroup", _writer(_ungroup, "board backlog/ungroup")),
-    ("PUT", P + "backlog/file", _writer(_file, "board backlog/file")),
-    ("POST", P + "backlog/next-batch", _writer(_next_batch, "board backlog/next-batch")),
-    ("GET", P + "journal", journal_of),
-    ("POST", P + "journal/rescan", _writer(_rescan, "board journal/rescan")),
-]
+WRITES: dict[str, tuple[Op, str]] = {
+    "backlog.new": (_new, "board backlog/new"),
+    "backlog.move": (_move, "board backlog/move"),
+    "backlog.labels": (_labels, "board backlog/labels"),
+    "backlog.group": (_group, "board backlog/group"),
+    "backlog.ungroup": (_ungroup, "board backlog/ungroup"),
+    "backlog.file": (_file, "board backlog/file"),
+    "backlog.next_batch": (_next_batch, "board backlog/next-batch"),
+    "journal.rescan": (_rescan, "board journal/rescan"),
+}

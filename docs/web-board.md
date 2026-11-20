@@ -1,7 +1,7 @@
 
 # The web board
 
-`chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for its PRs page.
+`chantier board` serves a small web page over a planning folder, for any device on your network: your laptop, or your phone while the batch runs somewhere else. It shows the batch and its CRs, the backlog, the costs and each CR's files, and it lets you triage the backlog. It never touches a batch. It reads your forge with your own `gh` or `glab`, read-only, for a batch's PRs. The page is one client of the server's published API, [protocol 1](server-api.md): it talks to the server over a WebSocket, which pushes each change to the page as it happens, and over HTTP with a long-poll when the socket does not open (the footer then says `(HTTP)`).
 
 The pictures on this page are taken from the real board by `just docs-screenshots`, on a made-up planning surface (`docs/demo/`, see [its README](demo/README.md)): three fictional projects, the clock fixed at 2026-06-18 10:30 UTC. Nothing in them is a real project.
 
@@ -13,7 +13,7 @@ The breadcrumb at the top names where you are, and stays in place when the page 
 
 ![The project picker, open](web-board/picker-pc.png)
 
-The data refreshes by itself. The line under the bar says how old it is (`Data: 0 s ago`), or that the board is unreachable.
+The data updates live: the server pushes a change within a few seconds, with no polling by the page. The line under the bar says how old the data is (`Data: 0 s ago`), or that the board is unreachable; over the HTTP long-poll it adds `(HTTP)`.
 
 ### Home: the planning surface
 
@@ -62,7 +62,7 @@ The batch navigator is on this page as on Costs and Batch: a past batch's PRs ar
 - **The signal**: when a read finds a PR merged that the record does not hold, the board appends one line to `forge-journal.jsonl` at the planning folder's root (once per batch and CR; a cached read or a PR closed without a merge writes none). The file is local, never published, and is not the batch's: the board records nothing and messages no agent. `chantier status` prints the line (`forge saw merged: <cr> <pr> into <branch> at <time>; for the Chief of Staff: order merged <cr>`; for a PR merged into another CR's branch, `into <cr>'s branch at <time>; for the Chief of Staff: not landed, tell the user, record nothing until <cr> lands`), in the Chief of Staff's own `status` and in the Foreman's heartbeat alike, and the Chief of Staff records the merge with `order merged` at the `status` that shows it, in direct and Foreman mode alike. The Foreman does nothing with the line. The Configuration page writes a line of its own type (`config@1`, `source: board`) when a save changes the effective `specifying.parallel` or `batch.slots`: `status` prints `config changed on the board: batch.slots <old> -> <new>; <batch> keeps <n> until an order slots` (only the newest slots line of the running batch, until an `order slots` follows it) and the watcher wakes on it. A PR merged into another CR's branch has landed when that CR's PR is merged on the forge, at the same time or later, into a branch that is no CR's (a chain of such CRs is followed to its end): the read then carries `landed_with` and `landed_at`, and the page writes one second line for that CR, once (the file holds at most one line per batch, CR and landed-or-not). `status` prints the landed line instead of the first (`forge saw merged: <cr> <pr> into <other cr>'s branch at <time>, landed with <cr> at <time>; for the Chief of Staff: order merged <cr>`), and the Chief of Staff records it like any merge. Once the merge is recorded the line no longer prints. The forge hub of `chantier watch` writes the same lines to the same file (`source: hub`), by the same rules, so a merge is one line whichever of the two reads it first.
 - **The signal is read only when a `status` runs**: when nothing runs (no heartbeat), the row's "merged on the forge, not recorded yet: tell the Chief of Staff" means just that: tell the Chief of Staff, who records it.
 - **A PR merged into another CR's PR** (a stacked batch) is signalled too, with that CR's branch. It is a merge to record once the PR under it has landed (the line then says `landed with <cr>`); until then the line says not landed, and the Chief of Staff tells you and records nothing.
-- **Refresh**: the page reads the forge when it opens and at once on each change of the batch shown, then every 10 s while the page is visible and a PR of the batch shown is not done. The server keeps one read per project and batch shown for 10 s, however many pages are open. It stops when every PR is merged or closed (a closed PR counts as done), and starts again when a new PR joins the batch.
+- **Refresh**: the page subscribes to the batch's PRs when it opens and on each change of the batch shown; the server reads the forge for the subscription at once, then every 10 s while a client watches and a PR of the batch is not done. The server keeps one read per project and batch for 10 s, however many pages or clients are open, a subscription's first read included. It stops when every PR is merged or closed (a closed PR counts as done), and starts again when a new PR joins the batch.
 - **A forge error** (no login, no network, a hung call) shows as one line above the rows; the
   last good read stays on screen with its age. A PR link of a forge chantier has no connector for
   shows as `no connector reads <link>`, and the other rows are read.
@@ -151,11 +151,11 @@ The page is in English or French; a button at the bottom of the bar switches it 
 
 ## Retaking the pictures
 
-`just docs-screenshots` copies `docs/demo/` to a temporary folder, as a git repository with a bare origin (the writer's pill shows `synced`), starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. The surface's path is a temporary folder of the machine, so the script shows a made-up one (`/home/demo/planning-surface`) in its place. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
+`just docs-screenshots` copies `docs/demo/` to a temporary folder, as a git repository with a bare origin (the writer's pill shows `synced`), starts the real board on the copy (loopback, a free port, the clock fixed with `--clock`), takes every picture in Chromium (Playwright) at 1400x860 and 375x812, with a fixed time zone and language and no animation, and stops the board. The surface's path is a temporary folder of the machine, so the script shows a made-up one (`/home/demo/planning-surface`) in its place, rewriting it in the socket's `board.get` answers and `board` events. Twice in a row gives the same files. The first run downloads Chromium. It needs chantier's own checkout and `uv`.
 
 ## Starting the board
 
-The board needs your own `gh` (GitHub) or `glab` (GitLab) login, and the network, for the PRs page only; every other view reads the planning folder.
+The board needs your own `gh` (GitHub) or `glab` (GitLab) login, and the network, for a batch's PRs only; every other view reads the planning folder.
 
 On any device, the Chief of Staff starts a small web server, `chantier board`, that serves the
 batch with its CRs (state, round, cost, PR), the inbox, `3-ready` and the backlog, the merged and
@@ -182,6 +182,8 @@ files, and declare the next batch ready (`next-batch.json`, the time and the CRs
   (the `hub` entry of the same file): it reads the forge, read-only, every 20 s with your own
   `gh` or `glab` (only the PRs a running batch waits for; `chantier interests --kind pr` lists them; it never
   reads an issue), so it needs the network for that.
+- **The API.** The page talks to the server through its published API, [protocol 1](server-api.md): a WebSocket (`/api/v1/ws`), or HTTP with a long-poll when the socket does not open, behind a proxy for instance (`?transport=http` in the address asks for it). The old `/api/...` routes are gone; `GET /api/board` stays, with fewer fields, as the probe a client finds a board with.
+- **A client of your own.** A script, or a page served by another site, uses the same API with the key in a header (`X-Chantier-Board-Key`), which passes from any origin; the cookie counts only for the board's own page. See [the server's API](server-api.md).
 - **The writer.** On a planning surface the board also runs the surface's writer, one per surface
   and machine (the `writer` entry of the same file), whether a session started the board or you
   did: it commits, rebases and pushes the plan, and prints its `writer:` line at the start. If it
