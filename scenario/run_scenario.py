@@ -118,7 +118,7 @@ UNITS = {
          "external_surface", "cr_summary"],
     ),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
-    "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
+    "gitlab": (75, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli", "typed_waits"]),
 }
 JOBS = 4  # units run at once, by default
 HANG_FLOOR_S = 600  # a unit is hung past max(this, 4 times its budget)
@@ -2209,8 +2209,83 @@ def outside_poller(w: World) -> None:
           str(forge_calls(sw)[calls:]))
 
 
+def typed_waits_gitlab(w: World) -> None:
+    """CR-409 on GitLab: a Driver blocks with `--wait pipeline`, the fake `glab` turns the head
+    green, the hub tells it once, the Foreman clears the wait and takes the CR back. The approval
+    half is not proved on GitLab (no account), so it is not played."""
+    note("\n## 16f. Typed waits on GitLab: `--wait pipeline`, and the hub's `wait-cleared` line")
+    sw = SurfaceWorld(w.root / "waits")
+    sw.root.mkdir()
+    sw.build()
+    link = PR_LINK["gitlab"] + "940"
+    sha = "c" * 40
+    batch_file = sw.state / "4-batch" / "batch.json"
+    procs: list[BoardProc] = []
+
+    def cleared() -> list[tuple[str, str]]:
+        path = sw.state / "forge-journal.jsonl"
+        lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+        found = []
+        for x in lines:
+            with contextlib.suppress(ValueError):
+                e = json.loads(x)
+                if e["type"] == "wait-cleared@1":
+                    found.append((e["wait"], e["wait_type"]))
+        return found
+
+    def until(then, timeout: float = 40) -> bool:
+        end = time.monotonic() + timeout
+        while not (found := then()) and time.monotonic() < end:
+            time.sleep(0.25)
+        return bool(found)
+
+    sw.chantier("init")
+    sw.chantier("open", sw.prepare("Waits GL"), "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    d = json.loads(batch_file.read_text(encoding="utf-8"))
+    cr, batch = d["crs"][0]["id"], d["id"]
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", batch)
+    d = json.loads(batch_file.read_text(encoding="utf-8"))
+    d["crs"][0].update(pr=link, status="working", head=sha)
+    batch_file.write_text(json.dumps(d, indent=2))
+    where = ("--epoch", 1, "--batch", batch)
+    forge_pr(sw, link, diffHeadSha=sha, headPipeline={"status": "RUNNING"})
+    code, _ = sw.chantier("handback", cr, "blocked", "waits: the pipeline", "--wait", "pipeline",
+                          "--batch", batch, expect=None)
+    waits = json.loads(batch_file.read_text(encoding="utf-8"))["crs"][0].get("waits", [])
+    check("a Driver's blocked hand-back with `--wait pipeline` records one wait on the head and "
+          "the merge request", code == 0 and [(x["id"], x["type"], x["ref"], x["link"])
+                                               for x in waits] == [("w1", "pipeline", sha, link)],
+          str(waits))
+    try:
+        board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+                          cwd=sw.surface, env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
+        procs.append(board)
+        board.line()
+        time.sleep(4)
+        check("the hub tells nothing while the pipeline runs", not cleared(), str(cleared()))
+        forge_pr(sw, link, diffHeadSha=sha, headPipeline={"status": "SUCCESS"})
+        check("the hub tells the pipeline wait once the fake forge shows the head green",
+              until(lambda: bool(cleared())) and cleared() == [("w1", "pipeline")], str(cleared()))
+        time.sleep(4)
+        check("it tells it once, whatever the number of cycles", len(cleared()) == 1,
+              str(cleared()))
+        sw.chantier("wait", cr, "clear", "w1", *where)
+        code, _ = sw.chantier("take", cr, "--note", "the pipeline is green", "--epoch", 1,
+                            "--batch", batch, expect=None)
+        check("the Foreman clears the wait and takes the CR back",
+              code == 0 and cleared() == [("w1", "pipeline")]
+              and all(x.get("cleared_at") for x in json.loads(
+                  batch_file.read_text(encoding="utf-8"))["crs"][0]["waits"]),
+              f"{code} {cleared()}")
+    finally:
+        for proc in reversed(procs):
+            proc.stop()
+
+
 def typed_waits(w: World) -> None:
     """CR-409: a CR records what it waits for; the hub tells the wait the forge shows met, once."""
+    if ARGS.forge == "gitlab":
+        return typed_waits_gitlab(w)
     note("\n## 16f. Typed waits: `wait add`, `status`, and the hub's `wait-cleared` line")
     sw = SurfaceWorld(w.root / "waits")
     sw.root.mkdir()

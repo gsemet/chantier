@@ -17,6 +17,23 @@ with open(state_path + ".calls", "a") as f:
 URL = "https://gitlab.example.com/acme/demo"
 method = args[args.index("--method") + 1] if "--method" in args else "GET"
 path = args[1] if args[:1] == ["api"] else ""
+if args[:1] == ["api"] and "graphql" in args:
+    # the hub's read of the merge requests it awaits (aliases `m<N>`). `prs` holds, by iid, the
+    # fields to change from the default (opened, not a draft, no conflict, into main, head
+    # abc1234def5678, pipeline SUCCESS), in GitLab's GraphQL words
+    query = next(a.split("=", 1)[1] for a in args if a.startswith("query="))
+    held = state.get("prs", {})
+    project = {}
+    for n in re.findall(r"\bm(\d+): mergeRequest", query):
+        project[f"m{n}"] = {
+            "state": "opened", "draft": False, "conflicts": False,
+            "detailedMergeStatus": "MERGEABLE", "targetBranch": "main",
+            "diffHeadSha": "abc1234def5678", "mergedAt": None, "closedAt": None,
+            "createdAt": None, "updatedAt": None, "headPipeline": {"status": "SUCCESS"},
+            **held.get(n, {}),
+        }
+    print(json.dumps({"data": {"project": project}}))
+    sys.exit(0)
 if not path.startswith("projects/"):
     print(f"fake glab: unsupported {args}", file=sys.stderr)
     sys.exit(1)

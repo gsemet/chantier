@@ -53,7 +53,7 @@ heavier load than the first table of this section had:
 | direct | 125 | 149.9 | 120.6 |
 | surface-board | 300 | 236.3 | 196.0 |
 | qa-driver | 115 | 166.0 | 131.9 |
-| gitlab | 95 | 92.0 | 67.5 |
+| gitlab | 75 | 92.0 | 67.5 |
 | wall time | | 606.2 | 642.7 |
 | sum of the units | | 2254.5 | 2421.8 |
 
@@ -299,7 +299,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   (ids w1..w4, the forge ones on its PR), `status` shows them on the CR's row, the hub tells the
   approval and pipeline waits the forge shows met in one `wait-cleared@1` line each, once
   whatever the cycles, the waits stay open until `wait clear` (needs `--epoch`), and the merge
-  wait is told when the PR merges (unit: surface-board) (test: test_waits.py::test_a_blocked_handback_records_its_waits_and_the_steering_session_clears_them);
+  wait is told when the PR merges (unit: surface-board); on GitLab, a blocked hand-back with `--wait
+  pipeline` records the wait on the head and the MR, the fake `glab` (`api graphql`) turns the head
+  green, the hub tells it once and the Foreman clears it and takes the CR back, the approval half
+  not played (not proved on GitLab) (unit: gitlab) (test: test_waits.py::test_a_blocked_handback_records_its_waits_and_the_steering_session_clears_them);
 - the board's PRs page (`GET /api/projects/<id>/prs`, the fake `gh` answering its one `api
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose
