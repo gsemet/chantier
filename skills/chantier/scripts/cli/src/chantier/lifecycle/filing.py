@@ -26,16 +26,16 @@ def new_request(
 ) -> Path:
     """A new inbox folder, the request kept as received. The caller holds `changes_lock`."""
     folder = stage_layout(repo)["inbox"] / slug
-    folder.parent.mkdir(parents=True, exist_ok=True)
+    repo.check_publish([folder, folder / "intake" / "request.md"])
     try:
-        folder.mkdir()
+        repo.store.make_folder(repo.rel(folder), False)
     except FileExistsError as e:
         raise ChantierError(
             f"CR folder already exists: {shown(repo, folder)}; {hint}", EXIT_PRECONDITION
         ) from e
     try:
-        (folder / "intake").mkdir()
-        (folder / "intake" / "request.md").write_bytes(raw)
+        repo.store.make_folder(repo.rel(folder / "intake"), True)
+        repo.store.write_bytes(repo.rel(folder / "intake" / "request.md"), raw)
     except OSError as e:
         raise ChantierError(
             f"could not finish filing {folder}; preserve it for recovery: {e}", EXIT_EXTERNAL

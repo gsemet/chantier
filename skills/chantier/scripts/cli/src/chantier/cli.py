@@ -124,6 +124,16 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     _one_spelling_of_a_cr(args)
     repo.PROJECT = args.project
+    repo.COMMAND = " ".join(
+        filter(
+            None,
+            (
+                args.cmd,
+                getattr(args, "kind", None) if args.cmd == "order" else None,
+                getattr(args, "action", None) if args.cmd == "summary" else None,
+            ),
+        )
+    )
     plugin_files.SKILL = args.skill
     try:
         result: Any = args.fn(args)

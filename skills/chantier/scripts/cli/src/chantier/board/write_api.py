@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -266,7 +267,7 @@ def _project(ctx: Context, project_id: str) -> Project | None:
     return ctx.projects.get(project_id)
 
 
-def _write(ctx: Context, req: Request, project_id: str, op: Op) -> Reply:
+def _write(ctx: Context, req: Request, project_id: str, op: Op, command: str) -> Reply:
     """A write: the project must exist, the body must be JSON; a refusal of the CLI's code gives
     its status and `{"ok": false, "error"}`."""
     project = _project(ctx, project_id)
@@ -281,7 +282,7 @@ def _write(ctx: Context, req: Request, project_id: str, op: Op) -> Reply:
             raise ChantierError("the body is not JSON", EXIT_USAGE) from e
         if not isinstance(data, dict):
             raise ChantierError("the body is a JSON object", EXIT_USAGE)
-        body, status = op(project.repo, data)
+        body, status = op(replace(project.repo, command=command), data)
     except ChantierError as e:
         refusal: dict[str, Any] = {"ok": False, "error": str(e)}
         if e.code == EXIT_CONFLICT:
@@ -292,9 +293,9 @@ def _write(ctx: Context, req: Request, project_id: str, op: Op) -> Reply:
     return as_json(body, status)
 
 
-def _writer(op: Op) -> Callable[..., Reply]:
+def _writer(op: Op, command: str) -> Callable[..., Reply]:
     def handler(ctx: Context, req: Request, project_id: str) -> Reply:
-        return _write(ctx, req, project_id, op)
+        return _write(ctx, req, project_id, op, command)
 
     return handler
 
@@ -317,13 +318,13 @@ def journal_of(ctx: Context, req: Request, project_id: str) -> Reply:
 
 P = r"/api/projects/([^/]+)/"
 ROUTES: list[tuple[str, str, Callable[..., Reply]]] = [
-    ("POST", P + "backlog/new", _writer(_new)),
-    ("POST", P + "backlog/move", _writer(_move)),
-    ("POST", P + "backlog/labels", _writer(_labels)),
-    ("POST", P + "backlog/group", _writer(_group)),
-    ("POST", P + "backlog/ungroup", _writer(_ungroup)),
-    ("PUT", P + "backlog/file", _writer(_file)),
-    ("POST", P + "backlog/next-batch", _writer(_next_batch)),
+    ("POST", P + "backlog/new", _writer(_new, "board backlog/new")),
+    ("POST", P + "backlog/move", _writer(_move, "board backlog/move")),
+    ("POST", P + "backlog/labels", _writer(_labels, "board backlog/labels")),
+    ("POST", P + "backlog/group", _writer(_group, "board backlog/group")),
+    ("POST", P + "backlog/ungroup", _writer(_ungroup, "board backlog/ungroup")),
+    ("PUT", P + "backlog/file", _writer(_file, "board backlog/file")),
+    ("POST", P + "backlog/next-batch", _writer(_next_batch, "board backlog/next-batch")),
     ("GET", P + "journal", journal_of),
-    ("POST", P + "journal/rescan", _writer(_rescan)),
+    ("POST", P + "journal/rescan", _writer(_rescan, "board journal/rescan")),
 ]

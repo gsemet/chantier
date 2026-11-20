@@ -11,7 +11,7 @@ from pathlib import Path
 
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.files import inside, markdown_title, read_json, retry, write_bytes, write_json
+from chantier.core.files import inside, markdown_title, read_json, retry
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, shown, slugify
 from chantier.lifecycle.stages import (
@@ -120,6 +120,7 @@ def edit_markdown(repo: Repo, item: str, relpath: str, text: str, base_sha256: s
     target = _editable(folder, relpath)
     if len(text.encode("utf-8")) > TEXT_LIMIT:
         raise ChantierError(f"the text is over {TEXT_LIMIT // 1_000_000} MB", EXIT_USAGE)
+    repo.check_publish([target])
     with changes_lock(repo):
         old = retry(target.read_bytes)
         if len(old) > TEXT_LIMIT:
@@ -128,7 +129,7 @@ def edit_markdown(repo: Repo, item: str, relpath: str, text: str, base_sha256: s
             raise ChantierError(
                 f"{item}/{relpath} changed since you opened it: reload it", EXIT_CONFLICT
             )
-        write_bytes(target, _with_endings(text, old))
+        repo.store.write_bytes(repo.rel(target), _with_endings(text, old))
         write_dashboard(repo, stage_layout(repo))
     return [f"edited {item}/{relpath}"]
 
@@ -148,6 +149,7 @@ def next_batch(repo: Repo) -> dict[str, object] | None:
 def declare_next_batch(repo: Repo) -> list[str]:
     """The user's word that the next batch is ready: the time and the slugs then in `3-ready`,
     read here and never taken from a page. It decides nothing."""
+    repo.check_publish([repo.changes / NEXT_BATCH])
     with changes_lock(repo):
         ready = stage_layout(repo)["ready"]
         slugs = sorted(p.name for p in ready.iterdir() if p.is_dir()) if ready.is_dir() else []
@@ -158,5 +160,5 @@ def declare_next_batch(repo: Repo) -> list[str]:
             raise ChantierError(
                 "the next batch is already declared ready with these CRs", EXIT_PRECONDITION
             )
-        write_json(repo.changes / NEXT_BATCH, {"declared_at": now(), "crs": slugs})
+        repo.store.write_json(NEXT_BATCH, {"declared_at": now(), "crs": slugs})
     return [f"next batch ready to go with: {', '.join(slugs)}"]

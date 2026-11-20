@@ -21,7 +21,7 @@ from chantier.core.records import (
 )
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import new_request, slugify
-from chantier.lifecycle.stages import cr_directory
+from chantier.lifecycle.stages import cr_directory, stage_layout
 from chantier.rails_release import MAX_GRANTED_FIXES
 
 
@@ -265,15 +265,25 @@ def grant_line(release: ReleaseGrant) -> str:
     )
 
 
+def fix_folder(b: Batch, rel: CrEntry, item: str) -> Path | None:
+    """The new inbox folder a release's fix file will be filed in; None for an item that is
+    already a prepared CR."""
+    repo = b.repo
+    source = repo.planning_path(item, "fix")
+    if not source.is_file() or cr_directory(repo, rel) not in source.parents:
+        return None
+    return stage_layout(repo)["inbox"] / f"{rel.id.lower()}-{slugify(source.stem)}"
+
+
 def filed_fix(b: Batch, rel: CrEntry, item: str) -> str:
     """A release's fix file is the fix's specification: it becomes a prepared CR in the inbox.
     Anything else is already a prepared CR."""
     repo = b.repo
-    source = repo.planning_path(item, "fix")
-    if not source.is_file() or cr_directory(repo, rel) not in source.parents:
+    target = fix_folder(b, rel, item)
+    if target is None:
         return item
-    folder = new_request(repo, f"{rel.id.lower()}-{slugify(source.stem)}", source.read_bytes())
-    import shutil  # noqa: PLC0415 - slow import
-
-    shutil.copyfile(source, folder / "03-change-spec.md")
+    source = repo.planning_path(item, "fix")
+    repo.check_publish([target, target / "intake" / "request.md", target / "03-change-spec.md"])
+    folder = new_request(repo, target.name, source.read_bytes())
+    repo.store.write_bytes(repo.rel(folder / "03-change-spec.md"), source.read_bytes())
     return str(folder)

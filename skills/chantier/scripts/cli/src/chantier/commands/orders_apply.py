@@ -5,10 +5,10 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 
-from chantier.commands.crs import filed_fix, grant_line
+from chantier.commands.crs import filed_fix, fix_folder, grant_line
 from chantier.commands.factory import set_factory, switch_factory
 from chantier.commands.gate_run import stop_gate, stopped_line
-from chantier.commands.joining import add_cr, join_cr
+from chantier.commands.joining import add_cr, check_joins, join_cr, join_paths
 from chantier.commands.opening import check_cycles, declare_dependencies
 from chantier.commands.orders_drop import drop
 from chantier.commands.orders_hold import hold, unhold
@@ -58,6 +58,11 @@ def _add(w: Word) -> list[str]:
         rel = b.cr(w.fix_for)
         if w.own:
             check_granted_fix(b, rel)
+        if (folder := fix_folder(b, rel, w.note)) is None:
+            check_joins(b.repo, [w.note])
+        else:  # the filing and the join, before the first change
+            made = [folder, folder / "intake" / "request.md", folder / "03-change-spec.md"]
+            b.repo.check_publish([*made, *join_paths(b.repo, [folder])])
         fix = add_cr(b, filed_fix(b, rel, w.note), kind="fix")
         fix.fix_for = w.fix_for
         rel.append(
@@ -77,6 +82,7 @@ def _add(w: Word) -> list[str]:
             )
         return out
     check_release_open(b)
+    check_joins(b.repo, [w.note])
     added, joined = join_cr(b, w.note)
     declare_dependencies(b, [added])
     join_release(b, added)

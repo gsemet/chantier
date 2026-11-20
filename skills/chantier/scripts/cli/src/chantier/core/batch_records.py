@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.errors import EXIT_CONFLICT, ChantierError
-from chantier.core.files import read_text, write_file
+from chantier.core.files import read_text
 from chantier.core.records import BatchRecord
 from chantier.core.repo import RECORDS, Repo
 
@@ -46,8 +46,8 @@ def report_path(repo: Repo, number: int) -> Path:
     return records_dir(repo) / f"{name_of(number)}.md"
 
 
-def write_record(path: Path, record: Rec) -> None:
-    write_file(path, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
+def write_record(repo: Repo, path: Path, record: Rec) -> None:
+    repo.store.write_json(repo.rel(path), record, ensure_ascii=False)
 
 
 def read_record(path: Path) -> Rec | None:
@@ -103,7 +103,7 @@ def reserve_record(repo: Repo, data: BatchRecord) -> Path:
             "planning folder and open again",
             EXIT_CONFLICT,
         )
-    write_record(path, open_record(data))
+    write_record(repo, path, open_record(data))
     return path
 
 
@@ -152,14 +152,14 @@ def check_closable(repo: Repo, number: int) -> None:
 def write_close(repo: Repo, record: Rec, markdown: str) -> None:
     """The Markdown first, then the JSON. The caller has checked that no Markdown exists
     (`check_closable`), and undoes with `undo_close` from here on."""
-    write_file(report_path(repo, record["number"]), markdown)
-    write_record(record_path(repo, record["number"]), record)
+    repo.store.write_text(repo.rel(report_path(repo, record["number"])), markdown)
+    write_record(repo, record_path(repo, record["number"]), record)
 
 
 def undo_close(repo: Repo, number: int, old: bytes | None) -> None:
     """Put the JSON's old bytes back (none: remove it) and remove the Markdown this close wrote."""
-    report_path(repo, number).unlink(missing_ok=True)
-    if old is None:
-        record_path(repo, number).unlink(missing_ok=True)
-    else:
-        record_path(repo, number).write_bytes(old)
+    for path in (report_path(repo, number), *([record_path(repo, number)] if old is None else [])):
+        if path.exists():
+            repo.store.remove(repo.rel(path))
+    if old is not None:
+        repo.store.write_bytes(repo.rel(record_path(repo, number)), old)

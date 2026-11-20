@@ -7,8 +7,9 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.core.files import read_text, write_json
+from chantier.core.files import read_text
 from chantier.core.records import SUMMARY_FILE, SUMMARY_SCHEMA, CrSummary
+from chantier.core.repo import Repo
 
 
 class UnreadableSummary(ChantierError):
@@ -46,6 +47,6 @@ def read_or_new(folder: Path) -> CrSummary:
     return read(folder) or CrSummary(schema=SUMMARY_SCHEMA)
 
 
-def write(folder: Path, summary: CrSummary) -> None:
+def write(repo: Repo, folder: Path, summary: CrSummary) -> None:
     """Store the summary: UTF-8, indented, atomic."""
-    write_json(folder / SUMMARY_FILE, summary.to_data(), ensure_ascii=False)
+    repo.store.write_json(repo.rel(folder / SUMMARY_FILE), summary.to_data(), ensure_ascii=False)

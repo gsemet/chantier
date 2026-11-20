@@ -22,7 +22,6 @@ from chantier.core.batch_records import (
 )
 from chantier.core.clock import now
 from chantier.core.errors import EXIT_EXTERNAL, EXIT_PRECONDITION, ChantierError
-from chantier.core.files import retry
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.core.steering import never_steered
@@ -157,11 +156,13 @@ def _move_own_files(k: Closing, done: list[tuple[Path, Path]]) -> Path:
     going.mkdir()
     for p in k.own:
         try:
-            retry(p.rename, going / p.name)
-        except OSError as e:
+            k.repo.store.move(k.repo.rel(p), k.repo.rel(going / p.name))
+        except ChantierError as e:  # the store says a rename it could not do as `cannot move`
+            if not isinstance(e.__cause__, OSError):
+                raise
             raise ChantierError(
                 f"{p.name} of {shown(k.repo, k.folder)} is in use, close what holds "
-                f"it and run this again: {e}",
+                f"it and run this again: {e.__cause__}",
                 EXIT_EXTERNAL,
             ) from e
         done.append((p, going / p.name))
@@ -171,7 +172,7 @@ def _move_own_files(k: Closing, done: list[tuple[Path, Path]]) -> Path:
 def _put_back(k: Closing, done: list[tuple[Path, Path]]) -> None:
     for source, target in reversed(done):
         if target.exists() and not source.exists():
-            retry(target.rename, source)
+            k.repo.store.move(k.repo.rel(target), k.repo.rel(source))
     with contextlib.suppress(OSError):
         (k.repo.changes / f".closing-{k.batch}").rmdir()
 
@@ -188,11 +189,20 @@ def archive_and_delete(k: Closing) -> None:
     path = record_path(repo, number)
     old = path.read_bytes() if path.is_file() else None
     wrote = False
+    repo.check_publish(
+        [
+            *(source for _, source in k.archived),
+            *(archives / archive_name(c, source) for c, source in k.archived),
+            *k.own,
+            path,
+            report_path(repo, number),
+        ]
+    )
     try:
         record = k.d.model_copy(deep=True)
         for c, source in k.archived:
             target = archives / archive_name(c, source)
-            move_directory(source, target)
+            move_directory(repo, source, target)
             done.append((source, target))
             next(x for x in record.crs if x.id == c.id).path = repo.rel(target)
         check_closable(repo, number)

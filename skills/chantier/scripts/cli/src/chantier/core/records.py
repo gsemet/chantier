@@ -348,10 +348,9 @@ def read_restored_number(path: Path) -> int:
         return 0
 
 
-def write_restored_number(path: Path, number: int) -> None:
-    path.write_text(
-        json.dumps(RestoredRecord(last_number=number).to_data()) + "\n", encoding="utf-8"
-    )
+def restored_bytes(number: int) -> bytes:
+    """`restored.json`'s bytes, LF line ending, as `restore` and `order drop` write them."""
+    return (json.dumps(RestoredRecord(last_number=number).to_data()) + "\n").encode("utf-8")
 
 
 def read_events(folder: Path) -> list[EventRecord]:

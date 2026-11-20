@@ -9,12 +9,11 @@ from pathlib import Path
 
 from chantier.core.batch import RESTORED_NUMBER_FILE, Batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
-from chantier.core.files import write_file
 from chantier.core.records import (
     TRASH,
     CrEntry,
     read_restored_number,
-    write_restored_number,
+    restored_bytes,
 )
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import (
@@ -52,11 +51,16 @@ def remember_cr(repo: Repo, target: Path, cr_id: str, batch_id: str) -> None:
     """Note on the folder what it was, and never give its number again."""
     number = re.fullmatch(r"CR-(\d+)", cr_id)
     if number:  # the number is never given again, even once the batch is closed
-        path = repo.changes / RESTORED_NUMBER_FILE
-        write_restored_number(path, max(read_restored_number(path), int(number[1])))
+        last = max(read_restored_number(repo.changes / RESTORED_NUMBER_FILE), int(number[1]))
+        repo.store.write_bytes(RESTORED_NUMBER_FILE, restored_bytes(last))
     intent = target / "01-intent.md"
-    with open(intent if intent.is_file() else target / "notes.md", "a", encoding="utf-8") as f:
-        f.write(f"\nformerly {cr_id} of {batch_id}\n")
+    note = intent if intent.is_file() else target / "notes.md"
+    old = note.read_bytes() if note.is_file() else None
+    line = f"formerly {cr_id} of {batch_id}\n"
+    if old is not None:  # appended in the file's own line endings, after a blank line
+        crlf = old.count(b"\r\n") * 2 > old.count(b"\n")
+        line = ("\n" + line).replace("\n", "\r\n" if crlf else "\n")
+    repo.store.write_bytes(repo.rel(note), (old or b"") + line.encode("utf-8"))
 
 
 def move_out_cr(batch: Batch, cr: CrEntry, to: str) -> None:
@@ -73,9 +77,19 @@ def move_out_cr(batch: Batch, cr: CrEntry, to: str) -> None:
     target = (
         paths["inbox"] if to == "1-inbox" else paths["backlog"] / to.split("/")[1]
     ) / source.name
+    batch.repo.check_publish(
+        [
+            source,
+            target,
+            target / "formerly.json",
+            target / "01-intent.md",
+            target / "notes.md",
+            batch.repo.changes / RESTORED_NUMBER_FILE,
+        ]
+    )
     relocate(batch, cr, target)
-    write_file(
-        target / "formerly.json",
+    batch.repo.store.write_text(
+        batch.repo.rel(target / "formerly.json"),
         json.dumps(
             {
                 "cr": cr.id,

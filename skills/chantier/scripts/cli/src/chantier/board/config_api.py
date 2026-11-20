@@ -157,5 +157,5 @@ def _put(repo: Repo, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
 
 ROUTES: list[tuple[str, str, Callable[..., Reply]]] = [
     ("GET", write_api.P + "config", config_of),
-    ("PUT", write_api.P + "config", write_api.writer(_put)),
+    ("PUT", write_api.P + "config", write_api.writer(_put, "board config")),
 ]

@@ -11,6 +11,7 @@ from chantier.core.clock import now
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import (
     GROUP_MAX,
+    SUMMARY_FILE,
     SUMMARY_MAX,
     TITLE_MAX,
     CrSummary,
@@ -67,6 +68,7 @@ def set_summary(args: argparse.Namespace) -> list[str]:
     if title is None and text is None and not args.unchanged:
         raise ChantierError("summary set takes --title, --summary or --unchanged", EXIT_USAGE)
     origin = origin_of(issue_url(folder), args.tracker)
+    repo.check_publish([folder / SUMMARY_FILE])
     with changes_lock(repo):
         current = store.read_or_new(folder)
         _require_fields(current, title, text, args.unchanged)
@@ -77,7 +79,7 @@ def set_summary(args: argparse.Namespace) -> list[str]:
             current.sources = checksums(folder)
             current.summarized = now()
         current.origin = origin
-        store.write(folder, current)
+        store.write(repo, folder, current)
     kind = f"{origin.kind} {origin.ref}" if origin.ref else origin.kind
     return [f"summary set {shown(repo, folder)} (origin {kind}; {len(current.sources)} files)"]
 

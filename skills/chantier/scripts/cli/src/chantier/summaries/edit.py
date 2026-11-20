@@ -10,7 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from chantier.core.errors import EXIT_USAGE, ChantierError
-from chantier.core.records import GROUP_MAX, LABEL_PATTERN, CrSummary
+from chantier.core.records import GROUP_MAX, LABEL_PATTERN, SUMMARY_FILE, CrSummary
 from chantier.core.repo import Repo
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.stages import changes_lock
@@ -59,11 +59,12 @@ def edit_all(
     """Apply one edit to several CRs' summaries under one lock: all are read before any is
     written."""
     folders = list(dict.fromkeys(folders))
+    repo.check_publish([folder / SUMMARY_FILE for folder in folders])
     with changes_lock(repo):
         loaded = [(folder, store.read_or_new(folder)) for folder in folders]
         for folder, summary in loaded:
             edit(summary)
-            store.write(folder, summary)
+            store.write(repo, folder, summary)
     return [show(shown(repo, folder), summary) for folder, summary in loaded]
 
 
