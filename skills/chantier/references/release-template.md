@@ -16,19 +16,39 @@ The default release notes and announcement thread, written by the release Driver
 Written for the project's users, with no CR, batch or agent-role reference, as in
 [pr-template](pr-template.md). The structure, in order:
 
-- a header: the product name, the version, one bold line of verbs naming the headline changes, and
-  a `<sub>` line with N changes since the previous version, what it runs on, and the licence;
+- a title: the product name and the version, then one line naming the two or three main changes,
+  as verbs, and a `<sub>` line with N changes since the previous version, what it runs on, and the
+  licence;
 - a line of links: install, docs, full changes;
-- two to four highlights, each with what changes for the reader, a usage or call example, the
-  visible evidence, a link to the doc, and why it matters;
-- the smaller changes, one bullet each;
-- the fixes and the contributor notes, folded.
+- two to four highlights;
+- the smaller changes, one line each;
+- every fix and every detail, in folded sections.
 
-Every `feat:` and `fix:` commit since the previous version appears once.
+Every changelog line (each `feat:` and `fix:` commit since the previous version) appears once, as a
+highlight, a smaller change or a folded line, never twice.
+
+### Writing rules
+
+- Write like a maintainer telling a colleague what changed: short, complete sentences, plain verbs,
+  "you".
+- For the user: no ticket number, no internal term, no implementation.
+- Never use "Before:" or "Now:" labels, an invented scene, a punchy fragment ("Two gestures."), a
+  praise word (seamless, powerful, effortless, easily), or a closing "why it matters" line.
+
+### A highlight
+
+- A heading saying what you can now do, then a picture, then at most two sentences.
+- When the change replaces a visible behaviour, the picture puts the before and the after side by
+  side in one image, built from the Verifier's before/after (below), and the text does not describe
+  the before again.
+- When the picture shows the whole change, no text under it.
+- A setting is named as a setting: "the setting `full.name`", with its default value and where to
+  turn it on.
 
 ## Visible evidence
 
-Each highlight shows what ships. The sources are:
+Each highlight shows what ships, with one image: for a change that replaces a visible behaviour,
+the before and the after side by side, built from the Verifier's before/after. The sources are:
 
 - the Verifier's before/after in the merged CRs' `evidence/` folders (`4-batch/3-done/`, and `5-archives/` for earlier batches);
 - the screenshots in the merged PRs' Deliverables sections;
