@@ -41,7 +41,7 @@
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
   that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included; a new
-  CLI tool comes from measured token-costly behaviour, never from speculation. Two named
+  CLI tool comes from measured token-costly behaviour, never from speculation. Four named
   exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
@@ -77,11 +77,13 @@
   cancelled; it appends to that project's `forge-journal.jsonl` (planning
   folder, never published) one line per merge the record does not hold and per CI turning red on
   a PR ready to merge, and nothing else; each session's watcher, run for the Chief of Staff's
-  whole session, with or without a batch, reads only its project's journal (the hub's lines and
-  the board's), never the forge, and ends 20 s after the last new event for it that wakes, and no
+  whole session, with or without a batch, reads only its project's journal (the hub's lines, the
+  board's and an outside poller's `issue@1` lines), never the forge, and ends 20 s after the last new event for it that wakes, and no
   sooner than `events.wake_every` after its start, which wakes its session, or when the project's
   seat is another session's; the
-  hub records nothing in a batch, runs no git and messages no agent (the server runs no git either, but its autosync join); every journal line, the CLI commands' included in their own process, goes through the one append function; each watcher holds a lock of
+  hub records nothing in a batch, runs no git and messages no agent (the server runs no git either, but its autosync join); every journal line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never
+  started by chantier) writes into a project's journal only through `journal add`, only `issue@1`
+  lines, and only for an issue a CR's `issue:` line names; each watcher holds a lock of
   its own in the git folder, `chantier/watch-<project>/<session>.lock` (one per project and session
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
   `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
@@ -90,7 +92,12 @@
   `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
   `lease hold` runs only what a Driver gives it, to keep a lease live, and the hub writes nothing
-  for leases.
+  for leases. Fourth, `interests`
+  and `journal add`: `interests` lists, read-only, what the CRs wait for (the running batch's PRs
+  or MRs, read by the forge hub, and the issues the CRs' `issue:` lines name, read by an outside
+  poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
+  line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
+  polled from outside), with no measured cost.
 - The CLI has two named git exceptions: the surface server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants; the board commits

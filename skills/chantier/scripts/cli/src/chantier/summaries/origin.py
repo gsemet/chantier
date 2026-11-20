@@ -28,9 +28,11 @@ def issue_url(folder: Path) -> str | None:
     return None
 
 
-def _kind_of(host: str, path: str) -> str | None:
+def tracker_of(url: str) -> str | None:
     """The tracker a URL names, by these rules in order: a Jira `/browse/` key, a GitLab path or
     host, a GitHub host or path."""
+    parts = urlsplit(url)
+    host, path = (parts.hostname or "").lower(), parts.path
     if JIRA_KEY.search(path):
         return "jira"
     if "/-/issues/" in path or "gitlab" in host:
@@ -62,8 +64,8 @@ def origin_of(url: str | None, tracker: str | None = None) -> Origin:
             )
         return Origin(kind="verbal")
     parts = urlsplit(url)
-    host, path = (parts.hostname or "").lower(), parts.path
-    kind = tracker or _kind_of(host, path)
+    path = parts.path
+    kind = tracker or tracker_of(url)
     if kind is None:
         raise ChantierError(
             "the issue: line's tracker is not known from its URL: add --tracker github|gitlab|jira",

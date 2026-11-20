@@ -118,6 +118,53 @@
     "title": "Config1",
     "type": "object"
   },
+  "issue@1": {
+    "additionalProperties": false,
+    "properties": {
+      "at": {
+        "title": "At",
+        "type": "string"
+      },
+      "event": {
+        "title": "Event",
+        "type": "string"
+      },
+      "folders": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Folders",
+        "type": "array"
+      },
+      "ref": {
+        "title": "Ref",
+        "type": "string"
+      },
+      "text": {
+        "title": "Text",
+        "type": "string"
+      },
+      "tracker": {
+        "title": "Tracker",
+        "type": "string"
+      },
+      "wakes": {
+        "title": "Wakes",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "tracker",
+      "ref",
+      "event",
+      "at",
+      "text",
+      "wakes",
+      "folders"
+    ],
+    "title": "Issue1",
+    "type": "object"
+  },
   "merged@1": {
     "additionalProperties": false,
     "properties": {

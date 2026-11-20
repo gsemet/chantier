@@ -25,8 +25,16 @@ with a `query` and no `mutation`.
 An interest is a PR or MR someone waits for: its link (`ref`), the facts wanted, and who waits
 (`by`, such as `batch-29 CR-3`). Each provider declares the interests of one kind of waiter and
 judges them against what the forge said. The registry is derived at each cycle from the record,
-never stored. Today there is one provider, `batch`: the PRs of a project's running batch, while
-one of them is not held merged or cancelled.
+never stored. There are two providers:
+
+- `batch`, of kind `pr`: the PRs of a project's running batch, while one of them is not held
+  merged or cancelled. The forge hub reads them.
+- `issues`, of kind `issue`: the issues the CRs' `issue:` lines name (a CR folder of any stage but
+  the archives and the trash; its `ref` is the line's link, exactly as written). Only an outside
+  poller reads them, never the hub: see [Writing an outside
+  poller](#writing-an-outside-poller).
+
+`chantier --project <p> interests [--kind pr|issue] [--json]` lists them, read-only.
 
 ## The budget
 
@@ -55,3 +63,74 @@ tests and a row in [Supported hosts](hosts.md). There is no install step.
    and its row, with its `Connector` name, to the forge table of [Supported hosts](hosts.md).
 
 A connector inside chantier's package only: none is loaded from outside it.
+
+## Writing an outside poller
+
+chantier's hub never reads an issue. An outside poller, your own program (a script, a cron job, a
+scheduled task, a service), asks chantier which issues are awaited, polls your tracker (Jira,
+GitHub, GitLab, any other) for them, and writes what it finds into the project's journal. A CR
+waits for an issue when its intent or specification names it on an `issue:` line. The Chief of
+Staff's watcher then tells you, in one line (`tracker saw ...`), and ends on it unless the poller
+says the event wakes no one.
+
+The contract:
+
+1. Run `chantier --project <p> interests --kind issue --json`. Poll your tracker for each `ref`,
+   once per `ref`: two CRs may name one issue. Exit 2 means the list is incomplete (see its
+   `errors`).
+2. For each event, run `chantier --project <p> journal add issue@1 --json -` with the payload on
+   stdin. A duplicate is harmless (`journal: already there (seq <n>)`); a refusal is printed and
+   nothing is written.
+
+The payload is one JSON object with these keys and no other (`cr`, `type`, `source`, `audience`,
+`folders`, `v`, `seq` and `t` are refused: chantier fills `folders` and the header):
+
+| Key | Holds |
+| --- | --- |
+| `tracker` | `jira`, `github`, `gitlab` or `other` (`interests` prints it) |
+| `ref` | the issue's link, as `interests` prints it |
+| `event` | `opened`, `commented`, `changed`, `closed` or `reopened` |
+| `at` | the tracker's time of the event, ISO 8601 (`Z` accepted), kept as given |
+| `text` | one line, 1 to 300 characters: what happened, in your words |
+| `wakes` | `true` (default) to wake the watcher, `false` to ride along with the next waking line |
+
+It gives this line of the journal (see [The event journal](planning-folder.md#the-event-journal)):
+
+```json
+{"v":2,"seq":57,"t":"2026-11-20T09:15:02Z","type":"issue@1","source":"poller","audience":["project"],"tracker":"jira","ref":"https://acme.atlassian.net/browse/PAY-12","event":"commented","at":"2026-11-20T09:14:00Z","text":"a comment asks to keep the old column order","wakes":true,"folders":["2-backlog/P2/export-columns"]}
+```
+
+An event on an issue no CR names is refused (exit 2), as is a type other than `issue@1`.
+
+The rules:
+
+- chantier never starts, stops or supervises the poller, and sets no rate.
+- Reading your tracker, read-only, and its credentials are the poller's business.
+- Keep `at` as the tracker gives it: the duplicate key is `ref`, `event` and `at`.
+- `text` is one line and needs no personal data.
+- Run from the project's root, or the surface's root with `--project <name>`.
+
+A short example (UTF-8, standard library only); `fetch_events` is yours:
+
+```python
+import json
+import subprocess
+import time
+
+CHANTIER = ["uvx", "--from", "<chantier's plugin folder>", "chantier", "--project", "<project>"]
+
+def fetch_events(tracker: str, ref: str) -> list[dict]:
+    """Yours: this issue's events since your last poll, each {"event", "at", "text"}."""
+    return []
+
+while True:
+    out = subprocess.run([*CHANTIER, "interests", "--kind", "issue", "--json"],
+                         capture_output=True, text=True, encoding="utf-8")
+    refs = {i["ref"]: i["tracker"] for i in json.loads(out.stdout)["interests"]}
+    for ref, tracker in refs.items():
+        for e in fetch_events(tracker, ref):
+            payload = json.dumps({"tracker": tracker, "ref": ref, **e})
+            subprocess.run([*CHANTIER, "journal", "add", "issue@1", "--json", "-"],
+                           input=payload, text=True, encoding="utf-8")
+    time.sleep(300)
+```

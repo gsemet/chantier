@@ -114,7 +114,8 @@ UNITS = {
     "surface-board": (
         500,
         ["github"],
-        ["remote_board", "forge_hub", "surface_server", "external_surface", "cr_summary"],
+        ["remote_board", "forge_hub", "outside_poller", "surface_server", "external_surface",
+         "cr_summary"],
     ),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
@@ -372,7 +373,7 @@ class World:
             return "STACK" if rest else None
         return None
 
-    def chantier(self, *args, env=None, expect=0, cwd=None, lease=True):
+    def chantier(self, *args, env=None, expect=0, cwd=None, lease=True, stdin=None):
         """`lease=False` runs a Driver's command without the number `take` printed (a missing
         lease case)."""
         unit = self.lease_unit(args) if lease else None
@@ -380,7 +381,7 @@ class World:
             args = (*args, "--lease", self.leases[unit])
         p = subprocess.run([sys.executable, "-m", "chantier", *map(str, args)], cwd=cwd or self.work,
                            env={**self.env, **(env or {})}, capture_output=True, text=True,
-                           encoding="utf-8")
+                           encoding="utf-8", input=stdin)
         out = p.stdout.strip().splitlines()
         self.last_stderr = p.stderr.strip()
         self.last_out = out
@@ -2137,6 +2138,75 @@ def forge_hub(w: World) -> None:
     finally:
         for proc in reversed(procs):
             proc.stop()
+
+
+def outside_poller(w: World) -> None:
+    """An outside poller writes issue events into the journal: `interests`, `journal add` and the
+    watcher that tells the line; the hub reads no issue."""
+    note("\n## 16d2. An outside poller: `interests`, `journal add issue@1`, and `chantier watch`")
+    sw = SurfaceWorld(w.root / "poller")
+    sw.root.mkdir()
+    sw.build()
+    sw.chantier("init")
+    link = "https://acme.atlassian.net/browse/PAY-12"
+    journal = sw.state / "forge-journal.jsonl"
+    folders = []
+    for title in ("Poller inbox", "Poller backlog"):
+        _, out = sw.chantier("file", title)
+        inbox = sw.surface / out[0].removeprefix("filed ").split(";", 1)[0]
+        (inbox / "01-intent.md").write_text(f"# {title}\n\nissue: {link}\n", encoding="utf-8")
+        folders.append(inbox)
+    _, out = sw.chantier("triage", folders[1], "--priority", "P2")
+    moved = sw.surface / out[0].removeprefix("triaged ").rsplit(" (", 1)[0]
+    by = [folders[0].relative_to(sw.state).as_posix(), moved.relative_to(sw.state).as_posix()]
+    code, out = sw.chantier("interests", "--kind", "issue", "--json")
+    got = json.loads(out[0]) if out else {}
+    check("`interests --kind issue --json` lists the link once per CR folder, read by the outside "
+          "poller, exit 0",
+          code == 0 and got.get("errors") == []
+          and [(i["ref"], i["tracker"], i["read_by"], i["by"]) for i in got.get("interests", [])]
+          == [(link, "jira", "outside", b) for b in by], str(out))
+    calls = len(forge_calls(sw))
+    watcher = BoardProc(sw, "--project", "demo", "watch", cwd=sw.surface,
+                        env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
+    try:
+        watcher.line()
+        payload = json.dumps({"tracker": "jira", "ref": link, "event": "commented",
+                              "at": "2026-11-20T09:14:00Z", "text": "keep the old column order"})
+        folders_text = ", ".join(by)
+        written = f"journal: seq 1 issue@1 commented on {link} ({folders_text})"
+        code, out = sw.chantier("journal", "add", "issue@1", "--json", "-", stdin=payload)
+        check("`journal add issue@1 --json -` writes the event and names its folders",
+              code == 0 and out == [written], str(out))
+        got = []
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline and watcher.p.poll() is None:
+            if (x := watcher.line(1)) is not None:
+                got.append(x)
+        check("the watcher ends and prints the `tracker saw` line",
+              watcher.p.poll() is not None
+              and f'tracker saw commented on {link} ({folders_text}): "keep the old column order"; '
+              "for the Chief of Staff: tell the user in one line, record nothing" in got, str(got))
+    finally:
+        watcher.stop()
+    before = journal.read_bytes()
+    code, out = sw.chantier("journal", "add", "issue@1", "--json", "-", stdin=payload)
+    check("the same add again says it is already there and the journal is unchanged",
+          code == 0 and out == ["journal: already there (seq 1)"] and journal.read_bytes() == before,
+          str(out))
+    refused = [
+        ("a ref no CR names", "issue@1", {"ref": link + "0"}, 2, "is no CR's issue"),
+        ("a payload with a `cr` key", "issue@1", {"cr": "CR-1"}, 1, "cr: Extra inputs"),
+        ("a type other than issue@1", "merged@1", {}, 2, "is not written from outside"),
+    ]
+    for label, kind, change, expect, text in refused:
+        code, _ = sw.chantier("journal", "add", kind, "--json", "-", expect=None,
+                              stdin=json.dumps({**json.loads(payload), **change}))
+        check(f"{label} is refused (exit {expect}) and the journal is unchanged",
+              code == expect and text in sw.last_stderr and journal.read_bytes() == before,
+              f"{code} {sw.last_stderr}")
+    check("the fake `gh` was never called: the hub read no issue", len(forge_calls(sw)) == calls,
+          str(forge_calls(sw)[calls:]))
 
 
 def surface_server(w: World) -> None:
@@ -9719,6 +9789,7 @@ CASES = {
     "foreman_in_a_worktree": foreman_in_a_worktree,
     "remote_board": remote_board,
     "forge_hub": forge_hub,
+    "outside_poller": outside_poller,
     "surface_server": surface_server,
     "external_surface": lambda w: external_surface(w.root / "external"),
     "cr_summary": lambda w: cr_summary(w.root / "summary"),

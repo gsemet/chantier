@@ -359,6 +359,17 @@ does a unit that is not in `UNITS` and a test that does not exist.
     call is made but read-only `api graphql` queries (unit: surface-board) (test:
     test_forge_hub.py::test_a_forge_error_lands_in_the_hub_record_not_in_the_journal,
     test_surface_server.py::test_a_hub_entry_that_cannot_be_written_is_written_at_the_next_cycle);
+  - an outside poller (CR-410): two CRs name one Jira link on their `issue:` lines (one in the inbox,
+    one triaged to `2-backlog/P2/`); `interests --kind issue --json` lists the link twice
+    (`tracker` `jira`, `read_by` `outside`, exit 0); a watcher running, `journal add issue@1 --json
+    -` with the payload on stdin writes `journal: seq <n> issue@1 commented on <link> (<folders>)`
+    and the watcher ends on `tracker saw commented on <link> (<folders>): "<text>"; for the Chief of
+    Staff: tell the user in one line, record nothing`; the same add again says `journal: already
+    there (seq <n>)`; a ref no CR names (exit 2), a payload with a `cr` key (exit 1) and the type
+    `merged@1` (exit 2) are refused, the journal unchanged each time; the fake `gh` is never called
+    (unit: surface-board) (test: test_outside_poller.py::test_journal_add_writes_the_event_once,
+    test_outside_poller.py::test_journal_add_refuses_what_it_must_and_writes_nothing,
+    test_forge_hub.py::test_the_hub_never_collects_the_issues_provider);
   - the surface server (CR-386), on the same surface: `chantier board --port 0` runs in the
     background, `server.json` names its PID in `server` and, within one cycle, in `hub`, `status`
     prints `forge hub: PID <board pid>, the surface server, ...`, and no `board.json` or `hub.json`

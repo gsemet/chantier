@@ -11,7 +11,10 @@ At startup, identify the role, batch, project and parent session.
 
 - **Pull request (PR):** a merge request on GitLab.
 - **Connector:** the module that reads one forge, read-only (GitHub and GitLab ship).
-- **Interest:** a PR or MR someone waits for; the forge hub reads only those.
+- **Interest:** a PR or MR, or a tracker issue a CR's `issue:` line names, that someone waits
+  for; `chantier interests` lists them; the forge hub reads only the PRs and MRs, an outside
+  poller (the user's own program) the issues, and writes their events with `chantier journal
+  add`.
 - **Ready (the status):** the CR's stored status `ready` in `batch.json`: its Driver handed it back
   (`handback <cr> ready <link>`). It is a token the rails and old records read; the CLI derives
   from it the three words below, and no person reads `ready` alone, but in one place: the stack rows of `take stack` and `stack`

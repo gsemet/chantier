@@ -101,7 +101,7 @@ without a yes, everything stays. Close last: those files hold the exit report an
 
 `forge-journal.jsonl`, at the planning folder's root, never published, holds every event of the
 project: the forge's (a merge the record does not hold, a CI turning red on a PR ready to merge)
-and the board's writes. Its name is historical, it is not only the forge's. One line is one JSON
+the board's writes and the issue events an outside poller writes. Its name is historical, it is not only the forge's. One line is one JSON
 object, written by one function (`hub/journal.py`, `append`), under the project's lifecycle lock:
 
 ```json
@@ -115,15 +115,15 @@ object, written by one function (`hub/journal.py`, `append`), under the project'
 | `v` | the line's version, 2 (0 and 1 still read) |
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
-| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `config@1` or `board@1`), then the fields of that type |
-| `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `cli` (room for a command) |
+| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `config@1`, `board@1` or `issue@1`), then the fields of that type |
+| `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
 A published `name@N` never changes; a change is a new `name@N+1`, and every type's JSON Schema
 ships in `hub/schemas.json`.
 
 Every line written today is for `["project"]`: `merged@1` and `checks-red@1` by the hub or the
-board's PRs page, `config@1` by the Configuration page, `board@1` by the backlog writes. The CLI
+board's PRs page, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller. The CLI
 checks an audience value's form, never what it names, and routes to no role, CR or user yet.
 
 | Type | Written by | Wakes a watcher |
@@ -132,6 +132,7 @@ checks an audience value's form, never what it names, and routes to no role, CR 
 | `checks-red@1` | the hub | yes |
 | `config@1` | the board's Configuration page | yes |
 | `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move` and `edit` |
+| `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |
 
 An event the hub or the board builds from a forge read or a backlog or Configuration write that its
 type's model refuses is not written, the others are, and the hub's entry or the page's reply names

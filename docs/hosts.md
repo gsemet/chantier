@@ -46,7 +46,8 @@ one line there saying so, from your phone if you are away, and it does that acti
 
 chantier's own reads of a forge (the forge hub, the PRs page) go through a connector, read-only
 ([forge connectors](forge-connectors.md)); a link of another forge is named in the hub's error and
-on the PRs page, never read.
+on the PRs page, never read; issues of any tracker come from an outside poller
+([forge connectors](forge-connectors.md#writing-an-outside-poller)).
 
 The agents use the forge's CLI as it is logged in (`gh auth login`, `glab auth login --hostname
 <host>`), on the batch's git remote (`origin`, or `--remote`). Nothing is configured in chantier.

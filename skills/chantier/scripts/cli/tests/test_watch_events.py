@@ -32,6 +32,19 @@ def board_line(wakes: bool, action: str = "move") -> dict[str, Any]:
     }
 
 
+def issue_line(wakes: bool, at: str = "2026-11-20T09:14:00Z") -> dict[str, Any]:
+    return {
+        "type": "issue@1",
+        "tracker": "jira",
+        "ref": "https://acme.atlassian.net/browse/PAY-12",
+        "event": "commented",
+        "at": at,
+        "text": "keep the old order",
+        "wakes": wakes,
+        "folders": ["1-inbox/export"],
+    }
+
+
 def role_line() -> dict[str, Any]:
     key = "hosts.claude-code.roles.coder.model"
     return {"type": "config@1", "key": key, "old": "a", "new": "b", "batch": None}
@@ -43,6 +56,9 @@ ENDS: list[Any] = [
     ([RED], None, "running", 20),
     ([RED], 15, "running", 35),
     ([board_line(True)], None, "running", 20),
+    ([issue_line(True)], None, "running", 20),
+    ([issue_line(False)], None, "running", None),
+    ([issue_line(False), board_line(True)], None, "running", 20),
     ([board_line(False)], None, "running", None),
     ([board_line(False), board_line(True)], None, "running", 20),
     ([role_line()], None, "running", 20),
@@ -197,3 +213,21 @@ def test_the_board_and_config_lines_are_never_duplicates_and_status_holds_none(
         "board wrote (edit): x: priority P2 -> P1; for the Chief of Staff: tell the user, "
         "act on nothing"
     )
+
+
+def test_an_issue_line_is_told_by_the_pull_path_and_status_holds_none(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    open_batch(repo, chantier, monkeypatch, "Alpha")
+    found = Repo.find()
+    quiet = issue_line(False, "2026-11-20T09:15:00Z")
+    assert len(journal.append(found, [issue_line(True), quiet], "poller")) == len((True, False))
+    assert journal.append(found, [issue_line(True) | {"text": "other words"}], "poller") == []
+    told = (
+        'tracker saw commented on https://acme.atlassian.net/browse/PAY-12 (1-inbox/export): "keep '
+        'the old order"; for the Chief of Staff: tell the user in one line, record nothing'
+    )
+    assert journal.event_text(issue_line(True)) == told
+    out = chantier("watch", "--once", "--after", "0")[1]
+    assert out[:2] == [told, told]
+    assert not any(" saw " in x for x in chantier("status")[1])

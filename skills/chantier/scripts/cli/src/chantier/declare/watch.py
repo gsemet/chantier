@@ -7,7 +7,8 @@ from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 HELP = (
     "wait in the background for the events of this project, read from the local journal: the "
     "forge's (merges, CI red on a PR ready to merge) and the board's writes (backlog, "
-    "configuration), with or without a batch; every event is addressed (its audience: project, "
+    "configuration), and the issue events an outside poller writes, with or without a batch; "
+    "every event is addressed (its audience: project, "
     "role:<name>, cr:<id>, session:<key> or user) and a watcher reads the lines for it: the "
     "project's, its own session's and each --for value; it ends 20 s after the last new event "
     "for it that wakes, and no sooner than events.wake_every after its start, or when the "

@@ -317,7 +317,7 @@ Talk to the Chief of Staff in plain language:
 - [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.
 - [Supported hosts](docs/hosts.md): hosts, forges and Windows.
-- [Forge connectors](docs/forge-connectors.md): how chantier reads a forge, and how to add a connector.
+- [Forge connectors](docs/forge-connectors.md): how chantier reads a forge, how to add a connector, and an outside poller for issues.
 - [Costs and budgets](docs/costs.md): what a batch costs and how it is capped.
 - [Planning modes](docs/planning-modes.md): plan in the project or outside it.
 - [Use cases](docs/use-cases.md): [Foreman mode](docs/use-cases-foreman.md) and [direct mode](docs/use-cases-direct.md).

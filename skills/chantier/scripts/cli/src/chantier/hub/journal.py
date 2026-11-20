@@ -2,7 +2,8 @@
 line per event (the name is historical: the file holds every event of the project, the forge's
 and the board's). It is local (ignored by git) and append-only; chantier never truncates it.
 `append` is its one writer path (the forge hub, `source: "hub"`; the board, `"board"`: its PRs
-page, its backlog writes and its Configuration page; `"cli"` is room for a command); `read` its
+page, its backlog writes and its Configuration page; an outside poller, `"poller"`, through
+`chantier journal add`; `"cli"` is room for a command); `read` its
 one reader, for `chantier status` and `chantier watch`. `source` says who wrote a line, never
 what it is: every reader dispatches on the line's type. Nothing here records anything in a batch:
 a line is a signal for whom it is addressed.
@@ -11,10 +12,10 @@ A version 2 line carries, in this order, `v` (2), `seq` (1 for the first line, t
 readable `seq` plus one), `t`, `type`, `source`, `audience` (a list of `project`, `role:<name>`,
 `cr:<id>`, `session:<key>` or `user`; every writer of today writes `["project"]`), then the
 payload of its type. The type is `name@N`: the name and the published version of the payload. The
-four published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
-`checks-red@1`, `config@1`, `board@1`), each with its model, wake rule, text, duplicate key and
-example. A published `name@N` never changes; a change is a new `name@N+1`, published beside it.
-Its JSON Schema is in `hub/schemas.json`, written by `just journal-schemas`.
+five published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
+`checks-red@1`, `config@1`, `board@1`, `issue@1`), each with its model, wake rule, text,
+duplicate key and example. A published `name@N` never changes; a change is a new `name@N+1`,
+published beside it. Its JSON Schema is in `hub/schemas.json`, written by `just journal-schemas`.
 
 A line with no `v` is version 0 (`by` where later versions have `source`, no `audience`), and a
 version 1 line has `kind` where version 2 has `type`: `read` gives each its effective type,
@@ -44,7 +45,7 @@ from chantier.lifecycle.stages import changes_lock
 
 FILE = "forge-journal.jsonl"
 VERSION = 2
-SOURCES = ("hub", "board", "cli")
+SOURCES = ("hub", "board", "cli", "poller")
 PROJECT = "project"
 WAKING_ACTIONS = ("new", "move", "edit")
 HEADER = ("v", "seq", "t", "type", "source", "audience")

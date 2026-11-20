@@ -124,14 +124,17 @@ chantier is four things in one repository:
    (planning folder, never published) one line per merge the record does not hold and per CI
    turning red on a PR ready to merge, and nothing else; each session's watcher, run for the
    Chief of Staff's whole session with or without a batch, reads only its project's journal (the
-   hub's lines and the board's writes) and ends 20 s after the last new event for it that wakes, and no
+   hub's lines, the board's writes and an outside poller's `issue@1` lines) and ends 20 s after the last new event for it that wakes, and no
    sooner than `events.wake_every` after its start, which wakes its session, or when the
    project's seat is another session's; the hub records nothing in
    a batch, runs no git and messages no agent (the server runs no git either, but its autosync join), and every journal
-   line, the CLI commands' included in their own process, goes through the one append function. It spares the user one round trip per merge and
+   line, the CLI commands' included in their own process, goes through the one append function; an outside poller (the user's own program, never started
+   by chantier) writes into a project's journal only through `journal add`, only `issue@1` lines,
+   and only for an issue a CR's `issue:` line names. It spares the user one round trip per merge and
    per board session ("rescan").
    A new CLI tool comes only from measured token-costly behaviour of the
-   agents, never from speculation about what they might need.
+   agents, or is one of AGENTS.md's named exceptions, never from speculation about what they
+   might need.
 3. **A plugin**: [`.github/plugin/`](.github/plugin/) (GitHub Copilot: `plugin.json` and the marketplace) and
    [`.claude-plugin/`](.claude-plugin/) (Claude Code) ship the skill
    and one agent per role and host: [`agents/`](agents/) for Claude Code (`chantier:<role>`),
