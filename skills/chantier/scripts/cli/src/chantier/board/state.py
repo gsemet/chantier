@@ -122,6 +122,7 @@ def _batch(repo: Repo, d: BatchRecord, folder: Path, events: list[EventRecord]) 
         "cost_at": costs[-1] if costs else None,
         "crs": rows,
         "merge_order": crs.merge_order(d, rows),
+        "stack_lease": crs.lease_view(repo, "stack", d.stack_lease),
     }
 
 

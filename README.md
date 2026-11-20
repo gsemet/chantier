@@ -316,6 +316,7 @@ Talk to the Chief of Staff in plain language:
 - [Boards](docs/boards.md): the CR board and the web board.
 - [The web board](docs/web-board.md): every view, with pictures taken from the real board.
 - [The server's API](docs/server-api.md): protocol 1, over a WebSocket and over HTTP, for any client.
+- [The live terminal view](docs/boards.md#the-live-terminal-view): `chantier live`, a running board watched in the terminal.
 - [Your gates](docs/gates.md): the fast gate and the long gate you declare in your `AGENTS.md`.
 - [Your own agents and models](docs/agents-and-models.md): which agent and model each role runs.
 - [The planning folder](docs/planning-folder.md): its layout, and a batch's pause and close.

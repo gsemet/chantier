@@ -14,6 +14,8 @@ from batch_helpers import DEAD, changes, events, open_batch, record, write_recor
 from conftest import Chantier
 from stack_world import TAKEN, Batch, stack_of
 
+from chantier.board.fingerprint import fingerprint
+from chantier.board.state import project_state
 from chantier.commands.closing import _live_lease_lines
 from chantier.core import clock, leases
 from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION
@@ -369,3 +371,31 @@ def test_claude_close_shows_a_live_lease_beside_the_transcripts_and_it_is_no_cau
     assert not any("lease" in x for x in running(Repo.find(), d)[0])
     at(15)
     assert _live_lease_lines(Repo.find(), d) == []
+
+
+def test_the_board_shows_each_lease_as_facts_and_its_read_removes_no_hold(leased: Led) -> None:
+    repo, _, (one, two) = leased
+    found = Repo.find(readonly=True)
+
+    def shown() -> tuple[dict[str, Any], Any]:
+        batch = project_state("p", found, False, None)["batch"]
+        return {r["cr"]: r["lease"] for r in batch["crs"]}, batch["stack_lease"]
+
+    rows, stack = shown()
+    assert rows[two] is None and stack is None  # never taken: null
+    expires = "2030-01-01T00:10:00Z"
+    facts = {"n": 1, "renewed": T0, "expires": expires, "ended": None, "holds": 0, "gate": None}
+    assert rows[one] == facts  # facts only: never the word `live`, which moves with the clock
+    before = fingerprint(found.changes)
+    dead = changes(repo) / f".lease-hold.{one}.1.run"
+    dead.write_text(json.dumps({"unit": one, "lease": 1, "pid": DEAD}), encoding="utf-8")
+    assert fingerprint(found.changes) != before  # a hold record at the root moves the rev
+    held = leases.write_hold(found, one, 1, ["x"])
+    rows, _ = shown()
+    assert rows[one]["holds"] == 1 and dead.exists() and held.exists()  # read-only
+    data = record(repo)
+    data["stack_lease"] = {"n": 2, "taken": T0, "renewed": T0, "expires": expires, "ended": None}
+    next(c for c in data["crs"] if c["id"] == one)["lease"]["ended"] = T0  # handed back
+    write_record(repo, data)
+    rows, stack = shown()
+    assert rows[one]["ended"] == T0 and (stack["n"], stack["holds"]) == (SECOND, 0)

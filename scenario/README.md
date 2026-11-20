@@ -300,6 +300,12 @@ does a unit that is not in `UNITS` and a test that does not exist.
   board stopped `file` is refused with "the surface's writer is not running: nothing written" and
   nothing changes; an in-project board has `writer == {"state":"off"}`, no `autosync` key and a
   route of the versions before protocol 1 (`/api/autosync`) answers 404 (unit: surface-board);
+- the live terminal view (CR-418): with the real `board --seat` running over a batch with a working
+  CR, `chantier live --once` and `chantier live --once --transport http` each exit 0 with the CR in
+  Tasks and `working 1` in the header, the planning folder's git status and `forge-journal.jsonl`
+  unchanged; once the board has stopped, `live --once` exits 4 with `no board runs for this
+  surface` (unit: surface-board) (test:
+  test_live_link.py::test_live_once_prints_the_working_cr_and_its_lease_and_a_journal_line_comes_once);
 - two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `GET /api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
 - typed waits (CR-409): `wait add` records a merge, approval, pipeline and answer wait on a CR
   (ids w1..w4, the forge ones on its PR), `status` shows them on the CR's row, the hub tells the

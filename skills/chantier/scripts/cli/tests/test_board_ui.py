@@ -49,7 +49,7 @@ def test_the_web_client_is_outside_the_servers_package_which_names_nothing_of_it
     assert (PKG / "clients" / "web" / "index.html").is_file()
     assert (PKG / "clients" / "web" / "DESIGN.md").is_file()
     assert SHIPPED_UI == PKG / "clients" / "web"
-    assert not list((PKG / "clients").rglob("*.py"))
+    assert not list((PKG / "clients" / "web").rglob("*.py"))  # clients/tui/ is Python
     named = [n for path in (PKG / "board").rglob("*.py") for n in _names_the_client(path)]
     assert not named, named
 
