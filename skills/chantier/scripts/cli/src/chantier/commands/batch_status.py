@@ -8,6 +8,7 @@ from typing import Any
 from chantier.autosync.lines import status_line
 from chantier.autosync.reading import names_of, read_view
 from chantier.autosync.site import find_site
+from chantier.commands import wait_view
 from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
@@ -220,6 +221,7 @@ def _cr_row(
     waits = waits_all(d.crs, c, d.mode) if c.status == "queued" else []
     if waits:
         row += f" | waits for {', '.join(waits)}"
+    row += wait_view.status_segment(repo, c)
     if c.status == "working":
         row += _working_tail(repo, d, c, stopped)
     if c.status == "blocked" and c.blocked_reason:
@@ -277,7 +279,7 @@ def _seen_lines(repo: Repo, d: BatchRecord) -> list[str]:
         for n, t in unknown
     ]
     open_crs = {c.id for c in d.crs if c.status not in ("merged", "cancelled")}
-    lines += journal.lines(entries, d.id, open_crs, d.orders)
+    lines += journal.lines(entries, d.id, open_crs, d.orders, wait_view.open_keys(d))
     return lines
 
 

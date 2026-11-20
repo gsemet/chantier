@@ -138,6 +138,8 @@ class CrEntry(Record):
     phase_detail: str | None = None
     phase_at: str | None = None
     lease: Lease | None = None
+    # what the CR waits for, as typed facts (`core/waits.py`); local, with the rest of the entry
+    waits: list[dict[str, Any]] = []
 
     def moved_to(self) -> str | None:
         """The folder a dropped CR went to when it is the inbox or the backlog (`1-inbox`,

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from chantier.core import waits
 from chantier.core.repo import Repo
 from chantier.lifecycle.stages import PRIORITIES, STATE_FOLDERS, cr_folders, stage_layout
 from chantier.summaries.sources import INTAKE
@@ -20,7 +21,8 @@ CR_LIKE = (INTAKE, "01-intent.md", "02-answers.md", "03-change-spec.md", "summar
 
 # A CR folder's tree: concepts.md ("Change Request") gives the folders and the Markdown files,
 # `summary.json` and the STATUS files; `delivery.md` is an archive's (`stages.py`),
-# `formerly.json` a CR taken out of a batch's, `depends.json` a dependency's, `report.md` and
+# `formerly.json` a CR taken out of a batch's, `waits.json` a backlog CR's open waits (in a batch
+# they are the record's), `depends.json` a dependency's, `report.md` and
 # `conversation.md` a release CR's sources (release-template.md).
 CR_FOLDERS = ("intake", "evidence", "work", "prototypes", "experiments")
 CR_FILES = (
@@ -32,10 +34,12 @@ CR_FILES = (
     "STATUS.json",
     "delivery.md",
     "formerly.json",
+    "waits.json",
     "depends.json",
     "report.md",
     "conversation.md",
 )
+LAYOUT_GAP = 'not in a CR folder\'s layout (concepts.md, "Change Request")'
 LIVE_STAGES = ("inbox", "ready", "pending", "actives", "done")
 
 
@@ -144,8 +148,23 @@ def placement(repo: Repo) -> list[Finding]:
     return found
 
 
+def _waits_finding(repo: Repo, cr: Path, entry: Path) -> Finding | None:
+    """`waits.json` belongs to the backlog (inbox, backlog, 3-ready): in a batch it is unknown
+    (the join consumes it), and anywhere else it must be of the form chantier writes."""
+    path = f"{repo.rel(cr)}/{entry.name}"
+    if stage_layout(repo)["batches"] in cr.parents:
+        return Finding("gap", path, LAYOUT_GAP)
+    try:
+        waits.read_file(cr)
+    except waits.WaitsInvalid as e:
+        return Finding("error", path, f"waits.json is not valid: {e}")
+    return None
+
+
 def _entry(repo: Repo, cr: Path, entry: Path) -> Finding | None:
     name, path = entry.name, f"{repo.rel(cr)}/{entry.name}"
+    if name == waits.FILE and entry.is_file():
+        return _waits_finding(repo, cr, entry)
     if name in CR_FOLDERS and not entry.is_dir():
         return Finding("error", path, "a file where chantier reads a folder")
     if name in CR_FILES and entry.is_dir():

@@ -20,9 +20,11 @@ from chantier.commands.driver_checks import (
     handback_blocked,
     handback_refusals,
     live_cr,
+    wait_specs,
 )
 from chantier.commands.endpause import end_of_batch
 from chantier.commands.facts import cr_facts, stack_lines
+from chantier.commands.waits import add_to_cr
 from chantier.core import leases
 from chantier.core.batch import Batch, check_epoch, find_cr_batch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
@@ -244,6 +246,7 @@ def handback(args: argparse.Namespace) -> list[str]:
     repo = Repo.find()
     note = " ".join(args.note).strip()
     no_gate = handback_args(args, note)
+    wait_specs(args)  # a refusal before anything is written
     ended: list[str] = []
     lines = _handback_locked(repo, args, (note, no_gate), ended)
     return [*lines, *(end_of_batch(repo, ended[0], f"handback {args.cr}") if ended else [])]
@@ -265,7 +268,9 @@ def _handback_locked(
         reason = c.blocked_reason or ""
         line = f"[driver {args.cr}→foreman] hand-back {args.result} {note}"
         if args.result == "blocked":
-            return handback_blocked(b, c, note, line)
+            specs = wait_specs(args)
+            applied = add_to_cr(repo, b.record, c, specs, note) if specs else ([], [])
+            return handback_blocked(b, c, note, line, applied)
         # a release with an unmerged PR recorded: the release PR is prepared and waits for
         # its merge (the checks of a CR, no verdict); with none, it is released
         prepared = c.kind == "release" and bool(c.pr)

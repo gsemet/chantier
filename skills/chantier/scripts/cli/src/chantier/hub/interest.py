@@ -20,6 +20,7 @@ class Interest:
     by: str  # who waits: `batch-29 CR-3`, or a CR folder's path under `changes/`
     provider: str  # the name of the provider that declared it
     tracker: str | None = None  # `jira`, `gitlab`, `github` or `other` for an issue; None for a pr
+    meta: tuple[str, ...] = ()  # what the provider judges by (the `waits` provider: type, ref)
 
 
 class Provider(Protocol):

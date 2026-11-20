@@ -17,7 +17,7 @@ from chantier.connectors.base import OPTIONAL_FACTS
 from chantier.core import clock
 from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo, surface_projects
-from chantier.hub import interests, journal, state
+from chantier.hub import interests, journal, state, waits
 from chantier.hub import times as hub_times
 
 
@@ -67,10 +67,13 @@ class Hub:
     def _project(self, repo: Repo) -> None:
         """One project: what the registry holds, read in one call, judged by each provider."""
         wanted = interests.collect(repo, kinds={interests.PR})
+        name = project_name(repo)
         if not wanted:
+            if name in self.record["projects"]:  # no wait is open any more
+                self.record["projects"][name]["waits_unseen"] = []
             return
         entry = self.record["projects"].setdefault(
-            project_name(repo), {"read_at": None, "error": None, "error_at": None}
+            name, {"read_at": None, "error": None, "error_at": None, "waits_unseen": []}
         )
         links = list(dict.fromkeys(i.ref for i in wanted))
         claimed = [x for x in links if connectors.connector_for(x) is not None]
@@ -95,6 +98,8 @@ class Hub:
             mine = [i for i in wanted if i.provider == provider.name]
             if mine:
                 events.extend(provider.judge(repo, mine, read))
+        waiting = [i for i in wanted if i.provider == waits.PROVIDER.name]
+        entry["waits_unseen"] = waits.unseen(waiting, read)  # replaced at each successful read
         accepted, refused = journal.set_aside(events)
         journal.append(repo, accepted, "hub")
         if refused:

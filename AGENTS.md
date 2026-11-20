@@ -41,7 +41,7 @@
 - The CLI's scope: the CR lifecycle, the batch's frame (limits, record, STATUS files), the means
   to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
   that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included; a new
-  CLI tool comes from measured token-costly behaviour, never from speculation. Four named
+  CLI tool comes from measured token-costly behaviour, never from speculation. Named
   exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
@@ -74,9 +74,11 @@
   every 20 s, through the connector of its forge (GitHub with `gh`, GitLab with `glab`), one
   query per project of the surface for which the interest registry holds a PR or MR, and only
   those: today, the PRs of a project's running batch while one of them is not held merged or
-  cancelled; it appends to that project's `forge-journal.jsonl` (planning
-  folder, never published) one line per merge the record does not hold and per CI turning red on
-  a PR ready to merge, and nothing else; each session's watcher, run for the Chief of Staff's
+  cancelled, and the PRs or MRs that the open approval, pipeline and merge waits of the running
+  batch's CRs name, in the same query; it appends to that project's `forge-journal.jsonl` (planning
+  folder, never published) one line per merge the record does not hold, per CI turning red on
+  a PR ready to merge and per wait of a running batch's CR that the forge shows met
+  (`wait-cleared@1`), and nothing else; each session's watcher, run for the Chief of Staff's
   whole session, with or without a batch, reads only its project's journal (the hub's lines, the
   board's and an outside poller's `issue@1` lines), never the forge, and ends 20 s after the last new event for it that wakes, and no
   sooner than `events.wake_every` after its start, which wakes its session, or when the project's
@@ -88,7 +90,7 @@
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
   `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
   it: one round trip with the user per merge and per board session ("rescan").
-  One more exception to the measured-cost rule, not a git one: `lease` (with `take --reclaim` and
+  Third, to the measured-cost rule and not a git one: `lease` (with `take --reclaim` and
   `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
   `lease hold` runs only what a Driver gives it, to keep a lease live, and the hub writes nothing
@@ -98,7 +100,11 @@
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
-- The CLI has two named git exceptions: the surface server, which may serve without joining the
+  Fifth, `wait`: a CR's typed
+  waits (answer, approval, pipeline, merge), recorded, cleared and shown, the hub signalling a wait
+  met; built on the user's answer of 2026-11-20 ("tout", planning-server-Q9), with no measured
+  cost.
+- The CLI has named git exceptions: the surface server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants; the board commits
   nothing itself), and the batch's end cleanup (above). The rest of the CLI keeps no git write.

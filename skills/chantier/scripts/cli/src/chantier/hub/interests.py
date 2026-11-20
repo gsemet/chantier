@@ -16,12 +16,12 @@ from chantier import connectors
 from chantier.board.projects import project_name
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.repo import Repo
-from chantier.hub import batch_prs, issue_refs
+from chantier.hub import batch_prs, issue_refs, waits
 from chantier.hub.interest import ISSUE, PR, Interest, Provider
 
 __all__ = ["ISSUE", "PR", "PROVIDERS", "Interest", "Provider", "collect", "collect_each", "show"]
 
-PROVIDERS: tuple[Provider, ...] = (batch_prs.PROVIDER, issue_refs.PROVIDER)
+PROVIDERS: tuple[Provider, ...] = (batch_prs.PROVIDER, waits.PROVIDER, issue_refs.PROVIDER)
 
 
 def collect(repo: Repo, kinds: set[str] | frozenset[str]) -> list[Interest]:

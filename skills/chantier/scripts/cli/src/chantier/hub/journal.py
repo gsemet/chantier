@@ -12,8 +12,8 @@ A version 2 line carries, in this order, `v` (2), `seq` (1 for the first line, t
 readable `seq` plus one), `t`, `type`, `source`, `audience` (a list of `project`, `role:<name>`,
 `cr:<id>`, `session:<key>` or `user`; every writer of today writes `["project"]`), then the
 payload of its type. The type is `name@N`: the name and the published version of the payload. The
-five published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
-`checks-red@1`, `config@1`, `board@1`, `issue@1`), each with its model, wake rule, text,
+six published types and their payloads are `hub/schemas.py`'s `PUBLISHED` (`merged@1`,
+`checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1`), each with its model, wake rule, text,
 duplicate key and example. A published `name@N` never changes; a change is a new `name@N+1`,
 published beside it. Its JSON Schema is in `hub/schemas.json`, written by `just journal-schemas`.
 
@@ -40,7 +40,7 @@ from chantier.core import clock
 from chantier.core.files import read_text
 from chantier.core.repo import Repo
 from chantier.hub import schemas
-from chantier.hub.schemas import PUBLISHED, config_text, merged_text
+from chantier.hub.schemas import PUBLISHED, config_text, merged_text, wait_cleared_text
 from chantier.lifecycle.stages import changes_lock
 
 FILE = "forge-journal.jsonl"
@@ -305,13 +305,18 @@ def _slots_line(entries: list[dict[str, Any]], batch: str, orders: list[Any]) ->
 
 
 def lines(
-    entries: list[dict[str, Any]], batch: str, open_crs: set[str], orders: list[Any]
+    entries: list[dict[str, Any]],
+    batch: str,
+    open_crs: set[str],
+    orders: list[Any],
+    open_waits: frozenset[tuple[str, str]] = frozenset(),
 ) -> list[str]:
     """The `status` lines for the Chief of Staff, one per open CR of `batch`: the `merged@1`
     entry that says the PR landed wins, else the first. A `checks-red@1` entry is never listed. A
     line of no published type or with a refused payload is skipped. Then the newest `batch.slots`
     `config@1` line of the batch while no `order slots` is recorded after it; no line for the
-    other limit or key."""
+    other limit or key. Before them, each `wait-cleared@1` line of the batch whose wait
+    (`(cr, wait id)` of `open_waits`) is still open in the record."""
     chosen: dict[str, dict[str, Any]] = {}
     for e in entries:
         cr = e.get("cr")
@@ -324,4 +329,16 @@ def lines(
             continue
         if cr not in chosen or (e.get("landed_with") and not chosen[cr].get("landed_with")):
             chosen[cr] = e
-    return [*(merged_text(e) for e in chosen.values()), *_slots_line(entries, batch, orders)]
+    cleared = [
+        wait_cleared_text(e)
+        for e in entries
+        if _listed(e)
+        and e.get("type") == "wait-cleared@1"
+        and e.get("batch") == batch
+        and (e.get("cr"), e.get("wait")) in open_waits
+    ]
+    return [
+        *(merged_text(e) for e in chosen.values()),
+        *cleared,
+        *_slots_line(entries, batch, orders),
+    ]

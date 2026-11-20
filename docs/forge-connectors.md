@@ -25,10 +25,18 @@ with a `query` and no `mutation`.
 An interest is a PR or MR someone waits for: its link (`ref`), the facts wanted, and who waits
 (`by`, such as `batch-29 CR-3`). Each provider declares the interests of one kind of waiter and
 judges them against what the forge said. The registry is derived at each cycle from the record,
-never stored. There are two providers:
+never stored. There are three providers:
 
 - `batch`, of kind `pr`: the PRs of a project's running batch, while one of them is not held
   merged or cancelled. The forge hub reads them.
+- `waits`, of kind `pr`: the PRs or MRs that the open approval, pipeline and merge waits of the
+  running batch's CRs name (`by` is `<batch> <cr> <wait id>`), which join the same query: a wait
+  met (the PR merged, the head's checks green, the review approved) becomes one `wait-cleared@1`
+  line, and the steering session clears the wait. A wait on a link of another repository, one no
+  connector claims, a GitLab approval (its review is `unproved`) and a backlog CR's wait are not
+  read: they are cleared by hand. Waits the forge can no longer show met (a review it cannot tell,
+  a head that moved past the wait's sha, a closed request) are named in the hub's entry
+  (`waits_unseen`), and `wait` and `status` say so.
 - `issues`, of kind `issue`: the issues the CRs' `issue:` lines name (a CR folder of any stage but
   the archives and the trash; its `ref` is the line's link, exactly as written). Only an outside
   poller reads them, never the hub: see [Writing an outside

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from chantier.commands import wait_view
 from chantier.commands.carry import carry_reason, head_base
 from chantier.commands.crs import (
     batch_cr,
@@ -94,6 +95,8 @@ def cr_facts(repo: Repo, batch: str, d: BatchRecord, c: CrEntry) -> list[str]:
         f"rounds: {c.round} of {round_limit(d, c)}",
     ]
     lines += _status_lines(d, c)
+    if wait_text := wait_view.wait_line(repo, d, c):
+        lines.append(wait_text)
     if c.kind not in {"release"}:
         lines += _gate_lines(repo, batch, d, c)
     lines += _gate_log(folder)

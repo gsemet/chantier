@@ -114,8 +114,8 @@ UNITS = {
     "surface-board": (
         500,
         ["github"],
-        ["remote_board", "forge_hub", "outside_poller", "surface_server", "external_surface",
-         "cr_summary"],
+        ["remote_board", "forge_hub", "outside_poller", "typed_waits", "surface_server",
+         "external_surface", "cr_summary"],
     ),
     "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
     "gitlab": (95, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli"]),
@@ -2207,6 +2207,86 @@ def outside_poller(w: World) -> None:
               f"{code} {sw.last_stderr}")
     check("the fake `gh` was never called: the hub read no issue", len(forge_calls(sw)) == calls,
           str(forge_calls(sw)[calls:]))
+
+
+def typed_waits(w: World) -> None:
+    """CR-409: a CR records what it waits for; the hub tells the wait the forge shows met, once."""
+    note("\n## 16f. Typed waits: `wait add`, `status`, and the hub's `wait-cleared` line")
+    sw = SurfaceWorld(w.root / "waits")
+    sw.root.mkdir()
+    sw.build()
+    url = "https://github.com/acme/demo/pull/{}".format
+    sha = "c" * 40
+    batch_file = sw.state / "4-batch" / "batch.json"
+    procs: list[BoardProc] = []
+
+    def journal() -> list[dict]:
+        path = sw.state / "forge-journal.jsonl"
+        lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+        whole = []
+        for x in lines:
+            with contextlib.suppress(ValueError):
+                whole.append(json.loads(x))
+        return whole
+
+    def cleared() -> list[tuple[str, str]]:
+        return [(e["wait"], e["wait_type"]) for e in journal() if e["type"] == "wait-cleared@1"]
+
+    def until(then, timeout: float = 40) -> bool:
+        end = time.monotonic() + timeout
+        while not (found := then()) and time.monotonic() < end:
+            time.sleep(0.25)
+        return bool(found)
+
+    sw.chantier("init")
+    sw.chantier("open", sw.prepare("Waits A1"), "--direct", "--slots", 1, *FROM_AGENTS_MD)
+    d = json.loads(batch_file.read_text(encoding="utf-8"))
+    cr, batch = d["crs"][0]["id"], d["id"]
+    sw.chantier("foreman", "set", "uuid-chief", "--epoch", 1, "--batch", batch)
+    d = json.loads(batch_file.read_text(encoding="utf-8"))
+    d["crs"][0].update(pr=url(940), status="working", head=sha)
+    batch_file.write_text(json.dumps(d, indent=2))
+    where = ("--epoch", 1, "--batch", batch)
+    sw.chantier("wait", cr, "add", "merge", "--note", "after the user", *where)
+    sw.chantier("wait", cr, "add", "approval", "--note", "a review", *where)
+    sw.chantier("wait", cr, "add", "pipeline", "--note", "the checks", *where)
+    sw.chantier("wait", cr, "add", "answer", "--ref", "which port?", "--note", "ask", *where)
+    waits = json.loads(batch_file.read_text(encoding="utf-8"))["crs"][0]["waits"]
+    check("`wait add` records four waits, ids w1..w4, the forge ones on the CR's PR",
+          [(x["id"], x["type"]) for x in waits]
+          == [("w1", "merge"), ("w2", "approval"), ("w3", "pipeline"), ("w4", "answer")]
+          and [x["link"] for x in waits[:3]] == [url(940)] * 3, str(waits))
+    _, out = sw.chantier("status", "--batch", batch, expect=None)
+    check("`status` shows the waits on the CR's row",
+          any(cr in x and "| waits: merge, approval, pipeline, answer" in x for x in out), str(out))
+    try:
+        board = BoardProc(sw, "board", "--project", "demo", "--host", "127.0.0.1", "--port", 0,
+                          cwd=sw.surface, env={"CHANTIER_HUB_TEST_TIMES": "1:4"})
+        procs.append(board)
+        board.line()
+        forge_pr(sw, url(940), reviewDecision="APPROVED", headRefOid=sha)
+        check("the hub tells the met approval and pipeline waits, and not the merge or the answer",
+              until(lambda: len(cleared()) >= 2) and sorted(cleared()) == [("w2", "approval"),
+                                                                           ("w3", "pipeline")],
+              str(cleared()))
+        time.sleep(4)
+        check("it tells each once, whatever the number of cycles", len(cleared()) == 2,
+              str(cleared()))
+        _, out = sw.chantier("status", "--batch", batch, expect=None)
+        check("`status` still lists the waits as open until the steering session clears them",
+              any(cr in x and "| waits: merge, approval, pipeline, answer" in x for x in out),
+              str(out))
+        sw.chantier("wait", cr, "clear", "w2", *where)
+        sw.chantier("wait", cr, "clear", "w3", *where)
+        _, out = sw.chantier("status", "--batch", batch, expect=None)
+        check("cleared waits leave the row", any(cr in x and "| waits: merge, answer" in x
+                                                 for x in out), str(out))
+        forge_pr(sw, url(940), state="MERGED", mergedAt="2026-11-20T10:00:00Z")
+        check("the merge wait is told when the PR merges",
+              until(lambda: ("w1", "merge") in cleared()), str(cleared()))
+    finally:
+        for proc in reversed(procs):
+            proc.stop()
 
 
 def surface_server(w: World) -> None:
@@ -9728,6 +9808,14 @@ def gitlab_ship_merge(w: World) -> None:
         bool(fm.asked) and fm.asked[-1] == f"ready-to-merge {cr} {pr}",
         str(fm.asked),
     )
+    w.chantier("wait", cr, "add", "approval", "--note", "a review", "--epoch", 1)
+    _, shown = w.chantier("wait", cr)
+    check(
+        "a GitLab approval wait is recorded and named as cleared by hand until proved",
+        any("(GitLab approval: cleared by hand until proved)" in x for x in shown),
+        str(shown),
+    )
+    w.chantier("wait", cr, "clear", "w1", "--epoch", 1)
     land(w, w.cr(cr)["branch"])
     w.chantier("order", "merged", cr)
     fm.turn()
@@ -9790,6 +9878,7 @@ CASES = {
     "remote_board": remote_board,
     "forge_hub": forge_hub,
     "outside_poller": outside_poller,
+    "typed_waits": typed_waits,
     "surface_server": surface_server,
     "external_surface": lambda w: external_surface(w.root / "external"),
     "cr_summary": lambda w: cr_summary(w.root / "summary"),

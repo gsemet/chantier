@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-from chantier.core import leases
+from chantier.core import leases, waits
 from chantier.core.batch import RESTORED_NUMBER_FILE, Batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import (
@@ -67,8 +67,8 @@ def remember_cr(repo: Repo, target: Path, cr_id: str, batch_id: str) -> None:
 def move_out_cr(batch: Batch, cr: CrEntry, to: str) -> None:
     """The CR leaves the batch for `1-inbox` or `2-backlog/P<n>` (`to`), whole, with its work and
     without a date: `<number>-<slug>`. `formerly.json` records where it came from, the folder's
-    note says it, and its number is reserved. A folder that is not in the batch's `1-pending` or
-    `2-actives` (moved before) stays."""
+    note says it, and its number is reserved; its open waits go to the folder's `waits.json`. A
+    folder that is not in the batch's `1-pending` or `2-actives` (moved before) stays."""
     if not cr.path:
         return
     paths = stage_layout(batch.repo)
@@ -78,11 +78,13 @@ def move_out_cr(batch: Batch, cr: CrEntry, to: str) -> None:
     target = (
         paths["inbox"] if to == "1-inbox" else paths["backlog"] / to.split("/")[1]
     ) / source.name
+    open_waits = waits.open_of(cr.waits)
     batch.repo.check_publish(
         [
             source,
             target,
             target / "formerly.json",
+            *([target / waits.FILE] if open_waits else []),
             target / "01-intent.md",
             target / "notes.md",
             batch.repo.changes / RESTORED_NUMBER_FILE,
@@ -104,6 +106,10 @@ def move_out_cr(batch: Batch, cr: CrEntry, to: str) -> None:
         )
         + "\n",
     )
+    if open_waits:
+        batch.repo.store.write_text(
+            batch.repo.rel(target / waits.FILE), waits.file_text(open_waits)
+        )
     remember_cr(batch.repo, target, cr.id, batch.id)
 
 

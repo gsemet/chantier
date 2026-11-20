@@ -119,6 +119,10 @@ ERRORS = {
         {"1-inbox/a/intake/request.md": "one paragraph\nof words\n"},
         f'error 1-inbox/a/intake/request.md: no "# " heading → {WRITE}',
     ),
+    "bad waits": (
+        {**INTENT, "1-inbox/a/waits.json": "{"},
+        "error 1-inbox/a/waits.json: waits.json is not valid:",
+    ),
     "folder for file": (
         {**INTENT, "1-inbox/a/delivery.md/": ""},
         "error 1-inbox/a/delivery.md: a folder where chantier reads a file",
@@ -153,6 +157,10 @@ GAPS = {
     "unknown entry": (
         {**INTENT, "1-inbox/a/junk.txt": "x"},
         f"gap 1-inbox/a/junk.txt: {LAYOUT}",
+    ),
+    "waits in a batch": (
+        {"4-batch/2-actives/a/01-intent.md": "# A\n", "4-batch/2-actives/a/waits.json": "{}"},
+        f"gap 4-batch/2-actives/a/waits.json: {LAYOUT}",
     ),
     "broken link": (
         {"1-inbox/a/01-intent.md": LINKS},
@@ -212,6 +220,12 @@ def test_a_title_of_the_limit_passes(repo: Path, chantier: Chantier) -> None:
     code, lines, _ = chantier("validate")
     assert code == 0, lines
     assert not any("title is" in line or "heading" in line for line in lines), lines
+
+
+def test_a_waits_file_of_the_backlog_is_ok(repo: Path, chantier: Chantier) -> None:
+    ok = json.dumps({"schema": 1, "waits": []})
+    build(repo / ".agents" / "changes", {**INTENT, "1-inbox/a/waits.json": ok})
+    assert not [x for x in chantier("validate")[1] if "waits.json" in x]
 
 
 @pytest.mark.parametrize("late", [False, True])

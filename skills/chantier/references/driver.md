@@ -372,14 +372,15 @@ defer the rest of this card until an action names it.
   and none missing: `handback <cr> ready <link> gaps: …`, or `… draft on <base>: waits for
   <what>; gaps: …`; with `--no-gate`: `handback <cr> ready <link> gaps: <gap> --no-gate "<rule>"`,
   which prints `no long gate: <rule> gaps: <gap>`); the CLI prints which state the CR is, ready to
-  merge, PR in draft or ready locally; for PR in draft the printed line says its PR's draft state on
-  the forge and the CR (and PR) it waits on, and asks for no change on the forge: it is no reason
-  to turn the PR draft or ready, retarget it or stop; the hand-back is done) or `handback
+  merge, PR in draft or ready locally; for PR in draft the line says the PR's draft state and the
+  CR (and PR) it waits on, and asks for no change on the forge: turn nothing draft or ready,
+  retarget nothing, do not stop; the hand-back is done) or `handback
   <cr> blocked <reason>` (`question:`, `approval:`, `merge:`, `fix:`, `infra:`, `budget:`,
   `rounds:`, `refused`, `waits: <what>`, `context: <where it stopped, what is next>`, or
   `context: closing: <where it stopped>; next: <what is left>`, the CR driver's closing hand-off):
   it writes the state and prints the line to send the
   Foreman (how it reaches the steering session, Foreman or direct-mode Chief of Staff, is your host's reference).
+  A wait of a known type: `--wait`, see "Means: hand-backs out of the ordinary".
   A `budget:` hand-back follows only a CLI refusal on the budget: "Means: hand-backs out of the ordinary". Then end: ending frees
   your slot; a Driver that handed back ready may be resumed later by a `taken back:` note.
   A hand-back refused (`is ready`, `is blocked`, `is merged`, a head `ship` did not record), or a Driver still recorded on a CR it handed back `blocked`: "Means: hand-backs out of the ordinary". A decision only the user can take is `blocked question: <text>`. `blocked waits:
@@ -664,6 +665,14 @@ that lists no check gives no such bullet; the "no CI" rule says what to write th
   what you left undone in one line, `$CHANTIER note <cr> "merged before the hand-back; left
   undone: <what>"` (`none` when nothing), pass the refused line as printed to the steering
   session (`[driver <cr>→foreman] …`, by the host's means), and end.
+- A block that is a wait of a known type (`answer`, `approval`, `pipeline`, `merge`) is recorded
+  with `handback <cr> blocked <reason> --wait <type>[=<ref>]`, repeatable: `answer="<the
+  question>"`, `approval` (the recorded PR), `pipeline[=<sha>]` (the recorded head), `merge[=<link>]`
+  (the recorded PR); the hand-back line ends `; waits: w1 approval`, and `$CHANTIER wait <cr>` lists
+  them. A wait that does not end you: `wait <cr> add <type> [--ref <ref>] --note "<text>"`. The
+  steering session clears a wait (`wait <cr> clear <id> --epoch <n>`) and takes the CR back; a
+  `--wait` the CLI refuses is not worked around: hand back without it, the refusal named in the
+  reason.
 - `budget:` follows only a CLI refusal on the budget (`take` or `round`, exit 5: `round` is
   refused once the budget is spent, and the budget is checked before the round limit, so with
   both spent you hand back `budget:`, not `rounds:`); never skip a proof pass to save budget:

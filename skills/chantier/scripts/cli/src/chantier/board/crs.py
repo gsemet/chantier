@@ -9,6 +9,7 @@ from typing import Any
 
 from chantier.board.backlog import count_files, description
 from chantier.board.times import cr_times, priority_of
+from chantier.core import waits as typed_waits
 from chantier.core.files import subject
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
@@ -91,6 +92,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "pr_merged": not link_of(c.pr) and bool(link_of(c.merged_pr)),
         "blocked": c.blocked_reason if c.status == "blocked" else None,
         "waits": waiting,
+        "open_waits": typed_waits.open_of(c.waits) if typed_waits.counted(c.status) else [],
         "kind": c.kind if c.kind in {"fix", "release"} else None,
         "order": c.order,
         "stacked": c.stacked,
