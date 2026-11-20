@@ -45,10 +45,10 @@
   to synchronise, and a few tools (among them `validate`, a read-only check of a planning folder
   that a surface would otherwise keep in its own drifting script). The agents do the work, git and the forge included; a new
   CLI tool comes from measured token-costly behaviour, never from speculation. Named
-  exceptions. First, the end of a batch's last CR (`order merged`, `handback released`, `cancel`,
+  exceptions. The end of a batch's last CR (`order merged`, `handback released`, `cancel`,
   `order drop`) removes the batch's merged CRs' worktrees and branches whose Driver has ended
   (`git worktree remove`, `git branch -D`, from the main checkout or the project's clone, with no
-  `--force`), then pauses the batch; it does nothing else in git. Second, the surface server, `chantier board`: the web board's server, for the user on this machine and the local
+  `--force`), then pauses the batch; it does nothing else in git. The surface server, `chantier board`: the web board's server, for the user on this machine and the local
   network, behind a key in its URL: it serves the record and the planning folder's files, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
   each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
@@ -94,21 +94,21 @@
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
   `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
   it: one round trip with the user per merge and per board session ("rescan").
-  Third, to the measured-cost rule and not a git one: `lease` (with `take --reclaim` and
+  `lease`, an exception to the measured-cost rule and not a git one (with `take --reclaim` and
   `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
   by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
   `lease hold` runs only what a Driver gives it, to keep a lease live, and the hub writes nothing
-  for leases. Fourth, `interests`
+  for leases. `interests`
   and `journal add`: `interests` lists, read-only, what the CRs wait for (the running batch's PRs
   or MRs, read by the forge hub, and the issues the CRs' `issue:` lines name, read by an outside
   poller only); `journal add` is the one entry by which an outside poller appends an `issue@1`
   line to a project's journal; built on the user's answer planning-server-Q24 (2026-11-20: issues
   polled from outside), with no measured cost.
-  Fifth, `wait`: a CR's typed
+  `wait`: a CR's typed
   waits (answer, approval, pipeline, merge), recorded, cleared and shown, the hub signalling a wait
   met; built on the user's answer of 2026-11-20 ("tout", planning-server-Q9), with no measured
   cost.
-  Sixth, the surface server's writer, a thread of the same process, one per planning surface and
+  The surface server's writer, a thread of the same process, one per planning surface and
   machine, held by an OS lock in the git folder (`chantier/writer.lock`): while the server runs, it
   commits, rebases and pushes the planning surface's published paths and the local commits of the
   surface's branch, within 5 minutes of a change, with the user's own git identity and hooks, and

@@ -21,27 +21,23 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, ValidationError
+from pydantic import BaseModel, StringConstraints, ValidationError
 
 from chantier.core import clock
+from chantier.hub.schemas_base import Payload, Sha
+from chantier.hub.schemas_sync import SyncBlocked1, SyncConflict1, SyncLate1, SyncResumed1
 
 LIMITS = ("batch.slots", "specifying.parallel")
 SHA_SHOWN = 7
 CR_ID = r"^CR-[0-9]+$"
-SHA = r"^([0-9a-f]{40}|[0-9a-f]{64})$"
 
 WAIT_ID = r"^w[0-9]+$"
 
 CrId = Annotated[str, StringConstraints(pattern=CR_ID)]
 WaitId = Annotated[str, StringConstraints(pattern=WAIT_ID)]
-Sha = Annotated[str, StringConstraints(pattern=SHA)]
 
 
-class _Payload(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
-
-
-class Merged1(_Payload):
+class Merged1(Payload):
     batch: str
     cr: CrId
     pr: str
@@ -52,28 +48,28 @@ class Merged1(_Payload):
     landed_at: str | None = None
 
 
-class ChecksRed1(_Payload):
+class ChecksRed1(Payload):
     batch: str
     cr: CrId
     pr: str
     head: Sha
 
 
-class Config1(_Payload):
+class Config1(Payload):
     key: str
     old: str | int | None
     new: str | int | None
     batch: str | None
 
 
-class Board1(_Payload):
+class Board1(Payload):
     action: str
     items: list[str]
     text: str
     wakes: bool
 
 
-class Issue1(_Payload):
+class Issue1(Payload):
     tracker: str
     ref: str
     event: str
@@ -83,35 +79,13 @@ class Issue1(_Payload):
     folders: list[str]
 
 
-class WaitCleared1(_Payload):
+class WaitCleared1(Payload):
     batch: str
     cr: CrId
     wait: WaitId
     wait_type: str
     ref: str
     seen_at: str
-
-
-class SyncConflict1(_Payload):
-    upstream: Sha
-    local: Sha
-    files: list[str]
-    projects: list[str]
-
-
-class SyncBlocked1(_Payload):
-    reason: str
-    text: str
-
-
-class SyncLate1(_Payload):
-    since: str
-    paths: int
-    ahead: int
-
-
-class SyncResumed1(_Payload):
-    after: str
 
 
 # What the Chief of Staff does about each reason the writer is blocked for (the spec's C.6).
