@@ -21,14 +21,18 @@ Everything lives in the planning folder, `.agents/changes/` in your project or
 │   └── 3-done/<number>-<slug>/            merged, until `close`
 ├── 5-archives/<YYMMDD-HHMM>-<number>-<slug>/   merged, after `close` (time of the merge, UTC)
 ├── 5-archives/batches/batch-NN.json|md          each batch's record: for a UI, for a person (the retro)
-└── 6-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word
+└── 6-trash/<YYMMDD-HHMM>-<number>-<slug>/      dropped on your word (cancelled)
 ```
 
 The folder moves, it is never copied; collisions are errors rather than overwrites. `3-ready`
 holds what you say waits for the next batch (`chantier triage --ready`), with a specification or
 without one (then its Driver works from the request alone). A CR moves to `3-done` alone and at
-once when it merges, a stack's too, and to `5-archives` at `close`. A dropped CR goes to
-`6-trash/` and does not return to the backlog. A batch has no name, only a
+once when it merges, a stack's too, and to `5-archives` at `close`. `order drop` names where a
+CR goes, and you say it (the Chief of Staff asks when you have not): `6-trash/` (cancelled; it
+does not return to the backlog by itself), `1-inbox/` (to look at again) or `2-backlog/P1`..`P4`
+(postponed or handed off). Whatever the destination, the CR keeps its work, its worktree, its
+branch and its PR; only the trash closes the PR. A CR moved to the inbox or the backlog keeps its
+number, in `<number>-<slug>/`, and a `formerly.json` records where it came from. A batch has no name, only a
 number, and `--batch` takes it (`4` or `batch-04`). One batch at a time, from `open` to your `close`: new work joins it
 through the Foreman (in direct mode, once it is paused). Its CRs run in one of three [modes](../README.md#batch-modes), `open --mode parallel|series|stack`
 (parallel unless you ask otherwise). While a CR runs, the team writes its notes, gate logs and PR body in the CR's own

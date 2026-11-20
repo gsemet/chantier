@@ -174,13 +174,13 @@ from this checkout, with the [prerequisites](#prerequisites) met.
   finding. The operator answers `Follow the specification as written; where it is silent, choose
   the simplest behaviour and say so in the PR.`, records it in the CR's `02-answers.md`, and sends
   `$CHANTIER order note CR-<n> --note "answer: …"`.
-- **A CR stuck** (the round limit, or blocked twice): the operator drops it (`order drop`), so the
+- **A CR stuck** (the round limit, or blocked twice): the operator drops it to the trash (`order drop --note trash`), so the
   batch can pause; the report says why.
 - **A `budget:` ask** (`ask blocked CR-<n> budget: …`, or `status` says the budget is spent): the
   first in a batch, the operator raises the budget once, `$CHANTIER order budget --note <the
   opening budget × 1.5, rounded up to whole dollars>`, sends its line, and the report records it
   as a finding (the cost of the kit's CRs is part of what a run measures). Any later `budget:` ask
-  in the same batch: `$CHANTIER order drop CR-<n>` for the CR that asked, and its line; the report
+  in the same batch: `$CHANTIER order drop CR-<n> --note trash` for the CR that asked, and its line; the report
   says why. No other raise.
 - **The audit** runs when the steering session reports `final` (the batch paused), before
   `close --yes`:

@@ -62,6 +62,7 @@ At startup, identify the role, batch, project and parent session.
   ├── 03-change-spec.md    ← the Change Specification
   ├── summary.json         ← title, summary, origin, labels, group; through $CHANTIER summary, never by hand
   ├── STATUS.md, STATUS.json ← where the CR stands; the CLI writes them, never by hand
+  ├── formerly.json        ← where a CR taken out of a batch came from (batch, branch, worktree, PR); written by `order drop` to the inbox or the backlog
   ├── prototypes/NN-<idea>/ ← each prototype version, with a README.md that says how to run it; only once there is one
   ├── experiments/         ← scripts, tests, benchmarks, studies and research notes (sources, quotes) made for the CR; only once there is one
   ├── evidence/            ← proof kept with the CR: screenshots kept on purpose, the Verifier's (work/verifier/evidence/); only once there is one
@@ -157,9 +158,12 @@ At startup, identify the role, batch, project and parent session.
   (the user prioritized it) → `3-ready/` (waiting for the next batch) →
   `4-batch/1-pending/<number>-<slug>/` (in the batch, not started) → `2-actives/` (taken by a
   Driver) → `3-done/` (merged, until `close`) → `5-archives/<YYMMDD-HHMM>-<number>-<slug>/`
-  (after `close`, the time of the merge) or `6-trash/…` (dropped, with its work; it returns to
-  the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
-  date or its batch number, and with a line `formerly CR-<n> of batch-<m>`). A CR in the backlog
+  (after `close`, the time of the merge) or, on `order drop`, `6-trash/…` (cancelled; it returns
+  to the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
+  date or its batch number, and with a line `formerly CR-<n> of batch-<m>`), or
+  `1-inbox/<number>-<slug>/` or `2-backlog/P<n>/<number>-<slug>/` (taken out of the batch, keeping
+  its number, with `formerly.json`), always with its work; a release or fix CR leaves only to the
+  trash. A CR in the backlog
   or in `3-ready` goes back to the inbox with `triage <item> --inbox`.
 - **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no
   specification: the Driver works from the request alone), moved there on the user's word. It is
@@ -255,7 +259,8 @@ At startup, identify the role, batch, project and parent session.
   the middle of a stack ready to merge that goes back for a new round puts the PRs above it to draft first,
   the same way. **A CR dropped from the stack** is removed: the PRs above go to draft first, its
   commits come out of the branches above (by the stack driver, or by the Driver of a working CR),
-  its PR is closed and its branch kept, the stack is rebuilt without it and judged again where it
+  its PR is closed when it goes to the trash (otherwise it goes to draft and the rebuild puts it
+  on the default branch) and its branch kept, the stack is rebuilt without it and judged again where it
   changed, and a release above is redone. **A CR held out of the stack** (`order hold <cr>`, a
   ready CR of a stack batch, until `order unhold <cr>`) leaves it without being dropped: its PR goes
   to the default branch as a draft, the stack is rebuilt without it, and it comes back on top; no
