@@ -162,7 +162,7 @@ At startup, identify the role, batch, project and parent session.
   to the inbox only on the user's word, by `restore <6-trash/item> [--slug <name>]`, without its
   date or its batch number, and with a line `formerly CR-<n> of batch-<m>`), or
   `1-inbox/<number>-<slug>/` or `2-backlog/P<n>/<number>-<slug>/` (taken out of the batch, keeping
-  its number, with `formerly.json`), always with its work; a release or fix CR leaves only to the
+  its number, with `formerly.json`; when that folder joins a batch, it gets its number back, and its branch and PR while its branch exists; `formerly.json` is then deleted), always with its work; a release or fix CR leaves only to the
   trash. A CR in the backlog
   or in `3-ready` goes back to the inbox with `triage <item> --inbox`.
 - **`3-ready`:** the folder of the CRs that wait for the next batch, specified or automatable (no

@@ -2816,6 +2816,23 @@ def direct_batch(w: World) -> None:
           and "⚪ dropped to 2-backlog/P3" in (shelf_dir / "STATUS.md").read_text("utf-8"),
           str(formerly))
     moved_number = int(moved.removeprefix("CR-"))
+    kept_branch = bool(w.sh("git", "branch", "--list", left["branch"]))
+    _, out = w.chantier("order", "add", "--note", left["path"])
+    back = [c for c in w.batch()["crs"] if c["id"] == moved]
+    joins = (f"{moved} joins with its branch {left['branch']} and no PR" if kept_branch
+             else f"{moved} joins fresh: its branch {left['branch']} is gone")
+    check("the CR dropped to the backlog comes back by `order add` under its number, as the same "
+          "entry, queued, in `1-pending`, with no `formerly.json`, and the `joins` line says "
+          "what became of its branch",
+          len(back) == 1 and back[0]["status"] == "queued" and "left_to" not in back[0]
+          and back[0]["path"].startswith("4-batch/1-pending/")
+          and re.fullmatch(rf"4-batch/1-pending/0*{moved_number}-[\w-]+", back[0]["path"])
+          and not (w.state / back[0]["path"] / "formerly.json").exists()
+          and not shelf_dir.exists() and joins in out, str(out))
+    w.chantier("order", "drop", moved, "--note", "trash")
+    check("the CR that came back is dropped to the trash again, as before",
+          w.cr(moved)["status"] == "cancelled" and w.cr(moved)["left_to"] == "6-trash",
+          str(w.cr(moved)))
     fm = Foreman(w, epoch=1)
     fm.turn()
     cr = w.batch()["crs"][0]["id"]

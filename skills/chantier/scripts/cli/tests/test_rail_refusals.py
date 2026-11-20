@@ -324,3 +324,23 @@ def test_the_release_prs_merge_go_depends_on_the_grant_alone_and_spends_no_appro
     else:
         assert code == EXIT_PRECONDITION and out[0].startswith("no: the release PR")
     assert cr_of(repo, rel)["approvals"] == ["tag v1"]
+
+
+@pytest.mark.parametrize("fault", ["malformed", "live"])
+def test_a_formerly_json_that_is_malformed_or_names_a_live_cr_refuses_the_join(
+    repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    (live,) = open_batch(repo, chantier, monkeypatch, "Live one")
+    folder = prepared(repo, chantier, "Joiner")
+    (folder / "formerly.json").write_text(
+        '{"cr": 7}' if fault == "malformed" else json.dumps({"cr": live, "batch": "batch-01"}),
+        encoding="utf-8",
+    )
+    before = (changes(repo) / "4-batch" / "batch.json").read_bytes()
+    code, _, err = chantier("order", "add", "--note", str(folder))
+    assert code == EXIT_PRECONDITION
+    assert (
+        "formerly.json: expected {" if fault == "malformed" else "which batch-01 already holds"
+    ) in err
+    assert (changes(repo) / "4-batch" / "batch.json").read_bytes() == before
+    assert (folder / "formerly.json").is_file()

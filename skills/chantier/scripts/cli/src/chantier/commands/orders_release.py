@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from chantier.commands.opening import add_cr, declare_dependencies, release_waits_for_all
+from chantier.commands.joining import add_cr
+from chantier.commands.opening import declare_dependencies, release_waits_for_all
 from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_USAGE, ChantierError
 from chantier.core.records import CrEntry, ReleaseGrant

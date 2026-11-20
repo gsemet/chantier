@@ -4,21 +4,20 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from chantier.commands.closing import record_born_paused
 from chantier.commands.crs import grant_line
 from chantier.commands.factory import not_joined_line, not_joined_text
+from chantier.commands.joining import join_cr
 from chantier.commands.opening_record import (
     instruction_files,
     new_record,
     open_settings,
     release_grant,
 )
-from chantier.core.batch import Batch, next_cr_number
-from chantier.core.clock import now
+from chantier.core.batch import Batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
 from chantier.core.records import CrEntry, ReleaseGrant
@@ -30,7 +29,6 @@ from chantier.lifecycle.stages import (
     changes_lock,
     cr_directory,
     cr_slug,
-    ensure_unclaimed,
     prepared_cr,
     stage_layout,
 )
@@ -44,46 +42,6 @@ from chantier.plugin_files import (
     read_timing,
 )
 from chantier.rails import ENDED, alone, check_no_open_batch, is_release
-
-
-def add_cr(b: Batch, item: str, kind: str = "change") -> CrEntry:
-    """Move a prepared CR into `1-pending` and name its branch and worktree: the Driver creates
-    them, on the fresh default branch, as its first step."""
-    repo = b.repo
-    paths = stage_layout(repo)
-    prepared = prepared_cr(repo, item, paths)
-    ensure_unclaimed(repo, prepared.directory)
-    number = next_cr_number(
-        repo, (paths["archives"], paths["trash"], paths["pending"], paths["actives"], paths["done"])
-    )
-    cr_id = f"CR-{number}"
-    slug = re.sub(r"^(?:CR-)?\d+-", "", prepared.directory.name, flags=re.I)
-    cdir = paths["pending"] / f"{number:03d}-{slugify(slug)}"
-    origin = repo.rel(prepared.directory)
-    b.move(prepared.directory, cdir)
-    title = prepared.title
-    branch = f"chantier/{b.id}/{cr_id.lower()}-{slugify(title)}"
-    worktree = repo.worktrees / f"{b.id}-{cr_id}"
-    order = max((c.order for c in b.record.crs), default=0) + 1
-    c = CrEntry(
-        id=cr_id,
-        title=title,
-        kind=kind,
-        status="queued",
-        order=order,
-        path=repo.rel(cdir),
-        specification=prepared.specification.relative_to(prepared.directory).as_posix(),
-        round=0,
-        agent=None,
-        pr=None,
-        branch=branch,
-        worktree=str(worktree),
-        notes=[],
-        updated=now(),
-    )
-    b.record.append("crs", c)
-    b.log("add", cr_id, title=title, path=c.path, origin=origin)
-    return c
 
 
 def read_depends(folder: Path) -> list[str]:
@@ -258,15 +216,20 @@ def _brief_text(b: Batch, args: argparse.Namespace, host: str, release: ReleaseG
     )
 
 
-def _open_crs(b: Batch, args: argparse.Namespace, release: ReleaseGrant | None) -> None:
+def _open_crs(b: Batch, args: argparse.Namespace, release: ReleaseGrant | None) -> dict[str, str]:
+    """Add each CR; the join lines of those that came back, by id."""
+    told: dict[str, str] = {}
     for i, item in enumerate(args.items, 1):
-        c = add_cr(b, item, kind="release" if i == args.release else "change")
+        c, line = join_cr(b, item, kind="release" if i == args.release else "change")
+        if line:
+            told[c.id] = line
         if release and c.kind == "release":
             release.cr = c.id
     declare_dependencies(b, list(b.record.crs))
     release_waits_for_all(b)
     if args.mode == "series":
         check_series_order(b)
+    return told
 
 
 def _short(p: Path | str) -> str:
@@ -365,7 +328,7 @@ def open_batch(args: argparse.Namespace) -> list[str]:
         check_no_open_batch(repo)
         with RenderedBatch(repo, None, actor="chief-of-staff", create=data) as b:
             brief = b.dir / "brief.md"
-            _open_crs(b, args, release)
+            told = _open_crs(b, args, release)
             brief.write_text(_brief_text(b, args, host, release), encoding="utf-8")
             b.log(
                 "open",
@@ -388,8 +351,7 @@ def open_batch(args: argparse.Namespace) -> list[str]:
         + (f"; {FACTORY_NEXT}" if data.factory else "")
     )
     lines += _ready_lines(repo, b)
-    lines += [
-        f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}"
-        for c, src in zip(b.record.crs, selected, strict=False)
-    ]
+    for c, src in zip(b.record.crs, selected, strict=False):
+        lines.append(f"{c.id} {c.title[:40]}: {_short(src)} -> {_short(c.path or '')}")
+        lines += [told[c.id]] if c.id in told else []
     return lines + not_running_line(repo)
