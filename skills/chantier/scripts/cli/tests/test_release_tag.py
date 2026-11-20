@@ -1,7 +1,9 @@
 """`just tag` and the release hand-off: ff-main, the recipe and the cards."""
 
 import re
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -86,6 +88,28 @@ def test_ff_main(
         assert (work / "a.txt").read_text(encoding="utf-8") == "changed\n"
     if case == "untracked":
         assert (work / "scratch.txt").read_text(encoding="utf-8") == "keep\n"
+
+
+def test_ff_main_command_runs_the_shipped_script(tmp_path: Path) -> None:
+    """`version.py ff-main` itself, as the recipe runs it, from a copy in a prepared repo."""
+    origin, work = tmp_path / "origin.git", tmp_path / "work"
+    _git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
+    _git(tmp_path, "clone", "-q", str(origin), str(work))
+    _git(work, "checkout", "-q", "-B", "main")
+    _commit(work, "a.txt", "a\n", "first")
+    _git(work, "push", "-q", "origin", "main")
+    (work / "scripts").mkdir()
+    shutil.copy(PLUGIN_ROOT / "scripts" / "version.py", work / "scripts" / "version.py")
+    done = subprocess.run(
+        [sys.executable, str(work / "scripts" / "version.py"), "ff-main"],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr
+    assert "main checkout: already at" in done.stdout
 
 
 def test_tag_recipe_and_release_cards() -> None:
