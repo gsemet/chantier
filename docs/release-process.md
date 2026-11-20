@@ -9,8 +9,10 @@ date may differ from the tag's, and nothing checks it. The version PR's body sho
 release folder stays the source, and the body is refreshed from it before the merge.
 
 The model is Markdown OKF-Schema Studio's release process. The generic default that other projects
-get is [release-template](../skills/chantier/references/release-template.md); this file ranks above
-it for chantier.
+get is [release-template](../skills/chantier/references/release-template.md). The split is plain:
+this file holds what is specific to chantier (the release folder, the structure of the notes, the
+links, the anonymisation, the batch) and ranks above the template there; how the notes are written
+and what a picture shows are the template's, and this file does not restate them.
 
 ## The release folder
 
@@ -42,13 +44,10 @@ Foreman, Driver) are product vocabulary and may be used. The structure, in order
    tutorial (`blob/vX.Y.Z/docs/tutorial-claude-code.md`) · the use cases
    (`blob/vX.Y.Z/docs/use-cases.md`) · Full changes (`compare/vPREVIOUS...vX.Y.Z`). Then a `---`
    rule.
-3. **Two to four highlight sections**, `## <emoji> <what the reader can now do>`. Each has:
-   - a short paragraph saying what changes for the reader;
-   - a usage or call example: what the user says to the Chief of Staff (a quoted line), or a CLI
-     call with its output in a code block;
-   - one capture, or a before/after pair in a two-column table with a caption row;
-   - a link to the doc that covers it, at the tag (`blob/vX.Y.Z/...`);
-   - one closing sentence on why it matters.
+3. **Two to four highlight sections**, headed `## <emoji> <what the reader can now do>`, each
+   written as the template's [A highlight](../skills/chantier/references/release-template.md#a-highlight)
+   says. The writing rules are the template's
+   [Writing rules](../skills/chantier/references/release-template.md#writing-rules).
 4. **`## 🛠 Smaller changes`**: the smaller visible changes, one bullet each, with a bold lead.
 5. **Folded sections**: `<details><summary><b>🐞 All fixes</b></summary>`, then
    `<details><summary><b>🛠 For contributors</b></summary>` (tooling, tests, docs process, known
@@ -83,6 +82,10 @@ CR's grill (the release CR's specification then names it). Rendering works like 
   `chrome --headless=new --screenshot=<file>.png --window-size=1200,<h> file:///<page>.html`, at a
   width readable in a post;
 - it saves the PNG into the release folder.
+
+Each image is cropped as the template's
+[Visible evidence](../skills/chantier/references/release-template.md#visible-evidence) says: the
+HTML page holds only the part that shows the change, and `--window-size` fits it.
 
 The HTML sources stay in the work folder and are not committed. If headless Chrome is missing,
 nothing else is used in its place: the Driver hands back a `blocked question:` naming what is

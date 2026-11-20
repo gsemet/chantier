@@ -37,11 +37,12 @@ highlight, a smaller change or a folded line, never twice.
 
 ### A highlight
 
-- A heading saying what you can now do, then a picture, then at most two sentences.
+- In this order: a heading saying what you can now do, at most two sentences, then the picture.
 - When the change replaces a visible behaviour, the picture puts the before and the after side by
   side in one image, built from the Verifier's before/after (below), and the text does not describe
   the before again.
-- When the picture shows the whole change, no text under it.
+- When the picture shows the whole change, the highlight is the heading and the picture, with no
+  text.
 - A setting is named as a setting: "the setting `full.name`", with its default value and where to
   turn it on.
 
@@ -58,8 +59,16 @@ the before and the after side by side, built from the Verifier's before/after. T
 When the release CR's folder holds `report.md` or `conversation.md`, they are sources too. They
 are anonymised: no personal path, user name, email, private repository or session id, replaced by
 `~`, `user`, `user@example.com`, `<session>` and `example/app`. The Driver reads each image it
-produced before it keeps it. With nothing visible to show, the highlight says so in one line: no
-invented image. A diagram of the project's docs is shown only on the user's word in the release
+produced before it keeps it. Each image is cropped to what the change shows:
+
+- it keeps only the part of the source where the change happens, for every source (a screenshot,
+  a capture, CLI output, a Verifier's image), and not the whole window or page;
+- in a joined before/after image, both halves show the same region at the same scale;
+- the Driver crops with the project's own means and names no tool, and checks the crop when it
+  reads the image;
+- a picture it cannot crop stays whole, and a `note` says so: no other image is made up.
+
+With nothing visible to show, the highlight says so in one line: no invented image. A diagram of the project's docs is shown only on the user's word in the release
 CR's grill.
 
 In the skeleton, name an image in `<img src="...">` form or in prose, never as a Markdown image
