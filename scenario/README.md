@@ -121,7 +121,10 @@ does a unit that is not in `UNITS` and a test that does not exist.
   spent); `phase` refusing a queued CR, a `review` with no detail and a detail
   past 40 characters in pytest (unit: parallel, surface-board) (test:
   test_rail_refusals.py::test_phase_refuses_a_queued_cr_a_review_with_no_detail_and_a_long_detail);
-- dropping a live CR (its processes stopped), adding an item, an order applied at once and
+- dropping a live CR to the trash (`order drop --note trash`, then `cancel`: its processes stopped), a CR
+  added to a running direct batch dropped to the backlog P3 (its folder `2-backlog/P3/<number>-<slug>` with
+  `formerly.json`, `⚪ dropped to 2-backlog/P3` in its STATUS.md, a CR added after it numbered above it),
+  adding an item, an order applied at once and
   marked done, a note on a ready CR that the Foreman sends back with a Driver, more rounds
   granted, `slots 0` as a hold (its usage line says "0 holds"), a wider budget, a ready CR taken
   back only with a note (unit: parallel, gates) (test:

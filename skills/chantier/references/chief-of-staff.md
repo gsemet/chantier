@@ -1025,10 +1025,23 @@ CR-222 → CR-225 → CR-226 → CR-228."
   block it printed, together, as printed. A CR is named `CR-104` or `104`; a second drop of a dropped CR, and
   a note on a cancelled one, are refused (exit 2).
 
+  **Where a dropped CR goes.** The user's word that takes a CR out of a batch ("drop", "take it
+  out", "postpone", "remove from the batch") names where it goes. When it does not, ask once, in
+  the user's language, before the order: the trash (cancelled), the inbox (to look at again), or
+  the backlog P1..P4 (postponed or handed off; the usual case for delegated work). Never choose for
+  the user: `order drop` is refused with no `--note`. A word that already says it needs no
+  question ("cancel it" is the trash; "postpone it, P2" is `P2`). A word that only keeps a ready
+  CR out of the stack is `order hold`, not a drop. Whatever the destination, the CR keeps its work
+  (worktree, branch, PR); only the trash closes its PR. A CR moved to the inbox or the backlog
+  keeps its number (`formerly.json` in its folder).
+  In direct mode, a drop line ending `close its PR <link>` (a trash drop, outside a stack) is
+  yours: close it (`gh pr close <n>`, `glab mr close <n>`, no `--delete-branch`, no comment), then
+  `order done`. `cancel` of a live CR prints the same clause.
+
   ```bash
   $CHANTIER order add --note "<prepared-folder or a release's fix file>" [--fix-for <release-cr> | --release]
   $CHANTIER order after CR-104 --note "CR-102,CR-103"   # what a queued CR waits for; "-" for none (not a release's)
-  $CHANTIER order drop CR-104                 # to 6-trash/ with its work
+  $CHANTIER order drop CR-104 --note trash|inbox|P1..P4   # where it goes, with its work; a release or fix CR: trash only
   $CHANTIER order note CR-102 --note "<one line: a change, an answer, a priority>"
   $CHANTIER order merged CR-101               # the user merged its PR: to 3-done
   $CHANTIER order slots --note 0              # 0 holds; a number resumes
@@ -1234,11 +1247,16 @@ CR-222 → CR-225 → CR-226 → CR-228."
   refused. On their word to run it: `order note <cr> "heavy CI: at its head"`; the Foreman passes
   it on, and its `heavy-ci <cr> <head7> green|red <checks>` ask is told to the user (a red result
   changes nothing by itself: the user decides).
-- **Dropping a CR from a stack:** on the user's word, `order drop <cr>` as today (the Foreman then
-  removes it from the stack with `take stack --epoch <n> --note "drop: <cr>"`), then tell the
-  user that the CR's commits come out of the PRs above it, its PR is closed, its branch stays until
-  `close`, and the PRs above it are PRs in draft (do not merge) until the next report's partial-stack
-  line shows them ready to merge again. Nothing more is asked of the user.
+- **Dropping a CR from a stack:** on the user's word, `order drop <cr> --note <destination>` (the
+  destination as "Where a dropped CR goes" says; the Foreman then removes it from the stack with
+  `take stack --epoch <n> --note "drop: <cr> to <destination>"`), then tell the user that the CR's
+  commits come out of the PRs above it, and the PRs above it are PRs in draft (do not merge) until
+  the next report's partial-stack line shows them ready to merge again. The rest depends on the
+  destination. Trash: its PR is closed and its branch stays until `close`. Inbox or backlog: its PR
+  goes to draft and, by the rebuild, onto the default branch; its branch and worktree stay and are
+  not offered for removal at `close`; its folder is at `<destination>/<number>-<slug>` and keeps
+  its number. A held CR: nothing to rebuild (it is already a draft on the default branch). Nothing
+  more is asked of the user.
 - **Holding a CR out of a stack:** on the user's word to keep a ready CR out of the stack for now
   (not the batch: ask when it is unclear whether the user means out of the stack or out of the
   batch), `order hold <cr>`; to put it back, `order unhold <cr>` (it returns on top). The Foreman
@@ -1432,8 +1450,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   `5-archives/batches/batch-NN.md`. Then, in the same turn, offer the close at once, unprompted,
   after the Completion report and the Retro: run `$CHANTIER close --batch <batch>` (the check, no
   `--yes`), show the bilan, the final cost, what goes, and its line of worktrees and branches to
-  remove, which names the merged CRs' leftovers beside the dropped CRs' whatever `final` said
-  (with why each was kept, from `final` or the cleanup lines), and ask "close the batch?";
+  remove, which names the merged CRs' leftovers beside the trashed CRs' whatever `final` said
+  (with why each was kept, from `final` or the cleanup lines), and its `kept, moved out with their
+  work` line (the CRs dropped to the inbox or the backlog: show it, remove nothing on it), and ask
+  "close the batch?";
   `close --yes` only on the user's yes, as the Closing bullet says. The close is offered after
   `final`, never before: the Foreman's retro critic must have handed back.
   In Foreman mode your own `order merged <cr>` or `order drop <cr>` of the last CR prints the
@@ -1539,7 +1559,8 @@ CR-222 → CR-225 → CR-226 → CR-228."
   line names the last closed batch. Show the user the bilan, the final Cost section and that
   list, and ask. Only on their yes,
   in that turn: `close --batch <batch> --yes`, then every entry of its line of worktrees and
-  branches to remove, the dropped CRs' and the merged CRs' leftovers alike, yourself, from the
+  branches to remove, the trashed CRs' and the merged CRs' leftovers alike (not the `kept, moved
+  out with their work` line), yourself, from the
   main checkout (`git -C <clone>` with a planning surface; `git worktree remove --force <path>`,
   `git branch -D <branch>`, as listed; for a folder git no longer knows, `git worktree prune` once
   it is deleted, then `git branch -D <branch>`).
@@ -1550,8 +1571,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   preflight again and start a new Foreman with the next epoch (or, on the user's word, switch to
   direct mode, "Switching to direct mode"), adding "Resume: relaunch each
   CR still working by the restart path (`agents set <cr> - --epoch <n>`, `handoff`, `take <cr>
-  --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`); stop orphan processes with
-  `$CHANTIER cancel`." A Driver whose id was cleared with `agents set <cr> -` (an app restart,
+  --note "resume: <cause>" --epoch <n>`, a new Driver, `agents set <cr> <id> --epoch <n>`); a relaunched
+  CR's stale long gate is stopped by its new Driver with `$CHANTIER gate <cr> --stop`." `cancel`
+  follows only a drop the user ordered (`order drop <cr> --note …`): never use it to stop the
+  processes of a CR that goes on. A Driver whose id was cleared with `agents set <cr> -` (an app restart,
   a Driver stopped from outside, a context restart) and a Foreman replaced by a new one are never
   a blocker at `close`: their transcripts are listed apart and need no `--stopped`. In a direct
   batch, a Driver stopped from outside is restarted by you with no question to the user
@@ -1597,7 +1620,7 @@ these, say the three parts at once, in the user's language, before any try.
 | **A.** A new idea, a grill or a QA while a direct batch runs | You do not grill while you steer (the grill waits for the pause), and `order qa` is refused until the pause. Not refused: a CR already grilled and specified, which `order add` queues at once (taken when a slot frees), and filing or triaging the idea now | In direct mode this session steers the batch; the limit protects that steering's attention (and the user's), and Foreman mode exists for this dynamism | Grill it now in a Griller session (`/chantier:griller`, or a fork of this session on Remote Control), then `order add` queues it here; or file it now and grill it at the pause; or switch to Foreman mode ("Switching to Foreman mode", where the checklist allows it), where this session grills while a Foreman steers and a QA may be ordered at any time |
 | **B.** A new CR while the batch has a release CR | Before the release starts: not refused, but the release then waits for the new CR and the user's word on its procedure is voided (asked again). Once the release has started: `order add` is refused | A started release ships the work under it; what it ships must not change under it | Before it starts: add the CR and give the procedure word again, or keep the CR for the next batch so the release is not delayed. Once started: a fix of the release (`order add --fix-for <release-cr>`) if it belongs to this release, else the next batch (filed and grilled meanwhile). Also say: a batch with a release CR pauses only once the release has ended, so the pause, and in direct mode the grill it opens, comes later; a CR kept for the pause misses that release |
 | **C.** A subagent's file named `report...`, `summary...`, `findings...` or `analysis...` (`.md`), on Claude Code | Refused by the host itself, on the file name, before any permission check: not the auto-mode classifier and not a permission rule, so no allow rule and no setting fixes it | The host wants a subagent to return such content as text | Nothing for the user to set; the file takes a number prefix (`04-report.md`), as concepts says ("Starting an agent"). Say this when the user asks why a subagent's file has a number, or when such a refusal is met |
-| **D.** "Close the batch" while something still runs | `close` (with or without `--yes`) while a CR is not merged or cancelled, an order is open, a stack agent or a held agent still runs or cannot be read; on Copilot, an agent whose session file was written in the last 5 minutes counts as running | `close` deletes the batch's own files and prices its final cost; work still running would be cut off and left out of that cost | Wait for the running agent's end (the refusal names it), then `close` again; on Copilot, wait until 5 minutes after its last write; a held agent that has ended and has no transcript: `agents set <cr> - --epoch <n>` on the user's word; a CR left open: merge it, or drop it (`order drop`) on the user's word |
+| **D.** "Close the batch" while something still runs | `close` (with or without `--yes`) while a CR is not merged or cancelled, an order is open, a stack agent or a held agent still runs or cannot be read; on Copilot, an agent whose session file was written in the last 5 minutes counts as running | `close` deletes the batch's own files and prices its final cost; work still running would be cut off and left out of that cost | Wait for the running agent's end (the refusal names it), then `close` again; on Copilot, wait until 5 minutes after its last write; a held agent that has ended and has no transcript: `agents set <cr> - --epoch <n>` on the user's word; a CR left open: merge it, or drop it (`order drop <cr> --note …`, with the destination the user names) on the user's word |
 | **E.** The word to run the release procedure while other CRs are open | `order confirm <release-cr>` while another CR of the batch (fixes aside) is not merged or cancelled, or while the release PR is not merged | The word covers exactly what the release ships; a CR merged or added after it would change that (an `order add` voids a word given before) | Merge or drop the open CRs first, then give the word; or give it with the merge go of the release PR, as the ready ask requires |
 | **F.** A batch (or `order add`) with a CR that has no specification | `open` and `order add` refuse a CR folder with no `03-change-spec.md` ("missing Change Specification: ...; grill the CR first"), except a CR in `3-ready` with `intake/request.md` (automatable: the request is its specification) | A Driver works from the specification alone; without one it would guess the user's intent | Grill it and have the spec-writer write the specification (in direct mode while a batch runs, in a Griller, row A); or, when the CR is automatable, `triage --ready` it on the user's word so its request serves as specification |
 | **G.** More work on a CR past its round limit | `round` once a CR has used its rounds (three unless granted; "round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)"); the CR comes back blocked | The limit caps what a CR that does not converge may spend before the user looks at it | Read the blocked CR's question, then grant more rounds (`order rounds <cr> --note <n>`), change or split the CR, or drop it. A red the batch caused (a restack, a rebase onto another CR, a CR merged or moved below) is the rounds exception: you grant the next round yourself, up to the batch's `max_rounds` + 2, and say so (Steering). |
@@ -1738,10 +1761,11 @@ these differences.
   by route, on the user's word, before any `close`), then, once your retro critic has handed
   back, offer the close at once, unprompted: run `$CHANTIER close --batch <batch>` (the check, no
   `--yes`), show the bilan, the final cost, what goes, and its line of worktrees and branches to
-  remove, which names the merged CRs' leftovers beside the dropped CRs' (with why each was kept,
-  from the `cleanup:` lines when the session still has them), and ask "close the batch?";
+  remove, which names the merged CRs' leftovers beside the trashed CRs' (with why each was kept,
+  from the `cleanup:` lines when the session still has them), and its `kept, moved out with their
+  work` line (show it, remove nothing on it), and ask "close the batch?";
   `close --yes` only on the user's yes, as the Closing bullet says, and on the same yes remove
-  every entry of that line, merged and dropped alike (`git worktree prune` for a folder git no
+  every entry of that line, merged and trashed alike (`git worktree prune` for a folder git no
   longer knows). Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
   running again, and the batch pauses again at its end. `close` stays the

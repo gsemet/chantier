@@ -67,7 +67,7 @@ needs no snapshot of the workspace's state after `open`.
    true or false". Record it in E's `02-answers.md`, then `$CHANTIER order note CR-<E> --note
    "answer: …"`.
 6. F blocked (round limit, or a question about the style review against the specification):
-   drop it, `$CHANTIER order drop CR-<F>`.
+   drop it, `$CHANTIER order drop CR-<F> --note trash`.
 7. Each `ask ready`: merge the PR alone (`evals/kit/merge.py <workspace> <n>`; a conflict
    merges nothing, never chain the next command), then `order merged` and send its line. Once C
    is merged: `$CHANTIER order qa --note "<C's QA notes>"`, send its line.

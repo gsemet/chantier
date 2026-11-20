@@ -80,7 +80,7 @@ record the refusal as a finding (the evals README, "Auto-fix during the run").
    --fix-for CR-<release>`, and their lines.
 7. A `budget:` ask (`ask blocked CR-<n> budget: …`, or `status` says the budget is spent), as the
    README says: the first in the batch, `$CHANTIER order budget --note 60` and its line (a finding
-   in the report); any later one in the batch, `$CHANTIER order drop CR-<n>` for the CR that asked.
+   in the report); any later one in the batch, `$CHANTIER order drop CR-<n> --note trash` for the CR that asked.
 8. `final`: the audit, the cost, `close --yes` (the README's "The audit").
 
 The release is made on the sandbox by its own `RELEASING.md`; its step 3 does not name `uv.lock`,

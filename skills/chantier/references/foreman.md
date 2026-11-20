@@ -183,7 +183,9 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   `orders pending` line holds those nothing has touched yet (a note, a QA, the drop of a live
   CR), another line those the CLI applied, which only await your `order done`; `pause` waits for
   both. Their effect on the state is applied; what needs your hands is yours (stop a Driver, tell one,
-  cancel a dropped live CR with `$CHANTIER cancel`, send a CR handed back ready or blocked back to a Driver
+  cancel a dropped live CR with `$CHANTIER cancel` (it moves the CR to the destination its drop
+  order recorded; you never choose one, and a `cancel` refused for a missing destination goes up
+  to the Chief of Staff as an ask), send a CR handed back ready or blocked back to a Driver
   with `--note` saying why; its Driver turns the PR back to a draft). Work on a CR handed back ready or blocked (an order note asking for a rebase or a fix, an answer, a red check, a dependency merged)
   reaches a Driver only through `take <cr> --note "<why>"`: never send it as a message to the
   Driver that handed the CR back before that `take`. The `take` reopens the CR to `working` and
@@ -200,13 +202,17 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   `hand-back ready … it was blocked: …` line, see the take-back list below).
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
-- **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** The merged CRs'
+- **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** One named
+  exception: a drop order whose line ends `close its PR <link>` (a trash drop outside a stack;
+  after `cancel` for a live CR) is closed by you (`gh pr close <n>`, `glab mr close <n>`, no
+  `--delete-branch`, no comment) before its `order done`. The merged CRs'
   cleanup is the CLI's, at the end of the last CR (`cleanup:` lines). A CR whose agent is still held, or
   whose worktree git refused to remove, is kept (`kept:` or `not removed:` line): remove it once its
   Driver has ended with `git worktree remove <path>` and `git branch -D <branch>` (from the main
   checkout; with a planning surface, `git -C <clone>`, the clone `take` names; `-d` refuses after a
-  rebase or squash merge), or leave it to the user's word at `close`, which names it. A dropped CR's
-  stays for the user's word at `close`.
+  rebase or squash merge), or leave it to the user's word at `close`, which names it. A trashed CR's
+  worktree and branch stay for the user's word at `close`; those of a CR moved to the inbox or the
+  backlog stay, and are not offered for removal.
   Your git in the main checkout has a second duty: the fast-forward after each merge you handle
   (with a planning surface, `git -C <clone>`), by the bullet "The main checkout after a merge"
   in Your means. A third duty is the early conflict check (Your means, "An early conflict
@@ -442,8 +448,10 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   - `anomaly <cr> conflict: stacked on <cr>: <files>`: before the five checks,
     `take <cr> --note "rebase: stacked on <cr below>: conflict in <files>"` (the CR is `working`,
     its draft no check 4 failure; its Driver rebases, the CR turns ready to merge at a later take);
-  - **A drop in the stack:** `take stack --note "drop: <cr>"` right after the drop is applied, or
-    `[foreman→stack] note drop: <cr>` to a running stack driver. A working CR above gets
+  - **A drop in the stack:** `take stack --note "drop: <cr> to <destination>"` (the destination
+    the order's line carries: `6-trash`, `1-inbox` or `2-backlog/P<n>`) right after the drop is
+    applied, or `[foreman→stack] note drop: <cr> to <destination>` to a running stack driver. A
+    held CR's drop needs no `take stack`: `order done` at once. A working CR above gets
     `[foreman→driver <cr>] note rebase: stacked on <cr below>, without <dropped cr>` (a plain
     `status` just before). An open CR whose `after` names the dropped CR: ask the Chief of Staff
     once, and hold the take until the answer. A release above: after the hand-back, `take <release>

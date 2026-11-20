@@ -841,6 +841,16 @@ def prepare_cr(w: World, title: str, priority: str = "P1") -> tuple[Path, Path]:
     return inbox, backlog
 
 
+def drop_then_cancel(w: World, cr: str, epoch: int, env=None) -> tuple[int, list[str]]:
+    """The user's drop to the trash and the Foreman's `cancel` of it: `cancel` follows a drop
+    order, which the Foreman marks done once the CR is cancelled (here before, so a last CR
+    pauses the batch at the cancel)."""
+    _, out = w.chantier("order", "drop", cr, "--note", "trash", env=env)
+    order = re.search(r"order (O-\d+)", out[0]).group(1)
+    w.chantier("order", "done", order, "--epoch", epoch, env=env)
+    return w.chantier("cancel", cr, "--epoch", epoch, env=env)
+
+
 def scenario(w: World) -> None:
     section("1. Setup and preflight")
     note("## 1. Setup and preflight")
@@ -1087,9 +1097,9 @@ def scenario(w: World) -> None:
 
     section("5. Steering: the user drops CR-103, adds an item, changes CR-101")
     note("\n## 5. Steering: the user drops CR-103, adds an item, changes CR-101")
-    _, out = w.chantier("order", "drop", "CR-103")
+    _, out = w.chantier("order", "drop", "CR-103", "--note", "trash")
     check("`chantier order` prints the message with an order id, and what it did",
-          out[0] == "[chief-of-staff→foreman] order O-1: drop CR-103"
+          out[0] == "[chief-of-staff→foreman] order O-1: drop CR-103 6-trash"
           and "live" in out[1], str(out))
     # Windows finds a process by its command line only, so the sleeper names its worktree
     wt103 = w.cr("CR-103")["worktree"]
@@ -1955,8 +1965,8 @@ def forge_hub(w: World) -> None:
         # 7. the batch ends and pauses: A's watcher keeps running, and the board's writes wake it
         for cr in (a[1], a[2], a[4]):
             sw.chantier("order", "merged", cr, "--epoch", 1, "--batch", a_batch)
-        sw.chantier("order", "drop", a[3], "--batch", a_batch)
-        sw.chantier("order", "drop", a[5], "--batch", a_batch)
+        sw.chantier("order", "drop", a[3], "--note", "trash", "--batch", a_batch)
+        sw.chantier("order", "drop", a[5], "--note", "trash", "--batch", a_batch)
         time.sleep(7)  # longer than a watcher's quiet and than the hub's cycle
         _, out = sw.chantier("status", expect=None)
         check("A's batch is paused and A's watcher keeps running; `status` holds the `pull path` line",
@@ -2642,7 +2652,7 @@ def seat_handover(w: World) -> None:
     code, _ = w.chantier("cost")
     check("`cost` prices two Chief of Staff sessions, blocked by neither's file", code == 0,
           w.last_stderr)
-    code, _ = w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1, env=b_env)
+    code, _ = drop_then_cancel(w, w.batch()["crs"][0]["id"], 1, env=b_env)
     check("the automatic pause at the last cancel prices two Chief of Staff sessions, blocked by "
           "neither's file", code == 0 and w.batch()["status"] == "paused"
           and not w.batch()["summary"][0].startswith("Spent: unknown"), w.last_stderr)
@@ -2789,9 +2799,23 @@ def direct_batch(w: World) -> None:
     check("`order add` queues a CR on a running direct batch",
           any("queued" in ln for ln in out) and len(w.batch()["crs"]) == 2
           and w.batch()["crs"][1]["status"] == "queued", str(out))
-    w.chantier("order", "drop", w.batch()["crs"][1]["id"])
-    check("the CR added to the running direct batch can be dropped again",
-          w.batch()["crs"][1]["status"] == "cancelled", str(w.batch()["crs"][1]["status"]))
+    moved = w.batch()["crs"][1]["id"]
+    _, out = w.chantier("order", "drop", moved, "--note", "P3")
+    left = w.batch()["crs"][1]
+    check("the CR added to the running direct batch can be dropped again, to the backlog P3",
+          left["status"] == "cancelled" and left["left_to"] == "2-backlog/P3"
+          and re.fullmatch(r"2-backlog/P3/\d+-[\w-]+", left["path"]) is not None
+          and any(ln.startswith(f"dropped {moved} to 2-backlog/P3: ") for ln in out), str(out))
+    shelf_dir = w.state / left["path"]
+    formerly = json.loads((shelf_dir / "formerly.json").read_text("utf-8")) if (
+        shelf_dir / "formerly.json").is_file() else {}
+    check("a CR moved to the backlog keeps its folder and its work, a `formerly.json`, and its "
+          "STATUS.md says where it went",
+          formerly.get("cr") == moved and formerly.get("batch") == w.name
+          and (shelf_dir / "03-change-spec.md").is_file()
+          and "⚪ dropped to 2-backlog/P3" in (shelf_dir / "STATUS.md").read_text("utf-8"),
+          str(formerly))
+    moved_number = int(moved.removeprefix("CR-"))
     fm = Foreman(w, epoch=1)
     fm.turn()
     cr = w.batch()["crs"][0]["id"]
@@ -2918,6 +2942,9 @@ def direct_batch(w: World) -> None:
         assert b["status"] == "paused" and len(b["crs"]) == n
     cr2, cr3 = w.batch()["crs"][2]["id"], w.batch()["crs"][3]["id"]
     check("both new CRs are in the paused batch", {cr2, cr3} <= {c["id"] for c in w.batch()["crs"]})
+    check("a CR added after the move to the backlog gets a number above the moved one's",
+          int(cr2.removeprefix("CR-")) > moved_number and int(cr3.removeprefix("CR-")) > moved_number,
+          f"{cr2} {cr3} {moved}")
     fm.turn()
     b = w.batch()
     check("the first `take` sets the paused direct batch running again",
@@ -3483,7 +3510,7 @@ def close_refusals(w: World) -> None:
           str(out))
     main.write_text(main.read_text().replace(MYSTERY_CALL, ""))  # the later steps price as before
     w.chantier("order", "note", "--note", "the user's word, not yet read")  # holds the pause
-    w.chantier("cancel", new, "--epoch", 2)
+    drop_then_cancel(w, new, 2)
     check("the last cancel, with a note order pending, does not pause the batch",
           w.batch()["status"] == "running", str(w.batch()["status"]))
     for o in w.batch()["orders"]:
@@ -4028,7 +4055,7 @@ def retro_cases(w: World) -> None:
               str(head[:2]))
         number = int(w.batch()["crs"][0]["id"].removeprefix("CR-"))
         w.chantier("foreman", "set", "local_foreman_retro", "--epoch", 1)
-        w.chantier("cancel", w.batch()["crs"][0]["id"], "--epoch", 1)  # the last end: paused
+        drop_then_cancel(w, w.batch()["crs"][0]["id"], 1)  # the last end: paused
         priced_foreman(w)
         age_sessions(w)
         retro = w.folder() / "retro.md"
@@ -4127,7 +4154,7 @@ def cancel_during_gate(w: World) -> None:
                                text=True, encoding="utf-8")
     lock_names(w, f"{cr} pid")
     lock_names(w, " pg")
-    w.chantier("cancel", cr, "--epoch", 1)
+    drop_then_cancel(w, cr, 1)
     out, err = running.communicate(timeout=120)
     check("a cancel stops the suite and moves the CR while its gate runs; the gate ends cleanly",
           "6-trash/" in w.cr(cr)["path"] and out.startswith("FAIL") and "Traceback" not in err
@@ -4488,7 +4515,7 @@ def rails(w: World) -> None:
           code == 0 and not stale.exists() and "queued ahead" not in newest_log(two),
           f"{out} {newest_log(two)}")
     reused_lock(one)
-    code, out = w.chantier("cancel", one, "--epoch", 1)
+    code, out = drop_then_cancel(w, one, 1)
     check("`cancel` does not signal a reused pid: no `pg` in `stopped …`, the process lives on",
           code == 0 and f"pg{sleeper.pid}" not in "".join(out) and sleeper.poll() is None, str(out))
     reused_lock(two)
@@ -4668,7 +4695,7 @@ def gate_parallel(w: World) -> None:
     check("E4: `gate <cr> --stop` with no slot naming the CR exits 2, names the running CRs and stops nothing",
           code == 2 and one in named and three in named and "not stopped" in named
           and procs.alive(three_pid) and procs.alive(held_pid), named)
-    w.chantier("cancel", three, "--epoch", 1)
+    drop_then_cancel(w, three, 1)
     third.communicate(timeout=120)
     time.sleep(0.5)
     check("E4: `cancel` stops its CR's suite only",
@@ -5603,8 +5630,8 @@ def restore_cr(w: World) -> None:
     w.env["CHANTIER_BATCH"] = w.name
     w.chantier("foreman", "set", "local_foreman10", "--epoch", 1)
     x, y = (k["id"] for k in w.batch()["crs"])
-    w.chantier("cancel", x, "--epoch", 1)
-    w.chantier("cancel", y, "--epoch", 1)
+    drop_then_cancel(w, x, 1)
+    drop_then_cancel(w, y, 1)
     path = w.at(w.cr(y)["path"])
     code, out = w.chantier("restore", path)
     back = w.state / "1-inbox" / "restore-two"
@@ -7205,22 +7232,23 @@ def granted_fixes(w: World) -> None:
     check("past three, a fix is the user's go", len(w.batch()["crs"]) == 5)
     still = [c for c in w.batch()["crs"] if c["status"] != "cancelled"]  # a second drop is refused
     for c in still[:-1]:
-        w.chantier("order", "drop", c["id"])
+        w.chantier("order", "drop", c["id"], "--note", "trash")
     _, out = w.chantier("status")
     check("`status` tells an order the CLI applied from one nothing has touched",
           any(ln.startswith("orders the CLI applied") and "order done" in ln and "O-" in ln
               for ln in out), str(out))
-    _, out = w.chantier("order", "drop", still[-1]["id"])
+    _, out = w.chantier("order", "drop", still[-1]["id"], "--note", "trash")
     check("the drop of the last CR pauses the batch, its applied orders ended",
           w.batch()["status"] == "paused" and all(o["done"] for o in w.batch()["orders"])
           and any(ln.startswith("paused batch-") for ln in out), str(out))
     dropped = next(c for c in w.batch()["crs"] if c["status"] == "cancelled")
     count = len(w.batch()["orders"])
-    code, _ = w.chantier("order", "drop", dropped["id"], expect=2)
+    code, _ = w.chantier("order", "drop", dropped["id"], "--note", "trash", expect=2)
     check("a second drop of a cancelled CR is refused and records no order",
           code == 2 and "already dropped" in w.last_stderr and len(w.batch()["orders"]) == count,
           w.last_stderr)
-    code, _ = w.chantier("order", "drop", dropped["id"].removeprefix("CR-"), expect=2)
+    code, _ = w.chantier("order", "drop", dropped["id"].removeprefix("CR-"), "--note", "trash",
+                           expect=2)
     check("`101` is taken for `CR-101` in `order`", code == 2 and "already dropped" in w.last_stderr,
           w.last_stderr)
     code, _ = w.chantier("order", "note", dropped["id"], "--note", "late", expect=2)
@@ -7290,7 +7318,7 @@ def release_last(w: World) -> None:
     check("a ready CR keeps the release waiting",
           code == 2 and f"{work} ready" in w.last_stderr, w.last_stderr)
     w.chantier("order", "merged", work)
-    w.chantier("order", "drop", late)
+    w.chantier("order", "drop", late, "--note", "trash")
     check("a merged CR and a dropped one are met",
           w.cr(work)["status"] == "merged" and w.cr(late)["status"] == "cancelled")
     _, out = w.chantier("status")
@@ -7308,7 +7336,7 @@ def release_last(w: World) -> None:
           "procedure" not in w.cr(rel) and w.cr(rel)["after"][-1] == added
           and any("voided" in n for n in w.cr(rel)["notes"])
           and any(e["kind"] == "confirm-void" for e in map(json.loads, (w.folder() / "events.jsonl").read_text().splitlines())))
-    w.chantier("order", "drop", added)
+    w.chantier("order", "drop", added, "--note", "trash")
     w.chantier("order", "confirm", rel, "--note", "v1.5.0, with the third change dropped")
     check("the release starts with no confirmation asked", fm.take(rel) == 0)
 
@@ -7337,7 +7365,7 @@ def release_last(w: World) -> None:
           all(any(wt.startswith(f"{i} ") for wt in own["waits"]) for i in fixes)
           and f"waits for {fixes[0]}" in own["label"], str(own))
     for i in fixes:
-        w.chantier("order", "drop", i)
+        w.chantier("order", "drop", i, "--note", "trash")
 
     w.reset()
     _, alone = prepare_cr(w, "Release v1.7.0")
@@ -7476,7 +7504,7 @@ def release_on_stack(w: World) -> None:
     w.chantier("order", "add", "--note", str(fixed), "--fix-for", r)
     fix = w.batch()["crs"][-1]["id"]
     check("7. `order add --fix-for` is accepted", w.cr(fix)["kind"] == "fix" and w.cr(fix)["fix_for"] == r)
-    w.chantier("order", "drop", fix)
+    w.chantier("order", "drop", fix, "--note", "trash")
     w.chantier("order", "merged", r, expect=2)
     check("8. `order merged` on the release is refused while a CR is open: it merges last",
           a in w.last_stderr and "merges last" in w.last_stderr, w.last_stderr)
@@ -7683,7 +7711,7 @@ def qa_on_head(w: World) -> None:
     _, out = w.chantier("status")
     check("`status` shows the QA order and its folder until it is done",
           any(ln.startswith(f"orders pending: O-2 qa {shown}") for ln in out), str(out))
-    w.chantier("cancel", cr, "--epoch", 1)
+    drop_then_cancel(w, cr, 1)
     code, _ = w.chantier("pause", "--epoch", 1, expect=2)
     check("a batch does not pause under a running QA", code == 2 and "O-2" in w.last_stderr,
           w.last_stderr)
@@ -7734,7 +7762,7 @@ def changes_tree(w: World) -> None:
     check("`order merged` moves the folder to 3-done and records the merge time",
           done.parent == w.state / "4-batch" / "3-done" and done.is_dir()
           and w.cr(one["id"]).get("merged_at"), w.cr(one["id"])["path"])
-    w.chantier("order", "drop", two["id"])
+    w.chantier("order", "drop", two["id"], "--note", "trash")
     dropped = w.state / w.cr(two["id"])["path"]
     check("`order drop` moves the folder to 6-trash at once",
           dropped.parent == w.state / "6-trash" and dropped.is_dir(), w.cr(two["id"])["path"])
@@ -8295,7 +8323,7 @@ def dependencies(w: World) -> None:
     cancelled = prepare_cr(w, "Dep dropped")[1]
     w.chantier("order", "add", "--note", str(cancelled))
     dropped = w.batch()["crs"][-1]["id"]
-    w.chantier("order", "drop", dropped)
+    w.chantier("order", "drop", dropped, "--note", "trash")
     icon_is(w, dropped, "⚪", "a dropped CR")
     waiting = prepare_cr(w, "Dep waiting")[1]
     depends_on(waiting, cancelled.name)
