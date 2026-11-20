@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import changes, record
+from batch_helpers import changes, record, write_record
 from conftest import Chantier
 from test_board_prs import FIRST, HTTP_OK, LINK, TWO_CALLS, Board, served
 
@@ -120,3 +120,11 @@ def test_a_closed_title_is_shown_without_its_change_specification_lead(
     )
     board.forge = {70: {"state": "merged", "base": "main", "merged_at": "2026-11-01T00:00:00Z"}}
     assert [r["title"] for r in ask(board, CLOSED)["rows"]] == ["X"]
+
+
+@pytest.mark.parametrize("written", ["Change Specification: X", "change specification: X", "X"])
+def test_a_title_is_shown_without_its_change_specification_lead(board: Board, written: str) -> None:
+    data = record(board.repo)
+    data["crs"][0]["title"] = written
+    write_record(board.repo, data)
+    assert board.rows()[board.ids[0]]["title"] == "X"
