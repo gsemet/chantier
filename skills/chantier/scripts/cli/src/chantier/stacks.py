@@ -198,6 +198,12 @@ def start_on_for(b_data: BatchRecord, c: CrEntry) -> str | None:
     return below[1].branch if below else None
 
 
+def _live_start(b_data: BatchRecord, c: CrEntry) -> bool:
+    """True when `c.start_on` names the branch of a CR that is neither ended nor held."""
+    owner = next((x for x in b_data.crs if x.branch == c.start_on), None) if c.start_on else None
+    return owner is not None and owner.status not in ENDED and not is_held(owner)
+
+
 def stack_start(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     """The branch a CR of a stack batch starts on, and the place the record gives it until
     `stack` places it (a CR that is neither a release nor a fix). First match wins:
@@ -207,10 +213,8 @@ def stack_start(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     3. with no CR below that has a PR, the nearest open dependency's branch (highest in `chain`,
        a dependency outside the chain ranking lowest), else the default branch."""
     default: str = repo.config["default_branch"]
-    if c.start_on:
-        owner = next((x for x in b_data.crs if x.branch == c.start_on), None)
-        if owner is not None and owner.status not in ENDED:
-            return c.start_on
+    if _live_start(b_data, c):
+        return str(c.start_on)
     below = _below_with_pr(b_data, c)
     dep = _nearest_open(b_data, c)
     if below is not None:
@@ -233,8 +237,9 @@ def start_base(b_data: BatchRecord, c: CrEntry, repo: Repo) -> str:
     if b_data.mode == "series":
         pred = series_predecessor(b_data.crs, c)
         return pred.branch if pred and pred.status != "merged" else default
-    if b_data.mode == "stack" and c.kind != "fix" and (not c.stacked or c.start_on):
-        return stack_start(b_data, c, repo)  # a placed CR keeps only a recorded start base
+    stackable = b_data.mode == "stack" and c.kind != "fix"
+    if stackable and (not c.stacked or _live_start(b_data, c)):  # a placed CR: a live start only
+        return stack_start(b_data, c, repo)
     if c.after and c.kind != "fix":
         open_ = _open_after(b_data, c)
         if open_:
@@ -251,6 +256,8 @@ def stack_base(b_data: BatchRecord, c: CrEntry, repo: Repo, planned: bool = Fals
     default: str = repo.config["default_branch"]
     if c.kind == "release":  # the top of the stack: on the top CR's branch
         return start_base(b_data, c, repo)
+    if is_held(c):  # outside the stack: on the default branch
+        return default
     if not c.stacked:
         if c.kind != "fix":
             return stack_start(b_data, c, repo)
