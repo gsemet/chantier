@@ -41,6 +41,7 @@ def register(sub: Subparsers) -> None:
     s.add_argument("--note", help="the round's brief, kept in the log")
     add_lease(s, required=True)
     _register_record(sub)
+    _register_notes(sub)
     _register_lease(sub)
     _register_wait(sub)
 
@@ -88,6 +89,8 @@ def _register_record(sub: Subparsers) -> None:
         "merge[=<link>]); repeatable",
     )
 
+
+def _register_notes(sub: Subparsers) -> None:
     s = add_command(
         sub,
         "note",
