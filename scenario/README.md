@@ -295,6 +295,11 @@ does a unit that is not in `UNITS` and a test that does not exist.
   refused, an approval that runs `approve` then `start`; an in-project board has no autosync
   (unit: surface-board);
 - two sessions on one machine (CR-323): `status` and `preflight` list the other batches of the surface (`other batches on this surface: <project> <batch> <state>, steering <who>, <n> Drivers`, P14 informational, passing, and no P14 line in-project); one board per repository: a second `board --port 0` with a live board prints `board already running at` its link, also from another project of the surface with `--seat`, `/api/board` answers its `pid`, `server.json` holds the `server` entry while the board runs and no more once it has stopped, the key staying, and a `board.json` of an older version (a key, a live older `running` record) is migrated into it and deleted, the new board refused with the stop command (unit: surface-board) (test: test_board_running.py::test_a_new_board_reuses_refuses_or_starts_by_what_the_surface_already_runs);
+- typed waits (CR-409): `wait add` records a merge, approval, pipeline and answer wait on a CR
+  (ids w1..w4, the forge ones on its PR), `status` shows them on the CR's row, the hub tells the
+  approval and pipeline waits the forge shows met in one `wait-cleared@1` line each, once
+  whatever the cycles, the waits stay open until `wait clear` (needs `--epoch`), and the merge
+  wait is told when the PR merges (unit: surface-board) (test: test_waits.py::test_a_blocked_handback_records_its_waits_and_the_steering_session_clears_them);
 - the board's PRs page (`GET /api/projects/<id>/prs`, the fake `gh` answering its one `api
   graphql` query): one row per CR with a PR, read on the forge against the record; a PR merged on
   the forge and not recorded says so until `order merged`; a conflicting PR, a draft and a PR whose

@@ -12,6 +12,10 @@ from chantier.connectors.base import Facts, Place
 from chantier.connectors.run import node, run
 
 DEFAULT_HOST = "gitlab.com"
+# Whether GitLab's approvals were read on a real merge request on Free and on Premium (the proof
+# of CR-409's specification, 5.3). Until they were, `review` is `unproved`, the hub reads no
+# GitLab `approval` wait and `wait` says that such a wait is cleared by hand.
+APPROVAL_PROVED = False
 GITLAB_FIELDS = (
     "state draft conflicts detailedMergeStatus targetBranch diffHeadSha mergedAt closedAt "
     "createdAt updatedAt headPipeline { status }"

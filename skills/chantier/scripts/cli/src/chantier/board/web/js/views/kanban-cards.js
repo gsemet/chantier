@@ -8,7 +8,7 @@ import { crKey, doneKey, isOpenKey, itemKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { card } from '../ui/card.js';
 import { icon } from '../ui/icons.js';
-import { files, itemCard } from '../ui/item-card.js';
+import { files, itemCard, waitsMeta } from '../ui/item-card.js';
 import { opener } from '../ui/open.js';
 import { nextTag, stateIcon } from '../ui/parts.js';
 
@@ -57,7 +57,7 @@ export function crCard(state, c) {
     title: title(c.title),
     desc: c.description ?? '',
     body: bars(c, batch),
-    meta: html`${phase}<span>${t('card.round', { r: roundText(c, batch) })}</span>${files(c.files)}${deps}`,
+    meta: html`${phase}<span>${t('card.round', { r: roundText(c, batch) })}</span>${files(c.files)}${deps}${waitsMeta(c.open_waits)}`,
     end: html`<span title="${t(`state.${vstate(c)}`)}">${stateIcon(c)}</span>${usd(c.cost_usd)}`,
   });
 }

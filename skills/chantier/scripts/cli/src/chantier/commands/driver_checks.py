@@ -6,6 +6,7 @@ import argparse
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from chantier.commands.carry import carry_reason, head_base
 from chantier.commands.crs import (
@@ -77,8 +78,14 @@ def handback_args(args: argparse.Namespace, note: str) -> str | None:
         raise ChantierError(
             "handback <cr> blocked <reason>: question: …, approval: …, merge: "
             "<pr>, fix: …; <path>, infra: …, budget: …, rounds: …, refused …, "
-            "waits: <what it waits for>, context: <where it stopped, what is "
+            "waits: <what it waits for> [--wait answer=<question> | approval | "
+            "pipeline[=<sha>] | merge[=<link>]]..., context: <where it stopped, what is "
             "next>",
+            EXIT_USAGE,
+        )
+    if args.wait and args.result != "blocked":
+        raise ChantierError(
+            "--wait is for a blocked hand-back: handback <cr> blocked <reason> --wait <type>",
             EXIT_USAGE,
         )
     no_gate = args.no_gate.strip() if args.no_gate is not None else None
@@ -91,11 +98,46 @@ def handback_args(args: argparse.Namespace, note: str) -> str | None:
     return no_gate
 
 
-def handback_blocked(b: Batch, c: CrEntry, note: str, line: str) -> list[str]:
+def wait_specs(args: argparse.Namespace) -> list[tuple[str, str | None]]:
+    """The `--wait TYPE[=REF]` values as (type, ref); a refusal for a type that is not one."""
+    from chantier.core import waits  # noqa: PLC0415 - slow import
+
+    specs: list[tuple[str, str | None]] = []
+    for value in args.wait or []:
+        type_, _, ref = value.partition("=")
+        if type_ not in waits.TYPES:
+            raise ChantierError(
+                f"--wait: {type_} is not a wait type: answer, approval, pipeline or merge",
+                EXIT_PRECONDITION,
+            )
+        if type_ == "answer" and not ref.strip():
+            raise ChantierError(
+                '--wait answer needs the question: --wait answer="<question>"', EXIT_PRECONDITION
+            )
+        specs.append((type_, ref.strip() or None))
+    return specs
+
+
+def handback_blocked(
+    b: Batch,
+    c: CrEntry,
+    note: str,
+    line: str,
+    applied: tuple[list[dict[str, Any]], list[str]] = ([], []),
+) -> list[str]:
+    """The blocked hand-back; `applied` is the waits its `--wait` added and the lines about them."""
     cr = c.id
+    added, outside = applied
     b.log("handback", cr, result="blocked", note=note)
     b.touch(c, status="blocked", blocked_reason=note)
     c.clear_phase()
+    if added:
+        kinds = ", ".join(f"{w['id']} {w['type']}" for w in added)
+        return [
+            f"{line}; waits: {kinds}",
+            f"{cr} waits; the Foreman takes it back when that lands",
+            *outside,
+        ]
     if note.lower().startswith("waits:"):
         return [line, f"{cr} waits; the Foreman takes it back when that lands"]
     if note.lower().startswith("context: closing"):

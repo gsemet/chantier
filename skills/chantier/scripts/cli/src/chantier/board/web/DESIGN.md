@@ -297,3 +297,11 @@ what exists and no more. The Batch page shows its four figures, the mode strip a
 state (`batch.no_cr_yet`), with no graph, Gantt or time cards. The Home batch card keeps its head,
 replaces the bar and its legend by the same line, shows `none yet` under Spent with no meter,
 `0/<total>` slots and `—` for the steering sign, never marked late. No new colour, size or class.
+
+## Waits on a card
+
+A CR with an open wait (a row's or an item's `open_waits`: answer, approval, pipeline, merge) shows
+one more words-only span in its card's meta line, `waits: <types>` (`card.waits`, `wait.<type>`),
+built by `js/ui/item-card.js`'s `waitsMeta` for the Kanban's CR card and the shared item card
+(Triage and Kanban backlog). It is plain text: no new colour, size, icon or class, and no span
+with no open wait. The board only shows a wait; the steering session clears it.

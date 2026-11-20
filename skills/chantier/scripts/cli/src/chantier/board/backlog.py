@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from chantier.core import waits
 from chantier.core.files import FRONTMATTER, is_lock, read_text, subject
 from chantier.status.views import spec_state
 from chantier.summaries.view import summary_view
@@ -107,6 +108,15 @@ def summary_fields(folder: Path) -> dict[str, Any]:
     }
 
 
+def open_waits(folder: Path) -> list[dict[str, Any]]:
+    """The open waits a backlog CR's `waits.json` holds; none when there is no file or it is not
+    valid (`validate` names it)."""
+    try:
+        return waits.open_of(waits.read_file(folder) or [])
+    except waits.WaitsInvalid:
+        return []
+
+
 def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     """The inbox, `2-backlog/P1`...`P4` and `3-ready`, by the record's own `priority` word."""
     out: dict[str, list[dict[str, Any]]] = {k: [] for k in STAGES}
@@ -122,6 +132,7 @@ def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[d
                 "depends": depends_of(folder),
                 "description": description(folder),
                 "grill": grill_of(folder, row["priority"]),
+                "open_waits": open_waits(folder),
                 **{k: v for k, v in fields.items() if k != "title"},
             }
         )

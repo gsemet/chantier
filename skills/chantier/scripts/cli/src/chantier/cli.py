@@ -40,6 +40,7 @@ MAX_LINES = 10
 FULL_OUTPUT = {
     "take",
     "round",
+    "wait",
     "handoff",
     "asks",
     "close",

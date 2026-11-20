@@ -16,6 +16,7 @@ A model fixes each field's JSON type and only the formats that cannot change: a 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, Any
@@ -27,7 +28,10 @@ SHA_SHOWN = 7
 CR_ID = r"^CR-[0-9]+$"
 SHA = r"^([0-9a-f]{40}|[0-9a-f]{64})$"
 
+WAIT_ID = r"^w[0-9]+$"
+
 CrId = Annotated[str, StringConstraints(pattern=CR_ID)]
+WaitId = Annotated[str, StringConstraints(pattern=WAIT_ID)]
 Sha = Annotated[str, StringConstraints(pattern=SHA)]
 
 
@@ -77,6 +81,15 @@ class Issue1(_Payload):
     folders: list[str]
 
 
+class WaitCleared1(_Payload):
+    batch: str
+    cr: CrId
+    wait: WaitId
+    wait_type: str
+    ref: str
+    seen_at: str
+
+
 def merged_text(e: dict[str, Any]) -> str:
     """The line a `merged@1` event is told by, in `status` and at a watcher's end."""
     head = f"forge saw merged: {e.get('cr')} {e.get('pr')}"
@@ -98,6 +111,18 @@ def red_text(e: dict[str, Any]) -> str:
     return (
         f"forge saw checks red: {e.get('cr')} {e.get('pr')} at {str(e.get('head'))[:SHA_SHOWN]}, "
         "ready to merge in the record; for the Chief of Staff: tell the user, record nothing"
+    )
+
+
+def wait_cleared_text(e: dict[str, Any]) -> str:
+    """The line a `wait-cleared@1` event is told by: the forge shows a wait met."""
+    ref = str(e.get("ref"))
+    if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", ref):
+        ref = ref[:SHA_SHOWN]
+    return (
+        f"forge saw {e.get('wait_type')} met: {e.get('cr')} {e.get('wait')} ({ref}); "
+        f"for the steering session: wait {e.get('cr')} clear {e.get('wait')} --epoch <n>, "
+        "then take it back"
     )
 
 
@@ -170,6 +195,20 @@ PUBLISHED: dict[str, Entry] = {
         red_text,
         lambda e: ("checks-red", e.get("batch"), e.get("cr"), e.get("head")),
         {"batch": "batch-29", "cr": "CR-12", "pr": "#88", "head": "a" * 40},
+    ),
+    "wait-cleared@1": Entry(
+        WaitCleared1,
+        True,
+        wait_cleared_text,
+        lambda e: ("wait-cleared", e.get("batch"), e.get("cr"), e.get("wait")),
+        {
+            "batch": "batch-29",
+            "cr": "CR-3",
+            "wait": "w2",
+            "wait_type": "pipeline",
+            "ref": "3f1c9a0e5b7d2c4a6e8f0b1d3c5a7e9f1b3d5c7a",
+            "seen_at": "2026-11-20T10:02:03Z",
+        },
     ),
     "config@1": Entry(
         Config1,

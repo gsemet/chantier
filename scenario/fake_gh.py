@@ -30,7 +30,8 @@ elif args[:2] == ["pr", "merge"]:
     print(f"merged {args[2]}")
 elif args[:2] == ["api", "graphql"]:
     # the board's PRs page: one query for many PRs (aliases `p<N>`). `prs` holds, by number, the
-    # fields to change from the default (open, not a draft, mergeable, into main, checks green)
+    # fields to change from the default (open, not a draft, mergeable, into main, checks green,
+    # head abc1234def5678, no `reviewDecision`: GitHub's APPROVED, CHANGES_REQUESTED, REVIEW_REQUIRED)
     query = next(a.split("=", 1)[1] for a in args if a.startswith("query="))
     asked = [int(n) for n in re.findall(r"\bp(\d+): pullRequest", query)]
     held = state.get("prs", {})
@@ -43,6 +44,7 @@ elif args[:2] == ["api", "graphql"]:
         return {"state": f["state"], "isDraft": f["isDraft"], "mergeable": f["mergeable"],
                 "baseRefName": f["baseRefName"], "mergedAt": f["mergedAt"],
                 "closedAt": f["closedAt"], "headRefOid": f["headRefOid"],
+                "reviewDecision": f.get("reviewDecision"),
                 "commits": {"nodes": [{"commit": {"statusCheckRollup": rollup}}]}}
     repo = {f"p{n}": node(n) for n in asked}
     repo["wf"] = {"entries": [{"name": "ci.yml"}]} if state.get("workflows", True) else None

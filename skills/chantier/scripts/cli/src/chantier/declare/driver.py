@@ -42,6 +42,23 @@ def register(sub: Subparsers) -> None:
     add_lease(s, required=True)
     _register_record(sub)
     _register_lease(sub)
+    _register_wait(sub)
+
+
+def _register_wait(sub: Subparsers) -> None:
+    s = add_command(
+        sub,
+        "wait",
+        "chantier.commands.waits:wait",
+        "a CR's typed waits: list, `<cr> add <type>`, `<cr> clear <id>`",
+        BATCH_EPOCH,
+    )
+    s.add_argument("cr", nargs="?", help="a CR id, or a backlog CR folder")
+    s.add_argument("action", nargs="?", choices=["add", "clear"])
+    s.add_argument("args", nargs="*", help="add: the type; clear: the wait id")
+    s.add_argument("--ref", help="add: the question, the sha or the link")
+    s.add_argument("--link", help="add pipeline: the PR or MR link")
+    s.add_argument("--note", help="add: why the CR waits")
 
 
 def _register_record(sub: Subparsers) -> None:
@@ -62,6 +79,14 @@ def _register_record(sub: Subparsers) -> None:
         "from it; the steering session checks it",
     )
     add_lease(s, required=True)
+
+    s.add_argument(
+        "--wait",
+        action="append",
+        metavar="TYPE[=REF]",
+        help="blocked: a typed wait the CR records (answer=<question>, approval, pipeline[=<sha>], "
+        "merge[=<link>]); repeatable",
+    )
 
     s = add_command(
         sub,

@@ -251,5 +251,46 @@
     ],
     "title": "Merged1",
     "type": "object"
+  },
+  "wait-cleared@1": {
+    "additionalProperties": false,
+    "properties": {
+      "batch": {
+        "title": "Batch",
+        "type": "string"
+      },
+      "cr": {
+        "pattern": "^CR-[0-9]+$",
+        "title": "Cr",
+        "type": "string"
+      },
+      "ref": {
+        "title": "Ref",
+        "type": "string"
+      },
+      "seen_at": {
+        "title": "Seen At",
+        "type": "string"
+      },
+      "wait": {
+        "pattern": "^w[0-9]+$",
+        "title": "Wait",
+        "type": "string"
+      },
+      "wait_type": {
+        "title": "Wait Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "batch",
+      "cr",
+      "wait",
+      "wait_type",
+      "ref",
+      "seen_at"
+    ],
+    "title": "WaitCleared1",
+    "type": "object"
   }
 }

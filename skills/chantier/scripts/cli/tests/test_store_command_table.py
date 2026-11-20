@@ -90,6 +90,10 @@ ROWS = [
     Row("open several", "backlog", ["open", A, B, "1-inbox/gamma", *MAIN], "open"),
     Row("take", "batch", ["take", "CR-101", "--epoch", "0"], "take"),
     Row("round", "batch", ["round", "CR-101"], "round", (("take", "CR-101", "--epoch", "0"),)),
+    Row(
+        "wait add backlog", "backlog",
+        ["wait", A, "add", "answer", "--ref", "who?", "--note", "ask"], "wait",
+    ),
     Row("order qa", "batch", ["order", "qa", "--note", "check it"], "order qa"),
     Row("order add", "batch", ["order", "add", "--note", "1-inbox/delta"], "order add"),
     Row(

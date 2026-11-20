@@ -227,6 +227,10 @@ $CHANTIER summary label <folders> --add|--remove <labels>  # on the user's word 
 $CHANTIER summary group <folders> --name "…"|--clear  # on the user's word only
 ```
 
+A backlog CR left waiting for the user's answer between two grills gets `$CHANTIER wait <folder>
+add answer --ref "<the question>" --note "<why>"`, cleared (`wait <folder> clear <id>`) once the
+answer is recorded in `02-answers.md`; its open waits join the batch's record with it.
+
 A CR's summary ([concepts](concepts.md), "A CR's summary") applies to your own writes too
 (`01-intent.md`, `02-answers.md`, the ticket summary's records): run `summary lint <the CR's
 folder>` before you end the turn, and close its gap with `summary set`. The sweep: `summary lint`
@@ -1087,6 +1091,10 @@ CR-222 → CR-225 → CR-226 → CR-228."
   exact command> -> <the host's exact text>"`; the user types one line in the Foreman's session
   allowing that action. A `qa <folder> <n> findings`: its inbox folder is an ordinary item;
   triage it with the user, split into CRs as needed.
+  A typed wait (`$CHANTIER wait <cr>` lists a blocked CR's waits; `status` shows `| waits:`) is
+  cleared by you on the user's answer, or on a `wait-cleared@1` line that your watcher carries (the
+  forge showed it met): `wait <cr> clear <id> --epoch <n>`, then the take-back path as for any
+  blocked CR (`take <cr> --epoch <n> --note "<why>"`; direct mode: take it yourself).
 - **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
   without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
   "chain: <reason>"`. The same covers a chain the plan proposed and the go approved, recorded at

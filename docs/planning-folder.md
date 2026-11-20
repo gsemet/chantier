@@ -54,7 +54,9 @@ What is published and what stays local: the batch's own files (`batch.json`, `ev
 (`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
 folder. A running CR's documents, reports and evidence are pushed with the surface. A CR's folder
 may also hold `prototypes/NN-<idea>/` and `experiments/`, created only when used and published
-with the CR like its documents. The archive
+with the CR like its documents. A backlog CR may hold a `waits.json` (`wait <folder> add`): its typed waits, published and moved
+with the folder; `open` or `order add` carries its open waits into the batch's record and removes
+the file, and `order drop` writes a dropped CR's open waits back into one. The archive
 has two places: the surface's `5-archives/` (with a `delivery.md`: the PR, the merge time) and,
 by the project's setting (default no), a cleaned copy in the CR's PR, in external mode.
 
@@ -72,7 +74,8 @@ with `chantier summary set`; the Chief of Staff closes what is left. It is publi
 (it is not ignored by git), so every device sees it, and the board reads it instead of the
 Markdown. A late summary blocks nothing, and the STATUS files read the same with or without it.
 
-`chantier validate` checks the whole planning folder and writes nothing: the placement of CR folders
+`chantier validate` checks the whole planning folder and writes nothing: a backlog CR's `waits.json` must be `{"schema": 1, "waits": [...]}` of waits with an `id`
+(`w<n>`), a `type` and text fields (an error otherwise), and under `4-batch/` it is an unknown file (a gap); the placement of CR folders
 (a CR outside a stage, nested in another, a priority folder outside `2-backlog`) and the format of
 every `summary.json`, in every stage; the missing or late summaries, the shape of each CR folder
 (a request, the entries of its tree) and the broken links between Markdown files, in the live
@@ -115,7 +118,7 @@ object, written by one function (`hub/journal.py`, `append`), under the project'
 | `v` | the line's version, 2 (0 and 1 still read) |
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
-| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `config@1`, `board@1` or `issue@1`), then the fields of that type |
+| `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1` or `issue@1`), then the fields of that type |
 | `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
@@ -123,13 +126,14 @@ A published `name@N` never changes; a change is a new `name@N+1`, and every type
 ships in `hub/schemas.json`.
 
 Every line written today is for `["project"]`: `merged@1` and `checks-red@1` by the hub or the
-board's PRs page, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller. The CLI
+board's PRs page, `wait-cleared@1` by the hub, `config@1` by the Configuration page, `board@1` by the backlog writes, `issue@1` by an outside poller. The CLI
 checks an audience value's form, never what it names, and routes to no role, CR or user yet.
 
 | Type | Written by | Wakes a watcher |
 |---|---|---|
 | `merged@1` | the hub, the board's PRs page | yes |
 | `checks-red@1` | the hub | yes |
+| `wait-cleared@1` | the hub | yes |
 | `config@1` | the board's Configuration page | yes |
 | `board@1` | the board's backlog writes | when `wakes`: true for `new`, `move` and `edit` |
 | `issue@1` | an outside poller, through `chantier journal add`, only for an issue a CR's `issue:` line names | when `wakes` (default true) |

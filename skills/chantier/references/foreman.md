@@ -200,6 +200,10 @@ no `order done` for it. Arm no heartbeat while a factory batch is paused; the tu
   passes the note back: then take the CR back as for a CR handed back `ready`. A `blocked` CR
   whose Driver is still recorded may be handed back `ready` by that Driver with no `take` (a
   `hand-back ready … it was blocked: …` line, see the take-back list below).
+  A `blocked` CR whose hand-back line ends `; waits: w1 approval` has typed waits (`$CHANTIER wait <cr>`
+  lists them, `status` shows `| waits:`): on the user's answer, or on a `wait-cleared@1` line, run
+  `wait <cr> clear <id> --epoch <n>`, then take the CR back as above (`take <cr> --epoch <n> --note
+  "<why>"`).
 - **Your own chat obeys only "stop", "hold" (no new Driver: the batch still runs), and the user's line allowing a refused action.**
   Anything else: "I run batch <batch> for chantier. Please give orders to the Chief of Staff."
 - **Never code, review, commit, rebase, push or edit a PR, never create a worktree.** One named
