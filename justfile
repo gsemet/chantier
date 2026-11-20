@@ -66,7 +66,7 @@ lint:
     uvx {{ruff}} check skills scripts
     uv run --locked --group dev --with {{mypy}} --with types-psutil mypy
     uv lock --check
-    uvx --from {{node}} npx --yes {{biome}} check skills/chantier/scripts/cli/src/chantier/board/web
+    uvx --from {{node}} npx --yes {{biome}} check skills/chantier/scripts/cli/src/chantier/clients/web
 
 # Fetch the pinned check tools into the caches, running nothing (CI runs it before `check`, retried once)
 tools:

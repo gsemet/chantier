@@ -37,7 +37,9 @@ def _board(repo_: Repo, monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[
     """The board's ops called in-process on one project, with the key a page sends."""
     projects = Projects(repo_, repo_.surface, [])
     secret = keys.load_or_create(repo_)
-    ctx = Context(projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None)
+    ctx = Context(
+        projects, keys.KeyFile(keys.key_path(repo_)), Seats(projects), "t", lambda: None, None
+    )
 
     def call(method: str, body: object = None) -> tuple[int, Any]:
         return call_route(ctx, secret, method, projects.home_id, "config", body)

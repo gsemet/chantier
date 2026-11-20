@@ -25,6 +25,7 @@ from chantier.board.key import KeyFile
 from chantier.board.projects import open_projects
 from chantier.board.seats import Seats
 from chantier.core.errors import EXIT_EXTERNAL
+from chantier.declare.board import SHIPPED_UI
 
 CLI = Path(__file__).resolve().parents[1]
 BOARD = CLI / "src" / "chantier" / "board"
@@ -86,7 +87,7 @@ def test_the_web_framework_loads_only_when_the_board_serves() -> None:
 
 
 def test_the_frame_is_shipped_with_the_package() -> None:
-    web = BOARD / "web"
+    web = CLI / "src" / "chantier" / "clients" / "web"
     for name in (
         "index.html",
         "js/main.js",
@@ -154,7 +155,9 @@ def _board_payload(root: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any
     monkeypatch.setenv("CHANTIER_ROOT", str(root))
     monkeypatch.chdir(root)
     projects = open_projects()
-    ctx = Context(projects, _keyfile(root / "key.json"), Seats(projects), "0", lambda: None)
+    ctx = Context(
+        projects, _keyfile(root / "key.json"), Seats(projects), "0", lambda: None, SHIPPED_UI
+    )
     status, body = call_op(ctx, ctx.key.current(), "board.get")
     assert status == OK
     answer: dict[str, Any] = body
@@ -189,7 +192,9 @@ def test_the_probe_answers_its_frozen_fields_and_every_old_route_is_unknown(
     monkeypatch.setenv("CHANTIER_ROOT", str(tmp_path / "solo"))
     monkeypatch.chdir(tmp_path / "solo")
     projects = open_projects()
-    ctx = Context(projects, _keyfile(tmp_path / "key.json"), Seats(projects), "0", lambda: None)
+    ctx = Context(
+        projects, _keyfile(tmp_path / "key.json"), Seats(projects), "0", lambda: None, SHIPPED_UI
+    )
     head = {"x-chantier-board-key": ctx.key.current(), "host": "board"}
 
     def get(path: str) -> reply.Reply:

@@ -186,7 +186,9 @@ def test_a_change_during_the_hold_answers_the_long_poll_before_the_hold_ends(
 def _surface_ctx() -> Context:
     found = Repo.find(project="demo", readonly=True)
     projects = Projects(found, found.surface, [])
-    return Context(projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None)
+    return Context(
+        projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None, None
+    )
 
 
 def test_a_write_with_no_live_writer_answers_409_and_writes_nothing(surface: Surface) -> None:

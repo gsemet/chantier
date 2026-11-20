@@ -32,6 +32,7 @@ class Context:
     seats: Seats
     version: str
     stop: Callable[[], None]
+    ui: Path | None  # the folder of static files served at `/`; `None`: the API only
     bound: tuple[str, int] | None = None  # the address the board listens on
     cache: StateCache = field(default_factory=StateCache)
     reads: ForgeReads = field(default_factory=ForgeReads)  # the PRs page's forge reads

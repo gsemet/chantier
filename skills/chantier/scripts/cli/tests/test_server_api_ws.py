@@ -99,6 +99,7 @@ def served(repo_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Ite
             Seats(projects),
             "t",
             lambda: setattr(box[0], "should_exit", True),
+            None,
             sock.getsockname()[:2],
         )
         box.append(make_server(ctx))

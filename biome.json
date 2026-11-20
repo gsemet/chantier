@@ -3,7 +3,7 @@
   "root": true,
   "vcs": { "enabled": false },
   "files": {
-    "includes": ["skills/chantier/scripts/cli/src/chantier/board/web/**"]
+    "includes": ["skills/chantier/scripts/cli/src/chantier/clients/web/**"]
   },
   "formatter": {
     "enabled": true,

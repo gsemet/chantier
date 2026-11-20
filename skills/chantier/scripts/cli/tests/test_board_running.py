@@ -59,7 +59,7 @@ def _prepare_board(
     monkeypatch.setattr(running, "find_pid", lambda _port: None)
     bound: list[int] = []
 
-    def serve(_projects: object, _seats: object, sock: socket.socket) -> None:
+    def serve(_projects: object, _seats: object, sock: socket.socket, _ui: object) -> None:
         bound.append(sock.getsockname()[1])
         sock.close()
 

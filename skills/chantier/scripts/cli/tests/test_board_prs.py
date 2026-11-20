@@ -54,7 +54,9 @@ class Board:
         projects = Projects(found, None, [])
         self.key = load_or_create(found)
         self.id = projects.home_id
-        self.ctx = Context(projects, KeyFile(key_path(found)), Seats(projects), "t", lambda: None)
+        self.ctx = Context(
+            projects, KeyFile(key_path(found)), Seats(projects), "t", lambda: None, None
+        )
         self.ctx.reads = prs.ForgeReads(now=lambda: self.now)
         monkeypatch.setattr(connectors, "read", self.read)
 

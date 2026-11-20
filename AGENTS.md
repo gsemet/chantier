@@ -52,8 +52,8 @@
   network, behind a key (in its URL for the web client, in a header or a WebSocket's first message
   for any other client), through one published API over a WebSocket, and over HTTP as the same
   protocol for a network where a WebSocket does not pass, behind a proxy for instance (not a
-  fallback): it serves the record and the planning folder's files, and the web client's files, one
-  client among others, and it
+  fallback): it serves the record and the planning folder's files, and the web client's files (another folder's with
+  `--ui <folder>`, none with `--ui none`), one client among others, and it
   edits the backlog (the inbox, `2-backlog/P1`...`P4`, `3-ready`: files and folder moves) and
   each role's agent, model and escalation, per host, and the two limits (`specifying.parallel`,
   `batch.slots`), in the project's configuration file in the planning
@@ -144,7 +144,7 @@
 - During an eval the main checkout does not change, neither its files nor its branch: any other
   work goes in a worktree. An eval's workspace is outside this repository: it does not read
   `.claude/settings.json` and gets the plugin from the user's own install.
-- A change under `skills/chantier/scripts/cli/src/chantier/board/web/` reads its `DESIGN.md` first and
+- A change under `skills/chantier/scripts/cli/src/chantier/clients/web/` (the web client) reads its `DESIGN.md` first and
   keeps it true.
 - A change to what the CR board pane draws (`hooks/register.tsx`'s pane, or the `STATUS.json`
   fields of `status.py` that the pane shows) carries, in its PR's Deliverables, one screenshot of

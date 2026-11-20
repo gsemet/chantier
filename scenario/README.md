@@ -446,6 +446,15 @@ does a unit that is not in `UNITS` and a test that does not exist.
   test_server_api.py::test_an_old_route_answers_404_even_for_a_post_a_cookie_carries,
   test_server_api_ws.py::test_a_socket_says_hello_gets_welcome_and_watches_a_project,
   test_server_api_ws.py::test_a_stopping_server_closes_each_socket_with_1001);
+- the board's UI folder (CR-411): `board --ui <folder>` serves that folder's `index.html` with the
+  policy and its `app.js`, and none of the shipped client's files; `--ui none` answers the 404 line
+  outside `/api/` while `board.get` answers over HTTP; a folder with no `index.html` is refused
+  with the usage exit (1) and records no board entry; `--ui` on a running board prints the `--ui not applied` line,
+  exits 0, and leaves the shipped client served (unit: surface-board) (test:
+  test_board_ui.py::test_a_folder_is_served_by_its_files_and_types_inside_it_only,
+  test_board_ui.py::test_with_no_ui_the_page_is_a_404_line_and_the_api_answers,
+  test_board_ui.py::test_a_ui_that_is_not_a_folder_with_an_index_is_refused_and_nothing_is_written,
+  test_board_ui.py::test_ui_on_a_board_already_running_is_not_applied_and_said);
 - prepared-CR filing, lifecycle moves, collisions and rollback: `triage` between the inbox, the
   backlog and `3-ready`, a failed `open` restoring what it moved, `restore`, the next batch
   number read from the records (unit: series-deps, qa-driver) (test:

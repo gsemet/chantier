@@ -1,7 +1,7 @@
 # The board's design rules
 
 The rules every page of the board follows, and the features no design pass may lose. Any change
-under `skills/chantier/scripts/cli/src/chantier/board/web/` reads this file first and keeps it true
+under `skills/chantier/scripts/cli/src/chantier/clients/web/` reads this file first and keeps it true
 (`AGENTS.md` says the same). `css/tokens.css` is the single source of every value; this file holds
 the rules and a table of the tokens, and a test (`tests/test_board_design.py`, in `just check`)
 fails when the table and `tokens.css` disagree.

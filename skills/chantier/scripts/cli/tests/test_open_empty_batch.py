@@ -185,7 +185,7 @@ def test_close_still_refuses_a_batch_that_held_a_cr_with_no_steering_transcript(
 
 @pytest.mark.parametrize("language", ["en", "fr"])
 def test_the_board_words_of_a_batch_with_no_cr_are_shipped(language: str) -> None:
-    web = Path(__file__).resolve().parents[1] / "src" / "chantier" / "board" / "web" / "js"
+    web = Path(__file__).resolve().parents[1] / "src" / "chantier" / "clients" / "web" / "js"
     words = (web / "i18n" / f"{language}-batch.js").read_text("utf-8")
     assert "'batch.no_cr_yet'" in words and "'batch.spent_none_yet'" in words
     assert "'batch.no_cr_yet_factory'" in words and "'batch.factory_on'" in words

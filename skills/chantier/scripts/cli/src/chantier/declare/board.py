@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from chantier.commands.registry import NO_BATCH, Subparsers, add_command
 
+SHIPPED_UI = Path(__file__).resolve().parents[1] / "clients" / "web"
 HELP = (
-    "serve the web board (the record, the planning folder's files, the backlog) on this machine "
-    "and the local network, behind a key in its URL"
+    "serve the board's API and the web client (or another UI: --ui) on this machine and the "
+    "local network, behind a key"
 )
 
 
@@ -36,6 +39,13 @@ def register(sub: Subparsers) -> None:
         metavar="TIMESTAMP",
         help="answer as if it were this instant (UTC, YYYY-MM-DDTHH:MM:SSZ), for screenshots "
         "and tests",
+    )
+    s.add_argument(
+        "--ui",
+        metavar="FOLDER",
+        default=SHIPPED_UI,
+        help="the folder of static files the board serves at `/` (default: the shipped web "
+        "client); `none`: the API only, no page",
     )
     s.add_argument(
         "--new-key",

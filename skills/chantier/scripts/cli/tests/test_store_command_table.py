@@ -160,7 +160,9 @@ def _board(surface: Surface, monkeypatch: pytest.MonkeyPatch) -> Callable[..., t
     found = Repo.find(project="demo", readonly=True)
     projects = Projects(found, found.surface, [])
     secret = keys.load_or_create(found)
-    ctx = Context(projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None)
+    ctx = Context(
+        projects, keys.KeyFile(keys.key_path(found)), Seats(projects), "t", lambda: None, None
+    )
 
     def call(method: str, route: str, body: object = None) -> tuple[int, Any]:
         return call_route(ctx, secret, method, projects.home_id, route, body)

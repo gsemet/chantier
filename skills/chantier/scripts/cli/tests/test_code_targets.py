@@ -103,7 +103,7 @@ def test_one_root_project_holds_the_dependencies_and_nothing_else_is_a_script() 
 
 
 def test_the_web_frame_has_small_scripts_and_both_word_files_share_their_keys() -> None:
-    web = CLI / "src" / "chantier" / "board" / "web"
+    web = CLI / "src" / "chantier" / "clients" / "web"
     scripts = sorted((web / "js").rglob("*.js"))
     assert scripts, "no script in the web frame"
     problems = []
@@ -162,7 +162,7 @@ def test_the_start_up_imports_only_the_standard_library_and_chantier() -> None:
     assert not problems, "\n".join(problems)
 
 
-WEB = CLI / "src" / "chantier" / "board" / "web"
+WEB = CLI / "src" / "chantier" / "clients" / "web"
 MAX_STYLE_LINES = 300
 MAX_NESTING = 3
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch)\(")

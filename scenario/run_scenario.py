@@ -3009,6 +3009,15 @@ def remote_board(w: World) -> None:
               p.returncode == 0
               and p.stdout.strip() == f"board already running at http://127.0.0.1:{port}/?k={link.key}",
               p.stdout + p.stderr)
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+                            "0", "--ui", "none", "--seat", "s-1"], cwd=w.work, env=w.env,
+                           capture_output=True, text=True, encoding="utf-8", timeout=30)
+        check("`board --ui none` on a running board prints `board already running at` its link and "
+              "the `--ui not applied` line, exits 0, and the board still serves the shipped client",
+              p.returncode == 0
+              and p.stdout.splitlines()[:1] == [f"board already running at http://127.0.0.1:{port}/?k={link.key}"]
+              and p.stdout.splitlines()[-1] == "--ui not applied: a board already serves this surface; stop it to change what it serves"
+              and fetch(port, "/js/main.js", headers=link.cookie)[0] == 200, p.stdout + p.stderr)
         check("the live board's `server` entry in `server.json` names its PID, port and version, "
               "and `/api/board` answers the same PID",
               json.loads(key_file.read_text(encoding="utf-8")).get("server", {}).get("port") == port
@@ -3021,6 +3030,46 @@ def remote_board(w: World) -> None:
               "key stays",
               not {"server", "hub"} & set(json.loads(key_file.read_text(encoding="utf-8")))
               and json.loads(key_file.read_text(encoding="utf-8"))["key"] == link.key)
+        # `--ui`: another folder, none, a folder with no page
+        ui_dir = w.root / "own-ui"
+        ui_dir.mkdir(exist_ok=True)
+        (ui_dir / "index.html").write_text("<!doctype html><p>own-ui-marker</p>", encoding="utf-8")
+        (ui_dir / "app.js").write_text("export const mine = 1;\n", encoding="utf-8")
+        own_ui = board("board", "--host", "127.0.0.1", "--port", 0, "--ui", ui_dir)
+        own_link = Link(own_ui.line())
+        code, head, page = fetch(own_link.port, "/", headers=own_link.cookie)
+        check("`board --ui <folder>` serves that folder's `index.html` at `/` with the policy, its "
+              "`app.js` as JavaScript, none of the shipped client's files, and the API",
+              own_link.ok and code == 200 and b"own-ui-marker" in page
+              and "script-src 'self'" in head.get("content-security-policy", "")
+              and fetch(own_link.port, "/app.js", headers=own_link.cookie)[1].get("content-type", "")
+              .startswith("text/javascript")
+              and fetch(own_link.port, "/js/main.js", headers=own_link.cookie)[0] == 404
+              and fetch(own_link.port, "/api/board", headers={"X-Chantier-Board-Key": own_link.key})[0] == 200,
+              f"{code} {head}")
+        own_ui.stop()
+        no_ui = board("board", "--host", "127.0.0.1", "--port", 0, "--ui", "none")
+        no_link = Link(no_ui.line())
+        code, _, page = fetch(no_link.port, "/", headers=no_link.cookie)
+        check("`board --ui none` answers 404 with the line naming the API's doc outside `/api/`, the "
+              "API answers, and `board.get` over HTTP gives 200",
+              no_link.ok and code == 404
+              and page.decode().strip() == "this server serves no UI: see docs/server-api.md"
+              and fetch(no_link.port, "/api/board", headers={"X-Chantier-Board-Key": no_link.key})[0] == 200
+              and op(no_link.port, no_link, "board.get")[0] == 200, f"{code} {page}")
+        no_ui.stop()
+        empty = w.root / "empty-ui"
+        empty.mkdir(exist_ok=True)
+        recorded_before = key_file.read_text(encoding="utf-8")
+        p = subprocess.run([sys.executable, "-m", "chantier", "board", "--host", "127.0.0.1", "--port",
+                            "0", "--ui", str(empty)], cwd=w.work, env=w.env, capture_output=True,
+                           text=True, encoding="utf-8", timeout=30)
+        check("`board --ui` naming a folder with no `index.html` exits 1 with the one line, prints no "
+              "start line and records no board",
+              p.returncode == 1 and not p.stdout.strip()
+              and p.stderr.strip() == f"error: --ui {empty}: not a folder with an index.html: give a "
+              "folder of static files, or none"
+              and key_file.read_text(encoding="utf-8") == recorded_before, p.stdout + p.stderr)
         # a board started by hand (no `--seat`) records a session's seat and follows none
         late = board("board", "--host", "127.0.0.1", "--port", 0)
         late_link = Link(late.line())
