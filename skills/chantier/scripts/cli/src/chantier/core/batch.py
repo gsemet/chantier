@@ -92,6 +92,7 @@ class Batch:
         self.record = BatchRecord()
         self._events: list[EventRecord] = []
         self._moves: list[tuple[Path, Path]] = []
+        self._consumed: list[Path] = []
 
     def __enter__(self) -> Self:
         if self._create is None and self.id not in self.repo.batch_ids():
@@ -142,6 +143,8 @@ class Batch:
             if exc_type is None and self._events:
                 if self._number:  # the number is reserved by the record, before the state
                     self._record = reserve_record(self.repo, self.record)
+                for gone in self._consumed:  # what the record now holds, before it is written
+                    gone.unlink(missing_ok=True)
                 write_json(self.dir / "batch.json", self.record.to_data())
                 saved = True
                 self._append_events()
@@ -198,6 +201,11 @@ class Batch:
     def move(self, source: Path, destination: Path) -> None:
         move_directory(source, destination)
         self._moves.append((source, destination))
+
+    def consume(self, path: Path) -> None:
+        """A file the record now holds the content of: deleted when the record is saved, and kept
+        when the command is refused."""
+        self._consumed.append(path)
 
     def _rollback_moves(self) -> None:
         for source, destination in reversed(self._moves):

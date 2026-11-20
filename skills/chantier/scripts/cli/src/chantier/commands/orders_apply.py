@@ -8,7 +8,8 @@ from collections.abc import Callable
 from chantier.commands.crs import filed_fix, grant_line
 from chantier.commands.factory import set_factory, switch_factory
 from chantier.commands.gate_run import stop_gate, stopped_line
-from chantier.commands.opening import add_cr, check_cycles, declare_dependencies
+from chantier.commands.joining import add_cr, join_cr
+from chantier.commands.opening import check_cycles, declare_dependencies
 from chantier.commands.orders_drop import drop
 from chantier.commands.orders_hold import hold, unhold
 from chantier.commands.orders_release import (
@@ -76,11 +77,11 @@ def _add(w: Word) -> list[str]:
             )
         return out
     check_release_open(b)
-    added = add_cr(b, w.note)
+    added, joined = join_cr(b, w.note)
     declare_dependencies(b, [added])
     join_release(b, added)
     waits = f", after {', '.join(added.after)}" if added.after else ""
-    out = [f"added {added.id}, queued{waits}"]
+    out = [f"added {added.id}, queued{waits}", *([joined] if joined else [])]
     standing = stack_waiver(b)
     if standing is not None and added.kind not in {"release", "fix"}:
         added.gate_waiver = standing.model_copy()

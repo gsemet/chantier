@@ -202,7 +202,17 @@ defer the rest of this card until an action names it. These are the card's defau
   the clone that `take` names: `git -C <clone>`), with the names your prompt gives. An
   earlier Driver's worktree is there: use it (its branch alone: `git -C <main checkout> worktree
   add <path> <branch>`). Workers never create one, except the Verifier's detached worktree of the base, which
-  it removes at its end.
+  it removes at its end. A CR whose first `take` shows a `PR:` link came back to a batch (it was
+  taken out of an earlier one with its work): use its branch, never a new one: its recorded
+  worktree if it is there, else `git -C <main checkout> worktree add <path> <branch>` (with a
+  planning surface, `git -C <clone>`), with the names `take` printed. Before anything else on the
+  forge, read the PR (`gh pr view <n> --json state`, `glab mr view <n>`): open, go on; closed,
+  reopen it (`gh pr reopen <n>`, `glab mr reopen <n>`) before any push to its branch, and when the
+  reopen is refused push nothing and hand back `handback <cr> blocked question: its PR <link> is
+  closed and the forge refuses to reopen it: <exact text>`; merged, nothing to do: hand back
+  `handback <cr> blocked question: its PR <link> is already merged`, which the Chief of Staff
+  records (`order merged <cr>`). Then rebase it on the base `take` names (below) and ship to that
+  same PR: never open a second PR for it.
 - Rebase first, so the long gate passes on the head you push: `git -C <worktree> fetch`, `git -C
   <worktree> rebase <base>`;
   a conflict is a `conflict-resolver`. A rebase with no conflict that leaves the CR's patch

@@ -1157,6 +1157,13 @@ CR-222 → CR-225 → CR-226 → CR-228."
   where the PR went (into `<other cr>`'s PR, not the default branch) and wait until the PR under
   it lands (the hub or the board then writes a second line, `landed with`); the line keeps printing until
   the CR is recorded merged. When the user merges several PRs of a batch with no stack in one action (or several `forge saw merged` lines come at one `status` or one watcher's end), record `order merged` for the others first and the batch's top last.
+  A CR taken out of a batch whose PR the user merges later, outside any batch (its folder is in the
+  inbox or the backlog, with `formerly.json`), has a route of its own: on "I merged #n" for it, run
+  `order add --note <folder>`, which brings back its number and its PR, then `order merged <cr>`
+  at once (Foreman mode: both lines to the Foreman in one message, the add first). With no batch
+  open, tell the user the merge is recorded the same way in the next batch, and leave the folder
+  as it is. A Driver's `blocked question: its PR <link> is already merged` is recorded the same
+  way, with `order merged <cr>`.
   One exception, on GitLab: a fold (`forge-stack show` prints `folded
   into <cr below>`) is recorded at once by the fold rule below, whatever the line says.
 - **A series batch:** the CRs merge one by one, in order. On each `ready-to-merge` ask, tell the user which
