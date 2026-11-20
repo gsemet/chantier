@@ -129,6 +129,21 @@ def _check_actions(manifest: dict[str, Any]) -> set[Path]:
         assert own & set(listed) == {f"{card}#{heading}"}
         assert listed[:-1]
         assert all(r.startswith(f"{card}#Means: ") for r in listed[:-1])
+    others = ("Stack driver", "QA driver", "Release driver")
+    lines = {k: manifest["actions"][k] for k in ("cr-driver", "cr-driver:ship", "cr-driver:closing")}
+    for key in ("cr-driver:ship", "cr-driver:closing"):
+        card = manifest["roles"]["cr-driver"]
+        listed = lines[key]
+        assert all(r.startswith(f"{card}#") for r in listed)
+        assert sum(r.split("#", 1)[1].startswith("CR driver: ") for r in listed) == 1
+        assert not {f"{card}#{h}" for h in others} & set(listed)
+        assert not any(r.split("#", 1)[1].startswith(others) for r in listed)
+        for host in ("claude", "copilot"):
+            _, sections = _sections(listed, host)
+            assert len(sections) == len(listed)
+    assert not set(lines["cr-driver"]) & set(lines["cr-driver:ship"])
+    assert not set(lines["cr-driver"]) & set(lines["cr-driver:closing"])
+    assert not set(lines["cr-driver:ship"]) & set(lines["cr-driver:closing"])
     return action_reads
 
 
@@ -199,22 +214,54 @@ def test_empty_action_readings_are_rejected() -> None:
     assert all(manifest["actions"].values())
 
 
-CR_DRIVER_COMMON_PATH_LIMIT = 45_000
+CR_DRIVER_OPENING_LIMIT = 2_500
+RESTART = "Means: a Driver started again"
+CR_DRIVER_LIMITS = {
+    ("cr-driver",): 18_000,
+    ("cr-driver", "cr-driver:ship", "cr-driver:closing"): 36_000,
+    # a `resume: closing` Driver: the opening, its restart section, the closing line
+    (RESTART, "cr-driver:closing"): 13_000,
+}
 
 
-def test_cr_driver_common_path_reads_at_most_the_card_budget() -> None:
+def _opening_bytes(card: Path) -> int:
+    """The card's bytes up to its first level-2 heading."""
+    data = _lf_bytes(card)
+    return re.search(rb"^## ", data, re.MULTILINE).start()  # type: ignore[union-attr]
+
+
+def _cr_driver_bytes(lines: tuple[str, ...]) -> int:
     manifest, path = _manifest()
     card = (path.parent / manifest["roles"]["cr-driver"]).resolve()
-    data = _lf_bytes(card)
-    total = data.index(b"\n## ") + 1  # the opening, up to the first level-2 heading
-    for reading in manifest["actions"]["cr-driver"]:
-        file, _, heading = reading.partition("#")
-        assert (path.parent / file).resolve() == card, reading
-        assert heading
-        size = _section_bytes(card, f"## {heading}")
-        assert size > len(f"## {heading}\n") + 1, reading
-        total += size
-    assert total <= CR_DRIVER_COMMON_PATH_LIMIT, total
+    total = _opening_bytes(card)  # read once
+    seen: set[str] = set()
+    for line in lines:
+        if line == RESTART:
+            total += _section_bytes(card, f"## {RESTART}")
+            continue
+        for reading in manifest["actions"][line]:
+            file, _, heading = reading.partition("#")
+            assert (path.parent / file).resolve() == card, reading
+            assert heading
+            if reading not in seen:
+                seen.add(reading)
+                total += _section_bytes(card, f"## {heading}")
+    return total
+
+
+@pytest.mark.parametrize(("lines", "limit"), CR_DRIVER_LIMITS.items())
+def test_cr_driver_readings_stay_within_their_byte_limit(
+    lines: tuple[str, ...], limit: int
+) -> None:
+    total = _cr_driver_bytes(lines)
+    print(f"cr-driver-bytes lines={'+'.join(lines)} bytes={total} limit={limit}")
+    assert total <= limit, (lines, total)
+
+
+def test_cr_driver_opening_stays_short() -> None:
+    manifest, path = _manifest()
+    card = (path.parent / manifest["roles"]["cr-driver"]).resolve()
+    assert _opening_bytes(card) <= CR_DRIVER_OPENING_LIMIT
 
 
 def test_reading_union_counts_lf_bytes_and_nested_sections_once(tmp_path: Path) -> None:
@@ -275,6 +322,7 @@ MOVED_IN = [
     ("At startup read the startup core and the startup sections", REFS / "foreman.md", None),
     (ABOUT_FOREMAN, CHIEF_CARD, None),
     ("A `Note: resume: closing` reads only", REFS / "driver.md", CORE),
+    ("never those of the steps done", REFS / "driver.md", "Means: a Driver started again"),
     (SESSION, COS, CORE),
     (SESSION, GRILLER, CORE),
     ("with `$CHANTIER` as this file defines it, nothing else of this file but its", COS, CORE),

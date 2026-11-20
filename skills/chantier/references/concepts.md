@@ -465,6 +465,8 @@ At startup, identify the role, batch, project and parent session.
 
 ## Starting an agent
 
+### The agent and the model
+
 A parent starts an agent, by its host's means (the host's reference gives the tool and the
 agent's name). Which agent and which model come from the playbook, the configuration in layers
 (the plugin's defaults, then optional `chantier.yaml` files) that only the CLI reads, merges,
@@ -494,6 +496,8 @@ CLI prints as `timing:` lines):
 - When the playbook gives the role skills or tools, the prompt gets a `Needs:` line, as printed.
   An agent that does not have one of them says so in a note and does its part without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`) (rule
   2).
+
+### The prompt
 
 The prompt is the agent's whole brief. A prompt names the card and section it expects the role to read:
 
@@ -555,6 +559,8 @@ agent with that line, never a message to the refused one and never a variant. Ea
 | Spec critic | `chantier spec-critic for the Chief of Staff, in the project <root>.` |
 | Retro critic | `chantier retro-critic for the Chief of Staff, in the project <root>.` |
 
+### The Chief of Staff's subagents
+
 A subagent of the Chief of Staff (the Demo explorer, or an exploration, a prototype or a study)
 is started the same way: its first line is the one of the table above. When the work is for a CR,
 its brief names that CR's folder and the place in it (a `prototypes/NN-<idea>/` or `experiments/`),
@@ -570,7 +576,9 @@ it so. The host refuses some unprefixed names (`report`, `summary`, `findings`, 
 `.md` file) on the name alone ([host's reference](hosts/claude-code.md)): it is not the auto-mode
 classifier, and no allow rule fixes it.
 
-**An agent that ends before its part is done.** This holds for every parent and every agent (a
+### An agent that ends before its part is done
+
+This holds for every parent and every agent (a
 Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a Demo explorer).
 
 - Each such end is restarted **once** (except a Driver stopped from outside, restarted at each such
@@ -591,6 +599,8 @@ Driver of any kind, a worker, a spec-writer, a spec critic, a retro critic, a De
 - A worker ended by a host failure: its Driver starts one new worker of the same role with the
   same brief and the note `restart: host failure: <text>`; no new `round` (`round` is run only
   before a Coder of a new round, `driver.md`).
+
+### The specification's agents and the Retro critic
 
 The Spec-writer is the subagent of the Chief of Staff or of a Griller, outside any batch: its first line is
 `chantier spec-writer for the Chief of Staff, in the project <root>.`, it reads
