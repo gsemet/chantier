@@ -989,7 +989,8 @@ def case_audit_cos_prompt(run: Run) -> str:
 
 
 QA_FOLDER = ".agents/changes/1-inbox/qa-261118-1200"
-QA_BODY = ("Read {skill}/references/driver.md;\n"
+QA_BODY = ("Card: {skill}/references/driver.md: its Startup core now, each other section when its step "
+           "comes, as the card's opening says;\n"
            "the project's rules rank above them: run `$CHANTIER rules` first and read what touches your work.\n"
            "CLI ($CHANTIER): {cli}")
 

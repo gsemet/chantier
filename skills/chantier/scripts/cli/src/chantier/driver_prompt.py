@@ -136,7 +136,8 @@ def driver_prompt_lines(row: DriverRow, d: BatchRecord, block: DriverBlock) -> l
         f"  {first}",
         f"  Read {refs}/startup-core.md, the host core, role core, and the short startup section "
         f"named by {refs}/startup-manifest.json; defer the rest until an action names it.",
-        f"  Read {refs}/{row.card};",
+        f"  Card: {refs}/{row.card}: its Startup core now, each other section when its step "
+        "comes, as the card's opening says;",
         "  the project's rules rank above them: run `$CHANTIER rules` first and read what "
         "touches your work.",
         *contract_lines(row.role, row.text, d.playbook, recorded_escalation(d)),

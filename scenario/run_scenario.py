@@ -4965,6 +4965,14 @@ def driver_liveness(w: World) -> None:
           and "`context: <where it stopped" in driver
           and "`resume: closing`" in driver and "`context: closing:" in driver
           and "resume: closing" in foreman)
+    flat_driver, flat_foreman = " ".join(driver.split()), " ".join(foreman.split())
+    check("driver.md names the 100,000-token closing threshold and the three `closing:` step notes; "
+          "foreman.md names the second `context: closing:` ask",
+          "100,000 tokens" in flat_driver and "`closing: body posted at <sha7>`" in flat_driver
+          and "`closing: description pass VERIFIED at <sha7>`" in flat_driver
+          and "`closing: PR ready`" in flat_driver and "`closing: PR kept draft on <base>`" in flat_driver
+          and "second `context: closing:` hand-back" in flat_foreman
+          and "`question <cr> driver out of context twice`" in flat_foreman)
 
 
 def handback_proofs(w: World) -> None:
