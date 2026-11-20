@@ -109,7 +109,7 @@ At startup, identify the role, batch, project and parent session.
   `evidence/` and `work/`. Kept out by design: secrets, personal data, and large binaries that are
   not the retained prototype (a dataset, a video above the forge's limits: the folder names where
   it is); the batch's own files and raw logs (already gitignored; a raw log stays in `work/gates/`
-  or a `*.log` file; a Verifier's scratch project stays in `work/scratch/`); the agent's memory and the host's settings (`~/.claude/`), never a CR's
+  or a `*.log` file; a Verifier's scratch project stays in `work/scratch/`; a downloaded CI artifact stays in `work/scratch/artifacts-<run id>/`); the agent's memory and the host's settings (`~/.claude/`), never a CR's
   place. What only the conversation holds (a subagent's reply, an inline visualization, a pasted
   image) is lost unless an agent writes it in the folder: writing it is the agent's job.
 
@@ -129,7 +129,7 @@ At startup, identify the role, batch, project and parent session.
   the default) or `<surface>/projects/<name>/changes/` (external). A CR's folder, the stages, the
   STATUS files and the seat are in it. Its `.gitignore`, written by the CLI, keeps the batch's own
   files (`batch.json`, `events.jsonl`, `brief.md`, STATUS, locks, `.batch-number`, `seat.json`) and
-  the detailed logs (`work/gates/`, `*.log`) and the Verifier's scratch folder (`work/scratch/`)
+  the detailed logs (`work/gates/`, `*.log`) and the Verifier's scratch folder (`work/scratch/`) and any `artifacts-*/` folder under a `work/` folder
   out of git: a raw log goes in such a file, never in a
   published one. In a surface the writer commits the published paths only; the local ones stay on the
   machine. The rest of a CR's folder is pushed with the surface. So are the batches' records:

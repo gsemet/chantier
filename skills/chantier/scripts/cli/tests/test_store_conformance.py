@@ -3,6 +3,7 @@ does not declare is skipped by feature, never failed."""
 
 from __future__ import annotations
 
+import subprocess
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -14,6 +15,18 @@ from chantier.core.errors import EXIT_CONFLICT, EXIT_PRECONDITION, EXIT_USAGE, C
 from chantier.store import READ_ONLY, FolderStore, PlanStore, SurfaceStore
 from chantier.store import folder as folder_module
 from chantier.store.base import LOCAL_FILES, PUBLISHES, REFUSES_WITHOUT_PUBLISHER
+
+ARTIFACT_ROWS = [
+    ("3-ready/x/work/artifacts-1/a.txt", False),
+    ("3-ready/x/work/debugger/artifacts-99/deep/a.bin", False),
+    ("4-batch/x/work/a/b/artifacts-7/x", False),
+    ("3-ready/x/work/artifacts-1/", False),
+    ("3-ready/x/work/artifacts-1", True),
+    ("3-ready/x/work/artifacts.md", True),
+    ("3-ready/x/evidence/artifacts-1/a.txt", True),
+    ("3-ready/x/artifacts-1/a.txt", True),
+]
+
 
 BACKENDS = [
     "folder",
@@ -188,6 +201,8 @@ def test_published_agrees_with_the_ignored_files(store: PlanStore) -> None:
         assert not store.published(rel), rel
     for rel in ("3-ready/x/01-intent.md", "5-archives/batches/batch-01.json", "x/batch.json"):
         assert store.published(rel), rel
+    for rel, published in ARTIFACT_ROWS:
+        assert store.published(rel) is published, rel
 
 
 def test_check_publish_returns(store: PlanStore) -> None:
@@ -222,3 +237,27 @@ def test_local_files_are_declared(store: PlanStore) -> None:
     store.root.mkdir(parents=True, exist_ok=True)
     store.ensure_gitignore()
     assert "seat.json" in store.read_text(".gitignore")
+
+
+@pytest.mark.parametrize(
+    ("rel", "published"),
+    [
+        *ARTIFACT_ROWS,
+        ("seat.json", False),
+        ("4-batch/batch.json", False),
+        ("3-ready/x/work/gates/a.md", False),
+        ("3-ready/x/work/scratch/a", False),
+        ("3-ready/x/01-intent.md", True),
+    ],
+)
+def test_published_agrees_with_git_on_the_shipped_gitignore(
+    tmp_path: Path, rel: str, published: bool
+) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "changes").mkdir()
+    store = FolderStore(tmp_path / "changes")
+    store.ensure_gitignore()
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", f"changes/{rel}"], cwd=tmp_path, check=False
+    ).returncode
+    assert (ignored != 0) is published is store.published(rel)

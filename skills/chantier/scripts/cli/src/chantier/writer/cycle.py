@@ -21,16 +21,19 @@ from chantier.writer import paths as wpaths
 from chantier.writer import record as rec
 from chantier.writer import times
 from chantier.writer.blocking import Look, blocking, foreign_autosync
-from chantier.writer.git_ops import Failed, Git, network_failure, refused
-from chantier.writer.surface import Surface
+from chantier.writer.git_ops import Failed, Git, network_failure, refused, too_long_path
+from chantier.writer.late import Late
 
 PUSH_TRIES = 3
 NAMED = 3  # paths named in a blocked text
 GIT_ERROR = "git-error"
+PATH_TOO_LONG = "path-too-long"
+FAILED_STEPS = (GIT_ERROR, PATH_TOO_LONG)
+PATH_SHOWN = 150
 CYCLES_TO_BLOCK = 2
 
 
-class Writer(Surface):
+class Writer(Late):
     """What the process that holds `writer.lock` does: its cycle and its `writer` entry."""
 
     def __init__(self, repo: Repo, version: str = __version__) -> None:
@@ -180,7 +183,10 @@ class Writer(Surface):
             if self.episode is not None:
                 self.episode = None
                 self.told = None
-                if self.record["state"] == rec.BLOCKED and self.record["reason"] != GIT_ERROR:
+                if (
+                    self.record["state"] == rec.BLOCKED
+                    and self.record["reason"] not in FAILED_STEPS
+                ):
                     self._tell({"type": "sync-resumed@1", "after": "blocked"})
             return False
         reason, text, where = found
@@ -319,13 +325,15 @@ class Writer(Surface):
         self._tell(event, holders or None)
 
     # step 8 and the failures
-    def _remember_failure(self, text: str) -> None:
+    def _remember_failure(self, text: str, reason: str = GIT_ERROR, path: str = "") -> None:
         r = self.record
         f = r["failure"]
         if f and f["step"] == self.step and f["text"] == text:
             f["cycles"] += 1
         else:
             r["failure"] = {"step": self.step, "text": text, "cycles": 1}
+            if reason != GIT_ERROR:
+                r["failure"].update(reason=reason, path=path)
 
     def _failed(self, e: Failed) -> None:
         """A git command failed: a network failure is `offline`; any other is a failed step,
@@ -335,8 +343,18 @@ class Writer(Surface):
                 self.offline_since = clock.now()
             self._finish(offline=True)
             return
-        self._remember_failure(rec.cut(e.text))
+        long = too_long_path(e.git_args, e.text)
+        if long is not None:
+            self._remember_failure(self._long_text(long), PATH_TOO_LONG, long)
+        else:
+            self._remember_failure(rec.cut(e.text))
         self._finish(failed=True)
+
+    def _long_text(self, path: str) -> str:
+        """`<n> characters: <path>`: n is the absolute path's length, the path as git names it
+        (relative to the surface), whole up to PATH_SHOWN characters, else its start and `...`."""
+        shown = path if len(path) <= PATH_SHOWN else path[:PATH_SHOWN] + "..."
+        return rec.cut(f"{len(str(self.root / path))} characters: {shown}")
 
     def _finish(self, offline: bool = False, failed: bool = False) -> None:
         """Step 8: the state, the episodes that end, `sync-late@1`."""
@@ -364,36 +382,14 @@ class Writer(Surface):
         self._late()
 
     def _block_git_error(self, failure: dict[str, Any]) -> None:
-        self._set(rec.BLOCKED, GIT_ERROR, failure["text"])
+        reason = failure.get("reason", GIT_ERROR)
+        self._set(rec.BLOCKED, reason, failure["text"])
         key = (failure["step"], failure["text"])
         if self.told != key:
             self.told = key
-            self._tell({"type": "sync-blocked@1", "reason": GIT_ERROR, "text": failure["text"]})
-
-    def _late(self) -> None:
-        """`sync-late@1`, once per episode: the oldest change not pushed passed `late`."""
-        r = self.record
-        if not r["pending"] and not r["ahead"]:
-            self.late_told = False
-            return
-        olds = [
-            (mono, stamp)
-            for mono, stamp in (
-                (self.pending_mono, r["pending_since"]),
-                (self.unpushed_mono, r["unpushed_since"]),
+            audience = (
+                (self._holding([failure["path"]]) or None) if reason == PATH_TOO_LONG else None
             )
-            if mono is not None
-        ]
-        if not olds or self.late_told:
-            return
-        mono, stamp = min(olds)
-        if self.now - mono >= times.late_s():
-            self.late_told = True
             self._tell(
-                {
-                    "type": "sync-late@1",
-                    "since": stamp,
-                    "paths": r["pending"],
-                    "ahead": r["ahead"],
-                }
+                {"type": "sync-blocked@1", "reason": reason, "text": failure["text"]}, audience
             )

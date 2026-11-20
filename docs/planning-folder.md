@@ -52,8 +52,11 @@ External layout, beside it:
 
 What is published and what stays local: the batch's own files (`batch.json`, `events.jsonl`,
 `brief.md`, the STATUS files, locks, `.batch-number`, `seat.json`, `forge-journal.jsonl`, which also holds the board's writes and the writer's lines, and the `.lease-hold.*.run` records of a running `lease hold`) and the detailed logs
-(`work/gates/`, `*.log`) are ignored by git, by a `.gitignore` the CLI keeps in the planning
-folder. A running CR's documents, reports and evidence are pushed with the surface, by the surface server's writer, within 5 minutes; with no writer running, a write to the surface is refused. A CR's folder
+(`work/gates/`, `*.log`), the scratch folder (`work/scratch/`) and downloaded CI artifacts (any
+`artifacts-*/` folder under a `work/` folder) are ignored by git, by a `.gitignore` the CLI keeps in the planning
+folder. A running CR's documents, reports and evidence are pushed with the surface, by the surface server's writer, within 5 minutes; with no writer running, a write to the surface is refused. A path too
+long for git blocks the writer with the reason `path-too-long`; its line names the file and the
+way out. A CR's folder
 may also hold `prototypes/NN-<idea>/` and `experiments/`, created only when used and published
 with the CR like its documents. A backlog CR may hold a `waits.json` (`wait <folder> add`): its typed waits, published and moved
 with the folder; `open` or `order add` carries its open waits into the batch's record and removes

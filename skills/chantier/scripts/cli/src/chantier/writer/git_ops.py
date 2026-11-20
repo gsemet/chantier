@@ -4,6 +4,7 @@ hook is skipped, and no command other than these is run."""
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from chantier.core.errors import ChantierError
@@ -23,6 +24,11 @@ NETWORK = (
 # "https://lfs.invalid/objects/batch": dial tcp: lookup lfs.invalid: no such host`
 LFS_NETWORK = ("dial tcp", "no such host")
 REFUSED = ("non-fast-forward", "fetch first")  # not `[remote rejected]`: a hook's refusal
+TOO_LONG = ("Filename too long", "File name too long")  # git for Windows; Linux, macOS
+_LONG_PATH = (
+    re.compile(r'open\("(.+?)"\): (?:Filename|File name) too long'),
+    re.compile(r"unable to index file '(.+?)'"),
+)
 BUSY = ("rebase-merge", "rebase-apply", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD")
 NOTHING = ("nothing to commit", "no changes added")
 
@@ -48,6 +54,18 @@ def refused(text: str) -> bool:
     """Whether a failed push was refused because the remote moved (not a fast-forward); a
     `[remote rejected]` (a hook of the remote, a protected branch) is a failed step."""
     return any(m in text for m in REFUSED)
+
+
+def too_long_path(args: tuple[str, ...], text: str) -> str | None:
+    """The path a failed `git add` quotes when git refuses it as too long, else None (a failed
+    `add` with no such phrase, or with no path to read, is a `git-error`)."""
+    if not args or args[0] != "add" or not any(m in text for m in TOO_LONG):
+        return None
+    for pattern in _LONG_PATH:
+        found = pattern.search(text)
+        if found:
+            return found.group(1)
+    return None
 
 
 def _one_line(message: str) -> str:

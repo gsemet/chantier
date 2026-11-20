@@ -22,7 +22,10 @@ Ground rules:
   lacks is not a stop: say so in a note and work without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`), never by another means.
 - Keep your notes in `<work folder>/debugger/` and proof in the CR folder's `evidence/`. Keep a
   raw log in a `*.log` file or `work/gates/`, never in a file that is published with the CR
-  (reports and evidence are).
+  (reports and evidence are). A CI artifact you download goes under
+  `<CR folder>/work/scratch/artifacts-<run id>/`, never under `<work folder>/debugger/` or
+  `evidence/`: it stays on this machine, never published; copy into `evidence/` only the small part
+  that proves your finding.
 - A test, a smoke run or a probe of the board's write paths (`chantier board`'s edits of the
   backlog, and the role-free CLI commands it calls) points at a scratch planning folder (a fresh
   temporary folder, or one under the worktree's test fixtures), never at the project's live

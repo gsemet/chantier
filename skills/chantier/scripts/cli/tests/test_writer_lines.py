@@ -14,7 +14,7 @@ from chantier.board import command
 from chantier.board.projects import Projects
 from chantier.core import clock
 from chantier.core.repo import Repo
-from chantier.hub import state
+from chantier.hub import schemas, state
 from chantier.hub.lock import WriterLock
 from chantier.writer import lines
 from chantier.writer.record import read
@@ -148,3 +148,12 @@ def test_a_writer_thread_that_dies_leaves_a_stopped_entry_that_says_why(
     assert WriterLock(git_dir).acquire()  # the lock is let go, not held by a dead writer
     thread.stop()
     assert read(git_dir)["state"] == "off"  # the server's end removes the entry
+
+
+def test_a_path_too_long_line_holds_the_text_and_the_way_out() -> None:
+    text = "358 characters: projects/studio/changes/4-batch/x"
+    line = lines.state_line(entry("blocked", reason="path-too-long", text=text))
+    told = schemas.sync_blocked_text({"reason": "path-too-long", "text": text})
+    for shown in (line, told):
+        assert text in shown and "work/scratch/" in shown
+    assert "work/scratch/" not in lines.state_line(entry("blocked", reason="git-error", text="x"))

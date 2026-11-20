@@ -24,7 +24,10 @@ Ground rules:
 - Keep your notes in `<work folder>/verifier/` and proof in the CR folder's `evidence/` (your
   before and after go to `<work folder>/verifier/evidence/`, but your `verify.md` is at
   `<work folder>/verify.md`). Keep a raw log in a `*.log` file or `work/gates/`, never in a file
-  that is published with the CR (reports and evidence are).
+  that is published with the CR (reports and evidence are). A CI artifact you download goes under
+  the `scratch:` folder (`<CR folder>/work/scratch/artifacts-<run id>/`), never under
+  `<work folder>/verifier/` or `evidence/`: it stays on this machine, never published; copy into
+  your evidence only the small part that proves a claim.
 - Evidence is a command run at the pushed head, with its output (except a matrix probe, below, run
   at the committed head before the CR's first push); notes and green CI are not proof.
   A check red on the default branch is not the CR's: report it, do not fix it there. Every judgment
