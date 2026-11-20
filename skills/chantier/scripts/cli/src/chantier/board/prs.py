@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from chantier.board import forge_read
+from chantier import connectors
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.core import clock
 from chantier.core.errors import ChantierError
@@ -297,7 +297,8 @@ def answer(
 ) -> dict[str, Any]:
     """The page's answer for a project whose record is `state`, for the batch `batch` (none: the
     batch in `4-batch/`, else the newest closed one). With no batch, an unknown one or no PR yet,
-    the forge is not asked. A closed batch is read on the forge, judged against nothing, and never
+    the forge is not asked, and a link no connector claims is not read (its row is left out, the
+    error line names it). A closed batch is read on the forge, judged against nothing, and never
     signalled. With a `repo`, a merge the forge shows and the record does not, in the batch in
     `4-batch/`, is left as one line in `forge-journal.jsonl` (the only write); an event its model
     refuses is set aside, the others are written, and the answer's `error` is
@@ -316,9 +317,17 @@ def answer(
     }
     if not withpr:
         return out
-    forge, out["read_at"], out["error"], fresh = reads.get(
-        f"{key}:{shown}", [c["pr"] for c in withpr], forge_read.read
-    )
+    links = [c["pr"] for c in withpr]
+    claimed = [x for x in links if connectors.connector_for(x) is not None]
+    left_out = next((x for x in links if x not in claimed), None)
+    forge: dict[int, dict[str, Any]] = {}
+    fresh = False
+    if claimed:
+        forge, out["read_at"], out["error"], fresh = reads.get(
+            f"{key}:{shown}", claimed, connectors.read
+        )
+    if left_out is not None and not out["error"]:
+        out["error"] = connectors.UNCLAIMED.format(link=left_out)
     branches = {c["branch"]: c["cr"] for c in live["crs"] if c["branch"]} if live else {}
     rows = rows_of(withpr, forge, {} if closed else branches, closed)
     out["rows"] = rows

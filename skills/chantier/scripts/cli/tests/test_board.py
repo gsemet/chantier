@@ -52,7 +52,6 @@ MODULES = [
     "write_api",
     "config_api",
     "prs",
-    "forge_read",
 ]
 LAZY = ("starlette", "uvicorn")
 

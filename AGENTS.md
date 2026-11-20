@@ -54,10 +54,11 @@
   own reading, checking and writing of that file; it never edits a batch and never messages an
   agent; one named exception, its PRs page: when that page asks, at most once every 10 s per project
   and batch shown, while a PR of the batch shown is not done, plus one read when the page opens and
-  one at once on each change of the batch shown, it reads the forge, read-only, with the user's own
-  `gh` or `glab`, on its own (no agent asks it), and needs the network for that, and a second, from
-  the same page: when its forge read finds a PR of the batch in `4-batch/` merged that the record
-  does not hold, it appends one line to `forge-journal.jsonl` (planning folder, never published), which
+  one at once on each change of the batch shown, it reads the forge, read-only, through the
+  connector of its forge, with the user's own `gh` or `glab`, on its own (no agent asks it), and
+  needs the network for that, and a second, from the same page: when its forge read finds a PR of
+  the batch in `4-batch/` merged that the record does not hold, it appends one line to
+  `forge-journal.jsonl` (planning folder, never published), which
   `status` prints for the Chief of Staff to record at its next `status`; the
   board itself records nothing and messages no agent; a third, from its Configuration page: a save
   appends one `config@1` line to the same journal (`source: board`) for each key whose effective value it
@@ -70,8 +71,10 @@
   none running, the one watcher of the surface that holds that lock is the hub and yields it when
   a server starts. The hub reads the forge, read-only, with the user's
   own `gh` or `glab`, on its own (no agent asks it), and needs the network for that: at most once
-  every 20 s, one query per project of the surface whose running batch has a PR the record does
-  not hold merged or cancelled; it appends to that project's `forge-journal.jsonl` (planning
+  every 20 s, through the connector of its forge (GitHub with `gh`, GitLab with `glab`), one
+  query per project of the surface for which the interest registry holds a PR or MR, and only
+  those: today, the PRs of a project's running batch while one of them is not held merged or
+  cancelled; it appends to that project's `forge-journal.jsonl` (planning
   folder, never published) one line per merge the record does not hold and per CI turning red on
   a PR ready to merge, and nothing else; each session's watcher, run for the Chief of Staff's
   whole session, with or without a batch, reads only its project's journal (the hub's lines and
