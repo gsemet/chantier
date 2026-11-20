@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from chantier.commands.registry import BATCH_EPOCH, Subparsers, add_command
+from chantier.commands.registry import BATCH_EPOCH, Subparsers, add_command, add_lease
 
 
 def register(sub: Subparsers) -> None:
@@ -35,3 +35,4 @@ def register(sub: Subparsers) -> None:
         action="store_true",
         help="the steering session's: put this CR's waiting long gate at the head of the queue",
     )
+    add_lease(s)

@@ -15,7 +15,7 @@ from chantier.commands.orders_apply import (
 from chantier.commands.orders_merged import stop_before_merge
 from chantier.commands.orders_waive import USAGE as WAIVE_USAGE
 from chantier.commands.orders_word import Word
-from chantier.core import git
+from chantier.core import git, leases
 from chantier.core.batch import Batch, check_epoch, require_epoch, resolve_batch
 from chantier.core.clock import now, stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
@@ -133,12 +133,18 @@ def _qa_row(repo: Repo, b: Batch) -> tuple[DriverRow, str]:
 def _qa_skeleton(repo: Repo, b: Batch, qa_row: tuple[DriverRow, str], req: _Req) -> list[str]:
     """The QA driver's prompt block, after the order's `QA folder:` line."""
     row, branch = qa_row
+    held = leases.lease_of(b.record, req.oid)
+    n = held.n if held else 1
     fill = {"<folder>": req.cr, "<batch>": b.id, "<root>": repo.root.as_posix()}
     block = DriverBlock(
         fill,
         f"{cli_command(repo)} <command> --batch {b.id}",
         [f"QA folder: {req.cr}; order {req.oid}", f"default branch: {branch}"],
         note=req.note,
+        lease=(
+            f"lease: {n} of {req.oid} (renew at each wake: lease {req.oid} renew --lease {n}; "
+            f"run a long test under lease {req.oid} hold --lease {n} -- <command>)"
+        ),
     )
     return driver_prompt_lines(row, b.record, block)
 
@@ -206,6 +212,8 @@ def _record_order(b: Batch, args: argparse.Namespace, req: _Req) -> str:
             **({"release": True} if new_release else {}),
         ),
     )
+    if args.kind == "qa":
+        leases.start(b.record, oid)  # lease 1 of the order's QA driver
     b.log(
         "order",
         None if cr in (None, "-") else cr,
@@ -337,5 +345,6 @@ def _order_done(repo: Repo, args: argparse.Namespace) -> list[str]:
         if o.done:
             return [f"{args.cr} already done"]
         o.done = now()
+        leases.end(o.lease)
         b.log("order-done", None, order=args.cr)
     return [f"{args.cr} done"]

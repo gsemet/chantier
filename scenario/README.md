@@ -67,7 +67,8 @@ Windows, has to confirm it and lower the budgets.
 In a unit, a scripted Foreman reads the batch's state and does what its card leaves it (fills the
 slots, asks, merges what the user allowed, cleans up, pauses); scripted Drivers create their
 worktree, commit, rebase, push and open their PRs against the fake forge, and use the CLI for
-its record (`round`, `gate`, `ship`, `handback`); the Chief of Staff steers with `chantier
+its record (`round`, `gate`, `ship`, `handback`), passing `--lease <n>`, the number `take` printed
+(the World keeps it); the Chief of Staff steers with `chantier
 order`. The scripted agents prove the frame, not the judgement: the checks are on what the CLI
 refuses, records and reports. What the CLI only refuses on a prepared state is checked by pytest
 in `skills/chantier/scripts/cli/tests/` (in-process, parametrized, in `just test`), not here.
@@ -114,6 +115,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
 - `verdict VERIFIED` refused without `work/verify.md` naming the head (no file, a stale `Head:`),
   `NOT VERIFIED` accepted without it (unit: gates)
   (test: test_verdict_note.py::test_verified_needs_a_verify_note_naming_the_head);
+- leases (unit: parallel): a stale `--lease` exits 3 `claim lost` and a missing one
+  exits 2, nothing recorded; a CI watch run under `lease <cr> hold` outlives the shortened TTL
+  (`CHANTIER_LEASE_TEST_TTL=3`) and the lease stays live, held by 1 background task;
 - the step a working CR is at: `round` recording `coder r1`, `phase` recording the inspector, a
   gate with its detail, `ci`, in the CR's STATUS.json, the batch row, `chantier status` and
   STATUS.md, the `phase` event outside the Progress steps, the step cleared by `handback` and
@@ -436,8 +440,9 @@ does a unit that is not in `UNITS` and a test that does not exist.
   open order, a stack agent, a Foreman whose last call waits on a tool (its file aged 10
   minutes), a held agent (a CR's or a QA order's `agent`) whose last record is a tool's result
   or whose last line is cut JSON, a held id with no transcript (cleared by `agents set <cr> -`),
-  the current Foreman of two recorded, a missing Foreman transcript, and a Copilot session file
-  written in the last 5 minutes or whose time is not measured; passing an agent that handed back
+  the current Foreman of two recorded, a missing Foreman transcript, and, on a Copilot batch, a held
+  agent whose lease is live or that has no lease (`not measured (no lease)`), passing once its
+  lease is not confirmed; passing an agent that handed back
   or ended its turn though its file was just written; passing, with the unrecorded subagents
   that run or cannot be read (and a held Driver's own subagent, an earlier Foreman's main
   transcript) listed apart under a heading and never judged, ended ones not listed; `--stopped`

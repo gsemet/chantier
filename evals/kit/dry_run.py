@@ -301,11 +301,16 @@ class Batch:
         self.links: dict[str, str] = {}
         self.restacked: dict[str, tuple[str, str]] = {}
         self.refused = ""
+        self.leases: dict[str, str] = {}
 
     # the CLI and its records ------------------------------------------------------------------------
 
     def cli(self, actor, *args, expect=(0,)):
         args = [str(a) for a in args]
+        if actor is not self.foreman and args[0] in ("round", "ship", "handback", "release", "note"):
+            # a Driver passes the lease `take` printed for its CR
+            number = self.leases.get(args[2] if args[0] == "release" else args[1])
+            args += ["--lease", number] if number else []
         done = subprocess.run([sys.executable, "-m", "chantier", *args], cwd=self.ws, capture_output=True,
                               text=True, encoding="utf-8", errors="replace")
         if done.returncode not in expect:
@@ -313,6 +318,9 @@ class Batch:
                            f"{(done.stderr or done.stdout).strip()[-400:]}")
         if actor:
             actor.say("Bash", {"command": "$CHANTIER " + shown(args)})
+        for line in done.stdout.splitlines():
+            if m := re.match(r"took (\S+) .*, lease (\d+) until", line):
+                self.leases[m[1]] = m[2]
         return done.returncode, done.stdout.strip().splitlines()
 
     def tool(self, actor, argv, cwd=None, expect=(0,)) -> subprocess.CompletedProcess:

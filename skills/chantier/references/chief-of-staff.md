@@ -1530,8 +1530,9 @@ CR-222 → CR-225 → CR-226 → CR-228."
   recorded and `-` did not clear, or the current Foreman) has a transcript that shows it still runs
   (a tool call with no result, or a step under way: the CLI reads the end of each transcript,
   never the file's age), or a transcript cannot be read (missing, cut or undecodable; a held id
-  with no transcript found too; on Copilot, a session file written in the last 5 minutes, and
-  `not measured` refuses too). The session's other subagents (grill, spec, critics, Drivers
+  with no transcript found too; on Copilot, until `copilot-close-end-event` lands, a held agent whose
+  lease is live, a unit with no lease (`not measured`) and the Foreman's heartbeat under 10 minutes
+  refuse too, and a Driver's leftover background work after its hand-back is no longer seen). The session's other subagents (grill, spec, critics, Drivers
   already replaced, a Driver's own subagents) and the replaced Foremans never block: the ones
   still running or unreadable are listed apart in the check's output, need no question to the
   user and no `--stopped`, and their calls are counted in the final cost only up to now. Offer or
@@ -1627,7 +1628,7 @@ these, say the three parts at once, in the user's language, before any try.
 | **A.** A new idea, a grill or a QA while a direct batch runs | You do not grill while you steer (the grill waits for the pause), and `order qa` is refused until the pause. Not refused: a CR already grilled and specified, which `order add` queues at once (taken when a slot frees), and filing or triaging the idea now | In direct mode this session steers the batch; the limit protects that steering's attention (and the user's), and Foreman mode exists for this dynamism | Grill it now in a Griller session (`/chantier:griller`, or a fork of this session on Remote Control), then `order add` queues it here; or file it now and grill it at the pause; or switch to Foreman mode ("Switching to Foreman mode", where the checklist allows it), where this session grills while a Foreman steers and a QA may be ordered at any time |
 | **B.** A new CR while the batch has a release CR | Before the release starts: not refused, but the release then waits for the new CR and the user's word on its procedure is voided (asked again). Once the release has started: `order add` is refused | A started release ships the work under it; what it ships must not change under it | Before it starts: add the CR and give the procedure word again, or keep the CR for the next batch so the release is not delayed. Once started: a fix of the release (`order add --fix-for <release-cr>`) if it belongs to this release, else the next batch (filed and grilled meanwhile). Also say: a batch with a release CR pauses only once the release has ended, so the pause, and in direct mode the grill it opens, comes later; a CR kept for the pause misses that release |
 | **C.** A subagent's file named `report...`, `summary...`, `findings...` or `analysis...` (`.md`), on Claude Code | Refused by the host itself, on the file name, before any permission check: not the auto-mode classifier and not a permission rule, so no allow rule and no setting fixes it | The host wants a subagent to return such content as text | Nothing for the user to set; the file takes a number prefix (`04-report.md`), as concepts says ("Starting an agent"). Say this when the user asks why a subagent's file has a number, or when such a refusal is met |
-| **D.** "Close the batch" while something still runs | `close` (with or without `--yes`) while a CR is not merged or cancelled, an order is open, a stack agent or a held agent still runs or cannot be read; on Copilot, an agent whose session file was written in the last 5 minutes counts as running | `close` deletes the batch's own files and prices its final cost; work still running would be cut off and left out of that cost | Wait for the running agent's end (the refusal names it), then `close` again; on Copilot, wait until 5 minutes after its last write; a held agent that has ended and has no transcript: `agents set <cr> - --epoch <n>` on the user's word; a CR left open: merge it, or drop it (`order drop <cr> --note …`, with the destination the user names) on the user's word |
+| **D.** "Close the batch" while something still runs | `close` (with or without `--yes`) while a CR is not merged or cancelled, an order is open, a stack agent or a held agent still runs or cannot be read; on Copilot, until `copilot-close-end-event` lands, a held agent whose lease is live, a unit with no lease (`not measured`) or the Foreman's heartbeat under 10 minutes counts as running | `close` deletes the batch's own files and prices its final cost; work still running would be cut off and left out of that cost | Wait for the running agent's end (the refusal names it), then `close` again; on Copilot, wait for the held agent's hand-back or its lease's expiry (at most 10 minutes), a unit with no lease: `agents set <x> - --epoch <n>` once it ended; a held agent that has ended and has no transcript: `agents set <cr> - --epoch <n>` on the user's word; a CR left open: merge it, or drop it (`order drop <cr> --note …`, with the destination the user names) on the user's word |
 | **E.** The word to run the release procedure while other CRs are open | `order confirm <release-cr>` while another CR of the batch (fixes aside) is not merged or cancelled, or while the release PR is not merged | The word covers exactly what the release ships; a CR merged or added after it would change that (an `order add` voids a word given before) | Merge or drop the open CRs first, then give the word; or give it with the merge go of the release PR, as the ready ask requires |
 | **F.** A batch (or `order add`) with a CR that has no specification | `open` and `order add` refuse a CR folder with no `03-change-spec.md` ("missing Change Specification: ...; grill the CR first"), except a CR in `3-ready` with `intake/request.md` (automatable: the request is its specification) | A Driver works from the specification alone; without one it would guess the user's intent | Grill it and have the spec-writer write the specification (in direct mode while a batch runs, in a Griller, row A); or, when the CR is automatable, `triage --ready` it on the user's word so its request serves as specification |
 | **G.** More work on a CR past its round limit | `round` once a CR has used its rounds (three unless granted; "round limit <n> reached; hand back blocked, only the user grants more (`order rounds`)"); the CR comes back blocked | The limit caps what a CR that does not converge may spend before the user looks at it | Read the blocked CR's question, then grant more rounds (`order rounds <cr> --note <n>`), change or split the CR, or drop it. A red the batch caused (a restack, a rebase onto another CR, a CR merged or moved below) is the rounds exception: you grant the next round yourself, up to the batch's `max_rounds` + 2, and say so (Steering). |
@@ -1643,6 +1644,12 @@ lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `pause`, `c
 [foreman](foreman.md) and your host's reference ([Claude Code](hosts/claude-code.md) or
 [Copilot](hosts/copilot.md)) and do what they say of the Foreman, until the batch completes, with
 these differences.
+
+- **Leases.** The Foreman's rule is yours: `take` is refused while a unit's lease is live
+  (`--reclaim` only on the user's word) or not confirmed (a `lease not confirmed since …` mark in
+  `status` is not a Driver gone; check with the host that it ended, then `take <cr> --reclaim --note
+  "resume: lease not confirmed"`; a QA order: `agents set O-k <id> --reclaim`; the stack: `take stack
+  --reclaim`), and `agents set <cr>|O-k|stack -` after an agent's reported end ends its live lease.
 
 - **Escalation.** The Foreman's escalation triggers ([concepts](concepts.md), "Escalation") are
   yours: the escalation model is the `escalate:` line of `$CHANTIER playbook`. The two rounds
@@ -1776,8 +1783,9 @@ these differences.
   longer knows). Grill the inbox ideas with the user and, on their word,
   `order add --note <folder>` for each CR: the batch stays paused; your first `take` sets it
   running again, and the batch pauses again at its end. `close` stays the
-  user's word, and follows the Closing bullet: in direct mode it counts only your Drivers' session
-  files as something that runs, not your own.
+  user's word, and follows the Closing bullet: in direct mode it counts only your Drivers as something that
+  runs (their transcripts on Claude Code, their live leases on Copilot until
+  `copilot-close-end-event` lands), not your own session.
 - **Switching to Foreman mode.** On the user's word, and only where a Foreman can start:
   preflight in Foreman mode passes first (P1, P2), and on Remote Control the switch needs a
   Foreman to reuse, else it is refused, with the reason. Start no new Driver. Before the Foreman starts,
@@ -1832,8 +1840,8 @@ these differences.
      refused (exit 3) and it stops.
   8. **Resume.** At once, by the restart path with `resume: switch to direct mode`, for each
      Driver step 6 showed ended: every `working` CR, the recorded stack driver and every open QA
-     order with an agent id (`agents set <cr> - --epoch <n+1>`, `handoff <cr>`, `take <cr> --note
-     "resume: switch to direct mode" --epoch <n+1>`, a new Driver from the printed skeleton,
+     order with an agent id (`agents set <cr> - --epoch <n+1>`, `handoff <cr>`, `take <cr> [--reclaim after the host check, when
+     the lease is only not confirmed] --note "resume: switch to direct mode" --epoch <n+1>`, a new Driver from the printed skeleton,
      `agents set <cr> <id> --epoch <n+1>`; the stack driver by `take stack --note ...`). A Driver
      of a Foreman stopped from outside counts as stopped from outside: no question to the user,
      counting toward nothing. A CR the old Driver handed back `blocked stopped` with the switch's

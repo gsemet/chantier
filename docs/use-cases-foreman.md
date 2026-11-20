@@ -170,7 +170,9 @@ only on your word.
 The Chief of Staff checks whether the Foreman is alive. If not, it tells you what it found and,
 on your word, runs the preflight again and starts a new Foreman, which relaunches the Driver of
 every CR still in progress, from its recorded state and worktree. Uncommitted work in a worktree
-is kept.
+is kept. A CR whose old Driver's lease is not confirmed is taken again with `take --reclaim` once the
+steering session checked with the host that the Driver ended; while the lease is live, only on your
+word.
 
 ## Switch to direct mode
 
@@ -180,7 +182,8 @@ On your word, on a running or paused Foreman batch, whether its Foreman answers 
 Foreman stops its Drivers and itself; a Foreman that does not answer has its session stopped by
 you, or by the Chief of Staff on your yes on Claude Desktop, from the machine. The Chief of Staff
 checks that each old Driver has ended, then takes over the batch and restarts each of those CRs
-from its recorded state and worktree. Nothing is lost: queued CRs stay queued, and the pull
+from its recorded state and worktree (a CR whose old Driver's lease is only not confirmed is taken
+with `take --reclaim` once that check is done; while the lease is live, only on your word). Nothing is lost: queued CRs stay queued, and the pull
 requests, branches and worktrees are kept. The old Foreman's spend stays in the batch's cost. The
 batch can go back to Foreman mode on your word.
 

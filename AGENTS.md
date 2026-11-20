@@ -17,7 +17,8 @@
   surface's root and in the project's folder there, are the only configuration, above the plugin's
   shipped `config/chantier.defaults.yml` (with none, chantier runs on the shipped defaults; `uv` is the only tool to install, and the CLI needs no network once uv's cache holds its
   packages, except the board's PRs page and the forge hub (below)), and chantier writes only in the planning folder (`.agents/changes/`, or the project's folder of an
-  external planning surface), as plain JSON and Markdown, and the project's `chantier.yaml` in an
+  external planning surface), as plain JSON and Markdown (with the `.lease-hold.*.run` records of
+  `lease hold`, never published), and the project's `chantier.yaml` in an
   external planning surface's project folder, from the board's Configuration page, and a CR's
   cleaned archive in its PR when the project asks for it, and fast-forwards a clean main checkout
   after a merge it records, the surface server keeps its key, and while it serves its PID, address
@@ -82,6 +83,11 @@
   that ran a watcher, held while it runs, empty, never removed), which `status`, `open`, `take`,
   `order` and the switch to direct mode read to print the `watch: not running` line. Its measured cost to justify
   it: one round trip with the user per merge and per board session ("rescan").
+  One more exception to the measured-cost rule, not a git one: `lease` (with `take --reclaim` and
+  `lease hold`), a Driver's, the stack driver's and a QA driver's short lease on their unit, renewed
+  by their commands, built on the user's answer of 2026-11-20 ("tout": all five of Board's ideas);
+  `lease hold` runs only what a Driver gives it, to keep a lease live, and the hub writes nothing
+  for leases.
 - The CLI has two named git exceptions: the surface server, which may serve without joining the
   planning surface's autosync group (board and autosync permissions are independent; autosync
   participation is explicit opt-in and does not stop other participants; the board commits

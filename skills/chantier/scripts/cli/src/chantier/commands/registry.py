@@ -29,6 +29,21 @@ def lazy(path: str) -> Handler:
     return run
 
 
+def add_lease(s: argparse.ArgumentParser, required: bool = False) -> None:
+    """`--lease <n>`: the number `take` (or `order qa`) printed, on a Driver's command."""
+    s.add_argument(
+        "--lease",
+        type=int,
+        metavar="N",
+        help=(
+            "the lease number `take` printed: "
+            + ("required" if required else "optional")
+            + " when the unit has a lease; a valid one renews it, a stale one exits 3 "
+            "(`claim lost`)"
+        ),
+    )
+
+
 def add_command(
     sub: Subparsers, name: str, fn: str, help_: str, scope: str = BATCH
 ) -> argparse.ArgumentParser:

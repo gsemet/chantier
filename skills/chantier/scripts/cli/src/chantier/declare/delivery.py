@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-from chantier.commands.registry import BATCH, Subparsers, add_command
+from chantier.commands.registry import BATCH, Subparsers, add_command, add_lease
 
 
 def register(sub: Subparsers) -> None:
@@ -35,6 +35,7 @@ def register(sub: Subparsers) -> None:
         help="the rebase this ship follows resolved a conflict (whoever resolved it): no pass and "
         "no verdict from before carries, here or later; the ship event records `conflict: true`",
     )
+    add_lease(s, required=True)
 
     s = add_command(
         sub,
@@ -44,6 +45,7 @@ def register(sub: Subparsers) -> None:
         BATCH,
     )
     _stack_arguments(s)
+    add_lease(s, required=True)
 
 
 def _stack_arguments(s: argparse.ArgumentParser) -> None:

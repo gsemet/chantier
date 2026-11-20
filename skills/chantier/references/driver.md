@@ -13,7 +13,7 @@ You send every line to the steering session by the `Steering:` line of your prom
 without it is a `Needs:`-like gap: `note` it and use the host's reference row.
 
 At startup read the startup core, the short `Startup core` section, and the project's rules;
-defer the rest of this card until an action names it. These are the card's defaults, not a gate.
+defer the rest of this card until an action names it.
 
 - **Whole, first:** the project's instruction file that `$CHANTIER rules` names first (the
   project's rules rank above every card). From the other files `rules` lists, only what touches a
@@ -82,21 +82,19 @@ defer the rest of this card until an action names it. These are the card's defau
   [concepts](concepts.md), "Starting an agent", with the agent your prompt's `Team:` names for
   the role, and the worker's agent and model as the `team:` lines print them, passed as
   printed (no model printed: none passed; `agent=(generic)`: the generic agent with the printed
-  contract lines, concepts, "Starting an agent"). Read those lines with `$CHANTIER handoff <cr>`, which
-  prints them and counts nothing, or keep the ones `take` printed in your prompt; `round` is run
-  only to start a round, just before that round's Coder, never to read facts. A worker refused for its first line, or ended by a host failure: "Means: a worker that fails". Every worker's prompt holds
+  contract lines, concepts, "Starting an agent"). Read those lines with `$CHANTIER handoff <cr>` (it counts nothing) or
+  keep the ones `take` printed; `round` only starts a round, just before its Coder. A worker refused for its first line, or ended by a host failure: "Means: a worker that fails". Every worker's prompt holds
   the `writes:` line of the `worker writes line` that `take`, `round` or `handoff` printed,
   copied unchanged (never put together from `worktree:` or `folder:`, whose values carry text
   after the path); a CR Driver's own prompt holds `writes: <CR folder>`
-  (and `; <absolute archive path>` when `take` prints one; [concepts](https://github.com/gsemet/chantier/blob/main/skills/chantier/references/concepts.md), "A Driver's prompt"): you write your notes, `pr-body.md`, your large
+  (and `; <absolute archive path>` when `take` prints one; [concepts](concepts.md), "A Driver's prompt"): you write your notes, `pr-body.md`, your large
   outputs and, when `take` prints an archive path, the archive, nothing else. A Driver and its workers write nothing in the repository's
   git folder (`.git/info/exclude`, `.git/config`, `.git/hooks`), by any tool or shell command; git's
   own commands write there as git does. A file to ignore is ignored by the worktree's own files (a
   `.gitignore` change goes through a `coder`, in a round, as any project file) or not at all; a
   file that should not be committed is simply not staged (staging is by name). A `Needs:`
   you cannot meet is a `$CHANTIER note`, and you do your part without it (never `$CHANTIER`: a CLI that cannot run is a stop, `startup-core.md`).
-- A reply out of format is a failed worker. Each worker's reply has the format its own card names (for example
-  [coder](coder.md), [inspector](inspector.md), [verifier](verifier.md)); before acting on a reply, check it against that format:
+- A reply out of format is a failed worker. Each worker's reply has the format its own card names; before acting on a reply, check it against that format:
   - Inspector, and each extra review step: the reply is the JSON object alone, parseable, with
     `verdict` exactly `APPROVE` or `FIX-REQUIRED` and `head` a commit SHA. Prose, prose around the
     JSON, or a verdict word outside the JSON fails.
@@ -288,8 +286,8 @@ defer the rest of this card until an action names it. These are the card's defau
 - CI: the `timing:` line you read is, on Claude Code, the `subagent` one; on Copilot, the line of
   your model's family, else `other models`. While CI runs, do everything that does not need its result first: `pr-body.md` and the
   description as far as they can go, the archive's `delivery.md` when `take` printed an archive path, your notes. Then one long wait:
-  the forge's watch in a background shell (`gh pr checks <pr> --watch`, `glab ci status
-  --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
+  the forge's watch in a background shell, `lease <cr> hold --lease <n> -- <the watch>` (`gh pr checks
+  <pr> --watch`, `glab ci status --live`), end your turn, and let its end wake you; no `gh pr checks` or `glab ci` look in
   between (the two looks of the "no CI" rule below come before the long wait, or instead of it
   when no check is listed). Read the result yourself (`gh pr checks`, `glab ci list`) and judge it by the project's rules: a skipped job is never a green
   one; a job also red on the default branch is not the CR's (note it); an infrastructure
@@ -741,6 +739,25 @@ that lists no check gives no such bullet; the "no CI" rule says what to write th
   is running (`gate <cr> --stop`) and every other background task of yours, then `handback blocked stopped`; when the steering session's
   stop comes with a switch of mode (to Foreman or to direct mode), the note says so.
 
+## Means: the lease
+
+Read when you wait, or when a lease is refused. Your lease is 10 minutes, renewed by every command
+that carries `--lease <n>` (the number `take` printed); times in its texts are UTC.
+
+- Renew at each wake: the next command carries `--lease <n>`, or run `lease <cr> renew --lease
+  <n>`; with `driver-wake`, at its wake. A wait over 3 minutes that runs a command (a review, a
+  worker's run, a test) runs it as `lease <cr> hold --lease <n> -- <command>`: the lease stays live
+  while the child runs, and renews once when it ends. `hold` keeps no shell, runs only what you
+  give it, exits with the child's code, and reads `--batch` and `--lease` only before `--`.
+- A long gate of yours, running or waiting in the queue, keeps the lease live with no `hold`.
+- Not confirmed: the lease ran out while you waited, which is not a failure and not "gone". Your next
+  command with the current number is accepted (the log notes `lease-late`) while nobody took the CR
+  again; read it with `lease <cr>`.
+- `claim lost`: the steering session took the CR again, or ended your lease (`cancel`, `order
+  drop`, `agents set <cr> -`). Stop at once, record nothing more, tell the Foreman.
+- Reclaim is the steering session's: `take --reclaim` after it checked with the host that the
+  Driver ended, or on the user's word for a live lease. A Driver never reclaims.
+
 ## CR driver
 
 Take one CR from its specification to a green PR, then hand it back. A CR Driver edits no code,
@@ -751,7 +768,11 @@ through a `coder`. It writes only its notes, `pr-body.md` and, when `take` print
 
 A CR that touches the board's write paths: "CR driver: the board's write paths".
 
-Your worktree's work is never discarded by you: no `git reset --hard`, `git checkout -- <path>`,
+Lease: `take` prints `lease: <n>`; pass `--lease <n>` on `round`, `ship` and `handback`. `claim lost`:
+stop at once, record nothing more, tell the Foreman. A wait over 3 minutes, a renewal, a lease "not
+confirmed", a reclaim: "Means: the lease".
+
+You never discard the worktree's work: no `git reset --hard`, `git checkout -- <path>`,
 `git restore`, `git clean`, and no deletion of a file in the worktree. `git rebase --abort` is
 allowed: it returns to the head before the rebase, and no work is lost. After a failed coder or a failed rebase: "Means: a worker that fails". Before round 1 and between
 rounds, your own reading of the code is an `investigator` or a `debugger`, not you.
@@ -833,7 +854,7 @@ After a move (any change of the head after a judgment: a round, a rebase, a rest
 resolution): "CR driver: moves and conflicts". A re-take note (`rebase:`, `restack`, `folded:`, a
 stack base): "CR driver: re-takes". Before `handback ready`, no proof in the PR is stale.
 
-Every `APPROVE` is recorded at once, as soon as you read the JSON and before any other step (the
+Every `APPROVE` is recorded at once, before any other step (the
 next review step, the commit, any write of `pr-body.md` or of the posted description): the round's
 `inspector`, a body-only re-inspection, each review step of your `Team:`, the `inspector` after a
 move. The note holds the verdict, the `head` copied from the JSON and what was reviewed:
@@ -1255,12 +1276,22 @@ are judged, or after a `carried:` line (the carry is the judgment), record `$CHA
 blocked context: <where it stopped, what is next>` and end (the Driver's context rule, applied to
 you); at `context: not measured`, go on.
 
+**Lease.** Your facts carry `lease: stack <n>`. Pass `--lease <n>` on `stack <crs…>`, `stack
+--out-of-draft`, `stack --draft` and `forge-stack create|rebuild|unstack` (`forge-stack show` and the
+bare `stack` need none; nor does `ship` of a CR handed back, whose lease ended). A long gate you run goes under `lease stack hold --lease <n> -- <the
+gate command>`, which keeps the stack lease live; renew and hold the same way while you wait
+("Means: the lease", with `stack` for `<cr>`).
+
 **Resuming.** When a take's note names `resume:`, or a take finds the stack partly restacked, read
 `$CHANTIER stack` once. A CR you move is done when its last `restack: on …` note names the CR
 below at that CR's current `head` and names its own `head`, and a later `restack: judged at <its
 head>` note exists. Go on from the first CR, bottom up, that is not done; never redo one that is.
 
 ## QA driver
+
+Your order has a lease: the skeleton `order qa` printed carries `lease: <n> of O-k`. You run no
+`round` or `handback`, so renew it with `lease O-k renew --lease <n>` at each wake and run a long
+test as `lease O-k hold --lease <n> -- <command>`; "Means: the lease" gives the rest.
 
 Use the project as its user would, at the head of its default branch, never an unmerged PR, and
 report what breaks. Your prompt gives a work folder in the inbox and what to test; you hold no
@@ -1279,6 +1310,8 @@ Run one release CR by the project's own procedure, and add nothing from habit. Y
 code and start no children: a defect becomes a fix CR a CR Driver codes. Take the initiative
 inside the procedure and the grant, and ask for anything beyond them.
 
+- Your lease: `--lease <n>` on `round`, `ship`, `handback` and `release start|go|published`; a
+  long wait (CI, the publication) is renewed or held as "Means: the lease" says.
 - At each step of the procedure: `$CHANTIER phase <cr> release "<the step>"` (at most 40
   characters), one call, as the step starts.
 - An **irreversible action** is any step of the project's procedure that cannot be taken back or

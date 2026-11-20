@@ -148,6 +148,7 @@ IGNORED = (
     ".long-gate.*.run",
     ".long-gate.*.stop",
     ".long-gate.queue/",
+    ".lease-hold.*.run",
     ".batch-number",
     ".closing-*",
     "seat.json",

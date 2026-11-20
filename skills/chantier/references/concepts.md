@@ -42,6 +42,17 @@ At startup, identify the role, batch, project and parent session.
   grant, and never a stack that holds it. On GitHub a PR in a native stack is merged through the
   asynchronous merge, which takes every open PR below it, so the steering session merges it only when
   nothing open sits below it ([foreman](foreman.md), Your means, "Merging on GitHub").
+- **Lease:** a numbered hold of a Driver, the stack driver or a QA driver on its unit (a CR, `stack`
+  or a QA order `O-k`), started by `take` (or `order qa`), lasting 10 minutes and renewed by the
+  commands that carry `--lease <n>`, by `lease <unit> renew` and by a `lease <unit> hold` child
+  that runs. It is local to the machine that runs the batch. **Live** while it has not ended and
+  it is within its 10 minutes, a long gate of the CR runs or waits, or a hold runs. **Not
+  confirmed** when it ran out with none of these: its holder may only be waiting for its worker, so
+  it is not gone, and its holder's next command with the current number is accepted while nobody
+  took the unit again. Only the steering session, once it checked with the host that the Driver
+  ended, takes the unit again (`take --reclaim`); a live lease is taken only on the user's word.
+  **Ended** by the hand-back, the order's end, `agents set <unit> -` on a live lease, a `--reclaim`,
+  `cancel` or `order drop`; the old holder's next command gets `claim lost`.
 - **Tracker issue:** an issue in the project's tracker (GitHub, GitLab, Jira…) that a CR comes
   from, named by an `issue: <link>` line under the title of the CR's `01-intent.md` and
   `03-change-spec.md`. The CR's PR names it in its `## Issues References` section
@@ -190,7 +201,8 @@ At startup, identify the role, batch, project and parent session.
   whose transcript shows it still runs (a tool call with no result, or a step under way; on a
   direct batch the Chief of Staff's own transcript is not read, its subagents are), or cannot be
   read (a held id with no transcript cannot be read: the way out is `agents set <cr> - --epoch
-  <n>`; on Copilot, a session file written in the last 5 minutes; `not measured` refuses). The
+  <n>`; on Copilot, until `copilot-close-end-event` lands, a held agent whose lease is live, the
+  Foreman's heartbeat under 10 minutes, and a unit with no lease, `not measured`, refuse). The
   CLI reads the end of each transcript, never the file's age. The session's other subagents
   (grill, spec, critics, Drivers already replaced, a Driver's own subagents) and the replaced
   Foremans never block: those still running or unreadable are listed apart, and their calls are

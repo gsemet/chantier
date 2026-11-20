@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 
+from chantier.core import leases
 from chantier.core.batch import RESTORED_NUMBER_FILE, Batch
 from chantier.core.errors import EXIT_PRECONDITION, ChantierError
 from chantier.core.records import (
@@ -133,7 +134,9 @@ def close_pr_clause(batch: Batch, cr: CrEntry) -> str:
 
 def leave_batch(batch: Batch, cr: CrEntry) -> None:
     """The dropped CR's folder goes where `left_to` says, once: to `6-trash` (also for a drop
-    an older record holds with no destination), or to the inbox or the backlog."""
+    an older record holds with no destination), or to the inbox or the backlog. The CR's lease
+    ends, live or not confirmed: its old Driver's next command is `claim lost`."""
+    leases.end(cr.lease)
     if cr.left_to is None or cr.left_to == TRASH:
         trash_cr(batch, cr)
     else:

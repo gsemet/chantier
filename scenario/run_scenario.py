@@ -273,6 +273,12 @@ def check_driver_skeleton(w, target: str, out: list[str]) -> None:
     )
 
 
+def unit_name(word: str) -> str:
+    """A lease's unit: `CR-106` for `106`, `cr-106` and `CR-106`; `STACK` for the stack."""
+    word = word.upper()
+    return f"CR-{word}" if word.isdigit() else word
+
+
 class World:
     def __init__(self, root: Path):
         self.root = root
@@ -296,6 +302,7 @@ class World:
         self.last_stderr = ""
         self.last_out: list[str] = []
         self.name = ""  # the running batch's id, `batch-<n>`: the CLI numbers it
+        self.leases: dict[str, int] = {}  # the number `take` printed, by unit (upper case)
 
     def sh(self, *args, cwd=None):
         return subprocess.run(args, cwd=cwd or self.work, check=True, capture_output=True,
@@ -341,7 +348,36 @@ class World:
         note(f"    $ {FAKE[ARGS.forge][0]} {' '.join(args[:4])}…  → exit {p.returncode}")
         return p.returncode, p.stdout.strip(), p.stderr.strip()
 
-    def chantier(self, *args, env=None, expect=0, cwd=None):
+    @staticmethod
+    def words(args) -> list[str]:
+        """The command's words, without the global `--project <name>` in front."""
+        words = [str(a) for a in args]
+        return words[2:] if words[:1] == ["--project"] else words
+
+    def lease_unit(self, args) -> str | None:
+        """The unit a Driver's lease-guarded command works on (`round`, `ship`, `handback`,
+        `release start|go|published`, the stack driver's writing forms), else None."""
+        words = self.words(args)
+        if not words or "--epoch" in words or "--lease" in words or "--reclaim" in words:
+            return None
+        if words[0] in ("round", "ship", "handback") and len(words) > 1:
+            return unit_name(words[1])
+        if words[0] == "release" and len(words) > 2 and words[1] in ("start", "go", "published"):
+            return unit_name(words[2])
+        if words[0] == "forge-stack" and len(words) > 1 and words[1] != "show":
+            return "STACK"
+        if words[0] == "stack":
+            rest = [a for i, a in enumerate(words[1:], 1) if a != "--batch"
+                    and words[i - 1] != "--batch"]
+            return "STACK" if rest else None
+        return None
+
+    def chantier(self, *args, env=None, expect=0, cwd=None, lease=True):
+        """`lease=False` runs a Driver's command without the number `take` printed (a missing
+        lease case)."""
+        unit = self.lease_unit(args) if lease else None
+        if unit and self.leases.get(unit):
+            args = (*args, "--lease", self.leases[unit])
         p = subprocess.run([sys.executable, "-m", "chantier", *map(str, args)], cwd=cwd or self.work,
                            env={**self.env, **(env or {})}, capture_output=True, text=True,
                            encoding="utf-8")
@@ -351,6 +387,17 @@ class World:
         note(f"    $ chantier {' '.join(map(str, args))}  → exit {p.returncode}")
         for ln in out + ([f"stderr: {self.last_stderr}"] if self.last_stderr else []):
             note(f"      {ln}")
+        said = self.words(args)
+        if p.returncode == 0 and said[:1] == ["handback"] and len(said) > 1:
+            self.leases.pop(unit_name(said[1]), None)  # a hand-back ends the lease
+        if p.returncode == 0 and said[:2] == ["agents", "set"] and said[3:4] == ["-"]:
+            self.leases.pop(unit_name(said[2]), None)  # the Driver ended: the clearance ends it
+        if p.returncode == 0 and said[:1] == ["take"] and len(said) > 1 and out:
+            # a CR's `take` prints it on its first line, `take stack` in its `lease: stack <n>` fact
+            m = (re.search(r", lease (\d+) until", out[0])
+                 or next(filter(None, (re.match(r"\s*lease: stack (\d+) ", ln) for ln in out)), None))
+            if m:
+                self.leases[unit_name(said[1])] = int(m[1])  # the Driver keeps the number
         if expect is not None and p.returncode != expect:
             check(f"chantier {' '.join(map(str, args))} exits {expect}", False,
                   f"exit {p.returncode}: {self.last_stderr[:200]}")
@@ -382,6 +429,7 @@ class World:
         """`open` takes no name: the batch is `batch-<n>`, and it is the one running batch."""
         code, out = self.chantier("open", *args, **kw)
         if code == 0:
+            self.leases.clear()  # a new batch, new leases
             self.name = out[0].split()[1]
         return code, out
 
@@ -389,6 +437,7 @@ class World:
         """Sweep what an earlier case left open: `open` refuses a second batch."""
         if (self.state / "4-batch").is_dir():
             shutil.rmtree(self.state / "4-batch")
+        self.leases.clear()
 
     def cr(self, cr_id):
         return next(c for c in self.batch()["crs"] if c["id"] == cr_id)
@@ -851,6 +900,50 @@ def drop_then_cancel(w: World, cr: str, epoch: int, env=None) -> tuple[int, list
     return w.chantier("cancel", cr, "--epoch", epoch, env=env)
 
 
+def lease_cases(w: World) -> None:
+    """Two Drivers hold a lease each (`take` gave CR-101 and CR-102 theirs). A stale number is
+    `claim lost` and a missing one is refused, nothing recorded; a CI watch run under `lease hold`
+    keeps CR-102's lease live past the shortened TTL (3 s), and it is not expired."""
+    section("3a. Leases: a stale one, and a CI watch under `lease hold`")
+    note("\n## 3a. Leases: a stale one, and a CI watch under `lease hold`")
+    rounds = w.cr("CR-101")["round"]
+    code, _ = w.chantier("round", "CR-101", "--lease", 9, expect=3)
+    check("a stale lease: `round CR-101 --lease 9` exits 3 with `claim lost` and records nothing",
+          code == 3 and "claim lost" in w.last_stderr and "stop now: nothing recorded" in w.last_stderr
+          and w.cr("CR-101")["round"] == rounds, w.last_stderr)
+    code, _ = w.chantier("round", "CR-101", lease=False, expect=2)
+    check("a `round` with no lease is refused, naming the number `take` printed",
+          code == 2 and "needs --lease" in w.last_stderr and w.cr("CR-101")["round"] == rounds,
+          w.last_stderr)
+    number, ttl = w.leases["CR-102"], {"CHANTIER_LEASE_TEST_TTL": "3"}
+    watch, release = w.root / "ci_watch.py", w.root / "ci_watch.release"
+    release.unlink(missing_ok=True)
+    watch.write_text("import os, sys, time\nend = time.time() + 60\n"
+                     "while not os.path.exists(sys.argv[1]) and time.time() < end:\n"
+                     "    time.sleep(0.05)\n", encoding="utf-8")
+    w.chantier("lease", "CR-102", "renew", "--lease", number, env=ttl)  # expires in 3 s
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "chantier", "lease", "CR-102", "hold", "--lease", str(number), "--",
+         sys.executable, str(watch), str(release)], cwd=w.work, env={**w.env, **ttl},
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8")
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline and not list(w.state.glob(".lease-hold.CR-102.*.run")):
+        time.sleep(0.1)
+    expires = w.cr("CR-102")["lease"]["expires"]
+    over = datetime.strptime(expires, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    while datetime.now(timezone.utc) <= over + timedelta(seconds=1) and time.monotonic() < deadline:
+        time.sleep(0.2)  # no longer than the TTL: the lease's own expiry passes while the watch runs
+    code, out = w.chantier("lease", "CR-102")
+    check("a CI watch under `lease hold` past the shortened TTL keeps the lease live, not "
+          "expired, and `lease` says it is held",
+          datetime.now(timezone.utc) > over and out and "live until" in out[0]
+          and "held by 1 background task" in out[0] and "not confirmed" not in out[0], str(out))
+    release.touch()
+    _, err = proc.communicate(timeout=60)
+    check("the held command ends: `lease hold` exits 0", proc.returncode == 0, err)
+    w.chantier("lease", "CR-102", "renew", "--lease", number)  # the normal life again
+
+
 def scenario(w: World) -> None:
     section("1. Setup and preflight")
     note("## 1. Setup and preflight")
@@ -1016,6 +1109,7 @@ def scenario(w: World) -> None:
           and out[0] == "round 1 of 3 for CR-101" and any(ln == "rounds: 1 of 3" for ln in out),
           str(out))
     check_worker_writes_line(w, "CR-101", out, "round CR-101")
+    lease_cases(w)
     sheet = lambda cr: json.loads((w.at(w.cr(cr)["path"]) / "STATUS.json").read_text(encoding="utf-8"))
     row = lambda cr: next(r for r in json.loads((w.folder() / "STATUS.json").read_text(
         encoding="utf-8"))["crs"] if r["cr"] == cr)
@@ -3420,7 +3514,7 @@ def unpriced_model(w: World, main: Path, name: str) -> None:
 
 def close_refusals(w: World) -> None:
     """A paused batch shows its cost to date; the first `take` reopens it; `close` refuses while any
-    CR, order, stack agent or session file shows that something runs."""
+    CR, order, stack agent or lease shows that something runs."""
     name, state = w.name, w.folder() / "batch.json"
     slug = "".join(ch if ch.isalnum() else "-" for ch in str(w.work.resolve()))
     main = w.root / "claude-projects" / slug / "uuid-foreman.jsonl"
@@ -3820,15 +3914,32 @@ def close_refusals(w: World) -> None:
     state.write_text(json.dumps({**d, "host": "copilot"}))
     events.parent.mkdir(parents=True, exist_ok=True)
     events.write_text("", encoding="utf-8")
-    os.utime(events, None)
-    refused("a Copilot session file written within 5 minutes", "Copilot session uuid-foreman was "
-            "written", env=env)
-    state.write_text(json.dumps({**d, "host": "copilot"}))
-    refused("a Copilot session whose time is not measured", "not measured",
-            env={**env, "COPILOT_HOME": str(w.root / "no-copilot")})
-    age_sessions(w)
-    refused("on Copilot, a final cost that cannot be priced (no session usage tool)",
-            "its final cost cannot be priced", {"host": "copilot"}, env=env)
+    age_sessions(w)  # no session file is read for a liveness now: only the leases say what runs
+
+    def leased(expires_in_s: int | None) -> dict:
+        """A Copilot batch whose first CR holds an agent, with a lease that ends in `expires_in_s`
+        seconds (negative: not confirmed), or with none."""
+        at = datetime.now(timezone.utc)
+        lease = None if expires_in_s is None else {
+            "n": 1, "taken": at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "renewed": at.strftime("%Y-%m-%dT%H:%M:%SZ"), "ended": None,
+            "expires": (at + timedelta(seconds=expires_in_s)).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        return {"host": "copilot", "heartbeat": None, "crs": [
+            {**c, "agent": "agent-a", "lease": lease} if i == 0 else c
+            for i, c in enumerate(d["crs"])]}
+
+    cr0 = d["crs"][0]["id"]
+    refused("a Copilot batch's held agent whose lease is live",
+            (f"agent-a ({cr0}) holds lease 1 until",), leased(600), env=env)
+    refused("a Copilot batch's held agent with no lease",
+            (f"agent-a ({cr0}): not measured (no lease)",), leased(None), env=env)
+    state.write_text(json.dumps({**d, **leased(-3600)}))
+    code, out = w.chantier("close", "--batch", name, env=env, expect=2)
+    check("on Copilot, a lease that is not confirmed no longer refuses `close`: only the final "
+          "cost that cannot be priced does",
+          code == 2 and "its final cost cannot be priced" in w.last_stderr
+          and "lease" not in w.last_stderr and "not measured" not in w.last_stderr,
+          w.last_stderr)
     state.write_text(base)
     # the Chief of Staff's own session writes all the time and never blocks its own close
     os.utime(main.with_name("uuid-chief.jsonl"), None)
@@ -8010,6 +8121,8 @@ def ready_words(w: World) -> None:
         d = w.batch()
         c = next(x for x in d["crs"] if x["id"] == cr)
         c.update(fields)
+        if fields.get("status") == "working":
+            c.pop("lease", None)  # a Driver handed back again holds no lease of the old one
         for key in drop:
             c.pop(key, None)
         (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))

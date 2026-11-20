@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 _fixed: list[datetime] = []  # at most one: the instant `--clock` pins for this process
@@ -32,3 +32,19 @@ def age_minutes(ts: str | None) -> float | None:
         return None
     then = datetime.strptime(ts, FORMAT).replace(tzinfo=UTC)
     return (_current() - then).total_seconds() / 60
+
+
+def parse(ts: str) -> datetime:
+    """A stamp as an instant."""
+    return datetime.strptime(ts, FORMAT).replace(tzinfo=UTC)
+
+
+def after(seconds: int, since: str | None = None) -> str:
+    """The stamp `seconds` after `since` (default: now)."""
+    base = parse(since) if since else _current()
+    return (base + timedelta(seconds=seconds)).strftime(FORMAT)
+
+
+def seconds_until(ts: str) -> float:
+    """How long until the stamp; negative once it has passed."""
+    return (parse(ts) - _current()).total_seconds()

@@ -19,6 +19,7 @@ from chantier.commands.crs import (
 from chantier.commands.driver import context_line
 from chantier.commands.facts import stack_lines
 from chantier.commands.forge_base import read_state
+from chantier.core import leases
 from chantier.core.batch import read_batch, resolve_batch
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.files import read_text
@@ -214,26 +215,31 @@ def _refuse_foreign(
         )
 
 
+def _archive_seen(repo: Repo, c: CrEntry, wt: Path, head: str) -> tuple[bool | None, list[str]]:
+    """Whether the PR's head holds the CR's archive (None when the project asks for none), and
+    what is off when it does not."""
+    where = archive_path(repo, c)
+    if not where:
+        return None, []
+    seen = bool(git("ls-tree", "-d", "--name-only", head, where.rstrip("/"), cwd=wt, check=False))
+    return seen, [] if seen else [f"archive missing from the PR at {where}"]
+
+
 def ship(args: argparse.Namespace) -> list[str]:
     """Record the PR the Driver pushed at the worktree's head and say what is off (uncommitted
     change, head not pushed, no long gate). Refuse, recording nothing, an out-of-draft PR on
     the default branch whose head carries another CR's commits: draft it first, ship again."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
+    leases.require(d, c.id, args.lease, f"ship {c.id}", ended_ok=True)
     wt = cr_worktree(c)
     if "://" not in args.pr:
         raise ChantierError("ship <cr> <pr link>", EXIT_USAGE)
     head = git("rev-parse", "HEAD", cwd=wt)
     off = _off_worktree(repo, c, wt, head)
     short = short_head(head)  # display only: the CR and the event keep the full SHA
-    where = archive_path(repo, c)
-    seen = None
-    if where:
-        seen = bool(
-            git("ls-tree", "-d", "--name-only", head, where.rstrip("/"), cwd=wt, check=False)
-        )
-        if not seen:
-            off.append(f"archive missing from the PR at {where}")
+    seen, missing = _archive_seen(repo, c, wt, head)
+    off += missing
     events = cr_events(repo, batch, c.id)
     conflict = bool(args.conflict)
     carry, carry_lines = ({}, []) if conflict else ship_carry(repo, d, c, head, events)
@@ -246,6 +252,7 @@ def ship(args: argparse.Namespace) -> list[str]:
     if base == repo.config["default_branch"] and draft is False:
         _refuse_foreign(_foreign_crs(repo, d, c, wt, head), c, args.pr, base, head)
     with RenderedBatch(repo, batch, actor="driver") as b:
+        leases.claim(b, c.id, args.lease, what=f"ship {c.id}", required=True, ended_ok=True)
         b.touch(b.cr(c.id), pr=args.pr, pr_base=base, pr_draft=draft, head=head, archive_seen=seen)
         b.log(
             "ship",
@@ -280,6 +287,7 @@ def stack(args: argparse.Namespace) -> list[str]:
     with RenderedBatch(repo, batch, actor="stack") as b:
         if b.record.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
+        leases.claim(b, "stack", args.lease, what="stack <crs>", required=True, ended_ok=True)
         for cr in args.crs:
             if is_held(b.cr(cr)):
                 raise ChantierError(
@@ -311,6 +319,8 @@ def _record_drafts(repo: Repo, batch: str, args: argparse.Namespace) -> list[str
     with RenderedBatch(repo, batch, actor="stack") as b:
         if b.record.mode != "stack":
             raise ChantierError(f"batch {batch} is not a stack")
+        flag = "--out-of-draft" if out else "--draft"
+        leases.claim(b, "stack", args.lease, what=f"stack {flag}", required=True, ended_ok=True)
         crs = [b.cr(x) for x in args.crs]
         if out:
             _check_out_of_draft(b.record, crs)

@@ -19,6 +19,7 @@ from chantier.commands.crs import (
 )
 from chantier.commands.forge_base import stacked_read
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
+from chantier.core import leases
 from chantier.core.heads import gate_passed
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, ReleaseGrant, round_limit
 from chantier.core.repo import Repo
@@ -242,7 +243,10 @@ def handoff(args: argparse.Namespace) -> list[str]:
     """The CR's facts, for any agent; changes nothing."""
     repo = Repo.find()
     batch, d, c = batch_cr(repo, args.cr, args.batch)
-    return cr_facts(repo, batch, d, c)
+    lines = cr_facts(repo, batch, d, c)
+    if c.lease is not None:
+        lines.append(leases.line(repo, c.id, c.lease))
+    return lines
 
 
 def _shown_pr(c: CrEntry) -> str:

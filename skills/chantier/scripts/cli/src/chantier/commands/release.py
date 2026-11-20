@@ -7,9 +7,10 @@ from pathlib import Path
 
 from chantier import procs
 from chantier.commands.endpause import end_of_batch
+from chantier.core import leases
 from chantier.core.batch import check_epoch, find_cr_batch
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
-from chantier.core.records import TRASH, CrEntry
+from chantier.core.records import LIVE, TRASH, CrEntry
 from chantier.core.repo import Repo
 from chantier.gate_slots import mtime, slot_of
 from chantier.lifecycle.moveout import check_drop_free, close_pr_clause, leave_batch
@@ -38,6 +39,9 @@ def release(args: argparse.Namespace) -> tuple[list[str], int]:
         is_fix = c.kind == "fix" and args.action == "go"
         if c.kind != "release" and not is_fix:
             raise ChantierError(f"{args.cr} is not the batch's release CR", EXIT_USAGE)
+        if c.status in LIVE:  # a Driver's command; the Foreman's `go` on a ready fix has none
+            what = f"release {args.action} {c.id}"
+            leases.claim(b, c.id, args.lease, what=what, required=True)
         if args.action == "start":  # a new attempt, on the branch the Driver set on the base
             # a merged PR of an earlier attempt is not this one's
             # (a merged PR is already cleared by `release_merged`; an attempt refreshes the
@@ -136,7 +140,7 @@ def cancel(args: argparse.Namespace) -> list[str]:
         if c.status != "cancelled":
             check_drop_free(b, c, c.left_to or TRASH)
         killed = _stop_processes(repo, c)
-        leave_batch(b, c)
+        leave_batch(b, c)  # it ends the CR's lease: its old Driver's next command is `claim lost`
         b.touch(c, status="cancelled", agent=None)
         to = c.left_to or TRASH
         b.log("cancel", args.cr, killed=killed, path=c.path, to=to)
