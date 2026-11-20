@@ -21,6 +21,7 @@ _T = TypeVar("_T")
 LOCK_TIMEOUT_S = 30
 FRONTMATTER = re.compile(r"\A\ufeff?---[ \t]*\n(?:.*?\n)?---[ \t]*(?:\n|\Z)", re.S)
 HEADING_LINE = re.compile(r"#{1,6} (.*)")
+LEAD = re.compile(r"^\ufeff?[#\s]*(?:change\s+specification\s*:\s*)?", re.I)
 
 
 def markdown_title(text: str) -> str:
@@ -32,6 +33,12 @@ def markdown_title(text: str) -> str:
         if found:
             return found[1].strip()
     return next((ln.lstrip("# ").strip() for ln in lines if ln.strip()), "")
+
+
+def subject(title: str) -> str:
+    """A title without its byte-order mark, its `#` and its "Change Specification:" lead,
+    in any case."""
+    return LEAD.sub("", title or "").strip()
 
 
 def try_lock(f: IO[str]) -> bool:

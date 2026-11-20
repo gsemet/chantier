@@ -18,7 +18,7 @@ from chantier.board.forge_kind import forge_of
 from chantier.board.journal import since_rescan
 from chantier.core.batch import apply_batch_settings
 from chantier.core.errors import ChantierError
-from chantier.core.files import read_text
+from chantier.core.files import read_text, subject
 from chantier.core.git import git
 from chantier.core.records import (
     BatchRecord,
@@ -185,7 +185,7 @@ def project_state(
 
 
 def _entry(c: dict[str, Any]) -> dict[str, Any]:
-    return {"cr": c["cr"], "title": c["title"], "pr": c["pr"]}
+    return {"cr": c["cr"], "title": subject(c["title"]), "pr": c["pr"]}
 
 
 _ORIGINS: dict[str, tuple[float, str]] = {}

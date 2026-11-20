@@ -1,6 +1,6 @@
 // One row of the PRs view: a PR read on the forge, set against the CR the record keeps for it.
 import { html } from '../core/dom.js';
-import { age, prNumber, safeUrl } from '../core/format.js';
+import { age, prNumber, safeUrl, title } from '../core/format.js';
 import { crKey } from '../model/targets.js';
 import { t } from '../model/words.js';
 import { icon } from '../ui/icons.js';
@@ -91,7 +91,7 @@ export function prRow(row, now, readTime, sort) {
   const number = html`<b>${prNumber(row.pr)}</b>`;
   const top = html`<div class="top">${number}<span class="tag cr">${row.cr}</span>${kind(row)}${tag('st', html`${stateIcon(TAGS[row.state] ?? 'queued')}${t(`pv.state.${row.state}`)}`)}${folder(row)}</div>`;
   const facts = html`<div class="facts">${conflict(row)}${checks(row)}${into(row)}${readyNow(row)}${when(row, now, sort)}${readAt(readTime, now)}</div>`;
-  const inner = html`${top}<div class="nt">${row.title}</div>${facts}${disagreement(row)}`;
+  const inner = html`${top}<div class="nt">${title(row.title)}</div>${facts}${disagreement(row)}`;
   const names = 'pvrow';
   const url = safeUrl(row.pr);
   if (!url) return html`<div class="${names}" data-key="pv-${row.cr}">${inner}</div>`;

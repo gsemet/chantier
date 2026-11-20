@@ -19,6 +19,7 @@ from chantier.board import forge_read
 from chantier.commands.forge_stack_gh import pr_parts
 from chantier.core import clock
 from chantier.core.errors import ChantierError
+from chantier.core.files import subject
 from chantier.core.repo import Repo
 from chantier.hub import journal
 
@@ -138,7 +139,7 @@ def row_of(
     merged = f["state"] == "merged"
     return {
         "cr": c["cr"],
-        "title": c["title"],
+        "title": subject(c["title"]),
         "kind": c["kind"],
         "pr": c["pr"],
         "number": number,
@@ -232,7 +233,7 @@ def _closed_rows(record: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {
             "cr": c["cr"],
-            "title": c.get("title", ""),
+            "title": subject(c.get("title", "")),
             "kind": None,
             "branch": None,
             "to_review": False,

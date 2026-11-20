@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.core.files import FRONTMATTER, is_lock, read_text
+from chantier.core.files import FRONTMATTER, is_lock, read_text, subject
 from chantier.status.views import spec_state
 from chantier.summaries.view import summary_view
 
@@ -126,8 +126,3 @@ def backlog_items(changes: Path, rows: list[dict[str, Any]]) -> dict[str, list[d
             }
         )
     return out
-
-
-def subject(title: str) -> str:
-    """A title without its byte-order mark, its `#` and its "Change Specification:" lead."""
-    return re.sub(r"^\ufeff?[#\s]*(?:Change Specification:\s*)?", "", title or "").strip()

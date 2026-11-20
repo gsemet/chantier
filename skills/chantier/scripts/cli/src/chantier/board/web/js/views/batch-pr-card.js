@@ -1,7 +1,7 @@
 // The cards of the Batch's PR columns. A card is a link to the PR when its address is a web one,
 // else a plain box. The folder control opens the CR's folder and leaves the link alone.
 import { delegate, html } from '../core/dom.js';
-import { prNumber, safeUrl, usd } from '../core/format.js';
+import { prNumber, safeUrl, title, usd } from '../core/format.js';
 import {
   baseOf,
   draftWhy,
@@ -77,7 +77,7 @@ export function prCard(c, batch, index, draft) {
     variants: ['clamp', draft && 'draft'],
     attrs: url ? html`title="${t('pr.open')}"` : '',
     top: html`<b class="num">${prNumber(c.pr)}</b><span class="tag cr">${c.cr}</span>${kindTag(c)}${place(c, batch, index, draft)}`,
-    title: c.title,
+    title: title(c.title),
     meta: html`<span>${baseOf(c, batch).text}</span>${why ? html`<span>${why}</span>` : ''}`,
     end: html`${usd(c.cost_usd)}${folder(c)}`,
     foot: gateLine(c),

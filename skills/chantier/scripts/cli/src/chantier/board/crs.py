@@ -7,8 +7,9 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.board.backlog import count_files, description, subject
+from chantier.board.backlog import count_files, description
 from chantier.board.times import cr_times, priority_of
+from chantier.core.files import subject
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, round_limit
 from chantier.core.repo import Repo
 from chantier.rails import ENDED, series_predecessor

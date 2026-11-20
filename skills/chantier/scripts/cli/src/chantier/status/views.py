@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from chantier.core.clock import age_minutes, now
-from chantier.core.files import markdown_title, read_text
+from chantier.core.files import markdown_title, read_text, subject
 from chantier.core.records import (
     LIVE,
     SUMMARY_FILE,
@@ -218,7 +218,7 @@ def _title(folder: Path) -> str:
     for name in TITLE_FILES:
         path = folder / name
         if path.is_file():
-            title = markdown_title(read_text(path, "replace"))
+            title = subject(markdown_title(read_text(path, "replace")))
             if title:
                 return title
     return folder.name
@@ -228,7 +228,7 @@ def shown_title(recorded: str, folder: Path | None) -> str:
     """A CR's recorded title, unless it is empty or a front matter's fence (`---`, recorded by an
     older `open`): then the folder's own title, when the folder is known."""
     if recorded and recorded.strip() != "---":
-        return recorded
+        return subject(recorded)
     return _title(folder) if folder is not None and folder.is_dir() else recorded
 
 

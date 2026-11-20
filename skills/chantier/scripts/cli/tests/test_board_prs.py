@@ -143,6 +143,14 @@ def test_the_four_crs_are_read_in_one_call_and_judged_against_the_record(board: 
     assert sum(k.endswith("forge-journal.jsonl") for k in after) == 1
 
 
+@pytest.mark.parametrize("written", ["Change Specification: X", "change specification: X", "X"])
+def test_a_title_is_shown_without_its_change_specification_lead(board: Board, written: str) -> None:
+    data = record(board.repo)
+    data["crs"][0]["title"] = written
+    write_record(board.repo, data)
+    assert board.rows()[board.ids[0]]["title"] == "X"
+
+
 def test_a_paused_batch_is_read_as_a_running_one(board: Board) -> None:
     board.edit(status="paused")
     body = board.get()[1]

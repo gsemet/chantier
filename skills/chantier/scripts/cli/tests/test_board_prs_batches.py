@@ -109,3 +109,14 @@ def test_a_row_carries_the_dates_the_forge_gave(board: Board) -> None:
         "2026-11-02T00:00:00Z",
     )
     assert (rows[1]["opened_at"], rows[1]["updated_at"]) == (None, None)
+
+
+@pytest.mark.parametrize("written", ["Change Specification: X", "CHANGE SPECIFICATION: X"])
+def test_a_closed_title_is_shown_without_its_change_specification_lead(
+    board: Board, written: str
+) -> None:
+    archive(
+        board.repo, 3, [{"cr": "CR-1", "title": written, "result": "merged", "pr": LINK.format(70)}]
+    )
+    board.forge = {70: {"state": "merged", "base": "main", "merged_at": "2026-11-01T00:00:00Z"}}
+    assert [r["title"] for r in ask(board, CLOSED)["rows"]] == ["X"]
