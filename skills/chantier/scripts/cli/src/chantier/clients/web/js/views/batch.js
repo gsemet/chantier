@@ -1,5 +1,5 @@
-// The Batch view: four figures, the mode strip, the legend, three tabs on the same batch (the graph
-// of the CRs by dependency, the Gantt, the time cards) and the PR column. The graph's arrows are
+// The Batch view: four figures, the mode strip, the legend, four tabs on the same batch (the Kanban
+// of its three folders, the graph of the CRs by dependency, the Gantt, the time cards) and the PR column. The graph's arrows are
 // measured, so they are drawn in `after` and on a resize. The Gantt and the time cards are modules
 // of their own, imported when their tab is first opened; a tab's module has
 // `render(state)`, `mount(root)` (returns a cleanup) and `after(root, state)`.
@@ -17,6 +17,7 @@ import { t } from '../model/words.js';
 import { bindOpen } from '../ui/open.js';
 import { empty, kpi, meter, stateIcon } from '../ui/parts.js';
 import { bindLight, drawEdges, graphBlock } from './batch-graph.js';
+import { kanbanBlock } from './batch-kanban.js';
 import { bindGateLinks } from './batch-pr-card.js';
 import { prsBlock } from './batch-prs.js';
 
@@ -107,8 +108,13 @@ function recorded(rec, state) {
   const note = line ? html`<p class="note">${t(line)}</p>` : '';
   const mode = rec.mode ? modeBand(rec) : '';
   const graph = graphBlock(recordRows(rec), rec, state.now, true);
+  const closed = {
+    kanban: 'batch.kanban_closed',
+    gantt: 'batch.times_none',
+    cards: 'batch.times_none',
+  };
   const panel =
-    state.batchTab === 'graph' ? graph : html`<p class="note">${t('batch.times_none')}</p>`;
+    state.batchTab === 'graph' ? graph : html`<p class="note">${t(closed[state.batchTab])}</p>`;
   return html`<div class="batch">${recordFigures(rec)}${mode}<div class="bwrap one"><div class="gcol">${note}${legend()}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div></div></div>`;
 }
 
@@ -120,8 +126,11 @@ export function render(state) {
   if (noCrYet(batch)) {
     return html`<div class="batch">${figures(batch)}${modeBand(batch)}${empty(t('batch.no_cr_yet'))}</div>`;
   }
-  const graph = state.batchTab === 'graph';
-  const panel = graph ? graphBlock(batch.crs, batch, state.now) : lazyTab(state);
+  const panel =
+    {
+      kanban: () => kanbanBlock(state, batch.crs),
+      graph: () => graphBlock(batch.crs, batch, state.now),
+    }[state.batchTab]?.() ?? lazyTab(state);
   return html`<div class="batch">${figures(batch, state.now)}${modeBand(batch)}<div class="bwrap"><div class="gcol">${legend()}${tabBar(state.batchTab)}${panelOf(state.batchTab, panel)}</div>${prsBlock(state)}</div></div>`;
 }
 
@@ -160,6 +169,7 @@ const graphTab = {
 // loading or when a closed record shows only its note.
 function tabModule(state) {
   if (state.batchTab === 'graph') return graphTab;
+  if (state.batchTab === 'kanban') return null;
   if (shownRecord(state.data, state.batchId)) return null;
   return entries.get(state.batchTab)?.module ?? null;
 }

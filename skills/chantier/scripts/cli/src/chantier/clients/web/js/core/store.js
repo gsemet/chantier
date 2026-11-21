@@ -9,7 +9,7 @@ const data = {
   project: null, // the id of the project shown, or '*' for All projects
   view: 'home',
   batchId: null, // Costs and Batch: the batch the navigator chose (its id), or null for the latest
-  batchTab: 'graph', // Batch: the open tab, `graph`, `gantt` or `cards` (the address's `t=`)
+  batchTab: 'kanban', // Batch: the open tab, `kanban`, `graph`, `gantt` or `cards` (the address's `t=`)
   data: null, // the `project` topic: the project's record
   rev: null, // the record's revision, as the server names it
   now: null, // the server's instant, from its last answer

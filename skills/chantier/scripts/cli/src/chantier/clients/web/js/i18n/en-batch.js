@@ -3,6 +3,15 @@
 export default {
   'batch.no_cr_yet': 'Paused, no CR yet: order add joins one.',
   'batch.spent_none_yet': 'none yet',
+  'batch.tab_kanban': 'Kanban',
+  'batch.kanban_pending': '1-pending',
+  'batch.kanban_actives': '2-actives',
+  'batch.kanban_done': '3-done',
+  'batch.kanban_pending_sub': 'joined, not taken yet',
+  'batch.kanban_actives_sub': 'taken: working, blocked or handed back',
+  'batch.kanban_done_sub': 'merged, last merged first',
+  'batch.kanban_closed':
+    'This batch is closed: its CRs are in 5-archives. The Graph tab shows them.',
   'batch.tab_graph': 'Graph',
   'batch.tab_gantt': 'Gantt',
   'batch.tab_cards': 'Time cards',

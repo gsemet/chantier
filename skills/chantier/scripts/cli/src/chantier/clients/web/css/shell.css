@@ -80,7 +80,7 @@
 
 /* the Kanban fills the main area's height: the page does not scroll, the board's own scrollbar sits
    at the window's bottom and each column scrolls alone */
-.main:has(.kanban) {
+.main:has(.view > .kanban) {
   overflow-y: hidden;
 }
 

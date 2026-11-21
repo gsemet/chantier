@@ -28,7 +28,7 @@ fails when the table and `tokens.css` disagree.
   never restyles one (test).
 - **One card, one column, one chip.** Every card is built by `js/ui/card.js` (test): a hairline all
   around, no side accent, the priority chip, when the item has a priority, first in its top row at
-  the top left. Every board column (Triage, Kanban) is built by `js/ui/column.js`: a light area, a
+  the top left. Every board column (Triage, Kanban, the Batch page's Kanban) is built by `js/ui/column.js`: a light area, a
   hairline, a plain head (dot, name, count) and a one-line grey sub-line saying what it holds; a
   column that appears on both pages has the same dot colour on both. The chip lives in
   `css/components/chip.css`; the priority chip is Triage's, filled with the priority colour, on
