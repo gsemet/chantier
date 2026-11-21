@@ -123,7 +123,7 @@ object, written by one function (`hub/journal.py`, `append`), under the project'
 | `seq` | 1 for the first line, then the highest readable `seq` plus one; a watcher's cursor counts it |
 | `t` | the time of the append |
 | `type` | `name@N`, the published type (`merged@1`, `checks-red@1`, `wait-cleared@1`, `config@1`, `board@1`, `issue@1` or `sync-*@1`), then the fields of that type |
-| `source` | who wrote it: `hub` (the forge hub), `board` (its PRs page, Configuration page and backlog writes), `writer` (the surface's writer), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
+| `source` | who wrote it: `hub` (the forge hub: the surface server), `board` (its PRs page, Configuration page and backlog writes), `writer` (the surface's writer), `cli` (room for a command), `poller` (an outside poller, through `chantier journal add`) |
 | `audience` | whom it is for: one or more of `project`, `role:<name>`, `cr:<id>`, `session:<key>`, `user` |
 
 A published `name@N` never changes; a change is a new `name@N+1`, and every type's JSON Schema
@@ -156,7 +156,7 @@ for `seq` and wakes no one, and `status` names it (`line <n> is of type <t>, unk
 chantier: update it`; `line <n> unreadable`). A line of a newer version counts for `seq`, wakes no
 one and is named by `status`.
 
-`chantier watch` reads the lines for it: `project`, its own `session:<key>` and each `--for`
+`chantier watch` receives, from the surface server's `events` topic, the lines for it: `project`, its own `session:<key>` and each `--for`
 value (repeatable; none is the default command). A line for another audience moves its cursor and
 is never printed. The watcher ends 20 s after the last new event for it that wakes, and no sooner
 than `events.wake_every` (`chantier.yaml`, default `20s`, 20 s or more) after its start.

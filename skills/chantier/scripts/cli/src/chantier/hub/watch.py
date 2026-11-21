@@ -48,6 +48,7 @@ from chantier.hub.watch_lines import (
     OTHER_VERSION,
     REFUSED,
     SEAT_LINE,
+    UNREADABLE_SEAT,
     Ended,
     told,
 )
@@ -157,7 +158,10 @@ class Watch:
         texts = self._texts()
         if self.session == autostart.NONE:
             raise Ended(NO_KEY.format(**texts))
-        seat = read_seat(self.repo)
+        try:
+            seat = read_seat(self.repo)
+        except ChantierError as e:
+            raise Ended(UNREADABLE_SEAT.format(**texts, error=e)) from e
         if seat is None:
             raise Ended(NO_SEAT.format(**texts))
         if not re.sub(r"[^A-Za-z0-9-]", "", seat.transcript or ""):

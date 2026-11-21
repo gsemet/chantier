@@ -121,8 +121,12 @@ served with its own type (an image, for the web page's `<img>`).
 ## The topics
 
 A topic is a value the server watches and pushes when it changes. Each event carries `rev`, a
-token of the value: equal revs, equal values. The server looks every 2 s, and only at what a
-client watches.
+token of the value: equal revs, equal values. The server is told of a change of the planning
+files by the system's file notifications (or checks every 5 s where it cannot), and publishes 1 s
+after the last change; it looks every 2 s, and only at what a client watches, at the values that
+are not files (the live cost, the seats, the writer, the PRs). The protocol is the same either way.
+A client that prints the `events` lines (as `chantier watch` does) prints each line's `text`, the
+finished sentence the server tells it by; a line with no `text` is told by its type alone.
 
 | Topic | Arguments | `data` of an event |
 | --- | --- | --- |

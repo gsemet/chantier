@@ -48,7 +48,8 @@ never stored. There are three providers:
 
 The forge hub reads at most once every 20 s, through the connector of its forge, one query per
 project for which the registry holds a PR or MR, and only those: a project nobody waits on is not
-read. The board's PRs page keeps its own read, at most once every 10 s per project and batch shown.
+read; and only while a client is subscribed to the server (always, for a board started with
+`--forge-always` on a host that cannot run the watcher). The board's PRs page keeps its own read, at most once every 10 s per project and batch shown.
 A project's PRs must sit in one repository: with two, nothing is read and the hub's error says so.
 
 A link that no connector reads (a PR of another forge) is not read: the hub's error and the PRs

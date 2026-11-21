@@ -18,7 +18,9 @@ from chantier import __version__
 from chantier.board import running
 from chantier.board.command import BEYOND, CHECKS, NO_NETWORK, WATCHES
 from chantier.clients.tui.link import KEY, PROTOCOL_KIND, Linked, Refusal, Refused
+from chantier.core.errors import ChantierError
 from chantier.core.repo import Repo
+from chantier.core.seat import read_seat
 from chantier.hub import autostart, feed, journal
 from chantier.hub import times as hub_times
 from chantier.hub.watch import END, IDLE, RETRY_S, SILENT_S, START_S, Watch, run
@@ -32,6 +34,7 @@ from chantier.hub.watch_lines import (
     NOT_STARTED,
     REFUSED,
     SEAT_LINE,
+    UNREADABLE_SEAT,
 )
 from chantier.plugin_files import cli_command
 
@@ -70,6 +73,7 @@ MATRIX: list[Any] = [
     (ME, None, False, (NO_TRANSCRIPT, 1)),
     (ME, "", False, (NO_TRANSCRIPT, 1)),
     (ME, OTHER, False, (SEAT_LINE, 0)),
+    (ME, "unreadable", False, (UNREADABLE_SEAT, 1)),
     (ME, ME, False, None),
 ]
 
@@ -80,13 +84,21 @@ def test_the_seat_rule_with_and_without_a_running_board(
 ) -> None:
     key, transcript, runs, ends = case
     monkeypatch.setattr(autostart, "session_key", lambda: key)
-    if transcript != "no seat":
+    if transcript == "unreadable":
+        seat(repo, None)
+        (repo / ".agents" / "changes" / "seat.json").write_text("{not json", encoding="utf-8")
+    elif transcript != "no seat":
         seat(repo, transcript)
     found = Repo.find()
     board = served(found) if runs else FakeBoard(found, starts=serving)
     w = Watch(found, 0, __version__, board=board)
     if ends is not None:
-        assert run(w) == ([ends[0].format(**texts(found))], ends[1])
+        error = ""
+        if transcript == "unreadable":
+            with pytest.raises(ChantierError) as raised:
+                read_seat(found)
+            error = str(raised.value)
+        assert run(w) == ([ends[0].format(**texts(found), error=error)], ends[1])
         assert board.spawned == [] and board.feeds == []
         return
     start = w.start()

@@ -29,7 +29,7 @@ QUIET_S = 1.0  # a project settles once its files are quiet this long
 MOST_S = 5.0  # and at the latest this long after the first change of a stream
 DEBOUNCE_MS, STEP_MS = 200, 50  # the notification backend's grouping of changes
 TIMEOUT_MS = 250  # the backend returns this often with no change, so a quiet project settles
-POLL_DELAY_MS = 300  # unused: polling is never forced (the backend's argument)
+POLL_DELAY_MS = 300  # the backend's poll delay, used only if it polls (never forced here)
 JOIN_S = 5.0
 STOPPED = "board: file notifications stopped ({reason}); checks every 5 s"
 

@@ -12,7 +12,7 @@ At startup, identify the role, batch, project and parent session.
 - **Pull request (PR):** a merge request on GitLab.
 - **Connector:** the module that reads one forge, read-only (GitHub and GitLab ship).
 - **Interest:** a PR or MR, or a tracker issue a CR's `issue:` line names, that someone waits
-  for; `chantier interests` lists them; the forge hub reads only the PRs and MRs (a running
+  for; `chantier interests` lists them; the forge hub reads only the PRs and MRs, while a client is subscribed (a running
   batch's open approval, pipeline and merge waits are interests too), an outside poller (the
   user's own program) the issues, and writes their events with `chantier journal add`.
 - **`access`:** `$CHANTIER access [write|claim|push] [<cr>]` explains, read-only, what the rules say
@@ -744,7 +744,9 @@ stack driver's `conflict-resolver` escalates, the stack driver keeps the batch's
    stops it by its id, with the host's stop of a background task, once its result is read or no
    longer counts (the board and the Chief of Staff's watcher, `$CHANTIER watch`, keep
    `session-start.md`'s and `chief-of-staff.md`'s start and stop rules: the watcher is started on
-   the user's yes, started again after each end, and stops itself (at its end, or when the seat is another session's); only the current-folder rule
+   the user's yes, started again after each end, and stops itself (at its end, 2 h after its start with no event, or when the seat is another session's); the board a watcher starts is a detached process, no background task
+   of the session: it stops itself when its seat leaves or 30 minutes after its last client, and
+   by hand only with the stop command `session-start.md` names; only the current-folder rule
    applies to them). The shell that runs `$CHANTIER gate` is the gate itself: it
    ends when the gate ends and records its result, and it is stopped only with `gate <cr> --stop`.
    The reasons: on Windows a process whose current folder is inside a folder keeps that folder from

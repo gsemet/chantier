@@ -24,6 +24,7 @@ from chantier.board.guard import NEEDS_KEY
 from chantier.board.key import KeyFile
 from chantier.board.projects import open_projects
 from chantier.board.seats import Seats
+from chantier.core import repo as repo_module
 from chantier.core.errors import EXIT_EXTERNAL
 from chantier.declare.board import SHIPPED_UI
 
@@ -181,6 +182,28 @@ def test_the_board_gives_a_surface_its_root_and_each_project_its_two_paths(
     assert paths == {
         "alpha": ("projects/alpha/", "../../../code/"),
         "beta": ("projects/beta/", ".repo"),
+    }
+
+
+def test_a_board_started_from_a_code_clone_serves_every_project_of_the_surface(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A watcher starts its board from the project's code clone, `--project` naming the project's
+    folder: the surface's other projects are found by their folders, not in the clone."""
+    surface, code = tmp_path / "plans", tmp_path / "code"
+    _git_init(surface)
+    _git_init(code)
+    for name in ("alpha", "beta"):
+        (surface / "projects" / name / "changes").mkdir(parents=True)
+    monkeypatch.delenv("CHANTIER_ROOT", raising=False)
+    monkeypatch.chdir(code)
+    monkeypatch.setattr(repo_module, "PROJECT", str(surface / "projects" / "alpha"))
+    projects = open_projects()
+    assert projects.surface is not None
+    assert projects.surface.resolve() == surface.resolve()
+    got = {p.id: p.repo.project_dir for p in projects.all()}
+    assert {k: v and v.resolve() for k, v in got.items()} == {
+        n: (surface / "projects" / n).resolve() for n in ("alpha", "beta")
     }
 
 

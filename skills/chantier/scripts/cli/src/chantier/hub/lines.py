@@ -34,8 +34,8 @@ def board_lines(repo: Repo) -> list[str]:
     if not found:
         return []
     return [
-        f"board: chantier {found} serves this surface, this is chantier {__version__}: its "
-        "writes do not reach the watcher; for the Chief of Staff: tell the user once to "
+        f"board: chantier {found} serves this surface, this is chantier {__version__}: it "
+        "serves the watcher as that version; for the Chief of Staff: tell the user once to "
         "restart it"
     ]
 
