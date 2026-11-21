@@ -429,7 +429,9 @@ size or token.
 ## The Help page
 
 The `help` view sits after Home (and the Inbox) in the sidebar, the same on every project and on
-"All projects", with no count. It needs no project data (the registry's `offline`: `ui/host.js`
+"All projects", with no count. On the phone it is one more item of the bottom bar, which scrolls
+sideways (`css/shell.css`'s `.bnav`, `overflow-x: auto`) when its items no longer fit a narrow
+phone, so its last item stays reachable. It needs no project data (the registry's `offline`: `ui/host.js`
 draws it before a record has arrived, and while the board is unreachable) and calls no op or topic.
 Every word is an i18n key of `js/i18n/en-help.js` and `fr-help.js`; the topics' list (ids, group,
 link to chantier's documentation) is in `js/views/help-topics.js`. A topic's card and its detail
