@@ -1,7 +1,7 @@
 {
   "version": 2,
   "limit": 12544,
-  "paths": "relative to this file's folder; a reading is a file, or file#heading for its level-2 section",
+  "paths": "relative to this folder; a reading is a file or file#heading (a level-2 section)",
   "manifest": "startup-manifest.json",
   "common": "startup-core.md",
   "role_core": "role-core.md",
@@ -54,6 +54,7 @@
     "session-start": ["session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
     "chief-of-staff": ["chief-of-staff.md", "foreman.md#A Driver's refused force push", "session-start.md", "hosts/claude-code.md", "hosts/copilot.md"],
     "grill": ["griller.md"],
+    "batch:stack": ["foreman-stack.md"],
     "status": ["status-layout.md"],
     "batch": ["foreman.md", "concepts.md", "hosts/claude-code.md", "hosts/copilot.md"],
     "spec-writer": ["spec-writer.md"],

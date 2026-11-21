@@ -38,11 +38,20 @@ def register(sub: Subparsers) -> None:
         "asks",
         "chantier.commands.batch_status:asks",
         "the Foreman's asks still unread; with text, record one "
-        "(a readiness ask marks the CR's earlier unread one read)",
+        "(a readiness ask marks the CR's earlier unread one read); in a stack batch, a per-CR "
+        "ready-to-merge is refused while another CR of the stack has an open PR or a stacked CR "
+        'is open; a CR not in the stack\'s chain asks alone; --outside-stack "O-<k>: <why>" '
+        "records it on an open order on that CR that carries the user's word",
         BATCH,
     )
     s.add_argument("text", nargs="*", help="the Foreman's own ask")
     s.add_argument("--read", metavar="A-k|all", help="mark heard")
+    s.add_argument(
+        "--outside-stack",
+        metavar="O-k: why",
+        help="records a per-CR ready-to-merge that the stack guard refuses, on an open order "
+        "on that CR that carries the user's word",
+    )
     _register_agents(sub)
 
 

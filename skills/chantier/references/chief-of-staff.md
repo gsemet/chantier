@@ -862,7 +862,7 @@ Only in the turn where the user gave the go:
    "none yet: no CR"; no cut is proposed. When the user asks for a stack (or the plan proposes one) on GitHub, recommend
    installing the `gh stack` extension (github/gh-stack) and say why: the stack driver then makes
    one native stack the user may merge in one action from its top PR, or one PR at a time from
-   the bottom: the user may also merge each PR ready to merge as it comes, before the stack is made, and
+   the bottom: the user may also merge each PR ready to merge as it comes, before the stack is made, while that CR is the only open PR of the stack, and
    nothing about the merge path is fixed at the go nor recorded in `brief.md`. Say too that the stack
    is made as soon as two PRs are handed back ready, each further CR joins on top as a draft when it has its PR,
    the user may merge the ones ready to merge below at any time, and a new stack of what remains is made
@@ -1087,7 +1087,7 @@ CR-222 → CR-225 → CR-226 → CR-228."
 - **When the delivery time passes the time the user gave** (the batch will not finish by it):
   record `$CHANTIER order note - --note "deliver by <time>"` (it prints the line to send to the
   Foreman, and a restarted Foreman finds it). In direct mode you apply the Foreman's "Deliver by a
-  time" bullet ([foreman](foreman.md), stack batch) yourself. Tell the user nothing beyond what the
+  time" bullet ([foreman-stack](foreman-stack.md)) yourself. Tell the user nothing beyond what the
   report says.
 - **Steering:** each order is one `$CHANTIER order`, applied to the state at once and printed as
   the line to send the Foreman (by your host's means), who does what needs its hands
@@ -1269,9 +1269,27 @@ CR-222 → CR-225 → CR-226 → CR-228."
   the user makes anyway is recorded as any merge (`order merged`). Merged CRs never change.
 - **A stack batch:** the one-action stack merge is not the only path. Before the stack is made on
   the forge, each CR handed back `ready` on the default branch is an ordinary `ready-to-merge` ask, offered
-  as mergeable now (the bullet above); a CR above it, a draft on another CR's branch, waits. On a
+  as mergeable now, while that CR is the only open PR of the stack's chain (the shape line's `alone asks`)
+  (the bullet above); a CR above it, a draft on another CR's branch, waits.
+  Each Foreman ask is checked against the batch's shape, not only for being rebased and green. In a
+  stack batch, read `status --refresh`'s shape line. A per-CR `ready-to-merge` for a CR of the
+  stack's chain (`stack` lists it; not a fix or held CR), while that line's `alone asks` is
+  `refused` or `allowed for <another cr> only` (another CR of the stack has an open PR, or a
+  stacked CR is open), is mismatched unless it carries `outside the stack: O-<k>: …` where `O-<k>`
+  is your own order on that CR, carrying the user's word (the Foreman may have marked it done by
+  then: check that the order is yours and on that CR, not that it is open). A mismatched ask is not
+  offered: send it back with `$CHANTIER order note <cr> --note "shape: through the stack"` and tell
+  the user in one line: `<cr> asked alone in a stack batch: sent back through the stack`. When a
+  Foreman ask about a blocked CR names a ready CR waiting behind it, offer the user two ways out
+  with the blocked CR's question: `order hold <blocked cr>` (the held CR leaves the chain, and the
+  ready CR may then ask alone), or an order on the ready CR that carries the user's word, for the
+  Foreman's `--outside-stack "O-<k>: …"`. A stack's readiness is offered as a
+  `stack-ready-to-merge`, after the native stack is read on the forge (`forge-stack show`, the five
+  checks). In direct mode the steering session checks its own asks the same way (the CLI already
+  refuses such an ask; the check catches one recorded before it or forced without a fitting order).
+  On a
   `stack-ready-to-merge <stack link> … <cr>=<link>…` ask (with or without `to come: …`), read the stack on
-  the forge yourself before you tell the user: the five checks of the stack ([foreman](foreman.md),
+  the forge yourself before you tell the user: the five checks of the stack ([foreman-stack](foreman-stack.md),
   "The five checks"; `$CHANTIER forge-stack show` prints the failing ones, exit 0 when all hold).
   On any such ask, partial or complete, before you tell the user the stack is mergeable, apply the
   plain ask's gap rule (the bullet above) to each CR of the mergeable part: quote its gaps next to
@@ -1788,7 +1806,7 @@ The Tips bullet of "While it runs" and the "For you" block follow this section.
 In direct mode no Foreman session is started: you steer the batch from your own session. The CR
 lifecycle, the batch's frame (`open`, slots, rounds, budget, orders, `pause`, `close`), the folders,
 `STATUS.md`, the reports and the user's boundaries are the same in both modes. Read
-[foreman](foreman.md) and your host's reference ([Claude Code](hosts/claude-code.md) or
+[foreman](foreman.md) (and, for a stack batch, [foreman-stack](foreman-stack.md)) and your host's reference ([Claude Code](hosts/claude-code.md) or
 [Copilot](hosts/copilot.md)) and do what they say of the Foreman, until the batch completes, with
 these differences.
 
@@ -1852,7 +1870,7 @@ these differences.
   skeleton `order qa` printed, as the Foreman's card says, and record its agent id with `agents set
   O-<k> <id> --epoch <n>`.
 - **A stack batch.** The Foreman's check of the five checks of a stack ready to merge
-  ([foreman](foreman.md), "The five checks") is yours; one check, read on the forge
+  ([foreman-stack](foreman-stack.md), "The five checks") is yours; one check, read on the forge
   (`$CHANTIER forge-stack show`), is enough before you tell the user the stack is ready to merge. Inserting
   a CR into a stack ready to merge is as in "Inserting a CR into a stack ready to merge", the stack driver and the
   release redone by you.

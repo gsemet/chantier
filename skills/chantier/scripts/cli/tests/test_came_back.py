@@ -125,7 +125,10 @@ def test_the_cards_name_the_way_back_of_a_moved_out_cr() -> None:
     for words in ("gh pr reopen", "glab mr reopen", "never open a second PR"):
         assert words in " ".join(driver.split()), words
     assert "`order add --note <folder>`" in chief and "then `order merged <cr>`" in chief
-    foreman = " ".join((cards / "foreman.md").read_text(encoding="utf-8").split())
+    foreman = " ".join(
+        (cards / n).read_text(encoding="utf-8") for n in ("foreman.md", "foreman-stack.md")
+    )
+    foreman = " ".join(foreman.split())
     for card, words in (
         (chief, "`ready`, `3-ready`"),
         (foreman, "`6-trash`, `3-ready` or"),
@@ -138,6 +141,9 @@ def test_the_cards_name_the_way_back_of_a_moved_out_cr() -> None:
 def test_the_cards_name_the_park_and_its_way_back() -> None:
     cards = SKILL / "references"
     text = {n: " ".join((cards / n).read_text(encoding="utf-8").split()) for n in CARDS}
+    text["foreman.md"] += " " + " ".join(
+        (cards / "foreman-stack.md").read_text(encoding="utf-8").split()
+    )
     assert "`park <cr> --wait ... --epoch <n>`" in text["foreman.md"]
     assert 'take <cr> --note "wait cleared: <what>" --epoch <n>' in text["foreman.md"]
     assert (
@@ -165,7 +171,10 @@ def test_the_cards_name_the_park_and_its_way_back() -> None:
     ],
 )
 def test_the_cards_name_the_hold_of_a_live_cr(card: str, words: tuple[str, ...]) -> None:
-    text = " ".join((SKILL / "references" / card).read_text(encoding="utf-8").split())
+    names = [card, "foreman-stack.md"] if card == "foreman.md" else [card]
+    text = " ".join(
+        " ".join((SKILL / "references" / n).read_text(encoding="utf-8").split()) for n in names
+    )
     for w in words:
         assert w in text, w
 

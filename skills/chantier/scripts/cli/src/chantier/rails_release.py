@@ -7,11 +7,13 @@ from typing import Any
 
 from chantier.core.batch import Batch
 from chantier.core.clock import now
-from chantier.core.errors import EXIT_BUDGET, EXIT_USAGE, ChantierError
+from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.ids import normalize_cr
-from chantier.core.records import AskRecord, CrEntry, ReleaseGrant
+from chantier.core.records import AskRecord, BatchRecord, CrEntry, ReleaseGrant
 from chantier.lifecycle.stages import done_cr
 from chantier.rails import ENDED, check_budget, over_budget, pending_fixes
+from chantier.stack_shape import next_step, shape_blockers
+from chantier.stacks import chain
 
 MAX_GRANTED_FIXES = 3
 
@@ -164,10 +166,68 @@ def readiness_key(text: str, crs: list[str]) -> tuple[str, str] | None:
     return None
 
 
-def record_ask(b: Batch, text: str) -> tuple[str, list[str]]:
+def shape_refusal(d: BatchRecord, text: str) -> tuple[str, list[CrEntry]] | None:
+    """The CR and its blockers when `text` is a per-CR `ready-to-merge` that a stack batch refuses:
+    its CR is in the stack's chain and another CR of the chain has a PR or a stacked CR is open.
+    None for any other ask."""
+    words = text.split()
+    if d.mode != "stack" or words[:1] != ["ready-to-merge"] or len(words) == 1:
+        return None
+    cr = normalize_cr(words[1])
+    if cr not in [x.id for x in chain(d)]:
+        return None
+    blockers = shape_blockers(d, cr)
+    return (cr, blockers) if blockers else None
+
+
+def check_shape(d: BatchRecord, text: str, outside_stack: str | None) -> str | None:
+    """The stack guard of `asks`: refuses (exit 2, nothing recorded) a per-CR `ready-to-merge`
+    that would leave another PR of the stack behind main. With `outside_stack`, a reason
+    `O-<k>: <why>` naming an open order on that CR (not a `shape:` note), lets it through and
+    returns the reason; the flag on an ask the guard does not refuse is a usage error."""
+    hit = shape_refusal(d, text)
+    if outside_stack is not None:
+        if hit is None:
+            raise ChantierError(
+                "--outside-stack is only for a per-CR ready-to-merge ask that the stack guard "
+                "refuses",
+                EXIT_USAGE,
+            )
+        m = re.match(r"(O-\d+): \S", outside_stack)
+        order = next((o for o in d.orders if m and o.id == m.group(1)), None)
+        if (
+            order is None
+            or order.done
+            or order.cr != hit[0]
+            or order.note.lstrip().startswith("shape:")
+        ):
+            raise ChantierError(
+                f'--outside-stack needs a reason "O-<k>: <why>" naming an open order on '
+                f"{hit[0]} that carries the user's word",
+                EXIT_USAGE,
+            )
+        return outside_stack
+    if hit is not None:
+        cr, blockers = hit
+        names = ", ".join(x.id + (" (stacked)" if x.stacked else "") for x in blockers)
+        raise ChantierError(
+            f"refused: {d.id} is a stack and {cr} is not alone (open: {names}): its readiness "
+            f"goes up with the stack's (next: {next_step(d)}; then the stack driver's hand-back "
+            'and `asks "stack-ready-to-merge …"`); a CR not in the stack\'s chain asks alone; '
+            f'`--outside-stack "O-<k>: <why>"` records this ask on an open order on {cr} that '
+            "carries the user's word",
+            EXIT_PRECONDITION,
+        )
+    return None
+
+
+def record_ask(b: Batch, text: str, outside_stack: str | None = None) -> tuple[str, list[str]]:
     """What the Chief of Staff must hear stays in the state until it has read it, whatever
     becomes of the message. A readiness ask marks the earlier unread one of the same CR (of the
-    stack) read. Returns the ask's id and the ids it superseded."""
+    stack) read. In a stack batch, `check_shape` refuses a per-CR ready ask that is not alone.
+    Returns the ask's id and the ids it superseded."""
+    reason = check_shape(b.record, text, outside_stack)
+    text = f"{text} outside the stack: {reason}" if reason else text
     aid = f"A-{len(b.record.asks) + 1}"
     crs = [c.id for c in b.record.crs]
     key = readiness_key(text, crs)
@@ -176,7 +236,8 @@ def record_ask(b: Batch, text: str) -> tuple[str, list[str]]:
         a.read = now()
     cr = key[1] or None if key else None
     b.record.append("asks", AskRecord(id=aid, text=text, sent=now(), read=None))
-    b.log("ask", cr, ask=aid, text=text)
+    extra = {"outside_stack": reason} if reason else {}
+    b.log("ask", cr, ask=aid, text=text, **extra)
     if old:
         b.log("asks-read", cr, asks=[a.id for a in old], superseded_by=aid)
     return aid, [a.id for a in old]
