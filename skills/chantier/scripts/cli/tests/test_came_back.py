@@ -17,6 +17,8 @@ from chantier.core.records import read_batch_json
 from chantier.core.repo import Repo
 
 COST = 1.5
+NEAR = 400  # characters between the held-CR line and the parked one
+CARDS = ("foreman.md", "chief-of-staff.md", "driver.md", "routing.md")
 
 
 def dropped(repo: Path, cr_id: str, chantier: Chantier, branch: bool = True) -> Path:
@@ -121,3 +123,24 @@ def test_the_cards_name_the_way_back_of_a_moved_out_cr() -> None:
     for words in ("gh pr reopen", "glab mr reopen", "never open a second PR"):
         assert words in " ".join(driver.split()), words
     assert "`order add --note <folder>`" in chief and "then `order merged <cr>`" in chief
+
+
+def test_the_cards_name_the_park_and_its_way_back() -> None:
+    cards = SKILL / "references"
+    text = {n: " ".join((cards / n).read_text(encoding="utf-8").split()) for n in CARDS}
+    assert "`park <cr> --wait ... --epoch <n>`" in text["foreman.md"]
+    assert 'take <cr> --note "wait cleared: <what>" --epoch <n>' in text["foreman.md"]
+    assert (
+        "rebase: <cr> dropped" in text["foreman.md"] and "rebase: <cr> dropped" in text["driver.md"]
+    )
+    assert "`[foreman→chief-of-staff] parked <cr>: ...`" in text["foreman.md"]
+    assert (
+        "Ask nothing" in text["chief-of-staff.md"] and "parked <cr>: <waits>" in text["routing.md"]
+    )
+    assert "the batch stays open" in text["chief-of-staff.md"]
+    chief = text["chief-of-staff.md"]
+    held = chief.index("Name each held CR in the batch reports")
+    assert 0 < chief.index("Name each parked CR in the batch reports too") - held < NEAR
+    assert chief.index("Holding a CR") < held
+    typed = chief[chief.index("For a parked CR: `wait <cr> clear <id> --epoch <n>`") :][:500]
+    assert 'order note <cr> --note "wait cleared: <what>"' in typed

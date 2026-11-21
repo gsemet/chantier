@@ -83,29 +83,33 @@ class Apart(NamedTuple):
 
     left: dict[int, str]
     dropped: dict[int, str]
-    held: dict[int, str]
+    held: dict[int, tuple[str, str]]  # to (CR id, `held` or `parked`)
     moved: dict[int, tuple[str, str]]  # to (CR id, the folder it moved to)
+    waiting: dict[int, tuple[str, str]]  # to (CR id, `parked <p>` / `held <p> (order …)`)
 
 
 def held_outside(outside: list[int], apart: Apart) -> str:
     """The PRs an unstacked stack held that are not planned: those of the batch's stack left out
     of the rows, those of dropped CRs, those of held CRs, those of CRs moved to the inbox or the
     backlog, and foreign ones."""
-    left, dropped, held, moved = apart
+    left, dropped, held, moved, waiting = apart
     mine = [n for n in outside if n in left]
     gone = [n for n in outside if n in dropped]
     kept = [n for n in outside if n in held]
     away = [n for n in outside if n in moved]
-    known = {*left, *dropped, *held, *moved}
+    known = {*left, *dropped, *held, *moved, *waiting}
     foreign = [n for n in outside if n not in known]
     parts = []
     for n in away:
         parts.append(
             f"it also held #{n} of {moved[n][0]}, moved to {moved[n][1]}: left out, on main"
         )
-    if kept:
-        said = " ".join(f"#{n} of {held[n]}" for n in kept)
-        parts.append(f"it also held {said}, held out of the stack: left out")
+    for kind in ("held", "parked"):
+        said = " ".join(f"#{n} of {held[n][0]}" for n in kept if held[n][1] == kind)
+        if said:
+            parts.append(f"it also held {said}, {kind} out of the stack: left out")
+    for n in [n for n in outside if n in waiting]:
+        parts.append(f"it also held #{n} of {waiting[n][0]}, waits with {waiting[n][1]}: left out")
     if mine:
         said = " ".join(f"#{n} of {left[n]}" for n in mine)
         parts.append(f"it also held {said}: a plain PR until it joins again")
@@ -200,7 +204,7 @@ def unstack_action(args: argparse.Namespace) -> tuple[list[str], int]:
         for s in stacks(host, owner, name):
             held = {p["number"] for p in s.get("pull_requests", [])}
             if s.get("open") and planned & held:
-                done.append(unstack(s, planned, where, Apart({}, {}, {}, {})))
+                done.append(unstack(s, planned, where, Apart({}, {}, {}, {}, {})))
         if not done:
             done.append("no stack holds the batch's PRs")
         retarget(rows, where, done)

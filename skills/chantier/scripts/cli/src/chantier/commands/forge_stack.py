@@ -9,7 +9,7 @@ from typing import Any
 from chantier.commands import forge_stack_apart as off_stack
 from chantier.commands import forge_stack_gitlab as gitlab
 from chantier.commands.crs import short_head
-from chantier.commands.forge_stack_apart import Moved
+from chantier.commands.forge_stack_apart import Held, Moved
 from chantier.commands.forge_stack_gh import (
     PR_LINK,
     Apart,
@@ -44,7 +44,7 @@ class NoBottom(ChantierError):
 
 def _plan(
     args: argparse.Namespace,
-) -> tuple[Rows, Rows, Where, dict[int, str], dict[int, str], Moved]:
+) -> tuple[Rows, Rows, Where, dict[int, str], Held, Moved, Moved]:
     """The stack as it stands: the rows (the bottom CRs with a PR on its place, whatever their
     status: cr, status, PR number, link, base, head, release), the CRs to come (those from the
     first with no PR, or a working one off its place or not placed by the stack driver yet, up:
@@ -78,6 +78,7 @@ def _plan(
         off_stack.dropped(data),
         off_stack.held(data),
         off_stack.moved(data),
+        off_stack.waiting(data),
     )
 
 
@@ -174,7 +175,10 @@ def _unstack_all(rows: Rows, where: Where, apart: Apart, done: list[str]) -> lis
     gone = []
     for s in stacks(*where):
         in_it = {p["number"] for p in s.get("pull_requests", [])}
-        if s.get("open") and (planned | set(apart.held) | set(apart.moved)) & in_it:
+        if (
+            s.get("open")
+            and (planned | set(apart.held) | set(apart.moved) | set(apart.waiting)) & in_it
+        ):
             done.append(unstack(s, planned, where, apart))
             gone.append(s["number"])
     return gone
@@ -184,7 +188,7 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     """Unstack the open stacks that hold the batch's PRs, retarget the bases, stack again. When
     the forge refuses, its exact text comes back (exit 4), and when a stack stays open after its
     unstack tries."""
-    rows, come, where, dropped, held_prs, moved = _plan(args)
+    rows, come, where, dropped, held_prs, moved, waiting = _plan(args)
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
         apart_rows = off_stack.held_rows(rows, held_prs) + off_stack.moved_rows(rows, moved)
@@ -195,7 +199,7 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
     unstacked = False  # the unstack phase is over
     making = False  # the create call is the phase that raised
     try:
-        apart = Apart(left(come), dropped, held_prs, moved)
+        apart = Apart(left(come), dropped, held_prs, moved, waiting)
         gone += _unstack_all(rows, where, apart, done)
         unstacked = True
         retarget(
@@ -233,7 +237,7 @@ def _rebuild(args: argparse.Namespace) -> tuple[list[str], int]:
 
 
 def _create(args: argparse.Namespace) -> tuple[list[str], int]:
-    rows, come, where, _, held_prs, moved = _plan(args)
+    rows, come, where, _, held_prs, moved, _waiting = _plan(args)
     if _is_gitlab(rows):
         gitlab.refuse_stack(args)
         apart_rows = off_stack.held_rows(rows, held_prs) + off_stack.moved_rows(rows, moved)
@@ -256,7 +260,7 @@ def _check_two(
     stack: dict[str, Any], expected: list[int], have: list[int], apart: Apart
 ) -> list[str]:
     """Check 2: the stack holds the planned PRs and no other, each PR left out named by why."""
-    left, dropped, held, moved = apart
+    left, dropped, held, moved, waiting = apart
     lines = []
     absent = [f"#{n}" for n in expected if n not in have]
     foreign = [
@@ -267,6 +271,7 @@ def _check_two(
         and n not in dropped
         and n not in held
         and n not in moved
+        and n not in waiting
     ]
     out = [f"#{n} ({left[n]})" for n in have if n in left]
     gone = [f"#{n} ({dropped[n]})" for n in have if n in dropped]
@@ -279,10 +284,15 @@ def _check_two(
     if any(said):
         lines.append("check 2: " + "; ".join(x for x in said if x))
     lines += [
-        f"check 2: #{n} of {held[n]} is held out of the stack and still in stack "
+        f"check 2: #{n} of {held[n][0]} is {held[n][1]} out of the stack and still in stack "
         f"#{stack.get('number')}: `forge-stack rebuild`"
         for n in have
         if n in held
+    ]
+    lines += [
+        f"check 2: #{n} of {waiting[n][0]} waits with {waiting[n][1]}: left out of the stack"
+        for n in have
+        if n in waiting
     ]
     lines += [
         f"check 2: #{n} of {moved[n][0]}, moved to {moved[n][1]}, is left out of the stack and "
@@ -345,7 +355,7 @@ def _read(args: argparse.Namespace, rows: list[dict[str, Any]], where: Where) ->
 
 def _show(args: argparse.Namespace) -> tuple[list[str], int]:
     try:
-        rows, come, where, dropped, held, moved = _plan(args)
+        rows, come, where, dropped, held, moved, waiting = _plan(args)
     except NoBottom as e:
         return [f"check 1: {e}"], EXIT_PRECONDITION
     if _is_gitlab(rows):
@@ -357,7 +367,7 @@ def _show(args: argparse.Namespace) -> tuple[list[str], int]:
         if e.code != EXIT_PRECONDITION:
             raise
         return [str(e)], EXIT_PRECONDITION
-    lines, release = _checks(stack, rows, Apart(left(come), dropped, held, moved))
+    lines, release = _checks(stack, rows, Apart(left(come), dropped, held, moved, waiting))
     if lines:
         return lines, EXIT_PRECONDITION
     prs = stack.get("pull_requests", [])

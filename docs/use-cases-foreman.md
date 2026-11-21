@@ -21,7 +21,7 @@ descriptions, your own agents, cost) are on the [common page](use-cases.md).
 
 After the preflight, the plan and your go, the Foreman runs up to three CRs at once. The plan
 names who steers; here, a Foreman. A CR that needs you is parked as blocked with its question; the
-others go on. Past the budget, nothing new starts until you answer. In the morning:
+others go on. A CR that waits on something outside the batch (your trial or answer, an approval, an outside pipeline or merge) is parked by the Foreman: its slot is free, it leaves the stack and the series order, the CRs that wait with it (a started series successor included) wait too, and it comes back on top once its wait is cleared. `close` and the release wait for it. Past the budget, nothing new starts until you answer. In the morning:
 
 > "Status?" · "What did it cost, by CR?"
 

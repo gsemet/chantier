@@ -8,27 +8,41 @@ from typing import Any
 from chantier.commands.forge_stack_gh import PR_LINK
 from chantier.commands.forge_stack_gitlab import GITLAB_LINK
 from chantier.core.records import BatchRecord
-from chantier.stacks import is_held
+from chantier.rails import apart, is_parked, out_of_order
+from chantier.stack_apart import waits_with
 
 Moved = dict[int, tuple[str, str]]
+Held = dict[int, tuple[str, str]]  # to (CR id, `held` or `parked`)
 
 
-def held(data: BatchRecord) -> dict[int, str]:
-    """The PR numbers (to their CR ids) of the batch's held CRs that have a PR: kept out of the
-    stack, on the default branch."""
+def held(data: BatchRecord) -> Held:
+    """The PR numbers (to their CR id and kind, `held` or `parked`) of the batch's apart CRs that
+    have a PR: kept out of the stack, on the default branch."""
     found = {}
     for c in data.crs:
         link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
-        if is_held(c) and link:
-            found[int(link.groups()[-1])] = c.id
+        if apart(c) and link:
+            found[int(link.groups()[-1])] = (c.id, "parked" if is_parked(c) else "held")
     return found
 
 
-def held_rows(rows: list[dict[str, Any]], held: dict[int, str]) -> list[dict[str, Any]]:
-    """What `retarget` takes for the held PRs: each on the default branch."""
+def held_rows(rows: list[dict[str, Any]], held: Held) -> list[dict[str, Any]]:
+    """What `retarget` takes for the apart PRs: each on the default branch."""
     return [
-        {"number": n, "base": rows[0]["default"], "why": " (held out of the stack)"} for n in held
+        {"number": n, "base": rows[0]["default"], "why": f" ({kind} out of the stack)"}
+        for n, (_, kind) in held.items()
     ]
+
+
+def waiting(data: BatchRecord) -> Moved:
+    """The PR numbers (to their CR id and `parked <p>` / `held <p> (order <O-n>)`) of the batch's
+    dependents of an apart CR that have a PR: left out of the native stack, not retargeted."""
+    found = {}
+    for c in data.crs:
+        link = (PR_LINK.match(c.pr) or GITLAB_LINK.match(c.pr)) if c.pr else None
+        if link and not apart(c) and out_of_order(data.crs, c, data.mode):
+            found[int(link.groups()[-1])] = (c.id, waits_with(data, c))
+    return found
 
 
 def moved(data: BatchRecord) -> Moved:

@@ -81,7 +81,7 @@ UNITS = {
         750,
         ["github"],
         ["stack_batch", "start_base_forge", "base_from_pr", "stack_waiver", "ready_words",
-         "ready_words_unplaced", "forge_stack_cli", "stack_hold"],
+         "ready_words_unplaced", "forge_stack_cli", "stack_hold", "park_live"],
     ),
     "release": (
         585,
@@ -8733,6 +8733,73 @@ def stack_hold(w: World) -> None:
           and not any(x.startswith("held:") for x in rows), f"{out} {rows}")
 
 
+def park_live(w: World) -> None:
+    note("\n## 13b. `park`: a working CR on an outside wait leaves the slots and the stack, and `take` brings it back")
+    w.reset()
+    items = [prepare_cr(w, t)[1] for t in ("Park piece a", "Park piece b", "Park piece c")]
+    w.start(*(str(x) for x in items), "--mode", "stack", *FROM_AGENTS_MD)
+    w.env["CHANTIER_BATCH"] = w.name
+    a, b, c = (x["id"] for x in w.batch()["crs"])
+    path_key = next(k for k in w.env if k.upper() == "PATH")
+    on_path = {path_key: f"{w.fake.parent}{os.pathsep}{w.env[path_key]}"}
+    num = {a: 211, b: 212, c: 213}
+    branch = lambda cr: w.cr(cr)["branch"]  # noqa: E731
+    gh_state = lambda: json.loads(w.gh_state.read_text())  # noqa: E731
+
+    def edit_cr(cr: str, **fields: object) -> None:
+        d = w.batch()
+        next(x for x in d["crs"] if x["id"] == cr).update(fields)
+        (w.folder() / "batch.json").write_text(json.dumps(d, indent=2))
+
+    for cr in (a, b, c):
+        edit_cr(cr, pr=PR_LINK["github"] + str(num[cr]), status="ready", pr_draft=False,
+                head=hashlib.sha1(cr.encode()).hexdigest())
+    w.chantier("stack", a, b, c)
+    w.chantier("foreman", "set", "local_foreman_park", "--epoch", 1)
+    w.gh(next_stack=200, heads={str(n): branch(cr) for cr, n in num.items()},
+         stacks=[{"number": 100, "open": True, "pull_requests": [211, 212, 213]}])
+    forge_base(w, PR_LINK["github"] + "212", branch(a))
+    forge_base(w, PR_LINK["github"] + "213", branch(b))
+    for cr, base in ((b, branch(a)), (c, branch(b))):
+        edit_cr(cr, pr_base=base)
+    edit_cr(b, status="working")  # its Driver says it waits on the user's trial
+
+    code, out = w.chantier("park", b, "--wait", "answer=does the trial pass?", "--epoch", 1)
+    check("`park` of a working CR on an outside wait: one `parked` line naming the wait, the stack "
+          "driver's take, the CR `blocked` with `parked` set and out of the stack",
+          code == 0 and out[0].startswith(f"parked {b}: waits for w1 answer")
+          and any(x.startswith("stack: `take stack") for x in out)
+          and w.cr(b)["status"] == "blocked" and w.cr(b).get("parked")
+          and not w.cr(b)["stacked"], str(out))
+    _, rows = w.chantier("stack")
+    check("`stack` leaves the parked CR out of its rows",
+          not any(x.startswith(f"{b} ") for x in rows), str(rows))
+    _, out = w.chantier("status")
+    check("`status` prints the `parked:` line with the wait and the way out of the stack",
+          any(x.startswith(f"parked: {b} since ") and "the stack" in x for x in out), str(out))
+    w.chantier("take", b, "--note", "back", "--epoch", 1, expect=2)
+    check("`take` of a parked CR with its wait open is refused, naming `wait <cr> clear`",
+          f"`wait {b} clear w1 --epoch <n>` first" in w.last_stderr, w.last_stderr)
+    w.chantier("take", "stack", "--note", f"park: {b}", "--epoch", 1, expect=0)
+    w.gh(drafts=[212])
+    code, out = w.chantier("forge-stack", "rebuild", env=on_path)
+    state = gh_state()
+    top = next((x for x in reversed(state["stacks"]) if x["open"]), {})
+    check("`forge-stack rebuild` leaves the parked PR out, on the default branch, and names it parked",
+          code == 0 and any("parked out of the stack" in x for x in out)
+          and top.get("pull_requests") == [211, 213], f"{out} {top}")
+
+    w.chantier("wait", b, "clear", "w1", "--epoch", 1, expect=0)
+    _, out = w.chantier("status")
+    check("with its wait cleared, `status` says to take it back before any queued CR",
+          any(x.startswith(f"parked: {b} wait cleared") for x in out), str(out))
+    top_order = max(x["order"] for x in w.batch()["crs"])
+    code, out = w.chantier("take", b, "--note", "wait cleared: the trial passed", "--epoch", 1)
+    check("`take` of the cleared parked CR gives it a new Driver, back on top of the stack",
+          code == 0 and "back on top of the stack" in out[0] and not w.cr(b).get("parked")
+          and w.cr(b)["order"] == top_order + 1 and w.cr(b)["status"] == "working", str(out))
+
+
 def stack_waiver(w: World) -> None:
     note("\n## 13b. One long gate on the stack's top PR: `order waive stack`")
     w.reset()
@@ -10389,6 +10456,7 @@ CASES = {
     "ready_words_unplaced": ready_words_unplaced,
     "forge_stack_cli": forge_stack_cli,
     "stack_hold": stack_hold,
+    "park_live": park_live,
     "release": release,
     "granted_fixes": granted_fixes,
     "release_last": release_last,

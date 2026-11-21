@@ -300,7 +300,7 @@ Talk to the Chief of Staff in plain language:
 | "make it a P2" | it moves into the prioritized backlog |
 | "it is grilled enough" | the spec-writer writes the Change Specification in the background; on an impactful CR the spec critic checks it after |
 | "run the P1s", "run these in series", "build a stack of these" | preflight, questions, the plan, then a Foreman starts on your go, or the Chief of Staff steers in direct mode, as the plan says (the surface, or your `foreman` / `direct`); a stack is one native stack on the forge, merged in one action from its top PR or one PR at a time from the bottom, as you choose; a PR ready to merge (out of draft) is mergeable at once, a PR in draft is not |
-| "status?" | one line per CR with its PR; a blocked CR comes back as a question |
+| "status?" | one line per CR with its PR; a blocked CR comes back as a question; a CR that waits outside the batch is parked (its slot freed, its dependents waiting with it, back on top once its wait is cleared), and `close` and the release wait for it |
 | "drop CR-103", "I merged #42" | an order for the steering session (the Foreman, or the Chief of Staff in direct mode), never a direct action on a Driver |
 | "close the batch" | the check and the final cost, then closing on your yes |
 | "release v1.4.0" | a release CR, run by your project's procedure; you approve each irreversible action |

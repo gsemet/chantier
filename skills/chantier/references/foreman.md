@@ -405,11 +405,45 @@ running again, until the user's close.
     such queued CR left out (with its unmet dependency), beside the one-time ask for a cancelled
     dependency. A CR that goes back to a Driver after the final-order take (a new round, a
     `rebase:`) makes it due again once that CR hands back.
+  - **A parked CR** (below, "Parking a CR on an outside wait"): out of the stack as a held CR is.
+    On `parked <cr>` or when `status` shows `parked: <cr> ...`: `take stack --note "park: <cr>"`.
   - **A held CR** (the Chief of Staff's `order hold <cr>` or `order unhold <cr>` on the user's word,
     in `status`): take the stack driver, `take stack --note "hold <cr>"` (or `"unhold <cr>"`),
     then `order done <O-n>`. Never take a held CR for a round. A held CR does not count in the
     final-order take, and neither the final-order take nor `take <release>` starts while a CR is
-    held: send one ask `the release waits: <cr> is held out of the stack (order O-n)`.
+    held: send one ask `the release waits: <cr> is held out of the stack (order O-n)`. The same
+    for a parked CR: `the release waits: <cr> is parked (<what it waits for>)`; a CR parked while
+    the release is working or ready: once it is back and handed back ready, `take <release>
+    --note "redo: <cr> back from park"`. A parked CR and its dependents count as a held CR does
+    (out of the final-order take), and a queued CR whose dependency is parked is one "whose
+    dependency is blocked".
+  - **Parking a CR on an outside wait** (no question to anyone, once the wait is recorded). A CR
+    whose work waits on an outside step (the user's trial or answer, an approval, an outside
+    pipeline or merge) is parked at once:
+    - a working CR whose Driver says it waits on such a step: `park <cr> --wait ... --epoch <n>`,
+      its Driver stopped, `agents set <cr> - --epoch <n>`;
+    - a CR handed back `blocked` with such a wait (`question:`, `approval:`, `waits:` with a typed
+      `--wait`): `park <cr> --epoch <n>`, then, when `park` prints the `agents set` line (an agent
+      still recorded), `agents set <cr> - --epoch <n>` once its Driver has ended.
+    Then, in a stack, `take stack --note "park: <cr>"`. Send the Chief of Staff the line `park`
+    printed: `[foreman→chief-of-staff] parked <cr>: ...`. A CR blocked on trouble in the work
+    (`fix:`, `infra:`, `rounds:`, `context:`, `refused`) is not parked.
+    - **The CRs that wait with it:** a working dependent, a series successor already started on
+      it included, keeps its Driver; its PR stays a draft and it is not merged before the parked
+      CR comes back.
+    - **Coming back:** on an order line `note <cr> wait cleared: ...`, or when `status` shows
+      `parked: <cr> wait cleared`: `take <cr> --note "wait cleared: <what>" --epoch <n>`, then a
+      new CR Driver, before any queued CR. In a stack it joins as a working CR. No round is
+      counted.
+    - **Dropping a parked or held CR that has dependents:** the line `order drop` prints names
+      them. In a stack, `take stack --note "drop: <cr> to <destination>"`. In a series or parallel
+      batch, send each dependent with a Driver or a branch the note `rebase: <cr> dropped`, by the
+      usual path (read `status` first: `working`, `[foreman→driver <dep>] note rebase: <cr>
+      dropped`; `ready` or `blocked`, `take <dep> --note "rebase: <cr> dropped"`); a queued one
+      needs none.
+    - **The heartbeat's end:** a batch with only parked or blocked CRs left is blocked and not
+      finished: the heartbeat ends as today, and the order line of a cleared wait wakes the
+      Foreman.
   - **Deliver by a time:** on the order note `deliver by <time>`, until the time, free slots go
     first to the CRs that can join the mergeable part by then: those closest to being handed back `ready` whose
     dependencies are already in it or ready to merge, short chains before long ones; a CR that cannot be

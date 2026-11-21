@@ -292,7 +292,7 @@ def _ordered(repo: Repo, args: argparse.Namespace, note: str, new_release: bool)
         skeleton = _qa_skeleton(repo, b, qa_row, req) if qa_row else []
         batch_id = b.id
         watch = not_running_line(repo) if args.kind == "qa" and reopened else []
-    if w.ended:  # the batch's last CR ended: the locks are released
+    if w.ended:  # a CR ended: the locks are released, and the batch ends or says why it stays open
         effect += end_of_batch(repo, batch_id, f"order {oid}")
     if own:
         return [*effect, *fresh, *watch]

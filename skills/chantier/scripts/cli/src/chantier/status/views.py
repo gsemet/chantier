@@ -24,18 +24,15 @@ from chantier.core.repo import Repo
 from chantier.rails import held
 from chantier.stack_words import ready_word
 from chantier.status.gate import gate_view
+from chantier.status.now_next import now_next
 from chantier.status.steps import steps
 from chantier.status.words import (
     ENDED,
-    forge_word,
-    no_start,
-    notify,
     phase_text,
     severity,
     state_label,
     step,
     waits,
-    waits_on,
 )
 
 if TYPE_CHECKING:
@@ -45,38 +42,6 @@ SCHEMA = 3
 PAST_LIMIT = 50  # merged and trashed CRs listed in the index; the totals count them all
 IN_PROGRESS = ("draft:",)  # shown in `Documents`, not in `Decisions`
 SPEC_LINK = re.compile(r"[\w./-]+\.md\b")
-
-
-def _now_next(repo: Repo, d: BatchRecord, c: CrEntry, waiting: list[str]) -> tuple[str, str]:
-    pr = c.pr or f"its {forge_word([])}"
-    if waits_on(c):
-        reason = c.blocked_reason or ""
-        what = reason.split(":", 1)[1].strip() or "something on its way"
-        return (
-            reason,
-            f"Waits for {what}; the Foreman takes it back when that lands.",
-        )
-    if c.status == "blocked":
-        return (
-            c.blocked_reason or "Blocked.",
-            "The user's answer, through the Chief of Staff.",
-        )
-    if c.status == "ready":
-        return notify(repo, d, c, pr)
-    return {
-        "Queued": (
-            f"Waits for {', '.join(waiting)}." if waiting else no_start(d),
-            "A Driver starts it.",
-        ),
-        "Round": ("A coder and its reviews are working.", "The long gate, then the ship."),
-        "CI": (
-            f"{pr} is open: CI, then the verifier at the pushed head (it records `verdict`).",
-            "The hand-back.",
-        ),
-        "Release": ("The Release driver follows the project's procedure.", "The next step of it."),
-        "Merged": (f"Merged: {pr}.", "Nothing."),
-        "Dropped": ("Dropped on the user's word.", "Nothing."),
-    }[step(c)]
 
 
 def _link(path: Path, start: Path) -> str:
@@ -121,7 +86,7 @@ def cr_view(
     """The CR's page; `where`: its folder, its events, and whether the folder is in the batch."""
     folder, events, in_batch = where
     waiting = waits(d, c)
-    now_line, next_line = _now_next(repo, d, c, waiting)
+    now_line, next_line = now_next(repo, d, c, waiting)
     silent = age_minutes(c.updated) if c.status in LIVE else None
     pr = c.shown_pr()
     number = re.search(r"(\d+)/?$", pr or "")

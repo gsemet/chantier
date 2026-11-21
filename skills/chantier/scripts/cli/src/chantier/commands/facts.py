@@ -36,6 +36,7 @@ from chantier.plugin_files import (
     skill_dir,
     worker_prompt_lines,
 )
+from chantier.stack_apart import parked_lines
 from chantier.stack_words import state_word
 from chantier.stacks import (
     chain,
@@ -301,6 +302,7 @@ def stack_lines(repo: Repo, batch: str, d: BatchRecord) -> list[str]:
             for x in crs
         ]
         + held_lines(d, repo)
+        + parked_lines(d)
     )
 
 

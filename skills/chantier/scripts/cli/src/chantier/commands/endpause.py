@@ -6,15 +6,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from chantier.commands.closing import record_pause
+from chantier.commands.leftover import DESTINATIONS, left, way_back
 from chantier.core.batch import read_batch
 from chantier.core.clock import now
 from chantier.core.endblockers import end_blockers
 from chantier.core.git import branch_exists, refusal
-from chantier.core.records import CrEntry
+from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
 from chantier.lifecycle.session import RenderedBatch
 from chantier.rails import all_merged
 
+__all__ = ["end_of_batch", "left_open", "way_back"]
 PAUSE = "`chantier pause --epoch <n>`"
 
 
@@ -47,12 +49,28 @@ def _next_line() -> str:
     )
 
 
+def left_open(d: BatchRecord) -> list[str]:
+    """A CR ended and every CR not ended is parked, held or blocked, or queued behind such CRs:
+    the batch pauses nothing and cleans nothing; one line says what keeps it open."""
+    rest = left(d)
+    if not rest:
+        return []
+    ways = "; ".join(way_back(d, c) for c in rest)
+    return [
+        f"{d.id}: every other CR is merged or cancelled; {ways}: "
+        f"the batch stays open until it comes back or the user sends it out "
+        f"(`order drop <cr> --note <{DESTINATIONS}>`)"
+    ]
+
+
 def end_of_batch(repo: Repo, batch: str, trigger: str) -> list[str]:
     """The batch's last CR just ended (locks released): clean, then pause, and say what is next.
     When the pause cannot run, nothing is cleaned and the line says what blocks it."""
     d = read_batch(repo, batch)
-    if not all_merged(d) or d.status == "paused":
+    if d.status == "paused":
         return []
+    if not all_merged(d):
+        return left_open(d)
     causes = end_blockers(d)
     if causes:
         return [

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from chantier.core.batch import Batch
 from chantier.core.records import CrEntry, read_events
-from chantier.rails import ENDED
-from chantier.stacks import is_held
+from chantier.rails import ENDED, is_held
 
 
 def ready_times(b: Batch) -> dict[str, int]:

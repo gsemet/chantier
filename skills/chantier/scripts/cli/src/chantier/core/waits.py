@@ -16,6 +16,7 @@ from chantier.core.clock import now
 from chantier.core.files import rel_in
 
 if TYPE_CHECKING:
+    from chantier.core.records import CrEntry
     from chantier.store import PlanStore
 
 TYPES = ("answer", "approval", "pipeline", "merge")
@@ -106,6 +107,11 @@ def counted(status: str) -> bool:
     return status not in ENDED
 
 
+def open_counted(c: CrEntry) -> list[dict[str, Any]]:
+    """The CR's open waits, none for a CR the record holds merged, dropped or cancelled."""
+    return open_of(c.waits) if counted(c.status) else []
+
+
 def next_id(*lists: list[dict[str, Any]]) -> str:
     """The id after the highest one of the lists."""
     highest = 0
@@ -149,3 +155,11 @@ def short(sha: str, width: int = 7) -> str:
 def hhmm(since: str) -> str:
     """`HH:MM` (UTC) of a record time (`2026-11-20T10:02:03Z`)."""
     return since[11:16]
+
+
+def what(w: dict[str, Any]) -> str:
+    since = f" since {hhmm(w['since'])}"
+    if w["type"] == "answer":
+        return f'{w["id"]} answer{since}: "{w["ref"]}"'
+    shown = short(w["ref"]) if w["type"] == "pipeline" else w["ref"]
+    return f"{w['id']} {w['type']} on {shown}{since}"

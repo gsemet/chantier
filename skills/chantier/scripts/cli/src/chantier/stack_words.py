@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
-from chantier.rails import ENDED
-from chantier.stacks import chain, held_text, is_held, stack_base
+from chantier.rails import ENDED, apart_owner, is_held, out_of_order
+from chantier.stack_apart import parked_text, waits_with
+from chantier.stacks import chain, held_text, stack_base
 
 READY_LOCALLY = "ready locally"
 PR_IN_DRAFT = "PR in draft"
@@ -41,7 +42,8 @@ def _forge_case(d: BatchRecord, c: CrEntry, repo: Repo) -> tuple[str, CrEntry | 
         return "other", None
     if owner.status == "merged":
         return "merged", owner
-    return ("other" if owner.status in ENDED or is_held(owner) else "open"), owner
+    gone = owner.status in ENDED or out_of_order(d.crs, owner, d.mode)
+    return ("other" if gone else "open"), owner
 
 
 def _ready_word(d: BatchRecord, c: CrEntry, repo: Repo, seen: frozenset[str]) -> str | None:
@@ -51,7 +53,7 @@ def _ready_word(d: BatchRecord, c: CrEntry, repo: Repo, seen: frozenset[str]) ->
         return None
     if not c.pr:
         return READY_LOCALLY
-    if c.pr_draft is not False or is_held(c):
+    if c.pr_draft is not False or out_of_order(d.crs, c, d.mode):
         return PR_IN_DRAFT
     return _out_of_draft_word(d, c, repo, seen)
 
@@ -106,8 +108,24 @@ def _waited_by_forge(d: BatchRecord, c: CrEntry, repo: Repo) -> tuple[bool, CrEn
     return (False, None) if kind == "merged" else (True, owner or c.pr_base)
 
 
+def _apart_text(d: BatchRecord, c: CrEntry) -> str:
+    """What an apart CR, or one waiting with it, waits for: the hold's way back, or the park's
+    waits and its way back."""
+    owner = apart_owner(d.crs, c, d.mode)
+    if is_held(owner):
+        return (
+            held_text(c)
+            if c is owner
+            else (f"waits with {waits_with(d, c)}: `order unhold {owner.id}`")
+        )
+    waits = parked_text(owner) or "wait cleared"
+    own = f"parked ({waits})" if c is owner else f"waits with {waits_with(d, c)} ({waits})"
+    return f"{own}: back once its wait is cleared"
+
+
 def draft_waited(d: BatchRecord, c: CrEntry, repo: Repo) -> CrEntry | str | None:
-    """What a PR in draft waits for: for a held CR, the text of its hold. For a CR the stack driver
+    """What a PR in draft waits for: for a held CR, the text of its hold; for a parked CR, or one
+    that waits with an apart CR, what it waits for and its way back. For a CR the stack driver
     has not placed, with a recorded base (`ready_word`'s second case): None (its turn out of
     draft) on the default branch, the open CR whose branch it sits on while that CR does not read
     ready to merge, else None; on a merged CR's branch, as below; on any other base the CR whose
@@ -115,8 +133,8 @@ def draft_waited(d: BatchRecord, c: CrEntry, repo: Repo) -> CrEntry | str | None
     that CR is not out of draft; else the CR under it in the stack not yet out of draft, else the
     CR whose branch its base is, else the base branch itself (no CR of the batch), else None (its
     own turn out of draft)."""
-    if is_held(c):
-        return held_text(c)
+    if out_of_order(d.crs, c, d.mode):
+        return _apart_text(d, c)
     default: str = repo.config["default_branch"]
     by_forge = _by_forge_base(d, c)
     if by_forge:
@@ -148,7 +166,7 @@ def draft_clause(d: BatchRecord, c: CrEntry, repo: Repo, prepared: bool) -> str:
         state = "a draft on the forge" if c.pr_draft else "out of draft on the forge"
     waited = draft_waited(d, c, repo)
     own = f"the release PR {c.pr} is" if prepared else f"its PR {c.pr} is"
-    if is_held(c):
+    if out_of_order(d.crs, c, d.mode):
         return f"{own} {state}; it waits: {waited}"
     if waited is None:
         what = "for its turn out of draft"

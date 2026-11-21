@@ -132,6 +132,9 @@ class CrEntry(Record):
     # the id of the `order hold` that holds this CR out of the stack (stack batch); None when not
     # held
     held: str | None = None
+    # the time the Foreman parked this CR (`park`): it waits on something outside the batch, in
+    # `blocked`, out of the slots, the stack and the series order; None when not parked
+    parked: str | None = None
     # where the CR went when `order drop` took it out of the batch: `6-trash`, `1-inbox` or
     # `2-backlog/P<n>`; None for a CR never dropped, and for a dropped one of an older record
     # (read as trash)

@@ -1135,7 +1135,12 @@ CR-222 → CR-225 → CR-226 → CR-228."
   A typed wait (`$CHANTIER wait <cr>` lists a blocked CR's waits; `status` shows `| waits:`) is
   cleared by you on the user's answer, or on a `wait-cleared@1` line that your watcher carries (the
   forge showed it met): `wait <cr> clear <id> --epoch <n>`, then the take-back path as for any
-  blocked CR (`take <cr> --epoch <n> --note "<why>"`; direct mode: take it yourself).
+  blocked CR (`take <cr> --epoch <n> --note "<why>"`; direct mode: take it yourself). For a parked
+  CR: `wait <cr> clear <id> --epoch <n>`, then, in Foreman mode, `order note <cr> --note "wait
+  cleared: <what>"`, whose order line wakes the Foreman; in direct mode, take the CR yourself
+  (`take <cr> --note "wait cleared: <what>" --epoch <n>`), before any queued CR. On `[foreman→chief-of-staff]
+  parked <cr>: ...`, tell the user in one line, in their language: the CR's name, what it waits
+  for, that its slot is free and that the batch goes on. Ask nothing.
 - **A chain:** on `[foreman→chief-of-staff] chain <cr> after <cr>: <reason>`, record it at once,
   without waiting for the user: `order after <cr> --note "<cr>"`, then `order note <cr> --note
   "chain: <reason>"`. The same covers a chain the plan proposed and the go approved, recorded at
@@ -1322,7 +1327,13 @@ CR-222 → CR-225 → CR-226 → CR-228."
   forge without it. Name each held CR in the batch reports. At a batch's end, tell the user that the
   batch stays open while a CR is held. No release starts while a CR is held: when the release is
   blocked by a held CR, say so, name it, and offer the user `order unhold <cr>`, or `order drop
-  <cr>` with the destination the user names; act on the user's answer only.
+  <cr>` with the destination the user names; act on the user's answer only. Name each parked CR
+  in the batch reports too, with what it waits for, and no release starts while a CR is parked
+  either: its way back is its wait cleared, then `take`. At a batch's end, at `close` and when
+  the release waits, a parked or blocked CR is named with what it waits for and its way back as
+  the CLI's line gives it (`close` refuses with it, the last ending command prints `the batch
+  stays open`); offer the user to wait for it or to send it out (`order drop <cr> --note
+  <destination>`: the trash, `P1` to `P4`, or `3-ready`). Act on the user's answer only.
 - **Inserting a CR into a stack ready to merge:** on the user's word, first and at once put to draft every
   PR that will sit above the new one (`gh pr ready --undo`, `glab mr update --draft`): the stack
   is changing under them. A CR in the middle of a stack ready to merge that goes back to its Driver for a

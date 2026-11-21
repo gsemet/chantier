@@ -71,24 +71,98 @@ def alone(crs: list[CrEntry], c: CrEntry) -> bool:
     return not any(x.id != c.id and x.kind != "fix" for x in crs)
 
 
+def is_held(c: CrEntry) -> bool:
+    """A CR held out of the stack (`order hold`): open and carrying the hold's order id. A CR
+    merged or cancelled with a stale `held` reads as not held."""
+    return bool(c.held) and c.status not in ENDED
+
+
+def is_parked(c: CrEntry) -> bool:
+    """A CR the Foreman parked (`park`): open and carrying the time it was parked."""
+    return bool(c.parked) and c.status not in ENDED
+
+
+def apart(c: CrEntry) -> bool:
+    """Held or parked: the CR stands outside the stack and the series order."""
+    return is_held(c) or is_parked(c)
+
+
+def _open_owner(crs: list[CrEntry], c: CrEntry) -> CrEntry | None:
+    """The open CR whose branch `c.start_on` names, other than `c`."""
+    if not c.start_on:
+        return None
+    return next(
+        (x for x in crs if x.branch == c.start_on and x.id != c.id and x.status not in ENDED),
+        None,
+    )
+
+
+def candidates(crs: list[CrEntry], c: CrEntry, mode: str | None) -> list[CrEntry]:
+    """A dependent's candidates, in this order: in a series batch the open CR whose branch its
+    `start_on` names (once it left `queued`), then its open `after` CRs in the order of `after`."""
+    found = {x.id: x for x in crs}
+    out: list[CrEntry] = []
+    if mode == "series" and c.status != "queued" and (owner := _open_owner(crs, c)):
+        out.append(owner)
+    out += [found[i] for i in c.after if i in found and found[i].status not in ENDED]
+    return out
+
+
+def out_of_order(crs: list[CrEntry], c: CrEntry, mode: str | None) -> bool:
+    """Apart (held or parked), or a dependent: an open CR with a candidate that is out of order
+    (an `after` CR, or in a series the CR it started on). Computed on each call, never stored."""
+    if c.status in ENDED:
+        return False
+    if apart(c):
+        return True
+    return any(out_of_order(crs, x, mode) for x in candidates(crs, c, mode))
+
+
+def apart_owner(crs: list[CrEntry], c: CrEntry, mode: str | None) -> CrEntry:
+    """For an apart CR itself; for a dependent, the apart owner of the last out-of-order CR among
+    its candidates (the base rule's candidate), recursively."""
+    if apart(c):
+        return c
+    base = base_owner(crs, c, mode)
+    return apart_owner(crs, base, mode) if base is not None else c
+
+
+def base_owner(crs: list[CrEntry], c: CrEntry, mode: str | None) -> CrEntry | None:
+    """The last out-of-order CR among a dependent's candidates: the one its base is the branch
+    of. None for a CR that is not a dependent."""
+    if c.status in ENDED or apart(c):
+        return None
+    ordered = [x for x in candidates(crs, c, mode) if out_of_order(crs, x, mode)]
+    return ordered[-1] if ordered else None
+
+
 def series_predecessor(crs: list[CrEntry], c: CrEntry) -> CrEntry | None:
     """In a series, the nearest CR before `c` in the order that is neither a release nor a fix
-    CR and not cancelled; a merged one counts, it is met."""
+    CR, not cancelled and not out of order; a merged one counts, it is met."""
     if c.kind in {"release", "fix"}:
         return None
     before = [
         x
         for x in crs
-        if x.order < c.order and x.kind not in {"release", "fix"} and x.status != "cancelled"
+        if x.order < c.order
+        and x.kind not in {"release", "fix"}
+        and x.status != "cancelled"
+        and not out_of_order(crs, x, "series")
     ]
     return max(before, key=lambda x: x.order, default=None)
+
+
+def _unmet_word(c: CrEntry) -> str:
+    """What `waits_for` says of an unmet CR: `parked`, `held`, else its status."""
+    return "parked" if is_parked(c) else "held" if is_held(c) else c.status
 
 
 def waits_for(crs: list[CrEntry], c: CrEntry, mode: str | None = "parallel") -> list[str]:
     """The CRs not yet met: those of `after`, then, in a series, the predecessor. For a CR, met
     is ready or merged (a cancelled one stays unmet); for a release, ready, merged or cancelled
     in an ordered batch (stack or series: it is prepared on top of the others), merged or
-    cancelled in a parallel one (no branch holds all the work until the others are merged)."""
+    cancelled in a parallel one (no branch holds all the work until the others are merged). A
+    parked CR reads `<id> parked` and a held one `<id> held`."""
     found = {x.id: x for x in crs}
     if is_release(c):
         met = ENDED | {"ready"} if mode in {"stack", "series"} else ENDED
@@ -98,7 +172,9 @@ def waits_for(crs: list[CrEntry], c: CrEntry, mode: str | None = "parallel") -> 
     pred = series_predecessor(crs, c) if mode == "series" else None
     if pred and pred.id not in ids:
         ids.append(pred.id)
-    return [f"{i} {found[i].status}" for i in ids if i in found and found[i].status not in met]
+    return [
+        f"{i} {_unmet_word(found[i])}" for i in ids if i in found and found[i].status not in met
+    ]
 
 
 def waits_all(crs: list[CrEntry], c: CrEntry, mode: str | None = "parallel") -> list[str]:

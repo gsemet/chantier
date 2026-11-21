@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from chantier.commands.wait_view import GITLAB_NOTE, wait_line, what
+from chantier.commands.wait_view import GITLAB_NOTE, wait_line
 from chantier.core import waits
 from chantier.core.batch import (
     Batch,
@@ -24,6 +24,7 @@ from chantier.core.clock import now
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.records import BatchRecord, CrEntry
 from chantier.core.repo import Repo
+from chantier.core.waits import what
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock, cr_stage, stage_layout
 
