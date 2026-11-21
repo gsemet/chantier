@@ -8,6 +8,7 @@ spell with none."""
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import threading
@@ -210,8 +211,13 @@ class PushThread:
     """`PushLoop` in a daemon thread: a pass every `PUSH_EVERY_S`, or at once when woken. A loop
     that dies ends the server: `on_death` is called after an error line on stderr."""
 
-    def __init__(self, loop: PushLoop, on_death: Callable[[], None]) -> None:
-        self.loop, self.on_death = loop, on_death
+    def __init__(
+        self,
+        loop: PushLoop,
+        on_death: Callable[[], None],
+        on_pass: Callable[[], None] | None = None,
+    ) -> None:
+        self.loop, self.on_death, self.on_pass = loop, on_death, on_pass
         self._done = threading.Event()
         self._thread = threading.Thread(target=self._run, name="api-push", daemon=True)
 
@@ -226,6 +232,7 @@ class PushThread:
                 if self._done.is_set():
                     return
                 self.loop.poll(time.monotonic())
+                self._pass()
         except Exception as e:
             print(
                 f"board: the API's push stopped: {' '.join(str(e).split()) or type(e).__name__}",
@@ -233,6 +240,11 @@ class PushThread:
                 flush=True,
             )
             self.on_death()
+
+    def _pass(self) -> None:
+        if self.on_pass is not None:
+            with contextlib.suppress(OSError):  # the next pass tries again
+                self.on_pass()
 
     def stop(self) -> None:
         self._done.set()

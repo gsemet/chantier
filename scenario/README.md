@@ -50,7 +50,7 @@ raises a warning.
 | gates | 610 | 486.4 | 426.8 |
 | series-deps | 380 | 284.6 | 301.2 |
 | direct | 220 | 174.9 | 171.6 |
-| surface-board | 660 | 527.9 | 490.6 |
+| surface-board | 710 | 527.9 | 490.6 |
 | qa-driver | 255 | 182.9 | 200.1 |
 | gitlab | 115 | 72.5 | 91.8 |
 | wall time | | 781.0 | 754.1 |
