@@ -161,8 +161,10 @@
   there once and locked in `uv.lock`. One method runs it, `uvx --from <source> chantier`: as a
   plugin, from the plugin's own folder; in chantier's own checkout (a `.git` at the plugin root),
   when the session's project is chantier (the dev mode),
-  `uv sync --locked --project` once at the moments the cards name (a session's start, a batch's
-  start, after a merge that changes `uv.lock`), then `uv run --no-sync --project` runs the local
+  `uv sync --locked --project` at the moments the cards name (a session's start, a batch's
+  start, after a merge that changes `uv.lock`); it checks first, and a sync that chantier's own
+  processes block names them and waits, never stopping or killing one but the session's own board
+  and watcher on the user's yes (the cards), then `uv run --no-sync --project` runs the local
   code, live; chantier's own sessions never run `uvx --from <checkout>`; other projects run the
   plugin mode, `uvx --from <plugin root>`, even from chantier's checkout. Another project runs
   chantier from its checkout in plugin mode, a build uv caches by version: it changes at each

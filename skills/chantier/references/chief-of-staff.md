@@ -818,11 +818,12 @@ recorded.
 Only in the turn where the user gave the go:
 
 1. **Preflight, all or nothing.** In chantier's own checkout, when the session's project is
-   chantier (the dev mode), first sync: stop the
-   board (the host's stop of its background shell), run `uv sync --locked --project "<plugin
-   root>"`, then start the board again (`$CHANTIER board --seat <id>`, as `session-start.md` says);
-   no gate runs then, no batch is running. A sync that fails is one line to the user with uv's
-   text, and you go on. Only you sync, never a Foreman, a Driver or a worker. Then
+   chantier (the dev mode), first the sync as your skill's
+   `$CHANTIER` paragraph says, in detail `session-start.md`, "6. Sync the checkout" (check, name the
+   holders, sync only with none; your own board and watcher are stopped only on the user's yes,
+   after 3 minutes); a pending sync never blocks the
+   go, and the plan says `sync pending: held by ...`. A sync that fails otherwise is one line to
+   the user with uv's text, and you go on. Only you sync, never a Foreman, a Driver or a worker. Then
    `$CHANTIER preflight` with the batch's options (`--mode`,
    `--autonomous-releases`, `--grant-fixes`, as `open` will get them) checks P1 (Claude Desktop or
    a Copilot
@@ -1133,10 +1134,12 @@ CR-222 → CR-225 → CR-226 → CR-228."
   order; you do not. In the direct mode you do it yourself, and note `HEAD` before it: when `git
   diff --quiet <before> HEAD -- uv.lock` says `uv.lock` changed, the note is `main checkout:
   fast-forwarded to <sha7>; uv.lock changed: sync pending`. On that note (yours or the Foreman's),
-  in chantier's own checkout, when the session's project is chantier (the dev mode), sync once
-  `$CHANTIER status` shows no gate running: stop the board,
-  `uv sync --locked --project "<plugin root>"`, start the board again; until then say `sync
-  pending` in your report's Notes.
+  in chantier's own checkout, when the session's project is chantier (the dev mode), sync as your
+  skill's `$CHANTIER` paragraph says, at this turn and each next one until it is done;
+  `$CHANTIER status` is not enough, it sees only this surface's batch; until then say `sync
+  pending: held by ...` in your report's Notes; after 3 minutes, it is a For you item
+  (`status-layout.md`). Never stop or kill a holder to sync, nor ask a Foreman or a Driver to; the
+  one exception is your own board and watcher, on the user's yes, as the skill's paragraph says.
 
   The rounds exception: a CR handed back `blocked rounds:` whose last round failed on a red the
   batch caused (a restack or rebase onto another CR's branch, a CR merged or moved below it; judge

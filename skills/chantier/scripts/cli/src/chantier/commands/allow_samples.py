@@ -10,6 +10,8 @@ from chantier.launch import (
     dev_rule,
     plugin_launch,
     plugin_rule,
+    sync_check_line,
+    sync_check_rule,
     sync_line,
     sync_rule,
 )
@@ -83,6 +85,12 @@ SAMPLES = (
         "dev",
         sync_line(CHECKOUT),
         sync_rule(CHECKOUT),
+    ),
+    (
+        "batch",
+        "dev",
+        sync_check_line(CHECKOUT),
+        sync_check_rule(CHECKOUT),
     ),
     (
         "batch",
@@ -205,6 +213,7 @@ def fill_rule(rule: str) -> str:
         for held, filled in (
             (dev_rule(CHECKOUT), dev_rule(root)),
             (sync_rule(CHECKOUT), sync_rule(root)),
+            (sync_check_rule(CHECKOUT), sync_check_rule(root)),
             (plugin_rule(PLUGIN_ROOT), plugin_rule(root)),
         ):
             if rule == f"{tool}({held})":
@@ -214,7 +223,7 @@ def fill_rule(rule: str) -> str:
 
 def fill_sample(sample: tuple[str, str, str, str]) -> tuple[str, str, str, str]:
     """A sample with its placeholders filled: the exact launch plus ` status`, the exact sync
-    line, and the filled rule; any other sample unchanged."""
+    and check lines, and the filled rule; any other sample unchanged."""
     cap, forge, _command, rule = sample
     root = skill_dir().parents[1]
     if rule == plugin_rule(PLUGIN_ROOT):
@@ -223,6 +232,8 @@ def fill_sample(sample: tuple[str, str, str, str]) -> tuple[str, str, str, str]:
         return cap, forge, f"{dev_launch(root)} status", dev_rule(root)
     if rule == sync_rule(CHECKOUT):
         return cap, forge, sync_line(root), sync_rule(root)
+    if rule == sync_check_rule(CHECKOUT):
+        return cap, forge, sync_check_line(root), sync_check_rule(root)
     return sample
 
 

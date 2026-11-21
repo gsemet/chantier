@@ -52,6 +52,12 @@ def sync_line(root: Path) -> str:
     return f'uv sync --locked --project "{root.as_posix()}"'
 
 
+def sync_check_line(root: Path) -> str:
+    """The dev mode's check line, `uv sync --locked --check --project "<root>"`: it writes nothing,
+    exits 0 when the environment is in sync and 1 when it is outdated (or `uv.lock` stale)."""
+    return f'uv sync --locked --check --project "{root.as_posix()}"'
+
+
 def plugin_rule(root: Path) -> str:
     """The allow rule text of the plugin form, `uvx --from "<root>" chantier *`: the launch
     without `--skill`, then ` *`. P10 prints it and the trial proved it."""
@@ -66,3 +72,8 @@ def dev_rule(root: Path) -> str:
 def sync_rule(root: Path) -> str:
     """The allow rule text of the sync line, `uv sync --locked --project "<root>"`."""
     return sync_line(root)
+
+
+def sync_check_rule(root: Path) -> str:
+    """The allow rule text of the check line, `uv sync --locked --check --project "<root>"`."""
+    return sync_check_line(root)

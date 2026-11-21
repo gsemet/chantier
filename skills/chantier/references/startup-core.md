@@ -8,7 +8,10 @@ planning folder, never "without it". Do not upgrade, reinstall, repair, relaunch
 choose another source or tool; retry once only on a transient network error. A steering session
 tells the user; a started agent ends its turn with the error as plain text. A CLI refusal, a
 command's own error exit and a host's permission denial keep their handling. The CLI is never a
-tool a role works without.
+tool a role works without. One named exception: in the dev mode, a `uv sync` that chantier's own
+processes block (holding the checkout's `.venv`; os error 32 on Windows) is not a launch failure:
+the session goes on unsynced with `sync pending`, as its skill's `$CHANTIER` paragraph says,
+and stops nothing that paragraph does not name.
 
 No fallback: a tool, a model, an agent or a `$CHANTIER` command not available exactly as named is
 a stop, reported with its error; never a look-alike, a workaround or an estimate. A skill or tool

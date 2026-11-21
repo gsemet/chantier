@@ -11,21 +11,21 @@ from chantier import __version__
 from chantier.core.clock import stamp
 from chantier.core.errors import EXIT_PRECONDITION, EXIT_USAGE, ChantierError
 from chantier.core.repo import Repo
-from chantier.launch import dev_launch, is_chantier_project, plugin_launch, sync_line
+from chantier.launch import (
+    dev_launch,
+    is_chantier_project,
+    plugin_launch,
+    sync_check_line,
+    sync_line,
+)
 from chantier.playbook import escalation, events, layers, limits, timing
 
 if TYPE_CHECKING:
     from chantier.core.records import CrEntry
 
 HOSTS = ("claude", "copilot")
-
-
 AGENT_VERSION = re.compile(r"^# chantier-agent: (\S+)$", re.M)
-
-
 INSTRUCTIONS = ("AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md")
-
-
 SKILL: str | None = None  # `--skill`, set by the CLI before the command runs
 
 
@@ -94,9 +94,13 @@ def cli_command(repo: Repo | None = None) -> str:
 def sync_command(repo: Repo | None = None) -> str | None:
     """The dev mode's sync line, `uv sync --locked --project "<plugin root>"`, run by the steering
     session at named moments; None in the plugin mode (see `cli_command`)."""
-    if not is_dev_mode(repo):
-        return None
-    return sync_line(skill_dir().parents[1])
+    return sync_line(skill_dir().parents[1]) if is_dev_mode(repo) else None
+
+
+def sync_check_command(repo: Repo | None = None) -> str | None:
+    """The dev mode's check line, `uv sync --locked --check --project "<plugin root>"`, run by the
+    steering session before a sync; None in the plugin mode (see `cli_command`)."""
+    return sync_check_line(skill_dir().parents[1]) if is_dev_mode(repo) else None
 
 
 def own_transcript(host: str) -> str | None:
@@ -202,8 +206,6 @@ def plugin_role_descriptions(host: str) -> dict[str, str]:
 CHIEF_SUBAGENT_LINE = re.compile(
     r"Prompt starts with: `(chantier ([a-z-]+) for the Chief of Staff, in the project <root>\.)`"
 )
-
-
 FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
 
 
