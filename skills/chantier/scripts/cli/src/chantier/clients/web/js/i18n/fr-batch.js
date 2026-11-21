@@ -2,9 +2,6 @@
 // pointage. Fusionnés dans fr.js.
 export default {
   'batch.no_cr_yet': 'En pause, aucune CR encore : order add en ajoute une.',
-  'batch.no_cr_yet_factory':
-    "En pause, aucune CR encore : chaque CR passée en ready avec triage --ready la rejoint d'elle-même.",
-  'batch.factory_on': 'factory : activée',
   'batch.spent_none_yet': 'rien encore',
   'batch.tab_graph': 'Graphe',
   'batch.tab_gantt': 'Gantt',

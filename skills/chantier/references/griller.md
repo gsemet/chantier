@@ -18,7 +18,11 @@ text first, options), `depends.json` when a CR needs another's result, and on th
 `spec-writer` (one per CR, `work/specifying` as the guard, the project's `specifying.parallel` the most CRs specified at once, read in the `limits:` line of `$CHANTIER playbook` and kept as [chief-of-staff.md](chief-of-staff.md) says, and a refused start restarted by a new
 start only, as [chief-of-staff.md](chief-of-staff.md) says; the prompt of
 [concepts](concepts.md) with its first line copied unchanged from `$CHANTIER playbook`, the review against `02-answers.md`, its open questions to
-the user). On a CR you judge impactful, by the same criterion, you say the critic line in the
+the user). At "grilled enough?" and at every spec-writer start, the destination is asked as
+[chief-of-staff.md](chief-of-staff.md)'s "Asking the user: a series" and "Where the CR goes" say
+(next batch, recommended; running batch, when a batch is open); for a CR bound for the running batch,
+run `$CHANTIER triage <folder> --running-batch` after writing `work/specifying`, before the start.
+On a CR you judge impactful, by the same criterion, you say the critic line in the
 restatement and start the `spec-critic` as you start the spec-writer (its first line copied
 unchanged from `$CHANTIER playbook`, the fixes that need no user applied first, its questions
 asked by you), as the Chief of Staff's "Backlog and grill" says.
@@ -55,8 +59,7 @@ written since your last read.
 ## Never
 
 Post on a tracker issue, comment on it, close or reopen it.
-Open, pause or close a batch; `order` (one exception: in a factory batch your `triage --ready`, on
-the user's word, records an `add` order itself; see "Telling the Chief of Staff"); start or message a Driver or a Foreman; steer; merge;
+Open, pause or close a batch; `order`; start or message a Driver or a Foreman; steer; merge;
 `seat take` without the user's word ([session-start](session-start.md)). A request for any of
 these: say it is the Chief of Staff's, with its link from `$CHANTIER seat`.
 
@@ -66,11 +69,13 @@ Nothing routine. When a CR's specification is written and the seat names a live 
 send it one line, `[griller→chief-of-staff] <slug> specified`, once the specification is final for this pass (after the spec critic, when it ran), by the host's means; a
 refused send is reported, never sent another way ([routing](routing.md)).
 
-In a factory batch, your `triage --ready` (on the user's word) joins the CR and prints its `add`
-order line: send it, verbatim, as `[griller→chief-of-staff] <the order line>` by the host's means,
-for the Chief of Staff to relay; with no live Chief of Staff, tell the user (the Foreman still sees
-the order in `status`). A refused join: tell the user the reason; the CR waits in `3-ready`. In a
-worktree you run no `triage`: the Chief of Staff places the files and adds the CR.
+For a CR marked for the running batch, that line is required: send it once the specification is
+final (as [chief-of-staff.md](chief-of-staff.md)'s "Where the CR goes" says), for the Chief of Staff
+to run `order add`. With no live Chief of Staff, tell the user: the Chief of Staff finds the CR on
+`status`'s `running batch:` line and adds it after reading its `03-change-spec.md`. For a CR bound
+for the next batch, run `triage <folder> --ready` yourself once the specification is final (the
+user's destination answer is the word). In a worktree you run no `triage`: the Chief of Staff
+places the files, then marks the CR or moves it to `3-ready` as the answer says.
 
 ## In a planning surface
 

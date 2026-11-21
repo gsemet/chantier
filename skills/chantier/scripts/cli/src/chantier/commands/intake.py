@@ -18,6 +18,7 @@ from chantier.core.repo import Repo
 from chantier.lifecycle.backlog import file_idea, move_item
 from chantier.lifecycle.filing import shown
 from chantier.lifecycle.moveout import folder_taken, remember_cr
+from chantier.lifecycle.running_batch import clear_mark, mark_running_batch
 from chantier.lifecycle.stages import (
     PRIORITIES,
     TRIAGE_USAGE,
@@ -76,43 +77,21 @@ def file_cr(args: argparse.Namespace) -> list[str]:
 
 
 def triage(args: argparse.Namespace) -> list[str]:
-    chosen = [args.priority, "3-ready" if args.ready else None, "inbox" if args.inbox else None]
+    """Move a CR between the inbox, the priorities and `3-ready`, or mark it for the running
+    batch (`--running-batch`). `--ready` joins no batch: a CR joins one by `order add`."""
+    marked = getattr(args, "running_batch", False)
+    chosen = [
+        args.priority,
+        "3-ready" if args.ready else None,
+        "inbox" if args.inbox else None,
+        "running-batch" if marked else None,
+    ]
     if sum(c is not None for c in chosen) != 1:
         raise ChantierError(TRIAGE_USAGE, EXIT_USAGE)
     repo = Repo.find()
-    lines = move_item(repo, args.item, next(c for c in chosen if c))
-    return lines + _join_factory(repo, args.item, lines) if args.ready else lines
-
-
-def _join_factory(repo: Repo, item: str, moved: list[str]) -> list[str]:
-    """In a factory batch, the CR just made ready joins it, as `order add` would. A refusal leaves
-    the CR in `3-ready`: `triaged` stays on stdout, the reason goes to stderr, with the refusal's
-    exit code."""
-    folders = repo.batch_folders()
-    if not folders:
-        return []
-    record = read_batch_json(repo.store, folders[0] / "batch.json")
-    if not record.factory:
-        return []
-    from chantier.commands.orders import add_order  # noqa: PLC0415 - slow
-
-    path = stage_layout(repo)["ready"] / Path(item.rstrip("/\\")).name
-    folder = path.relative_to(repo.changes).as_posix()
-    try:
-        lines = add_order(repo, record.id, path.as_posix(), "triage --ready")
-    except ChantierError as e:
-        print("\n".join(moved))
-        raise ChantierError(
-            f"not joined {record.id}: {e}; the CR waits in 3-ready "
-            f"(`order add --note {folder} --batch {record.id}` once fixed)",
-            e.code,
-        ) from e
-    joined = next((x for x in lines if x.startswith("added ")), "added a CR").split()[1].rstrip(",")
-    return [
-        *lines,
-        f"factory {record.id}: {joined} joined on its own; relay the order line to the "
-        "Foreman (direct mode: take it)",
-    ]
+    if marked:
+        return mark_running_batch(repo, args.item)
+    return move_item(repo, args.item, next(c for c in chosen if c))
 
 
 def abandon(args: argparse.Namespace) -> list[str]:
@@ -129,6 +108,7 @@ def abandon(args: argparse.Namespace) -> list[str]:
         ensure_unclaimed(repo, source)
         target = paths["trash"] / f"{stamp()}-{source.name}"
         move_directory(repo, source, target)
+        clear_mark(repo, target)
         write_dashboard(repo, paths)
     return [f"abandoned {shown(repo, target)}"]
 

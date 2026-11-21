@@ -7,7 +7,15 @@ import json
 from pathlib import Path
 
 import pytest
-from batch_helpers import FROM_AGENTS_MD, changes, host, open_batch, prepared, record
+from batch_helpers import (
+    FROM_AGENTS_MD,
+    changes,
+    host,
+    open_batch,
+    prepared,
+    record,
+    write_record,
+)
 from conftest import Chantier
 from cost_world import msg, slug
 
@@ -50,13 +58,13 @@ def test_open_with_no_cr_is_born_paused(
     data = record(repo)
     assert data["status"] == "paused" and data["crs"] == [] and data["paused"]
     assert data["spent_usd"] is None and data["foreman_transcripts"] == []
-    assert data["mode"] == mode and data["factory"] is True
+    assert data["mode"] == mode and "factory" not in data
     kinds = [(e["kind"], e.get("trigger")) for e in events(repo)]
     assert kinds[-2:] == [("open", None), ("pause", "open, no CR")]
     brief = (changes(repo) / "4-batch" / "brief.md").read_text("utf-8")
-    assert "none yet" in brief and "Factory: on." in brief
-    assert "no CR, paused" in out[0] and out[0].endswith(", factory")
-    assert "`triage <folder> --ready` joins it on its own (factory)" in out[1]
+    assert "none yet" in brief and "Factory" not in brief
+    assert "no CR, paused" in out[0] and "factory" not in out[0]
+    assert "each CR joins it by `order add --note <folder>" in out[1]
     assert "start the Foreman (direct mode: steer it yourself)" in out[1]
     # a second open, with or without a CR, names the empty batch
     item = prepared(repo, chantier, "Second")
@@ -94,8 +102,8 @@ def test_an_order_joins_the_empty_batch_and_the_first_take_sets_it_running(
     monkeypatch.setenv("CHANTIER_BATCH", batch)
     status = chantier("status")[1]
     line = next(x for x in status if x.startswith(batch))
-    assert "spent none yet" in line and line.endswith("no CR yet") and " factory: on " in line
-    assert "no CR yet: `triage <folder> --ready` joins one on its own" in status
+    assert "spent none yet" in line and line.endswith("no CR yet") and "factory" not in line
+    assert f"no CR yet: `order add --note <folder> --batch {batch}` joins one" in status
     assert "unknown" not in line and "$0.00" not in line
     md = (changes(repo) / "4-batch" / "STATUS.md").read_text("utf-8")
     assert "spent none yet" in md and "- No CR yet." in md
@@ -133,7 +141,7 @@ def test_close_of_a_batch_that_never_held_a_cr(
     chantier: Chantier,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    case: tuple[bool, bool],  # (steered, factory turned off first)
+    case: tuple[bool, bool],  # (steered, an older record with a done `factory` order)
 ) -> None:
     steered, off = case
     monkeypatch.setenv("CHANTIER_CLAUDE_PROJECTS", str(tmp_path / "claude-projects"))
@@ -142,8 +150,11 @@ def test_close_of_a_batch_that_never_held_a_cr(
     monkeypatch.setenv("CHANTIER_BATCH", batch)
     if steered:
         steer(repo, chantier, tmp_path)
-    if off:  # the done `factory` order is no cause to refuse the close
-        assert chantier("order", "factory", "off", "--note", "the user's word")[0] == 0
+    if off:  # an older record's factory key and done `factory` order are no cause to refuse
+        data = record(repo)
+        order = {"id": "O-1", "kind": "factory", "note": "off", "done": data["created"]}
+        write_record(repo, {**data, "factory": True, "orders": [order]})
+        assert "factory" not in " ".join(chantier("status")[1])
     code, preview, err = chantier("close")
     assert code == 0, err
     assert "0 CRs move from 3-done" in " ".join(preview)
@@ -188,8 +199,8 @@ def test_the_board_words_of_a_batch_with_no_cr_are_shipped(language: str) -> Non
     web = Path(__file__).resolve().parents[1] / "src" / "chantier" / "clients" / "web" / "js"
     words = (web / "i18n" / f"{language}-batch.js").read_text("utf-8")
     assert "'batch.no_cr_yet'" in words and "'batch.spent_none_yet'" in words
-    assert "'batch.no_cr_yet_factory'" in words and "'batch.factory_on'" in words
+    assert "batch.no_cr_yet_factory" not in words and "batch.factory_on" not in words
+    assert "steeringFactoryWord" not in (web / "model" / "semantics.js").read_text("utf-8")
     for view in ("batch.js", "home-batch.js"):
         text = (web / "views" / view).read_text("utf-8")
-        assert "noCrYet(" in text and "batch.no_cr_yet_factory" in text
-        assert "steeringFactoryWord(" in text
+        assert "noCrYet(" in text and "'batch.no_cr_yet'" in text and "factory" not in text

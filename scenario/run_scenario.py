@@ -112,7 +112,7 @@ UNITS = {
     "series-deps": (380, ["github"], ["batch_modes", "dependencies", "early_conflict",
                                       "changes_tree"]),
     "direct": (220, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
-                                 "empty_batch", "factory_batch"]),
+                                 "empty_batch", "running_batch"]),
     "surface-board": (
         660,
         ["github"],
@@ -6289,17 +6289,18 @@ def empty_batch(w: World) -> None:
     check("`open` with no CR opens a batch born paused, with no CR and no cost yet",
           code == 0 and d["status"] == "paused" and d["crs"] == [] and d["spent_usd"] is None
           and "no CR, paused" in out[0], str(out))
-    check("it is a factory batch: `factory: true` in its record, the first line says so, and its "
-          "brief carries `Factory: on.`",
-          d["factory"] is True and out[0].endswith(", factory")
-          and "Factory: on." in (w.state / "4-batch" / "brief.md").read_text(encoding="utf-8"),
+    check("it is an ordinary batch: no `factory` key in its record, no factory word on its first "
+          "line, and no `Factory:` token in its brief",
+          "factory" not in d and "factory" not in out[0]
+          and "Factory:" not in (w.state / "4-batch" / "brief.md").read_text(encoding="utf-8"),
           str(out))
     w.env["CHANTIER_BATCH"] = w.name
     code, out = w.chantier("status")
     mine = next((ln for ln in out if ln.startswith(w.name)), "")
-    check("`status` says `spent none yet` and `no CR yet` for it, never $0.00",
+    check("`status` says `spent none yet` and `no CR yet` for it, never $0.00, and how a CR joins",
           code == 0 and "spent none yet" in mine and mine.endswith("no CR yet")
-          and " factory: on " in mine and "$0.00" not in mine, str(out))
+          and "factory" not in mine and "$0.00" not in mine
+          and f"no CR yet: `order add --note <folder> --batch {w.name}` joins one" in out, str(out))
     code, out = w.chantier("order", "add", "--note", str(item), "--batch", w.name)
     check("`order add --note` joins a CR to the empty batch, which stays paused",
           code == 0 and w.batch()["status"] == "paused" and len(w.batch()["crs"]) == 1, str(out))
@@ -6317,48 +6318,56 @@ def empty_batch(w: World) -> None:
     w.reset()
 
 
-def factory_batch(w: World) -> None:
-    note("\n## 16e. A factory batch: `triage --ready` joins it, it pauses at the last CR's end "
-         "with no close offered, and ends on the user's word")
-    _, ready = prepare_cr(w, "Factory first")
+def running_batch(w: World) -> None:
+    note("\n## 16e. Running batch or next batch: a CR marked for the running batch joins by "
+         "`order add` once specified, the batch ends as any other, `triage --ready` joins nothing")
+    _, first = prepare_cr(w, "Running first")
     w.reset()
     w.start("--direct", *FROM_AGENTS_MD)
     w.env["CHANTIER_BATCH"] = w.name
-    code, out = w.chantier("triage", ready, "--ready")
+    (first / "work").mkdir(exist_ok=True)
+    (first / "work" / "specifying").write_text("2026-11-21T00:00:00Z spec-writer\n")
+    code, out = w.chantier("triage", first, "--running-batch")
+    mark = first / "work" / "running-batch"
+    check("`triage --running-batch` marks a CR being specified for the open batch and moves "
+          "nothing",
+          code == 0 and mark.is_file() and mark.read_text().split()[-1] == w.name
+          and first.is_dir() and w.batch()["crs"] == []
+          and out[0].startswith(f"{first.name} marked for the running batch {w.name}"), str(out))
+    (first / "work" / "specifying").unlink()
+    code, out = w.chantier("status")
+    check("once its specification is written and the marker gone, `status` names it `written`",
+          code == 0 and any(ln.startswith("running batch: 1 CRs marked, not joined: ")
+                            and f"{first.name} (written)" in ln for ln in out), str(out))
+    code, out = w.chantier("order", "add", "--note", first, "--batch", w.name)
     d = w.batch()
-    check("`triage --ready` joins the factory batch in the same call: the CR is queued, the batch "
-          "stays paused, one `add` order says where it came from, the last line names the CR",
-          code == 0 and out[0].startswith("triaged ") and len(d["crs"]) == 1
-          and d["crs"][0]["status"] == "queued" and d["status"] == "paused"
-          and [o["kind"] for o in d["orders"]] == ["add"]
-          and any(ln.startswith("[chief-of-staff→foreman] order O-1: add ") for ln in out)
-          and out[-1].startswith(f"factory {w.name}: {d['crs'][0]['id']} joined on its own"),
-          str(out))
-    lines = (w.state / "4-batch" / "events.jsonl").read_text(encoding="utf-8").splitlines()
-    events = [json.loads(ln) for ln in lines]
-    check("the `order` event says `origin: triage --ready`",
-          [e.get("origin") for e in events if e["kind"] == "order"] == ["triage --ready"],
-          str(events))
+    pending = w.at(d["crs"][0]["path"]) if d["crs"] else first
+    check("`order add` places it in `1-pending` and clears the mark",
+          code == 0 and len(d["crs"]) == 1 and "1-pending" in d["crs"][0]["path"]
+          and not (pending / "work" / "running-batch").exists(), str(out))
     cr = d["crs"][0]["id"]
-    w.chantier("foreman", "set", "local_foreman_factory", "--epoch", 1)
-    w.chantier("take", cr, "--epoch", 1)
+    w.chantier("foreman", "set", "local_foreman_running", "--epoch", 1)
+    code, out = w.chantier("take", cr, "--epoch", 1)
+    check("the steering session takes it: the batch runs",
+          code == 0 and w.batch()["status"] == "running", str(out))
     code, out = w.chantier("order", "merged", cr)
-    next_line = next((ln for ln in out if ln.startswith("next:")), "")
-    check("the last CR's end pauses the factory batch and prints the factory `next:` line: no "
-          "retro, no close offered",
-          code == 0 and w.batch()["status"] == "paused" and "waits for its next ready CR" in next_line
-          and "offer the close" not in next_line and "order factory off" in next_line, str(out))
-    code, out = w.chantier("order", "factory", "off", "--note", "the user closes the factory")
-    check("`order factory off` makes it an ordinary batch and, paused with every CR ended, says "
-          "the retro comes next; the order is done at once",
-          code == 0 and w.batch()["factory"] is False
-          and any(ln.startswith("every CR is merged or cancelled: next: the retro") for ln in out)
-          and w.batch()["orders"][-1]["done"], str(out))
-    code, out = w.chantier("close", "--yes", expect=2)
-    check("`close` is refused for the cost of a batch no transcript steered, never for the done "
-          "`factory` order",
-          code == 2 and "no steering transcript recorded" in w.last_stderr
-          and "order" not in w.last_stderr.replace("cannot close", ""), w.last_stderr)
+    check("its end pauses the batch with the ordinary `next:` line: the retro, then the close offer",
+          code == 0 and w.batch()["status"] == "paused"
+          and any("next: the retro (with its critic), then offer the close" in ln for ln in out),
+          str(out))
+    _, second = prepare_cr(w, "Running second")
+    code, out = w.chantier("order", "add", "--note", second, "--batch", w.name)
+    second_cr = w.batch()["crs"][-1]["id"]
+    code, out = w.chantier("take", second_cr, "--epoch", 1)
+    check("a second CR placed by `order add` before the close starts it again at the next `take`",
+          code == 0 and w.batch()["status"] == "running", str(out))
+    _, third = prepare_cr(w, "Running third")
+    code, out = w.chantier("triage", third, "--ready")
+    ready = w.work / out[0].removeprefix("triaged ") if out else third
+    check("`triage --ready` of a third CR leaves it in `3-ready`, not joined",
+          code == 0 and ready.parent.name == "3-ready" and len(w.batch()["crs"]) == 2, str(out))
+    code, out = w.chantier("order", "factory", "on", "--note", "the user's word", expect=1)
+    check("`order factory on` is refused (exit usage)", code == 1, w.last_stderr)
     w.reset()
 
 
@@ -10358,7 +10367,7 @@ CASES = {
     "driver_liveness": driver_liveness,
     "restore_cr": restore_cr,
     "empty_batch": empty_batch,
-    "factory_batch": factory_batch,
+    "running_batch": running_batch,
     "gitlab_ship_merge": gitlab_ship_merge,
 }
 

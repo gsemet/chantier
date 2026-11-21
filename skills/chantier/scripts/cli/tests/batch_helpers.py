@@ -82,10 +82,10 @@ def events(repo: Path) -> list[dict[str, Any]]:
     return [json.loads(x) for x in path.read_text("utf-8").splitlines()]
 
 
-def open_factory(
+def open_bare(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch, *args: object
 ) -> str:
-    """Open a factory batch (no CR unless `args` names one); returns its id."""
+    """Open a batch with no CR unless `args` names one (born paused); returns its id."""
     host(monkeypatch)
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "uuid-chief")
     code, _, err = chantier("open", *args, *FROM_AGENTS_MD)

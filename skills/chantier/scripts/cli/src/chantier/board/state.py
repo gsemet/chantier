@@ -51,7 +51,6 @@ VIEW_KEYS = (
     "asks_unread",
     "orders_pending",
     "crs_total",
-    "factory",
 )
 EVENTS_SHOWN = 40
 SECONDS_PER_MINUTE = 60
@@ -244,9 +243,7 @@ def project_line(project_id: str, state: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": project_id,
         "forge": state.get("forge"),
-        "batch": {k: batch[k] for k in ("id", "state", "mode", "steering", "factory")}
-        if batch
-        else None,
+        "batch": {k: batch[k] for k in ("id", "state", "mode", "steering")} if batch else None,
         "running": bool(batch and batch["state"] == "running"),
         "working": [_entry(c) for c in rows if c["state"] == "working"],
         "blocked": [_entry(c) for c in rows if c["state"] == "blocked"],

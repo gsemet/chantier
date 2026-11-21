@@ -2,9 +2,6 @@
 // Merged into en.js.
 export default {
   'batch.no_cr_yet': 'Paused, no CR yet: order add joins one.',
-  'batch.no_cr_yet_factory':
-    'Paused, no CR yet: each CR made ready with triage --ready joins on its own.',
-  'batch.factory_on': 'factory: on',
   'batch.spent_none_yet': 'none yet',
   'batch.tab_graph': 'Graph',
   'batch.tab_gantt': 'Gantt',

@@ -10,7 +10,6 @@ from chantier.commands.activity import activity, stopped_agents, stopped_text
 from chantier.commands.cost.breakdown import cost_groups, cost_summary
 from chantier.commands.cost.pricing import TO_DATE, sum_unpriced
 from chantier.commands.cost.sessions import chief_line, cost_rows, foreman_uuid
-from chantier.commands.factory import FACTORY_ON, factory_lines
 from chantier.commands.writer_line import entry as writer_entry
 from chantier.commands.writer_line import writer_lines
 from chantier.core import leases
@@ -39,6 +38,7 @@ from chantier.history import last_closed_text
 from chantier.hub import journal
 from chantier.hub.autostart import not_running_line
 from chantier.hub.lines import watch_lines
+from chantier.lifecycle.running_batch import open_batch_id, running_batch_lines
 from chantier.lifecycle.session import RenderedBatch
 from chantier.lifecycle.stages import changes_lock
 from chantier.rails import (
@@ -289,7 +289,7 @@ def _batch_line(d: BatchRecord, hb_text: str) -> str:
     queued = sum(1 for c in d.crs if c.status == "queued")
     return (
         f"{d.id} {d.status} steering {steering_word(d.steering)} "
-        f"shape {shape_word(d.mode)}{FACTORY_ON if d.factory else ''} "
+        f"shape {shape_word(d.mode)} "
         f"live {len(held(d))}/{d.slots} queued {queued} "
         f"foreman {d.foreman or 'none'} e{d.foreman_epoch} "
         f"heartbeat {hb_text} spent {spent_text(d)}"
@@ -311,6 +311,22 @@ def _unpaused_line(d: BatchRecord) -> list[str]:
     ]
 
 
+def no_cr_lines(d: BatchRecord) -> list[str]:
+    """A paused batch that never held a CR: how a CR joins it."""
+    if d.status != "paused" or d.crs:
+        return []
+    return [f"no CR yet: `order add --note <folder> --batch {d.id}` joins one"]
+
+
+def _resolve(repo: Repo, args: argparse.Namespace) -> str:
+    """The batch `status` reads; with none, the refusal also names the stale marks."""
+    try:
+        return resolve_batch(repo, args.batch, paused=not (args.refresh or args.stop_heartbeat))
+    except ChantierError as e:
+        marks = running_batch_lines(repo, open_batch_id(repo))
+        raise ChantierError("; ".join([str(e), *marks]), e.code) from e
+
+
 def _other_batches_lines(repo: Repo) -> list[str]:
     line = other_batches(repo)
     return [line] if line else []
@@ -318,7 +334,7 @@ def _other_batches_lines(repo: Repo) -> list[str]:
 
 def status(args: argparse.Namespace) -> tuple[list[str], int]:
     repo = Repo.find()
-    batch = resolve_batch(repo, args.batch, paused=not (args.refresh or args.stop_heartbeat))
+    batch = _resolve(repo, args)
     extra, code, prev = [], 0, None
     if args.stop_heartbeat:
         extra = _stop_heartbeat(repo, batch, args.epoch)
@@ -330,7 +346,8 @@ def status(args: argparse.Namespace) -> tuple[list[str], int]:
         *writer_lines(repo),
         *_other_batches_lines(repo),
     ]
-    lines += factory_lines(repo, d)
+    lines += no_cr_lines(d)
+    lines += running_batch_lines(repo, d.id)
     lines += _unpaused_line(d)
     lines.append(last_closed_text(last_closed(repo)))
     lines += watch_lines(repo, d)

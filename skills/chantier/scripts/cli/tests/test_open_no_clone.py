@@ -29,8 +29,8 @@ def remove(folder: Path) -> None:
 
 @pytest.mark.parametrize(
     ("args", "configured"),
-    [((), False), (("--factory",), False), (("--factory",), True)],
-    ids=["no-cr", "factory", "factory-configured-cell"],
+    [((), False), ((), True)],
+    ids=["no-cr", "no-cr-configured-cell"],
 )
 def test_open_refuses_a_project_with_no_clone(
     surface: Surface,
