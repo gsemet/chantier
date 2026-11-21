@@ -77,6 +77,14 @@ After acceptance, use the host's means (the host's reference, "Run the board"),
 and reads its first lines. A Griller, a Foreman, a Driver and the router before a role is chosen
 never start it.
 
+Another project runs chantier from its checkout in plugin mode, a build uv caches by version: it
+changes at each version bump. The board server, its writer and the forge hub, started from
+another project's session, run that build and serve every project of the surface, chantier
+included, with no notice while the version is equal, until the next version bump or until
+stopped by hand and started again from a chantier session. (The dev mode runs only in chantier's
+own checkout, when the session's project is chantier: the launch paragraph of the SKILL.md.) The
+watcher that is the hub (below) runs the same build.
+
 - `board on <URL> over ...`: report the server-announced binding (the link and its key), not
   verified local readiness. Local readiness is verified only by a successful probe such as
   `GET /api/board` with the key; if no probe was run, say so. If the server announces a

@@ -687,8 +687,8 @@ running again, until the user's close.
     no message: the Chief of Staff reads the note for its next report. The CR's state is
     unchanged. After a fast-forward, when `git diff --quiet <before> HEAD -- uv.lock` says
     `uv.lock` changed (exit 1), the note is `main checkout: fast-forwarded to <sha7>; uv.lock
-    changed: sync pending`: you never sync, the Chief of Staff does (chantier's own checkout, the
-    dev mode).
+    changed: sync pending`: you never sync, the Chief of Staff does (chantier's own checkout, when
+    the session's project is chantier: the dev mode).
   - **After:** no reload of the plugin, no new reading of the cards (the CLI is read live; the
     cards load at the next session or with `/reload-plugins`). The next merge recorded tries
     again from step 1.

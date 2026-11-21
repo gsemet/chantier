@@ -15,7 +15,7 @@ from chantier.commands.allow_samples import CAPABILITIES, SAMPLES, fill_sample
 from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.repo import Repo
-from chantier.plugin_files import is_dev_checkout, skill_dir
+from chantier.plugin_files import is_dev_mode, skill_dir
 
 # P10 asks whether some allow rule of the user's settings lets each sample command of
 # `allow_samples` through (as Claude Code matches rules), whatever the rule's form.
@@ -101,12 +101,18 @@ def _settings_rules(
     return rules, unreadable, origins
 
 
-def _forges(remote: str) -> set[str]:
+def _dev_mode(repo: Repo | None) -> bool:
+    """The install's mode for this project: dev only in chantier's own checkout when the
+    session's project is chantier; every mode test of this file asks it."""
+    return is_dev_mode(repo)
+
+
+def _forges(remote: str, repo: Repo | None) -> set[str]:
     """The forges that apply: the remote's forge, the `gh stack` extension when
-    `gh extension list` names it."""
+    `gh extension list` names it; and the mode's rows, `dev` or `plugin`."""
     url = git("remote", "get-url", remote, check=False).lower()
     host = re.sub(r"^.*?(?:://|@)", "", url).split("/")[0].split(":")[0]
-    forges = {"any", "dev" if is_dev_checkout() else "plugin"}
+    forges = {"any", "dev" if _dev_mode(repo) else "plugin"}
     if "gitlab" in host:
         forges.add("gitlab")
     elif "github" in host:
@@ -240,12 +246,11 @@ def _replacing(rule: str, allow: list[str], samples: list[tuple[str, str, str, s
     return "replaced by " + " and ".join(f"{r}{' present' if r in allow else ''}" for r in found)
 
 
-def _stale(allow: list[str], broad: list[str]) -> list[str]:
+def _stale(allow: list[str], broad: list[str], dev: bool) -> list[str]:
     """The allow rules in the form of a chantier rule that name another path than this
     install's and let no probe through: in the plugin mode a plugin-form rule of any other path;
     in either mode a dev-form rule (dev or sync) whose folder no longer exists."""
     here = os.path.normcase(skill_dir().parents[1].as_posix())
-    dev = is_dev_checkout()
     stale = []
     for r in dict.fromkeys(allow):
         if r in broad:
@@ -266,7 +271,7 @@ def _advice(rules: dict[str, Any], origins: dict[str, str], mode: str) -> str:
     allow = [r for r in rules["allow"] if _counts_as_allow(r)]
     samples = [fill_sample(s) for s in SAMPLES if s[1] == mode and s[0] == "batch"]
     broad = _broad(allow)
-    stale = _stale(allow, broad)
+    stale = _stale(allow, broad, mode == "dev")
     text = ""
     if broad:
         named = "; ".join(
@@ -295,7 +300,7 @@ def commands_not_allowed(
     if remote not in remotes and remotes:
         remote = "origin" if "origin" in remotes else remotes[0]
     rules, unreadable, origins = _settings_rules(repo)
-    forges = _forges(remote)
+    forges = _forges(remote, repo)
     gaps = {
         cap: _gap(
             [fill_sample(s) for s in SAMPLES if s[0] == cap and s[1] in forges],
@@ -307,6 +312,6 @@ def commands_not_allowed(
         if cap in (capabilities or {"batch"}) | {"batch"}
     }
     gaps["batch"] = gaps["batch"]._replace(
-        advice=_advice(rules, origins, "dev" if is_dev_checkout() else "plugin")
+        advice=_advice(rules, origins, "dev" if _dev_mode(repo) else "plugin")
     )
     return gaps, unreadable
