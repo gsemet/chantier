@@ -35,6 +35,7 @@ const data = {
   recomputing: false, // Costs: a recompute was asked and its figure has not arrived
   spendBy: 'model', // Costs: the card's switch, by 'model' or by 'role'
   selection: [], // Triage: the slugs selected
+  triageFolded: null, // Triage: the rows P1..P4 folded, read from the device's preference on first use
   labelFilter: [], // Triage: the labels that filter the post-its
   priorityFilter: [...FILTER_BUCKETS], // Kanban: the buckets shown (all on at the start)
   historyOpen: [], // Costs: the earlier batches whose CRs are unfolded

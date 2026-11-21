@@ -373,3 +373,23 @@ def test_the_dashboard_sits_between_costs_and_configuration_and_its_chart_is_lin
     links = re.findall(r'<link rel="stylesheet" href="(css/[^"]+)"', _web("index.html"))
     assert links[links.index("css/components/column.css") + 1] == "css/components/chart.css"
     assert links[links.index("css/views/costs-stamp.css") + 1] == "css/views/dashboard.css"
+
+
+@pytest.mark.parametrize("lang", ["en", "fr"])
+def test_the_fold_and_the_writes_count_explanation_ship(lang: str) -> None:
+    words = (WEB / "js" / "i18n" / f"{lang}-write.js").read_text(encoding="utf-8")
+    for key in ("triage.fold", "triage.unfold", "journal.what", "journal.why", "journal.todo"):
+        assert f"'{key}':" in words
+    assert "'journal.tip':" in words
+    assert not any(
+        "journal.note" in p.read_text(encoding="utf-8") for p in (WEB / "js").rglob("*.js")
+    )
+    column = (WEB / "js" / "ui" / "column.js").read_text(encoding="utf-8")
+    assert all(w in column for w in ("data-fold", "aria-expanded", "column-folded"))
+    journal = (WEB / "js" / "journal" / "journal.js").read_text(encoding="utf-8")
+    panel = journal[journal.index("export function journalPanel") :]
+    assert panel.index("journal.what") < panel.index("<ul")
+    assert re.search(r'title="\$\{t\(.journal\.tip.\)\}"', journal)
+    design = DESIGN.read_text(encoding="utf-8")
+    assert "## Triage: folded rows and the writes count" in design
+    assert "its grill counts and its fold chevron" in " ".join(design.split())

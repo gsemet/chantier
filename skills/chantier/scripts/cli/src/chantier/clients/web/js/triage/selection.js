@@ -5,11 +5,12 @@ import { addLabel } from '../api/backlog.js';
 import { delegate, html } from '../core/dom.js';
 import { snapshot, update } from '../core/store.js';
 import { targetFor } from '../model/targets.js';
-import { findItem, labelsOf, passes, RUNNING, TARGETS } from '../model/triage.js';
+import { columnOf, findItem, labelsOf, passes, RUNNING, TARGETS } from '../model/triage.js';
 import { t } from '../model/words.js';
 import { openPanel } from '../panel/panel.js';
 import { showDialog } from '../ui/dialog.js';
 import { clearSelection, run } from './actions.js';
+import { foldedOf } from './fold.js';
 import { createGroup } from './groups.js';
 import { moveTo } from './move.js';
 
@@ -66,12 +67,17 @@ function act(action, slugs) {
   }
 }
 
-// The selection as the record now holds it: a slug that left the backlog drops out.
-export const selectedNow = (state) =>
-  state.selection.filter((s) => {
+// The selection as the record now holds it: a slug that left the backlog drops out, and so does
+// one drawn in a folded row (a CR marked for the open batch is drawn in "Running batch").
+export const selectedNow = (state) => {
+  const folded = foldedOf(state);
+  return state.selection.filter((s) => {
     const item = findItem(state.data?.backlog, s);
-    return item && passes(item, state.labelFilter);
+    return (
+      item && passes(item, state.labelFilter) && !folded.includes(columnOf(state.data?.backlog, s))
+    );
   });
+};
 
 export function bindSelection(root) {
   const offs = [

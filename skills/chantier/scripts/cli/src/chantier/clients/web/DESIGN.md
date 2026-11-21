@@ -37,7 +37,7 @@ fails when the table and `tokens.css` disagree.
   priority; a chip used as a filter toggle (Triage's priorities, the Inbox's kinds) is the
   same chip, filled when on, outlined grey when off (`.tag.st.off`), the same size in both states. A lane, built by
   the same module (`lane(parts)`), sits in a column's body and has no dot: a Backlog lane's head is
-  its priority chip, its count and its grill counts; Triage's last column holds two named lanes,
+  its priority chip, its count, its grill counts and its fold chevron; Triage's last column holds two named lanes,
   "Running batch" over "Next batch", each with its name, count, grill counts and own grey sub-line.
 - **One-line titles.** A CR's title in a card, a row or a table cell is drawn on one line, cut with
   an ellipsis, its full text in the element's `title` attribute; the side panel shows it whole
@@ -384,3 +384,16 @@ blocked; kind chips filter the list, and the filter is a preference.
 - **Look.** Tokens, the shared card, chip and column components; `css/views/inbox.css` only lays
   out. No new colour, size or side border. Words in both languages (`en-inbox.js`, `fr-inbox.js`,
   with `mr.inbox.sub` for GitLab).
+
+## Triage: folded rows and the writes count
+
+Each Backlog row, P1 to P4, folds on a click on its head: `lane(parts)`'s `fold`, `folded` and
+`foldLabel` parts, the `column-folded` variant and the `column-fold` chevron, a real button with
+`aria-expanded` and a label in both languages. A folded row keeps its head (priority chip, count and
+grill-state counts), hides its post-its, groups and empty-row text, stays a drop target and is open by
+default. The choice is the device's preference `triageFolded`, the same for every project; a value
+that cannot be read reads as open. No other column or lane folds, and nothing folds by itself.
+
+The journal panel opens on three lines (what the count is, why the Chief of Staff may not know of
+those writes, what to type), then the list; the button carries a one-sentence tooltip. No new colour,
+size or token.
