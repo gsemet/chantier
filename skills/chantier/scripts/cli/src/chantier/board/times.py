@@ -1,16 +1,14 @@
-"""A CR's times as the board's Gantt and time cards draw them, and the stage it came from,
+"""A CR's times as the board's Gantt and time cards draw them,
 derived from the batch's `events.jsonl` (already read once per state): nothing is recorded."""
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from chantier.core.records import CrEntry, EventRecord
 
 END = "end"
 STATE_KINDS = {"take", "round", "handback", "pr-draft", "cancel"}
-PRIORITY_AFTER = re.compile(r"P[1-4]")
 
 
 def _last(own: list[EventRecord], kind: str, **where: Any) -> EventRecord | None:
@@ -115,18 +113,3 @@ def cr_times(events: list[EventRecord], c: CrEntry) -> dict[str, Any]:
         "verdict": verdict.result if verdict else None,
         "verdict_at": verdict.t if verdict else None,
     }
-
-
-def priority_of(events: list[EventRecord], c: CrEntry) -> str | None:
-    """The stage the CR came from, read from its `add` event's `origin`: `inbox`, `P1`...`P4` or
-    `3-ready`; `None` with no `add`, no `origin` or no match."""
-    add = next((e for e in events if e.kind == "add" and e.cr == c.id), None)
-    parts = str(add.origin).replace("\\", "/").split("/") if add and add.origin else []
-    for i, part in enumerate(parts):
-        if part == "1-inbox":
-            return "inbox"
-        if part == "3-ready":
-            return "3-ready"
-        if part == "2-backlog" and i + 1 < len(parts) and PRIORITY_AFTER.fullmatch(parts[i + 1]):
-            return parts[i + 1]
-    return None

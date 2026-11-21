@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from chantier.board.backlog import count_files, description
-from chantier.board.times import cr_times, priority_of
+from chantier.board.times import cr_times
 from chantier.core import leases
 from chantier.core import waits as typed_waits
 from chantier.core.files import rel_in, subject
 from chantier.core.records import BatchRecord, CrEntry, EventRecord, Lease, round_limit
 from chantier.core.repo import Repo
+from chantier.lifecycle.stages import STATE_FOLDERS
 from chantier.rails import ENDED, series_predecessor
 from chantier.stack_words import READY_TO_MERGE, ready_word
 from chantier.stacks import chain, stack_base
@@ -91,6 +92,15 @@ def _folder_of(repo: Repo, c: CrEntry) -> Path | None:
     return None
 
 
+def stage_of(repo: Repo, folder: Path | None) -> str | None:
+    """The batch folder the CR is in (`1-pending`, `2-actives`, `3-done`), read from its folder on
+    disk; `None` for a CR out of the batch's folders."""
+    parts = repo.rel(folder).split("/") if folder else []
+    return (
+        parts[1] if len(parts) > 1 and parts[0] == "4-batch" and parts[1] in STATE_FOLDERS else None
+    )
+
+
 def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> dict[str, Any]:
     folder = _folder_of(repo, c)
     waiting = waits(d, c)
@@ -125,7 +135,7 @@ def _row(repo: Repo, d: BatchRecord, c: CrEntry, events: list[EventRecord]) -> d
         "branch": c.branch,
         "handed_back_at": handed_back_at(events, c.id),
         "times": cr_times(events, c),
-        "priority": priority_of(events, c),
+        "stage": stage_of(repo, folder),
         "files": count_files(repo.store, folder) if folder else 0,
         "description": description(repo.store, folder) if folder else "",
         "chain_place": place.index(c.id) + 1 if c.id in place else None,

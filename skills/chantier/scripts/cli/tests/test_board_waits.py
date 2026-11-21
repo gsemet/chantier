@@ -12,6 +12,7 @@ from chantier.board.backlog import backlog_items
 from chantier.board.crs import cr_rows
 from chantier.core import waits
 from chantier.core.batch import read_batch
+from chantier.core.records import EventRecord
 from chantier.store import FolderStore
 
 LINK = "https://github.com/acme/alpha/pull/10"
@@ -45,3 +46,29 @@ def test_a_backlog_item_carries_the_open_waits_of_its_file(tmp_path: Path) -> No
     row = {"item": "a", "title": "A", "path": "1-inbox/a", "priority": "inbox"}
     (item,) = backlog_items(FolderStore(tmp_path), tmp_path, [row])["inbox"]
     assert [w["id"] for w in item["open_waits"]] == ["w2"]
+
+
+def test_a_batch_row_carries_the_batch_folder_of_its_cr_read_from_disk_and_no_priority(
+    world: World,
+) -> None:
+    where = [
+        "4-batch/1-pending/a",
+        "4-batch/2-actives/b",
+        "4-batch/3-done/c",
+        "2-backlog/P2/d",
+        None,
+    ]
+    crs = crs_of("alpha", "queued", len(where))
+    changes = world.project("alpha") / "changes"
+    for cr, place in zip(crs, where, strict=True):
+        if place:
+            (changes / place).mkdir(parents=True)
+            cr["path"] = place
+    write_batch(world.project("alpha"), "running", crs)
+    repo = world.repo("alpha")
+    added = [
+        EventRecord(t="2026-06-18T09:00:00Z", actor="x", kind="add", cr="CR-1", origin="3-ready/a")
+    ]
+    rows = cr_rows(repo, read_batch(repo, "batch-01"), added)
+    assert [r["stage"] for r in rows] == ["1-pending", "2-actives", "3-done", None, None]
+    assert not any("priority" in r for r in rows)

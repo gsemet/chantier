@@ -56,12 +56,12 @@ function ticksOf({ start, now, pct }, width) {
   }));
 }
 
-// The label cell: the one card, compact, with its priority chip, CR chip, title and state badge.
+// The label cell: the one card, compact, with its batch folder chip, CR chip, title and state badge.
 const label = (c) =>
   card({
     classes: 'glabel',
     variants: ['compact'],
-    priority: c.priority,
+    priority: c.stage,
     attrs: html`data-id="${c.cr}" ${opener(crKey(c), 'gantt-')}`,
     top: html`<span class="tag cr">${c.cr}</span>${badge(c)}`,
     title: title(c.title),

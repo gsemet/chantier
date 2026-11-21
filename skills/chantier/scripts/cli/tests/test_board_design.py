@@ -349,3 +349,13 @@ def _check_stage() -> bool:
 )
 def test_the_batch_kanban_as_shipped(check: Callable[[], bool]) -> None:
     assert check()
+
+
+def test_a_batch_view_draws_the_batch_folder_chip_not_a_priority() -> None:
+    js = WEB / "js"
+    assert not [f.name for f in js.rglob("*.js") if "c.priority" in f.read_text(encoding="utf-8")]
+    for view in ("graph", "gantt", "timecards", "pr-card"):
+        text = (js / "views" / f"batch-{view}.js").read_text(encoding="utf-8")
+        assert "priority: c.stage" in text, view
+    chip = (CSS / "components" / "chip.css").read_text(encoding="utf-8")
+    assert not re.search(r"\.tag\.pri-(1-pending|2-actives|3-done)", chip)

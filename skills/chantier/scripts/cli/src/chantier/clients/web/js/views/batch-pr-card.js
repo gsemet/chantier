@@ -73,7 +73,7 @@ export function prCard(c, batch, index, draft) {
     as: url ? 'a' : 'div',
     href: url,
     classes: 'prc',
-    priority: c.priority,
+    priority: c.stage,
     variants: ['clamp', draft && 'draft'],
     attrs: url ? html`title="${t('pr.open')}"` : '',
     top: html`<b class="num">${prNumber(c.pr)}</b><span class="tag cr">${c.cr}</span>${kindTag(c)}${place(c, batch, index, draft)}`,

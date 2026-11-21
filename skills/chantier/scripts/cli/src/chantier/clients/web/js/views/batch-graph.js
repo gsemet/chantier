@@ -65,7 +65,7 @@ const node = (c, batch, now) =>
   card({
     classes: 'node',
     variants: ['compact'],
-    priority: c.priority,
+    priority: c.stage,
     attrs: html`data-id="${c.cr}" ${opener(crKey(c), 'node-')}`,
     top: html`<span class="tag cr">${c.cr}</span>${nextTag(c)}<span class="lbl">${slug(c.folder)}</span>${spark(c, now)}${badge(c)}`,
     title: title(c.title),
