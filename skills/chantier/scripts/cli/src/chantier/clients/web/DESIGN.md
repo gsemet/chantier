@@ -425,3 +425,16 @@ that cannot be read reads as open. No other column or lane folds, and nothing fo
 The journal panel opens on three lines (what the count is, why the Chief of Staff may not know of
 those writes, what to type), then the list; the button carries a one-sentence tooltip. No new colour,
 size or token.
+
+## The Help page
+
+The `help` view sits after Home (and the Inbox) in the sidebar, the same on every project and on
+"All projects", with no count. It needs no project data (the registry's `offline`: `ui/host.js`
+draws it before a record has arrived, and while the board is unreachable) and calls no op or topic.
+Every word is an i18n key of `js/i18n/en-help.js` and `fr-help.js`; the topics' list (ids, group,
+link to chantier's documentation) is in `js/views/help-topics.js`. A topic's card and its detail
+are the one card (`help-card`, `help-detail`, the `sel` variant for the open one), laid out by
+`css/views/help.css`'s grid, with no picture or diagram. The open topic is the address's `h=`:
+Escape, its close button, a second click on its card or Back closes it. A close adds no history
+entry (the router's `closeTopic()`), so Back never reopens a closed detail. The token table does
+not change.

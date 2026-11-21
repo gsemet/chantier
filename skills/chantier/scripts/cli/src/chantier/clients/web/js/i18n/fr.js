@@ -3,6 +3,7 @@ import batch from './fr-batch.js';
 import board from './fr-board.js';
 import costs from './fr-costs.js';
 import dashboard from './fr-dashboard.js';
+import help from './fr-help.js';
 import history from './fr-history.js';
 import inbox from './fr-inbox.js';
 import mr from './fr-mr.js';
@@ -16,6 +17,7 @@ export default {
   'nav.sync': 'Synchro',
   'nav.home': 'Home',
   'nav.inbox': 'Boîte de réception',
+  'nav.help': 'Aide',
   'nav.kanban': 'Kanban',
   'nav.batch': 'Batch',
   'nav.prs': 'PR',
@@ -256,6 +258,7 @@ export default {
   ...inbox,
   ...costs,
   ...dashboard,
+  ...help,
   'writer.title': 'Writer {state}',
   'writer.state.synced': 'synchronisé',
   'writer.state.syncing': 'en cours',

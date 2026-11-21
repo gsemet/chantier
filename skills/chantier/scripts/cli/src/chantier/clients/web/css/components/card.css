@@ -19,7 +19,8 @@ a.card {
 }
 
 /* a clickable card: the edge darkens on hover */
-.card[data-open]:hover {
+.card[data-open]:hover,
+.card[data-help]:hover {
   border-color: var(--card-hover);
 }
 

@@ -1,7 +1,8 @@
 // The address is the state of the page: ?p=<project>&v=<view>&b=<batch> (the batch only on the
 // Costs, Batch and PRs views), &t=<tab> (the Batch view's tab, every tab of it), on the PRs view
 // &st=<state>&sort=<sort>, on the Dashboard view &dt=<tab>&dr=<range>, on the History view
-// &hp=<period>&hd=<YYYY-MM-DD> (each only when not the default), and the browser's history.
+// &hp=<period>&hd=<YYYY-MM-DD> (each only when not the default), on the Help view &h=<topic> (its
+// open topic), and the browser's history.
 // With no `t=`, the Batch view opens the tab
 // last shown on this device (the preference `batchTab`). With the store, this module is the only one
 // that writes the URL. `transport=http` (the HTTP binding, forced) is kept in every address.
@@ -10,7 +11,7 @@ import { FILTER_BUCKETS, pref, setPref, snapshot, update } from './store.js';
 export const ALL = '*';
 const LAST = 'last';
 const CHOSEN = 'project';
-const rules = { views: ['home'], overview: ['home'] };
+const rules = { views: ['home'], overview: ['home'], topics: [] };
 export const BATCH_VIEWS = ['costs', 'batch', 'prs']; // the views the batch navigator moves through
 export const PRS_STATES = ['open', 'draft', 'merged']; // the PRs view's state filter (absent: all)
 export const PRS_SORTS = ['opened', 'activity', 'cr']; // its sort (absent: the batch's order)
@@ -28,9 +29,10 @@ const isDate = (text) => {
   return at.getUTCFullYear() === y && at.getUTCMonth() === m - 1 && at.getUTCDate() === d;
 };
 
-// The views the page knows, and those that stay on "All projects" (the registry says which).
-export function configure(views, overview) {
-  Object.assign(rules, { views, overview });
+// The views the page knows, those that stay on "All projects" (the registry says which), and the
+// Help topics' ids.
+export function configure(views, overview, topics = []) {
+  Object.assign(rules, { views, overview, topics });
 }
 
 // Whether the page has a view of that id (a link to a later view shows only once it is there).
@@ -67,7 +69,8 @@ export function resolve(projects, search = location.search) {
   const hp =
     view === 'history' && HISTORY_PERIODS.includes(asked.get('hp')) ? asked.get('hp') : null;
   const hd = view === 'history' && isDate(asked.get('hd')) ? asked.get('hd') : null;
-  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, dt, dr, hp, hd };
+  const topic = view === 'help' && rules.topics.includes(asked.get('h')) ? asked.get('h') : null;
+  return { project: wanted ?? lastOf(ids), view, batch, tab, st, sort, dt, dr, hp, hd, topic };
 }
 
 // A view that "All projects" does not show opens on the last real project.
@@ -124,7 +127,7 @@ function apply(place) {
   const moved = place.project !== now.project;
   const turned = place.view !== now.view;
   keep(place);
-  const { project, view, batch, tab, st, sort, dt, dr, hp, hd } = place;
+  const { project, view, batch, tab, st, sort, dt, dr, hp, hd, topic } = place;
   update({
     ...(turned ? closed : {}),
     ...(moved ? reset : {}),
@@ -138,6 +141,7 @@ function apply(place) {
     dashRange: dr ?? DASH_RANGES[0],
     historyPeriod: hp ?? null,
     historyDate: hd ?? null,
+    helpTopic: topic ?? null,
   });
 }
 
@@ -171,6 +175,7 @@ export const href = (place) =>
     ...(place.view === 'prs' && place.st ? { st: place.st } : {}),
     ...(place.view === 'prs' && place.sort ? { sort: place.sort } : {}),
     ...historyKeys(place),
+    ...(place.view === 'help' && place.topic ? { h: place.topic } : {}),
     ...(place.view === 'batch' && place.tab ? { t: place.tab } : {}),
     ...dashQuery(place),
   })}`;
@@ -221,6 +226,14 @@ export function tabOf(place, now, project, view) {
   return now.view === 'batch' && project === now.project ? now.batchTab : keptTab();
 }
 
+// The Help view's open topic after a move: the place's own (`null` closes; an id the page does not
+// know is `null`), else the current one (Help is the same on every project); none on another view.
+export function topicOf(place, now, view) {
+  if (view !== 'help') return null;
+  if (place.topic === undefined) return now.helpTopic;
+  return rules.topics.includes(place.topic) ? place.topic : null;
+}
+
 let here = null; // the address the page last settled on
 
 export function go(place, { replace = false } = {}) {
@@ -232,14 +245,24 @@ export function go(place, { replace = false } = {}) {
     view,
     batch: batchOf(place, now, project, view),
     tab: tabOf(place, now, project, view),
+    topic: topicOf(place, now, view),
     ...prsOf(place, now, project, view),
     ...dashOf(place, now, project, view),
     ...historyOf(place, now, project, view),
   });
-  if (replace) history.replaceState(null, '', href(next));
-  else history.pushState(null, '', href(next));
+  // A push that opens a Help topic is marked: its Back is a close (`closeTopic`).
+  const opens = now.view === 'help' && !now.helpTopic && Boolean(next.topic);
+  if (replace) history.replaceState(history.state, '', href(next));
+  else history.pushState(opens ? { helpOpen: true } : null, '', href(next));
   here = location.href;
   apply(next);
+}
+
+// Close the open Help topic, with no new history entry: a topic opened here from Help is closed by
+// Back (its pushed entry is popped, `popstate` re-resolves), one reached by a link closes in place.
+export function closeTopic() {
+  if (history.state?.helpOpen) history.back();
+  else go({ topic: null }, { replace: true });
 }
 
 // A guard asked before back or forward leaves the page: it answers true to let it go.
