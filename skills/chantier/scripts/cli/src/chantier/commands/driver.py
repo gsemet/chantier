@@ -148,7 +148,7 @@ def take(args: argparse.Namespace) -> list[str]:
         restart = c.status == "working"  # a new Driver on a CR already working
         if c.status in {"ready", "blocked", "working"}:
             c.append("notes", f"back to a Driver: {args.note}")
-        landed = journal.seen_merged(journal.read(repo.changes)[0], d)
+        landed = journal.seen_merged(journal.read(repo.store, repo.changes)[0], d)
         if c.status == "queued" and (start_on := start_on_for(d, c, landed)):
             c.start_on = start_on  # the start base is fixed at the first take
         b.touch(c, status="working", blocked_reason=None)

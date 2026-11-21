@@ -19,6 +19,7 @@ from chantier.hub import journal
 from chantier.hub.schemas import PUBLISHED
 from chantier.stack_words import draft_waits, ready_word
 from chantier.stacks import off_place, stack_base, stack_start, start_base, start_on_for
+from chantier.store import FolderStore
 
 PR = "https://github.com/o/r/pull/"
 REPO = cast(Repo, SimpleNamespace(config={"default_branch": "main", "remote": "origin"}))
@@ -261,7 +262,7 @@ def test_seen_merged_counts_a_listed_line_of_this_batch_cr_and_pr(tmp_path: Path
         (tmp_path / journal.FILE).write_text(
             "".join(json.dumps(x) + chr(10) for x in lines), encoding="utf-8"
         )
-        return journal.seen_merged(journal.read(tmp_path)[0], batch)
+        return journal.seen_merged(journal.read(FolderStore(tmp_path), tmp_path)[0], batch)
 
     assert seen(mine) == {"CR-12"}
     assert seen({**mine, "landed_with": "CR-13", "landed_at": "2026-11-18T10:02:00Z"}) == {"CR-12"}

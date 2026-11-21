@@ -99,7 +99,7 @@ def cr_facts(
     from these lines and the role's card. `landed`: the CRs the forge hub saw merged, from the
     journal (read here when the caller passes none)."""
     if landed is None:
-        landed = journal.seen_merged(journal.read(repo.changes)[0], d)
+        landed = journal.seen_merged(journal.read(repo.store, repo.changes)[0], d)
     folder = cr_directory(repo, c)
     found = project_instructions(repo)
     skill = skill_dir().as_posix()
