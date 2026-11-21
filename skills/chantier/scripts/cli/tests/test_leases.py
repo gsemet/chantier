@@ -391,8 +391,7 @@ def test_the_board_shows_each_lease_as_facts_and_its_read_removes_no_hold(leased
     dead.write_text(json.dumps({"unit": one, "lease": 1, "pid": DEAD}), encoding="utf-8")
     assert fingerprint(found.changes) != before  # a hold record at the root moves the rev
     held = leases.write_hold(found, one, 1, ["x"])
-    rows, _ = shown()
-    assert rows[one]["holds"] == 1 and dead.exists() and held.exists()  # read-only
+    assert shown()[0][one]["holds"] == 1 and dead.exists() and held.exists()  # read-only
     data = record(repo)
     data["stack_lease"] = {"n": 2, "taken": T0, "renewed": T0, "expires": expires, "ended": None}
     next(c for c in data["crs"] if c["id"] == one)["lease"]["ended"] = T0  # handed back
