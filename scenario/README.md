@@ -33,36 +33,36 @@ timing table by case) and `<unit>-<forge>.json` (checks, failed labels, commands
 runs one check more than Linux, in `release`: `close` on a folder in use, since elsewhere a file in
 use does not stop a rename.
 
-Measured on 2026-11-15 on a Windows 11 machine (Ryzen 7 7800X3D, 16 logical cores), with other
-chantier sessions running their own scenario runs on it, so the machine was heavily loaded and not
-quiet; all checks passing in every run.
+Measured on 2026-11-21 on a Windows 11 machine (Ryzen 7 7800X3D, 16 logical cores), two full runs
+with `--jobs 4` (the default) at the same head, all checks passing except one in run B (below). The
+machine was not proven idle: other chantier sessions share it, and a point sample of the CPU load
+before each run read 25 percent for run A and 54 percent for run B.
 
-The budget of the `stack` unit (640 s) follows this README's own rule, the loaded `--jobs 4` time plus
-about 25 percent, from 510.8 s. Its solo time (`--unit stack`) is well under it: three runs after the fix
-took 264.4 and 277.5 s on a lightly loaded machine (about 265 to 280 s) and 381.0 s on a heavily loaded
-one (129 of 129 checks each), against 318.7 s before the fix. Two full runs with `--jobs 4`, under a
-heavier load than the first table of this section had:
+A unit's budget is the slower of the two runs plus 25 percent, rounded up to the next 5 s. Under
+load a unit may still go over its budget, and it then only warns, since a unit over its budget only
+raises a warning.
 
 | unit | budget (s) | run A (s) | run B (s) |
 | --- | ---: | ---: | ---: |
-| parallel | 260 | 274.7 | 245.1 |
-| stack | 640 | 440.2 | 510.8 |
-| release | 420 | 410.8 | 429.9 |
-| gates | 400 | 381.0 | 392.1 |
-| series-deps | 260 | 331.7 | 327.9 |
-| direct | 125 | 149.9 | 120.6 |
-| surface-board | 300 | 236.3 | 196.0 |
-| qa-driver | 115 | 166.0 | 131.9 |
-| gitlab | 75 | 92.0 | 67.5 |
-| wall time | | 606.2 | 642.7 |
-| sum of the units | | 2254.5 | 2421.8 |
+| parallel | 350 | 279.4 | 274.4 |
+| stack | 750 | 598.1 | 531.7 |
+| release | 585 | 464.4 | 396.6 |
+| gates | 610 | 486.4 | 426.8 |
+| series-deps | 380 | 284.6 | 301.2 |
+| direct | 220 | 174.9 | 171.6 |
+| surface-board | 660 | 527.9 | 490.6 |
+| qa-driver | 255 | 182.9 | 200.1 |
+| gitlab | 115 | 72.5 | 91.8 |
+| wall time | | 781.0 | 754.1 |
+| sum of the units | | 3071.1 | 2884.8 |
 
-Under a full `--jobs 4` run on a loaded machine every unit is slower, since the processes compete
-for the same disk and CPU (`stack` took 440 to 511 s), and a unit over its budget only raises a
-warning. The `--jobs 8` rows of the earlier table predate the fix and were not re-measured. The
-target of under 300 s on a quiet machine and on Linux CI is not proven: no run came under 300 s
-except the solo `stack` runs, and a quiet Linux machine, where a process starts much faster than on
-Windows, has to confirm it and lower the budgets.
+In run B, `surface-board` failed one check ("the server reads the forge once per cycle for the one
+project with an open PR, and no second hub reads", 284 of 285); alone, minutes later, it passed
+285 of 285 in 424.0 s. The failure depends on the load of the machine.
+
+The target of under 300 s on a quiet machine and on Linux CI is not proven: no run came under 300 s,
+and a quiet Linux machine, where a process starts much faster than on Windows, has to confirm it
+and lower the budgets.
 
 In a unit, a scripted Foreman reads the batch's state and does what its card leaves it (fills the
 slots, asks, merges what the user allowed, cleans up, pauses); scripted Drivers create their

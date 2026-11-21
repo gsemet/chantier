@@ -6,6 +6,7 @@ import importlib.util
 import os
 import shutil
 import subprocess
+import time
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
@@ -21,7 +22,7 @@ from chantier.core import git as git_module
 from chantier.core import repo as repo_module
 from chantier.hub import state as hub_state
 
-pytest_plugins = ["writer_rig"]  # the writer tests' `rig` fixture
+pytest_plugins = ["writer_rig", "stack_world"]  # the writer tests' `rig`; the batch templates
 
 
 SKILL = Path(__file__).resolve().parents[3]
@@ -47,6 +48,35 @@ def sh(*args: str, cwd: Path | None = None) -> str:
     return subprocess.run(
         args, cwd=cwd, check=True, capture_output=True, text=True, encoding="utf-8"
     ).stdout.strip()
+
+
+def shared_state(factory: pytest.TempPathFactory, name: str, build: Callable[[Path], None]) -> Path:
+    """A prepared state built once for the whole run, not once per xdist worker: the worker that
+    gets there first runs `build(folder)`, the others wait for it. Without xdist, a folder of its
+    own. Tests copy the folder, never use it (as every template here)."""
+    if os.environ.get("PYTEST_XDIST_WORKER") is None:
+        built = factory.mktemp(name)
+        build(built)
+        return built
+    shared = factory.getbasetemp().parent / f"shared-{name}"
+    built, done, failed = shared / "built", shared / "done", shared / "failed"
+    try:
+        shared.mkdir()
+    except FileExistsError:
+        deadline = time.monotonic() + 300
+        while not done.exists():
+            assert not failed.exists(), f"the worker that builds {name} failed"
+            assert time.monotonic() < deadline, f"{name} was never built"
+            time.sleep(0.05)
+        return built
+    try:
+        built.mkdir()
+        build(built)
+    except BaseException:
+        failed.write_text("failed", encoding="utf-8")
+        raise
+    done.write_text("done", encoding="utf-8")
+    return built
 
 
 @pytest.fixture(autouse=True)

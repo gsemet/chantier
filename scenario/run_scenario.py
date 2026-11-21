@@ -76,15 +76,15 @@ OPENED: dict[str, str] = {}  # the PR the scripted Driver opened for a CR
 # fails the run. A case is a function of CASES at the end of this file. `parallel`'s first case is
 # the main batch's sections; GitLab runs only the `gitlab` unit.
 UNITS = {
-    "parallel": (260, ["github"], ["scenario", "close_batch", "retro_cases"]),
+    "parallel": (350, ["github"], ["scenario", "close_batch", "retro_cases"]),
     "stack": (
-        640,
+        750,
         ["github"],
         ["stack_batch", "base_from_pr", "stack_waiver", "ready_words", "forge_stack_cli",
          "stack_hold"],
     ),
     "release": (
-        420,
+        585,
         ["github"],
         [
             "release",
@@ -95,7 +95,7 @@ UNITS = {
         ],
     ),
     "gates": (
-        400,
+        610,
         ["github"],
         [
             "rails",
@@ -109,18 +109,18 @@ UNITS = {
             "gate_carry_stack",
         ],
     ),
-    "series-deps": (260, ["github"], ["batch_modes", "dependencies", "early_conflict",
+    "series-deps": (380, ["github"], ["batch_modes", "dependencies", "early_conflict",
                                       "changes_tree"]),
-    "direct": (135, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
+    "direct": (220, ["github"], ["direct_batch", "seat_handover", "foreman_in_a_worktree",
                                  "empty_batch", "factory_batch"]),
     "surface-board": (
-        700,
+        660,
         ["github"],
         ["remote_board", "forge_hub", "outside_poller", "typed_waits", "surface_server",
          "external_surface", "surface_writer", "cr_summary"],
     ),
-    "qa-driver": (115, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
-    "gitlab": (75, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli", "typed_waits"]),
+    "qa-driver": (255, ["github"], ["lost_messages", "qa_on_head", "driver_liveness", "restore_cr"]),
+    "gitlab": (115, ["gitlab"], ["gitlab_ship_merge", "forge_stack_cli", "typed_waits"]),
 }
 JOBS = 4  # units run at once, by default
 HANG_FLOOR_S = 600  # a unit is hung past max(this, 4 times its budget)

@@ -8,7 +8,8 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from conftest import PLUGIN_ROOT, SKILL, load_script
+from conftest import PLUGIN_ROOT, SKILL, load_script, shared_state
+from stack_world import rewrite_paths
 
 
 def _version_script() -> ModuleType:
@@ -32,6 +33,35 @@ def _commit(repo: Path, name: str, text: str, message: str) -> None:
     _git(repo, "commit", "-q", "-m", message)
 
 
+def _build_ff(folder: Path) -> None:
+    origin, work, other = folder / "origin.git", folder / "work", folder / "other"
+    _git(folder, "init", "-q", "--bare", "-b", "main", str(origin))
+    _git(folder, "clone", "-q", str(origin), str(work))
+    _git(work, "checkout", "-q", "-B", "main")
+    _commit(work, "uv.lock", "v1\n", "first")
+    _commit(work, "a.txt", "a\n", "second")
+    _git(work, "push", "-q", "origin", "main")
+    _git(folder, "clone", "-q", str(origin), str(other))
+
+
+@pytest.fixture(scope="session")
+def ff_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A bare origin with two commits on main, a clone of it that pushed them (`work`) and
+    another clone (`other`), built once per run."""
+    return shared_state(tmp_path_factory, "ff-main", _build_ff)
+
+
+@pytest.fixture
+def ff_world(ff_template: Path, tmp_path: Path) -> tuple[Path, Path, Path]:
+    """The template copied into `tmp_path`, each clone's `origin` url pointing at the copy."""
+    for name in ("origin.git", "work", "other"):
+        shutil.copytree(ff_template / name, tmp_path / name)
+    for name in ("work", "other"):
+        config = tmp_path / name / ".git" / "config"
+        rewrite_paths([config], str(ff_template / "origin.git"), str(tmp_path / "origin.git"))
+    return tmp_path / "origin.git", tmp_path / "work", tmp_path / "other"
+
+
 @pytest.mark.parametrize(
     ("case", "code", "words"),
     [
@@ -44,22 +74,15 @@ def _commit(repo: Path, name: str, text: str, message: str) -> None:
     ],
 )
 def test_ff_main(
-    tmp_path: Path,
+    ff_world: tuple[Path, Path, Path],
     capsys: pytest.CaptureFixture[str],
     case: str,
     code: int,
     words: tuple[str, ...],
 ) -> None:
     """The shipped ff_main on prepared repositories (refusals and divergences)."""
-    origin, work, other = tmp_path / "origin.git", tmp_path / "work", tmp_path / "other"
-    _git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
-    _git(tmp_path, "clone", "-q", str(origin), str(work))
-    _git(work, "checkout", "-q", "-B", "main")
-    _commit(work, "uv.lock", "v1\n", "first")
-    _commit(work, "a.txt", "a\n", "second")
-    _git(work, "push", "-q", "origin", "main")
+    _, work, other = ff_world
     if case in ("behind", "untracked"):
-        _git(tmp_path, "clone", "-q", str(origin), str(other))
         _commit(other, "uv.lock", "v2\n", "release")
         _git(other, "push", "-q", "origin", "main")
     elif case == "other-branch":
@@ -67,7 +90,6 @@ def test_ff_main(
     elif case == "dirty":
         (work / "a.txt").write_text("changed\n", encoding="utf-8")
     elif case == "diverged":
-        _git(tmp_path, "clone", "-q", str(origin), str(other))
         _commit(other, "b.txt", "b\n", "remote")
         _git(other, "push", "-q", "origin", "main")
         _commit(work, "c.txt", "c\n", "local")
@@ -90,14 +112,9 @@ def test_ff_main(
         assert (work / "scratch.txt").read_text(encoding="utf-8") == "keep\n"
 
 
-def test_ff_main_command_runs_the_shipped_script(tmp_path: Path) -> None:
+def test_ff_main_command_runs_the_shipped_script(ff_world: tuple[Path, Path, Path]) -> None:
     """`version.py ff-main` itself, as the recipe runs it, from a copy in a prepared repo."""
-    origin, work = tmp_path / "origin.git", tmp_path / "work"
-    _git(tmp_path, "init", "-q", "--bare", "-b", "main", str(origin))
-    _git(tmp_path, "clone", "-q", str(origin), str(work))
-    _git(work, "checkout", "-q", "-B", "main")
-    _commit(work, "a.txt", "a\n", "first")
-    _git(work, "push", "-q", "origin", "main")
+    _, work, _ = ff_world
     (work / "scripts").mkdir()
     shutil.copy(PLUGIN_ROOT / "scripts" / "version.py", work / "scripts" / "version.py")
     done = subprocess.run(

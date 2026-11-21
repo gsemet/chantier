@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from batch_helpers import open_batch, record, write_record
 from conftest import Chantier, sh
+from stack_world import Batch, stack_of
 
 from chantier.commands.closing import _to_remove
 from chantier.core.records import read_batch_json
@@ -39,11 +40,10 @@ def started(
     *flags: object,
 ) -> list[str]:
     """A batch of `count` CRs, the first `took` of them taken, each with its real worktree."""
-    ids = open_batch(repo, chantier, monkeypatch, *[f"End {i}" for i in range(count)], args=flags)
-    for cr_id in ids[:took]:
-        assert chantier("take", cr_id, "--epoch", 1)[0] == 0
-        c = cr(repo, cr_id)
-        sh("git", "worktree", "add", "-q", "-b", c["branch"], c["worktree"], cwd=repo)
+    titles = tuple(f"End {i}" for i in range(count))
+    name = f"end-{count}-{took}-{'-'.join(map(str, flags))}"
+    crs = stack_of(Batch(name, titles, flags, took), repo, chantier, monkeypatch)
+    ids = [c["id"] for c in crs]
     return ids
 
 

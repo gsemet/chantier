@@ -26,7 +26,7 @@ bump-version part="patch":
 
 # Structure tests: versions, manifests, agents, references, a smoke run
 test *args:
-    uv run --locked --group dev pytest -q -n auto {{args}}
+    uv run --locked --group dev pytest -q -n auto --dist worksteal {{args}}
 
 # The scripted scenario, no model: independent units in parallel (4 at a time), GitHub and the GitLab unit
 scenario *args:

@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from batch_helpers import changes, open_batch, record, write_record
+from batch_helpers import changes, record, write_record
 from conftest import Chantier, sh
+from stack_world import Batch, stack_of
 from test_gate_carry import commit, git_at
 
 from chantier.commands import delivery
@@ -36,13 +37,8 @@ def remote(repo: Path, name: str, sha: str) -> None:
 def stack(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Chantier, list[dict[str, Any]]]:
-    """A stack batch of two CRs, both started on main, each in its worktree; A has a commit."""
-    ids = open_batch(repo, chantier, monkeypatch, "Cr a", "Cr b", args=("--mode", "stack"))
-    for cr in ids:
-        assert chantier("take", cr, "--epoch", 1)[0] == 0
-    crs = record(repo)["crs"]
-    for cr in crs:
-        sh("git", "worktree", "add", "-q", "-b", cr["branch"], cr["worktree"], "HEAD", cwd=repo)
+    """A stack batch of two CRs, both started on main, each in its worktree (copied)."""
+    crs = stack_of(Batch("stack2", ("Cr a", "Cr b")), repo, chantier, monkeypatch)
     monkeypatch.setattr(delivery, "read_state", lambda link: ("main", False, ""))
     return repo, chantier, crs
 
@@ -194,15 +190,14 @@ def test_ship_refuses_an_out_of_draft_main_pr_that_carries_another_crs_commits(
 def stack3(
     repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Chantier, list[dict[str, Any]]]:
-    """A stack batch of three CRs, all started on main, each in its worktree."""
-    ids = open_batch(repo, chantier, monkeypatch, "Cr a", "Cr b", "Cr c", args=("--mode", "stack"))
-    for cr in ids:
-        assert chantier("take", cr, "--epoch", 1)[0] == 0
-    crs = record(repo)["crs"]
-    for cr in crs:
-        sh("git", "worktree", "add", "-q", "-b", cr["branch"], cr["worktree"], "HEAD", cwd=repo)
+    """A stack batch of three CRs, all started on main, each in its worktree (copied)."""
+    titles = ("Cr a", "Cr b", "Cr c")
+
+    def main_on_remote(work: Path) -> None:
+        remote(work, "main", sh("git", "rev-parse", "HEAD", cwd=work))
+
+    crs = stack_of(Batch("stack3", titles, after=main_on_remote), repo, chantier, monkeypatch)
     monkeypatch.setattr(delivery, "read_state", lambda link: ("main", False, ""))
-    remote(repo, "main", sh("git", "rev-parse", "HEAD", cwd=repo))
     return repo, chantier, crs
 
 

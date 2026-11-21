@@ -12,6 +12,7 @@ from typing import Any, Protocol, cast
 import pytest
 from batch_helpers import DEAD, changes, events, open_batch, record, write_record
 from conftest import Chantier
+from stack_world import TAKEN, Batch, stack_of
 
 from chantier.commands.closing import _live_lease_lines
 from chantier.core import clock, leases
@@ -40,11 +41,11 @@ def leased(repo: Path, chantier: Chantier, monkeypatch: pytest.MonkeyPatch) -> L
     """A batch of two CRs, the clock frozen at T0, CR one taken: its lease 1 is live."""
     monkeypatch.setattr(clock, "_fixed", [])
     clock.fix(T0)
-    ids = open_batch(repo, chantier, monkeypatch, "Lease one", "Lease two", args=("--slots", 2))
+    one = Batch("lease", ("Lease one", "Lease two"), ("--slots", 2), took=1, worktrees=False)
+    crs = stack_of(one, repo, chantier, monkeypatch)
+    ids = [c["id"] for c in crs]
     cli = cast(Cli, chantier)
-    code, out, err = cli.bare("take", ids[0], "--epoch", 1)
-    assert code == 0, err
-    assert out[0].endswith(", lease 1 until 00:10:00"), out[0]
+    assert TAKEN[0][0].endswith(", lease 1 until 00:10:00"), TAKEN[0][0]
     return repo, cli, ids
 
 

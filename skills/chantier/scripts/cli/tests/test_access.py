@@ -13,11 +13,10 @@ from typing import Any, cast
 
 import pytest
 from batch_helpers import DEAD, changes, name_server, record, write_record
-from conftest import Chantier, Surface
-from store_spy import _environment, enter_state
+from conftest import Chantier, Surface, shared_state
+from store_spy import access_batch, enter_state
 from test_store_command_table import states  # noqa: F401 - the surface states (a fixture)
 
-from chantier.cli import main
 from chantier.core import clock
 from chantier.core.errors import EXIT_USAGE
 from chantier.hub import state
@@ -33,25 +32,11 @@ START = "start the surface server ($CHANTIER board --seat <session id>)"
 @pytest.fixture(scope="session")
 def batch_template(repo_template: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The plain repository with a batch of three CRs (two slots), CR one taken at T0."""
-    root = tmp_path_factory.mktemp("access-batch") / "proj"
-    shutil.copytree(repo_template, root)
-    with pytest.MonkeyPatch.context() as mp:
-        _environment(mp, root.parent)
-        mp.chdir(root)
-        mp.setattr("chantier.core.repo.PROJECT", None)
-        mp.setattr(clock, "_fixed", [])
-        clock.fix(T0)
-        names = ("alpha", "beta", "gamma")
-        for name in names:
-            assert main(["file", name]) == 0
-            spec = changes(root) / "1-inbox" / name / "03-change-spec.md"
-            spec.write_text(f"# {name}\n\nDo it.\n", encoding="utf-8")
-        folders = [str(changes(root) / "1-inbox" / n) for n in names]
-        assert main(["open", *folders, "--default-branch", "main", "--slots", "2"]) == 0
-        mp.setenv("CHANTIER_BATCH", record(root)["id"])
-        assert main(["foreman", "set", "local_foreman_t", "--epoch", "1"]) == 0
-        assert main(["take", "CR-101", "--epoch", "1"]) == 0
-    return root
+
+    def build(folder: Path) -> None:
+        access_batch(repo_template, folder, T0)
+
+    return shared_state(tmp_path_factory, "access-batch", build) / "proj"
 
 
 @pytest.fixture
