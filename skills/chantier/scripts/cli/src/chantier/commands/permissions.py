@@ -11,177 +11,16 @@ import subprocess
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from chantier.commands.allow_samples import CAPABILITIES, SAMPLES, fill_sample
 from chantier.core.files import read_text
 from chantier.core.git import git
 from chantier.core.repo import Repo
-from chantier.plugin_files import is_dev_checkout
+from chantier.plugin_files import is_dev_checkout, skill_dir
 
-# The commands the cards make the agents write, filled with realistic values, each tied to the
-# recommended allow rule that covers it and to a group. P10 asks whether some allow rule of the
-# user's settings lets each one through (as Claude Code matches rules), whatever the rule's form.
+# P10 asks whether some allow rule of the user's settings lets each sample command of
+# `allow_samples` through (as Claude Code matches rules), whatever the rule's form.
 GH_LIST_TIMEOUT = 10
-_SHA = "0123456789abcdef0123456789abcdef01234567"
-
-
 SHORT_CHARS = 60
-_BRANCH = "chantier/batch-01/cr-101-example"
-
-
-_TREE = "/work/project.worktrees/batch-01-CR-101"
-
-
-# (capability, forge, command, recommended rule); ` origin ` stands for the project's remote name.
-# The capability is one of CAPABILITIES; the forge is any, github, gitlab, gh-stack, dev or plugin.
-# The order is the order of the table "Capabilities and their commands" in hosts/claude-code.md;
-# SendMessage, a bare tool, belongs to the capability batch and comes last.
-# P10 counts these commands, not rules.
-SAMPLES = (
-    ("batch", "any", f"git push -u origin {_BRANCH}", "git push -u origin chantier/*"),
-    (
-        "batch",
-        "any",
-        f"git -C {_TREE} push -u origin {_BRANCH}",
-        "git -C * push -u origin chantier/*",
-    ),
-    (
-        "batch",
-        "any",
-        f"git push --force-with-lease -u origin {_BRANCH}",
-        "git push --force-with-lease -u origin chantier/*",
-    ),
-    (
-        "batch",
-        "any",
-        f"git -C {_TREE} push --force-with-lease -u origin {_BRANCH}",
-        "git -C * push --force-with-lease -u origin chantier/*",
-    ),
-    (
-        "batch",
-        "any",
-        f"git push --force-with-lease={_BRANCH}:{_SHA} origin {_SHA}:refs/heads/{_BRANCH}",
-        "git push --force-with-lease=chantier/* origin *chantier/*",
-    ),
-    (
-        "batch",
-        "dev",
-        "uv run --no-sync --project /checkout chantier status",
-        "uv run --no-sync --project * chantier *",
-    ),
-    (
-        "batch",
-        "dev",
-        "uv sync --locked --project /checkout",
-        "uv sync --locked --project *",
-    ),
-    (
-        "batch",
-        "plugin",
-        "uvx --from /plugin chantier --skill /plugin/skills/chantier status",
-        "uvx --from * chantier *",
-    ),
-    ("batch", "github", "gh pr create --draft --body-file /tmp/body.md", "gh pr create*"),
-    ("batch", "github", "gh pr edit 12 --body-file /tmp/body.md", "gh pr edit*"),
-    ("batch", "github", "gh pr edit 12 --base chantier/batch-01/cr-100-base", "gh pr edit*"),
-    ("batch", "github", "gh pr ready 12", "gh pr ready*"),
-    ("batch", "github", "gh pr ready 12 --undo", "gh pr ready*"),
-    ("batch", "github", "gh pr checks 12", "gh pr checks*"),
-    ("batch", "github", "gh pr view 12", "gh pr view*"),
-    ("batch", "github", "gh pr close 12", "gh pr close*"),
-    ("batch", "github", "gh pr reopen 12", "gh pr reopen*"),
-    ("stack", "gh-stack", "gh stack view", "gh stack*"),
-    (
-        "batch",
-        "gitlab",
-        "glab mr create --draft --description-file /tmp/body.md",
-        "glab mr create*",
-    ),
-    ("batch", "gitlab", "glab mr update 12 --target-branch main", "glab mr update*"),
-    ("batch", "gitlab", "glab mr view 12", "glab mr view*"),
-    ("batch", "gitlab", "glab mr close 12", "glab mr close*"),
-    ("batch", "gitlab", "glab mr reopen 12", "glab mr reopen*"),
-    ("batch", "gitlab", "glab ci status", "glab ci status*"),
-    ("release", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
-    (
-        "release",
-        "github",
-        "gh api -X GET repos/o/r/stacks -F per_page=100",
-        "gh api -X GET repos/*/stacks*",
-    ),
-    (
-        "release",
-        "github",
-        "gh api -X PUT repos/o/r/pulls/12/merge-async -f merge_method=rebase "
-        f"-f merge_action=direct_merge -f sha={_SHA}",
-        "gh api -X PUT repos/*/pulls/*/merge-async*",
-    ),
-    (
-        "release",
-        "github",
-        "gh api -X GET repos/o/r/pulls/12/merge-async/0a1b2c3d-4e5f-6789-abcd-ef0123456789",
-        "gh api -X GET repos/*/pulls/*/merge-async/*",
-    ),
-    ("release", "gitlab", "glab mr merge 12 --rebase", "glab mr merge*"),
-    ("release", "any", "git push origin v1.2.3", "git push origin v*"),
-    (
-        "release",
-        "github",
-        "gh release create v1.2.3 --verify-tag --notes-file /tmp/notes.md",
-        "gh release create*",
-    ),
-    (
-        "release",
-        "gitlab",
-        "glab release create v1.2.3 --notes-file /tmp/notes.md",
-        "glab release create*",
-    ),
-    ("fixes", "github", "gh pr merge 12 --rebase", "gh pr merge*"),
-    (
-        "fixes",
-        "github",
-        "gh api -X GET repos/o/r/stacks -F per_page=100",
-        "gh api -X GET repos/*/stacks*",
-    ),
-    (
-        "fixes",
-        "github",
-        "gh api -X PUT repos/o/r/pulls/12/merge-async -f merge_method=rebase "
-        f"-f merge_action=direct_merge -f sha={_SHA}",
-        "gh api -X PUT repos/*/pulls/*/merge-async*",
-    ),
-    (
-        "fixes",
-        "github",
-        "gh api -X GET repos/o/r/pulls/12/merge-async/0a1b2c3d-4e5f-6789-abcd-ef0123456789",
-        "gh api -X GET repos/*/pulls/*/merge-async/*",
-    ),
-    ("fixes", "gitlab", "glab mr merge 12 --rebase", "glab mr merge*"),
-)
-
-
-# The capabilities, in the table's order, and how P10 names each.
-CAPABILITIES = {
-    "batch": "every batch",
-    "stack": "a stack",
-    "release": "a release on its own",
-    "fixes": "fixes on a grant",
-}
-
-
-def _allow_for(capabilities: tuple[str, ...]) -> tuple[str, ...]:
-    return tuple(
-        f"{tool}({rule})"
-        for rule in dict.fromkeys(s[3] for s in SAMPLES if s[0] in capabilities)
-        for tool in ("Bash", "PowerShell")
-    )
-
-
-# The allow rules hosts/claude-code.md recommends, in its table's order (a test compares them):
-# the capabilities every batch and a stack; the pasteable block holds exactly these.
-RECOMMENDED_ALLOW = (*_allow_for(("batch", "stack")), "SendMessage")
-
-
-# The rules offered only under a grant (a release on its own, fixes on a grant): not in the block.
-GRANT_ALLOW = _allow_for(("release", "fixes"))
 
 SETTINGS_SHOWN = "~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json"
 
@@ -230,9 +69,12 @@ def _counts_as_allow(rule: str) -> bool:
     return not m[1].startswith(("Agent", "Monitor"))
 
 
-def _settings_rules(repo: Repo | None) -> tuple[dict[str, list[str]], list[str]]:
-    """The `permissions` allow, deny and ask strings of the user's three settings files, and the
-    files that could not be read. A file that is absent holds nothing."""
+def _settings_rules(
+    repo: Repo | None,
+) -> tuple[dict[str, list[str]], list[str], dict[str, str]]:
+    """The `permissions` allow, deny and ask strings of the user's three settings files, the
+    files that could not be read, and the first file each allow rule came from. A file that is
+    absent holds nothing."""
     files = [Path.home() / ".claude" / "settings.json"]
     if repo:
         files += [
@@ -241,6 +83,7 @@ def _settings_rules(repo: Repo | None) -> tuple[dict[str, list[str]], list[str]]
         ]
     rules: dict[str, list[str]] = {"allow": [], "deny": [], "ask": []}
     unreadable: list[str] = []
+    origins: dict[str, str] = {}
     for path in files:
         if not path.is_file():
             continue
@@ -248,9 +91,14 @@ def _settings_rules(repo: Repo | None) -> tuple[dict[str, list[str]], list[str]]
             permissions = json.loads(read_text(path)).get("permissions", {})
             for kind in rules:
                 rules[kind] += [r for r in permissions.get(kind, []) if isinstance(r, str)]
+            origins |= {
+                r: str(path)
+                for r in permissions.get("allow", [])
+                if isinstance(r, str) and r not in origins
+            }
         except (OSError, ValueError, AttributeError):
             unreadable.append(str(path))
-    return rules, unreadable
+    return rules, unreadable, origins
 
 
 def _forges(remote: str) -> set[str]:
@@ -317,6 +165,7 @@ class Gap(NamedTuple):
     total: int
     named: list[str]
     blocked: list[str]
+    advice: str = ""  # the broad and stale chantier rules found, as the P10 line ends with them
 
 
 def _gap(
@@ -349,12 +198,95 @@ def _gap(
     return Gap(missing, len(rows) + send, named, blocked)
 
 
+# What a broad chantier rule lets through: a rule that matches one of these commands names no real
+# path; the last two are older forms still found in users' settings.
+PROBES = (
+    'uvx --from "/elsewhere" chantier status',
+    'uv run --no-sync --project "/elsewhere" chantier status',
+    "uv run --no-sync --project . python -c x chantier y",
+    'uv sync --locked --project "/elsewhere"',
+    "uv run --script /elsewhere/chantier.py status",
+    'uv run --locked --project "/elsewhere" chantier status',
+)
+
+_PLUGIN_FORM = re.compile(r'(?:Bash|PowerShell)\(uvx --from "(.*)" chantier \*\)')
+_DEV_FORM = re.compile(
+    r'(?:Bash|PowerShell)\((?:uv run --no-sync --project "(.*)" chantier \*|'
+    r'uv sync --locked --project "(.*)")\)'
+)
+
+
+def _tools() -> tuple[str, ...]:
+    return ("Bash", "PowerShell") if os.name == "nt" else ("Bash",)
+
+
+def _broad(allow: list[str]) -> list[str]:
+    """The allow rules that let a probe command through, in order."""
+    return [
+        r
+        for r in dict.fromkeys(allow)
+        if any(rule_matches(r, tool, probe) for tool in _tools() for probe in PROBES)
+    ]
+
+
+def _replacing(rule: str, allow: list[str], samples: list[tuple[str, str, str, str]]) -> str:
+    """The filled real-path rules of this install that replace a broad rule: those whose sample
+    (of this install's mode) the rule lets through, in the broad rule's tool, each marked
+    `present` when the settings hold it; "no chantier command needs it" with none."""
+    tool = rule.split("(", 1)[0]
+    found = [f"{tool}({sample[3]})" for sample in samples if rule_matches(rule, tool, sample[2])]
+    if not found:
+        return "no chantier command needs it"
+    return "replaced by " + " and ".join(f"{r}{' present' if r in allow else ''}" for r in found)
+
+
+def _stale(allow: list[str], broad: list[str]) -> list[str]:
+    """The allow rules in the form of a chantier rule that name another path than this
+    install's and let no probe through: in the plugin mode a plugin-form rule of any other path;
+    in either mode a dev-form rule (dev or sync) whose folder no longer exists."""
+    here = os.path.normcase(skill_dir().parents[1].as_posix())
+    dev = is_dev_checkout()
+    stale = []
+    for r in dict.fromkeys(allow):
+        if r in broad:
+            continue
+        m = _PLUGIN_FORM.fullmatch(r)
+        if m and not dev and os.path.normcase(m[1]) != here:
+            stale.append(r)
+            continue
+        m = _DEV_FORM.fullmatch(r)
+        path = m and (m[1] or m[2])
+        if path and os.path.normcase(path) != here and not Path(path).is_dir():
+            stale.append(r)
+    return stale
+
+
+def _advice(rules: dict[str, Any], origins: dict[str, str], mode: str) -> str:
+    """The end of the P10 line for the broad and stale chantier rules; empty with none."""
+    allow = [r for r in rules["allow"] if _counts_as_allow(r)]
+    samples = [fill_sample(s) for s in SAMPLES if s[1] == mode and s[0] == "batch"]
+    broad = _broad(allow)
+    stale = _stale(allow, broad)
+    text = ""
+    if broad:
+        named = "; ".join(
+            f"{r} ({origins.get(r, '?')}), {_replacing(r, rules['allow'], samples)}" for r in broad
+        )
+        text += f"; broad rules let any command through, remove them by hand: {named}"
+    if stale:
+        named = "; ".join(f"{r} ({origins.get(r, '?')})" for r in stale)
+        text += f"; stale chantier rules, remove them by hand: {named}"
+    return text
+
+
 def commands_not_allowed(
     repo: Repo | None, capabilities: set[str] | None = None
 ) -> tuple[dict[str, Gap], list[str]]:
     """For each asked capability (the base by default), in the table's order: the applicable
     sample commands that the settings do not let through (how many of how many, what to add,
-    what a deny or ask rule catches); and the unreadable settings files."""
+    what a deny or ask rule catches); and the unreadable settings files. The chantier rows are
+    filled with this install's real paths; the base capability's gap also carries the broad and
+    stale chantier rules the settings hold."""
     remote = "origin"
     if repo:
         with contextlib.suppress(Exception):
@@ -362,13 +294,19 @@ def commands_not_allowed(
     remotes = git("remote", check=False).split()
     if remote not in remotes and remotes:
         remote = "origin" if "origin" in remotes else remotes[0]
-    rules, unreadable = _settings_rules(repo)
+    rules, unreadable, origins = _settings_rules(repo)
     forges = _forges(remote)
     gaps = {
         cap: _gap(
-            [s for s in SAMPLES if s[0] == cap and s[1] in forges], remote, rules, cap == "batch"
+            [fill_sample(s) for s in SAMPLES if s[0] == cap and s[1] in forges],
+            remote,
+            rules,
+            cap == "batch",
         )
         for cap in CAPABILITIES
         if cap in (capabilities or {"batch"}) | {"batch"}
     }
+    gaps["batch"] = gaps["batch"]._replace(
+        advice=_advice(rules, origins, "dev" if is_dev_checkout() else "plugin")
+    )
     return gaps, unreadable

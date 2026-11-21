@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 from conftest import SKILL, Chantier, sh
 
-from chantier.commands.permissions import RECOMMENDED_ALLOW, SAMPLES, rule_matches
+from chantier.commands.allow_samples import RECOMMENDED_ALLOW, SAMPLES, filled_allow
+from chantier.commands.permissions import rule_matches
 from chantier.core.errors import EXIT_BUDGET, EXIT_PRECONDITION
 
 
@@ -202,9 +203,16 @@ def test_the_allow_rules_json_block_lists_exactly_what_preflight_checks() -> Non
     assert found is not None
     block = found[1]
     assert tuple(json.loads(block)["permissions"]["allow"]) == RECOMMENDED_ALLOW
-    for _, _, command, rule in SAMPLES:  # each sample is covered by its own rule, in both forms
+    assert any("<checkout>" in r for r in RECOMMENDED_ALLOW)  # the card shows the placeholders
+    assert any("<plugin root>" in r for r in RECOMMENDED_ALLOW)
+
+    def fill(text: str) -> str:
+        return text.replace("<checkout>", "/some/path").replace("<plugin root>", "/some/path")
+
+    for _, _, command, rule in SAMPLES:  # each sample, filled with one path, is covered by its rule
         assert all(
-            rule_matches(f"{tool}({rule})", tool, command) for tool in ("Bash", "PowerShell")
+            rule_matches(f"{tool}({fill(rule)})", tool, fill(command))
+            for tool in ("Bash", "PowerShell")
         ), command
     assert rule_matches("SendMessage", "SendMessage")
     assert not any("release create" in rule for rule in RECOMMENDED_ALLOW)  # asked by the host
@@ -257,14 +265,14 @@ def test_preflight_warns_on_missing_allow_rules_and_never_fails_on_them(
     assert p10({"allow": ["Bash(*)", "PowerShell(*)"]}).startswith("P10 warn")
     line = p10(
         {
-            "allow": list(RECOMMENDED_ALLOW),
+            "allow": list(filled_allow()),
             "deny": ["Bash(git push --force-with-lease*)", "PowerShell(git push --force*)"],
         }
     )
     assert line.startswith("P10 warn") and "denied: git push --force-with-lease" in line
     with (repo / "AGENTS.md").open("a", encoding="utf-8") as agents:
         agents.write("Publish with `gh release create`.\n")  # the project's rules name it
-    line = p10({"allow": list(RECOMMENDED_ALLOW)})
+    line = p10({"allow": list(filled_allow())})
     assert line.startswith("P10 ok") and "release create" not in line
 
 
@@ -276,7 +284,7 @@ def test_preflight_reads_the_settings_files_for_allow_rules(
     settings = repo / ".claude"
     settings.mkdir()
     (settings / "settings.local.json").write_text(
-        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
+        json.dumps({"permissions": {"allow": list(filled_allow())}}), encoding="utf-8"
     )
     assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])
     (settings / "settings.local.json").write_text("{not json", encoding="utf-8")
@@ -286,11 +294,11 @@ def test_preflight_reads_the_settings_files_for_allow_rules(
     )
     (settings / "settings.local.json").unlink()
     (settings / "settings.json").write_text(
-        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
+        json.dumps({"permissions": {"allow": list(filled_allow())}}), encoding="utf-8"
     )
     assert any(ln.startswith("P10 ok") for ln in chantier("preflight")[1])
     (settings / "settings.json").write_text(
-        json.dumps({"permissions": {"allow": list(RECOMMENDED_ALLOW)}}), encoding="utf-8"
+        json.dumps({"permissions": {"allow": list(filled_allow())}}), encoding="utf-8"
     )
     sh("git", "remote", "set-url", "origin", "git@github.com:a/b.git", cwd=repo)
     code, out, _ = chantier("preflight", "--autonomous-releases", "1")  # a release on its own
