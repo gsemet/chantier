@@ -1,47 +1,11 @@
-/* The Batch view: four figure cards, the mode strip, the legend pill and the layout of the graph
-   (left) and the PR column (right). */
+/* The Batch view: four figure cards and the layout of the graph (left) and the PR column (right);
+   and, in the title row (outside `.batch`), the slot `.bmode`: the mode pill, the legend pill with
+   its hint and the mode switch, with their tooltips. */
 .batch .bhead {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
   margin: var(--space-4) 0;
-}
-
-.batch .mode {
-  display: flex;
-  align-items: center;
-  gap: var(--space-off-10);
-  margin: 0 0 var(--space-off-20);
-  padding: var(--space-off-10) var(--space-off-14);
-  border-radius: var(--radius);
-  background: var(--accent-tint);
-  color: var(--ink2);
-  font-size: var(--text-small);
-}
-
-.batch .mb {
-  color: var(--accent);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.batch .ms {
-  display: flex;
-  gap: var(--space-1);
-  margin-left: auto;
-}
-
-.batch .ms span {
-  padding: var(--space-off-2) var(--space-off-10);
-  border-radius: var(--radius-pill);
-  color: var(--ink3);
-  font-size: var(--text-small);
-}
-
-.batch .ms span.on {
-  background: var(--chip-2);
-  color: var(--ink);
-  font-weight: 500;
 }
 
 .batch .bwrap {
@@ -55,15 +19,74 @@
   min-width: 0;
 }
 
+.batch .note {
+  max-width: 760px;
+  margin: var(--space-off-6) 0 0;
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+/* a closed batch has no PR column */
+.batch .bwrap.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* the tabs above the central view */
+.batch .tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+
+/* the title row's slot: the mode pill (its sentence in a tooltip), the legend pill and its hint, and
+   the mode switch at the right end */
+.bmode {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-off-10);
+}
+
+.bmode .mpill {
+  position: relative;
+  padding: var(--space-off-3) var(--space-off-10);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: var(--text-small);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.bmode .ms {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.bmode .ms span {
+  padding: var(--space-off-2) var(--space-off-10);
+  border-radius: var(--radius-pill);
+  color: var(--ink3);
+  font-size: var(--text-small);
+}
+
+.bmode .ms span.on {
+  background: var(--chip-2);
+  color: var(--ink);
+  font-weight: 500;
+}
+
 /* the legend: a grey pill with a tooltip, and a quiet hint beside it */
-.batch .lgrow {
+.bmode .lgrow {
   display: flex;
   align-items: center;
   gap: var(--space-off-10);
-  margin-bottom: var(--space-off-10);
 }
 
-.batch .lgpill {
+.bmode .lgpill {
   position: relative;
   padding: var(--space-off-3) var(--space-off-10);
   border-radius: var(--radius-pill);
@@ -71,15 +94,16 @@
   color: var(--ink2);
   font-size: var(--text-small);
   font-weight: 500;
-  cursor: default;
+  white-space: nowrap;
+  cursor: help;
 }
 
-.batch .lghint {
+.bmode .lghint {
   color: var(--ink3);
   font-size: var(--text-small);
 }
 
-.batch .tip {
+.bmode .tip {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -95,36 +119,28 @@
   background: var(--panel);
   box-shadow: var(--shadow-menu);
   font-weight: 400;
+  white-space: normal;
 }
 
-.batch .lgpill:hover .tip,
-.batch .lgpill:focus .tip,
-.batch .lgpill:focus-within .tip {
+.bmode .mpill:hover .tip,
+.bmode .mpill:focus .tip,
+.bmode .mpill:focus-within .tip,
+.bmode .lgpill:hover .tip,
+.bmode .lgpill:focus .tip,
+.bmode .lgpill:focus-within .tip {
   display: flex;
 }
 
-.batch .tip .k {
+.bmode .tip .k {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.batch .tip .an {
+.bmode .tip .an {
   padding-top: var(--space-off-6);
   border-top: 1px solid var(--line2);
   color: var(--ink3);
-}
-
-.batch .note {
-  max-width: 760px;
-  margin: var(--space-off-6) 0 0;
-  color: var(--ink3);
-  font-size: var(--text-small);
-}
-
-/* a closed batch has no PR column */
-.batch .bwrap.one {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (max-width: 760px) {
@@ -140,20 +156,23 @@
     order: 1;
   }
 
-  .batch .mode {
-    flex-wrap: wrap;
+  .bmode {
+    position: relative;
   }
 
-  .batch .ms {
+  .bmode .ms,
+  .bmode .lghint {
     display: none;
   }
-}
 
-/* the tabs above the central view */
-.batch .tabs {
-  display: flex;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-3);
+  .bmode .mpill,
+  .bmode .lgpill {
+    position: static;
+  }
+
+  .bmode .tip {
+    max-width: 100%;
+  }
 }
 
 /* the Kanban tab: the three columns share the central column's width (the project Kanban's phone

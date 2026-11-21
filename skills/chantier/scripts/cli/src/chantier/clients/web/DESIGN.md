@@ -317,10 +317,23 @@ on the user's word.
 ## A batch with no CR yet
 
 A batch opened with no CR (paused, `crs_total` 0, `model/semantics.js`'s `noCrYet`) is drawn with
-what exists and no more. The Batch page shows its four figures, the mode strip and the page's empty
+what exists and no more. The Batch page shows its four figures, the mode in the title row and the page's empty
 state (`batch.no_cr_yet`), with no graph, Gantt or time cards. The Home batch card keeps its head,
 replaces the bar and its legend by the same line, shows `none yet` under Spent with no meter,
 `0/<total>` slots and `—` for the steering sign, never marked late. No new colour, size or class.
+
+## The Batch page's title row
+
+The mode (`<mode> · <steering>`, its sentence in a tooltip at every width), the "States and arrows"
+legend and the Stack / Series / Parallel switch sit in the title row, built by
+`js/views/batch-head.js` and styled under `.bmode` (the title row is outside `.batch`).
+
+- No full-width band or legend line sits between the figures and the view switch.
+- On a phone the switch and the legend's hint are hidden; the two pills stay.
+- On a phone a tip anchors at the slot's left edge, no wider than the slot, so it stays within the
+  screen.
+- Both pills show `cursor: help`.
+- No new colour, size or token.
 
 ## Waits on a card
 
